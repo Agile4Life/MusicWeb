@@ -31,16 +31,18 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Protect internal routes, redirect unauthenticated user to login
-  const isAuthPage = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/register')
-  const isProtectedPath = request.nextUrl.pathname.startsWith('/upload') || request.nextUrl.pathname.startsWith('/playlist')
+  const isAuthPage =
+    request.nextUrl.pathname.startsWith('/login') ||
+    request.nextUrl.pathname.startsWith('/register')
 
-  if (!user && isProtectedPath) {
+  // Require login before viewing ANY application page
+  if (!user && !isAuthPage) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
+  // If already logged in, redirect away from login/register to main home page
   if (user && isAuthPage) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
