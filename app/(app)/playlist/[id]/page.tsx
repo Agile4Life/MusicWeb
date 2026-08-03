@@ -257,7 +257,11 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
       setUploadArtist('')
       fetchPlaylistData()
     } catch (err: any) {
-      setUploadError(err.message || 'Đã xảy ra lỗi khi tải nhạc')
+      let msg = err.message || 'Đã xảy ra lỗi khi tải nhạc'
+      if (msg.includes('exceeded the maximum allowed size')) {
+        msg = 'Lỗi Supabase Storage: File này vượt quá giới hạn file_size_limit mặc định của Bucket Supabase. Vui lòng chạy câu lệnh SQL tăng dung lượng Bucket lên 150MB trong Supabase SQL Editor!'
+      }
+      setUploadError(msg)
     } finally {
       setUploading(false)
     }

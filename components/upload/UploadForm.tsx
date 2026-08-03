@@ -121,7 +121,11 @@ export function UploadForm() {
         router.refresh()
       }, 1500)
     } catch (err: any) {
-      setError(err.message || 'Đã xảy ra lỗi khi upload')
+      let msg = err.message || 'Đã xảy ra lỗi khi upload'
+      if (msg.includes('exceeded the maximum allowed size')) {
+        msg = 'Lỗi Supabase Storage: File này vượt quá giới hạn file_size_limit mặc định của Bucket Supabase. Vui lòng chạy câu lệnh SQL tăng dung lượng Bucket lên 150MB trong Supabase SQL Editor!'
+      }
+      setError(msg)
     } finally {
       setLoading(false)
     }

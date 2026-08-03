@@ -374,3 +374,18 @@ BEGIN
     ON CONFLICT (playlist_id, track_id) DO NOTHING;
 END $$;
 
+-- ------------------------------------------------------------------------------
+-- 8. CẤU HÌNH DUNG LƯỢNG BUCKET STORAGE `music-files` (150MB FILE SIZE LIMIT)
+-- ------------------------------------------------------------------------------
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+    'music-files',
+    'music-files',
+    true,
+    157286400, -- 150MB (150 * 1024 * 1024 bytes)
+    ARRAY['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/m4a', 'audio/x-m4a', 'audio/flac']
+)
+ON CONFLICT (id) DO UPDATE SET
+    file_size_limit = 157286400, -- Nâng giới hạn file tối đa lên 150MB
+    public = true;
+
