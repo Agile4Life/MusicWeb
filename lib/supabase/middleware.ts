@@ -6,24 +6,45 @@ export async function updateSession(request: NextRequest) {
     request,
   })
 
+  const cookieOptions = {
+    maxAge: 60 * 60 * 24 * 365, // 1 year session persistence
+    path: '/',
+    sameSite: 'lax' as const,
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
+      cookieOptions,
       cookies: {
         getAll() {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            request.cookies.set({ name, value, ...options })
-          )
+          cookiesToSet.forEach(({ name, value, options }) => {
+            const opts = {
+              ...options,
+              maxAge: options?.maxAge || 60 * 60 * 24 * 365,
+              path: '/',
+              sameSite: 'lax' as const,
+            }
+            request.cookies.set({ name, value, ...opts })
+          })
+
           supabaseResponse = NextResponse.next({
             request,
           })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
+
+          cookiesToSet.forEach(({ name, value, options }) => {
+            const opts = {
+              ...options,
+              maxAge: options?.maxAge || 60 * 60 * 24 * 365,
+              path: '/',
+              sameSite: 'lax' as const,
+            }
+            supabaseResponse.cookies.set(name, value, opts)
+          })
         },
       },
     }
