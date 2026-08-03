@@ -3,7 +3,8 @@
 import React, { useState } from 'react'
 import { Track, Playlist } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
-import { Play, Pause, Music, Trash2, MoreVertical, Plus } from 'lucide-react'
+import { Play, Pause, Music, Trash2, MoreVertical, Plus, Pencil, Check, X } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 interface TrackRowProps {
   track: Track
@@ -13,6 +14,7 @@ interface TrackRowProps {
   onAddToPlaylist?: (playlistId: string, trackId: string) => void
   onDeleteTrack?: (trackId: string) => void
   onDeleteTrackPermanently?: (trackId: string) => void
+  onTrackUpdated?: (trackId: string, updates: Partial<Track>) => void
 }
 
 function formatDuration(seconds: number) {
@@ -30,9 +32,15 @@ export function TrackRow({
   onAddToPlaylist,
   onDeleteTrack,
   onDeleteTrackPermanently,
+  onTrackUpdated,
 }: TrackRowProps) {
+  const supabase = createClient()
   const { currentTrack, isPlaying, playTrack, togglePlay } = usePlayer()
   const [showMenu, setShowMenu] = useState(false)
+  const [editMode, setEditMode] = useState(false)
+  const [editArtist, setEditArtist] = useState(track.artist || '')
+  const [editAlbum, setEditAlbum] = useState(track.album || '')
+  const [saving, setSaving] = useState(false)
 
   const isCurrent = currentTrack?.id === track.id
 
@@ -44,6 +52,32 @@ export function TrackRow({
     }
   }
 
+  const handleSaveEdit = async () => {
+    setSaving(true)
+    const { error } = await supabase
+      .from('tracks')
+      .update({
+        artist: editArtist.trim() || null,
+        album: editAlbum.trim() || null,
+      })
+      .eq('id', track.id)
+
+    if (!error) {
+      onTrackUpdated?.(track.id, {
+        artist: editArtist.trim() || undefined,
+        album: editAlbum.trim() || undefined,
+      })
+    }
+    setSaving(false)
+    setEditMode(false)
+  }
+
+  const handleCancelEdit = () => {
+    setEditArtist(track.artist || '')
+    setEditAlbum(track.album || '')
+    setEditMode(false)
+  }
+
   return (
     <div
       className={`group flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer select-none border ${
@@ -51,7 +85,7 @@ export function TrackRow({
           ? 'bg-white/10 border-[var(--primary-spotify)]/30 shadow-md shadow-[var(--theme-glow-shadow)]'
           : 'border-transparent hover:bg-white/5 hover:border-white/5'
       }`}
-      onMouseLeave={() => setShowMenu(false)}
+      onMouseLeave={() => { if (!editMode) setShowMenu(false) }}
     >
       {/* Index & Play button */}
       <div className="flex items-center gap-4 w-1/2 truncate">
@@ -88,7 +122,7 @@ export function TrackRow({
           )}
         </div>
 
-        <div className="truncate flex flex-col">
+        <div className="truncate flex flex-col min-w-0">
           <p
             className={`text-sm font-bold truncate ${
               isCurrent ? 'text-[var(--primary-spotify)]' : 'text-white'
@@ -96,82 +130,141 @@ export function TrackRow({
           >
             {track.title}
           </p>
-          <p className="text-xs text-slate-400 truncate">{track.artist || 'Nghệ sĩ chưa xác định'}</p>
+
+          {/* Artist — editable inline */}
+          {editMode ? (
+            <input
+              autoFocus
+              value={editArtist}
+              onChange={(e) => setEditArtist(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              placeholder="Tên nghệ sĩ..."
+              className="text-xs bg-white/10 border border-[var(--primary-spotify)]/50 rounded px-1.5 py-0.5 text-white outline-none mt-0.5 w-full max-w-[160px]"
+            />
+          ) : (
+            <p className="text-xs text-slate-400 truncate">
+              {track.artist || 'Nghệ sĩ chưa xác định'}
+            </p>
+          )}
         </div>
       </div>
 
-      {/* Album name */}
+      {/* Album — editable inline */}
       <div className="hidden md:block w-1/4 truncate text-xs text-slate-400">
-        {track.album || '—'}
+        {editMode ? (
+          <input
+            value={editAlbum}
+            onChange={(e) => setEditAlbum(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            placeholder="Tên album..."
+            className="text-xs bg-white/10 border border-[var(--primary-spotify)]/50 rounded px-1.5 py-0.5 text-white outline-none w-full max-w-[160px]"
+          />
+        ) : (
+          track.album || '—'
+        )}
       </div>
 
       {/* Duration & Options */}
-      <div className="flex items-center justify-end gap-3 w-1/4 text-xs text-slate-400">
+      <div className="flex items-center justify-end gap-2 w-1/4 text-xs text-slate-400">
         <span className="font-mono">{formatDuration(track.duration)}</span>
 
-        <div className="relative">
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              setShowMenu(!showMenu)
-            }}
-            className="p-1.5 hover:text-white hover:bg-white/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-          >
-            <MoreVertical className="w-4 h-4" />
-          </button>
+        {/* Edit mode save/cancel */}
+        {editMode ? (
+          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={handleSaveEdit}
+              disabled={saving}
+              className="p-1.5 bg-[var(--primary-spotify)] text-black rounded-lg hover:opacity-80 transition-opacity disabled:opacity-50"
+              title="Lưu"
+            >
+              <Check className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={handleCancelEdit}
+              className="p-1.5 bg-white/10 text-slate-300 rounded-lg hover:bg-white/20 transition-colors"
+              title="Hủy"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <div className="relative">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowMenu(!showMenu)
+              }}
+              className="p-1.5 hover:text-white hover:bg-white/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
 
-          {showMenu && (
-            <div className="absolute right-0 top-8 glass-panel shadow-2xl rounded-xl py-1.5 w-56 z-30 text-xs text-slate-200 border border-white/10">
-              {userPlaylists.length > 0 && onAddToPlaylist && (
-                <div className="px-3 py-1 text-slate-400 font-semibold text-[10px] uppercase tracking-wider border-b border-white/10">
-                  Thêm vào Playlist
-                </div>
-              )}
-              {userPlaylists.map((pl) => (
-                <button
-                  key={pl.id}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onAddToPlaylist?.(pl.id, track.id)
-                    setShowMenu(false)
-                  }}
-                  className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 truncate transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="truncate">{pl.name}</span>
-                </button>
-              ))}
-
-              {onDeleteTrack && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onDeleteTrack(track.id)
-                    setShowMenu(false)
-                  }}
-                  className="w-full text-left px-3.5 py-2 hover:bg-red-500/10 text-slate-300 hover:text-red-300 flex items-center gap-2 border-t border-white/10 transition-colors"
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-slate-400" />
-                  Bỏ khỏi Playlist này
-                </button>
-              )}
-
-              {onDeleteTrackPermanently && (
+            {showMenu && (
+              <div className="absolute right-0 top-8 glass-panel shadow-2xl rounded-xl py-1.5 w-56 z-30 text-xs text-slate-200 border border-white/10">
+                {/* Edit artist/album */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    onDeleteTrackPermanently(track.id)
+                    setEditMode(true)
                     setShowMenu(false)
                   }}
-                  className="w-full text-left px-3.5 py-2 hover:bg-red-500/20 text-red-400 flex items-center gap-2 border-t border-white/10 transition-colors font-semibold"
+                  className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors border-b border-white/10"
                 >
-                  <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                  Xóa vĩnh viễn khỏi Thư viện
+                  <Pencil className="w-3.5 h-3.5 text-blue-400" />
+                  Sửa Nghệ sĩ / Album
                 </button>
-              )}
-            </div>
-          )}
-        </div>
+
+                {userPlaylists.length > 0 && onAddToPlaylist && (
+                  <div className="px-3 py-1 text-slate-400 font-semibold text-[10px] uppercase tracking-wider border-b border-white/10">
+                    Thêm vào Playlist
+                  </div>
+                )}
+                {userPlaylists.map((pl) => (
+                  <button
+                    key={pl.id}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onAddToPlaylist?.(pl.id, track.id)
+                      setShowMenu(false)
+                    }}
+                    className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 truncate transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="truncate">{pl.name}</span>
+                  </button>
+                ))}
+
+                {onDeleteTrack && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDeleteTrack(track.id)
+                      setShowMenu(false)
+                    }}
+                    className="w-full text-left px-3.5 py-2 hover:bg-red-500/10 text-slate-300 hover:text-red-300 flex items-center gap-2 border-t border-white/10 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-slate-400" />
+                    Bỏ khỏi Playlist này
+                  </button>
+                )}
+
+                {onDeleteTrackPermanently && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDeleteTrackPermanently(track.id)
+                      setShowMenu(false)
+                    }}
+                    className="w-full text-left px-3.5 py-2 hover:bg-red-500/20 text-red-400 flex items-center gap-2 border-t border-white/10 transition-colors font-semibold"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                    Xóa vĩnh viễn khỏi Thư viện
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

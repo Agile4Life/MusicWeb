@@ -11,6 +11,7 @@ interface TrackListProps {
   onAddToPlaylist?: (playlistId: string, trackId: string) => void
   onDeleteTrack?: (trackId: string) => void
   onDeleteTrackPermanently?: (trackId: string) => void
+  onTrackUpdated?: (trackId: string, updates: Partial<Track>) => void
 }
 
 export function TrackList({
@@ -19,6 +20,7 @@ export function TrackList({
   onAddToPlaylist,
   onDeleteTrack,
   onDeleteTrackPermanently,
+  onTrackUpdated,
 }: TrackListProps) {
   if (tracks.length === 0) {
     return (
@@ -54,6 +56,7 @@ export function TrackList({
           onAddToPlaylist={onAddToPlaylist}
           onDeleteTrack={onDeleteTrack}
           onDeleteTrackPermanently={onDeleteTrackPermanently}
+          onTrackUpdated={onTrackUpdated}
         />
       ))}
     </div>

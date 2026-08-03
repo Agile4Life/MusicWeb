@@ -170,6 +170,10 @@ export default function HomePage() {
     }
   }
 
+  const handleTrackUpdated = (trackId: string, updates: Partial<Track>) => {
+    setTracks((prev) => prev.map((t) => (t.id === trackId ? { ...t, ...updates } : t)))
+  }
+
   const filteredTracks = tracks.filter((t) => {
     const query = searchQuery.toLowerCase()
     return (
@@ -340,6 +344,7 @@ export default function HomePage() {
             userPlaylists={playlists}
             onAddToPlaylist={handleAddToPlaylist}
             onDeleteTrack={handleDeleteTrack}
+            onTrackUpdated={handleTrackUpdated}
           />
         )}
       </div>
