@@ -10,13 +10,24 @@ interface AuthFormProps {
   mode: 'login' | 'register'
 }
 
-function translateAuthError(errorMessage: string) {
+function translateAuthError(err: any): string {
+  let errorMessage = 'Đã xảy ra lỗi khi xác thực'
+
+  if (typeof err === 'string') {
+    errorMessage = err
+  } else if (err && typeof err.message === 'string') {
+    errorMessage = err.message
+  } else if (err && typeof err.error_description === 'string') {
+    errorMessage = err.error_description
+  }
+
   const msg = errorMessage.toLowerCase()
   if (msg.includes('invalid login credentials')) return 'Email hoặc mật khẩu không chính xác'
   if (msg.includes('user already registered') || msg.includes('already exists')) return 'Email này đã được đăng ký tài khoản'
   if (msg.includes('password should be at least')) return 'Mật khẩu phải có ít nhất 6 ký tự'
   if (msg.includes('invalid email')) return 'Định dạng email không hợp lệ'
   if (msg.includes('email not confirmed')) return 'Email chưa được xác nhận'
+
   return errorMessage
 }
 
@@ -81,11 +92,11 @@ export function AuthForm({ mode }: AuthFormProps) {
           }, 1000)
         } else {
           setSuccessMsg(
-            'Đăng ký thành công! Vui lòng kiểm tra email của bạn để xác nhận (hoặc đăng nhập ngay nếu không yêu cầu xác nhận).'
+            'Đăng ký thành công! Bạn có thể đăng nhập ngay hoặc kiểm tra email nếu yêu cầu xác nhận.'
           )
           setTimeout(() => {
             router.push('/login')
-          }, 3000)
+          }, 2500)
         }
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -101,7 +112,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         }, 800)
       }
     } catch (err: any) {
-      setError(translateAuthError(err.message || 'Đã xảy ra lỗi khi xác thực'))
+      setError(translateAuthError(err))
     } finally {
       setLoading(false)
     }
