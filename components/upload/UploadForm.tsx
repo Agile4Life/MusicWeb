@@ -20,6 +20,7 @@ import {
   Copy,
   AlertTriangle,
   Zap,
+  X,
 } from 'lucide-react'
 import * as mm from 'music-metadata-browser'
 import { compressAudioIfNeeded } from '@/lib/audioCompressor'
@@ -67,16 +68,17 @@ function cleanSongTitle(str: string): string {
 
 interface UploadFormProps {
   playlistId?: string
+  onClose?: () => void
 }
 
-export function UploadForm({ playlistId }: UploadFormProps = {}) {
+export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
   const router = useRouter()
   const supabase = createClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [queue, setQueue] = useState<QueueItem[]>([])
   const [batchSize, setBatchSize] = useState<number>(2) // Default 2 tracks per batch chunk
-  const [targetBitrate, setTargetBitrate] = useState<number>(256) // Default 256kbps lightweight MP3
+  const targetBitrate = 256 // Standardized optimal 256kbps lightweight MP3
   const [skipDuplicates, setSkipDuplicates] = useState<boolean>(true) // Auto-skip duplicates
   const [isUploading, setIsUploading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
@@ -615,46 +617,19 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
   return (
     <div className="max-w-4xl mx-auto glass-panel p-5 md:p-6 rounded-3xl border border-white/10 shadow-2xl relative flex flex-col max-h-[85vh] overflow-hidden">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 shrink-0">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 shrink-0 pr-8 relative">
         <div>
-          <h2 className="text-2xl font-black text-white flex items-center gap-2.5">
+          <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-2.5">
             <Upload className="w-6 h-6 text-[var(--primary-spotify)]" />
             Upload Hàng Loạt Bài Hát
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Tải nhiều bài hát cùng lúc • Nén siêu nhẹ file &gt;= 10MB • Tự phát hiện &amp; bỏ qua bài trùng
+            Tải nhiều bài hát cùng lúc • Nén MP3 (256kbps) file &gt;= 10MB • Tự phát hiện &amp; bỏ qua bài trùng
           </p>
         </div>
 
-        {/* Compression & Batch Settings */}
-        <div className="flex flex-wrap items-center gap-3 bg-black/40 p-2 rounded-2xl border border-white/10 text-xs">
-          {/* Bitrate quality selector */}
-          <div className="flex items-center gap-1.5">
-            <Zap className="w-3.5 h-3.5 text-amber-400 ml-1" />
-            <span className="text-slate-300 font-medium">Định dạng nén (&gt;=10MB):</span>
-            {[
-              { label: 'Siêu nhẹ (192k)', value: 192 },
-              { label: 'Cân bằng (256k)', value: 256 },
-              { label: 'Studio (320k)', value: 320 },
-            ].map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                disabled={isUploading}
-                onClick={() => setTargetBitrate(opt.value)}
-                className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all ${
-                  targetBitrate === opt.value
-                    ? 'bg-amber-400 text-black shadow-md'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="h-4 w-[1px] bg-white/10 hidden sm:block" />
-
+        {/* Batch Settings */}
+        <div className="flex items-center gap-3 bg-black/40 px-3 py-1.5 rounded-2xl border border-white/10 text-xs">
           {/* Batch size selector */}
           <div className="flex items-center gap-1.5">
             <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
@@ -691,6 +666,18 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
             </span>
           </label>
         </div>
+
+        {/* Optional Close Button */}
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute top-0 right-0 text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-colors"
+            title="Đóng cửa sổ"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
       {/* Multi-file Dropzone */}

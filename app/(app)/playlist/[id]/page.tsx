@@ -170,6 +170,23 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
     }
   }
 
+  const handleDeleteTrackPermanently = async (trackId: string) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa vĩnh viễn bài hát này khỏi Thư viện? (Bài hát sẽ bị xóa ở Trang chủ và tất cả Playlist)')) return
+
+    const trackToDelete = tracks.find((t) => t.id === trackId)
+    const { error } = await supabase.from('tracks').delete().eq('id', trackId)
+
+    if (!error) {
+      if (trackToDelete?.file_path) {
+        await supabase.storage.from('music-files').remove([trackToDelete.file_path])
+      }
+      setTracks((prev) => prev.filter((t) => t.id !== trackId))
+      router.refresh()
+    } else {
+      alert('Lỗi xóa bài hát: ' + error.message)
+    }
+  }
+
   // Handle File select for direct upload inside playlist
   const handleFileChange = async (selectedFile: File) => {
     if (!selectedFile) return
@@ -504,19 +521,15 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
 
       {/* 🚀 MODAL 1: Upload Nhạc Trực Tiếp vào Playlist */}
       {showUploadModal && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-4xl relative">
-            <button
-              onClick={() => {
+            <UploadForm
+              playlistId={playlistId}
+              onClose={() => {
                 setShowUploadModal(false)
                 fetchPlaylistData()
               }}
-              className="absolute top-4 right-4 z-10 text-slate-400 hover:text-white bg-black/50 p-2 rounded-full border border-white/10 hover:bg-white/10 transition-all"
-              title="Đóng"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <UploadForm playlistId={playlistId} />
+            />
           </div>
         </div>
       )}

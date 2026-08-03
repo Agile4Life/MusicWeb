@@ -12,6 +12,7 @@ interface TrackRowProps {
   userPlaylists?: Playlist[]
   onAddToPlaylist?: (playlistId: string, trackId: string) => void
   onDeleteTrack?: (trackId: string) => void
+  onDeleteTrackPermanently?: (trackId: string) => void
 }
 
 function formatDuration(seconds: number) {
@@ -28,6 +29,7 @@ export function TrackRow({
   userPlaylists = [],
   onAddToPlaylist,
   onDeleteTrack,
+  onDeleteTrackPermanently,
 }: TrackRowProps) {
   const { currentTrack, isPlaying, playTrack, togglePlay } = usePlayer()
   const [showMenu, setShowMenu] = useState(false)
@@ -119,7 +121,7 @@ export function TrackRow({
           </button>
 
           {showMenu && (
-            <div className="absolute right-0 top-8 glass-panel shadow-2xl rounded-xl py-1.5 w-52 z-30 text-xs text-slate-200 border border-white/10">
+            <div className="absolute right-0 top-8 glass-panel shadow-2xl rounded-xl py-1.5 w-56 z-30 text-xs text-slate-200 border border-white/10">
               {userPlaylists.length > 0 && onAddToPlaylist && (
                 <div className="px-3 py-1 text-slate-400 font-semibold text-[10px] uppercase tracking-wider border-b border-white/10">
                   Thêm vào Playlist
@@ -147,10 +149,24 @@ export function TrackRow({
                     onDeleteTrack(track.id)
                     setShowMenu(false)
                   }}
-                  className="w-full text-left px-3.5 py-2 hover:bg-red-500/20 text-red-400 flex items-center gap-2 border-t border-white/10 transition-colors"
+                  className="w-full text-left px-3.5 py-2 hover:bg-red-500/10 text-slate-300 hover:text-red-300 flex items-center gap-2 border-t border-white/10 transition-colors"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Xóa bài hát
+                  <Trash2 className="w-3.5 h-3.5 text-slate-400" />
+                  Bỏ khỏi Playlist này
+                </button>
+              )}
+
+              {onDeleteTrackPermanently && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDeleteTrackPermanently(track.id)
+                    setShowMenu(false)
+                  }}
+                  className="w-full text-left px-3.5 py-2 hover:bg-red-500/20 text-red-400 flex items-center gap-2 border-t border-white/10 transition-colors font-semibold"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                  Xóa vĩnh viễn khỏi Thư viện
                 </button>
               )}
             </div>
