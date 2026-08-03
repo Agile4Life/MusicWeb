@@ -1,4 +1,4 @@
-import lamejs from 'lamejs'
+import { Mp3Encoder } from '@breezystack/lamejs'
 
 /**
  * Automatically compresses heavy audio files (> 45MB) to High-Quality 320kbps MP3
@@ -60,7 +60,7 @@ export async function compressAudioIfNeeded(
     if (onProgress) onProgress(50, 'Đang mã hóa MP3 High-Res (320kbps)...')
 
     // 3. Initialize LAME MP3 Encoder (320kbps High Quality)
-    const mp3encoder = new (lamejs as any).Mp3Encoder(numChannels, targetSampleRate, 320)
+    const mp3encoder = new Mp3Encoder(numChannels, targetSampleRate, 320)
     const mp3Data: Uint8Array[] = []
     const sampleBlockSize = 1152
 
