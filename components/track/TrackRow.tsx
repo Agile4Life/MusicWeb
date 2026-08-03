@@ -15,6 +15,9 @@ interface TrackRowProps {
   onDeleteTrack?: (trackId: string) => void
   onDeleteTrackPermanently?: (trackId: string) => void
   onTrackUpdated?: (trackId: string, updates: Partial<Track>) => void
+  selectable?: boolean
+  isSelected?: boolean
+  onToggleSelect?: () => void
 }
 
 function formatDuration(seconds: number) {
@@ -33,6 +36,9 @@ export function TrackRow({
   onDeleteTrack,
   onDeleteTrackPermanently,
   onTrackUpdated,
+  selectable = false,
+  isSelected = false,
+  onToggleSelect,
 }: TrackRowProps) {
   const supabase = createClient()
   const { currentTrack, isPlaying, playTrack, togglePlay } = usePlayer()
@@ -81,12 +87,26 @@ export function TrackRow({
   return (
     <div
       className={`group flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer select-none border ${
-        isCurrent
+        isSelected
+          ? 'bg-amber-500/15 border-amber-500/40 shadow-md'
+          : isCurrent
           ? 'bg-white/10 border-[var(--primary-spotify)]/30 shadow-md shadow-[var(--theme-glow-shadow)]'
           : 'border-transparent hover:bg-white/5 hover:border-white/5'
       }`}
       onMouseLeave={() => { if (!editMode) setShowMenu(false) }}
     >
+      {/* Optional Admin Select Checkbox */}
+      {selectable && (
+        <div className="shrink-0 flex items-center pr-2" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggleSelect?.()}
+            className="rounded accent-amber-400 w-4 h-4 cursor-pointer"
+          />
+        </div>
+      )}
+
       {/* Index & Play button */}
       <div className="flex items-center gap-4 w-1/2 truncate">
         <div className="w-6 text-center text-xs font-semibold text-slate-400 shrink-0">

@@ -40,6 +40,8 @@ export interface QueueItem {
   isDuplicate?: boolean
   duplicateReason?: string | null
   forceUpload?: boolean
+  dbTrackId?: string | null
+  uploadedFilePath?: string | null
 }
 
 function formatDuration(seconds: number): string {
@@ -303,33 +305,52 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
     if (isUploading) return
     const itemToRemove = queue.find((i) => i.id === id)
 
-    // If the track was already successfully uploaded to DB & Storage during this or previous session
-    if (itemToRemove && itemToRemove.status === 'completed') {
+    // If the track was already successfully uploaded to DB & Storage during this session
+    if (itemToRemove && (itemToRemove.status === 'completed' || itemToRemove.dbTrackId)) {
       try {
         const {
           data: { user },
         } = await supabase.auth.getUser()
 
         if (user) {
-          const cleanTitle = (itemToRemove.title || itemToRemove.file.name).trim()
+          let tracksToDelete: Array<{ id: string; file_path?: string | null }> = []
 
-          // Delete from tracks DB table
-          const { data: deletedTracks } = await supabase
-            .from('tracks')
-            .delete()
-            .eq('user_id', user.id)
-            .ilike('title', cleanTitle)
-            .select('file_path')
+          if (itemToRemove.dbTrackId) {
+            tracksToDelete.push({
+              id: itemToRemove.dbTrackId,
+              file_path: itemToRemove.uploadedFilePath,
+            })
+          } else {
+            const cleanTitle = (itemToRemove.title || itemToRemove.file.name).trim()
+            const { data: foundTracks } = await supabase
+              .from('tracks')
+              .select('id, file_path')
+              .eq('user_id', user.id)
+              .eq('title', cleanTitle)
 
-          // Delete corresponding audio file from Storage
-          if (deletedTracks && deletedTracks.length > 0) {
-            const pathsToRemove = deletedTracks.map((t: any) => t.file_path).filter(Boolean)
-            if (pathsToRemove.length > 0) {
-              await supabase.storage.from('music-files').remove(pathsToRemove)
+            if (foundTracks && foundTracks.length > 0) {
+              tracksToDelete = foundTracks
             }
           }
 
-          // Refresh page so homepage, playlists, etc. update immediately
+          for (const t of tracksToDelete) {
+            // Delete dependent records first to prevent foreign key constraint failures
+            await supabase.from('playlist_tracks').delete().eq('track_id', t.id)
+            await supabase.from('favorite_tracks').delete().eq('track_id', t.id)
+            await supabase.from('listening_history').delete().eq('track_id', t.id)
+
+            // Delete track record from DB
+            const { error: delError } = await supabase.from('tracks').delete().eq('id', t.id)
+            if (delError) {
+              console.error('Failed to delete track from DB:', delError.message)
+            }
+
+            // Remove file from Storage
+            if (t.file_path) {
+              await supabase.storage.from('music-files').remove([t.file_path])
+            }
+          }
+
           router.refresh()
           await fetchExistingTracks()
         }
@@ -528,6 +549,8 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
         progress: 100,
         compressInfo: compInfoStr || '✅ Hoàn tất!',
         error: null,
+        dbTrackId: insertedTrackId,
+        uploadedFilePath: filePath,
       })
       return true
     } catch (err: any) {

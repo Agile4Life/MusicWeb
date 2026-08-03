@@ -174,6 +174,12 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
     if (!confirm('Bạn có chắc chắn muốn xóa vĩnh viễn bài hát này khỏi Thư viện? (Bài hát sẽ bị xóa ở Trang chủ và tất cả Playlist)')) return
 
     const trackToDelete = tracks.find((t) => t.id === trackId)
+
+    // Delete dependent records first to prevent foreign key constraint failures
+    await supabase.from('playlist_tracks').delete().eq('track_id', trackId)
+    await supabase.from('favorite_tracks').delete().eq('track_id', trackId)
+    await supabase.from('listening_history').delete().eq('track_id', trackId)
+
     const { error } = await supabase.from('tracks').delete().eq('id', trackId)
 
     if (!error) {

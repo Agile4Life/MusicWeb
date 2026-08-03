@@ -112,6 +112,11 @@ export default function HomePage() {
     const trackToDelete = tracks.find((t) => t.id === trackId)
     if (!trackToDelete) return
 
+    // Delete dependent records first to prevent foreign key constraint failures
+    await supabase.from('playlist_tracks').delete().eq('track_id', trackId)
+    await supabase.from('favorite_tracks').delete().eq('track_id', trackId)
+    await supabase.from('listening_history').delete().eq('track_id', trackId)
+
     const { error: dbError } = await supabase.from('tracks').delete().eq('id', trackId)
 
     if (dbError) {
@@ -174,6 +179,18 @@ export default function HomePage() {
     setTracks((prev) => prev.map((t) => (t.id === trackId ? { ...t, ...updates } : t)))
   }
 
+  const handleBulkUpdated = (trackIds: string[], updates: Partial<Track>) => {
+    const idSet = new Set(trackIds)
+    setTracks((prev) =>
+      prev.map((t) => (idSet.has(t.id) ? { ...t, ...updates } : t))
+    )
+  }
+
+  const handleBulkDeleted = (trackIds: string[]) => {
+    const idSet = new Set(trackIds)
+    setTracks((prev) => prev.filter((t) => !idSet.has(t.id)))
+  }
+
   const filteredTracks = tracks.filter((t) => {
     const query = searchQuery.toLowerCase()
     return (
@@ -203,15 +220,12 @@ export default function HomePage() {
               <span>Thư viện âm nhạc cá nhân</span>
             </div>
 
-            <h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight">
-              {user ? (
-                <>
-                  Xin chào, <span className="neon-gradient-text">{user.email.split('@')[0]}</span> 👋
-                </>
-              ) : (
-                <>
-                  Trình Nghe Nhạc <span className="neon-gradient-text">Độc Bản</span>
-                </>
+            <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight flex items-center gap-3">
+              <span>Xin Chào,</span>
+              {user && (
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--primary-spotify)] via-emerald-300 to-teal-200">
+                  {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                </span>
               )}
             </h1>
 
@@ -257,19 +271,16 @@ export default function HomePage() {
               <div
                 key={t.id}
                 onClick={() => playTrack(t, tracks)}
-                className="glass-card p-3 rounded-2xl flex flex-col gap-3 group cursor-pointer border border-white/5 relative"
+                className="glass-card p-3 rounded-2xl flex flex-col gap-2.5 cursor-pointer group hover:scale-[1.02] transition-all"
               >
-                <div className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative shadow-md">
+                <div className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
                   {t.cover_url ? (
-                    <img src={t.cover_url} alt={t.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <img src={t.cover_url} alt={t.title} className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 text-slate-500">
-                      <Music className="w-8 h-8 group-hover:text-[var(--primary-spotify)] transition-colors" />
-                    </div>
+                    <Music className="w-8 h-8 text-slate-500" />
                   )}
-                  {/* Floating Quick Play Button */}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
-                    <div className="w-10 h-10 rounded-full bg-[var(--primary-spotify)] flex items-center justify-center text-black shadow-lg hover:scale-110 transition-transform">
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity backdrop-blur-[2px]">
+                    <div className="w-10 h-10 rounded-full bg-[var(--primary-spotify)] text-black flex items-center justify-center shadow-lg transform translate-y-2 group-hover:translate-y-0 transition-transform">
                       <Play className="w-5 h-5 fill-current ml-0.5" />
                     </div>
                   </div>
@@ -345,6 +356,9 @@ export default function HomePage() {
             onAddToPlaylist={handleAddToPlaylist}
             onDeleteTrack={handleDeleteTrack}
             onTrackUpdated={handleTrackUpdated}
+            isAdmin={isAdmin}
+            onBulkUpdated={handleBulkUpdated}
+            onBulkDeleted={handleBulkDeleted}
           />
         )}
       </div>
