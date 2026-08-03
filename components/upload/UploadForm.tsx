@@ -54,6 +54,17 @@ function formatFileSize(bytes: number): string {
   return `${mb.toFixed(1)} MB`
 }
 
+function cleanSongTitle(str: string): string {
+  if (!str) return ''
+  return str
+    .toLowerCase()
+    .replace(/\.[^/.]+$/, '') // remove file extension if any
+    .replace(/^\d+[\s._-]+/, '') // remove leading track numbers like "01 - ", "01. ", "1 "
+    .replace(/\(official audio\)|\(lyric video\)|\(audio\)|\(official music video\)/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 interface UploadFormProps {
   playlistId?: string
 }
@@ -72,29 +83,58 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
   const [overallBatchInfo, setOverallBatchInfo] = useState<string | null>(null)
   const [existingUserTracks, setExistingUserTracks] = useState<Array<{ title: string; artist?: string | null }>>([])
 
-  // Fetch user's existing tracks from DB for duplicate checking
-  const fetchExistingTracks = async () => {
+  // Fetch user's existing tracks from DB for duplicate checking (returns array directly to avoid closure stale state)
+  const fetchExistingTracks = async (): Promise<Array<{ title: string; artist?: string | null }>> => {
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser()
 
-      if (!user) return
+      if (!user) return []
 
-      const { data } = await supabase
+      const trackList: Array<{ title: string; artist?: string | null }> = []
+
+      // 1. Fetch from view_track_details
+      const { data: viewData } = await supabase
+        .from('view_track_details')
+        .select('title, artist_name, artist')
+        .eq('user_id', user.id)
+
+      if (viewData) {
+        viewData.forEach((t: any) => {
+          const cleanTitle = cleanSongTitle(t.title || '')
+          if (cleanTitle) {
+            trackList.push({
+              title: cleanTitle,
+              artist: (t.artist_name || t.artist || '').trim().toLowerCase(),
+            })
+          }
+        })
+      }
+
+      // 2. Fetch from raw tracks table
+      const { data: rawData } = await supabase
         .from('tracks')
         .select('title, artist, artists(name)')
         .eq('user_id', user.id)
 
-      if (data) {
-        const normalized = data.map((t: any) => ({
-          title: (t.title || '').trim().toLowerCase(),
-          artist: (t.artists?.name || t.artist || '').trim().toLowerCase(),
-        }))
-        setExistingUserTracks(normalized)
+      if (rawData) {
+        rawData.forEach((t: any) => {
+          const cleanTitle = cleanSongTitle(t.title || '')
+          if (cleanTitle) {
+            trackList.push({
+              title: cleanTitle,
+              artist: (t.artists?.name || t.artist || '').trim().toLowerCase(),
+            })
+          }
+        })
       }
+
+      setExistingUserTracks(trackList)
+      return trackList
     } catch (err) {
       console.warn('Could not fetch user tracks for duplicate checking:', err)
+      return []
     }
   }
 
@@ -110,16 +150,16 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
     currentQueue: QueueItem[],
     dbTracks: Array<{ title: string; artist?: string | null }>
   ): { isDuplicate: boolean; reason: string | null } => {
-    const cleanTitle = title.trim().toLowerCase()
-    const cleanArtist = artist.trim().toLowerCase()
+    const normTitle = cleanSongTitle(title)
+    const normArtist = artist.trim().toLowerCase()
 
-    if (!cleanTitle) return { isDuplicate: false, reason: null }
+    if (!normTitle) return { isDuplicate: false, reason: null }
 
-    // 1. Check against DB library
+    // 1. Check against DB library (matches normalized title)
     const existsInDb = dbTracks.some((t) => {
-      if (t.title !== cleanTitle) return false
-      if (!cleanArtist || !t.artist) return true
-      return t.artist === cleanArtist
+      if (t.title !== normTitle) return false
+      if (!normArtist || !t.artist) return true
+      return t.artist === normArtist || normArtist.includes(t.artist) || t.artist.includes(normArtist)
     })
 
     if (existsInDb) {
@@ -130,7 +170,7 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
     const existsInQueue = currentQueue.some(
       (item) =>
         item.id !== id &&
-        item.title.trim().toLowerCase() === cleanTitle
+        cleanSongTitle(item.title) === normTitle
     )
 
     if (existsInQueue) {
@@ -155,6 +195,13 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
     })
   }
 
+  // Automatically recalculate queue duplicates whenever existingUserTracks state is loaded or updated
+  useEffect(() => {
+    if (existingUserTracks.length > 0 && queue.length > 0) {
+      setQueue((prev) => recalculateDuplicates(prev, existingUserTracks))
+    }
+  }, [existingUserTracks])
+
   // Update a single queue item helper
   const updateItem = (id: string, updates: Partial<QueueItem>) => {
     setQueue((prev) => {
@@ -173,8 +220,8 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
 
     if (fileArray.length === 0) return
 
-    // Fetch fresh user tracks from DB
-    await fetchExistingTracks()
+    // Fetch fresh user tracks from DB synchronously to avoid closure lag
+    const freshDbTracks = await fetchExistingTracks()
 
     // Create unique queue items immediately for EVERY file in the dropped selection
     const timestamp = Date.now()
@@ -193,8 +240,8 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
       }
     })
 
-    // Immediately add all items to queue so user sees every song in the list right away
-    setQueue((prev) => recalculateDuplicates([...prev, ...newItems]))
+    // Immediately add all items to queue so user sees every song in the list right away with duplicate checks
+    setQueue((prev) => recalculateDuplicates([...prev, ...newItems], freshDbTracks))
 
     // Parse metadata concurrently (parallel) for all dropped files
     await Promise.all(
@@ -211,14 +258,14 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
               if (q.id !== item.id) return q
               return {
                 ...q,
-                title: metaTitle || q.title, // Keep original filename title if metadata title is empty
+                title: metaTitle || q.title,
                 artist: metaArtist || q.artist,
                 album: metaAlbum || q.album,
                 duration: metaDuration || q.duration,
                 status: 'idle' as const,
               }
             })
-            return recalculateDuplicates(updated)
+            return recalculateDuplicates(updated, freshDbTracks)
           })
         } catch (err) {
           console.warn('Metadata parsing notice:', err)
@@ -251,8 +298,45 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
     }
   }
 
-  const removeItem = (id: string) => {
+  const removeItem = async (id: string) => {
     if (isUploading) return
+    const itemToRemove = queue.find((i) => i.id === id)
+
+    // If the track was already successfully uploaded to DB & Storage during this or previous session
+    if (itemToRemove && itemToRemove.status === 'completed') {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        if (user) {
+          const cleanTitle = (itemToRemove.title || itemToRemove.file.name).trim()
+
+          // Delete from tracks DB table
+          const { data: deletedTracks } = await supabase
+            .from('tracks')
+            .delete()
+            .eq('user_id', user.id)
+            .ilike('title', cleanTitle)
+            .select('file_path')
+
+          // Delete corresponding audio file from Storage
+          if (deletedTracks && deletedTracks.length > 0) {
+            const pathsToRemove = deletedTracks.map((t: any) => t.file_path).filter(Boolean)
+            if (pathsToRemove.length > 0) {
+              await supabase.storage.from('music-files').remove(pathsToRemove)
+            }
+          }
+
+          // Refresh page so homepage, playlists, etc. update immediately
+          router.refresh()
+          await fetchExistingTracks()
+        }
+      } catch (err) {
+        console.warn('Error deleting track from DB/Storage:', err)
+      }
+    }
+
     setQueue((prev) => recalculateDuplicates(prev.filter((item) => item.id !== id)))
   }
 
@@ -266,8 +350,20 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
     userId: string
   ): Promise<boolean> => {
     const cleanTitle = (item.title || item.file.name).trim()
+    const normTitle = cleanSongTitle(cleanTitle)
 
-    // 0. Live DB duplicate check right before processing
+    // 0. Auto-skip if marked duplicate and skipDuplicates is checked (unless forceUpload is true)
+    if (skipDuplicates && item.isDuplicate && !item.forceUpload) {
+      updateItem(item.id, {
+        status: 'skipped',
+        progress: 0,
+        compressInfo: null,
+        error: `Tự động bỏ qua bài trùng (${item.duplicateReason || 'Đã có trong Thư viện'})`,
+      })
+      return true
+    }
+
+    // 0b. Live DB duplicate check right before processing
     if (skipDuplicates && !item.forceUpload) {
       const { data: dbCheck } = await supabase
         .from('tracks')
@@ -421,7 +517,7 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
       }
 
       // Refresh DB tracks list after successful insert
-      fetchExistingTracks()
+      await fetchExistingTracks()
 
       updateItem(item.id, {
         status: 'completed',
@@ -448,7 +544,7 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
   const startBatchUpload = async (targetItems?: QueueItem[]) => {
     const itemsToUpload =
       targetItems ||
-      queue.filter((i) => i.status === 'idle' || i.status === 'error' || i.status === 'skipped')
+      queue.filter((i) => i.status === 'idle' || i.status === 'error' || (i.status === 'skipped' && i.forceUpload))
 
     if (itemsToUpload.length === 0) return
 
@@ -509,7 +605,7 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
       i.status === 'saving_db'
   ).length
   const pendingCount = queue.filter(
-    (i) => i.status === 'idle' || i.status === 'parsing'
+    (i) => (i.status === 'idle' || i.status === 'parsing') && (!i.isDuplicate || i.forceUpload)
   ).length
 
   const finishedCount = completedCount + skippedCount
@@ -517,9 +613,9 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
     totalCount > 0 ? Math.round((finishedCount / totalCount) * 100) : 0
 
   return (
-    <div className="max-w-4xl mx-auto glass-panel p-6 md:p-8 rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden">
+    <div className="max-w-4xl mx-auto glass-panel p-5 md:p-6 rounded-3xl border border-white/10 shadow-2xl relative flex flex-col max-h-[85vh] overflow-hidden">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 shrink-0">
         <div>
           <h2 className="text-2xl font-black text-white flex items-center gap-2.5">
             <Upload className="w-6 h-6 text-[var(--primary-spotify)]" />
@@ -591,7 +687,7 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
               className="rounded accent-[var(--primary-spotify)] w-3.5 h-3.5 cursor-pointer"
             />
             <span className="font-semibold text-xs text-amber-300 flex items-center gap-1">
-              <Copy className="w-3.5 h-3.5" /> Bỏ bài trùng
+              <Copy className="w-3.5 h-3.5" /> Tự bỏ bài trùng
             </span>
           </label>
         </div>
@@ -603,7 +699,7 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => !isUploading && fileInputRef.current?.click()}
-        className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all cursor-pointer mb-6 ${
+        className={`border-2 border-dashed rounded-2xl p-4 text-center transition-all cursor-pointer mb-3 shrink-0 ${
           isDragging
             ? 'border-[var(--primary-spotify)] bg-[var(--primary-spotify)]/15 scale-[1.01] shadow-xl shadow-[var(--theme-glow-shadow)]'
             : 'border-white/15 hover:border-[var(--primary-spotify)]/80 bg-black/30 hover:bg-black/50'
@@ -618,29 +714,29 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
           className="hidden"
         />
 
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-14 h-14 bg-gradient-to-tr from-[var(--primary-spotify)]/20 to-purple-500/20 rounded-2xl flex items-center justify-center text-[var(--primary-spotify)] border border-[var(--primary-spotify)]/30">
-            <FileAudio className="w-7 h-7" />
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-10 h-10 bg-gradient-to-tr from-[var(--primary-spotify)]/20 to-purple-500/20 rounded-xl flex items-center justify-center text-[var(--primary-spotify)] border border-[var(--primary-spotify)]/30">
+            <FileAudio className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-sm font-bold text-white">
+            <p className="text-xs font-bold text-white">
               Nhấp để chọn hoặc Kéo & thả nhiều file âm thanh vào đây
             </p>
-            <p className="text-xs text-slate-400 mt-1">
-              Tự động nén siêu nhẹ MP3 ({targetBitrate}kbps) cho file &gt;= 10MB (File &lt; 10MB upload trực tiếp)
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Tự động nén MP3 ({targetBitrate}kbps) cho file &gt;= 10MB (File &lt; 10MB upload trực tiếp)
             </p>
           </div>
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--primary-spotify)] bg-[var(--primary-spotify)]/10 px-3 py-1 rounded-full border border-[var(--primary-spotify)]/20">
-            <Plus className="w-3.5 h-3.5" /> Thêm file vào danh sách
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--primary-spotify)] bg-[var(--primary-spotify)]/10 px-2.5 py-0.5 rounded-full border border-[var(--primary-spotify)]/20">
+            <Plus className="w-3 h-3" /> Thêm file vào danh sách
           </span>
         </div>
       </div>
 
       {/* Overall Queue Progress Banner */}
       {totalCount > 0 && (
-        <div className="bg-black/40 rounded-2xl p-4 border border-white/10 mb-6 flex flex-col gap-3">
+        <div className="bg-black/40 rounded-2xl p-3 border border-white/10 mb-3 flex flex-col gap-2 shrink-0">
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-3 font-semibold text-slate-200">
+            <div className="flex items-center gap-2 font-semibold text-slate-200 text-[11px]">
               <span>Hàng chờ: <strong className="text-white">{totalCount}</strong> bài</span>
               <span>•</span>
               <span className="text-emerald-400">Đã xong: <strong>{completedCount}</strong></span>
@@ -648,7 +744,7 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
                 <>
                   <span>•</span>
                   <span className="text-amber-400 flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3" /> Trùng: <strong>{duplicateCount}</strong>
+                    <AlertTriangle className="w-3 h-3" /> Trùng bài: <strong>{duplicateCount}</strong>
                   </span>
                 </>
               )}
@@ -664,13 +760,13 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
               <span className="text-red-400">Lỗi: <strong>{errorCount}</strong></span>
             </div>
 
-            <div className="text-slate-400 text-xs font-bold">
+            <div className="text-slate-400 text-[11px] font-bold">
               Tiến trình tổng: {overallProgressPercent}%
             </div>
           </div>
 
           {/* Overall Progress Bar */}
-          <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+          <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
             <div
               className="bg-gradient-to-r from-[var(--primary-spotify)] to-emerald-400 h-full transition-all duration-300"
               style={{ width: `${overallProgressPercent}%` }}
@@ -678,8 +774,8 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
           </div>
 
           {overallBatchInfo && (
-            <div className="text-xs font-medium text-[var(--primary-spotify)] flex items-center gap-2">
-              <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+            <div className="text-[11px] font-medium text-[var(--primary-spotify)] flex items-center gap-1.5">
+              <Sparkles className="w-3 h-3 animate-pulse" />
               <span>{overallBatchInfo}</span>
             </div>
           )}
@@ -688,14 +784,14 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
 
       {/* Controls Bar */}
       {totalCount > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3 shrink-0">
           <div className="flex items-center gap-2">
             {(completedCount > 0 || skippedCount > 0) && (
               <button
                 type="button"
                 disabled={isUploading}
                 onClick={clearCompleted}
-                className="text-xs font-medium text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-xl border border-white/10 transition-all"
+                className="text-[11px] font-medium text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-xl border border-white/10 transition-all"
               >
                 Xóa bài đã xong / bỏ qua ({completedCount + skippedCount})
               </button>
@@ -706,9 +802,9 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
                 type="button"
                 disabled={isUploading}
                 onClick={() => startBatchUpload(queue.filter((i) => i.status === 'error'))}
-                className="text-xs font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1.5 rounded-xl border border-amber-500/30 transition-all flex items-center gap-1.5"
+                className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-xl border border-amber-500/30 transition-all flex items-center gap-1.5"
               >
-                <RotateCcw className="w-3.5 h-3.5" /> Thử lại bài lỗi ({errorCount})
+                <RotateCcw className="w-3 h-3" /> Thử lại bài lỗi ({errorCount})
               </button>
             )}
           </div>
@@ -717,17 +813,17 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
             type="button"
             disabled={isUploading || (pendingCount === 0 && errorCount === 0)}
             onClick={() => startBatchUpload()}
-            className="bg-[var(--primary-spotify)] text-black font-extrabold px-6 py-2.5 rounded-full transition-all flex items-center justify-center gap-2 disabled:opacity-40 shadow-lg shadow-[var(--theme-glow-shadow)] text-sm"
+            className="bg-[var(--primary-spotify)] text-black font-extrabold px-5 py-2 rounded-full transition-all flex items-center justify-center gap-2 disabled:opacity-40 shadow-lg shadow-[var(--theme-glow-shadow)] text-xs"
           >
             {isUploading ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 Đang Nén & Upload ({batchSize} bài/đợt)...
               </>
             ) : (
               <>
-                <Play className="w-4 h-4 fill-black" />
-                Bắt Đầu Nén & Upload Tất Cả ({pendingCount + errorCount} bài)
+                <Play className="w-3.5 h-3.5 fill-black" />
+                Bắt Đầu Nén & Upload Mới ({pendingCount} bài)
               </>
             )}
           </button>
@@ -736,13 +832,13 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
 
       {/* Queue Items List */}
       {totalCount === 0 ? (
-        <div className="text-center py-12 border border-dashed border-white/5 rounded-2xl bg-black/20">
-          <Music className="w-12 h-12 text-slate-600 mx-auto mb-3 opacity-40" />
-          <p className="text-slate-400 text-sm font-medium">Chưa có bài hát nào trong hàng chờ</p>
-          <p className="text-slate-500 text-xs mt-1">Kéo thả hoặc nhấp chọn nhiều file nhạc để bắt đầu</p>
+        <div className="text-center py-8 border border-dashed border-white/5 rounded-2xl bg-black/20 shrink-0">
+          <Music className="w-10 h-10 text-slate-600 mx-auto mb-2 opacity-40" />
+          <p className="text-slate-400 text-xs font-medium">Chưa có bài hát nào trong hàng chờ</p>
+          <p className="text-slate-500 text-[11px] mt-0.5">Kéo thả các file nhạc vào ô phía trên để bắt đầu</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-3 max-h-[500px] overflow-y-auto pr-1">
+        <div className="flex flex-col gap-2.5 flex-1 min-h-0 overflow-y-auto pr-1">
           {queue.map((item, idx) => {
             const isCompleted = item.status === 'completed'
             const isSkipped = item.status === 'skipped'
@@ -825,12 +921,12 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
                       )}
                       {item.status === 'idle' && !item.isDuplicate && (
                         <span className="text-slate-400 bg-white/5 px-2.5 py-1 rounded-full border border-white/10 font-semibold">
-                          Sẵn sàng nén
+                          {item.fileSize >= 10 * 1024 * 1024 ? 'Sẵn sàng nén' : 'Sẵn sàng upload'}
                         </span>
                       )}
                       {item.status === 'idle' && item.isDuplicate && (
                         <span className="text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/30 font-bold flex items-center gap-1">
-                          <AlertTriangle className="w-3 h-3" /> Trùng bài
+                          <AlertTriangle className="w-3.5 h-3.5" /> Bài trùng
                         </span>
                       )}
                       {item.status === 'compressing' && (
@@ -873,12 +969,12 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
                         }}
                         className={`text-xs px-2.5 py-1 rounded-xl font-bold border transition-all ${
                           item.forceUpload
-                            ? 'bg-amber-500 text-black border-amber-400'
+                            ? 'bg-amber-500 text-black border-amber-400 shadow-md'
                             : 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20'
                         }`}
                         title="Cho phép upload trùng"
                       >
-                        {item.forceUpload ? 'Vẫn upload' : 'Bỏ qua'}
+                        {item.forceUpload ? 'Vẫn upload' : 'Bỏ qua (Trùng)'}
                       </button>
                     )}
 
@@ -914,7 +1010,7 @@ export function UploadForm({ playlistId }: UploadFormProps = {}) {
                       <span>{item.duplicateReason}</span>
                     </div>
                     <span className="text-[10px] text-amber-400/80 italic">
-                      {item.forceUpload ? '(Sẽ upload đè / tạo bản sao)' : skipDuplicates ? '(Sẽ tự động bỏ qua)' : '(Vẫn upload)'}
+                      {item.forceUpload ? '(Sẽ upload trùng bài)' : skipDuplicates ? '(Sẽ tự động bỏ qua không nén/up)' : '(Vẫn upload)'}
                     </span>
                   </div>
                 )}
