@@ -452,6 +452,8 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       updateItem(item.id, { status: 'saving_db', progress: 80 })
 
       let artistId: string | null = null
+      // Note: artist_id FK is not in the base schema — artist name stored directly as TEXT
+      // Kept here in case user has an extended schema with artist_id
       if (item.artist && item.artist.trim()) {
         try {
           const { data: artistData } = await supabase.rpc('fn_get_or_create_artist', {
@@ -459,7 +461,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
           })
           if (artistData) artistId = artistData
         } catch {
-          // Fallback if RPC function is missing
+          // RPC not available — use artist TEXT column directly
         }
       }
 
@@ -472,10 +474,10 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
           title: cleanTitle,
           artist: item.artist || null,
           album: item.album || null,
-          artist_id: artistId,
           duration: item.duration || 0,
           file_path: filePath,
           file_size: uploadFile.size,
+          ...(artistId ? { artist_id: artistId } : {}),
         })
         .select('id')
         .single()
@@ -494,7 +496,6 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
             album: item.album || null,
             duration: item.duration || 0,
             file_path: filePath,
-            file_size: uploadFile.size,
           })
           .select('id')
           .single()
