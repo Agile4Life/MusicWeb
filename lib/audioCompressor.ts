@@ -1,21 +1,22 @@
 import { Mp3Encoder } from '@breezystack/lamejs'
 
 /**
- * Automatically converts & compresses ALL audio files (WAV, FLAC, M4A, MP3) 
- * into optimized lightweight MP3 files regardless of initial size to save storage and bandwidth.
+ * Automatically converts & compresses audio files starting from 10MB (or custom threshold)
+ * into optimized lightweight MP3 files to save storage and bandwidth.
  */
 export async function compressAudioIfNeeded(
   file: File,
   onProgress?: (progressPercent: number, stageText?: string) => void,
   targetBitrate: number = 256,
-  forceCompress: boolean = true
+  minCompressSizeMB: number = 10
 ): Promise<{ file: File; compressed: boolean; originalSizeMB: number; newSizeMB: number }> {
   const originalSizeMB = Number((file.size / (1024 * 1024)).toFixed(2))
 
-  // If already a small MP3 (< 3MB) and forceCompress is false, we can skip
-  if (!forceCompress && file.size <= 3 * 1024 * 1024 && file.type.includes('mp3')) {
+  // If file size is under 10MB (or minCompressSizeMB), no compression needed
+  if (file.size < minCompressSizeMB * 1024 * 1024) {
     return { file, compressed: false, originalSizeMB, newSizeMB: originalSizeMB }
   }
+
 
   try {
     if (onProgress) onProgress(5, `Đang đọc dữ liệu file (${originalSizeMB} MB)...`)

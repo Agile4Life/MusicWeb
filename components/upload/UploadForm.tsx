@@ -111,7 +111,7 @@ export function UploadForm() {
 
     if (!cleanTitle) return { isDuplicate: false, reason: null }
 
-    // 1. Check against DB library (matches title regardless of artist if artist is not set, or matches title + artist)
+    // 1. Check against DB library
     const existsInDb = dbTracks.some((t) => {
       if (t.title !== cleanTitle) return false
       if (!cleanArtist || !t.artist) return true
@@ -159,7 +159,7 @@ export function UploadForm() {
     })
   }
 
-  // Handle selected files
+  // Handle selected/dropped files
   const handleFilesSelected = async (files: FileList | File[]) => {
     const fileArray = Array.from(files).filter(
       (f) =>
@@ -169,50 +169,61 @@ export function UploadForm() {
 
     if (fileArray.length === 0) return
 
-    // Ensure we have fresh DB tracks for duplicate comparison
+    // Fetch fresh user tracks from DB
     await fetchExistingTracks()
 
-    const newItems: QueueItem[] = fileArray.map((f, idx) => ({
-      id: `${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 7)}`,
-      file: f,
-      title: f.name.replace(/\.[^/.]+$/, ''),
-      artist: '',
-      album: '',
-      duration: 0,
-      fileSize: f.size,
-      status: 'parsing',
-      progress: 0,
-    }))
+    // Create unique queue items immediately for EVERY file in the dropped selection
+    const timestamp = Date.now()
+    const newItems: QueueItem[] = fileArray.map((f, idx) => {
+      const fileNameWithoutExt = f.name.replace(/\.[^/.]+$/, '')
+      return {
+        id: `${timestamp}_${idx}_${Math.random().toString(36).substring(2, 7)}`,
+        file: f,
+        title: fileNameWithoutExt,
+        artist: '',
+        album: '',
+        duration: 0,
+        fileSize: f.size,
+        status: 'parsing',
+        progress: 0,
+      }
+    })
 
+    // Immediately add all items to queue so user sees every song in the list right away
     setQueue((prev) => recalculateDuplicates([...prev, ...newItems]))
 
-    // Background ID3 Metadata parsing for each item
-    for (const item of newItems) {
-      try {
-        const metadata = await mm.parseBlob(item.file)
-        setQueue((prev) => {
-          const updated = prev.map((q) => {
-            if (q.id !== item.id) return q
-            return {
-              ...q,
-              title: metadata.common.title || q.title,
-              artist: metadata.common.artist || '',
-              album: metadata.common.album || '',
-              duration: metadata.format.duration
-                ? Math.round(metadata.format.duration)
-                : 0,
-              status: 'idle' as const,
-            }
+    // Parse metadata concurrently (parallel) for all dropped files
+    await Promise.all(
+      newItems.map(async (item) => {
+        try {
+          const metadata = await mm.parseBlob(item.file)
+          const metaTitle = metadata.common.title ? metadata.common.title.trim() : ''
+          const metaArtist = metadata.common.artist ? metadata.common.artist.trim() : ''
+          const metaAlbum = metadata.common.album ? metadata.common.album.trim() : ''
+          const metaDuration = metadata.format.duration ? Math.round(metadata.format.duration) : 0
+
+          setQueue((prev) => {
+            const updated = prev.map((q) => {
+              if (q.id !== item.id) return q
+              return {
+                ...q,
+                title: metaTitle || q.title, // Keep original filename title if metadata title is empty
+                artist: metaArtist || q.artist,
+                album: metaAlbum || q.album,
+                duration: metaDuration || q.duration,
+                status: 'idle' as const,
+              }
+            })
+            return recalculateDuplicates(updated)
           })
-          return recalculateDuplicates(updated)
-        })
-      } catch (err) {
-        console.warn('Metadata parsing warning:', err)
-        setQueue((prev) =>
-          prev.map((q) => (q.id === item.id ? { ...q, status: 'idle' } : q))
-        )
-      }
-    }
+        } catch (err) {
+          console.warn('Metadata parsing notice:', err)
+          setQueue((prev) =>
+            prev.map((q) => (q.id === item.id ? { ...q, status: 'idle' } : q))
+          )
+        }
+      })
+    )
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -275,34 +286,42 @@ export function UploadForm() {
     }
 
     try {
-      // 1. Mandatory Lightweight Compression Stage for EVERY file
+      let uploadFile = item.file
+      let compInfoStr: string | null = null
+
+      // 1. Compress lightweight MP3 for files >= 10MB
+      if (item.file.size >= 10 * 1024 * 1024) {
+        updateItem(item.id, {
+          status: 'compressing',
+          progress: 5,
+          compressInfo: `⚡ File nặng (${formatFileSize(item.file.size)} >= 10MB), đang nén siêu nhẹ sang MP3 ${targetBitrate}kbps...`,
+        })
+
+        const compRes = await compressAudioIfNeeded(
+          item.file,
+          (pct, stage) => {
+            updateItem(item.id, {
+              progress: Math.round(pct * 0.5),
+              compressInfo: stage,
+            })
+          },
+          targetBitrate,
+          10
+        )
+
+        uploadFile = compRes.file
+        if (compRes.compressed) {
+          compInfoStr = `✅ Đã tối ưu dung lượng (${compRes.originalSizeMB} MB ➜ ${compRes.newSizeMB} MB MP3)!`
+        }
+      }
+
       updateItem(item.id, {
-        status: 'compressing',
-        progress: 5,
-        compressInfo: `⚡ Đang nén âm thanh nhẹ (${formatFileSize(item.file.size)} ➔ MP3 ${targetBitrate}kbps)...`,
+        status: 'uploading',
+        progress: 55,
+        compressInfo: compInfoStr ? `${compInfoStr} Đang tải lên...` : 'Đang tải lên Supabase Storage...',
       })
 
-      const compRes = await compressAudioIfNeeded(
-        item.file,
-        (pct, stage) => {
-          updateItem(item.id, {
-            progress: Math.round(pct * 0.5),
-            compressInfo: stage,
-          })
-        },
-        targetBitrate,
-        true
-      )
-
-      const uploadFile = compRes.file
-      const infoText = compRes.compressed
-        ? `✅ Đã tối ưu dung lượng (${compRes.originalSizeMB} MB ➜ ${compRes.newSizeMB} MB MP3)! Đang tải lên...`
-        : `Đang tải lên Supabase...`
-
-      updateItem(item.id, { compressInfo: infoText })
-
       // 2. Storage upload stage
-      updateItem(item.id, { status: 'uploading', progress: 55 })
       const fileExt = uploadFile.name.split('.').pop() || 'mp3'
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
       const filePath = `${userId}/${fileName}`
@@ -373,7 +392,7 @@ export function UploadForm() {
       updateItem(item.id, {
         status: 'completed',
         progress: 100,
-        compressInfo: `✅ Hoàn tất! (${compRes.originalSizeMB}MB ➜ ${compRes.newSizeMB}MB)`,
+        compressInfo: compInfoStr || '✅ Hoàn tất!',
         error: null,
       })
       return true
@@ -473,7 +492,7 @@ export function UploadForm() {
             Upload Hàng Loạt Bài Hát
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Tải nhiều bài hát cùng lúc • Nén siêu nhẹ mọi bài • Tự phát hiện & bỏ qua bài trùng
+            Tải nhiều bài hát cùng lúc • Nén siêu nhẹ file &gt;= 10MB • Tự phát hiện &amp; bỏ qua bài trùng
           </p>
         </div>
 
@@ -482,7 +501,7 @@ export function UploadForm() {
           {/* Bitrate quality selector */}
           <div className="flex items-center gap-1.5">
             <Zap className="w-3.5 h-3.5 text-amber-400 ml-1" />
-            <span className="text-slate-300 font-medium">Định dạng nén:</span>
+            <span className="text-slate-300 font-medium">Định dạng nén (&gt;=10MB):</span>
             {[
               { label: 'Siêu nhẹ (192k)', value: 192 },
               { label: 'Cân bằng (256k)', value: 256 },
@@ -574,7 +593,7 @@ export function UploadForm() {
               Nhấp để chọn hoặc Kéo & thả nhiều file âm thanh vào đây
             </p>
             <p className="text-xs text-slate-400 mt-1">
-              Hỗ trợ chọn nhiều file MP3, WAV, M4A, FLAC (Tự động lọc trùng lặp & nén siêu nhẹ)
+              Tự động nén siêu nhẹ MP3 ({targetBitrate}kbps) cho file &gt;= 10MB (File &lt; 10MB upload trực tiếp)
             </p>
           </div>
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--primary-spotify)] bg-[var(--primary-spotify)]/10 px-3 py-1 rounded-full border border-[var(--primary-spotify)]/20">
