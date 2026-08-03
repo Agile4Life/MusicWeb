@@ -77,7 +77,6 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [queue, setQueue] = useState<QueueItem[]>([])
-  const batchSize = 2 // Fixed 2 tracks per batch chunk
   const targetBitrate = 256 // Standardized optimal 256kbps lightweight MP3
   const [skipDuplicates, setSkipDuplicates] = useState<boolean>(true) // Auto-skip duplicates
   const [isUploading, setIsUploading] = useState(false)
@@ -542,7 +541,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
     }
   }
 
-  // Batch runner loop
+  // Sequential upload runner — processes one track at a time to avoid Supabase overload
   const startBatchUpload = async (targetItems?: QueueItem[]) => {
     const itemsToUpload =
       targetItems ||
@@ -551,7 +550,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
     if (itemsToUpload.length === 0) return
 
     setIsUploading(true)
-    setOverallBatchInfo(`Bắt đầu đợt upload (${itemsToUpload.length} bài hát)...`)
+    setOverallBatchInfo(`Chuẩn bị upload ${itemsToUpload.length} bài hát...`)
 
     try {
       const {
@@ -564,31 +563,20 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
         return
       }
 
-      // Fetch fresh existing tracks list from DB before batch execution
+      // Fetch fresh existing tracks list from DB before starting
       await fetchExistingTracks()
 
-      // Divide queue items into chunked batches
-      const totalItems = itemsToUpload.length
-      const chunks: QueueItem[][] = []
-      for (let i = 0; i < totalItems; i += batchSize) {
-        chunks.push(itemsToUpload.slice(i, i + batchSize))
-      }
-
-      for (let chunkIdx = 0; chunkIdx < chunks.length; chunkIdx++) {
-        const currentChunk = chunks[chunkIdx]
-        setOverallBatchInfo(
-          `🚀 Đang xử lý Đợt ${chunkIdx + 1} / ${chunks.length} (${currentChunk.length} bài cùng lúc)...`
-        )
-
-        // Execute batch chunk concurrently up to batchSize
-        await Promise.all(
-          currentChunk.map((item) => processSingleTrack(item, user.id))
-        )
+      const total = itemsToUpload.length
+      for (let i = 0; i < total; i++) {
+        const item = itemsToUpload[i]
+        setOverallBatchInfo(`⏫ Đang xử lý bài ${i + 1} / ${total}: "${item.title}"...`)
+        // Process one track at a time — await before moving to next
+        await processSingleTrack(item, user.id)
       }
 
       setOverallBatchInfo('🎉 Đã hoàn tất xử lý tất cả bài hát!')
     } catch (err: any) {
-      console.error('Batch upload error:', err)
+      console.error('Upload error:', err)
     } finally {
       setIsUploading(false)
     }
@@ -779,7 +767,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
             {isUploading ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Đang Nén & Upload ({batchSize} bài/đợt)...
+                Đang Nén & Upload từng bài...
               </>
             ) : (
               <>
