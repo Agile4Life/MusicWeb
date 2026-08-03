@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -18,6 +18,8 @@ import {
   X,
   Check,
   Play,
+  Copy,
+  AlertTriangle,
 } from 'lucide-react'
 import * as mm from 'music-metadata-browser'
 import { compressAudioIfNeeded } from '@/lib/audioCompressor'
@@ -30,10 +32,13 @@ export interface QueueItem {
   album: string
   duration: number
   fileSize: number
-  status: 'idle' | 'parsing' | 'compressing' | 'uploading' | 'saving_db' | 'completed' | 'error'
+  status: 'idle' | 'parsing' | 'compressing' | 'uploading' | 'saving_db' | 'completed' | 'error' | 'skipped'
   progress: number
   compressInfo?: string | null
   error?: string | null
+  isDuplicate?: boolean
+  duplicateReason?: string | null
+  forceUpload?: boolean
 }
 
 function formatDuration(seconds: number): string {
@@ -56,15 +61,89 @@ export function UploadForm() {
 
   const [queue, setQueue] = useState<QueueItem[]>([])
   const [batchSize, setBatchSize] = useState<number>(2) // Default 2 tracks per batch chunk
+  const [skipDuplicates, setSkipDuplicates] = useState<boolean>(true) // Auto-skip duplicates default true
   const [isUploading, setIsUploading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [overallBatchInfo, setOverallBatchInfo] = useState<string | null>(null)
+  const [existingUserTracks, setExistingUserTracks] = useState<Array<{ title: string; artist?: string | null }>>([])
 
-  // Update a single queue item helper
-  const updateItem = (id: string, updates: Partial<QueueItem>) => {
-    setQueue((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...updates } : item))
+  // Fetch user's existing tracks from DB for duplicate checking
+  useEffect(() => {
+    const fetchExistingTracks = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) return
+
+      const { data } = await supabase
+        .from('tracks')
+        .select('title, artist, artists(name)')
+        .eq('user_id', user.id)
+
+      if (data) {
+        const normalized = data.map((t: any) => ({
+          title: (t.title || '').trim().toLowerCase(),
+          artist: (t.artists?.name || t.artist || '').trim().toLowerCase(),
+        }))
+        setExistingUserTracks(normalized)
+      }
+    }
+
+    fetchExistingTracks()
+  }, [])
+
+  // Helper to check if a track is a duplicate against DB or local Queue
+  const checkDuplicate = (
+    title: string,
+    artist: string,
+    id: string,
+    currentQueue: QueueItem[]
+  ): { isDuplicate: boolean; reason: string | null } => {
+    const cleanTitle = title.trim().toLowerCase()
+    const cleanArtist = artist.trim().toLowerCase()
+
+    if (!cleanTitle) return { isDuplicate: false, reason: null }
+
+    // 1. Check against DB library
+    const existsInDb = existingUserTracks.some((t) => {
+      if (t.title !== cleanTitle) return false
+      if (!cleanArtist) return true
+      return t.artist === cleanArtist || t.artist === ''
+    })
+
+    if (existsInDb) {
+      return { isDuplicate: true, reason: 'Bài hát đã có sẵn trong Thư viện cá nhân' }
+    }
+
+    // 2. Check against other items in current Queue
+    const existsInQueue = currentQueue.some(
+      (item) =>
+        item.id !== id &&
+        item.title.trim().toLowerCase() === cleanTitle &&
+        (!cleanArtist || item.artist.trim().toLowerCase() === cleanArtist)
     )
+
+    if (existsInQueue) {
+      return { isDuplicate: true, reason: 'Trùng lặp với 1 bài khác trong hàng chờ' }
+    }
+
+    return { isDuplicate: false, reason: null }
+  }
+
+  // Update a single queue item helper & re-check duplicate status
+  const updateItem = (id: string, updates: Partial<QueueItem>) => {
+    setQueue((prev) => {
+      const next = prev.map((item) => (item.id === id ? { ...item, ...updates } : item))
+      return next.map((item) => {
+        const dupInfo = checkDuplicate(item.title, item.artist, item.id, next)
+        return {
+          ...item,
+          isDuplicate: dupInfo.isDuplicate,
+          duplicateReason: dupInfo.reason,
+        }
+      })
+    })
   }
 
   // Handle selected files
@@ -89,14 +168,24 @@ export function UploadForm() {
       progress: 0,
     }))
 
-    setQueue((prev) => [...prev, ...newItems])
+    setQueue((prev) => {
+      const updatedQueue = [...prev, ...newItems]
+      return updatedQueue.map((item) => {
+        const dupInfo = checkDuplicate(item.title, item.artist, item.id, updatedQueue)
+        return {
+          ...item,
+          isDuplicate: dupInfo.isDuplicate,
+          duplicateReason: dupInfo.reason,
+        }
+      })
+    })
 
     // Background ID3 Metadata parsing
     for (const item of newItems) {
       try {
         const metadata = await mm.parseBlob(item.file)
-        setQueue((prev) =>
-          prev.map((q) => {
+        setQueue((prev) => {
+          const updated = prev.map((q) => {
             if (q.id !== item.id) return q
             return {
               ...q,
@@ -106,10 +195,19 @@ export function UploadForm() {
               duration: metadata.format.duration
                 ? Math.round(metadata.format.duration)
                 : 0,
-              status: 'idle',
+              status: 'idle' as const,
             }
           })
-        )
+
+          return updated.map((q) => {
+            const dupInfo = checkDuplicate(q.title, q.artist, q.id, updated)
+            return {
+              ...q,
+              isDuplicate: dupInfo.isDuplicate,
+              duplicateReason: dupInfo.reason,
+            }
+          })
+        })
       } catch (err) {
         console.warn('Metadata parsing warning:', err)
         setQueue((prev) =>
@@ -146,7 +244,7 @@ export function UploadForm() {
   }
 
   const clearCompleted = () => {
-    setQueue((prev) => prev.filter((item) => item.status !== 'completed'))
+    setQueue((prev) => prev.filter((item) => item.status !== 'completed' && item.status !== 'skipped'))
   }
 
   // Upload single track workflow
@@ -154,6 +252,17 @@ export function UploadForm() {
     item: QueueItem,
     userId: string
   ): Promise<boolean> => {
+    // Check if skipped due to duplicate policy
+    if (skipDuplicates && item.isDuplicate && !item.forceUpload) {
+      updateItem(item.id, {
+        status: 'skipped',
+        progress: 0,
+        compressInfo: null,
+        error: `Đã bỏ qua bài trùng (${item.duplicateReason})`,
+      })
+      return true
+    }
+
     try {
       let uploadFile = item.file
 
@@ -232,7 +341,6 @@ export function UploadForm() {
       })
 
       if (dbError) {
-        // Schema fallback (if artist text column exists)
         const { error: fallbackError } = await supabase.from('tracks').insert({
           user_id: userId,
           title: item.title || item.file.name,
@@ -272,7 +380,7 @@ export function UploadForm() {
   const startBatchUpload = async (targetItems?: QueueItem[]) => {
     const itemsToUpload =
       targetItems ||
-      queue.filter((i) => i.status === 'idle' || i.status === 'error')
+      queue.filter((i) => i.status === 'idle' || i.status === 'error' || i.status === 'skipped')
 
     if (itemsToUpload.length === 0) return
 
@@ -320,7 +428,9 @@ export function UploadForm() {
   // Queue Statistics
   const totalCount = queue.length
   const completedCount = queue.filter((i) => i.status === 'completed').length
+  const skippedCount = queue.filter((i) => i.status === 'skipped').length
   const errorCount = queue.filter((i) => i.status === 'error').length
+  const duplicateCount = queue.filter((i) => i.isDuplicate).length
   const inProgressCount = queue.filter(
     (i) =>
       i.status === 'compressing' ||
@@ -331,8 +441,9 @@ export function UploadForm() {
     (i) => i.status === 'idle' || i.status === 'parsing'
   ).length
 
+  const finishedCount = completedCount + skippedCount
   const overallProgressPercent =
-    totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+    totalCount > 0 ? Math.round((finishedCount / totalCount) * 100) : 0
 
   return (
     <div className="max-w-4xl mx-auto glass-panel p-6 md:p-8 rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden">
@@ -344,29 +455,46 @@ export function UploadForm() {
             Upload Hàng Loạt Bài Hát
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Tải nhiều bài hát cùng lúc • Tự động chia đợt tránh nghẽn mạng • Tiến trình chi tiết
+            Tải nhiều bài hát cùng lúc • Tự động phát hiện bài trùng • Chia đợt thông minh
           </p>
         </div>
 
-        {/* Batch Size Selector */}
-        <div className="flex items-center gap-2 bg-black/40 p-1.5 rounded-2xl border border-white/10 text-xs">
-          <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400 ml-2" />
-          <span className="text-slate-300 font-medium">Quy mô đợt:</span>
-          {[1, 2, 3, 5].map((size) => (
-            <button
-              key={size}
-              type="button"
-              disabled={isUploading}
-              onClick={() => setBatchSize(size)}
-              className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
-                batchSize === size
-                  ? 'bg-[var(--primary-spotify)] text-black shadow-md'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              {size} bài/đợt
-            </button>
-          ))}
+        {/* Batch & Duplicate Settings */}
+        <div className="flex flex-wrap items-center gap-3 bg-black/40 p-2 rounded-2xl border border-white/10 text-xs">
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400 ml-1" />
+            <span className="text-slate-300 font-medium">Quy mô đợt:</span>
+            {[1, 2, 3, 5].map((size) => (
+              <button
+                key={size}
+                type="button"
+                disabled={isUploading}
+                onClick={() => setBatchSize(size)}
+                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all ${
+                  batchSize === size
+                    ? 'bg-[var(--primary-spotify)] text-black shadow-md'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                {size} bài/đợt
+              </button>
+            ))}
+          </div>
+
+          <div className="h-4 w-[1px] bg-white/10 hidden sm:block" />
+
+          {/* Auto Skip Duplicate Checkbox */}
+          <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white select-none">
+            <input
+              type="checkbox"
+              checked={skipDuplicates}
+              onChange={(e) => setSkipDuplicates(e.target.checked)}
+              className="rounded accent-[var(--primary-spotify)] w-3.5 h-3.5 cursor-pointer"
+            />
+            <span className="font-semibold text-xs text-amber-300 flex items-center gap-1">
+              <Copy className="w-3.5 h-3.5" /> Tự bỏ qua bài trùng
+            </span>
+          </label>
         </div>
       </div>
 
@@ -400,7 +528,7 @@ export function UploadForm() {
               Nhấp để chọn hoặc Kéo & thả nhiều file âm thanh vào đây
             </p>
             <p className="text-xs text-slate-400 mt-1">
-              Hỗ trợ MP3, WAV, M4A, FLAC (Tự động nén High-Res nếu file &gt; 45MB)
+              Hỗ trợ MP3, WAV, M4A, FLAC (Tự động phát hiện trùng lặp & nén file &gt; 45MB)
             </p>
           </div>
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--primary-spotify)] bg-[var(--primary-spotify)]/10 px-3 py-1 rounded-full border border-[var(--primary-spotify)]/20">
@@ -417,8 +545,22 @@ export function UploadForm() {
               <span>Hàng chờ: <strong className="text-white">{totalCount}</strong> bài</span>
               <span>•</span>
               <span className="text-emerald-400">Đã xong: <strong>{completedCount}</strong></span>
+              {duplicateCount > 0 && (
+                <>
+                  <span>•</span>
+                  <span className="text-amber-400 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Trùng: <strong>{duplicateCount}</strong>
+                  </span>
+                </>
+              )}
+              {skippedCount > 0 && (
+                <>
+                  <span>•</span>
+                  <span className="text-slate-400">Đã bỏ qua: <strong>{skippedCount}</strong></span>
+                </>
+              )}
               <span>•</span>
-              <span className="text-amber-400">Đang chạy: <strong>{inProgressCount}</strong></span>
+              <span className="text-cyan-400">Đang chạy: <strong>{inProgressCount}</strong></span>
               <span>•</span>
               <span className="text-red-400">Lỗi: <strong>{errorCount}</strong></span>
             </div>
@@ -449,14 +591,14 @@ export function UploadForm() {
       {totalCount > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
-            {completedCount > 0 && (
+            {(completedCount > 0 || skippedCount > 0) && (
               <button
                 type="button"
                 disabled={isUploading}
                 onClick={clearCompleted}
                 className="text-xs font-medium text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-xl border border-white/10 transition-all"
               >
-                Xóa các bài đã xong ({completedCount})
+                Xóa bài đã xong / bỏ qua ({completedCount + skippedCount})
               </button>
             )}
 
@@ -504,6 +646,7 @@ export function UploadForm() {
         <div className="flex flex-col gap-3 max-h-[500px] overflow-y-auto pr-1">
           {queue.map((item, idx) => {
             const isCompleted = item.status === 'completed'
+            const isSkipped = item.status === 'skipped'
             const isError = item.status === 'error'
             const isProcessing =
               item.status === 'compressing' ||
@@ -517,8 +660,12 @@ export function UploadForm() {
                 className={`p-4 rounded-2xl border transition-all flex flex-col gap-3 ${
                   isCompleted
                     ? 'bg-emerald-950/20 border-emerald-500/30'
+                    : isSkipped
+                    ? 'bg-slate-900/40 border-slate-700/40 opacity-75'
                     : isError
                     ? 'bg-red-950/20 border-red-500/30'
+                    : item.isDuplicate
+                    ? 'bg-amber-950/20 border-amber-500/40'
                     : isProcessing
                     ? 'bg-black/60 border-[var(--primary-spotify)]/50 shadow-md'
                     : 'bg-black/30 border-white/10 hover:border-white/20'
@@ -534,6 +681,8 @@ export function UploadForm() {
                         <CheckCircle2 className="w-5 h-5 text-[var(--primary-spotify)]" />
                       ) : isError ? (
                         <AlertCircle className="w-5 h-5 text-red-400" />
+                      ) : item.isDuplicate ? (
+                        <AlertTriangle className="w-5 h-5 text-amber-400" />
                       ) : (
                         <Music className="w-5 h-5 text-[var(--primary-spotify)]" />
                       )}
@@ -569,15 +718,20 @@ export function UploadForm() {
                     </div>
                   </div>
 
-                  {/* Status Badge & Remove button */}
+                  {/* Status Badge & Actions */}
                   <div className="flex items-center gap-3 self-end md:self-center shrink-0">
                     <div className="text-xs">
                       {isParsing && (
                         <span className="text-slate-400 italic">Đang đọc metadata...</span>
                       )}
-                      {item.status === 'idle' && (
+                      {item.status === 'idle' && !item.isDuplicate && (
                         <span className="text-slate-400 bg-white/5 px-2.5 py-1 rounded-full border border-white/10 font-semibold">
                           Sẵn sàng
+                        </span>
+                      )}
+                      {item.status === 'idle' && item.isDuplicate && (
+                        <span className="text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/30 font-bold flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" /> Trùng bài
                         </span>
                       )}
                       {item.status === 'compressing' && (
@@ -600,12 +754,34 @@ export function UploadForm() {
                           <Check className="w-3.5 h-3.5" /> Hoàn thành
                         </span>
                       )}
+                      {isSkipped && (
+                        <span className="text-slate-400 bg-white/5 px-2.5 py-1 rounded-full border border-white/10 font-medium">
+                          Đã bỏ qua (Trùng)
+                        </span>
+                      )}
                       {isError && (
                         <span className="text-red-400 bg-red-500/10 px-2.5 py-1 rounded-full border border-red-500/20 font-bold flex items-center gap-1">
                           <AlertCircle className="w-3.5 h-3.5" /> Lỗi
                         </span>
                       )}
                     </div>
+
+                    {item.isDuplicate && !isCompleted && !isUploading && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          updateItem(item.id, { forceUpload: !item.forceUpload })
+                        }}
+                        className={`text-xs px-2.5 py-1 rounded-xl font-bold border transition-all ${
+                          item.forceUpload
+                            ? 'bg-amber-500 text-black border-amber-400'
+                            : 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20'
+                        }`}
+                        title="Cho phép upload trùng"
+                      >
+                        {item.forceUpload ? 'Vẫn upload' : 'Bỏ qua'}
+                      </button>
+                    )}
 
                     {isError && !isUploading && (
                       <button
@@ -630,6 +806,19 @@ export function UploadForm() {
                     )}
                   </div>
                 </div>
+
+                {/* Duplicate warning notification */}
+                {item.isDuplicate && !isCompleted && !isSkipped && (
+                  <div className="p-2 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-xl text-xs flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                      <span>{item.duplicateReason}</span>
+                    </div>
+                    <span className="text-[10px] text-amber-400/80 italic">
+                      {item.forceUpload ? '(Sẽ upload đè / tạo bản sao)' : skipDuplicates ? '(Sẽ tự động bỏ qua)' : '(Vẫn upload)'}
+                    </span>
+                  </div>
+                )}
 
                 {/* Compression info notification */}
                 {item.compressInfo && (
@@ -663,12 +852,12 @@ export function UploadForm() {
       )}
 
       {/* Done Footer */}
-      {completedCount > 0 && completedCount === totalCount && (
+      {completedCount > 0 && completedCount + skippedCount === totalCount && (
         <div className="mt-6 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-3 text-emerald-300 text-xs">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-[var(--primary-spotify)] shrink-0" />
             <span className="font-semibold">
-              Tất cả {completedCount} bài hát đã được upload thành công vào Thư viện cá nhân!
+              Đã xử lý xong hàng chờ: {completedCount} bài upload thành công{skippedCount > 0 ? `, ${skippedCount} bài bị trùng đã bỏ qua` : ''}!
             </span>
           </div>
 
