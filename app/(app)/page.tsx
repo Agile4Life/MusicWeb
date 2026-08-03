@@ -133,14 +133,14 @@ export default function HomePage() {
   return (
     <div className="p-6 md:p-8 flex flex-col gap-8 max-w-7xl mx-auto w-full">
       {/* High-Impact Hero Card */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 p-8 md:p-10 bg-gradient-to-r from-emerald-950/80 via-[#0e141a] to-[#090b10] shadow-2xl">
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 p-8 md:p-10 bg-gradient-to-r from-[var(--theme-gradient-1)] via-[#0e141a] to-[#090b10] shadow-2xl">
         {/* Glow Effects */}
-        <div className="absolute -top-24 -left-24 w-72 h-72 bg-[#1DB954]/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -left-24 w-72 h-72 bg-[var(--primary-spotify)]/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-[var(--theme-secondary)]/20 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex flex-col gap-3 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold uppercase tracking-widest w-max shadow-sm">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--primary-spotify)]/10 border border-[var(--primary-spotify)]/30 text-[var(--primary-spotify)] text-xs font-bold uppercase tracking-widest w-max shadow-sm">
               <Sparkles className="w-3.5 h-3.5" />
               <span>Thư viện âm nhạc cá nhân</span>
             </div>
@@ -166,7 +166,7 @@ export default function HomePage() {
             {tracks.length > 0 && (
               <button
                 onClick={() => playTrack(tracks[0], tracks)}
-                className="bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold px-6 py-3.5 rounded-full flex items-center gap-2 shadow-xl shadow-emerald-500/25 hover:scale-105 transition-all text-sm"
+                className="bg-[var(--primary-spotify)] text-black font-extrabold px-6 py-3.5 rounded-full flex items-center gap-2 shadow-xl shadow-[var(--theme-glow-shadow)] hover:scale-105 transition-all text-sm"
               >
                 <Play className="w-5 h-5 fill-current" />
                 <span>Phát Ngay</span>
@@ -175,9 +175,9 @@ export default function HomePage() {
 
             <Link
               href="/upload"
-              className="glass-card hover:border-emerald-500/40 text-white font-bold px-5 py-3.5 rounded-full flex items-center gap-2 text-sm transition-all shadow-lg"
+              className="glass-card hover:border-[var(--primary-spotify)]/50 text-white font-bold px-5 py-3.5 rounded-full flex items-center gap-2 text-sm transition-all shadow-lg"
             >
-              <Upload className="w-4 h-4 text-emerald-400" />
+              <Upload className="w-4 h-4 text-[var(--primary-spotify)]" />
               <span>Upload Nhạc</span>
             </Link>
           </div>
@@ -206,19 +206,19 @@ export default function HomePage() {
                     <img src={t.cover_url} alt={t.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 text-slate-500">
-                      <Music className="w-8 h-8 group-hover:text-emerald-400 transition-colors" />
+                      <Music className="w-8 h-8 group-hover:text-[var(--primary-spotify)] transition-colors" />
                     </div>
                   )}
                   {/* Floating Quick Play Button */}
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
-                    <div className="w-10 h-10 rounded-full bg-[#1DB954] flex items-center justify-center text-black shadow-lg hover:scale-110 transition-transform">
+                    <div className="w-10 h-10 rounded-full bg-[var(--primary-spotify)] flex items-center justify-center text-black shadow-lg hover:scale-110 transition-transform">
                       <Play className="w-5 h-5 fill-current ml-0.5" />
                     </div>
                   </div>
                 </div>
 
                 <div className="truncate">
-                  <p className="text-xs font-bold text-white truncate group-hover:text-[#1DB954] transition-colors">
+                  <p className="text-xs font-bold text-white truncate group-hover:text-[var(--primary-spotify)] transition-colors">
                     {t.title}
                   </p>
                   <p className="text-[10px] text-slate-400 truncate">
@@ -235,7 +235,7 @@ export default function HomePage() {
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Disc className="w-5 h-5 text-emerald-400" />
+            <Disc className="w-5 h-5 text-[var(--primary-spotify)]" />
             Tất Cả Bài Hát ({filteredTracks.length})
           </h2>
 

@@ -131,10 +131,10 @@ export function UploadForm() {
     <div className="max-w-xl mx-auto glass-panel p-8 rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <Upload className="w-5 h-5 text-[#1DB954]" />
+          <Upload className="w-5 h-5 text-[var(--primary-spotify)]" />
           Upload Bài Hát Cá Nhân
         </h2>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--primary-spotify)] bg-[var(--primary-spotify)]/10 px-2.5 py-1 rounded-full border border-[var(--primary-spotify)]/20">
           Studio High-Res
         </span>
       </div>
@@ -147,7 +147,7 @@ export function UploadForm() {
       )}
 
       {success && (
-        <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/30 text-[#1DB954] rounded-xl text-xs flex items-center gap-2">
+        <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/30 text-[var(--primary-spotify)] rounded-xl text-xs flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>Upload thành công! Đang chuyển về Trang chủ...</span>
         </div>
@@ -155,7 +155,7 @@ export function UploadForm() {
 
       <form onSubmit={handleUpload} className="flex flex-col gap-4">
         {/* Dropzone */}
-        <div className="border-2 border-dashed border-white/10 hover:border-[#1DB954] rounded-2xl p-8 text-center transition-all cursor-pointer bg-black/30 hover:bg-black/50">
+        <div className="border-2 border-dashed border-white/10 hover:border-[var(--primary-spotify)] rounded-2xl p-8 text-center transition-all cursor-pointer bg-black/30 hover:bg-black/50">
           <input
             type="file"
             accept=".mp3,.wav,.m4a,.flac"
@@ -164,13 +164,13 @@ export function UploadForm() {
             id="audio-upload"
           />
           <label htmlFor="audio-upload" className="cursor-pointer flex flex-col items-center gap-3">
-            <div className="w-14 h-14 bg-gradient-to-tr from-emerald-500/20 to-cyan-500/20 rounded-full flex items-center justify-center text-[#1DB954] border border-emerald-500/30">
+            <div className="w-14 h-14 bg-gradient-to-tr from-[var(--primary-spotify)]/20 to-[var(--theme-secondary)]/20 rounded-full flex items-center justify-center text-[var(--primary-spotify)] border border-[var(--primary-spotify)]/30">
               <Music className="w-7 h-7" />
             </div>
             {file ? (
               <div>
                 <p className="text-sm font-bold text-white">{file.name}</p>
-                <p className="text-xs text-emerald-400 mt-0.5">
+                <p className="text-xs text-[var(--primary-spotify)] mt-0.5">
                   {(file.size / (1024 * 1024)).toFixed(2)} MB • {duration ? `${Math.floor(duration/60)}m ${duration%60}s` : 'Phân tích xong'}
                 </p>
               </div>
@@ -221,7 +221,7 @@ export function UploadForm() {
             {loading && (
               <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden mt-1">
                 <div
-                  className="bg-[#1DB954] h-full transition-all duration-300"
+                  className="bg-[var(--primary-spotify)] h-full transition-all duration-300"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -230,7 +230,7 @@ export function UploadForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold py-3 rounded-full transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-50 shadow-lg shadow-emerald-500/20"
+              className="w-full bg-[var(--primary-spotify)] text-black font-extrabold py-3 rounded-full transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-50 shadow-lg shadow-[var(--theme-glow-shadow)]"
             >
               {loading ? (
                 <>

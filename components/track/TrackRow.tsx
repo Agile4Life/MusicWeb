@@ -46,7 +46,7 @@ export function TrackRow({
     <div
       className={`group flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer select-none border ${
         isCurrent
-          ? 'bg-white/10 border-emerald-500/30 shadow-md shadow-emerald-500/10'
+          ? 'bg-white/10 border-[var(--primary-spotify)]/30 shadow-md shadow-[var(--theme-glow-shadow)]'
           : 'border-transparent hover:bg-white/5 hover:border-white/5'
       }`}
       onMouseLeave={() => setShowMenu(false)}
@@ -57,12 +57,12 @@ export function TrackRow({
           <span className="group-hover:hidden">
             {isCurrent && isPlaying ? (
               <div className="flex items-end justify-center gap-0.5 h-3">
-                <span className="w-0.5 bg-[#1DB954] rounded-full eq-bar-1" />
-                <span className="w-0.5 bg-[#1DB954] rounded-full eq-bar-2" />
-                <span className="w-0.5 bg-[#1DB954] rounded-full eq-bar-3" />
+                <span className="w-0.5 bg-[var(--primary-spotify)] rounded-full eq-bar-1" />
+                <span className="w-0.5 bg-[var(--primary-spotify)] rounded-full eq-bar-2" />
+                <span className="w-0.5 bg-[var(--primary-spotify)] rounded-full eq-bar-3" />
               </div>
             ) : (
-              <span className={isCurrent ? 'text-[#1DB954] font-bold' : ''}>{index + 1}</span>
+              <span className={isCurrent ? 'text-[var(--primary-spotify)] font-bold' : ''}>{index + 1}</span>
             )}
           </span>
           <button
@@ -70,7 +70,7 @@ export function TrackRow({
             className="hidden group-hover:inline-block text-white hover:scale-110 transition-transform"
           >
             {isCurrent && isPlaying ? (
-              <Pause className="w-4 h-4 fill-current text-[#1DB954]" />
+              <Pause className="w-4 h-4 fill-current text-[var(--primary-spotify)]" />
             ) : (
               <Play className="w-4 h-4 fill-current text-white" />
             )}
@@ -89,7 +89,7 @@ export function TrackRow({
         <div className="truncate flex flex-col">
           <p
             className={`text-sm font-bold truncate ${
-              isCurrent ? 'text-[#1DB954]' : 'text-white'
+              isCurrent ? 'text-[var(--primary-spotify)]' : 'text-white'
             }`}
           >
             {track.title}

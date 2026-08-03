@@ -94,7 +94,7 @@ export function PlayerBar() {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <Disc className={`w-6 h-6 text-[#1DB954] ${isPlaying ? 'animate-spin-slow' : ''}`} />
+              <Disc className={`w-6 h-6 text-[var(--primary-spotify)] ${isPlaying ? 'animate-spin-slow' : ''}`} />
             )}
           </div>
         </div>
@@ -106,9 +106,9 @@ export function PlayerBar() {
             </p>
             {isPlaying && (
               <div className="flex items-end gap-0.5 h-3 shrink-0">
-                <span className="w-0.5 bg-[#1DB954] rounded-full eq-bar-1" />
-                <span className="w-0.5 bg-[#1DB954] rounded-full eq-bar-2" />
-                <span className="w-0.5 bg-[#1DB954] rounded-full eq-bar-3" />
+                <span className="w-0.5 bg-[var(--primary-spotify)] rounded-full eq-bar-1" />
+                <span className="w-0.5 bg-[var(--primary-spotify)] rounded-full eq-bar-2" />
+                <span className="w-0.5 bg-[var(--primary-spotify)] rounded-full eq-bar-3" />
               </div>
             )}
           </div>
@@ -131,7 +131,7 @@ export function PlayerBar() {
 
           <button
             onClick={togglePlay}
-            className="w-10 h-10 rounded-full bg-[#1DB954] hover:bg-[#1ed760] hover:scale-105 active:scale-95 transition-all flex items-center justify-center text-black shadow-lg shadow-emerald-500/30"
+            className="w-10 h-10 rounded-full bg-[var(--primary-spotify)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center text-black shadow-lg shadow-[var(--theme-glow-shadow)]"
             title={isPlaying ? 'Tạm dừng' : 'Phát'}
           >
             {isPlaying ? (
@@ -158,7 +158,7 @@ export function PlayerBar() {
             max={duration || 100}
             value={currentTime}
             onChange={(e) => seek(Number(e.target.value))}
-            className="flex-1 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#1DB954]"
+            className="flex-1 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[var(--primary-spotify)]"
           />
           <span className="w-9">{formatTime(duration)}</span>
         </div>
@@ -180,7 +180,7 @@ export function PlayerBar() {
           step={0.01}
           value={volume}
           onChange={(e) => setVolume(Number(e.target.value))}
-          className="w-24 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#1DB954]"
+          className="w-24 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[var(--primary-spotify)]"
         />
       </div>
     </footer>

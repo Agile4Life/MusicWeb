@@ -185,9 +185,9 @@ export function AuthForm({ mode }: AuthFormProps) {
         />
 
         <div className="flex flex-col items-center gap-3 mb-8 text-center relative z-10">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#1DB954] to-cyan-400 p-0.5 shadow-xl shadow-emerald-500/20">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[var(--primary-spotify)] to-[var(--theme-secondary,#06b6d4)] p-0.5 shadow-xl shadow-[var(--theme-glow-shadow)]">
             <div className="w-full h-full bg-[#0d0e15] rounded-[14px] flex items-center justify-center">
-              <Disc className="w-7 h-7 text-[#1DB954] animate-spin-slow" />
+              <Disc className="w-7 h-7 text-[var(--primary-spotify)] animate-spin-slow" />
             </div>
           </div>
           <h1 className="text-2xl font-extrabold text-white tracking-tight">
@@ -216,7 +216,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         )}
 
         {successMsg && (
-          <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/30 text-[#1DB954] rounded-xl text-xs flex items-center gap-2 relative z-10">
+          <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/30 text-[var(--primary-spotify)] rounded-xl text-xs flex items-center gap-2 relative z-10">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{successMsg}</span>
           </div>
@@ -263,7 +263,7 @@ export function AuthForm({ mode }: AuthFormProps) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold py-3 rounded-full transition-transform active:scale-95 flex items-center justify-center gap-2 mt-2 disabled:opacity-50 shadow-lg shadow-emerald-500/25"
+            className="w-full bg-[var(--primary-spotify)] text-black font-extrabold py-3 rounded-full transition-transform active:scale-95 flex items-center justify-center gap-2 mt-2 disabled:opacity-50 shadow-lg shadow-[var(--theme-glow-shadow)]"
           >
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -279,14 +279,14 @@ export function AuthForm({ mode }: AuthFormProps) {
           {mode === 'login' ? (
             <p>
               Chưa có tài khoản?{' '}
-              <Link href="/register" className="text-[#1DB954] font-bold hover:underline">
+              <Link href="/register" className="text-[var(--primary-spotify)] font-bold hover:underline">
                 Đăng ký ngay
               </Link>
             </p>
           ) : (
             <p>
               Đã có tài khoản?{' '}
-              <Link href="/login" className="text-[#1DB954] font-bold hover:underline">
+              <Link href="/login" className="text-[var(--primary-spotify)] font-bold hover:underline">
                 Đăng nhập
               </Link>
             </p>
