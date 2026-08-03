@@ -127,6 +127,31 @@ export function UploadForm() {
     }
   }
 
+  const [isDragging, setIsDragging] = useState(false)
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const droppedFile = e.dataTransfer.files[0]
+      handleFileChange(droppedFile)
+    }
+  }
+
   return (
     <div className="max-w-xl mx-auto glass-panel p-8 rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden">
       <div className="flex items-center justify-between mb-6">
@@ -154,8 +179,17 @@ export function UploadForm() {
       )}
 
       <form onSubmit={handleUpload} className="flex flex-col gap-4">
-        {/* Dropzone */}
-        <div className="border-2 border-dashed border-white/10 hover:border-[var(--primary-spotify)] rounded-2xl p-8 text-center transition-all cursor-pointer bg-black/30 hover:bg-black/50">
+        {/* Dropzone with Drag & Drop support */}
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${
+            isDragging
+              ? 'border-[var(--primary-spotify)] bg-[var(--primary-spotify)]/15 scale-[1.02] shadow-xl shadow-[var(--theme-glow-shadow)]'
+              : 'border-white/10 hover:border-[var(--primary-spotify)] bg-black/30 hover:bg-black/50'
+          }`}
+        >
           <input
             type="file"
             accept=".mp3,.wav,.m4a,.flac"

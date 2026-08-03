@@ -43,6 +43,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
 
   // Direct Upload State
   const [file, setFile] = useState<File | null>(null)
+  const [isModalDragging, setIsModalDragging] = useState(false)
   const [uploadTitle, setUploadTitle] = useState('')
   const [uploadArtist, setUploadArtist] = useState('')
   const [uploadDuration, setUploadDuration] = useState(0)
@@ -485,7 +486,31 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
             )}
 
             <form onSubmit={handleDirectUpload} className="flex flex-col gap-4">
-              <div className="border-2 border-dashed border-white/10 hover:border-[var(--primary-spotify)] rounded-2xl p-6 text-center transition-all cursor-pointer bg-black/40">
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setIsModalDragging(true)
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setIsModalDragging(false)
+                }}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setIsModalDragging(false)
+                  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    handleFileChange(e.dataTransfer.files[0])
+                  }
+                }}
+                className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all cursor-pointer ${
+                  isModalDragging
+                    ? 'border-[var(--primary-spotify)] bg-[var(--primary-spotify)]/15 scale-[1.02] shadow-xl shadow-[var(--theme-glow-shadow)]'
+                    : 'border-white/10 hover:border-[var(--primary-spotify)] bg-black/40'
+                }`}
+              >
                 <input
                   type="file"
                   accept=".mp3,.wav,.m4a,.flac"
