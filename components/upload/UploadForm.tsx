@@ -54,7 +54,11 @@ function formatFileSize(bytes: number): string {
   return `${mb.toFixed(1)} MB`
 }
 
-export function UploadForm() {
+interface UploadFormProps {
+  playlistId?: string
+}
+
+export function UploadForm({ playlistId }: UploadFormProps = {}) {
   const router = useRouter()
   const supabase = createClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -362,27 +366,57 @@ export function UploadForm() {
         }
       }
 
-      const { error: dbError } = await supabase.from('tracks').insert({
-        user_id: userId,
-        title: cleanTitle,
-        artist_id: artistId,
-        duration: item.duration || 0,
-        file_path: filePath,
-        file_size: uploadFile.size,
-      })
+      let insertedTrackId: string | null = null
 
-      if (dbError) {
-        const { error: fallbackError } = await supabase.from('tracks').insert({
+      const { data: trackData, error: dbError } = await supabase
+        .from('tracks')
+        .insert({
           user_id: userId,
           title: cleanTitle,
-          artist: item.artist || null,
-          album: item.album || null,
+          artist_id: artistId,
           duration: item.duration || 0,
           file_path: filePath,
           file_size: uploadFile.size,
         })
+        .select('id')
+        .single()
+
+      if (trackData?.id) {
+        insertedTrackId = trackData.id
+      }
+
+      if (dbError) {
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('tracks')
+          .insert({
+            user_id: userId,
+            title: cleanTitle,
+            artist: item.artist || null,
+            album: item.album || null,
+            duration: item.duration || 0,
+            file_path: filePath,
+            file_size: uploadFile.size,
+          })
+          .select('id')
+          .single()
+
         if (fallbackError) {
           throw new Error(`Lỗi lưu DB: ${dbError.message}`)
+        }
+        if (fallbackData?.id) {
+          insertedTrackId = fallbackData.id
+        }
+      }
+
+      // If uploading directly into a playlist, add track to playlist
+      if (playlistId && insertedTrackId) {
+        try {
+          await supabase.rpc('fn_add_track_to_playlist', {
+            p_playlist_id: playlistId,
+            p_track_id: insertedTrackId,
+          })
+        } catch (plErr) {
+          console.warn('Could not add track to playlist:', plErr)
         }
       }
 

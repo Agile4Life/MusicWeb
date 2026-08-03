@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Playlist, Track } from '@/types'
 import { TrackList } from '@/components/track/TrackList'
 import { usePlayer } from '@/components/player/PlayerContext'
+import { UploadForm } from '@/components/upload/UploadForm'
 import {
   Play,
   Music,
@@ -503,120 +504,19 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
 
       {/* 🚀 MODAL 1: Upload Nhạc Trực Tiếp vào Playlist */}
       {showUploadModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="glass-panel w-full max-w-md p-6 rounded-3xl border border-white/10 shadow-2xl relative flex flex-col gap-4">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Upload className="w-4 h-4 text-[var(--primary-spotify)]" />
-                Upload Nhạc vào "{playlist.name}"
-              </h3>
-              <button
-                onClick={() => setShowUploadModal(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {uploadError && (
-              <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{uploadError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleDirectUpload} className="flex flex-col gap-4">
-              <div
-                onDragOver={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setIsModalDragging(true)
-                }}
-                onDragLeave={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setIsModalDragging(false)
-                }}
-                onDrop={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setIsModalDragging(false)
-                  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                    handleFileChange(e.dataTransfer.files[0])
-                  }
-                }}
-                className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all cursor-pointer ${
-                  isModalDragging
-                    ? 'border-[var(--primary-spotify)] bg-[var(--primary-spotify)]/15 scale-[1.02] shadow-xl shadow-[var(--theme-glow-shadow)]'
-                    : 'border-white/10 hover:border-[var(--primary-spotify)] bg-black/40'
-                }`}
-              >
-                <input
-                  type="file"
-                  accept=".mp3,.wav,.m4a,.flac"
-                  onChange={(e) => e.target.files?.[0] && handleFileChange(e.target.files[0])}
-                  className="hidden"
-                  id="playlist-audio-upload"
-                />
-                <label htmlFor="playlist-audio-upload" className="cursor-pointer flex flex-col items-center gap-2">
-                  <Music className="w-6 h-6 text-[var(--primary-spotify)]" />
-                  {file ? (
-                    <div>
-                      <p className="text-xs font-bold text-white">{file.name}</p>
-                      <p className="text-[10px] text-[var(--primary-spotify)]">
-                        {(file.size / (1024 * 1024)).toFixed(2)} MB
-                      </p>
-                    </div>
-                  ) : (
-                    <div>
-                      <p className="text-xs font-semibold text-slate-300">Chọn file mp3, wav, m4a, flac</p>
-                      <p className="text-[10px] text-slate-500">Dung lượng tối đa 150MB</p>
-                    </div>
-                  )}
-                </label>
-              </div>
-
-              {file && (
-                <div className="flex flex-col gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-300 mb-1">Tên bài hát *</label>
-                    <input
-                      type="text"
-                      required
-                      value={uploadTitle}
-                      onChange={(e) => setUploadTitle(e.target.value)}
-                      className="w-full glass-input rounded-xl px-3 py-2 text-xs text-white outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-300 mb-1">Nghệ sĩ</label>
-                    <input
-                      type="text"
-                      value={uploadArtist}
-                      onChange={(e) => setUploadArtist(e.target.value)}
-                      placeholder="Tên nghệ sĩ"
-                      className="w-full glass-input rounded-xl px-3 py-2 text-xs text-white outline-none"
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={uploading}
-                    className="w-full bg-[var(--primary-spotify)] text-black font-extrabold py-2.5 rounded-full transition-all flex items-center justify-center gap-2 mt-1 shadow-lg shadow-[var(--theme-glow-shadow)] text-xs"
-                  >
-                    {uploading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Đang Upload...
-                      </>
-                    ) : (
-                      'Tải Lên & Thêm Vào Playlist'
-                    )}
-                  </button>
-                </div>
-              )}
-            </form>
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-4xl relative">
+            <button
+              onClick={() => {
+                setShowUploadModal(false)
+                fetchPlaylistData()
+              }}
+              className="absolute top-4 right-4 z-10 text-slate-400 hover:text-white bg-black/50 p-2 rounded-full border border-white/10 hover:bg-white/10 transition-all"
+              title="Đóng"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <UploadForm playlistId={playlistId} />
           </div>
         </div>
       )}
