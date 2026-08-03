@@ -26,7 +26,8 @@ function translateAuthError(err: any): string {
   if (msg.includes('user already registered') || msg.includes('already exists')) return 'Email này đã được đăng ký tài khoản'
   if (msg.includes('password should be at least')) return 'Mật khẩu phải có ít nhất 6 ký tự'
   if (msg.includes('invalid email')) return 'Định dạng email không hợp lệ'
-  if (msg.includes('email not confirmed')) return 'Email chưa được xác nhận'
+  if (msg.includes('email not confirmed')) return 'Tài khoản chưa được xác nhận email. Hãy kiểm tra hộp thư hoặc tắt "Confirm email" trong Supabase Dashboard.'
+  if (msg.includes('over_email_send_rate_limit') || msg.includes('email rate limit exceeded')) return 'Gửi email xác nhận bị quá giới hạn (Rate Limit). Vui lòng vào Supabase Dashboard > Auth > Providers > Email và tắt "Confirm email" để tạo tài khoản & đăng nhập ngay!'
 
   return errorMessage
 }

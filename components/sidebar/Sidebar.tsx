@@ -51,7 +51,7 @@ export function Sidebar() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event: string, session: any) => {
       const currentUser = session?.user ?? null
       setUser(currentUser)
       if (currentUser) {
