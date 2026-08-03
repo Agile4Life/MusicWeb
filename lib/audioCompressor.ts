@@ -1,8 +1,11 @@
 import { Mp3Encoder } from '@breezystack/lamejs'
 
 /**
- * Automatically converts & compresses audio files starting from 10MB (or custom threshold)
- * into optimized lightweight MP3 files to save storage and bandwidth.
+ * Automatically converts & compresses audio files starting from 10MB
+ * into optimized lightweight MP3 files.
+ * 
+ * Compression runs inside a Web Worker to avoid blocking the main thread.
+ * Falls back to main thread encoding if Worker fails.
  */
 export async function compressAudioIfNeeded(
   file: File,
@@ -12,23 +15,21 @@ export async function compressAudioIfNeeded(
 ): Promise<{ file: File; compressed: boolean; originalSizeMB: number; newSizeMB: number }> {
   const originalSizeMB = Number((file.size / (1024 * 1024)).toFixed(2))
 
-  // If file size is under 10MB (or minCompressSizeMB), no compression needed
+  // If file size is under threshold, no compression needed
   if (file.size < minCompressSizeMB * 1024 * 1024) {
     return { file, compressed: false, originalSizeMB, newSizeMB: originalSizeMB }
   }
 
-
   try {
     if (onProgress) onProgress(5, `Đang đọc dữ liệu file (${originalSizeMB} MB)...`)
 
-    // 1. Read array buffer & decode audio with Web Audio API (slice buffer to prevent detachment)
+    // 1. Read & decode audio on main thread (fast, no blocking)
     const arrayBuffer = await file.arrayBuffer()
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
     const audioCtx = new AudioContextClass()
 
     if (onProgress) onProgress(20, 'Đang giải mã âm thanh AudioBuffer...')
 
-    // Pass arrayBuffer.slice(0) to prevent ArrayBuffer detachment issues
     const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0))
     audioCtx.close()
 
@@ -36,66 +37,35 @@ export async function compressAudioIfNeeded(
 
     // 2. Extract PCM channel data
     const numChannels = Math.min(2, audioBuffer.numberOfChannels || 1)
-    const sampleRate = audioBuffer.sampleRate
     const length = audioBuffer.length
 
-    // Standardize sample rate for MP3 LAME encoder (LAME requires 44.1kHz or 48kHz max)
-    let targetSampleRate = sampleRate
-    if (targetSampleRate > 48000 || ![44100, 48000, 32000, 24000, 22050, 16000, 11025, 8000].includes(targetSampleRate)) {
-      targetSampleRate = 44100
+    // Standardize sample rate for LAME encoder
+    let sampleRate = audioBuffer.sampleRate
+    if (sampleRate > 48000 || ![44100, 48000, 32000, 24000, 22050, 16000, 11025, 8000].includes(sampleRate)) {
+      sampleRate = 44100
     }
 
     const left = audioBuffer.getChannelData(0)
     const right = numChannels > 1 ? audioBuffer.getChannelData(1) : left
 
-    // Convert Float32Array (-1.0 to +1.0) to Int16Array (-32768 to 32767)
+    // Convert Float32 → Int16
     const leftInt16 = new Int16Array(length)
     const rightInt16 = new Int16Array(length)
-
     for (let i = 0; i < length; i++) {
-      let sampleL = Math.max(-1, Math.min(1, left[i]))
-      leftInt16[i] = sampleL < 0 ? sampleL * 0x8000 : sampleL * 0x7fff
-
-      let sampleR = Math.max(-1, Math.min(1, right[i]))
-      rightInt16[i] = sampleR < 0 ? sampleR * 0x8000 : sampleR * 0x7fff
+      const l = Math.max(-1, Math.min(1, left[i]))
+      leftInt16[i] = l < 0 ? l * 0x8000 : l * 0x7fff
+      const r = Math.max(-1, Math.min(1, right[i]))
+      rightInt16[i] = r < 0 ? r * 0x8000 : r * 0x7fff
     }
 
-    if (onProgress) onProgress(50, `Đang nén & chuyển sang MP3 (${targetBitrate}kbps)...`)
+    if (onProgress) onProgress(50, `Đang nén & chuyển sang MP3 (${targetBitrate}kbps) — đang chạy Worker...`)
 
-    // 3. Initialize LAME MP3 Encoder
-    const mp3encoder = new Mp3Encoder(numChannels, targetSampleRate, targetBitrate)
-    const mp3Data: Uint8Array[] = []
-    const sampleBlockSize = 1152
-
-    for (let i = 0; i < length; i += sampleBlockSize) {
-      const leftChunk = leftInt16.subarray(i, i + sampleBlockSize)
-      const rightChunk = rightInt16.subarray(i, i + sampleBlockSize)
-
-      let mp3buf: Int8Array | Uint8Array
-      if (numChannels > 1) {
-        mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk)
-      } else {
-        mp3buf = mp3encoder.encodeBuffer(leftChunk)
-      }
-
-      if (mp3buf && mp3buf.length > 0) {
-        mp3Data.push(new Uint8Array(mp3buf))
-      }
-
-      if (onProgress && i % (sampleBlockSize * 150) === 0) {
-        const pct = Math.min(95, 50 + Math.round((i / length) * 45))
-        onProgress(pct, `Đang nén file MP3 nhẹ (${pct}%)...`)
-      }
-    }
-
-    const endBuf = mp3encoder.flush()
-    if (endBuf && endBuf.length > 0) {
-      mp3Data.push(new Uint8Array(endBuf))
-    }
+    // 3. Run MP3 encoding inside Web Worker (off main thread → no lag)
+    const mp3Data = await encodeInWorker(leftInt16, rightInt16, numChannels, sampleRate, targetBitrate, onProgress)
 
     if (onProgress) onProgress(98, 'Đang hoàn tất tạo file MP3 mới...')
 
-    // 4. Create compressed MP3 file Blob
+    // 4. Build result File
     const blob = new Blob(mp3Data as BlobPart[], { type: 'audio/mp3' })
     const baseName = file.name.replace(/\.[^/.]+$/, '')
     const compressedFile = new File([blob], `${baseName}_light.mp3`, {
@@ -104,14 +74,101 @@ export async function compressAudioIfNeeded(
     })
 
     const newSizeMB = Number((compressedFile.size / (1024 * 1024)).toFixed(2))
-
-    if (onProgress) onProgress(100, `Hoàn tất tối ưu dung lượng (${originalSizeMB} MB ➔ ${newSizeMB} MB)!`)
+    if (onProgress) onProgress(100, `Hoàn tất (${originalSizeMB} MB ➔ ${newSizeMB} MB)!`)
 
     return { file: compressedFile, compressed: true, originalSizeMB, newSizeMB }
   } catch (err: any) {
     console.error('Audio compression failed:', err)
-    // Fallback: If compression fails for any reason, return original file so upload doesn't crash
+    // Fallback: return original file so upload doesn't crash
     return { file, compressed: false, originalSizeMB, newSizeMB: originalSizeMB }
   }
 }
 
+/**
+ * Offloads the heavy LAME MP3 encoding loop to a Web Worker.
+ * Falls back to main-thread encoding if Worker is unavailable.
+ */
+function encodeInWorker(
+  leftInt16: Int16Array,
+  rightInt16: Int16Array,
+  numChannels: number,
+  sampleRate: number,
+  targetBitrate: number,
+  onProgress?: (pct: number, text?: string) => void
+): Promise<Uint8Array[]> {
+  return new Promise((resolve, reject) => {
+    // Web Workers require an absolute URL — /audioWorker.js is served from /public
+    let worker: Worker | null = null
+    try {
+      worker = new Worker('/audioWorker.js')
+    } catch {
+      // Worker failed to initialize — fall back to main thread
+      return resolve(encodeOnMainThread(leftInt16, rightInt16, numChannels, sampleRate, targetBitrate, onProgress))
+    }
+
+    worker.onmessage = (e) => {
+      const { type, pct, mp3Data, message } = e.data
+      if (type === 'progress' && onProgress) {
+        onProgress(pct, `Đang nén MP3 (${pct}%) — Worker...`)
+      } else if (type === 'done') {
+        worker!.terminate()
+        resolve(mp3Data as Uint8Array[])
+      } else if (type === 'error') {
+        worker!.terminate()
+        // Fall back to main thread on worker error
+        console.warn('Worker encoding failed, falling back to main thread:', message)
+        resolve(encodeOnMainThread(leftInt16, rightInt16, numChannels, sampleRate, targetBitrate, onProgress))
+      }
+    }
+
+    worker.onerror = (err) => {
+      worker!.terminate()
+      console.warn('Worker error, falling back to main thread:', err)
+      resolve(encodeOnMainThread(leftInt16, rightInt16, numChannels, sampleRate, targetBitrate, onProgress))
+    }
+
+    // Transfer typed arrays to worker (zero-copy via Transferable)
+    worker.postMessage(
+      { leftInt16, rightInt16, numChannels, sampleRate, targetBitrate },
+      [leftInt16.buffer, rightInt16.buffer]
+    )
+  })
+}
+
+/** Fallback: encode MP3 on main thread (blocks UI, but better than crashing) */
+function encodeOnMainThread(
+  leftInt16: Int16Array,
+  rightInt16: Int16Array,
+  numChannels: number,
+  sampleRate: number,
+  targetBitrate: number,
+  onProgress?: (pct: number, text?: string) => void
+): Uint8Array[] {
+  const mp3encoder = new Mp3Encoder(numChannels, sampleRate, targetBitrate)
+  const mp3Data: Uint8Array[] = []
+  const length = leftInt16.length
+  const sampleBlockSize = 1152
+
+  for (let i = 0; i < length; i += sampleBlockSize) {
+    const leftChunk = leftInt16.subarray(i, i + sampleBlockSize)
+    const rightChunk = rightInt16.subarray(i, i + sampleBlockSize)
+
+    let mp3buf: Int8Array | Uint8Array
+    if (numChannels > 1) {
+      mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk)
+    } else {
+      mp3buf = mp3encoder.encodeBuffer(leftChunk)
+    }
+    if (mp3buf && mp3buf.length > 0) mp3Data.push(new Uint8Array(mp3buf))
+
+    if (onProgress && i % (sampleBlockSize * 150) === 0) {
+      const pct = Math.min(95, 50 + Math.round((i / length) * 45))
+      onProgress(pct, `Đang nén MP3 (${pct}%)...`)
+    }
+  }
+
+  const endBuf = mp3encoder.flush()
+  if (endBuf && endBuf.length > 0) mp3Data.push(new Uint8Array(endBuf))
+
+  return mp3Data
+}

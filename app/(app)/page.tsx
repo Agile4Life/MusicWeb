@@ -28,36 +28,17 @@ export default function HomePage() {
     setUser(currentUser)
 
     if (currentUser) {
-      // Fetch tracks using view_track_details or join artists/albums with fallback
-      const { data: trackData, error: trackError } = await supabase
-        .from('view_track_details')
+      // Always query tracks table directly — includes album TEXT column saved during upload
+      const { data: rawTracks, error: trackError } = await supabase
+        .from('tracks')
         .select('*')
         .eq('user_id', currentUser.id)
         .order('created_at', { ascending: false })
 
-      if (!trackError && trackData) {
-        const normalized = trackData.map((t: any) => ({
-          ...t,
-          artist: t.artist_name || t.artist || null,
-          album: t.album_title || t.album || null,
-        }))
-        setTracks(normalized)
-      } else {
-        // Fallback to tracks table if view is not loaded
-        const { data: rawTracks } = await supabase
-          .from('tracks')
-          .select('*, artists(name), albums(title)')
-          .eq('user_id', currentUser.id)
-          .order('created_at', { ascending: false })
-
-        if (rawTracks) {
-          const normalized = rawTracks.map((t: any) => ({
-            ...t,
-            artist: t.artists?.name || t.artist || null,
-            album: t.albums?.title || t.album || null,
-          }))
-          setTracks(normalized)
-        }
+      if (!trackError && rawTracks) {
+        setTracks(rawTracks)
+      } else if (trackError) {
+        console.warn('Failed to fetch tracks:', trackError.message)
       }
 
       // Fetch user playlists

@@ -470,6 +470,8 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
         .insert({
           user_id: userId,
           title: cleanTitle,
+          artist: item.artist || null,
+          album: item.album || null,
           artist_id: artistId,
           duration: item.duration || 0,
           file_path: filePath,
