@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Track, Playlist } from '@/types'
 import { TrackList } from '@/components/track/TrackList'
 import { usePlayer } from '@/components/player/PlayerContext'
-import { Play, Upload, Search, Sparkles, Disc, Music, Flame } from 'lucide-react'
+import { Play, Upload, Search, Sparkles, Disc, Music, Flame, Trash2, AlertTriangle } from 'lucide-react'
 
 export default function HomePage() {
   const supabase = createClient()
@@ -17,6 +17,7 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
+  const [cleaningDuplicates, setCleaningDuplicates] = useState(false)
 
   const fetchData = async () => {
     setLoading(true)
@@ -144,6 +145,50 @@ export default function HomePage() {
     setTracks(tracks.filter((t) => t.id !== trackId))
   }
 
+  const handleCleanDuplicates = async () => {
+    if (!user) return
+    if (!confirm('Tìm và xóa tất cả bài hát bị trùng (cùng tên + nghệ sĩ), chỉ giữ lại bản mới nhất?\n\nThao tác này không thể hoàn tác!')) return
+
+    setCleaningDuplicates(true)
+    try {
+      // Group tracks by normalized title+artist key
+      const seen = new Map<string, Track>()
+      const toDelete: Track[] = []
+
+      // tracks are already sorted by created_at desc (newest first)
+      for (const track of tracks) {
+        const key = `${track.title?.toLowerCase().trim()}|||${(track.artist || '').toLowerCase().trim()}`
+        if (seen.has(key)) {
+          // This is an older duplicate — mark for deletion
+          toDelete.push(track)
+        } else {
+          seen.set(key, track)
+        }
+      }
+
+      if (toDelete.length === 0) {
+        alert('Không tìm thấy bài hát trùng nào!')
+        return
+      }
+
+      let deletedCount = 0
+      for (const track of toDelete) {
+        const { error } = await supabase.from('tracks').delete().eq('id', track.id)
+        if (!error) {
+          if (track.file_path) {
+            await supabase.storage.from('music-files').remove([track.file_path])
+          }
+          deletedCount++
+        }
+      }
+
+      alert(`✅ Đã xóa ${deletedCount} bài trùng khỏi thư viện!`)
+      await fetchData()
+    } finally {
+      setCleaningDuplicates(false)
+    }
+  }
+
   const filteredTracks = tracks.filter((t) => {
     const query = searchQuery.toLowerCase()
     return (
@@ -152,6 +197,11 @@ export default function HomePage() {
       (t.album && t.album.toLowerCase().includes(query))
     )
   })
+
+  // Admin check: role set via Supabase Dashboard (Auth > Users > app_metadata) or email match
+  const isAdmin =
+    user?.app_metadata?.role === 'admin' ||
+    user?.email === 'admin@musicweb.com'
 
   return (
     <div className="p-6 md:p-8 flex flex-col gap-8 max-w-7xl mx-auto w-full">
@@ -256,21 +306,48 @@ export default function HomePage() {
 
       {/* Main Tracks Table Section */}
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
             <Disc className="w-5 h-5 text-[var(--primary-spotify)]" />
             Tất Cả Bài Hát ({filteredTracks.length})
           </h2>
 
-          <div className="relative max-w-md w-full">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-            <input
-              type="text"
-              placeholder="Tìm theo tên bài hát, nghệ sĩ, album..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full glass-input text-white text-xs rounded-full pl-10 pr-4 py-2.5 outline-none font-medium placeholder:text-slate-500"
-            />
+          <div className="flex items-center gap-2">
+            {/* Clean duplicates button — admin only, shows when there are duplicates */}
+            {isAdmin && (() => {
+              const seen = new Set<string>()
+              const hasDupes = tracks.some((t) => {
+                const key = `${t.title?.toLowerCase().trim()}|||${(t.artist || '').toLowerCase().trim()}`
+                if (seen.has(key)) return true
+                seen.add(key)
+                return false
+              })
+              return hasDupes ? (
+                <button
+                  onClick={handleCleanDuplicates}
+                  disabled={cleaningDuplicates}
+                  className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-3 py-2 rounded-full transition-all disabled:opacity-50"
+                >
+                  {cleaningDuplicates ? (
+                    <span className="animate-spin w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full inline-block" />
+                  ) : (
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                  )}
+                  {cleaningDuplicates ? 'Đang dọn...' : 'Dọn bài trùng'}
+                </button>
+              ) : null
+            })()}
+
+            <div className="relative max-w-md w-full">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+              <input
+                type="text"
+                placeholder="Tìm theo tên bài hát, nghệ sĩ, album..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full glass-input text-white text-xs rounded-full pl-10 pr-4 py-2.5 outline-none font-medium placeholder:text-slate-500"
+              />
+            </div>
           </div>
         </div>
 

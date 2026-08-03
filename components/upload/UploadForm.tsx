@@ -77,7 +77,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [queue, setQueue] = useState<QueueItem[]>([])
-  const [batchSize, setBatchSize] = useState<number>(2) // Default 2 tracks per batch chunk
+  const batchSize = 2 // Fixed 2 tracks per batch chunk
   const targetBitrate = 256 // Standardized optimal 256kbps lightweight MP3
   const [skipDuplicates, setSkipDuplicates] = useState<boolean>(true) // Auto-skip duplicates
   const [isUploading, setIsUploading] = useState(false)
@@ -628,44 +628,18 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
           </p>
         </div>
 
-        {/* Batch Settings */}
-        <div className="flex items-center gap-3 bg-black/40 px-3 py-1.5 rounded-2xl border border-white/10 text-xs">
-          {/* Batch size selector */}
-          <div className="flex items-center gap-1.5">
-            <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
-            <span className="text-slate-300 font-medium">Đợt:</span>
-            {[1, 2, 3, 5].map((size) => (
-              <button
-                key={size}
-                type="button"
-                disabled={isUploading}
-                onClick={() => setBatchSize(size)}
-                className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all ${
-                  batchSize === size
-                    ? 'bg-[var(--primary-spotify)] text-black shadow-md'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                {size} bài
-              </button>
-            ))}
-          </div>
-
-          <div className="h-4 w-[1px] bg-white/10 hidden sm:block" />
-
-          {/* Auto Skip Duplicate Checkbox */}
-          <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white select-none">
-            <input
-              type="checkbox"
-              checked={skipDuplicates}
-              onChange={(e) => setSkipDuplicates(e.target.checked)}
-              className="rounded accent-[var(--primary-spotify)] w-3.5 h-3.5 cursor-pointer"
-            />
-            <span className="font-semibold text-xs text-amber-300 flex items-center gap-1">
-              <Copy className="w-3.5 h-3.5" /> Tự bỏ bài trùng
-            </span>
-          </label>
-        </div>
+        {/* Settings: Skip Duplicates */}
+        <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white select-none bg-black/40 px-3 py-1.5 rounded-2xl border border-white/10">
+          <input
+            type="checkbox"
+            checked={skipDuplicates}
+            onChange={(e) => setSkipDuplicates(e.target.checked)}
+            className="rounded accent-[var(--primary-spotify)] w-3.5 h-3.5 cursor-pointer"
+          />
+          <span className="font-semibold text-xs text-amber-300 flex items-center gap-1">
+            <Copy className="w-3.5 h-3.5" /> Tự bỏ bài trùng
+          </span>
+        </label>
 
         {/* Optional Close Button */}
         {onClose && (
