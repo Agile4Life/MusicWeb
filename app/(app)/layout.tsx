@@ -1,0 +1,25 @@
+import React from 'react'
+import { PlayerProvider } from '@/components/player/PlayerContext'
+import { Sidebar } from '@/components/sidebar/Sidebar'
+import { PlayerBar } from '@/components/player/PlayerBar'
+
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <PlayerProvider>
+      <div className="h-screen w-screen flex flex-col bg-black overflow-hidden font-sans">
+        <div className="flex-1 flex min-h-0">
+          {/* Left Sidebar */}
+          <Sidebar />
+
+          {/* Main View Area */}
+          <main className="flex-1 bg-[#121212] rounded-lg my-2 mr-2 overflow-y-auto flex flex-col relative">
+            {children}
+          </main>
+        </div>
+
+        {/* Fixed Player Bar at Bottom */}
+        <PlayerBar />
+      </div>
+    </PlayerProvider>
+  )
+}
