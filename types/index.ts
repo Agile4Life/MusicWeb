@@ -4,9 +4,14 @@ export interface Track {
   title: string
   artist: string | null
   album: string | null
+  genre?: string | null
+  lyrics?: string | null
   duration: number
   file_path: string
+  file_size?: number
   cover_url: string | null
+  play_count?: number
+  is_favorite?: boolean
   created_at: string
   audio_url?: string
 }
@@ -17,6 +22,8 @@ export interface Playlist {
   name: string
   description: string | null
   cover_url: string | null
+  is_public?: boolean
+  share_code?: string | null
   created_at: string
   tracks_count?: number
 }
@@ -28,4 +35,23 @@ export interface PlaylistTrack {
   position: number
   added_at: string
   track?: Track
+}
+
+export interface UserProfile {
+  id: string
+  display_name: string | null
+  avatar_url: string | null
+  bio: string | null
+  theme: string
+  created_at: string
+  updated_at: string
+}
+
+export interface UserSettings {
+  user_id: string
+  audio_quality: string
+  auto_play: boolean
+  repeat_mode: string
+  shuffle: boolean
+  updated_at: string
 }
