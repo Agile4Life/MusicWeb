@@ -15,11 +15,11 @@ import {
   FileAudio,
   Plus,
   SlidersHorizontal,
-  X,
   Check,
   Play,
   Copy,
   AlertTriangle,
+  Zap,
 } from 'lucide-react'
 import * as mm from 'music-metadata-browser'
 import { compressAudioIfNeeded } from '@/lib/audioCompressor'
@@ -61,7 +61,8 @@ export function UploadForm() {
 
   const [queue, setQueue] = useState<QueueItem[]>([])
   const [batchSize, setBatchSize] = useState<number>(2) // Default 2 tracks per batch chunk
-  const [skipDuplicates, setSkipDuplicates] = useState<boolean>(true) // Auto-skip duplicates default true
+  const [targetBitrate, setTargetBitrate] = useState<number>(256) // Default 256kbps lightweight MP3
+  const [skipDuplicates, setSkipDuplicates] = useState<boolean>(true) // Auto-skip duplicates
   const [isUploading, setIsUploading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [overallBatchInfo, setOverallBatchInfo] = useState<string | null>(null)
@@ -180,7 +181,7 @@ export function UploadForm() {
       })
     })
 
-    // Background ID3 Metadata parsing
+    // Background ID3 Metadata parsing for each item
     for (const item of newItems) {
       try {
         const metadata = await mm.parseBlob(item.file)
@@ -247,7 +248,7 @@ export function UploadForm() {
     setQueue((prev) => prev.filter((item) => item.status !== 'completed' && item.status !== 'skipped'))
   }
 
-  // Upload single track workflow
+  // Upload single track workflow with mandatory lightweight MP3 compression
   const processSingleTrack = async (
     item: QueueItem,
     userId: string
@@ -264,30 +265,31 @@ export function UploadForm() {
     }
 
     try {
-      let uploadFile = item.file
+      // 1. Mandatory Lightweight Compression Stage for EVERY file
+      updateItem(item.id, {
+        status: 'compressing',
+        progress: 5,
+        compressInfo: `⚡ Đang nén âm thanh nhẹ (${formatFileSize(item.file.size)} ➔ MP3 ${targetBitrate}kbps)...`,
+      })
 
-      // 1. Compression stage if file > 45MB
-      if (item.file.size > 45 * 1024 * 1024) {
-        updateItem(item.id, {
-          status: 'compressing',
-          progress: 5,
-          compressInfo: `⚡ File nặng (${formatFileSize(item.file.size)} > 45MB), đang tự động nén sang High-Res 320kbps MP3...`,
-        })
-
-        const compRes = await compressAudioIfNeeded(item.file, (pct, stage) => {
+      const compRes = await compressAudioIfNeeded(
+        item.file,
+        (pct, stage) => {
           updateItem(item.id, {
             progress: Math.round(pct * 0.5),
             compressInfo: stage,
           })
-        })
+        },
+        targetBitrate,
+        true // Force compression for ALL files regardless of size
+      )
 
-        uploadFile = compRes.file
-        if (compRes.compressed) {
-          updateItem(item.id, {
-            compressInfo: `✅ Đã tối ưu dung lượng (${compRes.originalSizeMB}MB ➜ ${compRes.newSizeMB}MB High-Res)! Đang tải lên...`,
-          })
-        }
-      }
+      const uploadFile = compRes.file
+      const infoText = compRes.compressed
+        ? `✅ Đã tối ưu dung lượng (${compRes.originalSizeMB} MB ➜ ${compRes.newSizeMB} MB MP3)! Đang tải lên...`
+        : `Đang tải lên Supabase...`
+
+      updateItem(item.id, { compressInfo: infoText })
 
       // 2. Storage upload stage
       updateItem(item.id, { status: 'uploading', progress: 55 })
@@ -317,7 +319,7 @@ export function UploadForm() {
       }
 
       // 3. Save to DB
-      updateItem(item.id, { status: 'saving_db', progress: 75 })
+      updateItem(item.id, { status: 'saving_db', progress: 80 })
 
       let artistId: string | null = null
       if (item.artist && item.artist.trim()) {
@@ -337,7 +339,7 @@ export function UploadForm() {
         artist_id: artistId,
         duration: item.duration || 0,
         file_path: filePath,
-        file_size: item.file.size,
+        file_size: uploadFile.size,
       })
 
       if (dbError) {
@@ -348,7 +350,7 @@ export function UploadForm() {
           album: item.album || null,
           duration: item.duration || 0,
           file_path: filePath,
-          file_size: item.file.size,
+          file_size: uploadFile.size,
         })
         if (fallbackError) {
           throw new Error(`Lỗi lưu DB: ${dbError.message}`)
@@ -358,7 +360,7 @@ export function UploadForm() {
       updateItem(item.id, {
         status: 'completed',
         progress: 100,
-        compressInfo: null,
+        compressInfo: `✅ Hoàn tất! (${compRes.originalSizeMB}MB ➜ ${compRes.newSizeMB}MB)`,
         error: null,
       })
       return true
@@ -455,28 +457,56 @@ export function UploadForm() {
             Upload Hàng Loạt Bài Hát
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Tải nhiều bài hát cùng lúc • Tự động phát hiện bài trùng • Chia đợt thông minh
+            Tải nhiều bài hát cùng lúc • Nén siêu nhẹ mọi bài • Phát hiện trùng lặp
           </p>
         </div>
 
-        {/* Batch & Duplicate Settings */}
+        {/* Compression & Batch Settings */}
         <div className="flex flex-wrap items-center gap-3 bg-black/40 p-2 rounded-2xl border border-white/10 text-xs">
-          <div className="flex items-center gap-2">
-            <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400 ml-1" />
-            <span className="text-slate-300 font-medium">Quy mô đợt:</span>
+          {/* Bitrate quality selector */}
+          <div className="flex items-center gap-1.5">
+            <Zap className="w-3.5 h-3.5 text-amber-400 ml-1" />
+            <span className="text-slate-300 font-medium">Định dạng nén:</span>
+            {[
+              { label: 'Siêu nhẹ (192k)', value: 192 },
+              { label: 'Cân bằng (256k)', value: 256 },
+              { label: 'Studio (320k)', value: 320 },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                disabled={isUploading}
+                onClick={() => setTargetBitrate(opt.value)}
+                className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all ${
+                  targetBitrate === opt.value
+                    ? 'bg-amber-400 text-black shadow-md'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="h-4 w-[1px] bg-white/10 hidden sm:block" />
+
+          {/* Batch size selector */}
+          <div className="flex items-center gap-1.5">
+            <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-slate-300 font-medium">Đợt:</span>
             {[1, 2, 3, 5].map((size) => (
               <button
                 key={size}
                 type="button"
                 disabled={isUploading}
                 onClick={() => setBatchSize(size)}
-                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all ${
+                className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all ${
                   batchSize === size
                     ? 'bg-[var(--primary-spotify)] text-black shadow-md'
                     : 'text-slate-400 hover:text-white hover:bg-white/5'
                 }`}
               >
-                {size} bài/đợt
+                {size} bài
               </button>
             ))}
           </div>
@@ -492,7 +522,7 @@ export function UploadForm() {
               className="rounded accent-[var(--primary-spotify)] w-3.5 h-3.5 cursor-pointer"
             />
             <span className="font-semibold text-xs text-amber-300 flex items-center gap-1">
-              <Copy className="w-3.5 h-3.5" /> Tự bỏ qua bài trùng
+              <Copy className="w-3.5 h-3.5" /> Bỏ bài trùng
             </span>
           </label>
         </div>
@@ -528,7 +558,7 @@ export function UploadForm() {
               Nhấp để chọn hoặc Kéo & thả nhiều file âm thanh vào đây
             </p>
             <p className="text-xs text-slate-400 mt-1">
-              Hỗ trợ MP3, WAV, M4A, FLAC (Tự động phát hiện trùng lặp & nén file &gt; 45MB)
+              Tự động chuyển đổi & nén siêu nhẹ mọi bài sang MP3 ({targetBitrate}kbps) giúp tiết kiệm bộ nhớ
             </p>
           </div>
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--primary-spotify)] bg-[var(--primary-spotify)]/10 px-3 py-1 rounded-full border border-[var(--primary-spotify)]/20">
@@ -623,12 +653,12 @@ export function UploadForm() {
             {isUploading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Đang Upload Theo Đợt ({batchSize} bài/đợt)...
+                Đang Nén & Upload ({batchSize} bài/đợt)...
               </>
             ) : (
               <>
                 <Play className="w-4 h-4 fill-black" />
-                Bắt Đầu Upload Tất Cả ({pendingCount + errorCount} bài)
+                Bắt Đầu Nén & Upload Tất Cả ({pendingCount + errorCount} bài)
               </>
             )}
           </button>
@@ -726,7 +756,7 @@ export function UploadForm() {
                       )}
                       {item.status === 'idle' && !item.isDuplicate && (
                         <span className="text-slate-400 bg-white/5 px-2.5 py-1 rounded-full border border-white/10 font-semibold">
-                          Sẵn sàng
+                          Sẵn sàng nén
                         </span>
                       )}
                       {item.status === 'idle' && item.isDuplicate && (
@@ -736,7 +766,7 @@ export function UploadForm() {
                       )}
                       {item.status === 'compressing' && (
                         <span className="text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20 font-semibold flex items-center gap-1">
-                          <Loader2 className="w-3 h-3 animate-spin" /> Đang nén
+                          <Loader2 className="w-3 h-3 animate-spin" /> Đang nén MP3
                         </span>
                       )}
                       {item.status === 'uploading' && (

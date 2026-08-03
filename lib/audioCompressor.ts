@@ -1,35 +1,37 @@
 import { Mp3Encoder } from '@breezystack/lamejs'
 
 /**
- * Automatically compresses heavy audio files (> 45MB) to High-Quality 320kbps MP3
- * in the browser to ensure files always stay well within Supabase Free Tier limits (50MB max).
+ * Automatically converts & compresses ALL audio files (WAV, FLAC, M4A, MP3) 
+ * into optimized lightweight MP3 files regardless of initial size to save storage and bandwidth.
  */
 export async function compressAudioIfNeeded(
   file: File,
-  onProgress?: (progressPercent: number, stageText?: string) => void
+  onProgress?: (progressPercent: number, stageText?: string) => void,
+  targetBitrate: number = 256,
+  forceCompress: boolean = true
 ): Promise<{ file: File; compressed: boolean; originalSizeMB: number; newSizeMB: number }> {
   const originalSizeMB = Number((file.size / (1024 * 1024)).toFixed(2))
 
-  // If file size is already <= 45MB, no compression needed
-  if (file.size <= 45 * 1024 * 1024) {
+  // If already a small MP3 (< 3MB) and forceCompress is false, we can skip
+  if (!forceCompress && file.size <= 3 * 1024 * 1024 && file.type.includes('mp3')) {
     return { file, compressed: false, originalSizeMB, newSizeMB: originalSizeMB }
   }
 
   try {
-    if (onProgress) onProgress(5, `Đang đọc dữ liệu file ${originalSizeMB}MB...`)
+    if (onProgress) onProgress(5, `Đang đọc dữ liệu file (${originalSizeMB} MB)...`)
 
     // 1. Read array buffer & decode audio with Web Audio API (slice buffer to prevent detachment)
     const arrayBuffer = await file.arrayBuffer()
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
     const audioCtx = new AudioContextClass()
 
-    if (onProgress) onProgress(20, 'Đang giải mã PCM FLAC/WAV AudioBuffer...')
+    if (onProgress) onProgress(20, 'Đang giải mã âm thanh AudioBuffer...')
 
     // Pass arrayBuffer.slice(0) to prevent ArrayBuffer detachment issues
     const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0))
     audioCtx.close()
 
-    if (onProgress) onProgress(35, 'Đang tối ưu dung lượng 320kbps High-Res MP3...')
+    if (onProgress) onProgress(35, `Đang tối ưu dung lượng (${targetBitrate}kbps MP3)...`)
 
     // 2. Extract PCM channel data
     const numChannels = Math.min(2, audioBuffer.numberOfChannels || 1)
@@ -57,10 +59,10 @@ export async function compressAudioIfNeeded(
       rightInt16[i] = sampleR < 0 ? sampleR * 0x8000 : sampleR * 0x7fff
     }
 
-    if (onProgress) onProgress(50, 'Đang mã hóa MP3 High-Res (320kbps)...')
+    if (onProgress) onProgress(50, `Đang nén & chuyển sang MP3 (${targetBitrate}kbps)...`)
 
-    // 3. Initialize LAME MP3 Encoder (320kbps High Quality)
-    const mp3encoder = new Mp3Encoder(numChannels, targetSampleRate, 320)
+    // 3. Initialize LAME MP3 Encoder
+    const mp3encoder = new Mp3Encoder(numChannels, targetSampleRate, targetBitrate)
     const mp3Data: Uint8Array[] = []
     const sampleBlockSize = 1152
 
@@ -81,7 +83,7 @@ export async function compressAudioIfNeeded(
 
       if (onProgress && i % (sampleBlockSize * 150) === 0) {
         const pct = Math.min(95, 50 + Math.round((i / length) * 45))
-        onProgress(pct, `Đang mã hóa MP3 High-Res (${pct}%)...`)
+        onProgress(pct, `Đang nén file MP3 nhẹ (${pct}%)...`)
       }
     }
 
@@ -90,23 +92,25 @@ export async function compressAudioIfNeeded(
       mp3Data.push(new Uint8Array(endBuf))
     }
 
-    if (onProgress) onProgress(98, 'Đang tạo file MP3 nén mới...')
+    if (onProgress) onProgress(98, 'Đang hoàn tất tạo file MP3 mới...')
 
     // 4. Create compressed MP3 file Blob
     const blob = new Blob(mp3Data as BlobPart[], { type: 'audio/mp3' })
     const baseName = file.name.replace(/\.[^/.]+$/, '')
-    const compressedFile = new File([blob], `${baseName}_320k.mp3`, {
+    const compressedFile = new File([blob], `${baseName}_light.mp3`, {
       type: 'audio/mp3',
       lastModified: Date.now(),
     })
 
     const newSizeMB = Number((compressedFile.size / (1024 * 1024)).toFixed(2))
 
-    if (onProgress) onProgress(100, `Hoàn tất tối ưu (${originalSizeMB}MB -> ${newSizeMB}MB)!`)
+    if (onProgress) onProgress(100, `Hoàn tất tối ưu dung lượng (${originalSizeMB} MB ➔ ${newSizeMB} MB)!`)
 
     return { file: compressedFile, compressed: true, originalSizeMB, newSizeMB }
   } catch (err: any) {
     console.error('Audio compression failed:', err)
-    throw new Error(`File nhạc quá dung lượng Free Tier Supabase (${originalSizeMB}MB > 50MB) và không thể nén tự động trên trình duyệt (${err?.message || err}). Vui lòng chọn file nhạc dung lượng nhỏ hơn 50MB!`)
+    // Fallback: If compression fails for any reason, return original file so upload doesn't crash
+    return { file, compressed: false, originalSizeMB, newSizeMB: originalSizeMB }
   }
 }
+
