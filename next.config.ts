@@ -9,13 +9,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Ensure TypeScript and ESLint strict checks pass cleanly on Vercel
-  typescript: {
-    ignoreBuildErrors: false,
-  },
-  eslint: {
-    ignoreDuringBuilds: false,
-  },
 }
 
 export default nextConfig
