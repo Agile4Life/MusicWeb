@@ -4,10 +4,20 @@ import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Lock, Mail, Loader2, AlertCircle, Disc } from 'lucide-react'
+import { Lock, Mail, Loader2, AlertCircle, CheckCircle2, Disc, Eye, EyeOff } from 'lucide-react'
 
 interface AuthFormProps {
   mode: 'login' | 'register'
+}
+
+function translateAuthError(errorMessage: string) {
+  const msg = errorMessage.toLowerCase()
+  if (msg.includes('invalid login credentials')) return 'Email hoặc mật khẩu không chính xác'
+  if (msg.includes('user already registered') || msg.includes('already exists')) return 'Email này đã được đăng ký tài khoản'
+  if (msg.includes('password should be at least')) return 'Mật khẩu phải có ít nhất 6 ký tự'
+  if (msg.includes('invalid email')) return 'Định dạng email không hợp lệ'
+  if (msg.includes('email not confirmed')) return 'Email chưa được xác nhận'
+  return errorMessage
 }
 
 export function AuthForm({ mode }: AuthFormProps) {
@@ -16,36 +26,58 @@ export function AuthForm({ mode }: AuthFormProps) {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setSuccessMsg(null)
+
+    if (password.length < 6) {
+      setError('Mật khẩu phải có ít nhất 6 ký tự')
+      setLoading(false)
+      return
+    }
 
     try {
       if (mode === 'register') {
-        const { error: signUpError } = await supabase.auth.signUp({
+        const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
         })
+
         if (signUpError) throw signUpError
 
-        router.push('/')
-        router.refresh()
+        if (data.session) {
+          setSuccessMsg('Đăng ký thành công! Đang chuyển hướng...')
+          setTimeout(() => {
+            window.location.href = '/'
+          }, 1000)
+        } else {
+          setSuccessMsg('Đăng ký thành công! Vui lòng kiểm tra email của bạn để xác nhận (hoặc đăng nhập ngay nếu không yêu cầu xác nhận).')
+          setTimeout(() => {
+            router.push('/login')
+          }, 3000)
+        }
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         })
+
         if (signInError) throw signInError
 
-        router.push('/')
-        router.refresh()
+        setSuccessMsg('Đăng nhập thành công! Đang chuyển hướng...')
+        setTimeout(() => {
+          window.location.href = '/'
+        }, 800)
       }
     } catch (err: any) {
-      setError(err.message || 'Đã xảy ra lỗi khi xác thực')
+      setError(translateAuthError(err.message || 'Đã xảy ra lỗi khi xác thực'))
     } finally {
       setLoading(false)
     }
@@ -75,6 +107,13 @@ export function AuthForm({ mode }: AuthFormProps) {
         </div>
       )}
 
+      {successMsg && (
+        <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/30 text-[#1DB954] rounded-xl text-xs flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <span>{successMsg}</span>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 relative z-10">
         <div>
           <label className="block text-xs font-bold text-slate-300 mb-1.5">Email</label>
@@ -96,13 +135,20 @@ export function AuthForm({ mode }: AuthFormProps) {
           <div className="relative">
             <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
             <input
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               required
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full glass-input rounded-xl pl-10 pr-3 py-2.5 text-xs text-white outline-none"
+              className="w-full glass-input rounded-xl pl-10 pr-10 py-2.5 text-xs text-white outline-none"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3.5 top-3 text-slate-400 hover:text-white transition-colors"
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
           </div>
         </div>
 

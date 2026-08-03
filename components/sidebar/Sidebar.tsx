@@ -41,17 +41,36 @@ export function Sidebar() {
           .order('created_at', { ascending: false })
 
         if (data) setPlaylists(data)
+      } else {
+        setPlaylists([])
       }
     }
 
     loadUserAndPlaylists()
+
+    // Listen to real-time auth state changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const currentUser = session?.user ?? null
+      setUser(currentUser)
+      if (currentUser) {
+        loadUserAndPlaylists()
+      } else {
+        setPlaylists([])
+      }
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     setUser(null)
-    router.push('/login')
-    router.refresh()
+    setPlaylists([])
+    window.location.href = '/login'
   }
 
   const handleCreatePlaylist = async () => {
