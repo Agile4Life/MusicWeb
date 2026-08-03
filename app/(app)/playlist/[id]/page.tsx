@@ -210,12 +210,25 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
       const filePath = `${user.id}/${fileName}`
 
-      // 1. Upload audio to storage
-      const { error: uploadError } = await supabase.storage
+      // 1. Upload audio to storage (Try Signed Upload URL first for large files > 50MB)
+      let uploadErr: any = null
+      const { data: signedData, error: signedTokenErr } = await supabase.storage
         .from('music-files')
-        .upload(filePath, file)
+        .createSignedUploadUrl(filePath)
 
-      if (uploadError) throw new Error('Upload storage thất bại: ' + uploadError.message)
+      if (!signedTokenErr && signedData?.token) {
+        const { error: signedUploadErr } = await supabase.storage
+          .from('music-files')
+          .uploadToSignedUrl(filePath, signedData.token, file)
+        uploadErr = signedUploadErr
+      } else {
+        const { error: directErr } = await supabase.storage
+          .from('music-files')
+          .upload(filePath, file, { upsert: true })
+        uploadErr = directErr
+      }
+
+      if (uploadErr) throw new Error('Upload storage thất bại: ' + uploadErr.message)
 
       // 2. Get/create artist ID if provided
       let artistId: string | null = null
@@ -258,8 +271,8 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
       fetchPlaylistData()
     } catch (err: any) {
       let msg = err.message || 'Đã xảy ra lỗi khi tải nhạc'
-      if (msg.includes('exceeded the maximum allowed size')) {
-        msg = 'Lỗi Supabase Storage: File này vượt quá giới hạn file_size_limit mặc định của Bucket Supabase. Vui lòng chạy câu lệnh SQL tăng dung lượng Bucket lên 150MB trong Supabase SQL Editor!'
+      if (msg.includes('exceeded the maximum allowed size') || msg.includes('413')) {
+        msg = 'Lỗi Supabase Storage: File vượt quá giới hạn "Max file size" trong Supabase Dashboard UI. Vui lòng vào Supabase Dashboard -> Storage -> Buckets -> music-files -> chọn Configuration / Settings -> Đổi "Max file size" thành 150MB rồi bấm Save.'
       }
       setUploadError(msg)
     } finally {
