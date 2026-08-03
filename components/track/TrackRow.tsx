@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { Track, Playlist } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
-import { Play, Pause, Music, Trash2, Plus, Clock, MoreVertical } from 'lucide-react'
+import { Play, Pause, Music, Trash2, MoreVertical, Plus } from 'lucide-react'
 
 interface TrackRowProps {
   track: Track
@@ -44,17 +44,23 @@ export function TrackRow({
 
   return (
     <div
-      className={`group flex items-center justify-between px-4 py-2.5 rounded-md hover:bg-[#282828] transition-colors cursor-pointer select-none ${
-        isCurrent ? 'bg-[#1e1e1e]' : ''
+      className={`group flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer select-none border ${
+        isCurrent
+          ? 'bg-white/10 border-emerald-500/30 shadow-md shadow-emerald-500/10'
+          : 'border-transparent hover:bg-white/5 hover:border-white/5'
       }`}
       onMouseLeave={() => setShowMenu(false)}
     >
       {/* Index & Play button */}
       <div className="flex items-center gap-4 w-1/2 truncate">
-        <div className="w-6 text-center text-sm font-medium text-gray-400 shrink-0">
+        <div className="w-6 text-center text-xs font-semibold text-slate-400 shrink-0">
           <span className="group-hover:hidden">
             {isCurrent && isPlaying ? (
-              <span className="text-[#1DB954] animate-pulse">▶</span>
+              <div className="flex items-end justify-center gap-0.5 h-3">
+                <span className="w-0.5 bg-[#1DB954] rounded-full eq-bar-1" />
+                <span className="w-0.5 bg-[#1DB954] rounded-full eq-bar-2" />
+                <span className="w-0.5 bg-[#1DB954] rounded-full eq-bar-3" />
+              </div>
             ) : (
               <span className={isCurrent ? 'text-[#1DB954] font-bold' : ''}>{index + 1}</span>
             )}
@@ -72,34 +78,34 @@ export function TrackRow({
         </div>
 
         {/* Cover thumbnail & Title/Artist */}
-        <div className="w-10 h-10 bg-[#181818] rounded overflow-hidden shrink-0 flex items-center justify-center">
+        <div className="w-10 h-10 bg-slate-800 rounded-lg overflow-hidden shrink-0 flex items-center justify-center border border-white/10">
           {track.cover_url ? (
             <img src={track.cover_url} alt={track.title} className="w-full h-full object-cover" />
           ) : (
-            <Music className="w-5 h-5 text-gray-500" />
+            <Music className="w-4 h-4 text-slate-400" />
           )}
         </div>
 
-        <div className="truncate">
+        <div className="truncate flex flex-col">
           <p
-            className={`text-sm font-semibold truncate ${
+            className={`text-sm font-bold truncate ${
               isCurrent ? 'text-[#1DB954]' : 'text-white'
             }`}
           >
             {track.title}
           </p>
-          <p className="text-xs text-gray-400 truncate">{track.artist || 'Nghệ sĩ chưa xác định'}</p>
+          <p className="text-xs text-slate-400 truncate">{track.artist || 'Nghệ sĩ chưa xác định'}</p>
         </div>
       </div>
 
       {/* Album name */}
-      <div className="hidden md:block w-1/4 truncate text-sm text-gray-400">
+      <div className="hidden md:block w-1/4 truncate text-xs text-slate-400">
         {track.album || '—'}
       </div>
 
       {/* Duration & Options */}
-      <div className="flex items-center justify-end gap-3 w-1/4 text-sm text-gray-400">
-        <span className="font-mono text-xs">{formatDuration(track.duration)}</span>
+      <div className="flex items-center justify-end gap-3 w-1/4 text-xs text-slate-400">
+        <span className="font-mono">{formatDuration(track.duration)}</span>
 
         <div className="relative">
           <button
@@ -107,15 +113,15 @@ export function TrackRow({
               e.stopPropagation()
               setShowMenu(!showMenu)
             }}
-            className="p-1 hover:text-white rounded transition-colors opacity-0 group-hover:opacity-100"
+            className="p-1.5 hover:text-white hover:bg-white/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
           >
             <MoreVertical className="w-4 h-4" />
           </button>
 
           {showMenu && (
-            <div className="absolute right-0 top-8 bg-[#282828] border border-[#3e3e3e] shadow-xl rounded-md py-1 w-48 z-20 text-xs text-gray-200">
+            <div className="absolute right-0 top-8 glass-panel shadow-2xl rounded-xl py-1.5 w-52 z-30 text-xs text-slate-200 border border-white/10">
               {userPlaylists.length > 0 && onAddToPlaylist && (
-                <div className="px-2 py-1 text-gray-400 font-semibold border-b border-[#383838]">
+                <div className="px-3 py-1 text-slate-400 font-semibold text-[10px] uppercase tracking-wider border-b border-white/10">
                   Thêm vào Playlist
                 </div>
               )}
@@ -127,9 +133,10 @@ export function TrackRow({
                     onAddToPlaylist?.(pl.id, track.id)
                     setShowMenu(false)
                   }}
-                  className="w-full text-left px-3 py-1.5 hover:bg-[#3e3e3e] truncate transition-colors"
+                  className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 truncate transition-colors"
                 >
-                  + {pl.name}
+                  <Plus className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="truncate">{pl.name}</span>
                 </button>
               ))}
 
@@ -140,7 +147,7 @@ export function TrackRow({
                     onDeleteTrack(track.id)
                     setShowMenu(false)
                   }}
-                  className="w-full text-left px-3 py-1.5 hover:bg-red-500/20 text-red-400 flex items-center gap-2 border-t border-[#383838] transition-colors"
+                  className="w-full text-left px-3.5 py-2 hover:bg-red-500/20 text-red-400 flex items-center gap-2 border-t border-white/10 transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   Xóa bài hát

@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Upload, Music, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import { Upload, Music, CheckCircle2, AlertCircle, Loader2, Sparkles } from 'lucide-react'
 import * as mm from 'music-metadata-browser'
 
 export function UploadForm() {
@@ -25,7 +25,6 @@ export function UploadForm() {
     if (!selectedFile) return
     setError(null)
 
-    // Validate size (< 50MB)
     if (selectedFile.size > 50 * 1024 * 1024) {
       setError('Dung lượng file tối đa là 50MB')
       return
@@ -35,7 +34,6 @@ export function UploadForm() {
     setTitle(selectedFile.name.replace(/\.[^/.]+$/, ''))
 
     try {
-      // Extract metadata using music-metadata-browser
       const metadata = await mm.parseBlob(selectedFile)
       if (metadata.common.title) setTitle(metadata.common.title)
       if (metadata.common.artist) setArtist(metadata.common.artist)
@@ -68,7 +66,6 @@ export function UploadForm() {
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
       const filePath = `${user.id}/${fileName}`
 
-      // Upload file to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('music-files')
         .upload(filePath, file)
@@ -79,7 +76,6 @@ export function UploadForm() {
 
       setProgress(70)
 
-      // Insert record to tracks table
       const { error: dbError } = await supabase.from('tracks').insert({
         user_id: user.id,
         title: title || file.name,
@@ -108,21 +104,26 @@ export function UploadForm() {
   }
 
   return (
-    <div className="max-w-xl mx-auto bg-[#181818] p-6 rounded-xl border border-[#282828] shadow-2xl">
-      <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-        <Upload className="w-5 h-5 text-[#1DB954]" />
-        Upload Bài Hát Cá Nhân
-      </h2>
+    <div className="max-w-xl mx-auto glass-panel p-8 rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <Upload className="w-5 h-5 text-[#1DB954]" />
+          Upload Bài Hát Cá Nhân
+        </h2>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+          Studio High-Res
+        </span>
+      </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-sm flex items-center gap-2">
+        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl text-xs flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {success && (
-        <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 text-[#1DB954] rounded-lg text-sm flex items-center gap-2">
+        <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/30 text-[#1DB954] rounded-xl text-xs flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>Upload thành công! Đang chuyển về Trang chủ...</span>
         </div>
@@ -130,7 +131,7 @@ export function UploadForm() {
 
       <form onSubmit={handleUpload} className="flex flex-col gap-4">
         {/* Dropzone */}
-        <div className="border-2 border-dashed border-[#383838] hover:border-[#1DB954] rounded-lg p-6 text-center transition-colors cursor-pointer bg-[#121212]">
+        <div className="border-2 border-dashed border-white/10 hover:border-[#1DB954] rounded-2xl p-8 text-center transition-all cursor-pointer bg-black/30 hover:bg-black/50">
           <input
             type="file"
             accept=".mp3,.wav,.m4a,.flac"
@@ -138,61 +139,63 @@ export function UploadForm() {
             className="hidden"
             id="audio-upload"
           />
-          <label htmlFor="audio-upload" className="cursor-pointer flex flex-col items-center gap-2">
-            <div className="w-12 h-12 bg-[#282828] rounded-full flex items-center justify-center text-[#1DB954]">
-              <Music className="w-6 h-6" />
+          <label htmlFor="audio-upload" className="cursor-pointer flex flex-col items-center gap-3">
+            <div className="w-14 h-14 bg-gradient-to-tr from-emerald-500/20 to-cyan-500/20 rounded-full flex items-center justify-center text-[#1DB954] border border-emerald-500/30">
+              <Music className="w-7 h-7" />
             </div>
             {file ? (
               <div>
-                <p className="text-sm font-semibold text-white">{file.name}</p>
-                <p className="text-xs text-gray-400">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+                <p className="text-sm font-bold text-white">{file.name}</p>
+                <p className="text-xs text-emerald-400 mt-0.5">
+                  {(file.size / (1024 * 1024)).toFixed(2)} MB • {duration ? `${Math.floor(duration/60)}m ${duration%60}s` : 'Phân tích xong'}
+                </p>
               </div>
             ) : (
               <div>
-                <p className="text-sm font-medium text-gray-200">Nhấp hoặc kéo thả file âm thanh vào đây</p>
-                <p className="text-xs text-gray-400 mt-1">Hỗ trợ .mp3, .wav, .m4a, .flac (Tối đa 50MB)</p>
+                <p className="text-sm font-semibold text-slate-200">Nhấp hoặc kéo thả file âm thanh vào đây</p>
+                <p className="text-xs text-slate-400 mt-1">Hỗ trợ .mp3, .wav, .m4a, .flac (Tối đa 50MB)</p>
               </div>
             )}
           </label>
         </div>
 
         {file && (
-          <>
+          <div className="flex flex-col gap-3.5 mt-2">
             <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-1">Tên bài hát *</label>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Tên bài hát *</label>
               <input
                 type="text"
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full bg-[#121212] border border-[#282828] focus:border-[#1DB954] rounded-md px-3 py-2 text-sm text-white outline-none"
+                className="w-full glass-input rounded-xl px-3.5 py-2.5 text-xs text-white outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-1">Nghệ sĩ</label>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Nghệ sĩ</label>
               <input
                 type="text"
                 value={artist}
                 onChange={(e) => setArtist(e.target.value)}
-                placeholder="Nhập tên nghệ sĩ (tùy chọn)"
-                className="w-full bg-[#121212] border border-[#282828] focus:border-[#1DB954] rounded-md px-3 py-2 text-sm text-white outline-none"
+                placeholder="Tên nghệ sĩ"
+                className="w-full glass-input rounded-xl px-3.5 py-2.5 text-xs text-white outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-1">Album</label>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Album</label>
               <input
                 type="text"
                 value={album}
                 onChange={(e) => setAlbum(e.target.value)}
-                placeholder="Nhập tên album (tùy chọn)"
-                className="w-full bg-[#121212] border border-[#282828] focus:border-[#1DB954] rounded-md px-3 py-2 text-sm text-white outline-none"
+                placeholder="Tên album"
+                className="w-full glass-input rounded-xl px-3.5 py-2.5 text-xs text-white outline-none"
               />
             </div>
 
             {loading && (
-              <div className="w-full bg-[#121212] rounded-full h-2 overflow-hidden">
+              <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden mt-1">
                 <div
                   className="bg-[#1DB954] h-full transition-all duration-300"
                   style={{ width: `${progress}%` }}
@@ -203,18 +206,18 @@ export function UploadForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold py-2.5 rounded-full transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-50"
+              className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold py-3 rounded-full transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-50 shadow-lg shadow-emerald-500/20"
             >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Đang Upload...
+                  Đang Tải Lên...
                 </>
               ) : (
                 'Tải Nhạc Lên Thư Viện'
               )}
             </button>
-          </>
+          </div>
         )}
       </form>
     </div>
