@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Upload, Music, CheckCircle2, AlertCircle, Loader2, Sparkles } from 'lucide-react'
 import * as mm from 'music-metadata-browser'
+import { compressAudioIfNeeded } from '@/lib/audioCompressor'
 
 export function UploadForm() {
   const router = useRouter()
@@ -20,10 +21,12 @@ export function UploadForm() {
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [compressInfo, setCompressInfo] = useState<string | null>(null)
 
   const handleFileChange = async (selectedFile: File) => {
     if (!selectedFile) return
     setError(null)
+    setCompressInfo(null)
 
     if (selectedFile.size > 150 * 1024 * 1024) {
       setError('Dung lượng file tối đa là 150MB')
@@ -50,7 +53,8 @@ export function UploadForm() {
 
     setLoading(true)
     setError(null)
-    setProgress(10)
+    setCompressInfo(null)
+    setProgress(5)
 
     try {
       const {
@@ -61,8 +65,22 @@ export function UploadForm() {
         throw new Error('Bạn cần đăng nhập để upload nhạc')
       }
 
-      setProgress(30)
-      const fileExt = file.name.split('.').pop()
+      // Auto compress heavy audio files (>45MB) to High-Res 320kbps MP3
+      let uploadFile = file
+      if (file.size > 45 * 1024 * 1024) {
+        setCompressInfo(`⚡ File nặng (${(file.size / (1024 * 1024)).toFixed(1)}MB > 45MB), đang tự động nén High-Res 320kbps để không quá giới hạn Supabase Free...`)
+        const compRes = await compressAudioIfNeeded(file, (pct, stage) => {
+          setProgress(Math.round(pct * 0.5))
+          if (stage) setCompressInfo(stage)
+        })
+        uploadFile = compRes.file
+        if (compRes.compressed) {
+          setCompressInfo(`✅ Đã tối ưu dung lượng (${compRes.originalSizeMB}MB ➜ ${compRes.newSizeMB}MB High-Res)! Đang tải lên...`)
+        }
+      }
+
+      setProgress(55)
+      const fileExt = uploadFile.name.split('.').pop()
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
       const filePath = `${user.id}/${fileName}`
 
@@ -75,12 +93,12 @@ export function UploadForm() {
       if (!signedTokenErr && signedData?.token) {
         const { error: signedUploadErr } = await supabase.storage
           .from('music-files')
-          .uploadToSignedUrl(filePath, signedData.token, file)
+          .uploadToSignedUrl(filePath, signedData.token, uploadFile)
         uploadErr = signedUploadErr
       } else {
         const { error: directErr } = await supabase.storage
           .from('music-files')
-          .upload(filePath, file, { upsert: true })
+          .upload(filePath, uploadFile, { upsert: true })
         uploadErr = directErr
       }
 
@@ -181,6 +199,13 @@ export function UploadForm() {
           Studio High-Res
         </span>
       </div>
+
+      {compressInfo && (
+        <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-xl text-xs flex items-center gap-2">
+          <Sparkles className="w-4 h-4 shrink-0 text-amber-400 animate-pulse" />
+          <span>{compressInfo}</span>
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl text-xs flex items-center gap-2">

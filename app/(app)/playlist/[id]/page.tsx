@@ -22,6 +22,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import * as mm from 'music-metadata-browser'
+import { compressAudioIfNeeded } from '@/lib/audioCompressor'
 
 export default function PlaylistDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: playlistId } = use(params)
@@ -206,7 +207,17 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
 
       if (!user) throw new Error('Bạn cần đăng nhập để tải nhạc')
 
-      const fileExt = file.name.split('.').pop()
+      // Auto compress heavy audio files (>45MB) to High-Res 320kbps MP3
+      let uploadFile = file
+      if (file.size > 45 * 1024 * 1024) {
+        setUploadError(`⚡ File nặng (${(file.size / (1024 * 1024)).toFixed(1)}MB > 45MB), đang tự động tối ưu sang MP3 320kbps High-Res...`)
+        const compRes = await compressAudioIfNeeded(file, (pct, stage) => {
+          if (stage) setUploadError(`⚡ ${stage}`)
+        })
+        uploadFile = compRes.file
+      }
+
+      const fileExt = uploadFile.name.split('.').pop()
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
       const filePath = `${user.id}/${fileName}`
 
@@ -219,12 +230,12 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
       if (!signedTokenErr && signedData?.token) {
         const { error: signedUploadErr } = await supabase.storage
           .from('music-files')
-          .uploadToSignedUrl(filePath, signedData.token, file)
+          .uploadToSignedUrl(filePath, signedData.token, uploadFile)
         uploadErr = signedUploadErr
       } else {
         const { error: directErr } = await supabase.storage
           .from('music-files')
-          .upload(filePath, file, { upsert: true })
+          .upload(filePath, uploadFile, { upsert: true })
         uploadErr = directErr
       }
 

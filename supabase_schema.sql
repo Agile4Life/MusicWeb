@@ -375,17 +375,31 @@ BEGIN
 END $$;
 
 -- ------------------------------------------------------------------------------
--- 8. CẤU HÌNH DUNG LƯỢNG BUCKET STORAGE `music-files` (150MB FILE SIZE LIMIT)
+-- 8. CẤU HÌNH BUCKET STORAGE `music-files` (BỎ TẤT CẢ GIỚI HẠN DUNG LƯỢNG)
 -- ------------------------------------------------------------------------------
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
     'music-files',
     'music-files',
     true,
-    157286400, -- 150MB (150 * 1024 * 1024 bytes)
-    ARRAY['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/m4a', 'audio/x-m4a', 'audio/flac']
+    NULL, -- Bỏ hoàn toàn giới hạn dung lượng file
+    NULL  -- Cho phép mọi loại file âm thanh
 )
 ON CONFLICT (id) DO UPDATE SET
-    file_size_limit = 157286400, -- Nâng giới hạn file tối đa lên 150MB
+    file_size_limit = NULL,
+    allowed_mime_types = NULL,
     public = true;
+
+-- Cấp quyền truy cập RLS cho Storage objects
+DROP POLICY IF EXISTS "Public Select music-files" ON storage.objects;
+CREATE POLICY "Public Select music-files" ON storage.objects FOR SELECT USING (bucket_id = 'music-files');
+
+DROP POLICY IF EXISTS "Auth Insert music-files" ON storage.objects;
+CREATE POLICY "Auth Insert music-files" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'music-files');
+
+DROP POLICY IF EXISTS "Auth Update music-files" ON storage.objects;
+CREATE POLICY "Auth Update music-files" ON storage.objects FOR UPDATE WITH CHECK (bucket_id = 'music-files');
+
+DROP POLICY IF EXISTS "Auth Delete music-files" ON storage.objects;
+CREATE POLICY "Auth Delete music-files" ON storage.objects FOR DELETE USING (bucket_id = 'music-files');
 
