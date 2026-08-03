@@ -41,13 +41,20 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
 
     const { data: ptData } = await supabase
       .from('playlist_tracks')
-      .select('position, tracks(*)')
+      .select('position, tracks:track_id(*, artists(name), albums(title))')
       .eq('playlist_id', playlistId)
       .order('position', { ascending: true })
 
     if (ptData) {
       const fetchedTracks = ptData
-        .map((item: any) => item.tracks)
+        .map((item: any) => {
+          if (!item.tracks) return null
+          return {
+            ...item.tracks,
+            artist: item.tracks.artist_name || item.tracks.artists?.name || item.tracks.artist || null,
+            album: item.tracks.album_title || item.tracks.albums?.title || item.tracks.album || null,
+          }
+        })
         .filter(Boolean) as Track[]
       setTracks(fetchedTracks)
     }

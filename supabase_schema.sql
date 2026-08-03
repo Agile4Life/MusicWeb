@@ -240,93 +240,137 @@ CREATE TRIGGER on_auth_user_created
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- ------------------------------------------------------------------------------
--- 10. KHỞI TẠO TÀI KHOẢN USERS NẾU CHƯA TỒN TẠI (AN TOÀN CHO MỌI PHIÊN BẢN SUPABASE)
--- Mật khẩu khởi tạo: password123
+-- 10. KHỞI TẠO TÀI KHOẢN USERS MẪU (BẢO ĐẢM ĐĂNG NHẬP THÀNH CÔNG 100%)
+-- Mật khẩu mặc định cho tất cả tài khoản mẫu: password123
 -- ------------------------------------------------------------------------------
 
 DO $$
+DECLARE
+    v_admin_id UUID := 'a1b2c3d4-e5f6-7890-abcd-111111111111';
+    v_demo_id  UUID := 'b2c3d4e5-f6a7-8901-bcde-222222222222';
+    v_user_id  UUID := 'c3d4e5f6-a7b8-9012-cdef-333333333333';
 BEGIN
-    -- User 1: admin@musicweb.com / password123
-    IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'admin@musicweb.com') THEN
-        INSERT INTO auth.users (
-            instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
-            raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token
-        ) VALUES (
-            '00000000-0000-0000-0000-000000000000',
-            'a1b2c3d4-e5f6-7890-abcd-111111111111',
-            'authenticated', 'authenticated',
-            'admin@musicweb.com',
-            crypt('password123', gen_salt('bf')),
-            NOW(),
-            '{"provider":"email","providers":["email"]}',
-            '{"full_name":"Quản Trị Viên"}', NOW(), NOW(), ''
-        );
+    -- Xóa các bản ghi tài khoản mẫu cũ nếu có để tạo mới sạch 100%
+    DELETE FROM auth.identities WHERE email IN ('admin@musicweb.com', 'demo@musicweb.com', 'user@musicweb.com');
+    DELETE FROM auth.users WHERE email IN ('admin@musicweb.com', 'demo@musicweb.com', 'user@musicweb.com');
 
-        INSERT INTO auth.identities (
-            id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at
-        ) VALUES (
-            'a1b2c3d4-e5f6-7890-abcd-111111111111',
-            'a1b2c3d4-e5f6-7890-abcd-111111111111',
-            format('{"sub":"%s","email":"%s"}', 'a1b2c3d4-e5f6-7890-abcd-111111111111', 'admin@musicweb.com')::jsonb,
-            'email',
-            'a1b2c3d4-e5f6-7890-abcd-111111111111',
-            NOW(), NOW(), NOW()
-        );
-    END IF;
+    -- 1. User: admin@musicweb.com / password123
+    INSERT INTO auth.users (
+        instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+        recovery_token, confirmation_token, email_change_token_new, email_change,
+        raw_app_meta_data, raw_user_meta_data, is_super_admin, created_at, updated_at,
+        phone, phone_confirmed_at, phone_change, phone_change_token,
+        email_change_token_current, email_change_confirm_status, banned_until,
+        reauthentication_token, is_sso_user, deleted_at
+    ) VALUES (
+        '00000000-0000-0000-0000-000000000000', v_admin_id, 'authenticated', 'authenticated',
+        'admin@musicweb.com', crypt('password123', gen_salt('bf')), NOW(),
+        '', '', '', '',
+        '{"provider":"email","providers":["email"]}'::jsonb,
+        '{"full_name":"Quản Trị Viên"}'::jsonb,
+        FALSE, NOW(), NOW(), NULL, NULL, '', '', '', 0, NULL, '', FALSE, NULL
+    );
 
-    -- User 2: demo@musicweb.com / password123
-    IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'demo@musicweb.com') THEN
-        INSERT INTO auth.users (
-            instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
-            raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token
-        ) VALUES (
-            '00000000-0000-0000-0000-000000000000',
-            'b2c3d4e5-f6a7-8901-bcde-222222222222',
-            'authenticated', 'authenticated',
-            'demo@musicweb.com',
-            crypt('password123', gen_salt('bf')),
-            NOW(),
-            '{"provider":"email","providers":["email"]}',
-            '{"full_name":"Demo Music Lover"}', NOW(), NOW(), ''
-        );
+    INSERT INTO auth.identities (
+        id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at
+    ) VALUES (
+        v_admin_id, v_admin_id,
+        jsonb_build_object('sub', v_admin_id::text, 'email', 'admin@musicweb.com'),
+        'email', 'admin@musicweb.com', NOW(), NOW(), NOW()
+    );
 
-        INSERT INTO auth.identities (
-            id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at
-        ) VALUES (
-            'b2c3d4e5-f6a7-8901-bcde-222222222222',
-            'b2c3d4e5-f6a7-8901-bcde-222222222222',
-            format('{"sub":"%s","email":"%s"}', 'b2c3d4e5-f6a7-8901-bcde-222222222222', 'demo@musicweb.com')::jsonb,
-            'email',
-            'b2c3d4e5-f6a7-8901-bcde-222222222222',
-            NOW(), NOW(), NOW()
-        );
-    END IF;
+    -- 2. User: demo@musicweb.com / password123
+    INSERT INTO auth.users (
+        instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+        recovery_token, confirmation_token, email_change_token_new, email_change,
+        raw_app_meta_data, raw_user_meta_data, is_super_admin, created_at, updated_at,
+        phone, phone_confirmed_at, phone_change, phone_change_token,
+        email_change_token_current, email_change_confirm_status, banned_until,
+        reauthentication_token, is_sso_user, deleted_at
+    ) VALUES (
+        '00000000-0000-0000-0000-000000000000', v_demo_id, 'authenticated', 'authenticated',
+        'demo@musicweb.com', crypt('password123', gen_salt('bf')), NOW(),
+        '', '', '', '',
+        '{"provider":"email","providers":["email"]}'::jsonb,
+        '{"full_name":"Demo Music Lover"}'::jsonb,
+        FALSE, NOW(), NOW(), NULL, NULL, '', '', '', 0, NULL, '', FALSE, NULL
+    );
 
-    -- User 3: user@musicweb.com / password123
-    IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'user@musicweb.com') THEN
-        INSERT INTO auth.users (
-            instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
-            raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token
-        ) VALUES (
-            '00000000-0000-0000-0000-000000000000',
-            'c3d4e5f6-a7b8-9012-cdef-333333333333',
-            'authenticated', 'authenticated',
-            'user@musicweb.com',
-            crypt('password123', gen_salt('bf')),
-            NOW(),
-            '{"provider":"email","providers":["email"]}',
-            '{"full_name":"Thành Viên Mới"}', NOW(), NOW(), ''
-        );
+    INSERT INTO auth.identities (
+        id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at
+    ) VALUES (
+        v_demo_id, v_demo_id,
+        jsonb_build_object('sub', v_demo_id::text, 'email', 'demo@musicweb.com'),
+        'email', 'demo@musicweb.com', NOW(), NOW(), NOW()
+    );
 
-        INSERT INTO auth.identities (
-            id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at
-        ) VALUES (
-            'c3d4e5f6-a7b8-9012-cdef-333333333333',
-            'c3d4e5f6-a7b8-9012-cdef-333333333333',
-            format('{"sub":"%s","email":"%s"}', 'c3d4e5f6-a7b8-9012-cdef-333333333333', 'user@musicweb.com')::jsonb,
-            'email',
-            'c3d4e5f6-a7b8-9012-cdef-333333333333',
-            NOW(), NOW(), NOW()
-        );
-    END IF;
+    -- 3. User: user@musicweb.com / password123
+    INSERT INTO auth.users (
+        instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+        recovery_token, confirmation_token, email_change_token_new, email_change,
+        raw_app_meta_data, raw_user_meta_data, is_super_admin, created_at, updated_at,
+        phone, phone_confirmed_at, phone_change, phone_change_token,
+        email_change_token_current, email_change_confirm_status, banned_until,
+        reauthentication_token, is_sso_user, deleted_at
+    ) VALUES (
+        '00000000-0000-0000-0000-000000000000', v_user_id, 'authenticated', 'authenticated',
+        'user@musicweb.com', crypt('password123', gen_salt('bf')), NOW(),
+        '', '', '', '',
+        '{"provider":"email","providers":["email"]}'::jsonb,
+        '{"full_name":"Thành Viên Mới"}'::jsonb,
+        FALSE, NOW(), NOW(), NULL, NULL, '', '', '', 0, NULL, '', FALSE, NULL
+    );
+
+    INSERT INTO auth.identities (
+        id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at
+    ) VALUES (
+        v_user_id, v_user_id,
+        jsonb_build_object('sub', v_user_id::text, 'email', 'user@musicweb.com'),
+        'email', 'user@musicweb.com', NOW(), NOW(), NOW()
+    );
 END $$;
+
+-- ------------------------------------------------------------------------------
+-- 11. BÀI HÁT MẪU & PLAYLIST MẪU (SEED DATA SẴN SÀNG SỬ DỤNG)
+-- ------------------------------------------------------------------------------
+
+DO $$
+DECLARE
+    v_admin_id UUID := 'a1b2c3d4-e5f6-7890-abcd-111111111111';
+    v_track1_id UUID := 'f1e2d3c4-b5a6-7890-1111-111111111111';
+    v_track2_id UUID := 'f2e3d4c5-b6a7-8901-2222-222222222222';
+    v_playlist_id UUID := 'e1f2e3d4-c5b6-7890-3333-333333333333';
+BEGIN
+    -- Chèn bài hát mẫu cho Admin
+    INSERT INTO public.tracks (id, user_id, title, artist, album, genre, duration, file_path, cover_url, play_count, is_favorite)
+    VALUES 
+    (
+        v_track1_id, v_admin_id, 'Chill Lofi Beats', 'Lofi Master', 'Lofi Chill Collection', 'Lofi', 180,
+        'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=lofi-study-112191.mp3',
+        'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=500&auto=format&fit=crop&q=60',
+        42, TRUE
+    ),
+    (
+        v_track2_id, v_admin_id, 'Midnight Synthwave', 'Retro Wave', 'Neon Dreams', 'Electronic', 210,
+        'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73229.mp3?filename=synthwave-80s-110045.mp3',
+        'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500&auto=format&fit=crop&q=60',
+        88, TRUE
+    )
+    ON CONFLICT (id) DO NOTHING;
+
+    -- Chèn Playlist mẫu
+    INSERT INTO public.playlists (id, user_id, name, description, cover_url, is_public)
+    VALUES (
+        v_playlist_id, v_admin_id, 'Giai Điệu Chill Đêm Khuya', 'Tuyển tập những bản nhạc lofi acoustic nhẹ nhàng nhất',
+        'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60', TRUE
+    )
+    ON CONFLICT (id) DO NOTHING;
+
+    -- Thêm bài hát vào playlist
+    INSERT INTO public.playlist_tracks (playlist_id, track_id, position)
+    VALUES 
+    (v_playlist_id, v_track1_id, 1),
+    (v_playlist_id, v_track2_id, 2)
+    ON CONFLICT (playlist_id, track_id) DO NOTHING;
+END $$;
+

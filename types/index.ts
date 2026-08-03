@@ -2,8 +2,12 @@ export interface Track {
   id: string
   user_id: string
   title: string
-  artist: string | null
-  album: string | null
+  artist_id?: string | null
+  album_id?: string | null
+  artist_name?: string | null
+  album_title?: string | null
+  artist?: string | null
+  album?: string | null
   genre?: string | null
   lyrics?: string | null
   duration: number

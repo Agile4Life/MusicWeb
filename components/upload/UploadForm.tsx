@@ -76,17 +76,41 @@ export function UploadForm() {
 
       setProgress(70)
 
+      let artistId: string | null = null
+      if (artist && artist.trim()) {
+        try {
+          const { data: artistData } = await supabase.rpc('fn_get_or_create_artist', {
+            p_name: artist.trim(),
+          })
+          if (artistData) artistId = artistData
+        } catch {
+          // Ignore RPC failure if function is not available
+        }
+      }
+
       const { error: dbError } = await supabase.from('tracks').insert({
         user_id: user.id,
         title: title || file.name,
-        artist: artist || null,
-        album: album || null,
+        artist_id: artistId,
         duration: duration || 0,
         file_path: filePath,
+        file_size: file.size,
       })
 
       if (dbError) {
-        throw new Error(`Lỗi lưu thông tin DB: ${dbError.message}`)
+        // Fallback in case schema uses artist column as text
+        const { error: fallbackError } = await supabase.from('tracks').insert({
+          user_id: user.id,
+          title: title || file.name,
+          artist: artist || null,
+          album: album || null,
+          duration: duration || 0,
+          file_path: filePath,
+          file_size: file.size,
+        })
+        if (fallbackError) {
+          throw new Error(`Lỗi lưu thông tin DB: ${dbError.message}`)
+        }
       }
 
       setProgress(100)

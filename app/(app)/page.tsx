@@ -27,14 +27,37 @@ export default function HomePage() {
     setUser(currentUser)
 
     if (currentUser) {
-      // Fetch tracks
-      const { data: trackData } = await supabase
-        .from('tracks')
+      // Fetch tracks using view_track_details or join artists/albums with fallback
+      const { data: trackData, error: trackError } = await supabase
+        .from('view_track_details')
         .select('*')
         .eq('user_id', currentUser.id)
         .order('created_at', { ascending: false })
 
-      if (trackData) setTracks(trackData)
+      if (!trackError && trackData) {
+        const normalized = trackData.map((t: any) => ({
+          ...t,
+          artist: t.artist_name || t.artist || null,
+          album: t.album_title || t.album || null,
+        }))
+        setTracks(normalized)
+      } else {
+        // Fallback to tracks table if view is not loaded
+        const { data: rawTracks } = await supabase
+          .from('tracks')
+          .select('*, artists(name), albums(title)')
+          .eq('user_id', currentUser.id)
+          .order('created_at', { ascending: false })
+
+        if (rawTracks) {
+          const normalized = rawTracks.map((t: any) => ({
+            ...t,
+            artist: t.artists?.name || t.artist || null,
+            album: t.albums?.title || t.album || null,
+          }))
+          setTracks(normalized)
+        }
+      }
 
       // Fetch user playlists
       const { data: playlistData } = await supabase
@@ -54,6 +77,18 @@ export default function HomePage() {
   }, [])
 
   const handleAddToPlaylist = async (playlistId: string, trackId: string) => {
+    // Try calling RPC fn_add_track_to_playlist first
+    const { error: rpcError } = await supabase.rpc('fn_add_track_to_playlist', {
+      p_playlist_id: playlistId,
+      p_track_id: trackId,
+    })
+
+    if (!rpcError) {
+      alert('Đã thêm bài hát vào playlist!')
+      return
+    }
+
+    // Fallback to direct insert
     const { error } = await supabase.from('playlist_tracks').insert({
       playlist_id: playlistId,
       track_id: trackId,

@@ -11,17 +11,32 @@ interface AuthFormProps {
 }
 
 function translateAuthError(err: any): string {
-  let errorMessage = 'Đã xảy ra lỗi khi xác thực'
+  if (!err) return 'Đã xảy ra lỗi không xác định'
+
+  let errorMessage = ''
+  let errStatus = err.status || err.code || ''
+  let errName = err.name || ''
 
   if (typeof err === 'string') {
     errorMessage = err
-  } else if (err && typeof err.message === 'string') {
+  } else if (err && typeof err.message === 'string' && err.message !== '{}') {
     errorMessage = err.message
   } else if (err && typeof err.error_description === 'string') {
     errorMessage = err.error_description
+  } else {
+    try {
+      errorMessage = JSON.stringify(err)
+    } catch {
+      errorMessage = String(err)
+    }
   }
 
   const msg = errorMessage.toLowerCase()
+
+  if (msg === '{}' || errName === 'AuthRetryableFetchError' || errStatus === 500) {
+    return 'Lỗi 500 từ Supabase Auth Server (Dữ liệu tài khoản bị hỏng do SQL Insert trực tiếp vào auth.users). Vui lòng vào Supabase Dashboard > Auth > Users để xóa tài khoản hỏng này và bấm "Add User" hoặc tạo tài khoản mới bằng trang Đăng Ký!'
+  }
+
   if (msg.includes('invalid login credentials')) return 'Email hoặc mật khẩu không chính xác'
   if (msg.includes('user already registered') || msg.includes('already exists')) return 'Email này đã được đăng ký tài khoản'
   if (msg.includes('password should be at least')) return 'Mật khẩu phải có ít nhất 6 ký tự'
@@ -29,7 +44,9 @@ function translateAuthError(err: any): string {
   if (msg.includes('email not confirmed')) return 'Tài khoản chưa được xác nhận email. Hãy kiểm tra hộp thư hoặc tắt "Confirm email" trong Supabase Dashboard.'
   if (msg.includes('over_email_send_rate_limit') || msg.includes('email rate limit exceeded')) return 'Gửi email xác nhận bị quá giới hạn (Rate Limit). Vui lòng vào Supabase Dashboard > Auth > Providers > Email và tắt "Confirm email" để tạo tài khoản & đăng nhập ngay!'
 
-  return errorMessage
+  return errorMessage && errorMessage !== '{}'
+    ? errorMessage
+    : `Lỗi xác thực (${errName || 'AuthError'} ${errStatus ? 'Code: ' + errStatus : ''})`
 }
 
 export function AuthForm({ mode }: AuthFormProps) {
@@ -42,6 +59,7 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [rawError, setRawError] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
   // Mouse spotlight coordinates
@@ -69,6 +87,7 @@ export function AuthForm({ mode }: AuthFormProps) {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setRawError(null)
     setSuccessMsg(null)
 
     if (password.length < 6) {
@@ -113,7 +132,27 @@ export function AuthForm({ mode }: AuthFormProps) {
         }, 800)
       }
     } catch (err: any) {
+      console.error('Auth action failed:', err)
       setError(translateAuthError(err))
+      try {
+        setRawError(
+          typeof err === 'object'
+            ? JSON.stringify(
+                {
+                  name: err.name,
+                  message: err.message,
+                  status: err.status,
+                  code: err.code,
+                  error_description: err.error_description,
+                },
+                null,
+                2
+              )
+            : String(err)
+        )
+      } catch {
+        setRawError(String(err))
+      }
     } finally {
       setLoading(false)
     }
@@ -158,9 +197,21 @@ export function AuthForm({ mode }: AuthFormProps) {
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl text-xs flex items-center gap-2 relative z-10">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
+          <div className="mb-4 p-3.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded-2xl text-xs flex flex-col gap-2 relative z-10">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span className="font-semibold leading-relaxed">{error}</span>
+            </div>
+            {rawError && (
+              <details className="mt-1 pt-2 border-t border-red-500/20 text-[11px] font-mono text-red-300">
+                <summary className="cursor-pointer hover:underline text-[10px] uppercase font-bold tracking-wider text-red-400/90">
+                  ▶ Chi tiết kỹ thuật lỗi (Debug Log)
+                </summary>
+                <pre className="mt-2 p-2.5 bg-black/60 rounded-xl overflow-x-auto whitespace-pre-wrap select-text text-[10px] text-red-300 border border-red-500/20">
+                  {rawError}
+                </pre>
+              </details>
+            )}
           </div>
         )}
 
