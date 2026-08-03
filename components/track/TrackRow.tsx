@@ -27,7 +27,7 @@ function formatDuration(seconds: number) {
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`
 }
 
-export function TrackRow({
+function TrackRowComponent({
   track,
   index,
   playlistTracks = [],
@@ -289,3 +289,5 @@ export function TrackRow({
     </div>
   )
 }
+
+export const TrackRow = React.memo(TrackRowComponent)

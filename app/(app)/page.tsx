@@ -57,6 +57,14 @@ export default function HomePage() {
   useEffect(() => {
     fetchData()
 
+    let timer: NodeJS.Timeout
+    const debouncedFetch = () => {
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        fetchData()
+      }, 800)
+    }
+
     // Subscribe to realtime tracks & playlists updates for instant UI refresh
     const channel = supabase
       .channel('home-realtime')
@@ -64,19 +72,20 @@ export default function HomePage() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'tracks' },
         () => {
-          fetchData()
+          debouncedFetch()
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'playlists' },
         () => {
-          fetchData()
+          debouncedFetch()
         }
       )
       .subscribe()
 
     return () => {
+      clearTimeout(timer)
       supabase.removeChannel(channel)
     }
   }, [])

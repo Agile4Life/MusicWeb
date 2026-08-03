@@ -205,11 +205,14 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
     }
   }, [existingUserTracks])
 
-  // Update a single queue item helper
+  // Update a single queue item helper (optimized: skips expensive recalculateDuplicates on progress ticks)
   const updateItem = (id: string, updates: Partial<QueueItem>) => {
     setQueue((prev) => {
       const next = prev.map((item) => (item.id === id ? { ...item, ...updates } : item))
-      return recalculateDuplicates(next)
+      if (updates.title !== undefined || updates.artist !== undefined) {
+        return recalculateDuplicates(next)
+      }
+      return next
     })
   }
 

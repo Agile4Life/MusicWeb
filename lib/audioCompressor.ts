@@ -106,10 +106,14 @@ function encodeInWorker(
       return resolve(encodeOnMainThread(leftInt16, rightInt16, numChannels, sampleRate, targetBitrate, onProgress))
     }
 
+    let lastReportedPct = -1
     worker.onmessage = (e) => {
       const { type, pct, mp3Data, message } = e.data
       if (type === 'progress' && onProgress) {
-        onProgress(pct, `Đang nén MP3 (${pct}%) — Worker...`)
+        if (pct - lastReportedPct >= 2 || pct >= 98) {
+          lastReportedPct = pct
+          onProgress(pct, `Đang nén MP3 (${pct}%)...`)
+        }
       } else if (type === 'done') {
         worker!.terminate()
         resolve(mp3Data as Uint8Array[])
