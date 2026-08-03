@@ -13,6 +13,7 @@ import {
   ListMusic,
   UserCheck,
   Disc,
+  Settings,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
@@ -48,7 +49,6 @@ export function Sidebar() {
 
     loadUserAndPlaylists()
 
-    // Listen to real-time auth state changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -104,14 +104,14 @@ export function Sidebar() {
       {/* App Branding */}
       <div className="glass-panel rounded-2xl p-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#1DB954] via-[#10B981] to-[#06B6D4] p-0.5 shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[var(--primary-spotify)] via-[#10B981] to-[#06B6D4] p-0.5 shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
             <div className="w-full h-full bg-[#0d0e15] rounded-[10px] flex items-center justify-center">
-              <Disc className="w-5 h-5 text-[#1DB954] animate-spin-slow" />
+              <Disc className="w-5 h-5 text-[var(--primary-spotify)] animate-spin-slow" />
             </div>
           </div>
           <div className="flex flex-col">
             <span className="font-extrabold text-lg tracking-tight text-white flex items-center gap-1">
-              Music<span className="text-[#1DB954]">Web</span>
+              Music<span className="text-[var(--primary-spotify)]">Web</span>
             </span>
             <span className="text-[10px] text-emerald-400/80 font-mono tracking-wider uppercase">
               Pro Studio
@@ -130,11 +130,11 @@ export function Sidebar() {
           href="/"
           className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
             pathname === '/'
-              ? 'bg-gradient-to-r from-emerald-500/20 to-transparent text-white border-l-2 border-[#1DB954] shadow-sm'
+              ? 'bg-gradient-to-r from-emerald-500/20 to-transparent text-white border-l-2 border-[var(--primary-spotify)] shadow-sm'
               : 'text-slate-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <Home className={`w-4 h-4 ${pathname === '/' ? 'text-[#1DB954]' : ''}`} />
+          <Home className={`w-4 h-4 ${pathname === '/' ? 'text-[var(--primary-spotify)]' : ''}`} />
           <span>Trang chủ</span>
         </Link>
 
@@ -142,12 +142,24 @@ export function Sidebar() {
           href="/upload"
           className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
             pathname === '/upload'
-              ? 'bg-gradient-to-r from-emerald-500/20 to-transparent text-white border-l-2 border-[#1DB954] shadow-sm'
+              ? 'bg-gradient-to-r from-emerald-500/20 to-transparent text-white border-l-2 border-[var(--primary-spotify)] shadow-sm'
               : 'text-slate-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <Upload className={`w-4 h-4 ${pathname === '/upload' ? 'text-[#1DB954]' : ''}`} />
+          <Upload className={`w-4 h-4 ${pathname === '/upload' ? 'text-[var(--primary-spotify)]' : ''}`} />
           <span>Upload Nhạc</span>
+        </Link>
+
+        <Link
+          href="/settings"
+          className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+            pathname === '/settings'
+              ? 'bg-gradient-to-r from-emerald-500/20 to-transparent text-white border-l-2 border-[var(--primary-spotify)] shadow-sm'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <Settings className={`w-4 h-4 ${pathname === '/settings' ? 'text-[var(--primary-spotify)]' : ''}`} />
+          <span>Cài Đặt & Màu Sắc</span>
         </Link>
       </div>
 
@@ -161,7 +173,7 @@ export function Sidebar() {
           <button
             onClick={handleCreatePlaylist}
             disabled={creating}
-            className="p-1.5 bg-white/5 hover:bg-[#1DB954] hover:text-black rounded-lg transition-all text-slate-300 shadow-sm"
+            className="p-1.5 bg-white/5 hover:bg-[var(--primary-spotify)] hover:text-black rounded-lg transition-all text-slate-300 shadow-sm"
             title="Tạo playlist mới"
           >
             <Plus className="w-4 h-4" />
@@ -181,7 +193,7 @@ export function Sidebar() {
                       : 'text-slate-400 hover:bg-white/5 hover:text-white'
                   }`}
                 >
-                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 flex items-center justify-center text-slate-400 group-hover:text-[#1DB954] shrink-0 transition-colors">
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 flex items-center justify-center text-slate-400 group-hover:text-[var(--primary-spotify)] shrink-0 transition-colors">
                     <Music className="w-4 h-4" />
                   </div>
                   <div className="truncate flex-1">
@@ -197,7 +209,7 @@ export function Sidebar() {
                 <p className="text-[11px] text-slate-400 mb-3">Sắp xếp các bài hát yêu thích của bạn</p>
                 <button
                   onClick={handleCreatePlaylist}
-                  className="bg-[#1DB954] hover:bg-emerald-400 text-black font-bold text-xs px-4 py-2 rounded-full transition-transform hover:scale-105 shadow-md shadow-emerald-500/20"
+                  className="bg-[var(--primary-spotify)] hover:bg-emerald-400 text-black font-bold text-xs px-4 py-2 rounded-full transition-transform hover:scale-105 shadow-md shadow-emerald-500/20"
                 >
                   Tạo Playlist
                 </button>
@@ -250,7 +262,7 @@ export function Sidebar() {
             </Link>
             <Link
               href="/login"
-              className="flex-1 text-center py-2 bg-[#1DB954] text-black text-xs font-bold rounded-full hover:scale-105 transition-transform shadow-md shadow-emerald-500/20"
+              className="flex-1 text-center py-2 bg-[var(--primary-spotify)] text-black text-xs font-bold rounded-full hover:scale-105 transition-transform shadow-md shadow-emerald-500/20"
             >
               Đăng nhập
             </Link>
