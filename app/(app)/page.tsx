@@ -74,6 +74,29 @@ export default function HomePage() {
 
   useEffect(() => {
     fetchData()
+
+    // Subscribe to realtime tracks & playlists updates for instant UI refresh
+    const channel = supabase
+      .channel('home-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tracks' },
+        () => {
+          fetchData()
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'playlists' },
+        () => {
+          fetchData()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   const handleAddToPlaylist = async (playlistId: string, trackId: string) => {

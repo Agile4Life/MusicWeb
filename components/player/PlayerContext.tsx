@@ -74,7 +74,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audioRef.current.volume = volume
       audioRef.current
         .play()
-        .then(() => setIsPlaying(true))
+        .then(() => {
+          setIsPlaying(true)
+          supabase.rpc('fn_play_track', { p_track_id: track.id }).catch(() => {})
+        })
         .catch((err) => console.error('Audio playback error:', err))
     }
   }

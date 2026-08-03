@@ -61,8 +61,21 @@ export function Sidebar() {
       }
     })
 
+    // Subscribe to realtime changes in playlists
+    const playlistChannel = supabase
+      .channel('sidebar-playlists')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'playlists' },
+        () => {
+          loadUserAndPlaylists()
+        }
+      )
+      .subscribe()
+
     return () => {
       subscription.unsubscribe()
+      supabase.removeChannel(playlistChannel)
     }
   }, [])
 
