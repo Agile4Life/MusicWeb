@@ -69,8 +69,8 @@ export function UploadForm() {
   const [existingUserTracks, setExistingUserTracks] = useState<Array<{ title: string; artist?: string | null }>>([])
 
   // Fetch user's existing tracks from DB for duplicate checking
-  useEffect(() => {
-    const fetchExistingTracks = async () => {
+  const fetchExistingTracks = async () => {
+    try {
       const {
         data: { user },
       } = await supabase.auth.getUser()
@@ -89,8 +89,12 @@ export function UploadForm() {
         }))
         setExistingUserTracks(normalized)
       }
+    } catch (err) {
+      console.warn('Could not fetch user tracks for duplicate checking:', err)
     }
+  }
 
+  useEffect(() => {
     fetchExistingTracks()
   }, [])
 
@@ -99,18 +103,19 @@ export function UploadForm() {
     title: string,
     artist: string,
     id: string,
-    currentQueue: QueueItem[]
+    currentQueue: QueueItem[],
+    dbTracks: Array<{ title: string; artist?: string | null }>
   ): { isDuplicate: boolean; reason: string | null } => {
     const cleanTitle = title.trim().toLowerCase()
     const cleanArtist = artist.trim().toLowerCase()
 
     if (!cleanTitle) return { isDuplicate: false, reason: null }
 
-    // 1. Check against DB library
-    const existsInDb = existingUserTracks.some((t) => {
+    // 1. Check against DB library (matches title regardless of artist if artist is not set, or matches title + artist)
+    const existsInDb = dbTracks.some((t) => {
       if (t.title !== cleanTitle) return false
-      if (!cleanArtist) return true
-      return t.artist === cleanArtist || t.artist === ''
+      if (!cleanArtist || !t.artist) return true
+      return t.artist === cleanArtist
     })
 
     if (existsInDb) {
@@ -121,8 +126,7 @@ export function UploadForm() {
     const existsInQueue = currentQueue.some(
       (item) =>
         item.id !== id &&
-        item.title.trim().toLowerCase() === cleanTitle &&
-        (!cleanArtist || item.artist.trim().toLowerCase() === cleanArtist)
+        item.title.trim().toLowerCase() === cleanTitle
     )
 
     if (existsInQueue) {
@@ -132,18 +136,26 @@ export function UploadForm() {
     return { isDuplicate: false, reason: null }
   }
 
-  // Update a single queue item helper & re-check duplicate status
+  // Update queue items with duplicate status
+  const recalculateDuplicates = (
+    items: QueueItem[],
+    dbTracks: Array<{ title: string; artist?: string | null }> = existingUserTracks
+  ): QueueItem[] => {
+    return items.map((item) => {
+      const dupInfo = checkDuplicate(item.title, item.artist, item.id, items, dbTracks)
+      return {
+        ...item,
+        isDuplicate: dupInfo.isDuplicate,
+        duplicateReason: dupInfo.reason,
+      }
+    })
+  }
+
+  // Update a single queue item helper
   const updateItem = (id: string, updates: Partial<QueueItem>) => {
     setQueue((prev) => {
       const next = prev.map((item) => (item.id === id ? { ...item, ...updates } : item))
-      return next.map((item) => {
-        const dupInfo = checkDuplicate(item.title, item.artist, item.id, next)
-        return {
-          ...item,
-          isDuplicate: dupInfo.isDuplicate,
-          duplicateReason: dupInfo.reason,
-        }
-      })
+      return recalculateDuplicates(next)
     })
   }
 
@@ -157,8 +169,11 @@ export function UploadForm() {
 
     if (fileArray.length === 0) return
 
-    const newItems: QueueItem[] = fileArray.map((f) => ({
-      id: `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+    // Ensure we have fresh DB tracks for duplicate comparison
+    await fetchExistingTracks()
+
+    const newItems: QueueItem[] = fileArray.map((f, idx) => ({
+      id: `${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 7)}`,
       file: f,
       title: f.name.replace(/\.[^/.]+$/, ''),
       artist: '',
@@ -169,17 +184,7 @@ export function UploadForm() {
       progress: 0,
     }))
 
-    setQueue((prev) => {
-      const updatedQueue = [...prev, ...newItems]
-      return updatedQueue.map((item) => {
-        const dupInfo = checkDuplicate(item.title, item.artist, item.id, updatedQueue)
-        return {
-          ...item,
-          isDuplicate: dupInfo.isDuplicate,
-          duplicateReason: dupInfo.reason,
-        }
-      })
-    })
+    setQueue((prev) => recalculateDuplicates([...prev, ...newItems]))
 
     // Background ID3 Metadata parsing for each item
     for (const item of newItems) {
@@ -199,15 +204,7 @@ export function UploadForm() {
               status: 'idle' as const,
             }
           })
-
-          return updated.map((q) => {
-            const dupInfo = checkDuplicate(q.title, q.artist, q.id, updated)
-            return {
-              ...q,
-              isDuplicate: dupInfo.isDuplicate,
-              duplicateReason: dupInfo.reason,
-            }
-          })
+          return recalculateDuplicates(updated)
         })
       } catch (err) {
         console.warn('Metadata parsing warning:', err)
@@ -241,27 +238,40 @@ export function UploadForm() {
 
   const removeItem = (id: string) => {
     if (isUploading) return
-    setQueue((prev) => prev.filter((item) => item.id !== id))
+    setQueue((prev) => recalculateDuplicates(prev.filter((item) => item.id !== id)))
   }
 
   const clearCompleted = () => {
-    setQueue((prev) => prev.filter((item) => item.status !== 'completed' && item.status !== 'skipped'))
+    setQueue((prev) => recalculateDuplicates(prev.filter((item) => item.status !== 'completed' && item.status !== 'skipped')))
   }
 
-  // Upload single track workflow with mandatory lightweight MP3 compression
+  // Upload single track workflow with mandatory lightweight MP3 compression & live DB check
   const processSingleTrack = async (
     item: QueueItem,
     userId: string
   ): Promise<boolean> => {
-    // Check if skipped due to duplicate policy
-    if (skipDuplicates && item.isDuplicate && !item.forceUpload) {
-      updateItem(item.id, {
-        status: 'skipped',
-        progress: 0,
-        compressInfo: null,
-        error: `Đã bỏ qua bài trùng (${item.duplicateReason})`,
-      })
-      return true
+    const cleanTitle = (item.title || item.file.name).trim()
+
+    // 0. Live DB duplicate check right before processing
+    if (skipDuplicates && !item.forceUpload) {
+      const { data: dbCheck } = await supabase
+        .from('tracks')
+        .select('id, title')
+        .eq('user_id', userId)
+        .ilike('title', cleanTitle)
+        .limit(1)
+
+      if (dbCheck && dbCheck.length > 0) {
+        updateItem(item.id, {
+          status: 'skipped',
+          progress: 0,
+          isDuplicate: true,
+          duplicateReason: 'Bài hát đã có sẵn trong Thư viện cá nhân',
+          compressInfo: null,
+          error: `Tự động bỏ qua bài trùng ("${cleanTitle}" đã có trong Thư viện)`,
+        })
+        return true
+      }
     }
 
     try {
@@ -281,7 +291,7 @@ export function UploadForm() {
           })
         },
         targetBitrate,
-        true // Force compression for ALL files regardless of size
+        true
       )
 
       const uploadFile = compRes.file
@@ -329,13 +339,13 @@ export function UploadForm() {
           })
           if (artistData) artistId = artistData
         } catch {
-          // Ignore RPC error fallback
+          // Fallback if RPC function is missing
         }
       }
 
       const { error: dbError } = await supabase.from('tracks').insert({
         user_id: userId,
-        title: item.title || item.file.name,
+        title: cleanTitle,
         artist_id: artistId,
         duration: item.duration || 0,
         file_path: filePath,
@@ -345,7 +355,7 @@ export function UploadForm() {
       if (dbError) {
         const { error: fallbackError } = await supabase.from('tracks').insert({
           user_id: userId,
-          title: item.title || item.file.name,
+          title: cleanTitle,
           artist: item.artist || null,
           album: item.album || null,
           duration: item.duration || 0,
@@ -356,6 +366,9 @@ export function UploadForm() {
           throw new Error(`Lỗi lưu DB: ${dbError.message}`)
         }
       }
+
+      // Refresh DB tracks list after successful insert
+      fetchExistingTracks()
 
       updateItem(item.id, {
         status: 'completed',
@@ -399,6 +412,9 @@ export function UploadForm() {
         setIsUploading(false)
         return
       }
+
+      // Fetch fresh existing tracks list from DB before batch execution
+      await fetchExistingTracks()
 
       // Divide queue items into chunked batches
       const totalItems = itemsToUpload.length
@@ -457,7 +473,7 @@ export function UploadForm() {
             Upload Hàng Loạt Bài Hát
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Tải nhiều bài hát cùng lúc • Nén siêu nhẹ mọi bài • Phát hiện trùng lặp
+            Tải nhiều bài hát cùng lúc • Nén siêu nhẹ mọi bài • Tự phát hiện & bỏ qua bài trùng
           </p>
         </div>
 
@@ -558,7 +574,7 @@ export function UploadForm() {
               Nhấp để chọn hoặc Kéo & thả nhiều file âm thanh vào đây
             </p>
             <p className="text-xs text-slate-400 mt-1">
-              Tự động chuyển đổi & nén siêu nhẹ mọi bài sang MP3 ({targetBitrate}kbps) giúp tiết kiệm bộ nhớ
+              Hỗ trợ chọn nhiều file MP3, WAV, M4A, FLAC (Tự động lọc trùng lặp & nén siêu nhẹ)
             </p>
           </div>
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--primary-spotify)] bg-[var(--primary-spotify)]/10 px-3 py-1 rounded-full border border-[var(--primary-spotify)]/20">
@@ -670,7 +686,7 @@ export function UploadForm() {
         <div className="text-center py-12 border border-dashed border-white/5 rounded-2xl bg-black/20">
           <Music className="w-12 h-12 text-slate-600 mx-auto mb-3 opacity-40" />
           <p className="text-slate-400 text-sm font-medium">Chưa có bài hát nào trong hàng chờ</p>
-          <p className="text-slate-500 text-xs mt-1">Kéo thả các file nhạc vào ô phía trên để bắt đầu</p>
+          <p className="text-slate-500 text-xs mt-1">Kéo thả hoặc nhấp chọn nhiều file nhạc để bắt đầu</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3 max-h-[500px] overflow-y-auto pr-1">
