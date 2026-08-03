@@ -81,7 +81,7 @@ export default function SettingsPage() {
 
         <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
           <span>Dung lượng đã sử dụng trong Bucket `music-files`</span>
-          <span className="text-[var(--primary-spotify)] font-mono">Tối đa 50MB / File</span>
+          <span className="text-[var(--primary-spotify)] font-mono">Tối đa 150MB / File</span>
         </div>
       </div>
 

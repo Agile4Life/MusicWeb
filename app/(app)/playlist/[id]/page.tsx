@@ -172,8 +172,8 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
     if (!selectedFile) return
     setUploadError(null)
 
-    if (selectedFile.size > 50 * 1024 * 1024) {
-      setUploadError('Dung lượng file tối đa là 50MB')
+    if (selectedFile.size > 150 * 1024 * 1024) {
+      setUploadError('Dung lượng file tối đa là 150MB')
       return
     }
 
@@ -505,7 +505,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
                   ) : (
                     <div>
                       <p className="text-xs font-semibold text-slate-300">Chọn file mp3, wav, m4a, flac</p>
-                      <p className="text-[10px] text-slate-500">Dung lượng tối đa 50MB</p>
+                      <p className="text-[10px] text-slate-500">Dung lượng tối đa 150MB</p>
                     </div>
                   )}
                 </label>

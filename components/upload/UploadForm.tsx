@@ -25,8 +25,8 @@ export function UploadForm() {
     if (!selectedFile) return
     setError(null)
 
-    if (selectedFile.size > 50 * 1024 * 1024) {
-      setError('Dung lượng file tối đa là 50MB')
+    if (selectedFile.size > 150 * 1024 * 1024) {
+      setError('Dung lượng file tối đa là 150MB')
       return
     }
 
@@ -177,7 +177,7 @@ export function UploadForm() {
             ) : (
               <div>
                 <p className="text-sm font-semibold text-slate-200">Nhấp hoặc kéo thả file âm thanh vào đây</p>
-                <p className="text-xs text-slate-400 mt-1">Hỗ trợ .mp3, .wav, .m4a, .flac (Tối đa 50MB)</p>
+                <p className="text-xs text-slate-400 mt-1">Hỗ trợ .mp3, .wav, .m4a, .flac (Tối đa 150MB)</p>
               </div>
             )}
           </label>
