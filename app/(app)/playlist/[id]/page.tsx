@@ -174,12 +174,6 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
     if (!selectedFile) return
     setUploadError(null)
 
-    if (selectedFile.size > 150 * 1024 * 1024) {
-      setUploadError('Dung lượng file tối đa là 150MB')
-      return
-    }
-
-    setFile(selectedFile)
     setUploadTitle(selectedFile.name.replace(/\.[^/.]+$/, ''))
 
     try {
@@ -190,6 +184,24 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
     } catch (err) {
       console.warn('Metadata parsing warning:', err)
     }
+
+    // Auto compress if heavy file (>45MB)
+    let processedFile = selectedFile
+    if (selectedFile.size > 45 * 1024 * 1024) {
+      setUploadError(`⚡ File nặng (${(selectedFile.size / (1024 * 1024)).toFixed(1)}MB > 45MB), đang tự động nén sang MP3 320kbps High-Res...`)
+      try {
+        const compRes = await compressAudioIfNeeded(selectedFile, (_pct, stage) => {
+          if (stage) setUploadError(`⚡ ${stage}`)
+        })
+        processedFile = compRes.file
+        if (compRes.compressed) {
+          setUploadError(`✅ Đã tối ưu dung lượng (${compRes.originalSizeMB}MB ➜ ${compRes.newSizeMB}MB High-Res)! Sẵn sàng upload.`)
+        }
+      } catch (err: any) {
+        setUploadError(err.message)
+      }
+    }
+    setFile(processedFile)
   }
 
   // Handle direct upload & add to playlist

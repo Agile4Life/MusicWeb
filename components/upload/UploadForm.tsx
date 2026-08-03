@@ -28,12 +28,6 @@ export function UploadForm() {
     setError(null)
     setCompressInfo(null)
 
-    if (selectedFile.size > 150 * 1024 * 1024) {
-      setError('Dung lượng file tối đa là 150MB')
-      return
-    }
-
-    setFile(selectedFile)
     setTitle(selectedFile.name.replace(/\.[^/.]+$/, ''))
 
     try {
@@ -45,6 +39,24 @@ export function UploadForm() {
     } catch (err) {
       console.warn('Metadata parsing warning:', err)
     }
+
+    // Auto compress if heavy file (>45MB)
+    let processedFile = selectedFile
+    if (selectedFile.size > 45 * 1024 * 1024) {
+      setCompressInfo(`⚡ File nặng (${(selectedFile.size / (1024 * 1024)).toFixed(1)}MB > 45MB), đang tự động nén sang MP3 320kbps High-Res...`)
+      try {
+        const compRes = await compressAudioIfNeeded(selectedFile, (_pct, stage) => {
+          if (stage) setCompressInfo(stage)
+        })
+        processedFile = compRes.file
+        if (compRes.compressed) {
+          setCompressInfo(`✅ Đã tối ưu dung lượng thành công (${compRes.originalSizeMB}MB ➜ ${compRes.newSizeMB}MB High-Res)! Sẵn sàng upload.`)
+        }
+      } catch (err: any) {
+        setError(err.message)
+      }
+    }
+    setFile(processedFile)
   }
 
   const handleUpload = async (e: React.FormEvent) => {

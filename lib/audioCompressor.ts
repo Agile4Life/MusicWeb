@@ -16,24 +16,31 @@ export async function compressAudioIfNeeded(
   }
 
   try {
-    if (onProgress) onProgress(5, `Đang giải mã file âm thanh ${originalSizeMB}MB...`)
+    if (onProgress) onProgress(5, `Đang đọc dữ liệu file ${originalSizeMB}MB...`)
 
-    // 1. Read array buffer & decode audio with Web Audio API
+    // 1. Read array buffer & decode audio with Web Audio API (slice buffer to prevent detachment)
     const arrayBuffer = await file.arrayBuffer()
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
     const audioCtx = new AudioContextClass()
 
-    if (onProgress) onProgress(20, 'Đang phân tích PCM AudioBuffer...')
+    if (onProgress) onProgress(20, 'Đang giải mã PCM FLAC/WAV AudioBuffer...')
 
-    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer)
+    // Pass arrayBuffer.slice(0) to prevent ArrayBuffer detachment issues
+    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0))
     audioCtx.close()
 
-    if (onProgress) onProgress(35, 'Đang tối ưu dung lượng 320kbps High-Res...')
+    if (onProgress) onProgress(35, 'Đang tối ưu dung lượng 320kbps High-Res MP3...')
 
     // 2. Extract PCM channel data
-    const numChannels = audioBuffer.numberOfChannels
+    const numChannels = Math.min(2, audioBuffer.numberOfChannels || 1)
     const sampleRate = audioBuffer.sampleRate
     const length = audioBuffer.length
+
+    // Standardize sample rate for MP3 LAME encoder (LAME requires 44.1kHz or 48kHz max)
+    let targetSampleRate = sampleRate
+    if (targetSampleRate > 48000 || ![44100, 48000, 32000, 24000, 22050, 16000, 11025, 8000].includes(targetSampleRate)) {
+      targetSampleRate = 44100
+    }
 
     const left = audioBuffer.getChannelData(0)
     const right = numChannels > 1 ? audioBuffer.getChannelData(1) : left
@@ -50,10 +57,10 @@ export async function compressAudioIfNeeded(
       rightInt16[i] = sampleR < 0 ? sampleR * 0x8000 : sampleR * 0x7fff
     }
 
-    if (onProgress) onProgress(50, 'Đang mã hóa MP3 High-Res...')
+    if (onProgress) onProgress(50, 'Đang mã hóa MP3 High-Res (320kbps)...')
 
     // 3. Initialize LAME MP3 Encoder (320kbps High Quality)
-    const mp3encoder = new (lamejs as any).Mp3Encoder(numChannels > 1 ? 2 : 1, sampleRate, 320)
+    const mp3encoder = new (lamejs as any).Mp3Encoder(numChannels, targetSampleRate, 320)
     const mp3Data: Uint8Array[] = []
     const sampleBlockSize = 1152
 
@@ -68,7 +75,7 @@ export async function compressAudioIfNeeded(
         mp3buf = mp3encoder.encodeBuffer(leftChunk)
       }
 
-      if (mp3buf.length > 0) {
+      if (mp3buf && mp3buf.length > 0) {
         mp3Data.push(new Uint8Array(mp3buf))
       }
 
@@ -79,11 +86,11 @@ export async function compressAudioIfNeeded(
     }
 
     const endBuf = mp3encoder.flush()
-    if (endBuf.length > 0) {
+    if (endBuf && endBuf.length > 0) {
       mp3Data.push(new Uint8Array(endBuf))
     }
 
-    if (onProgress) onProgress(98, 'Đang đóng gói file MP3 mới...')
+    if (onProgress) onProgress(98, 'Đang tạo file MP3 nén mới...')
 
     // 4. Create compressed MP3 file Blob
     const blob = new Blob(mp3Data as BlobPart[], { type: 'audio/mp3' })
@@ -98,8 +105,8 @@ export async function compressAudioIfNeeded(
     if (onProgress) onProgress(100, `Hoàn tất tối ưu (${originalSizeMB}MB -> ${newSizeMB}MB)!`)
 
     return { file: compressedFile, compressed: true, originalSizeMB, newSizeMB }
-  } catch (err) {
-    console.warn('Audio compression warning, using original file:', err)
-    return { file, compressed: false, originalSizeMB, newSizeMB: originalSizeMB }
+  } catch (err: any) {
+    console.error('Audio compression failed:', err)
+    throw new Error(`File nhạc quá dung lượng Free Tier Supabase (${originalSizeMB}MB > 50MB) và không thể nén tự động trên trình duyệt (${err?.message || err}). Vui lòng chọn file nhạc dung lượng nhỏ hơn 50MB!`)
   }
 }
