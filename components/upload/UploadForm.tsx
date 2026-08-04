@@ -95,6 +95,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
   const skipDuplicates = true
   const [isUploading, setIsUploading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
+  const concurrency = 3
   const [overallBatchInfo, setOverallBatchInfo] = useState<string | null>(null)
   const [existingUserTracks, setExistingUserTracks] = useState<Array<{ title: string; artist?: string | null }>>([])
 
@@ -571,7 +572,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
     }
   }
 
-  // Sequential upload runner — processes one track at a time to avoid Supabase overload
+  // Parallel batch upload runner — processes up to `concurrency` tracks simultaneously in Web Workers
   const startBatchUpload = async (targetItems?: QueueItem[]) => {
     const itemsToUpload =
       targetItems ||
@@ -580,7 +581,8 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
     if (itemsToUpload.length === 0) return
 
     setIsUploading(true)
-    setOverallBatchInfo(`Chuẩn bị upload ${itemsToUpload.length} bài hát...`)
+    const total = itemsToUpload.length
+    setOverallBatchInfo(`Chuẩn bị upload song song (${concurrency} bài cùng lúc)...`)
 
     try {
       const {
@@ -596,14 +598,34 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       // Fetch fresh existing tracks list from DB before starting
       await fetchExistingTracks()
 
-      const total = itemsToUpload.length
       const batchKeys = new Set<string>()
-      for (let i = 0; i < total; i++) {
-        const item = itemsToUpload[i]
-        setOverallBatchInfo(`⏫ Đang xử lý bài ${i + 1} / ${total}: "${item.title}"...`)
-        // Process one track at a time — await before moving to next
+      let completedCountSoFar = 0
+
+      // Worker pool pattern with controlled concurrency
+      let currentIndex = 0
+      const activePromises: Promise<void>[] = []
+
+      const getNextAndRun = async (): Promise<void> => {
+        if (currentIndex >= total) return
+        const index = currentIndex++
+        const item = itemsToUpload[index]
+
+        setOverallBatchInfo(`⚡ Đang xử lý song song bài ${index + 1}/${total}: "${item.title}"...`)
+
         await processSingleTrack(item, user.id, batchKeys)
+
+        completedCountSoFar++
+        setOverallBatchInfo(`⚡ Đang xử lý song song (${completedCountSoFar}/${total} bài đã xong)...`)
+
+        return getNextAndRun()
       }
+
+      const workerCount = Math.min(concurrency, total)
+      for (let i = 0; i < workerCount; i++) {
+        activePromises.push(getNextAndRun())
+      }
+
+      await Promise.all(activePromises)
 
       setOverallBatchInfo('🎉 Đã hoàn tất xử lý tất cả bài hát!')
     } catch (err: any) {
@@ -752,7 +774,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       {/* Controls Bar */}
       {totalCount > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3 shrink-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {(completedCount > 0 || skippedCount > 0) && (
               <button
                 type="button"
@@ -774,6 +796,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
                 <RotateCcw className="w-3 h-3" /> Thử lại bài lỗi ({errorCount})
               </button>
             )}
+
           </div>
 
           <button
@@ -785,7 +808,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
             {isUploading ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Đang Nén & Upload từng bài...
+                Đang nén &amp; upload song song...
               </>
             ) : (
               <>
