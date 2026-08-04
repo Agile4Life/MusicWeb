@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { signIn } from 'next-auth/react'
 import { createClient } from '@/lib/supabase/client'
 import { isAllowedToLogin } from '@/lib/accessControl'
-import { Lock, Mail, Loader2, AlertCircle, CheckCircle2, Disc, Eye, EyeOff, ShieldAlert } from 'lucide-react'
+import { Lock, Mail, Loader2, AlertCircle, CheckCircle2, Disc, Eye, EyeOff, ShieldAlert, Key, X, Send } from 'lucide-react'
 
 interface AuthFormProps {
   mode: 'login' | 'register'
@@ -69,6 +69,50 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [rawError, setRawError] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
+
+  // Passkey Modal State
+  const [showPasskeyModal, setShowPasskeyModal] = useState(false)
+  const [passkeyEmail, setPasskeyEmail] = useState('')
+  const [passkeyInput, setPasskeyInput] = useState('')
+  const [passkeyLoading, setPasskeyLoading] = useState(false)
+  const [passkeyError, setPasskeyError] = useState<string | null>(null)
+  const [passkeySuccess, setPasskeySuccess] = useState<string | null>(null)
+
+  const handlePasskeySubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPasskeyLoading(true)
+    setPasskeyError(null)
+    setPasskeySuccess(null)
+
+    try {
+      const res = await fetch('/api/passkey-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: passkeyEmail, passkey: passkeyInput }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Lỗi xác thực Passkey')
+      }
+
+      setPasskeySuccess(data.message || 'Xác thực Passkey thành công! Đã gửi thông báo tới Gmail Admin.')
+      
+      // Auto login via NextAuth session with passkey email
+      setTimeout(async () => {
+        await signIn('credentials', {
+          email: passkeyEmail,
+          password: 'passkey_authenticated',
+          callbackUrl: '/',
+        })
+      }, 1500)
+    } catch (err: any) {
+      setPasskeyError(err.message || 'Xác thực Passkey thất bại')
+    } finally {
+      setPasskeyLoading(false)
+    }
+  }
 
   // Mouse spotlight coordinates
   const [cursorPos, setCursorPos] = useState({ x: -500, y: -500 })
@@ -354,6 +398,21 @@ export function AuthForm({ mode }: AuthFormProps) {
           <span>Đăng nhập bằng Google</span>
         </button>
 
+        {/* Passkey Login Button */}
+        <button
+          type="button"
+          onClick={() => {
+            setPasskeyError(null)
+            setPasskeySuccess(null)
+            setShowPasskeyModal(true)
+          }}
+          disabled={loading}
+          className="w-full bg-slate-900/80 hover:bg-slate-800 text-amber-300 border border-amber-500/30 font-bold py-3 rounded-full transition-all flex items-center justify-center gap-2.5 shadow-lg relative z-10 hover:scale-[1.02] active:scale-95 text-xs mt-3"
+        >
+          <Key className="w-4 h-4 text-amber-400" />
+          <span>Đăng nhập / Xin cấp quyền bằng Passkey</span>
+        </button>
+
         <div className="mt-6 text-center text-xs text-slate-400 border-t border-white/10 pt-4 relative z-10">
           {mode === 'login' ? (
             <p>
@@ -372,6 +431,111 @@ export function AuthForm({ mode }: AuthFormProps) {
           )}
         </div>
       </div>
+
+      {/* 🔑 MODAL: ĐĂNG NHẬP / XIN CẤP QUYỀN BẰNG PASSKEY */}
+      {showPasskeyModal && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="glass-panel w-full max-w-md p-7 rounded-3xl border border-amber-500/40 shadow-2xl relative flex flex-col gap-5 animate-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setShowPasskeyModal(false)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-xl hover:bg-white/10 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex flex-col gap-2">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-lg shadow-amber-500/10">
+                <Key className="w-6 h-6" />
+              </div>
+              <h2 className="text-xl font-extrabold text-white">Đăng Nhập & Xin Cấp Quyền Passkey</h2>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Nhập địa chỉ Gmail và mã Passkey do Admin cung cấp để đăng nhập hoặc gửi yêu cầu phê duyệt trực tiếp.
+              </p>
+            </div>
+
+            {passkeyError && (
+              <div className="p-3.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded-2xl text-xs flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span className="font-semibold leading-relaxed">{passkeyError}</span>
+              </div>
+            )}
+
+            {passkeySuccess ? (
+              <div className="p-5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 rounded-2xl text-xs flex flex-col gap-3">
+                <div className="flex items-center gap-2 text-emerald-400 font-extrabold text-sm">
+                  <CheckCircle2 className="w-5 h-5 shrink-0" />
+                  <span>Yêu cầu đã được ghi nhận!</span>
+                </div>
+                <div className="bg-black/40 p-3.5 rounded-xl border border-emerald-500/20 text-slate-200 text-xs leading-relaxed flex flex-col gap-2">
+                  <p className="font-bold text-amber-300 flex items-center gap-1.5">
+                    <span>⏳ Vui lòng đợi quản trị viên cấp phép!</span>
+                  </p>
+                  <p className="text-[11px] text-slate-300">
+                    Yêu cầu truy cập của tài khoản <strong className="text-cyan-400">{passkeyEmail}</strong> đã được hệ thống tự động gửi trực tiếp về Gmail cá nhân của Admin (<strong className="text-amber-300">tranphong16012006@gmail.com</strong>).
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowPasskeyModal(false)}
+                  className="w-full bg-emerald-500 text-black font-extrabold py-2.5 rounded-full hover:scale-105 transition-all text-xs shadow-lg mt-1"
+                >
+                  Đóng cửa sổ
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handlePasskeySubmit} className="flex flex-col gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">Địa chỉ Gmail của bạn</label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="vd: account@gmail.com"
+                      value={passkeyEmail}
+                      onChange={(e) => setPasskeyEmail(e.target.value)}
+                      className="w-full glass-input rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">Mã Passkey</label>
+                  <div className="relative">
+                    <Key className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                    <input
+                      type="password"
+                      required
+                      placeholder="Nhập mã Passkey (ví dụ: PASSKEY2026)"
+                      value={passkeyInput}
+                      onChange={(e) => setPasskeyInput(e.target.value)}
+                      className="w-full glass-input rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-2xl text-[11px] text-amber-300 leading-relaxed">
+                  💡 Sau khi bấm xác thực, yêu cầu cấp phép sẽ tự động gửi trực tiếp về Gmail cá nhân của Admin (<span className="font-mono text-white">tranphong16012006@gmail.com</span>).
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={passkeyLoading}
+                  className="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-extrabold py-3 rounded-full transition-transform active:scale-95 flex items-center justify-center gap-2 mt-1 shadow-lg shadow-amber-500/20 disabled:opacity-50 text-xs"
+                >
+                  {passkeyLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 fill-current" />
+                      <span>Gửi Yêu Cầu & Đăng Nhập Passkey</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
