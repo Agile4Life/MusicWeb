@@ -268,10 +268,6 @@ export default function HomePage() {
                 </span>
               )}
             </h1>
-
-            <p className="text-sm md:text-base text-slate-300 font-light leading-relaxed">
-              Không gian âm nhạc cá nhân hoàn hảo — Upload file MP3/WAV của chính bạn, tạo playlist riêng và tận hưởng âm thanh chất lượng cao.
-            </p>
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
