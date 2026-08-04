@@ -480,7 +480,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       updateItem(item.id, {
         status: 'saving_db',
         progress: 80,
-        compressInfo: compression.compressed ? 'MP3 256kbps' : 'Định dạng gốc',
+        compressInfo: compression.compressed ? 'M4A/AAC 320kbps' : 'Định dạng gốc',
       })
 
       let insertedTrackId: string | null = null

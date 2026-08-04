@@ -249,7 +249,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
 
       const driveResult = await uploadToGoogleDrive({
         file: uploadFile,
-        fileName: uploadTitle || file.name,
+        fileName: uploadTitle || uploadFile.name,
         folderName,
         onProgress: ({ percent }) => {
           setUploadError(`Đang tải lên Google Drive... ${percent}%`)

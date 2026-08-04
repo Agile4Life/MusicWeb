@@ -1,4 +1,5 @@
 import { Mp3Encoder } from '@breezystack/lamejs'
+import { transcodeToM4a } from './audioTranscoder'
 
 /**
  * Automatically converts & compresses audio files starting from 10MB
@@ -22,6 +23,21 @@ export async function compressAudioIfNeeded(
   const nativeFormats = new Set(['aac', 'm4a', 'mp3', 'ogg', 'oga', 'opus'])
   if (extension && nativeFormats.has(extension)) {
     return { file, compressed: false, originalSizeMB, newSizeMB: originalSizeMB }
+  }
+
+  if (extension === 'flac' || extension === 'wav') {
+    try {
+      const converted = await transcodeToM4a(file, onProgress)
+      return {
+        file: converted,
+        compressed: true,
+        originalSizeMB,
+        newSizeMB: Number((converted.size / (1024 * 1024)).toFixed(2)),
+      }
+    } catch (error) {
+      console.error('FLAC/WAV to M4A conversion failed:', error)
+      throw new Error('Không thể chuyển FLAC/WAV sang M4A/AAC 320kbps')
+    }
   }
 
   // If file size is under threshold, no compression needed
@@ -48,11 +64,9 @@ export async function compressAudioIfNeeded(
     const numChannels = Math.min(2, audioBuffer.numberOfChannels || 1)
     const length = audioBuffer.length
 
-    // Standardize sample rate for LAME encoder
-    let sampleRate = audioBuffer.sampleRate
-    if (sampleRate > 48000 || ![44100, 48000, 32000, 24000, 22050, 16000, 11025, 8000].includes(sampleRate)) {
-      sampleRate = 44100
-    }
+    // Keep the decoded sample rate. Changing the encoder rate without
+    // resampling the PCM would alter playback speed/pitch.
+    const sampleRate = audioBuffer.sampleRate
 
     const left = audioBuffer.getChannelData(0)
     const right = numChannels > 1 ? audioBuffer.getChannelData(1) : left
