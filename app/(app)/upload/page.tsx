@@ -3,14 +3,18 @@ import { isAdmin } from '@/lib/accessControl'
 import { UploadForm } from '@/components/upload/UploadForm'
 import Link from 'next/link'
 import { ShieldAlert, Music } from 'lucide-react'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 
 export default async function UploadPage() {
   const supabase = await createClient()
   const {
-    data: { user },
+    data: { user: supabaseUser },
   } = await supabase.auth.getUser()
 
-  const userIsAdmin = isAdmin(user?.email)
+  const session = await getServerSession(authOptions)
+  const userEmail = supabaseUser?.email || session?.user?.email
+  const userIsAdmin = isAdmin(userEmail)
 
   if (!userIsAdmin) {
     return (
@@ -23,7 +27,7 @@ export default async function UploadPage() {
           <div>
             <h1 className="text-xl font-bold text-white mb-2">Quyền Truy Cập Bị Hạn Chế</h1>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Tài khoản Google hiện tại của bạn (<strong>{user?.email || 'Người nghe'}</strong>) có quyền <strong className="text-emerald-400">Người nghe (Listener)</strong>.
+              Tài khoản hiện tại của bạn (<strong>{userEmail || 'Người nghe'}</strong>) có quyền <strong className="text-emerald-400">Người nghe (Listener)</strong>.
             </p>
             <p className="text-xs text-slate-400 mt-2">
               Chỉ có các tài khoản <strong className="text-amber-400">Admin</strong> cấu hình trong tệp <code className="bg-black/50 px-1.5 py-0.5 rounded text-amber-300 font-mono text-[11px]">config/allowedAccounts.json</code> mới có quyền đăng tải hoặc quản lý bài hát.
