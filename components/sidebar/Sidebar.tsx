@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
+import { getUserRole, isAdmin } from '@/lib/accessControl'
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -153,17 +154,19 @@ export function Sidebar() {
           <span>Trang chủ</span>
         </Link>
 
-        <Link
-          href="/upload"
-          className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
-            pathname === '/upload'
-              ? 'bg-gradient-to-r from-emerald-500/20 to-transparent text-white border-l-2 border-[var(--primary-spotify)] shadow-sm'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <Upload className={`w-4 h-4 ${pathname === '/upload' ? 'text-[var(--primary-spotify)]' : ''}`} />
-          <span>Upload Nhạc</span>
-        </Link>
+        {isAdmin(user?.email) && (
+          <Link
+            href="/upload"
+            className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+              pathname === '/upload'
+                ? 'bg-gradient-to-r from-emerald-500/20 to-transparent text-white border-l-2 border-[var(--primary-spotify)] shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Upload className={`w-4 h-4 ${pathname === '/upload' ? 'text-[var(--primary-spotify)]' : ''}`} />
+            <span>Upload Nhạc</span>
+          </Link>
+        )}
 
         <Link
           href="/settings"
@@ -269,8 +272,18 @@ export function Sidebar() {
                 </div>
               </div>
               <div className="truncate">
-                <p className="text-[10px] text-[var(--primary-spotify)] font-mono">Đã kết nối</p>
-                <p className="text-xs font-bold text-white truncate">{user.email}</p>
+                <p className="text-[10px] font-mono flex items-center gap-1">
+                  {isAdmin(user?.email) ? (
+                    <span className="text-amber-400 font-bold bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">
+                      ⚡ Admin
+                    </span>
+                  ) : (
+                    <span className="text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
+                      🎧 Người nghe
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs font-bold text-white truncate mt-0.5">{user.email}</p>
               </div>
             </div>
             <button

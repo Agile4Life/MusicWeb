@@ -5,6 +5,7 @@ import { Track, Playlist } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { Play, Pause, Music, Trash2, MoreVertical, Plus, Pencil, Check, X, Heart } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { isAdmin } from '@/lib/accessControl'
 
 interface TrackRowProps {
   track: Track
@@ -48,6 +49,15 @@ function TrackRowComponent({
   const [editAlbum, setEditAlbum] = useState(track.album || '')
   const [saving, setSaving] = useState(false)
   const [isFavorite, setIsFavorite] = useState(Boolean(track.is_favorite))
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+
+  React.useEffect(() => {
+    supabase.auth.getUser().then((res: any) => {
+      setUserEmail(res?.data?.user?.email || null)
+    })
+  }, [])
+
+  const userIsAdmin = isAdmin(userEmail)
 
   const isCurrent = currentTrack?.id === track.id
 
@@ -243,17 +253,19 @@ function TrackRowComponent({
                   <Heart className={`w-3.5 h-3.5 ${isFavorite ? 'fill-rose-400 text-rose-400' : 'text-rose-400'}`} />
                   {isFavorite ? 'Bỏ khỏi yêu thích' : 'Thêm vào yêu thích'}
                 </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setEditMode(true)
-                    setShowMenu(false)
-                  }}
-                  className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors border-b border-white/10"
-                >
-                  <Pencil className="w-3.5 h-3.5 text-blue-400" />
-                  Sửa Nghệ sĩ / Album
-                </button>
+                {userIsAdmin && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setEditMode(true)
+                      setShowMenu(false)
+                    }}
+                    className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors border-b border-white/10"
+                  >
+                    <Pencil className="w-3.5 h-3.5 text-blue-400" />
+                    Sửa Nghệ sĩ / Album
+                  </button>
+                )}
 
                 {userPlaylists.length > 0 && onAddToPlaylist && (
                   <div className="px-3 py-1 text-slate-400 font-semibold text-[10px] uppercase tracking-wider border-b border-white/10">
@@ -289,7 +301,7 @@ function TrackRowComponent({
                   </button>
                 )}
 
-                {onDeleteTrackPermanently && (
+                {userIsAdmin && onDeleteTrackPermanently && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
