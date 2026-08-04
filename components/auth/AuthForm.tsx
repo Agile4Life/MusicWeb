@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
 import { createClient } from '@/lib/supabase/client'
-import { Lock, Mail, Loader2, AlertCircle, CheckCircle2, Disc, Eye, EyeOff } from 'lucide-react'
+import { isAllowedToLogin } from '@/lib/accessControl'
+import { Lock, Mail, Loader2, AlertCircle, CheckCircle2, Disc, Eye, EyeOff, ShieldAlert } from 'lucide-react'
 
 interface AuthFormProps {
   mode: 'login' | 'register'
@@ -140,6 +141,14 @@ export function AuthForm({ mode }: AuthFormProps) {
         })
 
         if (signInError) throw signInError
+
+        // ⛔ Access control: check against allowedAccounts.json
+        if (!isAllowedToLogin(email)) {
+          await supabase.auth.signOut()
+          setError('🚫 Tài khoản này chưa được cấp quyền truy cập. Vui lòng liên hệ Admin để được cấp quyền!')
+          setLoading(false)
+          return
+        }
 
         setSuccessMsg('Đăng nhập thành công! Đang chuyển hướng...')
         setTimeout(() => {
