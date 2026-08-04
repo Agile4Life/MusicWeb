@@ -1,5 +1,5 @@
 {
-  "allowAllAsListeners": true,
+  "allowAllAsListeners": false,
   "adminEmails": [
     "admin@gmail.com"
   ],
