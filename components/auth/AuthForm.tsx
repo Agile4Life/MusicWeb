@@ -513,8 +513,8 @@ export function AuthForm({ mode }: AuthFormProps) {
                   </div>
                 </div>
 
-                <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-2xl text-[11px] text-amber-300 leading-relaxed">
-                  💡 Sau khi bấm xác thực, yêu cầu cấp phép sẽ tự động gửi trực tiếp về Gmail cá nhân của Admin (<span className="font-mono text-white">tranphong16012006@gmail.com</span>).
+                <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-2xl text-xs text-amber-300 font-bold leading-relaxed flex items-center justify-center gap-2">
+                  <span>⏳ Vui lòng đợi quản trị viên cấp phép!</span>
                 </div>
 
                 <button
