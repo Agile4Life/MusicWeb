@@ -62,10 +62,13 @@ export async function uploadToGoogleDrive({
     }
 
     // ── Step 1: Init resumable upload session via Cloudflare Worker ──
+    // Send browser origin so Worker can tell Google Drive to include CORS headers
+    const browserOrigin = typeof window !== 'undefined' ? window.location.origin : undefined;
+
     const initRes = await fetch(`${WORKER_URL}/api/upload/init`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileName: targetName, fileSize, fileType, folderName }),
+      body: JSON.stringify({ fileName: targetName, fileSize, fileType, folderName, origin: browserOrigin }),
     });
 
     if (!initRes.ok) {
