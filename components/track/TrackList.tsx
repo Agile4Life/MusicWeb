@@ -39,6 +39,17 @@ export function TrackList({
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
+  React.useEffect(() => {
+    if (showBulkModal) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [showBulkModal])
+
   if (tracks.length === 0) {
     return (
       <div className="text-center py-12 text-gray-400 bg-[#181818] rounded-lg">

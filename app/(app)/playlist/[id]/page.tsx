@@ -128,6 +128,18 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
     }
   }, [playlistId])
 
+  // Prevent background page scrolling when modals are open
+  useEffect(() => {
+    if (showUploadModal || showLibraryModal) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [showUploadModal, showLibraryModal])
+
   const handleUpdatePlaylist = async () => {
     if (!playlist) return
     const { error } = await supabase
