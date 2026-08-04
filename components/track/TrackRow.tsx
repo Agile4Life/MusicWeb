@@ -6,6 +6,7 @@ import { usePlayer } from '@/components/player/PlayerContext'
 import { Play, Pause, Music, Trash2, MoreVertical, Plus, Pencil, Check, X, Heart } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { isAdmin } from '@/lib/accessControl'
+import { useSession } from 'next-auth/react'
 
 interface TrackRowProps {
   track: Track
@@ -42,6 +43,7 @@ function TrackRowComponent({
   onToggleSelect,
 }: TrackRowProps) {
   const supabase = createClient()
+  const { data: nextAuthSession } = useSession()
   const { currentTrack, isPlaying, playTrack, togglePlay } = usePlayer()
   const [showMenu, setShowMenu] = useState(false)
   const [editMode, setEditMode] = useState(false)
@@ -49,14 +51,15 @@ function TrackRowComponent({
   const [editAlbum, setEditAlbum] = useState(track.album || '')
   const [saving, setSaving] = useState(false)
   const [isFavorite, setIsFavorite] = useState(Boolean(track.is_favorite))
-  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [supabaseEmail, setSupabaseEmail] = useState<string | null>(null)
 
   React.useEffect(() => {
     supabase.auth.getUser().then((res: any) => {
-      setUserEmail(res?.data?.user?.email || null)
+      setSupabaseEmail(res?.data?.user?.email || null)
     })
   }, [])
 
+  const userEmail = supabaseEmail || nextAuthSession?.user?.email
   const userIsAdmin = isAdmin(userEmail)
 
   const isCurrent = currentTrack?.id === track.id
