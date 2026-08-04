@@ -3,71 +3,6 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  })
-
-  const cookieOptions = {
-    maxAge: 60 * 60 * 24 * 365, // 1 year session persistence
-    path: '/',
-    sameSite: 'lax' as const,
-  }
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    {
-      cookieOptions,
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            const opts = {
-              ...options,
-              maxAge: options?.maxAge || 60 * 60 * 24 * 365,
-              path: '/',
-              sameSite: 'lax' as const,
-            }
-            request.cookies.set({ name, value, ...opts })
-          })
-
-          supabaseResponse = NextResponse.next({
-            request,
-          })
-
-          cookiesToSet.forEach(({ name, value, options }) => {
-            const opts = {
-              ...options,
-              maxAge: options?.maxAge || 60 * 60 * 24 * 365,
-              path: '/',
-              sameSite: 'lax' as const,
-            }
-            supabaseResponse.cookies.set(name, value, opts)
-          })
-        },
-      },
-    }
-  )
-
-  const {
-    data: { user: supabaseUser },
-  } = await supabase.auth.getUser()
-
-  // Also check NextAuth session (for Google login via NextAuth)
-  let nextAuthToken = null
-  try {
-    nextAuthToken = await getToken({
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || 'musicweb_nextauth_secret_key_84920482910_phongtct',
-    })
-  } catch (e) {
-    console.warn('NextAuth getToken failed in middleware:', e)
-  }
-
-  const isLoggedIn = !!supabaseUser || !!nextAuthToken
-
   const isAuthPage =
     request.nextUrl.pathname.startsWith('/login') ||
     request.nextUrl.pathname.startsWith('/register') ||
@@ -79,7 +14,57 @@ export async function updateSession(request: NextRequest) {
 
   // Never block NextAuth API routes or auth callback
   if (isNextAuthRoute) {
-    return supabaseResponse
+    return NextResponse.next({ request })
+  }
+
+  let isLoggedIn = false
+  let supabaseResponse = NextResponse.next({ request })
+
+  try {
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mjpibwmproussfevtqbp.supabase.co',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_mT97L0yZZOXReH-6ToCWGg_cpryfNgs',
+      {
+        cookieOptions: {
+          maxAge: 60 * 60 * 24 * 365,
+          path: '/',
+          sameSite: 'lax',
+        },
+        cookies: {
+          getAll() {
+            return request.cookies.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              request.cookies.set({ name, value, ...options })
+            })
+            supabaseResponse = NextResponse.next({ request })
+            cookiesToSet.forEach(({ name, value, options }) => {
+              supabaseResponse.cookies.set(name, value, options)
+            })
+          },
+        },
+      }
+    )
+
+    const {
+      data: { user: supabaseUser },
+    } = await supabase.auth.getUser()
+
+    let nextAuthToken = null
+    try {
+      nextAuthToken = await getToken({
+        req: request,
+        secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || 'musicweb_nextauth_secret_key_84920482910_phongtct',
+      })
+    } catch (e) {
+      console.warn('NextAuth getToken failed in middleware:', e)
+    }
+
+    isLoggedIn = !!supabaseUser || !!nextAuthToken
+  } catch (err) {
+    console.error('Middleware auth check error:', err)
+    isLoggedIn = false
   }
 
   // Require login before viewing ANY application page
