@@ -24,6 +24,8 @@ import {
 import * as mm from 'music-metadata-browser'
 import { uploadToGoogleDrive, buildDriveStreamUrl, deleteGoogleDriveFile } from '@/lib/googleDriveUpload'
 import { compressAudioIfNeeded } from '@/lib/audioCompressor'
+import { useSession } from 'next-auth/react'
+import { getValidUserId } from '@/lib/accessControl'
 
 export interface QueueItem {
   id: string
@@ -88,6 +90,7 @@ interface UploadFormProps {
 export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
   const router = useRouter()
   const supabase = createClient()
+  const { data: nextAuthSession } = useSession()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [queue, setQueue] = useState<QueueItem[]>([])
@@ -586,14 +589,21 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
 
     try {
       const {
-        data: { user },
+        data: { user: supabaseUser },
       } = await supabase.auth.getUser()
 
-      if (!user) {
+      const effectiveUser = supabaseUser || (nextAuthSession?.user ? {
+        id: nextAuthSession.user.email,
+        email: nextAuthSession.user.email,
+      } : null)
+
+      if (!effectiveUser) {
         alert('Bạn cần đăng nhập để upload nhạc')
         setIsUploading(false)
         return
       }
+
+      const validUserId = getValidUserId(effectiveUser)
 
       // Fetch fresh existing tracks list from DB before starting
       await fetchExistingTracks()
@@ -612,7 +622,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
 
         setOverallBatchInfo(`⚡ Đang xử lý song song bài ${index + 1}/${total}: "${item.title}"...`)
 
-        await processSingleTrack(item, user.id, batchKeys)
+        await processSingleTrack(item, validUserId, batchKeys)
 
         completedCountSoFar++
         setOverallBatchInfo(`⚡ Đang xử lý song song (${completedCountSoFar}/${total} bài đã xong)...`)
