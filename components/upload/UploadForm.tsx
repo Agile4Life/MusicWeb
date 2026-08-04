@@ -62,10 +62,12 @@ function formatFileSize(bytes: number): string {
 function cleanSongTitle(str: string): string {
   if (!str) return ''
   return str
+    .normalize('NFKC')
     .toLowerCase()
     .replace(/\.[^/.]+$/, '') // remove file extension if any
     .replace(/^\d+[\s._-]+/, '') // remove leading track numbers like "01 - ", "01. ", "1 "
-    .replace(/\(official audio\)|\(lyric video\)|\(audio\)|\(official music video\)/gi, '')
+    .replace(/\[(mv|official|audio|hq|hd|lyrics|flac|320kbps|320)\]/gi, '')
+    .replace(/\((official audio|lyric video|audio|official music video|official video|video|mv|320kbps|mp3|flac|hq|hd)\)/gi, '')
     .replace(/\s+/g, ' ')
     .trim()
 }
@@ -102,24 +104,14 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
   const [overallBatchInfo, setOverallBatchInfo] = useState<string | null>(null)
   const [existingUserTracks, setExistingUserTracks] = useState<Array<{ title: string; artist?: string | null }>>([])
 
-  // Fetch user's existing tracks from DB for duplicate checking (returns array directly to avoid closure stale state)
+  // Fetch all existing tracks from DB for duplicate checking across all users
   const fetchExistingTracks = async (): Promise<Array<{ title: string; artist?: string | null }>> => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) return []
-
       const trackList: Array<{ title: string; artist?: string | null }> = []
 
-      // The base schema stores artist directly on tracks. Do not query the
-      // optional view/artist relation here: a failed nested select used to be
-      // silently ignored and disabled duplicate detection completely.
       const { data: rawData } = await supabase
         .from('tracks')
         .select('title, artist')
-        .eq('user_id', user.id)
 
       if (rawData) {
         rawData.forEach((t: any) => {
@@ -136,7 +128,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       setExistingUserTracks(trackList)
       return trackList
     } catch (err) {
-      console.warn('Could not fetch user tracks for duplicate checking:', err)
+      console.warn('Could not fetch tracks for duplicate checking:', err)
       return []
     }
   }
@@ -399,8 +391,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       const { data: dbCheck } = await supabase
         .from('tracks')
         .select('id, title, artist')
-        .eq('user_id', userId)
-        .limit(1000)
+        .limit(2000)
 
       const existsInDb = dbCheck?.some((track: { title: string; artist: string | null }) =>
         trackDuplicateKey(track.title, track.artist) === uploadKey
@@ -410,7 +401,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
           status: 'skipped',
           progress: 0,
           isDuplicate: true,
-          duplicateReason: 'Bài hát đã có sẵn trong Thư viện cá nhân',
+          duplicateReason: 'Bài hát đã có sẵn trong Thư viện',
           compressInfo: null,
           error: `Tự động bỏ qua bài trùng ("${cleanTitle}" đã có trong Thư viện)`,
         })
