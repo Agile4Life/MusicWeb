@@ -30,36 +30,45 @@ export default function HomePage() {
 
   const fetchData = async () => {
     setLoading(true)
-    const {
-      data: { user: currentUser },
-    } = await supabase.auth.getUser()
+    try {
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser()
 
-    setSupabaseUser(currentUser)
+      setSupabaseUser(currentUser)
 
-    // Query all tracks from database — allows all users to see tracks uploaded by Admin accounts
-    const { data: rawTracks, error: trackError } = await supabase
-      .from('tracks')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (!trackError && rawTracks) {
-      setTracks(rawTracks)
-    } else if (trackError) {
-      console.warn('Failed to fetch tracks:', trackError.message)
-    }
-
-    if (currentUser) {
-      // Fetch user playlists
-      const { data: playlistData } = await supabase
-        .from('playlists')
+      // Query all tracks from database — allows all users to see tracks uploaded by Admin accounts
+      const { data: rawTracks, error: trackError } = await supabase
+        .from('tracks')
         .select('*')
-        .eq('user_id', currentUser.id)
         .order('created_at', { ascending: false })
 
-      if (playlistData) setPlaylists(playlistData)
-    }
+      if (!trackError && rawTracks) {
+        setTracks(rawTracks)
+      } else if (trackError) {
+        console.warn('Failed to fetch tracks:', trackError.message)
+      }
 
-    setLoading(false)
+      // Query playlists for either current user or public admin albums
+      const currentEmail = currentUser?.email || nextAuthSession?.user?.email
+      let playlistQuery = supabase.from('playlists').select('*')
+
+      if (currentUser?.id) {
+        playlistQuery = playlistQuery.or(`user_id.eq.${currentUser.id},is_public.eq.true`)
+      } else {
+        playlistQuery = playlistQuery.eq('is_public', true)
+      }
+
+      const { data: playlistData, error: plError } = await playlistQuery.order('created_at', { ascending: false })
+
+      if (!plError && playlistData) {
+        setPlaylists(playlistData)
+      }
+    } catch (err) {
+      console.error('fetchData error in page.tsx:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
