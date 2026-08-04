@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getToken } from 'next-auth/jwt'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -51,8 +52,16 @@ export async function updateSession(request: NextRequest) {
   )
 
   const {
-    data: { user },
+    data: { user: supabaseUser },
   } = await supabase.auth.getUser()
+
+  // Also check NextAuth session (for Google login via NextAuth)
+  const nextAuthToken = await getToken({
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || 'musicweb_nextauth_secret_key_84920482910_phongtct',
+  })
+
+  const isLoggedIn = !!supabaseUser || !!nextAuthToken
 
   const isAuthPage =
     request.nextUrl.pathname.startsWith('/login') ||
@@ -69,14 +78,14 @@ export async function updateSession(request: NextRequest) {
   }
 
   // Require login before viewing ANY application page
-  if (!user && !isAuthPage) {
+  if (!isLoggedIn && !isAuthPage) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
   // If already logged in, redirect away from login/register to main home page
-  if (user && isAuthPage) {
+  if (isLoggedIn && isAuthPage) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
     return NextResponse.redirect(url)
