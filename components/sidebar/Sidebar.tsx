@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
-import { getUserRole, isAdmin } from '@/lib/accessControl'
+import { getUserRole, isAdmin, getValidUserId } from '@/lib/accessControl'
 import { useSession, signOut } from 'next-auth/react'
 
 export function Sidebar() {
@@ -48,8 +48,9 @@ export function Sidebar() {
 
       // Query playlists owned by the user OR marked as public (admin albums)
       let query = supabase.from('playlists').select('*')
-      if (currentUser?.id) {
-        query = query.or(`user_id.eq.${currentUser.id},is_public.eq.true`)
+      const userId = currentUser?.id || getValidUserId(nextAuthSession?.user)
+      if (userId) {
+        query = query.or(`user_id.eq.${userId},is_public.eq.true`)
       } else {
         query = query.eq('is_public', true)
       }
@@ -89,7 +90,7 @@ export function Sidebar() {
       subscription.unsubscribe()
       supabase.removeChannel(playlistChannel)
     }
-  }, [])
+  }, [nextAuthSession])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -106,11 +107,13 @@ export function Sidebar() {
     }
 
     setCreating(true)
+    const validUserId = getValidUserId(user)
     const newName = `Playlist #${playlists.length + 1}`
+
     const { data, error } = await supabase
       .from('playlists')
       .insert({
-        user_id: user.id,
+        user_id: validUserId,
         name: newName,
         description: 'Playlist cá nhân',
         is_public: true,
@@ -123,6 +126,9 @@ export function Sidebar() {
     if (data && !error) {
       setPlaylists([data, ...playlists])
       router.push(`/playlist/${data.id}`)
+    } else if (error) {
+      console.error('Create playlist error:', error)
+      alert('Lỗi tạo playlist: ' + error.message)
     }
   }
 
