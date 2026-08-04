@@ -1,5 +1,4 @@
 import { Mp3Encoder } from '@breezystack/lamejs'
-import { transcodeToM4a } from './audioTranscoder'
 
 /**
  * Automatically converts & compresses audio files starting from 10MB
@@ -18,27 +17,12 @@ export async function compressAudioIfNeeded(
 
   // Keep formats that browsers reliably play untouched. In particular, AAC
   // 320kbps must not be transcoded to MP3 because that would add another
-  // lossy compression step. FLAC/WAV are normalized to MP3 for web playback.
+  // lossy compression step. FLAC/WAV fall through to the existing MP3
+  // encoder below, which runs in a dedicated Web Worker.
   const extension = file.name.split('.').pop()?.toLowerCase()
   const nativeFormats = new Set(['aac', 'm4a', 'mp3', 'ogg', 'oga', 'opus'])
   if (extension && nativeFormats.has(extension)) {
     return { file, compressed: false, originalSizeMB, newSizeMB: originalSizeMB }
-  }
-
-  if (extension === 'flac' || extension === 'wav') {
-    try {
-      const converted = await transcodeToM4a(file, onProgress)
-      return {
-        file: converted,
-        compressed: true,
-        originalSizeMB,
-        newSizeMB: Number((converted.size / (1024 * 1024)).toFixed(2)),
-      }
-    } catch (error) {
-      console.error('FLAC/WAV to M4A conversion failed:', error)
-      const detail = error instanceof Error ? error.message : String(error)
-      throw new Error(`Không thể chuyển FLAC/WAV sang M4A/AAC 320kbps: ${detail}`)
-    }
   }
 
   // If file size is under threshold, no compression needed

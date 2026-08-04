@@ -425,8 +425,8 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
         compressInfo: '0%',
       })
 
-      // Preserve AAC 320. FLAC/WAV are normalized to MP3 for web playback;
-      // unknown codecs also use MP3 as a compatibility fallback.
+      // Preserve AAC 320. FLAC/WAV and unknown codecs use the existing
+      // Web Worker MP3 fallback so conversion does not block on FFmpeg WASM.
       const compression = await compressAudioIfNeeded(
         item.file,
         (percent, stageText) => updateItem(item.id, {
@@ -480,7 +480,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       updateItem(item.id, {
         status: 'saving_db',
         progress: 80,
-        compressInfo: compression.compressed ? 'M4A/AAC 320kbps' : 'Định dạng gốc',
+        compressInfo: compression.compressed ? 'MP3 256kbps' : 'Định dạng gốc',
       })
 
       let insertedTrackId: string | null = null
