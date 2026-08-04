@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 import { SessionProvider } from '@/components/auth/SessionProvider'
+import { ThemeProvider } from '@/components/theme/ThemeContext'
 
 export const metadata: Metadata = {
   title: 'MusicWeb • Trình Nghe Nhạc Cá Nhân Độc Bản',
@@ -15,9 +16,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi" className="font-sans h-full antialiased dark">
-      <body className="min-h-full flex flex-col bg-[#08090D] text-slate-100 selection:bg-[#1DB954] selection:text-black">
-        <SessionProvider>{children}</SessionProvider>
+      <body className="min-h-full flex flex-col bg-[var(--bg-space,#07080c)] text-slate-100 selection:bg-[var(--primary-spotify,#1DB954)] selection:text-black">
+        <SessionProvider>
+          <ThemeProvider>{children}</ThemeProvider>
+        </SessionProvider>
       </body>
     </html>
   )
 }
+

@@ -255,12 +255,12 @@ export function AuthForm({ mode }: AuthFormProps) {
   }
 
   return (
-    <div className="min-h-screen w-screen bg-[#07080c] flex items-center justify-center p-4 relative overflow-hidden select-none">
+    <div className="min-h-screen w-screen bg-[var(--bg-space,#07080c)] flex items-center justify-center p-4 relative overflow-hidden select-none">
       {/* Dynamic Cursor Background Spotlight */}
       <div
         className="pointer-events-none fixed inset-0 z-0 transition-opacity duration-300"
         style={{
-          background: `radial-gradient(700px circle at ${cursorPos.x}px ${cursorPos.y}px, rgba(29, 185, 84, 0.16), rgba(6, 182, 212, 0.06) 40%, transparent 80%)`,
+          background: `radial-gradient(700px circle at ${cursorPos.x}px ${cursorPos.y}px, var(--theme-gradient-1, rgba(29, 185, 84, 0.16)), var(--theme-gradient-2, rgba(6, 182, 212, 0.06)) 40%, transparent 80%)`,
         }}
       />
 
@@ -270,13 +270,13 @@ export function AuthForm({ mode }: AuthFormProps) {
       {/* Auth Card Container */}
       <div
         ref={cardRef}
-        className="w-full max-w-md glass-panel p-8 rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden z-10 transition-transform duration-200"
+        className="w-full max-w-md glass-panel p-8 rounded-3xl border border-[var(--primary-spotify)]/20 shadow-2xl relative overflow-hidden z-10 transition-transform duration-200"
       >
         {/* Dynamic Card Internal Cursor Spotlight */}
         <div
           className="pointer-events-none absolute inset-0 z-0 transition-opacity duration-300"
           style={{
-            background: `radial-gradient(350px circle at ${cardCursorPos.x}px ${cardCursorPos.y}px, rgba(30, 215, 96, 0.22), transparent 75%)`,
+            background: `radial-gradient(350px circle at ${cardCursorPos.x}px ${cardCursorPos.y}px, var(--theme-gradient-1, rgba(30, 215, 96, 0.22)), transparent 75%)`,
           }}
         />
 
@@ -320,16 +320,16 @@ export function AuthForm({ mode }: AuthFormProps) {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 relative z-10">
           <div>
-            <label className="block text-xs font-bold text-slate-300 mb-1.5">Email</label>
+            <label className="block text-xs font-bold text-slate-300 mb-1.5">Địa chỉ Email</label>
             <div className="relative">
               <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
               <input
                 type="email"
                 required
-                placeholder="name@example.com"
+                placeholder="vd: account@musicweb.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full glass-input rounded-xl pl-10 pr-3 py-2.5 text-xs text-white outline-none"
+                className="w-full glass-input rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none"
               />
             </div>
           </div>
@@ -359,7 +359,7 @@ export function AuthForm({ mode }: AuthFormProps) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[var(--primary-spotify)] text-black font-extrabold py-3 rounded-full transition-transform active:scale-95 flex items-center justify-center gap-2 mt-2 disabled:opacity-50 shadow-lg shadow-[var(--theme-glow-shadow)]"
+            className="w-full bg-[var(--primary-spotify)] text-black font-extrabold py-3 rounded-full transition-transform active:scale-95 flex items-center justify-center gap-2 mt-2 disabled:opacity-50 shadow-lg shadow-[var(--theme-glow-shadow)] hover:scale-[1.01]"
           >
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -370,7 +370,7 @@ export function AuthForm({ mode }: AuthFormProps) {
             )}
           </button>
           {mode === 'login' && (
-            <Link href="/reset-password" className="text-center text-xs text-slate-400 hover:text-white hover:underline">
+            <Link href="/reset-password" className="text-center text-xs text-slate-400 hover:text-[var(--primary-spotify)] hover:underline">
               Quên mật khẩu?
             </Link>
           )}
@@ -420,9 +420,9 @@ export function AuthForm({ mode }: AuthFormProps) {
             setShowPasskeyModal(true)
           }}
           disabled={loading}
-          className="w-full bg-slate-900/80 hover:bg-slate-800 text-amber-300 border border-amber-500/30 font-bold py-3 rounded-full transition-all flex items-center justify-center gap-2.5 shadow-lg relative z-10 hover:scale-[1.02] active:scale-95 text-xs mt-3"
+          className="w-full bg-slate-900/80 hover:bg-slate-800 text-[var(--primary-spotify)] border border-[var(--primary-spotify)]/30 font-bold py-3 rounded-full transition-all flex items-center justify-center gap-2.5 shadow-lg relative z-10 hover:scale-[1.02] active:scale-95 text-xs mt-3"
         >
-          <Key className="w-4 h-4 text-amber-400" />
+          <Key className="w-4 h-4 text-[var(--primary-spotify)]" />
           <span>Đăng nhập / Xin cấp quyền bằng Passkey</span>
         </button>
 
@@ -448,7 +448,7 @@ export function AuthForm({ mode }: AuthFormProps) {
       {/* 🔑 MODAL: ĐĂNG NHẬP / XIN CẤP QUYỀN BẰNG PASSKEY */}
       {showPasskeyModal && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="glass-panel w-full max-w-md p-7 rounded-3xl border border-amber-500/40 shadow-2xl relative flex flex-col gap-5 animate-in zoom-in-95 duration-200">
+          <div className="glass-panel w-full max-w-md p-7 rounded-3xl border border-[var(--primary-spotify)]/40 shadow-2xl relative flex flex-col gap-5 animate-in zoom-in-95 duration-200">
             <button
               onClick={() => setShowPasskeyModal(false)}
               className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-xl hover:bg-white/10 transition-colors"
@@ -457,7 +457,7 @@ export function AuthForm({ mode }: AuthFormProps) {
             </button>
 
             <div className="flex flex-col gap-2">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-lg shadow-amber-500/10">
+              <div className="w-12 h-12 rounded-2xl bg-[var(--primary-spotify)]/10 border border-[var(--primary-spotify)]/30 flex items-center justify-center text-[var(--primary-spotify)] shadow-lg shadow-[var(--theme-glow-shadow)]">
                 <Key className="w-6 h-6" />
               </div>
               <h2 className="text-xl font-extrabold text-white">Đăng Nhập & Xin Cấp Quyền Passkey</h2>
@@ -474,21 +474,21 @@ export function AuthForm({ mode }: AuthFormProps) {
             )}
 
             {passkeySuccess ? (
-              <div className="p-6 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 rounded-3xl text-xs flex flex-col items-center text-center gap-4 animate-in zoom-in-95 duration-200">
-                <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-lg shadow-amber-500/10">
-                  <CheckCircle2 className="w-7 h-7 text-emerald-400" />
+              <div className="p-6 bg-emerald-500/10 border border-[var(--primary-spotify)]/30 text-emerald-300 rounded-3xl text-xs flex flex-col items-center text-center gap-4 animate-in zoom-in-95 duration-200">
+                <div className="w-14 h-14 rounded-2xl bg-[var(--primary-spotify)]/10 border border-[var(--primary-spotify)]/30 flex items-center justify-center text-[var(--primary-spotify)] shadow-lg shadow-[var(--theme-glow-shadow)]">
+                  <CheckCircle2 className="w-7 h-7 text-[var(--primary-spotify)]" />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <h3 className="text-lg font-extrabold text-amber-300">
+                  <h3 className="text-lg font-extrabold text-[var(--primary-spotify)]">
                     ⏳ Vui lòng đợi quản trị viên cấp phép!
                   </h3>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    Yêu cầu truy cập của tài khoản <strong className="text-cyan-400">{passkeyEmail}</strong> đã được tự động gửi tới Gmail cá nhân của Admin.
+                    Yêu cầu truy cập của tài khoản <strong className="text-[var(--primary-spotify)]">{passkeyEmail}</strong> đã được tự động gửi tới Gmail cá nhân của Admin.
                   </p>
                 </div>
                 <button
                   onClick={() => setShowPasskeyModal(false)}
-                  className="w-full bg-emerald-500 text-black font-extrabold py-2.5 rounded-full hover:scale-105 transition-all text-xs shadow-lg mt-2"
+                  className="w-full bg-[var(--primary-spotify)] text-black font-extrabold py-2.5 rounded-full hover:scale-105 transition-all text-xs shadow-lg mt-2"
                 >
                   Đóng cửa sổ
                 </button>
@@ -528,10 +528,10 @@ export function AuthForm({ mode }: AuthFormProps) {
                 <button
                   type="submit"
                   disabled={passkeyLoading}
-                  className="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-extrabold py-3 rounded-full transition-transform active:scale-95 flex items-center justify-center gap-2 mt-2 shadow-lg shadow-amber-500/20 disabled:opacity-50 text-xs"
+                  className="w-full bg-[var(--primary-spotify)] text-black font-extrabold py-3 rounded-full transition-transform active:scale-95 flex items-center justify-center gap-2 mt-2 shadow-lg shadow-[var(--theme-glow-shadow)] disabled:opacity-50 text-xs hover:scale-[1.01]"
                 >
                   {passkeyLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                    <Loader2 className="w-4 h-4 animate-spin text-black" />
                   ) : (
                     <>
                       <Send className="w-4 h-4 fill-current" />

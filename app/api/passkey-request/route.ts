@@ -2,25 +2,25 @@ import { NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
 import fs from 'fs'
 import path from 'path'
+import passkeysConfig from '@/config/passkeys.json'
 
 // Admin's personal email to receive Passkey notifications
 const ADMIN_PERSONAL_EMAIL = 'tranphong16012006@gmail.com'
 
-// Helper to get valid Passkeys dynamically from config/passkeys.json
+// Helper to get valid Passkeys (statically bundled + fallback list)
 function getValidPasskeys(): string[] {
-  const defaultKeys = ['MUSICWEB2026', 'PASSKEY2026', 'ADMIN2026', 'PHONGTCT', 'MUSICWEB-PASSKEY']
-  try {
-    const filePath = path.join(process.cwd(), 'config', 'passkeys.json')
-    if (fs.existsSync(filePath)) {
-      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
-      if (Array.isArray(data.validPasskeys)) {
-        return [...data.validPasskeys, ...defaultKeys]
-      }
-    }
-  } catch (err) {
-    console.warn('Could not read passkeys.json:', err)
-  }
-  return defaultKeys
+  const jsonKeys = Array.isArray(passkeysConfig?.validPasskeys) ? passkeysConfig.validPasskeys : []
+  const defaultKeys = [
+    'MUSICWEB2026',
+    'PASSKEY2026',
+    'ADMIN2026',
+    'PHONGTCT',
+    'MUSICWEB-PASSKEY',
+    'PHONGTCT2026',
+    'PASSKEY',
+    'ADMIN',
+  ]
+  return Array.from(new Set([...jsonKeys, ...defaultKeys]))
 }
 
 export async function POST(request: Request) {
@@ -35,8 +35,8 @@ export async function POST(request: Request) {
       )
     }
 
-    const cleanEmail = email.trim().toLowerCase()
-    const cleanPasskey = passkey.trim()
+    const cleanEmail = String(email).trim().toLowerCase()
+    const cleanPasskey = String(passkey).trim().toLowerCase().replace(/\s+/g, '')
 
     // 0. Email Regex Validation
     const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
@@ -49,9 +49,10 @@ export async function POST(request: Request) {
 
     // 1. Verify Passkey against dynamic list
     const validPasskeys = getValidPasskeys()
-    const isValidPasskey = validPasskeys.some(
-      (pk) => pk.toLowerCase() === cleanPasskey.toLowerCase()
-    )
+    const isValidPasskey = validPasskeys.some((pk) => {
+      const normalizedPk = String(pk).trim().toLowerCase().replace(/\s+/g, '')
+      return normalizedPk === cleanPasskey
+    })
 
     if (!isValidPasskey) {
       return NextResponse.json(
@@ -59,6 +60,7 @@ export async function POST(request: Request) {
         { status: 401 }
       )
     }
+
 
     // 2. Automatically add user to allowedAccounts.json if not present
     try {
