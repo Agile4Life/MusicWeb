@@ -59,9 +59,10 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
   const [libraryTracks, setLibraryTracks] = useState<Track[]>([])
   const [librarySearch, setLibrarySearch] = useState('')
   const [loadingLibrary, setLoadingLibrary] = useState(false)
+  const [addingTrackId, setAddingTrackId] = useState<string | null>(null)
 
-  const fetchPlaylistData = async () => {
-    setLoading(true)
+  const fetchPlaylistData = async (showSkeleton = true) => {
+    if (showSkeleton) setLoading(true)
     const { data: plData, error: plError } = await supabase
       .from('playlists')
       .select('*')
@@ -69,7 +70,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
       .single()
 
     if (plError || !plData) {
-      setLoading(false)
+      if (showSkeleton) setLoading(false)
       return
     }
 
@@ -97,7 +98,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
       setTracks(fetchedTracks)
     }
 
-    setLoading(false)
+    if (showSkeleton) setLoading(false)
   }
 
   useEffect(() => {
@@ -330,19 +331,32 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
     setLoadingLibrary(false)
   }
 
-  // Add track from library to playlist
+  // Add track from library to playlist smoothly without full-page flickering
   const handleAddTrackToThisPlaylist = async (trackId: string) => {
-    const { error } = await Promise.resolve(
-      supabase.rpc('fn_add_track_to_playlist', {
-        p_playlist_id: playlistId,
-        p_track_id: trackId,
+    setAddingTrackId(trackId)
+    try {
+      let { error } = await supabase.from('playlist_tracks').insert({
+        playlist_id: playlistId,
+        track_id: trackId,
       })
-    )
 
-    if (!error) {
-      fetchPlaylistData()
-    } else {
-      alert('Lỗi thêm bài hát: ' + error.message)
+      if (error) {
+        // Fallback to RPC
+        const rpcRes = await supabase.rpc('fn_add_track_to_playlist', {
+          p_playlist_id: playlistId,
+          p_track_id: trackId,
+        })
+        error = rpcRes.error
+      }
+
+      if (!error) {
+        // Fetch playlist data in background without triggering full-page skeleton loading
+        await fetchPlaylistData(false)
+      } else {
+        alert('Lỗi thêm bài hát: ' + error.message)
+      }
+    } finally {
+      setAddingTrackId(null)
     }
   }
 
@@ -587,16 +601,22 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
                         </div>
 
                         {inPlaylist ? (
-                          <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 shrink-0">
+                          <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 shrink-0 flex items-center gap-1">
+                            <Check className="w-3 h-3" />
                             Đã thêm
                           </span>
                         ) : (
                           <button
                             onClick={() => handleAddTrackToThisPlaylist(t.id)}
-                            className="bg-[var(--primary-spotify)] hover:scale-105 text-black p-1.5 rounded-lg font-bold transition-all shrink-0"
+                            disabled={addingTrackId === t.id}
+                            className="bg-[var(--primary-spotify)] hover:scale-105 active:scale-95 text-black p-1.5 rounded-lg font-bold transition-all shrink-0 disabled:opacity-50 flex items-center justify-center min-w-[32px] min-h-[32px]"
                             title="Thêm vào playlist"
                           >
-                            <Plus className="w-4 h-4" />
+                            {addingTrackId === t.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-black" />
+                            ) : (
+                              <Plus className="w-4 h-4" />
+                            )}
                           </button>
                         )}
                       </div>
