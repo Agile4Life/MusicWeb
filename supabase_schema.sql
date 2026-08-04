@@ -56,13 +56,16 @@ DROP POLICY IF EXISTS "Everyone can view all tracks" ON public.tracks;
 CREATE POLICY "Everyone can view all tracks" ON public.tracks FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Users can insert their own tracks" ON public.tracks;
-CREATE POLICY "Users can insert their own tracks" ON public.tracks FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Everyone can insert tracks" ON public.tracks;
+CREATE POLICY "Everyone can insert tracks" ON public.tracks FOR INSERT WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Users can update their own tracks" ON public.tracks;
-CREATE POLICY "Users can update their own tracks" ON public.tracks FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Everyone can update tracks" ON public.tracks;
+CREATE POLICY "Everyone can update tracks" ON public.tracks FOR UPDATE USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Users can delete their own tracks" ON public.tracks;
-CREATE POLICY "Users can delete their own tracks" ON public.tracks FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Everyone can delete tracks" ON public.tracks;
+CREATE POLICY "Everyone can delete tracks" ON public.tracks FOR DELETE USING (true);
 
 -- ------------------------------------------------------------------------------
 -- 3. BẢNG PLAYLISTS (Playlist cá nhân + Hỗ trợ Chia sẻ Public sau này)
