@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useRef, useEffect } from 'react'
 import { Track } from '@/types'
 import { createClient } from '@/lib/supabase/client'
-import { buildDriveStreamUrl } from '@/lib/googleDriveUpload'
+import { extractDriveFileId, getAuthorizedDriveStreamUrl } from '@/lib/googleDriveUpload'
 
 interface PlayerContextType {
   currentTrack: Track | null
@@ -58,40 +58,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // Resolve both legacy Supabase paths and Google Drive files.
   // Supabase paths are relative (for example "user-id/song.mp3").
   // Drive files are identified by a file ID and must be streamed through the Worker.
-  const getAudioUrl = async (filePath: string): Promise<string | null> => {
+  const getAudioUrl = async (track: Track): Promise<string | null> => {
+    const filePath = track.file_path
     if (!filePath) return null
 
+    const driveFileId = extractDriveFileId(filePath)
+    if (driveFileId) {
+      return getAuthorizedDriveStreamUrl(track.id, driveFileId)
+    }
+
     if (filePath.startsWith('http')) {
-      try {
-        const parsed = new URL(filePath)
-        const isGoogleUrl = parsed.hostname.includes('drive.google.com') ||
-          parsed.hostname.includes('googleapis.com') ||
-          parsed.hostname.includes('googleusercontent.com')
-        const workerStream = parsed.pathname.endsWith('/api/upload/stream')
-        const queryId = parsed.searchParams.get('id')
-        const pathId = parsed.pathname.match(/\/file\/d\/([^/]+)/)?.[1] ||
-          parsed.pathname.match(/\/d\/([^/]+)/)?.[1]
-
-        // Old records may contain a direct Google Drive URL. Convert those to
-        // the Worker stream so Range requests and Google auth stay server-side.
-        if (isGoogleUrl && (queryId || pathId)) {
-          return buildDriveStreamUrl(queryId || pathId!)
-        }
-
-        // New records already contain the Worker stream URL.
-        if (workerStream && queryId) return filePath
-      } catch {
-        // Let the browser report malformed absolute URLs below.
-      }
-
       // Do not send an absolute URL to Supabase. This preserves support for
       // legacy Supabase paths while allowing public/Worker URLs to play.
       return filePath
-    }
-
-    // A few early uploads stored only the Google Drive file ID.
-    if (/^[A-Za-z0-9_-]{20,}$/.test(filePath)) {
-      return buildDriveStreamUrl(filePath)
     }
 
     // Try creating signed URL (valid for 1 hour)
@@ -125,7 +104,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     setCurrentTrack(track)
     setPlaybackError(null)
 
-    const url = await getAudioUrl(track.file_path)
+    let url: string | null = null
+    try {
+      url = await getAudioUrl(track)
+    } catch (error: any) {
+      if (requestId === playRequestRef.current) {
+        setPlaybackError(error?.message || 'Không thể cấp quyền phát audio')
+      }
+      return
+    }
     const audio = audioRef.current
     if (!url || !audio || requestId !== playRequestRef.current) {
       if (!url) setPlaybackError('Không tìm thấy đường dẫn audio của bài hát')

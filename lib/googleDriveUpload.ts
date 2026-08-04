@@ -12,6 +12,21 @@
 const WORKER_URL = process.env.NEXT_PUBLIC_CLOUDFLARE_WORKER_URL || 'https://drive-upload-worker.phongtct.workers.dev';
 const CHUNK_SIZE = 5 * 1024 * 1024; // 5 MB — must be multiple of 256 KiB
 
+async function getAuthorizationHeader(): Promise<Record<string, string>> {
+  const { createClient } = await import('@/lib/supabase/client')
+  const supabase = createClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.access_token) {
+    throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại trước khi upload.')
+  }
+  return { Authorization: `Bearer ${session.access_token}` }
+}
+
+async function getFileHash(file: File): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer())
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+}
+
 function describeFetchError(error: unknown, step: string): Error {
   const message = error instanceof Error ? error.message : String(error)
   if (message.toLowerCase() === 'failed to fetch' || message.toLowerCase().includes('networkerror')) {
@@ -48,12 +63,39 @@ export function buildDriveStreamUrl(fileId: string): string {
   return `${WORKER_URL}/api/upload/stream?id=${encodeURIComponent(fileId)}`;
 }
 
+export function extractDriveFileId(filePath: string): string | null {
+  if (/^[A-Za-z0-9_-]{20,}$/.test(filePath)) return filePath
+  try {
+    const parsed = new URL(filePath)
+    const id = parsed.searchParams.get('id') || parsed.pathname.match(/\/d\/([A-Za-z0-9_-]+)/)?.[1]
+    if (id && /^[A-Za-z0-9_-]{20,}$/.test(id)) return id
+  } catch {
+    // This is likely a Supabase storage path.
+  }
+  return null
+}
+
+export async function getAuthorizedDriveStreamUrl(trackId: string, fileId: string): Promise<string> {
+  const auth = await getAuthorizationHeader()
+  const response = await fetch(`${WORKER_URL}/api/upload/stream-token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...auth },
+    body: JSON.stringify({ trackId, fileId }),
+    cache: 'no-store',
+  })
+  if (!response.ok) throw new Error(`Không thể cấp quyền phát audio (${response.status})`)
+  const { token } = await response.json()
+  if (!token) throw new Error('Worker không trả về quyền phát audio')
+  return `${buildDriveStreamUrl(fileId)}&token=${encodeURIComponent(token)}`
+}
+
 export async function deleteGoogleDriveFile(fileId: string, uploadUrl: string): Promise<void> {
   if (!fileId || !uploadUrl) return
   const origin = typeof window !== 'undefined' ? window.location.origin : undefined
+  const auth = await getAuthorizationHeader()
   const response = await fetch(`${WORKER_URL}/api/upload/file?id=${encodeURIComponent(fileId)}`, {
     method: 'DELETE',
-    headers: { 'Content-Type': 'application/json', 'X-Upload-Url': uploadUrl },
+    headers: { 'Content-Type': 'application/json', 'X-Upload-Url': uploadUrl, ...auth },
     body: JSON.stringify({ origin }),
   })
   if (!response.ok) throw new Error(`Không thể dọn file Drive (${response.status})`)
@@ -76,6 +118,7 @@ export async function uploadToGoogleDrive({
 
     const fileSize = file.size;
     const fileType = file.type || 'application/octet-stream';
+    const fileHash = await getFileHash(file);
 
     // Guard: refuse to upload empty files (e.g. compression returned 0 bytes)
     if (!fileSize || fileSize === 0) {
@@ -88,13 +131,14 @@ export async function uploadToGoogleDrive({
     // ── Step 1: Init resumable upload session via Cloudflare Worker ──
     // Send browser origin so Worker can tell Google Drive to include CORS headers
     const browserOrigin = typeof window !== 'undefined' ? window.location.origin : undefined;
+    const auth = await getAuthorizationHeader()
 
     let initRes: Response
     try {
       initRes = await fetch(`${WORKER_URL}/api/upload/init`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName: targetName, fileSize, fileType, folderName, origin: browserOrigin }),
+        headers: { 'Content-Type': 'application/json', ...auth },
+        body: JSON.stringify({ fileName: targetName, fileSize, fileType, fileHash, folderName, origin: browserOrigin }),
         cache: 'no-store',
       })
     } catch (error) {
@@ -142,6 +186,7 @@ export async function uploadToGoogleDrive({
           headers: {
             'Content-Range': `bytes ${start}-${end - 1}/${total}`,
             'X-Upload-Url': uploadUrl,
+            ...auth,
           },
           body: chunk,
         })

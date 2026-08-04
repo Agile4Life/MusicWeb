@@ -81,14 +81,18 @@ export async function compressAudioIfNeeded(
       lastModified: Date.now(),
     })
 
+    if (compressedFile.size === 0) {
+      throw new Error('Bộ mã hóa MP3 tạo file 0 byte')
+    }
+
     const newSizeMB = Number((compressedFile.size / (1024 * 1024)).toFixed(2))
     if (onProgress) onProgress(100, `Hoàn tất (${originalSizeMB} MB ➔ ${newSizeMB} MB)!`)
 
     return { file: compressedFile, compressed: true, originalSizeMB, newSizeMB }
   } catch (err: any) {
     console.error('Audio compression failed:', err)
-    // Fallback: return original file so upload doesn't crash
-    return { file, compressed: false, originalSizeMB, newSizeMB: originalSizeMB }
+    // Never upload an unplayable source format after a failed conversion.
+    throw new Error(err?.message || 'Không thể chuyển file audio sang MP3 để phát trên web')
   }
 }
 
@@ -107,11 +111,15 @@ function encodeInWorker(
   return new Promise((resolve, reject) => {
     // Web Workers require an absolute URL — /audioWorker.js is served from /public
     let worker: Worker | null = null
+    // postMessage transfers the original buffers and detaches them. Keep
+    // fallback copies so a Worker failure can still encode on the main thread.
+    const fallbackLeft = leftInt16.slice()
+    const fallbackRight = rightInt16.slice()
     try {
       worker = new Worker('/audioWorker.js')
     } catch {
       // Worker failed to initialize — fall back to main thread
-      return resolve(encodeOnMainThread(leftInt16, rightInt16, numChannels, sampleRate, targetBitrate, onProgress))
+      return resolve(encodeOnMainThread(fallbackLeft, fallbackRight, numChannels, sampleRate, targetBitrate, onProgress))
     }
 
     let lastReportedPct = -1
@@ -129,14 +137,14 @@ function encodeInWorker(
         worker!.terminate()
         // Fall back to main thread on worker error
         console.warn('Worker encoding failed, falling back to main thread:', message)
-        resolve(encodeOnMainThread(leftInt16, rightInt16, numChannels, sampleRate, targetBitrate, onProgress))
+        resolve(encodeOnMainThread(fallbackLeft, fallbackRight, numChannels, sampleRate, targetBitrate, onProgress))
       }
     }
 
     worker.onerror = (err) => {
       worker!.terminate()
       console.warn('Worker error, falling back to main thread:', err)
-      resolve(encodeOnMainThread(leftInt16, rightInt16, numChannels, sampleRate, targetBitrate, onProgress))
+      resolve(encodeOnMainThread(fallbackLeft, fallbackRight, numChannels, sampleRate, targetBitrate, onProgress))
     }
 
     // Transfer typed arrays to worker (zero-copy via Transferable)
