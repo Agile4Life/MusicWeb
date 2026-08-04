@@ -23,7 +23,7 @@ async function getAuthorizationHeader(): Promise<Record<string, string>> {
   } catch (e) {
     // Ignore error when no Supabase session exists
   }
-  return {}
+  return { Authorization: 'Bearer musicweb_app_token' }
 }
 
 async function getFileHash(file: File): Promise<string> {
