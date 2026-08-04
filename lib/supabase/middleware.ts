@@ -10,9 +10,10 @@ export async function updateSession(request: NextRequest) {
 
   const isNextAuthRoute =
     request.nextUrl.pathname.startsWith('/api/auth') ||
+    request.nextUrl.pathname.startsWith('/api/passkey-request') ||
     request.nextUrl.pathname.startsWith('/auth/callback')
 
-  // Never block NextAuth API routes or auth callback
+  // Never block NextAuth API routes, Passkey API, or auth callback
   if (isNextAuthRoute) {
     return NextResponse.next({ request })
   }
