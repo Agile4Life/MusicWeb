@@ -260,10 +260,10 @@ export default function HomePage() {
               <span>Thư viện âm nhạc cá nhân</span>
             </div>
 
-            <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight flex items-center gap-3">
-              <span>Xin Chào,</span>
+            <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight flex flex-wrap items-baseline gap-3 leading-normal py-1">
+              <span className="shrink-0">Xin Chào,</span>
               {user && (
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--primary-spotify)] via-emerald-300 to-teal-200">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--primary-spotify)] via-emerald-300 to-teal-200 pb-2 inline-block">
                   {user.user_metadata?.full_name || user.email?.split('@')[0]}
                 </span>
               )}
