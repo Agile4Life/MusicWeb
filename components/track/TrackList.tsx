@@ -40,13 +40,17 @@ export function TrackList({
   const [deleting, setDeleting] = useState(false)
 
   React.useEffect(() => {
+    const mainEl = document.querySelector('main')
     if (showBulkModal) {
       document.body.style.overflow = 'hidden'
+      if (mainEl) mainEl.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
+      if (mainEl) mainEl.style.overflow = 'auto'
     }
     return () => {
       document.body.style.overflow = ''
+      if (mainEl) mainEl.style.overflow = 'auto'
     }
   }, [showBulkModal])
 

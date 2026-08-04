@@ -128,15 +128,19 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
     }
   }, [playlistId])
 
-  // Prevent background page scrolling when modals are open
+  // Prevent background page scrolling when modals are open (targets both body and main container)
   useEffect(() => {
+    const mainEl = document.querySelector('main')
     if (showUploadModal || showLibraryModal) {
       document.body.style.overflow = 'hidden'
+      if (mainEl) mainEl.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
+      if (mainEl) mainEl.style.overflow = 'auto'
     }
     return () => {
       document.body.style.overflow = ''
+      if (mainEl) mainEl.style.overflow = 'auto'
     }
   }, [showUploadModal, showLibraryModal])
 
