@@ -47,11 +47,17 @@ export async function POST(request: Request) {
       )
     }
 
-    // 1. Verify Passkey: Accept any non-empty Passkey entered by user
-    if (!cleanPasskey || cleanPasskey.length === 0) {
+    // 1. Strict Passkey Verification against valid passkeys in config/passkeys.json
+    const validPasskeys = getValidPasskeys()
+    const isValidPasskey = validPasskeys.some((pk) => {
+      const normalizedPk = String(pk).trim().toLowerCase().replace(/\s+/g, '')
+      return normalizedPk === cleanPasskey
+    })
+
+    if (!isValidPasskey) {
       return NextResponse.json(
-        { error: 'Vui lòng nhập mã Passkey' },
-        { status: 400 }
+        { error: 'Mã Passkey không hợp lệ. Vui lòng nhập đúng mã Passkey do Admin cung cấp!' },
+        { status: 401 }
       )
     }
 
