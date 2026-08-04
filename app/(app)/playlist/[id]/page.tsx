@@ -26,6 +26,8 @@ import * as mm from 'music-metadata-browser'
 import { uploadToGoogleDrive, buildDriveStreamUrl, deleteGoogleDriveFile } from '@/lib/googleDriveUpload'
 import { compressAudioIfNeeded } from '@/lib/audioCompressor'
 
+import { TrackListSkeleton, HeroCardSkeleton } from '@/components/common/SkeletonLoader'
+
 export default function PlaylistDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: playlistId } = use(params)
   const router = useRouter()
@@ -345,7 +347,15 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
   }
 
   if (loading) {
-    return <div className="p-8 text-slate-400 font-medium">Đang tải thông tin playlist...</div>
+    return (
+      <div className="p-6 md:p-8 flex flex-col gap-8 max-w-7xl mx-auto w-full">
+        <HeroCardSkeleton />
+        <div className="flex flex-col gap-4">
+          <div className="w-48 h-6 bg-slate-800 rounded-lg animate-pulse" />
+          <TrackListSkeleton count={6} />
+        </div>
+      </div>
+    )
   }
 
   if (!playlist) {

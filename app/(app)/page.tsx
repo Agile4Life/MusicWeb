@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Track, Playlist } from '@/types'
 import { TrackList } from '@/components/track/TrackList'
+import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { Play, Upload, Search, Sparkles, Disc, Music, Flame, Trash2, AlertTriangle } from 'lucide-react'
 import { useSession } from 'next-auth/react'
@@ -387,7 +388,7 @@ export default function HomePage() {
         </div>
 
         {loading ? (
-          <div className="text-center py-16 text-slate-400 font-medium">Đang tải thư viện nhạc...</div>
+          <TrackListSkeleton count={8} />
         ) : (
           <TrackList
             tracks={filteredTracks}
