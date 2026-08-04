@@ -314,22 +314,17 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
     setShowLibraryModal(true)
     setLoadingLibrary(true)
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    // Select all tracks so all users can add Admin-uploaded songs and albums to playlists
+    const { data } = await supabase
+      .from('tracks')
+      .select('*')
+      .order('created_at', { ascending: false })
 
-    if (user) {
-      const { data } = await supabase
-        .from('tracks')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-
-      if (data) {
-        const normalized = data.map((t: Track) => ({ ...t, artist: t.artist || null }))
-        setLibraryTracks(normalized)
-      }
+    if (data) {
+      const normalized = data.map((t: Track) => ({ ...t, artist: t.artist || null }))
+      setLibraryTracks(normalized)
     }
+
     setLoadingLibrary(false)
   }
 

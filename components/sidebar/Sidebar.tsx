@@ -46,17 +46,17 @@ export function Sidebar() {
 
       setSupabaseUser(currentUser)
 
-      if (currentUser) {
-        const { data } = await supabase
-          .from('playlists')
-          .select('*')
-          .eq('user_id', currentUser.id)
-          .order('created_at', { ascending: false })
-
-        if (data) setPlaylists(data)
+      // Query playlists owned by the user OR marked as public (admin albums)
+      let query = supabase.from('playlists').select('*')
+      if (currentUser?.id) {
+        query = query.or(`user_id.eq.${currentUser.id},is_public.eq.true`)
       } else {
-        setPlaylists([])
+        query = query.eq('is_public', true)
       }
+
+      const { data } = await query.order('created_at', { ascending: false })
+
+      if (data) setPlaylists(data)
     }
 
     loadUserAndPlaylists()
@@ -113,6 +113,7 @@ export function Sidebar() {
         user_id: user.id,
         name: newName,
         description: 'Playlist cá nhân',
+        is_public: true,
       })
       .select()
       .single()
