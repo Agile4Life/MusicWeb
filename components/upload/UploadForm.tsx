@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import * as mm from 'music-metadata-browser'
 import { uploadToGoogleDrive, buildDriveStreamUrl, deleteGoogleDriveFile } from '@/lib/googleDriveUpload'
+import { compressAudioIfNeeded } from '@/lib/audioCompressor'
 
 export interface QueueItem {
   id: string
@@ -418,13 +419,23 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
     if (!item.forceUpload) batchKeys.add(uploadKey)
 
     try {
-      const uploadFile = item.file
-
       updateItem(item.id, {
-        status: 'uploading',
+        status: 'compressing',
         progress: 10,
         compressInfo: '0%',
       })
+
+      // Normalize every source codec/container to MP3 for browser playback.
+      const compression = await compressAudioIfNeeded(
+        item.file,
+        (percent, stageText) => updateItem(item.id, {
+          progress: 10 + Math.round(percent * 0.1),
+          compressInfo: stageText || `${percent}%`,
+        }),
+        256,
+        0
+      )
+      const uploadFile = compression.file
 
       // Lấy tên Playlist nếu có playlistId để tự tạo thư mục tương ứng trên Google Drive
       let targetFolderName: string | undefined = undefined
@@ -465,7 +476,11 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       const filePath = buildDriveStreamUrl(driveResult.fileId)
 
       // 3. Save to DB
-      updateItem(item.id, { status: 'saving_db', progress: 80 })
+      updateItem(item.id, {
+        status: 'saving_db',
+        progress: 80,
+        compressInfo: compression.compressed ? 'MP3 256kbps' : 'Định dạng gốc',
+      })
 
       let insertedTrackId: string | null = null
 

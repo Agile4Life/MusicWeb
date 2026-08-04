@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import * as mm from 'music-metadata-browser'
 import { uploadToGoogleDrive, buildDriveStreamUrl, deleteGoogleDriveFile } from '@/lib/googleDriveUpload'
+import { compressAudioIfNeeded } from '@/lib/audioCompressor'
 
 export default function PlaylistDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: playlistId } = use(params)
@@ -230,9 +231,16 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
 
       if (!user) throw new Error('Bạn cần đăng nhập để tải nhạc')
 
-      const uploadFile = file
-
       // 1. Upload to Google Drive via Cloudflare Worker (with playlist folder)
+      setUploadError('Đang chuẩn hóa audio sang MP3...')
+      const compression = await compressAudioIfNeeded(
+        file,
+        (percent, stageText) => setUploadError(stageText || `Đang chuẩn hóa audio... ${percent}%`),
+        256,
+        0
+      )
+      const uploadFile = compression.file
+
       setUploadError('Đang tải lên Google Drive...')
 
       // Get playlist name for subfolder creation
