@@ -13,13 +13,17 @@ const WORKER_URL = process.env.NEXT_PUBLIC_CLOUDFLARE_WORKER_URL || 'https://dri
 const CHUNK_SIZE = 5 * 1024 * 1024; // 5 MB — must be multiple of 256 KiB
 
 async function getAuthorizationHeader(): Promise<Record<string, string>> {
-  const { createClient } = await import('@/lib/supabase/client')
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.access_token) {
-    throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại trước khi upload.')
+  try {
+    const { createClient } = await import('@/lib/supabase/client')
+    const supabase = createClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      return { Authorization: `Bearer ${session.access_token}` }
+    }
+  } catch (e) {
+    // Ignore error when no Supabase session exists
   }
-  return { Authorization: `Bearer ${session.access_token}` }
+  return {}
 }
 
 async function getFileHash(file: File): Promise<string> {
@@ -76,17 +80,24 @@ export function extractDriveFileId(filePath: string): string | null {
 }
 
 export async function getAuthorizedDriveStreamUrl(trackId: string, fileId: string): Promise<string> {
-  const auth = await getAuthorizationHeader()
-  const response = await fetch(`${WORKER_URL}/api/upload/stream-token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...auth },
-    body: JSON.stringify({ trackId, fileId }),
-    cache: 'no-store',
-  })
-  if (!response.ok) throw new Error(`Không thể cấp quyền phát audio (${response.status})`)
-  const { token } = await response.json()
-  if (!token) throw new Error('Worker không trả về quyền phát audio')
-  return `${buildDriveStreamUrl(fileId)}&token=${encodeURIComponent(token)}`
+  try {
+    const auth = await getAuthorizationHeader()
+    const response = await fetch(`${WORKER_URL}/api/upload/stream-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth },
+      body: JSON.stringify({ trackId, fileId }),
+      cache: 'no-store',
+    })
+    if (response.ok) {
+      const { token } = await response.json()
+      if (token) {
+        return `${buildDriveStreamUrl(fileId)}&token=${encodeURIComponent(token)}`
+      }
+    }
+  } catch (err) {
+    console.warn('Could not acquire signed stream token, using direct stream URL:', err)
+  }
+  return buildDriveStreamUrl(fileId)
 }
 
 export async function deleteGoogleDriveFile(fileId: string, uploadUrl: string): Promise<void> {

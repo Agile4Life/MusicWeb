@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS public.tracks (
 ALTER TABLE public.tracks ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can view their own tracks" ON public.tracks;
-CREATE POLICY "Users can view their own tracks" ON public.tracks FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Everyone can view all tracks" ON public.tracks;
+CREATE POLICY "Everyone can view all tracks" ON public.tracks FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Users can insert their own tracks" ON public.tracks;
 CREATE POLICY "Users can insert their own tracks" ON public.tracks FOR INSERT WITH CHECK (auth.uid() = user_id);
