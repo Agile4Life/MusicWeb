@@ -1,17 +1,34 @@
 /**
  * audioWorker.js — runs in a Web Worker (off main thread)
- * Loads lamejs from CDN, encodes PCM audio data to MP3, reports progress.
+ * Loads lamejs from local static asset, encodes PCM audio data to MP3, reports progress.
  */
 
-// Load lamejs encoder from CDN (Workers can use importScripts)
-importScripts('https://cdn.jsdelivr.net/npm/@breezystack/lamejs@2.2.0/src/lame.all.js')
+// Load lamejs encoder locally (first try local static file, fallback to CDN if needed)
+try {
+  importScripts('/lame.all.js')
+} catch (e1) {
+  try {
+    importScripts('/lame.min.js')
+  } catch (e2) {
+    try {
+      importScripts('https://cdn.jsdelivr.net/npm/@breezystack/lamejs@2.2.0/src/lame.all.js')
+    } catch (e3) {
+      console.error('Worker failed to load lamejs script:', e3)
+    }
+  }
+}
 
 self.onmessage = function (e) {
   const { leftInt16, rightInt16, numChannels, sampleRate, targetBitrate } = e.data
 
   try {
+    const encoderClass = typeof lamejs !== 'undefined' ? lamejs.Mp3Encoder : (self.lamejs ? self.lamejs.Mp3Encoder : null)
+    if (!encoderClass) {
+      throw new Error('LAME MP3 Encoder library could not be initialized in worker')
+    }
+
     const length = leftInt16.length
-    const mp3encoder = new lamejs.Mp3Encoder(numChannels, sampleRate, targetBitrate)
+    const mp3encoder = new encoderClass(numChannels, sampleRate, targetBitrate)
     const mp3Data = []
     const sampleBlockSize = 1152
 

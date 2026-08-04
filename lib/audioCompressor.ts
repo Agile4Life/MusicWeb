@@ -134,10 +134,19 @@ function encodeInWorker(
     let worker: Worker | null = null
 
     try {
-      worker = new Worker('/audioWorker.js?v=3')
+      worker = new Worker('/audioWorker.js?v=4')
     } catch (error) {
       return resolve(encodeOnMainThread(fallbackLeft, fallbackRight, numChannels, sampleRate, targetBitrate, onProgress))
     }
+
+    // Safety timeout: if Worker hangs > 45s without finishing, fallback to main thread
+    const timeoutId = setTimeout(() => {
+      if (worker) {
+        console.warn('Worker encoding timed out, falling back to main thread')
+        try { worker.terminate() } catch {}
+        resolve(encodeOnMainThread(fallbackLeft, fallbackRight, numChannels, sampleRate, targetBitrate, onProgress))
+      }
+    }, 45000)
 
     let lastReportedPct = -1
     worker.onmessage = (e) => {
@@ -148,9 +157,11 @@ function encodeInWorker(
           onProgress(pct, `Đang nén MP3 (${pct}%)...`)
         }
       } else if (type === 'done') {
+        clearTimeout(timeoutId)
         worker!.terminate()
         resolve(mp3Data as Uint8Array[])
       } else if (type === 'error') {
+        clearTimeout(timeoutId)
         worker!.terminate()
         console.warn('Worker encoding failed, falling back to main thread:', message)
         resolve(encodeOnMainThread(fallbackLeft, fallbackRight, numChannels, sampleRate, targetBitrate, onProgress))
@@ -158,6 +169,7 @@ function encodeInWorker(
     }
 
     worker.onerror = (err) => {
+      clearTimeout(timeoutId)
       worker!.terminate()
       console.warn('Worker error, falling back to main thread:', err)
       resolve(encodeOnMainThread(fallbackLeft, fallbackRight, numChannels, sampleRate, targetBitrate, onProgress))
