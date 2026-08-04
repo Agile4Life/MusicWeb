@@ -59,6 +59,15 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/register') ||
     request.nextUrl.pathname.startsWith('/reset-password')
 
+  const isNextAuthRoute =
+    request.nextUrl.pathname.startsWith('/api/auth') ||
+    request.nextUrl.pathname.startsWith('/auth/callback')
+
+  // Never block NextAuth API routes or auth callback
+  if (isNextAuthRoute) {
+    return supabaseResponse
+  }
+
   // Require login before viewing ANY application page
   if (!user && !isAuthPage) {
     const url = request.nextUrl.clone()
