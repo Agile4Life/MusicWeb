@@ -1,8 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 
-// Next.js 16+: "middleware" convention is deprecated, renamed to "proxy"
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   return await updateSession(request)
 }
 

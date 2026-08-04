@@ -56,10 +56,15 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   // Also check NextAuth session (for Google login via NextAuth)
-  const nextAuthToken = await getToken({
-    req: request,
-    secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || 'musicweb_nextauth_secret_key_84920482910_phongtct',
-  })
+  let nextAuthToken = null
+  try {
+    nextAuthToken = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || 'musicweb_nextauth_secret_key_84920482910_phongtct',
+    })
+  } catch (e) {
+    console.warn('NextAuth getToken failed in middleware:', e)
+  }
 
   const isLoggedIn = !!supabaseUser || !!nextAuthToken
 
