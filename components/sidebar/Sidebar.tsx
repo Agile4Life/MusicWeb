@@ -20,14 +20,23 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
 import { getUserRole, isAdmin } from '@/lib/accessControl'
+import { useSession, signOut } from 'next-auth/react'
 
 export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
-  const [user, setUser] = useState<any>(null)
+  const { data: nextAuthSession } = useSession()
+  const [supabaseUser, setSupabaseUser] = useState<any>(null)
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [creating, setCreating] = useState(false)
+
+  // Unified user object recognizing both Supabase and NextAuth (Google) sessions
+  const user = supabaseUser || (nextAuthSession?.user ? {
+    id: nextAuthSession.user.email,
+    email: nextAuthSession.user.email,
+    user_metadata: { full_name: nextAuthSession.user.name, avatar_url: nextAuthSession.user.image }
+  } : null)
 
   useEffect(() => {
     async function loadUserAndPlaylists() {
@@ -35,7 +44,7 @@ export function Sidebar() {
         data: { user: currentUser },
       } = await supabase.auth.getUser()
 
-      setUser(currentUser)
+      setSupabaseUser(currentUser)
 
       if (currentUser) {
         const { data } = await supabase
@@ -56,7 +65,7 @@ export function Sidebar() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event: string, session: any) => {
       const currentUser = session?.user ?? null
-      setUser(currentUser)
+      setSupabaseUser(currentUser)
       if (currentUser) {
         loadUserAndPlaylists()
       } else {
@@ -84,7 +93,8 @@ export function Sidebar() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    setUser(null)
+    await signOut({ callbackUrl: '/login' })
+    setSupabaseUser(null)
     setPlaylists([])
     window.location.href = '/login'
   }

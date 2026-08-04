@@ -7,17 +7,26 @@ import { Track, Playlist } from '@/types'
 import { TrackList } from '@/components/track/TrackList'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { Play, Upload, Search, Sparkles, Disc, Music, Flame, Trash2, AlertTriangle } from 'lucide-react'
+import { useSession } from 'next-auth/react'
 
 export default function HomePage() {
   const supabase = createClient()
   const { playTrack, currentTrack, isPlaying } = usePlayer()
+  const { data: nextAuthSession } = useSession()
 
   const [tracks, setTracks] = useState<Track[]>([])
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<any>(null)
+  const [supabaseUser, setSupabaseUser] = useState<any>(null)
   const [cleaningDuplicates, setCleaningDuplicates] = useState(false)
+
+  // Unified user object recognizing both Supabase and NextAuth (Google) sessions
+  const user = supabaseUser || (nextAuthSession?.user ? {
+    id: nextAuthSession.user.email,
+    email: nextAuthSession.user.email,
+    user_metadata: { full_name: nextAuthSession.user.name }
+  } : null)
 
   const fetchData = async () => {
     setLoading(true)
@@ -25,7 +34,7 @@ export default function HomePage() {
       data: { user: currentUser },
     } = await supabase.auth.getUser()
 
-    setUser(currentUser)
+    setSupabaseUser(currentUser)
 
     // Query all tracks from database — allows all users to see tracks uploaded by Admin accounts
     const { data: rawTracks, error: trackError } = await supabase
