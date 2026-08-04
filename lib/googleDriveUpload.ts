@@ -1,28 +1,38 @@
 /**
- * Utility function for uploading large files to Google Drive using Cloudflare Worker Resumable Upload API.
- * 
- * Features:
- * - Chunked upload (5MB chunks, multiple of 256KB)
- * - Real-time progress callback
- * - Direct upload from browser to Google Drive (Zero server bandwidth load)
- * - Automatic subfolder creation for playlists
+ * Upload large files to Google Drive via Cloudflare Worker Resumable Upload API.
+ *
+ * Flow:
+ *   Browser → POST /api/upload/init (Cloudflare Worker) → Google Drive Resumable Session
+ *   Browser → PUT chunks directly to Google Drive (zero server bandwidth)
+ *
+ * Google Drive stream URL format:
+ *   https://drive.google.com/uc?export=download&id={fileId}
  */
 
 const WORKER_URL = process.env.NEXT_PUBLIC_CLOUDFLARE_WORKER_URL || 'https://drive-upload-worker.phongtct.workers.dev';
-const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB per chunk (must be a multiple of 256KB)
+const CHUNK_SIZE = 5 * 1024 * 1024; // 5 MB — must be multiple of 256 KiB
 
 export interface GoogleDriveUploadOptions {
   file: File;
   fileName?: string;
-  folderName?: string; // Tên Playlist / Thư mục con trên Google Drive
+  folderName?: string;
   onProgress?: (progress: { percent: number; uploadedBytes: number; totalBytes: number }) => void;
 }
 
 export interface GoogleDriveUploadResult {
   success: boolean;
   fileId?: string;
-  uploadUrl?: string;
+  fileName?: string;
+  streamUrl?: string;
   error?: string;
+}
+
+/**
+ * Build a direct-download / streaming URL from a Google Drive file ID.
+ * This URL works with HTML5 <audio> and <video> elements.
+ */
+export function buildDriveStreamUrl(fileId: string): string {
+  return `https://drive.google.com/uc?export=download&id=${fileId}`;
 }
 
 export async function uploadToGoogleDrive({
@@ -32,35 +42,50 @@ export async function uploadToGoogleDrive({
   onProgress,
 }: GoogleDriveUploadOptions): Promise<GoogleDriveUploadResult> {
   try {
-    const targetName = fileName || file.name;
+    // Ensure the file name keeps its original extension so Google Drive
+    // can identify the MIME type correctly (e.g. "Bai Hat.mp3")
+    let targetName = fileName || file.name;
+    const originalExt = file.name.includes('.') ? file.name.split('.').pop()!.toLowerCase() : '';
+    if (originalExt && !targetName.toLowerCase().endsWith(`.${originalExt}`)) {
+      targetName = `${targetName}.${originalExt}`;
+    }
+
     const fileSize = file.size;
     const fileType = file.type || 'application/octet-stream';
 
-    // 1. Initialize Resumable Upload Session via Cloudflare Worker (với tên Thư mục con nếu có)
+    // Guard: refuse to upload empty files (e.g. compression returned 0 bytes)
+    if (!fileSize || fileSize === 0) {
+      return {
+        success: false,
+        error: 'File có dung lượng 0 byte — không thể upload. Có thể quá trình nén bị lỗi.',
+      };
+    }
+
+    // ── Step 1: Init resumable upload session via Cloudflare Worker ──
     const initRes = await fetch(`${WORKER_URL}/api/upload/init`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        fileName: targetName,
-        fileSize,
-        fileType,
-        folderName,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileName: targetName, fileSize, fileType, folderName }),
     });
 
     if (!initRes.ok) {
-      const errorData = await initRes.json().catch(() => ({}));
-      throw new Error(errorData.error || `Lỗi khởi tạo upload: HTTP ${initRes.status}`);
+      const errBody = await initRes.text();
+      let errMsg: string;
+      try {
+        errMsg = JSON.parse(errBody).error || errBody;
+      } catch {
+        errMsg = errBody;
+      }
+      throw new Error(`Worker trả lỗi (HTTP ${initRes.status}): ${errMsg}`);
     }
 
-    const { uploadUrl } = await initRes.json();
+    const initData = await initRes.json();
+    const uploadUrl = initData.uploadUrl;
     if (!uploadUrl) {
       throw new Error('Cloudflare Worker không trả về Upload Session URL');
     }
 
-    // 2. Upload file in chunks directly to Google Drive Resumable Upload Session URL
+    // ── Step 2: Upload file in chunks directly to Google Drive ──
     let start = 0;
     const total = fileSize;
 
@@ -76,35 +101,39 @@ export async function uploadToGoogleDrive({
         body: chunk,
       });
 
+      // Google returns 308 for intermediate chunks, 200/201 for the final one
       if (chunkRes.status !== 308 && !chunkRes.ok) {
-        throw new Error(`Upload chunk thất bại ở byte ${start}-${end}: HTTP ${chunkRes.status}`);
+        const errText = await chunkRes.text().catch(() => '');
+        throw new Error(
+          `Upload chunk thất bại (byte ${start}-${end - 1}): HTTP ${chunkRes.status} — ${errText}`
+        );
       }
 
       start = end;
-      const percent = Math.round((start / total) * 100);
 
       if (onProgress) {
         onProgress({
-          percent,
+          percent: Math.round((start / total) * 100),
           uploadedBytes: start,
           totalBytes: total,
         });
       }
 
+      // Final chunk completed
       if (chunkRes.ok && (chunkRes.status === 200 || chunkRes.status === 201)) {
-        const finalData = await chunkRes.json().catch(() => ({}));
+        const finalData: any = await chunkRes.json().catch(() => ({}));
+        const fileId = finalData.id;
         return {
           success: true,
-          fileId: finalData.id,
-          uploadUrl,
+          fileId,
+          fileName: targetName,
+          streamUrl: fileId ? buildDriveStreamUrl(fileId) : undefined,
         };
       }
     }
 
-    return {
-      success: true,
-      uploadUrl,
-    };
+    // Edge case: all chunks sent but no 200/201 response received
+    return { success: false, error: 'Upload hoàn tất nhưng Google Drive không trả về File ID.' };
   } catch (err: any) {
     return {
       success: false,

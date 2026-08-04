@@ -133,7 +133,7 @@ export default function HomePage() {
       return
     }
 
-    if (trackToDelete.file_path) {
+    if (trackToDelete.file_path && !trackToDelete.file_path.startsWith('http')) {
       await supabase.storage.from('music-files').remove([trackToDelete.file_path])
     }
 
@@ -170,7 +170,7 @@ export default function HomePage() {
       for (const track of toDelete) {
         const { error } = await supabase.from('tracks').delete().eq('id', track.id)
         if (!error) {
-          if (track.file_path) {
+          if (track.file_path && !track.file_path.startsWith('http')) {
             await supabase.storage.from('music-files').remove([track.file_path])
           }
           deletedCount++

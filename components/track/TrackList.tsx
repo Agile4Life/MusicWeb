@@ -146,8 +146,8 @@ export function TrackList({
         return
       }
 
-      // Delete storage files
-      const storagePaths = tracksToDelete.map((t) => t.file_path).filter(Boolean) as string[]
+      // Delete storage files (skip Google Drive URLs that start with http)
+      const storagePaths = tracksToDelete.map((t) => t.file_path).filter((p) => p && !p.startsWith('http')) as string[]
       if (storagePaths.length > 0) {
         await supabase.storage.from('music-files').remove(storagePaths)
       }

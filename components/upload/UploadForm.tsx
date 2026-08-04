@@ -23,8 +23,7 @@ import {
   X,
 } from 'lucide-react'
 import * as mm from 'music-metadata-browser'
-import { compressAudioIfNeeded } from '@/lib/audioCompressor'
-import { uploadToGoogleDrive } from '@/lib/googleDriveUpload'
+import { uploadToGoogleDrive, buildDriveStreamUrl } from '@/lib/googleDriveUpload'
 
 export interface QueueItem {
   id: string
@@ -80,7 +79,6 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [queue, setQueue] = useState<QueueItem[]>([])
-  const targetBitrate = 256 // Standardized optimal 256kbps lightweight MP3
   const [skipDuplicates, setSkipDuplicates] = useState<boolean>(true) // Auto-skip duplicates
   const [isUploading, setIsUploading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
@@ -349,8 +347,8 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
               console.error('Failed to delete track from DB:', delError.message)
             }
 
-            // Remove file from Storage
-            if (t.file_path) {
+            // Remove file from Supabase Storage (skip if it's a Google Drive URL)
+            if (t.file_path && !t.file_path.startsWith('http')) {
               await supabase.storage.from('music-files').remove([t.file_path])
             }
           }
@@ -412,39 +410,12 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
     }
 
     try {
-      let uploadFile = item.file
-      let compInfoStr: string | null = null
-
-      // 1. Compress lightweight MP3 for files >= 10MB
-      if (item.file.size >= 10 * 1024 * 1024) {
-        updateItem(item.id, {
-          status: 'compressing',
-          progress: 5,
-          compressInfo: `⚡ File nặng (${formatFileSize(item.file.size)} >= 10MB), đang nén siêu nhẹ sang MP3 ${targetBitrate}kbps...`,
-        })
-
-        const compRes = await compressAudioIfNeeded(
-          item.file,
-          (pct, stage) => {
-            updateItem(item.id, {
-              progress: Math.round(pct * 0.5),
-              compressInfo: stage,
-            })
-          },
-          targetBitrate,
-          10
-        )
-
-        uploadFile = compRes.file
-        if (compRes.compressed) {
-          compInfoStr = `✅ Đã tối ưu dung lượng (${compRes.originalSizeMB} MB ➜ ${compRes.newSizeMB} MB MP3)!`
-        }
-      }
+      const uploadFile = item.file
 
       updateItem(item.id, {
         status: 'uploading',
         progress: 10,
-        compressInfo: compInfoStr ? `${compInfoStr} Đang tải lên Google Drive...` : 'Đang tải lên Google Drive qua Cloudflare Worker...',
+        compressInfo: `Đang tải file gốc (${formatFileSize(item.file.size)}) lên Google Drive...`,
       })
 
       // Lấy tên Playlist nếu có playlistId để tự tạo thư mục tương ứng trên Google Drive
@@ -478,8 +449,8 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
         throw new Error(`Upload Google Drive thất bại: ${driveResult.error || 'Không nhận được File ID'}`)
       }
 
-      // Link stream trực tiếp từ Google Drive CDN
-      const filePath = `https://lh3.googleusercontent.com/d/${driveResult.fileId}`
+      // Streaming URL phát nhạc trực tiếp từ Google Drive
+      const filePath = buildDriveStreamUrl(driveResult.fileId)
 
       // 3. Save to DB
       updateItem(item.id, { status: 'saving_db', progress: 80 })
@@ -559,7 +530,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       updateItem(item.id, {
         status: 'completed',
         progress: 100,
-        compressInfo: compInfoStr || '✅ Hoàn tất!',
+        compressInfo: '✅ Hoàn tất!',
         error: null,
         dbTrackId: insertedTrackId,
         uploadedFilePath: filePath,
@@ -710,7 +681,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
               Nhấp để chọn hoặc Kéo & thả nhiều file âm thanh vào đây
             </p>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              Tự động nén MP3 ({targetBitrate}kbps) cho file &gt;= 10MB (File &lt; 10MB upload trực tiếp)
+              Upload file gốc trực tiếp lên Google Drive (Không giới hạn dung lượng)
             </p>
           </div>
           <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--primary-spotify)] bg-[var(--primary-spotify)]/10 px-2.5 py-0.5 rounded-full border border-[var(--primary-spotify)]/20">

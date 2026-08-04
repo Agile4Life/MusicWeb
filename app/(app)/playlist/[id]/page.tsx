@@ -23,7 +23,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import * as mm from 'music-metadata-browser'
-import { compressAudioIfNeeded } from '@/lib/audioCompressor'
+import { uploadToGoogleDrive, buildDriveStreamUrl } from '@/lib/googleDriveUpload'
 
 export default function PlaylistDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: playlistId } = use(params)
@@ -183,7 +183,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
     const { error } = await supabase.from('tracks').delete().eq('id', trackId)
 
     if (!error) {
-      if (trackToDelete?.file_path) {
+      if (trackToDelete?.file_path && !trackToDelete.file_path.startsWith('http')) {
         await supabase.storage.from('music-files').remove([trackToDelete.file_path])
       }
       setTracks((prev) => prev.filter((t) => t.id !== trackId))
@@ -209,23 +209,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
       console.warn('Metadata parsing warning:', err)
     }
 
-    // Auto compress if heavy file (>45MB)
-    let processedFile = selectedFile
-    if (selectedFile.size > 45 * 1024 * 1024) {
-      setUploadError(`⚡ File nặng (${(selectedFile.size / (1024 * 1024)).toFixed(1)}MB > 45MB), đang tự động nén sang MP3 320kbps High-Res...`)
-      try {
-        const compRes = await compressAudioIfNeeded(selectedFile, (_pct, stage) => {
-          if (stage) setUploadError(`⚡ ${stage}`)
-        })
-        processedFile = compRes.file
-        if (compRes.compressed) {
-          setUploadError(`✅ Đã tối ưu dung lượng (${compRes.originalSizeMB}MB ➜ ${compRes.newSizeMB}MB High-Res)! Sẵn sàng upload.`)
-        }
-      } catch (err: any) {
-        setUploadError(err.message)
-      }
-    }
-    setFile(processedFile)
+    setFile(selectedFile)
   }
 
   // Handle direct upload & add to playlist
@@ -243,39 +227,29 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
 
       if (!user) throw new Error('Bạn cần đăng nhập để tải nhạc')
 
-      // Auto compress heavy audio files (>45MB) to High-Res 320kbps MP3
-      let uploadFile = file
-      if (file.size > 45 * 1024 * 1024) {
-        setUploadError(`⚡ File nặng (${(file.size / (1024 * 1024)).toFixed(1)}MB > 45MB), đang tự động tối ưu sang MP3 320kbps High-Res...`)
-        const compRes = await compressAudioIfNeeded(file, (pct, stage) => {
-          if (stage) setUploadError(`⚡ ${stage}`)
-        })
-        uploadFile = compRes.file
+      const uploadFile = file
+
+      // 1. Upload to Google Drive via Cloudflare Worker (with playlist folder)
+      setUploadError('Đang tải lên Google Drive...')
+
+      // Get playlist name for subfolder creation
+      let folderName: string | undefined = undefined
+      if (playlist?.name) folderName = playlist.name
+
+      const driveResult = await uploadToGoogleDrive({
+        file: uploadFile,
+        fileName: uploadTitle || file.name,
+        folderName,
+        onProgress: ({ percent }) => {
+          setUploadError(`Đang tải lên Google Drive... ${percent}%`)
+        },
+      })
+
+      if (!driveResult.success || !driveResult.fileId) {
+        throw new Error(`Upload Google Drive thất bại: ${driveResult.error || 'Không nhận được File ID'}`)
       }
 
-      const fileExt = uploadFile.name.split('.').pop()
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
-      const filePath = `${user.id}/${fileName}`
-
-      // 1. Upload audio to storage (Try Signed Upload URL first for large files > 50MB)
-      let uploadErr: any = null
-      const { data: signedData, error: signedTokenErr } = await supabase.storage
-        .from('music-files')
-        .createSignedUploadUrl(filePath)
-
-      if (!signedTokenErr && signedData?.token) {
-        const { error: signedUploadErr } = await supabase.storage
-          .from('music-files')
-          .uploadToSignedUrl(filePath, signedData.token, uploadFile)
-        uploadErr = signedUploadErr
-      } else {
-        const { error: directErr } = await supabase.storage
-          .from('music-files')
-          .upload(filePath, uploadFile, { upsert: true })
-        uploadErr = directErr
-      }
-
-      if (uploadErr) throw new Error('Upload storage thất bại: ' + uploadErr.message)
+      const filePath = buildDriveStreamUrl(driveResult.fileId)
 
       // 2. Get/create artist ID if provided
       let artistId: string | null = null
@@ -294,10 +268,11 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
         .insert({
           user_id: user.id,
           title: uploadTitle || file.name,
-          artist_id: artistId,
+          artist: uploadArtist || null,
+          ...(artistId ? { artist_id: artistId } : {}),
           duration: uploadDuration || 0,
           file_path: filePath,
-          file_size: file.size,
+          file_size: uploadFile.size,
         })
         .select()
         .single()
@@ -317,11 +292,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
       setUploadArtist('')
       fetchPlaylistData()
     } catch (err: any) {
-      let msg = err.message || 'Đã xảy ra lỗi khi tải nhạc'
-      if (msg.includes('exceeded the maximum allowed size') || msg.includes('413')) {
-        msg = 'Lỗi Supabase Storage: File vượt quá giới hạn "Max file size" trong Supabase Dashboard UI. Vui lòng vào Supabase Dashboard -> Storage -> Buckets -> music-files -> chọn Configuration / Settings -> Đổi "Max file size" thành 150MB rồi bấm Save.'
-      }
-      setUploadError(msg)
+      setUploadError(err.message || 'Đã xảy ra lỗi khi tải nhạc')
     } finally {
       setUploading(false)
     }
