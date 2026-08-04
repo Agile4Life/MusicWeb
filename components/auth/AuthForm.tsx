@@ -107,7 +107,10 @@ export function AuthForm({ mode }: AuthFormProps) {
       }
 
       if (!res.ok) {
-        throw new Error(data.error || 'Mã Passkey không hợp lệ. Vui lòng kiểm tra lại!')
+        if (res.status === 401) {
+          throw new Error(data.error || 'Mã Passkey không hợp lệ. Vui lòng kiểm tra lại!')
+        }
+        throw new Error(data.error || `Máy chủ gặp lỗi (${res.status}). Vui lòng thử lại sau!`)
       }
 
       setPasskeySuccess(data.message || 'Xác thực Passkey thành công! Đã gửi thông báo tới Gmail Admin.')

@@ -7,9 +7,28 @@ import passkeysConfig from '@/config/passkeys.json'
 // Admin's personal email to receive Passkey notifications
 const ADMIN_PERSONAL_EMAIL = 'tranphong16012006@gmail.com'
 
-// Helper to get valid Passkeys (statically bundled + fallback list)
+// Helper to get valid Passkeys (dynamically read from disk + static import + fallback list)
 function getValidPasskeys(): string[] {
-  const jsonKeys = Array.isArray(passkeysConfig?.validPasskeys) ? passkeysConfig.validPasskeys : []
+  let jsonKeys: string[] = []
+  
+  // 1. Try reading passkeys.json dynamically from disk
+  try {
+    const configPath = path.join(process.cwd(), 'config', 'passkeys.json')
+    if (fs.existsSync(configPath)) {
+      const fileContent = fs.readFileSync(configPath, 'utf-8')
+      const configData = JSON.parse(fileContent)
+      if (Array.isArray(configData?.validPasskeys)) {
+        jsonKeys = configData.validPasskeys
+      }
+    }
+  } catch (err) {
+    console.warn('Could not dynamically read config/passkeys.json:', err)
+  }
+
+  // 2. Static import fallback
+  const importedKeys = Array.isArray(passkeysConfig?.validPasskeys) ? passkeysConfig.validPasskeys : []
+
+  // 3. Built-in fallback passkeys
   const defaultKeys = [
     'MUSICWEB2026',
     'PASSKEY2026',
@@ -20,7 +39,8 @@ function getValidPasskeys(): string[] {
     'PASSKEY',
     'ADMIN',
   ]
-  return Array.from(new Set([...jsonKeys, ...defaultKeys]))
+
+  return Array.from(new Set([...jsonKeys, ...importedKeys, ...defaultKeys]))
 }
 
 export async function POST(request: Request) {
@@ -51,14 +71,23 @@ export async function POST(request: Request) {
     const validPasskeys = getValidPasskeys()
     const cleanAlphaNumericPasskey = cleanPasskey.replace(/[^a-z0-9]/g, '')
 
+    console.log('[PASSKEY DEBUG] Input passkey raw:', JSON.stringify(passkey))
+    console.log('[PASSKEY DEBUG] cleanPasskey:', JSON.stringify(cleanPasskey))
+    console.log('[PASSKEY DEBUG] cleanAlphaNumericPasskey:', JSON.stringify(cleanAlphaNumericPasskey))
+    console.log('[PASSKEY DEBUG] validPasskeys list:', JSON.stringify(validPasskeys))
+
     const isValidPasskey = validPasskeys.some((pk) => {
       const normalizedPk = String(pk).trim().toLowerCase().replace(/[^a-z0-9]/g, '')
-      return (
+      const match = (
         normalizedPk === cleanAlphaNumericPasskey ||
         normalizedPk === cleanPasskey ||
         String(pk).trim().toLowerCase() === String(passkey).trim().toLowerCase()
       )
+      if (match) console.log('[PASSKEY DEBUG] Matched with pk:', JSON.stringify(pk))
+      return match
     })
+
+    console.log('[PASSKEY DEBUG] isValidPasskey:', isValidPasskey)
 
     if (!isValidPasskey) {
       return NextResponse.json(
@@ -77,11 +106,11 @@ export async function POST(request: Request) {
         const fileContent = fs.readFileSync(configPath, 'utf-8')
         const configData = JSON.parse(fileContent)
 
-        const exists = configData.allowedEmails?.some(
-          (item: any) => item.email.toLowerCase() === cleanEmail
+        const exists = Array.isArray(configData.allowedEmails) && configData.allowedEmails.some(
+          (item: any) => item?.email && String(item.email).toLowerCase() === cleanEmail
         )
 
-        if (!exists) {
+        if (!exists && Array.isArray(configData.allowedEmails)) {
           configData.allowedEmails.push({
             email: cleanEmail,
             role: 'listener',
@@ -94,7 +123,7 @@ export async function POST(request: Request) {
         }
       }
     } catch (fsErr) {
-      console.warn('Could not update allowedAccounts.json:', fsErr)
+      console.warn('Could not update allowedAccounts.json (non-fatal):', fsErr)
     }
 
     // 3. Send email to Admin's personal email address (tranphong16012006@gmail.com)
@@ -114,47 +143,56 @@ export async function POST(request: Request) {
             user: smtpUser,
             pass: smtpPass,
           },
+          connectionTimeout: 3000,
+          greetingTimeout: 3000,
+          socketTimeout: 3000,
         })
 
-        await transporter.sendMail({
-          from: `"MusicWeb Passkey System" <${smtpUser}>`,
-          to: ADMIN_PERSONAL_EMAIL,
-          subject: `🔑 Thông báo Đăng Nhập Passkey: ${cleanEmail}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #0b0e14; color: #ffffff; border-radius: 12px;">
-              <h2 style="color: #1DB954;">🔑 Thông Báo Yêu Cầu / Đăng Nhập Passkey</h2>
-              <p>Hệ thống vừa ghi nhận yêu cầu đăng nhập bằng mã Passkey mới:</p>
-              <table style="width: 100%; border-collapse: collapse; margin-top: 15px; color: #e2e8f0;">
-                <tr>
-                  <td style="padding: 8px; border-bottom: 1px solid #1e293b; font-weight: bold; width: 140px;">Gmail Người Dùng:</td>
-                  <td style="padding: 8px; border-bottom: 1px solid #1e293b; color: #38bdf8;">${cleanEmail}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px; border-bottom: 1px solid #1e293b; font-weight: bold;">Mã Passkey đã nhập:</td>
-                  <td style="padding: 8px; border-bottom: 1px solid #1e293b; font-family: monospace; color: #f59e0b;">${cleanPasskey}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px; border-bottom: 1px solid #1e293b; font-weight: bold;">Trạng Thái:</td>
-                  <td style="padding: 8px; border-bottom: 1px solid #1e293b; color: #10b981;">✅ Passkey Hợp Lệ & Đã Cấp Quyền Truy Cập</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px; font-weight: bold;">Thời gian:</td>
-                  <td style="padding: 8px;">${new Date().toLocaleString('vi-VN')}</td>
-                </tr>
-              </table>
-              <p style="margin-top: 20px; font-size: 12px; color: #94a3b8;">
-                Email này được tự động gửi từ hệ thống MusicWeb Studio tới Gmail cá nhân của Admin (${ADMIN_PERSONAL_EMAIL}).
-              </p>
-            </div>
-          `,
-        })
+        // Race email sending with a 3.5s timeout so Vercel function never hangs
+        await Promise.race([
+          transporter.sendMail({
+            from: `"MusicWeb Passkey System" <${smtpUser}>`,
+            to: ADMIN_PERSONAL_EMAIL,
+            subject: `🔑 Thông báo Đăng Nhập Passkey: ${cleanEmail}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #0b0e14; color: #ffffff; border-radius: 12px;">
+                <h2 style="color: #1DB954;">🔑 Thông Báo Yêu Cầu / Đăng Nhập Passkey</h2>
+                <p>Hệ thống vừa ghi nhận yêu cầu đăng nhập bằng mã Passkey mới:</p>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 15px; color: #e2e8f0;">
+                  <tr>
+                    <td style="padding: 8px; border-bottom: 1px solid #1e293b; font-weight: bold; width: 140px;">Gmail Người Dùng:</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #1e293b; color: #38bdf8;">${cleanEmail}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px; border-bottom: 1px solid #1e293b; font-weight: bold;">Mã Passkey đã nhập:</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #1e293b; font-family: monospace; color: #f59e0b;">${cleanPasskey}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px; border-bottom: 1px solid #1e293b; font-weight: bold;">Trạng Thái:</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #1e293b; color: #10b981;">✅ Passkey Hợp Lệ & Đã Cấp Quyền Truy Cập</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px; font-weight: bold;">Thời gian:</td>
+                    <td style="padding: 8px;">${new Date().toLocaleString('vi-VN')}</td>
+                  </tr>
+                </table>
+                <p style="margin-top: 20px; font-size: 12px; color: #94a3b8;">
+                  Email này được tự động gửi từ hệ thống MusicWeb Studio tới Gmail cá nhân của Admin (${ADMIN_PERSONAL_EMAIL}).
+                </p>
+              </div>
+            `,
+          }),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Email timeout on Vercel')), 3500)
+          ),
+        ])
 
         emailSent = true
       } else {
-        console.log(`[PASSKEY NOTIFICATION] Email sent to Admin (${ADMIN_PERSONAL_EMAIL}): User ${cleanEmail} logged in with passkey ${cleanPasskey}`)
+        console.log(`[PASSKEY NOTIFICATION] Email skipped (no SMTP credentials). Admin: ${ADMIN_PERSONAL_EMAIL}, User: ${cleanEmail}`)
       }
     } catch (mailErr) {
-      console.warn('Could not send email notification to Admin:', mailErr)
+      console.warn('Could not send email notification to Admin (non-fatal):', mailErr)
     }
 
     return NextResponse.json({
