@@ -528,10 +528,12 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       // If uploading directly into a playlist, add track to playlist
       if (playlistId && insertedTrackId) {
         try {
-          await supabase.rpc('fn_add_track_to_playlist', {
-            p_playlist_id: playlistId,
-            p_track_id: insertedTrackId,
-          })
+          await Promise.resolve(
+            supabase.rpc('fn_add_track_to_playlist', {
+              p_playlist_id: playlistId,
+              p_track_id: insertedTrackId,
+            })
+          )
         } catch (plErr) {
           console.warn('Could not add track to playlist:', plErr)
         }

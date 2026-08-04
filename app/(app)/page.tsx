@@ -92,10 +92,12 @@ export default function HomePage() {
 
   const handleAddToPlaylist = async (playlistId: string, trackId: string) => {
     // Try calling RPC fn_add_track_to_playlist first
-    const { error: rpcError } = await supabase.rpc('fn_add_track_to_playlist', {
-      p_playlist_id: playlistId,
-      p_track_id: trackId,
-    })
+    const { error: rpcError } = await Promise.resolve(
+      supabase.rpc('fn_add_track_to_playlist', {
+        p_playlist_id: playlistId,
+        p_track_id: trackId,
+      })
+    )
 
     if (!rpcError) {
       alert('Đã thêm bài hát vào playlist!')

@@ -1,4 +1,4 @@
-import { Mp3Encoder } from '@breezystack/lamejs'
+import { Mp3Encoder } from 'lamejs'
 
 /**
  * Automatically converts & compresses audio files starting from 10MB
@@ -47,24 +47,13 @@ export async function compressAudioIfNeeded(
 
     // 2. Extract PCM channel data
     const numChannels = Math.min(2, audioBuffer.numberOfChannels || 1)
-    const length = audioBuffer.length
-
-    // Keep the decoded sample rate. Changing the encoder rate without
-    // resampling the PCM would alter playback speed/pitch.
     const sampleRate = audioBuffer.sampleRate
 
     const left = audioBuffer.getChannelData(0)
     const right = numChannels > 1 ? audioBuffer.getChannelData(1) : left
 
     // Convert Float32 → Int16
-    const leftInt16 = new Int16Array(length)
-    const rightInt16 = new Int16Array(length)
-    for (let i = 0; i < length; i++) {
-      const l = Math.max(-1, Math.min(1, left[i]))
-      leftInt16[i] = l < 0 ? l * 0x8000 : l * 0x7fff
-      const r = Math.max(-1, Math.min(1, right[i]))
-      rightInt16[i] = r < 0 ? r * 0x8000 : r * 0x7fff
-    }
+    const { leftInt16, rightInt16 } = await convertPcmCooperatively(left, right, onProgress)
 
     if (onProgress) onProgress(50, `Đang nén & chuyển sang MP3 (${targetBitrate}kbps) — đang chạy Worker...`)
 
@@ -96,6 +85,37 @@ export async function compressAudioIfNeeded(
   }
 }
 
+/** Converts Float32 channel data to Int16 cooperatively without blocking the main UI thread */
+async function convertPcmCooperatively(
+  left: Float32Array,
+  right: Float32Array,
+  onProgress?: (pct: number, text?: string) => void
+): Promise<{ leftInt16: Int16Array; rightInt16: Int16Array }> {
+  const length = left.length
+  const leftInt16 = new Int16Array(length)
+  const rightInt16 = new Int16Array(length)
+  const chunkSize = 100000
+
+  for (let i = 0; i < length; i += chunkSize) {
+    const end = Math.min(i + chunkSize, length)
+    for (let j = i; j < end; j++) {
+      const sL = Math.max(-1, Math.min(1, left[j]))
+      leftInt16[j] = sL < 0 ? sL * 0x8000 : sL * 0x7fff
+      const sR = Math.max(-1, Math.min(1, right[j]))
+      rightInt16[j] = sR < 0 ? sR * 0x8000 : sR * 0x7fff
+    }
+    if (i % (chunkSize * 5) === 0) {
+      if (onProgress) {
+        const pct = 35 + Math.round((i / length) * 15)
+        onProgress(pct, `Đang xử lý PCM âm thanh (${pct}%)...`)
+      }
+      await new Promise((res) => setTimeout(res, 0))
+    }
+  }
+
+  return { leftInt16, rightInt16 }
+}
+
 /**
  * Offloads the heavy LAME MP3 encoding loop to a Web Worker.
  * Falls back to main-thread encoding if Worker is unavailable.
@@ -108,17 +128,14 @@ function encodeInWorker(
   targetBitrate: number,
   onProgress?: (pct: number, text?: string) => void
 ): Promise<Uint8Array[]> {
-  return new Promise((resolve, reject) => {
-    // Web Workers require an absolute URL — /audioWorker.js is served from /public
+  return new Promise((resolve) => {
+    const fallbackLeft = leftInt16.slice(0)
+    const fallbackRight = rightInt16.slice(0)
     let worker: Worker | null = null
-    // postMessage transfers the original buffers and detaches them. Keep
-    // fallback copies so a Worker failure can still encode on the main thread.
-    const fallbackLeft = leftInt16.slice()
-    const fallbackRight = rightInt16.slice()
+
     try {
-      worker = new Worker('/audioWorker.js')
-    } catch {
-      // Worker failed to initialize — fall back to main thread
+      worker = new Worker('/audioWorker.js?v=3')
+    } catch (error) {
       return resolve(encodeOnMainThread(fallbackLeft, fallbackRight, numChannels, sampleRate, targetBitrate, onProgress))
     }
 
@@ -135,7 +152,6 @@ function encodeInWorker(
         resolve(mp3Data as Uint8Array[])
       } else if (type === 'error') {
         worker!.terminate()
-        // Fall back to main thread on worker error
         console.warn('Worker encoding failed, falling back to main thread:', message)
         resolve(encodeOnMainThread(fallbackLeft, fallbackRight, numChannels, sampleRate, targetBitrate, onProgress))
       }

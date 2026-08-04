@@ -283,10 +283,12 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
       if (dbError || !newTrack) throw new Error('Lỗi lưu thông tin DB: ' + (dbError?.message || ''))
 
       // 3. Add newly created track to playlist and surface failures.
-      const { error: playlistError } = await supabase.rpc('fn_add_track_to_playlist', {
-        p_playlist_id: playlistId,
-        p_track_id: newTrack.id,
-      })
+      const { error: playlistError } = await Promise.resolve(
+        supabase.rpc('fn_add_track_to_playlist', {
+          p_playlist_id: playlistId,
+          p_track_id: newTrack.id,
+        })
+      )
       if (playlistError) throw new Error('Lưu bài hát thành công nhưng không thêm được vào playlist: ' + playlistError.message)
 
       // Reset states & close modal
@@ -333,10 +335,12 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
 
   // Add track from library to playlist
   const handleAddTrackToThisPlaylist = async (trackId: string) => {
-    const { error } = await supabase.rpc('fn_add_track_to_playlist', {
-      p_playlist_id: playlistId,
-      p_track_id: trackId,
-    })
+    const { error } = await Promise.resolve(
+      supabase.rpc('fn_add_track_to_playlist', {
+        p_playlist_id: playlistId,
+        p_track_id: trackId,
+      })
+    )
 
     if (!error) {
       fetchPlaylistData()

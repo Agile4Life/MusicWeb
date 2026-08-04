@@ -128,13 +128,22 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       await audio.play()
       if (requestId !== playRequestRef.current) return
       setIsPlaying(true)
-      supabase.rpc('fn_play_track', { p_track_id: track.id }).catch(() => {})
     } catch (err) {
       setIsPlaying(false)
       const message = err instanceof Error ? err.message : String(err)
       setPlaybackError(`Không thể phát audio: ${message}`)
       console.error('Audio playback error:', { trackId: track.id, url, error: err })
+      return
     }
+
+    // Fire-and-forget: record track playback history in background.
+    // Use Promise.resolve to wrap Supabase builder as a native Promise, preventing `.catch is not a function` error,
+    // and run inside setTimeout so it will never crash or affect audio playback UI.
+    setTimeout(() => {
+      Promise.resolve(supabase.rpc('fn_play_track', { p_track_id: track.id })).catch((rpcErr) => {
+        console.warn('History tracking error ignored:', rpcErr)
+      })
+    }, 0)
   }
 
   const togglePlay = () => {
