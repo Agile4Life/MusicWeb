@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useRef, useEffect } from 'react'
 import { Track } from '@/types'
 import { createClient } from '@/lib/supabase/client'
+import { buildDriveStreamUrl } from '@/lib/googleDriveUpload'
 
 interface PlayerContextType {
   currentTrack: Track | null
@@ -54,6 +55,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // Get audio stream URL (signed URL if private storage, or direct if available)
   const getAudioUrl = async (filePath: string): Promise<string | null> => {
     if (!filePath) return null
+    if (filePath.includes('drive.google.com') || filePath.includes('googleapis.com')) {
+      const fileId = new URL(filePath).searchParams.get('id')
+      if (fileId) return buildDriveStreamUrl(fileId)
+    }
     if (filePath.startsWith('http')) return filePath
 
     // Try creating signed URL (valid for 1 hour)

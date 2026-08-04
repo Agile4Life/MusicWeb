@@ -17,7 +17,6 @@ import {
   SlidersHorizontal,
   Check,
   Play,
-  Copy,
   AlertTriangle,
   Zap,
   X,
@@ -91,7 +90,8 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [queue, setQueue] = useState<QueueItem[]>([])
-  const [skipDuplicates, setSkipDuplicates] = useState<boolean>(true) // Auto-skip duplicates
+  // Duplicate uploads are always blocked automatically.
+  const skipDuplicates = true
   const [isUploading, setIsUploading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [overallBatchInfo, setOverallBatchInfo] = useState<string | null>(null)
@@ -423,7 +423,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       updateItem(item.id, {
         status: 'uploading',
         progress: 10,
-        compressInfo: `Đang tải file gốc (${formatFileSize(item.file.size)}) lên Google Drive...`,
+        compressInfo: '0%',
       })
 
       // Lấy tên Playlist nếu có playlistId để tự tạo thư mục tương ứng trên Google Drive
@@ -449,6 +449,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
         onProgress: ({ percent }) => {
           updateItem(item.id, {
             progress: 10 + Math.round(percent * 0.7),
+            compressInfo: `${percent}%`,
           })
         },
       })
@@ -628,19 +629,6 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
           </p>
         </div>
 
-        {/* Settings: Skip Duplicates */}
-        <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white select-none bg-black/40 px-3 py-1.5 rounded-2xl border border-white/10">
-          <input
-            type="checkbox"
-            checked={skipDuplicates}
-            onChange={(e) => setSkipDuplicates(e.target.checked)}
-            className="rounded accent-[var(--primary-spotify)] w-3.5 h-3.5 cursor-pointer"
-          />
-          <span className="font-semibold text-xs text-amber-300 flex items-center gap-1">
-            <Copy className="w-3.5 h-3.5" /> Tự bỏ bài trùng
-          </span>
-        </label>
-
         {/* Optional Close Button */}
         {onClose && (
           <button
@@ -784,7 +772,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
             ) : (
               <>
                 <Play className="w-3.5 h-3.5 fill-black" />
-                Bắt Đầu Nén & Upload Mới ({pendingCount} bài)
+                Bắt đầu upload ({pendingCount} bài)
               </>
             )}
           </button>

@@ -45,7 +45,7 @@ export interface GoogleDriveUploadResult {
  * This URL works with HTML5 <audio> and <video> elements.
  */
 export function buildDriveStreamUrl(fileId: string): string {
-  return `https://drive.google.com/uc?export=download&id=${fileId}`;
+  return `${WORKER_URL}/api/upload/stream?id=${encodeURIComponent(fileId)}`;
 }
 
 export async function deleteGoogleDriveFile(fileId: string, uploadUrl: string): Promise<void> {
