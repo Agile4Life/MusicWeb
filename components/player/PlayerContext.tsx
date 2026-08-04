@@ -62,10 +62,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (filePath.startsWith('http')) {
       try {
         const parsed = new URL(filePath)
-        const isGoogleUrl = parsed.hostname.includes('drive.google.com') || parsed.hostname.includes('googleapis.com')
+        const isGoogleUrl = parsed.hostname.includes('drive.google.com') ||
+          parsed.hostname.includes('googleapis.com') ||
+          parsed.hostname.includes('googleusercontent.com')
         const workerStream = parsed.pathname.endsWith('/api/upload/stream')
         const queryId = parsed.searchParams.get('id')
-        const pathId = parsed.pathname.match(/\/file\/d\/([^/]+)/)?.[1]
+        const pathId = parsed.pathname.match(/\/file\/d\/([^/]+)/)?.[1] ||
+          parsed.pathname.match(/\/d\/([^/]+)/)?.[1]
 
         // Old records may contain a direct Google Drive URL. Convert those to
         // the Worker stream so Range requests and Google auth stay server-side.
