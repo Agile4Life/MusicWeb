@@ -27,20 +27,19 @@ export default function HomePage() {
 
     setUser(currentUser)
 
+    // Query all tracks from database — allows all users to see tracks uploaded by Admin accounts
+    const { data: rawTracks, error: trackError } = await supabase
+      .from('tracks')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (!trackError && rawTracks) {
+      setTracks(rawTracks)
+    } else if (trackError) {
+      console.warn('Failed to fetch tracks:', trackError.message)
+    }
+
     if (currentUser) {
-      // Always query tracks table directly — includes album TEXT column saved during upload
-      const { data: rawTracks, error: trackError } = await supabase
-        .from('tracks')
-        .select('*')
-        .eq('user_id', currentUser.id)
-        .order('created_at', { ascending: false })
-
-      if (!trackError && rawTracks) {
-        setTracks(rawTracks)
-      } else if (trackError) {
-        console.warn('Failed to fetch tracks:', trackError.message)
-      }
-
       // Fetch user playlists
       const { data: playlistData } = await supabase
         .from('playlists')
