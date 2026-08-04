@@ -31,9 +31,25 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [currentTime, setCurrentTime] = useState<number>(0)
   const [duration, setDuration] = useState<number>(0)
   const [volume, setVolumeState] = useState<number>(0.8)
+  const [autoPlayNext, setAutoPlayNext] = useState(true)
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const supabase = createClient()
+
+  useEffect(() => {
+    let active = true
+    supabase.auth.getUser().then(async (result: { data: { user: { id: string } | null } }) => {
+      const user = result.data.user
+      if (!user) return
+      const { data } = await supabase
+        .from('user_settings')
+        .select('auto_play')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (active && typeof data?.auto_play === 'boolean') setAutoPlayNext(data.auto_play)
+    })
+    return () => { active = false }
+  }, [supabase])
 
   // Get audio stream URL (signed URL if private storage, or direct if available)
   const getAudioUrl = async (filePath: string): Promise<string | null> => {
@@ -129,7 +145,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
     const handleLoadedMetadata = () => setDuration(audio.duration || 0)
-    const handleEnded = () => nextTrack()
+    const handleEnded = () => {
+      if (autoPlayNext) nextTrack()
+      else setIsPlaying(false)
+    }
 
     audio.addEventListener('timeupdate', handleTimeUpdate)
     audio.addEventListener('loadedmetadata', handleLoadedMetadata)
@@ -140,7 +159,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
       audio.removeEventListener('ended', handleEnded)
     }
-  }, [currentIndex, queue])
+  }, [currentIndex, queue, autoPlayNext])
 
   return (
     <PlayerContext.Provider

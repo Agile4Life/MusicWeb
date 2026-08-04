@@ -23,7 +23,7 @@ import {
   X,
 } from 'lucide-react'
 import * as mm from 'music-metadata-browser'
-import { uploadToGoogleDrive, buildDriveStreamUrl } from '@/lib/googleDriveUpload'
+import { uploadToGoogleDrive, buildDriveStreamUrl, deleteGoogleDriveFile } from '@/lib/googleDriveUpload'
 
 export interface QueueItem {
   id: string
@@ -373,6 +373,9 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
   ): Promise<boolean> => {
     const cleanTitle = (item.title || item.file.name).trim()
     const uploadKey = trackDuplicateKey(cleanTitle, item.artist)
+    let driveFileId: string | null = null
+    let driveUploadUrl: string | null = null
+    let driveFileWasCreated = false
 
     // 0. Auto-skip if marked duplicate and skipDuplicates is checked (unless forceUpload is true)
     if (skipDuplicates && item.isDuplicate && !item.forceUpload) {
@@ -453,26 +456,15 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       if (!driveResult.success || !driveResult.fileId) {
         throw new Error(`Upload Google Drive thất bại: ${driveResult.error || 'Không nhận được File ID'}`)
       }
+      driveFileId = driveResult.fileId
+      driveUploadUrl = driveResult.uploadUrl || null
+      driveFileWasCreated = !driveResult.duplicate
 
       // Streaming URL phát nhạc trực tiếp từ Google Drive
       const filePath = buildDriveStreamUrl(driveResult.fileId)
 
       // 3. Save to DB
       updateItem(item.id, { status: 'saving_db', progress: 80 })
-
-      let artistId: string | null = null
-      // Note: artist_id FK is not in the base schema — artist name stored directly as TEXT
-      // Kept here in case user has an extended schema with artist_id
-      if (item.artist && item.artist.trim()) {
-        try {
-          const { data: artistData } = await supabase.rpc('fn_get_or_create_artist', {
-            p_name: item.artist.trim(),
-          })
-          if (artistData) artistId = artistData
-        } catch {
-          // RPC not available — use artist TEXT column directly
-        }
-      }
 
       let insertedTrackId: string | null = null
 
@@ -486,7 +478,6 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
           duration: item.duration || 0,
           file_path: filePath,
           file_size: uploadFile.size,
-          ...(artistId ? { artist_id: artistId } : {}),
         })
         .select('id')
         .single()
@@ -543,6 +534,11 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       return true
     } catch (err: any) {
       if (!item.forceUpload) batchKeys.delete(uploadKey)
+      if (driveFileId && driveUploadUrl && driveFileWasCreated) {
+        try { await deleteGoogleDriveFile(driveFileId, driveUploadUrl) } catch (cleanupError) {
+          console.warn('Không thể dọn file Drive sau khi lưu DB thất bại:', cleanupError)
+        }
+      }
       let msg = err.message || 'Đã xảy ra lỗi khi upload'
       if (msg.includes('exceeded the maximum allowed size') || msg.includes('413')) {
         msg = 'File vượt quá giới hạn Supabase Storage Bucket. Vui lòng kiểm tra Max file size trong Dashboard.'

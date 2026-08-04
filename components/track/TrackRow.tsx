@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { Track, Playlist } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
-import { Play, Pause, Music, Trash2, MoreVertical, Plus, Pencil, Check, X } from 'lucide-react'
+import { Play, Pause, Music, Trash2, MoreVertical, Plus, Pencil, Check, X, Heart } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface TrackRowProps {
@@ -47,6 +47,7 @@ function TrackRowComponent({
   const [editArtist, setEditArtist] = useState(track.artist || '')
   const [editAlbum, setEditAlbum] = useState(track.album || '')
   const [saving, setSaving] = useState(false)
+  const [isFavorite, setIsFavorite] = useState(Boolean(track.is_favorite))
 
   const isCurrent = currentTrack?.id === track.id
 
@@ -82,6 +83,19 @@ function TrackRowComponent({
     setEditArtist(track.artist || '')
     setEditAlbum(track.album || '')
     setEditMode(false)
+  }
+
+  const handleToggleFavorite = async (event: React.MouseEvent) => {
+    event.stopPropagation()
+    const nextValue = !isFavorite
+    const { error } = await supabase
+      .from('tracks')
+      .update({ is_favorite: nextValue })
+      .eq('id', track.id)
+    if (!error) {
+      setIsFavorite(nextValue)
+      onTrackUpdated?.(track.id, { is_favorite: nextValue })
+    }
   }
 
   return (
@@ -222,6 +236,13 @@ function TrackRowComponent({
             {showMenu && (
               <div className="absolute right-0 top-8 glass-panel shadow-2xl rounded-xl py-1.5 w-56 z-30 text-xs text-slate-200 border border-white/10">
                 {/* Edit artist/album */}
+                <button
+                  onClick={handleToggleFavorite}
+                  className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors"
+                >
+                  <Heart className={`w-3.5 h-3.5 ${isFavorite ? 'fill-rose-400 text-rose-400' : 'text-rose-400'}`} />
+                  {isFavorite ? 'Bỏ khỏi yêu thích' : 'Thêm vào yêu thích'}
+                </button>
                 <button
                   onClick={(e) => {
                     e.stopPropagation()

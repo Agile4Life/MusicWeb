@@ -23,7 +23,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import * as mm from 'music-metadata-browser'
-import { uploadToGoogleDrive, buildDriveStreamUrl } from '@/lib/googleDriveUpload'
+import { uploadToGoogleDrive, buildDriveStreamUrl, deleteGoogleDriveFile } from '@/lib/googleDriveUpload'
 
 export default function PlaylistDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: playlistId } = use(params)
@@ -76,7 +76,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
 
     const { data: ptData } = await supabase
       .from('playlist_tracks')
-      .select('position, tracks:track_id(*, artists(name), albums(title))')
+      .select('position, tracks:track_id(*)')
       .eq('playlist_id', playlistId)
       .order('position', { ascending: true })
 
@@ -86,8 +86,8 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
           if (!item.tracks) return null
           return {
             ...item.tracks,
-            artist: item.tracks.artist_name || item.tracks.artists?.name || item.tracks.artist || null,
-            album: item.tracks.album_title || item.tracks.albums?.title || item.tracks.album || null,
+            artist: item.tracks.artist || null,
+            album: item.tracks.album || null,
           }
         })
         .filter(Boolean) as Track[]
@@ -219,6 +219,9 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
 
     setUploading(true)
     setUploadError(null)
+    let driveFileId: string | null = null
+    let driveUploadUrl: string | null = null
+    let driveFileWasCreated = false
 
     try {
       const {
@@ -250,26 +253,18 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
       }
 
       const filePath = buildDriveStreamUrl(driveResult.fileId)
+      driveFileId = driveResult.fileId
+      driveUploadUrl = driveResult.uploadUrl || null
+      driveFileWasCreated = !driveResult.duplicate
 
-      // 2. Get/create artist ID if provided
-      let artistId: string | null = null
-      if (uploadArtist && uploadArtist.trim()) {
-        try {
-          const { data: artistData } = await supabase.rpc('fn_get_or_create_artist', {
-            p_name: uploadArtist.trim(),
-          })
-          if (artistData) artistId = artistData
-        } catch {}
-      }
-
-      // 3. Insert into tracks DB table
+      // 2. Insert into tracks DB table. Artist/album are plain text columns in
+      // the current schema; there is no artists/albums relation.
       const { data: newTrack, error: dbError } = await supabase
         .from('tracks')
         .insert({
           user_id: user.id,
           title: uploadTitle || file.name,
           artist: uploadArtist || null,
-          ...(artistId ? { artist_id: artistId } : {}),
           duration: uploadDuration || 0,
           file_path: filePath,
           file_size: uploadFile.size,
@@ -279,11 +274,12 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
 
       if (dbError || !newTrack) throw new Error('Lỗi lưu thông tin DB: ' + (dbError?.message || ''))
 
-      // 4. Add newly created track to playlist
-      await supabase.rpc('fn_add_track_to_playlist', {
+      // 3. Add newly created track to playlist and surface failures.
+      const { error: playlistError } = await supabase.rpc('fn_add_track_to_playlist', {
         p_playlist_id: playlistId,
         p_track_id: newTrack.id,
       })
+      if (playlistError) throw new Error('Lưu bài hát thành công nhưng không thêm được vào playlist: ' + playlistError.message)
 
       // Reset states & close modal
       setShowUploadModal(false)
@@ -292,6 +288,11 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
       setUploadArtist('')
       fetchPlaylistData()
     } catch (err: any) {
+      if (driveFileId && driveUploadUrl && driveFileWasCreated) {
+        try { await deleteGoogleDriveFile(driveFileId, driveUploadUrl) } catch (cleanupError) {
+          console.warn('Không thể dọn file Drive sau khi lưu DB thất bại:', cleanupError)
+        }
+      }
       setUploadError(err.message || 'Đã xảy ra lỗi khi tải nhạc')
     } finally {
       setUploading(false)
@@ -309,16 +310,13 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
 
     if (user) {
       const { data } = await supabase
-        .from('view_track_details')
+        .from('tracks')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
       if (data) {
-        const normalized = data.map((t: any) => ({
-          ...t,
-          artist: t.artist_name || t.artist || null,
-        }))
+        const normalized = data.map((t: Track) => ({ ...t, artist: t.artist || null }))
         setLibraryTracks(normalized)
       }
     }

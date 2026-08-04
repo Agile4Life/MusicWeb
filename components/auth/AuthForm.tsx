@@ -273,6 +273,11 @@ export function AuthForm({ mode }: AuthFormProps) {
               'Tạo tài khoản'
             )}
           </button>
+          {mode === 'login' && (
+            <Link href="/reset-password" className="text-center text-xs text-slate-400 hover:text-white hover:underline">
+              Quên mật khẩu?
+            </Link>
+          )}
         </form>
 
         <div className="mt-6 text-center text-xs text-slate-400 border-t border-white/10 pt-4 relative z-10">

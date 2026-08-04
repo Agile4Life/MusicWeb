@@ -2,11 +2,41 @@
 
 import React, { useState } from 'react'
 import { ThemeSelector } from '@/components/theme/ThemeSelector'
+import { createClient } from '@/lib/supabase/client'
 import { Settings, Sliders, Volume2, HardDrive, ShieldCheck, Sparkles } from 'lucide-react'
 
 export default function SettingsPage() {
+  const supabase = createClient()
   const [audioQuality, setAudioQuality] = useState('high')
   const [autoPlayNext, setAutoPlayNext] = useState(true)
+
+  React.useEffect(() => {
+    supabase.auth.getUser().then(async (result: { data: { user: { id: string } | null } }) => {
+      const user = result.data.user
+      if (!user) return
+      const { data } = await supabase
+        .from('user_settings')
+        .select('audio_quality, auto_play')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (data) {
+        setAudioQuality(data.audio_quality || 'high')
+        setAutoPlayNext(data.auto_play ?? true)
+      }
+    })
+  }, [supabase])
+
+  const saveSettings = async (updates: { audio_quality?: string; auto_play?: boolean }) => {
+    const result = await supabase.auth.getUser() as { data: { user: { id: string } | null } }
+    const user = result.data.user
+    if (!user) return
+    await supabase.from('user_settings').upsert({
+      user_id: user.id,
+      audio_quality: updates.audio_quality ?? audioQuality,
+      auto_play: updates.auto_play ?? autoPlayNext,
+      updated_at: new Date().toISOString(),
+    })
+  }
 
   return (
     <div className="p-6 md:p-8 flex flex-col gap-8 max-w-6xl mx-auto w-full">
@@ -43,7 +73,11 @@ export default function SettingsPage() {
           </div>
           <select
             value={audioQuality}
-            onChange={(e) => setAudioQuality(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value
+              setAudioQuality(value)
+              void saveSettings({ audio_quality: value })
+            }}
             className="glass-input rounded-xl px-4 py-2 text-xs font-semibold text-white outline-none cursor-pointer"
           >
             <option value="high" className="bg-[#12141d] text-white">Rất cao (320 kbps High-Res)</option>
@@ -58,7 +92,11 @@ export default function SettingsPage() {
             <p className="text-xs text-slate-400">Tự động chuyển bài kế tiếp khi phát hết danh sách</p>
           </div>
           <button
-            onClick={() => setAutoPlayNext(!autoPlayNext)}
+            onClick={() => {
+              const value = !autoPlayNext
+              setAutoPlayNext(value)
+              void saveSettings({ auto_play: value })
+            }}
             className={`w-12 h-6 rounded-full p-1 transition-colors ${
               autoPlayNext ? 'bg-[var(--primary-spotify)]' : 'bg-white/20'
             }`}

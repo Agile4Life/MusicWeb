@@ -32,7 +32,9 @@ export interface GoogleDriveUploadOptions {
 
 export interface GoogleDriveUploadResult {
   success: boolean;
+  duplicate?: boolean;
   fileId?: string;
+  uploadUrl?: string;
   fileName?: string;
   streamUrl?: string;
   error?: string;
@@ -44,6 +46,17 @@ export interface GoogleDriveUploadResult {
  */
 export function buildDriveStreamUrl(fileId: string): string {
   return `https://drive.google.com/uc?export=download&id=${fileId}`;
+}
+
+export async function deleteGoogleDriveFile(fileId: string, uploadUrl: string): Promise<void> {
+  if (!fileId || !uploadUrl) return
+  const origin = typeof window !== 'undefined' ? window.location.origin : undefined
+  const response = await fetch(`${WORKER_URL}/api/upload/file?id=${encodeURIComponent(fileId)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', 'X-Upload-Url': uploadUrl },
+    body: JSON.stringify({ origin }),
+  })
+  if (!response.ok) throw new Error(`Không thể dọn file Drive (${response.status})`)
 }
 
 export async function uploadToGoogleDrive({
@@ -103,6 +116,7 @@ export async function uploadToGoogleDrive({
     if (initData.duplicate && initData.fileId) {
       return {
         success: true,
+        duplicate: true,
         fileId: initData.fileId,
         fileName: initData.fileName || targetName,
         streamUrl: buildDriveStreamUrl(initData.fileId),
@@ -160,6 +174,7 @@ export async function uploadToGoogleDrive({
         return {
           success: true,
           fileId,
+          uploadUrl,
           fileName: targetName,
           streamUrl: fileId ? buildDriveStreamUrl(fileId) : undefined,
         };

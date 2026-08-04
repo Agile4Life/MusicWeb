@@ -3,14 +3,7 @@
 -- Sao chép toàn bộ script này và dán vào Supabase Dashboard > SQL Editor và nhấn RUN.
 -- ==============================================================================
 
--- 0. XÓA BẢNG CŨ (NẾU CÓ) ĐỂ REBUILD SẠCH SẼ TOÀN BỘ CẤU TRÚC DATABASE
-DROP TABLE IF EXISTS public.playlist_tracks CASCADE;
-DROP TABLE IF EXISTS public.playlists CASCADE;
-DROP TABLE IF EXISTS public.tracks CASCADE;
-DROP TABLE IF EXISTS public.favorite_tracks CASCADE;
-DROP TABLE IF EXISTS public.listening_history CASCADE;
-DROP TABLE IF EXISTS public.user_profiles CASCADE;
-DROP TABLE IF EXISTS public.user_settings CASCADE;
+-- 0. Schema is intentionally non-destructive. Do not drop production tables.
 
 -- Bật các extensions cần thiết
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -18,7 +11,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 -- ------------------------------------------------------------------------------
 -- 1. BẢNG USER_PROFILES (Hồ sơ người dùng cá nhân mở rộng)
 -- ------------------------------------------------------------------------------
-CREATE TABLE public.user_profiles (
+CREATE TABLE IF NOT EXISTS public.user_profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     display_name TEXT,
     avatar_url TEXT,
@@ -39,7 +32,7 @@ CREATE POLICY "Users can update their own profile" ON public.user_profiles FOR U
 -- ------------------------------------------------------------------------------
 -- 2. BẢNG TRACKS (Quản lý bài hát + Lời bài hát + Thể loại + Đếm số lượt nghe)
 -- ------------------------------------------------------------------------------
-CREATE TABLE public.tracks (
+CREATE TABLE IF NOT EXISTS public.tracks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
@@ -73,7 +66,7 @@ CREATE POLICY "Users can delete their own tracks" ON public.tracks FOR DELETE US
 -- ------------------------------------------------------------------------------
 -- 3. BẢNG PLAYLISTS (Playlist cá nhân + Hỗ trợ Chia sẻ Public sau này)
 -- ------------------------------------------------------------------------------
-CREATE TABLE public.playlists (
+CREATE TABLE IF NOT EXISTS public.playlists (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
@@ -101,7 +94,7 @@ CREATE POLICY "Users can delete their own playlists" ON public.playlists FOR DEL
 -- ------------------------------------------------------------------------------
 -- 4. BẢNG PLAYLIST_TRACKS (Liên kết Playlist và Bài hát)
 -- ------------------------------------------------------------------------------
-CREATE TABLE public.playlist_tracks (
+CREATE TABLE IF NOT EXISTS public.playlist_tracks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     playlist_id UUID NOT NULL REFERENCES public.playlists(id) ON DELETE CASCADE,
     track_id UUID NOT NULL REFERENCES public.tracks(id) ON DELETE CASCADE,
@@ -142,7 +135,7 @@ CREATE POLICY "Users can delete tracks from their playlists" ON public.playlist_
 -- ------------------------------------------------------------------------------
 -- 5. BẢNG FAVORITE_TRACKS (Danh sách bài hát yêu thích cá nhân)
 -- ------------------------------------------------------------------------------
-CREATE TABLE public.favorite_tracks (
+CREATE TABLE IF NOT EXISTS public.favorite_tracks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     track_id UUID NOT NULL REFERENCES public.tracks(id) ON DELETE CASCADE,
@@ -158,7 +151,7 @@ CREATE POLICY "Users can manage their favorite tracks" ON public.favorite_tracks
 -- ------------------------------------------------------------------------------
 -- 6. BẢNG LISTENING_HISTORY (Lịch sử nghe nhạc & Thống kê cá nhân)
 -- ------------------------------------------------------------------------------
-CREATE TABLE public.listening_history (
+CREATE TABLE IF NOT EXISTS public.listening_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     track_id UUID NOT NULL REFERENCES public.tracks(id) ON DELETE CASCADE,
@@ -176,7 +169,7 @@ CREATE POLICY "Users can insert their listening history" ON public.listening_his
 -- ------------------------------------------------------------------------------
 -- 7. BẢNG USER_SETTINGS (Cài đặt tùy chỉnh hệ thống của từng người dùng)
 -- ------------------------------------------------------------------------------
-CREATE TABLE public.user_settings (
+CREATE TABLE IF NOT EXISTS public.user_settings (
     user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     audio_quality TEXT DEFAULT 'high',
     auto_play BOOLEAN DEFAULT TRUE,
@@ -388,18 +381,10 @@ VALUES (
 ON CONFLICT (id) DO UPDATE SET
     file_size_limit = NULL,
     allowed_mime_types = NULL,
-    public = true;
+    public = false;
 
 -- Cấp quyền truy cập RLS cho Storage objects
 DROP POLICY IF EXISTS "Public Select music-files" ON storage.objects;
-CREATE POLICY "Public Select music-files" ON storage.objects FOR SELECT USING (bucket_id = 'music-files');
-
 DROP POLICY IF EXISTS "Auth Insert music-files" ON storage.objects;
-CREATE POLICY "Auth Insert music-files" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'music-files');
-
 DROP POLICY IF EXISTS "Auth Update music-files" ON storage.objects;
-CREATE POLICY "Auth Update music-files" ON storage.objects FOR UPDATE WITH CHECK (bucket_id = 'music-files');
-
 DROP POLICY IF EXISTS "Auth Delete music-files" ON storage.objects;
-CREATE POLICY "Auth Delete music-files" ON storage.objects FOR DELETE USING (bucket_id = 'music-files');
-
