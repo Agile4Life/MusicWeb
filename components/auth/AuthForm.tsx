@@ -86,8 +86,16 @@ export function AuthForm({ mode }: AuthFormProps) {
       }
     }
 
+    const handleFocus = () => {
+      setLoading(false)
+    }
+
     window.addEventListener('mousemove', handleMouseMove)
-    return () => window.removeEventListener('mousemove', handleMouseMove)
+    window.addEventListener('focus', handleFocus)
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('focus', handleFocus)
+    }
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -175,7 +183,8 @@ export function AuthForm({ mode }: AuthFormProps) {
     } catch (err: any) {
       console.error('Google sign-in error:', err)
       setError(translateAuthError(err))
-      setLoading(false)
+    } finally {
+      setTimeout(() => setLoading(false), 3000)
     }
   }
 
