@@ -35,6 +35,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [autoPlayNext, setAutoPlayNext] = useState(true)
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const playRequestRef = useRef(0)
   const supabase = createClient()
 
   useEffect(() => {
@@ -52,14 +53,36 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     return () => { active = false }
   }, [supabase])
 
-  // Get audio stream URL (signed URL if private storage, or direct if available)
+  // Resolve both legacy Supabase paths and Google Drive files.
+  // Supabase paths are relative (for example "user-id/song.mp3").
+  // Drive files are identified by a file ID and must be streamed through the Worker.
   const getAudioUrl = async (filePath: string): Promise<string | null> => {
     if (!filePath) return null
-    if (filePath.includes('drive.google.com') || filePath.includes('googleapis.com')) {
-      const fileId = new URL(filePath).searchParams.get('id')
-      if (fileId) return buildDriveStreamUrl(fileId)
+
+    if (filePath.startsWith('http')) {
+      try {
+        const parsed = new URL(filePath)
+        const isGoogleUrl = parsed.hostname.includes('drive.google.com') || parsed.hostname.includes('googleapis.com')
+        const workerStream = parsed.pathname.endsWith('/api/upload/stream')
+        const queryId = parsed.searchParams.get('id')
+        const pathId = parsed.pathname.match(/\/file\/d\/([^/]+)/)?.[1]
+
+        // Old records may contain a direct Google Drive URL. Convert those to
+        // the Worker stream so Range requests and Google auth stay server-side.
+        if (isGoogleUrl && (queryId || pathId)) {
+          return buildDriveStreamUrl(queryId || pathId!)
+        }
+
+        // New records already contain the Worker stream URL.
+        if (workerStream && queryId) return filePath
+      } catch {
+        // Let the browser report malformed absolute URLs below.
+      }
+
+      // Do not send an absolute URL to Supabase. This preserves support for
+      // legacy Supabase paths while allowing public/Worker URLs to play.
+      return filePath
     }
-    if (filePath.startsWith('http')) return filePath
 
     // Try creating signed URL (valid for 1 hour)
     const { data, error } = await supabase.storage
@@ -78,6 +101,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }
 
   const playTrack = async (track: Track, newQueue?: Track[]) => {
+    const requestId = ++playRequestRef.current
+
     if (newQueue) {
       setQueue(newQueue)
       const index = newQueue.findIndex((t) => t.id === track.id)
@@ -90,16 +115,22 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     setCurrentTrack(track)
 
     const url = await getAudioUrl(track.file_path)
-    if (url && audioRef.current) {
-      audioRef.current.src = url
-      audioRef.current.volume = volume
-      audioRef.current
-        .play()
-        .then(() => {
-          setIsPlaying(true)
-          supabase.rpc('fn_play_track', { p_track_id: track.id }).catch(() => {})
-        })
-        .catch((err) => console.error('Audio playback error:', err))
+    const audio = audioRef.current
+    if (!url || !audio || requestId !== playRequestRef.current) return
+
+    audio.pause()
+    audio.src = url
+    audio.volume = volume
+    audio.load()
+
+    try {
+      await audio.play()
+      if (requestId !== playRequestRef.current) return
+      setIsPlaying(true)
+      supabase.rpc('fn_play_track', { p_track_id: track.id }).catch(() => {})
+    } catch (err) {
+      setIsPlaying(false)
+      console.error('Audio playback error:', { trackId: track.id, url, error: err })
     }
   }
 
@@ -150,6 +181,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
     const handleLoadedMetadata = () => setDuration(audio.duration || 0)
+    const handleError = () => {
+      setIsPlaying(false)
+      setDuration(0)
+      console.error('Audio element error:', {
+        src: audio.currentSrc || audio.src,
+        mediaErrorCode: audio.error?.code,
+        mediaErrorMessage: audio.error?.message,
+      })
+    }
     const handleEnded = () => {
       if (autoPlayNext) nextTrack()
       else setIsPlaying(false)
@@ -158,11 +198,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     audio.addEventListener('timeupdate', handleTimeUpdate)
     audio.addEventListener('loadedmetadata', handleLoadedMetadata)
     audio.addEventListener('ended', handleEnded)
+    audio.addEventListener('error', handleError)
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate)
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
       audio.removeEventListener('ended', handleEnded)
+      audio.removeEventListener('error', handleError)
     }
   }, [currentIndex, queue, autoPlayNext])
 
@@ -186,7 +228,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
-      <audio ref={audioRef} preload="metadata" />
+      <audio ref={audioRef} preload="metadata" crossOrigin="anonymous" />
     </PlayerContext.Provider>
   )
 }
