@@ -1,61 +1,80 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { createClient } from '@/lib/supabase/client'
 import { isAllowedToLogin } from '@/lib/accessControl'
 import { Disc, ShieldAlert, LogOut } from 'lucide-react'
+import { AuthForm } from './AuthForm'
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
+  const pathname = usePathname()
   const supabase = createClient()
   const { data: nextAuthSession, status: nextAuthStatus } = useSession()
-  const [authenticated, setAuthenticated] = useState(false)
-  const [authorized, setAuthorized] = useState(true)
+
+  const [checking, setChecking] = useState(true)
   const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [isAllowed, setIsAllowed] = useState(false)
 
   useEffect(() => {
-    async function checkAuth() {
+    let isMounted = true
+
+    async function verifyAuth() {
+      if (nextAuthStatus === 'loading') {
+        return // Wait until NextAuth session state resolves
+      }
+
       let email: string | null = null
 
       if (nextAuthStatus === 'authenticated' && nextAuthSession?.user?.email) {
         email = nextAuthSession.user.email
       } else {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-        if (user?.email) {
-          email = user.email
+        try {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser()
+          if (user?.email) {
+            email = user.email
+          }
+        } catch (err) {
+          console.error('Supabase getUser error:', err)
         }
       }
 
+      if (!isMounted) return
+
       if (email) {
         setUserEmail(email)
-        setAuthenticated(true)
         const allowed = isAllowedToLogin(email)
-        setAuthorized(allowed)
-      } else if (nextAuthStatus !== 'loading') {
-        setAuthenticated(false)
-        router.replace('/login')
+        setIsAllowed(allowed)
+      } else {
+        setUserEmail(null)
+        setIsAllowed(false)
+        if (pathname !== '/login' && pathname !== '/register' && pathname !== '/reset-password') {
+          router.replace('/login')
+        }
       }
 
-      if (nextAuthStatus !== 'loading') {
-        setLoading(false)
-      }
+      setChecking(false)
     }
 
-    checkAuth()
-  }, [router, supabase, nextAuthSession, nextAuthStatus])
+    verifyAuth()
+
+    return () => {
+      isMounted = false
+    }
+  }, [nextAuthSession, nextAuthStatus, pathname, router, supabase])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     await signOut({ callbackUrl: '/login' })
-    router.replace('/login')
+    window.location.href = '/login'
   }
 
-  if (loading || nextAuthStatus === 'loading') {
+  // 1. Loading state
+  if (checking || nextAuthStatus === 'loading') {
     return (
       <div className="h-screen w-screen bg-[#07080c] flex flex-col items-center justify-center gap-4 text-slate-300">
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#1DB954] to-cyan-400 p-0.5 shadow-2xl shadow-emerald-500/20">
@@ -64,17 +83,19 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         <p className="text-xs font-bold text-slate-400 tracking-wider uppercase animate-pulse">
-          Đang xác thực quyền truy cập...
+          Đang kiểm tra quyền truy cập...
         </p>
       </div>
     )
   }
 
-  if (!authenticated) {
-    return null
+  // 2. Not logged in -> Show Login Form directly
+  if (!userEmail) {
+    return <AuthForm mode="login" />
   }
 
-  if (!authorized) {
+  // 3. Logged in BUT not in allowedAccounts -> Show Unauthorized Screen
+  if (!isAllowed) {
     return (
       <div className="h-screen w-screen bg-[#07080c] flex items-center justify-center p-4 relative overflow-hidden select-none">
         <div className="w-full max-w-md glass-panel p-8 rounded-3xl border border-red-500/30 shadow-2xl relative overflow-hidden z-10 flex flex-col items-center text-center gap-5">
@@ -107,5 +128,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     )
   }
 
+  // 4. Logged in AND allowed -> Render App Layout & Page
   return <>{children}</>
 }
