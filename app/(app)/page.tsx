@@ -29,8 +29,8 @@ export default function HomePage() {
     user_metadata: { full_name: nextAuthSession.user.name }
   } : null)
 
-  const fetchData = async () => {
-    setLoading(true)
+  const fetchData = async (showSkeleton = false) => {
+    if (showSkeleton) setLoading(true)
     try {
       const {
         data: { user: currentUser },

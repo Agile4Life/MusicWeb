@@ -73,8 +73,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     window.location.href = '/login'
   }
 
-  // 1. Loading state
-  if (checking || nextAuthStatus === 'loading') {
+  // 1. Loading state (only during initial check, not during tab focus re-validations)
+  if (checking && nextAuthStatus === 'loading') {
     return (
       <div className="h-screen w-screen bg-[#07080c] flex flex-col items-center justify-center gap-4 text-slate-300">
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#1DB954] to-cyan-400 p-0.5 shadow-2xl shadow-emerald-500/20">
