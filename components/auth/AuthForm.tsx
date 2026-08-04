@@ -3,11 +3,18 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { signIn } from 'next-auth/react'
 import { createClient } from '@/lib/supabase/client'
 import { Lock, Mail, Loader2, AlertCircle, CheckCircle2, Disc, Eye, EyeOff } from 'lucide-react'
 
 interface AuthFormProps {
   mode: 'login' | 'register'
+}
+
+declare global {
+  interface Window {
+    google?: any
+  }
 }
 
 function translateAuthError(err: any): string {
@@ -162,14 +169,9 @@ export function AuthForm({ mode }: AuthFormProps) {
     setLoading(true)
     setError(null)
     setRawError(null)
+    setSuccessMsg(null)
     try {
-      const { error: oauthErr } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      })
-      if (oauthErr) throw oauthErr
+      await signIn('google', { callbackUrl: '/' })
     } catch (err: any) {
       console.error('Google sign-in error:', err)
       setError(translateAuthError(err))
@@ -311,7 +313,7 @@ export function AuthForm({ mode }: AuthFormProps) {
           type="button"
           onClick={handleGoogleSignIn}
           disabled={loading}
-          className="w-full bg-white hover:bg-slate-100 text-slate-900 font-extrabold py-3 rounded-full transition-all flex items-center justify-center gap-3 shadow-lg shadow-white/10 relative z-10 hover:scale-[1.02] active:scale-95 disabled:opacity-50 text-xs"
+          className="w-full bg-white hover:bg-slate-100 text-slate-900 font-extrabold py-3 rounded-full transition-all flex items-center justify-center gap-3 shadow-lg shadow-white/10 relative z-10 hover:scale-[1.02] active:scale-95 disabled:opacity-50 text-xs mt-2"
         >
           <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
             <path

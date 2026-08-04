@@ -2,50 +2,44 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2, Disc } from 'lucide-react'
+import { Disc } from 'lucide-react'
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const supabase = createClient()
+  const { data: nextAuthSession, status: nextAuthStatus } = useSession()
   const [authenticated, setAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function checkAuth() {
+      if (nextAuthStatus === 'authenticated' && nextAuthSession?.user) {
+        setAuthenticated(true)
+        setLoading(false)
+        return
+      }
+
       const {
         data: { user },
       } = await supabase.auth.getUser()
 
-      if (!user) {
+      if (user || nextAuthSession?.user) {
+        setAuthenticated(true)
+      } else if (nextAuthStatus !== 'loading') {
         setAuthenticated(false)
         router.replace('/login')
-      } else {
-        setAuthenticated(true)
       }
-      setLoading(false)
+      if (nextAuthStatus !== 'loading') {
+        setLoading(false)
+      }
     }
 
     checkAuth()
+  }, [router, supabase, nextAuthSession, nextAuthStatus])
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event: string, session: any) => {
-      if (!session?.user) {
-        setAuthenticated(false)
-        router.replace('/login')
-      } else {
-        setAuthenticated(true)
-      }
-      setLoading(false)
-    })
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [router, supabase])
-
-  if (loading) {
+  if (loading || nextAuthStatus === 'loading') {
     return (
       <div className="h-screen w-screen bg-[#07080c] flex flex-col items-center justify-center gap-4 text-slate-300">
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#1DB954] to-cyan-400 p-0.5 shadow-2xl shadow-emerald-500/20">
