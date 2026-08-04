@@ -47,19 +47,26 @@ export async function POST(request: Request) {
       )
     }
 
-    // 1. Strict Passkey Verification against valid passkeys in config/passkeys.json
+    // 1. Strict Passkey Verification with intelligent alphanumeric normalization
     const validPasskeys = getValidPasskeys()
+    const cleanAlphaNumericPasskey = cleanPasskey.replace(/[^a-z0-9]/g, '')
+
     const isValidPasskey = validPasskeys.some((pk) => {
-      const normalizedPk = String(pk).trim().toLowerCase().replace(/\s+/g, '')
-      return normalizedPk === cleanPasskey
+      const normalizedPk = String(pk).trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+      return (
+        normalizedPk === cleanAlphaNumericPasskey ||
+        normalizedPk === cleanPasskey ||
+        String(pk).trim().toLowerCase() === String(passkey).trim().toLowerCase()
+      )
     })
 
     if (!isValidPasskey) {
       return NextResponse.json(
-        { error: 'Mã Passkey không hợp lệ. Vui lòng nhập đúng mã Passkey do Admin cung cấp!' },
+        { error: `Mã Passkey "${passkey}" không hợp lệ. Vui lòng kiểm tra lại hoặc liên hệ Admin để nhận mã Passkey chính xác!` },
         { status: 401 }
       )
     }
+
 
 
 
