@@ -1,9 +1,14 @@
 {
   "allowAllAsListeners": false,
   "adminEmails": [
-    "admin@gmail.com"
+    "admin@gmail.com",
+    "admin@musicweb.com"
   ],
   "allowedEmails": [
+    {
+      "email": "admin@musicweb.com",
+      "role": "admin"
+    },
     {
       "email": "tranphong16012006@gmail.com",
       "role": "admin"
@@ -11,6 +16,14 @@
     {
       "email": "pnnd2006@gmail.com",
       "role": "admin"
+    },
+    {
+      "email": "demo@musicweb.com",
+      "role": "listener"
+    },
+    {
+      "email": "user@musicweb.com",
+      "role": "listener"
     },
     {
       "email": "listener@gmail.com",
