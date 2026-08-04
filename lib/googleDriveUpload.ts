@@ -12,6 +12,17 @@
 const WORKER_URL = process.env.NEXT_PUBLIC_CLOUDFLARE_WORKER_URL || 'https://drive-upload-worker.phongtct.workers.dev';
 const CHUNK_SIZE = 5 * 1024 * 1024; // 5 MB — must be multiple of 256 KiB
 
+function describeFetchError(error: unknown, step: string): Error {
+  const message = error instanceof Error ? error.message : String(error)
+  if (message.toLowerCase() === 'failed to fetch' || message.toLowerCase().includes('networkerror')) {
+    return new Error(
+      `${step} không kết nối được tới Cloudflare Worker/Google Drive. ` +
+      'Kiểm tra Worker đang hoạt động và Worker phải proxy chunk upload hoặc trả CORS cho origin của website.'
+    )
+  }
+  return error instanceof Error ? error : new Error(message)
+}
+
 export interface GoogleDriveUploadOptions {
   file: File;
   fileName?: string;
@@ -65,11 +76,17 @@ export async function uploadToGoogleDrive({
     // Send browser origin so Worker can tell Google Drive to include CORS headers
     const browserOrigin = typeof window !== 'undefined' ? window.location.origin : undefined;
 
-    const initRes = await fetch(`${WORKER_URL}/api/upload/init`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileName: targetName, fileSize, fileType, folderName, origin: browserOrigin }),
-    });
+    let initRes: Response
+    try {
+      initRes = await fetch(`${WORKER_URL}/api/upload/init`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: targetName, fileSize, fileType, folderName, origin: browserOrigin }),
+        cache: 'no-store',
+      })
+    } catch (error) {
+      throw describeFetchError(error, 'Khởi tạo phiên upload')
+    }
 
     if (!initRes.ok) {
       const errBody = await initRes.text();
@@ -83,6 +100,14 @@ export async function uploadToGoogleDrive({
     }
 
     const initData = await initRes.json();
+    if (initData.duplicate && initData.fileId) {
+      return {
+        success: true,
+        fileId: initData.fileId,
+        fileName: initData.fileName || targetName,
+        streamUrl: buildDriveStreamUrl(initData.fileId),
+      }
+    }
     const uploadUrl = initData.uploadUrl;
     if (!uploadUrl) {
       throw new Error('Cloudflare Worker không trả về Upload Session URL');
@@ -96,13 +121,19 @@ export async function uploadToGoogleDrive({
       const end = Math.min(start + CHUNK_SIZE, total);
       const chunk = file.slice(start, end);
 
-      const chunkRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Range': `bytes ${start}-${end - 1}/${total}`,
-        },
-        body: chunk,
-      });
+      let chunkRes: Response
+      try {
+        chunkRes = await fetch(`${WORKER_URL}/api/upload/chunk`, {
+          method: 'PUT',
+          headers: {
+            'Content-Range': `bytes ${start}-${end - 1}/${total}`,
+            'X-Upload-Url': uploadUrl,
+          },
+          body: chunk,
+        })
+      } catch (error) {
+        throw describeFetchError(error, `Upload chunk ${start}-${end - 1}`)
+      }
 
       // Google returns 308 for intermediate chunks, 200/201 for the final one
       if (chunkRes.status !== 308 && !chunkRes.ok) {

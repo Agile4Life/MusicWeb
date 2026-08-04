@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --font-sans: var(--font-jakarta), system-ui, -apple-system, sans-serif;
+  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
   --bg-space: #07090e;
   --spotify-green: #1db954;
   --spotify-glow: #1ed760;

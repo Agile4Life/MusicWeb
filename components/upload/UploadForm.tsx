@@ -68,6 +68,18 @@ function cleanSongTitle(str: string): string {
     .trim()
 }
 
+function cleanSongArtist(str: string | null | undefined): string {
+  return (str || '')
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function trackDuplicateKey(title: string, artist: string | null | undefined): string {
+  return `${cleanSongTitle(title)}|||${cleanSongArtist(artist)}`
+}
+
 interface UploadFormProps {
   playlistId?: string
   onClose?: () => void
@@ -96,28 +108,12 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
 
       const trackList: Array<{ title: string; artist?: string | null }> = []
 
-      // 1. Fetch from view_track_details
-      const { data: viewData } = await supabase
-        .from('view_track_details')
-        .select('title, artist_name, artist')
-        .eq('user_id', user.id)
-
-      if (viewData) {
-        viewData.forEach((t: any) => {
-          const cleanTitle = cleanSongTitle(t.title || '')
-          if (cleanTitle) {
-            trackList.push({
-              title: cleanTitle,
-              artist: (t.artist_name || t.artist || '').trim().toLowerCase(),
-            })
-          }
-        })
-      }
-
-      // 2. Fetch from raw tracks table
+      // The base schema stores artist directly on tracks. Do not query the
+      // optional view/artist relation here: a failed nested select used to be
+      // silently ignored and disabled duplicate detection completely.
       const { data: rawData } = await supabase
         .from('tracks')
-        .select('title, artist, artists(name)')
+        .select('title, artist')
         .eq('user_id', user.id)
 
       if (rawData) {
@@ -126,7 +122,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
           if (cleanTitle) {
             trackList.push({
               title: cleanTitle,
-              artist: (t.artists?.name || t.artist || '').trim().toLowerCase(),
+              artist: cleanSongArtist(t.artist),
             })
           }
         })
@@ -153,15 +149,16 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
     dbTracks: Array<{ title: string; artist?: string | null }>
   ): { isDuplicate: boolean; reason: string | null } => {
     const normTitle = cleanSongTitle(title)
-    const normArtist = artist.trim().toLowerCase()
+    const normArtist = cleanSongArtist(artist)
 
     if (!normTitle) return { isDuplicate: false, reason: null }
 
     // 1. Check against DB library (matches normalized title)
     const existsInDb = dbTracks.some((t) => {
-      if (t.title !== normTitle) return false
+      if (cleanSongTitle(t.title) !== normTitle) return false
       if (!normArtist || !t.artist) return true
-      return t.artist === normArtist || normArtist.includes(t.artist) || t.artist.includes(normArtist)
+      const existingArtist = cleanSongArtist(t.artist)
+      return existingArtist === normArtist
     })
 
     if (existsInDb) {
@@ -171,8 +168,8 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
     // 2. Check against other items in current Queue
     const existsInQueue = currentQueue.some(
       (item) =>
-        item.id !== id &&
-        cleanSongTitle(item.title) === normTitle
+      item.id !== id &&
+        trackDuplicateKey(item.title, item.artist) === trackDuplicateKey(title, artist)
     )
 
     if (existsInQueue) {
@@ -371,10 +368,11 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
   // Upload single track workflow with mandatory lightweight MP3 compression & live DB check
   const processSingleTrack = async (
     item: QueueItem,
-    userId: string
+    userId: string,
+    batchKeys: Set<string>
   ): Promise<boolean> => {
     const cleanTitle = (item.title || item.file.name).trim()
-    const normTitle = cleanSongTitle(cleanTitle)
+    const uploadKey = trackDuplicateKey(cleanTitle, item.artist)
 
     // 0. Auto-skip if marked duplicate and skipDuplicates is checked (unless forceUpload is true)
     if (skipDuplicates && item.isDuplicate && !item.forceUpload) {
@@ -387,16 +385,19 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       return true
     }
 
-    // 0b. Live DB duplicate check right before processing
+    // 0b. Live DB duplicate check right before processing. This is done after
+    // metadata parsing and uses the same title+artist normalization as the UI.
     if (skipDuplicates && !item.forceUpload) {
       const { data: dbCheck } = await supabase
         .from('tracks')
-        .select('id, title')
+        .select('id, title, artist')
         .eq('user_id', userId)
-        .ilike('title', cleanTitle)
-        .limit(1)
+        .limit(1000)
 
-      if (dbCheck && dbCheck.length > 0) {
+      const existsInDb = dbCheck?.some((track: { title: string; artist: string | null }) =>
+        trackDuplicateKey(track.title, track.artist) === uploadKey
+      )
+      if (existsInDb || batchKeys.has(uploadKey)) {
         updateItem(item.id, {
           status: 'skipped',
           progress: 0,
@@ -408,6 +409,10 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
         return true
       }
     }
+
+    // Reserve the normalized key before the network upload starts. This closes
+    // the same-batch race where every item was checked against the old DB state.
+    if (!item.forceUpload) batchKeys.add(uploadKey)
 
     try {
       const uploadFile = item.file
@@ -537,6 +542,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       })
       return true
     } catch (err: any) {
+      if (!item.forceUpload) batchKeys.delete(uploadKey)
       let msg = err.message || 'Đã xảy ra lỗi khi upload'
       if (msg.includes('exceeded the maximum allowed size') || msg.includes('413')) {
         msg = 'File vượt quá giới hạn Supabase Storage Bucket. Vui lòng kiểm tra Max file size trong Dashboard.'
@@ -576,11 +582,12 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       await fetchExistingTracks()
 
       const total = itemsToUpload.length
+      const batchKeys = new Set<string>()
       for (let i = 0; i < total; i++) {
         const item = itemsToUpload[i]
         setOverallBatchInfo(`⏫ Đang xử lý bài ${i + 1} / ${total}: "${item.title}"...`)
         // Process one track at a time — await before moving to next
-        await processSingleTrack(item, user.id)
+        await processSingleTrack(item, user.id, batchKeys)
       }
 
       setOverallBatchInfo('🎉 Đã hoàn tất xử lý tất cả bài hát!')
