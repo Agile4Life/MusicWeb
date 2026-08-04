@@ -15,6 +15,15 @@ export async function compressAudioIfNeeded(
 ): Promise<{ file: File; compressed: boolean; originalSizeMB: number; newSizeMB: number }> {
   const originalSizeMB = Number((file.size / (1024 * 1024)).toFixed(2))
 
+  // Keep formats that browsers reliably play untouched. In particular, AAC
+  // 320kbps must not be transcoded to MP3 because that would add another
+  // lossy compression step. FLAC/WAV are normalized to MP3 for web playback.
+  const extension = file.name.split('.').pop()?.toLowerCase()
+  const nativeFormats = new Set(['aac', 'm4a', 'mp3', 'ogg', 'oga', 'opus'])
+  if (extension && nativeFormats.has(extension)) {
+    return { file, compressed: false, originalSizeMB, newSizeMB: originalSizeMB }
+  }
+
   // If file size is under threshold, no compression needed
   if (file.size < minCompressSizeMB * 1024 * 1024) {
     return { file, compressed: false, originalSizeMB, newSizeMB: originalSizeMB }

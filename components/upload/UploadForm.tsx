@@ -425,7 +425,8 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
         compressInfo: '0%',
       })
 
-      // Normalize every source codec/container to MP3 for browser playback.
+      // Preserve AAC 320. FLAC/WAV are normalized to MP3 for web playback;
+      // unknown codecs also use MP3 as a compatibility fallback.
       const compression = await compressAudioIfNeeded(
         item.file,
         (percent, stageText) => updateItem(item.id, {
