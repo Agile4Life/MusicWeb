@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import * as mm from 'music-metadata-browser'
 import { compressAudioIfNeeded } from '@/lib/audioCompressor'
+import { uploadToGoogleDrive } from '@/lib/googleDriveUpload'
 
 export interface QueueItem {
   id: string
@@ -442,35 +443,43 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
 
       updateItem(item.id, {
         status: 'uploading',
-        progress: 55,
-        compressInfo: compInfoStr ? `${compInfoStr} Đang tải lên...` : 'Đang tải lên Supabase Storage...',
+        progress: 10,
+        compressInfo: compInfoStr ? `${compInfoStr} Đang tải lên Google Drive...` : 'Đang tải lên Google Drive qua Cloudflare Worker...',
       })
 
-      // 2. Storage upload stage
-      const fileExt = uploadFile.name.split('.').pop() || 'mp3'
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
-      const filePath = `${userId}/${fileName}`
-
-      let uploadErr: any = null
-      const { data: signedData, error: signedTokenErr } = await supabase.storage
-        .from('music-files')
-        .createSignedUploadUrl(filePath)
-
-      if (!signedTokenErr && signedData?.token) {
-        const { error: signedUploadErr } = await supabase.storage
-          .from('music-files')
-          .uploadToSignedUrl(filePath, signedData.token, uploadFile)
-        uploadErr = signedUploadErr
-      } else {
-        const { error: directErr } = await supabase.storage
-          .from('music-files')
-          .upload(filePath, uploadFile, { upsert: true })
-        uploadErr = directErr
+      // Lấy tên Playlist nếu có playlistId để tự tạo thư mục tương ứng trên Google Drive
+      let targetFolderName: string | undefined = undefined
+      if (playlistId) {
+        try {
+          const { data: plData } = await supabase
+            .from('playlists')
+            .select('name')
+            .eq('id', playlistId)
+            .single()
+          if (plData?.name) targetFolderName = plData.name
+        } catch {
+          // ignore
+        }
       }
 
-      if (uploadErr) {
-        throw new Error(`Upload storage thất bại: ${uploadErr.message}`)
+      // 2. Upload trực tiếp lên Google Drive qua Cloudflare Resumable Upload Session
+      const driveResult = await uploadToGoogleDrive({
+        file: uploadFile,
+        fileName: cleanTitle,
+        folderName: targetFolderName,
+        onProgress: ({ percent }) => {
+          updateItem(item.id, {
+            progress: 10 + Math.round(percent * 0.7),
+          })
+        },
+      })
+
+      if (!driveResult.success || !driveResult.fileId) {
+        throw new Error(`Upload Google Drive thất bại: ${driveResult.error || 'Không nhận được File ID'}`)
       }
+
+      // Link stream trực tiếp từ Google Drive CDN
+      const filePath = `https://lh3.googleusercontent.com/d/${driveResult.fileId}`
 
       // 3. Save to DB
       updateItem(item.id, { status: 'saving_db', progress: 80 })
