@@ -98,10 +98,16 @@ export function AuthForm({ mode }: AuthFormProps) {
         body: JSON.stringify({ email: passkeyEmail, passkey: passkeyInput }),
       })
 
-      const data = await res.json()
+      const text = await res.text()
+      let data: any = {}
+      try {
+        data = text ? JSON.parse(text) : {}
+      } catch {
+        throw new Error('Máy chủ phản hồi không đúng định dạng. Vui lòng thử lại!')
+      }
 
       if (!res.ok) {
-        throw new Error(data.error || 'Lỗi xác thực Passkey')
+        throw new Error(data.error || 'Mã Passkey không hợp lệ. Vui lòng kiểm tra lại!')
       }
 
       setPasskeySuccess(data.message || 'Xác thực Passkey thành công! Đã gửi thông báo tới Gmail Admin.')

@@ -76,7 +76,11 @@ export async function POST(request: Request) {
             email: cleanEmail,
             role: 'listener',
           })
-          fs.writeFileSync(configPath, JSON.stringify(configData, null, 2), 'utf-8')
+          try {
+            fs.writeFileSync(configPath, JSON.stringify(configData, null, 2), 'utf-8')
+          } catch (writeErr) {
+            console.warn('Vercel read-only filesystem, skipping local file write:', writeErr)
+          }
         }
       }
     } catch (fsErr) {
