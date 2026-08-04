@@ -896,7 +896,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
                       )}
                       {item.status === 'compressing' && (
                         <span className="text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20 font-semibold flex items-center gap-1">
-                          <Loader2 className="w-3 h-3 animate-spin" /> Đang nén MP3
+                          <Loader2 className="w-3 h-3 animate-spin" /> Đang xử lý audio
                         </span>
                       )}
                       {item.status === 'uploading' && (

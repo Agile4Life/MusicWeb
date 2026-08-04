@@ -32,7 +32,9 @@ export async function transcodeToM4a(
 ): Promise<File> {
   if (typeof window === 'undefined') throw new Error('Audio conversion must run in the browser')
 
+  onProgress?.(1, 'Đang tải bộ chuyển đổi audio...')
   const ffmpeg = await getFFmpeg()
+  onProgress?.(8, 'Đã sẵn sàng, đang đọc file audio...')
   const inputName = `input-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
   const outputName = `${inputName}.m4a`
   let lastLog = ''
@@ -47,7 +49,6 @@ export async function transcodeToM4a(
   ffmpeg.on('log', handleLog)
 
   try {
-    onProgress?.(1, 'Đang tải bộ chuyển đổi audio...')
     await ffmpeg.writeFile(inputName, await fetchFile(file))
     const exitCode = await ffmpeg.exec([
       '-i', inputName,

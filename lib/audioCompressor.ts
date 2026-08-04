@@ -36,7 +36,8 @@ export async function compressAudioIfNeeded(
       }
     } catch (error) {
       console.error('FLAC/WAV to M4A conversion failed:', error)
-      throw new Error('Không thể chuyển FLAC/WAV sang M4A/AAC 320kbps')
+      const detail = error instanceof Error ? error.message : String(error)
+      throw new Error(`Không thể chuyển FLAC/WAV sang M4A/AAC 320kbps: ${detail}`)
     }
   }
 
