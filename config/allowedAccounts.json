@@ -1,0 +1,16 @@
+{
+  "allowAllAsListeners": true,
+  "adminEmails": [
+    "admin@gmail.com"
+  ],
+  "allowedEmails": [
+    {
+      "email": "admin@gmail.com",
+      "role": "admin"
+    },
+    {
+      "email": "listener@gmail.com",
+      "role": "listener"
+    }
+  ]
+}
