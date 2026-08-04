@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react'
 import { uploadToGoogleDrive } from '@/lib/googleDriveUpload'
-import { Upload, CheckCircle2, AlertCircle, Loader2, FileUp, HardDrive } from 'lucide-react'
+import { Upload, CheckCircle2, AlertCircle, Loader2, FileUp, HardDrive, FolderPlus } from 'lucide-react'
 
 function formatFileSize(bytes: number): string {
   if (!bytes) return '0 MB'
@@ -17,6 +17,7 @@ export function GoogleDriveUpload() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [playlistName, setPlaylistName] = useState<string>('')
   const [isUploading, setIsUploading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [uploadedBytes, setUploadedBytes] = useState(0)
@@ -43,11 +44,12 @@ export function GoogleDriveUpload() {
     setError(null)
     setUploadedFileId(null)
     setProgress(0)
-    setStatusText('Đang khởi tạo Upload Session từ Cloudflare Worker...')
+    setStatusText('Đang khởi tạo Upload Session & Thư mục Playlist từ Cloudflare Worker...')
 
     try {
       const result = await uploadToGoogleDrive({
         file: selectedFile,
+        folderName: playlistName.trim() || undefined, // Tự động tạo thư mục theo tên Playlist
         onProgress: ({ percent, uploadedBytes, totalBytes }) => {
           setProgress(percent)
           setUploadedBytes(uploadedBytes)
@@ -61,7 +63,7 @@ export function GoogleDriveUpload() {
       }
 
       setProgress(100)
-      setStatusText('✅ Upload hoàn tất thành công lên Google Drive!')
+      setStatusText('✅ Upload hoàn tất thành công vào Google Drive!')
       if (result.fileId) {
         setUploadedFileId(result.fileId)
       }
@@ -82,9 +84,27 @@ export function GoogleDriveUpload() {
         <div>
           <h2 className="text-xl font-bold text-white">Upload File Dung Lượng Lớn</h2>
           <p className="text-xs text-slate-400">
-            Sử dụng Cloudflare Worker + Resumable Upload API (Hỗ trợ file hàng GB)
+            Tự động tạo Thư mục Playlist riêng trên Google Drive cho từng danh sách nhạc
           </p>
         </div>
+      </div>
+
+      {/* Playlist / Folder Name Input */}
+      <div className="mb-4">
+        <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center gap-1.5">
+          <FolderPlus className="w-4 h-4 text-blue-400" /> Tên Playlist / Thư mục lưu trữ (Tùy chọn):
+        </label>
+        <input
+          type="text"
+          value={playlistName}
+          onChange={(e) => setPlaylistName(e.target.value)}
+          disabled={isUploading}
+          placeholder="Ví dụ: Nhạc Trẻ, Lofi Chill, Bolero, Album 2026..."
+          className="w-full bg-black/40 border border-white/15 rounded-2xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+        />
+        <p className="text-[11px] text-slate-400 mt-1">
+          * Nếu để trống, bài hát sẽ được lưu trực tiếp vào thư mục gốc `Worker-music-web`.
+        </p>
       </div>
 
       {/* Select File Box */}
@@ -115,8 +135,8 @@ export function GoogleDriveUpload() {
             </div>
           ) : (
             <div>
-              <p className="text-sm font-semibold text-white">Bấm để chọn file bất kỳ từ máy tính</p>
-              <p className="text-xs text-slate-400 mt-1">MP3, WAV, MP4, MKV, ZIP... (Không giới hạn)</p>
+              <p className="text-sm font-semibold text-white">Bấm để chọn file từ máy tính</p>
+              <p className="text-xs text-slate-400 mt-1">Hỗ trợ MP3, WAV, MP4, MKV, ZIP... (Không giới hạn dung lượng)</p>
             </div>
           )}
         </div>
@@ -162,7 +182,10 @@ export function GoogleDriveUpload() {
         <div className="mt-4 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-3">
           <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
           <div className="text-xs text-slate-200">
-            <p className="font-bold text-emerald-400">Upload thành công lên Google Drive!</p>
+            <p className="font-bold text-emerald-400">Upload thành công vào Google Drive!</p>
+            <p className="text-slate-300 mt-0.5">
+              Thư mục lưu trữ: <strong className="text-white">{playlistName.trim() || 'Worker-music-web (Thư mục gốc)'}</strong>
+            </p>
             <p className="text-slate-400 mt-1 font-mono">File ID: {uploadedFileId}</p>
           </div>
         </div>
