@@ -137,7 +137,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
     fetchExistingTracks()
   }, [])
 
-  // Helper to check if a track is a duplicate against DB or local Queue
+  // Helper to check if a track is a duplicate against DB or local Queue across all albums
   const checkDuplicate = (
     title: string,
     artist: string,
@@ -150,24 +150,28 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
 
     if (!normTitle) return { isDuplicate: false, reason: null }
 
-    // 1. Check against DB library (matches normalized title)
+    // 1. Check against DB library (matches normalized title & artist overlap regardless of album)
     const existsInDb = dbTracks.some((t) => {
-      if (cleanSongTitle(t.title) !== normTitle) return false
-      if (!normArtist || !t.artist) return true
-      const existingArtist = cleanSongArtist(t.artist)
-      return existingArtist === normArtist
+      const dbTitle = cleanSongTitle(t.title)
+      if (dbTitle !== normTitle) return false
+      const dbArtist = cleanSongArtist(t.artist)
+      if (!normArtist || !dbArtist) return true
+      return normArtist === dbArtist || normArtist.includes(dbArtist) || dbArtist.includes(normArtist)
     })
 
     if (existsInDb) {
-      return { isDuplicate: true, reason: 'Bài hát đã có sẵn trong Thư viện cá nhân' }
+      return { isDuplicate: true, reason: 'Bài hát đã có sẵn trong Thư viện' }
     }
 
-    // 2. Check against other items in current Queue
-    const existsInQueue = currentQueue.some(
-      (item) =>
-      item.id !== id &&
-        trackDuplicateKey(item.title, item.artist) === trackDuplicateKey(title, artist)
-    )
+    // 2. Check against other items in current Queue (matches title & artist overlap regardless of album)
+    const existsInQueue = currentQueue.some((item) => {
+      if (item.id === id) return false
+      const qTitle = cleanSongTitle(item.title)
+      if (qTitle !== normTitle) return false
+      const qArtist = cleanSongArtist(item.artist)
+      if (!normArtist || !qArtist) return true
+      return normArtist === qArtist || normArtist.includes(qArtist) || qArtist.includes(normArtist)
+    })
 
     if (existsInQueue) {
       return { isDuplicate: true, reason: 'Trùng lặp với 1 bài khác trong hàng chờ' }
@@ -385,17 +389,24 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       return true
     }
 
-    // 0b. Live DB duplicate check right before processing. This is done after
-    // metadata parsing and uses the same title+artist normalization as the UI.
+    // 0b. Live DB duplicate check right before processing. Matches normalized title & artist overlap regardless of album
     if (skipDuplicates && !item.forceUpload) {
       const { data: dbCheck } = await supabase
         .from('tracks')
         .select('id, title, artist')
-        .limit(2000)
+        .limit(3000)
 
-      const existsInDb = dbCheck?.some((track: { title: string; artist: string | null }) =>
-        trackDuplicateKey(track.title, track.artist) === uploadKey
-      )
+      const normTitle = cleanSongTitle(cleanTitle)
+      const normArtist = cleanSongArtist(item.artist)
+
+      const existsInDb = dbCheck?.some((track: { title: string; artist: string | null }) => {
+        const dbTitle = cleanSongTitle(track.title)
+        if (dbTitle !== normTitle) return false
+        const dbArtist = cleanSongArtist(track.artist)
+        if (!normArtist || !dbArtist) return true
+        return normArtist === dbArtist || normArtist.includes(dbArtist) || dbArtist.includes(normArtist)
+      })
+
       if (existsInDb || batchKeys.has(uploadKey)) {
         updateItem(item.id, {
           status: 'skipped',

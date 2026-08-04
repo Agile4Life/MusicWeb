@@ -169,9 +169,20 @@ export default function HomePage() {
       const seen = new Map<string, Track>()
       const toDelete: Track[] = []
 
-      // tracks are already sorted by created_at desc (newest first)
       for (const track of tracks) {
-        const key = `${track.title?.toLowerCase().trim()}|||${(track.artist || '').toLowerCase().trim()}`
+        const normTitle = (track.title || '')
+          .normalize('NFKC')
+          .toLowerCase()
+          .replace(/\.[^/.]+$/, '')
+          .replace(/^\d+[\s._-]+/, '')
+          .replace(/\[(mv|official|audio|hq|hd|lyrics|flac|320kbps|320)\]/gi, '')
+          .replace(/\((official audio|lyric video|audio|official music video|official video|video|mv|320kbps|mp3|flac|hq|hd)\)/gi, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+
+        const normArtist = (track.artist || '').normalize('NFKC').toLowerCase().trim()
+        const key = `${normTitle}|||${normArtist}`
+
         if (seen.has(key)) {
           // This is an older duplicate — mark for deletion
           toDelete.push(track)
