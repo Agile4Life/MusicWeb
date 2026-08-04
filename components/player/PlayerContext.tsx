@@ -13,6 +13,7 @@ interface PlayerContextType {
   currentTime: number
   duration: number
   volume: number
+  playbackError: string | null
   playTrack: (track: Track, newQueue?: Track[]) => Promise<void>
   togglePlay: () => void
   seek: (time: number) => void
@@ -32,6 +33,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [currentTime, setCurrentTime] = useState<number>(0)
   const [duration, setDuration] = useState<number>(0)
   const [volume, setVolumeState] = useState<number>(0.8)
+  const [playbackError, setPlaybackError] = useState<string | null>(null)
   const [autoPlayNext, setAutoPlayNext] = useState(true)
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -87,6 +89,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return filePath
     }
 
+    // A few early uploads stored only the Google Drive file ID.
+    if (/^[A-Za-z0-9_-]{20,}$/.test(filePath)) {
+      return buildDriveStreamUrl(filePath)
+    }
+
     // Try creating signed URL (valid for 1 hour)
     const { data, error } = await supabase.storage
       .from('music-files')
@@ -116,10 +123,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     setCurrentTrack(track)
+    setPlaybackError(null)
 
     const url = await getAudioUrl(track.file_path)
     const audio = audioRef.current
-    if (!url || !audio || requestId !== playRequestRef.current) return
+    if (!url || !audio || requestId !== playRequestRef.current) {
+      if (!url) setPlaybackError('Không tìm thấy đường dẫn audio của bài hát')
+      return
+    }
 
     audio.pause()
     audio.src = url
@@ -133,6 +144,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       supabase.rpc('fn_play_track', { p_track_id: track.id }).catch(() => {})
     } catch (err) {
       setIsPlaying(false)
+      const message = err instanceof Error ? err.message : String(err)
+      setPlaybackError(`Không thể phát audio: ${message}`)
       console.error('Audio playback error:', { trackId: track.id, url, error: err })
     }
   }
@@ -147,7 +160,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audioRef.current
         .play()
         .then(() => setIsPlaying(true))
-        .catch((err) => console.error('Playback error:', err))
+        .catch((err) => {
+          setIsPlaying(false)
+          const message = err instanceof Error ? err.message : String(err)
+          setPlaybackError(`Không thể phát audio: ${message}`)
+          console.error('Playback error:', err)
+        })
     }
   }
 
@@ -187,6 +205,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const handleError = () => {
       setIsPlaying(false)
       setDuration(0)
+      const mediaError = audio.error
+      setPlaybackError(`Audio lỗi${mediaError?.code ? ` (mã ${mediaError.code})` : ''}: ${mediaError?.message || 'không đọc được file'}`)
       console.error('Audio element error:', {
         src: audio.currentSrc || audio.src,
         mediaErrorCode: audio.error?.code,
@@ -221,6 +241,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         currentTime,
         duration,
         volume,
+        playbackError,
         playTrack,
         togglePlay,
         seek,
