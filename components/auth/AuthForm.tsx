@@ -84,6 +84,13 @@ export function AuthForm({ mode }: AuthFormProps) {
     setPasskeyError(null)
     setPasskeySuccess(null)
 
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+    if (!emailRegex.test(passkeyEmail.trim())) {
+      setPasskeyError('Địa chỉ Gmail không đúng định dạng (ví dụ: user@gmail.com)')
+      setPasskeyLoading(false)
+      return
+    }
+
     try {
       const res = await fetch('/api/passkey-request', {
         method: 'POST',
@@ -461,22 +468,21 @@ export function AuthForm({ mode }: AuthFormProps) {
             )}
 
             {passkeySuccess ? (
-              <div className="p-5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 rounded-2xl text-xs flex flex-col gap-3">
-                <div className="flex items-center gap-2 text-emerald-400 font-extrabold text-sm">
-                  <CheckCircle2 className="w-5 h-5 shrink-0" />
-                  <span>Yêu cầu đã được ghi nhận!</span>
+              <div className="p-6 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 rounded-3xl text-xs flex flex-col items-center text-center gap-4 animate-in zoom-in-95 duration-200">
+                <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-lg shadow-amber-500/10">
+                  <CheckCircle2 className="w-7 h-7 text-emerald-400" />
                 </div>
-                <div className="bg-black/40 p-3.5 rounded-xl border border-emerald-500/20 text-slate-200 text-xs leading-relaxed flex flex-col gap-2">
-                  <p className="font-bold text-amber-300 flex items-center gap-1.5">
-                    <span>⏳ Vui lòng đợi quản trị viên cấp phép!</span>
-                  </p>
-                  <p className="text-[11px] text-slate-300">
-                    Yêu cầu truy cập của tài khoản <strong className="text-cyan-400">{passkeyEmail}</strong> đã được hệ thống tự động gửi trực tiếp về Gmail cá nhân của Admin (<strong className="text-amber-300">tranphong16012006@gmail.com</strong>).
+                <div className="flex flex-col gap-1.5">
+                  <h3 className="text-lg font-extrabold text-amber-300">
+                    ⏳ Vui lòng đợi quản trị viên cấp phép!
+                  </h3>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Yêu cầu truy cập của tài khoản <strong className="text-cyan-400">{passkeyEmail}</strong> đã được tự động gửi tới Gmail cá nhân của Admin.
                   </p>
                 </div>
                 <button
                   onClick={() => setShowPasskeyModal(false)}
-                  className="w-full bg-emerald-500 text-black font-extrabold py-2.5 rounded-full hover:scale-105 transition-all text-xs shadow-lg mt-1"
+                  className="w-full bg-emerald-500 text-black font-extrabold py-2.5 rounded-full hover:scale-105 transition-all text-xs shadow-lg mt-2"
                 >
                   Đóng cửa sổ
                 </button>
@@ -513,14 +519,10 @@ export function AuthForm({ mode }: AuthFormProps) {
                   </div>
                 </div>
 
-                <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-2xl text-xs text-amber-300 font-bold leading-relaxed flex items-center justify-center gap-2">
-                  <span>⏳ Vui lòng đợi quản trị viên cấp phép!</span>
-                </div>
-
                 <button
                   type="submit"
                   disabled={passkeyLoading}
-                  className="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-extrabold py-3 rounded-full transition-transform active:scale-95 flex items-center justify-center gap-2 mt-1 shadow-lg shadow-amber-500/20 disabled:opacity-50 text-xs"
+                  className="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-extrabold py-3 rounded-full transition-transform active:scale-95 flex items-center justify-center gap-2 mt-2 shadow-lg shadow-amber-500/20 disabled:opacity-50 text-xs"
                 >
                   {passkeyLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin text-slate-950" />

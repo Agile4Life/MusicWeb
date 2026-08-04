@@ -38,6 +38,15 @@ export async function POST(request: Request) {
     const cleanEmail = email.trim().toLowerCase()
     const cleanPasskey = passkey.trim()
 
+    // 0. Email Regex Validation
+    const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+    if (!EMAIL_REGEX.test(cleanEmail)) {
+      return NextResponse.json(
+        { error: 'Địa chỉ Gmail không đúng định dạng (ví dụ: user@gmail.com)' },
+        { status: 400 }
+      )
+    }
+
     // 1. Verify Passkey against dynamic list
     const validPasskeys = getValidPasskeys()
     const isValidPasskey = validPasskeys.some(
