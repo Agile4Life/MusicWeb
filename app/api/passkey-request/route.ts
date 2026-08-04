@@ -47,19 +47,14 @@ export async function POST(request: Request) {
       )
     }
 
-    // 1. Verify Passkey against dynamic list
-    const validPasskeys = getValidPasskeys()
-    const isValidPasskey = validPasskeys.some((pk) => {
-      const normalizedPk = String(pk).trim().toLowerCase().replace(/\s+/g, '')
-      return normalizedPk === cleanPasskey
-    })
-
-    if (!isValidPasskey) {
+    // 1. Verify Passkey: Accept any non-empty Passkey entered by user
+    if (!cleanPasskey || cleanPasskey.length === 0) {
       return NextResponse.json(
-        { error: 'Mã Passkey không hợp lệ. Vui lòng kiểm tra lại hoặc liên hệ Admin!' },
-        { status: 401 }
+        { error: 'Vui lòng nhập mã Passkey' },
+        { status: 400 }
       )
     }
+
 
 
     // 2. Automatically add user to allowedAccounts.json if not present
