@@ -143,11 +143,8 @@ export function TopBar() {
 
   return (
     <header className="sticky top-0 z-30 bg-[#090b12]/95 backdrop-blur-2xl border-b border-white/10 px-4 md:px-8 py-3 flex items-center justify-between gap-4">
-      {/* Left Slot: Symmetrical balance spacer or brand label */}
-      <div className="hidden lg:flex items-center gap-2 text-slate-400 w-48 shrink-0">
-        <AppLogoIcon className="w-4 h-4 text-cyan-400" />
-        <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">MusicWeb</span>
-      </div>
+      {/* Left Slot: Symmetrical balance spacer */}
+      <div className="hidden lg:block w-48 shrink-0" />
 
       {/* Center Slot: Perfectly Centered Prominent Search Box */}
       <div className="relative flex-1 max-w-2xl mx-auto" ref={dropdownRef}>
