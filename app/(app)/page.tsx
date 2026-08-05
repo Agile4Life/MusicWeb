@@ -20,10 +20,10 @@ import {
   Radio,
   Loader2,
   TrendingUp,
+  History,
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { getValidUserId } from '@/lib/accessControl'
-
 import { useSearchParams } from 'next/navigation'
 
 export default function HomePage() {
@@ -33,6 +33,7 @@ export default function HomePage() {
   const searchParams = useSearchParams()
 
   const [tracks, setTracks] = useState<Track[]>([])
+  const [recentTracks, setRecentTracks] = useState<Track[]>([])
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [searchSource, setSearchSource] = useState<'all' | 'youtube' | 'audius' | 'itunes' | 'local'>('all')
@@ -41,6 +42,7 @@ export default function HomePage() {
     const urlQuery = searchParams.get('q') || ''
     setSearchQuery(urlQuery)
   }, [searchParams])
+
   const [loading, setLoading] = useState(true)
   const [supabaseUser, setSupabaseUser] = useState<any>(null)
   const [cleaningDuplicates, setCleaningDuplicates] = useState(false)
@@ -87,7 +89,6 @@ export default function HomePage() {
         setTracks(rawTracks.map((t: Track) => ({ ...t, source: 'local' })))
       }
 
-      // Strictly query playlists belonging to the current user
       const activeUser =
         currentUser ||
         (nextAuthSession?.user
@@ -99,17 +100,40 @@ export default function HomePage() {
       const userId = activeUser ? getValidUserId(activeUser) : null
 
       if (userId) {
-        const { data: playlistData, error: plError } = await supabase
+        // Query user's playlists
+        const { data: playlistData } = await supabase
           .from('playlists')
           .select('*')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
 
-        if (!plError && playlistData) {
-          setPlaylists(playlistData)
+        if (playlistData) setPlaylists(playlistData)
+
+        // Query Recently Played Songs from listening_history
+        const { data: historyData } = await supabase
+          .from('listening_history')
+          .select('id, played_at, tracks:track_id(*)')
+          .eq('user_id', userId)
+          .order('played_at', { ascending: false })
+          .limit(100)
+
+        if (historyData && historyData.length > 0) {
+          const seen = new Set<string>()
+          const recent: Track[] = []
+          for (const item of historyData) {
+            const tr = item.tracks as any
+            if (tr && tr.id && !seen.has(tr.id)) {
+              seen.add(tr.id)
+              recent.push({ ...tr, source: tr.source || 'local' })
+            }
+          }
+          setRecentTracks(recent)
+        } else {
+          setRecentTracks([])
         }
       } else {
         setPlaylists([])
+        setRecentTracks([])
       }
     } catch (err) {
       console.error('fetchData error in page.tsx:', err)
@@ -118,7 +142,7 @@ export default function HomePage() {
     }
   }
 
-  // Fetch Global Trending Music (YouTube, Audius, iTunes) automatically on mount
+  // Fetch Global Trending Music automatically on mount
   useEffect(() => {
     fetchData()
 
@@ -132,7 +156,6 @@ export default function HomePage() {
         const audius = data.audius || []
         const itunes = data.itunes || []
 
-        // Interleave YouTube, Audius & iTunes trending tracks
         const combined: Track[] = []
         const maxLen = Math.max(yt.length, audius.length, itunes.length)
         for (let i = 0; i < maxLen; i++) {
@@ -159,6 +182,7 @@ export default function HomePage() {
       .channel('home-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tracks' }, () => debouncedFetch())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'playlists' }, () => debouncedFetch())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'listening_history' }, () => debouncedFetch())
       .subscribe()
 
     return () => {
@@ -202,8 +226,6 @@ export default function HomePage() {
   const handleAddToPlaylist = async (playlistId: string, track: Track) => {
     let targetTrackId = track.id
 
-    // If track is from an external global source (YouTube, Audius, iTunes),
-    // save it to DB tracks table first so it gets a valid UUID for playlist relationship
     if (track.source && track.source !== 'local') {
       const activeUser = user ? { id: user.id, email: user.email } : null
       const userId = activeUser ? getValidUserId(activeUser) : null
@@ -212,7 +234,6 @@ export default function HomePage() {
         return
       }
 
-      // Check if track already exists in tracks table by file_path
       const { data: existing } = await supabase
         .from('tracks')
         .select('id')
@@ -245,7 +266,6 @@ export default function HomePage() {
       }
     }
 
-    // Try calling RPC fn_add_track_to_playlist first
     const { error: rpcError } = await Promise.resolve(
       supabase.rpc('fn_add_track_to_playlist', {
         p_playlist_id: playlistId,
@@ -258,7 +278,6 @@ export default function HomePage() {
       return
     }
 
-    // Direct insert fallback into playlist_tracks
     const { error } = await supabase.from('playlist_tracks').insert({
       playlist_id: playlistId,
       track_id: targetTrackId,
@@ -293,6 +312,7 @@ export default function HomePage() {
     }
 
     setTracks(tracks.filter((t) => t.id !== trackId))
+    setRecentTracks(recentTracks.filter((t) => t.id !== trackId))
   }
 
   const handleCleanDuplicates = async () => {
@@ -358,24 +378,29 @@ export default function HomePage() {
 
   const handleTrackUpdated = (trackId: string, updates: Partial<Track>) => {
     setTracks((prev) => prev.map((t) => (t.id === trackId ? { ...t, ...updates } : t)))
+    setRecentTracks((prev) => prev.map((t) => (t.id === trackId ? { ...t, ...updates } : t)))
   }
 
   const handleBulkUpdated = (trackIds: string[], updates: Partial<Track>) => {
     const idSet = new Set(trackIds)
     setTracks((prev) => prev.map((t) => (idSet.has(t.id) ? { ...t, ...updates } : t)))
+    setRecentTracks((prev) => prev.map((t) => (idSet.has(t.id) ? { ...t, ...updates } : t)))
   }
 
   const handleBulkDeleted = (trackIds: string[]) => {
     const idSet = new Set(trackIds)
     setTracks((prev) => prev.filter((t) => !idSet.has(t.id)))
+    setRecentTracks((prev) => prev.filter((t) => !idSet.has(t.id)))
   }
 
   const isAdmin = user?.app_metadata?.role === 'admin' || user?.email === 'admin@musicweb.com'
 
   const isSearching = searchQuery.trim().length > 0
   let displayedTracks: Track[] = []
+  let sectionTitle = 'Bài Hát Nghe Gần Đây'
 
   if (isSearching) {
+    sectionTitle = 'Kết Quả Tìm Kiếm Toàn Cầu'
     if (searchSource === 'all') {
       displayedTracks = [
         ...globalTracks.itunes,
@@ -393,7 +418,14 @@ export default function HomePage() {
       displayedTracks = globalTracks.local
     }
   } else {
-    displayedTracks = tracks
+    // Show Recently Played tracks if available, otherwise show all library tracks
+    if (recentTracks.length > 0) {
+      displayedTracks = recentTracks
+      sectionTitle = `Bài Hát Nghe Gần Đây (${recentTracks.length})`
+    } else {
+      displayedTracks = tracks
+      sectionTitle = `Thư Viện Bài Hát Cá Nhân (${tracks.length})`
+    }
   }
 
   return (
@@ -523,13 +555,17 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Main Tracks Table Section */}
+      {/* Main Tracks Table Section (Recently Played Songs / Library) */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Disc className="w-5 h-5 text-[var(--primary-spotify)]" />
-              {isSearching ? 'Kết Quả Tìm Kiếm Toàn Cầu' : `Thư Viện Bài Hát Cá Nhân (${tracks.length})`}
+              {!isSearching && recentTracks.length > 0 ? (
+                <History className="w-5 h-5 text-[var(--primary-spotify)]" />
+              ) : (
+                <Disc className="w-5 h-5 text-[var(--primary-spotify)]" />
+              )}
+              {sectionTitle}
             </h2>
             {searchingGlobal && <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />}
           </div>
@@ -568,7 +604,7 @@ export default function HomePage() {
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
               <input
                 type="text"
-                placeholder="Tìm nhạc toàn thế giới (iTunes, YouTube, Audius, Thư viện)..."
+                placeholder={recentTracks.length > 0 ? "Tìm bài hát nghe gần đây..." : "Tìm nhạc toàn thế giới..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full glass-input text-white text-xs rounded-full pl-10 pr-4 py-2.5 outline-none font-medium placeholder:text-slate-500"

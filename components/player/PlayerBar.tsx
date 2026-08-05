@@ -293,11 +293,6 @@ export function PlayerBar() {
             <p className="text-xs text-slate-400 truncate hover:underline cursor-pointer">
               {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
             </p>
-            {playbackError && (
-              <p className="text-[10px] text-red-400 truncate max-w-[260px]" title={playbackError}>
-                {playbackError}
-              </p>
-            )}
           </div>
         </div>
 

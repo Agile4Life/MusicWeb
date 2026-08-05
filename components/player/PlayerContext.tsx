@@ -343,19 +343,36 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setCurrentIndex(0)
     }
 
+    // 🎵 Full-Length Stream Resolver for iTunes tracks (Resolves 30s limit into 100% full song)
+    let activeTrack = track
+    if (track.source === 'itunes' && !track.youtube_id) {
+      try {
+        const { searchYouTubeTracks } = await import('@/lib/youtube')
+        const matches = await searchYouTubeTracks(`${track.title} ${track.artist || ''}`, 1)
+        if (matches.length > 0 && matches[0].youtube_id) {
+          activeTrack = {
+            ...track,
+            youtube_id: matches[0].youtube_id,
+            source: 'youtube', // Switch audio engine to YouTube for 100% full-length playback
+          }
+        }
+      } catch (e) {
+        console.warn('iTunes full length resolution fallback to 30s preview:', e)
+      }
+    }
+
     setCurrentTrack(track)
     setPlaybackError(null)
     savePlayerStateToStorage(track, 0, nextQueue, nextIndex, volume)
 
-    // Handle YouTube track playback
-    if (track.source === 'youtube' && track.youtube_id) {
-      // Pause HTML5 audio
+    // Handle YouTube track playback (or resolved iTunes track)
+    if (activeTrack.source === 'youtube' && activeTrack.youtube_id) {
       if (audioRef.current) audioRef.current.pause()
 
       if (ytPlayerRef.current && ytPlayerRef.current.loadVideoById) {
         try {
           ytPlayerRef.current.setVolume(volume * 100)
-          ytPlayerRef.current.loadVideoById(track.youtube_id)
+          ytPlayerRef.current.loadVideoById(activeTrack.youtube_id)
           setIsPlaying(true)
         } catch (e) {
           console.warn('YT loadVideoById error:', e)
@@ -396,11 +413,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         await audio.play()
         if (requestId !== playRequestRef.current) return
         setIsPlaying(true)
-      } catch (err) {
+      } catch (err: any) {
         setIsPlaying(false)
+        if (err?.name === 'AbortError' || String(err).includes('interrupted')) {
+          return // Ignore play interruption silently
+        }
         const message = err instanceof Error ? err.message : String(err)
-        setPlaybackError(`Không thể phát audio: ${message}`)
-        console.error('Audio playback error:', { trackId: track.id, url, error: err })
+        console.warn('Audio playback info:', { trackId: track.id, message })
         return
       }
     }
