@@ -345,7 +345,6 @@ export function AuthForm({ mode }: AuthFormProps) {
               <input
                 type="email"
                 required
-                placeholder="vd: account@musicweb.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full glass-input rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none"
@@ -360,11 +359,11 @@ export function AuthForm({ mode }: AuthFormProps) {
               <input
                 type={showPassword ? 'text' : 'password'}
                 required
-                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full glass-input rounded-xl pl-10 pr-10 py-2.5 text-xs text-white outline-none"
               />
+
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
@@ -509,7 +508,6 @@ export function AuthForm({ mode }: AuthFormProps) {
                     <input
                       type="email"
                       required
-                      placeholder="vd: account@gmail.com"
                       value={passkeyEmail}
                       onChange={(e) => {
                         setPasskeyEmail(e.target.value)
@@ -527,7 +525,6 @@ export function AuthForm({ mode }: AuthFormProps) {
                     <input
                       type={showPasskeyText ? 'text' : 'password'}
                       required
-                      placeholder="Nhập mã Passkey (ví dụ: PASSKEY2026)"
                       value={passkeyInput}
                       onChange={(e) => {
                         setPasskeyInput(e.target.value)
@@ -535,6 +532,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                       }}
                       className="w-full glass-input rounded-xl pl-10 pr-10 py-2.5 text-xs text-white outline-none focus:border-[var(--primary-spotify)] transition-colors font-mono"
                     />
+
                     <button
                       type="button"
                       onClick={() => setShowPasskeyText(!showPasskeyText)}
