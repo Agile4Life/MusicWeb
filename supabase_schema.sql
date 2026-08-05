@@ -72,7 +72,7 @@ CREATE POLICY "Everyone can delete tracks" ON public.tracks FOR DELETE USING (tr
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.playlists (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL,
     name TEXT NOT NULL,
     description TEXT,
     cover_url TEXT,
@@ -84,16 +84,20 @@ CREATE TABLE IF NOT EXISTS public.playlists (
 ALTER TABLE public.playlists ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can view their own or public playlists" ON public.playlists;
-CREATE POLICY "Users can view their own or public playlists" ON public.playlists FOR SELECT USING (auth.uid() = user_id OR is_public = TRUE);
+DROP POLICY IF EXISTS "Everyone can view playlists" ON public.playlists;
+CREATE POLICY "Everyone can view playlists" ON public.playlists FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Users can insert their own playlists" ON public.playlists;
-CREATE POLICY "Users can insert their own playlists" ON public.playlists FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Everyone can insert playlists" ON public.playlists;
+CREATE POLICY "Everyone can insert playlists" ON public.playlists FOR INSERT WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Users can update their own playlists" ON public.playlists;
-CREATE POLICY "Users can update their own playlists" ON public.playlists FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Everyone can update playlists" ON public.playlists;
+CREATE POLICY "Everyone can update playlists" ON public.playlists FOR UPDATE USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Users can delete their own playlists" ON public.playlists;
-CREATE POLICY "Users can delete their own playlists" ON public.playlists FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Everyone can delete playlists" ON public.playlists;
+CREATE POLICY "Everyone can delete playlists" ON public.playlists FOR DELETE USING (true);
 
 -- ------------------------------------------------------------------------------
 -- 4. BẢNG PLAYLIST_TRACKS (Liên kết Playlist và Bài hát)
@@ -110,38 +114,23 @@ CREATE TABLE IF NOT EXISTS public.playlist_tracks (
 ALTER TABLE public.playlist_tracks ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can view tracks in accessible playlists" ON public.playlist_tracks;
-CREATE POLICY "Users can view tracks in accessible playlists" ON public.playlist_tracks FOR SELECT USING (
-    EXISTS (
-        SELECT 1 FROM public.playlists
-        WHERE playlists.id = playlist_tracks.playlist_id
-        AND (playlists.user_id = auth.uid() OR playlists.is_public = TRUE)
-    )
-);
+DROP POLICY IF EXISTS "Everyone can view playlist tracks" ON public.playlist_tracks;
+CREATE POLICY "Everyone can view playlist tracks" ON public.playlist_tracks FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Users can add tracks to their playlists" ON public.playlist_tracks;
-CREATE POLICY "Users can add tracks to their playlists" ON public.playlist_tracks FOR INSERT WITH CHECK (
-    EXISTS (
-        SELECT 1 FROM public.playlists
-        WHERE playlists.id = playlist_tracks.playlist_id
-        AND playlists.user_id = auth.uid()
-    )
-);
+DROP POLICY IF EXISTS "Everyone can add playlist tracks" ON public.playlist_tracks;
+CREATE POLICY "Everyone can add playlist tracks" ON public.playlist_tracks FOR INSERT WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Users can delete tracks from their playlists" ON public.playlist_tracks;
-CREATE POLICY "Users can delete tracks from their playlists" ON public.playlist_tracks FOR DELETE USING (
-    EXISTS (
-        SELECT 1 FROM public.playlists
-        WHERE playlists.id = playlist_tracks.playlist_id
-        AND playlists.user_id = auth.uid()
-    )
-);
+DROP POLICY IF EXISTS "Everyone can delete playlist tracks" ON public.playlist_tracks;
+CREATE POLICY "Everyone can delete playlist tracks" ON public.playlist_tracks FOR DELETE USING (true);
 
 -- ------------------------------------------------------------------------------
 -- 5. BẢNG FAVORITE_TRACKS (Danh sách bài hát yêu thích cá nhân)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.favorite_tracks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL,
     track_id UUID NOT NULL REFERENCES public.tracks(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     CONSTRAINT unique_user_favorite UNIQUE (user_id, track_id)
@@ -150,25 +139,30 @@ CREATE TABLE IF NOT EXISTS public.favorite_tracks (
 ALTER TABLE public.favorite_tracks ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can manage their favorite tracks" ON public.favorite_tracks;
-CREATE POLICY "Users can manage their favorite tracks" ON public.favorite_tracks FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Everyone can manage favorite tracks" ON public.favorite_tracks;
+CREATE POLICY "Everyone can manage favorite tracks" ON public.favorite_tracks FOR ALL USING (true) WITH CHECK (true);
 
 -- ------------------------------------------------------------------------------
 -- 6. BẢNG LISTENING_HISTORY (Lịch sử nghe nhạc & Thống kê cá nhân)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.listening_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL,
     track_id UUID NOT NULL REFERENCES public.tracks(id) ON DELETE CASCADE,
     played_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+
 ALTER TABLE public.listening_history ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can view their listening history" ON public.listening_history;
-CREATE POLICY "Users can view their listening history" ON public.listening_history FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Everyone can view listening history" ON public.listening_history;
+CREATE POLICY "Everyone can view listening history" ON public.listening_history FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Users can insert their listening history" ON public.listening_history;
-CREATE POLICY "Users can insert their listening history" ON public.listening_history FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Everyone can insert listening history" ON public.listening_history;
+CREATE POLICY "Everyone can insert listening history" ON public.listening_history FOR INSERT WITH CHECK (true);
+
 
 -- ------------------------------------------------------------------------------
 -- 7. BẢNG USER_SETTINGS (Cài đặt tùy chỉnh hệ thống của từng người dùng)
