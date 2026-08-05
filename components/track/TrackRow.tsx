@@ -289,7 +289,7 @@ function TrackRowComponent({
             className="text-xs bg-white/10 border border-[var(--primary-spotify)]/50 rounded px-1.5 py-0.5 text-white outline-none w-full max-w-[160px]"
           />
         ) : (
-          track.album || '—'
+          !track.album || track.album === 'Google Drive' || track.album === 'Google Drive Sync' ? '—' : track.album
         )}
       </div>
 
