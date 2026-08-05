@@ -68,13 +68,18 @@ export function buildDriveStreamUrl(fileId: string): string {
 }
 
 export function extractDriveFileId(filePath: string): string | null {
-  if (/^[A-Za-z0-9_-]{20,}$/.test(filePath)) return filePath
+  if (!filePath) return null
+  const trimmed = filePath.trim()
+  if (/^[A-Za-z0-9_-]{25,}$/.test(trimmed)) return trimmed
   try {
-    const parsed = new URL(filePath)
-    const id = parsed.searchParams.get('id') || parsed.pathname.match(/\/d\/([A-Za-z0-9_-]+)/)?.[1]
+    const parsed = new URL(trimmed)
+    const id =
+      parsed.searchParams.get('id') ||
+      parsed.pathname.match(/\/d\/([A-Za-z0-9_-]+)/)?.[1] ||
+      parsed.pathname.match(/\/file\/d\/([A-Za-z0-9_-]+)/)?.[1]
     if (id && /^[A-Za-z0-9_-]{20,}$/.test(id)) return id
   } catch {
-    // This is likely a Supabase storage path.
+    // This is likely a Supabase storage path or local file.
   }
   return null
 }
