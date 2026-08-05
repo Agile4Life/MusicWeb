@@ -90,8 +90,8 @@ export async function getTrendingSpotifyTracks(limit = 12): Promise<Track[]> {
     const token = await getSpotifyAccessToken()
     if (!token) return []
 
-    // Fetch Global Top Hits / New Releases from Spotify API
-    const res = await fetch(`https://api.spotify.com/v1/browse/new-releases?limit=${limit}`, {
+    // Fetch Global Top Hits / Trending Tracks from Spotify API
+    const res = await fetch(`https://api.spotify.com/v1/search?q=genre:pop%20OR%20genre:dance&type=track&limit=${limit}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -100,28 +100,21 @@ export async function getTrendingSpotifyTracks(limit = 12): Promise<Track[]> {
     if (!res.ok) return []
 
     const data = await res.json()
-    const albums = data.albums?.items || []
-    const tracks: Track[] = []
+    const items = data.tracks?.items || []
 
-    for (const album of albums) {
-      if (album.id) {
-        tracks.push({
-          id: `spotify-album-${album.id}`,
-          user_id: 'spotify',
-          title: album.name,
-          artist: album.artists?.map((a: any) => a.name).join(', ') || 'Various Artists',
-          album: album.name,
-          duration: 210,
-          file_path: album.external_urls?.spotify || '',
-          cover_url: album.images?.[0]?.url || null,
-          created_at: new Date().toISOString(),
-          source: 'spotify',
-          spotify_id: album.id,
-        })
-      }
-    }
-
-    return tracks
+    return items.map((item: any) => ({
+      id: `spotify-${item.id}`,
+      user_id: 'spotify',
+      title: item.name,
+      artist: item.artists?.map((a: any) => a.name).join(', ') || 'Nghệ sĩ chưa xác định',
+      album: item.album?.name || 'Spotify Album',
+      duration: Math.round((item.duration_ms || 0) / 1000),
+      file_path: item.external_urls?.spotify || item.preview_url || '',
+      cover_url: item.album?.images?.[0]?.url || item.album?.images?.[1]?.url || null,
+      created_at: new Date().toISOString(),
+      source: 'spotify',
+      spotify_id: item.id,
+    }))
   } catch (err) {
     console.warn('Spotify trending fetch error:', err)
     return []

@@ -359,14 +359,18 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     let activeTrack = track
     if ((track.source === 'itunes' || track.source === 'spotify') && !track.youtube_id) {
       try {
-        const { searchYouTubeTracks } = await import('@/lib/youtube')
-        const matches = await searchYouTubeTracks(`${track.title} ${track.artist || ''}`, 1)
+        const queryStr = `${track.title} ${track.artist || ''}`
+        const res = await fetch(`/api/search?q=${encodeURIComponent(queryStr)}&source=youtube`)
         if (requestId !== playRequestRef.current) return
-        if (matches.length > 0 && matches[0].youtube_id) {
-          activeTrack = {
-            ...track,
-            youtube_id: matches[0].youtube_id,
-            source: 'youtube', // Switch audio engine to YouTube for 100% full-length playback
+        if (res.ok) {
+          const data = await res.json()
+          const ytList = data.youtube || []
+          if (ytList.length > 0 && ytList[0].youtube_id) {
+            activeTrack = {
+              ...track,
+              youtube_id: ytList[0].youtube_id,
+              source: 'youtube', // Switch audio engine to YouTube for 100% full-length playback
+            }
           }
         }
       } catch (e) {

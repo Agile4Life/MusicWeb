@@ -79,6 +79,7 @@ export function TopBar() {
         if (res.ok) {
           const data = await res.json()
           const combined = [
+            ...(data.spotify || []),
             ...(data.local || []),
             ...(data.itunes || []),
             ...(data.youtube || []),
