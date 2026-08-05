@@ -384,35 +384,43 @@ export default function HomePage() {
 
   const handleCleanMissingDriveFiles = async () => {
     if (!user) return
-    if (!confirm('Tự động quét và dọn dẹp các bài hát đã bị xóa khỏi Google Drive trên CSDL?')) return
+    if (!confirm('Tự động quét và dọn dẹp các bài hát bị lỗi link hoặc link Folder khỏi CSDL?')) return
 
     setCleaningDuplicates(true)
     try {
       let deletedCount = 0
       for (const track of tracks) {
-        const driveFileId = extractDriveFileId(track.file_path || '')
-        if (driveFileId) {
+        const fp = track.file_path || ''
+        const isFolder = fp.includes('/folders/') || fp.includes('drive/folders')
+        const driveFileId = extractDriveFileId(fp)
+        
+        let isInvalid = isFolder
+        if (!isInvalid && driveFileId) {
           try {
             const checkUrl = `https://lh3.googleusercontent.com/d/${driveFileId}`
             const res = await fetch(checkUrl, { method: 'HEAD' })
-            if (res.status === 404 || res.status === 403) {
-              await supabase.from('playlist_tracks').delete().eq('track_id', track.id)
-              await supabase.from('favorite_tracks').delete().eq('track_id', track.id)
-              await supabase.from('listening_history').delete().eq('track_id', track.id)
-              await supabase.from('tracks').delete().eq('id', track.id)
-              deletedCount++
+            if (res.status === 404 || res.status === 403 || res.status === 500) {
+              isInvalid = true
             }
           } catch {
-            // Ignore network errors
+            // ignore network error
           }
+        }
+
+        if (isInvalid) {
+          await supabase.from('playlist_tracks').delete().eq('track_id', track.id)
+          await supabase.from('favorite_tracks').delete().eq('track_id', track.id)
+          await supabase.from('listening_history').delete().eq('track_id', track.id)
+          await supabase.from('tracks').delete().eq('id', track.id)
+          deletedCount++
         }
       }
 
       if (deletedCount > 0) {
-        alert(`✅ Đã dọn dẹp ${deletedCount} bài hát bị thiếu trên Google Drive!`)
+        alert(`✅ Đã dọn dẹp ${deletedCount} bài hát bị lỗi link / link Folder khỏi thư viện!`)
         await fetchData()
       } else {
-        alert('Tất cả các bài hát trên Google Drive đều tồn tại bình thường!')
+        alert('Tất cả các bài hát trên Google Drive đều hợp lệ!')
       }
     } finally {
       setCleaningDuplicates(false)

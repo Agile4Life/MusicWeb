@@ -70,9 +70,11 @@ export function buildDriveStreamUrl(fileId: string): string {
 export function extractDriveFileId(filePath: string): string | null {
   if (!filePath) return null
   const trimmed = filePath.trim()
+  if (trimmed.includes('/folders/') || trimmed.includes('drive/folders')) return null
   if (/^[A-Za-z0-9_-]{20,}$/.test(trimmed) && !trimmed.includes('http') && !trimmed.includes('/')) return trimmed
   try {
     const parsed = new URL(trimmed)
+    if (parsed.pathname.includes('/folders/')) return null
     const id =
       parsed.searchParams.get('id') ||
       parsed.pathname.match(/\/d\/([A-Za-z0-9_-]+)/)?.[1] ||

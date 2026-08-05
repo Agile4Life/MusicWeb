@@ -801,7 +801,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       }
 
       if (itemsToImport.length === 0) {
-        alert('Không tìm thấy File ID hoặc Folder Google Drive hợp lệ. Vui lòng dán link Folder hoặc danh sách các link file Google Drive.')
+        alert('⚠️ Không thể tự động đọc file trực tiếp từ đường link Folder này.\n\nHướng dẫn:\n1. Mở Thư mục trên Google Drive trong trình duyệt.\n2. Chọn các file bài hát (hoặc Ctrl+A) -> Nhấp chuột phải chọn "Chia sẻ" -> "Sao chép liên kết".\n3. Dán danh sách link của các file vào ô bên dưới.')
         setSyncingFolder(false)
         setSyncStatus(null)
         return
