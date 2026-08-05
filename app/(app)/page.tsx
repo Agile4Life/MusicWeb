@@ -24,7 +24,7 @@ import {
   RotateCcw,
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
-import { getValidUserId } from '@/lib/accessControl'
+import { getValidUserId, isAdmin as checkIsAdmin } from '@/lib/accessControl'
 import { useSearchParams } from 'next/navigation'
 import { extractDriveFileId } from '@/lib/googleDriveUpload'
 
@@ -436,7 +436,7 @@ export default function HomePage() {
     setRecentTracks((prev) => prev.filter((t) => !idSet.has(t.id)))
   }
 
-  const isAdmin = user?.app_metadata?.role === 'admin' || user?.email === 'admin@musicweb.com'
+  const isAdmin = checkIsAdmin(user?.email) || user?.app_metadata?.role === 'admin'
 
   const isSearching = searchQuery.trim().length > 0
   let displayedTracks: Track[] = []
