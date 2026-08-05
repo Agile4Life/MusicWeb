@@ -74,9 +74,11 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [showPasskeyModal, setShowPasskeyModal] = useState(false)
   const [passkeyEmail, setPasskeyEmail] = useState('')
   const [passkeyInput, setPasskeyInput] = useState('')
+  const [showPasskeyText, setShowPasskeyText] = useState(false)
   const [passkeyLoading, setPasskeyLoading] = useState(false)
   const [passkeyError, setPasskeyError] = useState<string | null>(null)
   const [passkeySuccess, setPasskeySuccess] = useState<string | null>(null)
+
 
   const handlePasskeySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -507,8 +509,11 @@ export function AuthForm({ mode }: AuthFormProps) {
                       required
                       placeholder="vd: account@gmail.com"
                       value={passkeyEmail}
-                      onChange={(e) => setPasskeyEmail(e.target.value)}
-                      className="w-full glass-input rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none"
+                      onChange={(e) => {
+                        setPasskeyEmail(e.target.value)
+                        setPasskeyError(null)
+                      }}
+                      className="w-full glass-input rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none focus:border-[var(--primary-spotify)] transition-colors"
                     />
                   </div>
                 </div>
@@ -518,13 +523,24 @@ export function AuthForm({ mode }: AuthFormProps) {
                   <div className="relative">
                     <Key className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
                     <input
-                      type="password"
+                      type={showPasskeyText ? 'text' : 'password'}
                       required
                       placeholder="Nhập mã Passkey (ví dụ: PASSKEY2026)"
                       value={passkeyInput}
-                      onChange={(e) => setPasskeyInput(e.target.value)}
-                      className="w-full glass-input rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none"
+                      onChange={(e) => {
+                        setPasskeyInput(e.target.value)
+                        setPasskeyError(null)
+                      }}
+                      className="w-full glass-input rounded-xl pl-10 pr-10 py-2.5 text-xs text-white outline-none focus:border-[var(--primary-spotify)] transition-colors font-mono"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasskeyText(!showPasskeyText)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-white transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPasskeyText ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
                 </div>
 
@@ -543,6 +559,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                   )}
                 </button>
               </form>
+
             )}
           </div>
         </div>

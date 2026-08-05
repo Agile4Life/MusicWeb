@@ -4,8 +4,8 @@ import fs from 'fs'
 import path from 'path'
 import passkeysConfig from '@/config/passkeys.json'
 
-// Admin's personal email to receive Passkey notifications
-const ADMIN_PERSONAL_EMAIL = 'tranphong16012006@gmail.com'
+// Admin's personal email to receive Passkey notifications (configurable via env)
+const ADMIN_PERSONAL_EMAIL = process.env.ADMIN_PERSONAL_EMAIL || 'tranphong16012006@gmail.com'
 
 // Helper to get valid Passkeys (dynamically read from disk + static import + fallback list)
 function getValidPasskeys(): string[] {
@@ -96,9 +96,6 @@ export async function POST(request: Request) {
       )
     }
 
-
-
-
     // 2. Automatically add user to allowedAccounts.json if not present
     try {
       const configPath = path.join(process.cwd(), 'config', 'allowedAccounts.json')
@@ -126,13 +123,16 @@ export async function POST(request: Request) {
       console.warn('Could not update allowedAccounts.json (non-fatal):', fsErr)
     }
 
-    // 3. Send email to Admin's personal email address (tranphong16012006@gmail.com)
+    // 3. Send email to Admin's personal email address & user confirmation via SMTP
     let emailSent = false
+    let emailStatusMessage = ''
+
     try {
       const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com'
       const smtpPort = Number(process.env.SMTP_PORT) || 587
       const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER
       const smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD
+      const targetAdminEmail = ADMIN_PERSONAL_EMAIL
 
       if (smtpUser && smtpPass) {
         const transporter = nodemailer.createTransport({
@@ -143,64 +143,105 @@ export async function POST(request: Request) {
             user: smtpUser,
             pass: smtpPass,
           },
-          connectionTimeout: 3000,
-          greetingTimeout: 3000,
-          socketTimeout: 3000,
+          connectionTimeout: 4000,
+          greetingTimeout: 4000,
+          socketTimeout: 4000,
         })
 
-        // Race email sending with a 3.5s timeout so Vercel function never hangs
-        await Promise.race([
-          transporter.sendMail({
-            from: `"MusicWeb Passkey System" <${smtpUser}>`,
-            to: ADMIN_PERSONAL_EMAIL,
-            subject: `🔑 Thông báo Đăng Nhập Passkey: ${cleanEmail}`,
-            html: `
-              <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #0b0e14; color: #ffffff; border-radius: 12px;">
-                <h2 style="color: #1DB954;">🔑 Thông Báo Yêu Cầu / Đăng Nhập Passkey</h2>
-                <p>Hệ thống vừa ghi nhận yêu cầu đăng nhập bằng mã Passkey mới:</p>
-                <table style="width: 100%; border-collapse: collapse; margin-top: 15px; color: #e2e8f0;">
+        const nowFormatted = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
+
+        // Primary email: Admin Notification
+        const adminMailPromise = transporter.sendMail({
+          from: `"MusicWeb Passkey System" <${smtpUser}>`,
+          to: targetAdminEmail,
+          subject: `🔑 [MusicWeb Passkey] Yêu cầu cấp quyền thành công: ${cleanEmail}`,
+          html: `
+            <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background-color: #0b0e14; color: #ffffff; border-radius: 16px; border: 1px solid rgba(29, 185, 84, 0.3);">
+              <div style="text-align: center; margin-bottom: 20px;">
+                <h1 style="color: #1DB954; font-size: 22px; font-weight: 800; margin: 0 0 8px 0;">🔑 THÔNG BÁO XÁC THỰC PASSKEY</h1>
+                <p style="color: #94a3b8; font-size: 13px; margin: 0;">Hệ thống MusicWeb vừa ghi nhận xác thực Passkey hợp lệ</p>
+              </div>
+
+              <div style="background-color: #141a24; padding: 18px; border-radius: 12px; border: 1px solid #1e293b; margin-bottom: 20px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
                   <tr>
-                    <td style="padding: 8px; border-bottom: 1px solid #1e293b; font-weight: bold; width: 140px;">Gmail Người Dùng:</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #1e293b; color: #38bdf8;">${cleanEmail}</td>
+                    <td style="padding: 10px 0; border-bottom: 1px solid #1e293b; color: #94a3b8; font-weight: bold; width: 140px;">Gmail Người Dùng:</td>
+                    <td style="padding: 10px 0; border-bottom: 1px solid #1e293b; color: #38bdf8; font-weight: bold;">${cleanEmail}</td>
                   </tr>
                   <tr>
-                    <td style="padding: 8px; border-bottom: 1px solid #1e293b; font-weight: bold;">Mã Passkey đã nhập:</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #1e293b; font-family: monospace; color: #f59e0b;">${cleanPasskey}</td>
+                    <td style="padding: 10px 0; border-bottom: 1px solid #1e293b; color: #94a3b8; font-weight: bold;">Mã Passkey đã dùng:</td>
+                    <td style="padding: 10px 0; border-bottom: 1px solid #1e293b; font-family: monospace; color: #f59e0b; font-weight: bold;">${cleanPasskey}</td>
                   </tr>
                   <tr>
-                    <td style="padding: 8px; border-bottom: 1px solid #1e293b; font-weight: bold;">Trạng Thái:</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #1e293b; color: #10b981;">✅ Passkey Hợp Lệ & Đã Cấp Quyền Truy Cập</td>
+                    <td style="padding: 10px 0; border-bottom: 1px solid #1e293b; color: #94a3b8; font-weight: bold;">Trạng Thái Quyền:</td>
+                    <td style="padding: 10px 0; border-bottom: 1px solid #1e293b; color: #10b981; font-weight: bold;">✅ Đã Phê Duyệt / Cấp Quyền Listener</td>
                   </tr>
                   <tr>
-                    <td style="padding: 8px; font-weight: bold;">Thời gian:</td>
-                    <td style="padding: 8px;">${new Date().toLocaleString('vi-VN')}</td>
+                    <td style="padding: 10px 0; color: #94a3b8; font-weight: bold;">Thời Gian Thực Hiện:</td>
+                    <td style="padding: 10px 0; color: #e2e8f0;">${nowFormatted}</td>
                   </tr>
                 </table>
-                <p style="margin-top: 20px; font-size: 12px; color: #94a3b8;">
-                  Email này được tự động gửi từ hệ thống MusicWeb Studio tới Gmail cá nhân của Admin (${ADMIN_PERSONAL_EMAIL}).
-                </p>
               </div>
-            `,
-          }),
+
+              <div style="text-align: center; color: #64748b; font-size: 12px; line-height: 1.5;">
+                <p style="margin: 0;">Email tự động gửi từ <strong>MusicWeb Studio System</strong> tới Gmail Admin (${targetAdminEmail}).</p>
+              </div>
+            </div>
+          `,
+        })
+
+        // Secondary email: Confirmation email to user if user email is different from admin email
+        const mailPromises: Promise<any>[] = [adminMailPromise]
+
+        if (cleanEmail !== targetAdminEmail.toLowerCase()) {
+          mailPromises.push(
+            transporter.sendMail({
+              from: `"MusicWeb Studio" <${smtpUser}>`,
+              to: cleanEmail,
+              subject: `✅ Xác thực Passkey thành công - MusicWeb Studio`,
+              html: `
+                <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 550px; margin: 0 auto; padding: 24px; background-color: #0b0e14; color: #ffffff; border-radius: 16px; border: 1px solid rgba(29, 185, 84, 0.3);">
+                  <h2 style="color: #1DB954; font-size: 20px; text-align: center; margin-bottom: 12px;">🎉 Xác Thực Passkey Thành Công!</h2>
+                  <p style="color: #e2e8f0; font-size: 14px; line-height: 1.6;">Xin chào <strong>${cleanEmail}</strong>,</p>
+                  <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">
+                    Yêu cầu truy cập bằng Mã Passkey của bạn đã được xác thực thành công. Tài khoản của bạn đã được cập nhật quyền truy cập MusicWeb Studio và thông báo đã được chuyển tới Admin (<strong>${targetAdminEmail}</strong>).
+                  </p>
+                  <div style="text-align: center; margin: 24px 0;">
+                    <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}" style="background-color: #1DB954; color: #000000; font-weight: bold; text-decoration: none; padding: 12px 28px; border-radius: 9999px; font-size: 14px; display: inline-block;">Truy Cấp MusicWeb Ngay</a>
+                  </div>
+                  <p style="color: #64748b; font-size: 12px; text-align: center; margin: 0;">Trân trọng,<br/>Đội ngũ phát triển MusicWeb Studio</p>
+                </div>
+              `,
+            }).catch((err) => console.warn('Could not send user confirmation email:', err))
+          )
+        }
+
+        // Race with a 4.5s timeout so Vercel never hangs
+        await Promise.race([
+          Promise.all(mailPromises),
           new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Email timeout on Vercel')), 3500)
+            setTimeout(() => reject(new Error('Email sending timeout')), 4500)
           ),
         ])
 
         emailSent = true
+        emailStatusMessage = `Đã gửi mail thông báo tới Gmail cá nhân Admin (${targetAdminEmail}).`
       } else {
-        console.log(`[PASSKEY NOTIFICATION] Email skipped (no SMTP credentials). Admin: ${ADMIN_PERSONAL_EMAIL}, User: ${cleanEmail}`)
+        emailStatusMessage = `Đã cấp quyền truy cập. (Lưu ý: Chưa cấu hình SMTP_PASS trong môi trường để gửi mail cá nhân).`
+        console.log(`[PASSKEY NOTIFICATION] Email skipped (missing SMTP credentials). Admin target: ${targetAdminEmail}, User: ${cleanEmail}`)
       }
-    } catch (mailErr) {
+    } catch (mailErr: any) {
       console.warn('Could not send email notification to Admin (non-fatal):', mailErr)
+      emailStatusMessage = `Đã cấp quyền thành công (Email SMTP gặp sự cố: ${mailErr?.message || 'xác thực SMTP'}).`
     }
 
     return NextResponse.json({
       success: true,
       email: cleanEmail,
-      message: 'Xác thực Passkey thành công! Đã cấp quyền và gửi thông báo tới Gmail cá nhân của Admin.',
+      message: `Xác thực Passkey thành công! ${emailStatusMessage}`,
       emailSent,
     })
+
   } catch (err: any) {
     console.error('Passkey API error:', err)
     return NextResponse.json(

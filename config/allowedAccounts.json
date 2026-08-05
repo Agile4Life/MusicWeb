@@ -1,5 +1,6 @@
 {
-  "allowAllAsListeners": false,
+  "allowAllAsListeners": true,
+
   "adminEmails": [
     "admin@gmail.com",
     "admin@musicweb.com"
