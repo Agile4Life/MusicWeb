@@ -18,6 +18,8 @@ import {
   Mic2,
   X,
   Shuffle,
+  Repeat,
+  Repeat1,
 } from 'lucide-react'
 
 function formatTime(seconds: number) {
@@ -36,6 +38,8 @@ export function PlayerBar() {
     volume,
     isShuffle,
     toggleShuffle,
+    repeatMode,
+    toggleRepeat,
     playbackError,
     togglePlay,
     seek,
@@ -255,7 +259,23 @@ export function PlayerBar() {
               <SkipForward className="w-8 h-8" />
             </button>
 
-            <div className="w-12 h-12" />
+            <button
+              onClick={toggleRepeat}
+              className={`p-3 rounded-full transition-all ${
+                repeatMode !== 'off'
+                  ? 'text-cyan-400 bg-cyan-500/20 border border-cyan-500/40 shadow-lg'
+                  : 'text-slate-400 hover:text-white bg-white/5'
+              }`}
+              title={
+                repeatMode === 'one'
+                  ? 'Lặp lại 1 bài'
+                  : repeatMode === 'all'
+                  ? 'Lặp lại danh sách'
+                  : 'Tắt lặp lại'
+              }
+            >
+              {repeatMode === 'one' ? <Repeat1 className="w-6 h-6" /> : <Repeat className="w-6 h-6" />}
+            </button>
           </div>
 
           {/* Volume Control Bar */}
@@ -354,6 +374,24 @@ export function PlayerBar() {
               title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
             >
               <Shuffle className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={toggleRepeat}
+              className={`p-1.5 rounded-lg transition-colors ${
+                repeatMode !== 'off'
+                  ? 'text-cyan-400 bg-cyan-500/15 border border-cyan-500/30'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title={
+                repeatMode === 'one'
+                  ? 'Lặp lại 1 bài'
+                  : repeatMode === 'all'
+                  ? 'Lặp lại toàn bộ danh sách'
+                  : 'Bật lặp lại bài hát'
+              }
+            >
+              {repeatMode === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
             </button>
           </div>
 

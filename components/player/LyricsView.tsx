@@ -15,6 +15,9 @@ import {
   SkipBack,
   SkipForward,
   X,
+  Shuffle,
+  Repeat,
+  Repeat1,
 } from 'lucide-react'
 
 interface LyricsViewProps {
@@ -39,6 +42,10 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
     togglePlay,
     nextTrack,
     prevTrack,
+    isShuffle,
+    toggleShuffle,
+    repeatMode,
+    toggleRepeat,
   } = usePlayer()
 
   const [loading, setLoading] = useState(false)
@@ -287,10 +294,22 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
         </div>
 
         {/* Playback Buttons */}
-        <div className="flex items-center justify-center gap-6 py-1">
+        <div className="flex items-center justify-center gap-5 md:gap-7 py-1">
+          <button
+            onClick={toggleShuffle}
+            className={`p-2.5 rounded-full transition-colors ${
+              isShuffle
+                ? 'text-[var(--primary-spotify)] bg-[var(--primary-spotify)]/20 border border-[var(--primary-spotify)]/40 shadow-lg'
+                : 'text-slate-400 hover:text-white'
+            }`}
+            title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
+          >
+            <Shuffle className="w-4 h-4 md:w-5 md:h-5" />
+          </button>
+
           <button
             onClick={prevTrack}
-            className="p-2.5 text-slate-300 active:text-white active:scale-90 transition-transform"
+            className="p-2 text-slate-300 active:text-white active:scale-90 transition-transform"
             title="Bài trước"
           >
             <SkipBack className="w-5 h-5 md:w-6 md:h-6" />
@@ -310,10 +329,28 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
 
           <button
             onClick={nextTrack}
-            className="p-2.5 text-slate-300 active:text-white active:scale-90 transition-transform"
+            className="p-2 text-slate-300 active:text-white active:scale-90 transition-transform"
             title="Bài tiếp theo"
           >
             <SkipForward className="w-5 h-5 md:w-6 md:h-6" />
+          </button>
+
+          <button
+            onClick={toggleRepeat}
+            className={`p-2.5 rounded-full transition-colors ${
+              repeatMode !== 'off'
+                ? 'text-cyan-400 bg-cyan-500/20 border border-cyan-500/40 shadow-lg'
+                : 'text-slate-400 hover:text-white'
+            }`}
+            title={
+              repeatMode === 'one'
+                ? 'Lặp lại 1 bài'
+                : repeatMode === 'all'
+                ? 'Lặp lại toàn bộ danh sách'
+                : 'Bật lặp lại bài hát'
+            }
+          >
+            {repeatMode === 'one' ? <Repeat1 className="w-4 h-4 md:w-5 md:h-5" /> : <Repeat className="w-4 h-4 md:w-5 md:h-5" />}
           </button>
         </div>
       </div>

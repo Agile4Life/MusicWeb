@@ -7,6 +7,8 @@ import { extractDriveFileId, getAuthorizedDriveStreamUrl } from '@/lib/googleDri
 import { useSession } from 'next-auth/react'
 import { getValidUserId } from '@/lib/accessControl'
 
+export type RepeatMode = 'off' | 'all' | 'one'
+
 interface PlayerContextType {
   currentTrack: Track | null
   isPlaying: boolean
@@ -17,6 +19,8 @@ interface PlayerContextType {
   volume: number
   isShuffle: boolean
   toggleShuffle: () => void
+  repeatMode: RepeatMode
+  toggleRepeat: () => void
   playbackError: string | null
   playTrack: (track: Track, newQueue?: Track[], forceIndex?: number) => Promise<void>
   togglePlay: () => void
@@ -102,8 +106,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [playbackError, setPlaybackError] = useState<string | null>(null)
   const [autoPlayNext, setAutoPlayNext] = useState(true)
   const [isShuffle, setIsShuffle] = useState(false)
+  const [repeatMode, setRepeatMode] = useState<RepeatMode>('off')
   const autoPlayNextRef = useRef(true)
   const isShuffleRef = useRef(false)
+  const repeatModeRef = useRef<RepeatMode>('off')
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const ytPlayerRef = useRef<any>(null)
@@ -134,8 +140,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     isShuffleRef.current = isShuffle
   }, [isShuffle])
 
+  useEffect(() => {
+    repeatModeRef.current = repeatMode
+  }, [repeatMode])
+
   const toggleShuffle = () => {
     setIsShuffle((prev) => !prev)
+  }
+
+  const toggleRepeat = () => {
+    setRepeatMode((prev) => {
+      if (prev === 'off') return 'all'
+      if (prev === 'all') return 'one'
+      return 'off'
+    })
   }
 
   // Load YouTube IFrame Player API Script dynamically
@@ -182,13 +200,27 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 setIsPlaying(false)
               } else if (event.data === 0) {
                 setIsPlaying(false)
-                // Use refs to avoid stale closure over autoPlayNext and queue/index
-                if (autoPlayNextRef.current) {
+                const mode = repeatModeRef.current
+                if (mode === 'one') {
+                  setTimeout(() => {
+                    if (currentTrackRef.current) {
+                      playTrackRef.current(currentTrackRef.current)
+                    }
+                  }, 0)
+                } else if (mode === 'all') {
+                  setTimeout(() => {
+                    const q = queueRef.current
+                    const idx = currentIndexRef.current
+                    if (q.length > 0 && idx !== -1) {
+                      const nextIdx = (idx + 1) % q.length
+                      playTrackRef.current(q[nextIdx], undefined, nextIdx)
+                    }
+                  }, 0)
+                } else if (autoPlayNextRef.current) {
                   const q = queueRef.current
                   const idx = currentIndexRef.current
-                  if (q.length > 0 && idx !== -1) {
-                    const nextIdx = (idx + 1) % q.length
-                    // Defer to avoid calling during YT state transition
+                  if (q.length > 0 && idx !== -1 && idx < q.length - 1) {
+                    const nextIdx = idx + 1
                     setTimeout(() => {
                       playTrackRef.current(q[nextIdx], undefined, nextIdx)
                     }, 0)
@@ -708,8 +740,25 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     const handleEnded = () => {
       if (currentTrackRef.current?.source !== 'youtube') {
-        if (autoPlayNext) nextTrack()
-        else setIsPlaying(false)
+        const mode = repeatModeRef.current
+        if (mode === 'one') {
+          if (audioRef.current) {
+            audioRef.current.currentTime = 0
+            audioRef.current.play().catch(() => {})
+          }
+        } else if (mode === 'all') {
+          nextTrack()
+        } else if (autoPlayNext) {
+          const q = queueRef.current
+          const idx = currentIndexRef.current
+          if (idx < q.length - 1) {
+            nextTrack()
+          } else {
+            setIsPlaying(false)
+          }
+        } else {
+          setIsPlaying(false)
+        }
       }
     }
 
@@ -724,7 +773,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audio.removeEventListener('ended', handleEnded)
       audio.removeEventListener('error', handleError)
     }
-  }, [currentIndex, queue, autoPlayNext])
+  }, [currentIndex, queue, autoPlayNext, repeatMode])
 
   // Media Session API Sync (Lock Screen Controls)
   useEffect(() => {
@@ -773,6 +822,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         volume,
         isShuffle,
         toggleShuffle,
+        repeatMode,
+        toggleRepeat,
         playbackError,
         playTrack,
         togglePlay,
