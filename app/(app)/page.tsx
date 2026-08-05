@@ -618,18 +618,6 @@ export default function HomePage() {
                   </button>
                 ) : null
               })()}
-
-            {/* Fast Search Input */}
-            <div className="relative max-w-md w-full">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-              <input
-                type="text"
-                placeholder={recentTracks.length > 0 ? "Tìm bài hát nghe gần đây..." : "Tìm nhạc trong thư viện..."}
-                value={localFilterQuery}
-                onChange={(e) => setLocalFilterQuery(e.target.value)}
-                className="w-full glass-input text-white text-xs rounded-full pl-10 pr-4 py-2.5 outline-none font-medium placeholder:text-slate-500"
-              />
-            </div>
           </div>
         </div>
 
