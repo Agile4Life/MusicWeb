@@ -793,6 +793,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
 
       if (itemsToImport.length === 0) {
         const lines = folderInput.split(/[\n;]/).map((s) => s.trim()).filter(Boolean)
+        const pendingItems: Array<{ fileId: string; name: string }> = []
         for (let idx = 0; idx < lines.length; idx++) {
           const line = lines[idx]
           const fid = extractDriveFileId(line)
@@ -801,17 +802,44 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
             if (line.includes('|')) {
               fileName = line.split('|')[0].trim()
             } else {
-              // Check if line has a title before or after the link
               const nonUrlPart = line.replace(/https?:\/\/[^\s]+/g, '').trim()
               if (nonUrlPart) {
                 fileName = nonUrlPart
-              } else {
-                fileName = `Bài hát ${idx + 1}`
               }
             }
-            itemsToImport.push({ fileId: fid, name: fileName })
+            pendingItems.push({ fileId: fid, name: fileName })
           }
         }
+
+        // Fetch real song titles for any items without a title
+        setSyncStatus('Đang lấy tên bài hát thực từ Google Drive...')
+        itemsToImport = await Promise.all(
+          pendingItems.map(async (item, idx) => {
+            if (item.name) return item
+            try {
+              const res = await fetch(`https://drive.google.com/file/d/${item.fileId}/view`, {
+                headers: {
+                  'User-Agent':
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                },
+                cache: 'no-store',
+              })
+              if (res.ok) {
+                const html = await res.text()
+                const ogTitleMatch =
+                  html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
+                  html.match(/<title>([^<]+?)(?:\s*-\s*Google Drive)?<\/title>/i)
+                if (ogTitleMatch && ogTitleMatch[1]) {
+                  const clean = ogTitleMatch[1].replace(/\s*-\s*Google Drive$/i, '').trim()
+                  if (clean && clean !== 'Google Drive' && !clean.toLowerCase().includes('google drive')) {
+                    return { fileId: item.fileId, name: clean }
+                  }
+                }
+              }
+            } catch {}
+            return { fileId: item.fileId, name: `Bài hát ${idx + 1}` }
+          })
+        )
       }
 
       if (itemsToImport.length === 0) {
