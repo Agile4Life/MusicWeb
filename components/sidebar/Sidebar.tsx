@@ -211,6 +211,9 @@ export function Sidebar() {
 
         <Link
           href="/#drive"
+          onClick={() => {
+            window.dispatchEvent(new Event('musicweb-tab-drive'))
+          }}
           className="flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 shadow-sm"
         >
           <Cloud className="w-4 h-4 text-cyan-400" />

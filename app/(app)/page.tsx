@@ -46,13 +46,23 @@ export default function HomePage() {
     const handleSearchEvent = (e: any) => {
       setSearchQuery(e.detail || '')
     }
+    const checkHashTab = () => {
+      if (window.location.hash === '#drive') {
+        setLibraryTab('drive')
+      }
+    }
+
     window.addEventListener('musicweb-search', handleSearchEvent)
-    
-    // Reset search on fresh page mount/reload
+    window.addEventListener('hashchange', checkHashTab)
+    window.addEventListener('musicweb-tab-drive', () => setLibraryTab('drive'))
+
+    checkHashTab()
     setSearchQuery('')
 
     return () => {
       window.removeEventListener('musicweb-search', handleSearchEvent)
+      window.removeEventListener('hashchange', checkHashTab)
+      window.removeEventListener('musicweb-tab-drive', () => setLibraryTab('drive'))
     }
   }, [])
 
@@ -640,7 +650,7 @@ export default function HomePage() {
       </div>
 
       {/* Global Trending Music Showcase Section */}
-      {!isSearching && (
+      {!isSearching && libraryTab !== 'drive' && (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
