@@ -22,6 +22,7 @@ import {
   TrendingUp,
   History,
   RotateCcw,
+  Cloud,
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { getValidUserId, isAdmin as checkIsAdmin } from '@/lib/accessControl'
@@ -39,6 +40,7 @@ export default function HomePage() {
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [searchSource, setSearchSource] = useState<'all' | 'youtube' | 'audius' | 'itunes' | 'spotify' | 'local'>('all')
+  const [libraryTab, setLibraryTab] = useState<'all' | 'driveMCK' | 'recent'>('all')
 
   useEffect(() => {
     const handleSearchEvent = (e: any) => {
@@ -547,6 +549,16 @@ export default function HomePage() {
   const isSearching = searchQuery.trim().length > 0
   let displayedTracks: Track[] = []
 
+  const driveMCKTracks = tracks.filter((t) => {
+    const fp = t.file_path || ''
+    return Boolean(
+      extractDriveFileId(fp) ||
+      fp.includes('drive-stream') ||
+      fp.includes('drive.google.com') ||
+      fp.includes('lh3.googleusercontent.com')
+    )
+  })
+
   if (isSearching) {
     if (searchSource === 'all') {
       displayedTracks = [
@@ -568,8 +580,13 @@ export default function HomePage() {
       displayedTracks = globalTracks.local
     }
   } else {
-    // Strictly show user's own recently played tracks
-    displayedTracks = recentTracks
+    if (libraryTab === 'driveMCK') {
+      displayedTracks = driveMCKTracks
+    } else if (libraryTab === 'recent') {
+      displayedTracks = recentTracks
+    } else {
+      displayedTracks = tracks
+    }
   }
 
   return (
@@ -704,8 +721,144 @@ export default function HomePage() {
         </div>
       )}
 
+      {/* ☁️ driveMCK Dedicated Showcase Section */}
+      {!isSearching && (
+        <div id="driveMCK" className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-teal-400 to-blue-600 p-0.5 shadow-lg shadow-cyan-500/20">
+                <div className="w-full h-full bg-[#0d0e15] rounded-[10px] flex items-center justify-center">
+                  <Cloud className="w-5 h-5 text-cyan-400" />
+                </div>
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                  driveMCK
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2.5 py-0.5 rounded-full">
+                    {driveMCKTracks.length} Bài hát
+                  </span>
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Kho nhạc độc quyền được lưu trữ trực tiếp trên Google Drive (FLAC Lossless & HQ Audio)
+                </p>
+              </div>
+            </div>
+
+            {driveMCKTracks.length > 0 && (
+              <button
+                onClick={() => playTrack(driveMCKTracks[0], driveMCKTracks)}
+                className="bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-black font-extrabold px-4 py-2 rounded-full flex items-center gap-1.5 text-xs shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all"
+              >
+                <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+                <span>Phát Tất Cả driveMCK</span>
+              </button>
+            )}
+          </div>
+
+          {driveMCKTracks.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {driveMCKTracks.slice(0, 12).map((t) => (
+                <div
+                  key={t.id}
+                  onClick={() => playTrack(t, driveMCKTracks)}
+                  className="glass-card p-3 rounded-2xl flex flex-col gap-2.5 cursor-pointer group hover:scale-[1.03] transition-all relative border border-white/10 hover:border-cyan-400/50"
+                >
+                  <div className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
+                    {t.cover_url ? (
+                      <img src={t.cover_url} alt={t.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <Music className="w-8 h-8 text-cyan-400/70" />
+                    )}
+
+                    <div className="absolute top-2 right-2 z-10">
+                      <span className="text-[8px] font-black uppercase tracking-wider bg-cyan-500 text-black px-1.5 py-0.5 rounded shadow font-mono">
+                        driveMCK
+                      </span>
+                    </div>
+
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                      <div className="w-10 h-10 rounded-full bg-cyan-400 text-black flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
+                        <Play className="w-5 h-5 fill-current ml-0.5" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col min-w-0">
+                    <p className="text-xs font-bold text-white group-hover:text-cyan-300 transition-colors truncate">
+                      {t.title}
+                    </p>
+                    <p className="text-[10px] text-slate-400 truncate">
+                      {t.artist || 'Nghệ sĩ chưa xác định'}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="glass-panel rounded-2xl p-6 text-center border border-white/10 flex flex-col items-center justify-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                <Cloud className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white">Chưa có bài hát trong mục driveMCK</h3>
+                <p className="text-xs text-slate-400 max-w-md mt-1">
+                  Upload file từ máy hoặc dán link/Folder Google Drive để tự động lưu vào danh mục <strong>driveMCK</strong>.
+                </p>
+              </div>
+              <Link
+                href="/upload"
+                className="bg-cyan-500 hover:bg-cyan-400 text-black font-extrabold text-xs px-4 py-2 rounded-full transition-all shadow-md"
+              >
+                + Thêm Bài Hát Vào driveMCK
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Main Tracks Table Section */}
       <div className="flex flex-col gap-4">
+        {!isSearching && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+            <div className="flex items-center gap-2 overflow-x-auto pr-2">
+              <button
+                onClick={() => setLibraryTab('all')}
+                className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                  libraryTab === 'all'
+                    ? 'bg-white text-black shadow-md'
+                    : 'bg-white/5 text-slate-400 hover:text-white border border-white/10'
+                }`}
+              >
+                <Music className="w-3.5 h-3.5" />
+                <span>Tất Cả Bài Hát ({tracks.length})</span>
+              </button>
+
+              <button
+                onClick={() => setLibraryTab('driveMCK')}
+                className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                  libraryTab === 'driveMCK'
+                    ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-black shadow-md shadow-cyan-500/20'
+                    : 'bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 border border-cyan-500/30'
+                }`}
+              >
+                <Cloud className="w-3.5 h-3.5" />
+                <span>driveMCK ({driveMCKTracks.length})</span>
+              </button>
+
+              <button
+                onClick={() => setLibraryTab('recent')}
+                className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                  libraryTab === 'recent'
+                    ? 'bg-emerald-500 text-black shadow-md'
+                    : 'bg-white/5 text-slate-400 hover:text-white border border-white/10'
+                }`}
+              >
+                <History className="w-3.5 h-3.5" />
+                <span>Vừa Nghe Gần Đây ({recentTracks.length})</span>
+              </button>
+            </div>
+          </div>
+        )}
         {isAdmin && !isSearching && (
           <div className="flex items-center justify-end gap-2">
             <button
