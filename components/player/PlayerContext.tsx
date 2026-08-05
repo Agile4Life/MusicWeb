@@ -266,7 +266,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     const driveFileId = extractDriveFileId(filePath)
     if (driveFileId) {
-      return `https://lh3.googleusercontent.com/d/${driveFileId}`
+      return `/api/drive-stream?id=${encodeURIComponent(driveFileId)}`
     }
 
     if (filePath.startsWith('http')) {
@@ -692,15 +692,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (currentTrackRef.current?.source !== 'youtube') {
         const current = currentTrackRef.current
         if (current && current.file_path) {
-          const driveFileId = extractDriveFileId(current.file_path)
-          if (driveFileId && audio.src.includes('lh3.googleusercontent.com')) {
-            audio.src = `https://drive.google.com/uc?export=download&id=${driveFileId}`
-            audio.load()
-            audio.play().then(() => setIsPlaying(true)).catch(async () => {
-              await fallbackToYouTube(current)
-            })
-            return
-          }
           await fallbackToYouTube(current)
           return
         }

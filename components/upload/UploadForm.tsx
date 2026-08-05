@@ -714,7 +714,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
 
     setImportingDrive(true)
     try {
-      const streamUrl = `https://drive.google.com/uc?export=download&id=${fileId}`
+      const streamUrl = buildDriveStreamUrl(fileId)
 
       const { data, error } = await supabase.from('tracks').insert({
         user_id: userId,
@@ -825,7 +825,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
           continue
         }
 
-        const streamUrl = `https://drive.google.com/uc?export=download&id=${item.fileId}`
+        const streamUrl = buildDriveStreamUrl(item.fileId)
         const { error } = await supabase.from('tracks').insert({
           user_id: userId,
           title: title,

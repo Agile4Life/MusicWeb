@@ -1,5 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+function decodeUnicodeEscapes(str: string): string {
+  try {
+    return str.replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) =>
+      String.fromCharCode(parseInt(hex, 16))
+    ).replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+  } catch {
+    return str
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
@@ -9,68 +19,83 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Missing folderId' }, { status: 400 })
     }
 
-    // Try fetching from Google Drive embedded folder view (works for public folders)
-    const embedUrl = `https://drive.google.com/embeddedfolderview?id=${folderId}#list`
-    const res = await fetch(embedUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      },
-      cache: 'no-store'
-    })
-
-    if (!res.ok) {
-      return NextResponse.json({ error: `Google Drive returned ${res.status}` }, { status: res.status })
+    const headers = {
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     }
 
-    const html = await res.text()
+    // Try fetching from Google Drive embedded folder view & standard public folder page
+    const urls = [
+      `https://drive.google.com/embeddedfolderview?id=${folderId}#list`,
+      `https://drive.google.com/drive/folders/${folderId}`,
+    ]
+
     const files: Array<{ id: string; name: string }> = []
-    
-    // Pattern 1: JSON structures embedded in script tags [id, name, ...]
-    const jsonPattern = /\["([a-zA-Z0-9_-]{25,45})",\s*"([^"]+?)"/g
-    let match: RegExpExecArray | null
-    while ((match = jsonPattern.exec(html)) !== null) {
-      const id = match[1]
-      const name = match[2]
-      if (id && name && (name.includes('.') || name.length < 100)) {
-        if (!files.some(f => f.id === id)) {
-          files.push({ id, name })
-        }
-      }
-    }
 
-    // Pattern 2: HTML data attributes data-id and data-name
-    if (files.length === 0) {
-      const dataAttrPattern = /data-id=["']([a-zA-Z0-9_-]{25,45})["'][^>]*data-name=["']([^"']+)["']/g
-      while ((match = dataAttrPattern.exec(html)) !== null) {
-        const id = match[1]
-        const name = match[2]
-        if (!files.some(f => f.id === id)) {
-          files.push({ id, name })
-        }
-      }
-    }
+    for (const url of urls) {
+      if (files.length > 0) break
 
-    // Pattern 3: Drive file view links /file/d/ID
-    if (files.length === 0) {
-      const linkPattern = /\/file\/d\/([a-zA-Z0-9_-]{25,45})[^\>]*>([^<]+)/g
-      while ((match = linkPattern.exec(html)) !== null) {
-        const id = match[1]
-        const name = match[2].trim()
-        if (!files.some(f => f.id === id)) {
-          files.push({ id, name })
-        }
-      }
-    }
+      try {
+        const res = await fetch(url, { headers, cache: 'no-store' })
+        if (!res.ok) continue
 
-    // Pattern 4: Fallback to extract any file ID from drive.google.com/file/d/ID or open?id=ID
-    if (files.length === 0) {
-      const idPattern = /(?:file\/d\/|id=)([a-zA-Z0-9_-]{25,45})/g
-      let count = 1
-      while ((match = idPattern.exec(html)) !== null) {
-        const id = match[1]
-        if (!files.some(f => f.id === id)) {
-          files.push({ id, name: `Bài hát ${count++}` })
+        const html = await res.text()
+        let match: RegExpExecArray | null
+
+        // Pattern 1: Embedded JSON script structures ["fileId", "fileName.ext", ...]
+        const jsonPattern = /\["([a-zA-Z0-9_-]{19,45})",\s*"([^"]+?)"/g
+        while ((match = jsonPattern.exec(html)) !== null) {
+          const id = match[1]
+          let rawName = match[2]
+          if (id && id !== folderId && rawName) {
+            const cleanName = decodeUnicodeEscapes(rawName).trim()
+            if (
+              (cleanName.includes('.') || cleanName.length < 100) &&
+              !files.some((f) => f.id === id)
+            ) {
+              files.push({ id, name: cleanName })
+            }
+          }
         }
+
+        // Pattern 2: HTML data attributes data-id and data-name
+        if (files.length === 0) {
+          const dataAttrPattern =
+            /data-id=["']([a-zA-Z0-9_-]{19,45})["'][^>]*data-name=["']([^"']+)["']/g
+          while ((match = dataAttrPattern.exec(html)) !== null) {
+            const id = match[1]
+            const name = decodeUnicodeEscapes(match[2]).trim()
+            if (id !== folderId && !files.some((f) => f.id === id)) {
+              files.push({ id, name })
+            }
+          }
+        }
+
+        // Pattern 3: Drive file links /file/d/ID
+        if (files.length === 0) {
+          const linkPattern = /\/file\/d\/([a-zA-Z0-9_-]{19,45})[^\>]*>([^<]+)/g
+          while ((match = linkPattern.exec(html)) !== null) {
+            const id = match[1]
+            const name = decodeUnicodeEscapes(match[2].trim())
+            if (id !== folderId && !files.some((f) => f.id === id)) {
+              files.push({ id, name })
+            }
+          }
+        }
+
+        // Pattern 4: Fallback to extract any file ID from drive.google.com/file/d/ID or open?id=ID
+        if (files.length === 0) {
+          const idPattern = /(?:file\/d\/|id=)([a-zA-Z0-9_-]{19,45})/g
+          let count = 1
+          while ((match = idPattern.exec(html)) !== null) {
+            const id = match[1]
+            if (id !== folderId && !files.some((f) => f.id === id)) {
+              files.push({ id, name: `Bài hát ${count++}` })
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Folder page fetch error:', err)
       }
     }
 
@@ -78,9 +103,8 @@ export async function GET(req: NextRequest) {
       success: true,
       folderId,
       count: files.length,
-      files
+      files,
     })
-
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || 'Server error' }, { status: 500 })
   }

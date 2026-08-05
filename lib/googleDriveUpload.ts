@@ -64,7 +64,7 @@ export interface GoogleDriveUploadResult {
  * This URL works with HTML5 <audio> and <video> elements.
  */
 export function buildDriveStreamUrl(fileId: string): string {
-  return `${WORKER_URL}/api/upload/stream?id=${encodeURIComponent(fileId)}`;
+  return `/api/drive-stream?id=${encodeURIComponent(fileId)}`;
 }
 
 export function extractDriveFileId(filePath: string): string | null {

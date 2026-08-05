@@ -397,9 +397,9 @@ export default function HomePage() {
         let isInvalid = isFolder
         if (!isInvalid && driveFileId) {
           try {
-            const checkUrl = `https://lh3.googleusercontent.com/d/${driveFileId}`
+            const checkUrl = `/api/drive-stream?id=${driveFileId}`
             const res = await fetch(checkUrl, { method: 'HEAD' })
-            if (res.status === 404 || res.status === 403 || res.status === 500) {
+            if (res.status === 404 || res.status === 500) {
               isInvalid = true
             }
           } catch {
