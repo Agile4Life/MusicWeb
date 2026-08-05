@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { usePlayer } from './PlayerContext'
+import { LyricsView } from './LyricsView'
 import {
   Play,
   Pause,
@@ -14,6 +15,8 @@ import {
   ChevronDown,
   Maximize2,
   SlidersHorizontal,
+  Mic2,
+  X,
 } from 'lucide-react'
 
 function formatTime(seconds: number) {
@@ -40,6 +43,7 @@ export function PlayerBar() {
 
   const [prevVol, setPrevVol] = useState(0.8)
   const [showMobileFullPlayer, setShowMobileFullPlayer] = useState(false)
+  const [showLyricsModal, setShowLyricsModal] = useState(false)
 
   const handleVolumeToggle = () => {
     if (volume > 0) {
@@ -160,7 +164,16 @@ export function PlayerBar() {
               Đang phát từ MusicWeb
             </span>
 
-            <div className="w-8" />
+            <button
+              onClick={() => {
+                setShowMobileFullPlayer(false)
+                setShowLyricsModal(true)
+              }}
+              className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-slate-300 hover:text-[var(--primary-spotify)]"
+              title="Xem lời bài hát"
+            >
+              <Mic2 className="w-5 h-5" />
+            </button>
           </div>
 
           {/* Large Album Artwork */}
@@ -334,8 +347,22 @@ export function PlayerBar() {
           </div>
         </div>
 
-        {/* Right: Volume Controls */}
+        {/* Right: Volume & Extra Controls */}
         <div className="w-1/4 flex justify-end items-center gap-3">
+          <button
+            onClick={() => setShowLyricsModal(!showLyricsModal)}
+            className={`p-2 rounded-xl transition-all ${
+              showLyricsModal
+                ? 'bg-[var(--primary-spotify)] text-black shadow-md'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+            title="Lời bài hát (Lyrics)"
+          >
+            <Mic2 className="w-4 h-4" />
+          </button>
+
+          <div className="h-4 w-[1px] bg-white/10" />
+
           <button
             onClick={handleVolumeToggle}
             className="text-slate-400 hover:text-white transition-colors"
@@ -354,6 +381,30 @@ export function PlayerBar() {
           />
         </div>
       </footer>
+
+      {/* 🎤 FULLSCREEN / MODAL LYRICS OVERLAY */}
+      {showLyricsModal && (
+        <div className="fixed inset-0 z-50 bg-[#07080c]/98 backdrop-blur-2xl flex flex-col p-4 md:p-8 animate-in fade-in duration-200">
+          <div className="flex items-center justify-between pb-2 border-b border-white/10 z-20">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <Mic2 className="w-4 h-4 text-[var(--primary-spotify)]" />
+              <span>Lời bài hát Studio</span>
+            </span>
+
+            <button
+              onClick={() => setShowLyricsModal(false)}
+              className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-colors"
+              title="Đóng lời bài hát"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="flex-1 min-h-0 relative mt-2">
+            <LyricsView onClose={() => setShowLyricsModal(false)} isModal={true} />
+          </div>
+        </div>
+      )}
     </>
   )
 }

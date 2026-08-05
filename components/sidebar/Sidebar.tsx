@@ -17,6 +17,7 @@ import {
   Heart,
   History,
   Trash2,
+  Mic2,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
@@ -231,6 +232,17 @@ export function Sidebar() {
         >
           <Settings className={`w-4 h-4 ${pathname === '/settings' ? 'text-[var(--primary-spotify)]' : ''}`} />
           <span>Cài Đặt & Màu Sắc</span>
+        </Link>
+        <Link
+          href="/lyrics"
+          className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+            pathname === '/lyrics'
+              ? 'bg-gradient-to-r from-emerald-500/20 to-transparent text-white border-l-2 border-[var(--primary-spotify)] shadow-sm'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <Mic2 className={`w-4 h-4 ${pathname === '/lyrics' ? 'text-[var(--primary-spotify)]' : ''}`} />
+          <span>Lời bài hát (Lyrics)</span>
         </Link>
         <Link
           href="/favorites"
