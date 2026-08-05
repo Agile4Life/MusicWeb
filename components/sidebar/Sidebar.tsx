@@ -174,7 +174,11 @@ export function Sidebar() {
     <aside className="hidden md:flex w-72 bg-[#090a0f]/90 backdrop-blur-2xl flex-col gap-3 p-3 h-full select-none text-slate-300 border-r border-white/5">
       {/* App Branding */}
       <div className="glass-panel rounded-2xl p-4 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3 group">
+        <Link
+          href="/"
+          onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
+          className="flex items-center gap-3 group"
+        >
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[var(--primary-spotify)] to-[var(--theme-secondary,#06b6d4)] p-0.5 shadow-lg shadow-[var(--theme-glow-shadow)] group-hover:scale-105 transition-transform">
             <div className="w-full h-full bg-[#0d0e15] rounded-[10px] flex items-center justify-center">
               <Disc className="w-5 h-5 text-[var(--primary-spotify)] animate-spin-slow" />
@@ -199,6 +203,7 @@ export function Sidebar() {
 
         <Link
           href="/"
+          onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
           className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
             pathname === '/'
               ? 'bg-gradient-to-r from-emerald-500/20 to-transparent text-white border-l-2 border-[var(--primary-spotify)] shadow-sm'

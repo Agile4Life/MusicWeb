@@ -47,15 +47,31 @@ export default function HomePage() {
     const handleSearchEvent = (e: any) => {
       setSearchQuery(e.detail || '')
     }
+
     const checkHashTab = () => {
       if (window.location.hash === '#drive') {
         setLibraryTab('drive')
+      } else {
+        setLibraryTab('all')
       }
+    }
+
+    const handleTabHome = () => {
+      setLibraryTab('all')
+      if (window.location.hash === '#drive') {
+        history.replaceState(null, '', window.location.pathname + window.location.search)
+      }
+    }
+
+    const handleTabDrive = () => {
+      setLibraryTab('drive')
     }
 
     window.addEventListener('musicweb-search', handleSearchEvent)
     window.addEventListener('hashchange', checkHashTab)
-    window.addEventListener('musicweb-tab-drive', () => setLibraryTab('drive'))
+    window.addEventListener('popstate', checkHashTab)
+    window.addEventListener('musicweb-tab-home', handleTabHome)
+    window.addEventListener('musicweb-tab-drive', handleTabDrive)
 
     checkHashTab()
     setSearchQuery('')
@@ -63,7 +79,9 @@ export default function HomePage() {
     return () => {
       window.removeEventListener('musicweb-search', handleSearchEvent)
       window.removeEventListener('hashchange', checkHashTab)
-      window.removeEventListener('musicweb-tab-drive', () => setLibraryTab('drive'))
+      window.removeEventListener('popstate', checkHashTab)
+      window.removeEventListener('musicweb-tab-home', handleTabHome)
+      window.removeEventListener('musicweb-tab-drive', handleTabDrive)
     }
   }, [])
 

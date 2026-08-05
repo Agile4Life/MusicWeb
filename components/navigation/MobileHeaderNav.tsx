@@ -157,7 +157,11 @@ export function MobileHeaderNav() {
             <Menu className="w-5 h-5" />
           </button>
 
-          <Link href="/" className="flex items-center gap-2.5">
+          <Link
+            href="/"
+            onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
+            className="flex items-center gap-2.5"
+          >
             <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[var(--primary-spotify)] to-cyan-400 p-0.5 shadow-md shadow-emerald-500/20">
               <div className="w-full h-full bg-[#0d0e15] rounded-[6px] flex items-center justify-center">
                 <Disc className="w-4 h-4 text-[var(--primary-spotify)] animate-spin-slow" />
@@ -210,6 +214,7 @@ export function MobileHeaderNav() {
             <div className="flex flex-col gap-1">
               <Link
                 href="/"
+                onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold ${
                   pathname === '/' ? 'bg-[var(--primary-spotify)] text-black font-extrabold' : 'text-slate-300 hover:bg-white/5'
                 }`}
@@ -344,6 +349,7 @@ export function MobileHeaderNav() {
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#080a10]/95 backdrop-blur-2xl border-t border-white/10 px-2 pt-1.5 pb-safe flex items-center justify-around select-none">
         <Link
           href="/"
+          onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
           className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all active:scale-95 ${
             pathname === '/' ? 'text-[var(--primary-spotify)] font-bold' : 'text-slate-400 hover:text-white'
           }`}

@@ -22,29 +22,62 @@ export async function GET(req: NextRequest) {
     }
 
     // Initial fetch to Google Drive
-    let res = await fetch(driveUrl, { headers, cache: 'no-store' })
+    let res = await fetch(driveUrl, { headers, cache: 'no-store', redirect: 'follow' })
+    let contentType = res.headers.get('content-type') || ''
 
-    // Check if Google Drive returns a virus scan warning confirmation page (common for large FLAC files > 25MB)
-    const contentType = res.headers.get('content-type') || ''
-    
+    // If Google Drive returns an HTML page (virus scan warning for files > 25MB / 100MB+)
     if (contentType.includes('text/html')) {
       const responseText = await res.text()
-      // Look for confirm token in HTML links or cookies
-      const confirmMatch = responseText.match(/confirm=([a-zA-Z0-9_-]+)/) ||
-        responseText.match(/name="confirm"\s+value="([a-zA-Z0-9_-]+)"/)
-      
-      const setCookieHeader = res.headers.get('set-cookie')
-      const warningCookie = setCookieHeader?.match(/download_warning_[^=]+=([^;]+)/)?.[1]
-      
-      const confirmToken = confirmMatch?.[1] || warningCookie
 
-      if (confirmToken) {
-        driveUrl = `https://drive.google.com/uc?export=download&confirm=${confirmToken}&id=${encodeURIComponent(fileId)}`
-        res = await fetch(driveUrl, { headers, cache: 'no-store' })
+      // Extract set-cookie headers from first response (critical for >100MB files!)
+      const rawCookies: string[] = (res.headers as any).getSetCookie
+        ? (res.headers as any).getSetCookie()
+        : [res.headers.get('set-cookie')].filter(Boolean) as string[]
+
+      const cookieHeader = rawCookies.map((c: string) => c.split(';')[0]).join('; ')
+
+      // Extract confirmation token from HTML page
+      const confirmMatch =
+        responseText.match(/confirm=([a-zA-Z0-9_-]+)/) ||
+        responseText.match(/name="confirm"\s+value="([a-zA-Z0-9_-]+)"/) ||
+        responseText.match(/uuid=([a-zA-Z0-9_-]+)/)
+
+      const warningCookie = rawCookies.join('; ').match(/download_warning_[^=]+=([^;]+)/)?.[1]
+      const confirmToken = confirmMatch?.[1] || warningCookie || 't'
+
+      const fetchHeaders: Record<string, string> = {
+        ...headers,
+        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+      }
+
+      // Stage 2: Official Google Drive direct CDN endpoint for large files (> 100MB)
+      const userContentUrl = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=${confirmToken}`
+      let res2 = await fetch(userContentUrl, { headers: fetchHeaders, cache: 'no-store', redirect: 'follow' })
+      let ct2 = res2.headers.get('content-type') || ''
+
+      if (!ct2.includes('text/html') && (res2.ok || res2.status === 206)) {
+        res = res2
+        contentType = ct2
       } else {
-        // Alternative download URL format for Google Drive files
-        driveUrl = `https://docs.google.com/uc?export=download&id=${encodeURIComponent(fileId)}&confirm=t`
-        res = await fetch(driveUrl, { headers, cache: 'no-store' })
+        // Stage 3: Docs export endpoint with confirmation token & cookie
+        const confirmUrl = `https://docs.google.com/uc?export=download&id=${encodeURIComponent(fileId)}&confirm=${confirmToken}`
+        let res3 = await fetch(confirmUrl, { headers: fetchHeaders, cache: 'no-store', redirect: 'follow' })
+        let ct3 = res3.headers.get('content-type') || ''
+
+        if (!ct3.includes('text/html') && (res3.ok || res3.status === 206)) {
+          res = res3
+          contentType = ct3
+        } else {
+          // Stage 4: Direct Google User Content CDN
+          const cdnUrl = `https://lh3.googleusercontent.com/d/${encodeURIComponent(fileId)}`
+          let res4 = await fetch(cdnUrl, { headers, cache: 'no-store', redirect: 'follow' })
+          let ct4 = res4.headers.get('content-type') || ''
+
+          if (!ct4.includes('text/html') && (res4.ok || res4.status === 206)) {
+            res = res4
+            contentType = ct4
+          }
+        }
       }
     }
 
