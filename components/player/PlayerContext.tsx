@@ -27,6 +27,31 @@ interface PlayerContextType {
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined)
 
+const savePlayerStateToStorage = (
+  track: Track | null,
+  time: number,
+  trackQueue: Track[],
+  index: number,
+  vol: number
+) => {
+  if (typeof window === 'undefined' || !track) return
+  try {
+    localStorage.setItem(
+      'musicweb_player_state',
+      JSON.stringify({
+        track,
+        currentTime: time,
+        queue: trackQueue,
+        currentIndex: index,
+        volume: vol,
+        savedAt: Date.now(),
+      })
+    )
+  } catch {
+    // ignore storage error
+  }
+}
+
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const { data: nextAuthSession } = useSession()
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null)
@@ -41,7 +66,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const playRequestRef = useRef(0)
+  const currentTrackRef = useRef<Track | null>(null)
+  const queueRef = useRef<Track[]>([])
+  const currentIndexRef = useRef<number>(-1)
+  const volumeRef = useRef<number>(0.8)
+  const lastSavedTimeRef = useRef<number>(0)
+
   const supabase = createClient()
+
+  useEffect(() => {
+    currentTrackRef.current = currentTrack
+    queueRef.current = queue
+    currentIndexRef.current = currentIndex
+    volumeRef.current = volume
+  }, [currentTrack, queue, currentIndex, volume])
 
   useEffect(() => {
     let active = true
@@ -55,12 +93,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         .maybeSingle()
       if (active && typeof data?.auto_play === 'boolean') setAutoPlayNext(data.auto_play)
     })
-    return () => { active = false }
+    return () => {
+      active = false
+    }
   }, [supabase])
 
   // Resolve both legacy Supabase paths and Google Drive files.
-  // Supabase paths are relative (for example "user-id/song.mp3").
-  // Drive files are identified by a file ID and must be streamed through the Worker.
   const getAudioUrl = async (track: Track): Promise<string | null> => {
     const filePath = track.file_path
     if (!filePath) return null
@@ -71,41 +109,116 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (filePath.startsWith('http')) {
-      // Do not send an absolute URL to Supabase. This preserves support for
-      // legacy Supabase paths while allowing public/Worker URLs to play.
       return filePath
     }
 
-    // Try creating signed URL (valid for 1 hour)
     const { data, error } = await supabase.storage
       .from('music-files')
       .createSignedUrl(filePath, 3600)
 
     if (error || !data?.signedUrl) {
-      // Fallback to public URL if available
-      const { data: pubData } = supabase.storage
-        .from('music-files')
-        .getPublicUrl(filePath)
+      const { data: pubData } = supabase.storage.from('music-files').getPublicUrl(filePath)
       return pubData.publicUrl
     }
 
     return data.signedUrl
   }
 
+  // 🔄 RESTORE SAVED PLAYER STATE ON MOUNT (PAGE RELOAD)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const savedRaw = localStorage.getItem('musicweb_player_state')
+      if (savedRaw) {
+        const saved = JSON.parse(savedRaw)
+        if (saved.track && saved.track.id) {
+          const restoredTrack = saved.track
+          const restoredTime = typeof saved.currentTime === 'number' ? saved.currentTime : 0
+          const restoredQueue =
+            Array.isArray(saved.queue) && saved.queue.length > 0 ? saved.queue : [restoredTrack]
+          const restoredIndex = typeof saved.currentIndex === 'number' ? saved.currentIndex : 0
+          const restoredVol = typeof saved.volume === 'number' ? saved.volume : 0.8
+
+          setCurrentTrack(restoredTrack)
+          setQueue(restoredQueue)
+          setCurrentIndex(restoredIndex)
+          setCurrentTime(restoredTime)
+          setVolumeState(restoredVol)
+
+          // Preload audio and set time position without starting playback
+          getAudioUrl(restoredTrack)
+            .then((url) => {
+              const audio = audioRef.current
+              if (url && audio) {
+                audio.src = url
+                audio.volume = restoredVol
+                audio.load()
+
+                const onLoaded = () => {
+                  if (restoredTime > 0 && restoredTime < (audio.duration || Infinity)) {
+                    audio.currentTime = restoredTime
+                    setCurrentTime(restoredTime)
+                  }
+                  audio.removeEventListener('loadedmetadata', onLoaded)
+                }
+                audio.addEventListener('loadedmetadata', onLoaded)
+              }
+            })
+            .catch((err) => console.warn('Audio restore error:', err))
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to restore player state from storage:', e)
+    }
+  }, [])
+
+  // 💾 SAVE EXACT PLAYBACK POSITION WHEN CLOSING OR UNLOADING PAGE
+  useEffect(() => {
+    const handleUnload = () => {
+      if (currentTrackRef.current && audioRef.current) {
+        const finalTime = audioRef.current.currentTime || 0
+        savePlayerStateToStorage(
+          currentTrackRef.current,
+          finalTime,
+          queueRef.current,
+          currentIndexRef.current,
+          volumeRef.current
+        )
+      }
+    }
+
+    window.addEventListener('beforeunload', handleUnload)
+    window.addEventListener('pagehide', handleUnload)
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload)
+      window.removeEventListener('pagehide', handleUnload)
+    }
+  }, [])
+
   const playTrack = async (track: Track, newQueue?: Track[]) => {
     const requestId = ++playRequestRef.current
 
+    let nextQueue = queue
+    let nextIndex = currentIndex
+
     if (newQueue) {
+      nextQueue = newQueue
       setQueue(newQueue)
       const index = newQueue.findIndex((t) => t.id === track.id)
-      setCurrentIndex(index >= 0 ? index : 0)
+      nextIndex = index >= 0 ? index : 0
+      setCurrentIndex(nextIndex)
     } else if (queue.length === 0) {
-      setQueue([track])
+      nextQueue = [track]
+      setQueue(nextQueue)
+      nextIndex = 0
       setCurrentIndex(0)
     }
 
     setCurrentTrack(track)
     setPlaybackError(null)
+
+    // Save initial state (time 0)
+    savePlayerStateToStorage(track, 0, nextQueue, nextIndex, volume)
 
     let url: string | null = null
     try {
@@ -139,10 +252,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Fire-and-forget: record track playback history in background for all user types
+    // Record listening history in background
     setTimeout(async () => {
       try {
-        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser()
         const activeUser = currentUser || (nextAuthSession?.user ? {
           id: nextAuthSession.user.email,
           email: nextAuthSession.user.email,
@@ -200,6 +315,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (!audioRef.current) return
     audioRef.current.currentTime = time
     setCurrentTime(time)
+    if (currentTrackRef.current) {
+      savePlayerStateToStorage(
+        currentTrackRef.current,
+        time,
+        queueRef.current,
+        currentIndexRef.current,
+        volumeRef.current
+      )
+    }
   }
 
   const setVolume = (val: number) => {
@@ -227,13 +351,30 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const audio = audioRef.current
     if (!audio) return
 
-    const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime)
+      if (Math.abs(audio.currentTime - lastSavedTimeRef.current) > 2 && currentTrackRef.current) {
+        lastSavedTimeRef.current = audio.currentTime
+        savePlayerStateToStorage(
+          currentTrackRef.current,
+          audio.currentTime,
+          queueRef.current,
+          currentIndexRef.current,
+          volumeRef.current
+        )
+      }
+    }
+
     const handleLoadedMetadata = () => setDuration(audio.duration || 0)
     const handleError = () => {
       setIsPlaying(false)
       setDuration(0)
       const mediaError = audio.error
-      setPlaybackError(`Audio lỗi${mediaError?.code ? ` (mã ${mediaError.code})` : ''}: ${mediaError?.message || 'không đọc được file'}`)
+      setPlaybackError(
+        `Audio lỗi${mediaError?.code ? ` (mã ${mediaError.code})` : ''}: ${
+          mediaError?.message || 'không đọc được file'
+        }`
+      )
       console.error('Audio element error:', {
         src: audio.currentSrc || audio.src,
         mediaErrorCode: audio.error?.code,
