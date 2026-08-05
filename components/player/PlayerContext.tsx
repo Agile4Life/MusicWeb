@@ -646,14 +646,64 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    const fallbackToYouTube = async (track: Track) => {
+      try {
+        const query = `${track.title} ${track.artist || ''}`.trim()
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&source=youtube`)
+        if (res.ok) {
+          const data = await res.json()
+          const ytList = data.results || []
+          if (ytList.length > 0 && ytList[0].youtube_id) {
+            const activeTrack: Track = {
+              ...track,
+              youtube_id: ytList[0].youtube_id,
+              source: 'youtube',
+            }
+            setCurrentTrack(activeTrack)
+            setPlaybackError(null)
+            if (ytPlayerRef.current?.loadVideoById) {
+              ytPlayerRef.current.setVolume(volume * 100)
+              ytPlayerRef.current.loadVideoById(ytList[0].youtube_id)
+              setIsPlaying(true)
+              return
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('YouTube fallback failed:', e)
+      }
+      setIsPlaying(false)
+      setPlaybackError('Không thể phát file nhạc này từ Google Drive hoặc YouTube.')
+    }
+
     const handleLoadedMetadata = () => {
       if (currentTrackRef.current?.source !== 'youtube') {
-        setDuration(audio.duration || 0)
+        const loadedDuration = audio.duration || 0
+        setDuration(loadedDuration)
+        if (currentTrackRef.current && loadedDuration > 0 && (!currentTrackRef.current.duration || currentTrackRef.current.duration === 0)) {
+          const trackId = currentTrackRef.current.id
+          currentTrackRef.current.duration = Math.round(loadedDuration)
+          supabase.from('tracks').update({ duration: Math.round(loadedDuration) }).eq('id', trackId).then(() => {})
+        }
       }
     }
 
-    const handleError = () => {
+    const handleError = async () => {
       if (currentTrackRef.current?.source !== 'youtube') {
+        const current = currentTrackRef.current
+        if (current && current.file_path) {
+          const driveFileId = extractDriveFileId(current.file_path)
+          if (driveFileId && audio.src.includes('lh3.googleusercontent.com')) {
+            audio.src = `https://drive.google.com/uc?export=download&id=${driveFileId}`
+            audio.load()
+            audio.play().then(() => setIsPlaying(true)).catch(async () => {
+              await fallbackToYouTube(current)
+            })
+            return
+          }
+          await fallbackToYouTube(current)
+          return
+        }
         setIsPlaying(false)
         setDuration(0)
         const mediaError = audio.error
