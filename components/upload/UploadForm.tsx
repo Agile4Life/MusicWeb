@@ -734,8 +734,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
         setDriveTitle('')
         setDriveArtist('')
         setDriveAlbum('')
-        router.push('/')
-        router.refresh()
+        window.location.href = '/'
       }
     } catch (err: any) {
       alert('Lỗi: ' + (err?.message || 'Không thể kết nối'))
@@ -807,9 +806,9 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
         return
       }
 
-      const dbTracks = await fetchExistingTracks()
-      const existingKeys = new Set(
-        dbTracks.map((t) => `${cleanSongTitle(t.title || '')}|||${cleanSongArtist(t.artist)}`)
+      const { data: dbTracks } = await supabase.from('tracks').select('file_path')
+      const existingFilePaths = new Set(
+        (dbTracks || []).map((t: any) => extractDriveFileId(t.file_path || '') || t.file_path).filter(Boolean)
       )
 
       let addedCount = 0
@@ -818,11 +817,10 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       for (let i = 0; i < itemsToImport.length; i++) {
         const item = itemsToImport[i]
         const { title, artist } = parseFilenameToTitleArtist(item.name)
-        const key = `${cleanSongTitle(title)}|||${cleanSongArtist(artist)}`
 
         setSyncStatus(`Đang xử lý (${i + 1}/${itemsToImport.length}): ${title}`)
 
-        if (existingKeys.has(key)) {
+        if (existingFilePaths.has(item.fileId)) {
           skippedCount++
           continue
         }
@@ -840,14 +838,13 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
 
         if (!error) {
           addedCount++
-          existingKeys.add(key)
+          existingFilePaths.add(item.fileId)
         }
       }
 
       alert(`✅ Đồng bộ thành công!\n- Đã thêm mới: ${addedCount} bài hát\n- Đã bỏ qua: ${skippedCount} bài (đã có trong thư viện)`)
       setFolderInput('')
-      router.push('/')
-      router.refresh()
+      window.location.href = '/'
     } catch (err: any) {
       alert('Lỗi đồng bộ: ' + (err?.message || 'Có lỗi xảy ra'))
     } finally {
