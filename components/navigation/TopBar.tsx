@@ -42,13 +42,15 @@ export function TopBar() {
     supabase.auth.getUser().then((res: any) => setSupabaseUser(res?.data?.user))
   }, [supabase])
 
-  // Sync initial query from URL search parameter
+  // Clear old search from URL on fresh page reload/mount
   useEffect(() => {
-    const urlQuery = searchParams.get('q') || ''
-    if (urlQuery !== query) {
-      setQuery(urlQuery)
+    if (typeof window !== 'undefined' && window.location.search.includes('q=')) {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('q')
+      window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''))
     }
-  }, [searchParams])
+    setQuery('')
+  }, [])
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -105,7 +107,9 @@ export function TopBar() {
       const params = new URLSearchParams(window.location.search)
       if (val.trim()) params.set('q', val)
       else params.delete('q')
-      router.replace(`/${params.toString() ? `?${params.toString()}` : ''}`, { scroll: false })
+      const newUrl = `/${params.toString() ? `?${params.toString()}` : ''}`
+      window.history.replaceState({}, '', newUrl)
+      window.dispatchEvent(new CustomEvent('musicweb-search', { detail: val }))
     }
   }
 
@@ -123,7 +127,11 @@ export function TopBar() {
     setSuggestions([])
     setShowDropdown(false)
     if (pathname === '/') {
-      router.replace('/', { scroll: false })
+      const params = new URLSearchParams(window.location.search)
+      params.delete('q')
+      const newUrl = `/${params.toString() ? `?${params.toString()}` : ''}`
+      window.history.replaceState({}, '', newUrl)
+      window.dispatchEvent(new CustomEvent('musicweb-search', { detail: '' }))
     }
   }
 

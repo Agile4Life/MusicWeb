@@ -41,9 +41,18 @@ export default function HomePage() {
   const [searchSource, setSearchSource] = useState<'all' | 'youtube' | 'audius' | 'itunes' | 'spotify' | 'local'>('all')
 
   useEffect(() => {
-    const urlQuery = searchParams.get('q') || ''
-    setSearchQuery(urlQuery)
-  }, [searchParams])
+    const handleSearchEvent = (e: any) => {
+      setSearchQuery(e.detail || '')
+    }
+    window.addEventListener('musicweb-search', handleSearchEvent)
+    
+    // Reset search on fresh page mount/reload
+    setSearchQuery('')
+
+    return () => {
+      window.removeEventListener('musicweb-search', handleSearchEvent)
+    }
+  }, [])
 
   const [loading, setLoading] = useState(true)
   const [supabaseUser, setSupabaseUser] = useState<any>(null)
