@@ -12,15 +12,15 @@ import {
   Sparkles,
   ListMusic,
   UserCheck,
-  Disc,
-  Settings,
-  Heart,
-  History,
-  Menu,
-  X,
-  Trash2,
   Mic2,
   Cloud,
+  Headphones,
+  Menu,
+  X,
+  Heart,
+  History,
+  Settings,
+  Trash2,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
@@ -162,9 +162,9 @@ export function MobileHeaderNav() {
             onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
             className="flex items-center gap-2.5"
           >
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[var(--primary-spotify)] to-cyan-400 p-0.5 shadow-md shadow-emerald-500/20">
-              <div className="w-full h-full bg-[#0d0e15] rounded-[6px] flex items-center justify-center">
-                <Disc className="w-4 h-4 text-[var(--primary-spotify)] animate-spin-slow" />
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 via-teal-400 to-blue-600 p-0.5 shadow-md shadow-cyan-500/20">
+              <div className="w-full h-full bg-[#080c14] rounded-[10px] flex items-center justify-center">
+                <Headphones className="w-4 h-4 text-cyan-400" />
               </div>
             </div>
             <span className="font-extrabold text-base tracking-tight text-white flex items-center gap-1">
@@ -195,9 +195,9 @@ export function MobileHeaderNav() {
           <div className="relative w-4/5 max-w-sm bg-[#090a0f] border-r border-white/10 p-4 flex flex-col gap-4 z-10 h-full overflow-y-auto animate-in slide-in-from-left duration-300 select-none">
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[var(--primary-spotify)] to-cyan-400 p-0.5">
-                  <div className="w-full h-full bg-[#0d0e15] rounded-[6px] flex items-center justify-center">
-                    <Disc className="w-4 h-4 text-[var(--primary-spotify)]" />
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 via-teal-400 to-blue-600 p-0.5">
+                  <div className="w-full h-full bg-[#080c14] rounded-[10px] flex items-center justify-center">
+                    <Headphones className="w-4 h-4 text-cyan-400" />
                   </div>
                 </div>
                 <span className="font-extrabold text-base text-white">Menu Navigation</span>

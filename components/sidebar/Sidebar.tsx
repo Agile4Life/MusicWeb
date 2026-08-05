@@ -12,13 +12,13 @@ import {
   Sparkles,
   ListMusic,
   UserCheck,
-  Disc,
+  Mic2,
+  Cloud,
+  Headphones,
   Settings,
   Heart,
   History,
   Trash2,
-  Mic2,
-  Cloud,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
@@ -179,17 +179,14 @@ export function Sidebar() {
           onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
           className="flex items-center gap-3 group"
         >
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[var(--primary-spotify)] to-[var(--theme-secondary,#06b6d4)] p-0.5 shadow-lg shadow-[var(--theme-glow-shadow)] group-hover:scale-105 transition-transform">
-            <div className="w-full h-full bg-[#0d0e15] rounded-[10px] flex items-center justify-center">
-              <Disc className="w-5 h-5 text-[var(--primary-spotify)] animate-spin-slow" />
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-400 via-teal-400 to-blue-600 p-0.5 shadow-xl shadow-cyan-500/20 group-hover:scale-105 transition-all duration-300">
+            <div className="w-full h-full bg-[#080c14] rounded-[14px] flex items-center justify-center relative overflow-hidden">
+              <Headphones className="w-5 h-5 text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
             </div>
           </div>
           <div className="flex flex-col">
             <span className="font-extrabold text-lg tracking-tight text-white flex items-center gap-1">
               Music<span className="text-[var(--primary-spotify)]">Web</span>
-            </span>
-            <span className="text-[10px] text-[var(--primary-spotify)] font-mono tracking-wider uppercase opacity-90">
-              Pro Studio
             </span>
           </div>
         </Link>

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import { Search, X, Music, Play, Upload, User, Loader2, Disc } from 'lucide-react'
+import { Search, X, Music, Play, Upload, User, Loader2, Headphones } from 'lucide-react'
 import { Track } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { useSession } from 'next-auth/react'
@@ -144,8 +144,8 @@ export function TopBar() {
     <header className="sticky top-0 z-30 bg-[#090b12]/95 backdrop-blur-2xl border-b border-white/10 px-4 md:px-8 py-3 flex items-center justify-between gap-4">
       {/* Left Slot: Symmetrical balance spacer or brand label */}
       <div className="hidden lg:flex items-center gap-2 text-slate-400 w-48 shrink-0">
-        <Disc className="w-4 h-4 text-[var(--primary-spotify)] animate-spin-slow" />
-        <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">MusicWeb Pro</span>
+        <Headphones className="w-4 h-4 text-cyan-400" />
+        <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">MusicWeb</span>
       </div>
 
       {/* Center Slot: Perfectly Centered Prominent Search Box */}
@@ -254,20 +254,22 @@ export function TopBar() {
         {user && (
           <Link
             href="/settings"
-            className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 p-1.5 sm:px-3 sm:py-1.5 rounded-full transition-all shrink-0"
+            className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 p-1 sm:px-3 sm:py-1 rounded-full transition-all shrink-0 group"
           >
-            <div className="w-6 h-6 rounded-full bg-[var(--primary-spotify)]/20 border border-[var(--primary-spotify)]/40 flex items-center justify-center overflow-hidden shrink-0">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-400 via-teal-400 to-blue-600 p-0.5 shadow-md shadow-cyan-500/20 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-105 transition-transform">
               {user.user_metadata?.avatar_url ? (
                 <img
                   src={user.user_metadata.avatar_url}
                   alt="Avatar"
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover rounded-full"
                 />
               ) : (
-                <User className="w-3.5 h-3.5 text-[var(--primary-spotify)]" />
+                <div className="w-full h-full bg-[#080c14] rounded-full flex items-center justify-center text-cyan-300 font-extrabold text-xs">
+                  {(user.user_metadata?.full_name || user.email || 'M').charAt(0).toUpperCase()}
+                </div>
               )}
             </div>
-            <span className="hidden md:inline-block text-xs font-semibold text-white max-w-[100px] truncate">
+            <span className="hidden md:inline-block text-xs font-bold text-white max-w-[110px] truncate">
               {user.user_metadata?.full_name || user.email?.split('@')[0]}
             </span>
           </Link>
