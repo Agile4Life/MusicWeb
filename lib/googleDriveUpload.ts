@@ -71,7 +71,20 @@ export function extractDriveFileId(filePath: string): string | null {
   if (!filePath) return null
   const trimmed = filePath.trim()
   if (trimmed.includes('/folders/') || trimmed.includes('drive/folders')) return null
-  if (/^[A-Za-z0-9_-]{20,}$/.test(trimmed) && !trimmed.includes('http') && !trimmed.includes('/')) return trimmed
+
+  if (/^[A-Za-z0-9_-]{18,45}$/.test(trimmed) && !trimmed.includes('http') && !trimmed.includes('/') && !trimmed.includes('.')) {
+    return trimmed
+  }
+
+  const regexMatch =
+    trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]{18,45})/) ||
+    trimmed.match(/\/d\/([a-zA-Z0-9_-]{18,45})/) ||
+    trimmed.match(/[?&]id=([a-zA-Z0-9_-]{18,45})/)
+
+  if (regexMatch && regexMatch[1]) {
+    return regexMatch[1]
+  }
+
   try {
     const parsed = new URL(trimmed)
     if (parsed.pathname.includes('/folders/')) return null
@@ -79,9 +92,9 @@ export function extractDriveFileId(filePath: string): string | null {
       parsed.searchParams.get('id') ||
       parsed.pathname.match(/\/d\/([A-Za-z0-9_-]+)/)?.[1] ||
       parsed.pathname.match(/\/file\/d\/([A-Za-z0-9_-]+)/)?.[1]
-    if (id && /^[A-Za-z0-9_-]{20,}$/.test(id)) return id
+    if (id && /^[A-Za-z0-9_-]{18,45}$/.test(id)) return id
   } catch {
-    // This is likely a Supabase storage path or local file.
+    // Not a valid URL
   }
   return null
 }
@@ -89,8 +102,14 @@ export function extractDriveFileId(filePath: string): string | null {
 export function extractDriveFolderId(input: string): string | null {
   if (!input) return null
   const trimmed = input.trim()
-  if (/^[A-Za-z0-9_-]{20,}$/.test(trimmed) && !trimmed.includes('http') && !trimmed.includes('/')) {
+  if (/^[A-Za-z0-9_-]{18,45}$/.test(trimmed) && !trimmed.includes('http') && !trimmed.includes('/') && !trimmed.includes('.')) {
     return trimmed
+  }
+  const regexMatch =
+    trimmed.match(/\/folders\/([a-zA-Z0-9_-]{18,45})/) ||
+    trimmed.match(/[?&]id=([a-zA-Z0-9_-]{18,45})/)
+  if (regexMatch && regexMatch[1]) {
+    return regexMatch[1]
   }
   try {
     const parsed = new URL(trimmed)
