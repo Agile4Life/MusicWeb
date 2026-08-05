@@ -50,13 +50,45 @@ export function isAllowedToLogin(email?: string | null): boolean {
   }
 
   if (Array.isArray(allowedConfig.allowedEmails)) {
-    return allowedConfig.allowedEmails.some(
-      (item) => item.email && item.email.trim().toLowerCase() === normalizedEmail
-    )
+    if (allowedConfig.allowedEmails.some((item) => item.email && item.email.trim().toLowerCase() === normalizedEmail)) {
+      return true
+    }
+  }
+
+  // Check client-side approved passkey emails (stored in localStorage or cookie)
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('musicweb_approved_emails')
+      if (stored) {
+        const approvedList: string[] = JSON.parse(stored)
+        if (Array.isArray(approvedList) && approvedList.some((e) => e.trim().toLowerCase() === normalizedEmail)) {
+          return true
+        }
+      }
+    } catch {
+      // ignore parsing error
+    }
   }
 
   return false
 }
+
+/** Utility to mark an email as authorized via Passkey verification */
+export function markEmailAsAllowed(email: string) {
+  if (typeof window === 'undefined' || !email) return
+  try {
+    const normalized = email.trim().toLowerCase()
+    const stored = localStorage.getItem('musicweb_approved_emails')
+    const list: string[] = stored ? JSON.parse(stored) : []
+    if (!list.includes(normalized)) {
+      list.push(normalized)
+      localStorage.setItem('musicweb_approved_emails', JSON.stringify(list))
+    }
+  } catch {
+    // ignore storage error
+  }
+}
+
 
 /** Converts any user object or email into a valid Postgres UUID format */
 export function getValidUserId(user?: any): string {

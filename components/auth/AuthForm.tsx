@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
 import { createClient } from '@/lib/supabase/client'
-import { isAllowedToLogin } from '@/lib/accessControl'
+import { isAllowedToLogin, markEmailAsAllowed } from '@/lib/accessControl'
 import { Lock, Mail, Loader2, AlertCircle, CheckCircle2, Disc, Eye, EyeOff, ShieldAlert, Key, X, Send } from 'lucide-react'
 
 interface AuthFormProps {
@@ -115,7 +115,10 @@ export function AuthForm({ mode }: AuthFormProps) {
         throw new Error(data.error || `Máy chủ gặp lỗi (${res.status}). Vui lòng thử lại sau!`)
       }
 
-      setPasskeySuccess(data.message || 'Xác thực Passkey thành công! Đã gửi thông báo tới Gmail Admin.')
+      // Mark email as approved in client authorization state
+      markEmailAsAllowed(passkeyEmail)
+
+      setPasskeySuccess(data.message || 'Xác thực Passkey thành công! Đã cấp quyền và gửi thông báo tới Gmail Admin (tranphong16012006@gmail.com).')
       
       // Auto login via NextAuth session with passkey email
       setTimeout(async () => {
