@@ -237,16 +237,6 @@ export function MobileHeaderNav() {
                 <span>Lịch sử nghe</span>
               </Link>
 
-              <Link
-                href="/lyrics"
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold ${
-                  pathname === '/lyrics' ? 'bg-[var(--primary-spotify)] text-black font-extrabold' : 'text-slate-300 hover:bg-white/5'
-                }`}
-              >
-                <Mic2 className="w-4 h-4" />
-                <span>Lời bài hát (Lyrics)</span>
-              </Link>
-
               {isAdmin(user?.email) && (
                 <Link
                   href="/upload"
