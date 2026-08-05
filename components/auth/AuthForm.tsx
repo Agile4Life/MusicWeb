@@ -263,7 +263,7 @@ export function AuthForm({ mode }: AuthFormProps) {
       <div
         className="pointer-events-none fixed inset-0 z-0 transition-opacity duration-300"
         style={{
-          background: `radial-gradient(700px circle at ${cursorPos.x}px ${cursorPos.y}px, var(--theme-gradient-1, rgba(29, 185, 84, 0.16)), var(--theme-gradient-2, rgba(6, 182, 212, 0.06)) 40%, transparent 80%)`,
+          background: `radial-gradient(120px circle at ${cursorPos.x}px ${cursorPos.y}px, var(--theme-gradient-1, rgba(29, 185, 84, 0.20)), var(--theme-gradient-2, rgba(6, 182, 212, 0.08)) 40%, transparent 80%)`,
         }}
       />
 
@@ -279,9 +279,10 @@ export function AuthForm({ mode }: AuthFormProps) {
         <div
           className="pointer-events-none absolute inset-0 z-0 transition-opacity duration-300"
           style={{
-            background: `radial-gradient(350px circle at ${cardCursorPos.x}px ${cardCursorPos.y}px, var(--theme-gradient-1, rgba(30, 215, 96, 0.22)), transparent 75%)`,
+            background: `radial-gradient(100px circle at ${cardCursorPos.x}px ${cardCursorPos.y}px, var(--theme-gradient-1, rgba(30, 215, 96, 0.25)), transparent 75%)`,
           }}
         />
+
 
         <div className="flex flex-col items-center gap-3 mb-8 text-center relative z-10">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[var(--primary-spotify)] to-[var(--theme-secondary,#06b6d4)] p-0.5 shadow-xl shadow-[var(--theme-glow-shadow)]">
