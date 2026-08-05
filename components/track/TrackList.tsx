@@ -56,9 +56,8 @@ export function TrackList({
 
   if (tracks.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-400 bg-[#181818] rounded-lg">
-        <p className="text-base font-semibold text-white mb-1">Chưa có bài hát nào</p>
-        <p className="text-xs">Hãy upload bài hát đầu tiên của bạn vào thư viện!</p>
+      <div className="text-center py-12 text-gray-400 bg-[#181818]/60 border border-white/5 rounded-2xl">
+        <p className="text-base font-semibold text-white">Chưa có bài hát nào</p>
       </div>
     )
   }
