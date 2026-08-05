@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import { Search, X, Music, Play, Upload, User, Loader2 } from 'lucide-react'
+import { Search, X, Music, Play, Upload, User, Loader2, Disc } from 'lucide-react'
 import { Track } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { useSession } from 'next-auth/react'
@@ -100,7 +100,6 @@ export function TopBar() {
     const val = e.target.value
     setQuery(val)
 
-    // If on homepage, push search parameter to URL to update page search live
     if (pathname === '/') {
       const params = new URLSearchParams(window.location.search)
       if (val.trim()) params.set('q', val)
@@ -133,9 +132,15 @@ export function TopBar() {
   }
 
   return (
-    <header className="sticky top-0 z-30 bg-[#0b0d14]/90 backdrop-blur-xl border-b border-white/10 px-4 md:px-8 py-3 flex items-center justify-between gap-4">
-      {/* Prominent Global Search Box */}
-      <div className="relative flex-1 max-w-2xl" ref={dropdownRef}>
+    <header className="sticky top-0 z-30 bg-[#090b12]/95 backdrop-blur-2xl border-b border-white/10 px-4 md:px-8 py-3 flex items-center justify-between gap-4">
+      {/* Left Slot: Symmetrical balance spacer or brand label */}
+      <div className="hidden lg:flex items-center gap-2 text-slate-400 w-48 shrink-0">
+        <Disc className="w-4 h-4 text-[var(--primary-spotify)] animate-spin-slow" />
+        <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">MusicWeb Pro</span>
+      </div>
+
+      {/* Center Slot: Perfectly Centered Prominent Search Box */}
+      <div className="relative flex-1 max-w-2xl mx-auto" ref={dropdownRef}>
         <div className="relative flex items-center">
           <Search className="w-4 h-4 text-slate-400 absolute left-4 pointer-events-none" />
           <input
@@ -147,7 +152,7 @@ export function TopBar() {
               if (suggestions.length > 0) setShowDropdown(true)
             }}
             placeholder="Tìm nhạc toàn thế giới (iTunes, YouTube, Audius, Thư viện)..."
-            className="w-full bg-white/5 border border-white/15 focus:border-[var(--primary-spotify)] text-white text-xs md:text-sm rounded-full pl-11 pr-10 py-2.5 outline-none transition-all placeholder:text-slate-500 shadow-inner"
+            className="w-full bg-white/5 border border-white/15 focus:border-[var(--primary-spotify)] text-white text-xs md:text-sm rounded-full pl-11 pr-10 py-2.5 outline-none transition-all placeholder:text-slate-500 shadow-inner hover:bg-white/10"
           />
 
           {loadingSuggestions ? (
@@ -198,7 +203,7 @@ export function TopBar() {
                   </div>
                 </div>
 
-                {/* Source Badge */}
+                {/* Source Badges */}
                 <div className="shrink-0">
                   {track.source === 'itunes' && (
                     <span className="text-[8px] font-bold uppercase tracking-wider bg-pink-500/20 text-pink-300 border border-pink-500/30 px-1.5 py-0.5 rounded">
@@ -227,11 +232,11 @@ export function TopBar() {
         )}
       </div>
 
-      {/* Right User & Actions */}
-      <div className="flex items-center gap-3 shrink-0">
+      {/* Right Slot: User Avatar & Quick Actions */}
+      <div className="flex items-center justify-end gap-3 lg:w-48 shrink-0">
         <Link
           href="/upload"
-          className="hidden sm:flex items-center gap-1.5 bg-white/10 hover:bg-white/15 border border-white/10 text-white font-bold px-3.5 py-2 rounded-full text-xs transition-all"
+          className="hidden sm:flex items-center gap-1.5 bg-white/10 hover:bg-white/15 border border-white/10 text-white font-bold px-3.5 py-2 rounded-full text-xs transition-all shrink-0"
         >
           <Upload className="w-3.5 h-3.5 text-[var(--primary-spotify)]" />
           <span>Upload Nhạc</span>
@@ -240,7 +245,7 @@ export function TopBar() {
         {user && (
           <Link
             href="/settings"
-            className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 p-1.5 sm:px-3 sm:py-1.5 rounded-full transition-all"
+            className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 p-1.5 sm:px-3 sm:py-1.5 rounded-full transition-all shrink-0"
           >
             <div className="w-6 h-6 rounded-full bg-[var(--primary-spotify)]/20 border border-[var(--primary-spotify)]/40 flex items-center justify-center overflow-hidden shrink-0">
               {user.user_metadata?.avatar_url ? (
