@@ -96,7 +96,6 @@ export default function FavoritesPage() {
       const { data: dbFavTracks } = await supabase
         .from('tracks')
         .select('*')
-        .eq('user_id', userId)
         .eq('is_favorite', true)
 
       const favList: Track[] = []
