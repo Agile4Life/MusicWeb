@@ -17,6 +17,7 @@ import {
   SlidersHorizontal,
   Mic2,
   X,
+  Shuffle,
 } from 'lucide-react'
 
 function formatTime(seconds: number) {
@@ -33,6 +34,8 @@ export function PlayerBar() {
     currentTime,
     duration,
     volume,
+    isShuffle,
+    toggleShuffle,
     playbackError,
     togglePlay,
     seek,
@@ -325,6 +328,18 @@ export function PlayerBar() {
               title="Bài kế tiếp"
             >
               <SkipForward className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={toggleShuffle}
+              className={`p-1.5 rounded-lg transition-colors ${
+                isShuffle
+                  ? 'text-[var(--primary-spotify)] bg-[var(--primary-spotify)]/15 border border-[var(--primary-spotify)]/30'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
+            >
+              <Shuffle className="w-4 h-4" />
             </button>
           </div>
 

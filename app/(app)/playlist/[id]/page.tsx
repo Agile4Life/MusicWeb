@@ -21,6 +21,7 @@ import {
   Loader2,
   AlertCircle,
   Sparkles,
+  Shuffle,
 } from 'lucide-react'
 import * as mm from 'music-metadata-browser'
 import { uploadToGoogleDrive, buildDriveStreamUrl, deleteGoogleDriveFile } from '@/lib/googleDriveUpload'
@@ -32,7 +33,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
   const { id: playlistId } = use(params)
   const router = useRouter()
   const supabase = createClient()
-  const { playTrack } = usePlayer()
+  const { playTrack, isShuffle, toggleShuffle } = usePlayer()
 
   const [playlist, setPlaylist] = useState<Playlist | null>(null)
   const [tracks, setTracks] = useState<Track[]>([])
@@ -473,13 +474,31 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
         <div className="flex flex-wrap items-center gap-3">
           {tracks.length > 0 && (
-            <button
-              onClick={() => playTrack(tracks[0], tracks)}
-              className="bg-[var(--primary-spotify)] text-black font-extrabold px-6 py-3 rounded-full flex items-center gap-2 shadow-xl shadow-[var(--theme-glow-shadow)] hover:scale-105 transition-all text-xs"
-            >
-              <Play className="w-4 h-4 fill-current" />
-              <span>Phát Playlist</span>
-            </button>
+            <>
+              <button
+                onClick={() => playTrack(tracks[0], tracks)}
+                className="bg-[var(--primary-spotify)] text-black font-extrabold px-6 py-3 rounded-full flex items-center gap-2 shadow-xl shadow-[var(--theme-glow-shadow)] hover:scale-105 transition-all text-xs"
+              >
+                <Play className="w-4 h-4 fill-current" />
+                <span>Phát Playlist</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  if (!isShuffle) toggleShuffle()
+                  const randomIdx = Math.floor(Math.random() * tracks.length)
+                  playTrack(tracks[randomIdx], tracks, randomIdx)
+                }}
+                className={`font-bold px-4 py-3 rounded-full flex items-center gap-2 text-xs transition-all border ${
+                  isShuffle
+                    ? 'bg-[var(--primary-spotify)]/20 text-[var(--primary-spotify)] border-[var(--primary-spotify)]/40 shadow-lg'
+                    : 'bg-white/10 hover:bg-white/20 text-white border-white/10'
+                }`}
+              >
+                <Shuffle className="w-4 h-4" />
+                <span>Phát Ngẫu Nhiên</span>
+              </button>
+            </>
           )}
 
           <button

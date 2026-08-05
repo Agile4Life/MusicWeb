@@ -14,9 +14,11 @@ interface PlayerContextType {
   currentIndex: number
   currentTime: number
   duration: number
+  volume: number
   isShuffle: boolean
   toggleShuffle: () => void
-  playTrack: (track: Track, newQueue?: Track[]) => Promise<void>
+  playbackError: string | null
+  playTrack: (track: Track, newQueue?: Track[], forceIndex?: number) => Promise<void>
   togglePlay: () => void
   seek: (time: number) => void
   setVolume: (val: number) => void
@@ -70,7 +72,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [volume, setVolumeState] = useState<number>(0.8)
   const [playbackError, setPlaybackError] = useState<string | null>(null)
   const [autoPlayNext, setAutoPlayNext] = useState(true)
+  const [isShuffle, setIsShuffle] = useState(false)
   const autoPlayNextRef = useRef(true)
+  const isShuffleRef = useRef(false)
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const ytPlayerRef = useRef<any>(null)
@@ -96,6 +100,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     autoPlayNextRef.current = autoPlayNext
   }, [autoPlayNext])
+
+  useEffect(() => {
+    isShuffleRef.current = isShuffle
+  }, [isShuffle])
+
+  const toggleShuffle = () => {
+    setIsShuffle((prev) => !prev)
+  }
 
   // Load YouTube IFrame Player API Script dynamically
   useEffect(() => {
@@ -343,9 +355,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setCurrentIndex(0)
     }
 
-    // 🎵 Full-Length Stream Resolver for iTunes tracks (Resolves 30s limit into 100% full song)
+    // 🎵 Full-Length Stream Resolver for iTunes & Spotify tracks (Resolves 30s/DRM into 100% full song)
     let activeTrack = track
-    if (track.source === 'itunes' && !track.youtube_id) {
+    if ((track.source === 'itunes' || track.source === 'spotify') && !track.youtube_id) {
       try {
         const { searchYouTubeTracks } = await import('@/lib/youtube')
         const matches = await searchYouTubeTracks(`${track.title} ${track.artist || ''}`, 1)
@@ -357,13 +369,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch (e) {
-        console.warn('iTunes full length resolution fallback to 30s preview:', e)
+        console.warn('Full length resolution fallback:', e)
       }
     }
 
-    setCurrentTrack(track)
+    setCurrentTrack(activeTrack)
     setPlaybackError(null)
-    savePlayerStateToStorage(track, 0, nextQueue, nextIndex, volume)
+    savePlayerStateToStorage(activeTrack, 0, nextQueue, nextIndex, volume)
 
     // Handle YouTube track playback (or resolved iTunes track)
     if (activeTrack.source === 'youtube' && activeTrack.youtube_id) {
@@ -424,33 +436,66 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Record listening history in background — only for local DB tracks
-    // YouTube/Audius tracks have non-UUID IDs (e.g. "yt-xxx", "audius-xxx")
-    // which would crash the INSERT into the UUID-typed track_id column.
-    if (!track.source || track.source === 'local') {
-      setTimeout(async () => {
-        try {
-          const {
-            data: { user: currentUser },
-          } = await supabase.auth.getUser()
-          const activeUser = currentUser || (nextAuthSession?.user ? {
-            id: nextAuthSession.user.email,
-            email: nextAuthSession.user.email,
-          } : null)
+    // Record listening history in background for ALL sources (Local, iTunes, YouTube, Audius)
+    setTimeout(async () => {
+      try {
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser()
+        const activeUser = currentUser || (nextAuthSession?.user ? {
+          id: nextAuthSession.user.email,
+          email: nextAuthSession.user.email,
+        } : null)
 
-          const userId = activeUser ? getValidUserId(activeUser) : null
-          if (!userId) return
+        const userId = activeUser ? getValidUserId(activeUser) : null
+        if (!userId) return
 
-          await supabase.from('listening_history').insert({
-            user_id: userId,
-            track_id: track.id,
-            played_at: new Date().toISOString(),
-          })
-        } catch (historyErr) {
-          console.warn('History tracking error:', historyErr)
+        let dbTrackId = track.id
+
+        // If track is from an external global source (YouTube, Audius, iTunes),
+        // upsert it into the DB tracks table first to get a valid UUID for listening_history!
+        if (track.source && track.source !== 'local') {
+          const { data: existing } = await supabase
+            .from('tracks')
+            .select('id')
+            .eq('file_path', track.file_path)
+            .maybeSingle()
+
+          if (existing && existing.id) {
+            dbTrackId = existing.id
+          } else {
+            const { data: inserted } = await supabase
+              .from('tracks')
+              .insert({
+                user_id: userId,
+                title: track.title,
+                artist: track.artist || null,
+                album: track.album || null,
+                duration: track.duration || 0,
+                file_path: track.file_path,
+                cover_url: track.cover_url || null,
+                created_at: new Date().toISOString(),
+              })
+              .select('id')
+              .single()
+
+            if (inserted && inserted.id) {
+              dbTrackId = inserted.id
+            } else {
+              return
+            }
+          }
         }
-      }, 100)
-    }
+
+        await supabase.from('listening_history').insert({
+          user_id: userId,
+          track_id: dbTrackId,
+          played_at: new Date().toISOString(),
+        })
+      } catch (historyErr) {
+        console.warn('History tracking error:', historyErr)
+      }
+    }, 100)
   }
 
   // Keep playTrackRef in sync so YouTube onStateChange closure always calls latest version
@@ -520,9 +565,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const nextTrack = () => {
     if (queue.length === 0 || currentIndex === -1) return
-    const nextIdx = (currentIndex + 1) % queue.length
+    let nextIdx = 0
+    if (isShuffleRef.current && queue.length > 1) {
+      do {
+        nextIdx = Math.floor(Math.random() * queue.length)
+      } while (nextIdx === currentIndex && queue.length > 1)
+    } else {
+      nextIdx = (currentIndex + 1) % queue.length
+    }
     setCurrentIndex(nextIdx)
-    playTrack(queue[nextIdx])
+    playTrack(queue[nextIdx], undefined, nextIdx)
   }
 
   const prevTrack = () => {
@@ -637,6 +689,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         currentTime,
         duration,
         volume,
+        isShuffle,
+        toggleShuffle,
         playbackError,
         playTrack,
         togglePlay,

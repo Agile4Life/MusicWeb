@@ -36,7 +36,7 @@ export default function HomePage() {
   const [recentTracks, setRecentTracks] = useState<Track[]>([])
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchSource, setSearchSource] = useState<'all' | 'youtube' | 'audius' | 'itunes' | 'local'>('all')
+  const [searchSource, setSearchSource] = useState<'all' | 'youtube' | 'audius' | 'itunes' | 'spotify' | 'local'>('all')
 
   useEffect(() => {
     const urlQuery = searchParams.get('q') || ''
@@ -57,7 +57,8 @@ export default function HomePage() {
     youtube: Track[]
     audius: Track[]
     itunes: Track[]
-  }>({ local: [], youtube: [], audius: [], itunes: [] })
+    spotify: Track[]
+  }>({ local: [], youtube: [], audius: [], itunes: [], spotify: [] })
   const [searchingGlobal, setSearchingGlobal] = useState(false)
 
   const user =
@@ -86,7 +87,7 @@ export default function HomePage() {
         .order('created_at', { ascending: false })
 
       if (!trackError && rawTracks) {
-        setTracks(rawTracks.map((t: Track) => ({ ...t, source: 'local' })))
+        setTracks(rawTracks.map((t: Track) => ({ ...t, source: t.source || 'local' })))
       }
 
       const activeUser =
@@ -155,10 +156,12 @@ export default function HomePage() {
         const yt = data.youtube || []
         const audius = data.audius || []
         const itunes = data.itunes || []
+        const spotify = data.spotify || []
 
         const combined: Track[] = []
-        const maxLen = Math.max(yt.length, audius.length, itunes.length)
+        const maxLen = Math.max(yt.length, audius.length, itunes.length, spotify.length)
         for (let i = 0; i < maxLen; i++) {
+          if (spotify[i]) combined.push(spotify[i])
           if (itunes[i]) combined.push(itunes[i])
           if (audius[i]) combined.push(audius[i])
           if (yt[i]) combined.push(yt[i])
@@ -195,7 +198,7 @@ export default function HomePage() {
   // Fast Debounced Global Search (200ms)
   useEffect(() => {
     if (!searchQuery.trim()) {
-      setGlobalTracks({ local: [], youtube: [], audius: [], itunes: [] })
+      setGlobalTracks({ local: [], youtube: [], audius: [], itunes: [], spotify: [] })
       setSearchingGlobal(false)
       return
     }
@@ -211,6 +214,7 @@ export default function HomePage() {
             youtube: data.youtube || [],
             audius: data.audius || [],
             itunes: data.itunes || [],
+            spotify: data.spotify || [],
           })
         }
       } catch (err) {
@@ -395,6 +399,8 @@ export default function HomePage() {
 
   const isAdmin = user?.app_metadata?.role === 'admin' || user?.email === 'admin@musicweb.com'
 
+  const [localFilterQuery, setLocalFilterQuery] = useState('')
+
   const isSearching = searchQuery.trim().length > 0
   let displayedTracks: Track[] = []
   let sectionTitle = 'Bài Hát Nghe Gần Đây'
@@ -403,11 +409,14 @@ export default function HomePage() {
     sectionTitle = 'Kết Quả Tìm Kiếm Toàn Cầu'
     if (searchSource === 'all') {
       displayedTracks = [
+        ...globalTracks.spotify,
         ...globalTracks.itunes,
         ...globalTracks.youtube,
         ...globalTracks.audius,
         ...globalTracks.local,
       ]
+    } else if (searchSource === 'spotify') {
+      displayedTracks = globalTracks.spotify
     } else if (searchSource === 'itunes') {
       displayedTracks = globalTracks.itunes
     } else if (searchSource === 'youtube') {
@@ -418,13 +427,19 @@ export default function HomePage() {
       displayedTracks = globalTracks.local
     }
   } else {
-    // Show Recently Played tracks if available, otherwise show all library tracks
-    if (recentTracks.length > 0) {
-      displayedTracks = recentTracks
-      sectionTitle = `Bài Hát Nghe Gần Đây (${recentTracks.length})`
+    const sourceList = recentTracks.length > 0 ? recentTracks : tracks
+    sectionTitle = recentTracks.length > 0 ? `Bài Hát Nghe Gần Đây (${recentTracks.length})` : `Thư Viện Bài Hát Cá Nhân (${tracks.length})`
+
+    if (localFilterQuery.trim()) {
+      const q = localFilterQuery.trim().toLowerCase()
+      displayedTracks = sourceList.filter(
+        (t) =>
+          (t.title && t.title.toLowerCase().includes(q)) ||
+          (t.artist && t.artist.toLowerCase().includes(q)) ||
+          (t.album && t.album.toLowerCase().includes(q))
+      )
     } else {
-      displayedTracks = tracks
-      sectionTitle = `Thư Viện Bài Hát Cá Nhân (${tracks.length})`
+      displayedTracks = sourceList
     }
   }
 
@@ -452,7 +467,7 @@ export default function HomePage() {
             </h1>
 
             <p className="text-xs md:text-sm text-slate-300">
-              Khám phá và nghe nhạc trực tuyến từ <strong>iTunes Music</strong>, <strong>YouTube Music</strong>, <strong>Audius Global</strong> và <strong>Thư viện cá nhân</strong>.
+              Khám phá và nghe nhạc trực tuyến từ <strong>Spotify Global</strong>, <strong>iTunes Music</strong>, <strong>YouTube Music</strong>, <strong>Audius</strong> và <strong>Thư viện cá nhân</strong>.
             </p>
           </div>
 
@@ -484,7 +499,7 @@ export default function HomePage() {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-cyan-400" />
-              🔥 Nhạc Hot Quốc Tế & Trending (iTunes, Audius & YouTube)
+              🔥 Nhạc Hot Quốc Tế & Trending (Spotify, iTunes, Audius & YouTube)
             </h2>
             {loadingTrending && <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />}
           </div>
@@ -516,6 +531,11 @@ export default function HomePage() {
 
                     {/* Source Badges */}
                     <div className="absolute top-2 right-2 z-10">
+                      {t.source === 'spotify' && (
+                        <span className="text-[8px] font-black uppercase tracking-wider bg-emerald-600/90 text-white px-1.5 py-0.5 rounded shadow">
+                          Spotify
+                        </span>
+                      )}
                       {t.source === 'itunes' && (
                         <span className="text-[8px] font-black uppercase tracking-wider bg-pink-600/90 text-white px-1.5 py-0.5 rounded shadow">
                           iTunes
@@ -599,14 +619,14 @@ export default function HomePage() {
                 ) : null
               })()}
 
-            {/* Fast Global Search Input */}
+            {/* Fast Search Input */}
             <div className="relative max-w-md w-full">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
               <input
                 type="text"
-                placeholder={recentTracks.length > 0 ? "Tìm bài hát nghe gần đây..." : "Tìm nhạc toàn thế giới..."}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={recentTracks.length > 0 ? "Tìm bài hát nghe gần đây..." : "Tìm nhạc trong thư viện..."}
+                value={localFilterQuery}
+                onChange={(e) => setLocalFilterQuery(e.target.value)}
                 className="w-full glass-input text-white text-xs rounded-full pl-10 pr-4 py-2.5 outline-none font-medium placeholder:text-slate-500"
               />
             </div>
@@ -624,7 +644,18 @@ export default function HomePage() {
                   : 'bg-white/5 text-slate-400 hover:text-white border border-white/10'
               }`}
             >
-              🌐 Tất cả ({globalTracks.local.length + globalTracks.itunes.length + globalTracks.youtube.length + globalTracks.audius.length})
+              🌐 Tất cả ({globalTracks.local.length + globalTracks.spotify.length + globalTracks.itunes.length + globalTracks.youtube.length + globalTracks.audius.length})
+            </button>
+
+            <button
+              onClick={() => setSearchSource('spotify')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+                searchSource === 'spotify'
+                  ? 'bg-emerald-500 text-black shadow-md'
+                  : 'bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 border border-emerald-500/20'
+              }`}
+            >
+              🟢 Spotify Global ({globalTracks.spotify.length})
             </button>
 
             <button

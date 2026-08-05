@@ -18,10 +18,11 @@ export interface Track {
   is_favorite?: boolean
   created_at: string
   audio_url?: string
-  source?: 'local' | 'youtube' | 'audius' | 'itunes'
+  source?: 'local' | 'youtube' | 'audius' | 'itunes' | 'spotify'
   youtube_id?: string
   audius_id?: string
   itunes_id?: string | number
+  spotify_id?: string
 }
 
 export interface Playlist {

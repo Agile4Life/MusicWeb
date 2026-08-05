@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { searchAudiusTracks, getTrendingAudiusTracks } from '@/lib/audius'
 import { searchYouTubeTracks, getTrendingYouTubeTracks } from '@/lib/youtube'
 import { searchITunesTracks, getTrendingITunesTracks } from '@/lib/itunes'
+import { searchSpotifyTracks, getTrendingSpotifyTracks } from '@/lib/spotify'
 import { Track } from '@/types'
 
 // In-memory LRU search cache (TTL 3 minutes = 180,000 ms)
@@ -24,27 +25,29 @@ export async function GET(request: Request) {
         return NextResponse.json(cached.data)
       }
 
-      const [ytTrending, audiusTrending, itunesTrending] = await Promise.all([
+      const [ytTrending, audiusTrending, itunesTrending, spotifyTrending] = await Promise.all([
         getTrendingYouTubeTracks(8).catch(() => []),
         getTrendingAudiusTracks(8).catch(() => []),
         getTrendingITunesTracks(8).catch(() => []),
+        getTrendingSpotifyTracks(8).catch(() => []),
       ])
 
       const responseData = {
         youtube: ytTrending,
         audius: audiusTrending,
         itunes: itunesTrending,
+        spotify: spotifyTrending,
       }
 
       searchCache.set(cacheKey, { data: responseData, timestamp: Date.now() })
       return NextResponse.json(responseData)
     } catch (err: any) {
-      return NextResponse.json({ youtube: [], audius: [], itunes: [] })
+      return NextResponse.json({ youtube: [], audius: [], itunes: [], spotify: [] })
     }
   }
 
   if (!q.trim()) {
-    return NextResponse.json({ local: [], youtube: [], audius: [], itunes: [] })
+    return NextResponse.json({ local: [], youtube: [], audius: [], itunes: [], spotify: [] })
   }
 
   const query = q.trim().toLowerCase()
@@ -94,20 +97,28 @@ export async function GET(request: Request) {
       promises.push(Promise.resolve([]))
     }
 
-    // 4. Search iTunes Global tracks (100% Guaranteed on Cloudflare Workers & Vercel)
+    // 4. Search iTunes Global tracks
     if (source === 'all' || source === 'itunes') {
       promises.push(searchITunesTracks(q.trim(), 10).catch(() => []))
     } else {
       promises.push(Promise.resolve([]))
     }
 
-    const [localTracks, youtubeTracks, audiusTracks, itunesTracks] = await Promise.all(promises)
+    // 5. Search Spotify Global tracks
+    if (source === 'all' || source === 'spotify') {
+      promises.push(searchSpotifyTracks(q.trim(), 10).catch(() => []))
+    } else {
+      promises.push(Promise.resolve([]))
+    }
+
+    const [localTracks, youtubeTracks, audiusTracks, itunesTracks, spotifyTracks] = await Promise.all(promises)
 
     const responseData = {
       local: localTracks,
       youtube: youtubeTracks,
       audius: audiusTracks,
       itunes: itunesTracks,
+      spotify: spotifyTracks,
     }
 
     if (searchCache.size > 200) {

@@ -193,6 +193,11 @@ function TrackRowComponent({
                 iTunes Global
               </span>
             )}
+            {track.source === 'spotify' && (
+              <span className="text-[9px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.2 rounded shrink-0">
+                Spotify Global
+              </span>
+            )}
           </div>
 
           {/* Artist — editable inline */}
