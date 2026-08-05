@@ -164,21 +164,21 @@ function TrackRowComponent({
     <div
       className={`group flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer select-none border ${
         isSelected
-          ? 'bg-amber-500/15 border-amber-500/40 shadow-md'
+          ? 'bg-cyan-500/10 border-cyan-500/30 shadow-md'
           : isCurrent
           ? 'bg-white/10 border-[var(--primary-spotify)]/30 shadow-md shadow-[var(--theme-glow-shadow)]'
           : 'border-transparent hover:bg-white/5 hover:border-white/5'
       }`}
       onMouseLeave={() => { if (!editMode) setShowMenu(false) }}
     >
-      {/* Optional Admin Select Checkbox */}
+      {/* Select Checkbox */}
       {selectable && (
         <div className="shrink-0 flex items-center pr-2" onClick={(e) => e.stopPropagation()}>
           <input
             type="checkbox"
             checked={isSelected}
             onChange={() => onToggleSelect?.()}
-            className="rounded accent-amber-400 w-4 h-4 cursor-pointer"
+            className="rounded accent-cyan-400 w-4 h-4 cursor-pointer"
           />
         </div>
       )}
