@@ -23,6 +23,7 @@ import {
   History,
   RotateCcw,
   Cloud,
+  Shuffle,
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { getValidUserId, isAdmin as checkIsAdmin } from '@/lib/accessControl'
@@ -31,7 +32,7 @@ import { extractDriveFileId, parseFilenameToTitleArtist } from '@/lib/googleDriv
 
 export default function HomePage() {
   const supabase = createClient()
-  const { playTrack } = usePlayer()
+  const { playTrack, isShuffle, toggleShuffle } = usePlayer()
   const { data: nextAuthSession } = useSession()
   const searchParams = useSearchParams()
 
@@ -765,11 +766,16 @@ export default function HomePage() {
 
             {driveTracks.length > 0 && (
               <button
-                onClick={() => playTrack(driveTracks[0], driveTracks)}
-                className="bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-black font-extrabold px-4 py-2 rounded-full flex items-center gap-1.5 text-xs shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all"
+                onClick={() => {
+                  if (driveTracks.length === 0) return
+                  const randomIndex = Math.floor(Math.random() * driveTracks.length)
+                  if (!isShuffle) toggleShuffle()
+                  playTrack(driveTracks[randomIndex], driveTracks, randomIndex)
+                }}
+                className="bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-black font-extrabold px-4.5 py-2.5 rounded-full flex items-center gap-2 text-xs shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all"
               >
-                <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
-                <span>Phát Tất Cả Nhạc Drive</span>
+                <Shuffle className="w-4 h-4 fill-current ml-0.5" />
+                <span>Phát Ngẫu Nhiên Trong Drive</span>
               </button>
             )}
           </div>
