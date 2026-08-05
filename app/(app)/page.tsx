@@ -26,7 +26,7 @@ import {
 import { useSession } from 'next-auth/react'
 import { getValidUserId, isAdmin as checkIsAdmin } from '@/lib/accessControl'
 import { useSearchParams } from 'next/navigation'
-import { extractDriveFileId } from '@/lib/googleDriveUpload'
+import { extractDriveFileId, parseFilenameToTitleArtist } from '@/lib/googleDriveUpload'
 
 export default function HomePage() {
   const supabase = createClient()
@@ -393,16 +393,18 @@ export default function HomePage() {
 
   const handleCleanMissingDriveFiles = async () => {
     if (!user) return
-    if (!confirm('Tự động quét và dọn dẹp các bài hát bị lỗi link hoặc link Folder khỏi CSDL?')) return
+    if (!confirm('Tự động quét, lấy lại tên bài hát chuẩn từ Google Drive & dọn dẹp các bài lỗi khỏi CSDL?')) return
 
     setCleaningDuplicates(true)
     try {
+      let repairedCount = 0
       let deletedCount = 0
+
       for (const track of tracks) {
         const fp = track.file_path || ''
         const isFolder = fp.includes('/folders/') || fp.includes('drive/folders')
         const driveFileId = extractDriveFileId(fp)
-        
+
         let isInvalid = isFolder
         if (!isInvalid && driveFileId) {
           try {
@@ -422,15 +424,65 @@ export default function HomePage() {
           await supabase.from('listening_history').delete().eq('track_id', track.id)
           await supabase.from('tracks').delete().eq('id', track.id)
           deletedCount++
+          continue
+        }
+
+        // Try repairing titles for tracks with "Bài hát X" or "Chưa rõ nghệ sĩ" or "Google Drive" album
+        const needsTitleFix =
+          !track.title ||
+          /^Bài hát \d+$/i.test(track.title.trim()) ||
+          track.artist === 'Chưa rõ nghệ sĩ' ||
+          track.album === 'Google Drive' ||
+          track.album === 'Google Drive Sync'
+
+        if (needsTitleFix && driveFileId) {
+          try {
+            const viewRes = await fetch(`https://drive.google.com/file/d/${driveFileId}/view`, {
+              headers: {
+                'User-Agent':
+                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+              },
+              cache: 'no-store',
+            })
+            if (viewRes.ok) {
+              const html = await viewRes.text()
+              const ogMatch =
+                html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
+                html.match(/<title>([^<]+?)(?:\s*-\s*Google Drive)?<\/title>/i)
+
+              if (ogMatch && ogMatch[1]) {
+                const rawName = ogMatch[1].replace(/\s*-\s*Google Drive$/i, '').trim()
+                if (rawName && rawName !== 'Google Drive' && !rawName.toLowerCase().includes('google drive')) {
+                  const { title: newTitle, artist: newArtist } = parseFilenameToTitleArtist(rawName)
+                  const updates: Partial<Track> = {}
+
+                  if (newTitle && (/^Bài hát \d+$/i.test(track.title.trim()) || !track.title)) {
+                    updates.title = newTitle
+                  }
+                  if (newArtist && newArtist !== 'Chưa rõ nghệ sĩ' && (track.artist === 'Chưa rõ nghệ sĩ' || !track.artist)) {
+                    updates.artist = newArtist
+                  }
+                  if (track.album === 'Google Drive' || track.album === 'Google Drive Sync') {
+                    updates.album = null
+                  }
+
+                  if (Object.keys(updates).length > 0) {
+                    await supabase.from('tracks').update(updates).eq('id', track.id)
+                    repairedCount++
+                  }
+                }
+              }
+            }
+          } catch {
+            // ignore repair error for individual track
+          }
         }
       }
 
-      if (deletedCount > 0) {
-        alert(`✅ Đã dọn dẹp ${deletedCount} bài hát bị lỗi link / link Folder khỏi thư viện!`)
-        await fetchData()
-      } else {
-        alert('Tất cả các bài hát trên Google Drive đều hợp lệ!')
-      }
+      alert(
+        `✅ Hoàn tất xử lý thư viện!\n- Đã sửa lại tên/nghệ sĩ chuẩn cho: ${repairedCount} bài hát cũ\n- Đã dọn dẹp: ${deletedCount} bài bị hỏng/lỗi link`
+      )
+      await fetchData()
     } finally {
       setCleaningDuplicates(false)
     }
@@ -630,7 +682,7 @@ export default function HomePage() {
               ) : (
                 <RotateCcw className="w-3.5 h-3.5" />
               )}
-              {cleaningDuplicates ? 'Đang dọn...' : 'Dọn Drive đã xóa'}
+              {cleaningDuplicates ? 'Đang dọn...' : 'Sửa tên & Dọn bài lỗi'}
             </button>
 
             {(() => {
