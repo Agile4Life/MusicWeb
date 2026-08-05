@@ -10,8 +10,33 @@ export interface LrclibResponse {
 }
 
 /**
+ * Clean common suffixes like ".mp3", ".flac", "(Official Music Video)", "LIVE", etc.
+ */
+function cleanTrackTitle(title: string): string {
+  let cleaned = title.replace(/\.(mp3|wav|flac|m4a|aac|ogg|wma)$/i, '')
+  cleaned = cleaned.replace(/[\(\[\{](official|music video|mv|audio|lyric video|live|hd|4k|320kbps|flac)[\)\]\}]/gi, '')
+  cleaned = cleaned.replace(/-\s*(official|mv|audio|video).*/gi, '')
+  return cleaned.trim()
+}
+
+function cleanArtistName(artist: string): string {
+  if (
+    !artist ||
+    artist === 'Chưa rõ nghệ sĩ' ||
+    artist === 'Nghệ sĩ chưa xác định' ||
+    artist === 'Unknown Artist' ||
+    artist === 'Unknown'
+  ) {
+    return ''
+  }
+  let cleaned = artist.replace(/[\(\[\{](official|vevo)[\)\]\}]/gi, '')
+  cleaned = cleaned.replace(/-\s*topic/gi, '')
+  return cleaned.trim()
+}
+
+/**
  * Fetch lyrics from LRCLIB API (lrclib.net)
- * First attempts exact match via /api/get, then falls back to /api/search
+ * Supports auto-cleaning titles/artists and fallback search queries
  */
 export async function fetchLyricsFromLrclib({
   title,
@@ -22,8 +47,15 @@ export async function fetchLyricsFromLrclib({
   artist?: string | null
   duration?: number | null
 }): Promise<LrclibResponse | null> {
-  const cleanTitle = cleanTrackTitle(title)
-  const cleanArtist = artist ? cleanArtistName(artist) : ''
+  let cleanTitle = cleanTrackTitle(title)
+  let cleanArtist = artist ? cleanArtistName(artist) : ''
+
+  // Auto-split "Artist - Title" if artist is missing or generic
+  if (cleanTitle.includes(' - ') && !cleanArtist) {
+    const parts = cleanTitle.split(' - ')
+    cleanArtist = cleanArtistName(parts[0])
+    cleanTitle = cleanTrackTitle(parts.slice(1).join(' - '))
+  }
 
   // 1. Try exact match using /api/get if artist is present
   if (cleanArtist) {
@@ -53,49 +85,43 @@ export async function fetchLyricsFromLrclib({
     }
   }
 
-  // 2. Fallback to /api/search
-  try {
-    const query = cleanArtist ? `${cleanTitle} ${cleanArtist}` : cleanTitle
-    const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(query)}`
+  // 2. Fallback search queries
+  const queriesToTry = Array.from(
+    new Set(
+      [
+        cleanArtist ? `${cleanTitle} ${cleanArtist}` : null,
+        cleanTitle,
+      ].filter(Boolean) as string[]
+    )
+  )
 
-    const res = await fetch(searchUrl, {
-      headers: {
-        'Lrclib-Client': 'MusicWeb/1.0.0 (https://github.com/MusicWeb)',
-      },
-    })
+  for (const query of queriesToTry) {
+    try {
+      const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(query)}`
 
-    if (res.ok) {
-      const results: LrclibResponse[] = await res.json()
-      if (Array.isArray(results) && results.length > 0) {
-        // Prioritize items that have syncedLyrics
-        const withSynced = results.find((r) => r.syncedLyrics && r.syncedLyrics.trim().length > 0)
-        if (withSynced) return withSynced
+      const res = await fetch(searchUrl, {
+        headers: {
+          'Lrclib-Client': 'MusicWeb/1.0.0 (https://github.com/MusicWeb)',
+        },
+      })
 
-        const withPlain = results.find((r) => r.plainLyrics && r.plainLyrics.trim().length > 0)
-        if (withPlain) return withPlain
+      if (res.ok) {
+        const results: LrclibResponse[] = await res.json()
+        if (Array.isArray(results) && results.length > 0) {
+          // Prioritize items that have syncedLyrics
+          const withSynced = results.find((r) => r.syncedLyrics && r.syncedLyrics.trim().length > 0)
+          if (withSynced) return withSynced
 
-        return results[0]
+          const withPlain = results.find((r) => r.plainLyrics && r.plainLyrics.trim().length > 0)
+          if (withPlain) return withPlain
+
+          return results[0]
+        }
       }
+    } catch (e) {
+      console.warn('LRCLIB search error:', e)
     }
-  } catch (e) {
-    console.warn('LRCLIB search error:', e)
   }
 
   return null
-}
-
-/**
- * Clean common suffixes like ".mp3", ".flac", "(Official Music Video)", "LIVE", etc.
- */
-function cleanTrackTitle(title: string): string {
-  let cleaned = title.replace(/\.(mp3|wav|flac|m4a|aac|ogg|wma)$/i, '')
-  cleaned = cleaned.replace(/[\(\[\{](official|music video|mv|audio|lyric video|live|hd|4k)[\)\]\}]/gi, '')
-  cleaned = cleaned.replace(/-\s*(official|mv|audio|video).*/gi, '')
-  return cleaned.trim()
-}
-
-function cleanArtistName(artist: string): string {
-  let cleaned = artist.replace(/[\(\[\{](official|vevo)[\)\]\}]/gi, '')
-  cleaned = cleaned.replace(/-\s*topic/gi, '')
-  return cleaned.trim()
 }

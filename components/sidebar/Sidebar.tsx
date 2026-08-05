@@ -210,13 +210,13 @@ export function Sidebar() {
         </Link>
 
         <Link
-          href="/#driveMCK"
+          href="/#drive"
           className="flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 shadow-sm"
         >
           <Cloud className="w-4 h-4 text-cyan-400" />
-          <span>driveMCK</span>
+          <span>Drive</span>
           <span className="ml-auto text-[9px] font-black uppercase tracking-wider bg-cyan-500/30 text-cyan-200 px-1.5 py-0.2 rounded-full border border-cyan-400/30">
-            Drive
+            Kho Nhạc
           </span>
         </Link>
 

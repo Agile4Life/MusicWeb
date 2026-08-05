@@ -40,7 +40,7 @@ export default function HomePage() {
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [searchSource, setSearchSource] = useState<'all' | 'youtube' | 'audius' | 'itunes' | 'spotify' | 'local'>('all')
-  const [libraryTab, setLibraryTab] = useState<'all' | 'driveMCK' | 'recent'>('all')
+  const [libraryTab, setLibraryTab] = useState<'all' | 'drive' | 'recent'>('all')
 
   useEffect(() => {
     const handleSearchEvent = (e: any) => {
@@ -549,7 +549,7 @@ export default function HomePage() {
   const isSearching = searchQuery.trim().length > 0
   let displayedTracks: Track[] = []
 
-  const driveMCKTracks = tracks.filter((t) => {
+  const driveTracks = tracks.filter((t) => {
     const fp = t.file_path || ''
     return Boolean(
       extractDriveFileId(fp) ||
@@ -580,8 +580,8 @@ export default function HomePage() {
       displayedTracks = globalTracks.local
     }
   } else {
-    if (libraryTab === 'driveMCK') {
-      displayedTracks = driveMCKTracks
+    if (libraryTab === 'drive') {
+      displayedTracks = driveTracks
     } else if (libraryTab === 'recent') {
       displayedTracks = recentTracks
     } else {
@@ -721,9 +721,9 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* ☁️ driveMCK Dedicated Showcase Section */}
+      {/* ☁️ Drive Dedicated Showcase Section */}
       {!isSearching && (
-        <div id="driveMCK" className="flex flex-col gap-4">
+        <div id="drive" className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-teal-400 to-blue-600 p-0.5 shadow-lg shadow-cyan-500/20">
@@ -733,9 +733,9 @@ export default function HomePage() {
               </div>
               <div>
                 <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                  driveMCK
+                  Drive
                   <span className="text-[10px] font-extrabold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2.5 py-0.5 rounded-full">
-                    {driveMCKTracks.length} Bài hát
+                    {driveTracks.length} Bài hát
                   </span>
                 </h2>
                 <p className="text-xs text-slate-400">
@@ -744,23 +744,23 @@ export default function HomePage() {
               </div>
             </div>
 
-            {driveMCKTracks.length > 0 && (
+            {driveTracks.length > 0 && (
               <button
-                onClick={() => playTrack(driveMCKTracks[0], driveMCKTracks)}
+                onClick={() => playTrack(driveTracks[0], driveTracks)}
                 className="bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-black font-extrabold px-4 py-2 rounded-full flex items-center gap-1.5 text-xs shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all"
               >
                 <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
-                <span>Phát Tất Cả driveMCK</span>
+                <span>Phát Tất Cả Nhạc Drive</span>
               </button>
             )}
           </div>
 
-          {driveMCKTracks.length > 0 ? (
+          {driveTracks.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {driveMCKTracks.slice(0, 12).map((t) => (
+              {driveTracks.slice(0, 12).map((t) => (
                 <div
                   key={t.id}
-                  onClick={() => playTrack(t, driveMCKTracks)}
+                  onClick={() => playTrack(t, driveTracks)}
                   className="glass-card p-3 rounded-2xl flex flex-col gap-2.5 cursor-pointer group hover:scale-[1.03] transition-all relative border border-white/10 hover:border-cyan-400/50"
                 >
                   <div className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
@@ -772,7 +772,7 @@ export default function HomePage() {
 
                     <div className="absolute top-2 right-2 z-10">
                       <span className="text-[8px] font-black uppercase tracking-wider bg-cyan-500 text-black px-1.5 py-0.5 rounded shadow font-mono">
-                        driveMCK
+                        Drive
                       </span>
                     </div>
 
@@ -800,16 +800,16 @@ export default function HomePage() {
                 <Cloud className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white">Chưa có bài hát trong mục driveMCK</h3>
+                <h3 className="text-sm font-bold text-white">Chưa có bài hát trong mục Drive</h3>
                 <p className="text-xs text-slate-400 max-w-md mt-1">
-                  Upload file từ máy hoặc dán link/Folder Google Drive để tự động lưu vào danh mục <strong>driveMCK</strong>.
+                  Upload file từ máy hoặc dán link/Folder Google Drive để tự động lưu vào danh mục <strong>Drive</strong>.
                 </p>
               </div>
               <Link
                 href="/upload"
                 className="bg-cyan-500 hover:bg-cyan-400 text-black font-extrabold text-xs px-4 py-2 rounded-full transition-all shadow-md"
               >
-                + Thêm Bài Hát Vào driveMCK
+                + Thêm Bài Hát Vào Drive
               </Link>
             </div>
           )}
@@ -834,15 +834,15 @@ export default function HomePage() {
               </button>
 
               <button
-                onClick={() => setLibraryTab('driveMCK')}
+                onClick={() => setLibraryTab('drive')}
                 className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-                  libraryTab === 'driveMCK'
+                  libraryTab === 'drive'
                     ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-black shadow-md shadow-cyan-500/20'
                     : 'bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 border border-cyan-500/30'
                 }`}
               >
                 <Cloud className="w-3.5 h-3.5" />
-                <span>driveMCK ({driveMCKTracks.length})</span>
+                <span>Drive ({driveTracks.length})</span>
               </button>
 
               <button
