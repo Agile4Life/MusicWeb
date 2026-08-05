@@ -57,6 +57,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [supabaseUser, setSupabaseUser] = useState<any>(null)
   const [cleaningDuplicates, setCleaningDuplicates] = useState(false)
+  const [cleanStatusText, setCleanStatusText] = useState<string | null>(null)
 
   // Global trending tracks for default homepage display
   const [trendingTracks, setTrendingTracks] = useState<Track[]>([])
@@ -396,11 +397,15 @@ export default function HomePage() {
     if (!confirm('Tự động quét, lấy lại tên bài hát chuẩn từ Google Drive & dọn dẹp các bài lỗi khỏi CSDL?')) return
 
     setCleaningDuplicates(true)
+    setCleanStatusText('Đang quét...')
+
     try {
       let repairedCount = 0
       let deletedCount = 0
+      let processedCount = 0
+      const total = tracks.length
 
-      for (const track of tracks) {
+      const processTrack = async (track: Track) => {
         const fp = track.file_path || ''
         const isFolder = fp.includes('/folders/') || fp.includes('drive/folders')
         const driveFileId = extractDriveFileId(fp)
@@ -408,13 +413,16 @@ export default function HomePage() {
         let isInvalid = isFolder
         if (!isInvalid && driveFileId) {
           try {
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), 3000)
             const checkUrl = `/api/drive-stream?id=${driveFileId}`
-            const res = await fetch(checkUrl, { method: 'HEAD' })
+            const res = await fetch(checkUrl, { method: 'HEAD', signal: controller.signal })
+            clearTimeout(timeoutId)
             if (res.status === 404 || res.status === 500) {
               isInvalid = true
             }
           } catch {
-            // ignore network error
+            // ignore network timeout
           }
         }
 
@@ -424,10 +432,11 @@ export default function HomePage() {
           await supabase.from('listening_history').delete().eq('track_id', track.id)
           await supabase.from('tracks').delete().eq('id', track.id)
           deletedCount++
-          continue
+          processedCount++
+          setCleanStatusText(`Đang dọn (${processedCount}/${total})...`)
+          return
         }
 
-        // Try repairing titles for tracks with "Bài hát X" or "Chưa rõ nghệ sĩ" or "Google Drive" album
         const needsTitleFix =
           !track.title ||
           /^Bài hát \d+$/i.test(track.title.trim()) ||
@@ -437,13 +446,18 @@ export default function HomePage() {
 
         if (needsTitleFix && driveFileId) {
           try {
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), 3000)
             const viewRes = await fetch(`https://drive.google.com/file/d/${driveFileId}/view`, {
               headers: {
                 'User-Agent':
                   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
               },
               cache: 'no-store',
+              signal: controller.signal,
             })
+            clearTimeout(timeoutId)
+
             if (viewRes.ok) {
               const html = await viewRes.text()
               const ogMatch =
@@ -474,10 +488,32 @@ export default function HomePage() {
               }
             }
           } catch {
-            // ignore repair error for individual track
+            // ignore
           }
         }
+
+        processedCount++
+        setCleanStatusText(`Đang dọn (${processedCount}/${total})...`)
       }
+
+      // Concurrency worker pool (8 items in parallel)
+      const concurrency = 8
+      let index = 0
+      const activePromises: Promise<void>[] = []
+
+      const getNext = async (): Promise<void> => {
+        if (index >= tracks.length) return
+        const currentTrack = tracks[index++]
+        await processTrack(currentTrack)
+        return getNext()
+      }
+
+      const workers = Math.min(concurrency, tracks.length)
+      for (let i = 0; i < workers; i++) {
+        activePromises.push(getNext())
+      }
+
+      await Promise.all(activePromises)
 
       alert(
         `✅ Hoàn tất xử lý thư viện!\n- Đã sửa lại tên/nghệ sĩ chuẩn cho: ${repairedCount} bài hát cũ\n- Đã dọn dẹp: ${deletedCount} bài bị hỏng/lỗi link`
@@ -485,6 +521,7 @@ export default function HomePage() {
       await fetchData()
     } finally {
       setCleaningDuplicates(false)
+      setCleanStatusText(null)
     }
   }
 
@@ -682,7 +719,7 @@ export default function HomePage() {
               ) : (
                 <RotateCcw className="w-3.5 h-3.5" />
               )}
-              {cleaningDuplicates ? 'Đang dọn...' : 'Sửa tên & Dọn bài lỗi'}
+              {cleaningDuplicates ? (cleanStatusText || 'Đang dọn...') : 'Sửa tên & Dọn bài lỗi'}
             </button>
 
             {(() => {
