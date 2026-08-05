@@ -184,18 +184,14 @@ export function TrackList({
       {/* Table Header */}
       <div className="flex items-center justify-between px-4 py-2 text-xs font-semibold text-gray-400 border-b border-[#282828] mb-2 select-none">
         <div className="flex items-center gap-4 w-1/2">
-          {isAdmin ? (
-            <div className="shrink-0 flex items-center pr-1" title="Chọn tất cả">
-              <input
-                type="checkbox"
-                checked={allSelected}
-                onChange={toggleSelectAll}
-                className="rounded accent-amber-400 w-4 h-4 cursor-pointer"
-              />
-            </div>
-          ) : (
-            <span className="w-6 text-center">#</span>
-          )}
+          <div className="shrink-0 flex items-center pr-1" title="Chọn tất cả">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={toggleSelectAll}
+              className="rounded accent-amber-400 w-4 h-4 cursor-pointer"
+            />
+          </div>
           <span>TIÊU ĐỀ</span>
         </div>
         <div className="hidden md:block w-1/4">ALBUM</div>
@@ -216,14 +212,14 @@ export function TrackList({
           onDeleteTrack={onDeleteTrack}
           onDeleteTrackPermanently={onDeleteTrackPermanently}
           onTrackUpdated={onTrackUpdated}
-          selectable={isAdmin}
+          selectable={true}
           isSelected={selectedIds.has(track.id)}
           onToggleSelect={() => toggleSelect(track.id)}
         />
       ))}
 
-      {/* 🚀 FLOATING BULK ACTION BAR (ADMIN ONLY) */}
-      {isAdmin && selectedIds.size > 0 && (
+      {/* 🚀 FLOATING BULK ACTION BAR */}
+      {selectedIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900/90 backdrop-blur-xl border border-amber-500/40 text-white px-5 py-3 rounded-full shadow-2xl shadow-black/80 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-200 select-none">
           <div className="flex items-center gap-2 pr-2 border-r border-white/10 text-xs font-bold text-amber-400">
             <CheckSquare className="w-4 h-4 text-amber-400" />
