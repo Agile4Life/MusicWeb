@@ -43,17 +43,24 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account }) {
       if (account?.provider === 'google') {
         const cleanEmail = user?.email?.trim().toLowerCase()
+        console.log('[AUTH SIGNIN] Google OAuth callback triggered for email:', cleanEmail)
+
         if (!cleanEmail) {
+          console.warn('[AUTH SIGNIN] No email found in Google OAuth user object')
           return '/login?error=UnapprovedAccount'
         }
 
         let allowedList: string[] = []
         let allowAll = false
 
+        // 1. Read from bundled allowedAccounts.json (build-time snapshot)
         try {
           const configPath = path.join(process.cwd(), 'config', 'allowedAccounts.json')
           if (fs.existsSync(configPath)) {
-            const data = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+            const rawContent = fs.readFileSync(configPath, 'utf-8')
+            const data = JSON.parse(rawContent)
+            console.log('[AUTH SIGNIN] allowedAccounts.json loaded, allowAllAsListeners:', data.allowAllAsListeners)
+
             if (data.allowAllAsListeners) {
               allowAll = true
             }
@@ -65,40 +72,76 @@ export const authOptions: NextAuthOptions = {
                 if (item?.email) allowedList.push(String(item.email).trim().toLowerCase())
               })
             }
+          } else {
+            console.warn('[AUTH SIGNIN] allowedAccounts.json NOT found at:', configPath)
           }
         } catch (err) {
-          console.warn('Could not read allowedAccounts.json in NextAuth signIn callback:', err)
+          console.warn('[AUTH SIGNIN] Error reading allowedAccounts.json:', err)
         }
 
-        if (allowAll) return true
+        console.log('[AUTH SIGNIN] Allowed list from JSON file:', JSON.stringify(allowedList))
 
+        if (allowAll) {
+          console.log('[AUTH SIGNIN] allowAllAsListeners=true, granting access')
+          return true
+        }
+
+        // 2. Read approved_emails from cookies (set by Passkey API)
         try {
           const cookieStore = await cookies()
-          const rawVal = cookieStore.get('approved_emails')?.value || cookieStore.get('musicweb_approved_emails')?.value
-          if (rawVal) {
-            const decoded = decodeURIComponent(rawVal)
-            try {
-              const parsed = JSON.parse(decoded)
-              if (Array.isArray(parsed)) {
-                parsed.forEach((e: string) => allowedList.push(String(e).trim().toLowerCase()))
-              } else if (typeof parsed === 'string') {
-                allowedList.push(parsed.trim().toLowerCase())
+          // Try multiple cookie names for compatibility
+          const cookieNames = ['approved_emails', 'musicweb_approved_emails']
+          for (const cookieName of cookieNames) {
+            const rawVal = cookieStore.get(cookieName)?.value
+            if (rawVal) {
+              console.log(`[AUTH SIGNIN] Found cookie "${cookieName}":`, rawVal.substring(0, 100))
+              // Try parsing as-is first (JSON), then try decodeURIComponent
+              let parsed: any = null
+              try {
+                parsed = JSON.parse(rawVal)
+              } catch {
+                try {
+                  parsed = JSON.parse(decodeURIComponent(rawVal))
+                } catch {
+                  // Treat as single email string
+                  const singleEmail = decodeURIComponent(rawVal).trim().toLowerCase()
+                  if (singleEmail && !allowedList.includes(singleEmail)) {
+                    allowedList.push(singleEmail)
+                  }
+                  continue
+                }
               }
-            } catch {
-              allowedList.push(decoded.trim().toLowerCase())
+              if (Array.isArray(parsed)) {
+                parsed.forEach((e: string) => {
+                  const normalized = String(e).trim().toLowerCase()
+                  if (normalized && !allowedList.includes(normalized)) {
+                    allowedList.push(normalized)
+                  }
+                })
+              } else if (typeof parsed === 'string') {
+                const normalized = parsed.trim().toLowerCase()
+                if (normalized && !allowedList.includes(normalized)) {
+                  allowedList.push(normalized)
+                }
+              }
             }
           }
         } catch (cookieErr) {
-          console.warn('Could not read approved_emails cookie in NextAuth signIn callback:', cookieErr)
+          console.warn('[AUTH SIGNIN] Could not read approved_emails cookie:', cookieErr)
         }
 
+        console.log('[AUTH SIGNIN] Final allowed list (JSON + cookies):', JSON.stringify(allowedList))
+        console.log('[AUTH SIGNIN] Checking if email is allowed:', cleanEmail, '→', allowedList.includes(cleanEmail))
 
         const isAllowed = allowedList.includes(cleanEmail)
 
         if (!isAllowed) {
-          console.warn(`[AUTH GUARD] Access denied for unapproved Google account: ${cleanEmail}`)
+          console.warn(`[AUTH GUARD] ❌ Access DENIED for unapproved Google account: ${cleanEmail}`)
+          console.warn(`[AUTH GUARD] Allowed list was:`, JSON.stringify(allowedList))
           return `/login?error=UnapprovedAccount&unapprovedEmail=${encodeURIComponent(cleanEmail)}`
         }
+
+        console.log(`[AUTH GUARD] ✅ Access GRANTED for: ${cleanEmail}`)
       }
 
       return true

@@ -55,7 +55,7 @@ export function isAllowedToLogin(email?: string | null): boolean {
     }
   }
 
-  // Check client-side approved passkey emails (stored in localStorage or cookie)
+  // Check client-side approved passkey emails (stored in localStorage)
   if (typeof window !== 'undefined') {
     try {
       const stored = localStorage.getItem('musicweb_approved_emails')
@@ -68,6 +68,26 @@ export function isAllowedToLogin(email?: string | null): boolean {
     } catch {
       // ignore parsing error
     }
+
+    // Also check the approved_emails cookie (set by Passkey API and client-side)
+    try {
+      const cookieStr = document.cookie
+      const match = cookieStr.match(/(?:^|;\s*)approved_emails=([^;]*)/)
+      if (match?.[1]) {
+        let decoded = match[1]
+        try {
+          decoded = decodeURIComponent(decoded)
+        } catch {}
+        try {
+          const parsed = JSON.parse(decoded)
+          if (Array.isArray(parsed) && parsed.some((e: string) => String(e).trim().toLowerCase() === normalizedEmail)) {
+            return true
+          }
+        } catch {}
+      }
+    } catch {
+      // ignore cookie parsing error
+    }
   }
 
   return false
@@ -78,14 +98,32 @@ export function markEmailAsAllowed(email: string) {
   if (typeof window === 'undefined' || !email) return
   try {
     const normalized = email.trim().toLowerCase()
+
+    // 1. Update localStorage
     const stored = localStorage.getItem('musicweb_approved_emails')
     const list: string[] = stored ? JSON.parse(stored) : []
     if (!list.includes(normalized)) {
       list.push(normalized)
       localStorage.setItem('musicweb_approved_emails', JSON.stringify(list))
     }
-    // Set cookie for server-side NextAuth OAuth verification
-    document.cookie = `approved_emails=${encodeURIComponent(JSON.stringify(list))}; path=/; max-age=31536000; SameSite=Lax`
+
+    // 2. Update cookie — use plain JSON (no encodeURIComponent wrapper)
+    //    so both client JS and server-side NextAuth can parse it consistently
+    let cookieList: string[] = []
+    try {
+      const cookieStr = document.cookie
+      const match = cookieStr.match(/(?:^|;\s*)approved_emails=([^;]*)/)
+      if (match?.[1]) {
+        let decoded = match[1]
+        try { decoded = decodeURIComponent(decoded) } catch {}
+        const parsed = JSON.parse(decoded)
+        if (Array.isArray(parsed)) cookieList = parsed
+      }
+    } catch {}
+    if (!cookieList.includes(normalized)) {
+      cookieList.push(normalized)
+    }
+    document.cookie = `approved_emails=${JSON.stringify(cookieList)}; path=/; max-age=31536000; SameSite=Lax`
   } catch {
     // ignore storage error
   }

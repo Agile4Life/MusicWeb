@@ -270,14 +270,20 @@ export async function POST(req: NextRequest) {
       if (existingCookie) {
         try {
           currentApproved = JSON.parse(existingCookie)
-        } catch {}
+        } catch {
+          try {
+            currentApproved = JSON.parse(decodeURIComponent(existingCookie))
+          } catch {}
+        }
       }
+      if (!Array.isArray(currentApproved)) currentApproved = []
       if (!currentApproved.includes(cleanEmail)) {
         currentApproved.push(cleanEmail)
       }
+      // IMPORTANT: Do NOT use httpOnly — both client JS and server need to read this cookie
       response.cookies.set('approved_emails', JSON.stringify(currentApproved), {
         path: '/',
-        httpOnly: true,
+        httpOnly: false,
         maxAge: 60 * 60 * 24 * 365,
         sameSite: 'lax',
       })
