@@ -78,6 +78,7 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [passkeyLoading, setPasskeyLoading] = useState(false)
   const [passkeyError, setPasskeyError] = useState<string | null>(null)
   const [passkeySuccess, setPasskeySuccess] = useState<string | null>(null)
+  const [isAlreadyRegistered, setIsAlreadyRegistered] = useState(false)
 
 
   const handlePasskeySubmit = async (e: React.FormEvent) => {
@@ -85,6 +86,7 @@ export function AuthForm({ mode }: AuthFormProps) {
     setPasskeyLoading(true)
     setPasskeyError(null)
     setPasskeySuccess(null)
+    setIsAlreadyRegistered(false)
 
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
     if (!emailRegex.test(passkeyEmail.trim())) {
@@ -118,7 +120,13 @@ export function AuthForm({ mode }: AuthFormProps) {
       // Mark email as approved in client authorization state
       markEmailAsAllowed(passkeyEmail)
 
-      setPasskeySuccess(data.message || 'Xác thực Passkey thành công! Đã cấp quyền và gửi thông báo tới Gmail Admin (tranphong16012006@gmail.com).')
+      if (data.alreadyExists) {
+        setIsAlreadyRegistered(true)
+        setPasskeySuccess(`Tài khoản Gmail ${passkeyEmail} này đã tồn tại và đã được cấp quyền từ trước trong hệ thống!`)
+      } else {
+        setIsAlreadyRegistered(false)
+        setPasskeySuccess(data.message || 'Xác thực Passkey thành công! Đã cấp quyền và gửi thông báo tới Gmail Admin (tranphong16012006@gmail.com).')
+      }
     } catch (err: any) {
       setPasskeyError(err.message || 'Xác thực Passkey thất bại')
     } finally {
@@ -245,14 +253,24 @@ export function AuthForm({ mode }: AuthFormProps) {
     setRawError(null)
     setSuccessMsg(null)
     try {
-      await signIn('google', { callbackUrl: '/' })
+      try {
+        await supabase.auth.signOut()
+      } catch {
+        // ignore
+      }
+      const res = await signIn('google', { callbackUrl: '/', redirect: false })
+      if (res?.url) {
+        window.location.href = res.url
+      } else {
+        window.location.href = '/api/auth/signin/google'
+      }
     } catch (err: any) {
       console.error('Google sign-in error:', err)
       setError(translateAuthError(err))
-    } finally {
-      setTimeout(() => setLoading(false), 3000)
+      setLoading(false)
     }
   }
+
 
   return (
     <div className="min-h-screen w-screen bg-[var(--bg-space,#07080c)] flex items-center justify-center p-4 relative overflow-hidden select-none">
@@ -474,16 +492,24 @@ export function AuthForm({ mode }: AuthFormProps) {
             )}
 
             {passkeySuccess ? (
-              <div className="p-6 bg-emerald-500/10 border border-[var(--primary-spotify)]/30 text-emerald-300 rounded-3xl text-xs flex flex-col items-center text-center gap-4 animate-in zoom-in-95 duration-200">
-                <div className="w-14 h-14 rounded-2xl bg-[var(--primary-spotify)]/10 border border-[var(--primary-spotify)]/30 flex items-center justify-center text-[var(--primary-spotify)] shadow-lg shadow-[var(--theme-glow-shadow)]">
-                  <CheckCircle2 className="w-7 h-7 text-[var(--primary-spotify)]" />
+              <div className={`p-6 ${isAlreadyRegistered ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' : 'bg-emerald-500/10 border-[var(--primary-spotify)]/30 text-emerald-300'} border rounded-3xl text-xs flex flex-col items-center text-center gap-4 animate-in zoom-in-95 duration-200`}>
+                <div className={`w-14 h-14 rounded-2xl ${isAlreadyRegistered ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-[var(--primary-spotify)]/10 border-[var(--primary-spotify)]/30 text-[var(--primary-spotify)]'} border flex items-center justify-center shadow-lg shadow-[var(--theme-glow-shadow)]`}>
+                  {isAlreadyRegistered ? (
+                    <AlertCircle className="w-7 h-7 text-amber-400" />
+                  ) : (
+                    <CheckCircle2 className="w-7 h-7 text-[var(--primary-spotify)]" />
+                  )}
                 </div>
                 <div className="flex flex-col gap-2">
-                  <h3 className="text-lg font-extrabold text-[var(--primary-spotify)]">
-                    🎉 Phê Duyệt Passkey Thành Công!
+                  <h3 className={`text-lg font-extrabold ${isAlreadyRegistered ? 'text-amber-400' : 'text-[var(--primary-spotify)]'}`}>
+                    {isAlreadyRegistered ? '⚠️ Tài Khoản Đã Tồn Tại Trong Hệ Thống!' : '🎉 Phê Duyệt Passkey Thành Công!'}
                   </h3>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    Thông báo cấp quyền cho tài khoản <strong className="text-cyan-300 font-mono">{passkeyEmail}</strong> đã được gửi tới Gmail Admin (<strong className="text-white">tranphong16012006@gmail.com</strong>).
+                    {isAlreadyRegistered ? (
+                      <>Tài khoản Gmail <strong className="text-amber-300 font-mono">{passkeyEmail}</strong> đã được cấp quyền từ trước trong hệ thống. Bạn không cần xin cấp quyền mới!</>
+                    ) : (
+                      <>Thông báo cấp quyền cho tài khoản <strong className="text-cyan-300 font-mono">{passkeyEmail}</strong> đã được gửi tới Gmail Admin (<strong className="text-white">tranphong16012006@gmail.com</strong>).</>
+                    )}
                   </p>
                   <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-2xl text-[11px] text-cyan-200 leading-relaxed text-left flex flex-col gap-1 mt-1">
                     <span className="font-bold text-cyan-300">📌 BƯỚC ĐĂNG NHẬP TIẾP THEO:</span>
@@ -493,7 +519,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                 <button
                   onClick={() => {
                     setShowPasskeyModal(false)
-                    signIn('google', { callbackUrl: '/' })
+                    handleGoogleSignIn()
                   }}
                   className="w-full bg-[var(--primary-spotify)] text-black font-extrabold py-3 rounded-full hover:scale-105 transition-all text-xs shadow-lg flex items-center justify-center gap-2 mt-2"
                 >
@@ -507,6 +533,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                 </button>
               </div>
             ) : (
+
 
               <form onSubmit={handlePasskeySubmit} className="flex flex-col gap-4">
                 <div>

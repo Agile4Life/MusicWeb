@@ -96,18 +96,25 @@ export async function POST(request: Request) {
       )
     }
 
-    // 2. Automatically add user to allowedAccounts.json if not present
+    // 2. Automatically check if account already exists or add user to allowedAccounts.json
+    let alreadyExists = false
     try {
       const configPath = path.join(process.cwd(), 'config', 'allowedAccounts.json')
       if (fs.existsSync(configPath)) {
         const fileContent = fs.readFileSync(configPath, 'utf-8')
         const configData = JSON.parse(fileContent)
 
-        const exists = Array.isArray(configData.allowedEmails) && configData.allowedEmails.some(
-          (item: any) => item?.email && String(item.email).toLowerCase() === cleanEmail
+        const isSystemAdmin = Array.isArray(configData?.adminEmails) && configData.adminEmails.some(
+          (e: string) => String(e).trim().toLowerCase() === cleanEmail
         )
 
-        if (!exists && Array.isArray(configData.allowedEmails)) {
+        const isAllowedUser = Array.isArray(configData?.allowedEmails) && configData.allowedEmails.some(
+          (item: any) => item?.email && String(item.email).trim().toLowerCase() === cleanEmail
+        )
+
+        if (isSystemAdmin || isAllowedUser) {
+          alreadyExists = true
+        } else if (Array.isArray(configData.allowedEmails)) {
           configData.allowedEmails.push({
             email: cleanEmail,
             role: 'listener',
@@ -126,6 +133,11 @@ export async function POST(request: Request) {
     // 3. Send email to Admin's personal email address & user confirmation via SMTP
     let emailSent = false
     let emailStatusMessage = ''
+
+    if (alreadyExists) {
+      emailStatusMessage = `Tài khoản Gmail ${cleanEmail} này đã tồn tại và đã có sẵn quyền truy cập trong hệ thống!`
+    }
+
 
     try {
       const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com'
@@ -244,9 +256,13 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       email: cleanEmail,
-      message: `Xác thực Passkey thành công! ${emailStatusMessage}`,
+      alreadyExists,
+      message: alreadyExists
+        ? `Tài khoản Gmail ${cleanEmail} này đã tồn tại và đã có sẵn quyền truy cập từ trước trong hệ thống!`
+        : `Xác thực Passkey thành công! ${emailStatusMessage}`,
       emailSent,
     })
+
 
   } catch (err: any) {
     console.error('Passkey API error:', err)

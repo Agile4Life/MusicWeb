@@ -7,7 +7,15 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || '992317284123-u7l6n1ur1fcvl8v86t9sjkpoupal5nqk.apps.googleusercontent.com',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || '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',
+      authorization: {
+        params: {
+          prompt: 'select_account',
+          access_type: 'offline',
+          response_type: 'code',
+        },
+      },
     }),
+
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
