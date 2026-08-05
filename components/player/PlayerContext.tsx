@@ -14,8 +14,8 @@ interface PlayerContextType {
   currentIndex: number
   currentTime: number
   duration: number
-  volume: number
-  playbackError: string | null
+  isShuffle: boolean
+  toggleShuffle: () => void
   playTrack: (track: Track, newQueue?: Track[]) => Promise<void>
   togglePlay: () => void
   seek: (time: number) => void
