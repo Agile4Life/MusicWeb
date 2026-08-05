@@ -949,7 +949,7 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
             <div className="flex items-center gap-3">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Disc className="w-5 h-5 text-[var(--primary-spotify)]" />
+                <Search className="w-5 h-5 text-cyan-400" />
                 Kết Quả Tìm Kiếm Toàn Cầu
               </h2>
               {searchingGlobal && <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />}

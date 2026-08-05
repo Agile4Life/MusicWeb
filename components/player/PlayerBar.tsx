@@ -11,7 +11,7 @@ import {
   Volume2,
   VolumeX,
   Music,
-  Disc,
+  Headphones,
   ChevronDown,
   Maximize2,
   SlidersHorizontal,
@@ -112,7 +112,7 @@ export function PlayerBar() {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <Disc className={`w-5 h-5 text-[var(--primary-spotify)] ${isPlaying ? 'animate-spin-slow' : ''}`} />
+                <Headphones className={`w-5 h-5 text-cyan-400 ${isPlaying ? 'animate-pulse' : ''}`} />
               )}
             </div>
 
@@ -189,8 +189,8 @@ export function PlayerBar() {
                   className="w-full h-full object-cover rounded-2xl"
                 />
               ) : (
-                <div className="w-full h-full bg-[#0d0e15] rounded-2xl flex items-center justify-center text-[var(--primary-spotify)]">
-                  <Disc className={`w-28 h-28 ${isPlaying ? 'animate-spin-slow' : ''}`} />
+                <div className="w-full h-full bg-[#080c14] rounded-2xl flex items-center justify-center text-cyan-400">
+                  <Headphones className={`w-28 h-28 ${isPlaying ? 'animate-pulse' : ''}`} />
                 </div>
               )}
             </div>
@@ -289,7 +289,7 @@ export function PlayerBar() {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <Disc className={`w-6 h-6 text-[var(--primary-spotify)] ${isPlaying ? 'animate-spin-slow' : ''}`} />
+                <Headphones className={`w-6 h-6 text-cyan-400 ${isPlaying ? 'animate-pulse' : ''}`} />
               )}
             </div>
           </div>

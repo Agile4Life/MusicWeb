@@ -5,7 +5,7 @@ import { usePlayer } from './PlayerContext'
 import { fetchLyricsFromLrclib, LrclibResponse } from '@/lib/lrclib'
 import { parseLrc, parsePlainLyrics, findActiveLyricIndex, LyricLine } from '@/lib/lrcParser'
 import {
-  Disc,
+  Headphones,
   RefreshCw,
   Sparkles,
   Mic2,
@@ -144,7 +144,7 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
   if (!currentTrack) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center text-slate-400 p-8 text-center select-none bg-[#07080c]">
-        <Disc className="w-16 h-16 text-slate-600 mb-4 animate-spin-slow" />
+        <Headphones className="w-16 h-16 text-cyan-400/60 mb-4 animate-pulse" />
         <h3 className="text-lg font-bold text-slate-200">Chưa có bài hát đang phát</h3>
         <p className="text-xs text-slate-500 mt-1">Hãy chọn một bài hát từ thư viện để xem lời bài hát</p>
       </div>

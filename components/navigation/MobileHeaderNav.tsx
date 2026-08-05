@@ -165,7 +165,7 @@ export function MobileHeaderNav() {
           >
             <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 via-teal-400 to-blue-600 p-0.5 shadow-md shadow-cyan-500/20">
               <div className="w-full h-full bg-[#080c14] rounded-[10px] flex items-center justify-center">
-                <AppLogoIcon className="w-4 h-4 text-cyan-400" />
+                <Headphones className="w-4 h-4 text-cyan-400" />
               </div>
             </div>
             <span className="font-extrabold text-base tracking-tight text-white flex items-center gap-1">
@@ -198,7 +198,7 @@ export function MobileHeaderNav() {
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 via-teal-400 to-blue-600 p-0.5">
                   <div className="w-full h-full bg-[#080c14] rounded-[10px] flex items-center justify-center">
-                    <AppLogoIcon className="w-4 h-4 text-cyan-400" />
+                    <Headphones className="w-4 h-4 text-cyan-400" />
                   </div>
                 </div>
                 <span className="font-extrabold text-base text-white">Menu Navigation</span>

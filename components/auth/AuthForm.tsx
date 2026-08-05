@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { signIn } from 'next-auth/react'
 import { createClient } from '@/lib/supabase/client'
 import { isAllowedToLogin, markEmailAsAllowed } from '@/lib/accessControl'
-import { Lock, Mail, Loader2, AlertCircle, CheckCircle2, Disc, Eye, EyeOff, ShieldAlert, Key, X, Send } from 'lucide-react'
+import { Lock, Mail, Loader2, AlertCircle, CheckCircle2, Headphones, Eye, EyeOff, ShieldAlert, Key, X, Send } from 'lucide-react'
 
 interface AuthFormProps {
   mode: 'login' | 'register'
@@ -300,9 +300,9 @@ export function AuthForm({ mode }: AuthFormProps) {
 
 
         <div className="flex flex-col items-center gap-3 mb-8 text-center relative z-10">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[var(--primary-spotify)] to-[var(--theme-secondary,#06b6d4)] p-0.5 shadow-xl shadow-[var(--theme-glow-shadow)]">
-            <div className="w-full h-full bg-[#0d0e15] rounded-[14px] flex items-center justify-center">
-              <Disc className="w-7 h-7 text-[var(--primary-spotify)] animate-spin-slow" />
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-400 via-teal-400 to-blue-600 p-0.5 shadow-xl shadow-cyan-500/20">
+            <div className="w-full h-full bg-[#080c14] rounded-[14px] flex items-center justify-center">
+              <Headphones className="w-7 h-7 text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
             </div>
           </div>
           <h1 className="text-2xl font-extrabold text-white tracking-tight">

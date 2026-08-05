@@ -183,7 +183,7 @@ export function Sidebar() {
         >
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-400 via-teal-400 to-blue-600 p-0.5 shadow-xl shadow-cyan-500/20 group-hover:scale-105 transition-all duration-300">
             <div className="w-full h-full bg-[#080c14] rounded-[14px] flex items-center justify-center relative overflow-hidden">
-              <AppLogoIcon className="w-5 h-5 text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
+              <Headphones className="w-5 h-5 text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
             </div>
           </div>
           <div className="flex flex-col">
