@@ -18,6 +18,9 @@ export interface Track {
   is_favorite?: boolean
   created_at: string
   audio_url?: string
+  source?: 'local' | 'youtube' | 'audius'
+  youtube_id?: string
+  audius_id?: string
 }
 
 export interface Playlist {

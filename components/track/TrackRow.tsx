@@ -170,13 +170,25 @@ function TrackRowComponent({
         </div>
 
         <div className="truncate flex flex-col min-w-0">
-          <p
-            className={`text-sm font-bold truncate ${
-              isCurrent ? 'text-[var(--primary-spotify)]' : 'text-white'
-            }`}
-          >
-            {track.title}
-          </p>
+          <div className="flex items-center gap-2 truncate">
+            <p
+              className={`text-sm font-bold truncate ${
+                isCurrent ? 'text-[var(--primary-spotify)]' : 'text-white'
+              }`}
+            >
+              {track.title}
+            </p>
+            {track.source === 'youtube' && (
+              <span className="text-[9px] font-bold uppercase tracking-wider bg-red-500/20 text-red-400 border border-red-500/30 px-1.5 py-0.2 rounded shrink-0">
+                YouTube
+              </span>
+            )}
+            {track.source === 'audius' && (
+              <span className="text-[9px] font-bold uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30 px-1.5 py-0.2 rounded shrink-0">
+                Audius 320k
+              </span>
+            )}
+          </div>
 
           {/* Artist — editable inline */}
           {editMode ? (
