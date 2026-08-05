@@ -93,15 +93,39 @@ export default function HistoryPage() {
       if (!error && data) {
         const validEntries: HistoryEntry[] = data
           .filter((item: any) => item.tracks && typeof item.tracks === 'object')
-          .map((item: any) => ({
-            id: item.id,
-            played_at: item.played_at,
-            track: {
-              ...item.tracks,
-              artist: item.tracks.artist || null,
-              album: item.tracks.album || null,
-            },
-          }))
+          .map((item: any) => {
+            const tr = item.tracks
+            let source = tr.source || 'local'
+            let youtube_id = tr.youtube_id
+            const fp = tr.file_path || ''
+
+            if (fp.includes('youtube.com') || fp.includes('youtu.be') || tr.id?.startsWith?.('yt-')) {
+              source = 'youtube'
+              if (!youtube_id) {
+                const match = fp.match(/(?:v=|\/embed\/|\/1\/|\/v\/|https:\/\/youtu\.be\/|^yt-)([a-zA-Z0-9_-]{11})/)
+                if (match) youtube_id = match[1]
+                else if (tr.id?.startsWith?.('yt-')) youtube_id = tr.id.replace('yt-', '')
+              }
+            } else if (fp.includes('spotify.com') || tr.id?.startsWith?.('spotify-')) {
+              source = 'spotify'
+            } else if (fp.includes('itunes.apple.com') || tr.id?.startsWith?.('itunes-')) {
+              source = 'itunes'
+            } else if (fp.includes('audius.co') || tr.id?.startsWith?.('audius-')) {
+              source = 'audius'
+            }
+
+            return {
+              id: item.id,
+              played_at: item.played_at,
+              track: {
+                ...tr,
+                source,
+                youtube_id,
+                artist: tr.artist || null,
+                album: tr.album || null,
+              },
+            }
+          })
 
         setHistoryItems(validEntries)
       }

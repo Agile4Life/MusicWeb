@@ -5,7 +5,7 @@ import { Track, Playlist } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { Play, Pause, Music, Trash2, MoreVertical, Plus, Pencil, Check, X, Heart } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { isAdmin } from '@/lib/accessControl'
+import { isAdmin, getValidUserId } from '@/lib/accessControl'
 import { useSession } from 'next-auth/react'
 
 interface TrackRowProps {
@@ -101,13 +101,56 @@ function TrackRowComponent({
   const handleToggleFavorite = async (event: React.MouseEvent) => {
     event.stopPropagation()
     const nextValue = !isFavorite
-    const { error } = await supabase
-      .from('tracks')
-      .update({ is_favorite: nextValue })
-      .eq('id', track.id)
-    if (!error) {
-      setIsFavorite(nextValue)
-      onTrackUpdated?.(track.id, { is_favorite: nextValue })
+    setIsFavorite(nextValue)
+    onTrackUpdated?.(track.id, { is_favorite: nextValue })
+
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      const activeUser = currentUser || (nextAuthSession?.user ? { id: nextAuthSession.user.email, email: nextAuthSession.user.email } : null)
+      const userId = activeUser ? getValidUserId(activeUser) : null
+
+      let dbTrackId = track.id
+
+      if (track.source && track.source !== 'local' && userId) {
+        const { data: existing } = await supabase
+          .from('tracks')
+          .select('id')
+          .eq('file_path', track.file_path)
+          .maybeSingle()
+
+        if (existing && existing.id) {
+          dbTrackId = existing.id
+        } else {
+          const { data: inserted } = await supabase
+            .from('tracks')
+            .insert({
+              user_id: userId,
+              title: track.title,
+              artist: track.artist || null,
+              album: track.album || null,
+              duration: track.duration || 0,
+              file_path: track.file_path,
+              cover_url: track.cover_url || null,
+              created_at: new Date().toISOString(),
+            })
+            .select('id')
+            .single()
+
+          if (inserted && inserted.id) dbTrackId = inserted.id
+        }
+      }
+
+      if (userId && dbTrackId) {
+        if (nextValue) {
+          await supabase.from('favorite_tracks').upsert({ user_id: userId, track_id: dbTrackId })
+        } else {
+          await supabase.from('favorite_tracks').delete().eq('user_id', userId).eq('track_id', dbTrackId)
+        }
+      }
+
+      await supabase.from('tracks').update({ is_favorite: nextValue }).eq('id', dbTrackId)
+    } catch (e) {
+      console.warn('Favorite toggle sync error:', e)
     }
   }
 

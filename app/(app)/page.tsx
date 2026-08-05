@@ -575,7 +575,7 @@ export default function HomePage() {
 
         {/* Source Filter Pills (Shown when searching) */}
         {isSearching && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none touch-pan-x shrink-0 whitespace-nowrap">
             <button
               onClick={() => setSearchSource('all')}
               className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${

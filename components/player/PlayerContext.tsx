@@ -61,6 +61,35 @@ declare global {
   }
 }
 
+function inferTrackSource(track: Track): Track {
+  if (track.source && track.source !== 'local') return track
+
+  const fp = track.file_path || ''
+  if (fp.includes('youtube.com') || fp.includes('youtu.be') || track.youtube_id || track.id.startsWith('yt-')) {
+    let ytId = track.youtube_id
+    if (!ytId) {
+      const match = fp.match(/(?:v=|\/embed\/|\/1\/|\/v\/|https:\/\/youtu\.be\/|^yt-)([a-zA-Z0-9_-]{11})/)
+      if (match) ytId = match[1]
+      else if (track.id.startsWith('yt-')) ytId = track.id.replace('yt-', '')
+    }
+    return { ...track, source: 'youtube', youtube_id: ytId }
+  }
+
+  if (fp.includes('spotify.com') || track.spotify_id || track.id.startsWith('spotify-')) {
+    return { ...track, source: 'spotify' }
+  }
+
+  if (fp.includes('itunes.apple.com') || track.itunes_id || track.id.startsWith('itunes-')) {
+    return { ...track, source: 'itunes' }
+  }
+
+  if (fp.includes('audius.co') || track.audius_id || track.id.startsWith('audius-')) {
+    return { ...track, source: 'audius' }
+  }
+
+  return track
+}
+
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const { data: nextAuthSession } = useSession()
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null)
@@ -333,8 +362,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentTime])
 
-  const playTrack = async (track: Track, newQueue?: Track[], forceIndex?: number) => {
+  const playTrack = async (rawTrack: Track, newQueue?: Track[], forceIndex?: number) => {
     const requestId = ++playRequestRef.current
+    const track = inferTrackSource(rawTrack)
 
     let nextQueue = queue
     let nextIndex = currentIndex

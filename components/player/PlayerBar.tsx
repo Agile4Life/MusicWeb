@@ -221,7 +221,19 @@ export function PlayerBar() {
           </div>
 
           {/* Full Playback Controls */}
-          <div className="flex items-center justify-evenly mb-8">
+          <div className="flex items-center justify-between px-4 mb-8">
+            <button
+              onClick={toggleShuffle}
+              className={`p-3 rounded-full transition-all ${
+                isShuffle
+                  ? 'text-[var(--primary-spotify)] bg-[var(--primary-spotify)]/20 border border-[var(--primary-spotify)]/40 shadow-lg'
+                  : 'text-slate-400 hover:text-white bg-white/5'
+              }`}
+              title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
+            >
+              <Shuffle className="w-6 h-6" />
+            </button>
+
             <button
               onClick={prevTrack}
               className="p-3 text-slate-300 hover:text-white active:scale-95 transition-transform"
@@ -242,6 +254,8 @@ export function PlayerBar() {
             >
               <SkipForward className="w-8 h-8" />
             </button>
+
+            <div className="w-12 h-12" />
           </div>
 
           {/* Volume Control Bar */}
