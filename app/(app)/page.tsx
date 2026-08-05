@@ -15,18 +15,18 @@ import {
   Disc,
   Music,
   Flame,
-  Trash2,
   AlertTriangle,
   Globe,
   Radio,
   Loader2,
+  TrendingUp,
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { getValidUserId } from '@/lib/accessControl'
 
 export default function HomePage() {
   const supabase = createClient()
-  const { playTrack, currentTrack, isPlaying } = usePlayer()
+  const { playTrack } = usePlayer()
   const { data: nextAuthSession } = useSession()
 
   const [tracks, setTracks] = useState<Track[]>([])
@@ -37,7 +37,11 @@ export default function HomePage() {
   const [supabaseUser, setSupabaseUser] = useState<any>(null)
   const [cleaningDuplicates, setCleaningDuplicates] = useState(false)
 
-  // Global search results from API
+  // Global trending tracks for default homepage display
+  const [trendingTracks, setTrendingTracks] = useState<Track[]>([])
+  const [loadingTrending, setLoadingTrending] = useState(true)
+
+  // Search results
   const [globalTracks, setGlobalTracks] = useState<{
     local: Track[]
     youtube: Track[]
@@ -45,7 +49,6 @@ export default function HomePage() {
   }>({ local: [], youtube: [], audius: [] })
   const [searchingGlobal, setSearchingGlobal] = useState(false)
 
-  // Unified user object recognizing both Supabase and NextAuth (Google) sessions
   const user =
     supabaseUser ||
     (nextAuthSession?.user
@@ -65,7 +68,7 @@ export default function HomePage() {
 
       setSupabaseUser(currentUser)
 
-      // Query all tracks from database
+      // Query all local tracks from database
       const { data: rawTracks, error: trackError } = await supabase
         .from('tracks')
         .select('*')
@@ -73,11 +76,9 @@ export default function HomePage() {
 
       if (!trackError && rawTracks) {
         setTracks(rawTracks.map((t: Track) => ({ ...t, source: 'local' })))
-      } else if (trackError) {
-        console.warn('Failed to fetch tracks:', trackError.message)
       }
 
-      // Strictly query playlists belonging to the current logged-in user
+      // Strictly query playlists belonging to the current user
       const activeUser =
         currentUser ||
         (nextAuthSession?.user
@@ -108,8 +109,31 @@ export default function HomePage() {
     }
   }
 
+  // Fetch Global Trending Music automatically on mount
   useEffect(() => {
     fetchData()
+
+    let active = true
+    setLoadingTrending(true)
+    fetch('/api/search?trending=true')
+      .then((res) => res.json())
+      .then((data) => {
+        if (!active) return
+        const yt = data.youtube || []
+        const audius = data.audius || []
+        // Interleave YouTube & Audius trending tracks
+        const combined: Track[] = []
+        const maxLen = Math.max(yt.length, audius.length)
+        for (let i = 0; i < maxLen; i++) {
+          if (audius[i]) combined.push(audius[i])
+          if (yt[i]) combined.push(yt[i])
+        }
+        setTrendingTracks(combined)
+      })
+      .catch((err) => console.warn('Failed to load trending tracks:', err))
+      .finally(() => {
+        if (active) setLoadingTrending(false)
+      })
 
     let timer: NodeJS.Timeout
     const debouncedFetch = () => {
@@ -121,29 +145,18 @@ export default function HomePage() {
 
     const channel = supabase
       .channel('home-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'tracks' },
-        () => {
-          debouncedFetch()
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'playlists' },
-        () => {
-          debouncedFetch()
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tracks' }, () => debouncedFetch())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'playlists' }, () => debouncedFetch())
       .subscribe()
 
     return () => {
+      active = false
       clearTimeout(timer)
       supabase.removeChannel(channel)
     }
   }, [])
 
-  // Trigger Global Search across Local DB, YouTube, and Audius when user types
+  // Fast Debounced Global Search (200ms for near-instant typing experience)
   useEffect(() => {
     if (!searchQuery.trim()) {
       setGlobalTracks({ local: [], youtube: [], audius: [] })
@@ -168,7 +181,7 @@ export default function HomePage() {
       } finally {
         setSearchingGlobal(false)
       }
-    }, 450)
+    }, 200)
 
     return () => clearTimeout(timer)
   }, [searchQuery])
@@ -299,7 +312,6 @@ export default function HomePage() {
 
   const isAdmin = user?.app_metadata?.role === 'admin' || user?.email === 'admin@musicweb.com'
 
-  // Computed displayed tracks based on search status and selected source
   const isSearching = searchQuery.trim().length > 0
   let displayedTracks: Track[] = []
 
@@ -345,18 +357,18 @@ export default function HomePage() {
             </h1>
 
             <p className="text-xs md:text-sm text-slate-300">
-              Tìm kiếm và thưởng thức âm nhạc từ <strong>YouTube Music</strong>, <strong>Audius Global Network</strong> và <strong>Thư viện cá nhân</strong> của bạn.
+              Khám phá và nghe nhạc trực tuyến từ <strong>YouTube Music</strong>, <strong>Audius Global</strong> và <strong>Thư viện cá nhân</strong> của bạn.
             </p>
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
-            {tracks.length > 0 && (
+            {(trendingTracks.length > 0 || tracks.length > 0) && (
               <button
-                onClick={() => playTrack(tracks[0], tracks)}
+                onClick={() => playTrack(trendingTracks[0] || tracks[0], trendingTracks.length > 0 ? trendingTracks : tracks)}
                 className="bg-[var(--primary-spotify)] text-black font-extrabold px-6 py-3.5 rounded-full flex items-center gap-2 shadow-xl shadow-[var(--theme-glow-shadow)] hover:scale-105 transition-all text-sm"
               >
                 <Play className="w-5 h-5 fill-current" />
-                <span>Phát Thư Viện</span>
+                <span>Phát Nhạc Hot</span>
               </button>
             )}
 
@@ -371,63 +383,90 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Quick Play Card Showcase */}
-      {!isSearching && tracks.length > 0 && (
+      {/* Global Trending Music Showcase Section (Shown automatically by default!) */}
+      {!isSearching && (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Flame className="w-5 h-5 text-amber-400" />
-              Gần Đây & Nổi Bật
+              <TrendingUp className="w-5 h-5 text-cyan-400" />
+              🔥 Nhạc Hot Quốc Tế & Trending (Audius & YouTube)
             </h2>
+            {loadingTrending && <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {tracks.slice(0, 6).map((t) => (
-              <div
-                key={t.id}
-                onClick={() => playTrack(t, tracks)}
-                className="glass-card p-3 rounded-2xl flex flex-col gap-2.5 cursor-pointer group hover:scale-[1.02] transition-all"
-              >
-                <div className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
-                  {t.cover_url ? (
-                    <img src={t.cover_url} alt={t.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <Music className="w-8 h-8 text-slate-500" />
-                  )}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity backdrop-blur-[2px]">
-                    <div className="w-10 h-10 rounded-full bg-[var(--primary-spotify)] text-black flex items-center justify-center shadow-lg transform translate-y-2 group-hover:translate-y-0 transition-transform">
-                      <Play className="w-5 h-5 fill-current ml-0.5" />
+          {loadingTrending ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="glass-card p-3 rounded-2xl animate-pulse flex flex-col gap-2">
+                  <div className="aspect-square bg-slate-800 rounded-xl" />
+                  <div className="h-3 bg-slate-700 rounded w-3/4" />
+                  <div className="h-2 bg-slate-800 rounded w-1/2" />
+                </div>
+              ))}
+            </div>
+          ) : trendingTracks.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {trendingTracks.slice(0, 12).map((t) => (
+                <div
+                  key={t.id}
+                  onClick={() => playTrack(t, trendingTracks)}
+                  className="glass-card p-3 rounded-2xl flex flex-col gap-2.5 cursor-pointer group hover:scale-[1.03] transition-all relative border border-white/10 hover:border-cyan-500/50"
+                >
+                  <div className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
+                    {t.cover_url ? (
+                      <img src={t.cover_url} alt={t.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <Music className="w-8 h-8 text-slate-500" />
+                    )}
+
+                    {/* Source Badge */}
+                    <div className="absolute top-2 right-2 z-10">
+                      {t.source === 'youtube' && (
+                        <span className="text-[8px] font-black uppercase tracking-wider bg-red-600/90 text-white px-1.5 py-0.5 rounded shadow">
+                          YouTube
+                        </span>
+                      )}
+                      {t.source === 'audius' && (
+                        <span className="text-[8px] font-black uppercase tracking-wider bg-purple-600/90 text-white px-1.5 py-0.5 rounded shadow">
+                          Audius
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity backdrop-blur-[2px]">
+                      <div className="w-10 h-10 rounded-full bg-[var(--primary-spotify)] text-black flex items-center justify-center shadow-lg transform translate-y-2 group-hover:translate-y-0 transition-transform">
+                        <Play className="w-5 h-5 fill-current ml-0.5" />
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="truncate">
-                  <p className="text-xs font-bold text-white truncate group-hover:text-[var(--primary-spotify)] transition-colors">
-                    {t.title}
-                  </p>
-                  <p className="text-[10px] text-slate-400 truncate">
-                    {t.artist || 'Nghệ sĩ chưa xác định'}
-                  </p>
+                  <div className="truncate">
+                    <p className="text-xs font-bold text-white truncate group-hover:text-[var(--primary-spotify)] transition-colors">
+                      {t.title}
+                    </p>
+                    <p className="text-[10px] text-slate-400 truncate">
+                      {t.artist || 'Nghệ sĩ chưa xác định'}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       )}
 
-      {/* Global Music Search & Main Tracks Table Section */}
+      {/* Main Tracks Table Section */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <Disc className="w-5 h-5 text-[var(--primary-spotify)]" />
-              {isSearching ? 'Kết Quả Tìm Kiếm Toàn Cầu' : `Tất Cả Bài Hát (${tracks.length})`}
+              {isSearching ? 'Kết Quả Tìm Kiếm Toàn Cầu' : `Thư Viện Bài Hát Cá Nhân (${tracks.length})`}
             </h2>
             {searchingGlobal && <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />}
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Clean duplicates button — admin only */}
             {!isSearching &&
               isAdmin &&
               (() => {
@@ -456,7 +495,7 @@ export default function HomePage() {
                 ) : null
               })()}
 
-            {/* Global Search Bar */}
+            {/* Fast Global Search Input */}
             <div className="relative max-w-md w-full">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
               <input
