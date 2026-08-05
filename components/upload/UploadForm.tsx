@@ -22,7 +22,7 @@ import {
   X,
 } from 'lucide-react'
 import * as mm from 'music-metadata-browser'
-import { uploadToGoogleDrive, buildDriveStreamUrl, deleteGoogleDriveFile } from '@/lib/googleDriveUpload'
+import { uploadToGoogleDrive, buildDriveStreamUrl, deleteGoogleDriveFile, extractDriveFileId } from '@/lib/googleDriveUpload'
 import { compressAudioIfNeeded } from '@/lib/audioCompressor'
 import { useSession } from 'next-auth/react'
 import { getValidUserId } from '@/lib/accessControl'
@@ -102,6 +102,13 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
   const [isDragging, setIsDragging] = useState(false)
   const concurrency = 3
   const [overallBatchInfo, setOverallBatchInfo] = useState<string | null>(null)
+  const [uploadTab, setUploadTab] = useState<'file' | 'link'>('file')
+  const [driveLink, setDriveLink] = useState('')
+  const [driveTitle, setDriveTitle] = useState('')
+  const [driveArtist, setDriveArtist] = useState('')
+  const [driveAlbum, setDriveAlbum] = useState('')
+  const [importingDrive, setImportingDrive] = useState(false)
+
   const [existingUserTracks, setExistingUserTracks] = useState<Array<{ title: string; artist?: string | null }>>([])
 
   // Fetch all existing tracks from DB for duplicate checking across all users
@@ -669,6 +676,60 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
   const overallProgressPercent =
     totalCount > 0 ? Math.round((finishedCount / totalCount) * 100) : 0
 
+  const handleImportDriveLink = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!driveLink.trim() || !driveTitle.trim()) {
+      alert('Vui lòng nhập Link/ID Google Drive và Tên bài hát!')
+      return
+    }
+
+    const fileId = extractDriveFileId(driveLink)
+    if (!fileId) {
+      alert('Link hoặc ID Google Drive không hợp lệ! Vui lòng kiểm tra lại link (VD: https://drive.google.com/file/d/1ABC.../view)')
+      return
+    }
+
+    const activeUser = nextAuthSession?.user ? { id: nextAuthSession.user.email, email: nextAuthSession.user.email } : null
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    const userId = getValidUserId(currentUser || activeUser)
+
+    if (!userId) {
+      alert('Vui lòng đăng nhập để thêm bài hát!')
+      return
+    }
+
+    setImportingDrive(true)
+    try {
+      const streamUrl = `https://drive.google.com/uc?export=download&id=${fileId}`
+
+      const { data, error } = await supabase.from('tracks').insert({
+        user_id: userId,
+        title: driveTitle.trim(),
+        artist: driveArtist.trim() || 'Chưa rõ nghệ sĩ',
+        album: driveAlbum.trim() || 'Google Drive',
+        duration: 0,
+        file_path: streamUrl,
+        created_at: new Date().toISOString(),
+      }).select().single()
+
+      if (error) {
+        alert('Lỗi lưu bài hát: ' + error.message)
+      } else {
+        alert('✅ Đã thêm bài hát từ Google Drive vào thư viện thành công!')
+        setDriveLink('')
+        setDriveTitle('')
+        setDriveArtist('')
+        setDriveAlbum('')
+        router.push('/')
+        router.refresh()
+      }
+    } catch (err: any) {
+      alert('Lỗi: ' + (err?.message || 'Không thể kết nối'))
+    } finally {
+      setImportingDrive(false)
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto glass-panel p-5 md:p-6 rounded-3xl border border-white/10 shadow-2xl relative flex flex-col max-h-[85vh] overflow-hidden">
       {/* Header */}
@@ -676,10 +737,10 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
         <div>
           <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-2.5">
             <Upload className="w-6 h-6 text-[var(--primary-spotify)]" />
-            Upload Hàng Loạt Bài Hát
+            Thêm Nhạc Vào Thư Viện
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Tải nhiều bài hát cùng lúc • Nén MP3 (256kbps) file &gt;= 10MB • Tự phát hiện &amp; bỏ qua bài trùng
+            Tải file âm thanh từ máy hoặc Nhập đường link Google Drive FLAC/MP3 có sẵn
           </p>
         </div>
 
@@ -696,9 +757,104 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
         )}
       </div>
 
-      {/* Multi-file Dropzone */}
-      <div
-        onDragOver={handleDragOver}
+      {/* Mode Selector Tabs */}
+      <div className="flex items-center gap-2 mb-4 p-1 bg-black/40 border border-white/10 rounded-2xl shrink-0">
+        <button
+          type="button"
+          onClick={() => setUploadTab('file')}
+          className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            uploadTab === 'file'
+              ? 'bg-[var(--primary-spotify)] text-black shadow-md'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <FileAudio className="w-4 h-4" />
+          <span>Tải File từ Máy (Tự động up Drive)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setUploadTab('link')}
+          className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            uploadTab === 'link'
+              ? 'bg-[var(--primary-spotify)] text-black shadow-md'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Zap className="w-4 h-4" />
+          <span>Nhập Link Google Drive Có Sẵn</span>
+        </button>
+      </div>
+
+      {/* Tab 2: Link Google Drive Direct Import Form */}
+      {uploadTab === 'link' && (
+        <form onSubmit={handleImportDriveLink} className="flex flex-col gap-4 p-5 bg-black/40 border border-white/10 rounded-2xl overflow-y-auto">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-white">Link hoặc ID Google Drive *</label>
+            <input
+              type="text"
+              value={driveLink}
+              onChange={(e) => setDriveLink(e.target.value)}
+              placeholder="Dán link Google Drive (Ví dụ: https://drive.google.com/file/d/1ABC.../view)"
+              className="w-full glass-input text-white text-xs rounded-xl px-3.5 py-2.5 outline-none"
+              required
+            />
+            <p className="text-[10px] text-slate-400">
+              Lưu ý: Bật chế độ "Bất kỳ ai có link đều xem được" (Anyone with the link) trên Google Drive cho file này.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-white">Tên bài hát *</label>
+              <input
+                type="text"
+                value={driveTitle}
+                onChange={(e) => setDriveTitle(e.target.value)}
+                placeholder="Ví dụ: Nắng Thủy Tinh (FLAC)"
+                className="w-full glass-input text-white text-xs rounded-xl px-3.5 py-2.5 outline-none"
+                required
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-white">Tên nghệ sĩ</label>
+              <input
+                type="text"
+                value={driveArtist}
+                onChange={(e) => setDriveArtist(e.target.value)}
+                placeholder="Ví dụ: Trịnh Công Sơn"
+                className="w-full glass-input text-white text-xs rounded-xl px-3.5 py-2.5 outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-white">Tên Album (Không bắt buộc)</label>
+            <input
+              type="text"
+              value={driveAlbum}
+              onChange={(e) => setDriveAlbum(e.target.value)}
+              placeholder="Ví dụ: Tuyển tập FLAC Lossless"
+              className="w-full glass-input text-white text-xs rounded-xl px-3.5 py-2.5 outline-none"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={importingDrive}
+            className="mt-2 w-full bg-[var(--primary-spotify)] text-black font-extrabold py-3 rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-2 text-xs shadow-lg disabled:opacity-50"
+          >
+            {importingDrive ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            {importingDrive ? 'Đang lưu bài hát...' : 'Thêm Vào Thư Viện Web'}
+          </button>
+        </form>
+      )}
+
+      {/* Tab 1: Multi-file Dropzone */}
+      {uploadTab === 'file' && (
+        <div className="flex flex-col gap-3 min-h-0 overflow-hidden">
+          <div
+            onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => !isUploading && fileInputRef.current?.click()}
@@ -1070,6 +1226,8 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
           >
             Về Trang Chủ nghe nhạc ➔
           </button>
+        </div>
+      )}
         </div>
       )}
     </div>
