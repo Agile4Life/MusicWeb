@@ -109,30 +109,6 @@ export default function SettingsPage() {
           </button>
         </div>
       </div>
-
-      {/* 💾 Storage & Limits */}
-      <div className="glass-panel p-6 md:p-8 rounded-3xl border border-white/10 shadow-xl flex flex-col gap-4">
-        <div className="flex items-center gap-2 text-base font-bold text-white border-b border-white/5 pb-3">
-          <HardDrive className="w-5 h-5 text-[var(--primary-spotify)]" />
-          <span>Lưu trữ & Dung lượng Storage</span>
-        </div>
-
-        <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
-          <span>Dung lượng đã sử dụng trong Bucket `music-files`</span>
-          <span className="text-[var(--primary-spotify)] font-mono">Tối đa 150MB / File</span>
-        </div>
-      </div>
-
-      {/* 🚀 Feature Extensibility Slot for Future Updates */}
-      <div className="glass-panel p-6 md:p-8 rounded-3xl border border-dashed border-white/20 flex flex-col gap-3">
-        <div className="flex items-center gap-2 text-sm font-bold text-white">
-          <Sparkles className="w-4 h-4 text-emerald-400" />
-          <span>Khu vực cập nhật tính năng mới</span>
-        </div>
-        <p className="text-xs text-slate-400 leading-relaxed">
-          Nơi này đã sẵn sàng để bạn tiếp tục nâng cấp thêm các tính năng như: Lời bài hát đồng bộ (Lyrics), Chia sẻ Playlist công khai, Equalizer 10-band tùy chỉnh âm sắc...
-        </p>
-      </div>
     </div>
   )
 }

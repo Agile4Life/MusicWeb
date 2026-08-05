@@ -110,24 +110,16 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
     }
   }, [currentTime, parsedLyrics, isSynced])
 
-  // 3. Smooth auto-scroll to active line
+  // 3. Smooth 60FPS auto-scroll to active line
   useEffect(() => {
     if (!isSynced || activeIndex < 0 || !activeLineRef.current || !scrollContainerRef.current) return
-
     if (isUserScrollingRef.current) return
 
-    const container = scrollContainerRef.current
     const activeEl = activeLineRef.current
 
-    const containerHeight = container.clientHeight
-    const activeTop = activeEl.offsetTop
-    const activeHeight = activeEl.clientHeight
-
-    const targetScrollTop = activeTop - containerHeight / 2 + activeHeight / 2
-
-    container.scrollTo({
-      top: Math.max(0, targetScrollTop),
-      behavior: 'smooth',
+    // Request animation frame for buttery smooth 60FPS GPU scrolling
+    requestAnimationFrame(() => {
+      activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
     })
   }, [activeIndex, isSynced])
 
@@ -236,7 +228,7 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
             <p className="text-sm font-semibold text-slate-300">Đang tải lời bài hát từ LRCLIB...</p>
           </div>
         ) : parsedLyrics.length > 0 ? (
-          <div className="flex flex-col gap-5 py-12 md:py-20 text-center sm:text-left max-w-2xl mx-auto">
+          <div className="flex flex-col gap-4 py-16 md:py-24 text-center sm:text-left max-w-2xl mx-auto">
             {parsedLyrics.map((line, index) => {
               const isActive = index === activeIndex
               const isPast = index < activeIndex
@@ -246,18 +238,18 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
                   key={index}
                   ref={isActive ? activeLineRef : null}
                   onClick={() => handleLineClick(line)}
-                  className={`transition-all duration-300 cursor-pointer rounded-2xl p-3 sm:px-5 sm:py-3 select-none active:scale-[0.98] ${
+                  className={`transition-all duration-300 ease-out cursor-pointer rounded-2xl p-3 sm:px-5 sm:py-3.5 select-none transform-gpu origin-center sm:origin-left active:scale-[0.97] ${
                     isActive
-                      ? 'scale-[1.03] bg-white/10 backdrop-blur-xl border border-emerald-500/30 text-white font-extrabold text-lg sm:text-2xl md:text-3xl shadow-xl shadow-emerald-950/50'
+                      ? 'scale-[1.05] bg-white/10 border border-cyan-500/40 text-white font-extrabold text-lg sm:text-xl md:text-2xl shadow-xl shadow-cyan-950/50 opacity-100'
                       : isPast
-                      ? 'text-slate-500 text-sm sm:text-lg md:text-xl font-medium opacity-70'
-                      : 'text-slate-400 text-sm sm:text-lg md:text-xl font-medium'
+                      ? 'text-slate-400 font-bold text-base sm:text-lg md:text-xl opacity-40 hover:opacity-75'
+                      : 'text-slate-300 font-bold text-base sm:text-lg md:text-xl opacity-50 hover:opacity-85'
                   }`}
                 >
                   <p
-                    className={`transition-colors leading-relaxed ${
+                    className={`transition-colors leading-snug ${
                       isActive
-                        ? 'text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-white to-cyan-300 drop-shadow-[0_0_20px_rgba(16,185,129,0.5)]'
+                        ? 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-white to-emerald-300 drop-shadow-[0_0_18px_rgba(6,182,212,0.65)]'
                         : ''
                     }`}
                   >

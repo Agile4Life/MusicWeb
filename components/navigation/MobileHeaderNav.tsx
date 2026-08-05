@@ -26,6 +26,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
 import { isAdmin, getValidUserId } from '@/lib/accessControl'
 import { useSession, signOut } from 'next-auth/react'
+import { AppLogoIcon } from '@/components/ui/AppLogoIcon'
 
 export function MobileHeaderNav() {
   const pathname = usePathname()
@@ -164,7 +165,7 @@ export function MobileHeaderNav() {
           >
             <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 via-teal-400 to-blue-600 p-0.5 shadow-md shadow-cyan-500/20">
               <div className="w-full h-full bg-[#080c14] rounded-[10px] flex items-center justify-center">
-                <Headphones className="w-4 h-4 text-cyan-400" />
+                <AppLogoIcon className="w-4 h-4 text-cyan-400" />
               </div>
             </div>
             <span className="font-extrabold text-base tracking-tight text-white flex items-center gap-1">
@@ -197,7 +198,7 @@ export function MobileHeaderNav() {
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 via-teal-400 to-blue-600 p-0.5">
                   <div className="w-full h-full bg-[#080c14] rounded-[10px] flex items-center justify-center">
-                    <Headphones className="w-4 h-4 text-cyan-400" />
+                    <AppLogoIcon className="w-4 h-4 text-cyan-400" />
                   </div>
                 </div>
                 <span className="font-extrabold text-base text-white">Menu Navigation</span>
