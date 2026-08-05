@@ -120,18 +120,41 @@ export function parseFilenameToTitleArtist(fileName: string): { title: string; a
 }
 
 export async function fetchDriveFolderFiles(folderId: string): Promise<Array<{ id: string; name: string }>> {
-  const auth = await getAuthorizationHeader()
-  const url = `${WORKER_URL}/api/upload/list?folderId=${encodeURIComponent(folderId)}`
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: { ...auth },
-  })
-  if (!res.ok) {
-    const errText = await res.text().catch(() => '')
-    throw new Error(`Không thể lấy danh sách file từ Worker: ${errText || res.statusText}`)
+  // 1. Try local API route that parses public Google Drive folder
+  try {
+    const localRes = await fetch(`/api/drive-folder?folderId=${encodeURIComponent(folderId)}`, {
+      method: 'GET',
+      cache: 'no-store'
+    })
+    if (localRes.ok) {
+      const data = await localRes.json()
+      if (data.success && Array.isArray(data.files) && data.files.length > 0) {
+        return data.files
+      }
+    }
+  } catch (e) {
+    console.warn('Local drive-folder route error:', e)
   }
-  const data = await res.json()
-  return data.files || data.items || []
+
+  // 2. Fallback to Worker API
+  try {
+    const auth = await getAuthorizationHeader()
+    const url = `${WORKER_URL}/api/upload/list?folderId=${encodeURIComponent(folderId)}`
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { ...auth },
+    })
+    if (res.ok) {
+      const data = await res.json()
+      if (data.files || data.items) {
+        return data.files || data.items || []
+      }
+    }
+  } catch (e) {
+    console.warn('Worker list folder error:', e)
+  }
+
+  throw new Error('Không tìm thấy file nhạc trong Thư mục. Hãy kiểm tra lại rằng Thư mục đã được chia sẻ ở chế độ "Bất kỳ ai có link đều xem được" (Public/Anyone with the link).')
 }
 
 export async function getAuthorizedDriveStreamUrl(trackId: string, fileId: string): Promise<string> {
