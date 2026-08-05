@@ -110,7 +110,7 @@ export default function HomePage() {
 
         if (playlistData) setPlaylists(playlistData)
 
-        // Query Recently Played Songs from listening_history
+        // Query Recently Played Songs strictly for CURRENT user_id
         const { data: historyData } = await supabase
           .from('listening_history')
           .select('id, played_at, tracks:track_id(*)')
@@ -399,14 +399,10 @@ export default function HomePage() {
 
   const isAdmin = user?.app_metadata?.role === 'admin' || user?.email === 'admin@musicweb.com'
 
-  const [localFilterQuery, setLocalFilterQuery] = useState('')
-
   const isSearching = searchQuery.trim().length > 0
   let displayedTracks: Track[] = []
-  let sectionTitle = 'Bài Hát Nghe Gần Đây'
 
   if (isSearching) {
-    sectionTitle = 'Kết Quả Tìm Kiếm Toàn Cầu'
     if (searchSource === 'all') {
       displayedTracks = [
         ...globalTracks.spotify,
@@ -427,20 +423,8 @@ export default function HomePage() {
       displayedTracks = globalTracks.local
     }
   } else {
-    const sourceList = recentTracks.length > 0 ? recentTracks : tracks
-    sectionTitle = recentTracks.length > 0 ? `Bài Hát Nghe Gần Đây (${recentTracks.length})` : `Thư Viện Bài Hát Cá Nhân (${tracks.length})`
-
-    if (localFilterQuery.trim()) {
-      const q = localFilterQuery.trim().toLowerCase()
-      displayedTracks = sourceList.filter(
-        (t) =>
-          (t.title && t.title.toLowerCase().includes(q)) ||
-          (t.artist && t.artist.toLowerCase().includes(q)) ||
-          (t.album && t.album.toLowerCase().includes(q))
-      )
-    } else {
-      displayedTracks = sourceList
-    }
+    // Strictly show user's own recently played tracks
+    displayedTracks = recentTracks
   }
 
   return (
@@ -575,51 +559,19 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Main Tracks Table Section (Recently Played Songs / Library) */}
+      {/* Main Tracks Table Section */}
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              {!isSearching && recentTracks.length > 0 ? (
-                <History className="w-5 h-5 text-[var(--primary-spotify)]" />
-              ) : (
+        {isSearching && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 <Disc className="w-5 h-5 text-[var(--primary-spotify)]" />
-              )}
-              {sectionTitle}
-            </h2>
-            {searchingGlobal && <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />}
+                Kết Quả Tìm Kiếm Toàn Cầu
+              </h2>
+              {searchingGlobal && <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />}
+            </div>
           </div>
-
-          <div className="flex items-center gap-2">
-            {!isSearching &&
-              isAdmin &&
-              (() => {
-                const seen = new Set<string>()
-                const hasDupes = tracks.some((t) => {
-                  const key = `${t.title?.toLowerCase().trim()}|||${(t.artist || '')
-                    .toLowerCase()
-                    .trim()}`
-                  if (seen.has(key)) return true
-                  seen.add(key)
-                  return false
-                })
-                return hasDupes ? (
-                  <button
-                    onClick={handleCleanDuplicates}
-                    disabled={cleaningDuplicates}
-                    className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-3 py-2 rounded-full transition-all disabled:opacity-50"
-                  >
-                    {cleaningDuplicates ? (
-                      <span className="animate-spin w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full inline-block" />
-                    ) : (
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                    )}
-                    {cleaningDuplicates ? 'Đang dọn...' : 'Dọn bài trùng'}
-                  </button>
-                ) : null
-              })()}
-          </div>
-        </div>
+        )}
 
         {/* Source Filter Pills (Shown when searching) */}
         {isSearching && (
