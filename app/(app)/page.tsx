@@ -123,16 +123,6 @@ export default function HomePage() {
 
       setSupabaseUser(currentUser)
 
-      // Query all local tracks from database
-      const { data: rawTracks, error: trackError } = await supabase
-        .from('tracks')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (!trackError && rawTracks) {
-        setTracks(rawTracks.map((t: Track) => ({ ...t, source: t.source || 'local' })))
-      }
-
       const activeUser =
         currentUser ||
         (nextAuthSession?.user
@@ -142,6 +132,33 @@ export default function HomePage() {
             }
           : null)
       const userId = activeUser ? getValidUserId(activeUser) : null
+
+      let userFavSet = new Set<string>()
+      if (userId) {
+        const { data: userFavs } = await supabase
+          .from('favorite_tracks')
+          .select('track_id')
+          .eq('user_id', userId)
+        if (userFavs) {
+          userFavSet = new Set(userFavs.map((f: any) => f.track_id))
+        }
+      }
+
+      // Query all local tracks from database
+      const { data: rawTracks, error: trackError } = await supabase
+        .from('tracks')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (!trackError && rawTracks) {
+        setTracks(
+          rawTracks.map((t: Track) => ({
+            ...t,
+            source: t.source || 'local',
+            is_favorite: userFavSet.has(t.id),
+          }))
+        )
+      }
 
       if (userId) {
         // Query user's playlists

@@ -153,8 +153,6 @@ function TrackRowComponent({
           await supabase.from('favorite_tracks').delete().eq('user_id', userId).eq('track_id', dbTrackId)
         }
       }
-
-      await supabase.from('tracks').update({ is_favorite: nextValue }).eq('id', dbTrackId)
     } catch (e) {
       console.warn('Favorite toggle sync error:', e)
     }

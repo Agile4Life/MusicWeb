@@ -86,17 +86,11 @@ export default function FavoritesPage() {
 
       if (playlistData) setPlaylists(playlistData)
 
-      // Query 1: favorite_tracks join tracks table
+      // Fetch User's Personal Favorite Tracks from favorite_tracks junction table
       const { data: favData } = await supabase
         .from('favorite_tracks')
         .select('track_id, tracks:track_id(*)')
         .eq('user_id', userId)
-
-      // Query 2: tracks table where is_favorite = true
-      const { data: dbFavTracks } = await supabase
-        .from('tracks')
-        .select('*')
-        .eq('is_favorite', true)
 
       const favList: Track[] = []
       const seenIds = new Set<string>()
@@ -104,15 +98,6 @@ export default function FavoritesPage() {
       if (favData) {
         for (const item of favData) {
           const tr = item.tracks as any
-          if (tr && tr.id && !seenIds.has(tr.id)) {
-            seenIds.add(tr.id)
-            favList.push(inferTrackSource({ ...tr, is_favorite: true }))
-          }
-        }
-      }
-
-      if (dbFavTracks) {
-        for (const tr of dbFavTracks) {
           if (tr && tr.id && !seenIds.has(tr.id)) {
             seenIds.add(tr.id)
             favList.push(inferTrackSource({ ...tr, is_favorite: true }))

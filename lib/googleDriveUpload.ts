@@ -72,8 +72,9 @@ export function extractDriveFileId(filePath: string): string | null {
   const trimmed = filePath.trim()
   if (trimmed.includes('/folders/') || trimmed.includes('drive/folders')) return null
 
-  if (/^[A-Za-z0-9_-]{18,45}$/.test(trimmed) && !trimmed.includes('http') && !trimmed.includes('/') && !trimmed.includes('.')) {
-    return trimmed
+  // Reject standard UUIDs (Supabase track IDs/file paths)
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)) {
+    return null
   }
 
   const regexMatch =
@@ -94,7 +95,15 @@ export function extractDriveFileId(filePath: string): string | null {
       parsed.pathname.match(/\/file\/d\/([A-Za-z0-9_-]+)/)?.[1]
     if (id && /^[A-Za-z0-9_-]{18,45}$/.test(id)) return id
   } catch {
-    // Not a valid URL
+    if (
+      /^[A-Za-z0-9_-]{25,45}$/.test(trimmed) &&
+      !trimmed.includes('http') &&
+      !trimmed.includes('/') &&
+      !trimmed.includes('.') &&
+      !/^[0-9a-f]{8}-[0-9a-f]{4}/i.test(trimmed)
+    ) {
+      return trimmed
+    }
   }
   return null
 }
