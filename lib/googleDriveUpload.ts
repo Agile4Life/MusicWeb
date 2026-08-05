@@ -70,7 +70,7 @@ export function buildDriveStreamUrl(fileId: string): string {
 export function extractDriveFileId(filePath: string): string | null {
   if (!filePath) return null
   const trimmed = filePath.trim()
-  if (/^[A-Za-z0-9_-]{25,}$/.test(trimmed)) return trimmed
+  if (/^[A-Za-z0-9_-]{20,}$/.test(trimmed) && !trimmed.includes('http') && !trimmed.includes('/')) return trimmed
   try {
     const parsed = new URL(trimmed)
     const id =
@@ -82,6 +82,56 @@ export function extractDriveFileId(filePath: string): string | null {
     // This is likely a Supabase storage path or local file.
   }
   return null
+}
+
+export function extractDriveFolderId(input: string): string | null {
+  if (!input) return null
+  const trimmed = input.trim()
+  if (/^[A-Za-z0-9_-]{20,}$/.test(trimmed) && !trimmed.includes('http') && !trimmed.includes('/')) {
+    return trimmed
+  }
+  try {
+    const parsed = new URL(trimmed)
+    const match = parsed.pathname.match(/\/folders\/([a-zA-Z0-9_-]+)/)
+    if (match && match[1]) return match[1]
+    const idParam = parsed.searchParams.get('id')
+    if (idParam) return idParam
+  } catch {
+    // Not a URL
+  }
+  return null
+}
+
+export function parseFilenameToTitleArtist(fileName: string): { title: string; artist: string } {
+  let cleanName = fileName.replace(/\.(mp3|flac|wav|m4a|aac|ogg|wma)$/i, '').trim()
+  if (cleanName.includes(' - ')) {
+    const parts = cleanName.split(' - ')
+    if (parts.length >= 2) {
+      return {
+        artist: parts[0].trim(),
+        title: parts.slice(1).join(' - ').trim(),
+      }
+    }
+  }
+  return {
+    title: cleanName,
+    artist: 'Chưa rõ nghệ sĩ',
+  }
+}
+
+export async function fetchDriveFolderFiles(folderId: string): Promise<Array<{ id: string; name: string }>> {
+  const auth = await getAuthorizationHeader()
+  const url = `${WORKER_URL}/api/upload/list?folderId=${encodeURIComponent(folderId)}`
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { ...auth },
+  })
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '')
+    throw new Error(`Không thể lấy danh sách file từ Worker: ${errText || res.statusText}`)
+  }
+  const data = await res.json()
+  return data.files || data.items || []
 }
 
 export async function getAuthorizedDriveStreamUrl(trackId: string, fileId: string): Promise<string> {

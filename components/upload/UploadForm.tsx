@@ -20,9 +20,20 @@ import {
   AlertTriangle,
   Zap,
   X,
+  Folder,
+  FolderPlus,
+  RefreshCw,
 } from 'lucide-react'
 import * as mm from 'music-metadata-browser'
-import { uploadToGoogleDrive, buildDriveStreamUrl, deleteGoogleDriveFile, extractDriveFileId } from '@/lib/googleDriveUpload'
+import {
+  uploadToGoogleDrive,
+  buildDriveStreamUrl,
+  deleteGoogleDriveFile,
+  extractDriveFileId,
+  extractDriveFolderId,
+  parseFilenameToTitleArtist,
+  fetchDriveFolderFiles
+} from '@/lib/googleDriveUpload'
 import { compressAudioIfNeeded } from '@/lib/audioCompressor'
 import { useSession } from 'next-auth/react'
 import { getValidUserId } from '@/lib/accessControl'
@@ -102,12 +113,15 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
   const [isDragging, setIsDragging] = useState(false)
   const concurrency = 3
   const [overallBatchInfo, setOverallBatchInfo] = useState<string | null>(null)
-  const [uploadTab, setUploadTab] = useState<'file' | 'link'>('file')
+  const [uploadTab, setUploadTab] = useState<'file' | 'link' | 'folder'>('file')
   const [driveLink, setDriveLink] = useState('')
   const [driveTitle, setDriveTitle] = useState('')
   const [driveArtist, setDriveArtist] = useState('')
   const [driveAlbum, setDriveAlbum] = useState('')
   const [importingDrive, setImportingDrive] = useState(false)
+  const [folderInput, setFolderInput] = useState('')
+  const [syncingFolder, setSyncingFolder] = useState(false)
+  const [syncStatus, setSyncStatus] = useState<string | null>(null)
 
   const [existingUserTracks, setExistingUserTracks] = useState<Array<{ title: string; artist?: string | null }>>([])
 
@@ -730,6 +744,109 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
     }
   }
 
+  const handleSyncFolder = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!folderInput.trim()) {
+      alert('Vui lòng nhập Link Folder hoặc Danh sách Link/ID Google Drive!')
+      return
+    }
+
+    const activeUser = nextAuthSession?.user ? { id: nextAuthSession.user.email, email: nextAuthSession.user.email } : null
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    const userId = getValidUserId(currentUser || activeUser)
+
+    if (!userId) {
+      alert('Vui lòng đăng nhập để thực hiện đồng bộ!')
+      return
+    }
+
+    setSyncingFolder(true)
+    setSyncStatus('Đang đọc danh sách file...')
+
+    try {
+      let itemsToImport: Array<{ fileId: string; name: string }> = []
+      const folderId = extractDriveFolderId(folderInput)
+
+      if (folderId) {
+        setSyncStatus(`Đang kết nối tới Folder (ID: ${folderId})...`)
+        try {
+          const files = await fetchDriveFolderFiles(folderId)
+          itemsToImport = files.map((f) => ({ fileId: f.id, name: f.name }))
+        } catch (fetchErr) {
+          console.warn('Folder API fetch failed, falling back to line-by-line parsing:', fetchErr)
+        }
+      }
+
+      if (itemsToImport.length === 0) {
+        const lines = folderInput.split(/[\n,;]/).map((s) => s.trim()).filter(Boolean)
+        for (const line of lines) {
+          const fid = extractDriveFileId(line)
+          if (fid) {
+            let fileName = 'Bài Hát Drive'
+            if (line.includes('|')) {
+              fileName = line.split('|')[1].trim()
+            }
+            itemsToImport.push({ fileId: fid, name: fileName })
+          }
+        }
+      }
+
+      if (itemsToImport.length === 0) {
+        alert('Không tìm thấy File ID hoặc Folder Google Drive hợp lệ. Vui lòng dán link Folder hoặc danh sách các link file Google Drive.')
+        setSyncingFolder(false)
+        setSyncStatus(null)
+        return
+      }
+
+      const dbTracks = await fetchExistingTracks()
+      const existingKeys = new Set(
+        dbTracks.map((t) => `${cleanSongTitle(t.title || '')}|||${cleanSongArtist(t.artist)}`)
+      )
+
+      let addedCount = 0
+      let skippedCount = 0
+
+      for (let i = 0; i < itemsToImport.length; i++) {
+        const item = itemsToImport[i]
+        const { title, artist } = parseFilenameToTitleArtist(item.name)
+        const key = `${cleanSongTitle(title)}|||${cleanSongArtist(artist)}`
+
+        setSyncStatus(`Đang xử lý (${i + 1}/${itemsToImport.length}): ${title}`)
+
+        if (existingKeys.has(key)) {
+          skippedCount++
+          continue
+        }
+
+        const streamUrl = `https://drive.google.com/uc?export=download&id=${item.fileId}`
+        const { error } = await supabase.from('tracks').insert({
+          user_id: userId,
+          title: title,
+          artist: artist,
+          album: 'Google Drive Sync',
+          duration: 0,
+          file_path: streamUrl,
+          created_at: new Date().toISOString(),
+        })
+
+        if (!error) {
+          addedCount++
+          existingKeys.add(key)
+        }
+      }
+
+      alert(`✅ Đồng bộ thành công!\n- Đã thêm mới: ${addedCount} bài hát\n- Đã bỏ qua: ${skippedCount} bài (đã có trong thư viện)`)
+      setFolderInput('')
+      router.push('/')
+      router.refresh()
+    } catch (err: any) {
+      alert('Lỗi đồng bộ: ' + (err?.message || 'Có lỗi xảy ra'))
+    } finally {
+      setSyncingFolder(false)
+      setSyncStatus(null)
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto glass-panel p-5 md:p-6 rounded-3xl border border-white/10 shadow-2xl relative flex flex-col max-h-[85vh] overflow-hidden">
       {/* Header */}
@@ -758,31 +875,44 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       </div>
 
       {/* Mode Selector Tabs */}
-      <div className="flex items-center gap-2 mb-4 p-1 bg-black/40 border border-white/10 rounded-2xl shrink-0">
+      <div className="flex items-center gap-2 mb-4 p-1 bg-black/40 border border-white/10 rounded-2xl shrink-0 overflow-x-auto scrollbar-none">
         <button
           type="button"
           onClick={() => setUploadTab('file')}
-          className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+          className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
             uploadTab === 'file'
               ? 'bg-[var(--primary-spotify)] text-black shadow-md'
               : 'text-slate-400 hover:text-white'
           }`}
         >
-          <FileAudio className="w-4 h-4" />
-          <span>Tải File từ Máy (Tự động up Drive)</span>
+          <FileAudio className="w-3.5 h-3.5" />
+          <span>Tải File Từ Máy</span>
         </button>
 
         <button
           type="button"
           onClick={() => setUploadTab('link')}
-          className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+          className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
             uploadTab === 'link'
               ? 'bg-[var(--primary-spotify)] text-black shadow-md'
               : 'text-slate-400 hover:text-white'
           }`}
         >
-          <Zap className="w-4 h-4" />
-          <span>Nhập Link Google Drive Có Sẵn</span>
+          <Zap className="w-3.5 h-3.5" />
+          <span>Nhập 1 Link Drive</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setUploadTab('folder')}
+          className={`flex-1 min-w-[140px] py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            uploadTab === 'folder'
+              ? 'bg-[var(--primary-spotify)] text-black shadow-md'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <FolderPlus className="w-3.5 h-3.5" />
+          <span>Đồng Bộ Folder / Hàng Loạt</span>
         </button>
       </div>
 
@@ -846,6 +976,45 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
           >
             {importingDrive ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
             {importingDrive ? 'Đang lưu bài hát...' : 'Thêm Vào Thư Viện Web'}
+          </button>
+        </form>
+      )}
+
+      {/* Tab 3: Folder Sync / Bulk Link Import */}
+      {uploadTab === 'folder' && (
+        <form onSubmit={handleSyncFolder} className="flex flex-col gap-4 p-5 bg-black/40 border border-white/10 rounded-2xl overflow-y-auto">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-white flex items-center gap-2">
+              <Folder className="w-4 h-4 text-cyan-400" />
+              <span>Link Thư Mục (Folder) Hoặc Danh Sách Link / ID Google Drive *</span>
+            </label>
+            <textarea
+              rows={5}
+              value={folderInput}
+              onChange={(e) => setFolderInput(e.target.value)}
+              placeholder={"Dán link Folder Google Drive (e.g. https://drive.google.com/drive/folders/1ABC...)\nHoặc dán danh sách link/ID (Mỗi link 1 dòng, ví dụ: Ca Sĩ - Ten Bai Hat.flac | https://drive.google.com/file/d/...)"}
+              className="w-full glass-input text-white text-xs rounded-xl p-3.5 outline-none resize-none font-mono"
+              required
+            />
+            <p className="text-[10px] text-slate-400">
+              💡 <strong>Mẹo:</strong> Hệ thống tự động phân tích tên file theo dạng <code>Ca Sĩ - Tên Bài Hát.flac</code> để tách tên ca sĩ và tên bài hát.
+            </p>
+          </div>
+
+          {syncStatus && (
+            <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-xl text-cyan-300 text-xs flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 animate-spin shrink-0" />
+              <span>{syncStatus}</span>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={syncingFolder}
+            className="mt-2 w-full bg-[var(--primary-spotify)] text-black font-extrabold py-3 rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-2 text-xs shadow-lg disabled:opacity-50"
+          >
+            {syncingFolder ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            {syncingFolder ? 'Đang Quét & Đồng Bộ...' : 'Bắt Đầu Đồng Bộ Hàng Loạt'}
           </button>
         </form>
       )}
