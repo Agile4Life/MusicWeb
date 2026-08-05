@@ -361,6 +361,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       try {
         const { searchYouTubeTracks } = await import('@/lib/youtube')
         const matches = await searchYouTubeTracks(`${track.title} ${track.artist || ''}`, 1)
+        if (requestId !== playRequestRef.current) return
         if (matches.length > 0 && matches[0].youtube_id) {
           activeTrack = {
             ...track,
@@ -373,6 +374,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    if (requestId !== playRequestRef.current) return
+
     setCurrentTrack(activeTrack)
     setPlaybackError(null)
     savePlayerStateToStorage(activeTrack, 0, nextQueue, nextIndex, volume)
@@ -381,17 +384,21 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (activeTrack.source === 'youtube' && activeTrack.youtube_id) {
       if (audioRef.current) audioRef.current.pause()
 
-      if (ytPlayerRef.current && ytPlayerRef.current.loadVideoById) {
-        try {
-          ytPlayerRef.current.setVolume(volume * 100)
-          ytPlayerRef.current.loadVideoById(activeTrack.youtube_id)
-          setIsPlaying(true)
-        } catch (e) {
-          console.warn('YT loadVideoById error:', e)
+      const tryLoadYt = (retries = 3) => {
+        if (requestId !== playRequestRef.current) return
+        if (ytPlayerRef.current && ytPlayerRef.current.loadVideoById) {
+          try {
+            ytPlayerRef.current.setVolume(volume * 100)
+            ytPlayerRef.current.loadVideoById(activeTrack.youtube_id)
+            setIsPlaying(true)
+          } catch (e) {
+            console.warn('YT loadVideoById error:', e)
+          }
+        } else if (retries > 0) {
+          setTimeout(() => tryLoadYt(retries - 1), 600)
         }
-      } else {
-        setPlaybackError('Đang khởi tạo YouTube Player, vui lòng thử lại sau 2 giây')
       }
+      tryLoadYt()
     } else {
       // Handle HTML5 / Audius audio playback
       if (ytPlayerRef.current && ytPlayerRef.current.pauseVideo) {
