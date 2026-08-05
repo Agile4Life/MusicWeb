@@ -47,6 +47,7 @@ function TrackRowComponent({
   const { currentTrack, isPlaying, playTrack, togglePlay } = usePlayer()
   const [showMenu, setShowMenu] = useState(false)
   const [editMode, setEditMode] = useState(false)
+  const [editTitle, setEditTitle] = useState(track.title || '')
   const [editArtist, setEditArtist] = useState(track.artist || '')
   const [editAlbum, setEditAlbum] = useState(track.album || '')
   const [saving, setSaving] = useState(false)
@@ -74,9 +75,11 @@ function TrackRowComponent({
 
   const handleSaveEdit = async () => {
     setSaving(true)
+    const newTitle = editTitle.trim() || track.title
     const { error } = await supabase
       .from('tracks')
       .update({
+        title: newTitle,
         artist: editArtist.trim() || null,
         album: editAlbum.trim() || null,
       })
@@ -84,12 +87,15 @@ function TrackRowComponent({
 
     if (!error) {
       onTrackUpdated?.(track.id, {
+        title: newTitle,
         artist: editArtist.trim() || undefined,
         album: editAlbum.trim() || undefined,
       })
+      setEditMode(false)
+    } else {
+      alert('Lỗi cập nhật: ' + error.message)
     }
     setSaving(false)
-    setEditMode(false)
   }
 
   const handleCancelEdit = () => {
@@ -214,13 +220,24 @@ function TrackRowComponent({
 
         <div className="truncate flex flex-col min-w-0">
           <div className="flex items-center gap-2 truncate">
-            <p
-              className={`text-sm font-bold truncate ${
-                isCurrent ? 'text-[var(--primary-spotify)]' : 'text-white'
-              }`}
-            >
-              {track.title}
-            </p>
+            {editMode ? (
+              <input
+                autoFocus
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                placeholder="Tên bài hát..."
+                className="text-xs bg-white/10 border border-[var(--primary-spotify)]/50 rounded px-1.5 py-0.5 text-white font-bold outline-none w-full max-w-[200px]"
+              />
+            ) : (
+              <p
+                className={`text-sm font-bold truncate ${
+                  isCurrent ? 'text-[var(--primary-spotify)]' : 'text-white'
+                }`}
+              >
+                {track.title}
+              </p>
+            )}
             {track.source === 'youtube' && (
               <span className="text-[9px] font-bold uppercase tracking-wider bg-red-500/20 text-red-400 border border-red-500/30 px-1.5 py-0.2 rounded shrink-0">
                 YouTube
@@ -331,7 +348,7 @@ function TrackRowComponent({
                     className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors border-b border-white/10"
                   >
                     <Pencil className="w-3.5 h-3.5 text-blue-400" />
-                    Sửa Nghệ sĩ / Album
+                    Sửa Tên / Nghệ sĩ / Album
                   </button>
                 )}
 

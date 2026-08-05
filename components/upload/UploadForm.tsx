@@ -778,13 +778,22 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       }
 
       if (itemsToImport.length === 0) {
-        const lines = folderInput.split(/[\n,;]/).map((s) => s.trim()).filter(Boolean)
-        for (const line of lines) {
+        const lines = folderInput.split(/[\n;]/).map((s) => s.trim()).filter(Boolean)
+        for (let idx = 0; idx < lines.length; idx++) {
+          const line = lines[idx]
           const fid = extractDriveFileId(line)
           if (fid) {
-            let fileName = 'Bài Hát Drive'
+            let fileName = ''
             if (line.includes('|')) {
-              fileName = line.split('|')[1].trim()
+              fileName = line.split('|')[0].trim()
+            } else {
+              // Check if line has a title before or after the link
+              const nonUrlPart = line.replace(/https?:\/\/[^\s]+/g, '').trim()
+              if (nonUrlPart) {
+                fileName = nonUrlPart
+              } else {
+                fileName = `Bài hát ${idx + 1}`
+              }
             }
             itemsToImport.push({ fileId: fid, name: fileName })
           }
