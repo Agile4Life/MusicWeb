@@ -169,7 +169,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="w-72 bg-[#090a0f]/90 backdrop-blur-2xl flex flex-col gap-3 p-3 h-full select-none text-slate-300 border-r border-white/5">
+    <aside className="hidden md:flex w-72 bg-[#090a0f]/90 backdrop-blur-2xl flex-col gap-3 p-3 h-full select-none text-slate-300 border-r border-white/5">
       {/* App Branding */}
       <div className="glass-panel rounded-2xl p-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3 group">
