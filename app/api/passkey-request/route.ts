@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
+
 import nodemailer from 'nodemailer'
 import fs from 'fs'
 import path from 'path'
@@ -43,9 +44,9 @@ function getValidPasskeys(): string[] {
   return Array.from(new Set([...jsonKeys, ...importedKeys, ...defaultKeys]))
 }
 
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json()
+    const body = await req.json()
     const { email, passkey } = body
 
     if (!email || !passkey) {
@@ -253,7 +254,7 @@ export async function POST(request: Request) {
     }
 
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       email: cleanEmail,
       alreadyExists,
@@ -263,8 +264,30 @@ export async function POST(request: Request) {
       emailSent,
     })
 
+    try {
+      const existingCookie = req.cookies.get('approved_emails')?.value
+      let currentApproved: string[] = []
+      if (existingCookie) {
+        try {
+          currentApproved = JSON.parse(existingCookie)
+        } catch {}
+      }
+      if (!currentApproved.includes(cleanEmail)) {
+        currentApproved.push(cleanEmail)
+      }
+      response.cookies.set('approved_emails', JSON.stringify(currentApproved), {
+        path: '/',
+        httpOnly: true,
+        maxAge: 60 * 60 * 24 * 365,
+        sameSite: 'lax',
+      })
+    } catch (cookieErr) {
+      console.warn('Could not set approved_emails cookie:', cookieErr)
+    }
 
+    return response
   } catch (err: any) {
+
     console.error('Passkey API error:', err)
     return NextResponse.json(
       { error: err.message || 'Lỗi xử lý yêu cầu Passkey' },

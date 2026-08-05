@@ -1,8 +1,15 @@
 import NextAuth, { NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
 import CredentialsProvider from 'next-auth/providers/credentials'
+import fs from 'fs'
+import path from 'path'
+import { cookies } from 'next/headers'
 
 export const authOptions: NextAuthOptions = {
+  pages: {
+    signIn: '/login',
+    error: '/login',
+  },
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || '992317284123-u7l6n1ur1fcvl8v86t9sjkpoupal5nqk.apps.googleusercontent.com',
@@ -24,8 +31,6 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
-        
-        // Return dummy user for credential verification if matching basic structure
         return {
           id: credentials.email,
           email: credentials.email,
@@ -35,6 +40,61 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider === 'google') {
+        const cleanEmail = user?.email?.trim().toLowerCase()
+        if (!cleanEmail) {
+          return '/login?error=UnapprovedAccount'
+        }
+
+        let allowedList: string[] = []
+        let allowAll = false
+
+        try {
+          const configPath = path.join(process.cwd(), 'config', 'allowedAccounts.json')
+          if (fs.existsSync(configPath)) {
+            const data = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+            if (data.allowAllAsListeners) {
+              allowAll = true
+            }
+            if (Array.isArray(data.adminEmails)) {
+              data.adminEmails.forEach((e: string) => allowedList.push(String(e).trim().toLowerCase()))
+            }
+            if (Array.isArray(data.allowedEmails)) {
+              data.allowedEmails.forEach((item: any) => {
+                if (item?.email) allowedList.push(String(item.email).trim().toLowerCase())
+              })
+            }
+          }
+        } catch (err) {
+          console.warn('Could not read allowedAccounts.json in NextAuth signIn callback:', err)
+        }
+
+        if (allowAll) return true
+
+        try {
+          const cookieStore = await cookies()
+          const cookieVal = cookieStore.get('approved_emails')?.value
+          if (cookieVal) {
+            const cookieList = JSON.parse(cookieVal)
+            if (Array.isArray(cookieList)) {
+              cookieList.forEach((e: string) => allowedList.push(String(e).trim().toLowerCase()))
+            }
+          }
+        } catch (cookieErr) {
+          console.warn('Could not read approved_emails cookie in NextAuth signIn callback:', cookieErr)
+        }
+
+        const isAllowed = allowedList.includes(cleanEmail)
+
+        if (!isAllowed) {
+          console.warn(`[AUTH GUARD] Access denied for unapproved Google account: ${cleanEmail}`)
+          return `/login?error=UnapprovedAccount&unapprovedEmail=${encodeURIComponent(cleanEmail)}`
+        }
+      }
+
+      return true
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
@@ -55,3 +115,4 @@ export const authOptions: NextAuthOptions = {
 const handler = NextAuth(authOptions)
 
 export { handler as GET, handler as POST }
+

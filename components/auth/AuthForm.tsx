@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
 import { createClient } from '@/lib/supabase/client'
@@ -59,6 +60,7 @@ function translateAuthError(err: any): string {
 
 export function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const cardRef = useRef<HTMLDivElement | null>(null)
 
@@ -69,6 +71,17 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [rawError, setRawError] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (searchParams) {
+      const errParam = searchParams.get('error')
+      const unapprovedEmailParam = searchParams.get('unapprovedEmail')
+      if (errParam === 'UnapprovedAccount' || errParam === 'OAuthCallback' || errParam === 'AccessDenied') {
+        const mailText = unapprovedEmailParam ? ` (${unapprovedEmailParam})` : ''
+        setError(`Tài khoản${mailText} chưa được cấp phép. Vui lòng liên hệ Admin hoặc đăng ký lại bằng Passkey!`)
+      }
+    }
+  }, [searchParams])
 
   // Passkey Modal State
   const [showPasskeyModal, setShowPasskeyModal] = useState(false)
@@ -263,7 +276,7 @@ export function AuthForm({ mode }: AuthFormProps) {
       <div
         className="pointer-events-none fixed inset-0 z-0 transition-opacity duration-300"
         style={{
-          background: `radial-gradient(110px circle at ${cursorPos.x}px ${cursorPos.y}px, rgba(34, 197, 94, 0.07), transparent 75%)`,
+          background: `radial-gradient(110px circle at ${cursorPos.x}px ${cursorPos.y}px, rgba(255, 255, 255, 0.10), transparent 80%)`,
         }}
       />
 
@@ -279,9 +292,10 @@ export function AuthForm({ mode }: AuthFormProps) {
         <div
           className="pointer-events-none absolute inset-0 z-0 transition-opacity duration-300"
           style={{
-            background: `radial-gradient(100px circle at ${cardCursorPos.x}px ${cardCursorPos.y}px, rgba(34, 197, 94, 0.09), transparent 75%)`,
+            background: `radial-gradient(100px circle at ${cardCursorPos.x}px ${cardCursorPos.y}px, rgba(255, 255, 255, 0.10), transparent 80%)`,
           }}
         />
+
 
 
 
