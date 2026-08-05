@@ -1,7 +1,5 @@
 {
   "allowAllAsListeners": false,
-
-
   "adminEmails": [
     "admin@gmail.com",
     "admin@musicweb.com"
@@ -31,10 +29,10 @@
       "email": "user@musicweb.com",
       "role": "listener"
     },
-
     {
-      "email": "listener@gmail.com",
+      "email": "tranxuannhi217@gmail.com",
       "role": "listener"
     }
   ]
+}
 }
