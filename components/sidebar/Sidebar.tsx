@@ -16,6 +16,7 @@ import {
   Settings,
   Heart,
   History,
+  Trash2,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
@@ -46,16 +47,24 @@ export function Sidebar() {
 
       setSupabaseUser(currentUser)
 
-      // Query playlists owned by the user OR marked as public (admin albums)
-      let query = supabase.from('playlists').select('*')
-      const userId = currentUser?.id || getValidUserId(nextAuthSession?.user)
-      if (userId) {
-        query = query.or(`user_id.eq.${userId},is_public.eq.true`)
-      } else {
-        query = query.eq('is_public', true)
+      const activeUser = currentUser || (nextAuthSession?.user ? {
+        id: nextAuthSession.user.email,
+        email: nextAuthSession.user.email,
+      } : null)
+
+      const userId = activeUser ? getValidUserId(activeUser) : null
+
+      if (!userId) {
+        setPlaylists([])
+        return
       }
 
-      const { data } = await query.order('created_at', { ascending: false })
+      // Strictly query playlists created by THIS user only
+      const { data } = await supabase
+        .from('playlists')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
 
       if (data) setPlaylists(data)
     }
@@ -74,6 +83,12 @@ export function Sidebar() {
       }
     })
 
+    // Listen to local custom event for instant sync when playlists are added/edited/deleted
+    const handleCustomUpdate = () => {
+      loadUserAndPlaylists()
+    }
+    window.addEventListener('playlist-updated', handleCustomUpdate)
+
     // Subscribe to realtime changes in playlists
     const playlistChannel = supabase
       .channel('sidebar-playlists')
@@ -88,6 +103,7 @@ export function Sidebar() {
 
     return () => {
       subscription.unsubscribe()
+      window.removeEventListener('playlist-updated', handleCustomUpdate)
       supabase.removeChannel(playlistChannel)
     }
   }, [nextAuthSession])
@@ -116,7 +132,7 @@ export function Sidebar() {
         user_id: validUserId,
         name: newName,
         description: 'Playlist cá nhân',
-        is_public: true,
+        is_public: false,
       })
       .select()
       .single()
@@ -125,10 +141,30 @@ export function Sidebar() {
 
     if (data && !error) {
       setPlaylists([data, ...playlists])
+      window.dispatchEvent(new Event('playlist-updated'))
       router.push(`/playlist/${data.id}`)
     } else if (error) {
       console.error('Create playlist error:', error)
       alert('Lỗi tạo playlist: ' + error.message)
+    }
+  }
+
+  const handleDeletePlaylistFromSidebar = async (e: React.MouseEvent, playlistId: string, playlistName: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!confirm(`Bạn có chắc chắn muốn xóa playlist "${playlistName}"?`)) return
+
+    await supabase.from('playlist_tracks').delete().eq('playlist_id', playlistId)
+    const { error } = await supabase.from('playlists').delete().eq('id', playlistId)
+
+    if (!error) {
+      setPlaylists((prev) => prev.filter((p) => p.id !== playlistId))
+      window.dispatchEvent(new Event('playlist-updated'))
+      if (pathname === `/playlist/${playlistId}`) {
+        router.push('/')
+      }
+    } else {
+      alert('Lỗi xóa playlist: ' + error.message)
     }
   }
 
@@ -249,6 +285,13 @@ export function Sidebar() {
                     <p className="text-xs font-semibold text-white truncate">{pl.name}</p>
                     <p className="text-[10px] text-slate-500 truncate">Playlist cá nhân</p>
                   </div>
+                  <button
+                    onClick={(e) => handleDeletePlaylistFromSidebar(e, pl.id, pl.name)}
+                    className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-lg transition-all"
+                    title="Xóa playlist"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </Link>
               ))
             ) : (

@@ -157,6 +157,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
     if (!error) {
       setPlaylist({ ...playlist, name: editName, description: editDesc })
       setIsEditing(false)
+      window.dispatchEvent(new Event('playlist-updated'))
       router.refresh()
     } else {
       alert('Lỗi cập nhật: ' + error.message)
@@ -166,9 +167,11 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
   const handleDeletePlaylist = async () => {
     if (!playlist || !confirm('Bạn có chắc chắn muốn xóa playlist này?')) return
 
+    await supabase.from('playlist_tracks').delete().eq('playlist_id', playlist.id)
     const { error } = await supabase.from('playlists').delete().eq('id', playlist.id)
 
     if (!error) {
+      window.dispatchEvent(new Event('playlist-updated'))
       router.push('/')
       router.refresh()
     } else {

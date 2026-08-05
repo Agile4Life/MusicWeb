@@ -9,6 +9,7 @@ import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { Play, Upload, Search, Sparkles, Disc, Music, Flame, Trash2, AlertTriangle } from 'lucide-react'
 import { useSession } from 'next-auth/react'
+import { getValidUserId } from '@/lib/accessControl'
 
 export default function HomePage() {
   const supabase = createClient()
@@ -50,20 +51,25 @@ export default function HomePage() {
         console.warn('Failed to fetch tracks:', trackError.message)
       }
 
-      // Query playlists for either current user or public admin albums
-      const currentEmail = currentUser?.email || nextAuthSession?.user?.email
-      let playlistQuery = supabase.from('playlists').select('*')
+      // Strictly query playlists belonging to the current logged-in user
+      const activeUser = currentUser || (nextAuthSession?.user ? {
+        id: nextAuthSession.user.email,
+        email: nextAuthSession.user.email,
+      } : null)
+      const userId = activeUser ? getValidUserId(activeUser) : null
 
-      if (currentUser?.id) {
-        playlistQuery = playlistQuery.or(`user_id.eq.${currentUser.id},is_public.eq.true`)
+      if (userId) {
+        const { data: playlistData, error: plError } = await supabase
+          .from('playlists')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+
+        if (!plError && playlistData) {
+          setPlaylists(playlistData)
+        }
       } else {
-        playlistQuery = playlistQuery.eq('is_public', true)
-      }
-
-      const { data: playlistData, error: plError } = await playlistQuery.order('created_at', { ascending: false })
-
-      if (!plError && playlistData) {
-        setPlaylists(playlistData)
+        setPlaylists([])
       }
     } catch (err) {
       console.error('fetchData error in page.tsx:', err)
