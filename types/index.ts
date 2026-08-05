@@ -59,3 +59,11 @@ export interface UserSettings {
   shuffle: boolean
   updated_at: string
 }
+
+export interface ListeningHistoryItem {
+  id: string
+  user_id: string
+  track_id: string
+  played_at: string
+  track?: Track
+}

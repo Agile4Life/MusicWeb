@@ -4,6 +4,8 @@ import React, { createContext, useContext, useState, useRef, useEffect } from 'r
 import { Track } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import { extractDriveFileId, getAuthorizedDriveStreamUrl } from '@/lib/googleDriveUpload'
+import { useSession } from 'next-auth/react'
+import { getValidUserId } from '@/lib/accessControl'
 
 interface PlayerContextType {
   currentTrack: Track | null
@@ -26,6 +28,7 @@ interface PlayerContextType {
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined)
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
+  const { data: nextAuthSession } = useSession()
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null)
   const [isPlaying, setIsPlaying] = useState<boolean>(false)
   const [queue, setQueue] = useState<Track[]>([])
@@ -136,14 +139,42 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Fire-and-forget: record track playback history in background.
-    // Use Promise.resolve to wrap Supabase builder as a native Promise, preventing `.catch is not a function` error,
-    // and run inside setTimeout so it will never crash or affect audio playback UI.
-    setTimeout(() => {
-      Promise.resolve(supabase.rpc('fn_play_track', { p_track_id: track.id })).catch((rpcErr) => {
-        console.warn('History tracking error ignored:', rpcErr)
-      })
-    }, 0)
+    // Fire-and-forget: record track playback history in background for all user types
+    setTimeout(async () => {
+      try {
+        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        const activeUser = currentUser || (nextAuthSession?.user ? {
+          id: nextAuthSession.user.email,
+          email: nextAuthSession.user.email,
+        } : null)
+
+        const userId = activeUser ? getValidUserId(activeUser) : null
+        if (!userId) return
+
+        // 1. Save entry to listening_history
+        await supabase.from('listening_history').insert({
+          user_id: userId,
+          track_id: track.id,
+          played_at: new Date().toISOString(),
+        })
+
+        // 2. Increment track play_count
+        const { data: trData } = await supabase
+          .from('tracks')
+          .select('play_count')
+          .eq('id', track.id)
+          .single()
+
+        if (trData) {
+          await supabase
+            .from('tracks')
+            .update({ play_count: (trData.play_count || 0) + 1 })
+            .eq('id', track.id)
+        }
+      } catch (historyErr) {
+        console.warn('History tracking error:', historyErr)
+      }
+    }, 100)
   }
 
   const togglePlay = () => {

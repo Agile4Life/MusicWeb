@@ -1,49 +1,331 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { History } from 'lucide-react'
+import React, { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Track } from '@/types'
-import { TrackList } from '@/components/track/TrackList'
+import { usePlayer } from '@/components/player/PlayerContext'
+import { getValidUserId } from '@/lib/accessControl'
+import { useSession } from 'next-auth/react'
+import {
+  History,
+  Play,
+  Trash2,
+  Search,
+  Sparkles,
+  Music,
+  Clock,
+  RefreshCw,
+  AlertCircle,
+} from 'lucide-react'
+import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
+
+interface HistoryEntry {
+  id: string
+  played_at: string
+  track: Track
+}
+
+function formatRelativeTime(dateString: string): string {
+  try {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffSec = Math.floor(diffMs / 1000)
+    const diffMin = Math.floor(diffSec / 60)
+    const diffHour = Math.floor(diffMin / 60)
+    const diffDay = Math.floor(diffHour / 24)
+
+    if (diffSec < 30) return 'Vừa xong'
+    if (diffMin < 60) return `${diffMin} phút trước`
+    if (diffHour < 24) return `${diffHour} giờ trước`
+    if (diffDay === 1) return `Hôm qua lúc ${date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`
+    if (diffDay < 7) return `${diffDay} ngày trước`
+
+    return date.toLocaleDateString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return dateString
+  }
+}
 
 export default function HistoryPage() {
   const supabase = createClient()
-  const [tracks, setTracks] = useState<Track[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: nextAuthSession } = useSession()
+  const { playTrack, currentTrack, isPlaying } = usePlayer()
 
-  useEffect(() => {
-    let active = true
-    supabase.auth.getUser().then(async (result: { data: { user: { id: string } | null } }) => {
-      const user = result.data.user
-      if (!user) return
-      const { data } = await supabase
+  const [historyItems, setHistoryItems] = useState<HistoryEntry[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [clearing, setClearing] = useState(false)
+
+  const fetchHistory = async () => {
+    setLoading(true)
+    try {
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser()
+
+      const activeUser = currentUser || (nextAuthSession?.user ? {
+        id: nextAuthSession.user.email,
+        email: nextAuthSession.user.email,
+      } : null)
+
+      const userId = activeUser ? getValidUserId(activeUser) : null
+
+      if (!userId) {
+        setHistoryItems([])
+        setLoading(false)
+        return
+      }
+
+      const { data, error } = await supabase
         .from('listening_history')
-        .select('played_at, tracks:track_id(*)')
-        .eq('user_id', user.id)
+        .select('id, played_at, tracks:track_id(*)')
+        .eq('user_id', userId)
         .order('played_at', { ascending: false })
         .limit(100)
-      const seen = new Set<string>()
-      const historyTracks = (data || []).flatMap((entry: { tracks: Track | null }) => {
-        const track = entry.tracks
-        if (!track || seen.has(track.id)) return []
-        seen.add(track.id)
-        return [track]
-      })
-      if (active) {
-        setTracks(historyTracks)
-        setLoading(false)
+
+      if (!error && data) {
+        const validEntries: HistoryEntry[] = data
+          .filter((item: any) => item.tracks && typeof item.tracks === 'object')
+          .map((item: any) => ({
+            id: item.id,
+            played_at: item.played_at,
+            track: {
+              ...item.tracks,
+              artist: item.tracks.artist || null,
+              album: item.tracks.album || null,
+            },
+          }))
+
+        setHistoryItems(validEntries)
       }
-    })
-    return () => { active = false }
-  }, [supabase])
+    } catch (err) {
+      console.error('Fetch history error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchHistory()
+  }, [nextAuthSession])
+
+  const handleClearAllHistory = async () => {
+    if (historyItems.length === 0) return
+    if (!confirm('Bạn có chắc chắn muốn xóa toàn bộ lịch sử nghe nhạc không?')) return
+
+    setClearing(true)
+    try {
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser()
+
+      const activeUser = currentUser || (nextAuthSession?.user ? {
+        id: nextAuthSession.user.email,
+        email: nextAuthSession.user.email,
+      } : null)
+
+      const userId = activeUser ? getValidUserId(activeUser) : null
+      if (userId) {
+        await supabase.from('listening_history').delete().eq('user_id', userId)
+        setHistoryItems([])
+      }
+    } catch (err) {
+      alert('Lỗi xóa lịch sử nghe!')
+    } finally {
+      setClearing(false)
+    }
+  }
+
+  const handleRemoveSingleItem = async (historyId: string) => {
+    const { error } = await supabase.from('listening_history').delete().eq('id', historyId)
+    if (!error) {
+      setHistoryItems((prev) => prev.filter((item) => item.id !== historyId))
+    }
+  }
+
+  const handlePlayAllHistory = () => {
+    const allTracks = filteredItems.map((item) => item.track)
+    if (allTracks.length > 0) {
+      playTrack(allTracks[0], allTracks)
+    }
+  }
+
+  const filteredItems = historyItems.filter((item) => {
+    if (!searchQuery.trim()) return true
+    const q = searchQuery.toLowerCase()
+    const titleMatch = item.track.title?.toLowerCase().includes(q)
+    const artistMatch = item.track.artist?.toLowerCase().includes(q)
+    return titleMatch || artistMatch
+  })
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto w-full">
-      <div className="flex items-center gap-3 mb-6">
-        <History className="w-6 h-6 text-cyan-400" />
-        <h1 className="text-2xl font-extrabold text-white">Lịch sử nghe</h1>
+    <div className="p-6 md:p-8 flex flex-col gap-8 max-w-7xl mx-auto w-full">
+      {/* Header Banner */}
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 p-6 md:p-8 bg-gradient-to-r from-cyan-950/60 via-[#0e141a] to-[#090b10] shadow-2xl flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
+        <div className="flex items-center gap-5">
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-cyan-500 to-emerald-400 p-0.5 shadow-xl shadow-cyan-500/20 shrink-0">
+            <div className="w-full h-full bg-[#0d0e15] rounded-[14px] flex items-center justify-center text-cyan-400">
+              <History className="w-10 h-10" />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <div className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-cyan-400">
+              <Clock className="w-3.5 h-3.5" />
+              <span>Nhật ký phát nhạc</span>
+            </div>
+            <h1 className="text-3xl font-extrabold text-white tracking-tight">Lịch Sử Nghe</h1>
+            <p className="text-xs text-slate-400">
+              Danh sách các bài hát bạn đã nghe gần đây
+            </p>
+          </div>
+        </div>
+
+        {/* Top Actions */}
+        <div className="flex items-center gap-3">
+          {historyItems.length > 0 && (
+            <>
+              <button
+                onClick={handlePlayAllHistory}
+                className="bg-cyan-500 hover:bg-cyan-400 text-black font-extrabold px-5 py-2.5 rounded-full flex items-center gap-2 text-xs shadow-lg shadow-cyan-500/20 transition-all hover:scale-105"
+              >
+                <Play className="w-4 h-4 fill-current" />
+                <span>Phát Lịch Sử</span>
+              </button>
+
+              <button
+                onClick={handleClearAllHistory}
+                disabled={clearing}
+                className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 font-bold px-4 py-2.5 rounded-full flex items-center gap-2 text-xs transition-all disabled:opacity-50"
+                title="Xóa tất cả lịch sử"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Xóa Lịch Sử</span>
+              </button>
+            </>
+          )}
+        </div>
       </div>
-      {loading ? <p className="text-slate-400">Đang tải...</p> : <TrackList tracks={tracks} />}
+
+      {/* Search & Filter Bar */}
+      {historyItems.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-white/10 pb-4">
+          <div className="relative w-full sm:w-80">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm kiếm bài hát trong lịch sử..."
+              className="w-full glass-input rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none"
+            />
+          </div>
+
+          <span className="text-xs font-mono text-slate-400">
+            Đã nghe {historyItems.length} lượt
+          </span>
+        </div>
+      )}
+
+      {/* Main Content Area */}
+      {loading ? (
+        <div className="flex flex-col gap-4">
+          <div className="w-48 h-6 bg-slate-800 rounded-lg animate-pulse" />
+          <TrackListSkeleton count={8} />
+        </div>
+      ) : filteredItems.length > 0 ? (
+        <div className="glass-panel rounded-3xl p-4 md:p-6 border border-white/10 overflow-hidden">
+          <div className="flex flex-col divide-y divide-white/5">
+            {filteredItems.map((item, idx) => {
+              const track = item.track
+              const isCurrentPlaying = currentTrack?.id === track.id && isPlaying
+
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-3 rounded-2xl hover:bg-white/5 transition-all group gap-4"
+                >
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <span className="text-xs font-mono text-slate-500 w-6 text-right shrink-0">
+                      {idx + 1}
+                    </span>
+
+                    {/* Play / Cover Thumbnail */}
+                    <div
+                      onClick={() => playTrack(track, filteredItems.map((i) => i.track))}
+                      className="w-12 h-12 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center shrink-0 cursor-pointer relative overflow-hidden group/thumb"
+                    >
+                      {track.cover_url ? (
+                        <img
+                          src={track.cover_url}
+                          alt={track.title}
+                          className="w-full h-full object-cover rounded-xl"
+                        />
+                      ) : (
+                        <Music className="w-5 h-5 text-slate-400" />
+                      )}
+
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity rounded-xl">
+                        <Play className="w-5 h-5 text-white fill-current" />
+                      </div>
+                    </div>
+
+                    {/* Track Info */}
+                    <div className="flex flex-col truncate flex-1">
+                      <p
+                        onClick={() => playTrack(track, filteredItems.map((i) => i.track))}
+                        className={`text-sm font-bold truncate cursor-pointer hover:underline ${
+                          isCurrentPlaying ? 'text-cyan-400' : 'text-white'
+                        }`}
+                      >
+                        {track.title}
+                      </p>
+                      <p className="text-xs text-slate-400 truncate">
+                        {track.artist || 'Nghệ sĩ chưa xác định'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Time Ago Badge & Delete Action */}
+                  <div className="flex items-center gap-4 shrink-0">
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-mono bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+                      <Clock className="w-3 h-3 text-cyan-400" />
+                      <span>{formatRelativeTime(item.played_at)}</span>
+                    </div>
+
+                    <button
+                      onClick={() => handleRemoveSingleItem(item.id)}
+                      className="opacity-0 group-hover:opacity-100 p-2 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-xl transition-all"
+                      title="Xóa mục này khỏi lịch sử"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="glass-panel p-12 rounded-3xl text-center border border-white/10 flex flex-col items-center gap-4 my-8">
+          <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 border border-cyan-500/20 shadow-lg shadow-cyan-500/10">
+            <History className="w-8 h-8" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-white mb-1">Chưa Có Lịch Sử Nghe Nhạc</h3>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              Hãy chọn bài hát bạn thích và thưởng thức âm nhạc. Lịch sử các bài hát đã nghe sẽ xuất hiện tại đây.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
