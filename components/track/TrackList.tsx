@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { Track, Playlist } from '@/types'
 import { TrackRow } from './TrackRow'
-import { Clock, CheckSquare, Pencil, Trash2, X, Loader2, User, Disc } from 'lucide-react'
+import { Clock, CheckSquare, Pencil, Trash2, X, Loader2, User, Disc, Scissors } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface TrackListProps {
@@ -130,6 +130,38 @@ export function TrackList({
     }
   }
 
+  const handleExecuteStripLeadingNumbers = async () => {
+    if (selectedIds.size === 0) return
+    const targetIds = Array.from(selectedIds)
+    const tracksToClean = tracks.filter((t) => targetIds.includes(t.id))
+
+    const leadingNumRegex = /^\s*\d{1,3}[\.\_\-\:\)\s\|]+\s*/
+
+    let cleanedCount = 0
+    setSaving(true)
+    try {
+      for (const track of tracksToClean) {
+        if (track.title && leadingNumRegex.test(track.title)) {
+          const cleanedTitle = track.title.replace(leadingNumRegex, '').trim()
+          if (cleanedTitle && cleanedTitle !== track.title) {
+            await supabase.from('tracks').update({ title: cleanedTitle }).eq('id', track.id)
+            if (onTrackUpdated) {
+              onTrackUpdated(track.id, { title: cleanedTitle })
+            }
+            cleanedCount++
+          }
+        }
+      }
+
+      alert(`✅ Đã tự động xóa số thứ tự ở đầu tên bài hát cho ${cleanedCount} bài hát!`)
+      setSelectedIds(new Set())
+    } catch (err: any) {
+      alert('Lỗi khi xóa số thứ tự: ' + err?.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const handleExecuteBulkDelete = async () => {
     if (selectedIds.size === 0) return
     const targetIds = Array.from(selectedIds)
@@ -228,6 +260,16 @@ export function TrackList({
           >
             <Pencil className="w-3.5 h-3.5" />
             Sửa Nghệ Sĩ & Album
+          </button>
+
+          <button
+            onClick={handleExecuteStripLeadingNumbers}
+            disabled={saving}
+            className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-semibold text-xs px-3.5 py-2 rounded-full flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            title="Tự động xóa các số thứ tự ở đầu tên bài hát như '23. ', '22. ', '01 - '"
+          >
+            <Scissors className="w-3.5 h-3.5 text-amber-400" />
+            Xóa Số Đầu Tên Bài
           </button>
 
           <button

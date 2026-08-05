@@ -504,6 +504,15 @@ export default function HomePage() {
           }
         }
 
+        const leadingNumRegex = /^\s*\d{1,3}[\.\_\-\:\)\s\|]+\s*/
+        if (track.title && leadingNumRegex.test(track.title)) {
+          const cleanTitle = track.title.replace(leadingNumRegex, '').trim()
+          if (cleanTitle && cleanTitle !== track.title) {
+            await supabase.from('tracks').update({ title: cleanTitle }).eq('id', track.id)
+            repairedCount++
+          }
+        }
+
         processedCount++
         setCleanStatusText(`Đang dọn (${processedCount}/${total})...`)
       }

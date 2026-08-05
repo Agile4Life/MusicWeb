@@ -125,15 +125,24 @@ export function extractDriveFolderId(input: string): string | null {
 
 export function parseFilenameToTitleArtist(fileName: string): { title: string; artist: string } {
   let cleanName = fileName.replace(/\.(mp3|flac|wav|m4a|aac|ogg|wma)$/i, '').trim()
+  
+  // Clean leading track numbers like "23. ", "01 - ", "04_ ", "15) "
+  const leadingNumRegex = /^\s*\d{1,3}[\.\_\-\:\)\s\|]+\s*/
+  cleanName = cleanName.replace(leadingNumRegex, '').trim()
+
   if (cleanName.includes(' - ')) {
     const parts = cleanName.split(' - ')
     if (parts.length >= 2) {
+      let artistPart = parts[0].trim().replace(leadingNumRegex, '').trim()
+      let titlePart = parts.slice(1).join(' - ').trim().replace(leadingNumRegex, '').trim()
+
       return {
-        artist: parts[0].trim(),
-        title: parts.slice(1).join(' - ').trim(),
+        artist: artistPart,
+        title: titlePart,
       }
     }
   }
+
   return {
     title: cleanName,
     artist: 'Chưa rõ nghệ sĩ',
