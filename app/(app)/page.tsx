@@ -21,10 +21,12 @@ import {
   Loader2,
   TrendingUp,
   History,
+  RotateCcw,
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { getValidUserId } from '@/lib/accessControl'
 import { useSearchParams } from 'next/navigation'
+import { extractDriveFileId } from '@/lib/googleDriveUpload'
 
 export default function HomePage() {
   const supabase = createClient()
@@ -380,6 +382,43 @@ export default function HomePage() {
     }
   }
 
+  const handleCleanMissingDriveFiles = async () => {
+    if (!user) return
+    if (!confirm('Tự động quét và dọn dẹp các bài hát đã bị xóa khỏi Google Drive trên CSDL?')) return
+
+    setCleaningDuplicates(true)
+    try {
+      let deletedCount = 0
+      for (const track of tracks) {
+        const driveFileId = extractDriveFileId(track.file_path || '')
+        if (driveFileId) {
+          try {
+            const checkUrl = `https://lh3.googleusercontent.com/d/${driveFileId}`
+            const res = await fetch(checkUrl, { method: 'HEAD' })
+            if (res.status === 404 || res.status === 403) {
+              await supabase.from('playlist_tracks').delete().eq('track_id', track.id)
+              await supabase.from('favorite_tracks').delete().eq('track_id', track.id)
+              await supabase.from('listening_history').delete().eq('track_id', track.id)
+              await supabase.from('tracks').delete().eq('id', track.id)
+              deletedCount++
+            }
+          } catch {
+            // Ignore network errors
+          }
+        }
+      }
+
+      if (deletedCount > 0) {
+        alert(`✅ Đã dọn dẹp ${deletedCount} bài hát bị thiếu trên Google Drive!`)
+        await fetchData()
+      } else {
+        alert('Tất cả các bài hát trên Google Drive đều tồn tại bình thường!')
+      }
+    } finally {
+      setCleaningDuplicates(false)
+    }
+  }
+
   const handleTrackUpdated = (trackId: string, updates: Partial<Track>) => {
     setTracks((prev) => prev.map((t) => (t.id === trackId ? { ...t, ...updates } : t)))
     setRecentTracks((prev) => prev.map((t) => (t.id === trackId ? { ...t, ...updates } : t)))
@@ -561,6 +600,49 @@ export default function HomePage() {
 
       {/* Main Tracks Table Section */}
       <div className="flex flex-col gap-4">
+        {isAdmin && !isSearching && (
+          <div className="flex items-center justify-end gap-2">
+            <button
+              onClick={handleCleanMissingDriveFiles}
+              disabled={cleaningDuplicates}
+              className="flex items-center gap-1.5 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 px-3.5 py-1.5 rounded-full transition-all disabled:opacity-50"
+              title="Tự động kiểm tra và xóa khỏi CSDL các bài hát đã bị xóa khỏi Google Drive"
+            >
+              {cleaningDuplicates ? (
+                <span className="animate-spin w-3.5 h-3.5 border-2 border-cyan-400 border-t-transparent rounded-full inline-block" />
+              ) : (
+                <RotateCcw className="w-3.5 h-3.5" />
+              )}
+              {cleaningDuplicates ? 'Đang dọn...' : 'Dọn Drive đã xóa'}
+            </button>
+
+            {(() => {
+              const seen = new Set<string>()
+              const hasDupes = tracks.some((t) => {
+                const key = `${t.title?.toLowerCase().trim()}|||${(t.artist || '')
+                  .toLowerCase()
+                  .trim()}`
+                if (seen.has(key)) return true
+                seen.add(key)
+                return false
+              })
+              return hasDupes ? (
+                <button
+                  onClick={handleCleanDuplicates}
+                  disabled={cleaningDuplicates}
+                  className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-3.5 py-1.5 rounded-full transition-all disabled:opacity-50"
+                >
+                  {cleaningDuplicates ? (
+                    <span className="animate-spin w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full inline-block" />
+                  ) : (
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                  )}
+                  {cleaningDuplicates ? 'Đang dọn...' : 'Dọn bài trùng'}
+                </button>
+              ) : null
+            })()}
+          </div>
+        )}
         {isSearching && (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
             <div className="flex items-center gap-3">
