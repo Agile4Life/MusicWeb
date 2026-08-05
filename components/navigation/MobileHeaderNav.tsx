@@ -148,11 +148,11 @@ export function MobileHeaderNav() {
   return (
     <>
       {/* 📱 TOP MOBILE HEADER */}
-      <header className="md:hidden sticky top-0 z-40 bg-[#090a0f]/95 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between select-none">
+      <header className="md:hidden sticky top-0 z-40 bg-[#080a10]/95 backdrop-blur-2xl border-b border-white/10 px-4 py-3 flex items-center justify-between select-none shadow-xl">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsDrawerOpen(true)}
-            className="p-2 text-slate-300 active:text-white bg-white/5 active:bg-white/15 rounded-xl transition-colors"
+            className="p-2 text-slate-300 active:text-white bg-white/5 active:bg-white/15 rounded-xl border border-white/10 transition-colors"
             aria-label="Mở menu navigation"
           >
             <Menu className="w-5 h-5" />
@@ -161,9 +161,9 @@ export function MobileHeaderNav() {
           <Link
             href="/"
             onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
-            className="flex items-center gap-2.5"
+            className="flex items-center gap-2.5 active:scale-95 transition-transform"
           >
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 via-teal-400 to-blue-600 p-0.5 shadow-md shadow-cyan-500/20">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 via-teal-400 to-blue-600 p-0.5 shadow-lg shadow-cyan-500/20">
               <div className="w-full h-full bg-[#080c14] rounded-[10px] flex items-center justify-center">
                 <Headphones className="w-4 h-4 text-cyan-400" />
               </div>
@@ -175,10 +175,25 @@ export function MobileHeaderNav() {
         </div>
 
         <div className="flex items-center gap-2">
-          {user && (
-            <div className="text-[10px] font-mono px-2 py-1 rounded-md bg-white/5 border border-white/10 text-slate-300">
-              {isAdmin(user?.email) ? '⚡ Admin' : '🎧 Listener'}
-            </div>
+          {user ? (
+            <Link
+              href="/settings"
+              className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 active:bg-white/15 transition-all"
+            >
+              <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-cyan-400 to-blue-600 p-0.5 flex items-center justify-center text-[10px] font-black text-black">
+                {user.email?.[0].toUpperCase()}
+              </div>
+              <span className="text-[10px] font-bold text-slate-300 max-w-[80px] truncate">
+                {user.email?.split('@')[0]}
+              </span>
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="text-[11px] font-extrabold px-3 py-1.5 rounded-full bg-[var(--primary-spotify)] text-black shadow-md active:scale-95 transition-transform"
+            >
+              Đăng nhập
+            </Link>
           )}
         </div>
       </header>
@@ -188,111 +203,136 @@ export function MobileHeaderNav() {
         <div className="md:hidden fixed inset-0 z-50 flex">
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+            className="fixed inset-0 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
             onClick={() => setIsDrawerOpen(false)}
           />
 
           {/* Drawer Content */}
-          <div className="relative w-4/5 max-w-sm bg-[#090a0f] border-r border-white/10 p-4 flex flex-col gap-4 z-10 h-full overflow-y-auto animate-in slide-in-from-left duration-300 select-none">
+          <div className="relative w-4/5 max-w-sm bg-[#090b12] border-r border-white/10 p-5 flex flex-col gap-4 z-10 h-full overflow-y-auto animate-in slide-in-from-left duration-300 select-none shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 via-teal-400 to-blue-600 p-0.5">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 via-teal-400 to-blue-600 p-0.5 shadow-md shadow-cyan-500/20">
                   <div className="w-full h-full bg-[#080c14] rounded-[10px] flex items-center justify-center">
                     <Headphones className="w-4 h-4 text-cyan-400" />
                   </div>
                 </div>
-                <span className="font-extrabold text-base text-white">Menu Navigation</span>
+                <span className="font-extrabold text-base text-white">Menu Điều Hướng</span>
               </div>
               <button
                 onClick={() => setIsDrawerOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10"
+                className="p-1.5 text-slate-400 hover:text-white rounded-xl bg-white/5 active:bg-white/15"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Links */}
-            <div className="flex flex-col gap-1">
+            {/* Navigation Links */}
+            <div className="flex flex-col gap-1.5">
               <Link
                 href="/"
                 onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold ${
-                  pathname === '/' ? 'bg-[var(--primary-spotify)] text-black font-extrabold' : 'text-slate-300 hover:bg-white/5'
+                className={`flex items-center gap-3 px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${
+                  pathname === '/'
+                    ? 'bg-gradient-to-r from-[var(--primary-spotify)]/20 to-transparent text-[var(--primary-spotify)] border-l-4 border-[var(--primary-spotify)] shadow-sm'
+                    : 'text-slate-300 active:bg-white/5'
                 }`}
               >
-                <Home className="w-4 h-4" />
+                <Home className="w-4.5 h-4.5" />
                 <span>Trang chủ</span>
               </Link>
 
               <Link
+                href="/#drive"
+                onClick={() => {
+                  window.dispatchEvent(new Event('musicweb-tab-drive'))
+                  setIsDrawerOpen(false)
+                }}
+                className="flex items-center gap-3 px-3.5 py-3 rounded-2xl text-xs font-bold text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 active:bg-cyan-500/20"
+              >
+                <Cloud className="w-4.5 h-4.5 text-cyan-400" />
+                <span>Drive</span>
+                <span className="ml-auto text-[9px] font-black uppercase tracking-wider bg-cyan-500/30 text-cyan-200 px-2 py-0.5 rounded-full border border-cyan-400/30">
+                  Kho Nhạc
+                </span>
+              </Link>
+
+              <Link
                 href="/favorites"
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold ${
-                  pathname === '/favorites' ? 'bg-[var(--primary-spotify)] text-black font-extrabold' : 'text-slate-300 hover:bg-white/5'
+                className={`flex items-center gap-3 px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${
+                  pathname === '/favorites'
+                    ? 'bg-rose-500/20 text-rose-400 border-l-4 border-rose-500 shadow-sm'
+                    : 'text-slate-300 active:bg-white/5'
                 }`}
               >
-                <Heart className="w-4 h-4" />
+                <Heart className="w-4.5 h-4.5 text-rose-400" />
                 <span>Bài hát yêu thích</span>
               </Link>
 
               <Link
                 href="/history"
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold ${
-                  pathname === '/history' ? 'bg-[var(--primary-spotify)] text-black font-extrabold' : 'text-slate-300 hover:bg-white/5'
+                className={`flex items-center gap-3 px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${
+                  pathname === '/history'
+                    ? 'bg-emerald-500/20 text-emerald-400 border-l-4 border-emerald-500 shadow-sm'
+                    : 'text-slate-300 active:bg-white/5'
                 }`}
               >
-                <History className="w-4 h-4" />
+                <History className="w-4.5 h-4.5 text-emerald-400" />
                 <span>Lịch sử nghe</span>
               </Link>
 
               {isAdmin(user?.email) && (
                 <Link
                   href="/upload"
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold ${
-                    pathname === '/upload' ? 'bg-[var(--primary-spotify)] text-black font-extrabold' : 'text-slate-300 hover:bg-white/5'
+                  className={`flex items-center gap-3 px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${
+                    pathname === '/upload'
+                      ? 'bg-[var(--primary-spotify)]/20 text-[var(--primary-spotify)] border-l-4 border-[var(--primary-spotify)]'
+                      : 'text-slate-300 active:bg-white/5'
                   }`}
                 >
-                  <Upload className="w-4 h-4" />
+                  <Upload className="w-4.5 h-4.5 text-[var(--primary-spotify)]" />
                   <span>Upload nhạc (Admin)</span>
                 </Link>
               )}
 
               <Link
                 href="/settings"
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold ${
-                  pathname === '/settings' ? 'bg-[var(--primary-spotify)] text-black font-extrabold' : 'text-slate-300 hover:bg-white/5'
+                className={`flex items-center gap-3 px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${
+                  pathname === '/settings'
+                    ? 'bg-white/15 text-white border-l-4 border-white'
+                    : 'text-slate-300 active:bg-white/5'
                 }`}
               >
-                <Settings className="w-4 h-4" />
+                <Settings className="w-4.5 h-4.5 text-slate-400" />
                 <span>Cài Đặt & Giao Diện</span>
               </Link>
             </div>
 
             {/* Playlists Section */}
-            <div className="flex-1 flex flex-col min-h-0 border-t border-white/10 pt-3">
-              <div className="flex items-center justify-between px-1 mb-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            <div className="flex-1 flex flex-col min-h-0 border-t border-white/10 pt-4">
+              <div className="flex items-center justify-between px-1 mb-2.5">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   Thư viện Playlist
                 </span>
                 <button
                   onClick={handleCreatePlaylist}
                   disabled={creating}
-                  className="p-1 bg-white/10 hover:bg-[var(--primary-spotify)] hover:text-black rounded-lg transition-colors text-slate-300"
+                  className="p-1.5 bg-white/10 hover:bg-[var(--primary-spotify)] hover:text-black rounded-xl transition-all text-slate-200 active:scale-95"
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto flex flex-col gap-1 pr-1">
+              <div className="flex-1 overflow-y-auto flex flex-col gap-1.5 pr-1">
                 {user ? (
                   playlists.length > 0 ? (
                     playlists.map((pl) => (
                       <Link
                         key={pl.id}
                         href={`/playlist/${pl.id}`}
-                        className={`flex items-center justify-between p-2 rounded-xl text-xs ${
+                        className={`flex items-center justify-between p-2.5 rounded-xl text-xs ${
                           pathname === `/playlist/${pl.id}`
-                            ? 'bg-white/15 text-white font-bold'
-                            : 'text-slate-300 hover:bg-white/5'
+                            ? 'bg-white/15 text-white font-bold border border-white/10'
+                            : 'text-slate-300 active:bg-white/5'
                         }`}
                       >
                         <div className="flex items-center gap-2.5 truncate">
@@ -316,19 +356,19 @@ export function MobileHeaderNav() {
               </div>
             </div>
 
-            {/* Profile / Logout */}
-            <div className="border-t border-white/10 pt-3 mt-auto">
+            {/* Profile / Logout Footer */}
+            <div className="border-t border-white/10 pt-4 mt-auto">
               {user ? (
-                <div className="flex items-center justify-between gap-2">
-                  <div className="truncate">
+                <div className="flex items-center justify-between gap-3 bg-white/5 p-3 rounded-2xl border border-white/10">
+                  <div className="truncate min-w-0">
                     <p className="text-xs font-bold text-white truncate">{user.email}</p>
-                    <p className="text-[10px] text-slate-400">
-                      {isAdmin(user?.email) ? '⚡ Admin' : '🎧 Người nghe'}
+                    <p className="text-[10px] text-cyan-400 font-mono">
+                      {isAdmin(user?.email) ? '⚡ Admin System' : '🎧 Standard User'}
                     </p>
                   </div>
                   <button
                     onClick={handleLogout}
-                    className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl"
+                    className="p-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl active:scale-95 transition-all"
                   >
                     <LogOut className="w-4 h-4" />
                   </button>
@@ -336,7 +376,7 @@ export function MobileHeaderNav() {
               ) : (
                 <Link
                   href="/login"
-                  className="w-full bg-[var(--primary-spotify)] text-black font-extrabold py-2.5 rounded-full text-xs text-center block"
+                  className="w-full bg-[var(--primary-spotify)] text-black font-black py-3 rounded-full text-xs text-center block shadow-lg shadow-[var(--theme-glow-shadow)] active:scale-95 transition-transform"
                 >
                   Đăng nhập ngay
                 </Link>
@@ -347,12 +387,14 @@ export function MobileHeaderNav() {
       )}
 
       {/* 📱 BOTTOM MOBILE NAVIGATION BAR */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#080a10]/95 backdrop-blur-2xl border-t border-white/10 px-2 pt-1.5 pb-safe flex items-center justify-around select-none">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#07090e]/95 backdrop-blur-2xl border-t border-white/10 px-3 pt-2 pb-safe flex items-center justify-around select-none shadow-2xl">
         <Link
           href="/"
           onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
-          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all active:scale-95 ${
-            pathname === '/' ? 'text-[var(--primary-spotify)] font-bold' : 'text-slate-400 hover:text-white'
+          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all active:scale-90 ${
+            pathname === '/'
+              ? 'text-[var(--primary-spotify)] font-extrabold bg-[var(--primary-spotify)]/10'
+              : 'text-slate-400 hover:text-white'
           }`}
         >
           <Home className="w-5 h-5" />
@@ -364,16 +406,18 @@ export function MobileHeaderNav() {
           onClick={() => {
             window.dispatchEvent(new Event('musicweb-tab-drive'))
           }}
-          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all active:scale-95 text-cyan-300 font-bold`}
+          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all active:scale-90 text-cyan-300 font-extrabold bg-cyan-500/10`}
         >
-          <Cloud className="w-5 h-5 text-cyan-400" />
+          <Cloud className="w-5 h-5 text-cyan-400 animate-pulse" />
           <span className="text-[10px]">Drive</span>
         </Link>
 
         <Link
           href="/favorites"
-          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all active:scale-95 ${
-            pathname === '/favorites' ? 'text-rose-400 font-bold' : 'text-slate-400 hover:text-white'
+          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all active:scale-90 ${
+            pathname === '/favorites'
+              ? 'text-rose-400 font-extrabold bg-rose-500/10'
+              : 'text-slate-400 hover:text-white'
           }`}
         >
           <Heart className="w-5 h-5" />
@@ -382,8 +426,10 @@ export function MobileHeaderNav() {
 
         <Link
           href="/history"
-          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all active:scale-95 ${
-            pathname === '/history' ? 'text-cyan-400 font-bold' : 'text-slate-400 hover:text-white'
+          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all active:scale-90 ${
+            pathname === '/history'
+              ? 'text-emerald-400 font-extrabold bg-emerald-500/10'
+              : 'text-slate-400 hover:text-white'
           }`}
         >
           <History className="w-5 h-5" />
@@ -392,10 +438,10 @@ export function MobileHeaderNav() {
 
         <button
           onClick={() => setIsDrawerOpen(true)}
-          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all active:scale-95 text-slate-400 hover:text-white`}
+          className="flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all active:scale-90 text-slate-400 hover:text-white"
         >
           <ListMusic className="w-5 h-5" />
-          <span className="text-[10px]">Playlist</span>
+          <span className="text-[10px]">Menu</span>
         </button>
       </nav>
     </>

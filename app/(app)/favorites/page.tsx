@@ -169,7 +169,7 @@ export default function FavoritesPage() {
   const isAdmin = user?.email === 'admin@musicweb.com'
 
   return (
-    <div className="p-6 md:p-8 flex flex-col gap-8 max-w-7xl mx-auto w-full">
+    <div className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 md:gap-8 max-w-7xl mx-auto w-full pb-32 md:pb-8">
       {/* Header Banner */}
       <div className="relative overflow-hidden rounded-3xl border border-white/10 p-6 md:p-8 bg-gradient-to-r from-rose-950/60 via-[#0e141a] to-[#090b10] shadow-2xl flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
         <div className="flex items-center gap-5">

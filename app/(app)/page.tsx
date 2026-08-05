@@ -645,9 +645,9 @@ export default function HomePage() {
   }
 
   return (
-    <div className="p-6 md:p-8 flex flex-col gap-8 max-w-7xl mx-auto w-full">
+    <div className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 md:gap-8 max-w-7xl mx-auto w-full pb-32 md:pb-8">
       {/* High-Impact Hero Card */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 p-8 md:p-10 bg-gradient-to-r from-[var(--theme-gradient-1)] via-[#0e141a] to-[#090b10] shadow-2xl">
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-white/10 p-5 sm:p-8 md:p-10 bg-gradient-to-r from-[var(--theme-gradient-1)] via-[#0e141a] to-[#090b10] shadow-2xl">
         <div className="absolute -top-24 -left-24 w-72 h-72 bg-[var(--primary-spotify)]/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-[var(--theme-secondary)]/20 rounded-full blur-3xl pointer-events-none" />
 

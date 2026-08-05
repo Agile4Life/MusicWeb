@@ -103,14 +103,14 @@ export function PlayerBar() {
   return (
     <>
       {/* 📱 MOBILE FLOATING MINI PLAYER BAR (Visible on < 768px, positioned right above mobile bottom nav) */}
-      <div className="md:hidden fixed bottom-[62px] left-2 right-2 z-40 bg-[#0f1422]/95 backdrop-blur-2xl border border-white/15 rounded-2xl p-2.5 shadow-2xl shadow-black select-none">
+      <div className="md:hidden fixed bottom-[68px] left-3 right-3 z-40 bg-gradient-to-r from-[#0d1322]/95 via-[#080d19]/95 to-[#0d1322]/95 backdrop-blur-2xl border border-cyan-500/30 rounded-2xl p-2.5 shadow-2xl shadow-cyan-950/40 select-none">
         <div className="flex items-center justify-between gap-3">
           {/* Tap to expand full mobile player */}
           <div
             onClick={() => setShowMobileFullPlayer(true)}
             className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer active:opacity-80"
           >
-            <div className="w-10 h-10 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 relative">
+            <div className="w-10 h-10 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 relative shadow-md">
               {currentTrack.cover_url ? (
                 <img
                   src={currentTrack.cover_url}
@@ -122,16 +122,16 @@ export function PlayerBar() {
               )}
             </div>
 
-            <div className="flex flex-col truncate flex-1">
-              <span className="text-xs font-bold text-white truncate">{currentTrack.title}</span>
-              <span className="text-[10px] text-slate-400 truncate">
+            <div className="flex flex-col truncate flex-1 min-w-0">
+              <span className="text-xs font-extrabold text-white truncate">{currentTrack.title}</span>
+              <span className="text-[10px] font-medium text-slate-400 truncate">
                 {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
               </span>
             </div>
           </div>
 
           {/* Quick Touch Controls */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={(e) => {
                 e.stopPropagation()
@@ -151,14 +151,14 @@ export function PlayerBar() {
 
             <button
               onClick={togglePlay}
-              className="w-9 h-9 rounded-full bg-[var(--primary-spotify)] text-black flex items-center justify-center shadow-md active:scale-95"
+              className="w-9 h-9 rounded-full bg-[var(--primary-spotify)] text-black flex items-center justify-center shadow-lg shadow-[var(--theme-glow-shadow)] active:scale-95 transition-transform"
             >
               {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
             </button>
 
             <button
               onClick={nextTrack}
-              className="p-2 text-slate-300 hover:text-white active:scale-95"
+              className="p-2 text-slate-300 active:text-white active:scale-95"
             >
               <SkipForward className="w-4 h-4" />
             </button>
@@ -166,7 +166,7 @@ export function PlayerBar() {
         </div>
 
         {/* Mini progress bar on top edge of mini player */}
-        <div className="w-full h-0.5 bg-white/10 rounded-full mt-1.5 overflow-hidden">
+        <div className="w-full h-0.5 bg-white/10 rounded-full mt-2 overflow-hidden">
           <div
             className="h-full bg-[var(--primary-spotify)] transition-all duration-300"
             style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
@@ -174,20 +174,21 @@ export function PlayerBar() {
         </div>
       </div>
 
-      {/* 📱 FULLSCREEN MOBILE PLAYER OVERLAY MODAL */}
+      {/* 📱 FULL-SCREEN MOBILE PLAYER OVERLAY MODAL */}
       {showMobileFullPlayer && (
-        <div className="md:hidden fixed inset-0 z-50 bg-[#07080c]/98 backdrop-blur-2xl flex flex-col p-6 animate-in slide-in-from-bottom duration-300 select-none">
+        <div className="md:hidden fixed inset-0 z-50 bg-[#06080e]/98 backdrop-blur-3xl flex flex-col justify-between p-6 select-none animate-in slide-in-from-bottom duration-300 overflow-y-auto">
           {/* Header handle */}
-          <div className="flex items-center justify-between pb-4">
+          <div className="flex items-center justify-between pb-4 border-b border-white/10">
             <button
               onClick={() => setShowMobileFullPlayer(false)}
-              className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-slate-300 hover:text-white"
+              className="p-2.5 bg-white/5 active:bg-white/15 rounded-2xl text-slate-300 border border-white/10"
             >
               <ChevronDown className="w-6 h-6" />
             </button>
 
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-              Đang phát từ MusicWeb
+            <span className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+              <Headphones className="w-3.5 h-3.5 text-cyan-400" />
+              MusicWeb Player
             </span>
 
             <button
@@ -195,21 +196,22 @@ export function PlayerBar() {
                 setShowMobileFullPlayer(false)
                 setShowLyricsModal(true)
               }}
-              className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-slate-300 hover:text-[var(--primary-spotify)]"
+              className="p-2.5 bg-cyan-500/10 active:bg-cyan-500/20 rounded-2xl text-cyan-300 border border-cyan-500/30"
               title="Xem lời bài hát"
             >
               <Mic2 className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Large Album Artwork */}
-          <div className="flex-1 flex items-center justify-center my-6">
-            <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-3xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 shadow-2xl flex items-center justify-center overflow-hidden relative p-1">
+          {/* Large Album Artwork with Ambient Glow */}
+          <div className="flex-1 flex items-center justify-center my-6 relative">
+            <div className="absolute inset-0 bg-cyan-500/10 blur-3xl rounded-full scale-75 pointer-events-none" />
+            <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-3xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/15 shadow-2xl shadow-cyan-950/50 flex items-center justify-center overflow-hidden relative p-1.5">
               {currentTrack.cover_url ? (
                 <img
                   src={currentTrack.cover_url}
                   alt={currentTrack.title}
-                  className="w-full h-full object-cover rounded-2xl"
+                  className="w-full h-full object-cover rounded-2xl shadow-inner"
                 />
               ) : (
                 <div className="w-full h-full bg-[#080c14] rounded-2xl flex items-center justify-center text-cyan-400">
@@ -222,14 +224,14 @@ export function PlayerBar() {
           {/* Track Info Header */}
           <div className="flex items-center justify-between gap-3 mb-6">
             <div className="flex flex-col items-start gap-1 min-w-0 flex-1">
-              <h2 className="text-xl font-extrabold text-white truncate w-full">{currentTrack.title}</h2>
-              <p className="text-sm font-medium text-slate-400 truncate w-full">
+              <h2 className="text-xl font-black text-white truncate w-full">{currentTrack.title}</h2>
+              <p className="text-sm font-bold text-slate-400 truncate w-full">
                 {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
               </p>
             </div>
             <button
               onClick={toggleFavoriteCurrentTrack}
-              className="p-3 rounded-full bg-white/5 active:bg-white/15 text-slate-400 border border-white/10 shrink-0"
+              className="p-3 rounded-2xl bg-white/5 active:bg-white/15 text-slate-400 border border-white/10 shrink-0"
               title={currentTrack.is_favorite ? 'Bỏ khỏi yêu thích' : 'Thêm vào yêu thích'}
             >
               <Heart
@@ -459,6 +461,22 @@ export function PlayerBar() {
 
         {/* Right: Volume & Extra Controls */}
         <div className="w-1/4 flex justify-end items-center gap-3">
+          <button
+            onClick={toggleFavoriteCurrentTrack}
+            className={`p-2 rounded-xl transition-all ${
+              currentTrack.is_favorite
+                ? 'text-rose-500 bg-rose-500/15 border border-rose-500/30'
+                : 'text-slate-400 hover:text-rose-400 hover:bg-white/5'
+            }`}
+            title={currentTrack.is_favorite ? 'Bỏ khỏi bài hát yêu thích' : 'Thêm vào bài hát yêu thích'}
+          >
+            <Heart
+              className={`w-4 h-4 transition-all ${
+                currentTrack.is_favorite ? 'fill-current drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]' : ''
+              }`}
+            />
+          </button>
+
           <button
             onClick={() => setShowLyricsModal(!showLyricsModal)}
             className={`p-2 rounded-xl transition-all ${
