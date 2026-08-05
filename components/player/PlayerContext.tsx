@@ -399,6 +399,63 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentIndex, queue, autoPlayNext])
 
+  // 📱 Media Session API Sync (Mobile Background Playback & Lock Screen Controls)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('mediaSession' in navigator) || !currentTrack) return
+
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentTrack.title,
+        artist: currentTrack.artist || 'Nghệ sĩ chưa xác định',
+        album: currentTrack.album || 'MusicWeb Studio',
+        artwork: [
+          {
+            src: currentTrack.cover_url || '/favicon.ico',
+            sizes: '512x512',
+            type: 'image/png',
+          },
+        ],
+      })
+
+      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused'
+
+      navigator.mediaSession.setActionHandler('play', () => {
+        if (audioRef.current) {
+          audioRef.current.play()
+          setIsPlaying(true)
+        }
+      })
+
+      navigator.mediaSession.setActionHandler('pause', () => {
+        if (audioRef.current) {
+          audioRef.current.pause()
+          setIsPlaying(false)
+        }
+      })
+
+      navigator.mediaSession.setActionHandler('previoustrack', () => {
+        prevTrack()
+      })
+
+      navigator.mediaSession.setActionHandler('nexttrack', () => {
+        nextTrack()
+      })
+
+      try {
+        navigator.mediaSession.setActionHandler('seekto', (details) => {
+          if (details.seekTime !== undefined && audioRef.current) {
+            audioRef.current.currentTime = details.seekTime
+            setCurrentTime(details.seekTime)
+          }
+        })
+      } catch (e) {
+        // seekto optional
+      }
+    } catch (err) {
+      console.warn('MediaSession init error:', err)
+    }
+  }, [currentTrack, isPlaying])
+
   return (
     <PlayerContext.Provider
       value={{

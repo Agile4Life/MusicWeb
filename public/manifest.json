@@ -1,0 +1,17 @@
+{
+  "name": "MusicWeb • Stream Music",
+  "short_name": "MusicWeb",
+  "description": "Trình nghe nhạc cá nhân high-quality độc bản",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07080c",
+  "theme_color": "#1DB954",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
