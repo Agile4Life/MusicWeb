@@ -20,6 +20,7 @@ import {
   Shuffle,
   Repeat,
   Repeat1,
+  Heart,
 } from 'lucide-react'
 
 function formatTime(seconds: number) {
@@ -40,6 +41,7 @@ export function PlayerBar() {
     toggleShuffle,
     repeatMode,
     toggleRepeat,
+    toggleFavoriteCurrentTrack,
     playbackError,
     togglePlay,
     seek,
@@ -131,6 +133,23 @@ export function PlayerBar() {
           {/* Quick Touch Controls */}
           <div className="flex items-center gap-2 shrink-0">
             <button
+              onClick={(e) => {
+                e.stopPropagation()
+                toggleFavoriteCurrentTrack()
+              }}
+              className="p-2 rounded-full text-slate-400 active:text-rose-400 transition-colors"
+              title={currentTrack.is_favorite ? 'Bỏ khỏi yêu thích' : 'Thêm vào yêu thích'}
+            >
+              <Heart
+                className={`w-4 h-4 transition-all ${
+                  currentTrack.is_favorite
+                    ? 'text-rose-500 fill-current drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]'
+                    : 'text-slate-400'
+                }`}
+              />
+            </button>
+
+            <button
               onClick={togglePlay}
               className="w-9 h-9 rounded-full bg-[var(--primary-spotify)] text-black flex items-center justify-center shadow-md active:scale-95"
             >
@@ -201,11 +220,26 @@ export function PlayerBar() {
           </div>
 
           {/* Track Info Header */}
-          <div className="flex flex-col items-start gap-1 mb-6">
-            <h2 className="text-xl font-extrabold text-white truncate w-full">{currentTrack.title}</h2>
-            <p className="text-sm font-medium text-slate-400 truncate w-full">
-              {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
-            </p>
+          <div className="flex items-center justify-between gap-3 mb-6">
+            <div className="flex flex-col items-start gap-1 min-w-0 flex-1">
+              <h2 className="text-xl font-extrabold text-white truncate w-full">{currentTrack.title}</h2>
+              <p className="text-sm font-medium text-slate-400 truncate w-full">
+                {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
+              </p>
+            </div>
+            <button
+              onClick={toggleFavoriteCurrentTrack}
+              className="p-3 rounded-full bg-white/5 active:bg-white/15 text-slate-400 border border-white/10 shrink-0"
+              title={currentTrack.is_favorite ? 'Bỏ khỏi yêu thích' : 'Thêm vào yêu thích'}
+            >
+              <Heart
+                className={`w-6 h-6 transition-all ${
+                  currentTrack.is_favorite
+                    ? 'text-rose-500 fill-current drop-shadow-[0_0_12px_rgba(244,63,94,0.8)]'
+                    : 'text-slate-400'
+                }`}
+              />
+            </button>
           </div>
 
           {/* Scrubber Slider */}
@@ -314,7 +348,7 @@ export function PlayerBar() {
             </div>
           </div>
 
-          <div className="truncate flex flex-col">
+          <div className="truncate flex flex-col flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <p className="text-sm font-bold text-white truncate hover:underline cursor-pointer">
                 {currentTrack.title}
@@ -331,6 +365,20 @@ export function PlayerBar() {
               {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
             </p>
           </div>
+
+          <button
+            onClick={toggleFavoriteCurrentTrack}
+            className="p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-rose-400 transition-colors shrink-0 ml-1"
+            title={currentTrack.is_favorite ? 'Bỏ khỏi yêu thích' : 'Thêm vào bài hát yêu thích'}
+          >
+            <Heart
+              className={`w-4.5 h-4.5 transition-all ${
+                currentTrack.is_favorite
+                  ? 'text-rose-500 fill-current drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]'
+                  : 'text-slate-400 hover:text-rose-400'
+              }`}
+            />
+          </button>
         </div>
 
         {/* Center: Playback Controls & Seekbar */}

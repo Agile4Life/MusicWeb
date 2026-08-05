@@ -21,6 +21,7 @@ interface PlayerContextType {
   toggleShuffle: () => void
   repeatMode: RepeatMode
   toggleRepeat: () => void
+  toggleFavoriteCurrentTrack: () => Promise<void>
   playbackError: string | null
   playTrack: (track: Track, newQueue?: Track[], forceIndex?: number) => Promise<void>
   togglePlay: () => void
@@ -154,6 +155,66 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (prev === 'all') return 'one'
       return 'off'
     })
+  }
+
+  const toggleFavoriteCurrentTrack = async () => {
+    if (!currentTrack) return
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    const activeUser =
+      currentUser ||
+      (nextAuthSession?.user
+        ? { id: nextAuthSession.user.email, email: nextAuthSession.user.email }
+        : null)
+    const userId = activeUser ? getValidUserId(activeUser) : null
+    if (!userId) {
+      alert('Vui lòng đăng nhập để lưu bài hát yêu thích!')
+      return
+    }
+
+    const nextValue = !currentTrack.is_favorite
+    setCurrentTrack((prev) => (prev ? { ...prev, is_favorite: nextValue } : null))
+
+    try {
+      let dbTrackId = currentTrack.id
+
+      // If track is from external source (YouTube, iTunes, Audius), ensure it exists in tracks table
+      if (currentTrack.source && currentTrack.source !== 'local') {
+        const { data: existing } = await supabase
+          .from('tracks')
+          .select('id')
+          .eq('file_path', currentTrack.file_path)
+          .maybeSingle()
+
+        if (existing && existing.id) {
+          dbTrackId = existing.id
+        } else {
+          const { data: inserted } = await supabase
+            .from('tracks')
+            .insert({
+              user_id: userId,
+              title: currentTrack.title,
+              artist: currentTrack.artist || null,
+              album: currentTrack.album || null,
+              duration: currentTrack.duration || 0,
+              file_path: currentTrack.file_path,
+              cover_url: currentTrack.cover_url || null,
+              created_at: new Date().toISOString(),
+            })
+            .select('id')
+            .single()
+
+          if (inserted && inserted.id) dbTrackId = inserted.id
+        }
+      }
+
+      if (nextValue) {
+        await supabase.from('favorite_tracks').upsert({ user_id: userId, track_id: dbTrackId })
+      } else {
+        await supabase.from('favorite_tracks').delete().eq('user_id', userId).eq('track_id', dbTrackId)
+      }
+    } catch (err) {
+      console.warn('Toggle favorite error:', err)
+    }
   }
 
   // Load YouTube IFrame Player API Script dynamically
@@ -824,6 +885,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         toggleShuffle,
         repeatMode,
         toggleRepeat,
+        toggleFavoriteCurrentTrack,
         playbackError,
         playTrack,
         togglePlay,
