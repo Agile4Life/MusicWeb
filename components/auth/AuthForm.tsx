@@ -445,23 +445,6 @@ export function AuthForm({ mode }: AuthFormProps) {
           <span>Đăng nhập / Xin cấp quyền bằng Passkey</span>
         </button>
 
-        <div className="mt-6 text-center text-xs text-slate-400 border-t border-white/10 pt-4 relative z-10">
-          {mode === 'login' ? (
-            <p>
-              Chưa có tài khoản?{' '}
-              <Link href="/register" className="text-[var(--primary-spotify)] font-bold hover:underline">
-                Đăng ký ngay
-              </Link>
-            </p>
-          ) : (
-            <p>
-              Đã có tài khoản?{' '}
-              <Link href="/login" className="text-[var(--primary-spotify)] font-bold hover:underline">
-                Đăng nhập
-              </Link>
-            </p>
-          )}
-        </div>
       </div>
 
       {/* 🔑 MODAL: ĐĂNG NHẬP / XIN CẤP QUYỀN BẰNG PASSKEY */}

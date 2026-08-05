@@ -2,18 +2,19 @@
 
 :root {
   --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --bg-space: #07090e;
-  --spotify-green: #1db954;
-  --spotify-glow: #1ed760;
-  --primary-spotify: #1db954;
-  --theme-secondary: #06b6d4;
-  --theme-glow-shadow: rgba(29, 185, 84, 0.35);
-  --theme-gradient-1: rgba(29, 185, 84, 0.22);
-  --theme-gradient-2: rgba(6, 182, 212, 0.12);
-  --theme-gradient-3: rgba(16, 185, 129, 0.10);
-  --theme-neon-from: #a7f3d0;
-  --theme-neon-to: #1db954;
+  --bg-space: #030a14;
+  --spotify-green: #06b6d4;
+  --spotify-glow: #22d3ee;
+  --primary-spotify: #06b6d4;
+  --theme-secondary: #3b82f6;
+  --theme-glow-shadow: rgba(6, 182, 212, 0.35);
+  --theme-gradient-1: rgba(6, 182, 212, 0.25);
+  --theme-gradient-2: rgba(59, 130, 246, 0.15);
+  --theme-gradient-3: rgba(34, 211, 238, 0.10);
+  --theme-neon-from: #bae6fd;
+  --theme-neon-to: #06b6d4;
 }
+
 
 body {
   font-family: var(--font-sans);

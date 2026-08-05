@@ -169,7 +169,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [themeId, setThemeId] = useState<ThemeId>('slate')
+  const [themeId, setThemeId] = useState<ThemeId>('summer')
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('musicweb-theme') as ThemeId
@@ -177,9 +177,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setThemeId(savedTheme)
       applyTheme(THEMES[savedTheme])
     } else {
-      applyTheme(THEMES.slate)
+      applyTheme(THEMES.summer)
     }
   }, [])
+
 
   const applyTheme = (theme: ThemeConfig) => {
     const root = document.documentElement
