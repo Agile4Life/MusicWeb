@@ -162,7 +162,7 @@ function TrackRowComponent({
 
   return (
     <div
-      className={`group flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer select-none border ${
+      className={`group flex items-center justify-between px-3 md:px-4 py-2.5 md:py-3 rounded-xl transition-all duration-200 cursor-pointer select-none border active:scale-[0.99] active:bg-white/10 ${
         isSelected
           ? 'bg-cyan-500/10 border-cyan-500/30 shadow-md'
           : isCurrent

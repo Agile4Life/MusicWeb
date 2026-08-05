@@ -97,7 +97,7 @@ export function PlayerBar() {
   return (
     <>
       {/* 📱 MOBILE FLOATING MINI PLAYER BAR (Visible on < 768px, positioned right above mobile bottom nav) */}
-      <div className="md:hidden fixed bottom-14 left-2 right-2 z-40 bg-[#121520]/95 backdrop-blur-2xl border border-white/15 rounded-2xl p-2 shadow-2xl shadow-black/80 select-none">
+      <div className="md:hidden fixed bottom-[62px] left-2 right-2 z-40 bg-[#0f1422]/95 backdrop-blur-2xl border border-white/15 rounded-2xl p-2.5 shadow-2xl shadow-black select-none">
         <div className="flex items-center justify-between gap-3">
           {/* Tap to expand full mobile player */}
           <div

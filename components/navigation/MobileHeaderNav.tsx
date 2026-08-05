@@ -20,6 +20,7 @@ import {
   X,
   Trash2,
   Mic2,
+  Cloud,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
@@ -340,10 +341,10 @@ export function MobileHeaderNav() {
       )}
 
       {/* 📱 BOTTOM MOBILE NAVIGATION BAR */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#090a0f]/95 backdrop-blur-2xl border-t border-white/10 px-2 py-1.5 flex items-center justify-around select-none">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#080a10]/95 backdrop-blur-2xl border-t border-white/10 px-2 pt-1.5 pb-safe flex items-center justify-around select-none">
         <Link
           href="/"
-          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all ${
+          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all active:scale-95 ${
             pathname === '/' ? 'text-[var(--primary-spotify)] font-bold' : 'text-slate-400 hover:text-white'
           }`}
         >
@@ -352,8 +353,19 @@ export function MobileHeaderNav() {
         </Link>
 
         <Link
+          href="/#drive"
+          onClick={() => {
+            window.dispatchEvent(new Event('musicweb-tab-drive'))
+          }}
+          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all active:scale-95 text-cyan-300 font-bold`}
+        >
+          <Cloud className="w-5 h-5 text-cyan-400" />
+          <span className="text-[10px]">Drive</span>
+        </Link>
+
+        <Link
           href="/favorites"
-          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all ${
+          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all active:scale-95 ${
             pathname === '/favorites' ? 'text-rose-400 font-bold' : 'text-slate-400 hover:text-white'
           }`}
         >
@@ -363,7 +375,7 @@ export function MobileHeaderNav() {
 
         <Link
           href="/history"
-          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all ${
+          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all active:scale-95 ${
             pathname === '/history' ? 'text-cyan-400 font-bold' : 'text-slate-400 hover:text-white'
           }`}
         >
@@ -373,21 +385,11 @@ export function MobileHeaderNav() {
 
         <button
           onClick={() => setIsDrawerOpen(true)}
-          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all text-slate-400 hover:text-white`}
+          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all active:scale-95 text-slate-400 hover:text-white`}
         >
           <ListMusic className="w-5 h-5" />
           <span className="text-[10px]">Playlist</span>
         </button>
-
-        <Link
-          href="/settings"
-          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all ${
-            pathname === '/settings' ? 'text-emerald-400 font-bold' : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <Settings className="w-5 h-5" />
-          <span className="text-[10px]">Cài đặt</span>
-        </Link>
       </nav>
     </>
   )

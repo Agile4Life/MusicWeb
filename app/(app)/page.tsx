@@ -845,7 +845,7 @@ export default function HomePage() {
       <div className="flex flex-col gap-4">
         {!isSearching && (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
-            <div className="flex items-center gap-2 overflow-x-auto pr-2">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar touch-pan-x pr-2 py-0.5">
               <button
                 onClick={() => setLibraryTab('all')}
                 className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
