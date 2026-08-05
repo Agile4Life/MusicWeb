@@ -266,7 +266,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     const driveFileId = extractDriveFileId(filePath)
     if (driveFileId) {
-      return getAuthorizedDriveStreamUrl(track.id, driveFileId)
+      return `https://lh3.googleusercontent.com/d/${driveFileId}`
     }
 
     if (filePath.startsWith('http')) {
@@ -743,7 +743,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
-      <audio ref={audioRef} preload="metadata" crossOrigin="anonymous" />
+      <audio ref={audioRef} preload="metadata" />
       {/* Hidden YouTube Player IFrame container */}
       <div className="hidden pointer-events-none opacity-0 invisible w-0 h-0 overflow-hidden">
         <div id="yt-player-container" />
