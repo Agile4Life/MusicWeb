@@ -162,19 +162,24 @@ export async function POST(request: Request) {
                 <p style="color: #94a3b8; font-size: 13px; margin: 0;">Hệ thống MusicWeb vừa ghi nhận xác thực Passkey hợp lệ</p>
               </div>
 
-              <div style="background-color: #141a24; padding: 18px; border-radius: 12px; border: 1px solid #1e293b; margin-bottom: 20px;">
+              <div style="background-color: #141a24; padding: 20px; border-radius: 12px; border: 1px solid #1e293b; margin-bottom: 20px;">
+                <div style="background-color: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); padding: 12px 16px; border-radius: 10px; margin-bottom: 16px;">
+                  <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; font-weight: bold; margin-bottom: 4px;">Gmail Người Dùng Đăng Ký Passkey:</div>
+                  <div style="font-size: 18px; color: #38bdf8; font-weight: bold; font-family: monospace;">${cleanEmail}</div>
+                </div>
+
                 <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
                   <tr>
-                    <td style="padding: 10px 0; border-bottom: 1px solid #1e293b; color: #94a3b8; font-weight: bold; width: 140px;">Gmail Người Dùng:</td>
-                    <td style="padding: 10px 0; border-bottom: 1px solid #1e293b; color: #38bdf8; font-weight: bold;">${cleanEmail}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 10px 0; border-bottom: 1px solid #1e293b; color: #94a3b8; font-weight: bold;">Mã Passkey đã dùng:</td>
+                    <td style="padding: 10px 0; border-bottom: 1px solid #1e293b; color: #94a3b8; font-weight: bold; width: 170px;">Mã Passkey đã dùng:</td>
                     <td style="padding: 10px 0; border-bottom: 1px solid #1e293b; font-family: monospace; color: #f59e0b; font-weight: bold;">${cleanPasskey}</td>
                   </tr>
                   <tr>
                     <td style="padding: 10px 0; border-bottom: 1px solid #1e293b; color: #94a3b8; font-weight: bold;">Trạng Thái Quyền:</td>
                     <td style="padding: 10px 0; border-bottom: 1px solid #1e293b; color: #10b981; font-weight: bold;">✅ Đã Phê Duyệt / Cấp Quyền Listener</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 0; border-bottom: 1px solid #1e293b; color: #94a3b8; font-weight: bold;">Phương Thức Đăng Nhập:</td>
+                    <td style="padding: 10px 0; border-bottom: 1px solid #1e293b; color: #e2e8f0; font-weight: 600;">Google OAuth (Gmail: ${cleanEmail})</td>
                   </tr>
                   <tr>
                     <td style="padding: 10px 0; color: #94a3b8; font-weight: bold;">Thời Gian Thực Hiện:</td>
@@ -189,6 +194,7 @@ export async function POST(request: Request) {
             </div>
           `,
         })
+
 
         // Secondary email: Confirmation email to user if user email is different from admin email
         const mailPromises: Promise<any>[] = [adminMailPromise]

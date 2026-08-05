@@ -105,24 +105,25 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
           <div className="flex flex-col gap-2">
             <h1 className="text-xl font-extrabold text-white">Chưa Được Cấp Quyền Truy Cập</h1>
-            <p className="text-xs font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 p-3 rounded-2xl">
-              ⚠️ Vui lòng liên hệ Admin để được cấp quyền!
+            <p className="text-xs font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 p-3 rounded-2xl leading-relaxed">
+              ⚠️ Tài khoản Gmail này chưa được xác thực mã Passkey. Vui lòng bấm Đăng xuất và đăng ký qua ô Passkey trước khi đăng nhập bằng Google!
             </p>
           </div>
 
           {userEmail && (
-            <p className="text-[11px] text-slate-400 font-mono bg-black/40 px-3 py-1.5 rounded-xl border border-white/5">
-              Email: <span className="text-white font-bold">{userEmail}</span>
+            <p className="text-[11px] text-slate-400 font-mono bg-black/40 px-3.5 py-2 rounded-xl border border-white/10">
+              Gmail hiện tại: <span className="text-cyan-300 font-bold">{userEmail}</span>
             </p>
           )}
 
           <button
             onClick={handleSignOut}
-            className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-3 rounded-full transition-all flex items-center justify-center gap-2 text-xs border border-white/10 mt-2"
+            className="w-full bg-[var(--primary-spotify)] hover:opacity-90 text-black font-extrabold py-3 rounded-full transition-all flex items-center justify-center gap-2 text-xs shadow-lg mt-2"
           >
-            <LogOut className="w-4 h-4" />
-            <span>Đăng xuất & Thử tài khoản khác</span>
+            <LogOut className="w-4 h-4 text-black" />
+            <span>Đăng xuất để Đăng Ký Passkey</span>
           </button>
+
         </div>
       </div>
     )
