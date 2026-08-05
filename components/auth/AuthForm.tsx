@@ -263,7 +263,7 @@ export function AuthForm({ mode }: AuthFormProps) {
       <div
         className="pointer-events-none fixed inset-0 z-0 transition-opacity duration-300"
         style={{
-          background: `radial-gradient(120px circle at ${cursorPos.x}px ${cursorPos.y}px, var(--theme-gradient-1, rgba(29, 185, 84, 0.20)), var(--theme-gradient-2, rgba(6, 182, 212, 0.08)) 40%, transparent 80%)`,
+          background: `radial-gradient(110px circle at ${cursorPos.x}px ${cursorPos.y}px, rgba(34, 197, 94, 0.07), transparent 75%)`,
         }}
       />
 
@@ -279,9 +279,10 @@ export function AuthForm({ mode }: AuthFormProps) {
         <div
           className="pointer-events-none absolute inset-0 z-0 transition-opacity duration-300"
           style={{
-            background: `radial-gradient(100px circle at ${cardCursorPos.x}px ${cardCursorPos.y}px, var(--theme-gradient-1, rgba(30, 215, 96, 0.25)), transparent 75%)`,
+            background: `radial-gradient(100px circle at ${cardCursorPos.x}px ${cardCursorPos.y}px, rgba(34, 197, 94, 0.09), transparent 75%)`,
           }}
         />
+
 
 
         <div className="flex flex-col items-center gap-3 mb-8 text-center relative z-10">

@@ -32,11 +32,12 @@ export function CursorSpotlight() {
 
   return (
     <div
-      className="pointer-events-none fixed inset-0 z-30 transition-opacity duration-300"
+      className="pointer-events-none fixed inset-0 z-30 transition-opacity duration-500"
       style={{
         opacity,
-        background: `radial-gradient(120px circle at ${pos.x}px ${pos.y}px, var(--theme-gradient-1, rgba(29, 185, 84, 0.18)), var(--theme-gradient-2, rgba(6, 182, 212, 0.06)) 40%, transparent 80%)`,
+        background: `radial-gradient(110px circle at ${pos.x}px ${pos.y}px, rgba(34, 197, 94, 0.07), transparent 75%)`,
       }}
     />
   )
 }
+
