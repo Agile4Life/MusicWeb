@@ -5,6 +5,7 @@ import { Sidebar } from '@/components/sidebar/Sidebar'
 import { PlayerBar } from '@/components/player/PlayerBar'
 import { AuthGuard } from '@/components/auth/AuthGuard'
 import { MobileHeaderNav } from '@/components/navigation/MobileHeaderNav'
+import { TopBar } from '@/components/navigation/TopBar'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -20,6 +21,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
             {/* Main Content Area */}
             <main className="flex-1 bg-[#12141d]/80 backdrop-blur-xl rounded-2xl my-1 md:my-2 mx-1 md:mx-0 md:mr-2 border border-white/5 overflow-y-auto flex flex-col relative pb-32 md:pb-0">
+              <TopBar />
               {children}
             </main>
           </div>

@@ -9,7 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 interface TrackListProps {
   tracks: Track[]
   userPlaylists?: Playlist[]
-  onAddToPlaylist?: (playlistId: string, trackId: string) => void
+  onAddToPlaylist?: (playlistId: string, track: Track) => void
   onDeleteTrack?: (trackId: string) => void
   onDeleteTrackPermanently?: (trackId: string) => void
   onTrackUpdated?: (trackId: string, updates: Partial<Track>) => void

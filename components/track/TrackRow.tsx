@@ -13,7 +13,7 @@ interface TrackRowProps {
   index: number
   playlistTracks?: Track[]
   userPlaylists?: Playlist[]
-  onAddToPlaylist?: (playlistId: string, trackId: string) => void
+  onAddToPlaylist?: (playlistId: string, track: Track) => void
   onDeleteTrack?: (trackId: string) => void
   onDeleteTrackPermanently?: (trackId: string) => void
   onTrackUpdated?: (trackId: string, updates: Partial<Track>) => void
@@ -188,6 +188,11 @@ function TrackRowComponent({
                 Audius 320k
               </span>
             )}
+            {track.source === 'itunes' && (
+              <span className="text-[9px] font-bold uppercase tracking-wider bg-pink-500/20 text-pink-300 border border-pink-500/30 px-1.5 py-0.2 rounded shrink-0">
+                iTunes Global
+              </span>
+            )}
           </div>
 
           {/* Artist — editable inline */}
@@ -292,7 +297,7 @@ function TrackRowComponent({
                     key={pl.id}
                     onClick={(e) => {
                       e.stopPropagation()
-                      onAddToPlaylist?.(pl.id, track.id)
+                      onAddToPlaylist?.(pl.id, track)
                       setShowMenu(false)
                     }}
                     className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 truncate transition-colors"

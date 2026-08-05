@@ -24,15 +24,23 @@ import {
 import { useSession } from 'next-auth/react'
 import { getValidUserId } from '@/lib/accessControl'
 
+import { useSearchParams } from 'next/navigation'
+
 export default function HomePage() {
   const supabase = createClient()
   const { playTrack } = usePlayer()
   const { data: nextAuthSession } = useSession()
+  const searchParams = useSearchParams()
 
   const [tracks, setTracks] = useState<Track[]>([])
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchSource, setSearchSource] = useState<'all' | 'youtube' | 'audius' | 'local'>('all')
+  const [searchSource, setSearchSource] = useState<'all' | 'youtube' | 'audius' | 'itunes' | 'local'>('all')
+
+  useEffect(() => {
+    const urlQuery = searchParams.get('q') || ''
+    setSearchQuery(urlQuery)
+  }, [searchParams])
   const [loading, setLoading] = useState(true)
   const [supabaseUser, setSupabaseUser] = useState<any>(null)
   const [cleaningDuplicates, setCleaningDuplicates] = useState(false)
@@ -46,7 +54,8 @@ export default function HomePage() {
     local: Track[]
     youtube: Track[]
     audius: Track[]
-  }>({ local: [], youtube: [], audius: [] })
+    itunes: Track[]
+  }>({ local: [], youtube: [], audius: [], itunes: [] })
   const [searchingGlobal, setSearchingGlobal] = useState(false)
 
   const user =
@@ -109,7 +118,7 @@ export default function HomePage() {
     }
   }
 
-  // Fetch Global Trending Music automatically on mount
+  // Fetch Global Trending Music (YouTube, Audius, iTunes) automatically on mount
   useEffect(() => {
     fetchData()
 
@@ -121,10 +130,13 @@ export default function HomePage() {
         if (!active) return
         const yt = data.youtube || []
         const audius = data.audius || []
-        // Interleave YouTube & Audius trending tracks
+        const itunes = data.itunes || []
+
+        // Interleave YouTube, Audius & iTunes trending tracks
         const combined: Track[] = []
-        const maxLen = Math.max(yt.length, audius.length)
+        const maxLen = Math.max(yt.length, audius.length, itunes.length)
         for (let i = 0; i < maxLen; i++) {
+          if (itunes[i]) combined.push(itunes[i])
           if (audius[i]) combined.push(audius[i])
           if (yt[i]) combined.push(yt[i])
         }
@@ -156,10 +168,10 @@ export default function HomePage() {
     }
   }, [])
 
-  // Fast Debounced Global Search (200ms for near-instant typing experience)
+  // Fast Debounced Global Search (200ms)
   useEffect(() => {
     if (!searchQuery.trim()) {
-      setGlobalTracks({ local: [], youtube: [], audius: [] })
+      setGlobalTracks({ local: [], youtube: [], audius: [], itunes: [] })
       setSearchingGlobal(false)
       return
     }
@@ -174,6 +186,7 @@ export default function HomePage() {
             local: data.local || [],
             youtube: data.youtube || [],
             audius: data.audius || [],
+            itunes: data.itunes || [],
           })
         }
       } catch (err) {
@@ -186,11 +199,57 @@ export default function HomePage() {
     return () => clearTimeout(timer)
   }, [searchQuery])
 
-  const handleAddToPlaylist = async (playlistId: string, trackId: string) => {
+  const handleAddToPlaylist = async (playlistId: string, track: Track) => {
+    let targetTrackId = track.id
+
+    // If track is from an external global source (YouTube, Audius, iTunes),
+    // save it to DB tracks table first so it gets a valid UUID for playlist relationship
+    if (track.source && track.source !== 'local') {
+      const activeUser = user ? { id: user.id, email: user.email } : null
+      const userId = activeUser ? getValidUserId(activeUser) : null
+      if (!userId) {
+        alert('Vui lòng đăng nhập để thêm bài hát vào playlist!')
+        return
+      }
+
+      // Check if track already exists in tracks table by file_path
+      const { data: existing } = await supabase
+        .from('tracks')
+        .select('id')
+        .eq('file_path', track.file_path)
+        .maybeSingle()
+
+      if (existing && existing.id) {
+        targetTrackId = existing.id
+      } else {
+        const { data: inserted, error: insertError } = await supabase
+          .from('tracks')
+          .insert({
+            user_id: userId,
+            title: track.title,
+            artist: track.artist || null,
+            album: track.album || null,
+            duration: track.duration || 0,
+            file_path: track.file_path,
+            cover_url: track.cover_url || null,
+            created_at: new Date().toISOString(),
+          })
+          .select('id')
+          .single()
+
+        if (insertError || !inserted) {
+          alert('Lỗi lưu bài hát vào CSDL: ' + (insertError?.message || ''))
+          return
+        }
+        targetTrackId = inserted.id
+      }
+    }
+
+    // Try calling RPC fn_add_track_to_playlist first
     const { error: rpcError } = await Promise.resolve(
       supabase.rpc('fn_add_track_to_playlist', {
         p_playlist_id: playlistId,
-        p_track_id: trackId,
+        p_track_id: targetTrackId,
       })
     )
 
@@ -199,9 +258,10 @@ export default function HomePage() {
       return
     }
 
+    // Direct insert fallback into playlist_tracks
     const { error } = await supabase.from('playlist_tracks').insert({
       playlist_id: playlistId,
-      track_id: trackId,
+      track_id: targetTrackId,
     })
 
     if (!error) {
@@ -318,10 +378,13 @@ export default function HomePage() {
   if (isSearching) {
     if (searchSource === 'all') {
       displayedTracks = [
-        ...globalTracks.local,
+        ...globalTracks.itunes,
         ...globalTracks.youtube,
         ...globalTracks.audius,
+        ...globalTracks.local,
       ]
+    } else if (searchSource === 'itunes') {
+      displayedTracks = globalTracks.itunes
     } else if (searchSource === 'youtube') {
       displayedTracks = globalTracks.youtube
     } else if (searchSource === 'audius') {
@@ -357,7 +420,7 @@ export default function HomePage() {
             </h1>
 
             <p className="text-xs md:text-sm text-slate-300">
-              Khám phá và nghe nhạc trực tuyến từ <strong>YouTube Music</strong>, <strong>Audius Global</strong> và <strong>Thư viện cá nhân</strong> của bạn.
+              Khám phá và nghe nhạc trực tuyến từ <strong>iTunes Music</strong>, <strong>YouTube Music</strong>, <strong>Audius Global</strong> và <strong>Thư viện cá nhân</strong>.
             </p>
           </div>
 
@@ -383,13 +446,13 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Global Trending Music Showcase Section (Shown automatically by default!) */}
+      {/* Global Trending Music Showcase Section */}
       {!isSearching && (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-cyan-400" />
-              🔥 Nhạc Hot Quốc Tế & Trending (Audius & YouTube)
+              🔥 Nhạc Hot Quốc Tế & Trending (iTunes, Audius & YouTube)
             </h2>
             {loadingTrending && <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />}
           </div>
@@ -419,8 +482,13 @@ export default function HomePage() {
                       <Music className="w-8 h-8 text-slate-500" />
                     )}
 
-                    {/* Source Badge */}
+                    {/* Source Badges */}
                     <div className="absolute top-2 right-2 z-10">
+                      {t.source === 'itunes' && (
+                        <span className="text-[8px] font-black uppercase tracking-wider bg-pink-600/90 text-white px-1.5 py-0.5 rounded shadow">
+                          iTunes
+                        </span>
+                      )}
                       {t.source === 'youtube' && (
                         <span className="text-[8px] font-black uppercase tracking-wider bg-red-600/90 text-white px-1.5 py-0.5 rounded shadow">
                           YouTube
@@ -500,7 +568,7 @@ export default function HomePage() {
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
               <input
                 type="text"
-                placeholder="Tìm nhạc toàn thế giới (YouTube, Audius, Thư viện)..."
+                placeholder="Tìm nhạc toàn thế giới (iTunes, YouTube, Audius, Thư viện)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full glass-input text-white text-xs rounded-full pl-10 pr-4 py-2.5 outline-none font-medium placeholder:text-slate-500"
@@ -520,7 +588,18 @@ export default function HomePage() {
                   : 'bg-white/5 text-slate-400 hover:text-white border border-white/10'
               }`}
             >
-              🌐 Tất cả ({globalTracks.local.length + globalTracks.youtube.length + globalTracks.audius.length})
+              🌐 Tất cả ({globalTracks.local.length + globalTracks.itunes.length + globalTracks.youtube.length + globalTracks.audius.length})
+            </button>
+
+            <button
+              onClick={() => setSearchSource('itunes')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+                searchSource === 'itunes'
+                  ? 'bg-pink-600 text-white shadow-md'
+                  : 'bg-pink-500/10 text-pink-300 hover:bg-pink-500/20 border border-pink-500/20'
+              }`}
+            >
+              🎵 iTunes Global ({globalTracks.itunes.length})
             </button>
 
             <button

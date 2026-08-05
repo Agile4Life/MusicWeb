@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { searchAudiusTracks, getTrendingAudiusTracks } from '@/lib/audius'
 import { searchYouTubeTracks, getTrendingYouTubeTracks } from '@/lib/youtube'
+import { searchITunesTracks, getTrendingITunesTracks } from '@/lib/itunes'
 import { Track } from '@/types'
 
 // In-memory LRU search cache (TTL 3 minutes = 180,000 ms)
@@ -23,25 +24,27 @@ export async function GET(request: Request) {
         return NextResponse.json(cached.data)
       }
 
-      const [ytTrending, audiusTrending] = await Promise.all([
+      const [ytTrending, audiusTrending, itunesTrending] = await Promise.all([
         getTrendingYouTubeTracks(8).catch(() => []),
         getTrendingAudiusTracks(8).catch(() => []),
+        getTrendingITunesTracks(8).catch(() => []),
       ])
 
       const responseData = {
         youtube: ytTrending,
         audius: audiusTrending,
+        itunes: itunesTrending,
       }
 
       searchCache.set(cacheKey, { data: responseData, timestamp: Date.now() })
       return NextResponse.json(responseData)
     } catch (err: any) {
-      return NextResponse.json({ youtube: [], audius: [] })
+      return NextResponse.json({ youtube: [], audius: [], itunes: [] })
     }
   }
 
   if (!q.trim()) {
-    return NextResponse.json({ local: [], youtube: [], audius: [] })
+    return NextResponse.json({ local: [], youtube: [], audius: [], itunes: [] })
   }
 
   const query = q.trim().toLowerCase()
@@ -91,15 +94,22 @@ export async function GET(request: Request) {
       promises.push(Promise.resolve([]))
     }
 
-    const [localTracks, youtubeTracks, audiusTracks] = await Promise.all(promises)
+    // 4. Search iTunes Global tracks (100% Guaranteed on Cloudflare Workers & Vercel)
+    if (source === 'all' || source === 'itunes') {
+      promises.push(searchITunesTracks(q.trim(), 10).catch(() => []))
+    } else {
+      promises.push(Promise.resolve([]))
+    }
+
+    const [localTracks, youtubeTracks, audiusTracks, itunesTracks] = await Promise.all(promises)
 
     const responseData = {
       local: localTracks,
       youtube: youtubeTracks,
       audius: audiusTracks,
+      itunes: itunesTracks,
     }
 
-    // Cache the search result
     if (searchCache.size > 200) {
       const oldestKey = searchCache.keys().next().value
       if (oldestKey) searchCache.delete(oldestKey)
