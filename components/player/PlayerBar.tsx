@@ -382,27 +382,10 @@ export function PlayerBar() {
         </div>
       </footer>
 
-      {/* 🎤 FULLSCREEN / MODAL LYRICS OVERLAY */}
+      {/* 🎤 FULLSCREEN / MODAL LYRICS OVERLAY FOR MOBILE (ANDROID/IOS) & DESKTOP */}
       {showLyricsModal && (
-        <div className="fixed inset-0 z-50 bg-[#07080c]/98 backdrop-blur-2xl flex flex-col p-4 md:p-8 animate-in fade-in duration-200">
-          <div className="flex items-center justify-between pb-2 border-b border-white/10 z-20">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <Mic2 className="w-4 h-4 text-[var(--primary-spotify)]" />
-              <span>Lời bài hát Studio</span>
-            </span>
-
-            <button
-              onClick={() => setShowLyricsModal(false)}
-              className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-colors"
-              title="Đóng lời bài hát"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="flex-1 min-h-0 relative mt-2">
-            <LyricsView onClose={() => setShowLyricsModal(false)} isModal={true} />
-          </div>
+        <div className="fixed inset-0 z-50 bg-[#07080c] flex flex-col animate-in fade-in duration-200">
+          <LyricsView onClose={() => setShowLyricsModal(false)} isModal={true} />
         </div>
       )}
     </>
