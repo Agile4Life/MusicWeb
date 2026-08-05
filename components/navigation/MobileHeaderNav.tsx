@@ -19,6 +19,7 @@ import {
   Menu,
   X,
   Trash2,
+  Mic2,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
@@ -146,16 +147,26 @@ export function MobileHeaderNav() {
     <>
       {/* 📱 TOP MOBILE HEADER */}
       <header className="md:hidden sticky top-0 z-40 bg-[#090a0f]/95 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between select-none">
-        <Link href="/" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[var(--primary-spotify)] to-cyan-400 p-0.5 shadow-md shadow-emerald-500/20">
-            <div className="w-full h-full bg-[#0d0e15] rounded-[6px] flex items-center justify-center">
-              <Disc className="w-4 h-4 text-[var(--primary-spotify)] animate-spin-slow" />
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsDrawerOpen(true)}
+            className="p-2 text-slate-300 active:text-white bg-white/5 active:bg-white/15 rounded-xl transition-colors"
+            aria-label="Mở menu navigation"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
+          <Link href="/" className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[var(--primary-spotify)] to-cyan-400 p-0.5 shadow-md shadow-emerald-500/20">
+              <div className="w-full h-full bg-[#0d0e15] rounded-[6px] flex items-center justify-center">
+                <Disc className="w-4 h-4 text-[var(--primary-spotify)] animate-spin-slow" />
+              </div>
             </div>
-          </div>
-          <span className="font-extrabold text-base tracking-tight text-white flex items-center gap-1">
-            Music<span className="text-[var(--primary-spotify)]">Web</span>
-          </span>
-        </Link>
+            <span className="font-extrabold text-base tracking-tight text-white flex items-center gap-1">
+              Music<span className="text-[var(--primary-spotify)]">Web</span>
+            </span>
+          </Link>
+        </div>
 
         <div className="flex items-center gap-2">
           {user && (
@@ -163,14 +174,6 @@ export function MobileHeaderNav() {
               {isAdmin(user?.email) ? '⚡ Admin' : '🎧 Listener'}
             </div>
           )}
-
-          <button
-            onClick={() => setIsDrawerOpen(true)}
-            className="p-2 text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-colors"
-            aria-label="Mở menu"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
         </div>
       </header>
 
@@ -232,6 +235,16 @@ export function MobileHeaderNav() {
               >
                 <History className="w-4 h-4" />
                 <span>Lịch sử nghe</span>
+              </Link>
+
+              <Link
+                href="/lyrics"
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold ${
+                  pathname === '/lyrics' ? 'bg-[var(--primary-spotify)] text-black font-extrabold' : 'text-slate-300 hover:bg-white/5'
+                }`}
+              >
+                <Mic2 className="w-4 h-4" />
+                <span>Lời bài hát (Lyrics)</span>
               </Link>
 
               {isAdmin(user?.email) && (
