@@ -74,16 +74,24 @@ export const authOptions: NextAuthOptions = {
 
         try {
           const cookieStore = await cookies()
-          const cookieVal = cookieStore.get('approved_emails')?.value
-          if (cookieVal) {
-            const cookieList = JSON.parse(cookieVal)
-            if (Array.isArray(cookieList)) {
-              cookieList.forEach((e: string) => allowedList.push(String(e).trim().toLowerCase()))
+          const rawVal = cookieStore.get('approved_emails')?.value || cookieStore.get('musicweb_approved_emails')?.value
+          if (rawVal) {
+            const decoded = decodeURIComponent(rawVal)
+            try {
+              const parsed = JSON.parse(decoded)
+              if (Array.isArray(parsed)) {
+                parsed.forEach((e: string) => allowedList.push(String(e).trim().toLowerCase()))
+              } else if (typeof parsed === 'string') {
+                allowedList.push(parsed.trim().toLowerCase())
+              }
+            } catch {
+              allowedList.push(decoded.trim().toLowerCase())
             }
           }
         } catch (cookieErr) {
           console.warn('Could not read approved_emails cookie in NextAuth signIn callback:', cookieErr)
         }
+
 
         const isAllowed = allowedList.includes(cleanEmail)
 

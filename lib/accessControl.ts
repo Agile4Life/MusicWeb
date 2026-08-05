@@ -84,10 +84,13 @@ export function markEmailAsAllowed(email: string) {
       list.push(normalized)
       localStorage.setItem('musicweb_approved_emails', JSON.stringify(list))
     }
+    // Set cookie for server-side NextAuth OAuth verification
+    document.cookie = `approved_emails=${encodeURIComponent(JSON.stringify(list))}; path=/; max-age=31536000; SameSite=Lax`
   } catch {
     // ignore storage error
   }
 }
+
 
 
 /** Converts any user object or email into a valid Postgres UUID format */
