@@ -944,6 +944,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (currentTrackRef.current?.source !== 'youtube') {
         const loadedDuration = audio.duration || 0
         setDuration(loadedDuration)
+
+        // Automatically skip short sound snippets / meme clips under 15 seconds
+        if (loadedDuration > 0 && loadedDuration < 15) {
+          console.warn('Track audio duration too short (< 15s), skipping automatically:', currentTrackRef.current?.title)
+          nextTrackRef.current()
+          return
+        }
+
         if (currentTrackRef.current && loadedDuration > 0 && (!currentTrackRef.current.duration || currentTrackRef.current.duration === 0)) {
           const trackId = currentTrackRef.current.id
           currentTrackRef.current.duration = Math.round(loadedDuration)

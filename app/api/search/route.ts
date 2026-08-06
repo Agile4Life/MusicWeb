@@ -134,12 +134,14 @@ export async function GET(request: Request) {
       return match?.youtube_id ? { ...iTrack, youtube_id: match.youtube_id } : iTrack
     })
 
+    const minDurationFilter = (t: Track) => !t.duration || t.duration >= 25
+
     const responseData = {
       local: localTracks,
-      youtube: youtubeTracks,
-      audius: audiusTracks,
-      itunes: enhancedITunes,
-      spotify: enhancedSpotify,
+      youtube: youtubeTracks.filter(minDurationFilter),
+      audius: audiusTracks.filter(minDurationFilter),
+      itunes: enhancedITunes.filter(minDurationFilter),
+      spotify: enhancedSpotify.filter(minDurationFilter),
     }
 
     if (searchCache.size > 200) {

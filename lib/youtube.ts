@@ -85,6 +85,11 @@ async function searchYouTubeInnerTube(query: string, limit = 15): Promise<Track[
           else if (parts.length === 3) durationSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2]
         }
 
+        // Skip YouTube Shorts, sound effects, intro clips & memes shorter than 30 seconds
+        if (durationSeconds > 0 && durationSeconds < 30) {
+          continue
+        }
+
         tracks.push({
           id: `yt-${videoId}`,
           user_id: 'youtube-global',
@@ -168,6 +173,11 @@ async function scrapeYouTubeSearch(query: string, limit = 15): Promise<Track[]> 
           const parts = durationStr.split(':').map(Number)
           if (parts.length === 2) durationSeconds = parts[0] * 60 + parts[1]
           else if (parts.length === 3) durationSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2]
+        }
+
+        // Skip YouTube Shorts, sound effects, intro clips & memes shorter than 30 seconds
+        if (durationSeconds > 0 && durationSeconds < 30) {
+          continue
         }
 
         tracks.push({
