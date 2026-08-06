@@ -473,6 +473,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const requestId = ++playRequestRef.current
     const track = inferTrackSource(rawTrack)
 
+    // ⚡ 1. PAUSE CURRENT AUDIO IMMEDIATELY (ZERO DELAY ON STOPPING PREVIOUS TRACK)
+    if (audioRef.current) {
+      try { audioRef.current.pause() } catch {}
+    }
+    if (ytPlayerRef.current?.pauseVideo) {
+      try { ytPlayerRef.current.pauseVideo() } catch {}
+    }
+
     let nextQueue = queue
     let nextIndex = currentIndex
 
@@ -492,6 +500,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setCurrentIndex(0)
     }
 
+    // ⚡ 2. UPDATE UI INSTANTLY (< 5ms)
+    setCurrentTrack(track)
+    setIsPlaying(true)
+    setCurrentTime(0)
+    setDuration(track.duration || 0)
+    setPlaybackError(null)
+    savePlayerStateToStorage(track, 0, nextQueue, nextIndex, volume)
+
     // 🎵 Full-Length Stream Resolver for iTunes & Spotify tracks (Resolves DRM/metadata into 100% playable full song)
     let activeTrack = track
     if ((track.source === 'itunes' || track.source === 'spotify') && !track.youtube_id) {
@@ -509,6 +525,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               youtube_id: ytList[0].youtube_id,
               source: 'youtube', // Switch audio engine to YouTube for 100% full-length playback
             }
+            if (requestId === playRequestRef.current) {
+              setCurrentTrack(activeTrack)
+            }
           }
         }
       } catch (e) {
@@ -518,15 +537,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     if (requestId !== playRequestRef.current) return
 
-    setCurrentTrack(activeTrack)
-    setPlaybackError(null)
-    savePlayerStateToStorage(activeTrack, 0, nextQueue, nextIndex, volume)
-
     // Handle YouTube track playback (or resolved Spotify/iTunes track)
     if (activeTrack.source === 'youtube' && activeTrack.youtube_id) {
       if (audioRef.current) audioRef.current.pause()
 
-      const tryLoadYt = (retries = 3) => {
+      const tryLoadYt = (retries = 5) => {
         if (requestId !== playRequestRef.current) return
         if (ytPlayerRef.current && ytPlayerRef.current.loadVideoById) {
           try {
@@ -537,7 +552,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             console.warn('YT loadVideoById error:', e)
           }
         } else if (retries > 0) {
-          setTimeout(() => tryLoadYt(retries - 1), 600)
+          setTimeout(() => tryLoadYt(retries - 1), 100)
         }
       }
       tryLoadYt()
@@ -567,7 +582,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             if (playRequestRef.current === requestId) {
               nextTrackRef.current()
             }
-          }, 2000)
+          }, 1500)
         }
         return
       }
@@ -575,17 +590,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audio.pause()
       audio.src = url
       audio.volume = volume
-      audio.load()
+      audio.currentTime = 0
 
       try {
         await audio.play()
         if (requestId !== playRequestRef.current) return
         setIsPlaying(true)
       } catch (err: any) {
-        setIsPlaying(false)
         if (err?.name === 'AbortError' || String(err).includes('interrupted')) {
           return // Ignore play interruption silently
         }
+        setIsPlaying(false)
         const message = err instanceof Error ? err.message : String(err)
         console.warn('Audio playback info:', { trackId: track.id, message })
         return
