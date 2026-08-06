@@ -194,8 +194,22 @@ export async function searchYouTubeTracks(query: string, limit = 15): Promise<Tr
 }
 
 /**
- * Fetch Trending / Top YouTube songs for initial display
+ * Fetch Trending / Top YouTube songs for initial display (Filtered for single official songs)
  */
 export async function getTrendingYouTubeTracks(limit = 12): Promise<Track[]> {
-  return searchYouTubeTracks('Top Nhạc Trẻ Vpop USUK Hot 2026', limit)
+  const tracks = await searchYouTubeTracks('Official Music Video Vpop USUK Trending 2026', limit * 2)
+  // Filter out long compilation / playlist videos
+  const filtered = tracks.filter((t) => {
+    const titleLower = t.title.toLowerCase()
+    return (
+      !titleLower.includes('top 100') &&
+      !titleLower.includes('top 150') &&
+      !titleLower.includes('top 50') &&
+      !titleLower.includes('bảng xếp hạng') &&
+      !titleLower.includes('full album') &&
+      !titleLower.includes('tổng hợp') &&
+      !titleLower.includes('danh sách')
+    )
+  })
+  return filtered.length > 0 ? filtered.slice(0, limit) : tracks.slice(0, limit)
 }

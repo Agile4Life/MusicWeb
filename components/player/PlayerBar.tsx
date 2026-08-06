@@ -367,20 +367,6 @@ export function PlayerBar() {
               {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
             </p>
           </div>
-
-          <button
-            onClick={toggleFavoriteCurrentTrack}
-            className="p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-rose-400 transition-colors shrink-0 ml-1"
-            title={currentTrack.is_favorite ? 'Bỏ khỏi yêu thích' : 'Thêm vào bài hát yêu thích'}
-          >
-            <Heart
-              className={`w-4.5 h-4.5 transition-all ${
-                currentTrack.is_favorite
-                  ? 'text-rose-500 fill-current drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]'
-                  : 'text-slate-400 hover:text-rose-400'
-              }`}
-            />
-          </button>
         </div>
 
         {/* Center: Playback Controls & Seekbar */}
