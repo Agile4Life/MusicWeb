@@ -1,4 +1,25 @@
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Permanent+Marker&family=Rock+Salt&family=Sedgwick+Ave&display=swap');
 @import "tailwindcss";
+
+.font-graffiti {
+  font-family: 'Permanent Marker', cursive, sans-serif;
+}
+
+.font-signature {
+  font-family: 'Rock Salt', 'Caveat', cursive;
+}
+
+.font-tag {
+  font-family: 'Sedgwick Ave', cursive;
+}
+
+.graffiti-text-gradient {
+  background: linear-gradient(135deg, #ffffff 0%, #22d3ee 40%, #ec4899 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 8px rgba(236, 72, 153, 0.35));
+}
+
 
 :root {
   --font-sans: var(--font-geist-sans), system-ui, -apple-system, sans-serif;

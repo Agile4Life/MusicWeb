@@ -146,12 +146,17 @@ export function MobileHeaderNav() {
       {/* 📱 Mobile Top Header Bar (< 768px) */}
       <div className="md:hidden h-14 bg-[#090b10] border-b border-white/[0.05] px-4 flex items-center justify-between select-none z-30 shrink-0">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/20 flex items-center justify-center text-[var(--primary-spotify,#06b6d4)]">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-pink-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
             <Headphones className="w-4 h-4" />
           </div>
-          <span className="font-extrabold text-sm tracking-tight text-white">
-            Music<span className="text-[var(--primary-spotify,#06b6d4)]">Web</span>
-          </span>
+          <div className="flex flex-col justify-center leading-none">
+            <span className="font-graffiti text-base tracking-wider graffiti-text-gradient">
+              Phong
+            </span>
+            <span className="text-[9px] font-bold tracking-widest text-slate-400 uppercase -mt-0.5">
+              Music<span className="text-cyan-400">Web</span>
+            </span>
+          </div>
         </Link>
 
         <div className="flex items-center gap-2">

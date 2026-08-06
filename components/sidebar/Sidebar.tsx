@@ -176,12 +176,17 @@ export function Sidebar() {
             onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
             className="flex items-center gap-3 group"
           >
-            <div className="w-9 h-9 rounded-xl bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/20 flex items-center justify-center text-[var(--primary-spotify,#06b6d4)] group-hover:scale-105 transition-transform">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500/20 via-pink-500/10 to-purple-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 group-hover:scale-105 transition-all shadow-[0_0_12px_rgba(6,182,212,0.15)]">
               <Headphones className="w-5 h-5" />
             </div>
-            <span className="font-extrabold text-base tracking-tight text-white">
-              Music<span className="text-[var(--primary-spotify,#06b6d4)]">Web</span>
-            </span>
+            <div className="flex flex-col justify-center leading-none">
+              <span className="font-graffiti text-xl tracking-wider graffiti-text-gradient group-hover:brightness-110 transition-all">
+                Phong
+              </span>
+              <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase -mt-0.5">
+                Music<span className="text-cyan-400">Web</span>
+              </span>
+            </div>
           </Link>
         </div>
 
