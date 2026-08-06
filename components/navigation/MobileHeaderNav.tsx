@@ -335,8 +335,18 @@ export function MobileHeaderNav() {
             <div className="border-t border-white/[0.05] pt-4">
               {user ? (
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 truncate">
-                    <UserCheck className="w-4 h-4 text-cyan-400 shrink-0" />
+                  <div className="flex items-center gap-2.5 truncate">
+                    <div className="w-7 h-7 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-[var(--spotify-glow,#22d3ee)] shrink-0 font-bold text-xs overflow-hidden">
+                      {user.user_metadata?.avatar_url ? (
+                        <img
+                          src={user.user_metadata.avatar_url}
+                          alt={user.email}
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      ) : (
+                        <UserCheck className="w-3.5 h-3.5" />
+                      )}
+                    </div>
                     <span className="text-xs font-bold text-white truncate">
                       {user.user_metadata?.full_name || user.email?.split('@')[0]}
                     </span>

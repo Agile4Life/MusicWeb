@@ -344,7 +344,7 @@ export function PlayerBar() {
 
           <div className="truncate flex flex-col flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <p className="text-xs md:text-sm font-bold text-white truncate hover:text-cyan-300 transition-colors cursor-pointer">
+              <p className="text-xs md:text-sm font-bold text-white truncate hover:text-[var(--spotify-glow)] transition-colors cursor-pointer">
                 {currentTrack.title}
               </p>
               {isPlaying && (
@@ -395,16 +395,26 @@ export function PlayerBar() {
           <div className="flex items-center gap-4">
             <button
               onClick={toggleShuffle}
-              className={`p-1.5 rounded-lg relative transition-all ${
+              style={
                 isShuffle
-                  ? 'text-[var(--primary-spotify,#06b6d4)] bg-[var(--primary-spotify,#06b6d4)]/15 border border-[var(--primary-spotify,#06b6d4)]/30'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  ? {
+                      color: 'var(--spotify-glow, #22d3ee)',
+                      backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                      borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                    }
+                  : undefined
+              }
+              className={`p-1.5 rounded-lg relative transition-all ${
+                isShuffle ? 'border shadow-md' : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
               title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
             >
               <Shuffle className="w-4 h-4" />
               {isShuffle && (
-                <span className="w-1 h-1 bg-[var(--primary-spotify,#06b6d4)] rounded-full absolute -bottom-0.5 left-1/2 -translate-x-1/2" />
+                <span
+                  style={{ backgroundColor: 'var(--spotify-glow, #22d3ee)' }}
+                  className="w-1 h-1 rounded-full absolute -bottom-0.5 left-1/2 -translate-x-1/2"
+                />
               )}
             </button>
 
@@ -418,7 +428,11 @@ export function PlayerBar() {
 
             <button
               onClick={togglePlay}
-              className="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-400 via-teal-300 to-cyan-400 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center text-black shadow-md shadow-cyan-500/25 border border-cyan-200/30"
+              style={{
+                background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+              }}
+              className="w-10 h-10 rounded-full hover:brightness-110 active:scale-95 transition-all flex items-center justify-center text-black font-bold shrink-0 border border-white/20"
               title={isPlaying ? 'Tạm dừng' : 'Phát'}
             >
               {isPlaying ? (
@@ -438,10 +452,17 @@ export function PlayerBar() {
 
             <button
               onClick={toggleRepeat}
-              className={`p-1.5 rounded-lg relative transition-all ${
+              style={
                 repeatMode !== 'off'
-                  ? 'text-cyan-400 bg-cyan-500/15 border border-cyan-500/30'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  ? {
+                      color: 'var(--spotify-glow, #22d3ee)',
+                      backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                      borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                    }
+                  : undefined
+              }
+              className={`p-1.5 rounded-lg relative transition-all ${
+                repeatMode !== 'off' ? 'border shadow-md' : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
               title={
                 repeatMode === 'one'
@@ -453,7 +474,10 @@ export function PlayerBar() {
             >
               {repeatMode === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
               {repeatMode !== 'off' && (
-                <span className="w-1 h-1 bg-cyan-400 rounded-full absolute -bottom-0.5 left-1/2 -translate-x-1/2" />
+                <span
+                  style={{ backgroundColor: 'var(--spotify-glow, #22d3ee)' }}
+                  className="w-1 h-1 rounded-full absolute -bottom-0.5 left-1/2 -translate-x-1/2"
+                />
               )}
             </button>
           </div>

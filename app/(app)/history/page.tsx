@@ -194,7 +194,14 @@ export default function HistoryPage() {
       {/* Header Banner */}
       <div className="relative overflow-hidden rounded-2xl border border-white/[0.06] p-6 md:p-8 bg-[#0d1017] flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
+          <div
+            style={{
+              backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+              borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+              color: 'var(--spotify-glow, #22d3ee)',
+            }}
+            className="w-14 h-14 rounded-2xl border flex items-center justify-center shrink-0 shadow-md"
+          >
             <History className="w-7 h-7" />
           </div>
 
@@ -212,9 +219,13 @@ export default function HistoryPage() {
             <>
               <button
                 onClick={handlePlayAllHistory}
-                className="bg-[var(--primary-spotify,#06b6d4)] text-black font-bold px-5 py-2.5 rounded-full flex items-center gap-2 text-xs transition-colors hover:bg-cyan-300"
+                style={{
+                  background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                  boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                }}
+                className="text-black font-bold px-5 py-2.5 rounded-full flex items-center gap-2 text-xs transition-all hover:brightness-110 active:scale-95 border border-white/20"
               >
-                <Play className="w-4 h-4 fill-current" />
+                <Play className="w-4 h-4 fill-current text-black" />
                 <span>Phát tất cả</span>
               </button>
 
@@ -299,8 +310,9 @@ export default function HistoryPage() {
                     <div className="flex flex-col truncate flex-1">
                       <p
                         onClick={() => playTrack(track, filteredItems.map((i) => i.track))}
+                        style={isCurrentPlaying ? { color: 'var(--spotify-glow, #22d3ee)' } : undefined}
                         className={`text-sm font-bold truncate cursor-pointer hover:underline ${
-                          isCurrentPlaying ? 'text-cyan-400' : 'text-white'
+                          isCurrentPlaying ? '' : 'text-white'
                         }`}
                       >
                         {track.title}
@@ -314,7 +326,7 @@ export default function HistoryPage() {
                   {/* Time Ago Badge & Delete Action */}
                   <div className="flex items-center gap-4 shrink-0">
                     <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-mono bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
-                      <Clock className="w-3 h-3 text-cyan-400" />
+                      <Clock style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3 h-3" />
                       <span>{formatRelativeTime(item.played_at)}</span>
                     </div>
 
@@ -333,7 +345,15 @@ export default function HistoryPage() {
         </div>
       ) : (
         <div className="glass-panel p-12 rounded-3xl text-center border border-white/10 flex flex-col items-center gap-4 my-8">
-          <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 border border-cyan-500/20 shadow-lg shadow-cyan-500/10">
+          <div
+            style={{
+              backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+              borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+              color: 'var(--spotify-glow, #22d3ee)',
+              boxShadow: '0 10px 25px var(--theme-glow-shadow, rgba(6,182,212,0.15))',
+            }}
+            className="w-16 h-16 rounded-2xl flex items-center justify-center border"
+          >
             <History className="w-8 h-8" />
           </div>
           <div>

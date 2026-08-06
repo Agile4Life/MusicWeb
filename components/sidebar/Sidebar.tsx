@@ -192,10 +192,10 @@ export function Sidebar() {
           <Link
             href="/"
             onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
-            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
+            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors duration-150 ${
               pathname === '/'
-                ? 'bg-white/10 text-white font-bold'
-                : 'text-slate-400 hover:text-white hover:bg-white/[0.06] hover:translate-x-1'
+                ? 'bg-white/10 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
             }`}
           >
             <Home className={`w-4 h-4 ${pathname === '/' ? 'text-[var(--primary-spotify,#06b6d4)]' : ''}`} />
@@ -205,7 +205,7 @@ export function Sidebar() {
           <Link
             href="/#drive"
             onClick={() => window.dispatchEvent(new Event('musicweb-tab-drive'))}
-            className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-cyan-400 hover:bg-cyan-500/10 hover:translate-x-1 transition-all duration-200"
+            className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-[var(--spotify-glow,#22d3ee)] hover:bg-white/5 transition-colors duration-150"
           >
             <Cloud className="w-4 h-4" />
             <span>Drive</span>
@@ -213,10 +213,10 @@ export function Sidebar() {
 
           <Link
             href="/favorites"
-            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
+            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors duration-150 ${
               pathname === '/favorites'
-                ? 'bg-white/10 text-white font-bold'
-                : 'text-slate-400 hover:text-white hover:bg-white/[0.06] hover:translate-x-1'
+                ? 'bg-white/10 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
             }`}
           >
             <Heart className={`w-4 h-4 ${pathname === '/favorites' ? 'text-rose-400 fill-rose-400' : ''}`} />
@@ -225,23 +225,23 @@ export function Sidebar() {
 
           <Link
             href="/history"
-            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
+            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors duration-150 ${
               pathname === '/history'
-                ? 'bg-white/10 text-white font-bold'
-                : 'text-slate-400 hover:text-white hover:bg-white/[0.06] hover:translate-x-1'
+                ? 'bg-white/10 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
             }`}
           >
-            <History className="w-4 h-4" />
+            <History className={`w-4 h-4 ${pathname === '/history' ? 'text-[var(--primary-spotify,#06b6d4)]' : ''}`} />
             <span>Lịch sử nghe</span>
           </Link>
 
           {isAdmin(user?.email) && (
             <Link
               href="/upload"
-              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
+              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors duration-150 ${
                 pathname === '/upload'
-                  ? 'bg-white/10 text-white font-bold'
-                  : 'text-slate-400 hover:text-white hover:bg-white/[0.06] hover:translate-x-1'
+                  ? 'bg-white/10 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
               }`}
             >
               <Upload className={`w-4 h-4 ${pathname === '/upload' ? 'text-[var(--primary-spotify,#06b6d4)]' : ''}`} />
@@ -251,10 +251,10 @@ export function Sidebar() {
 
           <Link
             href="/settings"
-            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
+            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors duration-150 ${
               pathname === '/settings'
-                ? 'bg-white/10 text-white font-bold'
-                : 'text-slate-400 hover:text-white hover:bg-white/[0.06] hover:translate-x-1'
+                ? 'bg-white/10 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
             }`}
           >
             <Settings className={`w-4 h-4 ${pathname === '/settings' ? 'text-[var(--primary-spotify,#06b6d4)]' : ''}`} />
@@ -310,7 +310,7 @@ export function Sidebar() {
                   <p className="text-xs font-semibold text-slate-300 mb-1">Chưa có playlist</p>
                   <button
                     onClick={handleCreatePlaylist}
-                    className="text-[11px] font-bold text-[var(--primary-spotify,#06b6d4)] hover:underline mt-1 inline-block"
+                    className="text-[11px] font-bold text-[var(--spotify-glow,#22d3ee)] hover:underline mt-1 inline-block"
                   >
                     + Tạo playlist đầu tiên
                   </button>
@@ -336,8 +336,16 @@ export function Sidebar() {
         {user ? (
           <div className="flex items-center justify-between px-2 py-1">
             <div className="flex items-center gap-2.5 truncate min-w-0">
-              <div className="w-8 h-8 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-[var(--primary-spotify,#06b6d4)] shrink-0 font-bold text-xs">
-                <UserCheck className="w-4 h-4" />
+              <div className="w-8 h-8 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-[var(--primary-spotify,#06b6d4)] shrink-0 font-bold text-xs overflow-hidden">
+                {user.user_metadata?.avatar_url ? (
+                  <img
+                    src={user.user_metadata.avatar_url}
+                    alt={user.email}
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                ) : (
+                  <UserCheck className="w-4 h-4" />
+                )}
               </div>
               <div className="truncate min-w-0">
                 <p className="text-[11px] font-bold text-white truncate">{user.user_metadata?.full_name || user.email?.split('@')[0]}</p>

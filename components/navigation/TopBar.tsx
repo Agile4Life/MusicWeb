@@ -105,12 +105,12 @@ export function TopBar() {
   }
 
   return (
-    <header className="sticky top-0 z-20 h-16 md:h-20 px-4 md:px-8 bg-[#10131c]/80 backdrop-blur-xl border-b border-white/[0.05] flex items-center justify-between gap-4 select-none">
+    <header className="sticky top-0 z-20 h-16 md:h-18 px-4 md:px-8 py-3 bg-[#10131c]/90 backdrop-blur-xl border-b border-white/[0.06] flex items-center justify-between gap-4 select-none">
       {/* Left Slot: Spacer balancing right side so search is centered */}
       <div className="w-36 md:w-48 shrink-0 hidden sm:block" />
 
       {/* Center Slot: Perfectly Centered Search Input Container */}
-      <div className="relative flex-1 max-w-xl mx-auto" ref={dropdownRef}>
+      <div className="relative flex-1 max-w-xl mx-auto my-auto" ref={dropdownRef}>
         <div className="relative flex items-center">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
           <input
@@ -155,24 +155,22 @@ export function TopBar() {
                       playTrack(track, suggestions)
                       setShowDropdown(false)
                     }}
-                    className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/[0.06] cursor-pointer transition-colors group"
+                    className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-xl cursor-pointer transition-colors group"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center overflow-hidden shrink-0">
                       {track.cover_url ? (
-                        <img src={track.cover_url} alt={track.title} className="w-full h-full object-cover" />
+                        <img src={track.cover_url} alt="" className="w-full h-full object-cover" />
                       ) : (
-                        <Music className="w-4 h-4 text-slate-400" />
+                        <Music className="w-4 h-4 text-slate-500" />
                       )}
                     </div>
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <p className="text-xs font-bold text-white group-hover:text-cyan-300 truncate">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-white group-hover:text-[var(--spotify-glow)] truncate">
                         {track.title}
                       </p>
-                      <p className="text-[10px] text-slate-400 truncate">
-                        {track.artist || 'Nghệ sĩ chưa xác định'}
-                      </p>
+                      <p className="text-[10px] text-slate-400 truncate">{track.artist || 'Nghệ sĩ chưa xác định'}</p>
                     </div>
-                    <div className="w-7 h-7 rounded-full bg-white/5 group-hover:bg-cyan-500 text-slate-400 group-hover:text-black flex items-center justify-center shrink-0 transition-colors">
+                    <div className="w-7 h-7 rounded-full bg-white/5 group-hover:bg-[var(--primary-spotify)] text-slate-400 group-hover:text-black flex items-center justify-center shrink-0 transition-colors">
                       <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
                     </div>
                   </div>
@@ -188,10 +186,10 @@ export function TopBar() {
       </div>
 
       {/* Right Slot: User Actions */}
-      <div className="w-36 md:w-48 shrink-0 flex items-center justify-end gap-3">
+      <div className="w-36 md:w-48 shrink-0 flex items-center justify-end gap-3 my-auto">
         {user ? (
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-[var(--primary-spotify,#06b6d4)] font-bold text-xs">
+          <div className="flex items-center gap-2.5 py-1">
+            <div className="w-8 h-8 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-[var(--primary-spotify,#06b6d4)] font-bold text-xs shrink-0">
               {user.user_metadata?.avatar_url ? (
                 <img
                   src={user.user_metadata.avatar_url}
