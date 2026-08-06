@@ -56,7 +56,7 @@ export async function searchAudiusTracks(query: string, limit = 15): Promise<Tra
         user_id: 'audius-global',
         title: item.title || 'Bài hát Audius',
         artist: item.user?.name || item.user?.handle || 'Nghệ sĩ Audius',
-        album: 'Audius Global',
+        album: item.title || 'Audius',
         duration: Math.round(item.duration || 0),
         file_path: streamUrl,
         cover_url: artwork,

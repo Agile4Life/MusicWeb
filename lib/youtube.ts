@@ -167,7 +167,7 @@ export async function searchYouTubeTracks(query: string, limit = 15): Promise<Tr
               user_id: 'youtube-global',
               title,
               artist: channelTitle,
-              album: 'YouTube Music',
+              album: title,
               duration: 0,
               file_path: `https://www.youtube.com/watch?v=${videoId}`,
               cover_url: thumbnail,

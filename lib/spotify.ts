@@ -120,3 +120,35 @@ export async function getTrendingSpotifyTracks(limit = 12): Promise<Track[]> {
     return []
   }
 }
+
+export async function getTopSpotifyAlbums(limit = 20): Promise<any[]> {
+  try {
+    const token = await getSpotifyAccessToken()
+    if (!token) return []
+
+    const res = await fetch(`https://api.spotify.com/v1/browse/new-releases?limit=${limit}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    if (!res.ok) return []
+
+    const data = await res.json()
+    const items = data.albums?.items || []
+
+    return items.map((item: any) => ({
+      id: `spotify-album-${item.id}`,
+      name: item.name,
+      artist: item.artists?.map((a: any) => a.name).join(', ') || 'Nghệ sĩ Spotify',
+      cover_url: item.images?.[0]?.url || item.images?.[1]?.url || null,
+      trackCount: item.total_tracks || 10,
+      releaseDate: item.release_date,
+      source: 'spotify',
+      spotify_id: item.id,
+    }))
+  } catch (err) {
+    console.warn('Spotify top albums fetch error:', err)
+    return []
+  }
+}
