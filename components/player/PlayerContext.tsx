@@ -7,6 +7,7 @@ import { extractDriveFileId, getAuthorizedDriveStreamUrl } from '@/lib/googleDri
 import { useSession } from 'next-auth/react'
 import { getValidUserId } from '@/lib/accessControl'
 import { deduplicateQueueTracks } from '@/lib/utils'
+import { findBestYouTubeMatch } from '@/lib/youtube'
 
 export type RepeatMode = 'off' | 'all' | 'one'
 
@@ -568,17 +569,22 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (requestId !== playRequestRef.current) return
         if (res.ok) {
           const data = await res.json()
-          const ytList = data.youtube || []
-          if (ytList.length > 0 && ytList[0].youtube_id) {
-            activeTrack = {
-              ...track,
-              youtube_id: ytList[0].youtube_id,
-              source: 'youtube', // Switch audio engine to YouTube for 100% full-length playback
-            }
-            rawTrack.youtube_id = ytList[0].youtube_id
-            track.youtube_id = ytList[0].youtube_id
-            if (requestId === playRequestRef.current) {
-              setCurrentTrack(activeTrack)
+          const ytList: Track[] = data.youtube || []
+          const bestMatch = findBestYouTubeMatch(ytList, track.title, track.artist, track.duration) || ytList[0]
+          if (bestMatch && bestMatch.youtube_id) {
+            const candidateDuration = bestMatch.duration || 0
+            const isTargetShort = !track.duration || track.duration < 900
+            if (!isTargetShort || candidateDuration <= 1200) {
+              activeTrack = {
+                ...track,
+                youtube_id: bestMatch.youtube_id,
+                source: 'youtube', // Switch audio engine to YouTube for 100% full-length playback
+              }
+              rawTrack.youtube_id = bestMatch.youtube_id
+              track.youtube_id = bestMatch.youtube_id
+              if (requestId === playRequestRef.current) {
+                setCurrentTrack(activeTrack)
+              }
             }
           }
         }
@@ -916,20 +922,25 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&source=youtube`)
         if (res.ok) {
           const data = await res.json()
-          const ytList = data.results || []
-          if (ytList.length > 0 && ytList[0].youtube_id) {
-            const activeTrack: Track = {
-              ...track,
-              youtube_id: ytList[0].youtube_id,
-              source: 'youtube',
-            }
-            setCurrentTrack(activeTrack)
-            setPlaybackError(null)
-            if (ytPlayerRef.current?.loadVideoById) {
-              ytPlayerRef.current.setVolume(volume * 100)
-              ytPlayerRef.current.loadVideoById(ytList[0].youtube_id)
-              setIsPlaying(true)
-              return
+          const ytList: Track[] = data.youtube || data.results || []
+          const bestMatch = findBestYouTubeMatch(ytList, track.title, track.artist, track.duration) || ytList[0]
+          if (bestMatch && bestMatch.youtube_id) {
+            const candidateDuration = bestMatch.duration || 0
+            const isTargetShort = !track.duration || track.duration < 900
+            if (!isTargetShort || candidateDuration <= 1200) {
+              const activeTrack: Track = {
+                ...track,
+                youtube_id: bestMatch.youtube_id,
+                source: 'youtube',
+              }
+              setCurrentTrack(activeTrack)
+              setPlaybackError(null)
+              if (ytPlayerRef.current?.loadVideoById) {
+                ytPlayerRef.current.setVolume(volume * 100)
+                ytPlayerRef.current.loadVideoById(bestMatch.youtube_id)
+                setIsPlaying(true)
+                return
+              }
             }
           }
         }

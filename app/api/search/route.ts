@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { searchAudiusTracks, getTrendingAudiusTracks } from '@/lib/audius'
-import { searchYouTubeTracks, getTrendingYouTubeTracks } from '@/lib/youtube'
+import { searchYouTubeTracks, getTrendingYouTubeTracks, findBestYouTubeMatch } from '@/lib/youtube'
 import { searchITunesTracks, getTrendingITunesTracks } from '@/lib/itunes'
 import { searchSpotifyTracks, getTrendingSpotifyTracks } from '@/lib/spotify'
 import { Track } from '@/types'
@@ -113,24 +113,16 @@ export async function GET(request: Request) {
 
     const [localTracks, youtubeTracks, audiusTracks, itunesTracks, spotifyTracks] = await Promise.all(promises)
 
-    // Pre-assign YouTube stream IDs for Spotify & iTunes tracks so playback is 100% instant without network fetch delay on click
-    const enhancedSpotify = spotifyTracks.map((sTrack: Track, idx: number) => {
+    // Pre-assign YouTube stream IDs for Spotify & iTunes tracks using smart matching (avoiding wrong / 40+ min compilations)
+    const enhancedSpotify = spotifyTracks.map((sTrack: Track) => {
       if (sTrack.youtube_id) return sTrack
-      const sTitleNorm = (sTrack.title || '').toLowerCase().normalize('NFKC')
-      const match = (youtubeTracks || []).find((yTrack: Track) => {
-        const yTitleNorm = (yTrack.title || '').toLowerCase().normalize('NFKC')
-        return yTitleNorm.includes(sTitleNorm) || sTitleNorm.includes(yTitleNorm)
-      }) || youtubeTracks?.[idx] || youtubeTracks?.[0]
+      const match = findBestYouTubeMatch(youtubeTracks, sTrack.title, sTrack.artist, sTrack.duration)
       return match?.youtube_id ? { ...sTrack, youtube_id: match.youtube_id } : sTrack
     })
 
-    const enhancedITunes = itunesTracks.map((iTrack: Track, idx: number) => {
+    const enhancedITunes = itunesTracks.map((iTrack: Track) => {
       if (iTrack.youtube_id) return iTrack
-      const iTitleNorm = (iTrack.title || '').toLowerCase().normalize('NFKC')
-      const match = (youtubeTracks || []).find((yTrack: Track) => {
-        const yTitleNorm = (yTrack.title || '').toLowerCase().normalize('NFKC')
-        return yTitleNorm.includes(iTitleNorm) || iTitleNorm.includes(yTitleNorm)
-      }) || youtubeTracks?.[idx] || youtubeTracks?.[0]
+      const match = findBestYouTubeMatch(youtubeTracks, iTrack.title, iTrack.artist, iTrack.duration)
       return match?.youtube_id ? { ...iTrack, youtube_id: match.youtube_id } : iTrack
     })
 

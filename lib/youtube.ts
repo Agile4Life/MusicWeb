@@ -204,6 +204,144 @@ async function scrapeYouTubeSearch(query: string, limit = 15): Promise<Track[]> 
 }
 
 /**
+ * Keywords indicating a compilation, long loop, full album, or playlist mix.
+ */
+export const LONG_COMPILATION_KEYWORDS = [
+  '1 hour', '1h', '2 hour', '2h', '3 hour', '3h', '10 hours',
+  '40 min', '40p', '45 min', '30 min', '50 min', '60 min',
+  'full album', 'tổng hợp', 'tuyển tập', 'nonstop', 'loop',
+  'extended mix', 'playlist', 'danh sách nhạc', 'nhạc trẻ tổng hợp',
+  'nhạc trẻ hay nhất', 'top 50', 'top 100', 'top 20', 'best of', 'mashup'
+]
+
+/**
+ * Find the best matching YouTube track from a list of candidates.
+ * Avoids picking 40+ minute compilations, 1-hour loops, or completely wrong songs.
+ */
+export function findBestYouTubeMatch(
+  candidates: Track[],
+  targetTitle?: string | null,
+  targetArtist?: string | null,
+  targetDuration?: number | null
+): Track | null {
+  if (!candidates || candidates.length === 0) return null
+
+  const cleanTargetTitle = (targetTitle || '')
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, '')
+    .replace(/\[[^\]]*\]/g, '')
+    .replace(/ft\..*|feat\..*/gi, '')
+    .trim()
+    .normalize('NFKC')
+
+  const cleanTargetArtist = (targetArtist || '')
+    .toLowerCase()
+    .trim()
+    .normalize('NFKC')
+
+  const targetDur = targetDuration || 0
+
+  const isQueryAskingForLong =
+    LONG_COMPILATION_KEYWORDS.some((kw) => cleanTargetTitle.includes(kw)) ||
+    (targetDur > 900)
+
+  let bestMatch: Track | null = null
+  let highestScore = -100
+
+  for (const candidate of candidates) {
+    if (!candidate.youtube_id) continue
+
+    const candidateTitleNorm = (candidate.title || '').toLowerCase().normalize('NFKC')
+    const candidateArtistNorm = (candidate.artist || '').toLowerCase().normalize('NFKC')
+    const candidateDuration = candidate.duration || 0
+
+    let score = 0
+
+    const isCandidateLongCompilation = LONG_COMPILATION_KEYWORDS.some((kw) =>
+      candidateTitleNorm.includes(kw)
+    )
+
+    if (!isQueryAskingForLong) {
+      if (candidateDuration > 1200) {
+        score -= 500
+      } else if (candidateDuration > 900) {
+        score -= 300
+      }
+
+      if (isCandidateLongCompilation) {
+        score -= 400
+      }
+    }
+
+    const titleWords = cleanTargetTitle.split(/\s+/).filter((w) => w.length > 1)
+    let matchedWordsCount = 0
+    for (const word of titleWords) {
+      if (candidateTitleNorm.includes(word)) {
+        matchedWordsCount++
+      }
+    }
+
+    if (titleWords.length > 0) {
+      const matchRatio = matchedWordsCount / titleWords.length
+      score += matchRatio * 100
+    }
+
+    if (cleanTargetTitle.length >= 3) {
+      if (candidateTitleNorm.includes(cleanTargetTitle)) {
+        score += 80
+      } else if (cleanTargetTitle.includes(candidateTitleNorm)) {
+        score += 50
+      }
+    }
+
+    if (cleanTargetArtist) {
+      const artistWords = cleanTargetArtist.split(/\s+/).filter((w) => w.length > 1)
+      let artistMatch = false
+      for (const word of artistWords) {
+        if (candidateTitleNorm.includes(word) || candidateArtistNorm.includes(word)) {
+          score += 25
+          artistMatch = true
+        }
+      }
+      if (artistMatch) score += 20
+    }
+
+    if (
+      candidateTitleNorm.includes('official') ||
+      candidateTitleNorm.includes('mv') ||
+      candidateTitleNorm.includes('audio') ||
+      candidateTitleNorm.includes('lyric')
+    ) {
+      score += 30
+    }
+
+    if (targetDur > 0 && candidateDuration > 0) {
+      const diff = Math.abs(candidateDuration - targetDur)
+      if (diff <= 15) {
+        score += 60
+      } else if (diff <= 45) {
+        score += 40
+      } else if (diff <= 90) {
+        score += 20
+      } else if (diff > 300) {
+        score -= 80
+      }
+    }
+
+    if (score > highestScore) {
+      highestScore = score
+      bestMatch = candidate
+    }
+  }
+
+  if (highestScore < 0) {
+    return null
+  }
+
+  return bestMatch
+}
+
+/**
  * Search YouTube Data API v3 or InnerTube API + HTML Scraper Fallback
  */
 export async function searchYouTubeTracks(query: string, limit = 15): Promise<Track[]> {
@@ -228,6 +366,7 @@ export async function searchYouTubeTracks(query: string, limit = 15): Promise<Tr
     ]
   }
 
+  let tracks: Track[] = []
   const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY || ''
 
   // 1. Official YouTube Data API v3 if API key is provided
@@ -243,7 +382,7 @@ export async function searchYouTubeTracks(query: string, limit = 15): Promise<Tr
         const items = data.items || []
 
         if (items.length > 0) {
-          return items.map((item: any): Track => {
+          tracks = items.map((item: any): Track => {
             const videoId = item.id?.videoId
             const snippet = item.snippet || {}
             const title = snippet.title
@@ -281,14 +420,29 @@ export async function searchYouTubeTracks(query: string, limit = 15): Promise<Tr
     }
   }
 
-  // 2. Primary Method: InnerTube API (Fastest, works 100% on Vercel Serverless Datacenters)
-  const innerTubeTracks = await searchYouTubeInnerTube(query, limit)
-  if (innerTubeTracks.length > 0) {
-    return innerTubeTracks
+  // 2. Primary Method: InnerTube API
+  if (tracks.length === 0) {
+    tracks = await searchYouTubeInnerTube(query, limit)
   }
 
   // 3. Fallback: Direct HTML Scraper
-  return scrapeYouTubeSearch(query, limit)
+  if (tracks.length === 0) {
+    tracks = await scrapeYouTubeSearch(query, limit)
+  }
+
+  // Sort single tracks before long compilations when query does not ask for long videos
+  const isQueryLong = LONG_COMPILATION_KEYWORDS.some((kw) => query.toLowerCase().includes(kw))
+  if (!isQueryLong && tracks.length > 1) {
+    tracks = [...tracks].sort((a, b) => {
+      const aIsLong = (a.duration || 0) > 900 || LONG_COMPILATION_KEYWORDS.some((kw) => (a.title || '').toLowerCase().includes(kw))
+      const bIsLong = (b.duration || 0) > 900 || LONG_COMPILATION_KEYWORDS.some((kw) => (b.title || '').toLowerCase().includes(kw))
+      if (aIsLong && !bIsLong) return 1
+      if (!aIsLong && bIsLong) return -1
+      return 0
+    })
+  }
+
+  return tracks
 }
 
 /**
