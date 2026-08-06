@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { Track, Playlist } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
-import { Play, Pause, Music, Trash2, MoreVertical, Plus, Pencil, Check, X, Heart, Cloud } from 'lucide-react'
+import { Play, Pause, Music, Trash2, MoreVertical, Plus, Pencil, Check, X, Heart, Cloud, ListMusic } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { isAdmin, getValidUserId } from '@/lib/accessControl'
 import { useSession } from 'next-auth/react'
@@ -45,7 +45,7 @@ function TrackRowComponent({
 }: TrackRowProps) {
   const supabase = createClient()
   const { data: nextAuthSession } = useSession()
-  const { currentTrack, isPlaying, playTrack, togglePlay } = usePlayer()
+  const { currentTrack, isPlaying, playTrack, togglePlay, queue } = usePlayer()
   const [showMenu, setShowMenu] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [editTitle, setEditTitle] = useState(track.title || '')
@@ -336,6 +336,19 @@ function TrackRowComponent({
                 >
                   <Heart className={`w-3.5 h-3.5 ${isFavorite ? 'fill-rose-400 text-rose-400' : 'text-rose-400'}`} />
                   {isFavorite ? 'Bỏ khỏi yêu thích' : 'Thêm vào yêu thích'}
+                </button>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowMenu(false)
+                    const updatedQueue = [...queue, track]
+                    playTrack(currentTrack || track, updatedQueue)
+                  }}
+                  className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors text-cyan-400"
+                >
+                  <ListMusic className="w-3.5 h-3.5 text-cyan-400" />
+                  Thêm vào hàng đợi
                 </button>
                 {userIsAdmin && (
                   <button

@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { usePlayer } from './PlayerContext'
 import { LyricsView } from './LyricsView'
+import { QueueDrawer } from './QueueDrawer'
 import {
   Play,
   Pause,
@@ -18,6 +19,7 @@ import {
   Repeat,
   Repeat1,
   Heart,
+  ListMusic,
 } from 'lucide-react'
 
 function formatTime(seconds: number) {
@@ -49,6 +51,7 @@ export function PlayerBar() {
   const [prevVol, setPrevVol] = useState(0.8)
   const [showMobileFullPlayer, setShowMobileFullPlayer] = useState(false)
   const [showLyricsModal, setShowLyricsModal] = useState(false)
+  const [isQueueOpen, setIsQueueOpen] = useState(false)
 
   const handleVolumeToggle = () => {
     if (volume > 0) {
@@ -529,6 +532,31 @@ export function PlayerBar() {
             <Mic2 className="w-4 h-4" />
           </button>
 
+          <button
+            onClick={() => setIsQueueOpen(!isQueueOpen)}
+            style={
+              isQueueOpen
+                ? {
+                    color: 'var(--spotify-glow, #22d3ee)',
+                    backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                    borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                  }
+                : undefined
+            }
+            className={`p-2 rounded-xl relative transition-all ${
+              isQueueOpen ? 'border shadow-md font-bold' : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+            title="Danh sách hàng đợi (Queue)"
+          >
+            <ListMusic className="w-4 h-4" />
+            {isQueueOpen && (
+              <span
+                style={{ backgroundColor: 'var(--spotify-glow, #22d3ee)' }}
+                className="w-1 h-1 rounded-full absolute -bottom-0.5 left-1/2 -translate-x-1/2"
+              />
+            )}
+          </button>
+
           <div className="h-4 w-[1px] bg-white/10" />
 
           <div className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1.5">
@@ -563,6 +591,9 @@ export function PlayerBar() {
           </div>
         </div>
       )}
+
+      {/* 📋 SPOTIFY-STYLE SLIDE-OUT PLAYBACK QUEUE DRAWER */}
+      <QueueDrawer isOpen={isQueueOpen} onClose={() => setIsQueueOpen(false)} />
     </>
   )
 }
