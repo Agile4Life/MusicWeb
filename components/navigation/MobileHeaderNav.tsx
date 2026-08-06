@@ -144,22 +144,22 @@ export function MobileHeaderNav() {
   return (
     <>
       {/* 📱 Mobile Top Header Bar (< 768px) */}
-      <div className="md:hidden h-14 bg-[#090b10] border-b border-white/[0.05] px-4 flex items-center justify-between select-none z-30 shrink-0 relative">
-        <div className="w-9"></div>
+      <div className="md:hidden h-14 bg-[#090b10] border-b border-white/[0.05] px-3 xs:px-4 flex items-center justify-between select-none z-30 shrink-0 relative">
+        <div className="w-8 xs:w-9"></div>
 
         <Link
           href="/"
           onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
-          className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2.5 px-3 py-1.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-sm backdrop-blur-md hover:bg-white/[0.06] transition-all"
+          className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 xs:gap-2.5 px-2.5 xs:px-3 py-1.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-sm backdrop-blur-md hover:bg-white/[0.06] transition-all max-w-[calc(100vw-100px)]"
         >
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-pink-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
-            <Headphones className="w-4 h-4" />
+          <div className="w-7 h-7 xs:w-8 xs:h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-pink-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+            <Headphones className="w-3.5 h-3.5 xs:w-4 xs:h-4" />
           </div>
-          <div className="flex items-center justify-center h-8 min-w-0">
+          <div className="flex items-center justify-center h-7 xs:h-8 min-w-0">
             <img
               src="/phong-signature.png"
               alt="Phong's Music Signature"
-              className="h-8 w-auto object-contain signature-img-invert translate-y-[1.5px]"
+              className="h-6.5 xs:h-7.5 sm:h-8 w-auto max-w-[130px] xs:max-w-none object-contain signature-img-invert translate-y-[1.5px]"
             />
           </div>
         </Link>
@@ -232,13 +232,19 @@ export function MobileHeaderNav() {
           <div className="w-4/5 max-w-xs h-full bg-[#0d1017] border-l border-white/10 p-5 flex flex-col justify-between overflow-y-auto select-none">
             <div className="flex flex-col gap-5">
               <div className="flex items-center justify-between border-b border-white/[0.05] pb-4">
-                <div className="flex items-center gap-2.5">
-                  <Headphones className="w-5 h-5 text-[var(--primary-spotify,#06b6d4)]" />
-                  <span className="font-extrabold text-base text-white">MusicWeb</span>
+                <div className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.08]">
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-500/20 to-pink-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+                    <Headphones className="w-3.5 h-3.5" />
+                  </div>
+                  <img
+                    src="/phong-signature.png"
+                    alt="Phong's Music Signature"
+                    className="h-6 w-auto object-contain signature-img-invert translate-y-[1px]"
+                  />
                 </div>
                 <button
                   onClick={() => setIsDrawerOpen(false)}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg"
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg bg-white/[0.04]"
                 >
                   <X className="w-5 h-5" />
                 </button>

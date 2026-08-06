@@ -3,15 +3,17 @@
 import React from 'react'
 import { useTheme, THEMES, ThemeId } from './ThemeContext'
 import { Palette, Check } from 'lucide-react'
+import { useLanguage } from '@/components/i18n/LanguageContext'
 
 export function ThemeSelector() {
   const { currentTheme, setTheme } = useTheme()
+  const { t } = useLanguage()
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2 text-sm font-bold text-white">
         <Palette className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
-        <span>Chủ đề màu sắc</span>
+        <span>{t('color_theme')}</span>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -41,7 +43,7 @@ export function ThemeSelector() {
 
               {/* Title */}
               <p className="font-bold text-xs text-white mb-0.5">{theme.name}</p>
-              <p className="text-[11px] text-slate-400">{theme.subtitle}</p>
+              <p className="text-[11px] text-slate-400">{t(`theme_${theme.id}_sub`, theme.subtitle)}</p>
 
               {/* Active checkmark */}
               {isSelected && (

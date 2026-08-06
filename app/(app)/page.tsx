@@ -41,7 +41,7 @@ export default function HomePage() {
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [searchSource, setSearchSource] = useState<'all' | 'youtube' | 'audius' | 'itunes' | 'spotify' | 'local'>('all')
-  const [libraryTab, setLibraryTab] = useState<'all' | 'drive' | 'recent'>('all')
+  const [libraryTab, setLibraryTab] = useState<'all' | 'drive' | 'recent'>('recent')
 
   useEffect(() => {
     const handleSearchEvent = (e: any) => {
@@ -52,12 +52,12 @@ export default function HomePage() {
       if (window.location.hash === '#drive') {
         setLibraryTab('drive')
       } else {
-        setLibraryTab('all')
+        setLibraryTab('recent')
       }
     }
 
     const handleTabHome = () => {
-      setLibraryTab('all')
+      setLibraryTab('recent')
       if (window.location.hash === '#drive') {
         history.replaceState(null, '', window.location.pathname + window.location.search)
       }
@@ -794,40 +794,12 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar touch-pan-x pr-2 py-0.5">
               <button
-                onClick={() => setLibraryTab('all')}
-                style={
-                  libraryTab === 'all'
-                    ? {
-                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                        boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
-                      }
-                    : undefined
-                }
-                className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-                  libraryTab === 'all'
-                    ? 'text-black font-extrabold border border-white/20'
-                    : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:bg-white/10'
-                }`}
-              >
-                <Music className="w-3.5 h-3.5 fill-current" />
-                <span>Tất Cả Bài Hát ({tracks.length})</span>
-              </button>
-
-              <button
                 onClick={() => setLibraryTab('recent')}
-                style={
-                  libraryTab === 'recent'
-                    ? {
-                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                        boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
-                      }
-                    : undefined
-                }
-                className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-                  libraryTab === 'recent'
-                    ? 'text-black font-extrabold border border-white/20'
-                    : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:bg-white/10'
-                }`}
+                style={{
+                  background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                  boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                }}
+                className="px-4 py-2 rounded-full text-xs font-extrabold text-black border border-white/20 transition-all flex items-center gap-1.5 shrink-0"
               >
                 <History className="w-3.5 h-3.5" />
                 <span>Vừa Nghe Gần Đây ({recentTracks.length})</span>

@@ -82,7 +82,7 @@ export default function SettingsPage() {
       <div className="bg-[#0d1017] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-5">
         <div className="flex items-center gap-2 text-sm font-bold text-white border-b border-white/[0.05] pb-3">
           <Volume2 className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
-          <span>Âm thanh & Phát nhạc</span>
+          <span>{t('audio_playback_title')}</span>
         </div>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 py-1 border-b border-white/[0.04]">
