@@ -13,10 +13,7 @@ import {
   Music,
   Headphones,
   ChevronDown,
-  Maximize2,
-  SlidersHorizontal,
   Mic2,
-  X,
   Shuffle,
   Repeat,
   Repeat1,
@@ -42,7 +39,6 @@ export function PlayerBar() {
     repeatMode,
     toggleRepeat,
     toggleFavoriteCurrentTrack,
-    playbackError,
     togglePlay,
     seek,
     setVolume,
@@ -63,38 +59,40 @@ export function PlayerBar() {
     }
   }
 
+  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0
+
   if (!currentTrack) {
     return (
-      <footer className="h-20 bg-[#07080d]/90 backdrop-blur-2xl border-t border-white/5 px-4 md:px-6 flex items-center justify-between text-slate-400 select-none z-30">
-        <div className="flex items-center gap-3 w-full md:w-1/4 justify-center md:justify-start">
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-white/5 rounded-xl flex items-center justify-center text-slate-600 border border-white/5">
+      <footer className="hidden md:flex h-20 bg-[#090b10]/95 backdrop-blur-2xl border-t border-white/[0.06] px-6 items-center justify-between text-slate-400 select-none z-30 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+        <div className="flex items-center gap-3 w-1/4 min-w-[200px]">
+          <div className="w-11 h-11 bg-white/5 rounded-xl flex items-center justify-center text-slate-600 border border-white/5">
             <Music className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-slate-300">Chưa chọn bài hát nào</p>
+            <p className="text-xs font-semibold text-slate-300">Chưa chọn bài hát</p>
             <p className="text-[10px] text-slate-500">Chọn một bài hát từ thư viện để phát</p>
           </div>
         </div>
 
-        {/* Desktop Controls Only when empty */}
-        <div className="hidden md:flex flex-col items-center gap-1 w-2/4 max-w-xl">
-          <div className="flex items-center gap-5 text-slate-600">
+        {/* Desktop Disabled Controls when empty */}
+        <div className="flex flex-col items-center gap-1.5 w-2/4 max-w-xl">
+          <div className="flex items-center gap-4 text-slate-600">
             <SkipBack className="w-4 h-4 cursor-not-allowed" />
-            <button className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center text-slate-600 cursor-not-allowed border border-white/5">
+            <button className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-slate-600 cursor-not-allowed border border-white/5">
               <Play className="w-4 h-4 fill-current ml-0.5" />
             </button>
             <SkipForward className="w-4 h-4 cursor-not-allowed" />
           </div>
-          <div className="w-full flex items-center gap-2 text-[10px] text-slate-600 font-mono">
-            <span>0:00</span>
+          <div className="w-full flex items-center gap-2.5 text-[11px] text-slate-600 font-mono">
+            <span className="w-9 text-right">0:00</span>
             <div className="flex-1 h-1 bg-white/5 rounded-full" />
-            <span>0:00</span>
+            <span className="w-9">0:00</span>
           </div>
         </div>
 
-        <div className="hidden md:flex w-1/4 justify-end items-center gap-2 text-slate-600">
+        <div className="w-1/4 flex justify-end items-center gap-2.5 text-slate-600">
           <Volume2 className="w-4 h-4 cursor-not-allowed" />
-          <div className="w-20 h-1 bg-white/5 rounded-full" />
+          <div className="w-24 h-1 bg-white/5 rounded-full" />
         </div>
       </footer>
     )
@@ -148,7 +146,7 @@ export function PlayerBar() {
 
             <button
               onClick={togglePlay}
-              className="w-9 h-9 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center font-bold"
+              className="w-9 h-9 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center font-bold shadow-md active:scale-95 transition-transform"
             >
               {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
             </button>
@@ -163,7 +161,7 @@ export function PlayerBar() {
         <div className="w-full h-0.5 bg-white/10 rounded-full mt-2 overflow-hidden">
           <div
             className="h-full bg-[var(--primary-spotify,#06b6d4)] transition-all duration-200"
-            style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
+            style={{ width: `${progressPercent}%` }}
           />
         </div>
       </div>
@@ -199,7 +197,7 @@ export function PlayerBar() {
 
           {/* Large Album Artwork */}
           <div className="flex-1 flex items-center justify-center my-8 relative">
-            <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-2xl bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden">
+            <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-2xl bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden shadow-2xl">
               {currentTrack.cover_url ? (
                 <img
                   src={currentTrack.cover_url}
@@ -240,7 +238,10 @@ export function PlayerBar() {
               max={duration || 100}
               value={currentTime}
               onChange={(e) => seek(Number(e.target.value))}
-              className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[var(--primary-spotify)]"
+              style={{
+                background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${progressPercent}%, rgba(255,255,255,0.1) ${progressPercent}%)`,
+              }}
+              className="w-full h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-all"
             />
             <div className="flex items-center justify-between text-xs font-mono text-slate-400">
               <span>{formatTime(currentTime)}</span>
@@ -254,7 +255,7 @@ export function PlayerBar() {
               onClick={toggleShuffle}
               className={`p-3 rounded-full transition-all ${
                 isShuffle
-                  ? 'text-[var(--primary-spotify)] bg-[var(--primary-spotify)]/20 border border-[var(--primary-spotify)]/40 shadow-lg'
+                  ? 'text-[var(--primary-spotify,#06b6d4)] bg-[var(--primary-spotify,#06b6d4)]/20 border border-[var(--primary-spotify,#06b6d4)]/40 shadow-lg'
                   : 'text-slate-400 hover:text-white bg-white/5'
               }`}
               title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
@@ -271,7 +272,7 @@ export function PlayerBar() {
 
             <button
               onClick={togglePlay}
-              className="w-16 h-16 rounded-full bg-[var(--primary-spotify)] text-black flex items-center justify-center shadow-xl shadow-[var(--theme-glow-shadow)] active:scale-95 transition-transform"
+              className="w-16 h-16 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center shadow-xl active:scale-95 transition-transform"
             >
               {isPlaying ? <Pause className="w-8 h-8 fill-current" /> : <Play className="w-8 h-8 fill-current ml-1" />}
             </button>
@@ -314,98 +315,133 @@ export function PlayerBar() {
               step={0.01}
               value={volume}
               onChange={(e) => setVolume(Number(e.target.value))}
-              className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[var(--primary-spotify)]"
+              style={{
+                background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${volume * 100}%, rgba(255,255,255,0.1) ${volume * 100}%)`,
+              }}
+              className="w-full h-1.5 rounded-lg appearance-none cursor-pointer outline-none"
             />
           </div>
         </div>
       )}
 
       {/* 💻 DESKTOP PLAYER BAR (Visible on >= 768px screens) */}
-      <footer className="hidden md:flex h-20 bg-[#07080d]/90 backdrop-blur-2xl border-t border-white/10 px-6 items-center justify-between text-slate-300 select-none z-30 shadow-2xl">
+      <footer className="hidden md:flex h-20 md:h-22 bg-[#090b10]/95 backdrop-blur-2xl border-t border-white/[0.08] px-6 md:px-8 items-center justify-between text-slate-300 select-none z-30 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
         {/* Left: Track Metadata */}
-        <div className="flex items-center gap-3.5 w-1/4 min-w-[200px]">
+        <div className="flex items-center gap-3.5 w-1/4 min-w-[220px]">
           <div className="relative group shrink-0">
-            <div className="w-12 h-12 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl overflow-hidden relative flex items-center justify-center border border-white/10 shadow-md">
+            <div className="w-12 h-12 bg-slate-800 rounded-xl overflow-hidden relative flex items-center justify-center border border-white/10 shadow-md">
               {currentTrack.cover_url ? (
                 <img
                   src={currentTrack.cover_url}
                   alt={currentTrack.title}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
               ) : (
-                <Headphones className={`w-6 h-6 text-cyan-400 ${isPlaying ? 'animate-pulse' : ''}`} />
+                <Headphones className="w-6 h-6 text-cyan-400" />
               )}
             </div>
           </div>
 
           <div className="truncate flex flex-col flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-bold text-white truncate hover:underline cursor-pointer">
+              <p className="text-xs md:text-sm font-bold text-white truncate hover:text-cyan-300 transition-colors cursor-pointer">
                 {currentTrack.title}
               </p>
               {isPlaying && (
-                <div className="flex items-end gap-0.5 h-3 shrink-0">
-                  <span className="w-0.5 bg-[var(--primary-spotify)] rounded-full eq-bar-1" />
-                  <span className="w-0.5 bg-[var(--primary-spotify)] rounded-full eq-bar-2" />
-                  <span className="w-0.5 bg-[var(--primary-spotify)] rounded-full eq-bar-3" />
+                <div className="flex items-end gap-0.5 h-3 shrink-0" title="Đang phát">
+                  <span className="w-0.5 bg-[var(--primary-spotify,#06b6d4)] rounded-full eq-bar-1" />
+                  <span className="w-0.5 bg-[var(--primary-spotify,#06b6d4)] rounded-full eq-bar-2" />
+                  <span className="w-0.5 bg-[var(--primary-spotify,#06b6d4)] rounded-full eq-bar-3" />
                 </div>
               )}
             </div>
-            <p className="text-xs text-slate-400 truncate hover:underline cursor-pointer">
-              {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
-            </p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <p className="text-[11px] text-slate-400 truncate hover:text-slate-200 transition-colors cursor-pointer">
+                {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
+              </p>
+
+              {/* Source Badge */}
+              {currentTrack.source === 'spotify' && (
+                <span className="text-[8px] font-mono font-bold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1 py-0.2 rounded shrink-0">
+                  Spotify
+                </span>
+              )}
+              {currentTrack.source === 'itunes' && (
+                <span className="text-[8px] font-mono font-bold uppercase bg-pink-500/20 text-pink-300 border border-pink-500/30 px-1 py-0.2 rounded shrink-0">
+                  iTunes
+                </span>
+              )}
+              {currentTrack.source === 'youtube' && (
+                <span className="text-[8px] font-mono font-bold uppercase bg-red-500/20 text-red-400 border border-red-500/30 px-1 py-0.2 rounded shrink-0">
+                  YouTube
+                </span>
+              )}
+              {currentTrack.source === 'audius' && (
+                <span className="text-[8px] font-mono font-bold uppercase bg-purple-500/20 text-purple-300 border border-purple-500/30 px-1 py-0.2 rounded shrink-0">
+                  Audius
+                </span>
+              )}
+              {(!currentTrack.source || currentTrack.source === 'local') && (
+                <span className="text-[8px] font-mono font-bold uppercase bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-1 py-0.2 rounded shrink-0">
+                  Drive
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Center: Playback Controls & Seekbar */}
         <div className="flex flex-col items-center gap-1.5 w-2/4 max-w-xl">
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={toggleShuffle}
+              className={`p-1.5 rounded-lg relative transition-all ${
+                isShuffle
+                  ? 'text-[var(--primary-spotify,#06b6d4)] bg-[var(--primary-spotify,#06b6d4)]/15 border border-[var(--primary-spotify,#06b6d4)]/30'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
+              title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
+            >
+              <Shuffle className="w-4 h-4" />
+              {isShuffle && (
+                <span className="w-1 h-1 bg-[var(--primary-spotify,#06b6d4)] rounded-full absolute -bottom-0.5 left-1/2 -translate-x-1/2" />
+              )}
+            </button>
+
             <button
               onClick={prevTrack}
-              className="text-slate-400 hover:text-white transition-colors"
+              className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-full transition-all active:scale-90"
               title="Bài trước"
             >
-              <SkipBack className="w-4 h-4" />
+              <SkipBack className="w-4.5 h-4.5" />
             </button>
 
             <button
               onClick={togglePlay}
-              className="w-10 h-10 rounded-full bg-[var(--primary-spotify)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center text-black shadow-lg shadow-[var(--theme-glow-shadow)]"
+              className="w-10 h-10 rounded-full bg-[var(--primary-spotify,#06b6d4)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center text-black shadow-lg shadow-cyan-500/20"
               title={isPlaying ? 'Tạm dừng' : 'Phát'}
             >
               {isPlaying ? (
-                <Pause className="w-5 h-5 fill-current" />
+                <Pause className="w-4.5 h-4.5 fill-current" />
               ) : (
-                <Play className="w-5 h-5 fill-current ml-0.5" />
+                <Play className="w-4.5 h-4.5 fill-current ml-0.5" />
               )}
             </button>
 
             <button
               onClick={nextTrack}
-              className="text-slate-400 hover:text-white transition-colors"
+              className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-full transition-all active:scale-90"
               title="Bài kế tiếp"
             >
-              <SkipForward className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={toggleShuffle}
-              className={`p-1.5 rounded-lg transition-colors ${
-                isShuffle
-                  ? 'text-[var(--primary-spotify)] bg-[var(--primary-spotify)]/15 border border-[var(--primary-spotify)]/30'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-              title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
-            >
-              <Shuffle className="w-4 h-4" />
+              <SkipForward className="w-4.5 h-4.5" />
             </button>
 
             <button
               onClick={toggleRepeat}
-              className={`p-1.5 rounded-lg transition-colors ${
+              className={`p-1.5 rounded-lg relative transition-all ${
                 repeatMode !== 'off'
                   ? 'text-cyan-400 bg-cyan-500/15 border border-cyan-500/30'
-                  : 'text-slate-400 hover:text-white'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
               title={
                 repeatMode === 'one'
@@ -416,25 +452,31 @@ export function PlayerBar() {
               }
             >
               {repeatMode === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
+              {repeatMode !== 'off' && (
+                <span className="w-1 h-1 bg-cyan-400 rounded-full absolute -bottom-0.5 left-1/2 -translate-x-1/2" />
+              )}
             </button>
           </div>
 
           <div className="w-full flex items-center gap-2.5 text-[11px] text-slate-400 font-mono">
-            <span className="w-9 text-right">{formatTime(currentTime)}</span>
+            <span className="w-9 text-right shrink-0">{formatTime(currentTime)}</span>
             <input
               type="range"
               min={0}
               max={duration || 100}
               value={currentTime}
               onChange={(e) => seek(Number(e.target.value))}
-              className="flex-1 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[var(--primary-spotify)]"
+              style={{
+                background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${progressPercent}%, rgba(255,255,255,0.1) ${progressPercent}%)`,
+              }}
+              className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-all"
             />
-            <span className="w-9">{formatTime(duration)}</span>
+            <span className="w-9 shrink-0">{formatTime(duration)}</span>
           </div>
         </div>
 
         {/* Right: Volume & Extra Controls */}
-        <div className="w-1/4 flex justify-end items-center gap-3">
+        <div className="w-1/4 flex justify-end items-center gap-2.5">
           <button
             onClick={toggleFavoriteCurrentTrack}
             className={`p-2 rounded-xl transition-all ${
@@ -455,7 +497,7 @@ export function PlayerBar() {
             onClick={() => setShowLyricsModal(!showLyricsModal)}
             className={`p-2 rounded-xl transition-all ${
               showLyricsModal
-                ? 'bg-[var(--primary-spotify)] text-black shadow-md'
+                ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md font-bold'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
             title="Lời bài hát (Lyrics)"
@@ -465,22 +507,27 @@ export function PlayerBar() {
 
           <div className="h-4 w-[1px] bg-white/10" />
 
-          <button
-            onClick={handleVolumeToggle}
-            className="text-slate-400 hover:text-white transition-colors"
-            title={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}
-          >
-            {volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-          </button>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={volume}
-            onChange={(e) => setVolume(Number(e.target.value))}
-            className="w-24 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[var(--primary-spotify)]"
-          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleVolumeToggle}
+              className="text-slate-400 hover:text-white transition-colors p-1"
+              title={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}
+            >
+              {volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={volume}
+              onChange={(e) => setVolume(Number(e.target.value))}
+              style={{
+                background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${volume * 100}%, rgba(255,255,255,0.1) ${volume * 100}%)`,
+              }}
+              className="w-20 md:w-24 h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-all"
+            />
+          </div>
         </div>
       </footer>
 
@@ -493,3 +540,4 @@ export function PlayerBar() {
     </>
   )
 }
+
