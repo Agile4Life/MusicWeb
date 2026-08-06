@@ -2,10 +2,13 @@
 
 import React, { useState } from 'react'
 import { ThemeSelector } from '@/components/theme/ThemeSelector'
+import { LanguageSelector } from '@/components/i18n/LanguageSelector'
+import { useLanguage } from '@/components/i18n/LanguageContext'
 import { createClient } from '@/lib/supabase/client'
-import { Settings, Sliders, Volume2, HardDrive, ShieldCheck, Sparkles } from 'lucide-react'
+import { Settings, Sliders, Volume2, HardDrive, ShieldCheck, Sparkles, Globe } from 'lucide-react'
 
 export default function SettingsPage() {
+  const { t } = useLanguage()
   const supabase = createClient()
   const [audioQuality, setAudioQuality] = useState('high')
   const [autoPlayNext, setAutoPlayNext] = useState(true)
@@ -42,15 +45,30 @@ export default function SettingsPage() {
     <div className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 md:gap-8 max-w-5xl mx-auto w-full select-none pb-32 md:pb-8">
       {/* Settings Header */}
       <div className="flex flex-col gap-1 border-b border-white/[0.05] pb-4">
-        <h1 className="text-2xl font-extrabold text-white tracking-tight">Cài đặt hệ thống</h1>
+        <h1 className="text-2xl font-extrabold text-white tracking-tight">{t('settings_title')}</h1>
         <p className="text-xs text-slate-400">
-          Tùy chỉnh giao diện màu sắc, chất lượng phát nhạc và cấu hình cá nhân.
+          {t('settings_desc')}
         </p>
       </div>
 
       {/* Theme Selection Section */}
       <div className="bg-[#0d1017] p-6 rounded-2xl border border-white/[0.06]">
         <ThemeSelector />
+      </div>
+
+      {/* Language Selection Section */}
+      <div className="bg-[#0d1017] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-4">
+        <div className="flex items-center gap-2 text-sm font-bold text-white border-b border-white/[0.05] pb-3">
+          <Globe className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
+          <span>{t('language_title')}</span>
+        </div>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
+          <div>
+            <p className="text-xs font-bold text-white">{t('language_title')}</p>
+            <p className="text-[11px] text-slate-400">{t('language_desc')}</p>
+          </div>
+          <LanguageSelector variant="select" />
+        </div>
       </div>
 
       {/* Audio & Playback Options */}

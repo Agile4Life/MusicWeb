@@ -20,9 +20,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Sidebar />
 
             {/* Main Content Area */}
-            <main className="flex-1 bg-[#10131c]/90 rounded-2xl border border-white/[0.05] overflow-y-auto flex flex-col relative pb-32 md:pb-0">
+            <main className="flex-1 bg-[#10131c]/90 rounded-2xl border border-white/[0.05] overflow-hidden flex flex-col relative pb-32 md:pb-0">
               <TopBar />
-              {children}
+              <div className="flex-1 overflow-y-auto min-h-0 relative">
+                {children}
+              </div>
             </main>
 
             {/* Right Playback Queue Sidebar */}

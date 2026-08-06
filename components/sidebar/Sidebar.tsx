@@ -22,8 +22,10 @@ import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
 import { isAdmin, getValidUserId } from '@/lib/accessControl'
 import { useSession, signOut } from 'next-auth/react'
+import { useLanguage } from '@/components/i18n/LanguageContext'
 
 export function Sidebar() {
+  const { t } = useLanguage()
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -199,7 +201,7 @@ export function Sidebar() {
             }`}
           >
             <Home className={`w-4 h-4 ${pathname === '/' ? 'text-[var(--primary-spotify,#06b6d4)]' : ''}`} />
-            <span>Trang chủ</span>
+            <span>{t('home')}</span>
           </Link>
 
           <Link
@@ -208,7 +210,7 @@ export function Sidebar() {
             className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-[var(--spotify-glow,#22d3ee)] hover:bg-white/5 transition-colors duration-150"
           >
             <Cloud className="w-4 h-4" />
-            <span>Drive</span>
+            <span>{t('drive')}</span>
           </Link>
 
           <Link
@@ -220,7 +222,7 @@ export function Sidebar() {
             }`}
           >
             <Heart className={`w-4 h-4 ${pathname === '/favorites' ? 'text-rose-400 fill-rose-400' : ''}`} />
-            <span>Yêu thích</span>
+            <span>{t('favorites')}</span>
           </Link>
 
           <Link
@@ -232,7 +234,7 @@ export function Sidebar() {
             }`}
           >
             <History className={`w-4 h-4 ${pathname === '/history' ? 'text-[var(--primary-spotify,#06b6d4)]' : ''}`} />
-            <span>Lịch sử nghe</span>
+            <span>{t('history')}</span>
           </Link>
 
           {isAdmin(user?.email) && (
@@ -245,7 +247,7 @@ export function Sidebar() {
               }`}
             >
               <Upload className={`w-4 h-4 ${pathname === '/upload' ? 'text-[var(--primary-spotify,#06b6d4)]' : ''}`} />
-              <span>Upload Nhạc</span>
+              <span>{t('upload')}</span>
             </Link>
           )}
 
@@ -258,7 +260,7 @@ export function Sidebar() {
             }`}
           >
             <Settings className={`w-4 h-4 ${pathname === '/settings' ? 'text-[var(--primary-spotify,#06b6d4)]' : ''}`} />
-            <span>Cài đặt & Màu sắc</span>
+            <span>{t('settings')}</span>
           </Link>
         </nav>
 

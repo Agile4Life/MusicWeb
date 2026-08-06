@@ -325,6 +325,35 @@ export function PlayerBar() {
               className="w-full h-1.5 rounded-lg appearance-none cursor-pointer outline-none"
             />
           </div>
+
+          {/* Extra Mobile Actions: Lyrics & Queue */}
+          <div className="flex items-center justify-around px-4 mb-4">
+            <button
+              onClick={() => {
+                setShowMobileFullPlayer(false)
+                setShowLyricsModal(true)
+              }}
+              className="p-3 text-slate-300 hover:text-white rounded-full bg-white/5 border border-white/10 flex items-center gap-2 text-xs font-semibold"
+            >
+              <Mic2 className="w-4 h-4 text-cyan-400" />
+              <span>Lời bài hát</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setShowMobileFullPlayer(false)
+                toggleQueue()
+              }}
+              className={`p-3 rounded-full transition-all flex items-center gap-2 text-xs font-semibold ${
+                isQueueOpen
+                  ? 'text-cyan-400 bg-cyan-500/20 border border-cyan-500/40 shadow-lg'
+                  : 'text-slate-300 hover:text-white bg-white/5 border border-white/10'
+              }`}
+            >
+              <ListMusic className="w-4 h-4 text-cyan-400" />
+              <span>Hàng đợi</span>
+            </button>
+          </div>
         </div>
       )}
 

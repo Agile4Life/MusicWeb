@@ -2,9 +2,11 @@
 
 import React, { useState } from 'react'
 import { usePlayer } from './PlayerContext'
+import { useLanguage } from '@/components/i18n/LanguageContext'
 import { X, Play, Music, History, Sparkles } from 'lucide-react'
 
 export function QueueDrawer() {
+  const { t } = useLanguage()
   const { currentTrack, queue, currentIndex, playTrack, isPlaying, removeFromQueue, clearQueue, isQueueOpen, closeQueue } = usePlayer()
   const [activeTab, setActiveTab] = useState<'queue' | 'history'>('queue')
 
@@ -14,7 +16,7 @@ export function QueueDrawer() {
   const nextUpTracks = currentIndex >= 0 ? queue.slice(currentIndex + 1) : queue
 
   return (
-    <aside className="w-full lg:w-80 xl:w-96 bg-[#10131c]/95 backdrop-blur-2xl rounded-2xl border border-white/[0.08] shadow-2xl flex flex-col overflow-hidden shrink-0 h-full select-none animate-in slide-in-from-right duration-200 z-20">
+    <aside className="fixed inset-x-2 top-16 bottom-36 z-50 lg:z-20 lg:static lg:inset-auto lg:top-auto lg:bottom-auto lg:h-full w-auto lg:w-80 xl:w-96 bg-[#0d1017]/98 lg:bg-[#10131c]/95 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-2xl flex flex-col overflow-hidden shrink-0 select-none animate-in slide-in-from-bottom lg:slide-in-from-right duration-200">
       {/* Drawer Header */}
       <div className="flex items-center justify-between px-4 py-3.5 border-b border-white/10 shrink-0">
         <div className="flex items-center gap-4">
@@ -24,7 +26,7 @@ export function QueueDrawer() {
               activeTab === 'queue' ? 'text-white' : 'text-slate-400 hover:text-white'
             }`}
           >
-            <span>Danh sách phát</span>
+            <span>{t('queue')}</span>
             {activeTab === 'queue' && (
               <span
                 style={{ backgroundColor: 'var(--spotify-glow, #22d3ee)' }}
@@ -39,7 +41,7 @@ export function QueueDrawer() {
               activeTab === 'history' ? 'text-white' : 'text-slate-400 hover:text-white'
             }`}
           >
-            <span>Vừa nghe gần đây</span>
+            <span>{t('recently_played')}</span>
             {activeTab === 'history' && (
               <span
                 style={{ backgroundColor: 'var(--spotify-glow, #22d3ee)' }}
@@ -52,7 +54,7 @@ export function QueueDrawer() {
         <button
           onClick={closeQueue}
           className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-          title="Đóng hàng đợi"
+          title={t('cancel')}
         >
           <X className="w-4 h-4" />
         </button>
@@ -64,7 +66,7 @@ export function QueueDrawer() {
           <>
             {/* Section 1: Now Playing */}
             <div className="flex flex-col gap-2.5">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Đang phát</h3>
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('now_playing')}</h3>
 
               {currentTrack ? (
                 <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.04] border border-white/10 group">
@@ -94,7 +96,7 @@ export function QueueDrawer() {
                       {currentTrack.title}
                     </p>
                     <p className="text-[11px] text-slate-400 truncate mt-0.5">
-                      {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
+                      {currentTrack.artist || t('unknown_artist')}
                     </p>
                   </div>
                 </div>
@@ -107,14 +109,14 @@ export function QueueDrawer() {
             <div className="flex flex-col gap-2.5">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  Tiếp theo ({nextUpTracks.length})
+                  {t('next_up')} ({nextUpTracks.length})
                 </h3>
                 {nextUpTracks.length > 0 && (
                   <button
                     onClick={clearQueue}
                     className="text-[11px] font-semibold text-slate-400 hover:text-rose-400 transition-colors"
                   >
-                    Xóa hàng đợi
+                    {t('clear_queue')}
                   </button>
                 )}
               </div>
@@ -146,7 +148,7 @@ export function QueueDrawer() {
                               {track.title}
                             </p>
                             <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                              {track.artist || 'Nghệ sĩ chưa xác định'}
+                              {track.artist || t('unknown_artist')}
                             </p>
                           </div>
                         </div>
@@ -157,7 +159,7 @@ export function QueueDrawer() {
                             removeFromQueue(actualQueueIndex)
                           }}
                           className="p-1 text-slate-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all rounded-md hover:bg-white/10 shrink-0"
-                          title="Xóa khỏi hàng đợi"
+                          title={t('remove_from_queue')}
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -168,8 +170,8 @@ export function QueueDrawer() {
               ) : (
                 <div className="p-6 text-center rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col items-center gap-2">
                   <Sparkles className="w-6 h-6 text-slate-500" />
-                  <p className="text-xs text-slate-400">Không có bài hát tiếp theo trong hàng đợi</p>
-                  <p className="text-[10px] text-slate-500">Hãy chọn "Thêm vào hàng đợi" ở danh sách bài hát</p>
+                  <p className="text-xs text-slate-400">{t('no_next_tracks')}</p>
+                  <p className="text-[10px] text-slate-500">{t('add_to_queue_hint')}</p>
                 </div>
               )}
             </div>
@@ -177,7 +179,7 @@ export function QueueDrawer() {
         ) : (
           /* Tab 2: Recently Played */
           <div className="flex flex-col gap-2.5">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Lịch sử vừa nghe</h3>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('recently_played')}</h3>
 
             {queue.slice(0, currentIndex).length > 0 ? (
               <div className="flex flex-col gap-1.5">

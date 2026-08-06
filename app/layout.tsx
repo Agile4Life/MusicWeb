@@ -4,6 +4,7 @@ import './globals.css'
 
 import { SessionProvider } from '@/components/auth/SessionProvider'
 import { ThemeProvider } from '@/components/theme/ThemeContext'
+import { LanguageProvider } from '@/components/i18n/LanguageContext'
 import { CursorSpotlight } from '@/components/theme/CursorSpotlight'
 
 const geistSans = Geist({
@@ -48,10 +49,12 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-[var(--bg-space,#07080c)] text-slate-100 selection:bg-[var(--primary-spotify,#06b6d4)] selection:text-black font-sans">
         <SessionProvider>
-          <ThemeProvider>
-            <CursorSpotlight />
-            {children}
-          </ThemeProvider>
+          <LanguageProvider>
+            <ThemeProvider>
+              <CursorSpotlight />
+              {children}
+            </ThemeProvider>
+          </LanguageProvider>
         </SessionProvider>
         <script
           dangerouslySetInnerHTML={{
