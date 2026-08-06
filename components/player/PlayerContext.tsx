@@ -29,6 +29,9 @@ interface PlayerContextType {
   setVolume: (val: number) => void
   nextTrack: () => void
   prevTrack: () => void
+  addToQueue: (track: Track) => void
+  removeFromQueue: (index: number) => void
+  clearQueue: () => void
   audioRef: React.RefObject<HTMLAudioElement | null>
 }
 
@@ -730,6 +733,30 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   nextTrackRef.current = nextTrack
   prevTrackRef.current = prevTrack
 
+  const addToQueue = (track: Track) => {
+    setQueue((prev) => {
+      if (prev.some((t) => t.id === track.id)) return prev
+      return [...prev, track]
+    })
+  }
+
+  const removeFromQueue = (indexToRemove: number) => {
+    setQueue((prev) => prev.filter((_, idx) => idx !== indexToRemove))
+    if (currentIndex > indexToRemove) {
+      setCurrentIndex((prev) => prev - 1)
+    }
+  }
+
+  const clearQueue = () => {
+    if (currentTrack) {
+      setQueue([currentTrack])
+      setCurrentIndex(0)
+    } else {
+      setQueue([])
+      setCurrentIndex(-1)
+    }
+  }
+
   // HTML5 Audio Event Listeners
   useEffect(() => {
     const audio = audioRef.current
@@ -905,6 +932,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         setVolume,
         nextTrack,
         prevTrack,
+        addToQueue,
+        removeFromQueue,
+        clearQueue,
         audioRef,
       }}
     >

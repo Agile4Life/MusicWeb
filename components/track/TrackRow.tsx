@@ -45,7 +45,7 @@ function TrackRowComponent({
 }: TrackRowProps) {
   const supabase = createClient()
   const { data: nextAuthSession } = useSession()
-  const { currentTrack, isPlaying, playTrack, togglePlay, queue } = usePlayer()
+  const { currentTrack, isPlaying, playTrack, togglePlay, queue, addToQueue } = usePlayer()
   const [showMenu, setShowMenu] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [editTitle, setEditTitle] = useState(track.title || '')
@@ -316,13 +316,25 @@ function TrackRowComponent({
             </button>
           </div>
         ) : (
-          <div className="relative">
+          <div className="relative flex items-center gap-0.5">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                addToQueue(track)
+              }}
+              className="p-1.5 text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+              title="Thêm vào hàng đợi"
+            >
+              <ListMusic className="w-4 h-4" />
+            </button>
+
             <button
               onClick={(e) => {
                 e.stopPropagation()
                 setShowMenu(!showMenu)
               }}
               className="p-1.5 hover:text-white hover:bg-white/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+              title="Khác"
             >
               <MoreVertical className="w-4 h-4" />
             </button>

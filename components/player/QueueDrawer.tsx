@@ -11,7 +11,7 @@ interface QueueDrawerProps {
 }
 
 export function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
-  const { currentTrack, queue, currentIndex, playTrack, isPlaying } = usePlayer()
+  const { currentTrack, queue, currentIndex, playTrack, isPlaying, removeFromQueue, clearQueue } = usePlayer()
   const [activeTab, setActiveTab] = useState<'queue' | 'history'>('queue')
 
   if (!isOpen) return null
@@ -20,7 +20,7 @@ export function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
   const nextUpTracks = currentIndex >= 0 ? queue.slice(currentIndex + 1) : queue
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-[#090b10]/95 backdrop-blur-2xl border-l border-white/10 shadow-2xl flex flex-col transition-all duration-300 animate-in slide-in-from-right select-none">
+    <div className="fixed top-16 md:top-20 bottom-24 right-0 md:right-4 z-40 w-full sm:w-96 bg-[#090b10]/98 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl flex flex-col transition-all duration-300 animate-in slide-in-from-right select-none my-2">
       {/* Drawer Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 shrink-0">
         <div className="flex items-center gap-4">
@@ -115,6 +115,14 @@ export function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                   Tiếp theo ({nextUpTracks.length})
                 </h3>
+                {nextUpTracks.length > 0 && (
+                  <button
+                    onClick={clearQueue}
+                    className="text-[11px] font-semibold text-slate-400 hover:text-rose-400 transition-colors"
+                  >
+                    Xóa hàng đợi
+                  </button>
+                )}
               </div>
 
               {nextUpTracks.length > 0 ? (
@@ -125,27 +133,40 @@ export function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
                       <div
                         key={`${track.id}-${idx}`}
                         onClick={() => playTrack(track, queue, actualQueueIndex)}
-                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/[0.06] border border-transparent hover:border-white/10 group transition-all cursor-pointer"
+                        className="flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-white/[0.06] border border-transparent hover:border-white/10 group transition-all cursor-pointer"
                       >
-                        <div className="w-10 h-10 rounded-lg bg-slate-800 border border-white/10 overflow-hidden shrink-0 relative flex items-center justify-center">
-                          {track.cover_url ? (
-                            <img src={track.cover_url} alt={track.title} className="w-full h-full object-cover" />
-                          ) : (
-                            <Music className="w-5 h-5 text-slate-500" />
-                          )}
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                            <Play className="w-4 h-4 text-white fill-current ml-0.5" />
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="w-10 h-10 rounded-lg bg-slate-800 border border-white/10 overflow-hidden shrink-0 relative flex items-center justify-center">
+                            {track.cover_url ? (
+                              <img src={track.cover_url} alt={track.title} className="w-full h-full object-cover" />
+                            ) : (
+                              <Music className="w-5 h-5 text-slate-500" />
+                            )}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                              <Play className="w-4 h-4 text-white fill-current ml-0.5" />
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <p className="text-xs font-semibold text-white truncate group-hover:text-[var(--spotify-glow,#22d3ee)] transition-colors">
+                              {track.title}
+                            </p>
+                            <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                              {track.artist || 'Nghệ sĩ chưa xác định'}
+                            </p>
                           </div>
                         </div>
 
-                        <div className="flex flex-col min-w-0 flex-1">
-                          <p className="text-xs font-semibold text-white truncate group-hover:text-[var(--spotify-glow,#22d3ee)] transition-colors">
-                            {track.title}
-                          </p>
-                          <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                            {track.artist || 'Nghệ sĩ chưa xác định'}
-                          </p>
-                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            removeFromQueue(actualQueueIndex)
+                          }}
+                          className="p-1 text-slate-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all rounded-md hover:bg-white/10 shrink-0"
+                          title="Xóa khỏi hàng đợi"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
                       </div>
                     )
                   })}
