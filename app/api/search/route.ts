@@ -84,7 +84,7 @@ export async function GET(request: Request) {
     }
 
     // 2. Search YouTube tracks
-    if (source === 'all' || source === 'youtube') {
+    if (source === 'all' || source === 'youtube' || source === 'spotify' || source === 'itunes') {
       promises.push(searchYouTubeTracks(q.trim(), 10).catch(() => []))
     } else {
       promises.push(Promise.resolve([]))
@@ -113,12 +113,33 @@ export async function GET(request: Request) {
 
     const [localTracks, youtubeTracks, audiusTracks, itunesTracks, spotifyTracks] = await Promise.all(promises)
 
+    // Pre-assign YouTube stream IDs for Spotify & iTunes tracks so playback is 100% instant without network fetch delay on click
+    const enhancedSpotify = spotifyTracks.map((sTrack: Track, idx: number) => {
+      if (sTrack.youtube_id) return sTrack
+      const sTitleNorm = (sTrack.title || '').toLowerCase().normalize('NFKC')
+      const match = (youtubeTracks || []).find((yTrack: Track) => {
+        const yTitleNorm = (yTrack.title || '').toLowerCase().normalize('NFKC')
+        return yTitleNorm.includes(sTitleNorm) || sTitleNorm.includes(yTitleNorm)
+      }) || youtubeTracks?.[idx] || youtubeTracks?.[0]
+      return match?.youtube_id ? { ...sTrack, youtube_id: match.youtube_id } : sTrack
+    })
+
+    const enhancedITunes = itunesTracks.map((iTrack: Track, idx: number) => {
+      if (iTrack.youtube_id) return iTrack
+      const iTitleNorm = (iTrack.title || '').toLowerCase().normalize('NFKC')
+      const match = (youtubeTracks || []).find((yTrack: Track) => {
+        const yTitleNorm = (yTrack.title || '').toLowerCase().normalize('NFKC')
+        return yTitleNorm.includes(iTitleNorm) || iTitleNorm.includes(yTitleNorm)
+      }) || youtubeTracks?.[idx] || youtubeTracks?.[0]
+      return match?.youtube_id ? { ...iTrack, youtube_id: match.youtube_id } : iTrack
+    })
+
     const responseData = {
       local: localTracks,
       youtube: youtubeTracks,
       audius: audiusTracks,
-      itunes: itunesTracks,
-      spotify: spotifyTracks,
+      itunes: enhancedITunes,
+      spotify: enhancedSpotify,
     }
 
     if (searchCache.size > 200) {

@@ -555,7 +555,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     // 🎵 Full-Length Stream Resolver for iTunes & Spotify tracks (Resolves DRM/metadata into 100% playable full song)
     let activeTrack = track
-    if ((track.source === 'itunes' || track.source === 'spotify') && !track.youtube_id) {
+    if ((track.source === 'itunes' || track.source === 'spotify' || (!track.youtube_id && (track.spotify_id || track.itunes_id))) && !track.youtube_id) {
+      // Synchronously unlock YouTube player user gesture before async fetch
+      if (ytPlayerRef.current && ytPlayerRef.current.playVideo) {
+        try { ytPlayerRef.current.playVideo() } catch {}
+      }
+
       try {
         const cleanTitle = track.title.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').trim()
         const queryStr = `${cleanTitle} ${track.artist || ''}`
@@ -570,6 +575,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               youtube_id: ytList[0].youtube_id,
               source: 'youtube', // Switch audio engine to YouTube for 100% full-length playback
             }
+            rawTrack.youtube_id = ytList[0].youtube_id
+            track.youtube_id = ytList[0].youtube_id
             if (requestId === playRequestRef.current) {
               setCurrentTrack(activeTrack)
             }
