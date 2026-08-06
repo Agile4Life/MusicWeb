@@ -7,19 +7,62 @@ const PIPED_INSTANCES = [
   'https://pipedapi.mha.fi',
 ]
 
+const INVIDIOUS_INSTANCES = [
+  'https://invidious.privacydev.net',
+  'https://vid.puffyan.us',
+  'https://inv.tux.pizza',
+  'https://invidious.drgns.space',
+]
+
 /**
- * Scrape YouTube Search directly from YouTube HTML (100% Free - Always works, No API Key needed)
+ * Extract 11-character YouTube Video ID from any input or URL
+ */
+export function extractYouTubeVideoId(input: string): string | null {
+  if (!input) return null
+  const trimmed = input.trim()
+
+  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+    return trimmed
+  }
+
+  const match = trimmed.match(
+    /(?:v=|\/embed\/|\/1\/|\/v\/|https:\/\/youtu\.be\/|music\.youtube\.com\/watch\?v=|^yt-)([a-zA-Z0-9_-]{11})/
+  )
+  return match ? match[1] : null
+}
+
+/**
+ * Scrape YouTube Search directly from YouTube HTML (100% Free - Works for YouTube & YouTube Music)
  */
 async function scrapeYouTubeSearch(query: string, limit = 15): Promise<Track[]> {
   try {
+    const videoIdFromUrl = extractYouTubeVideoId(query)
+    if (videoIdFromUrl) {
+      return [
+        {
+          id: `yt-${videoIdFromUrl}`,
+          user_id: 'youtube-global',
+          title: query.startsWith('http') ? 'YouTube Song' : `YouTube Video (${videoIdFromUrl})`,
+          artist: 'YouTube Music',
+          album: 'YouTube Music',
+          duration: 0,
+          file_path: `https://www.youtube.com/watch?v=${videoIdFromUrl}`,
+          cover_url: `https://img.youtube.com/vi/${videoIdFromUrl}/hqdefault.jpg`,
+          created_at: new Date().toISOString(),
+          source: 'youtube',
+          youtube_id: videoIdFromUrl,
+        },
+      ]
+    }
+
     const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query.trim())}`
     const res = await fetch(url, {
       headers: {
         'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Accept-Language': 'en-US,en;q=0.9,vi;q=0.8',
       },
-      signal: AbortSignal.timeout(3500),
+      signal: AbortSignal.timeout(6000),
     })
 
     if (!res.ok) return []
@@ -32,19 +75,19 @@ async function scrapeYouTubeSearch(query: string, limit = 15): Promise<Track[]> 
     if (!match || !match[1]) return []
 
     const data = JSON.parse(match[1])
-    const contents =
-      data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents?.[0]
-        ?.itemSectionRenderer?.contents || []
+    const sectionList =
+      data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || []
 
     const tracks: Track[] = []
+    const seenIds = new Set<string>()
 
-    for (const item of contents) {
-      if (tracks.length >= limit) break
-      const video = item.videoRenderer
-      if (!video || !video.videoId) continue
+    const parseVideoRenderer = (video: any): Track | null => {
+      if (!video || !video.videoId || seenIds.has(video.videoId)) return null
+      seenIds.add(video.videoId)
 
       const videoId = video.videoId
-      const title = video.title?.runs?.[0]?.text || 'YouTube Track'
+      const title =
+        video.title?.runs?.[0]?.text || video.title?.simpleText || 'YouTube Track'
       const artist =
         video.ownerText?.runs?.[0]?.text ||
         video.shortBylineText?.runs?.[0]?.text ||
@@ -55,14 +98,17 @@ async function scrapeYouTubeSearch(query: string, limit = 15): Promise<Track[]> 
         `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
 
       let durationSeconds = 0
-      const durationStr = video.lengthText?.simpleText || ''
+      const durationStr =
+        video.lengthText?.simpleText ||
+        video.thumbnailOverlays?.[0]?.thumbnailOverlayTimeStatusRenderer?.text?.simpleText ||
+        ''
       if (durationStr) {
         const parts = durationStr.split(':').map(Number)
         if (parts.length === 2) durationSeconds = parts[0] * 60 + parts[1]
         else if (parts.length === 3) durationSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2]
       }
 
-      tracks.push({
+      return {
         id: `yt-${videoId}`,
         user_id: 'youtube-global',
         title: title.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&'),
@@ -74,7 +120,27 @@ async function scrapeYouTubeSearch(query: string, limit = 15): Promise<Track[]> 
         created_at: new Date().toISOString(),
         source: 'youtube',
         youtube_id: videoId,
-      })
+      }
+    }
+
+    for (const section of sectionList) {
+      const items = section?.itemSectionRenderer?.contents || []
+      for (const item of items) {
+        if (tracks.length >= limit) break
+
+        if (item.videoRenderer) {
+          const t = parseVideoRenderer(item.videoRenderer)
+          if (t) tracks.push(t)
+        } else if (item.shelfRenderer?.content?.verticalListRenderer?.items) {
+          for (const subItem of item.shelfRenderer.content.verticalListRenderer.items) {
+            if (tracks.length >= limit) break
+            if (subItem.videoRenderer) {
+              const t = parseVideoRenderer(subItem.videoRenderer)
+              if (t) tracks.push(t)
+            }
+          }
+        }
+      }
     }
 
     return tracks
@@ -91,7 +157,7 @@ async function fetchFromPipedInstances(query: string, limit = 15): Promise<Track
   const fetchInstance = async (instance: string): Promise<Track[]> => {
     const res = await fetch(
       `${instance}/search?q=${encodeURIComponent(query.trim())}&filter=music_songs`,
-      { signal: AbortSignal.timeout(2500) }
+      { signal: AbortSignal.timeout(3000) }
     )
     if (!res.ok) throw new Error('Piped HTTP error')
     const data = await res.json()
@@ -125,10 +191,64 @@ async function fetchFromPipedInstances(query: string, limit = 15): Promise<Track
 }
 
 /**
- * Search YouTube Data API v3 (or Direct Scraper + Piped Fallbacks)
+ * Fallback to Invidious API instances
+ */
+async function fetchFromInvidiousInstances(query: string, limit = 15): Promise<Track[]> {
+  const fetchInstance = async (instance: string): Promise<Track[]> => {
+    const res = await fetch(
+      `${instance}/api/v1/search?q=${encodeURIComponent(query.trim())}&type=video`,
+      { signal: AbortSignal.timeout(3000) }
+    )
+    if (!res.ok) throw new Error('Invidious HTTP error')
+    const items = await res.json()
+    if (!Array.isArray(items) || items.length === 0) throw new Error('Empty Invidious items')
+
+    return items.slice(0, limit).map((item: any): Track => ({
+      id: `yt-${item.videoId}`,
+      user_id: 'youtube-global',
+      title: item.title || 'YouTube Track',
+      artist: item.author || 'YouTube Artist',
+      album: 'YouTube Music',
+      duration: item.lengthSeconds || 0,
+      file_path: `https://www.youtube.com/watch?v=${item.videoId}`,
+      cover_url: item.videoThumbnails?.[0]?.url || `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg`,
+      created_at: new Date().toISOString(),
+      source: 'youtube',
+      youtube_id: item.videoId,
+    }))
+  }
+
+  try {
+    return await Promise.any(INVIDIOUS_INSTANCES.map((inst) => fetchInstance(inst)))
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Search YouTube Data API v3 (or Direct Scraper + Piped + Invidious Fallbacks)
  */
 export async function searchYouTubeTracks(query: string, limit = 15): Promise<Track[]> {
   if (!query.trim()) return []
+
+  const videoIdFromUrl = extractYouTubeVideoId(query)
+  if (videoIdFromUrl) {
+    return [
+      {
+        id: `yt-${videoIdFromUrl}`,
+        user_id: 'youtube-global',
+        title: query.startsWith('http') ? 'YouTube Song' : `YouTube Video (${videoIdFromUrl})`,
+        artist: 'YouTube Music',
+        album: 'YouTube Music',
+        duration: 0,
+        file_path: `https://www.youtube.com/watch?v=${videoIdFromUrl}`,
+        cover_url: `https://img.youtube.com/vi/${videoIdFromUrl}/hqdefault.jpg`,
+        created_at: new Date().toISOString(),
+        source: 'youtube',
+        youtube_id: videoIdFromUrl,
+      },
+    ]
+  }
 
   const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY || ''
 
@@ -139,7 +259,7 @@ export async function searchYouTubeTracks(query: string, limit = 15): Promise<Tr
         query.trim()
       )}&key=${YOUTUBE_API_KEY}`
 
-      const res = await fetch(url, { signal: AbortSignal.timeout(3000) })
+      const res = await fetch(url, { signal: AbortSignal.timeout(4500) })
       if (res.ok) {
         const data = await res.json()
         const items = data.items || []
@@ -190,15 +310,20 @@ export async function searchYouTubeTracks(query: string, limit = 15): Promise<Tr
   }
 
   // 3. Piped API Instances Fallback
-  return fetchFromPipedInstances(query, limit)
+  const pipedTracks = await fetchFromPipedInstances(query, limit)
+  if (pipedTracks.length > 0) {
+    return pipedTracks
+  }
+
+  // 4. Invidious API Instances Fallback
+  return fetchFromInvidiousInstances(query, limit)
 }
 
 /**
- * Fetch Trending / Top YouTube songs for initial display (Filtered for single official songs)
+ * Fetch Trending / Top YouTube songs for initial display
  */
 export async function getTrendingYouTubeTracks(limit = 12): Promise<Track[]> {
   const tracks = await searchYouTubeTracks('Official Music Video Vpop USUK Trending 2026', limit * 2)
-  // Filter out long compilation / playlist videos
   const filtered = tracks.filter((t) => {
     const titleLower = t.title.toLowerCase()
     return (
