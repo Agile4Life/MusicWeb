@@ -18,6 +18,9 @@ import {
   Shuffle,
   Repeat,
   Repeat1,
+  Volume2,
+  VolumeX,
+  Heart,
 } from 'lucide-react'
 
 interface LyricsViewProps {
@@ -46,8 +49,12 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
     toggleShuffle,
     repeatMode,
     toggleRepeat,
+    volume,
+    setVolume,
+    toggleFavoriteCurrentTrack,
   } = usePlayer()
 
+  const [prevVol, setPrevVol] = useState(0.8)
   const [loading, setLoading] = useState(false)
   const [lyricsData, setLyricsData] = useState<LrclibResponse | null>(null)
   const [parsedLyrics, setParsedLyrics] = useState<LyricLine[]>([])
@@ -59,6 +66,15 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
   const isUserScrollingRef = useRef(false)
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  const handleVolumeToggle = () => {
+    if (volume > 0) {
+      setPrevVol(volume)
+      setVolume(0)
+    } else {
+      setVolume(prevVol || 0.8)
+    }
+  }
 
   // 1. Fetch lyrics when currentTrack changes
   useEffect(() => {
@@ -99,34 +115,32 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
         setParsedLyrics([])
         setIsSynced(false)
       }
-    } catch (err: any) {
-      console.error('Error fetching lyrics:', err)
-      setErrorMessage('Khởi tạo lời bài hát thất bại. Vui lòng thử lại.')
+    } catch (err) {
+      setErrorMessage('Không thể tải lời bài hát')
+      setParsedLyrics([])
+      setIsSynced(false)
     } finally {
       setLoading(false)
     }
   }
 
-  // 2. Track active line index based on currentTime
+  // 2. Track playback time & update active lyric line
   useEffect(() => {
     if (!isSynced || parsedLyrics.length === 0) return
 
-    const idx = findActiveLyricIndex(parsedLyrics, currentTime)
-    if (idx !== activeIndex) {
-      setActiveIndex(idx)
+    const index = findActiveLyricIndex(parsedLyrics, currentTime)
+    if (index !== activeIndex) {
+      setActiveIndex(index)
     }
-  }, [currentTime, parsedLyrics, isSynced])
+  }, [currentTime, parsedLyrics, isSynced, activeIndex])
 
-  // 3. Smooth 60FPS auto-scroll to active line
+  // 3. Smooth scroll active lyric into view
   useEffect(() => {
-    if (!isSynced || activeIndex < 0 || !activeLineRef.current || !scrollContainerRef.current) return
-    if (isUserScrollingRef.current) return
+    if (activeIndex < 0 || !isSynced || isUserScrollingRef.current) return
 
-    const activeEl = activeLineRef.current
-
-    // Request animation frame for buttery smooth 60FPS GPU scrolling
-    requestAnimationFrame(() => {
-      activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    activeLineRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
     })
   }, [activeIndex, isSynced])
 
@@ -175,25 +189,25 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
       </div>
 
       {/* 🔝 Lyrics Header */}
-      <div className="relative z-10 flex items-center justify-between gap-4 p-4 md:px-6 md:py-4 border-b border-white/10 shrink-0">
+      <div className="relative z-10 flex items-center justify-between gap-4 p-4 md:px-6 md:py-4 border-b border-white/[0.08] shrink-0 bg-white/[0.02]">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-11 h-11 md:w-12 md:h-12 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden shadow-lg">
+          <div className="w-11 h-11 md:w-12 md:h-12 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden shadow-md">
             {currentTrack.cover_url ? (
               <img src={currentTrack.cover_url} alt={currentTrack.title} className="w-full h-full object-cover" />
             ) : (
-              <Mic2 className="w-5 h-5 text-[var(--primary-spotify)]" />
+              <Mic2 className="w-5 h-5 text-cyan-400" />
             )}
           </div>
           <div className="truncate flex flex-col">
-            <h2 className="text-sm md:text-base font-bold text-white truncate flex items-center gap-2">
+            <h2 className="text-xs md:text-sm font-bold text-white truncate flex items-center gap-2">
               <span>{currentTrack.title}</span>
               {isSynced && (
-                <span className="text-[9px] md:text-[10px] uppercase font-mono font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
-                  ✨ Synced
+                <span className="text-[9px] uppercase font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
+                  Synced
                 </span>
               )}
             </h2>
-            <p className="text-xs text-slate-400 truncate">
+            <p className="text-[11px] text-slate-400 truncate mt-0.5">
               {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
             </p>
           </div>
@@ -204,7 +218,7 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
           <button
             onClick={() => loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.duration)}
             disabled={loading}
-            className="w-10 h-10 flex items-center justify-center bg-white/5 active:bg-white/15 text-slate-300 rounded-xl border border-white/10 transition-colors"
+            className="w-9 h-9 flex items-center justify-center bg-white/5 hover:bg-white/10 active:bg-white/15 text-slate-300 rounded-xl border border-white/10 transition-colors"
             title="Tải lại lời bài hát"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -213,10 +227,10 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
           {onClose && (
             <button
               onClick={onClose}
-              className="w-10 h-10 flex items-center justify-center bg-white/10 active:bg-white/20 text-slate-300 rounded-full border border-white/10 transition-colors"
+              className="w-9 h-9 flex items-center justify-center bg-white/10 hover:bg-white/20 active:bg-white/25 text-white rounded-xl border border-white/10 transition-colors"
               title="Đóng lời bài hát"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -226,12 +240,12 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="relative z-10 flex-1 overflow-y-auto px-4 md:px-8 scrollbar-thin scrollbar-thumb-white/10"
+        className="relative z-10 flex-1 overflow-y-auto px-4 md:px-8 no-scrollbar"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {loading ? (
           <div className="h-full flex flex-col items-center justify-center text-slate-400 py-16">
-            <RefreshCw className="w-8 h-8 text-[var(--primary-spotify)] animate-spin mb-3" />
+            <RefreshCw className="w-8 h-8 text-[var(--primary-spotify,#06b6d4)] animate-spin mb-3" />
             <p className="text-sm font-semibold text-slate-300">Đang tải lời bài hát từ LRCLIB...</p>
           </div>
         ) : parsedLyrics.length > 0 ? (
@@ -247,7 +261,7 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
                   onClick={() => handleLineClick(line)}
                   className={`transition-all duration-300 ease-out cursor-pointer rounded-2xl p-3 sm:px-5 sm:py-3.5 select-none transform-gpu origin-center sm:origin-left active:scale-[0.97] ${
                     isActive
-                      ? 'scale-[1.05] bg-white/10 border border-cyan-500/40 text-white font-extrabold text-lg sm:text-xl md:text-2xl shadow-xl shadow-cyan-950/50 opacity-100'
+                      ? 'scale-[1.03] bg-white/[0.08] border border-cyan-500/30 text-white font-extrabold text-lg sm:text-xl md:text-2xl shadow-xl shadow-cyan-950/40 opacity-100'
                       : isPast
                       ? 'text-slate-400 font-bold text-base sm:text-lg md:text-xl opacity-40 hover:opacity-75'
                       : 'text-slate-300 font-bold text-base sm:text-lg md:text-xl opacity-50 hover:opacity-85'
@@ -256,7 +270,7 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
                   <p
                     className={`transition-colors leading-snug ${
                       isActive
-                        ? 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-white to-emerald-300 drop-shadow-[0_0_18px_rgba(6,182,212,0.65)]'
+                        ? 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-white to-teal-300 drop-shadow-[0_0_18px_rgba(6,182,212,0.65)]'
                         : ''
                     }`}
                   >
@@ -277,81 +291,156 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
         )}
       </div>
 
-      {/* 🎵 BOTTOM PLAYER CONTROLS & SEEK BAR (Thanh tua bài hát & Điều khiển) */}
-      <div className="relative z-20 bg-[#0d0f18]/95 backdrop-blur-2xl border-t border-white/10 p-3 md:p-4 flex flex-col gap-2 shrink-0 pb-safe">
-        {/* Scrubber Range Slider */}
-        <div className="w-full flex items-center gap-3 text-xs font-mono text-slate-400 px-1">
-          <span className="w-10 text-right shrink-0">{formatTime(currentTime)}</span>
-          <input
-            type="range"
-            min={0}
-            max={duration || 100}
-            value={currentTime}
-            onChange={(e) => seek(Number(e.target.value))}
-            className="flex-1 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[var(--primary-spotify)] active:scale-105 transition-transform"
-          />
-          <span className="w-10 shrink-0">{formatTime(duration)}</span>
+      {/* 🎵 BOTTOM PLAYER CONTROLS & SEEK BAR */}
+      <div className="relative z-20 bg-[#090b10]/95 backdrop-blur-2xl border-t border-white/[0.08] px-4 md:px-6 py-3 flex items-center justify-between text-slate-300 select-none shrink-0 pb-safe">
+        {/* Left: Track Metadata */}
+        <div className="hidden sm:flex items-center gap-3 w-1/4 min-w-[180px]">
+          <div className="w-10 h-10 bg-slate-800 rounded-xl overflow-hidden relative flex items-center justify-center border border-white/10 shadow-md shrink-0">
+            {currentTrack.cover_url ? (
+              <img
+                src={currentTrack.cover_url}
+                alt={currentTrack.title}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <Headphones className="w-4 h-4 text-cyan-400" />
+            )}
+          </div>
+
+          <div className="truncate flex flex-col min-w-0">
+            <p className="text-xs font-bold text-white truncate hover:text-cyan-300 transition-colors cursor-pointer">
+              {currentTrack.title}
+            </p>
+            <p className="text-[10px] text-slate-400 truncate hover:text-slate-200 transition-colors cursor-pointer">
+              {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
+            </p>
+          </div>
+
+          <button
+            onClick={toggleFavoriteCurrentTrack}
+            className={`p-1.5 rounded-lg transition-all ml-1 shrink-0 ${
+              currentTrack.is_favorite
+                ? 'text-rose-500 bg-rose-500/15 border border-rose-500/30'
+                : 'text-slate-400 hover:text-rose-400 hover:bg-white/5'
+            }`}
+            title={currentTrack.is_favorite ? 'Bỏ khỏi bài hát yêu thích' : 'Thêm vào bài hát yêu thích'}
+          >
+            <Heart
+              className={`w-3.5 h-3.5 transition-all ${
+                currentTrack.is_favorite ? 'fill-current drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]' : ''
+              }`}
+            />
+          </button>
         </div>
 
-        {/* Playback Buttons */}
-        <div className="flex items-center justify-center gap-5 md:gap-7 py-1">
-          <button
-            onClick={toggleShuffle}
-            className={`p-2.5 rounded-full transition-colors ${
-              isShuffle
-                ? 'text-[var(--primary-spotify)] bg-[var(--primary-spotify)]/20 border border-[var(--primary-spotify)]/40 shadow-lg'
-                : 'text-slate-400 hover:text-white'
-            }`}
-            title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
-          >
-            <Shuffle className="w-4 h-4 md:w-5 md:h-5" />
-          </button>
+        {/* Center: Playback Controls & Seekbar */}
+        <div className="flex flex-col items-center gap-1.5 w-full sm:w-2/4 max-w-xl">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={toggleShuffle}
+              className={`p-1.5 rounded-lg relative transition-all ${
+                isShuffle
+                  ? 'text-[var(--primary-spotify,#06b6d4)] bg-[var(--primary-spotify,#06b6d4)]/15 border border-[var(--primary-spotify,#06b6d4)]/30'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
+              title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
+            >
+              <Shuffle className="w-4 h-4" />
+              {isShuffle && (
+                <span className="w-1 h-1 bg-[var(--primary-spotify,#06b6d4)] rounded-full absolute -bottom-0.5 left-1/2 -translate-x-1/2" />
+              )}
+            </button>
 
-          <button
-            onClick={prevTrack}
-            className="p-2 text-slate-300 active:text-white active:scale-90 transition-transform"
-            title="Bài trước"
-          >
-            <SkipBack className="w-5 h-5 md:w-6 md:h-6" />
-          </button>
+            <button
+              onClick={prevTrack}
+              className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-full transition-all active:scale-90"
+              title="Bài trước"
+            >
+              <SkipBack className="w-4.5 h-4.5" />
+            </button>
 
-          <button
-            onClick={togglePlay}
-            className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-[var(--primary-spotify)] text-black flex items-center justify-center shadow-lg shadow-[var(--theme-glow-shadow)] active:scale-95 transition-transform shrink-0"
-            title={isPlaying ? 'Tạm dừng' : 'Phát'}
-          >
-            {isPlaying ? (
-              <Pause className="w-6 h-6 md:w-7 md:h-7 fill-current" />
-            ) : (
-              <Play className="w-6 h-6 md:w-7 md:h-7 fill-current ml-0.5" />
-            )}
-          </button>
+            <button
+              onClick={togglePlay}
+              className="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-400 via-teal-300 to-cyan-400 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center text-black shadow-md shadow-cyan-500/25 border border-cyan-200/30 shrink-0"
+              title={isPlaying ? 'Tạm dừng' : 'Phát'}
+            >
+              {isPlaying ? (
+                <Pause className="w-4 h-4 fill-current text-black" />
+              ) : (
+                <Play className="w-4 h-4 fill-current text-black ml-0.5" />
+              )}
+            </button>
 
-          <button
-            onClick={nextTrack}
-            className="p-2 text-slate-300 active:text-white active:scale-90 transition-transform"
-            title="Bài tiếp theo"
-          >
-            <SkipForward className="w-5 h-5 md:w-6 md:h-6" />
-          </button>
+            <button
+              onClick={nextTrack}
+              className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-full transition-all active:scale-90"
+              title="Bài tiếp theo"
+            >
+              <SkipForward className="w-4.5 h-4.5" />
+            </button>
 
-          <button
-            onClick={toggleRepeat}
-            className={`p-2.5 rounded-full transition-colors ${
-              repeatMode !== 'off'
-                ? 'text-cyan-400 bg-cyan-500/20 border border-cyan-500/40 shadow-lg'
-                : 'text-slate-400 hover:text-white'
-            }`}
-            title={
-              repeatMode === 'one'
-                ? 'Lặp lại 1 bài'
-                : repeatMode === 'all'
-                ? 'Lặp lại toàn bộ danh sách'
-                : 'Bật lặp lại bài hát'
-            }
-          >
-            {repeatMode === 'one' ? <Repeat1 className="w-4 h-4 md:w-5 md:h-5" /> : <Repeat className="w-4 h-4 md:w-5 md:h-5" />}
-          </button>
+            <button
+              onClick={toggleRepeat}
+              className={`p-1.5 rounded-lg relative transition-all ${
+                repeatMode !== 'off'
+                  ? 'text-cyan-400 bg-cyan-500/15 border border-cyan-500/30'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
+              title={
+                repeatMode === 'one'
+                  ? 'Lặp lại 1 bài'
+                  : repeatMode === 'all'
+                  ? 'Lặp lại toàn bộ danh sách'
+                  : 'Bật lặp lại bài hát'
+              }
+            >
+              {repeatMode === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
+              {repeatMode !== 'off' && (
+                <span className="w-1 h-1 bg-cyan-400 rounded-full absolute -bottom-0.5 left-1/2 -translate-x-1/2" />
+              )}
+            </button>
+          </div>
+
+          <div className="w-full flex items-center gap-2.5 text-[11px] text-slate-400 font-mono">
+            <span className="w-9 text-right shrink-0">{formatTime(currentTime)}</span>
+            <input
+              type="range"
+              min={0}
+              max={duration || 100}
+              value={currentTime}
+              onChange={(e) => seek(Number(e.target.value))}
+              style={{
+                background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${(currentTime / (duration || 1)) * 100}%, rgba(255,255,255,0.12) ${(currentTime / (duration || 1)) * 100}%)`,
+              }}
+              className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-all"
+            />
+            <span className="w-9 shrink-0">{formatTime(duration)}</span>
+          </div>
+        </div>
+
+        {/* Right: Volume Control Pill */}
+        <div className="hidden sm:flex w-1/4 justify-end items-center">
+          <div className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1.5">
+            <button
+              onClick={handleVolumeToggle}
+              className="text-slate-400 hover:text-white transition-colors p-0.5"
+              title={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}
+            >
+              {volume === 0 ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={volume}
+              onChange={(e) => setVolume(Number(e.target.value))}
+              style={{
+                background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${volume * 100}%, rgba(255,255,255,0.12) ${volume * 100}%)`,
+              }}
+              className="w-16 md:w-20 h-1 rounded-lg appearance-none cursor-pointer outline-none transition-all"
+            />
+          </div>
         </div>
       </div>
     </div>

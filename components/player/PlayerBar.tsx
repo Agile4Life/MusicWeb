@@ -418,13 +418,13 @@ export function PlayerBar() {
 
             <button
               onClick={togglePlay}
-              className="w-10 h-10 rounded-full bg-[var(--primary-spotify,#06b6d4)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center text-black shadow-lg shadow-cyan-500/20"
+              className="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-400 via-teal-300 to-cyan-400 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center text-black shadow-md shadow-cyan-500/25 border border-cyan-200/30"
               title={isPlaying ? 'Tạm dừng' : 'Phát'}
             >
               {isPlaying ? (
-                <Pause className="w-4.5 h-4.5 fill-current" />
+                <Pause className="w-4 h-4 fill-current text-black" />
               ) : (
-                <Play className="w-4.5 h-4.5 fill-current ml-0.5" />
+                <Play className="w-4 h-4 fill-current text-black ml-0.5" />
               )}
             </button>
 
@@ -467,7 +467,7 @@ export function PlayerBar() {
               value={currentTime}
               onChange={(e) => seek(Number(e.target.value))}
               style={{
-                background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${progressPercent}%, rgba(255,255,255,0.1) ${progressPercent}%)`,
+                background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${progressPercent}%, rgba(255,255,255,0.12) ${progressPercent}%)`,
               }}
               className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-all"
             />
@@ -507,13 +507,13 @@ export function PlayerBar() {
 
           <div className="h-4 w-[1px] bg-white/10" />
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1.5">
             <button
               onClick={handleVolumeToggle}
-              className="text-slate-400 hover:text-white transition-colors p-1"
+              className="text-slate-400 hover:text-white transition-colors p-0.5"
               title={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}
             >
-              {volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              {volume === 0 ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
             </button>
             <input
               type="range"
@@ -523,9 +523,9 @@ export function PlayerBar() {
               value={volume}
               onChange={(e) => setVolume(Number(e.target.value))}
               style={{
-                background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${volume * 100}%, rgba(255,255,255,0.1) ${volume * 100}%)`,
+                background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${volume * 100}%, rgba(255,255,255,0.12) ${volume * 100}%)`,
               }}
-              className="w-20 md:w-24 h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-all"
+              className="w-16 md:w-20 h-1 rounded-lg appearance-none cursor-pointer outline-none transition-all"
             />
           </div>
         </div>
@@ -533,8 +533,10 @@ export function PlayerBar() {
 
       {/* 🎤 FULLSCREEN / MODAL LYRICS OVERLAY FOR MOBILE (ANDROID/IOS) & DESKTOP */}
       {showLyricsModal && (
-        <div className="fixed inset-0 z-50 bg-[#07080c] flex flex-col animate-in fade-in duration-200">
-          <LyricsView onClose={() => setShowLyricsModal(false)} isModal={true} />
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl p-2 md:p-6 flex items-center justify-center animate-in fade-in duration-200">
+          <div className="w-full h-full max-w-5xl bg-[#090b10]/95 backdrop-blur-2xl rounded-2xl border border-white/[0.08] shadow-2xl overflow-hidden flex flex-col relative">
+            <LyricsView onClose={() => setShowLyricsModal(false)} isModal={true} />
+          </div>
         </div>
       )}
     </>
