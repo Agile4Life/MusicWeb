@@ -7,6 +7,7 @@ import { Track, Playlist } from '@/types'
 import { TrackList } from '@/components/track/TrackList'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 import { usePlayer } from '@/components/player/PlayerContext'
+import { deduplicateQueueTracks } from '@/lib/utils'
 import {
   Play,
   Upload,
@@ -319,6 +320,10 @@ export default function HomePage() {
   }, [searchQuery])
 
   const handleAddToPlaylist = async (playlistId: string, track: Track) => {
+    if (!isAdmin) {
+      alert('Chỉ có tài khoản Admin mới có quyền thêm bài hát vào Playlist!')
+      return
+    }
     let targetTrackId = track.id
 
     if (track.source && track.source !== 'local') {
@@ -647,13 +652,13 @@ export default function HomePage() {
 
   if (isSearching) {
     if (searchSource === 'all') {
-      displayedTracks = [
+      displayedTracks = deduplicateQueueTracks([
         ...globalTracks.spotify,
         ...globalTracks.itunes,
         ...globalTracks.youtube,
         ...globalTracks.audius,
         ...globalTracks.local,
-      ]
+      ])
     } else if (searchSource === 'spotify') {
       displayedTracks = globalTracks.spotify
     } else if (searchSource === 'itunes') {
@@ -704,13 +709,15 @@ export default function HomePage() {
               </button>
             )}
 
-            <Link
-              href="/upload"
-              className="bg-white/5 border border-white/10 hover:bg-white/10 text-white font-semibold px-4 py-2.5 rounded-full flex items-center gap-2 text-xs transition-colors"
-            >
-              <Upload className="w-3.5 h-3.5" />
-              <span>Upload</span>
-            </Link>
+            {isAdmin && (
+              <Link
+                href="/upload"
+                className="bg-white/5 border border-white/10 hover:bg-white/10 text-white font-semibold px-4 py-2.5 rounded-full flex items-center gap-2 text-xs transition-colors"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Upload</span>
+              </Link>
+            )}
           </div>
         </div>
       </div>

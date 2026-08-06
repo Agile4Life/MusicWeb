@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { extractDriveFileId, getAuthorizedDriveStreamUrl } from '@/lib/googleDriveUpload'
 import { useSession } from 'next-auth/react'
 import { getValidUserId } from '@/lib/accessControl'
+import { deduplicateQueueTracks } from '@/lib/utils'
 
 export type RepeatMode = 'off' | 'all' | 'one'
 
@@ -485,9 +486,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     let nextIndex = currentIndex
 
     if (newQueue) {
-      nextQueue = newQueue
-      setQueue(newQueue)
-      const index = newQueue.findIndex((t) => t.id === track.id)
+      nextQueue = deduplicateQueueTracks(newQueue)
+      setQueue(nextQueue)
+      const index = nextQueue.findIndex((t) => t.id === track.id)
       nextIndex = index >= 0 ? index : 0
       setCurrentIndex(nextIndex)
     } else if (typeof forceIndex === 'number') {

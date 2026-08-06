@@ -119,6 +119,10 @@ export function Sidebar() {
       router.push('/login')
       return
     }
+    if (!isAdmin(user?.email)) {
+      alert('Chỉ có tài khoản Admin mới có quyền tạo Playlist mới!')
+      return
+    }
 
     setCreating(true)
     const validUserId = getValidUserId(user)
@@ -278,14 +282,16 @@ export function Sidebar() {
               <ListMusic className="w-3.5 h-3.5 text-cyan-400" />
               <span>Playlist</span>
             </div>
-            <button
-              onClick={handleCreatePlaylist}
-              disabled={creating}
-              className="p-1 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-              title="Tạo playlist mới"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
+            {isAdmin(user?.email) && (
+              <button
+                onClick={handleCreatePlaylist}
+                disabled={creating}
+                className="p-1 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                title="Tạo playlist mới"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           <div className="flex-1 overflow-y-auto flex flex-col gap-0.5 pr-1">

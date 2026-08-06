@@ -382,12 +382,12 @@ function TrackRowComponent({
                   </button>
                 )}
 
-                {userPlaylists.length > 0 && onAddToPlaylist && (
+                {userIsAdmin && userPlaylists.length > 0 && onAddToPlaylist && (
                   <div className="px-3 py-1 text-slate-400 font-semibold text-[10px] uppercase tracking-wider border-b border-white/10">
                     Thêm vào Playlist
                   </div>
                 )}
-                {userPlaylists.map((pl) => (
+                {userIsAdmin && userPlaylists.map((pl) => (
                   <button
                     key={pl.id}
                     onClick={(e) => {
