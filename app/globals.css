@@ -20,6 +20,12 @@
   filter: drop-shadow(0 0 8px rgba(236, 72, 153, 0.35));
 }
 
+.signature-img-invert {
+  filter: invert(1) brightness(1.35) contrast(1.25) drop-shadow(0 0 10px rgba(34, 211, 238, 0.75));
+  mix-blend-mode: screen;
+}
+
+
 
 :root {
   --font-sans: var(--font-geist-sans), system-ui, -apple-system, sans-serif;

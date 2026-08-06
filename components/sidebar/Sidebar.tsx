@@ -176,15 +176,17 @@ export function Sidebar() {
             onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
             className="flex items-center gap-3 group"
           >
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500/20 via-pink-500/10 to-purple-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 group-hover:scale-105 transition-all shadow-[0_0_12px_rgba(6,182,212,0.15)]">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 via-pink-500/10 to-purple-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 group-hover:scale-105 transition-all shadow-[0_0_15px_rgba(6,182,212,0.2)] shrink-0">
               <Headphones className="w-5 h-5" />
             </div>
-            <div className="flex flex-col justify-center leading-none">
-              <span className="font-graffiti text-xl tracking-wider graffiti-text-gradient group-hover:brightness-110 transition-all">
-                Phong
-              </span>
-              <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase -mt-0.5">
-                Music<span className="text-cyan-400">Web</span>
+            <div className="flex flex-col justify-center leading-none min-w-0">
+              <img
+                src="/phong-signature.png"
+                alt="Phong Signature"
+                className="h-8 w-auto object-contain signature-img-invert group-hover:scale-105 transition-transform"
+              />
+              <span className="text-[10px] font-extrabold tracking-widest text-cyan-400 uppercase -mt-1">
+                Music<span className="text-white">Web</span>
               </span>
             </div>
           </Link>
