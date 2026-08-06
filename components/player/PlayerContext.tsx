@@ -32,6 +32,9 @@ interface PlayerContextType {
   addToQueue: (track: Track) => void
   removeFromQueue: (index: number) => void
   clearQueue: () => void
+  isQueueOpen: boolean
+  toggleQueue: () => void
+  closeQueue: () => void
   audioRef: React.RefObject<HTMLAudioElement | null>
 }
 
@@ -111,9 +114,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [autoPlayNext, setAutoPlayNext] = useState(true)
   const [isShuffle, setIsShuffle] = useState(false)
   const [repeatMode, setRepeatMode] = useState<RepeatMode>('off')
+  const [isQueueOpen, setIsQueueOpen] = useState(false)
   const autoPlayNextRef = useRef(true)
   const isShuffleRef = useRef(false)
   const repeatModeRef = useRef<RepeatMode>('off')
+
+  const toggleQueue = () => setIsQueueOpen((prev) => !prev)
+  const closeQueue = () => setIsQueueOpen(false)
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const ytPlayerRef = useRef<any>(null)
@@ -735,8 +742,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const addToQueue = (track: Track) => {
     setQueue((prev) => {
-      if (prev.some((t) => t.id === track.id)) return prev
-      return [...prev, track]
+      const insertIdx = currentIndexRef.current >= 0 ? currentIndexRef.current + 1 : prev.length
+      const newQ = [...prev]
+      newQ.splice(insertIdx, 0, track)
+      return newQ
     })
   }
 
@@ -935,6 +944,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         addToQueue,
         removeFromQueue,
         clearQueue,
+        isQueueOpen,
+        toggleQueue,
+        closeQueue,
         audioRef,
       }}
     >

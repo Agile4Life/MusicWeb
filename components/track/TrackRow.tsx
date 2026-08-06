@@ -354,8 +354,7 @@ function TrackRowComponent({
                   onClick={(e) => {
                     e.stopPropagation()
                     setShowMenu(false)
-                    const updatedQueue = [...queue, track]
-                    playTrack(currentTrack || track, updatedQueue)
+                    addToQueue(track)
                   }}
                   className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors text-cyan-400"
                 >

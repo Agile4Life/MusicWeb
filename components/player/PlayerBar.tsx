@@ -46,12 +46,13 @@ export function PlayerBar() {
     setVolume,
     nextTrack,
     prevTrack,
+    isQueueOpen,
+    toggleQueue,
   } = usePlayer()
 
   const [prevVol, setPrevVol] = useState(0.8)
   const [showMobileFullPlayer, setShowMobileFullPlayer] = useState(false)
   const [showLyricsModal, setShowLyricsModal] = useState(false)
-  const [isQueueOpen, setIsQueueOpen] = useState(false)
 
   const handleVolumeToggle = () => {
     if (volume > 0) {
@@ -533,7 +534,7 @@ export function PlayerBar() {
           </button>
 
           <button
-            onClick={() => setIsQueueOpen(!isQueueOpen)}
+            onClick={toggleQueue}
             style={
               isQueueOpen
                 ? {
@@ -591,9 +592,6 @@ export function PlayerBar() {
           </div>
         </div>
       )}
-
-      {/* 📋 SPOTIFY-STYLE SLIDE-OUT PLAYBACK QUEUE DRAWER */}
-      <QueueDrawer isOpen={isQueueOpen} onClose={() => setIsQueueOpen(false)} />
     </>
   )
 }

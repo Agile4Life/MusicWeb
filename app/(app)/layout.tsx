@@ -5,6 +5,7 @@ import { PlayerBar } from '@/components/player/PlayerBar'
 import { AuthGuard } from '@/components/auth/AuthGuard'
 import { MobileHeaderNav } from '@/components/navigation/MobileHeaderNav'
 import { TopBar } from '@/components/navigation/TopBar'
+import { QueueDrawer } from '@/components/player/QueueDrawer'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -23,6 +24,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <TopBar />
               {children}
             </main>
+
+            {/* Right Playback Queue Sidebar */}
+            <QueueDrawer />
           </div>
 
           {/* Player Bar (Desktop Bar + Mobile Floating Player) */}
