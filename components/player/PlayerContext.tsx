@@ -123,6 +123,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const volumeRef = useRef<number>(0.8)
   const lastSavedTimeRef = useRef<number>(0)
   const playTrackRef = useRef<(track: Track, newQueue?: Track[], forceIndex?: number) => Promise<void>>(async () => {})
+  const nextTrackRef = useRef<() => void>(() => {})
+  const prevTrackRef = useRef<() => void>(() => {})
 
   const supabase = createClient()
 
@@ -270,20 +272,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                   }, 0)
                 } else if (mode === 'all') {
                   setTimeout(() => {
-                    const q = queueRef.current
-                    const idx = currentIndexRef.current
-                    if (q.length > 0 && idx !== -1) {
-                      const nextIdx = (idx + 1) % q.length
-                      playTrackRef.current(q[nextIdx], undefined, nextIdx)
-                    }
+                    nextTrackRef.current()
                   }, 0)
                 } else if (autoPlayNextRef.current) {
                   const q = queueRef.current
                   const idx = currentIndexRef.current
-                  if (q.length > 0 && idx !== -1 && idx < q.length - 1) {
-                    const nextIdx = idx + 1
+                  if (isShuffleRef.current || idx < q.length - 1) {
                     setTimeout(() => {
-                      playTrackRef.current(q[nextIdx], undefined, nextIdx)
+                      nextTrackRef.current()
                     }, 0)
                   }
                 }
@@ -698,25 +694,41 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }
 
   const nextTrack = () => {
-    if (queue.length === 0 || currentIndex === -1) return
+    const q = queueRef.current.length > 0 ? queueRef.current : queue
+    const idx = currentIndexRef.current >= 0 ? currentIndexRef.current : currentIndex
+    if (q.length === 0 || idx === -1) return
+
     let nextIdx = 0
-    if (isShuffleRef.current && queue.length > 1) {
+    if (isShuffleRef.current && q.length > 1) {
       do {
-        nextIdx = Math.floor(Math.random() * queue.length)
-      } while (nextIdx === currentIndex && queue.length > 1)
+        nextIdx = Math.floor(Math.random() * q.length)
+      } while (nextIdx === idx && q.length > 1)
     } else {
-      nextIdx = (currentIndex + 1) % queue.length
+      nextIdx = (idx + 1) % q.length
     }
     setCurrentIndex(nextIdx)
-    playTrack(queue[nextIdx], undefined, nextIdx)
+    playTrack(q[nextIdx], undefined, nextIdx)
   }
 
   const prevTrack = () => {
-    if (queue.length === 0 || currentIndex === -1) return
-    const prevIdx = (currentIndex - 1 + queue.length) % queue.length
+    const q = queueRef.current.length > 0 ? queueRef.current : queue
+    const idx = currentIndexRef.current >= 0 ? currentIndexRef.current : currentIndex
+    if (q.length === 0 || idx === -1) return
+
+    let prevIdx = 0
+    if (isShuffleRef.current && q.length > 1) {
+      do {
+        prevIdx = Math.floor(Math.random() * q.length)
+      } while (prevIdx === idx && q.length > 1)
+    } else {
+      prevIdx = (idx - 1 + q.length) % q.length
+    }
     setCurrentIndex(prevIdx)
-    playTrack(queue[prevIdx])
+    playTrack(q[prevIdx], undefined, prevIdx)
   }
+
+  nextTrackRef.current = nextTrack
+  prevTrackRef.current = prevTrack
 
   // HTML5 Audio Event Listeners
   useEffect(() => {
@@ -808,12 +820,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             audioRef.current.play().catch(() => {})
           }
         } else if (mode === 'all') {
-          nextTrack()
-        } else if (autoPlayNext) {
+          nextTrackRef.current()
+        } else if (autoPlayNextRef.current) {
           const q = queueRef.current
           const idx = currentIndexRef.current
-          if (idx < q.length - 1) {
-            nextTrack()
+          if (isShuffleRef.current || idx < q.length - 1) {
+            nextTrackRef.current()
           } else {
             setIsPlaying(false)
           }

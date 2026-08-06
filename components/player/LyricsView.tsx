@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useRef } from 'react'
+import Link from 'next/link'
 import { usePlayer } from './PlayerContext'
 import { fetchLyricsFromLrclib, LrclibResponse } from '@/lib/lrclib'
 import { parseLrc, parsePlainLyrics, findActiveLyricIndex, LyricLine } from '@/lib/lrcParser'
@@ -311,9 +312,18 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
             <p className="text-xs font-bold text-white truncate hover:text-[var(--spotify-glow)] transition-colors cursor-pointer">
               {currentTrack.title}
             </p>
-            <p className="text-[10px] text-slate-400 truncate hover:text-slate-200 transition-colors cursor-pointer">
-              {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
-            </p>
+            <div className="flex items-center gap-1 truncate text-[10px] text-slate-400">
+              <span className="truncate">{currentTrack.artist || 'Nghệ sĩ chưa xác định'}</span>
+              <span>•</span>
+              <Link
+                href={`/album/${encodeURIComponent(currentTrack.album || 'Single & Remixes')}`}
+                onClick={onClose}
+                className="truncate hover:text-[var(--spotify-glow)] hover:underline font-medium text-slate-300 transition-colors"
+                title={`Mở Album: ${currentTrack.album || 'Single & Remixes'}`}
+              >
+                {currentTrack.album || 'Single & Remixes'}
+              </Link>
+            </div>
           </div>
 
           <button

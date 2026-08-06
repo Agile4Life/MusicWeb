@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import Link from 'next/link'
 import { usePlayer } from './PlayerContext'
 import { LyricsView } from './LyricsView'
 import {
@@ -355,10 +356,18 @@ export function PlayerBar() {
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-2 mt-0.5">
-              <p className="text-[11px] text-slate-400 truncate hover:text-slate-200 transition-colors cursor-pointer">
+            <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+              <p className="text-[11px] text-slate-400 truncate">
                 {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
               </p>
+              <span className="text-[10px] text-slate-500">•</span>
+              <Link
+                href={`/album/${encodeURIComponent(currentTrack.album || 'Single & Remixes')}`}
+                className="text-[11px] font-medium text-slate-300 hover:text-[var(--spotify-glow)] hover:underline truncate transition-colors"
+                title={`Xem Album: ${currentTrack.album || 'Single & Remixes'}`}
+              >
+                {currentTrack.album || 'Single & Remixes'}
+              </Link>
 
               {/* Source Badge */}
               {currentTrack.source === 'spotify' && (
