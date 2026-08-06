@@ -168,7 +168,6 @@ function TrackRowComponent({
           ? 'bg-white/[0.08] border-white/10 text-white'
           : 'border-transparent hover:bg-white/[0.06] hover:border-white/[0.08] hover:translate-x-1'
       }`}
-      onMouseLeave={() => { if (!editMode) setShowMenu(false) }}
     >
       {/* Select Checkbox */}
       {selectable && (
@@ -340,7 +339,15 @@ function TrackRowComponent({
             </button>
 
             {showMenu && (
-              <div className="absolute right-0 top-8 glass-panel shadow-2xl rounded-xl py-1.5 w-56 z-30 text-xs text-slate-200 border border-white/10">
+              <>
+                <div
+                  className="fixed inset-0 z-20 cursor-default"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowMenu(false)
+                  }}
+                />
+                <div className="absolute right-0 top-8 glass-panel shadow-2xl rounded-xl py-1.5 w-56 z-30 text-xs text-slate-200 border border-white/10">
                 {/* Edit artist/album */}
                 <button
                   onClick={handleToggleFavorite}
@@ -423,7 +430,8 @@ function TrackRowComponent({
                   </button>
                 )}
               </div>
-            )}
+            </>
+          )}
           </div>
         )}
       </div>
