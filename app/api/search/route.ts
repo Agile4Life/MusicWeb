@@ -71,6 +71,9 @@ export async function GET(request: Request) {
   // 1. Check completed cache first for instant (<10ms) search response
   const cached = searchCache.get(cacheKey)
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    // Re-insert to refresh LRU position
+    searchCache.delete(cacheKey)
+    searchCache.set(cacheKey, cached)
     return NextResponse.json(cached.data)
   }
 
@@ -94,10 +97,12 @@ export async function GET(request: Request) {
       promises.push(
         (async () => {
           try {
+            const cleanQuery = q.trim().replace(/[,()%"\\]/g, ' ').replace(/\s+/g, ' ').trim()
+            if (!cleanQuery) return []
             const { data } = await supabase
               .from('tracks')
               .select('*')
-              .or(`title.ilike.%${q.trim()}%,artist.ilike.%${q.trim()}%`)
+              .or(`title.ilike.%${cleanQuery}%,artist.ilike.%${cleanQuery}%`)
               .limit(10)
             return (data || []).map((t: any) => ({ ...t, source: 'local' }))
           } catch {

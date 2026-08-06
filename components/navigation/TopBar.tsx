@@ -99,7 +99,7 @@ export function TopBar() {
         } finally {
           setLoadingSuggestions(false)
         }
-      }, 250)
+      }, 300)
 
       return () => clearTimeout(timer)
     }

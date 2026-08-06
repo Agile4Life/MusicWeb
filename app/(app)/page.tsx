@@ -121,6 +121,8 @@ export default function HomePage() {
         }
       : null)
 
+  const [userFavTrackIds, setUserFavTrackIds] = useState<Set<string>>(new Set())
+
   const fetchData = async (showSkeleton = false) => {
     if (showSkeleton) setLoading(true)
     try {
@@ -150,6 +152,7 @@ export default function HomePage() {
           userFavSet = new Set(userFavs.map((f: any) => f.track_id))
         }
       }
+      setUserFavTrackIds(userFavSet)
 
       // Query all tracks from database
       const { data: rawTracks, error: trackError } = await supabase
@@ -327,12 +330,18 @@ export default function HomePage() {
         const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`)
         if (res.ok) {
           const data = await res.json()
+          const mapFav = (list: Track[]) =>
+            (list || []).map((t) => ({
+              ...t,
+              is_favorite: userFavTrackIds.has(t.id) || Boolean(t.is_favorite),
+            }))
+
           setGlobalTracks({
-            local: data.local || [],
-            youtube: data.youtube || [],
-            audius: data.audius || [],
-            itunes: data.itunes || [],
-            spotify: data.spotify || [],
+            local: mapFav(data.local),
+            youtube: mapFav(data.youtube),
+            audius: mapFav(data.audius),
+            itunes: mapFav(data.itunes),
+            spotify: mapFav(data.spotify),
           })
         }
       } catch (err) {
@@ -343,7 +352,7 @@ export default function HomePage() {
     }, 200)
 
     return () => clearTimeout(timer)
-  }, [searchQuery])
+  }, [searchQuery, userFavTrackIds])
 
   const handleAddToPlaylist = async (playlistId: string, track: Track) => {
     if (!isAdmin) {

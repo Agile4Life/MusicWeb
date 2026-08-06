@@ -570,11 +570,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (res.ok) {
           const data = await res.json()
           const ytList: Track[] = data.youtube || []
-          const bestMatch = findBestYouTubeMatch(ytList, track.title, track.artist, track.duration)
+          let bestMatch = findBestYouTubeMatch(ytList, track.title, track.artist, track.duration)
+          if (!bestMatch && ytList.length > 0) {
+            bestMatch = ytList[0]
+          }
           if (bestMatch && bestMatch.youtube_id) {
             const candidateDuration = bestMatch.duration || 0
             const isTargetShort = !track.duration || track.duration < 900
-            if (!isTargetShort || candidateDuration <= 1200) {
+            if (!isTargetShort || candidateDuration <= 1200 || ytList.length === 1) {
               activeTrack = {
                 ...track,
                 youtube_id: bestMatch.youtube_id,
