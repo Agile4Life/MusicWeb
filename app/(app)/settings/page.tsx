@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { ThemeSelector } from '@/components/theme/ThemeSelector'
 import { LanguageSelector } from '@/components/i18n/LanguageSelector'
 import { useLanguage } from '@/components/i18n/LanguageContext'
+import { CustomSelect } from '@/components/ui/CustomSelect'
 import { createClient } from '@/lib/supabase/client'
 import { Settings, Sliders, Volume2, HardDrive, ShieldCheck, Sparkles, Globe } from 'lucide-react'
 
@@ -40,6 +41,12 @@ export default function SettingsPage() {
       updated_at: new Date().toISOString(),
     })
   }
+
+  const audioOptions = [
+    { value: 'high', label: t('audio_high') },
+    { value: 'normal', label: t('audio_normal') },
+    { value: 'saver', label: t('audio_saver') },
+  ]
 
   return (
     <div className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 md:gap-8 max-w-5xl mx-auto w-full select-none pb-32 md:pb-8">
@@ -80,22 +87,17 @@ export default function SettingsPage() {
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 py-1 border-b border-white/[0.04]">
           <div>
-            <p className="text-xs font-bold text-white">Chất lượng âm thanh</p>
-            <p className="text-[11px] text-slate-400">Chất lượng phát nhạc ưu tiên từ storage</p>
+            <p className="text-xs font-bold text-white">{t('audio_quality')}</p>
+            <p className="text-[11px] text-slate-400">{t('audio_quality_desc')}</p>
           </div>
-          <select
+          <CustomSelect
+            options={audioOptions}
             value={audioQuality}
-            onChange={(e) => {
-              const value = e.target.value
-              setAudioQuality(value)
-              void saveSettings({ audio_quality: value })
+            onChange={(val) => {
+              setAudioQuality(val)
+              void saveSettings({ audio_quality: val })
             }}
-            className="bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-xs font-medium text-white outline-none cursor-pointer"
-          >
-            <option value="high" className="bg-[#12141d] text-white">Chất lượng cao (320 kbps)</option>
-            <option value="normal" className="bg-[#12141d] text-white">Tiêu chuẩn (160 kbps)</option>
-            <option value="saver" className="bg-[#12141d] text-white">Tiết kiệm (96 kbps)</option>
-          </select>
+          />
         </div>
 
         <div className="flex items-center justify-between py-1">

@@ -144,11 +144,15 @@ export default function HomePage() {
         }
       }
 
-      // Query all local tracks from database
-      const { data: rawTracks, error: trackError } = await supabase
-        .from('tracks')
-        .select('*')
-        .order('created_at', { ascending: false })
+      // Query tracks strictly for CURRENT user (or legacy tracks with null user_id)
+      let tracksQuery = supabase.from('tracks').select('*').order('created_at', { ascending: false })
+      if (userId) {
+        tracksQuery = tracksQuery.or(`user_id.eq.${userId},user_id.is.null`)
+      } else {
+        tracksQuery = tracksQuery.eq('is_public', true)
+      }
+
+      const { data: rawTracks, error: trackError } = await tracksQuery
 
       if (!trackError && rawTracks) {
         setTracks(
