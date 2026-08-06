@@ -179,16 +179,11 @@ export function Sidebar() {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 via-pink-500/10 to-purple-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 group-hover:scale-105 transition-all shadow-[0_0_15px_rgba(6,182,212,0.2)] shrink-0">
               <Headphones className="w-5 h-5" />
             </div>
-            <div className="flex flex-col justify-center leading-none min-w-0">
-              <img
-                src="/phong-signature.png"
-                alt="Phong Signature"
-                className="h-8 w-auto object-contain signature-img-invert group-hover:scale-105 transition-transform"
-              />
-              <span className="text-[10px] font-extrabold tracking-widest text-cyan-400 uppercase -mt-1">
-                Music<span className="text-white">Web</span>
-              </span>
-            </div>
+            <img
+              src="/phong-signature.png"
+              alt="Phong Signature"
+              className="h-10 w-auto object-contain signature-img-invert group-hover:scale-105 transition-transform"
+            />
           </Link>
         </div>
 

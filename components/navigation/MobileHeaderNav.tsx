@@ -149,16 +149,11 @@ export function MobileHeaderNav() {
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-pink-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
             <Headphones className="w-4 h-4" />
           </div>
-          <div className="flex flex-col justify-center leading-none min-w-0">
-            <img
-              src="/phong-signature.png"
-              alt="Phong Signature"
-              className="h-6 w-auto object-contain signature-img-invert"
-            />
-            <span className="text-[9px] font-extrabold tracking-widest text-cyan-400 uppercase -mt-1">
-              Music<span className="text-white">Web</span>
-            </span>
-          </div>
+          <img
+            src="/phong-signature.png"
+            alt="Phong Signature"
+            className="h-8 w-auto object-contain signature-img-invert"
+          />
         </Link>
 
         <div className="flex items-center gap-2">
