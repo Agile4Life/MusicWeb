@@ -577,12 +577,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const audio = audioRef.current
       if (!url || !audio || requestId !== playRequestRef.current) {
         if (!url && requestId === playRequestRef.current) {
-          setPlaybackError(`Bài hát "${activeTrack.title}" từ Spotify không có bản quyền phát trực tiếp. Đang chuyển bài...`)
-          setTimeout(() => {
-            if (playRequestRef.current === requestId) {
-              nextTrackRef.current()
-            }
-          }, 1500)
+          setIsPlaying(false)
+          setPlaybackError(`Bài hát "${activeTrack.title}" từ Spotify không hỗ trợ phát trực tiếp. Vui lòng chọn bài từ YouTube, Audius hoặc Thư viện.`)
         }
         return
       }
