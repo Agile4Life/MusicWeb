@@ -6,7 +6,7 @@ import { Track } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { TrackList } from '@/components/track/TrackList'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
-import { Disc, Play, Shuffle, Music, ArrowLeft, Clock, Globe } from 'lucide-react'
+import { Disc, Play, Shuffle, ArrowLeft, Globe } from 'lucide-react'
 import Link from 'next/link'
 
 function formatTotalDuration(seconds: number): string {
@@ -17,91 +17,47 @@ function formatTotalDuration(seconds: number): string {
   if (hours > 0) {
     return `${hours} giờ ${remMin} phút`
   }
-  return `${min} phút`
+  return `${min} phút ${Math.floor(seconds % 60)} giây`
 }
 
 export default function AlbumDetailPage({ params }: { params: Promise<{ name: string }> }) {
   const resolvedParams = use(params)
   const albumName = decodeURIComponent(resolvedParams.name)
 
-  const supabase = createClient()
   const { playTrack, isShuffle, toggleShuffle } = usePlayer()
 
   const [tracks, setTracks] = useState<Track[]>([])
   const [loading, setLoading] = useState(true)
+  const [albumMeta, setAlbumMeta] = useState<{ artist: string; cover_url: string | null }>({
+    artist: 'Nghệ sĩ chưa xác định',
+    cover_url: null,
+  })
 
   useEffect(() => {
-    const fetchFullGlobalAlbumTracks = async () => {
+    const fetchOfficialAlbumTracklist = async () => {
       setLoading(true)
       try {
-        // 1. Fetch Local database tracks belonging to this album
-        let localAlbumTracks: Track[] = []
-        const { data: rawTracks } = await supabase
-          .from('tracks')
-          .select('*')
-          .ilike('album', albumName)
-          .order('created_at', { ascending: false })
-
-        if (rawTracks && rawTracks.length > 0) {
-          localAlbumTracks = rawTracks
-        } else {
-          // Fallback fetch all and filter in JS if ilike missed
-          const { data: allTracks } = await supabase.from('tracks').select('*')
-          if (allTracks) {
-            localAlbumTracks = allTracks.filter((t: any) => {
-              const album = (t.album || 'Single & Remixes').trim()
-              return album.toLowerCase() === albumName.toLowerCase()
-            })
-          }
+        const res = await fetch(`/api/album-tracks?name=${encodeURIComponent(albumName)}`)
+        if (res.ok) {
+          const data = await res.json()
+          setTracks(data.tracks || [])
+          setAlbumMeta({
+            artist: data.artist || data.tracks?.[0]?.artist || 'Nghệ sĩ chưa xác định',
+            cover_url: data.cover_url || data.tracks?.find((t: Track) => t.cover_url)?.cover_url || null,
+          })
         }
-
-        // 2. Fetch Global tracks from Spotify, iTunes, YouTube, Audius for this album worldwide
-        let globalAlbumTracks: Track[] = []
-        try {
-          const res = await fetch(`/api/search?q=${encodeURIComponent(albumName)}`)
-          if (res.ok) {
-            const data = await res.json()
-            const allGlobal = [
-              ...(data.spotify || []),
-              ...(data.itunes || []),
-              ...(data.youtube || []),
-              ...(data.audius || []),
-            ]
-
-            // Filter global search results that match album or query
-            globalAlbumTracks = allGlobal.filter((t: Track) => {
-              const alb = (t.album || '').toLowerCase()
-              const titleStr = (t.title || '').toLowerCase()
-              const qStr = albumName.toLowerCase()
-              return alb.includes(qStr) || titleStr.includes(qStr)
-            })
-          }
-        } catch (err) {
-          console.warn('Fetch global album tracks error:', err)
-        }
-
-        // 3. Merge local & global tracks into a unified tracklist without duplicates
-        const trackMap = new Map<string, Track>()
-        localAlbumTracks.forEach((t) => trackMap.set(t.id, { ...t, source: t.source || 'local' }))
-        globalAlbumTracks.forEach((t) => {
-          if (!trackMap.has(t.id)) {
-            trackMap.set(t.id, t)
-          }
-        })
-
-        setTracks(Array.from(trackMap.values()))
       } catch (err) {
-        console.error('Fetch album detail error:', err)
+        console.error('Fetch official album tracklist error:', err)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchFullGlobalAlbumTracks()
+    fetchOfficialAlbumTracklist()
   }, [albumName])
 
-  const primaryCover = tracks.find((t) => t.cover_url)?.cover_url || null
-  const artistName = tracks[0]?.artist || 'Nghệ sĩ chưa xác định'
+  const primaryCover = albumMeta.cover_url || tracks.find((t) => t.cover_url)?.cover_url || null
+  const artistName = albumMeta.artist || tracks[0]?.artist || 'Nghệ sĩ chưa xác định'
   const totalSeconds = tracks.reduce((acc, t) => acc + (t.duration || 0), 0)
 
   return (
@@ -128,7 +84,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ name: st
         )}
 
         {/* Album Artwork Cover */}
-        <div className="w-40 h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 rounded-2xl bg-slate-800 border border-white/15 overflow-hidden shrink-0 shadow-2xl relative flex items-center justify-center group">
+        <div className="w-40 h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 rounded-2xl bg-slate-800 border border-white/15 overflow-hidden shrink-0 shadow-2xl relative flex items-center justify-center group z-10">
           {primaryCover ? (
             <img src={primaryCover} alt={albumName} className="w-full h-full object-cover" />
           ) : (
@@ -144,7 +100,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ name: st
               className="text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full border border-[var(--theme-glow-shadow)] font-mono flex items-center gap-1.5"
             >
               <Globe className="w-3 h-3" />
-              <span>GLOBAL ALBUM</span>
+              <span>OFFICIAL ALBUM</span>
             </span>
           </div>
 
@@ -200,7 +156,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ name: st
       {/* Album Tracks Section */}
       <div className="flex flex-col gap-4">
         <h2 className="text-lg font-extrabold text-white flex items-center justify-between">
-          <span>Danh sách bài hát trong Album</span>
+          <span>Danh sách bài hát chính thức trong Album</span>
           <span className="text-xs font-mono font-normal text-slate-400">Hiển thị {tracks.length} bài hát</span>
         </h2>
 

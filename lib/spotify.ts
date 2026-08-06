@@ -152,3 +152,71 @@ export async function getTopSpotifyAlbums(limit = 20): Promise<any[]> {
     return []
   }
 }
+
+/**
+ * Search Spotify for an official Album object
+ */
+export async function searchSpotifyAlbum(albumName: string, artistName?: string): Promise<{ id: string; name: string; artist: string; cover_url: string | null; total_tracks: number } | null> {
+  try {
+    const token = await getSpotifyAccessToken()
+    if (!token) return null
+
+    const query = artistName ? `album:${albumName} artist:${artistName}` : `album:${albumName}`
+    const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=album&limit=1`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!res.ok) return null
+    const data = await res.json()
+    const item = data.albums?.items?.[0]
+    if (!item) return null
+
+    return {
+      id: item.id,
+      name: item.name,
+      artist: item.artists?.map((a: any) => a.name).join(', ') || '',
+      cover_url: item.images?.[0]?.url || null,
+      total_tracks: item.total_tracks || 0,
+    }
+  } catch (err) {
+    console.warn('Spotify album search error:', err)
+    return null
+  }
+}
+
+/**
+ * Fetch official tracklist for a Spotify Album ID
+ */
+export async function getSpotifyAlbumTracks(albumId: string, coverUrl?: string, albumName?: string): Promise<Track[]> {
+  try {
+    const token = await getSpotifyAccessToken()
+    if (!token) return []
+
+    const cleanId = albumId.replace('spotify-album-', '')
+    const res = await fetch(`https://api.spotify.com/v1/albums/${cleanId}/tracks?limit=50`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!res.ok) return []
+
+    const data = await res.json()
+    const items = data.items || []
+
+    return items.map((item: any): Track => ({
+      id: `spotify-${item.id}`,
+      user_id: 'spotify',
+      title: item.name,
+      artist: item.artists?.map((a: any) => a.name).join(', ') || 'Nghệ sĩ Spotify',
+      album: albumName || 'Spotify Album',
+      duration: Math.round((item.duration_ms || 0) / 1000),
+      file_path: item.external_urls?.spotify || item.preview_url || '',
+      cover_url: coverUrl || null,
+      created_at: new Date().toISOString(),
+      source: 'spotify',
+      spotify_id: item.id,
+    }))
+  } catch (err) {
+    console.warn('Spotify album tracks fetch error:', err)
+    return []
+  }
+}

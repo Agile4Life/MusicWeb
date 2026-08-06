@@ -174,3 +174,19 @@ export async function getITunesAlbumTracks(collectionId: string): Promise<Track[
     return []
   }
 }
+
+/**
+ * Search iTunes for an official album collection ID
+ */
+export async function searchITunesAlbum(albumName: string): Promise<string | null> {
+  try {
+    const url = `https://itunes.apple.com/search?term=${encodeURIComponent(albumName)}&entity=album&limit=1`
+    const res = await fetch(url, { signal: AbortSignal.timeout(3000) })
+    if (!res.ok) return null
+    const data = await res.json()
+    const item = data.results?.[0]
+    return item ? String(item.collectionId) : null
+  } catch {
+    return null
+  }
+}
