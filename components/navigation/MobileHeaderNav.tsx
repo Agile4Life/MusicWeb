@@ -144,8 +144,14 @@ export function MobileHeaderNav() {
   return (
     <>
       {/* 📱 Mobile Top Header Bar (< 768px) */}
-      <div className="md:hidden h-14 bg-[#090b10] border-b border-white/[0.05] px-4 flex items-center justify-between select-none z-30 shrink-0">
-        <Link href="/" className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.08] shadow-sm backdrop-blur-md">
+      <div className="md:hidden h-14 bg-[#090b10] border-b border-white/[0.05] px-4 flex items-center justify-between select-none z-30 shrink-0 relative">
+        <div className="w-9"></div>
+
+        <Link
+          href="/"
+          onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
+          className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2.5 px-3 py-1.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-sm backdrop-blur-md hover:bg-white/[0.06] transition-all"
+        >
           <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-500/20 to-pink-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
             <Headphones className="w-3.5 h-3.5" />
           </div>
