@@ -153,7 +153,7 @@ export function MobileHeaderNav() {
             <img
               src="/phong-signature.png"
               alt="Phong's Music Signature"
-              className="h-6 w-auto object-contain signature-img-invert"
+              className="h-6 w-auto object-contain signature-img-invert translate-y-[1.5px]"
             />
           </div>
         </Link>

@@ -170,7 +170,7 @@ export function Sidebar() {
     <aside className="hidden md:flex w-64 bg-[#090b10] flex-col justify-between p-3.5 h-full select-none text-slate-300 rounded-2xl border border-white/[0.05] shrink-0">
       <div className="flex flex-col gap-5 min-h-0 flex-1">
         {/* App Branding Header */}
-        <div className="px-1 pt-1 pb-0.5">
+        <div className="px-1 py-1">
           <Link
             href="/"
             onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
@@ -183,7 +183,7 @@ export function Sidebar() {
               <img
                 src="/phong-signature.png"
                 alt="Phong's Music Signature"
-                className="h-8 w-auto max-w-full object-contain signature-img-invert group-hover:scale-105 transition-transform"
+                className="h-8 w-auto max-w-full object-contain signature-img-invert translate-y-[2px] group-hover:scale-105 transition-transform"
               />
             </div>
           </Link>
