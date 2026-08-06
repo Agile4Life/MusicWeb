@@ -277,7 +277,9 @@ export default function HomePage() {
       .channel('home-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tracks' }, () => debouncedFetch())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'playlists' }, () => debouncedFetch())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'listening_history' }, () => debouncedFetch())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'listening_history' }, () => {
+        if (!searchQueryRef.current.trim()) debouncedFetch()
+      })
       .subscribe()
 
     return () => {
@@ -287,18 +289,32 @@ export default function HomePage() {
     }
   }, [])
 
+  const searchQueryRef = React.useRef(searchQuery)
+  const lastSearchQueryRef = React.useRef('')
+
+  useEffect(() => {
+    searchQueryRef.current = searchQuery
+  }, [searchQuery])
+
   // Fast Debounced Global Search (200ms)
   useEffect(() => {
-    if (!searchQuery.trim()) {
+    const trimmed = searchQuery.trim()
+    if (!trimmed) {
       setGlobalTracks({ local: [], youtube: [], audius: [], itunes: [], spotify: [] })
       setSearchingGlobal(false)
+      lastSearchQueryRef.current = ''
       return
     }
 
-    setSearchingGlobal(true)
+    if (trimmed === lastSearchQueryRef.current) {
+      return
+    }
+
     const timer = setTimeout(async () => {
+      lastSearchQueryRef.current = trimmed
+      setSearchingGlobal(true)
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(searchQuery.trim())}`)
+        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`)
         if (res.ok) {
           const data = await res.json()
           setGlobalTracks({

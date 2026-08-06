@@ -23,6 +23,7 @@ export function TopBar() {
   const [showDropdown, setShowDropdown] = useState(false)
 
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const lastDispatchedQueryRef = useRef<string>('')
 
   const user =
     supabaseUser ||
@@ -61,21 +62,29 @@ export function TopBar() {
   }, [])
 
   useEffect(() => {
-    if (!query.trim()) {
+    const trimmed = query.trim()
+    if (!trimmed) {
       setSuggestions([])
       setLoadingSuggestions(false)
       setShowDropdown(false)
-      window.dispatchEvent(new CustomEvent('musicweb-search', { detail: '' }))
+      if (lastDispatchedQueryRef.current !== '') {
+        lastDispatchedQueryRef.current = ''
+        window.dispatchEvent(new CustomEvent('musicweb-search', { detail: '' }))
+      }
       return
+    }
+
+    if (lastDispatchedQueryRef.current !== trimmed) {
+      lastDispatchedQueryRef.current = trimmed
+      window.dispatchEvent(new CustomEvent('musicweb-search', { detail: trimmed }))
     }
 
     setLoadingSuggestions(true)
     setShowDropdown(true)
-    window.dispatchEvent(new CustomEvent('musicweb-search', { detail: query.trim() }))
 
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query.trim())}`)
+        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`)
         if (res.ok) {
           const data = await res.json()
           const combined = [
@@ -101,6 +110,7 @@ export function TopBar() {
     setQuery('')
     setSuggestions([])
     setShowDropdown(false)
+    lastDispatchedQueryRef.current = ''
     window.dispatchEvent(new CustomEvent('musicweb-search', { detail: '' }))
   }
 
