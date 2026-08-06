@@ -170,20 +170,22 @@ export function Sidebar() {
     <aside className="hidden md:flex w-64 bg-[#090b10] flex-col justify-between p-3.5 h-full select-none text-slate-300 rounded-2xl border border-white/[0.05] shrink-0">
       <div className="flex flex-col gap-5 min-h-0 flex-1">
         {/* App Branding Header */}
-        <div className="px-2 pt-1.5 pb-0.5">
+        <div className="px-1 pt-1 pb-0.5">
           <Link
             href="/"
             onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
-            className="flex items-center gap-3 group"
+            className="flex items-center justify-center gap-3 p-2.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-cyan-500/30 transition-all duration-200 group shadow-md backdrop-blur-xl w-full"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 via-pink-500/10 to-purple-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 group-hover:scale-105 transition-all shadow-[0_0_15px_rgba(6,182,212,0.2)] shrink-0">
-              <Headphones className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500/20 via-pink-500/10 to-purple-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 group-hover:scale-105 transition-all shadow-[0_0_12px_rgba(6,182,212,0.2)] shrink-0">
+              <Headphones className="w-4.5 h-4.5" />
             </div>
-            <img
-              src="/phong-signature.png"
-              alt="Phong Signature"
-              className="h-10 w-auto object-contain signature-img-invert group-hover:scale-105 transition-transform"
-            />
+            <div className="flex items-center justify-center flex-1 h-9 min-w-0">
+              <img
+                src="/phong-signature.png"
+                alt="Phong's Music Signature"
+                className="h-8 w-auto max-w-full object-contain signature-img-invert group-hover:scale-105 transition-transform"
+              />
+            </div>
           </Link>
         </div>
 
