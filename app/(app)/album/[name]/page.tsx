@@ -6,7 +6,7 @@ import { Track } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { TrackList } from '@/components/track/TrackList'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
-import { Disc, Play, Shuffle, Music, ArrowLeft, Clock } from 'lucide-react'
+import { Disc, Play, Shuffle, Music, ArrowLeft, Clock, Globe } from 'lucide-react'
 import Link from 'next/link'
 
 function formatTotalDuration(seconds: number): string {
@@ -31,36 +31,73 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ name: st
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchAlbumTracks = async () => {
+    const fetchFullGlobalAlbumTracks = async () => {
       setLoading(true)
       try {
-        const { data: rawTracks, error } = await supabase
+        // 1. Fetch Local database tracks belonging to this album
+        let localAlbumTracks: Track[] = []
+        const { data: rawTracks } = await supabase
           .from('tracks')
           .select('*')
           .ilike('album', albumName)
           .order('created_at', { ascending: false })
 
-        if (!error && rawTracks) {
-          setTracks(rawTracks)
+        if (rawTracks && rawTracks.length > 0) {
+          localAlbumTracks = rawTracks
         } else {
-          // Fallback fetch all and filter in JS if ilike missed (e.g. null album mapped to Single & Remixes)
+          // Fallback fetch all and filter in JS if ilike missed
           const { data: allTracks } = await supabase.from('tracks').select('*')
           if (allTracks) {
-            const filtered = allTracks.filter((t: any) => {
+            localAlbumTracks = allTracks.filter((t: any) => {
               const album = (t.album || 'Single & Remixes').trim()
               return album.toLowerCase() === albumName.toLowerCase()
             })
-            setTracks(filtered)
           }
         }
+
+        // 2. Fetch Global tracks from Spotify, iTunes, YouTube, Audius for this album worldwide
+        let globalAlbumTracks: Track[] = []
+        try {
+          const res = await fetch(`/api/search?q=${encodeURIComponent(albumName)}`)
+          if (res.ok) {
+            const data = await res.json()
+            const allGlobal = [
+              ...(data.spotify || []),
+              ...(data.itunes || []),
+              ...(data.youtube || []),
+              ...(data.audius || []),
+            ]
+
+            // Filter global search results that match album or query
+            globalAlbumTracks = allGlobal.filter((t: Track) => {
+              const alb = (t.album || '').toLowerCase()
+              const titleStr = (t.title || '').toLowerCase()
+              const qStr = albumName.toLowerCase()
+              return alb.includes(qStr) || titleStr.includes(qStr)
+            })
+          }
+        } catch (err) {
+          console.warn('Fetch global album tracks error:', err)
+        }
+
+        // 3. Merge local & global tracks into a unified tracklist without duplicates
+        const trackMap = new Map<string, Track>()
+        localAlbumTracks.forEach((t) => trackMap.set(t.id, { ...t, source: t.source || 'local' }))
+        globalAlbumTracks.forEach((t) => {
+          if (!trackMap.has(t.id)) {
+            trackMap.set(t.id, t)
+          }
+        })
+
+        setTracks(Array.from(trackMap.values()))
       } catch (err) {
-        console.error('Fetch album tracks error:', err)
+        console.error('Fetch album detail error:', err)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchAlbumTracks()
+    fetchFullGlobalAlbumTracks()
   }, [albumName])
 
   const primaryCover = tracks.find((t) => t.cover_url)?.cover_url || null
@@ -104,9 +141,10 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ name: st
           <div className="flex items-center justify-center sm:justify-start gap-2">
             <span
               style={{ backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))', color: 'var(--spotify-glow, #22d3ee)' }}
-              className="text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full border border-[var(--theme-glow-shadow)] font-mono"
+              className="text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full border border-[var(--theme-glow-shadow)] font-mono flex items-center gap-1.5"
             >
-              ALBUM
+              <Globe className="w-3 h-3" />
+              <span>GLOBAL ALBUM</span>
             </span>
           </div>
 
@@ -161,8 +199,9 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ name: st
 
       {/* Album Tracks Section */}
       <div className="flex flex-col gap-4">
-        <h2 className="text-lg font-extrabold text-white flex items-center gap-2">
+        <h2 className="text-lg font-extrabold text-white flex items-center justify-between">
           <span>Danh sách bài hát trong Album</span>
+          <span className="text-xs font-mono font-normal text-slate-400">Hiển thị {tracks.length} bài hát</span>
         </h2>
 
         {loading ? <TrackListSkeleton count={8} /> : <TrackList tracks={tracks} />}

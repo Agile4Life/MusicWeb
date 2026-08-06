@@ -5,14 +5,16 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Track } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
-import { Disc, Search, Play, Music, Loader2 } from 'lucide-react'
+import { Disc, Search, Play, Music, Cloud, Sparkles, Loader2, Globe } from 'lucide-react'
 
-interface AlbumGroup {
+export interface AlbumGroup {
   name: string
   artist: string
   cover_url: string | null
   tracks: Track[]
   totalDuration: number
+  sources: Set<string>
+  primarySource: string
 }
 
 export default function AlbumsPage() {
@@ -22,41 +24,79 @@ export default function AlbumsPage() {
   const [albums, setAlbums] = useState<AlbumGroup[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'spotify' | 'itunes' | 'youtube' | 'drive'>('all')
 
   useEffect(() => {
-    const fetchAlbums = async () => {
+    const fetchGlobalAlbums = async () => {
       setLoading(true)
       try {
-        const { data: rawTracks, error } = await supabase
+        // 1. Fetch Local & Google Drive tracks
+        const { data: localTracks } = await supabase
           .from('tracks')
           .select('*')
           .order('created_at', { ascending: false })
 
-        if (!error && rawTracks) {
-          const grouped: Record<string, AlbumGroup> = {}
+        // 2. Fetch Global Trending & Top Chart tracks (Spotify, iTunes, YouTube, Audius)
+        let globalTrendingTracks: Track[] = []
+        try {
+          const res = await fetch('/api/search?trending=true')
+          if (res.ok) {
+            const data = await res.json()
+            globalTrendingTracks = [
+              ...(data.spotify || []),
+              ...(data.itunes || []),
+              ...(data.youtube || []),
+              ...(data.audius || []),
+            ]
+          }
+        } catch (err) {
+          console.warn('Fetch global trending for albums error:', err)
+        }
 
-          rawTracks.forEach((t: Track) => {
-            const albumName = (t.album || 'Single & Remixes').trim()
-            if (!grouped[albumName]) {
-              grouped[albumName] = {
-                name: albumName,
-                artist: t.artist || 'Nghệ sĩ chưa xác định',
-                cover_url: t.cover_url || null,
-                tracks: [],
-                totalDuration: 0,
-              }
+        // 3. Combine local and global tracks into a unified pool
+        const allMasterTracks = [
+          ...(localTracks || []).map((t: Track) => ({ ...t, source: t.source || 'local' })),
+          ...globalTrendingTracks,
+        ]
+
+        // 4. Group tracks by Album name
+        const grouped: Record<string, AlbumGroup> = {}
+
+        allMasterTracks.forEach((t: Track) => {
+          let albumName = (t.album || 'Single & Remixes').trim()
+          if (t.source === 'local' && (!t.album || t.album === 'Google Drive' || t.album === 'Google Drive Sync')) {
+            albumName = 'Drive Single & Remixes'
+          }
+
+          if (!grouped[albumName]) {
+            grouped[albumName] = {
+              name: albumName,
+              artist: t.artist || 'Nghệ sĩ chưa xác định',
+              cover_url: t.cover_url || null,
+              tracks: [],
+              totalDuration: 0,
+              sources: new Set<string>(),
+              primarySource: t.source || 'local',
             }
+          }
 
+          // Avoid duplicate track IDs in the same album group
+          if (!grouped[albumName].tracks.some((existing) => existing.id === t.id)) {
             grouped[albumName].tracks.push(t)
             grouped[albumName].totalDuration += t.duration || 0
+          }
 
-            if (!grouped[albumName].cover_url && t.cover_url) {
-              grouped[albumName].cover_url = t.cover_url
-            }
-          })
+          if (t.source) grouped[albumName].sources.add(t.source)
 
-          setAlbums(Object.values(grouped))
-        }
+          // Prefer crisp cover_url
+          if (!grouped[albumName].cover_url && t.cover_url) {
+            grouped[albumName].cover_url = t.cover_url
+          }
+        })
+
+        // Sort albums by track count and popularity
+        const albumList = Object.values(grouped).sort((a, b) => b.tracks.length - a.tracks.length)
+        setAlbums(albumList)
       } catch (err) {
         console.error('Fetch albums error:', err)
       } finally {
@@ -64,13 +104,20 @@ export default function AlbumsPage() {
       }
     }
 
-    fetchAlbums()
+    fetchGlobalAlbums()
   }, [])
 
-  const filteredAlbums = albums.filter((a) => {
+  const filteredAlbums = albums.filter((album) => {
+    // Source filter
+    if (sourceFilter === 'spotify' && !album.sources.has('spotify')) return false
+    if (sourceFilter === 'itunes' && !album.sources.has('itunes')) return false
+    if (sourceFilter === 'youtube' && !album.sources.has('youtube')) return false
+    if (sourceFilter === 'drive' && !album.sources.has('local') && !album.sources.has('drive')) return false
+
+    // Search query filter
     if (!searchQuery.trim()) return true
     const q = searchQuery.toLowerCase()
-    return a.name.toLowerCase().includes(q) || a.artist.toLowerCase().includes(q)
+    return album.name.toLowerCase().includes(q) || album.artist.toLowerCase().includes(q)
   })
 
   return (
@@ -90,33 +137,135 @@ export default function AlbumsPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-extrabold text-white tracking-tight">Thư viện Album</h1>
+            <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
+              <span>Thư viện Album Toàn Cầu</span>
+              <Globe className="w-5 h-5 text-[var(--spotify-glow,#22d3ee)] animate-pulse" />
+            </h1>
             <p className="text-xs text-slate-400">
-              Tổng hợp tất cả các bộ Album nhạc đặc sắc trong kho lưu trữ
+              Khám phá các Album âm nhạc trên toàn thế giới từ Spotify Global, iTunes Chart, YouTube Hits & Thư viện Drive
             </p>
           </div>
         </div>
 
         <span className="text-xs font-mono text-slate-400 bg-white/5 border border-white/10 px-3.5 py-1.5 rounded-full">
-          {albums.length} Album
+          {albums.length} Album Toàn Cầu
         </span>
       </div>
 
-      {/* Search Bar */}
-      {albums.length > 0 && (
-        <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-4">
-          <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm kiếm Album hoặc Nghệ sĩ..."
-              className="w-full glass-input rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none"
-            />
-          </div>
+      {/* Filter Tabs & Search Bar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
+        {/* Source Filter Tabs */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar touch-pan-x pr-2 py-0.5">
+          <button
+            onClick={() => setSourceFilter('all')}
+            style={
+              sourceFilter === 'all'
+                ? {
+                    background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                    boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                  }
+                : undefined
+            }
+            className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+              sourceFilter === 'all'
+                ? 'text-black font-extrabold border border-white/20'
+                : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:bg-white/10'
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>Tất Cả Album ({albums.length})</span>
+          </button>
+
+          <button
+            onClick={() => setSourceFilter('spotify')}
+            style={
+              sourceFilter === 'spotify'
+                ? {
+                    background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                    boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                  }
+                : undefined
+            }
+            className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+              sourceFilter === 'spotify'
+                ? 'text-black font-extrabold border border-white/20'
+                : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30'
+            }`}
+          >
+            <span>Spotify Global</span>
+          </button>
+
+          <button
+            onClick={() => setSourceFilter('itunes')}
+            style={
+              sourceFilter === 'itunes'
+                ? {
+                    background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                    boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                  }
+                : undefined
+            }
+            className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+              sourceFilter === 'itunes'
+                ? 'text-black font-extrabold border border-white/20'
+                : 'bg-pink-500/10 text-pink-300 hover:bg-pink-500/20 border border-pink-500/30'
+            }`}
+          >
+            <span>iTunes Top</span>
+          </button>
+
+          <button
+            onClick={() => setSourceFilter('youtube')}
+            style={
+              sourceFilter === 'youtube'
+                ? {
+                    background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                    boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                  }
+                : undefined
+            }
+            className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+              sourceFilter === 'youtube'
+                ? 'text-black font-extrabold border border-white/20'
+                : 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30'
+            }`}
+          >
+            <span>YouTube Hits</span>
+          </button>
+
+          <button
+            onClick={() => setSourceFilter('drive')}
+            style={
+              sourceFilter === 'drive'
+                ? {
+                    background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                    boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                  }
+                : undefined
+            }
+            className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+              sourceFilter === 'drive'
+                ? 'text-black font-extrabold border border-white/20'
+                : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:bg-white/10'
+            }`}
+          >
+            <Cloud className="w-3.5 h-3.5" />
+            <span>Drive / Cá Nhân</span>
+          </button>
         </div>
-      )}
+
+        {/* Search Input */}
+        <div className="relative w-full md:w-72 shrink-0">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Lọc Album hoặc Nghệ sĩ..."
+            className="w-full glass-input rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none"
+          />
+        </div>
+      </div>
 
       {/* Main Albums Grid */}
       {loading ? (
@@ -148,14 +297,33 @@ export default function AlbumsPage() {
                   <Disc style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-10 h-10 opacity-70 group-hover:scale-110 transition-transform duration-300" />
                 )}
 
-                {/* Track count badge */}
-                <div className="absolute top-2 right-2 z-10">
-                  <span
-                    style={{ backgroundColor: 'var(--primary-spotify, #06b6d4)' }}
-                    className="text-[9px] font-black uppercase tracking-wider text-black px-1.5 py-0.5 rounded shadow font-mono"
-                  >
-                    {album.tracks.length} bài
-                  </span>
+                {/* Source Badges */}
+                <div className="absolute top-2 right-2 z-10 flex flex-col items-end gap-1">
+                  {album.sources.has('spotify') && (
+                    <span className="text-[8px] font-mono font-bold uppercase tracking-wider bg-emerald-500/90 text-black px-1.5 py-0.5 rounded shadow">
+                      Spotify
+                    </span>
+                  )}
+                  {album.sources.has('itunes') && (
+                    <span className="text-[8px] font-mono font-bold uppercase tracking-wider bg-pink-500/90 text-white px-1.5 py-0.5 rounded shadow">
+                      iTunes
+                    </span>
+                  )}
+                  {album.sources.has('youtube') && (
+                    <span className="text-[8px] font-mono font-bold uppercase tracking-wider bg-red-500/90 text-white px-1.5 py-0.5 rounded shadow">
+                      YT
+                    </span>
+                  )}
+                  {album.sources.has('audius') && (
+                    <span className="text-[8px] font-mono font-bold uppercase tracking-wider bg-purple-500/90 text-white px-1.5 py-0.5 rounded shadow">
+                      Audius
+                    </span>
+                  )}
+                  {(album.sources.has('local') || album.sources.has('drive')) && (
+                    <span className="text-[8px] font-mono font-bold uppercase tracking-wider bg-cyan-500 text-black px-1.5 py-0.5 rounded shadow">
+                      Drive
+                    </span>
+                  )}
                 </div>
 
                 {/* Play button overlay */}
@@ -187,9 +355,10 @@ export default function AlbumsPage() {
                 >
                   {album.name}
                 </Link>
-                <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                  {album.artist}
-                </p>
+                <div className="flex items-center justify-between text-[10px] text-slate-400 mt-0.5">
+                  <span className="truncate">{album.artist}</span>
+                  <span className="font-mono text-slate-500 shrink-0 ml-1">{album.tracks.length} bài</span>
+                </div>
               </div>
             </div>
           ))}
@@ -207,9 +376,9 @@ export default function AlbumsPage() {
             <Disc className="w-8 h-8" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white mb-1">Chưa Có Album Nào</h3>
+            <h3 className="text-lg font-bold text-white mb-1">Không Tìm Thấy Album Phù Hợp</h3>
             <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              Hãy upload bài hát hoặc liên kết với Google Drive để tự động tạo danh sách Album nhạc.
+              Thử chọn bộ lọc khác hoặc nhập từ khóa tìm kiếm Album mới.
             </p>
           </div>
         </div>
