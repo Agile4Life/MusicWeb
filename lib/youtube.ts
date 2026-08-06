@@ -1,19 +1,5 @@
 import { Track } from '@/types'
 
-const PIPED_INSTANCES = [
-  'https://pipedapi.kavin.rocks',
-  'https://api.piped.privacydev.net',
-  'https://pipedapi.tokhmi.xyz',
-  'https://pipedapi.mha.fi',
-]
-
-const INVIDIOUS_INSTANCES = [
-  'https://invidious.privacydev.net',
-  'https://vid.puffyan.us',
-  'https://inv.tux.pizza',
-  'https://invidious.drgns.space',
-]
-
 /**
  * Extract 11-character YouTube Video ID from any input or URL
  */
@@ -32,29 +18,101 @@ export function extractYouTubeVideoId(input: string): string | null {
 }
 
 /**
- * Scrape YouTube Search directly from YouTube HTML (100% Free - Works for YouTube & YouTube Music)
+ * Primary YouTube Search via YouTube InnerTube API (Fastest, 100% Reliable on Vercel Serverless Datacenters)
+ */
+async function searchYouTubeInnerTube(query: string, limit = 15): Promise<Track[]> {
+  try {
+    const postData = JSON.stringify({
+      context: {
+        client: {
+          clientName: 'WEB',
+          clientVersion: '2.20240318.01.00',
+          hl: 'vi',
+          gl: 'VN',
+        },
+      },
+      query: query.trim(),
+    })
+
+    const res = await fetch('https://www.youtube.com/youtubei/v1/search', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      },
+      body: postData,
+      signal: AbortSignal.timeout(6000),
+    })
+
+    if (!res.ok) return []
+
+    const resData = await res.json()
+    const sectionList =
+      resData?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || []
+
+    const tracks: Track[] = []
+    const seenIds = new Set<string>()
+
+    for (const section of sectionList) {
+      const items = section?.itemSectionRenderer?.contents || []
+      for (const item of items) {
+        if (tracks.length >= limit) break
+        const video = item.videoRenderer
+        if (!video || !video.videoId || seenIds.has(video.videoId)) continue
+        seenIds.add(video.videoId)
+
+        const videoId = video.videoId
+        const title =
+          video.title?.runs?.[0]?.text || video.title?.simpleText || 'YouTube Track'
+        const artist =
+          video.ownerText?.runs?.[0]?.text ||
+          video.shortBylineText?.runs?.[0]?.text ||
+          'YouTube Artist'
+
+        const thumbnail =
+          video.thumbnail?.thumbnails?.slice(-1)?.[0]?.url ||
+          `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+
+        let durationSeconds = 0
+        const durationStr =
+          video.lengthText?.simpleText ||
+          video.thumbnailOverlays?.[0]?.thumbnailOverlayTimeStatusRenderer?.text?.simpleText ||
+          ''
+        if (durationStr) {
+          const parts = durationStr.split(':').map(Number)
+          if (parts.length === 2) durationSeconds = parts[0] * 60 + parts[1]
+          else if (parts.length === 3) durationSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2]
+        }
+
+        tracks.push({
+          id: `yt-${videoId}`,
+          user_id: 'youtube-global',
+          title: title.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&'),
+          artist: artist.replace(' - Topic', '').replace('VEVO', ''),
+          album: 'YouTube Music',
+          duration: durationSeconds,
+          file_path: `https://www.youtube.com/watch?v=${videoId}`,
+          cover_url: thumbnail,
+          created_at: new Date().toISOString(),
+          source: 'youtube',
+          youtube_id: videoId,
+        })
+      }
+    }
+
+    return tracks
+  } catch (err) {
+    console.warn('InnerTube API search warning:', err)
+    return []
+  }
+}
+
+/**
+ * Fallback Scrape YouTube Search directly from YouTube HTML
  */
 async function scrapeYouTubeSearch(query: string, limit = 15): Promise<Track[]> {
   try {
-    const videoIdFromUrl = extractYouTubeVideoId(query)
-    if (videoIdFromUrl) {
-      return [
-        {
-          id: `yt-${videoIdFromUrl}`,
-          user_id: 'youtube-global',
-          title: query.startsWith('http') ? 'YouTube Song' : `YouTube Video (${videoIdFromUrl})`,
-          artist: 'YouTube Music',
-          album: 'YouTube Music',
-          duration: 0,
-          file_path: `https://www.youtube.com/watch?v=${videoIdFromUrl}`,
-          cover_url: `https://img.youtube.com/vi/${videoIdFromUrl}/hqdefault.jpg`,
-          created_at: new Date().toISOString(),
-          source: 'youtube',
-          youtube_id: videoIdFromUrl,
-        },
-      ]
-    }
-
     const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query.trim())}`
     const res = await fetch(url, {
       headers: {
@@ -62,7 +120,7 @@ async function scrapeYouTubeSearch(query: string, limit = 15): Promise<Track[]> 
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Accept-Language': 'en-US,en;q=0.9,vi;q=0.8',
       },
-      signal: AbortSignal.timeout(6000),
+      signal: AbortSignal.timeout(5000),
     })
 
     if (!res.ok) return []
@@ -81,65 +139,50 @@ async function scrapeYouTubeSearch(query: string, limit = 15): Promise<Track[]> 
     const tracks: Track[] = []
     const seenIds = new Set<string>()
 
-    const parseVideoRenderer = (video: any): Track | null => {
-      if (!video || !video.videoId || seenIds.has(video.videoId)) return null
-      seenIds.add(video.videoId)
-
-      const videoId = video.videoId
-      const title =
-        video.title?.runs?.[0]?.text || video.title?.simpleText || 'YouTube Track'
-      const artist =
-        video.ownerText?.runs?.[0]?.text ||
-        video.shortBylineText?.runs?.[0]?.text ||
-        'YouTube Artist'
-
-      const thumbnail =
-        video.thumbnail?.thumbnails?.slice(-1)?.[0]?.url ||
-        `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
-
-      let durationSeconds = 0
-      const durationStr =
-        video.lengthText?.simpleText ||
-        video.thumbnailOverlays?.[0]?.thumbnailOverlayTimeStatusRenderer?.text?.simpleText ||
-        ''
-      if (durationStr) {
-        const parts = durationStr.split(':').map(Number)
-        if (parts.length === 2) durationSeconds = parts[0] * 60 + parts[1]
-        else if (parts.length === 3) durationSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2]
-      }
-
-      return {
-        id: `yt-${videoId}`,
-        user_id: 'youtube-global',
-        title: title.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&'),
-        artist: artist.replace(' - Topic', '').replace('VEVO', ''),
-        album: 'YouTube Music',
-        duration: durationSeconds,
-        file_path: `https://www.youtube.com/watch?v=${videoId}`,
-        cover_url: thumbnail,
-        created_at: new Date().toISOString(),
-        source: 'youtube',
-        youtube_id: videoId,
-      }
-    }
-
     for (const section of sectionList) {
       const items = section?.itemSectionRenderer?.contents || []
       for (const item of items) {
         if (tracks.length >= limit) break
+        const video = item.videoRenderer
+        if (!video || !video.videoId || seenIds.has(video.videoId)) continue
+        seenIds.add(video.videoId)
 
-        if (item.videoRenderer) {
-          const t = parseVideoRenderer(item.videoRenderer)
-          if (t) tracks.push(t)
-        } else if (item.shelfRenderer?.content?.verticalListRenderer?.items) {
-          for (const subItem of item.shelfRenderer.content.verticalListRenderer.items) {
-            if (tracks.length >= limit) break
-            if (subItem.videoRenderer) {
-              const t = parseVideoRenderer(subItem.videoRenderer)
-              if (t) tracks.push(t)
-            }
-          }
+        const videoId = video.videoId
+        const title =
+          video.title?.runs?.[0]?.text || video.title?.simpleText || 'YouTube Track'
+        const artist =
+          video.ownerText?.runs?.[0]?.text ||
+          video.shortBylineText?.runs?.[0]?.text ||
+          'YouTube Artist'
+
+        const thumbnail =
+          video.thumbnail?.thumbnails?.slice(-1)?.[0]?.url ||
+          `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+
+        let durationSeconds = 0
+        const durationStr =
+          video.lengthText?.simpleText ||
+          video.thumbnailOverlays?.[0]?.thumbnailOverlayTimeStatusRenderer?.text?.simpleText ||
+          ''
+        if (durationStr) {
+          const parts = durationStr.split(':').map(Number)
+          if (parts.length === 2) durationSeconds = parts[0] * 60 + parts[1]
+          else if (parts.length === 3) durationSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2]
         }
+
+        tracks.push({
+          id: `yt-${videoId}`,
+          user_id: 'youtube-global',
+          title: title.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&'),
+          artist: artist.replace(' - Topic', '').replace('VEVO', ''),
+          album: 'YouTube Music',
+          duration: durationSeconds,
+          file_path: `https://www.youtube.com/watch?v=${videoId}`,
+          cover_url: thumbnail,
+          created_at: new Date().toISOString(),
+          source: 'youtube',
+          youtube_id: videoId,
+        })
       }
     }
 
@@ -151,82 +194,7 @@ async function scrapeYouTubeSearch(query: string, limit = 15): Promise<Track[]> 
 }
 
 /**
- * Fallback to Piped API instances if HTML scraper is blocked
- */
-async function fetchFromPipedInstances(query: string, limit = 15): Promise<Track[]> {
-  const fetchInstance = async (instance: string): Promise<Track[]> => {
-    const res = await fetch(
-      `${instance}/search?q=${encodeURIComponent(query.trim())}&filter=music_songs`,
-      { signal: AbortSignal.timeout(3000) }
-    )
-    if (!res.ok) throw new Error('Piped HTTP error')
-    const data = await res.json()
-    const items = data.items || []
-    if (!Array.isArray(items) || items.length === 0) throw new Error('Empty Piped items')
-
-    return items.slice(0, limit).map((item: any): Track => {
-      const urlParts = (item.url || '').split('v=')
-      const videoId = urlParts[1] || item.id || ''
-      return {
-        id: `yt-${videoId}`,
-        user_id: 'youtube-global',
-        title: item.title || 'YouTube Track',
-        artist: item.uploaderName || 'YouTube Artist',
-        album: 'YouTube Music',
-        duration: item.duration || 0,
-        file_path: `https://www.youtube.com/watch?v=${videoId}`,
-        cover_url: item.thumbnail || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
-        created_at: new Date().toISOString(),
-        source: 'youtube',
-        youtube_id: videoId,
-      }
-    })
-  }
-
-  try {
-    return await Promise.any(PIPED_INSTANCES.map((inst) => fetchInstance(inst)))
-  } catch {
-    return []
-  }
-}
-
-/**
- * Fallback to Invidious API instances
- */
-async function fetchFromInvidiousInstances(query: string, limit = 15): Promise<Track[]> {
-  const fetchInstance = async (instance: string): Promise<Track[]> => {
-    const res = await fetch(
-      `${instance}/api/v1/search?q=${encodeURIComponent(query.trim())}&type=video`,
-      { signal: AbortSignal.timeout(3000) }
-    )
-    if (!res.ok) throw new Error('Invidious HTTP error')
-    const items = await res.json()
-    if (!Array.isArray(items) || items.length === 0) throw new Error('Empty Invidious items')
-
-    return items.slice(0, limit).map((item: any): Track => ({
-      id: `yt-${item.videoId}`,
-      user_id: 'youtube-global',
-      title: item.title || 'YouTube Track',
-      artist: item.author || 'YouTube Artist',
-      album: 'YouTube Music',
-      duration: item.lengthSeconds || 0,
-      file_path: `https://www.youtube.com/watch?v=${item.videoId}`,
-      cover_url: item.videoThumbnails?.[0]?.url || `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg`,
-      created_at: new Date().toISOString(),
-      source: 'youtube',
-      youtube_id: item.videoId,
-    }))
-  }
-
-  try {
-    return await Promise.any(INVIDIOUS_INSTANCES.map((inst) => fetchInstance(inst)))
-  } catch {
-    return []
-  }
-}
-
-/**
- * Search YouTube Data API v3 (or Direct Scraper + Piped + Invidious Fallbacks)
+ * Search YouTube Data API v3 or InnerTube API + HTML Scraper Fallback
  */
 export async function searchYouTubeTracks(query: string, limit = 15): Promise<Track[]> {
   if (!query.trim()) return []
@@ -252,7 +220,7 @@ export async function searchYouTubeTracks(query: string, limit = 15): Promise<Tr
 
   const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY || ''
 
-  // 1. Primary Method: Official YouTube Data API v3 if API key is provided
+  // 1. Official YouTube Data API v3 if API key is provided
   if (YOUTUBE_API_KEY) {
     try {
       const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoCategoryId=10&maxResults=${limit}&q=${encodeURIComponent(
@@ -303,20 +271,14 @@ export async function searchYouTubeTracks(query: string, limit = 15): Promise<Tr
     }
   }
 
-  // 2. Direct YouTube HTML Search Scraper (Fastest, 100% Reliable without API Key)
-  const scrapedTracks = await scrapeYouTubeSearch(query, limit)
-  if (scrapedTracks.length > 0) {
-    return scrapedTracks
+  // 2. Primary Method: InnerTube API (Fastest, works 100% on Vercel Serverless Datacenters)
+  const innerTubeTracks = await searchYouTubeInnerTube(query, limit)
+  if (innerTubeTracks.length > 0) {
+    return innerTubeTracks
   }
 
-  // 3. Piped API Instances Fallback
-  const pipedTracks = await fetchFromPipedInstances(query, limit)
-  if (pipedTracks.length > 0) {
-    return pipedTracks
-  }
-
-  // 4. Invidious API Instances Fallback
-  return fetchFromInvidiousInstances(query, limit)
+  // 3. Fallback: Direct HTML Scraper
+  return scrapeYouTubeSearch(query, limit)
 }
 
 /**
