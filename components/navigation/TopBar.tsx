@@ -74,13 +74,13 @@ export function TopBar() {
     }
 
     if (lastDispatchedQueryRef.current !== trimmed) {
+      lastDispatchedQueryRef.current = trimmed
+      window.dispatchEvent(new CustomEvent('musicweb-search', { detail: trimmed }))
+
       setLoadingSuggestions(true)
       setShowDropdown(true)
 
       const timer = setTimeout(async () => {
-        lastDispatchedQueryRef.current = trimmed
-        window.dispatchEvent(new CustomEvent('musicweb-search', { detail: trimmed }))
-
         try {
           const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`)
           if (res.ok) {
