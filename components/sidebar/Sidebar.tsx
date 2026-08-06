@@ -165,7 +165,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="hidden md:flex w-64 bg-[#090b10] flex-col justify-between p-3.5 h-full select-none text-slate-300 border-r border-white/[0.05]">
+    <aside className="hidden md:flex w-64 bg-[#090b10] flex-col justify-between p-3.5 h-full select-none text-slate-300 rounded-2xl border border-white/[0.05] shrink-0">
       <div className="flex flex-col gap-5 min-h-0 flex-1">
         {/* App Branding Header */}
         <div className="px-2 pt-1.5 pb-0.5">
@@ -192,10 +192,10 @@ export function Sidebar() {
           <Link
             href="/"
             onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
-            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
               pathname === '/'
-                ? 'bg-white/10 text-white'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+                ? 'bg-white/10 text-white font-bold'
+                : 'text-slate-400 hover:text-white hover:bg-white/[0.06] hover:translate-x-1'
             }`}
           >
             <Home className={`w-4 h-4 ${pathname === '/' ? 'text-[var(--primary-spotify,#06b6d4)]' : ''}`} />
@@ -205,7 +205,7 @@ export function Sidebar() {
           <Link
             href="/#drive"
             onClick={() => window.dispatchEvent(new Event('musicweb-tab-drive'))}
-            className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-cyan-400 hover:bg-cyan-500/10 transition-colors"
+            className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-cyan-400 hover:bg-cyan-500/10 hover:translate-x-1 transition-all duration-200"
           >
             <Cloud className="w-4 h-4" />
             <span>Drive</span>
@@ -213,10 +213,10 @@ export function Sidebar() {
 
           <Link
             href="/favorites"
-            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
               pathname === '/favorites'
-                ? 'bg-white/10 text-white'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+                ? 'bg-white/10 text-white font-bold'
+                : 'text-slate-400 hover:text-white hover:bg-white/[0.06] hover:translate-x-1'
             }`}
           >
             <Heart className={`w-4 h-4 ${pathname === '/favorites' ? 'text-rose-400 fill-rose-400' : ''}`} />
@@ -225,10 +225,10 @@ export function Sidebar() {
 
           <Link
             href="/history"
-            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
               pathname === '/history'
-                ? 'bg-white/10 text-white'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+                ? 'bg-white/10 text-white font-bold'
+                : 'text-slate-400 hover:text-white hover:bg-white/[0.06] hover:translate-x-1'
             }`}
           >
             <History className="w-4 h-4" />
@@ -238,10 +238,10 @@ export function Sidebar() {
           {isAdmin(user?.email) && (
             <Link
               href="/upload"
-              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
                 pathname === '/upload'
-                  ? 'bg-white/10 text-white'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+                  ? 'bg-white/10 text-white font-bold'
+                  : 'text-slate-400 hover:text-white hover:bg-white/[0.06] hover:translate-x-1'
               }`}
             >
               <Upload className={`w-4 h-4 ${pathname === '/upload' ? 'text-[var(--primary-spotify,#06b6d4)]' : ''}`} />
@@ -251,10 +251,10 @@ export function Sidebar() {
 
           <Link
             href="/settings"
-            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
               pathname === '/settings'
-                ? 'bg-white/10 text-white'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+                ? 'bg-white/10 text-white font-bold'
+                : 'text-slate-400 hover:text-white hover:bg-white/[0.06] hover:translate-x-1'
             }`}
           >
             <Settings className={`w-4 h-4 ${pathname === '/settings' ? 'text-[var(--primary-spotify,#06b6d4)]' : ''}`} />

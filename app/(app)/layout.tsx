@@ -14,12 +14,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {/* Mobile Header (Smartphone view) */}
           <MobileHeaderNav />
 
-          <div className="flex-1 flex min-h-0 relative">
+          <div className="flex-1 flex min-h-0 relative p-2 md:p-3 gap-2 md:gap-3">
             {/* Desktop Left Sidebar */}
             <Sidebar />
 
             {/* Main Content Area */}
-            <main className="flex-1 bg-[#10131c]/90 rounded-2xl my-1.5 md:my-2 mx-1.5 md:mx-0 md:mr-2 border border-white/[0.05] overflow-y-auto flex flex-col relative pb-32 md:pb-0">
+            <main className="flex-1 bg-[#10131c]/90 rounded-2xl border border-white/[0.05] overflow-y-auto flex flex-col relative pb-32 md:pb-0">
               <TopBar />
               {children}
             </main>

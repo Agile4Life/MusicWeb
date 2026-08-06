@@ -707,13 +707,13 @@ export default function HomePage() {
                 <div
                   key={t.id}
                   onClick={() => playTrack(t, trendingTracks)}
-                  className="bg-white/[0.02] hover:bg-white/[0.05] p-3 rounded-2xl flex flex-col gap-2 cursor-pointer group transition-colors border border-white/[0.04] hover:border-white/10"
+                  className="bg-white/[0.02] hover:bg-white/[0.06] p-3 rounded-2xl flex flex-col gap-2 cursor-pointer group hover:-translate-y-1.5 hover:shadow-xl hover:shadow-cyan-500/10 transition-all duration-300 border border-white/[0.04] hover:border-cyan-500/30"
                 >
                   <div className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
                     {t.cover_url ? (
-                      <img src={t.cover_url} alt={t.title} className="w-full h-full object-cover" />
+                      <img src={t.cover_url} alt={t.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     ) : (
-                      <Music className="w-7 h-7 text-slate-500" />
+                      <Music className="w-7 h-7 text-slate-500 group-hover:scale-110 transition-transform duration-300" />
                     )}
 
                     {/* Source Badges */}
@@ -740,9 +740,9 @@ export default function HomePage() {
                       )}
                     </div>
 
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <div className="w-9 h-9 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center">
-                        <Play className="w-4 h-4 fill-current ml-0.5" />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300">
+                      <div className="w-10 h-10 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center shadow-lg transform group-hover:scale-100 scale-75 transition-all duration-300">
+                        <Play className="w-5 h-5 fill-current ml-0.5" />
                       </div>
                     </div>
                   </div>
@@ -767,10 +767,8 @@ export default function HomePage() {
         <div id="drive" className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-teal-400 to-blue-600 p-0.5 shadow-lg shadow-cyan-500/20">
-                <div className="w-full h-full bg-[#0d0e15] rounded-[10px] flex items-center justify-center">
-                  <Cloud className="w-5 h-5 text-cyan-400" />
-                </div>
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
+                <Cloud className="w-5 h-5" />
               </div>
               <div>
                 <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
@@ -807,13 +805,13 @@ export default function HomePage() {
                 <div
                   key={t.id}
                   onClick={() => playTrack(t, driveTracks)}
-                  className="glass-card p-3 rounded-2xl flex flex-col gap-2.5 cursor-pointer group hover:scale-[1.03] transition-all relative border border-white/10 hover:border-cyan-400/50"
+                  className="bg-white/[0.02] hover:bg-white/[0.06] p-3 rounded-2xl flex flex-col gap-2.5 cursor-pointer group hover:-translate-y-1.5 hover:shadow-xl hover:shadow-cyan-500/10 transition-all duration-300 border border-white/[0.04] hover:border-cyan-500/30"
                 >
                   <div className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
                     {t.cover_url ? (
-                      <img src={t.cover_url} alt={t.title} className="w-full h-full object-cover" />
+                      <img src={t.cover_url} alt={t.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     ) : (
-                      <Music className="w-8 h-8 text-cyan-400/70" />
+                      <Music className="w-8 h-8 text-cyan-400/70 group-hover:scale-110 transition-transform duration-300" />
                     )}
 
                     <div className="absolute top-2 right-2 z-10">
@@ -822,8 +820,8 @@ export default function HomePage() {
                       </span>
                     </div>
 
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <div className="w-10 h-10 rounded-full bg-cyan-400 text-black flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300">
+                      <div className="w-10 h-10 rounded-full bg-cyan-400 text-black flex items-center justify-center shadow-lg transform group-hover:scale-100 scale-75 transition-all duration-300">
                         <Play className="w-5 h-5 fill-current ml-0.5" />
                       </div>
                     </div>
@@ -833,7 +831,7 @@ export default function HomePage() {
                     <p className="text-xs font-bold text-white group-hover:text-cyan-300 transition-colors truncate">
                       {t.title}
                     </p>
-                    <p className="text-[10px] text-slate-400 truncate">
+                    <p className="text-[10px] text-slate-400 truncate mt-0.5">
                       {t.artist || 'Nghệ sĩ chưa xác định'}
                     </p>
                   </div>

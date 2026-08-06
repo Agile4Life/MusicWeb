@@ -161,12 +161,12 @@ function TrackRowComponent({
 
   return (
     <div
-      className={`group flex items-center justify-between px-3 md:px-4 py-2.5 rounded-xl transition-colors cursor-pointer select-none border border-transparent ${
+      className={`group flex items-center justify-between px-3 md:px-4 py-2.5 rounded-xl transition-all duration-200 cursor-pointer select-none border ${
         isSelected
           ? 'bg-cyan-500/10 border-cyan-500/30'
           : isCurrent
-          ? 'bg-white/[0.08] text-white'
-          : 'hover:bg-white/[0.04]'
+          ? 'bg-white/[0.08] border-white/10 text-white'
+          : 'border-transparent hover:bg-white/[0.06] hover:border-white/[0.08] hover:translate-x-1'
       }`}
       onMouseLeave={() => { if (!editMode) setShowMenu(false) }}
     >
