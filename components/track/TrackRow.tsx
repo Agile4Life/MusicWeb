@@ -162,11 +162,15 @@ function TrackRowComponent({
   return (
     <div
       className={`group flex items-center justify-between px-3 md:px-4 py-2.5 rounded-xl transition-all duration-200 cursor-pointer select-none border ${
+        showMenu ? 'relative z-40 bg-white/[0.08] border-white/10 text-white' : 'relative'
+      } ${
         isSelected
           ? 'bg-cyan-500/10 border-cyan-500/30'
           : isCurrent
           ? 'bg-white/[0.08] border-white/10 text-white'
-          : 'border-transparent hover:bg-white/[0.06] hover:border-white/[0.08] hover:translate-x-1'
+          : showMenu
+          ? ''
+          : 'border-transparent hover:bg-white/[0.06] hover:border-white/[0.08]'
       }`}
     >
       {/* Select Checkbox */}
@@ -321,7 +325,9 @@ function TrackRowComponent({
                 e.stopPropagation()
                 addToQueue(track)
               }}
-              className="p-1.5 text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+              className={`p-1.5 text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10 rounded-lg transition-all ${
+                showMenu ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+              }`}
               title="Thêm vào hàng đợi"
             >
               <ListMusic className="w-4 h-4" />
@@ -332,7 +338,9 @@ function TrackRowComponent({
                 e.stopPropagation()
                 setShowMenu(!showMenu)
               }}
-              className="p-1.5 hover:text-white hover:bg-white/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+              className={`p-1.5 hover:text-white hover:bg-white/10 rounded-lg transition-colors ${
+                showMenu ? 'opacity-100 text-white bg-white/10' : 'opacity-0 group-hover:opacity-100'
+              }`}
               title="Khác"
             >
               <MoreVertical className="w-4 h-4" />
@@ -341,13 +349,13 @@ function TrackRowComponent({
             {showMenu && (
               <>
                 <div
-                  className="fixed inset-0 z-20 cursor-default"
+                  className="fixed inset-0 z-40 cursor-default"
                   onClick={(e) => {
                     e.stopPropagation()
                     setShowMenu(false)
                   }}
                 />
-                <div className="absolute right-0 top-8 glass-panel shadow-2xl rounded-xl py-1.5 w-56 z-30 text-xs text-slate-200 border border-white/10">
+                <div className="absolute right-0 top-9 bg-[#0b121e]/95 backdrop-blur-2xl shadow-2xl rounded-2xl py-2 w-56 z-50 text-xs text-slate-200 border border-white/15 animate-in fade-in zoom-in-95 duration-150">
                 {/* Edit artist/album */}
                 <button
                   onClick={handleToggleFavorite}
