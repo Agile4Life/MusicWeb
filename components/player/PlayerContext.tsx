@@ -24,7 +24,12 @@ interface PlayerContextType {
   toggleRepeat: () => void
   toggleFavoriteCurrentTrack: () => Promise<void>
   playbackError: string | null
-  playTrack: (track: Track, newQueue?: Track[], forceIndex?: number) => Promise<void>
+  playTrack: (
+    track: Track,
+    newQueue?: Track[],
+    forceIndex?: number,
+    startFromTime?: number
+  ) => Promise<void>
   togglePlay: () => void
   seek: (time: number) => void
   setVolume: (val: number) => void
@@ -74,10 +79,13 @@ declare global {
 }
 
 function inferTrackSource(track: Track): Track {
+  if (track.youtube_id) {
+    return { ...track, source: 'youtube' }
+  }
   if (track.source && track.source !== 'local') return track
 
   const fp = track.file_path || ''
-  if (fp.includes('youtube.com') || fp.includes('youtu.be') || track.youtube_id || track.id.startsWith('yt-')) {
+  if (fp.includes('youtube.com') || fp.includes('youtu.be') || track.id.startsWith('yt-')) {
     let ytId = track.youtube_id
     if (!ytId) {
       const match = fp.match(/(?:v=|\/embed\/|\/1\/|\/v\/|https:\/\/youtu\.be\/|^yt-)([a-zA-Z0-9_-]{11})/)
@@ -133,7 +141,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const currentIndexRef = useRef<number>(-1)
   const volumeRef = useRef<number>(0.8)
   const lastSavedTimeRef = useRef<number>(0)
-  const playTrackRef = useRef<(track: Track, newQueue?: Track[], forceIndex?: number) => Promise<void>>(async () => {})
+  const playTrackRef = useRef<
+    (track: Track, newQueue?: Track[], forceIndex?: number, startFromTime?: number) => Promise<void>
+  >(async () => {})
   const nextTrackRef = useRef<() => void>(() => {})
   const prevTrackRef = useRef<() => void>(() => {})
 
@@ -262,6 +272,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           events: {
             onReady: () => {
               ytReadyRef.current = true
+              const active = currentTrackRef.current
+              if (active && active.source === 'youtube' && active.youtube_id) {
+                try {
+                  ytPlayerRef.current.cueVideoById({
+                    videoId: active.youtube_id,
+                    startSeconds: lastSavedTimeRef.current || 0,
+                  })
+                } catch (e) {
+                  console.warn('YT cue error on ready:', e)
+                }
+              }
             },
             onStateChange: (event: any) => {
               // YT.PlayerState.PLAYING = 1, PAUSED = 2, ENDED = 0
@@ -401,10 +422,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (savedRaw) {
         const saved = JSON.parse(savedRaw)
         if (saved.track && saved.track.id) {
-          const restoredTrack = saved.track
+          const restoredTrack = inferTrackSource(saved.track)
           const restoredTime = typeof saved.currentTime === 'number' ? saved.currentTime : 0
           const restoredQueue =
-            Array.isArray(saved.queue) && saved.queue.length > 0 ? saved.queue : [restoredTrack]
+            Array.isArray(saved.queue) && saved.queue.length > 0
+              ? saved.queue.map(inferTrackSource)
+              : [restoredTrack]
           const restoredIndex = typeof saved.currentIndex === 'number' ? saved.currentIndex : 0
           const restoredVol = typeof saved.volume === 'number' ? saved.volume : 0.8
 
@@ -413,16 +436,22 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           setCurrentIndex(restoredIndex)
           setCurrentTime(restoredTime)
           setVolumeState(restoredVol)
+          lastSavedTimeRef.current = restoredTime
 
-          if (restoredTrack.source !== 'youtube') {
+          if (restoredTrack.source === 'youtube' && restoredTrack.youtube_id) {
+            if (ytReadyRef.current && ytPlayerRef.current?.cueVideoById) {
+              try {
+                ytPlayerRef.current.cueVideoById({
+                  videoId: restoredTrack.youtube_id,
+                  startSeconds: restoredTime,
+                })
+              } catch (e) {}
+            }
+          } else {
             getAudioUrl(restoredTrack)
               .then((url) => {
                 const audio = audioRef.current
                 if (url && audio) {
-                  audio.src = url
-                  audio.volume = restoredVol
-                  audio.load()
-
                   const onLoaded = () => {
                     if (restoredTime > 0 && restoredTime < (audio.duration || Infinity)) {
                       audio.currentTime = restoredTime
@@ -431,6 +460,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                     audio.removeEventListener('loadedmetadata', onLoaded)
                   }
                   audio.addEventListener('loadedmetadata', onLoaded)
+
+                  audio.src = url
+                  audio.volume = restoredVol
+                  audio.load()
+
+                  if (audio.readyState >= 1) {
+                    onLoaded()
+                  }
                 }
               })
               .catch((err) => console.warn('Audio restore error:', err))
@@ -470,7 +507,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentTime])
 
-  const playTrack = async (rawTrack: Track, newQueue?: Track[], forceIndex?: number) => {
+  const playTrack = async (
+    rawTrack: Track,
+    newQueue?: Track[],
+    forceIndex?: number,
+    startFromTime?: number
+  ) => {
     const requestId = ++playRequestRef.current
     const track = inferTrackSource(rawTrack)
 
@@ -501,13 +543,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setCurrentIndex(0)
     }
 
+    const initialTime = typeof startFromTime === 'number' && startFromTime >= 0 ? startFromTime : 0
+
     // ⚡ 2. UPDATE UI INSTANTLY (< 5ms)
     setCurrentTrack(track)
     setIsPlaying(true)
-    setCurrentTime(0)
+    setCurrentTime(initialTime)
     setDuration(track.duration || 0)
     setPlaybackError(null)
-    savePlayerStateToStorage(track, 0, nextQueue, nextIndex, volume)
+    savePlayerStateToStorage(track, initialTime, nextQueue, nextIndex, volume)
 
     // 🎵 Full-Length Stream Resolver for iTunes & Spotify tracks (Resolves DRM/metadata into 100% playable full song)
     let activeTrack = track
@@ -547,7 +591,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (ytPlayerRef.current && ytPlayerRef.current.loadVideoById) {
           try {
             ytPlayerRef.current.setVolume(volume * 100)
-            ytPlayerRef.current.loadVideoById(activeTrack.youtube_id)
+            ytPlayerRef.current.loadVideoById({
+              videoId: activeTrack.youtube_id,
+              startSeconds: initialTime,
+            })
             setIsPlaying(true)
           } catch (e) {
             console.warn('YT loadVideoById error:', e)
@@ -587,7 +634,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audio.pause()
       audio.src = url
       audio.volume = volume
-      audio.currentTime = 0
+      if (initialTime > 0) {
+        audio.currentTime = initialTime
+      } else {
+        audio.currentTime = 0
+      }
 
       try {
         await audio.play()
@@ -669,33 +720,63 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // Keep playTrackRef in sync so YouTube onStateChange closure always calls latest version
   playTrackRef.current = playTrack
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
     if (!currentTrack) return
 
-    if (currentTrack.source === 'youtube' && ytPlayerRef.current) {
+    const track = inferTrackSource(currentTrack)
+
+    if (track.source === 'youtube') {
       if (isPlaying) {
-        ytPlayerRef.current.pauseVideo()
+        if (ytPlayerRef.current?.pauseVideo) {
+          try {
+            ytPlayerRef.current.pauseVideo()
+          } catch {}
+        }
         setIsPlaying(false)
       } else {
-        ytPlayerRef.current.playVideo()
-        setIsPlaying(true)
+        if (ytPlayerRef.current && ytReadyRef.current) {
+          try {
+            const state = ytPlayerRef.current.getPlayerState ? ytPlayerRef.current.getPlayerState() : -1
+            // 1 = playing, 2 = paused, 3 = buffering, 5 = video cued
+            if (state === 5 || state === 2 || state === 1 || state === 3) {
+              ytPlayerRef.current.playVideo()
+              setIsPlaying(true)
+              return
+            }
+          } catch (e) {
+            console.warn('YT playVideo state check failed:', e)
+          }
+        }
+        // Fallback: If YT player was unstarted (-1), empty, or not cued, start via playTrack
+        await playTrack(track, queue, currentIndex, currentTime)
       }
       return
     }
 
-    if (!audioRef.current) return
+    // HTML5 / Audius / Local / Spotify / iTunes tracks
     if (isPlaying) {
-      audioRef.current.pause()
+      if (audioRef.current) {
+        audioRef.current.pause()
+      }
       setIsPlaying(false)
     } else {
-      audioRef.current
-        .play()
-        .then(() => setIsPlaying(true))
-        .catch((err) => {
-          setIsPlaying(false)
-          const message = err instanceof Error ? err.message : String(err)
-          setPlaybackError(`Không thể phát audio: ${message}`)
-        })
+      const audio = audioRef.current
+      if (!audio || !audio.src || audio.src === window.location.href || audio.error) {
+        // If audio source is missing, invalid, or errored out (e.g. after reload)
+        await playTrack(track, queue, currentIndex, currentTime)
+        return
+      }
+
+      try {
+        await audio.play()
+        setIsPlaying(true)
+      } catch (err: any) {
+        if (err?.name === 'AbortError' || String(err).includes('interrupted')) {
+          return
+        }
+        console.warn('audio.play() failed, re-loading track:', err)
+        await playTrack(track, queue, currentIndex, currentTime)
+      }
     }
   }
 
