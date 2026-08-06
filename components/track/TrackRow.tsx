@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Track, Playlist } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { Play, Pause, Music, Trash2, MoreVertical, Plus, Pencil, Check, X, Heart, Cloud, ListMusic } from 'lucide-react'
@@ -47,6 +47,26 @@ function TrackRowComponent({
   const { data: nextAuthSession } = useSession()
   const { currentTrack, isPlaying, playTrack, togglePlay, queue, addToQueue } = usePlayer()
   const [showMenu, setShowMenu] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!showMenu) return
+
+    const handlePointerDownOutside = (event: PointerEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false)
+      }
+    }
+
+    const timer = setTimeout(() => {
+      window.addEventListener('pointerdown', handlePointerDownOutside)
+    }, 0)
+
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('pointerdown', handlePointerDownOutside)
+    }
+  }, [showMenu])
   const [editMode, setEditMode] = useState(false)
   const [editTitle, setEditTitle] = useState(track.title || '')
   const [editArtist, setEditArtist] = useState(track.artist || '')
@@ -347,15 +367,11 @@ function TrackRowComponent({
             </button>
 
             {showMenu && (
-              <>
-                <div
-                  className="fixed inset-0 z-40 cursor-default"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setShowMenu(false)
-                  }}
-                />
-                <div className="absolute right-0 top-9 bg-[#0b121e]/95 backdrop-blur-2xl shadow-2xl rounded-2xl py-2 w-56 z-50 text-xs text-slate-200 border border-white/15 animate-in fade-in zoom-in-95 duration-150">
+              <div
+                ref={menuRef}
+                className="absolute right-0 top-9 bg-[#0b121e]/95 backdrop-blur-2xl shadow-2xl rounded-2xl py-2 w-56 z-50 text-xs text-slate-200 border border-white/15 animate-in fade-in zoom-in-95 duration-150"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {/* Edit artist/album */}
                 <button
                   onClick={handleToggleFavorite}
@@ -438,7 +454,6 @@ function TrackRowComponent({
                   </button>
                 )}
               </div>
-            </>
           )}
           </div>
         )}
