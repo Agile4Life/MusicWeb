@@ -981,7 +981,7 @@ export default function HomePage() {
           </div>
         )}
 
-        (loading || (isSearching && searchingGlobal && displayedTracks.length === 0)) ? (
+        {(loading || (isSearching && searchingGlobal && displayedTracks.length === 0)) ? (
           <TrackListSkeleton count={8} />
         ) : (
           <TrackList
@@ -994,7 +994,7 @@ export default function HomePage() {
             onBulkUpdated={handleBulkUpdated}
             onBulkDeleted={handleBulkDeleted}
           />
-        )
+        )}
       </div>
     </div>
   )

@@ -224,7 +224,7 @@ export function findBestYouTubeMatch(
   targetArtist?: string | null,
   targetDuration?: number | null
 ): Track | null {
-  if (!candidates || candidates.length === 0) return null
+  if (!candidates || candidates.length === 0 || !targetTitle) return null
 
   const cleanTargetTitle = (targetTitle || '')
     .toLowerCase()
@@ -233,6 +233,8 @@ export function findBestYouTubeMatch(
     .replace(/ft\..*|feat\..*/gi, '')
     .trim()
     .normalize('NFKC')
+
+  if (!cleanTargetTitle) return null
 
   const cleanTargetArtist = (targetArtist || '')
     .toLowerCase()
@@ -246,7 +248,9 @@ export function findBestYouTubeMatch(
     (targetDur > 900)
 
   let bestMatch: Track | null = null
-  let highestScore = -100
+  let highestScore = 50 // Minimum score threshold (must have a real title match)
+
+  const titleWords = cleanTargetTitle.split(/\s+/).filter((w) => w.length > 1)
 
   for (const candidate of candidates) {
     if (!candidate.youtube_id) continue
@@ -255,7 +259,28 @@ export function findBestYouTubeMatch(
     const candidateArtistNorm = (candidate.artist || '').toLowerCase().normalize('NFKC')
     const candidateDuration = candidate.duration || 0
 
-    let score = 0
+    // STRICT TITLE MATCH: Candidate must match at least 40% of title words or contain substring
+    let matchedWordsCount = 0
+    for (const word of titleWords) {
+      if (candidateTitleNorm.includes(word)) {
+        matchedWordsCount++
+      }
+    }
+
+    const matchRatio = titleWords.length > 0 ? matchedWordsCount / titleWords.length : 0
+    const hasSubstringMatch =
+      (cleanTargetTitle.length >= 3 && candidateTitleNorm.includes(cleanTargetTitle)) ||
+      (candidateTitleNorm.length >= 3 && cleanTargetTitle.includes(candidateTitleNorm))
+
+    if (matchRatio < 0.35 && !hasSubstringMatch) {
+      continue
+    }
+
+    let score = matchRatio * 120
+
+    if (hasSubstringMatch) {
+      score += 80
+    }
 
     const isCandidateLongCompilation = LONG_COMPILATION_KEYWORDS.some((kw) =>
       candidateTitleNorm.includes(kw)
@@ -273,33 +298,12 @@ export function findBestYouTubeMatch(
       }
     }
 
-    const titleWords = cleanTargetTitle.split(/\s+/).filter((w) => w.length > 1)
-    let matchedWordsCount = 0
-    for (const word of titleWords) {
-      if (candidateTitleNorm.includes(word)) {
-        matchedWordsCount++
-      }
-    }
-
-    if (titleWords.length > 0) {
-      const matchRatio = matchedWordsCount / titleWords.length
-      score += matchRatio * 100
-    }
-
-    if (cleanTargetTitle.length >= 3) {
-      if (candidateTitleNorm.includes(cleanTargetTitle)) {
-        score += 80
-      } else if (cleanTargetTitle.includes(candidateTitleNorm)) {
-        score += 50
-      }
-    }
-
     if (cleanTargetArtist) {
       const artistWords = cleanTargetArtist.split(/\s+/).filter((w) => w.length > 1)
       let artistMatch = false
       for (const word of artistWords) {
         if (candidateTitleNorm.includes(word) || candidateArtistNorm.includes(word)) {
-          score += 25
+          score += 30
           artistMatch = true
         }
       }
@@ -324,7 +328,7 @@ export function findBestYouTubeMatch(
       } else if (diff <= 90) {
         score += 20
       } else if (diff > 300) {
-        score -= 80
+        score -= 100
       }
     }
 
@@ -332,10 +336,6 @@ export function findBestYouTubeMatch(
       highestScore = score
       bestMatch = candidate
     }
-  }
-
-  if (highestScore < 0) {
-    return null
   }
 
   return bestMatch
