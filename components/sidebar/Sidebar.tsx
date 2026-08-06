@@ -104,7 +104,7 @@ export function Sidebar() {
       window.removeEventListener('playlist-updated', handleCustomUpdate)
       supabase.removeChannel(playlistChannel)
     }
-  }, [nextAuthSession, supabase])
+  }, [nextAuthSession])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()

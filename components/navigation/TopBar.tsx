@@ -40,7 +40,7 @@ export function TopBar() {
 
   useEffect(() => {
     supabase.auth.getUser().then((res: any) => setSupabaseUser(res?.data?.user))
-  }, [supabase])
+  }, [])
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.location.search.includes('q=')) {
