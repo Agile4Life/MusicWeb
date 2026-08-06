@@ -6,8 +6,9 @@ import { searchITunesTracks, getTrendingITunesTracks } from '@/lib/itunes'
 import { searchSpotifyTracks, getTrendingSpotifyTracks } from '@/lib/spotify'
 import { Track } from '@/types'
 
-// In-memory LRU search cache (TTL 3 minutes = 180,000 ms)
+// In-memory LRU search cache & in-flight request deduplication map
 const searchCache = new Map<string, { data: any; timestamp: number }>()
+const inFlightRequests = new Map<string, Promise<any>>()
 const CACHE_TTL = 180 * 1000
 
 export async function GET(request: Request) {
@@ -25,22 +26,36 @@ export async function GET(request: Request) {
         return NextResponse.json(cached.data)
       }
 
-      const [ytTrending, audiusTrending, itunesTrending, spotifyTrending] = await Promise.all([
-        getTrendingYouTubeTracks(8).catch(() => []),
-        getTrendingAudiusTracks(8).catch(() => []),
-        getTrendingITunesTracks(8).catch(() => []),
-        getTrendingSpotifyTracks(8).catch(() => []),
-      ])
-
-      const responseData = {
-        youtube: ytTrending,
-        audius: audiusTrending,
-        itunes: itunesTrending,
-        spotify: spotifyTrending,
+      if (inFlightRequests.has(cacheKey)) {
+        const data = await inFlightRequests.get(cacheKey)
+        return NextResponse.json(data)
       }
 
-      searchCache.set(cacheKey, { data: responseData, timestamp: Date.now() })
-      return NextResponse.json(responseData)
+      const trendingPromise = (async () => {
+        const [ytTrending, audiusTrending, itunesTrending, spotifyTrending] = await Promise.all([
+          getTrendingYouTubeTracks(8).catch(() => []),
+          getTrendingAudiusTracks(8).catch(() => []),
+          getTrendingITunesTracks(8).catch(() => []),
+          getTrendingSpotifyTracks(8).catch(() => []),
+        ])
+
+        return {
+          youtube: ytTrending,
+          audius: audiusTrending,
+          itunes: itunesTrending,
+          spotify: spotifyTrending,
+        }
+      })()
+
+      inFlightRequests.set(cacheKey, trendingPromise)
+
+      try {
+        const responseData = await trendingPromise
+        searchCache.set(cacheKey, { data: responseData, timestamp: Date.now() })
+        return NextResponse.json(responseData)
+      } finally {
+        inFlightRequests.delete(cacheKey)
+      }
     } catch (err: any) {
       return NextResponse.json({ youtube: [], audius: [], itunes: [], spotify: [] })
     }
@@ -53,13 +68,24 @@ export async function GET(request: Request) {
   const query = q.trim().toLowerCase()
   const cacheKey = `${query}_${source}`
 
-  // Check cache first for instant (<10ms) search response
+  // 1. Check completed cache first for instant (<10ms) search response
   const cached = searchCache.get(cacheKey)
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return NextResponse.json(cached.data)
   }
 
-  try {
+  // 2. Check in-flight request to deduplicate concurrent duplicate requests from TopBar & Page
+  if (inFlightRequests.has(cacheKey)) {
+    try {
+      const data = await inFlightRequests.get(cacheKey)
+      return NextResponse.json(data)
+    } catch {
+      // Fall through if in-flight failed
+    }
+  }
+
+  // 3. Create single shared promise for this query
+  const searchPromise = (async () => {
     const promises: Array<Promise<any>> = []
 
     // 1. Search local Supabase tracks
@@ -128,13 +154,19 @@ export async function GET(request: Request) {
 
     const minDurationFilter = (t: Track) => !t.duration || t.duration >= 25
 
-    const responseData = {
+    return {
       local: localTracks,
       youtube: youtubeTracks.filter(minDurationFilter),
       audius: audiusTracks.filter(minDurationFilter),
       itunes: enhancedITunes.filter(minDurationFilter),
       spotify: enhancedSpotify.filter(minDurationFilter),
     }
+  })()
+
+  inFlightRequests.set(cacheKey, searchPromise)
+
+  try {
+    const responseData = await searchPromise
 
     if (searchCache.size > 200) {
       const oldestKey = searchCache.keys().next().value
@@ -146,5 +178,7 @@ export async function GET(request: Request) {
   } catch (err: any) {
     console.error('Unified search route error:', err)
     return NextResponse.json({ error: err.message }, { status: 500 })
+  } finally {
+    inFlightRequests.delete(cacheKey)
   }
 }
