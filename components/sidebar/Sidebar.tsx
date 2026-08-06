@@ -205,11 +205,14 @@ export function Sidebar() {
           </Link>
 
           <Link
-            href="/#drive"
-            onClick={() => window.dispatchEvent(new Event('musicweb-tab-drive'))}
-            className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-[var(--spotify-glow,#22d3ee)] hover:bg-white/5 transition-colors duration-150"
+            href="/drive"
+            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors duration-150 ${
+              pathname === '/drive'
+                ? 'bg-white/10 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
+            }`}
           >
-            <Cloud className="w-4 h-4" />
+            <Cloud className={`w-4 h-4 ${pathname === '/drive' ? 'text-[var(--spotify-glow,#22d3ee)]' : ''}`} />
             <span>{t('drive')}</span>
           </Link>
 

@@ -24,8 +24,10 @@ import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
 import { isAdmin, getValidUserId } from '@/lib/accessControl'
 import { useSession, signOut } from 'next-auth/react'
+import { useLanguage } from '@/components/i18n/LanguageContext'
 
 export function MobileHeaderNav() {
+  const { t } = useLanguage()
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -176,12 +178,13 @@ export function MobileHeaderNav() {
         </Link>
 
         <Link
-          href="/#drive"
-          onClick={() => window.dispatchEvent(new Event('musicweb-tab-drive'))}
-          className="flex flex-col items-center gap-1 text-cyan-400"
+          href="/drive"
+          className={`flex flex-col items-center gap-1 transition-colors ${
+            pathname === '/drive' ? 'text-[var(--spotify-glow,#22d3ee)] font-bold' : 'text-slate-400'
+          }`}
         >
           <Cloud className="w-5 h-5" />
-          <span className="text-[10px]">Drive</span>
+          <span className="text-[10px]">{t('drive')}</span>
         </Link>
 
         <Link
@@ -246,15 +249,14 @@ export function MobileHeaderNav() {
                 </Link>
 
                 <Link
-                  href="/#drive"
-                  onClick={() => {
-                    window.dispatchEvent(new Event('musicweb-tab-drive'))
-                    setIsDrawerOpen(false)
-                  }}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-[var(--spotify-glow,#22d3ee)] hover:bg-white/5"
+                  href="/drive"
+                  onClick={() => setIsDrawerOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold ${
+                    pathname === '/drive' ? 'bg-white/10 text-white font-bold' : 'text-slate-200 hover:bg-white/5'
+                  }`}
                 >
-                  <Cloud className="w-4 h-4" />
-                  <span>Drive</span>
+                  <Cloud className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
+                  <span>{t('drive')}</span>
                 </Link>
 
                 <Link
