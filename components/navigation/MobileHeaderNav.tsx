@@ -19,7 +19,6 @@ import {
   History,
   Settings,
   Trash2,
-  Disc,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
@@ -256,15 +255,6 @@ export function MobileHeaderNav() {
                 >
                   <Cloud className="w-4 h-4" />
                   <span>Drive</span>
-                </Link>
-
-                <Link
-                  href="/albums"
-                  onClick={() => setIsDrawerOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-200 hover:bg-white/5"
-                >
-                  <Disc className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
-                  <span>Album</span>
                 </Link>
 
                 <Link
