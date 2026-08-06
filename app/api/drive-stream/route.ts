@@ -131,6 +131,7 @@ export async function GET(req: NextRequest) {
     responseHeaders.set('Access-Control-Allow-Origin', '*')
     responseHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
     responseHeaders.set('Access-Control-Allow-Headers', 'Range, Content-Type')
+    responseHeaders.set('Cache-Control', 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400')
 
     const contentLength = res.headers.get('content-length')
     if (contentLength) {

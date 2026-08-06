@@ -753,6 +753,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const idx = currentIndexRef.current >= 0 ? currentIndexRef.current : currentIndex
     if (q.length === 0 || idx === -1) return
 
+    // If current track has played for more than 3 seconds, restart it at 0:00 (standard player behavior)
+    const activeTime = audioRef.current?.currentTime || currentTime
+    if (activeTime > 3) {
+      seek(0)
+      return
+    }
+
     let prevIdx = 0
     if (isShuffleRef.current && q.length > 1) {
       do {
