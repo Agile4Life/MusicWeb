@@ -309,7 +309,12 @@ export default function HomePage() {
     searchQueryRef.current = searchQuery
   }, [searchQuery])
 
-  // Fast Debounced Global Search (200ms)
+  const userFavTrackIdsRef = React.useRef(userFavTrackIds)
+  useEffect(() => {
+    userFavTrackIdsRef.current = userFavTrackIds
+  }, [userFavTrackIds])
+
+  // Fast Global Search with Active Guard (Event is already debounced from TopBar)
   useEffect(() => {
     const trimmed = searchQuery.trim()
     if (!trimmed) {
@@ -324,35 +329,36 @@ export default function HomePage() {
     }
     lastSearchQueryRef.current = trimmed
 
-    const timer = setTimeout(async () => {
-      setSearchingGlobal(true)
-      try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`)
-        if (res.ok) {
-          const data = await res.json()
-          const mapFav = (list: Track[]) =>
-            (list || []).map((t) => ({
-              ...t,
-              is_favorite: userFavTrackIds.has(t.id) || Boolean(t.is_favorite),
-            }))
+    let active = true
+    setSearchingGlobal(true)
 
-          setGlobalTracks({
-            local: mapFav(data.local),
-            youtube: mapFav(data.youtube),
-            audius: mapFav(data.audius),
-            itunes: mapFav(data.itunes),
-            spotify: mapFav(data.spotify),
-          })
-        }
-      } catch (err) {
-        console.warn('Global search error:', err)
-      } finally {
-        setSearchingGlobal(false)
-      }
-    }, 200)
+    fetch(`/api/search?q=${encodeURIComponent(trimmed)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!active || !data) return
+        const mapFav = (list: Track[]) =>
+          (list || []).map((t) => ({
+            ...t,
+            is_favorite: userFavTrackIdsRef.current.has(t.id) || Boolean(t.is_favorite),
+          }))
 
-    return () => clearTimeout(timer)
-  }, [searchQuery, userFavTrackIds])
+        setGlobalTracks({
+          local: mapFav(data.local),
+          youtube: mapFav(data.youtube),
+          audius: mapFav(data.audius),
+          itunes: mapFav(data.itunes),
+          spotify: mapFav(data.spotify),
+        })
+      })
+      .catch((err) => console.warn('Global search error:', err))
+      .finally(() => {
+        if (active) setSearchingGlobal(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [searchQuery])
 
   const handleAddToPlaylist = async (playlistId: string, track: Track) => {
     if (!isAdmin) {
