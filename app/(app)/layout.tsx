@@ -10,11 +10,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthGuard>
       <PlayerProvider>
-        <div className="h-screen w-screen flex flex-col bg-[var(--bg-space,#07090e)] overflow-hidden font-sans">
+        <div className="h-screen w-screen flex flex-col bg-[var(--bg-space,#07090e)] overflow-hidden font-sans p-2 md:p-3 gap-2 md:gap-3">
           {/* Mobile Header (Smartphone view) */}
           <MobileHeaderNav />
 
-          <div className="flex-1 flex min-h-0 relative p-2 md:p-3 gap-2 md:gap-3">
+          <div className="flex-1 flex min-h-0 relative gap-2 md:gap-3">
             {/* Desktop Left Sidebar */}
             <Sidebar />
 
