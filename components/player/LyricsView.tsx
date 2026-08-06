@@ -138,10 +138,16 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
   useEffect(() => {
     if (activeIndex < 0 || !isSynced || isUserScrollingRef.current) return
 
-    activeLineRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'center',
-    })
+    const container = scrollContainerRef.current
+    const activeLine = activeLineRef.current
+
+    if (container && activeLine) {
+      const targetScroll = activeLine.offsetTop - container.clientHeight / 2 + activeLine.clientHeight / 2
+      container.scrollTo({
+        top: Math.max(0, targetScroll),
+        behavior: 'smooth',
+      })
+    }
   }, [activeIndex, isSynced])
 
   // Handle user scroll detection
@@ -180,10 +186,10 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
           <img
             src={currentTrack.cover_url}
             alt=""
-            className="w-full h-full object-cover blur-3xl scale-125 opacity-25 filter brightness-50"
+            className="w-full h-full object-cover blur-xl opacity-20 transform-gpu"
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-emerald-950/40 via-[#0a0c14] to-purple-950/30 blur-2xl" />
+          <div className="w-full h-full bg-gradient-to-br from-emerald-950/30 via-[#0a0c14] to-purple-950/20" />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-[#07080c] via-[#07080c]/85 to-[#07080c]/70" />
       </div>

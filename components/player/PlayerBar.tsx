@@ -614,13 +614,17 @@ export function PlayerBar() {
       </footer>
 
       {/* 🎤 FULLSCREEN / MODAL LYRICS OVERLAY FOR MOBILE (ANDROID/IOS) & DESKTOP */}
-      {showLyricsModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl p-2 md:p-6 flex items-center justify-center animate-in fade-in duration-200">
-          <div className="w-full h-full max-w-5xl bg-[#090b10]/95 backdrop-blur-2xl rounded-2xl border border-white/[0.08] shadow-2xl overflow-hidden flex flex-col relative">
-            <LyricsView onClose={() => setShowLyricsModal(false)} isModal={true} />
-          </div>
+      <div
+        className={`fixed inset-0 z-50 bg-black/85 p-2 md:p-6 flex items-center justify-center transition-all duration-200 ${
+          showLyricsModal
+            ? 'opacity-100 pointer-events-auto visible scale-100'
+            : 'opacity-0 pointer-events-none invisible scale-95'
+        }`}
+      >
+        <div className="w-full h-full max-w-5xl bg-[#090b10] rounded-2xl border border-white/[0.1] shadow-2xl overflow-hidden flex flex-col relative">
+          <LyricsView onClose={() => setShowLyricsModal(false)} isModal={true} />
         </div>
-      )}
+      </div>
     </>
   )
 }
