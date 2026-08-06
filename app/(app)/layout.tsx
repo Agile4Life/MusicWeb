@@ -1,6 +1,5 @@
 import React from 'react'
 import { PlayerProvider } from '@/components/player/PlayerContext'
-import { ThemeProvider } from '@/components/theme/ThemeContext'
 import { Sidebar } from '@/components/sidebar/Sidebar'
 import { PlayerBar } from '@/components/player/PlayerBar'
 import { AuthGuard } from '@/components/auth/AuthGuard'
@@ -11,7 +10,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthGuard>
       <PlayerProvider>
-        <div className="h-screen w-screen flex flex-col bg-[var(--bg-space,#07080c)] overflow-hidden font-sans">
+        <div className="h-screen w-screen flex flex-col bg-[var(--bg-space,#07090e)] overflow-hidden font-sans">
           {/* Mobile Header (Smartphone view) */}
           <MobileHeaderNav />
 
@@ -20,7 +19,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Sidebar />
 
             {/* Main Content Area */}
-            <main className="flex-1 bg-[#12141d]/80 backdrop-blur-xl rounded-2xl my-1 md:my-2 mx-1 md:mx-0 md:mr-2 border border-white/5 overflow-y-auto flex flex-col relative pb-32 md:pb-0">
+            <main className="flex-1 bg-[#10131c]/90 rounded-2xl my-1.5 md:my-2 mx-1.5 md:mx-0 md:mr-2 border border-white/[0.05] overflow-y-auto flex flex-col relative pb-32 md:pb-0">
               <TopBar />
               {children}
             </main>
@@ -33,3 +32,4 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </AuthGuard>
   )
 }
+

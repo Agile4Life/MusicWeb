@@ -169,25 +169,19 @@ export default function FavoritesPage() {
   const isAdmin = user?.email === 'admin@musicweb.com'
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 md:gap-8 max-w-7xl mx-auto w-full pb-32 md:pb-8">
+    <div className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 md:gap-8 max-w-7xl mx-auto w-full pb-32 md:pb-8 select-none">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 p-6 md:p-8 bg-gradient-to-r from-rose-950/60 via-[#0e141a] to-[#090b10] shadow-2xl flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
-        <div className="flex items-center gap-5">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-rose-500 to-pink-400 p-0.5 shadow-xl shadow-rose-500/20 shrink-0">
-            <div className="w-full h-full bg-[#0d0e15] rounded-[14px] flex items-center justify-center text-rose-400">
-              <Heart className="w-10 h-10 fill-current" />
-            </div>
+      <div className="relative overflow-hidden rounded-2xl border border-white/[0.06] p-6 md:p-8 bg-[#0d1017] flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 shrink-0">
+            <Heart className="w-7 h-7 fill-current" />
           </div>
 
           <div className="flex flex-col gap-1">
-            <div className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-rose-400">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Bộ sưu tập cá nhân</span>
-            </div>
-            <h1 className="text-3xl font-extrabold text-white tracking-tight">Bài Hát Yêu Thích</h1>
+            <h1 className="text-2xl font-extrabold text-white tracking-tight">Bài hát yêu thích</h1>
             <p className="text-xs text-slate-400">
               {tracks.length > 0
-                ? `Bạn có ${tracks.length} bài hát đã thêm vào danh sách yêu thích`
+                ? `${tracks.length} bài hát trong bộ sưu tập của bạn`
                 : 'Danh sách bài hát được bạn đánh dấu yêu thích'}
             </p>
           </div>
@@ -197,10 +191,10 @@ export default function FavoritesPage() {
         {tracks.length > 0 && (
           <button
             onClick={() => playTrack(tracks[0], tracks)}
-            className="bg-rose-500 hover:bg-rose-400 text-white font-extrabold px-6 py-3 rounded-full flex items-center gap-2 text-xs shadow-xl shadow-rose-500/20 transition-all hover:scale-105"
+            className="bg-rose-500 hover:bg-rose-400 text-white font-bold px-5 py-2.5 rounded-full flex items-center gap-2 text-xs transition-colors"
           >
             <Play className="w-4 h-4 fill-current" />
-            <span>Phát Tất Cả Yêu Thích</span>
+            <span>Phát tất cả</span>
           </button>
         )}
       </div>

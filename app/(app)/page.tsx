@@ -645,30 +645,16 @@ export default function HomePage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 md:gap-8 max-w-7xl mx-auto w-full pb-32 md:pb-8">
-      {/* High-Impact Hero Card */}
-      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-white/10 p-5 sm:p-8 md:p-10 bg-gradient-to-r from-[var(--theme-gradient-1)] via-[#0e141a] to-[#090b10] shadow-2xl">
-        <div className="absolute -top-24 -left-24 w-72 h-72 bg-[var(--primary-spotify)]/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-[var(--theme-secondary)]/20 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="flex flex-col gap-3 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--primary-spotify)]/10 border border-[var(--primary-spotify)]/30 text-[var(--primary-spotify)] text-xs font-bold uppercase tracking-widest w-max shadow-sm">
-              <Globe className="w-3.5 h-3.5" />
-              <span>Kho Âm Nhạc Toàn Cầu & Cá Nhân</span>
-            </div>
-
-            <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight flex flex-wrap items-baseline gap-3 leading-normal py-1">
-              <span className="shrink-0">Xin Chào,</span>
-              {user && (
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--primary-spotify)] via-emerald-300 to-teal-200 pb-2 inline-block">
-                  {user.user_metadata?.full_name || user.email?.split('@')[0]}
-                </span>
-              )}
+    <div className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 md:gap-8 max-w-7xl mx-auto w-full pb-32 md:pb-8 select-none">
+      {/* High-Impact Clean Hero Card */}
+      <div className="relative overflow-hidden rounded-2xl border border-white/[0.06] p-6 sm:p-8 md:p-10 bg-[#0d1017]">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="flex flex-col gap-2 max-w-xl">
+            <h1 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
+              Xin chào{user ? `, ${user.user_metadata?.full_name || user.email?.split('@')[0]}` : ''}
             </h1>
-
-            <p className="text-xs md:text-sm text-slate-300">
-              Khám phá và nghe nhạc trực tuyến từ <strong>Spotify Global</strong>, <strong>iTunes Music</strong>, <strong>YouTube Music</strong>, <strong>Audius</strong> và <strong>Thư viện cá nhân</strong>.
+            <p className="text-xs md:text-sm text-slate-400 leading-relaxed">
+              Khám phá âm nhạc từ Spotify Global, iTunes, YouTube Music, Audius và kho lưu trữ cá nhân.
             </p>
           </div>
 
@@ -676,19 +662,19 @@ export default function HomePage() {
             {(trendingTracks.length > 0 || tracks.length > 0) && (
               <button
                 onClick={() => playTrack(trendingTracks[0] || tracks[0], trendingTracks.length > 0 ? trendingTracks : tracks)}
-                className="bg-[var(--primary-spotify)] text-black font-extrabold px-6 py-3.5 rounded-full flex items-center gap-2 shadow-xl shadow-[var(--theme-glow-shadow)] hover:scale-105 transition-all text-sm"
+                className="bg-[var(--primary-spotify,#06b6d4)] text-black font-bold px-5 py-2.5 rounded-full flex items-center gap-2 text-xs transition-colors hover:bg-cyan-300"
               >
-                <Play className="w-5 h-5 fill-current" />
-                <span>Phát Nhạc Hot</span>
+                <Play className="w-4 h-4 fill-current" />
+                <span>Phát nhạc hot</span>
               </button>
             )}
 
             <Link
               href="/upload"
-              className="glass-card hover:border-[var(--primary-spotify)]/50 text-white font-bold px-5 py-3.5 rounded-full flex items-center gap-2 text-sm transition-all shadow-lg"
+              className="bg-white/5 border border-white/10 hover:bg-white/10 text-white font-semibold px-4 py-2.5 rounded-full flex items-center gap-2 text-xs transition-colors"
             >
-              <Upload className="w-4 h-4 text-[var(--primary-spotify)]" />
-              <span>Upload Nhạc</span>
+              <Upload className="w-3.5 h-3.5" />
+              <span>Upload</span>
             </Link>
           </div>
         </div>
@@ -696,19 +682,19 @@ export default function HomePage() {
 
       {/* Global Trending Music Showcase Section */}
       {!isSearching && libraryTab !== 'drive' && (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-cyan-400" />
-              🔥 Nhạc Hot Quốc Tế & Trending (Spotify, iTunes, Audius & YouTube)
+            <h2 className="text-sm font-bold text-white flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-cyan-400" />
+              <span>Trending & Hot Songs</span>
             </h2>
-            {loadingTrending && <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />}
+            {loadingTrending && <Loader2 className="w-3.5 h-3.5 text-cyan-400 animate-spin" />}
           </div>
 
           {loadingTrending ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="glass-card p-3 rounded-2xl animate-pulse flex flex-col gap-2">
+                <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse flex flex-col gap-2">
                   <div className="aspect-square bg-slate-800 rounded-xl" />
                   <div className="h-3 bg-slate-700 rounded w-3/4" />
                   <div className="h-2 bg-slate-800 rounded w-1/2" />
@@ -716,56 +702,56 @@ export default function HomePage() {
               ))}
             </div>
           ) : trendingTracks.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
               {trendingTracks.slice(0, 12).map((t) => (
                 <div
                   key={t.id}
                   onClick={() => playTrack(t, trendingTracks)}
-                  className="glass-card p-3 rounded-2xl flex flex-col gap-2.5 cursor-pointer group hover:scale-[1.03] transition-all relative border border-white/10 hover:border-cyan-500/50"
+                  className="bg-white/[0.02] hover:bg-white/[0.05] p-3 rounded-2xl flex flex-col gap-2 cursor-pointer group transition-colors border border-white/[0.04] hover:border-white/10"
                 >
                   <div className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
                     {t.cover_url ? (
                       <img src={t.cover_url} alt={t.title} className="w-full h-full object-cover" />
                     ) : (
-                      <Music className="w-8 h-8 text-slate-500" />
+                      <Music className="w-7 h-7 text-slate-500" />
                     )}
 
                     {/* Source Badges */}
                     <div className="absolute top-2 right-2 z-10">
                       {t.source === 'spotify' && (
-                        <span className="text-[8px] font-black uppercase tracking-wider bg-emerald-600/90 text-white px-1.5 py-0.5 rounded shadow">
+                        <span className="text-[8px] font-mono font-bold uppercase tracking-wider bg-emerald-500/90 text-black px-1.5 py-0.5 rounded shadow">
                           Spotify
                         </span>
                       )}
                       {t.source === 'itunes' && (
-                        <span className="text-[8px] font-black uppercase tracking-wider bg-pink-600/90 text-white px-1.5 py-0.5 rounded shadow">
+                        <span className="text-[8px] font-mono font-bold uppercase tracking-wider bg-pink-500/90 text-white px-1.5 py-0.5 rounded shadow">
                           iTunes
                         </span>
                       )}
                       {t.source === 'youtube' && (
-                        <span className="text-[8px] font-black uppercase tracking-wider bg-red-600/90 text-white px-1.5 py-0.5 rounded shadow">
-                          YouTube
+                        <span className="text-[8px] font-mono font-bold uppercase tracking-wider bg-red-500/90 text-white px-1.5 py-0.5 rounded shadow">
+                          YT
                         </span>
                       )}
                       {t.source === 'audius' && (
-                        <span className="text-[8px] font-black uppercase tracking-wider bg-purple-600/90 text-white px-1.5 py-0.5 rounded shadow">
+                        <span className="text-[8px] font-mono font-bold uppercase tracking-wider bg-purple-500/90 text-white px-1.5 py-0.5 rounded shadow">
                           Audius
                         </span>
                       )}
                     </div>
 
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity backdrop-blur-[2px]">
-                      <div className="w-10 h-10 rounded-full bg-[var(--primary-spotify)] text-black flex items-center justify-center shadow-lg transform translate-y-2 group-hover:translate-y-0 transition-transform">
-                        <Play className="w-5 h-5 fill-current ml-0.5" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                      <div className="w-9 h-9 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center">
+                        <Play className="w-4 h-4 fill-current ml-0.5" />
                       </div>
                     </div>
                   </div>
 
                   <div className="truncate">
-                    <p className="text-xs font-bold text-white truncate group-hover:text-[var(--primary-spotify)] transition-colors">
+                    <p className="text-xs font-bold text-white truncate group-hover:text-cyan-300 transition-colors">
                       {t.title}
                     </p>
-                    <p className="text-[10px] text-slate-400 truncate">
+                    <p className="text-[10px] text-slate-400 truncate mt-0.5">
                       {t.artist || 'Nghệ sĩ chưa xác định'}
                     </p>
                   </div>
@@ -981,55 +967,55 @@ export default function HomePage() {
               onClick={() => setSearchSource('all')}
               className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
                 searchSource === 'all'
-                  ? 'bg-[var(--primary-spotify)] text-black shadow-md'
+                  ? 'bg-white text-black shadow-md'
                   : 'bg-white/5 text-slate-400 hover:text-white border border-white/10'
               }`}
             >
-              🌐 Tất cả ({globalTracks.local.length + globalTracks.spotify.length + globalTracks.itunes.length + globalTracks.youtube.length + globalTracks.audius.length})
+              Tất cả ({globalTracks.local.length + globalTracks.spotify.length + globalTracks.itunes.length + globalTracks.youtube.length + globalTracks.audius.length})
             </button>
 
             <button
               onClick={() => setSearchSource('spotify')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
                 searchSource === 'spotify'
                   ? 'bg-emerald-500 text-black shadow-md'
                   : 'bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 border border-emerald-500/20'
               }`}
             >
-              🟢 Spotify Global ({globalTracks.spotify.length})
+              Spotify ({globalTracks.spotify.length})
             </button>
 
             <button
               onClick={() => setSearchSource('itunes')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
                 searchSource === 'itunes'
                   ? 'bg-pink-600 text-white shadow-md'
                   : 'bg-pink-500/10 text-pink-300 hover:bg-pink-500/20 border border-pink-500/20'
               }`}
             >
-              🎵 iTunes Global ({globalTracks.itunes.length})
+              iTunes ({globalTracks.itunes.length})
             </button>
 
             <button
               onClick={() => setSearchSource('youtube')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
                 searchSource === 'youtube'
                   ? 'bg-red-500 text-white shadow-md'
                   : 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20'
               }`}
             >
-              ▶️ YouTube ({globalTracks.youtube.length})
+              YouTube ({globalTracks.youtube.length})
             </button>
 
             <button
               onClick={() => setSearchSource('audius')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
                 searchSource === 'audius'
                   ? 'bg-purple-600 text-white shadow-md'
                   : 'bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 border border-purple-500/20'
               }`}
             >
-              🎧 Audius 320k ({globalTracks.audius.length})
+              Audius ({globalTracks.audius.length})
             </button>
 
             <button
@@ -1040,7 +1026,7 @@ export default function HomePage() {
                   : 'bg-white/5 text-slate-400 hover:text-white border border-white/10'
               }`}
             >
-              📁 Thư viện ({globalTracks.local.length})
+              Thư viện ({globalTracks.local.length})
             </button>
           </div>
         )}

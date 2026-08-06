@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { Track, Playlist } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
-import { Play, Pause, Music, Trash2, MoreVertical, Plus, Pencil, Check, X, Heart } from 'lucide-react'
+import { Play, Pause, Music, Trash2, MoreVertical, Plus, Pencil, Check, X, Heart, Cloud } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { isAdmin, getValidUserId } from '@/lib/accessControl'
 import { useSession } from 'next-auth/react'
@@ -28,6 +28,7 @@ function formatDuration(seconds: number) {
   const secs = Math.floor(seconds % 60)
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`
 }
+
 
 function TrackRowComponent({
   track,
@@ -160,18 +161,18 @@ function TrackRowComponent({
 
   return (
     <div
-      className={`group flex items-center justify-between px-3 md:px-4 py-2.5 md:py-3 rounded-xl transition-all duration-200 cursor-pointer select-none border active:scale-[0.99] active:bg-white/10 ${
+      className={`group flex items-center justify-between px-3 md:px-4 py-2.5 rounded-xl transition-colors cursor-pointer select-none border border-transparent ${
         isSelected
-          ? 'bg-cyan-500/10 border-cyan-500/30 shadow-md'
+          ? 'bg-cyan-500/10 border-cyan-500/30'
           : isCurrent
-          ? 'bg-white/10 border-[var(--primary-spotify)]/30 shadow-md shadow-[var(--theme-glow-shadow)]'
-          : 'border-transparent hover:bg-white/5 hover:border-white/5'
+          ? 'bg-white/[0.08] text-white'
+          : 'hover:bg-white/[0.04]'
       }`}
       onMouseLeave={() => { if (!editMode) setShowMenu(false) }}
     >
       {/* Select Checkbox */}
       {selectable && (
-        <div className="shrink-0 flex items-center pr-2" onClick={(e) => e.stopPropagation()}>
+        <div className="shrink-0 flex items-center pr-2.5" onClick={(e) => e.stopPropagation()}>
           <input
             type="checkbox"
             checked={isSelected}
@@ -182,8 +183,8 @@ function TrackRowComponent({
       )}
 
       {/* Index & Play button */}
-      <div className="flex items-center gap-4 w-1/2 truncate">
-        <div className="w-6 text-center text-xs font-semibold text-slate-400 shrink-0">
+      <div className="flex items-center gap-3.5 w-1/2 truncate">
+        <div className="w-5 text-center text-xs font-mono text-slate-400 shrink-0">
           <span className="group-hover:hidden">
             {isCurrent && isPlaying ? (
               <div className="flex items-end justify-center gap-0.5 h-3">
@@ -208,7 +209,7 @@ function TrackRowComponent({
         </div>
 
         {/* Cover thumbnail & Title/Artist */}
-        <div className="w-10 h-10 bg-slate-800 rounded-lg overflow-hidden shrink-0 flex items-center justify-center border border-white/10">
+        <div className="w-9 h-9 bg-slate-800 rounded-lg overflow-hidden shrink-0 flex items-center justify-center border border-white/10">
           {track.cover_url ? (
             <img src={track.cover_url} alt={track.title} className="w-full h-full object-cover" />
           ) : (
@@ -229,31 +230,31 @@ function TrackRowComponent({
               />
             ) : (
               <p
-                className={`text-sm font-bold truncate ${
+                className={`text-xs font-bold truncate ${
                   isCurrent ? 'text-[var(--primary-spotify)]' : 'text-white'
                 }`}
               >
                 {track.title}
               </p>
             )}
+            {track.source === 'spotify' && (
+              <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20 shrink-0">
+                Spotify
+              </span>
+            )}
             {track.source === 'youtube' && (
-              <span className="text-[9px] font-bold uppercase tracking-wider bg-red-500/20 text-red-400 border border-red-500/30 px-1.5 py-0.2 rounded shrink-0">
+              <span className="text-[9px] font-mono text-red-400 bg-red-500/10 px-1.5 py-0.2 rounded border border-red-500/20 shrink-0">
                 YouTube
               </span>
             )}
             {track.source === 'audius' && (
-              <span className="text-[9px] font-bold uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30 px-1.5 py-0.2 rounded shrink-0">
-                Audius 320k
+              <span className="text-[9px] font-mono text-purple-300 bg-purple-500/10 px-1.5 py-0.2 rounded border border-purple-500/20 shrink-0">
+                Audius
               </span>
             )}
             {track.source === 'itunes' && (
-              <span className="text-[9px] font-bold uppercase tracking-wider bg-pink-500/20 text-pink-300 border border-pink-500/30 px-1.5 py-0.2 rounded shrink-0">
-                iTunes Global
-              </span>
-            )}
-            {track.source === 'spotify' && (
-              <span className="text-[9px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.2 rounded shrink-0">
-                Spotify Global
+              <span className="text-[9px] font-mono text-pink-400 bg-pink-500/10 px-1.5 py-0.2 rounded border border-pink-500/20 shrink-0">
+                iTunes
               </span>
             )}
           </div>

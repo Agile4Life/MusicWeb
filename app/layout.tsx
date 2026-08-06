@@ -1,13 +1,24 @@
 import type { Metadata, Viewport } from 'next'
+import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 
 import { SessionProvider } from '@/components/auth/SessionProvider'
 import { ThemeProvider } from '@/components/theme/ThemeContext'
 import { CursorSpotlight } from '@/components/theme/CursorSpotlight'
 
+const geistSans = Geist({
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
+})
+
+const geistMono = Geist_Mono({
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
+})
+
 export const metadata: Metadata = {
   title: 'MusicWeb • Trình Nghe Nhạc Cá Nhân Độc Bản',
-  description: 'Trải nghiệm nghe nhạc high-quality cá nhân với giao diện glassmorphic hiện đại, mượt mà.',
+  description: 'Trải nghiệm nghe nhạc high-quality cá nhân với giao diện hiện đại, mượt mà.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -29,13 +40,13 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="vi" className="font-sans h-full antialiased dark">
+    <html lang="vi" className={`${geistSans.variable} ${geistMono.variable} font-sans h-full antialiased dark`}>
       <head>
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
-      <body className="min-h-full flex flex-col bg-[var(--bg-space,#07080c)] text-slate-100 selection:bg-[var(--primary-spotify,#1DB954)] selection:text-black">
+      <body className="min-h-full flex flex-col bg-[var(--bg-space,#07080c)] text-slate-100 selection:bg-[var(--primary-spotify,#06b6d4)] selection:text-black font-sans">
         <SessionProvider>
           <ThemeProvider>
             <CursorSpotlight />
@@ -59,3 +70,4 @@ export default function RootLayout({
     </html>
   )
 }
+

@@ -39,37 +39,31 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-6 md:p-8 flex flex-col gap-8 max-w-6xl mx-auto w-full">
-      {/* Settings Page Banner */}
-      <div className="flex flex-col gap-2 border-b border-white/10 pb-6">
-        <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--primary-spotify)]">
-          <Settings className="w-4 h-4" />
-          <span>Tùy chỉnh hệ thống</span>
-        </div>
-        <h1 className="text-3xl font-extrabold text-white tracking-tight">
-          Cài Đặt & Cấu Hình
-        </h1>
-        <p className="text-xs md:text-sm text-slate-400">
-          Quản lý chủ đề màu sắc giao diện, chất lượng âm thanh và cấu hình tính năng ứng dụng.
+    <div className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 md:gap-8 max-w-5xl mx-auto w-full select-none pb-32 md:pb-8">
+      {/* Settings Header */}
+      <div className="flex flex-col gap-1 border-b border-white/[0.05] pb-4">
+        <h1 className="text-2xl font-extrabold text-white tracking-tight">Cài đặt hệ thống</h1>
+        <p className="text-xs text-slate-400">
+          Tùy chỉnh giao diện màu sắc, chất lượng phát nhạc và cấu hình cá nhân.
         </p>
       </div>
 
-      {/* 🎨 Theme Selection Section */}
-      <div className="glass-panel p-6 md:p-8 rounded-3xl border border-white/10 shadow-xl">
+      {/* Theme Selection Section */}
+      <div className="bg-[#0d1017] p-6 rounded-2xl border border-white/[0.06]">
         <ThemeSelector />
       </div>
 
-      {/* 🎵 Audio & Playback Options */}
-      <div className="glass-panel p-6 md:p-8 rounded-3xl border border-white/10 shadow-xl flex flex-col gap-6">
-        <div className="flex items-center gap-2 text-base font-bold text-white border-b border-white/5 pb-3">
-          <Volume2 className="w-5 h-5 text-[var(--primary-spotify)]" />
+      {/* Audio & Playback Options */}
+      <div className="bg-[#0d1017] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-5">
+        <div className="flex items-center gap-2 text-sm font-bold text-white border-b border-white/[0.05] pb-3">
+          <Volume2 className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
           <span>Âm thanh & Phát nhạc</span>
         </div>
 
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 py-2 border-b border-white/5">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 py-1 border-b border-white/[0.04]">
           <div>
-            <p className="text-sm font-bold text-white">Chất lượng phát nhạc</p>
-            <p className="text-xs text-slate-400">Chọn bitrate phát nhạc ưu tiên từ Supabase Storage</p>
+            <p className="text-xs font-bold text-white">Chất lượng âm thanh</p>
+            <p className="text-[11px] text-slate-400">Chất lượng phát nhạc ưu tiên từ storage</p>
           </div>
           <select
             value={audioQuality}
@@ -78,18 +72,18 @@ export default function SettingsPage() {
               setAudioQuality(value)
               void saveSettings({ audio_quality: value })
             }}
-            className="glass-input rounded-xl px-4 py-2 text-xs font-semibold text-white outline-none cursor-pointer"
+            className="bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-xs font-medium text-white outline-none cursor-pointer"
           >
-            <option value="high" className="bg-[#12141d] text-white">Rất cao (320 kbps High-Res)</option>
+            <option value="high" className="bg-[#12141d] text-white">Chất lượng cao (320 kbps)</option>
             <option value="normal" className="bg-[#12141d] text-white">Tiêu chuẩn (160 kbps)</option>
-            <option value="saver" className="bg-[#12141d] text-white">Tiết kiệm dữ liệu (96 kbps)</option>
+            <option value="saver" className="bg-[#12141d] text-white">Tiết kiệm (96 kbps)</option>
           </select>
         </div>
 
-        <div className="flex items-center justify-between py-2">
+        <div className="flex items-center justify-between py-1">
           <div>
-            <p className="text-sm font-bold text-white">Tự động phát bài tiếp theo</p>
-            <p className="text-xs text-slate-400">Tự động chuyển bài kế tiếp khi phát hết danh sách</p>
+            <p className="text-xs font-bold text-white">Tự động phát bài tiếp theo</p>
+            <p className="text-[11px] text-slate-400">Tự động phát bài kế tiếp khi hết danh sách</p>
           </div>
           <button
             onClick={() => {
@@ -97,13 +91,13 @@ export default function SettingsPage() {
               setAutoPlayNext(value)
               void saveSettings({ auto_play: value })
             }}
-            className={`w-12 h-6 rounded-full p-1 transition-colors ${
-              autoPlayNext ? 'bg-[var(--primary-spotify)]' : 'bg-white/20'
+            className={`w-11 h-6 rounded-full p-1 transition-colors ${
+              autoPlayNext ? 'bg-[var(--primary-spotify,#06b6d4)]' : 'bg-white/20'
             }`}
           >
             <div
               className={`w-4 h-4 rounded-full bg-black transition-transform ${
-                autoPlayNext ? 'translate-x-6' : 'translate-x-0'
+                autoPlayNext ? 'translate-x-5' : 'translate-x-0'
               }`}
             />
           </button>
@@ -112,3 +106,4 @@ export default function SettingsPage() {
     </div>
   )
 }
+

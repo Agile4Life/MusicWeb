@@ -102,15 +102,15 @@ export function PlayerBar() {
 
   return (
     <>
-      {/* 📱 MOBILE FLOATING MINI PLAYER BAR (Visible on < 768px, positioned right above mobile bottom nav) */}
-      <div className="md:hidden fixed bottom-[68px] left-3 right-3 z-40 bg-gradient-to-r from-[#0d1322]/95 via-[#080d19]/95 to-[#0d1322]/95 backdrop-blur-2xl border border-cyan-500/30 rounded-2xl p-2.5 shadow-2xl shadow-cyan-950/40 select-none">
+      {/* 📱 MOBILE FLOATING MINI PLAYER BAR (Visible on < 768px) */}
+      <div className="md:hidden fixed bottom-[68px] left-3 right-3 z-40 bg-[#0d1017]/95 backdrop-blur-2xl border border-white/10 rounded-2xl p-2.5 shadow-2xl select-none">
         <div className="flex items-center justify-between gap-3">
           {/* Tap to expand full mobile player */}
           <div
             onClick={() => setShowMobileFullPlayer(true)}
             className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer active:opacity-80"
           >
-            <div className="w-10 h-10 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 relative shadow-md">
+            <div className="w-10 h-10 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 relative">
               {currentTrack.cover_url ? (
                 <img
                   src={currentTrack.cover_url}
@@ -118,57 +118,51 @@ export function PlayerBar() {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <Headphones className={`w-5 h-5 text-cyan-400 ${isPlaying ? 'animate-pulse' : ''}`} />
+                <Headphones className="w-5 h-5 text-cyan-400" />
               )}
             </div>
 
             <div className="flex flex-col truncate flex-1 min-w-0">
-              <span className="text-xs font-extrabold text-white truncate">{currentTrack.title}</span>
-              <span className="text-[10px] font-medium text-slate-400 truncate">
+              <span className="text-xs font-bold text-white truncate">{currentTrack.title}</span>
+              <span className="text-[10px] text-slate-400 truncate">
                 {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
               </span>
             </div>
           </div>
 
           {/* Quick Touch Controls */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={(e) => {
                 e.stopPropagation()
                 toggleFavoriteCurrentTrack()
               }}
-              className="p-2 rounded-full text-slate-400 active:text-rose-400 transition-colors"
-              title={currentTrack.is_favorite ? 'Bỏ khỏi yêu thích' : 'Thêm vào yêu thích'}
+              className="p-2 text-slate-400 active:text-rose-400 transition-colors"
             >
               <Heart
-                className={`w-4 h-4 transition-all ${
-                  currentTrack.is_favorite
-                    ? 'text-rose-500 fill-current drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]'
-                    : 'text-slate-400'
+                className={`w-4 h-4 ${
+                  currentTrack.is_favorite ? 'text-rose-500 fill-current' : 'text-slate-400'
                 }`}
               />
             </button>
 
             <button
               onClick={togglePlay}
-              className="w-9 h-9 rounded-full bg-[var(--primary-spotify)] text-black flex items-center justify-center shadow-lg shadow-[var(--theme-glow-shadow)] active:scale-95 transition-transform"
+              className="w-9 h-9 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center font-bold"
             >
               {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
             </button>
 
-            <button
-              onClick={nextTrack}
-              className="p-2 text-slate-300 active:text-white active:scale-95"
-            >
+            <button onClick={nextTrack} className="p-2 text-slate-400 active:text-white">
               <SkipForward className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* Mini progress bar on top edge of mini player */}
+        {/* Mini progress bar on top edge */}
         <div className="w-full h-0.5 bg-white/10 rounded-full mt-2 overflow-hidden">
           <div
-            className="h-full bg-[var(--primary-spotify)] transition-all duration-300"
+            className="h-full bg-[var(--primary-spotify,#06b6d4)] transition-all duration-200"
             style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
           />
         </div>
@@ -176,17 +170,17 @@ export function PlayerBar() {
 
       {/* 📱 FULL-SCREEN MOBILE PLAYER OVERLAY MODAL */}
       {showMobileFullPlayer && (
-        <div className="md:hidden fixed inset-0 z-50 bg-[#06080e]/98 backdrop-blur-3xl flex flex-col justify-between p-6 select-none animate-in slide-in-from-bottom duration-300 overflow-y-auto">
+        <div className="md:hidden fixed inset-0 z-50 bg-[#07090e] flex flex-col justify-between p-6 select-none overflow-y-auto">
           {/* Header handle */}
-          <div className="flex items-center justify-between pb-4 border-b border-white/10">
+          <div className="flex items-center justify-between pb-4 border-b border-white/[0.05]">
             <button
               onClick={() => setShowMobileFullPlayer(false)}
-              className="p-2.5 bg-white/5 active:bg-white/15 rounded-2xl text-slate-300 border border-white/10"
+              className="p-2 bg-white/5 rounded-xl text-slate-300 border border-white/10"
             >
-              <ChevronDown className="w-6 h-6" />
+              <ChevronDown className="w-5 h-5" />
             </button>
 
-            <span className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+            <span className="text-[11px] font-mono text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
               <Headphones className="w-3.5 h-3.5 text-cyan-400" />
               MusicWeb Player
             </span>
@@ -196,27 +190,24 @@ export function PlayerBar() {
                 setShowMobileFullPlayer(false)
                 setShowLyricsModal(true)
               }}
-              className="p-2.5 bg-cyan-500/10 active:bg-cyan-500/20 rounded-2xl text-cyan-300 border border-cyan-500/30"
+              className="p-2 bg-cyan-500/10 rounded-xl text-cyan-400 border border-cyan-500/20"
               title="Xem lời bài hát"
             >
-              <Mic2 className="w-5 h-5" />
+              <Mic2 className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Large Album Artwork with Ambient Glow */}
-          <div className="flex-1 flex items-center justify-center my-6 relative">
-            <div className="absolute inset-0 bg-cyan-500/10 blur-3xl rounded-full scale-75 pointer-events-none" />
-            <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-3xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/15 shadow-2xl shadow-cyan-950/50 flex items-center justify-center overflow-hidden relative p-1.5">
+          {/* Large Album Artwork */}
+          <div className="flex-1 flex items-center justify-center my-8 relative">
+            <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-2xl bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden">
               {currentTrack.cover_url ? (
                 <img
                   src={currentTrack.cover_url}
                   alt={currentTrack.title}
-                  className="w-full h-full object-cover rounded-2xl shadow-inner"
+                  className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full bg-[#080c14] rounded-2xl flex items-center justify-center text-cyan-400">
-                  <Headphones className={`w-28 h-28 ${isPlaying ? 'animate-pulse' : ''}`} />
-                </div>
+                <Headphones className="w-24 h-24 text-slate-600" />
               )}
             </div>
           </div>
@@ -224,21 +215,18 @@ export function PlayerBar() {
           {/* Track Info Header */}
           <div className="flex items-center justify-between gap-3 mb-6">
             <div className="flex flex-col items-start gap-1 min-w-0 flex-1">
-              <h2 className="text-xl font-black text-white truncate w-full">{currentTrack.title}</h2>
-              <p className="text-sm font-bold text-slate-400 truncate w-full">
+              <h2 className="text-lg font-bold text-white truncate w-full">{currentTrack.title}</h2>
+              <p className="text-xs text-slate-400 truncate w-full">
                 {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
               </p>
             </div>
             <button
               onClick={toggleFavoriteCurrentTrack}
-              className="p-3 rounded-2xl bg-white/5 active:bg-white/15 text-slate-400 border border-white/10 shrink-0"
-              title={currentTrack.is_favorite ? 'Bỏ khỏi yêu thích' : 'Thêm vào yêu thích'}
+              className="p-2.5 rounded-xl bg-white/5 text-slate-400 border border-white/10 shrink-0"
             >
               <Heart
-                className={`w-6 h-6 transition-all ${
-                  currentTrack.is_favorite
-                    ? 'text-rose-500 fill-current drop-shadow-[0_0_12px_rgba(244,63,94,0.8)]'
-                    : 'text-slate-400'
+                className={`w-5 h-5 ${
+                  currentTrack.is_favorite ? 'text-rose-500 fill-current' : 'text-slate-400'
                 }`}
               />
             </button>

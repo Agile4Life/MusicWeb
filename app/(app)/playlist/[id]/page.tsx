@@ -402,21 +402,21 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
   }
 
   return (
-    <div className="p-6 md:p-8 flex flex-col gap-8 max-w-7xl mx-auto w-full">
+    <div className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 md:gap-8 max-w-7xl mx-auto w-full pb-32 md:pb-8 select-none">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 p-6 md:p-8 bg-gradient-to-r from-slate-900/90 via-[#0e141a] to-[#090b10] shadow-2xl flex flex-col md:flex-row items-start md:items-end gap-6">
-        <div className="w-40 h-40 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl flex items-center justify-center shrink-0 border border-white/10">
+      <div className="relative overflow-hidden rounded-2xl border border-white/[0.06] p-6 md:p-8 bg-[#0d1017] flex flex-col md:flex-row items-start md:items-end gap-6">
+        <div className="w-36 h-36 bg-slate-800 rounded-xl flex items-center justify-center shrink-0 border border-white/10 overflow-hidden">
           {playlist.cover_url ? (
-            <img src={playlist.cover_url} alt={playlist.name} className="w-full h-full object-cover rounded-2xl" />
+            <img src={playlist.cover_url} alt={playlist.name} className="w-full h-full object-cover" />
           ) : (
-            <ListMusic className="w-16 h-16 text-[var(--primary-spotify)]/80" />
+            <ListMusic className="w-12 h-12 text-cyan-400/80" />
           )}
         </div>
 
-        <div className="flex-1 flex flex-col gap-3">
-          <div className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-[var(--primary-spotify)]">
-            <span>PLAYLIST CÁ NHÂN</span>
-          </div>
+        <div className="flex-1 flex flex-col gap-2.5">
+          <p className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
+            Playlist cá nhân
+          </p>
 
           {isEditing ? (
             <div className="flex flex-col gap-2 max-w-md">
@@ -424,25 +424,25 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
                 type="text"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                className="glass-input text-white font-extrabold text-xl px-3 py-1.5 rounded-xl outline-none"
+                className="bg-white/10 text-white font-bold text-lg px-3 py-1 rounded-xl outline-none border border-cyan-400"
               />
               <input
                 type="text"
                 value={editDesc}
                 onChange={(e) => setEditDesc(e.target.value)}
-                placeholder="Mô tả playlist"
-                className="glass-input text-slate-300 text-xs px-3 py-1.5 rounded-xl outline-none"
+                placeholder="Mô tả playlist..."
+                className="bg-white/10 text-slate-300 text-xs px-3 py-1 rounded-xl outline-none"
               />
               <div className="flex items-center gap-2 mt-1">
                 <button
                   onClick={handleUpdatePlaylist}
-                  className="bg-[var(--primary-spotify)] text-black px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 hover:scale-105 transition-transform"
+                  className="bg-[var(--primary-spotify,#06b6d4)] text-black px-3.5 py-1 rounded-full text-xs font-bold flex items-center gap-1 hover:bg-cyan-300 transition-colors"
                 >
                   <Check className="w-3.5 h-3.5" /> Lưu
                 </button>
                 <button
                   onClick={() => setIsEditing(false)}
-                  className="bg-white/10 text-white px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1 hover:bg-white/20"
+                  className="bg-white/10 text-white px-3.5 py-1 rounded-full text-xs font-semibold hover:bg-white/20 transition-colors"
                 >
                   <X className="w-3.5 h-3.5" /> Hủy
                 </button>

@@ -190,24 +190,18 @@ export default function HistoryPage() {
   })
 
   return (
-    <div className="p-6 md:p-8 flex flex-col gap-8 max-w-7xl mx-auto w-full">
+    <div className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 md:gap-8 max-w-7xl mx-auto w-full pb-32 md:pb-8 select-none">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 p-6 md:p-8 bg-gradient-to-r from-cyan-950/60 via-[#0e141a] to-[#090b10] shadow-2xl flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
-        <div className="flex items-center gap-5">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-cyan-500 to-emerald-400 p-0.5 shadow-xl shadow-cyan-500/20 shrink-0">
-            <div className="w-full h-full bg-[#0d0e15] rounded-[14px] flex items-center justify-center text-cyan-400">
-              <History className="w-10 h-10" />
-            </div>
+      <div className="relative overflow-hidden rounded-2xl border border-white/[0.06] p-6 md:p-8 bg-[#0d1017] flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
+            <History className="w-7 h-7" />
           </div>
 
           <div className="flex flex-col gap-1">
-            <div className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-cyan-400">
-              <Clock className="w-3.5 h-3.5" />
-              <span>Nhật ký phát nhạc</span>
-            </div>
-            <h1 className="text-3xl font-extrabold text-white tracking-tight">Lịch Sử Nghe</h1>
+            <h1 className="text-2xl font-extrabold text-white tracking-tight">Lịch sử nghe nhạc</h1>
             <p className="text-xs text-slate-400">
-              Danh sách các bài hát bạn đã nghe gần đây
+              Danh sách bài hát bạn đã nghe gần đây
             </p>
           </div>
         </div>
@@ -218,20 +212,20 @@ export default function HistoryPage() {
             <>
               <button
                 onClick={handlePlayAllHistory}
-                className="bg-cyan-500 hover:bg-cyan-400 text-black font-extrabold px-5 py-2.5 rounded-full flex items-center gap-2 text-xs shadow-lg shadow-cyan-500/20 transition-all hover:scale-105"
+                className="bg-[var(--primary-spotify,#06b6d4)] text-black font-bold px-5 py-2.5 rounded-full flex items-center gap-2 text-xs transition-colors hover:bg-cyan-300"
               >
                 <Play className="w-4 h-4 fill-current" />
-                <span>Phát Lịch Sử</span>
+                <span>Phát tất cả</span>
               </button>
 
               <button
                 onClick={handleClearAllHistory}
                 disabled={clearing}
-                className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 font-bold px-4 py-2.5 rounded-full flex items-center gap-2 text-xs transition-all disabled:opacity-50"
+                className="bg-white/5 hover:bg-red-500/10 text-slate-300 hover:text-red-400 border border-white/10 font-semibold px-4 py-2.5 rounded-full flex items-center gap-2 text-xs transition-colors disabled:opacity-50"
                 title="Xóa tất cả lịch sử"
               >
-                <Trash2 className="w-4 h-4" />
-                <span>Xóa Lịch Sử</span>
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Xóa lịch sử</span>
               </button>
             </>
           )}
