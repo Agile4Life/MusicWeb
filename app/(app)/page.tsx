@@ -167,8 +167,23 @@ export default function HomePage() {
           return false
         })
 
+        const uniqueVisibleTracks: Track[] = []
+        const seenTrackKeys = new Set<string>()
+
+        for (const tr of visibleTracks) {
+          const driveId = extractDriveFileId(tr.file_path || '')
+          const normTitle = (tr.title || '').trim().toLowerCase().normalize('NFKC')
+          const normArtist = (tr.artist || '').trim().toLowerCase().normalize('NFKC')
+          const key = driveId ? `drive_${driveId}` : `title_${normTitle}|||${normArtist}`
+
+          if (!seenTrackKeys.has(key)) {
+            seenTrackKeys.add(key)
+            uniqueVisibleTracks.push(tr)
+          }
+        }
+
         setTracks(
-          visibleTracks.map((t: Track) => ({
+          uniqueVisibleTracks.map((t: Track) => ({
             ...t,
             source: t.source || 'local',
             is_favorite: userFavSet.has(t.id),

@@ -170,9 +170,17 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    const files = Array.from(fileMap.entries())
-      .filter(([_, name]) => name && name !== '__FETCH_REAL_TITLE__')
-      .map(([id, name]) => ({ id, name }))
+    const files: Array<{ id: string; name: string }> = []
+    const seenFileNames = new Set<string>()
+
+    for (const [id, name] of Array.from(fileMap.entries())) {
+      if (!name || name === '__FETCH_REAL_TITLE__') continue
+      const normName = name.trim().toLowerCase().normalize('NFKC')
+      if (!seenFileNames.has(normName)) {
+        seenFileNames.add(normName)
+        files.push({ id, name })
+      }
+    }
 
     return NextResponse.json({
       success: true,
