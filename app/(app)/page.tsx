@@ -662,9 +662,13 @@ export default function HomePage() {
             {(trendingTracks.length > 0 || tracks.length > 0) && (
               <button
                 onClick={() => playTrack(trendingTracks[0] || tracks[0], trendingTracks.length > 0 ? trendingTracks : tracks)}
-                className="bg-[var(--primary-spotify,#06b6d4)] text-black font-bold px-5 py-2.5 rounded-full flex items-center gap-2 text-xs transition-colors hover:bg-cyan-300"
+                style={{
+                  background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                  boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                }}
+                className="text-black font-bold px-5 py-2.5 rounded-full flex items-center gap-2 text-xs transition-all hover:brightness-110 active:scale-95 border border-white/20"
               >
-                <Play className="w-4 h-4 fill-current" />
+                <Play className="w-4 h-4 fill-current text-black" />
                 <span>Phát nhạc hot</span>
               </button>
             )}
@@ -681,14 +685,14 @@ export default function HomePage() {
       </div>
 
       {/* Global Trending Music Showcase Section */}
-      {!isSearching && libraryTab !== 'drive' && (
+      {!isSearching && (
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold text-white flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-cyan-400" />
+              <TrendingUp style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
               <span>Trending & Hot Songs</span>
             </h2>
-            {loadingTrending && <Loader2 className="w-3.5 h-3.5 text-cyan-400 animate-spin" />}
+            {loadingTrending && <Loader2 style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3.5 h-3.5 animate-spin" />}
           </div>
 
           {loadingTrending ? (
@@ -707,7 +711,7 @@ export default function HomePage() {
                 <div
                   key={t.id}
                   onClick={() => playTrack(t, trendingTracks)}
-                  className="bg-white/[0.02] hover:bg-white/[0.06] p-3 rounded-2xl flex flex-col gap-2 cursor-pointer group hover:-translate-y-1.5 hover:shadow-xl hover:shadow-cyan-500/10 transition-all duration-300 border border-white/[0.04] hover:border-cyan-500/30"
+                  className="bg-white/[0.02] hover:bg-white/[0.06] p-3 rounded-2xl flex flex-col gap-2 cursor-pointer group hover:-translate-y-1.5 transition-all duration-300 border border-white/[0.04] hover:border-[var(--spotify-glow)]/40 shadow-sm"
                 >
                   <div className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
                     {t.cover_url ? (
@@ -741,14 +745,20 @@ export default function HomePage() {
                     </div>
 
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300">
-                      <div className="w-10 h-10 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center shadow-lg transform group-hover:scale-100 scale-75 transition-all duration-300">
-                        <Play className="w-5 h-5 fill-current ml-0.5" />
+                      <div
+                        style={{
+                          background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                          boxShadow: '0 4px 12px var(--theme-glow-shadow, rgba(6,182,212,0.4))',
+                        }}
+                        className="w-10 h-10 rounded-full text-black flex items-center justify-center border border-white/20 transform group-hover:scale-100 scale-75 transition-all duration-300"
+                      >
+                        <Play className="w-5 h-5 fill-current text-black ml-0.5" />
                       </div>
                     </div>
                   </div>
 
                   <div className="truncate">
-                    <p className="text-xs font-bold text-white truncate group-hover:text-cyan-300 transition-colors">
+                    <p className="text-xs font-bold text-white truncate group-hover:text-[var(--spotify-glow,#22d3ee)] transition-colors">
                       {t.title}
                     </p>
                     <p className="text-[10px] text-slate-400 truncate mt-0.5">
@@ -767,13 +777,27 @@ export default function HomePage() {
         <div id="drive" className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
+              <div
+                style={{
+                  backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                  borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                  color: 'var(--spotify-glow, #22d3ee)',
+                }}
+                className="w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 shadow-md"
+              >
                 <Cloud className="w-5 h-5" />
               </div>
               <div>
                 <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
                   Drive
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2.5 py-0.5 rounded-full">
+                  <span
+                    style={{
+                      backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                      borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                      color: 'var(--spotify-glow, #22d3ee)',
+                    }}
+                    className="text-[10px] font-extrabold uppercase tracking-wider border px-2.5 py-0.5 rounded-full"
+                  >
                     {driveTracks.length} Bài hát
                   </span>
                 </h2>
@@ -791,9 +815,13 @@ export default function HomePage() {
                   if (!isShuffle) toggleShuffle()
                   playTrack(driveTracks[randomIndex], driveTracks, randomIndex)
                 }}
-                className="bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-black font-extrabold px-4.5 py-2.5 rounded-full flex items-center gap-2 text-xs shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all"
+                style={{
+                  background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                  boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                }}
+                className="text-black font-extrabold px-4.5 py-2.5 rounded-full flex items-center gap-2 text-xs hover:brightness-110 hover:scale-105 transition-all border border-white/20"
               >
-                <Shuffle className="w-4 h-4 fill-current ml-0.5" />
+                <Shuffle className="w-4 h-4 fill-current text-black ml-0.5" />
                 <span>Phát Ngẫu Nhiên Trong Drive</span>
               </button>
             )}
@@ -805,30 +833,39 @@ export default function HomePage() {
                 <div
                   key={t.id}
                   onClick={() => playTrack(t, driveTracks)}
-                  className="bg-white/[0.02] hover:bg-white/[0.06] p-3 rounded-2xl flex flex-col gap-2.5 cursor-pointer group hover:-translate-y-1.5 hover:shadow-xl hover:shadow-cyan-500/10 transition-all duration-300 border border-white/[0.04] hover:border-cyan-500/30"
+                  className="bg-white/[0.02] hover:bg-white/[0.06] p-3 rounded-2xl flex flex-col gap-2.5 cursor-pointer group hover:-translate-y-1.5 transition-all duration-300 border border-white/[0.04] hover:border-[var(--spotify-glow)]/40 shadow-sm"
                 >
                   <div className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
                     {t.cover_url ? (
                       <img src={t.cover_url} alt={t.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     ) : (
-                      <Music className="w-8 h-8 text-cyan-400/70 group-hover:scale-110 transition-transform duration-300" />
+                      <Music style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-8 h-8 opacity-70 group-hover:scale-110 transition-transform duration-300" />
                     )}
 
                     <div className="absolute top-2 right-2 z-10">
-                      <span className="text-[8px] font-black uppercase tracking-wider bg-cyan-500 text-black px-1.5 py-0.5 rounded shadow font-mono">
+                      <span
+                        style={{ backgroundColor: 'var(--primary-spotify, #06b6d4)' }}
+                        className="text-[8px] font-black uppercase tracking-wider text-black px-1.5 py-0.5 rounded shadow font-mono"
+                      >
                         Drive
                       </span>
                     </div>
 
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300">
-                      <div className="w-10 h-10 rounded-full bg-cyan-400 text-black flex items-center justify-center shadow-lg transform group-hover:scale-100 scale-75 transition-all duration-300">
-                        <Play className="w-5 h-5 fill-current ml-0.5" />
+                      <div
+                        style={{
+                          background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                          boxShadow: '0 4px 12px var(--theme-glow-shadow, rgba(6,182,212,0.4))',
+                        }}
+                        className="w-10 h-10 rounded-full text-black flex items-center justify-center border border-white/20 transform group-hover:scale-100 scale-75 transition-all duration-300"
+                      >
+                        <Play className="w-5 h-5 fill-current text-black ml-0.5" />
                       </div>
                     </div>
                   </div>
 
                   <div className="flex flex-col min-w-0">
-                    <p className="text-xs font-bold text-white group-hover:text-cyan-300 transition-colors truncate">
+                    <p className="text-xs font-bold text-white group-hover:text-[var(--spotify-glow,#22d3ee)] transition-colors truncate">
                       {t.title}
                     </p>
                     <p className="text-[10px] text-slate-400 truncate mt-0.5">
@@ -840,7 +877,14 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="glass-panel rounded-2xl p-6 text-center border border-white/10 flex flex-col items-center justify-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+              <div
+                style={{
+                  backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                  borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                  color: 'var(--spotify-glow, #22d3ee)',
+                }}
+                className="w-12 h-12 rounded-2xl border flex items-center justify-center"
+              >
                 <Cloud className="w-6 h-6" />
               </div>
               <div>
@@ -851,7 +895,10 @@ export default function HomePage() {
               </div>
               <Link
                 href="/upload"
-                className="bg-cyan-500 hover:bg-cyan-400 text-black font-extrabold text-xs px-4 py-2 rounded-full transition-all shadow-md"
+                style={{
+                  background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                }}
+                className="text-black font-extrabold text-xs px-4 py-2 rounded-full transition-all shadow-md"
               >
                 + Thêm Bài Hát Vào Drive
               </Link>
@@ -867,22 +914,38 @@ export default function HomePage() {
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar touch-pan-x pr-2 py-0.5">
               <button
                 onClick={() => setLibraryTab('all')}
+                style={
+                  libraryTab === 'all'
+                    ? {
+                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                        boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                      }
+                    : undefined
+                }
                 className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
                   libraryTab === 'all'
-                    ? 'bg-white text-black shadow-md'
-                    : 'bg-white/5 text-slate-400 hover:text-white border border-white/10'
+                    ? 'text-black font-extrabold border border-white/20'
+                    : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:bg-white/10'
                 }`}
               >
-                <Music className="w-3.5 h-3.5" />
+                <Music className="w-3.5 h-3.5 fill-current" />
                 <span>Tất Cả Bài Hát ({tracks.length})</span>
               </button>
 
               <button
                 onClick={() => setLibraryTab('drive')}
+                style={
+                  libraryTab === 'drive'
+                    ? {
+                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                        boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                      }
+                    : undefined
+                }
                 className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
                   libraryTab === 'drive'
-                    ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-black shadow-md shadow-cyan-500/20'
-                    : 'bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 border border-cyan-500/30'
+                    ? 'text-black font-extrabold border border-white/20'
+                    : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:bg-white/10'
                 }`}
               >
                 <Cloud className="w-3.5 h-3.5" />
@@ -891,10 +954,18 @@ export default function HomePage() {
 
               <button
                 onClick={() => setLibraryTab('recent')}
+                style={
+                  libraryTab === 'recent'
+                    ? {
+                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                        boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                      }
+                    : undefined
+                }
                 className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
                   libraryTab === 'recent'
-                    ? 'bg-emerald-500 text-black shadow-md'
-                    : 'bg-white/5 text-slate-400 hover:text-white border border-white/10'
+                    ? 'text-black font-extrabold border border-white/20'
+                    : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:bg-white/10'
                 }`}
               >
                 <History className="w-3.5 h-3.5" />
