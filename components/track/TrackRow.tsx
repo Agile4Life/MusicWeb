@@ -181,6 +181,7 @@ function TrackRowComponent({
 
   return (
     <div
+      onClick={handlePlayClick}
       className={`group flex items-center justify-between px-3 md:px-4 py-2.5 rounded-xl transition-all duration-200 cursor-pointer select-none border ${
         showMenu ? 'relative z-40 bg-white/[0.08] border-white/10 text-white' : 'relative'
       } ${

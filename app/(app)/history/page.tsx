@@ -279,7 +279,8 @@ export default function HistoryPage() {
               return (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between p-3 rounded-2xl hover:bg-white/5 transition-all group gap-4"
+                  onClick={() => playTrack(track, filteredItems.map((i) => i.track))}
+                  className="flex items-center justify-between p-3 rounded-2xl hover:bg-white/5 transition-all group gap-4 cursor-pointer"
                 >
                   <div className="flex items-center gap-4 flex-1 min-w-0">
                     <span className="text-xs font-mono text-slate-500 w-6 text-right shrink-0">
