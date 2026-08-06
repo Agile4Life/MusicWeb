@@ -46,7 +46,11 @@ export default function HomePage() {
 
   useEffect(() => {
     const handleSearchEvent = (e: any) => {
-      setSearchQuery(e.detail || '')
+      const q = e.detail || ''
+      setSearchQuery(q)
+      if (!q) {
+        lastSearchQueryRef.current = ''
+      }
     }
 
     const checkHashTab = () => {
@@ -59,6 +63,8 @@ export default function HomePage() {
 
     const handleTabHome = () => {
       setLibraryTab('recent')
+      setSearchQuery('')
+      lastSearchQueryRef.current = ''
       if (window.location.hash === '#drive') {
         history.replaceState(null, '', window.location.pathname + window.location.search)
       }
@@ -971,7 +977,7 @@ export default function HomePage() {
           </div>
         )}
 
-        {loading || searchingGlobal ? (
+        {(isSearching ? searchingGlobal : loading) ? (
           <TrackListSkeleton count={8} />
         ) : (
           <TrackList

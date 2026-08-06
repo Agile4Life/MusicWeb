@@ -48,7 +48,6 @@ export function TopBar() {
       url.searchParams.delete('q')
       window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''))
     }
-    setQuery('')
   }, [])
 
   useEffect(() => {
@@ -127,6 +126,9 @@ export function TopBar() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') handleClearSearch()
+            }}
             onFocus={() => {
               if (query.trim()) setShowDropdown(true)
             }}
