@@ -150,16 +150,16 @@ export function MobileHeaderNav() {
         <Link
           href="/"
           onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
-          className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 xs:gap-2.5 px-2.5 xs:px-3 py-1.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-sm backdrop-blur-md hover:bg-white/[0.06] transition-all max-w-[calc(100vw-100px)]"
+          className="absolute left-1/2 -translate-x-1/2 inline-flex items-center gap-2 xs:gap-2.5 px-2.5 xs:px-3 py-1.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-sm backdrop-blur-md hover:bg-white/[0.06] transition-all w-fit"
         >
           <div className="w-7 h-7 xs:w-8 xs:h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-pink-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
             <Headphones className="w-3.5 h-3.5 xs:w-4 xs:h-4" />
           </div>
-          <div className="flex items-center justify-center h-7 xs:h-8 min-w-0">
+          <div className="flex items-center justify-center h-7 xs:h-8 shrink-0">
             <img
               src="/phong-signature.png"
               alt="Phong's Music Signature"
-              className="h-6.5 xs:h-7.5 sm:h-8 w-auto max-w-[130px] xs:max-w-none object-contain signature-img-invert translate-y-[1.5px]"
+              className="h-6.5 xs:h-7.5 sm:h-8 w-auto object-contain signature-img-invert translate-y-[1.5px]"
             />
           </div>
         </Link>
