@@ -144,19 +144,31 @@ export default function HomePage() {
         }
       }
 
-      // Query tracks strictly for CURRENT user (or legacy tracks with null user_id)
-      let tracksQuery = supabase.from('tracks').select('*').order('created_at', { ascending: false })
-      if (userId) {
-        tracksQuery = tracksQuery.or(`user_id.eq.${userId},user_id.is.null`)
-      } else {
-        tracksQuery = tracksQuery.eq('is_public', true)
-      }
-
-      const { data: rawTracks, error: trackError } = await tracksQuery
+      // Query all tracks from database
+      const { data: rawTracks, error: trackError } = await supabase
+        .from('tracks')
+        .select('*')
+        .order('created_at', { ascending: false })
 
       if (!trackError && rawTracks) {
+        // Drive tracks are shared publicly for everyone to view;
+        // Non-drive personal uploads are filtered by user_id.
+        const visibleTracks = rawTracks.filter((t: Track) => {
+          const fp = t.file_path || ''
+          const isDrive = Boolean(
+            extractDriveFileId(fp) ||
+            fp.includes('drive-stream') ||
+            fp.includes('drive.google.com') ||
+            fp.includes('lh3.googleusercontent.com')
+          )
+          if (isDrive) return true
+          if (userId && t.user_id === userId) return true
+          if (!t.user_id || (t as any).is_public) return true
+          return false
+        })
+
         setTracks(
-          rawTracks.map((t: Track) => ({
+          visibleTracks.map((t: Track) => ({
             ...t,
             source: t.source || 'local',
             is_favorite: userFavSet.has(t.id),
