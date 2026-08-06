@@ -163,7 +163,7 @@ export default function DrivePage() {
                 Google Drive Storage
               </span>
               <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                {t('drive')} Sync
+                {t('drive')}
               </h1>
               <p className="text-xs sm:text-sm text-slate-400 max-w-xl">
                 Kho lưu trữ bài hát độc quyền được đồng bộ trực tiếp từ Google Drive. Phát nhạc Lossless & High-Quality chất lượng nguyên bản.
