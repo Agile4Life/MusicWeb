@@ -76,33 +76,33 @@ export function TopBar() {
     if (lastDispatchedQueryRef.current !== trimmed) {
       lastDispatchedQueryRef.current = trimmed
       window.dispatchEvent(new CustomEvent('musicweb-search', { detail: trimmed }))
-    }
 
-    setLoadingSuggestions(true)
-    setShowDropdown(true)
+      setLoadingSuggestions(true)
+      setShowDropdown(true)
 
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`)
-        if (res.ok) {
-          const data = await res.json()
-          const combined = [
-            ...(data.spotify || []),
-            ...(data.local || []),
-            ...(data.itunes || []),
-            ...(data.youtube || []),
-            ...(data.audius || []),
-          ]
-          setSuggestions(combined.slice(0, 6))
+      const timer = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`)
+          if (res.ok) {
+            const data = await res.json()
+            const combined = [
+              ...(data.spotify || []),
+              ...(data.local || []),
+              ...(data.itunes || []),
+              ...(data.youtube || []),
+              ...(data.audius || []),
+            ]
+            setSuggestions(combined.slice(0, 6))
+          }
+        } catch (err) {
+          console.warn('TopBar search error:', err)
+        } finally {
+          setLoadingSuggestions(false)
         }
-      } catch (err) {
-        console.warn('TopBar search error:', err)
-      } finally {
-        setLoadingSuggestions(false)
-      }
-    }, 180)
+      }, 180)
 
-    return () => clearTimeout(timer)
+      return () => clearTimeout(timer)
+    }
   }, [query])
 
   const handleClearSearch = () => {

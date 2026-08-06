@@ -281,8 +281,12 @@ export default function HomePage() {
 
     const channel = supabase
       .channel('home-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tracks' }, () => debouncedFetch())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'playlists' }, () => debouncedFetch())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tracks' }, () => {
+        if (!searchQueryRef.current.trim()) debouncedFetch()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'playlists' }, () => {
+        if (!searchQueryRef.current.trim()) debouncedFetch()
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'listening_history' }, () => {
         if (!searchQueryRef.current.trim()) debouncedFetch()
       })
@@ -315,9 +319,9 @@ export default function HomePage() {
     if (trimmed === lastSearchQueryRef.current) {
       return
     }
+    lastSearchQueryRef.current = trimmed
 
     const timer = setTimeout(async () => {
-      lastSearchQueryRef.current = trimmed
       setSearchingGlobal(true)
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`)
