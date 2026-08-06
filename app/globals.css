@@ -165,3 +165,26 @@ input[type='range']:hover::-moz-range-thumb {
   box-shadow: 0 0 8px rgba(6, 182, 212, 0.6);
 }
 
+/* Floating Music Notes Animation */
+@keyframes floatNote {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-16px) rotate(10deg);
+  }
+}
+
+.animate-float {
+  animation: floatNote 6s ease-in-out infinite;
+}
+
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spinSlow 22s linear infinite;
+}
+

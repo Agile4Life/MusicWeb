@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 import { isAllowedToLogin, markEmailAsAllowed } from '@/lib/accessControl'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { LanguageSelector } from '@/components/i18n/LanguageSelector'
+import { FloatingMusicNotes } from './FloatingMusicNotes'
 import { Lock, Mail, Loader2, AlertCircle, CheckCircle2, Headphones, Eye, EyeOff, ShieldAlert, Key, X, Send } from 'lucide-react'
 
 interface AuthFormProps {
@@ -283,17 +284,17 @@ export function AuthForm({ mode }: AuthFormProps) {
         }}
       />
 
-      {/* Grid Pattern overlay */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none" />
+      {/* Random Floating Music Icons & Ambient Glow Background */}
+      <FloatingMusicNotes />
 
       {/* Auth Card Container */}
       <div
         ref={cardRef}
-        className="w-full max-w-md glass-panel p-8 rounded-3xl border border-[var(--primary-spotify)]/20 shadow-2xl relative overflow-hidden z-10 transition-transform duration-200"
+        className="w-full max-w-md glass-panel p-8 rounded-3xl border border-[var(--primary-spotify)]/20 shadow-2xl relative z-10 transition-transform duration-200"
       >
         {/* Dynamic Card Internal Cursor Spotlight */}
         <div
-          className="pointer-events-none absolute inset-0 z-0 transition-opacity duration-300"
+          className="pointer-events-none absolute inset-0 z-0 transition-opacity duration-300 rounded-3xl overflow-hidden"
           style={{
             background: `radial-gradient(100px circle at ${cardCursorPos.x}px ${cardCursorPos.y}px, rgba(255, 255, 255, 0.10), transparent 80%)`,
           }}
@@ -355,7 +356,6 @@ export function AuthForm({ mode }: AuthFormProps) {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder={t('email_placeholder')}
                 className="w-full glass-input rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none"
               />
             </div>
