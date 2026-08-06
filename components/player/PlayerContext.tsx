@@ -363,6 +363,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const filePath = track.file_path
     if (!filePath) return null
 
+    // Spotify webpage URLs cannot be played directly by HTML5 <audio>
+    if (filePath.includes('spotify.com') || track.source === 'spotify') {
+      if (filePath.includes('.mp3') || filePath.includes('p.scdn.co') || filePath.includes('preview')) {
+        return filePath
+      }
+      return null
+    }
+
     const driveFileId = extractDriveFileId(filePath)
     if (driveFileId) {
       return `/api/drive-stream?id=${encodeURIComponent(driveFileId)}`
@@ -484,11 +492,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setCurrentIndex(0)
     }
 
-    // 🎵 Full-Length Stream Resolver for iTunes & Spotify tracks (Resolves 30s/DRM into 100% full song)
+    // 🎵 Full-Length Stream Resolver for iTunes & Spotify tracks (Resolves DRM/metadata into 100% playable full song)
     let activeTrack = track
     if ((track.source === 'itunes' || track.source === 'spotify') && !track.youtube_id) {
       try {
-        const queryStr = `${track.title} ${track.artist || ''}`
+        const cleanTitle = track.title.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').trim()
+        const queryStr = `${cleanTitle} ${track.artist || ''}`
         const res = await fetch(`/api/search?q=${encodeURIComponent(queryStr)}&source=youtube`)
         if (requestId !== playRequestRef.current) return
         if (res.ok) {
@@ -513,7 +522,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     setPlaybackError(null)
     savePlayerStateToStorage(activeTrack, 0, nextQueue, nextIndex, volume)
 
-    // Handle YouTube track playback (or resolved iTunes track)
+    // Handle YouTube track playback (or resolved Spotify/iTunes track)
     if (activeTrack.source === 'youtube' && activeTrack.youtube_id) {
       if (audioRef.current) audioRef.current.pause()
 
@@ -542,7 +551,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       let url: string | null = null
       try {
-        url = await getAudioUrl(track)
+        url = await getAudioUrl(activeTrack)
       } catch (error: any) {
         if (requestId === playRequestRef.current) {
           setPlaybackError(error?.message || 'Không thể cấp quyền phát audio')
@@ -552,7 +561,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       const audio = audioRef.current
       if (!url || !audio || requestId !== playRequestRef.current) {
-        if (!url) setPlaybackError('Không tìm thấy đường dẫn audio của bài hát')
+        if (!url && requestId === playRequestRef.current) {
+          setPlaybackError(`Bài hát "${activeTrack.title}" từ Spotify không có bản quyền phát trực tiếp. Đang chuyển bài...`)
+          setTimeout(() => {
+            if (playRequestRef.current === requestId) {
+              nextTrackRef.current()
+            }
+          }, 2000)
+        }
         return
       }
 
