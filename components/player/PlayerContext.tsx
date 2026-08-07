@@ -569,7 +569,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         const data = await fetchUnifiedSearch(queryStr, 'youtube')
         if (requestId !== playRequestRef.current) return
         const ytList: Track[] = data.youtube || []
-          let bestMatch = findBestYouTubeMatch(ytList, track.title, track.artist, track.duration)
+          let bestMatch = findBestYouTubeMatch(ytList, track.title, track.artist, track.duration, track.album)
           if (!bestMatch && ytList.length > 0) {
             bestMatch = ytList[0]
           }
@@ -922,7 +922,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         const query = `${track.title} ${track.artist || ''}`.trim()
         const data = await fetchUnifiedSearch(query, 'youtube')
         const ytList: Track[] = data.youtube || []
-          const bestMatch = findBestYouTubeMatch(ytList, track.title, track.artist, track.duration)
+          const bestMatch = findBestYouTubeMatch(ytList, track.title, track.artist, track.duration, track.album)
           if (bestMatch && bestMatch.youtube_id) {
             const candidateDuration = bestMatch.duration || 0
             const isTargetShort = !track.duration || track.duration < 900

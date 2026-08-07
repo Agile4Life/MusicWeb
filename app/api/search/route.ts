@@ -154,13 +154,13 @@ export async function GET(request: Request) {
     // Pre-assign YouTube stream IDs for Spotify & iTunes tracks using smart matching
     const enhancedSpotify = spotifyTracks.map((sTrack: Track) => {
       if (sTrack.youtube_id) return sTrack
-      const match = findBestYouTubeMatch(youtubeTracks, sTrack.title, sTrack.artist, sTrack.duration)
+      const match = findBestYouTubeMatch(youtubeTracks, sTrack.title, sTrack.artist, sTrack.duration, sTrack.album)
       return match?.youtube_id ? { ...sTrack, youtube_id: match.youtube_id } : sTrack
     })
 
     const enhancedITunes = itunesTracks.map((iTrack: Track) => {
       if (iTrack.youtube_id) return iTrack
-      const match = findBestYouTubeMatch(youtubeTracks, iTrack.title, iTrack.artist, iTrack.duration)
+      const match = findBestYouTubeMatch(youtubeTracks, iTrack.title, iTrack.artist, iTrack.duration, iTrack.album)
       return match?.youtube_id ? { ...iTrack, youtube_id: match.youtube_id } : iTrack
     })
 

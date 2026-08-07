@@ -241,7 +241,8 @@ export function findBestYouTubeMatch(
   candidates: Track[],
   targetTitle?: string | null,
   targetArtist?: string | null,
-  targetDuration?: number | null
+  targetDuration?: number | null,
+  targetAlbum?: string | null
 ): Track | null {
   if (!candidates || candidates.length === 0 || !targetTitle) return null
 
@@ -251,6 +252,7 @@ export function findBestYouTubeMatch(
 
   const rawTargetArtist = targetArtist || ''
   const cleanTargetArtist = normalizeTitle(rawTargetArtist)
+  const cleanTargetAlbum = normalizeTitle(targetAlbum || '')
   const targetDur = targetDuration || 0
 
   const isQueryAskingForLong =
@@ -310,7 +312,14 @@ export function findBestYouTubeMatch(
       score += 80
     }
 
-    // 4. ABSOLUTE PRIORITY FOR "- TOPIC" & OFFICIAL ARTIST CHANNELS (+1000 points)
+    // 4. ALBUM MATCH BONUS (+500 points) - Strong signal for official releases
+    if (cleanTargetAlbum && cleanTargetAlbum.length > 2) {
+      if (candidateTitleNorm.includes(cleanTargetAlbum) || candidateArtistNorm.includes(cleanTargetAlbum)) {
+        score += 500
+      }
+    }
+
+    // 5. ABSOLUTE PRIORITY FOR "- TOPIC" & OFFICIAL ARTIST CHANNELS (+1000 points)
     const isTopicChannel =
       candidateArtistNorm.endsWith('topic') ||
       candidateArtistNorm.includes('topic')
@@ -324,7 +333,7 @@ export function findBestYouTubeMatch(
       score += 500
     }
 
-    // 5. ARTIST MATCHING BONUS
+    // 6. ARTIST MATCHING BONUS
     if (cleanTargetArtist) {
       const artistWords = cleanTargetArtist.split(/\s+/).filter((w) => w.length > 1)
       let artistMatch = false
@@ -337,17 +346,14 @@ export function findBestYouTubeMatch(
       if (artistMatch) score += 40
     }
 
-    // 6. OFFICIAL AUDIO / MV KEYWORD BONUS
-    if (
-      candidateTitleNorm.includes('official') ||
-      candidateTitleNorm.includes('mv') ||
-      candidateTitleNorm.includes('audio') ||
-      candidateTitleNorm.includes('lyric')
-    ) {
+    // 7. OFFICIAL AUDIO / LYRIC BONUS (+30) vs MV BONUS (+10)
+    if (candidateTitleNorm.includes('official audio') || candidateTitleNorm.includes('lyric')) {
       score += 30
+    } else if (candidateTitleNorm.includes('mv') || candidateTitleNorm.includes('music video')) {
+      score += 10
     }
 
-    // 7. DURATION PRECISION SCORING
+    // 8. DURATION PRECISION SCORING
     if (targetDur > 0 && candidateDuration > 0) {
       const diff = Math.abs(candidateDuration - targetDur)
       if (diff <= 3) {
