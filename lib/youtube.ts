@@ -285,6 +285,14 @@ export function findBestYouTubeMatch(
       continue
     }
 
+    // 1b. HARD FILTER: Reject candidate if duration differs by more than 25 seconds from target single track
+    if (targetDur > 0 && candidateDuration > 0 && !isQueryAskingForLong) {
+      const diff = Math.abs(candidateDuration - targetDur)
+      if (diff > 25) {
+        continue
+      }
+    }
+
     // 2. HARD FILTER: Eliminate negative keywords (cover, karaoke, reaction, etc.) unless target explicitly asks for it
     const hasUnwantedNegativeKeyword = NEGATIVE_KEYWORDS.some((kw) => {
       if (requestedNegativeKeywords.includes(kw)) return false
@@ -323,7 +331,7 @@ export function findBestYouTubeMatch(
       }
     }
 
-    // 5. HIGHEST PRIORITY FOR DIGITAL AUDIO RELEASE ("- TOPIC" & "OFFICIAL AUDIO") OVER MV
+    // 5. PRIORITY FOR DIGITAL AUDIO RELEASE ("- TOPIC" & "OFFICIAL AUDIO") OVER MV
     const isTopicChannel =
       candidateArtistNorm.endsWith('topic') ||
       candidateArtistNorm.includes('topic')
@@ -342,13 +350,13 @@ export function findBestYouTubeMatch(
       candidateArtistNorm.includes('official')
 
     if (isTopicChannel) {
-      score += 1200 // Direct studio audio release from Spotify/Apple Music provider
+      score += 400 // Direct studio audio release from Spotify/Apple Music provider
     } else if (isOfficialAudio) {
-      score += 600 // Priority #1: Official Audio clean studio track
+      score += 300 // Priority #1: Official Audio clean studio track
     } else if (isOfficialMV) {
-      score += 200 // Priority #2: Official Music Video
+      score += 100 // Priority #2: Official Music Video
     } else if (isVevoOrOfficialChannel) {
-      score += 300
+      score += 150
     }
 
     // 6. ARTIST MATCHING BONUS
@@ -364,17 +372,19 @@ export function findBestYouTubeMatch(
       if (artistMatch) score += 40
     }
 
-    // 7. DURATION PRECISION SCORING
+    // 7. DURATION PRECISION SCORING (Non-overlapping thresholds)
     if (targetDur > 0 && candidateDuration > 0) {
       const diff = Math.abs(candidateDuration - targetDur)
       if (diff <= 3) {
         score += 120 // Almost exact duration match
-      } else if (diff <= 15) {
+      } else if (diff <= 10) {
         score += 60
-      } else if (diff <= 45) {
-        score += 20
-      } else if (diff > 30) {
-        score -= 200 // Heavy penalty for significant duration mismatch
+      } else if (diff <= 20) {
+        score += 10
+      } else if (diff <= 30) {
+        score -= 50
+      } else {
+        score -= 300
       }
     }
 
@@ -414,6 +424,38 @@ export async function searchYouTubeTracks(query: string, limit = 15): Promise<Tr
 
   let tracks: Track[] = []
   const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY || ''
+
+/**
+ * Lấy duration thật (giây) cho danh sách videoId qua YouTube Data API v3 videos.list
+ */
+async function getVideoDurations(
+  videoIds: string[],
+  apiKey: string
+): Promise<Record<string, number>> {
+  if (videoIds.length === 0) return {}
+  try {
+    const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoIds.join(
+      ','
+    )}&key=${apiKey}`
+    const res = await fetch(url, { signal: AbortSignal.timeout(4500) })
+    if (!res.ok) return {}
+    const data = await res.json()
+    const map: Record<string, number> = {}
+    for (const item of data.items || []) {
+      const iso = item.contentDetails?.duration || ''
+      const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
+      if (match) {
+        const [, h, m, s] = match
+        map[item.id] =
+          parseInt(h || '0') * 3600 + parseInt(m || '0') * 60 + parseInt(s || '0')
+      }
+    }
+    return map
+  } catch (err) {
+    console.warn('getVideoDurations warning:', err)
+    return {}
+  }
+}
 
   // 1. Official YouTube Data API v3 if API key is provided
   if (YOUTUBE_API_KEY) {
@@ -459,6 +501,14 @@ export async function searchYouTubeTracks(query: string, limit = 15): Promise<Tr
               youtube_id: videoId,
             }
           })
+
+          // Fetch real durations via videos.list to replace duration: 0
+          const videoIds = tracks.map((t) => t.youtube_id).filter(Boolean) as string[]
+          const durations = await getVideoDurations(videoIds, YOUTUBE_API_KEY)
+          tracks = tracks.map((t) => ({
+            ...t,
+            duration: (t.youtube_id && durations[t.youtube_id]) || 0,
+          }))
         }
       }
     } catch (err) {
