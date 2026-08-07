@@ -331,10 +331,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Sync YouTube Player timer when playing YouTube track
+  // Sync YouTube Player timer when playing YouTube track (or Spotify/iTunes track resolved to YouTube stream)
   useEffect(() => {
     let interval: any = null
-    if (currentTrack?.source === 'youtube' && isPlaying) {
+    const isYouTubeEngine = currentTrack?.source === 'youtube' || Boolean(currentTrack?.youtube_id)
+    if (isYouTubeEngine && isPlaying) {
       interval = setInterval(() => {
         if (ytPlayerRef.current && ytPlayerRef.current.getCurrentTime) {
           const time = ytPlayerRef.current.getCurrentTime() || 0
@@ -354,7 +355,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             )
           }
         }
-      }, 1000)
+      }, 250) // 250ms for ultra-responsive lyric scrolling & highlighting
     }
     return () => {
       if (interval) clearInterval(interval)
@@ -797,8 +798,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const seek = (time: number) => {
     setCurrentTime(time)
 
-    if (currentTrack?.source === 'youtube' && ytPlayerRef.current?.seekTo) {
-      ytPlayerRef.current.seekTo(time, true)
+    const isYouTubeEngine = currentTrack?.source === 'youtube' || Boolean(currentTrack?.youtube_id)
+    if (isYouTubeEngine && ytPlayerRef.current?.seekTo) {
+      try {
+        ytPlayerRef.current.seekTo(time, true)
+      } catch {}
     } else if (audioRef.current) {
       audioRef.current.currentTime = time
     }

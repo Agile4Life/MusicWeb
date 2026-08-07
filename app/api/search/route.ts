@@ -45,7 +45,7 @@ export async function GET(request: Request) {
       const trendingPromise = (async () => {
         const [ytTrending, itunesTrending, spotifyTrending] = await Promise.all([
           getTrendingYouTubeTracks(8).catch(() => []),
-          getTrendingITunesTracks(8).catch(() => []),
+          getTrendingITunesTracks('vn', 8).catch(() => []),
           getTrendingSpotifyTracks(8).catch(() => []),
         ])
 

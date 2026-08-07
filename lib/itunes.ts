@@ -45,42 +45,47 @@ export async function searchITunesTracks(query: string, limit = 15): Promise<Tra
 }
 
 /**
- * Fetch Top Songs Chart from iTunes RSS Feed for Initial Homepage Display
+ * Fetch Country Top Songs Chart from Apple Music Marketing Tools RSS Feed API v2
+ * Supports 'vn', 'us', 'gb', 'kr', 'jp', etc.
  */
-export async function getTrendingITunesTracks(limit = 12): Promise<Track[]> {
+export async function getTrendingITunesTracks(countryCode = 'vn', limit = 12): Promise<Track[]> {
   try {
-    const url = `https://itunes.apple.com/us/rss/topsongs/limit=${limit}/json`
-    const res = await fetch(url, { signal: AbortSignal.timeout(3000) })
+    const code = (countryCode || 'vn').toLowerCase()
+    const url = `https://rss.applemarketingtools.com/api/v2/${code}/music/most-played/${limit}/songs.json`
+    
+    let res = await fetch(url, { signal: AbortSignal.timeout(4000) })
+    if (!res.ok) {
+      // Fallback to 'us' if country RSS is unavailable
+      res = await fetch(`https://rss.applemarketingtools.com/api/v2/us/music/most-played/${limit}/songs.json`, {
+        signal: AbortSignal.timeout(4000),
+      })
+    }
     if (!res.ok) return []
 
     const data = await res.json()
-    const entries = data.feed?.entry || []
+    const results = data.feed?.results || []
 
-    return entries.map((entry: any, index: number): Track => {
-      const trackId = entry.id?.attributes?.['im:id'] || index
-      const title = entry['im:name']?.label || 'Top Track'
-      const artist = entry['im:artist']?.label || 'Top Artist'
-      const images = entry['im:image'] || []
-      const coverUrl = images[images.length - 1]?.label || null
-      const link = entry.link?.find((l: any) => l.attributes?.type === 'audio/x-m4a')?.attributes?.href || ''
+    return results.map((item: any, index: number): Track => {
+      const artwork = item.artworkUrl100
+        ? item.artworkUrl100.replace('100x100bb', '600x600bb')
+        : null
 
       return {
-        id: `itunes-top-${trackId}`,
+        id: `itunes-rss-${item.id || index}`,
         user_id: 'itunes-global',
-        title,
-        artist,
-        album: 'iTunes Top Hits',
-        duration: 30,
-        file_path: link,
-        cover_url: coverUrl,
-        created_at: new Date().toISOString(),
+        title: item.name || 'Top Track',
+        artist: item.artistName || 'Top Artist',
+        album: item.collectionName || 'Apple Music Top Hits',
+        duration: 210,
+        file_path: '',
+        cover_url: artwork,
+        created_at: item.releaseDate || new Date().toISOString(),
         source: 'itunes',
-        itunes_id: trackId,
-        audio_url: link,
+        itunes_id: item.id,
       }
     })
   } catch (err) {
-    console.warn('iTunes top chart error:', err)
+    console.warn('iTunes RSS top chart error:', err)
     return []
   }
 }
