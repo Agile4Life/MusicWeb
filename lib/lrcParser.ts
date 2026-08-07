@@ -5,7 +5,7 @@ export interface LyricLine {
 
 /**
  * Parse .lrc string into structured array of LyricLine objects sorted by time
- * Example line: [01:15.30] Nắng ấm xa dần rồi
+ * Handles [offset: +/-ms] header tags properly
  */
 export function parseLrc(lrcContent: string | null | undefined): LyricLine[] {
   if (!lrcContent) return []
@@ -13,28 +13,38 @@ export function parseLrc(lrcContent: string | null | undefined): LyricLine[] {
   const lines = lrcContent.split('\n')
   const result: LyricLine[] = []
 
-  // Timestamp regex: [mm:ss.xx] or [mm:ss:xx] or [mm:ss]
+  let lrcOffsetMs = 0
+
+  // Check for [offset: 500] or [offset: -200] header tag
+  for (const line of lines) {
+    const offsetMatch = line.match(/^\[offset:\s*([+-]?\d+)\]/i)
+    if (offsetMatch) {
+      lrcOffsetMs = parseInt(offsetMatch[1], 10) || 0
+      break
+    }
+  }
+
+  const lrcOffsetSec = lrcOffsetMs / 1000
   const timeRegex = /\[(\d{2,}):(\d{2})(?:[\.\:](\d{2,3}))?\]/g
 
   for (const line of lines) {
     const trimmed = line.trim()
-    if (!trimmed) continue
+    if (!trimmed || /^\[(ar|ti|al|by|offset|length):/i.test(trimmed)) continue
 
-    // Extract all timestamps in case a single line has multiple timestamps
     const timestamps: number[] = []
     let match: RegExpExecArray | null
 
+    timeRegex.lastIndex = 0
     while ((match = timeRegex.exec(trimmed)) !== null) {
       const minutes = parseInt(match[1], 10)
       const seconds = parseInt(match[2], 10)
       const msRaw = match[3] || '0'
       const milliseconds = msRaw.length === 3 ? parseInt(msRaw, 10) : parseInt(msRaw, 10) * 10
-      const totalSeconds = minutes * 60 + seconds + milliseconds / 1000
+      const totalSeconds = minutes * 60 + seconds + milliseconds / 1000 + lrcOffsetSec
 
-      timestamps.push(totalSeconds)
+      timestamps.push(Math.max(0, totalSeconds))
     }
 
-    // Text is everything after the timestamps
     const text = trimmed.replace(/\[\d{2,}:\d{2}(?:[\.\:]\d{2,3})?\]/g, '').trim()
 
     if (text.length > 0 && timestamps.length > 0) {
@@ -44,9 +54,7 @@ export function parseLrc(lrcContent: string | null | undefined): LyricLine[] {
     }
   }
 
-  // Sort chronologically
   result.sort((a, b) => a.time - b.time)
-
   return result
 }
 
@@ -64,17 +72,22 @@ export function parsePlainLyrics(plainContent: string | null | undefined): Lyric
 }
 
 /**
- * Find index of active line for current playback time
+ * Find index of active line for current playback time accurately
  */
-export function findActiveLyricIndex(lyrics: LyricLine[], currentTime: number): number {
+export function findActiveLyricIndex(lyrics: LyricLine[], currentTime: number, userOffset: number = 0): number {
   if (!lyrics || lyrics.length === 0) return -1
 
+  const adjustedTime = currentTime + userOffset
+
+  if (adjustedTime < lyrics[0].time) {
+    return -1
+  }
+
   for (let i = lyrics.length - 1; i >= 0; i--) {
-    if (currentTime >= lyrics[i].time - 0.3) {
-      // Offset 0.3s for responsive highlighting
+    if (adjustedTime >= lyrics[i].time) {
       return i
     }
   }
 
-  return 0
+  return -1
 }

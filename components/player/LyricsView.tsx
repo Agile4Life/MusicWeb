@@ -59,6 +59,7 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
   const [parsedLyrics, setParsedLyrics] = useState<LyricLine[]>([])
   const [isSynced, setIsSynced] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
+  const [lyricOffset, setLyricOffset] = useState(0) // Sync offset fine-tuner in seconds
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const activeLineRef = useRef<HTMLDivElement | null>(null)
@@ -81,10 +82,12 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
       setLyricsData(null)
       setParsedLyrics([])
       setIsSynced(false)
+      setLyricOffset(0)
       return
     }
 
     setErrorMessage(null)
+    setLyricOffset(0)
     loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.duration)
   }, [currentTrack?.id])
 
@@ -127,11 +130,11 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
   useEffect(() => {
     if (!isSynced || parsedLyrics.length === 0) return
 
-    const index = findActiveLyricIndex(parsedLyrics, currentTime)
+    const index = findActiveLyricIndex(parsedLyrics, currentTime, lyricOffset)
     if (index !== activeIndex) {
       setActiveIndex(index)
     }
-  }, [currentTime, parsedLyrics, isSynced, activeIndex])
+  }, [currentTime, parsedLyrics, isSynced, activeIndex, lyricOffset])
 
   // 3. Smooth scroll active lyric into view
   useEffect(() => {
@@ -218,8 +221,31 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
           </div>
         </div>
 
-        {/* Top Actions: Refresh & Optional Close button */}
+        {/* Top Actions: Sync Fine-Tuner, Refresh & Optional Close button */}
         <div className="flex items-center gap-2 shrink-0">
+          {isSynced && (
+            <div className="flex items-center gap-1 bg-white/[0.04] border border-white/10 rounded-xl px-2 py-1 text-[10px] text-slate-300">
+              <span className="hidden sm:inline text-slate-400 font-mono">Đồng bộ:</span>
+              <button
+                onClick={() => setLyricOffset((prev) => Math.max(-3, Number((prev - 0.5).toFixed(1))))}
+                className="px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 active:scale-95 text-[11px] font-bold text-slate-200"
+                title="Trễ lời 0.5s (dùng khi lời bị chạy trước nhạc)"
+              >
+                -0.5s
+              </button>
+              <span className="font-mono font-bold text-cyan-400 px-1 min-w-[28px] text-center">
+                {lyricOffset > 0 ? `+${lyricOffset}s` : `${lyricOffset}s`}
+              </span>
+              <button
+                onClick={() => setLyricOffset((prev) => Math.min(3, Number((prev + 0.5).toFixed(1))))}
+                className="px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 active:scale-95 text-[11px] font-bold text-slate-200"
+                title="Sớm lời 0.5s (dùng khi lời bị chạy sau nhạc)"
+              >
+                +0.5s
+              </button>
+            </div>
+          )}
+
           <button
             onClick={() => loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.duration)}
             disabled={loading}
