@@ -129,7 +129,7 @@ export function MobileHeaderNav() {
           <span className="text-[10px]">Trang chủ</span>
         </Link>
 
-        <Link
+        {/* <Link
           href="/albums"
           prefetch={false}
           className={`flex flex-col items-center gap-1 transition-colors ${
@@ -138,7 +138,7 @@ export function MobileHeaderNav() {
         >
           <DiscAlbum className="w-5 h-5" />
           <span className="text-[10px]">Albums</span>
-        </Link>
+        </Link> */}
 
         <Link
           href="/drive"

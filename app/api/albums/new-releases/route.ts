@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    const albums = await fetchNewReleases('VN', 24)
+    const albums = await fetchNewReleases('VN', 20)
     return NextResponse.json(albums, {
       headers: {
         'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',

@@ -120,7 +120,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
           .order('disc_number', { ascending: true })
           .order('track_number', { ascending: true })
 
-        const finalTracks: Track[] = (dbTracks && dbTracks.length > 0 ? dbTracks : tracksToSave).map((t: any) => ({
+        const finalTracks: Track[] = (dbTracks && dbTracks.length === spotifyTracks.length ? dbTracks : tracksToSave).map((t: any) => ({
           ...t,
           source: 'spotify' as const,
         }))
