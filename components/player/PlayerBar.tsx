@@ -109,7 +109,7 @@ export function PlayerBar() {
           {/* Left Zone: Cover + Title/Artist */}
           <div
             onClick={() => setShowMobileFullPlayer(true)}
-            className="flex items-center gap-2.5 min-w-0 max-w-[38%] cursor-pointer active:opacity-80 z-10"
+            className="flex items-center gap-2.5 min-w-0 max-w-[105px] xs:max-w-[140px] sm:max-w-[180px] cursor-pointer active:opacity-80 z-10 shrink-0 overflow-hidden"
           >
             <div className="w-10 h-10 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 relative">
               {currentTrack.cover_url ? (
@@ -123,9 +123,19 @@ export function PlayerBar() {
               )}
             </div>
 
-            <div className="flex flex-col truncate min-w-0">
-              <span className="text-xs font-bold text-white truncate">{currentTrack.title}</span>
-              <span className="text-[10px] text-slate-400 truncate">
+            <div className="flex flex-col min-w-0 overflow-hidden w-full">
+              <div className="overflow-hidden w-full relative">
+                <span
+                  className={`text-xs font-bold text-white block ${
+                    currentTrack.title.length > 15
+                      ? 'animate-marquee-text'
+                      : 'truncate'
+                  }`}
+                >
+                  {currentTrack.title}
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-400 truncate block">
                 {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
               </span>
             </div>

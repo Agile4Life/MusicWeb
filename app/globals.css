@@ -25,6 +25,25 @@
   mix-blend-mode: screen;
 }
 
+@keyframes marquee-slow {
+  0%, 15% {
+    transform: translateX(0%);
+  }
+  50%, 65% {
+    transform: translateX(calc(-100% + 90px));
+  }
+  100% {
+    transform: translateX(0%);
+  }
+}
+
+.animate-marquee-text {
+  display: inline-block;
+  white-space: nowrap;
+  will-change: transform;
+  animation: marquee-slow 8s ease-in-out infinite;
+}
+
 
 
 :root {
