@@ -35,6 +35,46 @@ function formatTime(seconds: number) {
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`
 }
 
+const SYNC_CONFIDENCE_THRESHOLD_SEC = 4
+
+function stripLrcTimestamps(lrcText: string): string {
+  return lrcText
+    .split('\n')
+    .map((line) => line.replace(/\[\d{2,}:\d{2}(?:[\.\:]\d{2,3})?\]/g, '').trim())
+    .filter((line) => line.length > 0 && !/^\[(ar|ti|al|by|offset|length):/i.test(line))
+    .join('\n')
+}
+
+function decideLyricDisplayMode(
+  videoDuration?: number | null,
+  lrcResult?: { duration?: number; syncedLyrics?: string | null; plainLyrics?: string | null } | null
+): { mode: 'synced' | 'plain' | 'none'; notice?: string } {
+  if (!lrcResult || (!lrcResult.syncedLyrics && !lrcResult.plainLyrics)) {
+    return { mode: 'none' }
+  }
+
+  const vDur = videoDuration && videoDuration > 0 ? videoDuration : 0
+  const lrcDur = lrcResult.duration && lrcResult.duration > 0 ? lrcResult.duration : 0
+  const diff = vDur > 0 && lrcDur > 0 ? Math.abs(vDur - lrcDur) : null
+
+  if (lrcResult.syncedLyrics && lrcResult.syncedLyrics.trim().length > 0) {
+    if (diff === null || diff <= SYNC_CONFIDENCE_THRESHOLD_SEC) {
+      return { mode: 'synced' }
+    } else {
+      return {
+        mode: 'plain',
+        notice: `Lời bài hát hiển thị dạng tĩnh do thời lượng bản thu chênh lệch (~${Math.round(diff)}s)`,
+      }
+    }
+  }
+
+  if (lrcResult.plainLyrics && lrcResult.plainLyrics.trim().length > 0) {
+    return { mode: 'plain' }
+  }
+
+  return { mode: 'none' }
+}
+
 export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
   const { currentTime, duration } = usePlaybackProgress()
   const {
@@ -58,8 +98,9 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
   const [lyricsData, setLyricsData] = useState<LrclibResponse | null>(null)
   const [parsedLyrics, setParsedLyrics] = useState<LyricLine[]>([])
   const [isSynced, setIsSynced] = useState(false)
+  const [syncNotice, setSyncNotice] = useState<string | null>(null)
   const [activeIndex, setActiveIndex] = useState(-1)
-  const [lyricOffset, setLyricOffset] = useState(0) // Sync offset fine-tuner in seconds
+  const [lyricOffset, setLyricOffset] = useState(0)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const activeLineRef = useRef<HTMLDivElement | null>(null)
@@ -82,11 +123,13 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
       setLyricsData(null)
       setParsedLyrics([])
       setIsSynced(false)
+      setSyncNotice(null)
       setLyricOffset(0)
       return
     }
 
     setErrorMessage(null)
+    setSyncNotice(null)
     setLyricOffset(0)
     loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.duration)
   }, [currentTrack?.id])
@@ -94,33 +137,42 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
   const loadLyricsForTrack = async (title: string, artist?: string | null, duration?: number | null) => {
     setLoading(true)
     setErrorMessage(null)
+    setSyncNotice(null)
 
     try {
       const data = await fetchLyricsFromLrclib({ title, artist, duration })
 
       if (data) {
         setLyricsData(data)
-        if (data.syncedLyrics && data.syncedLyrics.trim().length > 0) {
-          const parsed = parseLrc(data.syncedLyrics)
+        const decision = decideLyricDisplayMode(duration, data)
+
+        if (decision.mode === 'synced') {
+          const parsed = parseLrc(data.syncedLyrics!)
           setParsedLyrics(parsed)
           setIsSynced(true)
-        } else if (data.plainLyrics && data.plainLyrics.trim().length > 0) {
-          const parsed = parsePlainLyrics(data.plainLyrics)
+          setSyncNotice(null)
+        } else if (decision.mode === 'plain') {
+          const plainText = data.plainLyrics || (data.syncedLyrics ? stripLrcTimestamps(data.syncedLyrics) : '')
+          const parsed = parsePlainLyrics(plainText)
           setParsedLyrics(parsed)
           setIsSynced(false)
+          setSyncNotice(decision.notice || null)
         } else {
           setParsedLyrics([])
           setIsSynced(false)
+          setSyncNotice(null)
         }
       } else {
         setLyricsData(null)
         setParsedLyrics([])
         setIsSynced(false)
+        setSyncNotice(null)
       }
     } catch (err) {
       setErrorMessage('Không thể tải lời bài hát')
       setParsedLyrics([])
       setIsSynced(false)
+      setSyncNotice(null)
     } finally {
       setLoading(false)
     }
@@ -257,7 +309,13 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
             <p className="text-sm font-semibold text-slate-300">Đang tải lời bài hát từ LRCLIB...</p>
           </div>
         ) : parsedLyrics.length > 0 ? (
-          <div className="flex flex-col gap-4 py-16 md:py-24 text-center sm:text-left max-w-2xl mx-auto">
+          <div className="flex flex-col gap-4 py-12 md:py-20 text-center sm:text-left max-w-2xl mx-auto">
+            {syncNotice && (
+              <div className="mb-4 px-4 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center justify-center gap-2 max-w-md mx-auto text-center shadow-lg">
+                <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+                <span>{syncNotice}</span>
+              </div>
+            )}
             {parsedLyrics.map((line, index) => {
               const isActive = index === activeIndex
               const isPast = index < activeIndex
