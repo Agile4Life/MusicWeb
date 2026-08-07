@@ -11,6 +11,17 @@ const searchCache = new Map<string, { data: any; timestamp: number }>()
 const inFlightRequests = new Map<string, Promise<any>>()
 const CACHE_TTL = 180 * 1000
 
+export const maxDuration = 15
+
+function cachedJsonResponse(data: any, status = 200) {
+  return NextResponse.json(data, {
+    status,
+    headers: {
+      'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
+    },
+  })
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const q = searchParams.get('q') || ''
@@ -23,12 +34,12 @@ export async function GET(request: Request) {
       const cacheKey = `trending_${source}`
       const cached = searchCache.get(cacheKey)
       if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-        return NextResponse.json(cached.data)
+        return cachedJsonResponse(cached.data)
       }
 
       if (inFlightRequests.has(cacheKey)) {
         const data = await inFlightRequests.get(cacheKey)
-        return NextResponse.json(data)
+        return cachedJsonResponse(data)
       }
 
       const trendingPromise = (async () => {
