@@ -310,12 +310,6 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
           </div>
         ) : parsedLyrics.length > 0 ? (
           <div className="flex flex-col gap-4 py-12 md:py-20 text-center sm:text-left max-w-2xl mx-auto">
-            {syncNotice && (
-              <div className="mb-4 px-4 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center justify-center gap-2 max-w-md mx-auto text-center shadow-lg">
-                <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
-                <span>{syncNotice}</span>
-              </div>
-            )}
             {parsedLyrics.map((line, index) => {
               const isActive = index === activeIndex
               const isPast = index < activeIndex
