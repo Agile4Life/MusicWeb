@@ -22,7 +22,9 @@ import {
   AlertCircle,
   Sparkles,
   Shuffle,
+  ChevronDown,
 } from 'lucide-react'
+import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import * as mm from 'music-metadata-browser'
 import { uploadToGoogleDrive, buildDriveStreamUrl, deleteGoogleDriveFile } from '@/lib/googleDriveUpload'
 import { compressAudioIfNeeded } from '@/lib/audioCompressor'
@@ -34,10 +36,12 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
   const router = useRouter()
   const supabase = createClient()
   const { playTrack, isShuffle, toggleShuffle } = usePlayer()
+  const { playlists: userPlaylists } = usePlaylists()
 
   const [playlist, setPlaylist] = useState<Playlist | null>(null)
   const [tracks, setTracks] = useState<Track[]>([])
   const [loading, setLoading] = useState(true)
+  const [showPlaylistSelector, setShowPlaylistSelector] = useState(false)
 
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState('')
@@ -450,8 +454,8 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
             </div>
           ) : (
             <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-extrabold text-white">{playlist.name}</h1>
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-white">{playlist.name}</h1>
                 <button
                   onClick={() => setIsEditing(true)}
                   className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
@@ -459,6 +463,48 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
                 >
                   <Edit2 className="w-4 h-4" />
                 </button>
+
+                {userPlaylists.length > 1 && (
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowPlaylistSelector((prev) => !prev)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/10 border border-white/10 text-xs font-semibold text-cyan-400 hover:text-cyan-300 transition-colors shadow-sm"
+                    >
+                      <ListMusic className="w-3.5 h-3.5" />
+                      <span>Đổi Playlist ({userPlaylists.length})</span>
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    </button>
+
+                    {showPlaylistSelector && (
+                      <div className="absolute left-0 mt-2 w-60 rounded-2xl bg-[#0d1017] border border-white/10 shadow-2xl p-2 z-50 animate-in fade-in duration-150">
+                        <p className="text-[10px] font-mono uppercase text-slate-400 px-2.5 py-1">
+                          Danh sách playlist của bạn
+                        </p>
+                        <div className="flex flex-col gap-1 max-h-56 overflow-y-auto">
+                          {userPlaylists.map((pl) => (
+                            <button
+                              key={pl.id}
+                              onClick={() => {
+                                setShowPlaylistSelector(false)
+                                router.push(`/playlist/${pl.id}`)
+                              }}
+                              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs text-left transition-colors ${
+                                pl.id === playlistId
+                                  ? 'bg-cyan-500/20 text-cyan-400 font-bold border border-cyan-500/30'
+                                  : 'text-slate-300 hover:bg-white/5'
+                              }`}
+                            >
+                              <span className="truncate">{pl.name}</span>
+                              {pl.id === playlistId && (
+                                <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <p className="text-xs text-slate-400 mt-1">{playlist.description || 'Chưa có mô tả'}</p>
             </div>

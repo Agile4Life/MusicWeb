@@ -192,8 +192,15 @@ export function MobileHeaderNav() {
 
         <button
           onClick={() => {
-            if (playlists.length > 0 && !pathname.startsWith('/playlist/')) {
-              router.push(`/playlist/${playlists[0].id}`)
+            if (playlists.length > 0) {
+              if (pathname.startsWith('/playlist/')) {
+                const currentId = pathname.replace('/playlist/', '')
+                const curIdx = playlists.findIndex((p) => p.id === currentId)
+                const nextIdx = (curIdx + 1) % playlists.length
+                router.push(`/playlist/${playlists[nextIdx].id}`)
+              } else {
+                router.push(`/playlist/${playlists[0].id}`)
+              }
             } else {
               setIsDrawerOpen(true)
             }
