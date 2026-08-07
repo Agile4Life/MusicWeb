@@ -63,7 +63,7 @@ export async function GET(request: Request) {
       try {
         const responseData = await trendingPromise
         searchCache.set(cacheKey, { data: responseData, timestamp: Date.now() })
-        return NextResponse.json(responseData)
+        return cachedJsonResponse(responseData)
       } finally {
         inFlightRequests.delete(cacheKey)
       }
@@ -73,7 +73,7 @@ export async function GET(request: Request) {
   }
 
   if (!q.trim()) {
-    return NextResponse.json({ local: [], youtube: [], audius: [], itunes: [], spotify: [] })
+    return cachedJsonResponse({ local: [], youtube: [], audius: [], itunes: [], spotify: [] })
   }
 
   const query = q.trim().toLowerCase()
@@ -85,14 +85,14 @@ export async function GET(request: Request) {
     // Re-insert to refresh LRU position
     searchCache.delete(cacheKey)
     searchCache.set(cacheKey, cached)
-    return NextResponse.json(cached.data)
+    return cachedJsonResponse(cached.data)
   }
 
   // 2. Check in-flight request to deduplicate concurrent duplicate requests from TopBar & Page
   if (inFlightRequests.has(cacheKey)) {
     try {
       const data = await inFlightRequests.get(cacheKey)
-      return NextResponse.json(data)
+      return cachedJsonResponse(data)
     } catch {
       // Fall through if in-flight failed
     }
@@ -190,7 +190,7 @@ export async function GET(request: Request) {
     }
     searchCache.set(cacheKey, { data: responseData, timestamp: Date.now() })
 
-    return NextResponse.json(responseData)
+    return cachedJsonResponse(responseData)
   } catch (err: any) {
     console.error('Unified search route error:', err)
     return NextResponse.json({ error: err.message }, { status: 500 })
