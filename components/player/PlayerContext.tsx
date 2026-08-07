@@ -158,6 +158,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const lastSavedTimeRef = useRef<number>(0)
   const lastPrevClickRef = useRef<number>(0)
   const playedHistoryStackRef = useRef<Track[]>([])
+  const forwardHistoryStackRef = useRef<Track[]>([])
   const isPrevNextActionRef = useRef<boolean>(false)
   const playTrackRef = useRef<
     (track: Track, newQueue?: Track[], forceIndex?: number, startFromTime?: number) => Promise<void>
@@ -536,11 +537,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const track = inferTrackSource(rawTrack)
 
     // 🚀 Push currentTrack onto true playback history stack when user changes track
-    if (!isPrevNextActionRef.current && currentTrackRef.current && currentTrackRef.current.id !== track.id) {
-      playedHistoryStackRef.current.push(currentTrackRef.current)
-      if (playedHistoryStackRef.current.length > 50) {
-        playedHistoryStackRef.current.shift()
+    if (!isPrevNextActionRef.current) {
+      if (currentTrackRef.current && currentTrackRef.current.id !== track.id) {
+        playedHistoryStackRef.current.push(currentTrackRef.current)
+        if (playedHistoryStackRef.current.length > 50) {
+          playedHistoryStackRef.current.shift()
+        }
       }
+      forwardHistoryStackRef.current = []
     }
     isPrevNextActionRef.current = false
 
@@ -924,6 +928,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const nextTrack = () => {
     isPrevNextActionRef.current = true
+
+    // 🚀 STEP 1: Check forward history stack first (if user clicked Previous earlier)
+    if (forwardHistoryStackRef.current.length > 0) {
+      const forwardSong = forwardHistoryStackRef.current.pop()
+      if (forwardSong) {
+        if (currentTrackRef.current) {
+          playedHistoryStackRef.current.push(currentTrackRef.current)
+        }
+        playTrack(forwardSong)
+        return
+      }
+    }
+
+    // STEP 2: Fallback to queue if forward history is empty
     const q = queueRef.current.length > 0 ? queueRef.current : queue
     if (q.length === 0) return
 
@@ -976,6 +994,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (playedHistoryStackRef.current.length > 0) {
       const prevSong = playedHistoryStackRef.current.pop()
       if (prevSong) {
+        if (currentTrackRef.current) {
+          forwardHistoryStackRef.current.push(currentTrackRef.current)
+        }
         playTrack(prevSong)
         return
       }
