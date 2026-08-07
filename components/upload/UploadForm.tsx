@@ -511,6 +511,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       })
 
       let insertedTrackId: string | null = null
+      const originalExt = uploadFile.name.includes('.') ? uploadFile.name.split('.').pop()!.toLowerCase() : ''
 
       const { data: trackData, error: dbError } = await supabase
         .from('tracks')
@@ -522,6 +523,8 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
           duration: item.duration || 0,
           file_path: filePath,
           file_size: uploadFile.size,
+          file_ext: originalExt,
+          drive_file_id: driveFileId,
         })
         .select('id')
         .single()
@@ -543,6 +546,8 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
             duration: item.duration || 0,
             file_path: filePath,
             file_size: uploadFile.size,
+            file_ext: originalExt,
+            drive_file_id: driveFileId,
           })
           .select('id')
           .single()

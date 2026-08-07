@@ -433,9 +433,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return null
     }
 
-    const driveFileId = extractDriveFileId(filePath)
+    const driveFileId = track.drive_file_id || extractDriveFileId(filePath)
     if (driveFileId) {
-      return `/api/drive-stream?id=${encodeURIComponent(driveFileId)}`
+      const ext =
+        track.file_ext ||
+        track.title?.match(/\.(flac|mp3|wav|m4a|aac|ogg|wma)(?:[?#]|$)/i)?.[1]?.toLowerCase() ||
+        ''
+      const filenameParam = ext ? `&filename=${encodeURIComponent(`stream.${ext}`)}` : ''
+      return `/api/drive-stream?id=${encodeURIComponent(driveFileId)}${filenameParam}`
     }
 
     if (filePath.startsWith('http')) {

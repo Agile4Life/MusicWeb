@@ -1,43 +1,155 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 
-// ⚡ Server-Side CDN Working Endpoint Cache (1-hour TTL)
-interface StreamCdnCacheEntry {
-  workingUrl: string
-  contentType: string
-  timestamp: number
+// ⚡ Cache TTL cho CDN URL đã xác minh hoạt động (lưu bền vững trong Supabase,
+// sống sót qua cold start của serverless function — khác với Map in-memory cũ)
+const CDN_CACHE_TTL_MS = 60 * 60 * 1000 // 1 giờ
+
+// Service-role client để đọc/ghi cache mà không bị chặn bởi RLS.
+// BẮT BUỘC: đặt SUPABASE_SERVICE_ROLE_KEY trong biến môi trường server
+// (KHÔNG bao giờ expose biến này ra client/NEXT_PUBLIC_*)
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !serviceKey) {
+    throw new Error('Thiếu NEXT_PUBLIC_SUPABASE_URL hoặc SUPABASE_SERVICE_ROLE_KEY trong env')
+  }
+  return createClient(url, serviceKey, {
+    auth: { persistSession: false },
+  })
 }
 
-const streamCdnCache = new Map<string, StreamCdnCacheEntry>()
-const CDN_CACHE_TTL = 60 * 60 * 1000 // 1 hour
+interface CachedCdnEntry {
+  url: string
+  contentType: string
+}
+
+async function getCachedCdnUrl(
+  fileId: string,
+  supabase: ReturnType<typeof getServiceClient>
+): Promise<CachedCdnEntry | null> {
+  try {
+    const { data, error } = await supabase
+      .from('tracks')
+      .select('drive_stream_url, drive_stream_content_type, drive_stream_cached_at')
+      .eq('drive_file_id', fileId)
+      .maybeSingle()
+
+    if (error || !data?.drive_stream_url || !data.drive_stream_cached_at) return null
+
+    const isFresh = Date.now() - new Date(data.drive_stream_cached_at).getTime() < CDN_CACHE_TTL_MS
+    if (!isFresh) return null
+
+    return {
+      url: data.drive_stream_url,
+      contentType: data.drive_stream_content_type || '',
+    }
+  } catch (err) {
+    console.warn('getCachedCdnUrl error (bỏ qua, tiếp tục dò CDN):', err)
+    return null
+  }
+}
+
+async function saveCdnUrl(
+  fileId: string,
+  url: string,
+  contentType: string,
+  supabase: ReturnType<typeof getServiceClient>
+) {
+  try {
+    await supabase
+      .from('tracks')
+      .update({
+        drive_stream_url: url,
+        drive_stream_content_type: contentType,
+        drive_stream_cached_at: new Date().toISOString(),
+      })
+      .eq('drive_file_id', fileId)
+  } catch (err) {
+    // Không throw — lỗi ghi cache không nên làm hỏng response stream đang trả về user
+    console.warn('saveCdnUrl error (không ảnh hưởng tới stream hiện tại):', err)
+  }
+}
+
+function detectContentType(opts: {
+  fetchedContentType: string
+  titleParam: string
+  contentDisposition: string
+}): string {
+  const { fetchedContentType, titleParam, contentDisposition } = opts
+  const lowerTitle = titleParam.toLowerCase()
+  const lowerDisposition = contentDisposition.toLowerCase()
+
+  if (lowerTitle.endsWith('.flac') || lowerDisposition.includes('.flac') || fetchedContentType.includes('flac')) {
+    return 'audio/flac'
+  }
+  if (lowerTitle.endsWith('.wav') || lowerDisposition.includes('.wav')) {
+    return 'audio/wav'
+  }
+  if (
+    lowerTitle.endsWith('.m4a') ||
+    lowerTitle.endsWith('.aac') ||
+    lowerDisposition.includes('.m4a') ||
+    lowerDisposition.includes('.aac')
+  ) {
+    return 'audio/mp4'
+  }
+  if (lowerTitle.endsWith('.ogg') || lowerDisposition.includes('.ogg')) {
+    return 'audio/ogg'
+  }
+  if (
+    lowerTitle.endsWith('.mp3') ||
+    lowerDisposition.includes('.mp3') ||
+    fetchedContentType === 'application/octet-stream' ||
+    fetchedContentType.includes('html') ||
+    (!fetchedContentType && !lowerTitle)
+  ) {
+    return 'audio/mpeg'
+  }
+  return fetchedContentType || 'audio/mpeg'
+}
+
+function decodeCookieConfirmToken(rawCookies: string[]): string | undefined {
+  return rawCookies.join('; ').match(/download_warning_[^=]+=([^;]+)/)?.[1]
+}
 
 export async function GET(req: NextRequest) {
+  let supabase: ReturnType<typeof getServiceClient> | null = null
   try {
     const { searchParams } = new URL(req.url)
     const fileId = searchParams.get('id') || searchParams.get('fileId')
+    // filename/title do client truyền lên để xác định đúng Content-Type
+    // (xem lib/player/PlayerContext.tsx -> getAudioUrl())
+    const titleParam = searchParams.get('filename') || searchParams.get('title') || ''
 
     if (!fileId) {
       return NextResponse.json({ error: 'Missing fileId parameter' }, { status: 400 })
     }
 
-    // Range header from client (for HTML5 <audio> seeking and partial streaming)
+    try {
+      supabase = getServiceClient()
+    } catch (envErr) {
+      console.warn('Supabase service client init failed, cache bền vững sẽ bị bỏ qua:', envErr)
+    }
+
     const rangeHeader = req.headers.get('range')
     const headers: Record<string, string> = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     }
     if (rangeHeader) {
       headers['Range'] = rangeHeader
     }
 
-    // ⚡ High-Speed Direct Google CDN Endpoints (Responds in < 100ms, zero HTML redirects)
     const directCdnUrls: string[] = []
 
-    // 1. Check if we already cached a verified working endpoint for this fileId
-    const cachedCdn = streamCdnCache.get(fileId)
-    if (cachedCdn && Date.now() - cachedCdn.timestamp < CDN_CACHE_TTL) {
-      directCdnUrls.push(cachedCdn.workingUrl)
+    // 1. Cache bền vững từ Supabase — sống sót qua cold start, chia sẻ giữa mọi instance/region
+    const cachedCdn = supabase ? await getCachedCdnUrl(fileId, supabase) : null
+    if (cachedCdn) {
+      directCdnUrls.push(cachedCdn.url)
     }
 
-    // 2. High-speed fallback direct CDN URLs
+    // 2. Các endpoint CDN tốc độ cao dự phòng
     directCdnUrls.push(
       `https://lh3.googleusercontent.com/d/${encodeURIComponent(fileId)}`,
       `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=t`,
@@ -47,7 +159,7 @@ export async function GET(req: NextRequest) {
     let res: Response | null = null
     let contentType = ''
 
-    // 🚀 Stage 1: Try ultra-fast direct CDN endpoints first
+    // 🚀 Stage 1: Thử các endpoint CDN nhanh trước
     for (const cdnUrl of directCdnUrls) {
       try {
         const testRes = await fetch(cdnUrl, { headers, cache: 'no-store', redirect: 'follow' })
@@ -55,8 +167,10 @@ export async function GET(req: NextRequest) {
         if ((testRes.ok || testRes.status === 206) && !testCt.includes('text/html')) {
           res = testRes
           contentType = testCt
-          // 💾 Cache this working CDN URL for 1 hour
-          streamCdnCache.set(fileId, { workingUrl: cdnUrl, contentType: testCt, timestamp: Date.now() })
+          // Ghi lại cache bền vững — request tiếp theo (kể cả từ cold start khác) dùng lại ngay
+          if (supabase) {
+            saveCdnUrl(fileId, cdnUrl, testCt, supabase).catch(() => {})
+          }
           break
         }
       } catch (err) {
@@ -64,17 +178,17 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 🐢 Stage 2: Fallback to virus warning HTML parser if CDN endpoints were blocked or returned HTML
+    // 🐢 Stage 2: Fallback qua trang cảnh báo virus (file lớn >25MB, thường gặp với FLAC)
     if (!res) {
       const fallbackUrl = `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`
       const testRes = await fetch(fallbackUrl, { headers, cache: 'no-store', redirect: 'follow' })
-      let testCt = testRes.headers.get('content-type') || ''
+      const testCt = testRes.headers.get('content-type') || ''
 
       if (testCt.includes('text/html')) {
         const responseText = await testRes.text()
         const rawCookies: string[] = (testRes.headers as any).getSetCookie
           ? (testRes.headers as any).getSetCookie()
-          : [testRes.headers.get('set-cookie')].filter(Boolean) as string[]
+          : ([testRes.headers.get('set-cookie')].filter(Boolean) as string[])
 
         const cookieHeader = rawCookies.map((c: string) => c.split(';')[0]).join('; ')
         const confirmMatch =
@@ -82,7 +196,7 @@ export async function GET(req: NextRequest) {
           responseText.match(/name="confirm"\s+value="([a-zA-Z0-9_-]+)"/) ||
           responseText.match(/uuid=([a-zA-Z0-9_-]+)/)
 
-        const warningCookie = rawCookies.join('; ').match(/download_warning_[^=]+=([^;]+)/)?.[1]
+        const warningCookie = decodeCookieConfirmToken(rawCookies)
         const confirmToken = confirmMatch?.[1] || warningCookie || 't'
 
         const fetchHeaders: Record<string, string> = {
@@ -90,14 +204,20 @@ export async function GET(req: NextRequest) {
           ...(cookieHeader ? { Cookie: cookieHeader } : {}),
         }
 
-        const confirmUrl = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=${confirmToken}`
+        const confirmUrl = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(
+          fileId
+        )}&export=download&confirm=${confirmToken}`
         const res2 = await fetch(confirmUrl, { headers: fetchHeaders, cache: 'no-store', redirect: 'follow' })
         const ct2 = res2.headers.get('content-type') || ''
 
         if (!ct2.includes('text/html') && (res2.ok || res2.status === 206)) {
           res = res2
           contentType = ct2
-          streamCdnCache.set(fileId, { workingUrl: confirmUrl, contentType: ct2, timestamp: Date.now() })
+          if (supabase) {
+            // Lưu ý: confirmUrl phụ thuộc cookie phiên, có thể hết hạn sớm hơn CDN tĩnh —
+            // vẫn cache để tránh phải parse lại HTML mỗi request, TTL 1h đã đủ an toàn.
+            saveCdnUrl(fileId, confirmUrl, ct2, supabase).catch(() => {})
+          }
         }
       } else if (testRes.ok || testRes.status === 206) {
         res = testRes
@@ -112,43 +232,14 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // Determine correct Audio MIME type
-    let finalContentType = contentType || res.headers.get('content-type') || 'audio/mpeg'
+    // Xác định đúng MIME type audio, ưu tiên filename do client truyền lên
     const contentDisposition = res.headers.get('content-disposition') || ''
-    const titleParam = searchParams.get('filename') || searchParams.get('title') || ''
+    const finalContentType = detectContentType({
+      fetchedContentType: contentType || res.headers.get('content-type') || '',
+      titleParam,
+      contentDisposition,
+    })
 
-    if (
-      titleParam.toLowerCase().endsWith('.flac') ||
-      contentDisposition.toLowerCase().includes('.flac') ||
-      finalContentType.includes('flac')
-    ) {
-      finalContentType = 'audio/flac'
-    } else if (
-      titleParam.toLowerCase().endsWith('.wav') ||
-      contentDisposition.toLowerCase().includes('.wav')
-    ) {
-      finalContentType = 'audio/wav'
-    } else if (
-      titleParam.toLowerCase().endsWith('.m4a') ||
-      titleParam.toLowerCase().endsWith('.aac') ||
-      contentDisposition.toLowerCase().includes('.m4a')
-    ) {
-      finalContentType = 'audio/mp4'
-    } else if (
-      titleParam.toLowerCase().endsWith('.ogg') ||
-      contentDisposition.toLowerCase().includes('.ogg')
-    ) {
-      finalContentType = 'audio/ogg'
-    } else if (
-      titleParam.toLowerCase().endsWith('.mp3') ||
-      contentDisposition.toLowerCase().includes('.mp3') ||
-      finalContentType === 'application/octet-stream' ||
-      finalContentType.includes('html')
-    ) {
-      finalContentType = 'audio/mpeg'
-    }
-
-    // Build Response headers for HTTP & Browser Cache Storage
     const responseHeaders = new Headers()
     responseHeaders.set('Content-Type', finalContentType)
     responseHeaders.set('Accept-Ranges', 'bytes')
@@ -168,7 +259,6 @@ export async function GET(req: NextRequest) {
       responseHeaders.set('Content-Range', contentRange)
     }
 
-    // Return 206 Partial Content if Range request was sent, else status from Drive
     const status = res.status === 206 || rangeHeader ? 206 : 200
 
     return new Response(res.body, {
@@ -205,7 +295,8 @@ export async function HEAD(req: NextRequest) {
     const res = await fetch(cdnUrl, {
       method: 'HEAD',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
       },
       cache: 'no-store',
     })

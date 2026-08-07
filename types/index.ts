@@ -24,6 +24,8 @@ export interface Track {
   audius_id?: string
   itunes_id?: string | number
   spotify_id?: string
+  file_ext?: string
+  drive_file_id?: string
   disc_number?: number
   track_number?: number
 }
