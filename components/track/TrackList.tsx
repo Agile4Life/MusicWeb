@@ -235,7 +235,7 @@ export function TrackList({
       {/* Track Rows */}
       {tracks.map((track, idx) => (
         <TrackRow
-          key={`${track.source || 'local'}_${track.id}_${idx}`}
+          key={`${track.source || 'local'}_${track.id}`}
           track={track}
           index={idx}
           playlistTracks={tracks}
