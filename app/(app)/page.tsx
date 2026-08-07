@@ -677,12 +677,12 @@ export default function HomePage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 md:gap-8 max-w-7xl mx-auto w-full pb-32 md:pb-8 select-none">
+    <div className="p-3.5 sm:p-6 md:p-8 flex flex-col gap-4 sm:gap-6 md:gap-8 max-w-7xl mx-auto w-full pb-36 md:pb-8 select-none">
       {/* High-Impact Clean Hero Card */}
-      <div className="relative overflow-hidden rounded-2xl border border-white/[0.06] p-6 sm:p-8 md:p-10 bg-[#0d1017]">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="flex flex-col gap-2 max-w-xl">
-            <h1 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
+      <div className="relative overflow-hidden rounded-2xl border border-white/[0.06] p-4 sm:p-6 md:p-10 bg-[#0d1017]">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-6">
+          <div className="flex flex-col gap-1.5 sm:gap-2 max-w-xl">
+            <h1 className="text-xl sm:text-2xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
               Xin chào{user ? `, ${user.user_metadata?.full_name || user.email?.split('@')[0]}` : ''}
             </h1>
             <p className="text-xs md:text-sm text-slate-400 leading-relaxed">

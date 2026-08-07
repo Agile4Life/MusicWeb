@@ -169,16 +169,16 @@ export default function FavoritesPage() {
   const isAdmin = user?.email === 'admin@musicweb.com'
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 md:gap-8 max-w-7xl mx-auto w-full pb-32 md:pb-8 select-none">
+    <div className="p-3.5 sm:p-6 md:p-8 flex flex-col gap-4 sm:gap-6 md:gap-8 max-w-7xl mx-auto w-full pb-36 md:pb-8 select-none">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-white/[0.06] p-6 md:p-8 bg-[#0d1017] flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 shrink-0">
-            <Heart className="w-7 h-7 fill-current" />
+      <div className="relative overflow-hidden rounded-2xl border border-white/[0.06] p-4 sm:p-6 md:p-8 bg-[#0d1017] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
+        <div className="flex items-center gap-3.5 sm:gap-4">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 shrink-0">
+            <Heart className="w-6 h-6 sm:w-7 sm:h-7 fill-current" />
           </div>
 
           <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-extrabold text-white tracking-tight">Bài hát yêu thích</h1>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">Bài hát yêu thích</h1>
             <p className="text-xs text-slate-400">
               {tracks.length > 0
                 ? `${tracks.length} bài hát trong bộ sưu tập của bạn`

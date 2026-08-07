@@ -141,9 +141,9 @@ export default function DrivePage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 md:gap-8 max-w-7xl mx-auto w-full select-none pb-32 md:pb-8">
+    <div className="p-3.5 sm:p-6 md:p-8 flex flex-col gap-4 sm:gap-6 md:gap-8 max-w-7xl mx-auto w-full select-none pb-36 md:pb-8">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] p-6 sm:p-8 md:p-10 bg-gradient-to-r from-[#0b1320] via-[#0d1627] to-[#070b12] shadow-2xl">
+      <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] p-4 sm:p-6 md:p-8 bg-gradient-to-r from-[#0b1320] via-[#0d1627] to-[#070b12] shadow-2xl">
         {/* Glow backdrop */}
         <div
           style={{
@@ -152,17 +152,17 @@ export default function DrivePage() {
           className="absolute inset-0 pointer-events-none"
         />
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="flex items-center gap-5">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-[var(--spotify-glow,#22d3ee)]/10 border border-[var(--spotify-glow,#22d3ee)]/30 flex items-center justify-center text-[var(--spotify-glow,#22d3ee)] shadow-2xl shrink-0">
-              <Cloud className="w-10 h-10 sm:w-12 sm:h-12" />
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6">
+          <div className="flex items-center gap-3.5 sm:gap-5">
+            <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl bg-[var(--spotify-glow,#22d3ee)]/10 border border-[var(--spotify-glow,#22d3ee)]/30 flex items-center justify-center text-[var(--spotify-glow,#22d3ee)] shadow-2xl shrink-0">
+              <Cloud className="w-7 h-7 sm:w-10 sm:h-10" />
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[11px] font-extrabold uppercase tracking-widest text-[var(--spotify-glow,#22d3ee)]">
+            <div className="flex flex-col gap-1 sm:gap-1.5">
+              <span className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-[var(--spotify-glow,#22d3ee)]">
                 Google Drive Storage
               </span>
-              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              <h1 className="text-xl sm:text-3xl font-black text-white tracking-tight">
                 {t('drive')}
               </h1>
               <p className="text-xs sm:text-sm text-slate-400 max-w-xl">

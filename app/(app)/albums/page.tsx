@@ -122,19 +122,19 @@ export default function AlbumsPage() {
   const filteredNew = filterAlbums(newReleases)
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 flex flex-col gap-8 max-w-7xl mx-auto w-full pb-32 md:pb-8 select-none">
+    <div className="p-3.5 sm:p-6 md:p-8 flex flex-col gap-5 sm:gap-8 max-w-7xl mx-auto w-full pb-36 md:pb-8 select-none">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] p-6 md:p-8 bg-gradient-to-br from-[#0c121e] via-[#090e17] to-[#04060a] shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-        <div className="flex items-center gap-5">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500/20 via-purple-500/10 to-pink-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.2)] shrink-0">
-            <DiscAlbum className="w-8 h-8" />
+      <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] p-4 sm:p-6 md:p-8 bg-gradient-to-br from-[#0c121e] via-[#090e17] to-[#04060a] shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
+        <div className="flex items-center gap-3.5 sm:gap-5">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-cyan-500/20 via-purple-500/10 to-pink-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.2)] shrink-0">
+            <DiscAlbum className="w-6 h-6 sm:w-8 sm:h-8" />
           </div>
           <div>
             <div className="flex items-center gap-2 text-[11px] font-mono text-cyan-400 uppercase tracking-widest mb-1">
               <Sparkles className="w-3.5 h-3.5" />
               <span>Spotify Collection</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            <h1 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight">
               Thư Viện Albums
             </h1>
             <p className="text-xs text-slate-400 mt-1 max-w-md">

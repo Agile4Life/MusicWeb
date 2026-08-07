@@ -175,11 +175,11 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
   const sortedDiscs = Array.from(discMap.entries()).sort(([a], [b]) => a - b)
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 md:gap-8 max-w-7xl mx-auto w-full pb-32 md:pb-8 select-none">
+    <div className="p-3.5 sm:p-6 md:p-8 flex flex-col gap-4 sm:gap-6 md:gap-8 max-w-7xl mx-auto w-full pb-36 md:pb-8 select-none">
       {/* Album Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] p-6 md:p-8 bg-[#0c1017] flex flex-col md:flex-row items-start md:items-end gap-6 md:gap-8">
+      <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] p-4 sm:p-6 md:p-8 bg-[#0c1017] flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
         {/* Cover Art */}
-        <div className="w-40 h-40 md:w-48 md:h-48 bg-slate-900 rounded-2xl flex items-center justify-center shrink-0 border border-white/10 shadow-2xl overflow-hidden relative group">
+        <div className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 bg-slate-900 rounded-2xl flex items-center justify-center shrink-0 border border-white/10 shadow-2xl overflow-hidden relative group">
           {album.cover_url ? (
             <img src={album.cover_url} alt={album.name} className="w-full h-full object-cover" />
           ) : (
@@ -197,7 +197,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
             <span>Spotify Album</span>
           </p>
 
-          <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+          <h1 className="text-xl sm:text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
             {album.name}
           </h1>
 

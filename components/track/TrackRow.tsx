@@ -207,7 +207,7 @@ function TrackRowComponent({
       )}
 
       {/* Index & Play button */}
-      <div className="flex items-center gap-3.5 w-1/2 truncate">
+      <div className="flex items-center gap-2.5 sm:gap-3.5 flex-1 min-w-0 pr-2 truncate">
         <div className="w-5 text-center text-xs font-mono text-slate-400 shrink-0">
           <span className="group-hover:hidden">
             {isCurrent && isPlaying ? (
@@ -242,7 +242,7 @@ function TrackRowComponent({
         </div>
 
         <div className="truncate flex flex-col min-w-0">
-          <div className="flex items-center gap-2 truncate">
+          <div className="flex items-center gap-1.5 sm:gap-2 truncate">
             {editMode ? (
               <input
                 autoFocus
@@ -262,22 +262,22 @@ function TrackRowComponent({
               </p>
             )}
             {track.source === 'spotify' && (
-              <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20 shrink-0">
+              <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20 shrink-0 hidden xs:inline">
                 Spotify
               </span>
             )}
             {track.source === 'youtube' && (
-              <span className="text-[9px] font-mono text-red-400 bg-red-500/10 px-1.5 py-0.2 rounded border border-red-500/20 shrink-0">
+              <span className="text-[9px] font-mono text-red-400 bg-red-500/10 px-1.5 py-0.2 rounded border border-red-500/20 shrink-0 hidden xs:inline">
                 YouTube
               </span>
             )}
             {track.source === 'audius' && (
-              <span className="text-[9px] font-mono text-purple-300 bg-purple-500/10 px-1.5 py-0.2 rounded border border-purple-500/20 shrink-0">
+              <span className="text-[9px] font-mono text-purple-300 bg-purple-500/10 px-1.5 py-0.2 rounded border border-purple-500/20 shrink-0 hidden xs:inline">
                 Audius
               </span>
             )}
             {track.source === 'itunes' && (
-              <span className="text-[9px] font-mono text-pink-400 bg-pink-500/10 px-1.5 py-0.2 rounded border border-pink-500/20 shrink-0">
+              <span className="text-[9px] font-mono text-pink-400 bg-pink-500/10 px-1.5 py-0.2 rounded border border-pink-500/20 shrink-0 hidden xs:inline">
                 iTunes
               </span>
             )}
@@ -317,7 +317,7 @@ function TrackRowComponent({
       </div>
 
       {/* Duration & Options */}
-      <div className="flex items-center justify-end gap-2 w-1/4 text-xs text-slate-400">
+      <div className="shrink-0 flex items-center justify-end gap-1.5 sm:gap-2 md:w-1/4 text-xs text-slate-400">
         <span className="font-mono">{formatDuration(track.duration)}</span>
 
         {/* Edit mode save/cancel */}
@@ -346,7 +346,7 @@ function TrackRowComponent({
                 e.stopPropagation()
                 addToQueue(track)
               }}
-              className={`p-1.5 text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10 rounded-lg transition-all ${
+              className={`p-1.5 text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10 rounded-lg transition-all hidden sm:block ${
                 showMenu ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
               }`}
               title="Thêm vào hàng đợi"
@@ -360,7 +360,7 @@ function TrackRowComponent({
                 setShowMenu(!showMenu)
               }}
               className={`p-1.5 hover:text-white hover:bg-white/10 rounded-lg transition-colors ${
-                showMenu ? 'opacity-100 text-white bg-white/10' : 'opacity-0 group-hover:opacity-100'
+                showMenu ? 'opacity-100 text-white bg-white/10' : 'opacity-100 md:opacity-0 md:group-hover:opacity-100'
               }`}
               title="Khác"
             >

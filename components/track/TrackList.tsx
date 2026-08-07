@@ -210,8 +210,8 @@ export function TrackList({
   return (
     <div className="flex flex-col gap-1 relative">
       {/* Table Header */}
-      <div className="flex items-center justify-between px-4 py-2 text-xs font-semibold text-gray-400 border-b border-[#282828] mb-2 select-none">
-        <div className="flex items-center gap-4 w-1/2">
+      <div className="flex items-center justify-between px-3 sm:px-4 py-2 text-xs font-semibold text-gray-400 border-b border-[#282828] mb-2 select-none">
+        <div className="flex items-center gap-3 sm:gap-4 flex-1">
           {isAdmin ? (
             <div className="shrink-0 flex items-center pr-1" title="Chọn tất cả">
               <input
@@ -227,7 +227,7 @@ export function TrackList({
           <span>TIÊU ĐỀ</span>
         </div>
         <div className="hidden md:block w-1/4">ALBUM</div>
-        <div className="flex items-center justify-end w-1/4 pr-2">
+        <div className="flex items-center justify-end shrink-0 md:w-1/4 pr-2">
           <Clock className="w-4 h-4" />
         </div>
       </div>
@@ -252,7 +252,7 @@ export function TrackList({
 
       {/* 🚀 FLOATING BULK ACTION BAR (ADMIN ONLY) */}
       {isAdmin && selectedIds.size > 0 && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[9990] bg-[#090d16]/95 backdrop-blur-2xl border border-cyan-500/40 text-white px-5 py-3 rounded-full shadow-2xl shadow-black flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-200 select-none">
+        <div className="fixed bottom-24 md:bottom-8 left-1/2 -translate-x-1/2 z-[9990] bg-[#090d16]/95 backdrop-blur-2xl border border-cyan-500/40 text-white px-4 sm:px-5 py-2.5 sm:py-3 rounded-full shadow-2xl shadow-black flex items-center gap-2.5 sm:gap-3 animate-in fade-in slide-in-from-bottom-4 duration-200 select-none max-w-[92vw]">
           <div className="flex items-center gap-2 pr-2 border-r border-white/10 text-xs font-bold text-cyan-300">
             <CheckSquare className="w-4 h-4 text-cyan-400" />
             <span>Đã chọn {selectedIds.size} bài</span>
