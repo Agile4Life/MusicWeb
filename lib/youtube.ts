@@ -214,9 +214,28 @@ export const LONG_COMPILATION_KEYWORDS = [
   'nhạc trẻ hay nhất', 'top 50', 'top 100', 'top 20', 'best of', 'mashup'
 ]
 
+export const NEGATIVE_KEYWORDS = [
+  'cover', 'karaoke', 'instrumental', 'reaction', 'live',
+  'sped up', 'nightcore', '8d audio', 'piano version',
+  'acoustic version', 'remix', 'reverb', 'slowed'
+]
+
+export function normalizeTitle(text: string): string {
+  if (!text) return ''
+  return text
+    .normalize('NFC')
+    .replace(/[\(\[\{].*?[\)\]\}]/g, ' ')
+    .replace(/feat\.?|ft\.?/gi, ' ')
+    .replace(/[\-\_\,\.\:\;]/g, ' ')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ')
+}
+
 /**
- * Find the best matching YouTube track from a list of candidates.
- * Avoids picking 40+ minute compilations, 1-hour loops, or completely wrong songs.
+ * Enhanced matching algorithm to pick the exact official digital audio / MV track.
+ * Hard-filters out wrong compilations, covers, and reaction videos.
+ * Gives absolute +1000 point priority to official "- Topic" channels.
  */
 export function findBestYouTubeMatch(
   candidates: Track[],
@@ -226,40 +245,50 @@ export function findBestYouTubeMatch(
 ): Track | null {
   if (!candidates || candidates.length === 0 || !targetTitle) return null
 
-  const cleanTargetTitle = (targetTitle || '')
-    .toLowerCase()
-    .replace(/\([^)]*\)/g, '')
-    .replace(/\[[^\]]*\]/g, '')
-    .replace(/ft\..*|feat\..*/gi, '')
-    .trim()
-    .normalize('NFKC')
-
+  const rawTargetTitle = targetTitle || ''
+  const cleanTargetTitle = normalizeTitle(rawTargetTitle)
   if (!cleanTargetTitle) return null
 
-  const cleanTargetArtist = (targetArtist || '')
-    .toLowerCase()
-    .trim()
-    .normalize('NFKC')
-
+  const rawTargetArtist = targetArtist || ''
+  const cleanTargetArtist = normalizeTitle(rawTargetArtist)
   const targetDur = targetDuration || 0
 
   const isQueryAskingForLong =
     LONG_COMPILATION_KEYWORDS.some((kw) => cleanTargetTitle.includes(kw)) ||
     (targetDur > 900)
 
+  // Identify negative keywords that are explicitly requested by target title (e.g. if original IS a remix)
+  const requestedNegativeKeywords = NEGATIVE_KEYWORDS.filter((kw) =>
+    cleanTargetTitle.includes(kw)
+  )
+
   let bestMatch: Track | null = null
-  let highestScore = 50 // Minimum score threshold (must have a real title match)
+  let highestScore = 30 // Threshold score for valid match
 
   const titleWords = cleanTargetTitle.split(/\s+/).filter((w) => w.length > 1)
 
   for (const candidate of candidates) {
     if (!candidate.youtube_id) continue
 
-    const candidateTitleNorm = (candidate.title || '').toLowerCase().normalize('NFKC')
-    const candidateArtistNorm = (candidate.artist || '').toLowerCase().normalize('NFKC')
+    const candidateTitleNorm = normalizeTitle(candidate.title || '')
+    const candidateArtistNorm = normalizeTitle(candidate.artist || '')
     const candidateDuration = candidate.duration || 0
 
-    // STRICT TITLE MATCH: Candidate must match at least 40% of title words or contain substring
+    // 1. HARD FILTER: Eliminate long compilations / loops > 20 mins when target is a single track
+    if (!isQueryAskingForLong && candidateDuration > 1200) {
+      continue
+    }
+
+    // 2. HARD FILTER: Eliminate negative keywords (cover, karaoke, reaction, etc.) unless target explicitly asks for it
+    const hasUnwantedNegativeKeyword = NEGATIVE_KEYWORDS.some((kw) => {
+      if (requestedNegativeKeywords.includes(kw)) return false
+      return candidateTitleNorm.includes(kw)
+    })
+    if (hasUnwantedNegativeKeyword) {
+      continue
+    }
+
+    // 3. TITLE MATCH RATIO & SUBSTRING CHECK
     let matchedWordsCount = 0
     for (const word of titleWords) {
       if (candidateTitleNorm.includes(word)) {
@@ -277,27 +306,25 @@ export function findBestYouTubeMatch(
     }
 
     let score = matchRatio * 120
-
     if (hasSubstringMatch) {
       score += 80
     }
 
-    const isCandidateLongCompilation = LONG_COMPILATION_KEYWORDS.some((kw) =>
-      candidateTitleNorm.includes(kw)
-    )
+    // 4. ABSOLUTE PRIORITY FOR "- TOPIC" & OFFICIAL ARTIST CHANNELS (+1000 points)
+    const isTopicChannel =
+      candidateArtistNorm.endsWith('topic') ||
+      candidateArtistNorm.includes('topic')
+    const isVevoOrOfficialChannel =
+      candidateArtistNorm.includes('vevo') ||
+      candidateArtistNorm.includes('official')
 
-    if (!isQueryAskingForLong) {
-      if (candidateDuration > 1200) {
-        score -= 500
-      } else if (candidateDuration > 900) {
-        score -= 300
-      }
-
-      if (isCandidateLongCompilation) {
-        score -= 400
-      }
+    if (isTopicChannel) {
+      score += 1000 // Direct digital distribution track from Spotify/Apple Music provider
+    } else if (isVevoOrOfficialChannel) {
+      score += 500
     }
 
+    // 5. ARTIST MATCHING BONUS
     if (cleanTargetArtist) {
       const artistWords = cleanTargetArtist.split(/\s+/).filter((w) => w.length > 1)
       let artistMatch = false
@@ -307,9 +334,10 @@ export function findBestYouTubeMatch(
           artistMatch = true
         }
       }
-      if (artistMatch) score += 20
+      if (artistMatch) score += 40
     }
 
+    // 6. OFFICIAL AUDIO / MV KEYWORD BONUS
     if (
       candidateTitleNorm.includes('official') ||
       candidateTitleNorm.includes('mv') ||
@@ -319,16 +347,17 @@ export function findBestYouTubeMatch(
       score += 30
     }
 
+    // 7. DURATION PRECISION SCORING
     if (targetDur > 0 && candidateDuration > 0) {
       const diff = Math.abs(candidateDuration - targetDur)
-      if (diff <= 15) {
+      if (diff <= 3) {
+        score += 120 // Almost exact duration match
+      } else if (diff <= 15) {
         score += 60
       } else if (diff <= 45) {
-        score += 40
-      } else if (diff <= 90) {
         score += 20
-      } else if (diff > 300) {
-        score -= 100
+      } else if (diff > 30) {
+        score -= 200 // Heavy penalty for significant duration mismatch
       }
     }
 
