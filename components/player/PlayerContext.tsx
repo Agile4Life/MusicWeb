@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useRef, useEffect } from 'react'
+import React, { createContext, useContext, useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { Track } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import { extractDriveFileId, isPreviewUrl, verifyDriveFile } from '@/lib/googleDriveUpload'
@@ -46,7 +46,20 @@ interface PlayerContextType {
   audioRef: React.RefObject<HTMLAudioElement | null>
 }
 
+interface PlaybackProgressContextType {
+  currentTime: number
+  duration: number
+}
+
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined)
+const PlaybackProgressContext = createContext<PlaybackProgressContextType>({
+  currentTime: 0,
+  duration: 0,
+})
+
+export function usePlaybackProgress() {
+  return useContext(PlaybackProgressContext)
+}
 
 const savePlayerStateToStorage = (
   track: Track | null,
@@ -143,6 +156,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const currentIndexRef = useRef<number>(-1)
   const volumeRef = useRef<number>(0.8)
   const lastSavedTimeRef = useRef<number>(0)
+  const lastPrevClickRef = useRef<number>(0)
   const playTrackRef = useRef<
     (track: Track, newQueue?: Track[], forceIndex?: number, startFromTime?: number) => Promise<void>
   >(async () => {})
@@ -887,8 +901,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const nextTrack = () => {
     const q = queueRef.current.length > 0 ? queueRef.current : queue
-    const idx = currentIndexRef.current >= 0 ? currentIndexRef.current : currentIndex
-    if (q.length === 0 || idx === -1) return
+    if (q.length === 0) return
+
+    let idx = currentIndexRef.current >= 0 ? currentIndexRef.current : currentIndex
+    if (idx < 0) {
+      if (currentTrackRef.current) {
+        idx = q.findIndex((t) => t.id === currentTrackRef.current?.id)
+      }
+      if (idx < 0) idx = 0
+    }
 
     let nextIdx = 0
     if (isShuffleRef.current && q.length > 1) {
@@ -904,12 +925,35 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const prevTrack = () => {
     const q = queueRef.current.length > 0 ? queueRef.current : queue
-    const idx = currentIndexRef.current >= 0 ? currentIndexRef.current : currentIndex
-    if (q.length === 0 || idx === -1) return
+    if (q.length === 0) return
 
-    // If current track has played for more than 3 seconds, restart it at 0:00 (standard player behavior)
-    const activeTime = audioRef.current?.currentTime || currentTime
-    if (activeTime > 3) {
+    let idx = currentIndexRef.current >= 0 ? currentIndexRef.current : currentIndex
+    if (idx < 0) {
+      if (currentTrackRef.current) {
+        idx = q.findIndex((t) => t.id === currentTrackRef.current?.id)
+      }
+      if (idx < 0) idx = 0
+    }
+
+    const now = Date.now()
+    const isRecentClick = now - lastPrevClickRef.current < 2500
+    lastPrevClickRef.current = now
+
+    // Determine current play time across YouTube & HTML5 engines
+    let activeTime = currentTime
+    if (currentTrackRef.current?.source === 'youtube' || currentTrackRef.current?.youtube_id) {
+      if (ytPlayerRef.current?.getCurrentTime) {
+        try {
+          activeTime = ytPlayerRef.current.getCurrentTime() || currentTime
+        } catch {}
+      }
+    } else if (audioRef.current) {
+      activeTime = audioRef.current.currentTime || currentTime
+    }
+
+    // If played > 3 seconds AND not clicked recently, restart track at 0:00.
+    // If clicked again within 2.5s OR near beginning (<= 3s), jump to previous track in queue!
+    if (activeTime > 3 && !isRecentClick) {
       seek(0)
       return
     }
@@ -1118,43 +1162,74 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentTrack, isPlaying])
 
+  const progressValue = useMemo(() => ({ currentTime, duration }), [currentTime, duration])
+
+  const playerValue = useMemo(
+    () => ({
+      currentTrack,
+      isPlaying,
+      queue,
+      currentIndex,
+      currentTime,
+      duration,
+      volume,
+      isShuffle,
+      toggleShuffle,
+      repeatMode,
+      toggleRepeat,
+      toggleFavoriteCurrentTrack,
+      playbackError,
+      playTrack,
+      togglePlay,
+      seek,
+      setVolume,
+      nextTrack,
+      prevTrack,
+      addToQueue,
+      removeFromQueue,
+      clearQueue,
+      isQueueOpen,
+      toggleQueue,
+      closeQueue,
+      audioRef,
+    }),
+    [
+      currentTrack,
+      isPlaying,
+      queue,
+      currentIndex,
+      volume,
+      isShuffle,
+      repeatMode,
+      playbackError,
+      isQueueOpen,
+      toggleShuffle,
+      toggleRepeat,
+      toggleFavoriteCurrentTrack,
+      playTrack,
+      togglePlay,
+      seek,
+      setVolume,
+      nextTrack,
+      prevTrack,
+      addToQueue,
+      removeFromQueue,
+      clearQueue,
+      toggleQueue,
+      closeQueue,
+    ]
+  )
+
   return (
-    <PlayerContext.Provider
-      value={{
-        currentTrack,
-        isPlaying,
-        queue,
-        currentIndex,
-        currentTime,
-        duration,
-        volume,
-        isShuffle,
-        toggleShuffle,
-        repeatMode,
-        toggleRepeat,
-        toggleFavoriteCurrentTrack,
-        playbackError,
-        playTrack,
-        togglePlay,
-        seek,
-        setVolume,
-        nextTrack,
-        prevTrack,
-        addToQueue,
-        removeFromQueue,
-        clearQueue,
-        isQueueOpen,
-        toggleQueue,
-        closeQueue,
-        audioRef,
-      }}
-    >
-      {children}
-      <audio ref={audioRef} preload="metadata" />
-      {/* Hidden YouTube Player IFrame container */}
-      <div className="hidden pointer-events-none opacity-0 invisible w-0 h-0 overflow-hidden">
-        <div id="yt-player-container" />
-      </div>
+    <PlayerContext.Provider value={playerValue}>
+      <PlaybackProgressContext.Provider value={progressValue}>
+        {children}
+        <audio ref={audioRef} preload="metadata" />
+        {/* Hidden YouTube Player IFrame container */}
+        <div className="hidden pointer-events-none opacity-0 invisible w-0 h-0 overflow-hidden">
+          <div id="yt-player-container" />
+        </div>
+      </PlaybackProgressContext.Provider>
     </PlayerContext.Provider>
   )
 }

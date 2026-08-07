@@ -143,9 +143,10 @@ export async function fetchNewReleases(country = 'VN', limit = 20): Promise<Spot
       return []
     }
 
-    const safeLimit = Math.min(limit, 20)
+    const safeLimit = Math.min(limit, 10)
+    const searchQuery = encodeURIComponent('year:2024-2026 OR pop OR hits')
     const searchRes = await fetch(
-      `https://api.spotify.com/v1/search?q=year:2024-2026%20OR%20pop%20OR%20hits&type=album&market=${encodeURIComponent(country)}&limit=${safeLimit}`,
+      `https://api.spotify.com/v1/search?q=${searchQuery}&type=album&market=${encodeURIComponent(country)}&limit=${safeLimit}`,
       {
         headers: { Authorization: `Bearer ${token}` },
         cache: 'no-store',

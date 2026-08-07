@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useRef } from 'react'
-import { usePlayer } from './PlayerContext'
+import { usePlayer, usePlaybackProgress } from './PlayerContext'
 import { fetchLyricsFromLrclib, LrclibResponse } from '@/lib/lrclib'
 import { parseLrc, parsePlainLyrics, findActiveLyricIndex, LyricLine } from '@/lib/lrcParser'
 import {
@@ -36,10 +36,9 @@ function formatTime(seconds: number) {
 }
 
 export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
+  const { currentTime, duration } = usePlaybackProgress()
   const {
     currentTrack,
-    currentTime,
-    duration,
     seek,
     isPlaying,
     togglePlay,

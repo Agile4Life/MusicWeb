@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { usePlayer } from './PlayerContext'
+import { usePlayer, usePlaybackProgress } from './PlayerContext'
 import { LyricsView } from './LyricsView'
 import { QueueDrawer } from './QueueDrawer'
 import {
@@ -30,11 +30,10 @@ function formatTime(seconds: number) {
 }
 
 export function PlayerBar() {
+  const { currentTime, duration } = usePlaybackProgress()
   const {
     currentTrack,
     isPlaying,
-    currentTime,
-    duration,
     volume,
     isShuffle,
     toggleShuffle,
