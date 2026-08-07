@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { usePlayer, usePlaybackProgress } from './PlayerContext'
 import { LyricsView } from './LyricsView'
 import { QueueDrawer } from './QueueDrawer'
+import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import {
   Play,
   Pause,
@@ -114,15 +115,7 @@ export function PlayerBar() {
             className="flex items-center gap-2.5 min-w-0 max-w-[105px] xs:max-w-[140px] sm:max-w-[180px] z-10 shrink-0 overflow-hidden"
           >
             <div className="w-10 h-10 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 relative">
-              {currentTrack.cover_url ? (
-                <img
-                  src={currentTrack.cover_url}
-                  alt={currentTrack.title}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <Headphones className="w-5 h-5 text-cyan-400" />
-              )}
+              <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
             </div>
 
             <div className="flex flex-col min-w-0 overflow-hidden w-full">
@@ -245,15 +238,11 @@ export function PlayerBar() {
           {/* Large Album Artwork */}
           <div className="flex-1 flex items-center justify-center my-8 relative">
             <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-2xl bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden shadow-2xl">
-              {currentTrack.cover_url ? (
-                <img
-                  src={currentTrack.cover_url}
-                  alt={currentTrack.title}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <Headphones className="w-24 h-24 text-slate-600" />
-              )}
+              <TrackCoverImage
+                src={currentTrack.cover_url}
+                alt={currentTrack.title}
+                fallbackIconClassName="w-20 h-20 text-slate-600"
+              />
             </div>
           </div>
 
@@ -409,15 +398,7 @@ export function PlayerBar() {
         <div className="flex items-center gap-3.5 w-1/4 min-w-[220px]">
           <div className="relative group shrink-0">
             <div className="w-12 h-12 bg-slate-800 rounded-xl overflow-hidden relative flex items-center justify-center border border-white/10 shadow-md">
-              {currentTrack.cover_url ? (
-                <img
-                  src={currentTrack.cover_url}
-                  alt={currentTrack.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-              ) : (
-                <Headphones className="w-6 h-6 text-cyan-400" />
-              )}
+              <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
             </div>
           </div>
 

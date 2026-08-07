@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { usePlayer } from './PlayerContext'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { X, Play, Music, History, Sparkles } from 'lucide-react'
+import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 
 export function QueueDrawer() {
   const { t } = useLanguage()
@@ -53,29 +54,27 @@ export function QueueDrawer() {
 
         <button
           onClick={closeQueue}
-          className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-          title={t('cancel')}
+          className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+          title={t('close')}
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Drawer Body Content */}
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-5 no-scrollbar">
+      {/* Drawer Content */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {activeTab === 'queue' ? (
           <>
             {/* Section 1: Now Playing */}
             <div className="flex flex-col gap-2.5">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('now_playing')}</h3>
+              <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
+                {t('now_playing')}
+              </span>
 
               {currentTrack ? (
                 <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.04] border border-white/10 group">
                   <div className="w-12 h-12 rounded-xl bg-slate-800 border border-white/10 overflow-hidden shrink-0 relative flex items-center justify-center">
-                    {currentTrack.cover_url ? (
-                      <img src={currentTrack.cover_url} alt={currentTrack.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <Music className="w-6 h-6 text-slate-400" />
-                    )}
+                    <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
 
                     {isPlaying && (
                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
@@ -108,15 +107,15 @@ export function QueueDrawer() {
             {/* Section 2: Next Up */}
             <div className="flex flex-col gap-2.5">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
                   {t('next_up')} ({nextUpTracks.length})
-                </h3>
+                </span>
                 {nextUpTracks.length > 0 && (
                   <button
                     onClick={clearQueue}
-                    className="text-[11px] font-semibold text-slate-400 hover:text-rose-400 transition-colors"
+                    className="text-[11px] text-slate-400 hover:text-rose-400 transition-colors"
                   >
-                    {t('clear_queue')}
+                    {t('clear_all')}
                   </button>
                 )}
               </div>
@@ -133,11 +132,7 @@ export function QueueDrawer() {
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <div className="w-9 h-9 rounded-lg bg-slate-800 border border-white/10 overflow-hidden shrink-0 relative flex items-center justify-center">
-                            {track.cover_url ? (
-                              <img src={track.cover_url} alt={track.title} className="w-full h-full object-cover" />
-                            ) : (
-                              <Music className="w-4 h-4 text-slate-500" />
-                            )}
+                            <TrackCoverImage src={track.cover_url} alt={track.title} />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                               <Play className="w-3.5 h-3.5 text-white fill-current ml-0.5" />
                             </div>

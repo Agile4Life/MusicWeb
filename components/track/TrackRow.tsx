@@ -7,7 +7,7 @@ import { Play, Pause, Music, Trash2, MoreVertical, Plus, Pencil, Check, X, Heart
 import { createClient } from '@/lib/supabase/client'
 import { isAdmin, getValidUserId } from '@/lib/accessControl'
 import { useSession } from 'next-auth/react'
-
+import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 interface TrackRowProps {
   track: Track
   index: number
@@ -234,11 +234,7 @@ function TrackRowComponent({
 
         {/* Cover thumbnail & Title/Artist */}
         <div className="w-9 h-9 bg-slate-800 rounded-lg overflow-hidden shrink-0 flex items-center justify-center border border-white/10">
-          {track.cover_url ? (
-            <img src={track.cover_url} alt={track.title} className="w-full h-full object-cover" />
-          ) : (
-            <Music className="w-4 h-4 text-slate-400" />
-          )}
+          <TrackCoverImage src={track.cover_url} alt={track.title} />
         </div>
 
         <div className="truncate flex flex-col min-w-0">

@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
 import { deduplicateQueueTracks } from '@/lib/utils'
+import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 
 export function TopBar() {
   const router = useRouter()
@@ -141,11 +142,7 @@ export function TopBar() {
                     className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-xl cursor-pointer transition-colors group"
                   >
                     <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center overflow-hidden shrink-0">
-                      {track.cover_url ? (
-                        <img src={track.cover_url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <Music className="w-4 h-4 text-slate-500" />
-                      )}
+                      <TrackCoverImage src={track.cover_url} alt={track.title} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-white group-hover:text-[var(--spotify-glow)] truncate">

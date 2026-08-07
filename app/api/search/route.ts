@@ -164,11 +164,29 @@ export async function GET(request: Request) {
       return match?.youtube_id ? { ...iTrack, youtube_id: match.youtube_id } : iTrack
     })
 
+    // Enrich YouTube tracks with high-res 1:1 Spotify/iTunes album artwork if available
+    const enhancedYouTube = youtubeTracks.map((yTrack: Track) => {
+      const normYTitle = (yTrack.title || '').toLowerCase().trim()
+      if (!normYTitle) return yTrack
+
+      const spMatch = spotifyTracks.find(
+        (s: Track) => s.cover_url && normYTitle.includes(s.title.toLowerCase().trim().slice(0, 5))
+      )
+      if (spMatch?.cover_url) return { ...yTrack, cover_url: spMatch.cover_url }
+
+      const itMatch = itunesTracks.find(
+        (i: Track) => i.cover_url && normYTitle.includes(i.title.toLowerCase().trim().slice(0, 5))
+      )
+      if (itMatch?.cover_url) return { ...yTrack, cover_url: itMatch.cover_url }
+
+      return yTrack
+    })
+
     const minDurationFilter = (t: Track) => !t.duration || t.duration >= 25
 
     return {
       local: localTracks,
-      youtube: youtubeTracks.filter(minDurationFilter),
+      youtube: enhancedYouTube.filter(minDurationFilter),
       audius: audiusTracks,
       itunes: enhancedITunes.filter(minDurationFilter),
       spotify: enhancedSpotify.filter(minDurationFilter),
