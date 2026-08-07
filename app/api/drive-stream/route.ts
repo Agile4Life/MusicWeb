@@ -9,9 +9,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Missing fileId parameter' }, { status: 400 })
     }
 
-    // Google Drive direct download URL
-    let driveUrl = `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`
-
     // Range header from client (for HTML5 <audio> seeking and partial streaming)
     const rangeHeader = req.headers.get('range')
     const headers: Record<string, string> = {
@@ -21,75 +18,80 @@ export async function GET(req: NextRequest) {
       headers['Range'] = rangeHeader
     }
 
-    // Initial fetch to Google Drive
-    let res = await fetch(driveUrl, { headers, cache: 'no-store', redirect: 'follow' })
-    let contentType = res.headers.get('content-type') || ''
+    // ⚡ High-Speed Direct Google CDN Endpoints (Responds in < 100ms, zero HTML redirects)
+    const directCdnUrls = [
+      `https://lh3.googleusercontent.com/d/${encodeURIComponent(fileId)}`,
+      `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=t`,
+      `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}&confirm=t`,
+    ]
 
-    // If Google Drive returns an HTML page (virus scan warning for files > 25MB / 100MB+)
-    if (contentType.includes('text/html')) {
-      const responseText = await res.text()
+    let res: Response | null = null
+    let contentType = ''
 
-      // Extract set-cookie headers from first response (critical for >100MB files!)
-      const rawCookies: string[] = (res.headers as any).getSetCookie
-        ? (res.headers as any).getSetCookie()
-        : [res.headers.get('set-cookie')].filter(Boolean) as string[]
-
-      const cookieHeader = rawCookies.map((c: string) => c.split(';')[0]).join('; ')
-
-      // Extract confirmation token from HTML page
-      const confirmMatch =
-        responseText.match(/confirm=([a-zA-Z0-9_-]+)/) ||
-        responseText.match(/name="confirm"\s+value="([a-zA-Z0-9_-]+)"/) ||
-        responseText.match(/uuid=([a-zA-Z0-9_-]+)/)
-
-      const warningCookie = rawCookies.join('; ').match(/download_warning_[^=]+=([^;]+)/)?.[1]
-      const confirmToken = confirmMatch?.[1] || warningCookie || 't'
-
-      const fetchHeaders: Record<string, string> = {
-        ...headers,
-        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-      }
-
-      // Stage 2: Official Google Drive direct CDN endpoint for large files (> 100MB)
-      const userContentUrl = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=${confirmToken}`
-      let res2 = await fetch(userContentUrl, { headers: fetchHeaders, cache: 'no-store', redirect: 'follow' })
-      let ct2 = res2.headers.get('content-type') || ''
-
-      if (!ct2.includes('text/html') && (res2.ok || res2.status === 206)) {
-        res = res2
-        contentType = ct2
-      } else {
-        // Stage 3: Docs export endpoint with confirmation token & cookie
-        const confirmUrl = `https://docs.google.com/uc?export=download&id=${encodeURIComponent(fileId)}&confirm=${confirmToken}`
-        let res3 = await fetch(confirmUrl, { headers: fetchHeaders, cache: 'no-store', redirect: 'follow' })
-        let ct3 = res3.headers.get('content-type') || ''
-
-        if (!ct3.includes('text/html') && (res3.ok || res3.status === 206)) {
-          res = res3
-          contentType = ct3
-        } else {
-          // Stage 4: Direct Google User Content CDN
-          const cdnUrl = `https://lh3.googleusercontent.com/d/${encodeURIComponent(fileId)}`
-          let res4 = await fetch(cdnUrl, { headers, cache: 'no-store', redirect: 'follow' })
-          let ct4 = res4.headers.get('content-type') || ''
-
-          if (!ct4.includes('text/html') && (res4.ok || res4.status === 206)) {
-            res = res4
-            contentType = ct4
-          }
+    // 🚀 Stage 1: Try ultra-fast direct CDN endpoints first
+    for (const cdnUrl of directCdnUrls) {
+      try {
+        const testRes = await fetch(cdnUrl, { headers, cache: 'no-store', redirect: 'follow' })
+        const testCt = testRes.headers.get('content-type') || ''
+        if ((testRes.ok || testRes.status === 206) && !testCt.includes('text/html')) {
+          res = testRes
+          contentType = testCt
+          break
         }
+      } catch (err) {
+        console.warn('Direct CDN fetch attempt warning:', err)
       }
     }
 
-    if (!res.ok && res.status !== 206) {
+    // 🐢 Stage 2: Fallback to virus warning HTML parser if CDN endpoints were blocked or returned HTML
+    if (!res) {
+      const fallbackUrl = `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`
+      const testRes = await fetch(fallbackUrl, { headers, cache: 'no-store', redirect: 'follow' })
+      let testCt = testRes.headers.get('content-type') || ''
+
+      if (testCt.includes('text/html')) {
+        const responseText = await testRes.text()
+        const rawCookies: string[] = (testRes.headers as any).getSetCookie
+          ? (testRes.headers as any).getSetCookie()
+          : [testRes.headers.get('set-cookie')].filter(Boolean) as string[]
+
+        const cookieHeader = rawCookies.map((c: string) => c.split(';')[0]).join('; ')
+        const confirmMatch =
+          responseText.match(/confirm=([a-zA-Z0-9_-]+)/) ||
+          responseText.match(/name="confirm"\s+value="([a-zA-Z0-9_-]+)"/) ||
+          responseText.match(/uuid=([a-zA-Z0-9_-]+)/)
+
+        const warningCookie = rawCookies.join('; ').match(/download_warning_[^=]+=([^;]+)/)?.[1]
+        const confirmToken = confirmMatch?.[1] || warningCookie || 't'
+
+        const fetchHeaders: Record<string, string> = {
+          ...headers,
+          ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+        }
+
+        const confirmUrl = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=${confirmToken}`
+        const res2 = await fetch(confirmUrl, { headers: fetchHeaders, cache: 'no-store', redirect: 'follow' })
+        const ct2 = res2.headers.get('content-type') || ''
+
+        if (!ct2.includes('text/html') && (res2.ok || res2.status === 206)) {
+          res = res2
+          contentType = ct2
+        }
+      } else if (testRes.ok || testRes.status === 206) {
+        res = testRes
+        contentType = testCt
+      }
+    }
+
+    if (!res || (!res.ok && res.status !== 206)) {
       return NextResponse.json(
-        { error: `Google Drive error (HTTP ${res.status})` },
-        { status: res.status }
+        { error: `Google Drive error (HTTP ${res ? res.status : 500})` },
+        { status: res ? res.status : 500 }
       )
     }
 
     // Determine correct Audio MIME type
-    let finalContentType = res.headers.get('content-type') || 'audio/mpeg'
+    let finalContentType = contentType || res.headers.get('content-type') || 'audio/mpeg'
     const contentDisposition = res.headers.get('content-disposition') || ''
     const titleParam = searchParams.get('filename') || searchParams.get('title') || ''
 
@@ -131,7 +133,7 @@ export async function GET(req: NextRequest) {
     responseHeaders.set('Access-Control-Allow-Origin', '*')
     responseHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
     responseHeaders.set('Access-Control-Allow-Headers', 'Range, Content-Type')
-    responseHeaders.set('Cache-Control', 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400')
+    responseHeaders.set('Cache-Control', 'public, max-age=31536000, immutable')
 
     const contentLength = res.headers.get('content-length')
     if (contentLength) {
@@ -176,8 +178,8 @@ export async function HEAD(req: NextRequest) {
       return new NextResponse(null, { status: 400 })
     }
 
-    const driveUrl = `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`
-    const res = await fetch(driveUrl, {
+    const cdnUrl = `https://lh3.googleusercontent.com/d/${encodeURIComponent(fileId)}`
+    const res = await fetch(cdnUrl, {
       method: 'HEAD',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',

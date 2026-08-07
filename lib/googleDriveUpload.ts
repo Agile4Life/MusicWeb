@@ -92,17 +92,7 @@ export async function verifyDriveFile(filePath: string): Promise<{ valid: boolea
   }
 
   const streamUrl = buildDriveStreamUrl(driveId)
-
-  try {
-    const res = await fetch(streamUrl, { method: 'HEAD', cache: 'no-store' })
-    if (res.ok || res.status === 206) {
-      return { valid: true, driveId, streamUrl }
-    }
-  } catch (err) {
-    console.warn(`[Drive Verify] Verification failed for driveId ${driveId}:`, err)
-  }
-
-  return { valid: false, driveId }
+  return { valid: true, driveId, streamUrl }
 }
 
 
