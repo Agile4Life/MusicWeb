@@ -716,7 +716,7 @@ export default function HomePage() {
                 >
                   <div className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
                     {t.cover_url ? (
-                      <img src={t.cover_url} alt={t.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <img src={t.cover_url} alt={t.title} className="w-full h-full object-cover scale-[1.05] group-hover:scale-110 transition-transform duration-500" />
                     ) : (
                       <Music className="w-7 h-7 text-slate-500 group-hover:scale-110 transition-transform duration-300" />
                     )}

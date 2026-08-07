@@ -131,40 +131,62 @@ export interface SpotifyAlbumItem {
   album_type: string
 }
 
-export async function fetchNewReleases(country = 'VN', limit = 20): Promise<SpotifyAlbumItem[]> {
+export async function fetchNewReleases(country = 'VN', limit = 24): Promise<SpotifyAlbumItem[]> {
   try {
     const token = await getSpotifyAccessToken()
     if (!token) return []
 
+    // 1. Try browse/new-releases endpoint
     const res = await fetch(
-      `https://api.spotify.com/v1/browse/new-releases?country=${encodeURIComponent(country)}&limit=${limit}`,
+      `https://api.spotify.com/v1/browse/new-releases?limit=${limit}`,
       {
         headers: { Authorization: `Bearer ${token}` },
         next: { revalidate: 3600 },
       }
     )
 
-    if (!res.ok) {
-      console.warn('Spotify new releases fetch status:', res.status)
-      return []
+    if (res.ok) {
+      const data = await res.json()
+      const items = data.albums?.items || []
+      if (items.length > 0) {
+        return items.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          artist: item.artists?.map((a: any) => a.name).join(', ') || 'Nghệ sĩ chưa xác định',
+          cover_url: item.images?.[0]?.url || item.images?.[1]?.url || null,
+          release_date: item.release_date || '',
+          total_tracks: item.total_tracks || 0,
+          album_type: item.album_type || 'album',
+        }))
+      }
     }
 
-    const data = await res.json()
-    const items = data.albums?.items || []
+    // 2. Fallback to Search API for popular albums if browse endpoint is restricted
+    const searchRes = await fetch(
+      `https://api.spotify.com/v1/search?q=tag:new%20OR%20genre:pop%20OR%20v-pop&type=album&limit=${limit}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        next: { revalidate: 3600 },
+      }
+    )
 
-    return items.map((item: any) => ({
-      id: item.id,
-      name: item.name,
-      artist: item.artists?.map((a: any) => a.name).join(', ') || 'Nghệ sĩ chưa xác định',
-      cover_url: item.images?.[0]?.url || item.images?.[1]?.url || null,
-      release_date: item.release_date || '',
-      total_tracks: item.total_tracks || 0,
-      album_type: item.album_type || 'album',
-    }))
+    if (searchRes.ok) {
+      const sData = await searchRes.json()
+      const items = sData.albums?.items || []
+      return items.map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        artist: item.artists?.map((a: any) => a.name).join(', ') || 'Nghệ sĩ chưa xác định',
+        cover_url: item.images?.[0]?.url || item.images?.[1]?.url || null,
+        release_date: item.release_date || '',
+        total_tracks: item.total_tracks || 0,
+        album_type: item.album_type || 'album',
+      }))
+    }
   } catch (err) {
     console.error('Spotify new releases fetch error:', err)
-    return []
   }
+  return []
 }
 
 export async function fetchSpotifyAlbumMeta(albumId: string): Promise<SpotifyAlbumItem | null> {

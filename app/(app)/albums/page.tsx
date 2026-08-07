@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { fetchNewReleases, SpotifyAlbumItem } from '@/lib/spotify'
+import { SpotifyAlbumItem } from '@/lib/spotify'
 import { DiscAlbum, Sparkles, Music, Play, Layers, Calendar, ChevronRight } from 'lucide-react'
 import { HeroCardSkeleton } from '@/components/common/SkeletonLoader'
 
@@ -25,7 +25,7 @@ function AlbumCard({ album }: AlbumCardProps) {
           <img
             src={album.cover_url}
             alt={album.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            className="w-full h-full object-cover scale-[1.05] group-hover:scale-110 transition-transform duration-500"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-slate-500">
@@ -91,12 +91,15 @@ export default function AlbumsPage() {
         console.warn('Error fetching listened albums from Supabase:', err)
       }
 
-      // Source B: Discover New Releases from Spotify API
+      // Source B: Discover New Releases from Spotify API via server route
       try {
-        const releases = await fetchNewReleases('VN', 20)
-        setNewReleases(releases)
+        const res = await fetch('/api/albums/new-releases')
+        if (res.ok) {
+          const releases = await res.json()
+          if (Array.isArray(releases)) setNewReleases(releases)
+        }
       } catch (err) {
-        console.warn('Error fetching new releases from Spotify API:', err)
+        console.warn('Error fetching new releases from API route:', err)
       }
 
       setLoading(false)

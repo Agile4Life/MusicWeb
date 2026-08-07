@@ -3,6 +3,14 @@ import { Track } from '@/types'
 /**
  * Search iTunes Music API (100% Free - Works on Cloudflare Workers, Vercel & Node.js, 0 IP blocks)
  */
+function cleanArtworkUrl(url?: string | null): string | null {
+  if (!url) return null
+  return url
+    .replace('{w}x{h}', '600x600')
+    .replace(/\/\d+x\d+[^/]*\./i, '/600x600bb.')
+    .replace(/\d+x\d+bb/i, '600x600bb')
+}
+
 export async function searchITunesTracks(query: string, limit = 15): Promise<Track[]> {
   if (!query.trim()) return []
 
@@ -18,10 +26,7 @@ export async function searchITunesTracks(query: string, limit = 15): Promise<Tra
     const results = data.results || []
 
     return results.map((item: any): Track => {
-      // Get HD 600x600 artwork URL
-      const artwork = item.artworkUrl100
-        ? item.artworkUrl100.replace('100x100bb', '600x600bb')
-        : null
+      const artwork = cleanArtworkUrl(item.artworkUrl100 || item.artworkUrl60)
 
       return {
         id: `itunes-${item.trackId}`,
@@ -66,9 +71,7 @@ export async function getTrendingITunesTracks(countryCode = 'vn', limit = 12): P
     const results = data.feed?.results || []
 
     return results.map((item: any, index: number): Track => {
-      const artwork = item.artworkUrl100
-        ? item.artworkUrl100.replace('100x100bb', '600x600bb')
-        : null
+      const artwork = cleanArtworkUrl(item.artworkUrl100)
 
       return {
         id: `itunes-rss-${item.id || index}`,
