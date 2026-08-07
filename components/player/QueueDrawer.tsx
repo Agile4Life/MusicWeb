@@ -115,7 +115,7 @@ export function QueueDrawer() {
                     onClick={clearQueue}
                     className="text-[11px] text-slate-400 hover:text-rose-400 transition-colors"
                   >
-                    {t('clear_all')}
+                    {t('clear_queue')}
                   </button>
                 )}
               </div>
