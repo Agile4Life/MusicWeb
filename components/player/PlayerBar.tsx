@@ -105,11 +105,11 @@ export function PlayerBar() {
     <>
       {/* 📱 MOBILE FLOATING MINI PLAYER BAR (Visible on < 768px) */}
       <div className="md:hidden fixed bottom-[68px] left-3 right-3 z-40 bg-[#0d1017]/95 backdrop-blur-2xl border border-white/10 rounded-2xl p-2.5 pb-3 shadow-2xl select-none overflow-hidden">
-        <div className="grid grid-cols-12 items-center w-full">
+        <div className="relative flex items-center justify-between w-full h-10">
           {/* Left Zone: Cover + Title/Artist */}
           <div
             onClick={() => setShowMobileFullPlayer(true)}
-            className="col-span-5 flex items-center gap-2.5 min-w-0 cursor-pointer active:opacity-80"
+            className="flex items-center gap-2.5 min-w-0 max-w-[38%] cursor-pointer active:opacity-80 z-10"
           >
             <div className="w-10 h-10 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 relative">
               {currentTrack.cover_url ? (
@@ -131,45 +131,45 @@ export function PlayerBar() {
             </div>
           </div>
 
-          {/* Center Zone: Playback Controls (SkipBack - PLAY - SkipForward) */}
-          <div className="col-span-5 flex items-center justify-center gap-0.5 xs:gap-1">
+          {/* Center Zone: Absolute 50% Centered Playback Controls */}
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center gap-1 z-20 pointer-events-auto">
             <button
               onClick={prevTrack}
-              className="w-7 h-9 flex items-center justify-center text-slate-300 active:text-white active:scale-95 transition-transform"
+              className="p-2 text-slate-300 active:text-white active:scale-95 transition-transform flex items-center justify-center"
               title="Bài trước"
             >
-              <SkipBack className="w-4 h-4" />
+              <SkipBack className="w-4.5 h-4.5" />
             </button>
 
             <button
               onClick={togglePlay}
-              className="w-9 h-9 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center font-bold shadow-md active:scale-95 transition-transform shrink-0"
+              className="w-9.5 h-9.5 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center font-bold shadow-md active:scale-95 transition-transform shrink-0"
               title={isPlaying ? 'Tạm dừng' : 'Phát'}
             >
-              {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+              {isPlaying ? <Pause className="w-4.5 h-4.5 fill-current" /> : <Play className="w-4.5 h-4.5 fill-current" />}
             </button>
 
             <button
               onClick={nextTrack}
-              className="w-7 h-9 flex items-center justify-center text-slate-300 active:text-white active:scale-95 transition-transform"
+              className="p-2 text-slate-300 active:text-white active:scale-95 transition-transform flex items-center justify-center"
               title="Bài kế tiếp"
             >
-              <SkipForward className="w-4 h-4" />
+              <SkipForward className="w-4.5 h-4.5" />
             </button>
           </div>
 
           {/* Right Zone: Favorite Heart */}
-          <div className="col-span-2 flex items-center justify-end">
+          <div className="flex items-center justify-end z-10">
             <button
               onClick={(e) => {
                 e.stopPropagation()
                 toggleFavoriteCurrentTrack()
               }}
-              className="w-8 h-9 flex items-center justify-center text-slate-400 active:text-rose-400 transition-colors"
+              className="p-2 text-slate-400 active:text-rose-400 transition-colors flex items-center justify-center"
               title={currentTrack.is_favorite ? 'Bỏ yêu thích' : 'Thêm yêu thích'}
             >
               <Heart
-                className={`w-4 h-4 ${
+                className={`w-4.5 h-4.5 ${
                   currentTrack.is_favorite ? 'text-rose-500 fill-current' : 'text-slate-400'
                 }`}
               />
