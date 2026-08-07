@@ -4,9 +4,8 @@ import React, { useState } from 'react'
 import { ThemeSelector } from '@/components/theme/ThemeSelector'
 import { LanguageSelector } from '@/components/i18n/LanguageSelector'
 import { useLanguage } from '@/components/i18n/LanguageContext'
-import { CustomSelect } from '@/components/ui/CustomSelect'
 import { createClient } from '@/lib/supabase/client'
-import { Settings, Sliders, Volume2, HardDrive, ShieldCheck, Sparkles, Globe, Bell, Mail } from 'lucide-react'
+import { Volume2, Globe, Bell, Mail } from 'lucide-react'
 
 function FacebookIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -29,7 +28,6 @@ function InstagramIcon(props: React.SVGProps<SVGSVGElement>) {
 export default function SettingsPage() {
   const { t } = useLanguage()
   const supabase = createClient()
-  const [audioQuality, setAudioQuality] = useState('high')
   const [autoPlayNext, setAutoPlayNext] = useState(true)
 
   React.useEffect(() => {
@@ -38,33 +36,25 @@ export default function SettingsPage() {
       if (!user) return
       const { data } = await supabase
         .from('user_settings')
-        .select('audio_quality, auto_play')
+        .select('auto_play')
         .eq('user_id', user.id)
         .maybeSingle()
       if (data) {
-        setAudioQuality(data.audio_quality || 'high')
         setAutoPlayNext(data.auto_play ?? true)
       }
     })
   }, [supabase])
 
-  const saveSettings = async (updates: { audio_quality?: string; auto_play?: boolean }) => {
+  const saveSettings = async (updates: { auto_play?: boolean }) => {
     const result = await supabase.auth.getUser() as { data: { user: { id: string } | null } }
     const user = result.data.user
     if (!user) return
     await supabase.from('user_settings').upsert({
       user_id: user.id,
-      audio_quality: updates.audio_quality ?? audioQuality,
       auto_play: updates.auto_play ?? autoPlayNext,
       updated_at: new Date().toISOString(),
     })
   }
-
-  const audioOptions = [
-    { value: 'high', label: t('audio_high') },
-    { value: 'normal', label: t('audio_normal') },
-    { value: 'saver', label: t('audio_saver') },
-  ]
 
   return (
     <div className="p-3.5 sm:p-6 md:p-8 flex flex-col gap-4 sm:gap-6 md:gap-8 max-w-5xl mx-auto w-full select-none pb-36 md:pb-8">
@@ -96,26 +86,11 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Audio & Playback Options */}
+      {/* Playback Options */}
       <div className="bg-[#0d1017] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-5">
         <div className="flex items-center gap-2 text-sm font-bold text-white border-b border-white/[0.05] pb-3">
           <Volume2 className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
           <span>{t('audio_playback_title')}</span>
-        </div>
-
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 py-1 border-b border-white/[0.04]">
-          <div>
-            <p className="text-xs font-bold text-white">{t('audio_quality')}</p>
-            <p className="text-[11px] text-slate-400">{t('audio_quality_desc')}</p>
-          </div>
-          <CustomSelect
-            options={audioOptions}
-            value={audioQuality}
-            onChange={(val) => {
-              setAudioQuality(val)
-              void saveSettings({ audio_quality: val })
-            }}
-          />
         </div>
 
         <div className="flex items-center justify-between py-1">
