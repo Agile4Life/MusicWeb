@@ -187,16 +187,25 @@ export function parseFilenameToTitleArtist(fileName: string): { title: string; a
   }
 }
 
+const clientFolderCache = new Map<string, { files: Array<{ id: string; name: string }>; timestamp: number }>()
+
 export async function fetchDriveFolderFiles(folderId: string): Promise<Array<{ id: string; name: string }>> {
+  if (clientFolderCache.has(folderId)) {
+    const entry = clientFolderCache.get(folderId)!
+    if (Date.now() - entry.timestamp < 15 * 60 * 1000) {
+      return entry.files
+    }
+  }
+
   // 1. Try local API route that parses public Google Drive folder
   try {
     const localRes = await fetch(`/api/drive-folder?folderId=${encodeURIComponent(folderId)}`, {
       method: 'GET',
-      cache: 'no-store'
     })
     if (localRes.ok) {
       const data = await localRes.json()
       if (data.success && Array.isArray(data.files) && data.files.length > 0) {
+        clientFolderCache.set(folderId, { files: data.files, timestamp: Date.now() })
         return data.files
       }
     }

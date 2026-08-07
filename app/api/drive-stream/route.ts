@@ -1,5 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+// ⚡ Server-Side CDN Working Endpoint Cache (1-hour TTL)
+interface StreamCdnCacheEntry {
+  workingUrl: string
+  contentType: string
+  timestamp: number
+}
+
+const streamCdnCache = new Map<string, StreamCdnCacheEntry>()
+const CDN_CACHE_TTL = 60 * 60 * 1000 // 1 hour
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
@@ -19,11 +29,20 @@ export async function GET(req: NextRequest) {
     }
 
     // ⚡ High-Speed Direct Google CDN Endpoints (Responds in < 100ms, zero HTML redirects)
-    const directCdnUrls = [
+    const directCdnUrls: string[] = []
+
+    // 1. Check if we already cached a verified working endpoint for this fileId
+    const cachedCdn = streamCdnCache.get(fileId)
+    if (cachedCdn && Date.now() - cachedCdn.timestamp < CDN_CACHE_TTL) {
+      directCdnUrls.push(cachedCdn.workingUrl)
+    }
+
+    // 2. High-speed fallback direct CDN URLs
+    directCdnUrls.push(
       `https://lh3.googleusercontent.com/d/${encodeURIComponent(fileId)}`,
       `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=t`,
-      `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}&confirm=t`,
-    ]
+      `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}&confirm=t`
+    )
 
     let res: Response | null = null
     let contentType = ''
@@ -36,6 +55,8 @@ export async function GET(req: NextRequest) {
         if ((testRes.ok || testRes.status === 206) && !testCt.includes('text/html')) {
           res = testRes
           contentType = testCt
+          // 💾 Cache this working CDN URL for 1 hour
+          streamCdnCache.set(fileId, { workingUrl: cdnUrl, contentType: testCt, timestamp: Date.now() })
           break
         }
       } catch (err) {
@@ -76,6 +97,7 @@ export async function GET(req: NextRequest) {
         if (!ct2.includes('text/html') && (res2.ok || res2.status === 206)) {
           res = res2
           contentType = ct2
+          streamCdnCache.set(fileId, { workingUrl: confirmUrl, contentType: ct2, timestamp: Date.now() })
         }
       } else if (testRes.ok || testRes.status === 206) {
         res = testRes
@@ -126,7 +148,7 @@ export async function GET(req: NextRequest) {
       finalContentType = 'audio/mpeg'
     }
 
-    // Build Response headers
+    // Build Response headers for HTTP & Browser Cache Storage
     const responseHeaders = new Headers()
     responseHeaders.set('Content-Type', finalContentType)
     responseHeaders.set('Accept-Ranges', 'bytes')
@@ -134,6 +156,7 @@ export async function GET(req: NextRequest) {
     responseHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
     responseHeaders.set('Access-Control-Allow-Headers', 'Range, Content-Type')
     responseHeaders.set('Cache-Control', 'public, max-age=31536000, immutable')
+    responseHeaders.set('ETag', `W/"drive-${fileId}"`)
 
     const contentLength = res.headers.get('content-length')
     if (contentLength) {
@@ -194,6 +217,8 @@ export async function HEAD(req: NextRequest) {
     const headers = new Headers()
     headers.set('Access-Control-Allow-Origin', '*')
     headers.set('Accept-Ranges', 'bytes')
+    headers.set('Cache-Control', 'public, max-age=31536000, immutable')
+    headers.set('ETag', `W/"drive-${fileId}"`)
     const cl = res.headers.get('content-length')
     if (cl) headers.set('Content-Length', cl)
 

@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+interface FolderCacheEntry {
+  files: Array<{ id: string; name: string }>
+  timestamp: number
+}
+
+const folderCache = new Map<string, FolderCacheEntry>()
+const FOLDER_CACHE_TTL = 15 * 60 * 1000 // 15 minutes TTL
+
 function decodeUnicodeEscapes(str: string): string {
   if (!str) return ''
   try {
@@ -8,7 +16,6 @@ function decodeUnicodeEscapes(str: string): string {
       .replace(/\\"/g, '"')
       .replace(/\\\\/g, '\\')
       .replace(/\\n/g, ' ')
-    // Fix HTML entities
     decoded = decoded
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
@@ -56,6 +63,18 @@ export async function GET(req: NextRequest) {
 
     if (!folderId) {
       return NextResponse.json({ error: 'Missing folderId' }, { status: 400 })
+    }
+
+    // ⚡ STEP 1: Return from 15-minute Server Memory Cache if available (< 1ms latency)
+    const cachedEntry = folderCache.get(folderId)
+    if (cachedEntry && Date.now() - cachedEntry.timestamp < FOLDER_CACHE_TTL) {
+      return NextResponse.json({
+        success: true,
+        folderId,
+        count: cachedEntry.files.length,
+        files: cachedEntry.files,
+        cached: true,
+      })
     }
 
     const headers = {
@@ -143,7 +162,6 @@ export async function GET(req: NextRequest) {
           const id = match[1]
           if (id && !seenIds.has(id)) {
             seenIds.add(id)
-            // Store with temporary marker so we can resolve its real title below
             fileMap.set(id, '__FETCH_REAL_TITLE__')
           }
         }
@@ -164,7 +182,7 @@ export async function GET(req: NextRequest) {
           if (realName) {
             fileMap.set(id, realName)
           } else {
-            fileMap.delete(id) // Remove unresolvable non-file IDs
+            fileMap.delete(id)
           }
         })
       )
@@ -181,6 +199,9 @@ export async function GET(req: NextRequest) {
         files.push({ id, name })
       }
     }
+
+    // 💾 Store in 15-minute Server Memory Cache
+    folderCache.set(folderId, { files, timestamp: Date.now() })
 
     return NextResponse.json({
       success: true,
