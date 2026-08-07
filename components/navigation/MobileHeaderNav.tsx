@@ -38,6 +38,28 @@ export function MobileHeaderNav() {
   const { playlists, createPlaylist, deletePlaylist } = usePlaylists()
   const [supabaseUser, setSupabaseUser] = useState<any>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [touchStartX, setTouchStartX] = useState<number | null>(null)
+  const [touchEndX, setTouchEndX] = useState<number | null>(null)
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.targetTouches[0].clientX)
+    setTouchEndX(null)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEndX(e.targetTouches[0].clientX)
+  }
+
+  const handleTouchEnd = () => {
+    if (touchStartX !== null && touchEndX !== null) {
+      const distance = touchEndX - touchStartX
+      if (Math.abs(distance) > 40) {
+        setIsDrawerOpen(false)
+      }
+    }
+    setTouchStartX(null)
+    setTouchEndX(null)
+  }
 
   const user = supabaseUser || (nextAuthSession?.user ? {
     id: nextAuthSession.user.email,
@@ -195,8 +217,17 @@ export function MobileHeaderNav() {
 
       {/* 📱 Mobile Slide Drawer Navigation */}
       {isDrawerOpen && (
-        <div className="md:hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex justify-end animate-in fade-in duration-200">
-          <div className="w-4/5 max-w-xs h-full bg-[#0d1017] border-l border-white/10 p-5 flex flex-col justify-between overflow-y-auto select-none">
+        <div
+          onClick={() => setIsDrawerOpen(false)}
+          className="md:hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex justify-end animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            className="w-4/5 max-w-xs h-full bg-[#0d1017] border-l border-white/10 p-5 flex flex-col justify-between overflow-y-auto select-none touch-pan-y"
+          >
             <div className="flex flex-col gap-5">
               <div className="flex items-center justify-between border-b border-white/[0.05] pb-4">
                 <div className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.08]">
