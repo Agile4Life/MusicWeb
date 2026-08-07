@@ -23,6 +23,7 @@ import { Playlist } from '@/types'
 import { isAdmin, getValidUserId } from '@/lib/accessControl'
 import { useSession, signOut } from 'next-auth/react'
 import { useLanguage } from '@/components/i18n/LanguageContext'
+import { usePlaylists } from '@/components/playlist/PlaylistContext'
 
 export function Sidebar() {
   const { t } = useLanguage()
@@ -30,9 +31,8 @@ export function Sidebar() {
   const router = useRouter()
   const supabase = createClient()
   const { data: nextAuthSession } = useSession()
+  const { playlists, loading: creating, createPlaylist, deletePlaylist } = usePlaylists()
   const [supabaseUser, setSupabaseUser] = useState<any>(null)
-  const [playlists, setPlaylists] = useState<Playlist[]>([])
-  const [creating, setCreating] = useState(false)
 
   const user = supabaseUser || (nextAuthSession?.user ? {
     id: nextAuthSession.user.email,
@@ -41,76 +41,15 @@ export function Sidebar() {
   } : null)
 
   useEffect(() => {
-    async function loadUserAndPlaylists() {
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser()
-
-      setSupabaseUser(currentUser)
-
-      const activeUser = currentUser || (nextAuthSession?.user ? {
-        id: nextAuthSession.user.email,
-        email: nextAuthSession.user.email,
-      } : null)
-
-      const userId = activeUser ? getValidUserId(activeUser) : null
-
-      if (!userId) {
-        setPlaylists([])
-        return
-      }
-
-      const { data } = await supabase
-        .from('playlists')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-
-      if (data) setPlaylists(data)
-    }
-
-    loadUserAndPlaylists()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event: string, session: any) => {
-      const currentUser = session?.user ?? null
-      setSupabaseUser(currentUser)
-      if (currentUser) {
-        loadUserAndPlaylists()
-      } else {
-        setPlaylists([])
-      }
+    supabase.auth.getUser().then((res: any) => {
+      setSupabaseUser(res?.data?.user || null)
     })
-
-    const handleCustomUpdate = () => {
-      loadUserAndPlaylists()
-    }
-    window.addEventListener('playlist-updated', handleCustomUpdate)
-
-    const playlistChannel = supabase
-      .channel('sidebar-playlists')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'playlists' },
-        () => {
-          loadUserAndPlaylists()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      subscription.unsubscribe()
-      window.removeEventListener('playlist-updated', handleCustomUpdate)
-      supabase.removeChannel(playlistChannel)
-    }
-  }, [nextAuthSession])
+  }, [supabase])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     await signOut({ callbackUrl: '/login' })
     setSupabaseUser(null)
-    setPlaylists([])
     window.location.href = '/login'
   }
 
@@ -119,54 +58,20 @@ export function Sidebar() {
       router.push('/login')
       return
     }
-    if (!isAdmin(user?.email)) {
-      alert('Chỉ có tài khoản Admin mới có quyền tạo Playlist mới!')
-      return
-    }
 
-    setCreating(true)
-    const validUserId = getValidUserId(user)
-    const newName = `Playlist #${playlists.length + 1}`
-
-    const { data, error } = await supabase
-      .from('playlists')
-      .insert({
-        user_id: validUserId,
-        name: newName,
-        description: 'Playlist cá nhân',
-        is_public: false,
-      })
-      .select()
-      .single()
-
-    setCreating(false)
-
-    if (data && !error) {
-      setPlaylists([data, ...playlists])
-      window.dispatchEvent(new Event('playlist-updated'))
-      router.push(`/playlist/${data.id}`)
-    } else if (error) {
-      console.error('Create playlist error:', error)
-      alert('Lỗi tạo playlist: ' + error.message)
+    const created = await createPlaylist()
+    if (created && created.id) {
+      router.push(`/playlist/${created.id}`)
     }
   }
 
   const handleDeletePlaylistFromSidebar = async (e: React.MouseEvent, playlistId: string, playlistName: string) => {
     e.preventDefault()
     e.stopPropagation()
-    if (!confirm(`Bạn có chắc chắn muốn xóa playlist "${playlistName}"?`)) return
 
-    await supabase.from('playlist_tracks').delete().eq('playlist_id', playlistId)
-    const { error } = await supabase.from('playlists').delete().eq('id', playlistId)
-
-    if (!error) {
-      setPlaylists((prev) => prev.filter((p) => p.id !== playlistId))
-      window.dispatchEvent(new Event('playlist-updated'))
-      if (pathname === `/playlist/${playlistId}`) {
-        router.push('/')
-      }
-    } else {
-      alert('Lỗi xóa playlist: ' + error.message)
+    const deleted = await deletePlaylist(playlistId, playlistName)
+    if (deleted && pathname === `/playlist/${playlistId}`) {
+      router.push('/')
     }
   }
 

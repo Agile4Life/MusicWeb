@@ -25,6 +25,7 @@ import { Playlist } from '@/types'
 import { isAdmin, getValidUserId } from '@/lib/accessControl'
 import { useSession, signOut } from 'next-auth/react'
 import { useLanguage } from '@/components/i18n/LanguageContext'
+import { usePlaylists } from '@/components/playlist/PlaylistContext'
 
 export function MobileHeaderNav() {
   const { t } = useLanguage()
@@ -32,9 +33,8 @@ export function MobileHeaderNav() {
   const router = useRouter()
   const supabase = createClient()
   const { data: nextAuthSession } = useSession()
+  const { playlists, createPlaylist, deletePlaylist } = usePlaylists()
   const [supabaseUser, setSupabaseUser] = useState<any>(null)
-  const [playlists, setPlaylists] = useState<Playlist[]>([])
-  const [creating, setCreating] = useState(false)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
   const user = supabaseUser || (nextAuthSession?.user ? {
@@ -43,47 +43,16 @@ export function MobileHeaderNav() {
     user_metadata: { full_name: nextAuthSession.user.name, avatar_url: nextAuthSession.user.image }
   } : null)
 
-  const loadPlaylists = async () => {
-    const { data: { user: currentUser } } = await supabase.auth.getUser()
-    setSupabaseUser(currentUser)
-
-    const activeUser = currentUser || (nextAuthSession?.user ? {
-      id: nextAuthSession.user.email,
-      email: nextAuthSession.user.email,
-    } : null)
-
-    const userId = activeUser ? getValidUserId(activeUser) : null
-    if (!userId) {
-      setPlaylists([])
-      return
-    }
-
-    const { data } = await supabase
-      .from('playlists')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-
-    if (data) setPlaylists(data)
-  }
-
   useEffect(() => {
-    loadPlaylists()
-
-    const handleCustomUpdate = () => {
-      loadPlaylists()
-    }
-    window.addEventListener('playlist-updated', handleCustomUpdate)
-    return () => {
-      window.removeEventListener('playlist-updated', handleCustomUpdate)
-    }
-  }, [nextAuthSession])
+    supabase.auth.getUser().then((res: any) => {
+      setSupabaseUser(res?.data?.user || null)
+    })
+  }, [supabase])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     await signOut({ callbackUrl: '/login' })
     setSupabaseUser(null)
-    setPlaylists([])
     setIsDrawerOpen(false)
     window.location.href = '/login'
   }
@@ -95,49 +64,20 @@ export function MobileHeaderNav() {
       return
     }
 
-    setCreating(true)
-    const validUserId = getValidUserId(user)
-    const newName = `Playlist #${playlists.length + 1}`
-
-    const { data, error } = await supabase
-      .from('playlists')
-      .insert({
-        user_id: validUserId,
-        name: newName,
-        description: 'Playlist cá nhân',
-        is_public: false,
-      })
-      .select()
-      .single()
-
-    setCreating(false)
-
-    if (data && !error) {
-      setPlaylists([data, ...playlists])
-      window.dispatchEvent(new Event('playlist-updated'))
+    const created = await createPlaylist()
+    if (created && created.id) {
       setIsDrawerOpen(false)
-      router.push(`/playlist/${data.id}`)
-    } else if (error) {
-      alert('Lỗi tạo playlist: ' + error.message)
+      router.push(`/playlist/${created.id}`)
     }
   }
 
   const handleDeletePlaylist = async (e: React.MouseEvent, playlistId: string, playlistName: string) => {
     e.preventDefault()
     e.stopPropagation()
-    if (!confirm(`Bạn có chắc chắn muốn xóa playlist "${playlistName}"?`)) return
 
-    await supabase.from('playlist_tracks').delete().eq('playlist_id', playlistId)
-    const { error } = await supabase.from('playlists').delete().eq('id', playlistId)
-
-    if (!error) {
-      setPlaylists((prev) => prev.filter((p) => p.id !== playlistId))
-      window.dispatchEvent(new Event('playlist-updated'))
-      if (pathname === `/playlist/${playlistId}`) {
-        router.push('/')
-      }
-    } else {
-      alert('Lỗi xóa playlist: ' + error.message)
+    const deleted = await deletePlaylist(playlistId, playlistName)
+    if (deleted && pathname === `/playlist/${playlistId}`) {
+      router.push('/')
     }
   }
 

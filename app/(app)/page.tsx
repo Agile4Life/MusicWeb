@@ -30,16 +30,17 @@ import { useSession } from 'next-auth/react'
 import { getValidUserId, isAdmin as checkIsAdmin } from '@/lib/accessControl'
 import { useSearchParams } from 'next/navigation'
 import { extractDriveFileId, parseFilenameToTitleArtist } from '@/lib/googleDriveUpload'
+import { usePlaylists } from '@/components/playlist/PlaylistContext'
 
 export default function HomePage() {
   const supabase = createClient()
   const { playTrack, isShuffle, toggleShuffle } = usePlayer()
+  const { playlists } = usePlaylists()
   const { data: nextAuthSession } = useSession()
   const searchParams = useSearchParams()
 
   const [tracks, setTracks] = useState<Track[]>([])
   const [recentTracks, setRecentTracks] = useState<Track[]>([])
-  const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [searchSource, setSearchSource] = useState<'all' | 'youtube' | 'audius' | 'itunes' | 'spotify' | 'local'>('all')
   const [libraryTab, setLibraryTab] = useState<'all' | 'drive' | 'recent'>('recent')
@@ -202,15 +203,6 @@ export default function HomePage() {
       }
 
       if (userId) {
-        // Query user's playlists
-        const { data: playlistData } = await supabase
-          .from('playlists')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false })
-
-        if (playlistData) setPlaylists(playlistData)
-
         // Query Recently Played Songs strictly for CURRENT user_id
         const { data: historyData } = await supabase
           .from('listening_history')
@@ -234,7 +226,6 @@ export default function HomePage() {
           setRecentTracks([])
         }
       } else {
-        setPlaylists([])
         setRecentTracks([])
       }
     } catch (err) {
@@ -930,10 +921,10 @@ export default function HomePage() {
           <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none touch-pan-x shrink-0 whitespace-nowrap">
             <button
               onClick={() => setSearchSource('all')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border ${
                 searchSource === 'all'
-                  ? 'bg-white text-black shadow-md'
-                  : 'bg-white/5 text-slate-400 hover:text-white border border-white/10'
+                  ? 'bg-white text-black border-white shadow-md'
+                  : 'bg-white/5 text-slate-400 hover:text-white border-white/10'
               }`}
             >
               Tất cả ({globalTracks.local.length + globalTracks.spotify.length + globalTracks.itunes.length + globalTracks.youtube.length + globalTracks.audius.length})
@@ -941,10 +932,10 @@ export default function HomePage() {
 
             <button
               onClick={() => setSearchSource('spotify')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border ${
                 searchSource === 'spotify'
-                  ? 'bg-emerald-500 text-black shadow-md'
-                  : 'bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 border border-emerald-500/20'
+                  ? 'bg-emerald-500 text-black border-emerald-500 shadow-md'
+                  : 'bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 border-emerald-500/20'
               }`}
             >
               Spotify ({globalTracks.spotify.length})
@@ -952,10 +943,10 @@ export default function HomePage() {
 
             <button
               onClick={() => setSearchSource('itunes')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border ${
                 searchSource === 'itunes'
-                  ? 'bg-pink-600 text-white shadow-md'
-                  : 'bg-pink-500/10 text-pink-300 hover:bg-pink-500/20 border border-pink-500/20'
+                  ? 'bg-pink-600 text-white border-pink-600 shadow-md'
+                  : 'bg-pink-500/10 text-pink-300 hover:bg-pink-500/20 border-pink-500/20'
               }`}
             >
               iTunes ({globalTracks.itunes.length})
@@ -963,10 +954,10 @@ export default function HomePage() {
 
             <button
               onClick={() => setSearchSource('youtube')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border ${
                 searchSource === 'youtube'
-                  ? 'bg-red-500 text-white shadow-md'
-                  : 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20'
+                  ? 'bg-red-500 text-white border-red-500 shadow-md'
+                  : 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border-red-500/20'
               }`}
             >
               YouTube ({globalTracks.youtube.length})
@@ -974,10 +965,10 @@ export default function HomePage() {
 
             <button
               onClick={() => setSearchSource('audius')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border ${
                 searchSource === 'audius'
-                  ? 'bg-purple-600 text-white shadow-md'
-                  : 'bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 border border-purple-500/20'
+                  ? 'bg-purple-600 text-white border-purple-600 shadow-md'
+                  : 'bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 border-purple-500/20'
               }`}
             >
               Audius ({globalTracks.audius.length})
@@ -985,10 +976,10 @@ export default function HomePage() {
 
             <button
               onClick={() => setSearchSource('local')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border ${
                 searchSource === 'local'
-                  ? 'bg-emerald-500 text-black shadow-md'
-                  : 'bg-white/5 text-slate-400 hover:text-white border border-white/10'
+                  ? 'bg-cyan-500 text-black border-cyan-500 shadow-md'
+                  : 'bg-white/5 text-slate-400 hover:text-white border-white/10'
               }`}
             >
               Thư viện ({globalTracks.local.length})

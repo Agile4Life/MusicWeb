@@ -50,6 +50,7 @@ html, body {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   font-family: var(--font-sans);
+  scrollbar-gutter: stable;
 }
 
 body {
