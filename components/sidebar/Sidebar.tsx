@@ -17,6 +17,7 @@ import {
   Heart,
   History,
   Trash2,
+  DiscAlbum,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
@@ -116,6 +117,19 @@ export function Sidebar() {
           >
             <Home className={`w-4 h-4 ${pathname === '/' ? 'text-[var(--primary-spotify,#06b6d4)]' : ''}`} />
             <span>{t('home')}</span>
+          </Link>
+
+          <Link
+            href="/albums"
+            prefetch={false}
+            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors duration-150 ${
+              pathname.startsWith('/albums') || pathname.startsWith('/album/')
+                ? 'bg-white/10 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
+            }`}
+          >
+            <DiscAlbum className={`w-4 h-4 ${pathname.startsWith('/albums') || pathname.startsWith('/album/') ? 'text-[var(--primary-spotify,#06b6d4)]' : ''}`} />
+            <span>{t('albums', 'Albums')}</span>
           </Link>
 
           <Link

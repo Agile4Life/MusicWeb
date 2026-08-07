@@ -18,6 +18,7 @@ export const translations: Record<Language, Record<string, string>> = {
   vi: {
     // Navigation
     home: 'Trang chủ',
+    albums: 'Albums',
     drive: 'Google Drive Sync',
     favorites: 'Bài hát yêu thích',
     history: 'Lịch sử phát',

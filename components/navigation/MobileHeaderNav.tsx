@@ -19,6 +19,7 @@ import {
   History,
   Settings,
   Trash2,
+  DiscAlbum,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
@@ -129,6 +130,17 @@ export function MobileHeaderNav() {
         </Link>
 
         <Link
+          href="/albums"
+          prefetch={false}
+          className={`flex flex-col items-center gap-1 transition-colors ${
+            pathname.startsWith('/albums') || pathname.startsWith('/album/') ? 'text-[var(--primary-spotify,#06b6d4)] font-bold' : 'text-slate-400'
+          }`}
+        >
+          <DiscAlbum className="w-5 h-5" />
+          <span className="text-[10px]">Albums</span>
+        </Link>
+
+        <Link
           href="/drive"
           prefetch={false}
           className={`flex flex-col items-center gap-1 transition-colors ${
@@ -207,6 +219,18 @@ export function MobileHeaderNav() {
                 >
                   <Home className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
                   <span>Trang chủ</span>
+                </Link>
+
+                <Link
+                  href="/albums"
+                  prefetch={false}
+                  onClick={() => setIsDrawerOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold ${
+                    pathname.startsWith('/albums') || pathname.startsWith('/album/') ? 'bg-white/10 text-white font-bold' : 'text-slate-200 hover:bg-white/5'
+                  }`}
+                >
+                  <DiscAlbum className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
+                  <span>Albums</span>
                 </Link>
 
                 <Link

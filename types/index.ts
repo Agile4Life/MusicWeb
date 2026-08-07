@@ -4,6 +4,7 @@ export interface Track {
   title: string
   artist_id?: string | null
   album_id?: string | null
+  spotify_album_id?: string | null
   artist_name?: string | null
   album_title?: string | null
   artist?: string | null
@@ -23,6 +24,8 @@ export interface Track {
   audius_id?: string
   itunes_id?: string | number
   spotify_id?: string
+  disc_number?: number
+  track_number?: number
 }
 
 export interface Playlist {

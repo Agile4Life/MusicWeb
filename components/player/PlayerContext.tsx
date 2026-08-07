@@ -630,6 +630,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             }
             rawTrack.youtube_id = bestMatch.youtube_id
             track.youtube_id = bestMatch.youtube_id
+            if (track.id && !track.id.startsWith('spotify-')) {
+              supabase.from('tracks').update({ youtube_id: bestMatch.youtube_id }).eq('id', track.id).then((res: any) => {
+                if (res?.error) console.warn('Failed to persist youtube_id:', res.error.message)
+              })
+            }
             if (requestId === playRequestRef.current) {
               setCurrentTrack(activeTrack)
             }
