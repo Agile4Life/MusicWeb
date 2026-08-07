@@ -43,16 +43,15 @@ export async function GET(request: Request) {
       }
 
       const trendingPromise = (async () => {
-        const [ytTrending, audiusTrending, itunesTrending, spotifyTrending] = await Promise.all([
+        const [ytTrending, itunesTrending, spotifyTrending] = await Promise.all([
           getTrendingYouTubeTracks(8).catch(() => []),
-          getTrendingAudiusTracks(8).catch(() => []),
           getTrendingITunesTracks(8).catch(() => []),
           getTrendingSpotifyTracks(8).catch(() => []),
         ])
 
         return {
           youtube: ytTrending,
-          audius: audiusTrending,
+          audius: [],
           itunes: itunesTrending,
           spotify: spotifyTrending,
         }
@@ -98,14 +97,15 @@ export async function GET(request: Request) {
     }
   }
 
-  // 3. Create single shared promise for this query
+  // 3. Create single shared promise for this query using Smart Sequential Fallback
   const searchPromise = (async () => {
-    const promises: Array<Promise<any>> = []
+    // Phase 1: Search Primary Sources (Local Supabase + Spotify + YouTube) in parallel
+    const primaryPromises: Array<Promise<any>> = []
 
     // 1. Search local Supabase tracks
     if (source === 'all' || source === 'local') {
       const supabase = await createClient()
-      promises.push(
+      primaryPromises.push(
         (async () => {
           try {
             const cleanQuery = q.trim().replace(/[,()%"\\]/g, ' ').replace(/\s+/g, ' ').trim()
@@ -122,40 +122,36 @@ export async function GET(request: Request) {
         })()
       )
     } else {
-      promises.push(Promise.resolve([]))
+      primaryPromises.push(Promise.resolve([]))
     }
 
-    // 2. Search YouTube tracks
-    if (source === 'all' || source === 'youtube' || source === 'spotify' || source === 'itunes') {
-      promises.push(searchYouTubeTracks(q.trim(), 10).catch(() => []))
-    } else {
-      promises.push(Promise.resolve([]))
-    }
-
-    // 3. Search Audius tracks
-    if (source === 'all' || source === 'audius') {
-      promises.push(searchAudiusTracks(q.trim(), 10).catch(() => []))
-    } else {
-      promises.push(Promise.resolve([]))
-    }
-
-    // 4. Search iTunes Global tracks
-    if (source === 'all' || source === 'itunes') {
-      promises.push(searchITunesTracks(q.trim(), 10).catch(() => []))
-    } else {
-      promises.push(Promise.resolve([]))
-    }
-
-    // 5. Search Spotify Global tracks
+    // 2. Search Spotify Global tracks (Primary Catalog)
     if (source === 'all' || source === 'spotify') {
-      promises.push(searchSpotifyTracks(q.trim(), 10).catch(() => []))
+      primaryPromises.push(searchSpotifyTracks(q.trim(), 10).catch(() => []))
     } else {
-      promises.push(Promise.resolve([]))
+      primaryPromises.push(Promise.resolve([]))
     }
 
-    const [localTracks, youtubeTracks, audiusTracks, itunesTracks, spotifyTracks] = await Promise.all(promises)
+    // 3. Search YouTube tracks (for stream ID matching)
+    if (source === 'all' || source === 'youtube' || source === 'spotify' || source === 'itunes') {
+      primaryPromises.push(searchYouTubeTracks(q.trim(), 10).catch(() => []))
+    } else {
+      primaryPromises.push(Promise.resolve([]))
+    }
 
-    // Pre-assign YouTube stream IDs for Spotify & iTunes tracks using smart matching (avoiding wrong / 40+ min compilations)
+    const [localTracks, spotifyTracks, youtubeTracks] = await Promise.all(primaryPromises)
+
+    // Phase 2: Sequential Fallback to iTunes API
+    // Only search iTunes if Spotify returned 0 results or if user specifically requested source === 'itunes'
+    let itunesTracks: Track[] = []
+    if ((source === 'all' && spotifyTracks.length === 0) || source === 'itunes') {
+      itunesTracks = await searchITunesTracks(q.trim(), 10).catch(() => [])
+    }
+
+    // Phase 3: Audius is temporarily disabled for speed (return empty array)
+    const audiusTracks: Track[] = []
+
+    // Pre-assign YouTube stream IDs for Spotify & iTunes tracks using smart matching
     const enhancedSpotify = spotifyTracks.map((sTrack: Track) => {
       if (sTrack.youtube_id) return sTrack
       const match = findBestYouTubeMatch(youtubeTracks, sTrack.title, sTrack.artist, sTrack.duration)
@@ -173,7 +169,7 @@ export async function GET(request: Request) {
     return {
       local: localTracks,
       youtube: youtubeTracks.filter(minDurationFilter),
-      audius: audiusTracks.filter(minDurationFilter),
+      audius: audiusTracks,
       itunes: enhancedITunes.filter(minDurationFilter),
       spotify: enhancedSpotify.filter(minDurationFilter),
     }
