@@ -9,6 +9,7 @@ import { getValidUserId } from '@/lib/accessControl'
 import { deduplicateQueueTracks } from '@/lib/utils'
 import { findBestYouTubeMatch, normalizeTitle } from '@/lib/youtube'
 import { fetchUnifiedSearch } from '@/lib/searchApi'
+import { getSmartRecommendedTracks } from '@/lib/smartRecommend'
 
 export type RepeatMode = 'off' | 'all' | 'one'
 
@@ -165,6 +166,23 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   >(async () => {})
   const nextTrackRef = useRef<() => void>(() => {})
   const prevTrackRef = useRef<() => void>(() => {})
+
+  const autoFetchSmartQueueRef = useRef(false)
+
+  const triggerSmartQueueFill = useCallback(async (seedTrack: Track, currentQ: Track[]) => {
+    if (!seedTrack || autoFetchSmartQueueRef.current) return
+    autoFetchSmartQueueRef.current = true
+    try {
+      const recs = await getSmartRecommendedTracks(seedTrack, currentQ, 8)
+      if (recs && recs.length > 0) {
+        setQueue((prev) => deduplicateQueueTracks([...prev, ...recs]))
+      }
+    } catch (err) {
+      console.warn('Smart queue auto-fill warning:', err)
+    } finally {
+      autoFetchSmartQueueRef.current = false
+    }
+  }, [])
 
   const supabase = createClient()
 
@@ -593,6 +611,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     setPlaybackError(null)
     savePlayerStateToStorage(track, initialTime, nextQueue, nextIndex, volume)
 
+    // 🧠 SMART AUTOPLAY: Automatically fill queue with matching genre & region tracks when starting track from main feed
+    if (nextQueue.length <= 5) {
+      triggerSmartQueueFill(track, nextQueue)
+    }
+
     // 🎵 Full-Length Stream Resolver for iTunes & Spotify tracks (Resolves DRM/metadata into 100% playable full song)
     let activeTrack = track
     if ((track.source === 'itunes' || track.source === 'spotify' || (!track.youtube_id && (track.spotify_id || track.itunes_id))) && !track.youtube_id) {
@@ -963,6 +986,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
     setCurrentIndex(nextIdx)
     playTrack(q[nextIdx], undefined, nextIdx)
+
+    // Auto-fetch next batch of matching recommendations when queue is near end
+    if (nextIdx >= q.length - 2) {
+      triggerSmartQueueFill(q[nextIdx], q)
+    }
   }
 
   const prevTrack = () => {
