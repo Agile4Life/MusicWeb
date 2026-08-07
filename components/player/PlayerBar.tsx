@@ -105,11 +105,11 @@ export function PlayerBar() {
     <>
       {/* 📱 MOBILE FLOATING MINI PLAYER BAR (Visible on < 768px) */}
       <div className="md:hidden fixed bottom-[68px] left-3 right-3 z-40 bg-[#0d1017]/95 backdrop-blur-2xl border border-white/10 rounded-2xl p-2.5 pb-3 shadow-2xl select-none overflow-hidden">
-        <div className="flex items-center justify-between gap-3">
-          {/* Tap to expand full mobile player */}
+        <div className="grid grid-cols-12 items-center w-full">
+          {/* Left Zone: Cover + Title/Artist */}
           <div
             onClick={() => setShowMobileFullPlayer(true)}
-            className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer active:opacity-80"
+            className="col-span-5 flex items-center gap-2.5 min-w-0 cursor-pointer active:opacity-80"
           >
             <div className="w-10 h-10 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 relative">
               {currentTrack.cover_url ? (
@@ -123,7 +123,7 @@ export function PlayerBar() {
               )}
             </div>
 
-            <div className="flex flex-col truncate flex-1 min-w-0">
+            <div className="flex flex-col truncate min-w-0">
               <span className="text-xs font-bold text-white truncate">{currentTrack.title}</span>
               <span className="text-[10px] text-slate-400 truncate">
                 {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
@@ -131,11 +131,11 @@ export function PlayerBar() {
             </div>
           </div>
 
-          {/* Quick Touch Controls */}
-          <div className="flex items-center gap-0.5 xs:gap-1 shrink-0">
+          {/* Center Zone: Playback Controls (SkipBack - PLAY - SkipForward) */}
+          <div className="col-span-5 flex items-center justify-center gap-0.5 xs:gap-1">
             <button
               onClick={prevTrack}
-              className="w-8 h-9 flex items-center justify-center text-slate-300 active:text-white active:scale-95 transition-transform"
+              className="w-7 h-9 flex items-center justify-center text-slate-300 active:text-white active:scale-95 transition-transform"
               title="Bài trước"
             >
               <SkipBack className="w-4 h-4" />
@@ -151,12 +151,15 @@ export function PlayerBar() {
 
             <button
               onClick={nextTrack}
-              className="w-8 h-9 flex items-center justify-center text-slate-300 active:text-white active:scale-95 transition-transform"
+              className="w-7 h-9 flex items-center justify-center text-slate-300 active:text-white active:scale-95 transition-transform"
               title="Bài kế tiếp"
             >
               <SkipForward className="w-4 h-4" />
             </button>
+          </div>
 
+          {/* Right Zone: Favorite Heart */}
+          <div className="col-span-2 flex items-center justify-end">
             <button
               onClick={(e) => {
                 e.stopPropagation()
