@@ -273,6 +273,14 @@ export default function HomePage() {
     return result
   }, [trendingTracks])
 
+  const displayTrending: Track[] = useMemo(() => {
+    if (combinedTrendingTracks.length === 0) return []
+    if (combinedTrendingTracks.length >= 18) return combinedTrendingTracks.slice(0, 18)
+    if (combinedTrendingTracks.length >= 12) return combinedTrendingTracks.slice(0, 12)
+    const count = Math.floor(combinedTrendingTracks.length / 6) * 6
+    return combinedTrendingTracks.slice(0, Math.max(count, 6))
+  }, [combinedTrendingTracks])
+
   // Fetch initial page data
   useEffect(() => {
     fetchData()
@@ -739,9 +747,9 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
-          ) : combinedTrendingTracks.length > 0 ? (
+          ) : displayTrending.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              {combinedTrendingTracks.slice(0, 12).map((t) => (
+              {displayTrending.map((t) => (
                 <div
                   key={t.id}
                   onClick={() => playTrack(t, combinedTrendingTracks)}
