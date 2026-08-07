@@ -67,6 +67,45 @@ export function buildDriveStreamUrl(fileId: string): string {
   return `/api/drive-stream?id=${encodeURIComponent(fileId)}`;
 }
 
+export function isPreviewUrl(filePath: string): boolean {
+  if (!filePath) return false
+  const lower = filePath.toLowerCase()
+  return (
+    lower.includes('preview') ||
+    lower.includes('audio-ssl.itunes.apple.com') ||
+    lower.includes('p.scdn.co') ||
+    lower.includes('spotify.com')
+  )
+}
+
+export async function verifyDriveFile(filePath: string): Promise<{ valid: boolean; driveId?: string; streamUrl?: string }> {
+  if (!filePath || isPreviewUrl(filePath)) {
+    return { valid: false }
+  }
+
+  const driveId = extractDriveFileId(filePath)
+  if (!driveId) {
+    if (filePath.startsWith('http') && !filePath.includes('drive.google.com')) {
+      return { valid: true, streamUrl: filePath }
+    }
+    return { valid: false }
+  }
+
+  const streamUrl = buildDriveStreamUrl(driveId)
+
+  try {
+    const res = await fetch(streamUrl, { method: 'HEAD', cache: 'no-store' })
+    if (res.ok || res.status === 206) {
+      return { valid: true, driveId, streamUrl }
+    }
+  } catch (err) {
+    console.warn(`[Drive Verify] Verification failed for driveId ${driveId}:`, err)
+  }
+
+  return { valid: false, driveId }
+}
+
+
 export function extractDriveFileId(filePath: string): string | null {
   if (!filePath) return null
   const trimmed = filePath.trim()

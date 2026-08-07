@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useRef, useEffect } from 'react'
 import { Track } from '@/types'
 import { createClient } from '@/lib/supabase/client'
-import { extractDriveFileId, getAuthorizedDriveStreamUrl } from '@/lib/googleDriveUpload'
+import { extractDriveFileId, isPreviewUrl, verifyDriveFile } from '@/lib/googleDriveUpload'
 import { useSession } from 'next-auth/react'
 import { getValidUserId } from '@/lib/accessControl'
 import { deduplicateQueueTracks } from '@/lib/utils'
@@ -559,7 +559,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // 🎵 Full-Length Stream Resolver for iTunes & Spotify tracks (Resolves DRM/metadata into 100% playable full song)
     let activeTrack = track
     if ((track.source === 'itunes' || track.source === 'spotify' || (!track.youtube_id && (track.spotify_id || track.itunes_id))) && !track.youtube_id) {
-      // 🚀 STEP 1: Search local Supabase / Drive tracks FIRST before resolving to YouTube
+      // 🚀 STEP 1: Search local Supabase / Drive tracks FIRST and VERIFY accessibility on Drive
       try {
         const cleanTitle = normalizeTitle(track.title)
         const cleanArtist = normalizeTitle(track.artist || '')
@@ -569,10 +569,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             .from('tracks')
             .select('*')
             .or(`title.ilike.%${cleanTitle}%,artist.ilike.%${cleanTitle}%`)
-            .limit(5)
+            .limit(10)
 
           if (localMatches && localMatches.length > 0) {
-            const bestDriveMatch = localMatches.find((lt: any) => {
+            const driveCandidates = localMatches.filter((lt: any) => {
+              if (!lt.file_path || isPreviewUrl(lt.file_path)) return false
               const ltTitle = normalizeTitle(lt.title)
               const ltArtist = normalizeTitle(lt.artist || '')
               const titleMatches = ltTitle.includes(cleanTitle) || cleanTitle.includes(ltTitle)
@@ -580,21 +581,25 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               return titleMatches && artistMatches
             })
 
-            if (bestDriveMatch && bestDriveMatch.file_path) {
-              activeTrack = {
-                ...bestDriveMatch,
-                source: 'local',
-                cover_url: track.cover_url || bestDriveMatch.cover_url,
-              }
-              if (requestId === playRequestRef.current) {
-                setCurrentTrack(activeTrack)
-                if (audioRef.current) {
-                  audioRef.current.src = bestDriveMatch.file_path
-                  audioRef.current.currentTime = initialTime
-                  audioRef.current.volume = volumeRef.current
-                  await audioRef.current.play()
-                  setIsPlaying(true)
-                  return
+            for (const candidate of driveCandidates) {
+              const verification = await verifyDriveFile(candidate.file_path)
+              if (verification.valid) {
+                activeTrack = {
+                  ...candidate,
+                  source: 'local',
+                  cover_url: track.cover_url || candidate.cover_url,
+                }
+                if (requestId === playRequestRef.current) {
+                  setCurrentTrack(activeTrack)
+                  const streamUrl = verification.streamUrl || (await getAudioUrl(activeTrack))
+                  if (audioRef.current && streamUrl) {
+                    audioRef.current.src = streamUrl
+                    audioRef.current.currentTime = initialTime
+                    audioRef.current.volume = volumeRef.current
+                    await audioRef.current.play()
+                    setIsPlaying(true)
+                    return
+                  }
                 }
               }
             }
