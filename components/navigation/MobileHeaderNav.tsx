@@ -211,18 +211,6 @@ export function MobileHeaderNav() {
                 </Link>
 
                 <Link
-                  href="/albums"
-                  prefetch={false}
-                  onClick={() => setIsDrawerOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold ${
-                    pathname.startsWith('/albums') || pathname.startsWith('/album/') ? 'bg-white/10 text-white font-bold' : 'text-slate-200 hover:bg-white/5'
-                  }`}
-                >
-                  <DiscAlbum className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
-                  <span>Albums</span>
-                </Link>
-
-                <Link
                   href="/drive"
                   prefetch={false}
                   onClick={() => setIsDrawerOpen(false)}
