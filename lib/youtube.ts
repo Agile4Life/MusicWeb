@@ -211,7 +211,11 @@ export const LONG_COMPILATION_KEYWORDS = [
   '40 min', '40p', '45 min', '30 min', '50 min', '60 min',
   'full album', 'tổng hợp', 'tuyển tập', 'nonstop', 'loop',
   'extended mix', 'playlist', 'danh sách nhạc', 'nhạc trẻ tổng hợp',
-  'nhạc trẻ hay nhất', 'top 50', 'top 100', 'top 20', 'best of', 'mashup'
+  'nhạc trẻ hay nhất', 'top 50', 'top 100', 'top 20', 'best of', 'mashup',
+  'top vpop', 'nhiều lượt xem', 'most viewed', 'bảng xếp hạng', 'top bài hát',
+  'tổng hợp vpop', 'top nhạc', 'nhạc tuần', 'nhạc tháng', 'tuần 1', 'tuần 2',
+  'tuần 3', 'tuần 4', 'tháng 1', 'tháng 2', 'tháng 3', 'tháng 4', 'tháng 5',
+  'tháng 6', 'tháng 7', 'tháng 8', 'tháng 9', 'tháng 10', 'tháng 11', 'tháng 12'
 ]
 
 export const NEGATIVE_KEYWORDS = [

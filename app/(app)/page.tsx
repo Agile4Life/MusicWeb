@@ -32,6 +32,7 @@ import { useSearchParams } from 'next/navigation'
 import { extractDriveFileId, parseFilenameToTitleArtist } from '@/lib/googleDriveUpload'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { useSearch } from '@/components/search/SearchContext'
+import { LONG_COMPILATION_KEYWORDS } from '@/lib/youtube'
 
 export default function HomePage() {
   const supabase = createClient()
@@ -258,7 +259,12 @@ export default function HomePage() {
 
       const key = `${cleanTitle}_${cleanArtist}`
 
-      if (!seenKeys.has(key)) {
+      // Filter out long compilation mixes, charts, or top 50 videos
+      const isCompilation = LONG_COMPILATION_KEYWORDS.some((kw) =>
+        cleanTitle.includes(kw) || cleanArtist.includes(kw)
+      )
+
+      if (!isCompilation && !seenKeys.has(key)) {
         seenKeys.add(key)
         result.push(track)
       }
