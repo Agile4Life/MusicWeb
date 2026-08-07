@@ -104,12 +104,14 @@ export function PlayerBar() {
   return (
     <>
       {/* 📱 MOBILE FLOATING MINI PLAYER BAR (Visible on < 768px) */}
-      <div className="md:hidden fixed bottom-[68px] left-3 right-3 z-40 bg-[#0d1017]/95 backdrop-blur-2xl border border-white/10 rounded-2xl p-2.5 pb-3 shadow-2xl select-none overflow-hidden">
+      <div
+        onClick={() => setShowMobileFullPlayer(true)}
+        className="md:hidden fixed bottom-[68px] left-3 right-3 z-40 bg-[#0d1017]/95 backdrop-blur-2xl border border-white/10 rounded-2xl p-2.5 pb-3 shadow-2xl select-none overflow-hidden cursor-pointer active:opacity-95"
+      >
         <div className="relative flex items-center justify-between w-full h-10">
           {/* Left Zone: Cover + Title/Artist */}
           <div
-            onClick={() => setShowMobileFullPlayer(true)}
-            className="flex items-center gap-2.5 min-w-0 max-w-[105px] xs:max-w-[140px] sm:max-w-[180px] cursor-pointer active:opacity-80 z-10 shrink-0 overflow-hidden"
+            className="flex items-center gap-2.5 min-w-0 max-w-[105px] xs:max-w-[140px] sm:max-w-[180px] z-10 shrink-0 overflow-hidden"
           >
             <div className="w-10 h-10 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 relative">
               {currentTrack.cover_url ? (
@@ -144,7 +146,10 @@ export function PlayerBar() {
           {/* Center Zone: Absolute 50% Centered Playback Controls */}
           <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center gap-1 z-20 pointer-events-auto">
             <button
-              onClick={prevTrack}
+              onClick={(e) => {
+                e.stopPropagation()
+                prevTrack()
+              }}
               className="p-2 text-slate-300 active:text-white active:scale-95 transition-transform flex items-center justify-center"
               title="Bài trước"
             >
@@ -152,7 +157,10 @@ export function PlayerBar() {
             </button>
 
             <button
-              onClick={togglePlay}
+              onClick={(e) => {
+                e.stopPropagation()
+                togglePlay()
+              }}
               className="w-9.5 h-9.5 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center font-bold shadow-md active:scale-95 transition-transform shrink-0"
               title={isPlaying ? 'Tạm dừng' : 'Phát'}
             >
@@ -160,7 +168,10 @@ export function PlayerBar() {
             </button>
 
             <button
-              onClick={nextTrack}
+              onClick={(e) => {
+                e.stopPropagation()
+                nextTrack()
+              }}
               className="p-2 text-slate-300 active:text-white active:scale-95 transition-transform flex items-center justify-center"
               title="Bài kế tiếp"
             >
