@@ -10,6 +10,8 @@ import { useSession } from 'next-auth/react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
+import { deduplicateQueueTracks } from '@/lib/utils'
+
 export function TopBar() {
   const router = useRouter()
   const pathname = usePathname()
@@ -44,7 +46,7 @@ export function TopBar() {
       ...(globalTracks.youtube || []),
       ...(globalTracks.audius || []),
     ]
-    return combined.slice(0, 6)
+    return deduplicateQueueTracks(combined).slice(0, 6)
   }, [globalTracks])
 
   useEffect(() => {

@@ -19,35 +19,33 @@ export function deduplicateQueueTracks(tracks: Track[]): Track[] {
   for (const track of tracks) {
     if (!track || !track.title) continue
 
-    let rawTitle = (track.title || '').normalize('NFKC').toLowerCase()
-    let rawArtist = (track.artist || '').normalize('NFKC').toLowerCase()
-
-    // 1. Strip leading artist prefix e.g. "Ngọt - Xanh" -> "Xanh"
-    if (rawArtist && rawTitle.startsWith(rawArtist)) {
-      rawTitle = rawTitle.slice(rawArtist.length).replace(/^[\s._-]+/, '')
-    }
-    // 2. Strip trailing artist suffix e.g. "Xanh - Ngọt" -> "Xanh"
-    if (rawArtist && rawTitle.endsWith(rawArtist)) {
-      rawTitle = rawTitle.slice(0, -rawArtist.length).replace(/[\s._-]+$/, '')
-    }
-
-    rawTitle = rawTitle
-      .replace(/^[^-]+-\s*/, '')
-      .replace(/\s*-[^-]+$/, '')
-      .replace(/\([^)]*\)/g, '')
-      .replace(/\[[^\]]*\]/g, '')
-      .replace(/[\s._-]+/g, ' ')
+    const cleanTitle = (track.title || '')
+      .normalize('NFC')
+      .replace(/[\(\[\{](official|mv|audio|lyric video|video|hd|4k)[\)\]\}]/gi, '')
+      .toLowerCase()
       .trim()
+      .replace(/\s+/g, ' ')
 
-    rawArtist = rawArtist.replace(/[\s._-]+/g, ' ').trim()
+    const cleanArtist = (track.artist || '')
+      .normalize('NFC')
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, ' ')
 
     const driveId = extractDriveId(track.file_path || '')
-    const key = driveId ? `drive_${driveId}` : `${rawTitle}|||${rawArtist}`
+    const idKey = track.id ? `id_${track.id}` : null
+    const driveKey = driveId ? `drive_${driveId}` : null
+    const metaKey = `${cleanTitle}|||${cleanArtist}`
 
-    if (!seenKeys.has(key)) {
-      seenKeys.add(key)
-      unique.push(track)
-    }
+    if (idKey && seenKeys.has(idKey)) continue
+    if (driveKey && seenKeys.has(driveKey)) continue
+    if (seenKeys.has(metaKey)) continue
+
+    if (idKey) seenKeys.add(idKey)
+    if (driveKey) seenKeys.add(driveKey)
+    seenKeys.add(metaKey)
+
+    unique.push(track)
   }
 
   return unique
