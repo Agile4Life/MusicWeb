@@ -116,69 +116,58 @@ export function MobileHeaderNav() {
       </div>
 
       {/* 📱 Mobile Bottom Navigation Bar (< 768px) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 h-16 bg-[#090b10]/95 backdrop-blur-2xl border-t border-white/[0.05] px-6 flex items-center justify-around select-none">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 h-16 bg-[#090b10]/95 backdrop-blur-2xl border-t border-white/[0.05] grid grid-cols-5 items-center select-none px-1">
         <Link
           href="/"
           prefetch={false}
           onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
-          className={`flex flex-col items-center gap-1 transition-colors ${
+          className={`flex flex-col items-center justify-center gap-1 transition-colors ${
             pathname === '/' ? 'text-[var(--primary-spotify,#06b6d4)] font-bold' : 'text-slate-400'
           }`}
         >
           <Home className="w-5 h-5" />
-          <span className="text-[10px]">Trang chủ</span>
+          <span className="text-[10px] truncate max-w-full">Trang chủ</span>
         </Link>
-
-        {/* <Link
-          href="/albums"
-          prefetch={false}
-          className={`flex flex-col items-center gap-1 transition-colors ${
-            pathname.startsWith('/albums') || pathname.startsWith('/album/') ? 'text-[var(--primary-spotify,#06b6d4)] font-bold' : 'text-slate-400'
-          }`}
-        >
-          <DiscAlbum className="w-5 h-5" />
-          <span className="text-[10px]">Albums</span>
-        </Link> */}
 
         <Link
           href="/drive"
           prefetch={false}
-          className={`flex flex-col items-center gap-1 transition-colors ${
+          className={`flex flex-col items-center justify-center gap-1 transition-colors ${
             pathname === '/drive' ? 'text-[var(--spotify-glow,#22d3ee)] font-bold' : 'text-slate-400'
           }`}
         >
           <Cloud className="w-5 h-5" />
-          <span className="text-[10px]">{t('drive')}</span>
+          <span className="text-[10px] truncate max-w-full">{t('drive')}</span>
         </Link>
 
         <Link
           href="/favorites"
           prefetch={false}
-          className={`flex flex-col items-center gap-1 transition-colors ${
+          className={`flex flex-col items-center justify-center gap-1 transition-colors ${
             pathname === '/favorites' ? 'text-rose-400 font-bold' : 'text-slate-400'
           }`}
         >
           <Heart className={`w-5 h-5 ${pathname === '/favorites' ? 'fill-current' : ''}`} />
-          <span className="text-[10px]">Yêu thích</span>
+          <span className="text-[10px] truncate max-w-full">Yêu thích</span>
         </Link>
 
         <Link
           href="/history"
           prefetch={false}
-          className={`flex flex-col items-center gap-1 transition-colors ${
+          className={`flex flex-col items-center justify-center gap-1 transition-colors ${
             pathname === '/history' ? 'text-[var(--primary-spotify,#06b6d4)] font-bold' : 'text-slate-400'
           }`}
         >
           <History className="w-5 h-5" />
-          <span className="text-[10px]">Lịch sử</span>
+          <span className="text-[10px] truncate max-w-full">Lịch sử</span>
         </Link>
 
         <button
           onClick={() => setIsDrawerOpen(true)}
-          className="flex flex-col items-center gap-1 text-slate-400"
+          className="flex flex-col items-center justify-center gap-1 text-slate-400"
         >
           <Menu className="w-5 h-5" />
-          <span className="text-[10px]">Menu</span>
+          <span className="text-[10px] truncate max-w-full">Menu</span>
         </button>
       </div>
 

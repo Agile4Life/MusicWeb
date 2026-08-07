@@ -104,7 +104,7 @@ export function PlayerBar() {
   return (
     <>
       {/* 📱 MOBILE FLOATING MINI PLAYER BAR (Visible on < 768px) */}
-      <div className="md:hidden fixed bottom-[68px] left-3 right-3 z-40 bg-[#0d1017]/95 backdrop-blur-2xl border border-white/10 rounded-2xl p-2.5 shadow-2xl select-none">
+      <div className="md:hidden fixed bottom-[68px] left-3 right-3 z-40 bg-[#0d1017]/95 backdrop-blur-2xl border border-white/10 rounded-2xl p-2.5 pb-3 shadow-2xl select-none overflow-hidden">
         <div className="flex items-center justify-between gap-3">
           {/* Tap to expand full mobile player */}
           <div
@@ -160,8 +160,8 @@ export function PlayerBar() {
           </div>
         </div>
 
-        {/* Mini progress bar on top edge */}
-        <div className="w-full h-0.5 bg-white/10 rounded-full mt-2 overflow-hidden">
+        {/* Mini progress bar on bottom edge */}
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/10 overflow-hidden">
           <div
             className="h-full bg-[var(--primary-spotify,#06b6d4)] transition-all duration-200"
             style={{ width: `${progressPercent}%` }}

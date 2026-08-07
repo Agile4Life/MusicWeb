@@ -19,7 +19,7 @@ export const translations: Record<Language, Record<string, string>> = {
     // Navigation
     home: 'Trang chủ',
     albums: 'Albums',
-    drive: 'Google Drive Sync',
+    drive: 'Drive',
     favorites: 'Bài hát yêu thích',
     history: 'Lịch sử phát',
     playlists: 'Danh sách phát',
