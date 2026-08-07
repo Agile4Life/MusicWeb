@@ -16,6 +16,7 @@ export type RepeatMode = 'off' | 'all' | 'one'
 interface PlayerContextType {
   currentTrack: Track | null
   isPlaying: boolean
+  isBuffering: boolean
   queue: Track[]
   currentIndex: number
   currentTime: number
@@ -130,6 +131,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const { data: nextAuthSession } = useSession()
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null)
   const [isPlaying, setIsPlaying] = useState<boolean>(false)
+  const [isBuffering, setIsBuffering] = useState<boolean>(false)
   const [queue, setQueue] = useState<Track[]>([])
   const [currentIndex, setCurrentIndex] = useState<number>(-1)
   const [currentTime, setCurrentTime] = useState<number>(0)
@@ -606,6 +608,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // ⚡ 2. UPDATE UI INSTANTLY (< 5ms)
     setCurrentTrack(track)
     setIsPlaying(true)
+    setIsBuffering(true)
     setCurrentTime(initialTime)
     setDuration(track.duration || 0)
     setPlaybackError(null)
@@ -1198,16 +1201,32 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    const handleWaiting = () => setIsBuffering(true)
+    const handleStalled = () => setIsBuffering(true)
+    const handleLoadStart = () => setIsBuffering(true)
+    const handleCanPlay = () => setIsBuffering(false)
+    const handlePlaying = () => setIsBuffering(false)
+
     audio.addEventListener('timeupdate', handleTimeUpdate)
     audio.addEventListener('loadedmetadata', handleLoadedMetadata)
     audio.addEventListener('ended', handleEnded)
     audio.addEventListener('error', handleError)
+    audio.addEventListener('waiting', handleWaiting)
+    audio.addEventListener('stalled', handleStalled)
+    audio.addEventListener('loadstart', handleLoadStart)
+    audio.addEventListener('canplay', handleCanPlay)
+    audio.addEventListener('playing', handlePlaying)
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate)
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
       audio.removeEventListener('ended', handleEnded)
       audio.removeEventListener('error', handleError)
+      audio.removeEventListener('waiting', handleWaiting)
+      audio.removeEventListener('stalled', handleStalled)
+      audio.removeEventListener('loadstart', handleLoadStart)
+      audio.removeEventListener('canplay', handleCanPlay)
+      audio.removeEventListener('playing', handlePlaying)
     }
   }, [currentIndex, queue, autoPlayNext, repeatMode])
 
@@ -1262,6 +1281,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     () => ({
       currentTrack,
       isPlaying,
+      isBuffering,
       queue,
       currentIndex,
       currentTime,
@@ -1290,6 +1310,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     [
       currentTrack,
       isPlaying,
+      isBuffering,
       queue,
       currentIndex,
       volume,

@@ -21,6 +21,7 @@ import {
   Repeat1,
   Heart,
   ListMusic,
+  Loader2,
 } from 'lucide-react'
 
 function formatTime(seconds: number) {
@@ -35,6 +36,7 @@ export function PlayerBar() {
   const {
     currentTrack,
     isPlaying,
+    isBuffering,
     volume,
     isShuffle,
     toggleShuffle,
@@ -104,6 +106,16 @@ export function PlayerBar() {
 
   return (
     <>
+      {/* 📱 Mobile Centered Screen Loading Toast */}
+      {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && !showMobileFullPlayer && (
+        <div className="md:hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-[#0a0d14]/95 backdrop-blur-2xl border border-cyan-500/40 px-6 py-4 rounded-2xl shadow-2xl flex flex-col items-center justify-center gap-2.5 text-center pointer-events-none">
+          <div className="w-11 h-11 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shadow-lg">
+            <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
+          </div>
+          <span className="text-xs font-extrabold text-white tracking-wide">Đang tải bản Lossless...</span>
+        </div>
+      )}
+
       {/* 📱 MOBILE FLOATING MINI PLAYER BAR (Visible on < 768px) */}
       <div
         onClick={() => setShowMobileFullPlayer(true)}
@@ -237,12 +249,20 @@ export function PlayerBar() {
 
           {/* Large Album Artwork */}
           <div className="flex-1 flex items-center justify-center my-8 relative">
-            <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-2xl bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden shadow-2xl">
+            <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-2xl bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden shadow-2xl relative">
               <TrackCoverImage
                 src={currentTrack.cover_url}
                 alt={currentTrack.title}
                 fallbackIconClassName="w-20 h-20 text-slate-600"
               />
+
+              {/* Centered Lossless Loading Overlay on Artwork */}
+              {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && (
+                <div className="absolute inset-0 bg-black/75 backdrop-blur-md flex flex-col items-center justify-center gap-2 p-4 text-center z-10">
+                  <Loader2 className="w-9 h-9 animate-spin text-cyan-400" />
+                  <span className="text-xs font-extrabold text-white tracking-wide">Đang tải bản Lossless...</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -444,6 +464,12 @@ export function PlayerBar() {
               {(!currentTrack.source || currentTrack.source === 'local') && (
                 <span className="text-[8px] font-mono font-bold uppercase bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-1 py-0.2 rounded shrink-0">
                   Drive
+                </span>
+              )}
+              {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && (
+                <span className="flex items-center gap-1 text-[10px] font-semibold text-cyan-300 bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 rounded-full animate-pulse shrink-0">
+                  <Loader2 className="w-3 h-3 animate-spin text-cyan-400 shrink-0" />
+                  <span>Đang tải bản Lossless...</span>
                 </span>
               )}
             </div>
