@@ -151,16 +151,21 @@ export function MobileHeaderNav() {
           <span className="text-[10px] truncate max-w-full">Yêu thích</span>
         </Link>
 
-        <Link
-          href="/history"
-          prefetch={false}
+        <button
+          onClick={() => {
+            if (playlists.length > 0 && !pathname.startsWith('/playlist/')) {
+              router.push(`/playlist/${playlists[0].id}`)
+            } else {
+              setIsDrawerOpen(true)
+            }
+          }}
           className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-            pathname === '/history' ? 'text-[var(--primary-spotify,#06b6d4)] font-bold' : 'text-slate-400'
+            pathname.startsWith('/playlist/') ? 'text-[var(--primary-spotify,#06b6d4)] font-bold' : 'text-slate-400'
           }`}
         >
-          <History className="w-5 h-5" />
-          <span className="text-[10px] truncate max-w-full">Lịch sử</span>
-        </Link>
+          <ListMusic className="w-5 h-5" />
+          <span className="text-[10px] truncate max-w-full">Playlist</span>
+        </button>
 
         <button
           onClick={() => setIsDrawerOpen(true)}
