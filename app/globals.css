@@ -26,13 +26,13 @@
 }
 
 @keyframes marquee-slow {
-  0%, 15% {
+  0%, 12% {
     transform: translateX(0%);
   }
-  50%, 65% {
-    transform: translateX(calc(-100% + 90px));
+  48%, 60% {
+    transform: translateX(calc(-100% + 20px));
   }
-  100% {
+  92%, 100% {
     transform: translateX(0%);
   }
 }
@@ -41,7 +41,7 @@
   display: inline-block;
   white-space: nowrap;
   will-change: transform;
-  animation: marquee-slow 8s ease-in-out infinite;
+  animation: marquee-slow 10s ease-in-out infinite;
 }
 
 
