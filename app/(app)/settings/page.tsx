@@ -6,7 +6,25 @@ import { LanguageSelector } from '@/components/i18n/LanguageSelector'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { CustomSelect } from '@/components/ui/CustomSelect'
 import { createClient } from '@/lib/supabase/client'
-import { Settings, Sliders, Volume2, HardDrive, ShieldCheck, Sparkles, Globe } from 'lucide-react'
+import { Settings, Sliders, Volume2, HardDrive, ShieldCheck, Sparkles, Globe, Bell, Mail } from 'lucide-react'
+
+function FacebookIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" {...props}>
+      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+    </svg>
+  )
+}
+
+function InstagramIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+    </svg>
+  )
+}
 
 export default function SettingsPage() {
   const { t } = useLanguage()
@@ -123,7 +141,53 @@ export default function SettingsPage() {
           </button>
         </div>
       </div>
+
+      {/* 🔔 Notifications / Thông báo từ Tác giả */}
+      <div className="bg-[#0d1017] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-4 relative overflow-hidden">
+        <div className="flex items-center gap-2 text-sm font-bold text-white border-b border-white/[0.05] pb-3">
+          <Bell className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
+          <span>Notifications / Thông báo</span>
+        </div>
+
+        <div className="flex flex-col gap-3 pt-1">
+          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-medium">
+            Trần Phong cảm ơn tất cả mọi người đã trải nghiệm web đầu tay của Phong, nếu có thắc mắc hay feedback và cần Phong thêm tính năng gì mọi người hãy liên hệ mình qua Instagram hoặc Facebook hoặc Gmail:
+          </p>
+
+          <div className="flex flex-wrap items-center gap-3.5 pt-1">
+            {/* Facebook Icon Only */}
+            <a
+              href="https://www.facebook.com/phong.trancongtuan"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2.5 rounded-xl bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/20 hover:scale-110 transition-all shadow-lg"
+              title="Facebook: phong.trancongtuan"
+            >
+              <FacebookIcon className="w-5 h-5 fill-current" />
+            </a>
+
+            {/* Instagram Icon Only */}
+            <a
+              href="https://www.instagram.com/phongtct/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2.5 rounded-xl bg-pink-600/10 hover:bg-pink-600/20 text-pink-400 border border-pink-500/20 hover:scale-110 transition-all shadow-lg"
+              title="Instagram: phongtct"
+            >
+              <InstagramIcon className="w-5 h-5" />
+            </a>
+
+            {/* Gmail Raw Text */}
+            <a
+              href="mailto:tranphong16012006@gmail.com"
+              className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-cyan-300 border border-white/10 text-xs font-mono transition-all flex items-center gap-2 hover:border-cyan-500/30"
+            >
+              <Mail className="w-4 h-4 text-cyan-400" />
+              <span>tranphong16012006@gmail.com</span>
+            </a>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
-
