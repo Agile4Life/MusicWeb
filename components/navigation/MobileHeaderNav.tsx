@@ -20,6 +20,7 @@ import {
   Settings,
   Trash2,
   DiscAlbum,
+  ChevronLeft,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
@@ -86,7 +87,23 @@ export function MobileHeaderNav() {
     <>
       {/* 📱 Mobile Top Header Bar (< 768px) */}
       <div className="md:hidden h-14 bg-[#090b10] border-b border-white/[0.05] px-3 xs:px-4 flex items-center justify-between select-none z-30 shrink-0 relative">
-        <div className="w-8 xs:w-9"></div>
+        {pathname !== '/' ? (
+          <button
+            onClick={() => {
+              if (window.history.length > 1) {
+                router.back()
+              } else {
+                router.push('/')
+              }
+            }}
+            className="p-2 text-slate-300 hover:text-white rounded-xl bg-white/[0.04] border border-white/[0.06] active:scale-95 transition-transform shrink-0"
+            title="Quay lại"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+        ) : (
+          <div className="w-9 h-9" />
+        )}
 
         <Link
           href="/"

@@ -134,28 +134,30 @@ export function PlayerBar() {
           {/* Quick Touch Controls */}
           <div className="flex items-center gap-1 shrink-0">
             <button
+              onClick={togglePlay}
+              className="w-9 h-9 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center font-bold shadow-md active:scale-95 transition-transform"
+              title={isPlaying ? 'Tạm dừng' : 'Phát'}
+            >
+              {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+            </button>
+
+            <button onClick={nextTrack} className="p-2 text-slate-400 active:text-white" title="Bài kế tiếp">
+              <SkipForward className="w-4 h-4" />
+            </button>
+
+            <button
               onClick={(e) => {
                 e.stopPropagation()
                 toggleFavoriteCurrentTrack()
               }}
               className="p-2 text-slate-400 active:text-rose-400 transition-colors"
+              title={currentTrack.is_favorite ? 'Bỏ yêu thích' : 'Thêm yêu thích'}
             >
               <Heart
                 className={`w-4 h-4 ${
                   currentTrack.is_favorite ? 'text-rose-500 fill-current' : 'text-slate-400'
                 }`}
               />
-            </button>
-
-            <button
-              onClick={togglePlay}
-              className="w-9 h-9 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center font-bold shadow-md active:scale-95 transition-transform"
-            >
-              {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
-            </button>
-
-            <button onClick={nextTrack} className="p-2 text-slate-400 active:text-white">
-              <SkipForward className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -259,43 +261,46 @@ export function PlayerBar() {
           </div>
 
           {/* Full Playback Controls */}
-          <div className="flex items-center justify-between px-4 mb-8">
+          <div className="grid grid-cols-5 items-center justify-items-center w-full px-2 mb-8">
             <button
               onClick={toggleShuffle}
-              className={`p-3 rounded-full transition-all ${
+              className={`p-3 rounded-full transition-all flex items-center justify-center ${
                 isShuffle
                   ? 'text-[var(--primary-spotify,#06b6d4)] bg-[var(--primary-spotify,#06b6d4)]/20 border border-[var(--primary-spotify,#06b6d4)]/40 shadow-lg'
                   : 'text-slate-400 hover:text-white bg-white/5'
               }`}
               title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
             >
-              <Shuffle className="w-6 h-6" />
+              <Shuffle className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
 
             <button
               onClick={prevTrack}
-              className="p-3 text-slate-300 hover:text-white active:scale-95 transition-transform"
+              className="p-3 text-slate-300 hover:text-white active:scale-95 transition-transform flex items-center justify-center"
+              title="Bài trước"
             >
-              <SkipBack className="w-8 h-8" />
+              <SkipBack className="w-7 h-7 sm:w-8 sm:h-8" />
             </button>
 
             <button
               onClick={togglePlay}
-              className="w-16 h-16 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center shadow-xl active:scale-95 transition-transform"
+              className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center shadow-xl active:scale-95 transition-transform border border-white/20 shrink-0"
+              title={isPlaying ? 'Tạm dừng' : 'Phát'}
             >
-              {isPlaying ? <Pause className="w-8 h-8 fill-current" /> : <Play className="w-8 h-8 fill-current ml-1" />}
+              {isPlaying ? <Pause className="w-7 h-7 sm:w-8 sm:h-8 fill-current" /> : <Play className="w-7 h-7 sm:w-8 sm:h-8 fill-current" />}
             </button>
 
             <button
               onClick={nextTrack}
-              className="p-3 text-slate-300 hover:text-white active:scale-95 transition-transform"
+              className="p-3 text-slate-300 hover:text-white active:scale-95 transition-transform flex items-center justify-center"
+              title="Bài kế tiếp"
             >
-              <SkipForward className="w-8 h-8" />
+              <SkipForward className="w-7 h-7 sm:w-8 sm:h-8" />
             </button>
 
             <button
               onClick={toggleRepeat}
-              className={`p-3 rounded-full transition-all ${
+              className={`p-3 rounded-full transition-all flex items-center justify-center ${
                 repeatMode !== 'off'
                   ? 'text-cyan-400 bg-cyan-500/20 border border-cyan-500/40 shadow-lg'
                   : 'text-slate-400 hover:text-white bg-white/5'
@@ -308,7 +313,7 @@ export function PlayerBar() {
                   : 'Tắt lặp lại'
               }
             >
-              {repeatMode === 'one' ? <Repeat1 className="w-6 h-6" /> : <Repeat className="w-6 h-6" />}
+              {repeatMode === 'one' ? <Repeat1 className="w-5 h-5 sm:w-6 sm:h-6" /> : <Repeat className="w-5 h-5 sm:w-6 sm:h-6" />}
             </button>
           </div>
 

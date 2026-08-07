@@ -6,7 +6,8 @@ import { Track, Playlist } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { getValidUserId } from '@/lib/accessControl'
 import { useSession } from 'next-auth/react'
-import { Heart, Play, Search, Music, Sparkles, Loader2 } from 'lucide-react'
+import { Heart, Play, Search, Music, Sparkles, Loader2, ChevronLeft } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { TrackList } from '@/components/track/TrackList'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 
@@ -40,6 +41,7 @@ function inferTrackSource(track: Track): Track {
 }
 
 export default function FavoritesPage() {
+  const router = useRouter()
   const supabase = createClient()
   const { data: nextAuthSession } = useSession()
   const { playTrack } = usePlayer()
@@ -172,7 +174,15 @@ export default function FavoritesPage() {
     <div className="p-3.5 sm:p-6 md:p-8 flex flex-col gap-4 sm:gap-6 md:gap-8 max-w-7xl mx-auto w-full pb-36 md:pb-8 select-none">
       {/* Header Banner */}
       <div className="relative overflow-hidden rounded-2xl border border-white/[0.06] p-4 sm:p-6 md:p-8 bg-[#0d1017] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
-        <div className="flex items-center gap-3.5 sm:gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <button
+            onClick={() => router.back()}
+            className="p-2 sm:p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition-colors shrink-0"
+            title="Quay lại"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+
           <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 shrink-0">
             <Heart className="w-6 h-6 sm:w-7 sm:h-7 fill-current" />
           </div>
