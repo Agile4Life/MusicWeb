@@ -470,7 +470,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           const restoredVol = typeof saved.volume === 'number' ? saved.volume : 0.8
 
           setCurrentTrack(restoredTrack)
-          setQueue(restoredQueue)
+          setQueue(deduplicateQueueTracks(restoredQueue))
           setCurrentIndex(restoredIndex)
           setCurrentTime(restoredTime)
           setVolumeState(restoredVol)
@@ -1062,7 +1062,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const insertIdx = currentIndexRef.current >= 0 ? currentIndexRef.current + 1 : prev.length
       const newQ = [...prev]
       newQ.splice(insertIdx, 0, track)
-      return newQ
+      return deduplicateQueueTracks(newQ)
     })
   }
 
