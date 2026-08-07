@@ -132,16 +132,28 @@ export function PlayerBar() {
           </div>
 
           {/* Quick Touch Controls */}
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-0.5 xs:gap-1 shrink-0">
+            <button
+              onClick={prevTrack}
+              className="p-1.5 xs:p-2 text-slate-300 hover:text-white active:scale-95 transition-transform flex items-center justify-center"
+              title="Bài trước"
+            >
+              <SkipBack className="w-4 h-4" />
+            </button>
+
             <button
               onClick={togglePlay}
-              className="w-9 h-9 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center font-bold shadow-md active:scale-95 transition-transform"
+              className="w-8.5 h-8.5 xs:w-9 xs:h-9 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center font-bold shadow-md active:scale-95 transition-transform shrink-0"
               title={isPlaying ? 'Tạm dừng' : 'Phát'}
             >
               {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
             </button>
 
-            <button onClick={nextTrack} className="p-2 text-slate-400 active:text-white" title="Bài kế tiếp">
+            <button
+              onClick={nextTrack}
+              className="p-1.5 xs:p-2 text-slate-300 hover:text-white active:scale-95 transition-transform flex items-center justify-center"
+              title="Bài kế tiếp"
+            >
               <SkipForward className="w-4 h-4" />
             </button>
 
@@ -150,7 +162,7 @@ export function PlayerBar() {
                 e.stopPropagation()
                 toggleFavoriteCurrentTrack()
               }}
-              className="p-2 text-slate-400 active:text-rose-400 transition-colors"
+              className="p-1.5 xs:p-2 text-slate-400 active:text-rose-400 transition-colors flex items-center justify-center"
               title={currentTrack.is_favorite ? 'Bỏ yêu thích' : 'Thêm yêu thích'}
             >
               <Heart
