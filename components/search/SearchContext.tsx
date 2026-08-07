@@ -1,0 +1,117 @@
+'use client'
+
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
+import { fetchUnifiedSearch, GlobalSearchTracks } from '@/lib/searchApi'
+import { Track } from '@/types'
+
+interface SearchContextType {
+  searchQuery: string
+  setSearchQuery: (query: string) => void
+  globalTracks: GlobalSearchTracks
+  searchingGlobal: boolean
+  trendingTracks: GlobalSearchTracks
+  loadingTrending: boolean
+  clearSearch: () => void
+}
+
+const emptyResults: GlobalSearchTracks = {
+  local: [],
+  youtube: [],
+  audius: [],
+  itunes: [],
+  spotify: [],
+}
+
+const SearchContext = createContext<SearchContextType | undefined>(undefined)
+
+export function SearchProvider({ children }: { children: React.ReactNode }) {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [globalTracks, setGlobalTracks] = useState<GlobalSearchTracks>(emptyResults)
+  const [searchingGlobal, setSearchingGlobal] = useState(false)
+  const [trendingTracks, setTrendingTracks] = useState<GlobalSearchTracks>(emptyResults)
+  const [loadingTrending, setLoadingTrending] = useState(false)
+
+  const activeSearchRef = useRef<number>(0)
+
+  // Fetch Trending Tracks once on initial mount
+  useEffect(() => {
+    let active = true
+    setLoadingTrending(true)
+
+    fetchUnifiedSearch('', 'all', true)
+      .then((data) => {
+        if (active) {
+          setTrendingTracks(data)
+        }
+      })
+      .finally(() => {
+        if (active) setLoadingTrending(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  // Single centralized debounced search effect
+  useEffect(() => {
+    const trimmed = searchQuery.trim()
+    if (!trimmed) {
+      setGlobalTracks(emptyResults)
+      setSearchingGlobal(false)
+      return
+    }
+
+    const currentSearchId = ++activeSearchRef.current
+    setSearchingGlobal(true)
+
+    const timer = setTimeout(async () => {
+      try {
+        const data = await fetchUnifiedSearch(trimmed, 'all', false)
+        if (activeSearchRef.current === currentSearchId) {
+          setGlobalTracks(data)
+        }
+      } catch (err) {
+        if (activeSearchRef.current === currentSearchId) {
+          setGlobalTracks(emptyResults)
+        }
+      } finally {
+        if (activeSearchRef.current === currentSearchId) {
+          setSearchingGlobal(false)
+        }
+      }
+    }, 250)
+
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery('')
+    setGlobalTracks(emptyResults)
+    setSearchingGlobal(false)
+  }, [])
+
+  return (
+    <SearchContext.Provider
+      value={{
+        searchQuery,
+        setSearchQuery,
+        globalTracks,
+        searchingGlobal,
+        trendingTracks,
+        loadingTrending,
+        clearSearch,
+      }}
+    >
+      {children}
+    </SearchContext.Provider>
+  )
+}
+
+export function useSearch() {
+  const context = useContext(SearchContext)
+  if (!context) {
+    throw new Error('useSearch must be used within a SearchProvider')
+  }
+  return context
+}

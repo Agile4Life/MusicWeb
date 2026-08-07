@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { Search, X, Music, Play, Upload, User, Loader2 } from 'lucide-react'
 import { Track } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
+import { useSearch } from '@/components/search/SearchContext'
 import { useSession } from 'next-auth/react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
@@ -13,17 +14,14 @@ export function TopBar() {
   const router = useRouter()
   const pathname = usePathname()
   const { playTrack } = usePlayer()
+  const { searchQuery, setSearchQuery, globalTracks, searchingGlobal, clearSearch } = useSearch()
   const { data: nextAuthSession } = useSession()
   const supabase = createClient()
 
-  const [query, setQuery] = useState('')
   const [supabaseUser, setSupabaseUser] = useState<any>(null)
-  const [suggestions, setSuggestions] = useState<Track[]>([])
-  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
 
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const lastDispatchedQueryRef = useRef<string>('')
 
   const user =
     supabaseUser ||
@@ -37,6 +35,17 @@ export function TopBar() {
           },
         }
       : null)
+
+  const suggestions: Track[] = React.useMemo(() => {
+    const combined = [
+      ...(globalTracks.spotify || []),
+      ...(globalTracks.local || []),
+      ...(globalTracks.itunes || []),
+      ...(globalTracks.youtube || []),
+      ...(globalTracks.audius || []),
+    ]
+    return combined.slice(0, 6)
+  }, [globalTracks])
 
   useEffect(() => {
     supabase.auth.getUser().then((res: any) => setSupabaseUser(res?.data?.user))
@@ -61,56 +70,16 @@ export function TopBar() {
   }, [])
 
   useEffect(() => {
-    const trimmed = query.trim()
-    if (!trimmed) {
-      setSuggestions([])
-      setLoadingSuggestions(false)
+    if (searchQuery.trim()) {
+      setShowDropdown(true)
+    } else {
       setShowDropdown(false)
-      if (lastDispatchedQueryRef.current !== '') {
-        lastDispatchedQueryRef.current = ''
-        window.dispatchEvent(new CustomEvent('musicweb-search', { detail: '' }))
-      }
-      return
     }
-
-    setLoadingSuggestions(true)
-    setShowDropdown(true)
-
-    const timer = setTimeout(async () => {
-      if (lastDispatchedQueryRef.current !== trimmed) {
-        lastDispatchedQueryRef.current = trimmed
-        window.dispatchEvent(new CustomEvent('musicweb-search', { detail: trimmed }))
-      }
-
-      try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`)
-        if (res.ok) {
-          const data = await res.json()
-          const combined = [
-            ...(data.spotify || []),
-            ...(data.local || []),
-            ...(data.itunes || []),
-            ...(data.youtube || []),
-            ...(data.audius || []),
-          ]
-          setSuggestions(combined.slice(0, 6))
-        }
-      } catch (err) {
-        console.warn('TopBar search error:', err)
-      } finally {
-        setLoadingSuggestions(false)
-      }
-    }, 250)
-
-    return () => clearTimeout(timer)
-  }, [query])
+  }, [searchQuery])
 
   const handleClearSearch = () => {
-    setQuery('')
-    setSuggestions([])
+    clearSearch()
     setShowDropdown(false)
-    lastDispatchedQueryRef.current = ''
-    window.dispatchEvent(new CustomEvent('musicweb-search', { detail: '' }))
   }
 
   return (
@@ -124,23 +93,23 @@ export function TopBar() {
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
           <input
             type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Escape') handleClearSearch()
             }}
             onFocus={() => {
-              if (query.trim()) setShowDropdown(true)
+              if (searchQuery.trim()) setShowDropdown(true)
             }}
             placeholder="Tìm bài hát, nghệ sĩ từ Spotify, YouTube, Drive..."
             className="w-full bg-white/[0.04] border border-white/[0.07] focus:border-[var(--primary-spotify,#06b6d4)]/50 focus:bg-white/[0.06] rounded-full pl-10 pr-9 py-2 text-xs text-white placeholder-slate-400 outline-none transition-all shadow-inner"
           />
-          {loadingSuggestions ? (
+          {searchingGlobal ? (
             <Loader2 className="w-3.5 h-3.5 text-cyan-400 animate-spin absolute right-3" />
-          ) : query ? (
+          ) : searchQuery ? (
             <button
               onClick={handleClearSearch}
-              className="p-1 text-slate-400 hover:text-white absolute right-2.5 rounded-full"
+              className="absolute right-3 p-0.5 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -150,7 +119,7 @@ export function TopBar() {
         {/* Suggestions Dropdown Popup */}
         {showDropdown && (
           <div className="absolute top-full left-0 right-0 mt-2 bg-[#0d1017] border border-white/10 rounded-2xl p-2 shadow-2xl z-50 flex flex-col gap-1 max-h-80 overflow-y-auto">
-            {loadingSuggestions && suggestions.length === 0 ? (
+            {searchingGlobal && suggestions.length === 0 ? (
               <div className="p-4 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
                 <span>Đang tìm kiếm...</span>
@@ -190,7 +159,7 @@ export function TopBar() {
               </>
             ) : (
               <div className="p-4 text-center text-xs text-slate-400">
-                Không tìm thấy kết quả phù hợp cho &quot;{query}&quot;
+                Không tìm thấy kết quả phù hợp cho &quot;{searchQuery}&quot;
               </div>
             )}
           </div>

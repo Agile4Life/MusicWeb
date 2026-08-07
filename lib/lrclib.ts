@@ -9,8 +9,11 @@ export interface LrclibResponse {
   syncedLyrics: string | null
 }
 
+const lyricsCache = new Map<string, LrclibResponse | null>()
+const lyricsInFlight = new Map<string, Promise<LrclibResponse | null>>()
+
 /**
- * Fetch lyrics from LRCLIB API (lrclib.net)
+ * Fetch lyrics from LRCLIB API (lrclib.net) with in-memory caching & deduplication
  * First attempts exact match via /api/get, then falls back to /api/search
  */
 export async function fetchLyricsFromLrclib({
@@ -24,64 +27,93 @@ export async function fetchLyricsFromLrclib({
 }): Promise<LrclibResponse | null> {
   const cleanTitle = cleanTrackTitle(title)
   const cleanArtist = artist ? cleanArtistName(artist) : ''
+  const durRound = duration && duration > 0 ? Math.round(duration) : 0
+  const cacheKey = `${cleanTitle.toLowerCase()}__${cleanArtist.toLowerCase()}__${durRound}`
 
-  // 1. Try exact match using /api/get if artist is present
-  if (cleanArtist) {
+  // 1. Check in-memory LRU cache
+  if (lyricsCache.has(cacheKey)) {
+    return lyricsCache.get(cacheKey)!
+  }
+
+  // 2. Check in-flight deduplication Map
+  if (lyricsInFlight.has(cacheKey)) {
+    return lyricsInFlight.get(cacheKey)!
+  }
+
+  const fetchPromise = (async (): Promise<LrclibResponse | null> => {
     try {
-      const params = new URLSearchParams({
-        track_name: cleanTitle,
-        artist_name: cleanArtist,
-      })
-      if (duration && duration > 0) {
-        params.append('duration', Math.round(duration).toString())
-      }
+      // 1. Try exact match using /api/get if artist is present
+      if (cleanArtist) {
+        try {
+          const params = new URLSearchParams({
+            track_name: cleanTitle,
+            artist_name: cleanArtist,
+          })
+          if (durRound > 0) {
+            params.append('duration', durRound.toString())
+          }
 
-      const res = await fetch(`https://lrclib.net/api/get?${params.toString()}`, {
-        headers: {
-          'Lrclib-Client': 'MusicWeb/1.0.0 (https://github.com/MusicWeb)',
-        },
-      })
+          const res = await fetch(`https://lrclib.net/api/get?${params.toString()}`, {
+            headers: {
+              'Lrclib-Client': 'MusicWeb/1.0.0 (https://github.com/MusicWeb)',
+            },
+          })
 
-      if (res.ok) {
-        const data: LrclibResponse = await res.json()
-        if (data.syncedLyrics || data.plainLyrics) {
-          return data
+          if (res.ok) {
+            const data: LrclibResponse = await res.json()
+            if (data.syncedLyrics || data.plainLyrics) {
+              lyricsCache.set(cacheKey, data)
+              return data
+            }
+          }
+        } catch (e) {
+          console.warn('LRCLIB exact get error:', e)
         }
       }
-    } catch (e) {
-      console.warn('LRCLIB exact get error:', e)
-    }
-  }
 
-  // 2. Fallback to /api/search
-  try {
-    const query = cleanArtist ? `${cleanTitle} ${cleanArtist}` : cleanTitle
-    const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(query)}`
+      // 2. Fallback to /api/search
+      try {
+        const query = cleanArtist ? `${cleanTitle} ${cleanArtist}` : cleanTitle
+        const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(query)}`
 
-    const res = await fetch(searchUrl, {
-      headers: {
-        'Lrclib-Client': 'MusicWeb/1.0.0 (https://github.com/MusicWeb)',
-      },
-    })
+        const res = await fetch(searchUrl, {
+          headers: {
+            'Lrclib-Client': 'MusicWeb/1.0.0 (https://github.com/MusicWeb)',
+          },
+        })
 
-    if (res.ok) {
-      const results: LrclibResponse[] = await res.json()
-      if (Array.isArray(results) && results.length > 0) {
-        // Prioritize items that have syncedLyrics
-        const withSynced = results.find((r) => r.syncedLyrics && r.syncedLyrics.trim().length > 0)
-        if (withSynced) return withSynced
+        if (res.ok) {
+          const results: LrclibResponse[] = await res.json()
+          if (Array.isArray(results) && results.length > 0) {
+            const withSynced = results.find((r) => r.syncedLyrics && r.syncedLyrics.trim().length > 0)
+            if (withSynced) {
+              lyricsCache.set(cacheKey, withSynced)
+              return withSynced
+            }
 
-        const withPlain = results.find((r) => r.plainLyrics && r.plainLyrics.trim().length > 0)
-        if (withPlain) return withPlain
+            const withPlain = results.find((r) => r.plainLyrics && r.plainLyrics.trim().length > 0)
+            if (withPlain) {
+              lyricsCache.set(cacheKey, withPlain)
+              return withPlain
+            }
 
-        return results[0]
+            lyricsCache.set(cacheKey, results[0])
+            return results[0]
+          }
+        }
+      } catch (e) {
+        console.warn('LRCLIB search error:', e)
       }
-    }
-  } catch (e) {
-    console.warn('LRCLIB search error:', e)
-  }
 
-  return null
+      lyricsCache.set(cacheKey, null)
+      return null
+    } finally {
+      lyricsInFlight.delete(cacheKey)
+    }
+  })()
+
+  lyricsInFlight.set(cacheKey, fetchPromise)
+  return fetchPromise
 }
 
 /**

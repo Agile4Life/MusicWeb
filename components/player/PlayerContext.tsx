@@ -8,6 +8,7 @@ import { useSession } from 'next-auth/react'
 import { getValidUserId } from '@/lib/accessControl'
 import { deduplicateQueueTracks } from '@/lib/utils'
 import { findBestYouTubeMatch } from '@/lib/youtube'
+import { fetchUnifiedSearch } from '@/lib/searchApi'
 
 export type RepeatMode = 'off' | 'all' | 'one'
 
@@ -565,11 +566,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       try {
         const cleanTitle = track.title.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').trim()
         const queryStr = `${cleanTitle} ${track.artist || ''}`
-        const res = await fetch(`/api/search?q=${encodeURIComponent(queryStr)}&source=youtube`)
+        const data = await fetchUnifiedSearch(queryStr, 'youtube')
         if (requestId !== playRequestRef.current) return
-        if (res.ok) {
-          const data = await res.json()
-          const ytList: Track[] = data.youtube || []
+        const ytList: Track[] = data.youtube || []
           let bestMatch = findBestYouTubeMatch(ytList, track.title, track.artist, track.duration)
           if (!bestMatch && ytList.length > 0) {
             bestMatch = ytList[0]
@@ -590,7 +589,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               }
             }
           }
-        }
       } catch (e) {
         console.warn('Full length resolution fallback:', e)
       }
@@ -922,10 +920,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const fallbackToYouTube = async (track: Track) => {
       try {
         const query = `${track.title} ${track.artist || ''}`.trim()
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&source=youtube`)
-        if (res.ok) {
-          const data = await res.json()
-          const ytList: Track[] = data.youtube || data.results || []
+        const data = await fetchUnifiedSearch(query, 'youtube')
+        const ytList: Track[] = data.youtube || []
           const bestMatch = findBestYouTubeMatch(ytList, track.title, track.artist, track.duration)
           if (bestMatch && bestMatch.youtube_id) {
             const candidateDuration = bestMatch.duration || 0
@@ -946,7 +942,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               }
             }
           }
-        }
       } catch (e) {
         console.warn('YouTube fallback failed:', e)
       }

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Track, Playlist } from '@/types'
@@ -31,17 +31,25 @@ import { getValidUserId, isAdmin as checkIsAdmin } from '@/lib/accessControl'
 import { useSearchParams } from 'next/navigation'
 import { extractDriveFileId, parseFilenameToTitleArtist } from '@/lib/googleDriveUpload'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
+import { useSearch } from '@/components/search/SearchContext'
 
 export default function HomePage() {
   const supabase = createClient()
   const { playTrack, isShuffle, toggleShuffle } = usePlayer()
   const { playlists } = usePlaylists()
+  const {
+    searchQuery,
+    setSearchQuery,
+    globalTracks,
+    searchingGlobal,
+    trendingTracks,
+    loadingTrending,
+  } = useSearch()
   const { data: nextAuthSession } = useSession()
   const searchParams = useSearchParams()
 
   const [tracks, setTracks] = useState<Track[]>([])
   const [recentTracks, setRecentTracks] = useState<Track[]>([])
-  const [searchQuery, setSearchQuery] = useState('')
   const [searchSource, setSearchSource] = useState<'all' | 'youtube' | 'audius' | 'itunes' | 'spotify' | 'local'>('all')
   const [libraryTab, setLibraryTab] = useState<'all' | 'drive' | 'recent'>('recent')
 
@@ -49,9 +57,6 @@ export default function HomePage() {
     const handleSearchEvent = (e: any) => {
       const q = e.detail || ''
       setSearchQuery(q)
-      if (!q) {
-        lastSearchQueryRef.current = ''
-      }
     }
 
     const checkHashTab = () => {
@@ -65,7 +70,6 @@ export default function HomePage() {
     const handleTabHome = () => {
       setLibraryTab('recent')
       setSearchQuery('')
-      lastSearchQueryRef.current = ''
       if (window.location.hash === '#drive') {
         history.replaceState(null, '', window.location.pathname + window.location.search)
       }
@@ -82,35 +86,20 @@ export default function HomePage() {
     window.addEventListener('musicweb-tab-drive', handleTabDrive)
 
     checkHashTab()
-    setSearchQuery('')
 
     return () => {
-      window.removeEventListener('musicweb-search', handleSearchEvent)
       window.removeEventListener('hashchange', checkHashTab)
       window.removeEventListener('popstate', checkHashTab)
       window.removeEventListener('musicweb-tab-home', handleTabHome)
       window.removeEventListener('musicweb-tab-drive', handleTabDrive)
+      window.removeEventListener('musicweb-search', handleSearchEvent)
     }
-  }, [])
+  }, [setSearchQuery])
 
   const [loading, setLoading] = useState(true)
   const [supabaseUser, setSupabaseUser] = useState<any>(null)
   const [cleaningDuplicates, setCleaningDuplicates] = useState(false)
   const [cleanStatusText, setCleanStatusText] = useState<string | null>(null)
-
-  // Global trending tracks for default homepage display
-  const [trendingTracks, setTrendingTracks] = useState<Track[]>([])
-  const [loadingTrending, setLoadingTrending] = useState(true)
-
-  // Search results
-  const [globalTracks, setGlobalTracks] = useState<{
-    local: Track[]
-    youtube: Track[]
-    audius: Track[]
-    itunes: Track[]
-    spotify: Track[]
-  }>({ local: [], youtube: [], audius: [], itunes: [], spotify: [] })
-  const [searchingGlobal, setSearchingGlobal] = useState(false)
 
   const user =
     supabaseUser ||
@@ -235,35 +224,25 @@ export default function HomePage() {
     }
   }
 
-  // Fetch Global Trending Music automatically on mount
+  const combinedTrendingTracks: Track[] = useMemo(() => {
+    const yt = trendingTracks.youtube || []
+    const audius = trendingTracks.audius || []
+    const itunes = trendingTracks.itunes || []
+    const spotify = trendingTracks.spotify || []
+    const combined: Track[] = []
+    const maxLen = Math.max(yt.length, audius.length, itunes.length, spotify.length)
+    for (let i = 0; i < maxLen; i++) {
+      if (spotify[i]) combined.push(spotify[i])
+      if (itunes[i]) combined.push(itunes[i])
+      if (audius[i]) combined.push(audius[i])
+      if (yt[i]) combined.push(yt[i])
+    }
+    return combined
+  }, [trendingTracks])
+
+  // Fetch initial page data
   useEffect(() => {
     fetchData()
-
-    let active = true
-    setLoadingTrending(true)
-    fetch('/api/search?trending=true')
-      .then((res) => res.json())
-      .then((data) => {
-        if (!active) return
-        const yt = data.youtube || []
-        const audius = data.audius || []
-        const itunes = data.itunes || []
-        const spotify = data.spotify || []
-
-        const combined: Track[] = []
-        const maxLen = Math.max(yt.length, audius.length, itunes.length, spotify.length)
-        for (let i = 0; i < maxLen; i++) {
-          if (spotify[i]) combined.push(spotify[i])
-          if (itunes[i]) combined.push(itunes[i])
-          if (audius[i]) combined.push(audius[i])
-          if (yt[i]) combined.push(yt[i])
-        }
-        setTrendingTracks(combined)
-      })
-      .catch((err) => console.warn('Failed to load trending tracks:', err))
-      .finally(() => {
-        if (active) setLoadingTrending(false)
-      })
 
     let timer: NodeJS.Timeout
     const debouncedFetch = () => {
@@ -287,14 +266,12 @@ export default function HomePage() {
       .subscribe()
 
     return () => {
-      active = false
       clearTimeout(timer)
       supabase.removeChannel(channel)
     }
   }, [])
 
   const searchQueryRef = React.useRef(searchQuery)
-  const lastSearchQueryRef = React.useRef('')
 
   useEffect(() => {
     searchQueryRef.current = searchQuery
@@ -304,52 +281,6 @@ export default function HomePage() {
   useEffect(() => {
     userFavTrackIdsRef.current = userFavTrackIds
   }, [userFavTrackIds])
-
-  // Fast Global Search with Active Guard (Event is already debounced from TopBar)
-  useEffect(() => {
-    const trimmed = searchQuery.trim()
-    if (!trimmed) {
-      setGlobalTracks({ local: [], youtube: [], audius: [], itunes: [], spotify: [] })
-      setSearchingGlobal(false)
-      lastSearchQueryRef.current = ''
-      return
-    }
-
-    if (trimmed === lastSearchQueryRef.current) {
-      return
-    }
-    lastSearchQueryRef.current = trimmed
-
-    let active = true
-    setSearchingGlobal(true)
-
-    fetch(`/api/search?q=${encodeURIComponent(trimmed)}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!active || !data) return
-        const mapFav = (list: Track[]) =>
-          (list || []).map((t) => ({
-            ...t,
-            is_favorite: userFavTrackIdsRef.current.has(t.id) || Boolean(t.is_favorite),
-          }))
-
-        setGlobalTracks({
-          local: mapFav(data.local),
-          youtube: mapFav(data.youtube),
-          audius: mapFav(data.audius),
-          itunes: mapFav(data.itunes),
-          spotify: mapFav(data.spotify),
-        })
-      })
-      .catch((err) => console.warn('Global search error:', err))
-      .finally(() => {
-        if (active) setSearchingGlobal(false)
-      })
-
-    return () => {
-      active = false
-    }
-  }, [searchQuery])
 
   const handleAddToPlaylist = async (playlistId: string, track: Track) => {
     if (!isAdmin) {
@@ -727,9 +658,9 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
-            {(trendingTracks.length > 0 || tracks.length > 0) && (
+            {(combinedTrendingTracks.length > 0 || tracks.length > 0) && (
               <button
-                onClick={() => playTrack(trendingTracks[0] || tracks[0], trendingTracks.length > 0 ? trendingTracks : tracks)}
+                onClick={() => playTrack(combinedTrendingTracks[0] || tracks[0], combinedTrendingTracks.length > 0 ? combinedTrendingTracks : tracks)}
                 style={{
                   background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
                   boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
@@ -775,12 +706,12 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
-          ) : trendingTracks.length > 0 ? (
+          ) : combinedTrendingTracks.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              {trendingTracks.slice(0, 12).map((t) => (
+              {combinedTrendingTracks.slice(0, 12).map((t) => (
                 <div
                   key={t.id}
-                  onClick={() => playTrack(t, trendingTracks)}
+                  onClick={() => playTrack(t, combinedTrendingTracks)}
                   className="bg-white/[0.02] hover:bg-white/[0.06] p-3 rounded-2xl flex flex-col gap-2 cursor-pointer group hover:-translate-y-1.5 transition-all duration-300 border border-white/[0.04] hover:border-[var(--spotify-glow)]/40 shadow-sm"
                 >
                   <div className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
