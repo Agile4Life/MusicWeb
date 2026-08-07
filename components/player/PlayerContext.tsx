@@ -157,6 +157,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const volumeRef = useRef<number>(0.8)
   const lastSavedTimeRef = useRef<number>(0)
   const lastPrevClickRef = useRef<number>(0)
+  const playedHistoryStackRef = useRef<Track[]>([])
+  const isPrevNextActionRef = useRef<boolean>(false)
   const playTrackRef = useRef<
     (track: Track, newQueue?: Track[], forceIndex?: number, startFromTime?: number) => Promise<void>
   >(async () => {})
@@ -533,12 +535,29 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const requestId = ++playRequestRef.current
     const track = inferTrackSource(rawTrack)
 
-    // ⚡ 1. PAUSE CURRENT AUDIO IMMEDIATELY (ZERO DELAY ON STOPPING PREVIOUS TRACK)
-    if (audioRef.current) {
-      try { audioRef.current.pause() } catch {}
+    // 🚀 Push currentTrack onto true playback history stack when user changes track
+    if (!isPrevNextActionRef.current && currentTrackRef.current && currentTrackRef.current.id !== track.id) {
+      playedHistoryStackRef.current.push(currentTrackRef.current)
+      if (playedHistoryStackRef.current.length > 50) {
+        playedHistoryStackRef.current.shift()
+      }
     }
-    if (ytPlayerRef.current?.pauseVideo) {
-      try { ytPlayerRef.current.pauseVideo() } catch {}
+    isPrevNextActionRef.current = false
+
+    // ⚡ 1. PAUSE & STOP ALL PREVIOUS AUDIO ENGINES IMMEDIATELY (ZERO DELAY OVERLAP)
+    if (audioRef.current) {
+      try {
+        audioRef.current.pause()
+        audioRef.current.currentTime = 0
+        audioRef.current.removeAttribute('src')
+        audioRef.current.load()
+      } catch {}
+    }
+    if (ytPlayerRef.current) {
+      try {
+        if (ytPlayerRef.current.stopVideo) ytPlayerRef.current.stopVideo()
+        else if (ytPlayerRef.current.pauseVideo) ytPlayerRef.current.pauseVideo()
+      } catch {}
     }
 
     let nextQueue = queue
@@ -624,8 +643,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
 
       // STEP 2: Fall back to YouTube stream resolution if not found on Drive
-      if (ytPlayerRef.current && ytPlayerRef.current.playVideo) {
-        try { ytPlayerRef.current.playVideo() } catch {}
+      if (ytPlayerRef.current) {
+        try {
+          if (ytPlayerRef.current.stopVideo) ytPlayerRef.current.stopVideo()
+          else if (ytPlayerRef.current.pauseVideo) ytPlayerRef.current.pauseVideo()
+        } catch {}
       }
 
       try {
@@ -674,6 +696,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (requestId !== playRequestRef.current) return
         if (ytPlayerRef.current && ytPlayerRef.current.loadVideoById) {
           try {
+            if (ytPlayerRef.current.unMute) ytPlayerRef.current.unMute()
             ytPlayerRef.current.setVolume(volume * 100)
             ytPlayerRef.current.loadVideoById({
               videoId: activeTrack.youtube_id,
@@ -900,6 +923,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }
 
   const nextTrack = () => {
+    isPrevNextActionRef.current = true
     const q = queueRef.current.length > 0 ? queueRef.current : queue
     if (q.length === 0) return
 
@@ -924,16 +948,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }
 
   const prevTrack = () => {
-    const q = queueRef.current.length > 0 ? queueRef.current : queue
-    if (q.length === 0) return
-
-    let idx = currentIndexRef.current >= 0 ? currentIndexRef.current : currentIndex
-    if (idx < 0) {
-      if (currentTrackRef.current) {
-        idx = q.findIndex((t) => t.id === currentTrackRef.current?.id)
-      }
-      if (idx < 0) idx = 0
-    }
+    isPrevNextActionRef.current = true
 
     const now = Date.now()
     const isRecentClick = now - lastPrevClickRef.current < 2500
@@ -952,10 +967,30 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     // If played > 3 seconds AND not clicked recently, restart track at 0:00.
-    // If clicked again within 2.5s OR near beginning (<= 3s), jump to previous track in queue!
     if (activeTime > 3 && !isRecentClick) {
       seek(0)
       return
+    }
+
+    // 🚀 STEP 1: Pop and play true previously played track from history stack!
+    if (playedHistoryStackRef.current.length > 0) {
+      const prevSong = playedHistoryStackRef.current.pop()
+      if (prevSong) {
+        playTrack(prevSong)
+        return
+      }
+    }
+
+    // STEP 2: Fallback to queue if history stack is empty
+    const q = queueRef.current.length > 0 ? queueRef.current : queue
+    if (q.length === 0) return
+
+    let idx = currentIndexRef.current >= 0 ? currentIndexRef.current : currentIndex
+    if (idx < 0) {
+      if (currentTrackRef.current) {
+        idx = q.findIndex((t) => t.id === currentTrackRef.current?.id)
+      }
+      if (idx < 0) idx = 0
     }
 
     let prevIdx = 0
