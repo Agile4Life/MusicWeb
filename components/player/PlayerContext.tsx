@@ -7,7 +7,7 @@ import { extractDriveFileId, getAuthorizedDriveStreamUrl } from '@/lib/googleDri
 import { useSession } from 'next-auth/react'
 import { getValidUserId } from '@/lib/accessControl'
 import { deduplicateQueueTracks } from '@/lib/utils'
-import { findBestYouTubeMatch } from '@/lib/youtube'
+import { findBestYouTubeMatch, normalizeTitle } from '@/lib/youtube'
 import { fetchUnifiedSearch } from '@/lib/searchApi'
 
 export type RepeatMode = 'off' | 'all' | 'one'
@@ -559,7 +559,52 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // 🎵 Full-Length Stream Resolver for iTunes & Spotify tracks (Resolves DRM/metadata into 100% playable full song)
     let activeTrack = track
     if ((track.source === 'itunes' || track.source === 'spotify' || (!track.youtube_id && (track.spotify_id || track.itunes_id))) && !track.youtube_id) {
-      // Synchronously unlock YouTube player user gesture before async fetch
+      // 🚀 STEP 1: Search local Supabase / Drive tracks FIRST before resolving to YouTube
+      try {
+        const cleanTitle = normalizeTitle(track.title)
+        const cleanArtist = normalizeTitle(track.artist || '')
+
+        if (cleanTitle) {
+          const { data: localMatches } = await supabase
+            .from('tracks')
+            .select('*')
+            .or(`title.ilike.%${cleanTitle}%,artist.ilike.%${cleanTitle}%`)
+            .limit(5)
+
+          if (localMatches && localMatches.length > 0) {
+            const bestDriveMatch = localMatches.find((lt: any) => {
+              const ltTitle = normalizeTitle(lt.title)
+              const ltArtist = normalizeTitle(lt.artist || '')
+              const titleMatches = ltTitle.includes(cleanTitle) || cleanTitle.includes(ltTitle)
+              const artistMatches = !cleanArtist || ltArtist.includes(cleanArtist) || cleanArtist.includes(ltArtist)
+              return titleMatches && artistMatches
+            })
+
+            if (bestDriveMatch && bestDriveMatch.file_path) {
+              activeTrack = {
+                ...bestDriveMatch,
+                source: 'local',
+                cover_url: track.cover_url || bestDriveMatch.cover_url,
+              }
+              if (requestId === playRequestRef.current) {
+                setCurrentTrack(activeTrack)
+                if (audioRef.current) {
+                  audioRef.current.src = bestDriveMatch.file_path
+                  audioRef.current.currentTime = initialTime
+                  audioRef.current.volume = volumeRef.current
+                  await audioRef.current.play()
+                  setIsPlaying(true)
+                  return
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Drive track lookup error:', e)
+      }
+
+      // STEP 2: Fall back to YouTube stream resolution if not found on Drive
       if (ytPlayerRef.current && ytPlayerRef.current.playVideo) {
         try { ytPlayerRef.current.playVideo() } catch {}
       }
@@ -570,26 +615,26 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         const data = await fetchUnifiedSearch(queryStr, 'youtube')
         if (requestId !== playRequestRef.current) return
         const ytList: Track[] = data.youtube || []
-          let bestMatch = findBestYouTubeMatch(ytList, track.title, track.artist, track.duration, track.album)
-          if (!bestMatch && ytList.length > 0) {
-            bestMatch = ytList[0]
-          }
-          if (bestMatch && bestMatch.youtube_id) {
-            const candidateDuration = bestMatch.duration || 0
-            const isTargetShort = !track.duration || track.duration < 900
-            if (!isTargetShort || candidateDuration <= 1200 || ytList.length === 1) {
-              activeTrack = {
-                ...track,
-                youtube_id: bestMatch.youtube_id,
-                source: 'youtube', // Switch audio engine to YouTube for 100% full-length playback
-              }
-              rawTrack.youtube_id = bestMatch.youtube_id
-              track.youtube_id = bestMatch.youtube_id
-              if (requestId === playRequestRef.current) {
-                setCurrentTrack(activeTrack)
-              }
+        let bestMatch = findBestYouTubeMatch(ytList, track.title, track.artist, track.duration, track.album)
+        if (!bestMatch && ytList.length > 0) {
+          bestMatch = ytList[0]
+        }
+        if (bestMatch && bestMatch.youtube_id) {
+          const candidateDuration = bestMatch.duration || 0
+          const isTargetShort = !track.duration || track.duration < 900
+          if (!isTargetShort || candidateDuration <= 1200 || ytList.length === 1) {
+            activeTrack = {
+              ...track,
+              youtube_id: bestMatch.youtube_id,
+              source: 'youtube', // Switch audio engine to YouTube for 100% full-length playback
+            }
+            rawTrack.youtube_id = bestMatch.youtube_id
+            track.youtube_id = bestMatch.youtube_id
+            if (requestId === playRequestRef.current) {
+              setCurrentTrack(activeTrack)
             }
           }
+        }
       } catch (e) {
         console.warn('Full length resolution fallback:', e)
       }

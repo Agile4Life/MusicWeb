@@ -38,8 +38,8 @@ export function TopBar() {
 
   const suggestions: Track[] = React.useMemo(() => {
     const combined = [
-      ...(globalTracks.spotify || []),
       ...(globalTracks.local || []),
+      ...(globalTracks.spotify || []),
       ...(globalTracks.itunes || []),
       ...(globalTracks.youtube || []),
       ...(globalTracks.audius || []),

@@ -616,12 +616,14 @@ export default function HomePage() {
   if (isSearching) {
     if (searchSource === 'all') {
       displayedTracks = deduplicateQueueTracks([
+        ...globalTracks.local,
         ...globalTracks.spotify,
         ...globalTracks.itunes,
         ...globalTracks.youtube,
         ...globalTracks.audius,
-        ...globalTracks.local,
       ])
+    } else if (searchSource === 'local') {
+      displayedTracks = globalTracks.local
     } else if (searchSource === 'spotify') {
       displayedTracks = globalTracks.spotify
     } else if (searchSource === 'itunes') {
@@ -630,8 +632,6 @@ export default function HomePage() {
       displayedTracks = globalTracks.youtube
     } else if (searchSource === 'audius') {
       displayedTracks = globalTracks.audius
-    } else if (searchSource === 'local') {
-      displayedTracks = globalTracks.local
     }
   } else {
     if (libraryTab === 'drive') {
@@ -862,6 +862,17 @@ export default function HomePage() {
             </button>
 
             <button
+              onClick={() => setSearchSource('local')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                searchSource === 'local'
+                  ? 'bg-cyan-500 text-black border-cyan-500 shadow-md'
+                  : 'bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 border-cyan-500/20'
+              }`}
+            >
+              Thư viện / Drive ({globalTracks.local.length})
+            </button>
+
+            <button
               onClick={() => setSearchSource('spotify')}
               className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border ${
                 searchSource === 'spotify'
@@ -892,28 +903,6 @@ export default function HomePage() {
               }`}
             >
               YouTube ({globalTracks.youtube.length})
-            </button>
-
-            <button
-              onClick={() => setSearchSource('audius')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border ${
-                searchSource === 'audius'
-                  ? 'bg-purple-600 text-white border-purple-600 shadow-md'
-                  : 'bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 border-purple-500/20'
-              }`}
-            >
-              Audius ({globalTracks.audius.length})
-            </button>
-
-            <button
-              onClick={() => setSearchSource('local')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border ${
-                searchSource === 'local'
-                  ? 'bg-cyan-500 text-black border-cyan-500 shadow-md'
-                  : 'bg-white/5 text-slate-400 hover:text-white border-white/10'
-              }`}
-            >
-              Thư viện ({globalTracks.local.length})
             </button>
           </div>
         )}
