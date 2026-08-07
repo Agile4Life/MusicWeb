@@ -6,6 +6,20 @@ function extractDriveId(path?: string): string | null {
   return m ? m[1] : null
 }
 
+function normalizeDedupeString(str: string): string {
+  if (!str) return ''
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .replace(/[\(\[\{].*?[\)\]\}]/g, '') // remove (Official Video), [MV], etc.
+    .replace(/ft\..*|feat\..*/gi, '') // remove featured artist tags
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '') // keep alphanumeric only
+    .trim()
+}
+
 /**
  * Smart queue & search track deduplication algorithm.
  * Normalizes title & artist to eliminate duplicate songs across Spotify, YouTube, iTunes & Drive.
@@ -19,18 +33,8 @@ export function deduplicateQueueTracks(tracks: Track[]): Track[] {
   for (const track of tracks) {
     if (!track || !track.title) continue
 
-    const cleanTitle = (track.title || '')
-      .normalize('NFC')
-      .replace(/[\(\[\{](official|mv|audio|lyric video|video|hd|4k)[\)\]\}]/gi, '')
-      .toLowerCase()
-      .trim()
-      .replace(/\s+/g, ' ')
-
-    const cleanArtist = (track.artist || '')
-      .normalize('NFC')
-      .toLowerCase()
-      .trim()
-      .replace(/\s+/g, ' ')
+    const cleanTitle = normalizeDedupeString(track.title)
+    const cleanArtist = normalizeDedupeString(track.artist || '')
 
     const driveId = extractDriveId(track.file_path || '')
     const idKey = track.id ? `id_${track.id}` : null
@@ -39,11 +43,11 @@ export function deduplicateQueueTracks(tracks: Track[]): Track[] {
 
     if (idKey && seenKeys.has(idKey)) continue
     if (driveKey && seenKeys.has(driveKey)) continue
-    if (seenKeys.has(metaKey)) continue
+    if (cleanTitle && seenKeys.has(metaKey)) continue
 
     if (idKey) seenKeys.add(idKey)
     if (driveKey) seenKeys.add(driveKey)
-    seenKeys.add(metaKey)
+    if (cleanTitle) seenKeys.add(metaKey)
 
     unique.push(track)
   }
