@@ -181,10 +181,16 @@ export function PlayerBar() {
               <ChevronDown className="w-5 h-5" />
             </button>
 
-            <span className="text-[11px] font-mono text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-              <Headphones className="w-3.5 h-3.5 text-cyan-400" />
-              MusicWeb Player
-            </span>
+            <div className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-white/[0.03] border border-white/[0.08]">
+              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-cyan-500/20 to-pink-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+                <Headphones className="w-3 h-3" />
+              </div>
+              <img
+                src="/phong-signature.png"
+                alt="Phong's Music Signature"
+                className="h-5 w-auto object-contain signature-img-invert translate-y-[0.5px]"
+              />
+            </div>
 
             <button
               onClick={() => {
