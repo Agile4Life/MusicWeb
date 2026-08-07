@@ -201,6 +201,7 @@ export function Sidebar() {
 
           <Link
             href="/"
+            prefetch={false}
             onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
             className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors duration-150 ${
               pathname === '/'
@@ -214,6 +215,7 @@ export function Sidebar() {
 
           <Link
             href="/drive"
+            prefetch={false}
             className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors duration-150 ${
               pathname === '/drive'
                 ? 'bg-white/10 text-white shadow-sm'
@@ -226,6 +228,7 @@ export function Sidebar() {
 
           <Link
             href="/favorites"
+            prefetch={false}
             className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors duration-150 ${
               pathname === '/favorites'
                 ? 'bg-white/10 text-white shadow-sm'
@@ -238,6 +241,7 @@ export function Sidebar() {
 
           <Link
             href="/history"
+            prefetch={false}
             className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors duration-150 ${
               pathname === '/history'
                 ? 'bg-white/10 text-white shadow-sm'
@@ -251,6 +255,7 @@ export function Sidebar() {
           {isAdmin(user?.email) && (
             <Link
               href="/upload"
+              prefetch={false}
               className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors duration-150 ${
                 pathname === '/upload'
                   ? 'bg-white/10 text-white shadow-sm'
@@ -264,6 +269,7 @@ export function Sidebar() {
 
           <Link
             href="/settings"
+            prefetch={false}
             className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors duration-150 ${
               pathname === '/settings'
                 ? 'bg-white/10 text-white shadow-sm'

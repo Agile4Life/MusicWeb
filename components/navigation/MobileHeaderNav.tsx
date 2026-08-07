@@ -77,7 +77,7 @@ export function MobileHeaderNav() {
     return () => {
       window.removeEventListener('playlist-updated', handleCustomUpdate)
     }
-  }, [nextAuthSession, supabase])
+  }, [nextAuthSession])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -178,6 +178,7 @@ export function MobileHeaderNav() {
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 h-16 bg-[#090b10]/95 backdrop-blur-2xl border-t border-white/[0.05] px-6 flex items-center justify-around select-none">
         <Link
           href="/"
+          prefetch={false}
           onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
           className={`flex flex-col items-center gap-1 transition-colors ${
             pathname === '/' ? 'text-[var(--primary-spotify,#06b6d4)] font-bold' : 'text-slate-400'
@@ -189,6 +190,7 @@ export function MobileHeaderNav() {
 
         <Link
           href="/drive"
+          prefetch={false}
           className={`flex flex-col items-center gap-1 transition-colors ${
             pathname === '/drive' ? 'text-[var(--spotify-glow,#22d3ee)] font-bold' : 'text-slate-400'
           }`}
@@ -199,6 +201,7 @@ export function MobileHeaderNav() {
 
         <Link
           href="/favorites"
+          prefetch={false}
           className={`flex flex-col items-center gap-1 transition-colors ${
             pathname === '/favorites' ? 'text-rose-400 font-bold' : 'text-slate-400'
           }`}
@@ -209,6 +212,7 @@ export function MobileHeaderNav() {
 
         <Link
           href="/history"
+          prefetch={false}
           className={`flex flex-col items-center gap-1 transition-colors ${
             pathname === '/history' ? 'text-[var(--primary-spotify,#06b6d4)] font-bold' : 'text-slate-400'
           }`}
@@ -254,6 +258,7 @@ export function MobileHeaderNav() {
               <nav className="flex flex-col gap-1">
                 <Link
                   href="/"
+                  prefetch={false}
                   onClick={() => {
                     window.dispatchEvent(new Event('musicweb-tab-home'))
                     setIsDrawerOpen(false)
@@ -266,6 +271,7 @@ export function MobileHeaderNav() {
 
                 <Link
                   href="/drive"
+                  prefetch={false}
                   onClick={() => setIsDrawerOpen(false)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold ${
                     pathname === '/drive' ? 'bg-white/10 text-white font-bold' : 'text-slate-200 hover:bg-white/5'
@@ -277,6 +283,7 @@ export function MobileHeaderNav() {
 
                 <Link
                   href="/favorites"
+                  prefetch={false}
                   onClick={() => setIsDrawerOpen(false)}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-200 hover:bg-white/5"
                 >
@@ -286,6 +293,7 @@ export function MobileHeaderNav() {
 
                 <Link
                   href="/history"
+                  prefetch={false}
                   onClick={() => setIsDrawerOpen(false)}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-200 hover:bg-white/5"
                 >
@@ -296,6 +304,7 @@ export function MobileHeaderNav() {
                 {isAdmin(user?.email) && (
                   <Link
                     href="/upload"
+                    prefetch={false}
                     onClick={() => setIsDrawerOpen(false)}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-200 hover:bg-white/5"
                   >
@@ -306,6 +315,7 @@ export function MobileHeaderNav() {
 
                 <Link
                   href="/settings"
+                  prefetch={false}
                   onClick={() => setIsDrawerOpen(false)}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-200 hover:bg-white/5"
                 >
