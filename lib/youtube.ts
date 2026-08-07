@@ -323,18 +323,32 @@ export function findBestYouTubeMatch(
       }
     }
 
-    // 5. ABSOLUTE PRIORITY FOR "- TOPIC" & OFFICIAL ARTIST CHANNELS (+1000 points)
+    // 5. HIGHEST PRIORITY FOR DIGITAL AUDIO RELEASE ("- TOPIC" & "OFFICIAL AUDIO") OVER MV
     const isTopicChannel =
       candidateArtistNorm.endsWith('topic') ||
       candidateArtistNorm.includes('topic')
+    const isOfficialAudio =
+      candidateTitleNorm.includes('official audio') ||
+      candidateTitleNorm.includes('audio official') ||
+      candidateTitleNorm.includes('audio') ||
+      candidateTitleNorm.includes('lyric')
+    const isOfficialMV =
+      candidateTitleNorm.includes('official music video') ||
+      candidateTitleNorm.includes('official video') ||
+      candidateTitleNorm.includes('music video') ||
+      candidateTitleNorm.includes('mv')
     const isVevoOrOfficialChannel =
       candidateArtistNorm.includes('vevo') ||
       candidateArtistNorm.includes('official')
 
     if (isTopicChannel) {
-      score += 1000 // Direct digital distribution track from Spotify/Apple Music provider
+      score += 1200 // Direct studio audio release from Spotify/Apple Music provider
+    } else if (isOfficialAudio) {
+      score += 600 // Priority #1: Official Audio clean studio track
+    } else if (isOfficialMV) {
+      score += 200 // Priority #2: Official Music Video
     } else if (isVevoOrOfficialChannel) {
-      score += 500
+      score += 300
     }
 
     // 6. ARTIST MATCHING BONUS
@@ -350,14 +364,7 @@ export function findBestYouTubeMatch(
       if (artistMatch) score += 40
     }
 
-    // 7. OFFICIAL AUDIO / LYRIC BONUS (+30) vs MV BONUS (+10)
-    if (candidateTitleNorm.includes('official audio') || candidateTitleNorm.includes('lyric')) {
-      score += 30
-    } else if (candidateTitleNorm.includes('mv') || candidateTitleNorm.includes('music video')) {
-      score += 10
-    }
-
-    // 8. DURATION PRECISION SCORING
+    // 7. DURATION PRECISION SCORING
     if (targetDur > 0 && candidateDuration > 0) {
       const diff = Math.abs(candidateDuration - targetDur)
       if (diff <= 3) {
@@ -469,14 +476,30 @@ export async function searchYouTubeTracks(query: string, limit = 15): Promise<Tr
     tracks = await scrapeYouTubeSearch(query, limit)
   }
 
-  // Sort single tracks before long compilations when query does not ask for long videos
+  // Prioritize single tracks and Official Audio / Topic channels over MVs & long compilations
   const isQueryLong = LONG_COMPILATION_KEYWORDS.some((kw) => query.toLowerCase().includes(kw))
   if (!isQueryLong && tracks.length > 1) {
     tracks = [...tracks].sort((a, b) => {
-      const aIsLong = (a.duration || 0) > 900 || LONG_COMPILATION_KEYWORDS.some((kw) => (a.title || '').toLowerCase().includes(kw))
-      const bIsLong = (b.duration || 0) > 900 || LONG_COMPILATION_KEYWORDS.some((kw) => (b.title || '').toLowerCase().includes(kw))
+      const aTitle = (a.title || '').toLowerCase()
+      const bTitle = (b.title || '').toLowerCase()
+      const aArtist = (a.artist || '').toLowerCase()
+      const bArtist = (b.artist || '').toLowerCase()
+
+      const aIsLong = (a.duration || 0) > 900 || LONG_COMPILATION_KEYWORDS.some((kw) => aTitle.includes(kw))
+      const bIsLong = (b.duration || 0) > 900 || LONG_COMPILATION_KEYWORDS.some((kw) => bTitle.includes(kw))
       if (aIsLong && !bIsLong) return 1
       if (!aIsLong && bIsLong) return -1
+
+      const aIsAudio = aTitle.includes('official audio') || aTitle.includes('audio official') || aTitle.includes('audio') || aArtist.includes('topic')
+      const bIsAudio = bTitle.includes('official audio') || bTitle.includes('audio official') || bTitle.includes('audio') || bArtist.includes('topic')
+      if (aIsAudio && !bIsAudio) return -1
+      if (!aIsAudio && bIsAudio) return 1
+
+      const aIsMV = aTitle.includes('official music video') || aTitle.includes('official video') || aTitle.includes('music video') || aTitle.includes('mv')
+      const bIsMV = bTitle.includes('official music video') || bTitle.includes('official video') || bTitle.includes('music video') || bTitle.includes('mv')
+      if (aIsMV && !bIsMV) return -1
+      if (!aIsMV && bIsMV) return 1
+
       return 0
     })
   }
