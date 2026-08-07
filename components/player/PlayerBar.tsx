@@ -135,7 +135,7 @@ export function PlayerBar() {
           <div className="flex items-center gap-0.5 xs:gap-1 shrink-0">
             <button
               onClick={prevTrack}
-              className="p-1.5 xs:p-2 text-slate-300 hover:text-white active:scale-95 transition-transform flex items-center justify-center"
+              className="w-8 h-9 flex items-center justify-center text-slate-300 active:text-white active:scale-95 transition-transform"
               title="Bài trước"
             >
               <SkipBack className="w-4 h-4" />
@@ -143,7 +143,7 @@ export function PlayerBar() {
 
             <button
               onClick={togglePlay}
-              className="w-8.5 h-8.5 xs:w-9 xs:h-9 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center font-bold shadow-md active:scale-95 transition-transform shrink-0"
+              className="w-9 h-9 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center font-bold shadow-md active:scale-95 transition-transform shrink-0"
               title={isPlaying ? 'Tạm dừng' : 'Phát'}
             >
               {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
@@ -151,7 +151,7 @@ export function PlayerBar() {
 
             <button
               onClick={nextTrack}
-              className="p-1.5 xs:p-2 text-slate-300 hover:text-white active:scale-95 transition-transform flex items-center justify-center"
+              className="w-8 h-9 flex items-center justify-center text-slate-300 active:text-white active:scale-95 transition-transform"
               title="Bài kế tiếp"
             >
               <SkipForward className="w-4 h-4" />
@@ -162,7 +162,7 @@ export function PlayerBar() {
                 e.stopPropagation()
                 toggleFavoriteCurrentTrack()
               }}
-              className="p-1.5 xs:p-2 text-slate-400 active:text-rose-400 transition-colors flex items-center justify-center"
+              className="w-8 h-9 flex items-center justify-center text-slate-400 active:text-rose-400 transition-colors"
               title={currentTrack.is_favorite ? 'Bỏ yêu thích' : 'Thêm yêu thích'}
             >
               <Heart
