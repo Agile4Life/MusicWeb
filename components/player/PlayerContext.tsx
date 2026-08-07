@@ -1213,10 +1213,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           if (details.seekTime !== undefined) seek(details.seekTime)
         })
       } catch (e) {}
+
+      if ('setPositionState' in navigator.mediaSession && duration > 0 && currentTime >= 0) {
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: Math.max(duration, 0),
+            playbackRate: 1,
+            position: Math.min(Math.max(currentTime, 0), duration),
+          })
+        } catch (e) {}
+      }
     } catch (err) {
       console.warn('MediaSession init error:', err)
     }
-  }, [currentTrack, isPlaying])
+  }, [currentTrack, isPlaying, currentTime, duration])
 
   const progressValue = useMemo(() => ({ currentTime, duration }), [currentTime, duration])
 
@@ -1280,7 +1290,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     <PlayerContext.Provider value={playerValue}>
       <PlaybackProgressContext.Provider value={progressValue}>
         {children}
-        <audio ref={audioRef} preload="metadata" />
+        <audio ref={audioRef} preload="auto" playsInline />
         {/* Hidden YouTube Player IFrame container */}
         <div className="hidden pointer-events-none opacity-0 invisible w-0 h-0 overflow-hidden">
           <div id="yt-player-container" />
