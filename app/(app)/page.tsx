@@ -229,15 +229,42 @@ export default function HomePage() {
     const audius = trendingTracks.audius || []
     const itunes = trendingTracks.itunes || []
     const spotify = trendingTracks.spotify || []
-    const combined: Track[] = []
+    const rawList: Track[] = []
     const maxLen = Math.max(yt.length, audius.length, itunes.length, spotify.length)
     for (let i = 0; i < maxLen; i++) {
-      if (spotify[i]) combined.push(spotify[i])
-      if (itunes[i]) combined.push(itunes[i])
-      if (audius[i]) combined.push(audius[i])
-      if (yt[i]) combined.push(yt[i])
+      if (spotify[i]) rawList.push(spotify[i])
+      if (itunes[i]) rawList.push(itunes[i])
+      if (audius[i]) rawList.push(audius[i])
+      if (yt[i]) rawList.push(yt[i])
     }
-    return combined
+
+    const seenKeys = new Set<string>()
+    const result: Track[] = []
+
+    for (const track of rawList) {
+      const cleanTitle = (track.title || '')
+        .normalize('NFC')
+        .replace(/[\(\[\{].*?[\)\]\}]/g, '')
+        .replace(/feat\.?|ft\.?/gi, '')
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, ' ')
+
+      const cleanArtist = (track.artist || '')
+        .normalize('NFC')
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, ' ')
+
+      const key = `${cleanTitle}_${cleanArtist}`
+
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key)
+        result.push(track)
+      }
+    }
+
+    return result
   }, [trendingTracks])
 
   // Fetch initial page data
