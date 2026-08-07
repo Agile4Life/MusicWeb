@@ -1,4 +1,5 @@
 import { Track } from '@/types'
+import { normalizeTitle } from './youtube'
 
 function extractDriveId(path?: string): string | null {
   if (!path) return null
@@ -6,51 +7,72 @@ function extractDriveId(path?: string): string | null {
   return m ? m[1] : null
 }
 
-function normalizeDedupeString(str: string): string {
-  if (!str) return ''
-  return str
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'D')
-    .replace(/[\(\[\{].*?[\)\]\}]/g, '') // remove (Official Video), [MV], etc.
-    .replace(/ft\..*|feat\..*/gi, '') // remove featured artist tags
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '') // keep alphanumeric only
-    .trim()
+/**
+ * Sinh khoá dedupe từ title + artist đã chuẩn hoá
+ */
+function getDedupeKey(track: Track): string {
+  const cleanTitle = normalizeTitle(track.title || '')
+  const cleanArtist = normalizeTitle(track.artist || '')
+  return `${cleanTitle}::${cleanArtist}`
+}
+
+/**
+ * So sánh 2 track trùng tên, quyết định giữ bản chất lượng tốt hơn
+ */
+function isBetterTrack(candidate: Track, current: Track): boolean {
+  const score = (t: Track): number => {
+    const title = (t.title || '').toLowerCase()
+    const artist = (t.artist || '').toLowerCase()
+    let s = 0
+    if (artist.includes('topic')) s += 100
+    if (title.includes('official audio')) s += 60
+    if (title.includes('official video') || title.includes('official music video')) s += 40
+    if (title.includes('lyric') || title.includes('lyrics')) s += 20
+    if (title.includes('lo-fi') || title.includes('lofi')) s -= 10
+    if (title.includes('remix')) s -= 30
+    if (title.includes('30min') || title.includes('loop') || title.includes('podcast')) s -= 200
+    return s
+  }
+  return score(candidate) > score(current)
 }
 
 /**
  * Smart queue & search track deduplication algorithm.
- * Normalizes title & artist to eliminate duplicate songs across Spotify, YouTube, iTunes & Drive.
+ * Normalizes title & artist to eliminate duplicate songs across Spotify, YouTube, iTunes & Drive,
+ * while automatically keeping the highest quality official track.
  */
 export function deduplicateQueueTracks(tracks: Track[]): Track[] {
   if (!tracks || tracks.length <= 1) return tracks || []
 
-  const unique: Track[] = []
-  const seenKeys = new Set<string>()
+  const seenMap = new Map<string, Track>()
+  const seenDriveIds = new Set<string>()
 
   for (const track of tracks) {
     if (!track || !track.title) continue
 
-    const cleanTitle = normalizeDedupeString(track.title)
-    const cleanArtist = normalizeDedupeString(track.artist || '')
-
     const driveId = extractDriveId(track.file_path || '')
-    const idKey = track.id ? `id_${track.id}` : null
-    const driveKey = driveId ? `drive_${driveId}` : null
-    const metaKey = `${cleanTitle}|||${cleanArtist}`
+    if (driveId) {
+      if (seenDriveIds.has(driveId)) continue
+      seenDriveIds.add(driveId)
+    }
 
-    if (idKey && seenKeys.has(idKey)) continue
-    if (driveKey && seenKeys.has(driveKey)) continue
-    if (cleanTitle && seenKeys.has(metaKey)) continue
+    const key = getDedupeKey(track)
+    if (!key || key === '::') {
+      seenMap.set(`id_${track.id}`, track)
+      continue
+    }
 
-    if (idKey) seenKeys.add(idKey)
-    if (driveKey) seenKeys.add(driveKey)
-    if (cleanTitle) seenKeys.add(metaKey)
+    const existing = seenMap.get(key)
+    if (!existing) {
+      seenMap.set(key, track)
+      continue
+    }
 
-    unique.push(track)
+    // Nếu đã có bản trùng tên, ưu tiên giữ bản "tốt hơn" (Official Audio > MV > Remix)
+    if (isBetterTrack(track, existing)) {
+      seenMap.set(key, track)
+    }
   }
 
-  return unique
+  return Array.from(seenMap.values())
 }
