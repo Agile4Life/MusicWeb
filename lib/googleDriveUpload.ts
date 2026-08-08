@@ -123,18 +123,36 @@ export function extractDriveFileId(filePath: string): string | null {
       parsed.pathname.match(/\/d\/([A-Za-z0-9_-]+)/)?.[1] ||
       parsed.pathname.match(/\/file\/d\/([A-Za-z0-9_-]+)/)?.[1]
     if (id && /^[A-Za-z0-9_-]{18,45}$/.test(id)) return id
-  } catch {
-    if (
-      /^[A-Za-z0-9_-]{25,45}$/.test(trimmed) &&
-      !trimmed.includes('http') &&
-      !trimmed.includes('/') &&
-      !trimmed.includes('.') &&
-      !/^[0-9a-f]{8}-[0-9a-f]{4}/i.test(trimmed)
-    ) {
-      return trimmed
+  } catch {}
+  return null
+}
+
+/**
+ * Prewarm CDN stream URLs for a list of tracks (fire-and-forget, non-blocking)
+ */
+export function triggerDrivePrewarm(tracks: { file_path?: string }[]) {
+  if (!tracks || tracks.length === 0) return
+
+  const fileIds: string[] = []
+  const seen = new Set<string>()
+
+  for (const track of tracks) {
+    const fp = track.file_path || ''
+    const id = extractDriveFileId(fp)
+    if (id && !seen.has(id)) {
+      seen.add(id)
+      fileIds.push(id)
+      if (fileIds.length >= 15) break
     }
   }
-  return null
+
+  if (fileIds.length === 0) return
+
+  fetch('/api/drive-stream/prewarm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fileIds }),
+  }).catch(() => {})
 }
 
 export function extractDriveFolderId(input: string): string | null {

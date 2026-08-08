@@ -5,6 +5,7 @@ import { Track, Playlist } from '@/types'
 import { TrackRow } from './TrackRow'
 import { Clock, CheckSquare, Pencil, Trash2, X, Loader2, User, Disc, Scissors } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { triggerDrivePrewarm } from '@/lib/googleDriveUpload'
 
 interface TrackListProps {
   tracks: Track[]
@@ -49,6 +50,13 @@ export function TrackList({
       document.body.style.overflow = ''
     }
   }, [showBulkModal])
+
+  // Fire-and-forget prewarm for top visible Drive tracks
+  React.useEffect(() => {
+    if (tracks && tracks.length > 0) {
+      triggerDrivePrewarm(tracks.slice(0, 15))
+    }
+  }, [tracks])
 
   if (tracks.length === 0) {
     return (

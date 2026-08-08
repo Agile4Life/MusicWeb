@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server'
-import { fetchNewReleases } from '@/lib/spotify'
+import { fetchDeezerNewReleases } from '@/lib/deezer'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    const albums = await fetchNewReleases('US', 60)
+    const albums = await fetchDeezerNewReleases(60)
     return NextResponse.json(albums, {
       headers: {
-        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+        'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=86400',
       },
     })
   } catch (err: any) {

@@ -12,47 +12,82 @@ export interface DeezerAlbumItem {
 }
 
 /**
- * Fetch top new / trending albums from Deezer Public API
- * (Combines Chart + Search Top to return 50-60+ rich global albums)
+ * Fetch Top Worldwide Most Streamed & Chart-Topping Albums
+ * (Deezer Global Top 100 Chart + Worldwide Megastars & Billboard Hits)
  */
 export async function fetchDeezerNewReleases(limit = 60): Promise<DeezerAlbumItem[]> {
   try {
-    const [chartRes, searchRes] = await Promise.allSettled([
-      fetch('https://api.deezer.com/chart/0/albums?limit=50', {
-        cache: 'no-store',
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-      }).then((r) => (r.ok ? r.json() : null)),
-      fetch('https://api.deezer.com/search/album?q=top&limit=50', {
-        cache: 'no-store',
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-      }).then((r) => (r.ok ? r.json() : null)),
-    ])
+    const globalQueries = [
+      'top',
+      'chart',
+      'billboard',
+      'taylor swift',
+      'the weeknd',
+      'drake',
+      'bruno mars',
+      'billie eilish',
+      'coldplay',
+      'bad bunny',
+      'travis scott',
+      'kendrick lamar',
+      'ariana grande',
+      'eminem',
+      'dua lipa',
+      'ed sheeran',
+      'post malone',
+      'sabrina carpenter',
+    ]
 
-    const combined: any[] = []
-    if (chartRes.status === 'fulfilled' && chartRes.value?.data) {
-      combined.push(...chartRes.value.data)
-    }
-    if (searchRes.status === 'fulfilled' && searchRes.value?.data) {
-      combined.push(...searchRes.value.data)
-    }
+    const chartPromise = fetch('https://api.deezer.com/chart/0/albums?limit=50', {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      next: { revalidate: 3600 },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null)
 
+    const searchPromises = globalQueries.map((q) =>
+      fetch(`https://api.deezer.com/search/album?q=${encodeURIComponent(q)}&limit=10`, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+        next: { revalidate: 3600 },
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null)
+    )
+
+    const results = await Promise.allSettled([chartPromise, ...searchPromises])
+
+    const chartAlbums: any[] = []
+    const searchAlbums: any[] = []
     const seenIds = new Set<string>()
-    const uniqueItems: any[] = []
-    for (const item of combined) {
-      if (item && item.id) {
-        const idStr = String(item.id)
-        if (!seenIds.has(idStr)) {
+    const seenKeys = new Set<string>()
+
+    results.forEach((res, idx) => {
+      if (res.status === 'fulfilled' && res.value?.data) {
+        const isChart = idx === 0
+        for (const item of res.value.data) {
+          if (!item || !item.id || !item.title) continue
+          const idStr = String(item.id)
+          const key = `${(item.title || '').toLowerCase().trim()}|||${(item.artist?.name || '').toLowerCase().trim()}`
+          if (seenIds.has(idStr) || seenKeys.has(key)) continue
+
           seenIds.add(idStr)
-          uniqueItems.push(item)
+          seenKeys.add(key)
+
+          if (isChart) {
+            chartAlbums.push(item)
+          } else {
+            searchAlbums.push(item)
+          }
         }
       }
-    }
+    })
 
-    if (uniqueItems.length > 0) {
-      return mapDeezerAlbums(uniqueItems.slice(0, limit))
+    const combined = [...chartAlbums, ...searchAlbums]
+    if (combined.length > 0) {
+      return mapDeezerAlbums(combined.slice(0, limit))
     }
   } catch (err) {
-    console.warn('Deezer combined albums error:', err)
+    console.warn('Deezer Global Worldwide albums fetch error:', err)
   }
 
   return []
