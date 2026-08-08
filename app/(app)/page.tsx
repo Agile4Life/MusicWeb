@@ -716,20 +716,6 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
-            {(combinedTrendingTracks.length > 0 || tracks.length > 0) && (
-              <button
-                onClick={() => playTrack(combinedTrendingTracks[0] || tracks[0], combinedTrendingTracks.length > 0 ? combinedTrendingTracks : tracks)}
-                style={{
-                  background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                  boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
-                }}
-                className="text-black font-bold px-5 py-2.5 rounded-full flex items-center gap-2 text-xs transition-all hover:brightness-110 active:scale-95 border border-white/20"
-              >
-                <Play className="w-4 h-4 fill-current text-black" />
-                <span>Phát nhạc hot</span>
-              </button>
-            )}
-
             {isAdmin && (
               <Link
                 href="/upload"
