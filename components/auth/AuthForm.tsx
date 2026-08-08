@@ -346,14 +346,9 @@ export function AuthForm({ mode }: AuthFormProps) {
           </div>
         )}
 
-        {/* 💡 Note for First-Time Users */}
-        <div className="mb-4 p-3.5 bg-amber-500/10 border border-amber-500/30 text-amber-300/90 rounded-2xl text-[11px] sm:text-xs flex items-start gap-2.5 relative z-10 leading-relaxed shadow-sm">
-          <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-          <span>{t('passkey_first_note')}</span>
-        </div>
-
-        {/* Google Sign In Button */}
+        {/* Google & Passkey Buttons */}
         <div className="flex flex-col gap-3 relative z-10 w-full mt-2">
+          {/* Google Sign In Button */}
           <button
             type="button"
             onClick={handleGoogleSignIn}
@@ -395,6 +390,12 @@ export function AuthForm({ mode }: AuthFormProps) {
             <Key className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
             <span>{t('passkey_login')}</span>
           </button>
+        </div>
+
+        {/* 💡 Note for First-Time Users (Placed below Google & Passkey buttons) */}
+        <div className="mt-4 p-3.5 bg-amber-500/10 border border-amber-500/30 text-amber-300/90 rounded-2xl text-[11px] sm:text-xs flex items-start gap-2.5 relative z-10 leading-relaxed shadow-sm">
+          <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+          <span>{t('passkey_first_note')}</span>
         </div>
 
       </div>
