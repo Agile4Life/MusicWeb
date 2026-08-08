@@ -118,8 +118,6 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const fileId = searchParams.get('id') || searchParams.get('fileId')
-    // filename/title do client truyền lên để xác định đúng Content-Type
-    // (xem lib/player/PlayerContext.tsx -> getAudioUrl())
     const titleParam = searchParams.get('filename') || searchParams.get('title') || ''
 
     if (!fileId) {
@@ -129,142 +127,142 @@ export async function GET(req: NextRequest) {
     try {
       supabase = getServiceClient()
     } catch (envErr) {
-      console.warn('Supabase service client init failed, cache bền vững sẽ bị bỏ qua:', envErr)
+      console.warn('Supabase service client init failed:', envErr)
     }
 
-    const rangeHeader = req.headers.get('range')
-    const headers: Record<string, string> = {
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    }
-    if (rangeHeader) {
-      headers['Range'] = rangeHeader
-    }
+    const UA_HEADER =
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
 
+    // ⚡ Build list of candidate CDN URLs (ordered by priority)
     const directCdnUrls: string[] = []
 
-    // 1. Cache bền vững từ Supabase — sống sót qua cold start, chia sẻ giữa mọi instance/region
+    // 1. Persistent Supabase cache — survives cold starts, shared across all instances
     const cachedCdn = supabase ? await getCachedCdnUrl(fileId, supabase) : null
     if (cachedCdn) {
       directCdnUrls.push(cachedCdn.url)
     }
 
-    // 2. Các endpoint CDN tốc độ cao dự phòng
+    // 2. High-speed CDN endpoints
     directCdnUrls.push(
       `https://lh3.googleusercontent.com/d/${encodeURIComponent(fileId)}`,
       `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=t`,
       `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}&confirm=t`
     )
 
-    let res: Response | null = null
-    let contentType = ''
-
-    // 🚀 Stage 1: Thử các endpoint CDN nhanh trước
+    // 🚀 Stage 1: Probe CDN URLs with HEAD requests (tiny bandwidth, fast)
+    // Then REDIRECT client directly to the working CDN URL — ZERO bandwidth through Vercel!
     for (const cdnUrl of directCdnUrls) {
       try {
-        const testRes = await fetch(cdnUrl, { headers, cache: 'no-store', redirect: 'follow' })
+        const testRes = await fetch(cdnUrl, {
+          method: 'HEAD',
+          headers: { 'User-Agent': UA_HEADER },
+          cache: 'no-store',
+          redirect: 'follow',
+        })
         const testCt = testRes.headers.get('content-type') || ''
         if ((testRes.ok || testRes.status === 206) && !testCt.includes('text/html')) {
-          res = testRes
-          contentType = testCt
-          // Ghi lại cache bền vững — request tiếp theo (kể cả từ cold start khác) dùng lại ngay
+          // ✅ CDN URL works — save to persistent cache & redirect client
           if (supabase) {
             saveCdnUrl(fileId, cdnUrl, testCt, supabase).catch(() => {})
           }
-          break
+          // 302 Redirect: browser fetches audio directly from Google CDN
+          // This saves ~5-20MB of Fast Origin Transfer PER song play!
+          const redirectHeaders = new Headers()
+          redirectHeaders.set('Location', cdnUrl)
+          redirectHeaders.set('Access-Control-Allow-Origin', '*')
+          redirectHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
+          redirectHeaders.set('Access-Control-Allow-Headers', 'Range, Content-Type')
+          redirectHeaders.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
+
+          return new Response(null, { status: 302, headers: redirectHeaders })
         }
       } catch (err) {
-        console.warn('Direct CDN fetch attempt warning:', err)
+        console.warn('CDN probe warning:', err)
       }
     }
 
-    // 🐢 Stage 2: Fallback qua trang cảnh báo virus (file lớn >25MB, thường gặp với FLAC)
-    if (!res) {
-      const fallbackUrl = `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`
-      const testRes = await fetch(fallbackUrl, { headers, cache: 'no-store', redirect: 'follow' })
-      const testCt = testRes.headers.get('content-type') || ''
+    // 🐢 Stage 2: Fallback — virus warning page (files >25MB, e.g. FLAC)
+    // Must proxy this because confirm flow requires cookies
+    const fallbackUrl = `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`
+    const headers: Record<string, string> = { 'User-Agent': UA_HEADER }
+    const rangeHeader = req.headers.get('range')
+    if (rangeHeader) headers['Range'] = rangeHeader
 
-      if (testCt.includes('text/html')) {
-        const responseText = await testRes.text()
-        const rawCookies: string[] = (testRes.headers as any).getSetCookie
-          ? (testRes.headers as any).getSetCookie()
-          : ([testRes.headers.get('set-cookie')].filter(Boolean) as string[])
+    const testRes = await fetch(fallbackUrl, { headers, cache: 'no-store', redirect: 'follow' })
+    const testCt = testRes.headers.get('content-type') || ''
 
-        const cookieHeader = rawCookies.map((c: string) => c.split(';')[0]).join('; ')
-        const confirmMatch =
-          responseText.match(/confirm=([a-zA-Z0-9_-]+)/) ||
-          responseText.match(/name="confirm"\s+value="([a-zA-Z0-9_-]+)"/) ||
-          responseText.match(/uuid=([a-zA-Z0-9_-]+)/)
+    let finalCdnUrl: string | null = null
 
-        const warningCookie = decodeCookieConfirmToken(rawCookies)
-        const confirmToken = confirmMatch?.[1] || warningCookie || 't'
+    if (testCt.includes('text/html')) {
+      const responseText = await testRes.text()
+      const rawCookies: string[] = (testRes.headers as any).getSetCookie
+        ? (testRes.headers as any).getSetCookie()
+        : ([testRes.headers.get('set-cookie')].filter(Boolean) as string[])
 
-        const fetchHeaders: Record<string, string> = {
-          ...headers,
-          ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-        }
+      const cookieHeader = rawCookies.map((c: string) => c.split(';')[0]).join('; ')
+      const confirmMatch =
+        responseText.match(/confirm=([a-zA-Z0-9_-]+)/) ||
+        responseText.match(/name="confirm"\s+value="([a-zA-Z0-9_-]+)"/) ||
+        responseText.match(/uuid=([a-zA-Z0-9_-]+)/)
 
-        const confirmUrl = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(
-          fileId
-        )}&export=download&confirm=${confirmToken}`
-        const res2 = await fetch(confirmUrl, { headers: fetchHeaders, cache: 'no-store', redirect: 'follow' })
-        const ct2 = res2.headers.get('content-type') || ''
+      const warningCookie = decodeCookieConfirmToken(rawCookies)
+      const confirmToken = confirmMatch?.[1] || warningCookie || 't'
 
-        if (!ct2.includes('text/html') && (res2.ok || res2.status === 206)) {
-          res = res2
-          contentType = ct2
-          if (supabase) {
-            // Lưu ý: confirmUrl phụ thuộc cookie phiên, có thể hết hạn sớm hơn CDN tĩnh —
-            // vẫn cache để tránh phải parse lại HTML mỗi request, TTL 1h đã đủ an toàn.
-            saveCdnUrl(fileId, confirmUrl, ct2, supabase).catch(() => {})
-          }
-        }
-      } else if (testRes.ok || testRes.status === 206) {
-        res = testRes
-        contentType = testCt
+      const confirmUrl = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(
+        fileId
+      )}&export=download&confirm=${confirmToken}`
+
+      // For large files, we still need to proxy because confirm URL needs cookies
+      const fetchHeaders: Record<string, string> = {
+        ...headers,
+        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
       }
+      const res2 = await fetch(confirmUrl, { headers: fetchHeaders, cache: 'no-store', redirect: 'follow' })
+      const ct2 = res2.headers.get('content-type') || ''
+
+      if (!ct2.includes('text/html') && (res2.ok || res2.status === 206)) {
+        if (supabase) {
+          saveCdnUrl(fileId, confirmUrl, ct2, supabase).catch(() => {})
+        }
+
+        // Proxy only for this fallback case (large files needing cookies)
+        const contentDisposition = res2.headers.get('content-disposition') || ''
+        const finalContentType = detectContentType({
+          fetchedContentType: ct2,
+          titleParam,
+          contentDisposition,
+        })
+        const responseHeaders = new Headers()
+        responseHeaders.set('Content-Type', finalContentType)
+        responseHeaders.set('Accept-Ranges', 'bytes')
+        responseHeaders.set('Access-Control-Allow-Origin', '*')
+        responseHeaders.set('Cache-Control', 'public, max-age=3600')
+        const cl = res2.headers.get('content-length')
+        if (cl) responseHeaders.set('Content-Length', cl)
+        const cr = res2.headers.get('content-range')
+        if (cr) responseHeaders.set('Content-Range', cr)
+
+        return new Response(res2.body, {
+          status: res2.status === 206 || rangeHeader ? 206 : 200,
+          headers: responseHeaders,
+        })
+      }
+    } else if (testRes.ok || testRes.status === 206) {
+      // Direct download worked without virus warning — redirect!
+      finalCdnUrl = testRes.url || fallbackUrl
+      if (supabase) saveCdnUrl(fileId, finalCdnUrl, testCt, supabase).catch(() => {})
+
+      const redirectHeaders = new Headers()
+      redirectHeaders.set('Location', finalCdnUrl)
+      redirectHeaders.set('Access-Control-Allow-Origin', '*')
+      redirectHeaders.set('Cache-Control', 'public, max-age=3600')
+      return new Response(null, { status: 302, headers: redirectHeaders })
     }
 
-    if (!res || (!res.ok && res.status !== 206)) {
-      return NextResponse.json(
-        { error: `Google Drive error (HTTP ${res ? res.status : 500})` },
-        { status: res ? res.status : 500 }
-      )
-    }
-
-    // Xác định đúng MIME type audio, ưu tiên filename do client truyền lên
-    const contentDisposition = res.headers.get('content-disposition') || ''
-    const finalContentType = detectContentType({
-      fetchedContentType: contentType || res.headers.get('content-type') || '',
-      titleParam,
-      contentDisposition,
-    })
-
-    const responseHeaders = new Headers()
-    responseHeaders.set('Content-Type', finalContentType)
-    responseHeaders.set('Accept-Ranges', 'bytes')
-    responseHeaders.set('Access-Control-Allow-Origin', '*')
-    responseHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
-    responseHeaders.set('Access-Control-Allow-Headers', 'Range, Content-Type')
-    responseHeaders.set('Cache-Control', 'public, max-age=31536000, immutable')
-    responseHeaders.set('ETag', `W/"drive-${fileId}"`)
-
-    const contentLength = res.headers.get('content-length')
-    if (contentLength) {
-      responseHeaders.set('Content-Length', contentLength)
-    }
-
-    const contentRange = res.headers.get('content-range')
-    if (contentRange) {
-      responseHeaders.set('Content-Range', contentRange)
-    }
-
-    const status = res.status === 206 || rangeHeader ? 206 : 200
-
-    return new Response(res.body, {
-      status,
-      headers: responseHeaders,
-    })
+    return NextResponse.json(
+      { error: 'Google Drive: could not resolve a playable stream URL' },
+      { status: 502 }
+    )
   } catch (err: any) {
     console.error('Drive stream proxy error:', err)
     return NextResponse.json({ error: err?.message || 'Server error' }, { status: 500 })

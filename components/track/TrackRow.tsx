@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
+import Link from 'next/link'
 import { Track, Playlist } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { Play, Pause, Music, Trash2, MoreVertical, Plus, Pencil, Check, X, Heart, Cloud, ListMusic } from 'lucide-react'
@@ -307,8 +308,18 @@ function TrackRowComponent({
             placeholder="Tên album..."
             className="text-xs bg-white/10 border border-[var(--primary-spotify)]/50 rounded px-1.5 py-0.5 text-white outline-none w-full max-w-[160px]"
           />
+        ) : !track.album || track.album === 'Google Drive' || track.album === 'Google Drive Sync' ? (
+          '—'
+        ) : track.spotify_album_id ? (
+          <Link
+            href={`/album/${track.spotify_album_id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="hover:text-[var(--spotify-glow,#22d3ee)] hover:underline transition-colors"
+          >
+            {track.album}
+          </Link>
         ) : (
-          !track.album || track.album === 'Google Drive' || track.album === 'Google Drive Sync' ? '—' : track.album
+          track.album
         )}
       </div>
 

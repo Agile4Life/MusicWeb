@@ -8,6 +8,7 @@ import { Track } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { TrackRow } from '@/components/track/TrackRow'
 import { TrackListSkeleton, HeroCardSkeleton } from '@/components/common/SkeletonLoader'
+import { getValidUserId } from '@/lib/accessControl'
 import { Play, DiscAlbum, Calendar, Music, Shuffle, Disc } from 'lucide-react'
 
 interface AlbumDetail {
@@ -35,21 +36,20 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
       setLoading(true)
 
       try {
-        // 1. Check Supabase cache FIRST
+        // 1. Try Supabase DB cache first
         const { data: cached } = await supabase
           .from('spotify_albums')
           .select('*, tracks:tracks!spotify_album_id(*)')
           .eq('id', albumId)
-          .single()
+          .maybeSingle()
 
         if (
           cached &&
           cached.tracks &&
           Array.isArray(cached.tracks) &&
           cached.tracks.length > 0 &&
-          cached.tracks.length === cached.total_tracks
+          cached.tracks.length >= (cached.total_tracks || 1)
         ) {
-          // Sort tracks by disc_number ascending, then track_number ascending
           cached.tracks.sort((a: any, b: any) => {
             if ((a.disc_number || 1) !== (b.disc_number || 1)) {
               return (a.disc_number || 1) - (b.disc_number || 1)
@@ -65,72 +65,18 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
           return
         }
 
-        // 2. If missing or incomplete tracks in cache, fetch directly from Spotify API
-        const albumMeta = await fetchSpotifyAlbumMeta(albumId)
-        if (!albumMeta) {
-          setLoading(false)
-          return
-        }
-
-        const spotifyTracks = await fetchFullAlbumTracks(albumId)
-        const systemUserId = '00000000-0000-4000-a000-000000000001'
-
-        const tracksToSave = spotifyTracks.map((item: any) => ({
-          user_id: systemUserId,
-          title: item.name,
-          artist: item.artists?.map((a: any) => a.name).join(', ') || albumMeta.artist,
-          album: albumMeta.name,
-          spotify_album_id: albumMeta.id,
-          disc_number: item.disc_number || 1,
-          track_number: item.track_number || 1,
-          duration: Math.round((item.duration_ms || 0) / 1000),
-          file_path: item.external_urls?.spotify || item.preview_url || `spotify:${item.id}`,
-          cover_url: albumMeta.cover_url,
-          spotify_id: item.id,
-        }))
-
-        // Upsert album into spotify_albums table
-        await supabase.from('spotify_albums').upsert({
-          id: albumMeta.id,
-          name: albumMeta.name,
-          artist: albumMeta.artist,
-          cover_url: albumMeta.cover_url,
-          release_date: albumMeta.release_date,
-          total_tracks: albumMeta.total_tracks || tracksToSave.length,
-          album_type: albumMeta.album_type,
-        })
-
-        // Insert tracks into tracks table
-        if (tracksToSave.length > 0) {
-          try {
-            await supabase.from('tracks').upsert(tracksToSave, {
-              onConflict: 'user_id,title,artist',
-              ignoreDuplicates: true,
-            })
-          } catch (upsertErr) {
-            console.warn('Upsert tracks warning:', upsertErr)
+        // 2. Fetch from server API route (/api/albums/[id]) which has Spotify credentials
+        const res = await fetch(`/api/albums/${albumId}`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data && Array.isArray(data.tracks)) {
+            setAlbum(data)
+            setLoading(false)
+            return
           }
         }
-
-        // Re-select saved tracks from DB to retrieve generated UUID primary keys
-        const { data: dbTracks } = await supabase
-          .from('tracks')
-          .select('*')
-          .eq('spotify_album_id', albumMeta.id)
-          .order('disc_number', { ascending: true })
-          .order('track_number', { ascending: true })
-
-        const finalTracks: Track[] = (dbTracks && dbTracks.length === spotifyTracks.length ? dbTracks : tracksToSave).map((t: any) => ({
-          ...t,
-          source: 'spotify' as const,
-        }))
-
-        setAlbum({
-          ...albumMeta,
-          tracks: finalTracks,
-        })
       } catch (err) {
-        console.error('Failed to get or fetch album:', err)
+        console.error('Failed to load album:', err)
       } finally {
         setLoading(false)
       }

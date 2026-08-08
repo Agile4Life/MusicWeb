@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { SpotifyAlbumItem } from '@/lib/spotify'
-import { DiscAlbum, Sparkles, Music, Play, Layers, Calendar, ChevronRight } from 'lucide-react'
+import { DiscAlbum, Sparkles, Music, Play, Search, X, Loader2 } from 'lucide-react'
 import { HeroCardSkeleton } from '@/components/common/SkeletonLoader'
 
 interface AlbumCardProps {
@@ -67,10 +68,24 @@ function AlbumCard({ album }: AlbumCardProps) {
 
 export default function AlbumsPage() {
   const supabase = createClient()
+  const searchParams = useSearchParams()
   const [listenedAlbums, setListenedAlbums] = useState<SpotifyAlbumItem[]>([])
   const [newReleases, setNewReleases] = useState<SpotifyAlbumItem[]>([])
   const [loading, setLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState<'all' | 'albums' | 'singles'>('all')
+
+  // Search state
+  const [albumQuery, setAlbumQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<SpotifyAlbumItem[]>([])
+  const [searching, setSearching] = useState(false)
+
+  // Read URL query parameter ?q=... when navigating from PlayerBar or TrackRow
+  useEffect(() => {
+    const q = searchParams.get('q') || searchParams.get('search')
+    if (q) {
+      setAlbumQuery(q)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     async function loadAlbumsData() {
@@ -82,7 +97,7 @@ export default function AlbumsPage() {
           .from('spotify_albums')
           .select('*')
           .order('release_date', { ascending: false })
-          .limit(24)
+          .limit(30)
 
         if (!error && myAlbums) {
           setListenedAlbums(myAlbums)
@@ -91,7 +106,7 @@ export default function AlbumsPage() {
         console.warn('Error fetching listened albums from Supabase:', err)
       }
 
-      // Source B: Discover New Releases from Spotify API via server route
+      // Source B: Discover New Releases from Deezer & Spotify via server route
       try {
         const res = await fetch('/api/albums/new-releases')
         if (res.ok) {
@@ -108,6 +123,34 @@ export default function AlbumsPage() {
     loadAlbumsData()
   }, [])
 
+  // Live album search effect (debounced 400ms)
+  useEffect(() => {
+    if (!albumQuery.trim()) {
+      setSearchResults([])
+      setSearching(false)
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      setSearching(true)
+      try {
+        const res = await fetch(`/api/albums/search?q=${encodeURIComponent(albumQuery.trim())}`)
+        if (res.ok) {
+          const data = await res.json()
+          if (Array.isArray(data)) {
+            setSearchResults(data)
+          }
+        }
+      } catch (e) {
+        console.warn('Album search fetch error:', e)
+      } finally {
+        setSearching(false)
+      }
+    }, 400)
+
+    return () => clearTimeout(timer)
+  }, [albumQuery])
+
   const filterAlbums = (albums: SpotifyAlbumItem[]) => {
     if (activeFilter === 'albums') {
       return albums.filter((a) => a.album_type !== 'single')
@@ -120,6 +163,7 @@ export default function AlbumsPage() {
 
   const filteredListened = filterAlbums(listenedAlbums)
   const filteredNew = filterAlbums(newReleases)
+  const filteredSearch = filterAlbums(searchResults)
 
   return (
     <div className="p-3.5 sm:p-6 md:p-8 flex flex-col gap-5 sm:gap-8 max-w-7xl mx-auto w-full pb-36 md:pb-8 select-none">
@@ -132,19 +176,19 @@ export default function AlbumsPage() {
           <div>
             <div className="flex items-center gap-2 text-[11px] font-mono text-cyan-400 uppercase tracking-widest mb-1">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Spotify Collection</span>
+              <span>Deezer & Global Collection</span>
             </div>
             <h1 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight">
               Thư Viện Albums
             </h1>
             <p className="text-xs text-slate-400 mt-1 max-w-md">
-              Khám phá các album phát hành mới nhất từ Spotify và bộ sưu tập album bạn đã trải nghiệm.
+              Khám phá và tìm kiếm hơn 60+ album phát hành mới nhất trên toàn thế giới từ Deezer & Spotify.
             </p>
           </div>
         </div>
 
         {/* Category Filters */}
-        <div className="flex items-center gap-1.5 p-1 bg-white/[0.04] border border-white/[0.08] rounded-2xl backdrop-blur-md">
+        <div className="flex items-center gap-1.5 p-1 bg-white/[0.04] border border-white/[0.08] rounded-2xl backdrop-blur-md shrink-0">
           <button
             onClick={() => setActiveFilter('all')}
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
@@ -178,12 +222,67 @@ export default function AlbumsPage() {
         </div>
       </div>
 
+      {/* Album Search Input */}
+      <div className="relative flex items-center w-full max-w-xl mx-auto">
+        <Search className="w-4 h-4 text-slate-400 absolute left-4 pointer-events-none" />
+        <input
+          type="text"
+          value={albumQuery}
+          onChange={(e) => setAlbumQuery(e.target.value)}
+          placeholder="Tìm kiếm Album theo tên đĩa nhạc, nghệ sĩ (Sơn Tùng, Taylor Swift, Coldplay...)"
+          className="w-full bg-[#0d111a] border border-white/10 focus:border-[var(--primary-spotify,#06b6d4)]/60 focus:bg-[#111724] rounded-full pl-11 pr-10 py-2.5 text-xs text-white placeholder-slate-400 outline-none transition-all shadow-inner"
+        />
+        {searching ? (
+          <Loader2 className="w-4 h-4 text-cyan-400 animate-spin absolute right-3.5" />
+        ) : albumQuery ? (
+          <button
+            onClick={() => setAlbumQuery('')}
+            className="absolute right-3.5 p-0.5 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        ) : null}
+      </div>
+
       {loading ? (
         <div className="flex flex-col gap-8">
           <HeroCardSkeleton />
           <HeroCardSkeleton />
         </div>
+      ) : albumQuery.trim() ? (
+        /* Search Results Mode */
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-2 h-5 bg-cyan-400 rounded-full" />
+              <h2 className="text-lg font-bold text-white tracking-wide">
+                Kết quả tìm kiếm cho &quot;{albumQuery}&quot;
+              </h2>
+            </div>
+            <span className="text-xs font-mono text-slate-500">
+              {filteredSearch.length} albums
+            </span>
+          </div>
+
+          {searching ? (
+            <div className="flex flex-col gap-4">
+              <HeroCardSkeleton />
+            </div>
+          ) : filteredSearch.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-5">
+              {filteredSearch.map((album) => (
+                <AlbumCard key={album.id} album={album} />
+              ))}
+            </div>
+          ) : (
+            <div className="p-12 rounded-2xl bg-white/[0.02] border border-white/[0.05] text-center text-slate-400">
+              <p className="text-sm font-bold text-white">Không tìm thấy album nào phù hợp</p>
+              <p className="text-xs mt-1 text-slate-500">Hãy thử tìm với tên nghệ sĩ hoặc tên album khác</p>
+            </div>
+          )}
+        </div>
       ) : (
+        /* Normal Discovery Mode */
         <div className="flex flex-col gap-10">
           {/* Section A: Listened Albums */}
           {filteredListened.length > 0 && (
@@ -208,17 +307,17 @@ export default function AlbumsPage() {
             </div>
           )}
 
-          {/* Section B: New Releases Discovery */}
+          {/* Section B: New Releases & Top Discovery */}
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-2 h-5 bg-pink-500 rounded-full" />
                 <h2 className="text-lg font-bold text-white tracking-wide">
-                  Khám Phá Album Mới (New Releases)
+                  Khám Phá Album Mới (Top Releases)
                 </h2>
               </div>
               <span className="text-xs font-mono text-slate-500">
-                Spotify VN
+                {filteredNew.length} Albums • Deezer Top Charts
               </span>
             </div>
 

@@ -25,7 +25,10 @@ import {
   RotateCcw,
   Cloud,
   Shuffle,
+  DiscAlbum,
+  ChevronRight,
 } from 'lucide-react'
+import { SpotifyAlbumItem } from '@/lib/spotify'
 import { useSession } from 'next-auth/react'
 import { getValidUserId, isAdmin as checkIsAdmin } from '@/lib/accessControl'
 import { useSearchParams } from 'next/navigation'
@@ -53,6 +56,20 @@ export default function HomePage() {
   const [recentTracks, setRecentTracks] = useState<Track[]>([])
   const [searchSource, setSearchSource] = useState<'all' | 'youtube' | 'audius' | 'itunes' | 'spotify' | 'local'>('all')
   const [libraryTab, setLibraryTab] = useState<'all' | 'drive' | 'recent'>('recent')
+
+  // Trending Albums state
+  const [trendingAlbums, setTrendingAlbums] = useState<SpotifyAlbumItem[]>([])
+  const [loadingAlbums, setLoadingAlbums] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/albums/new-releases')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) setTrendingAlbums(data.slice(0, 12))
+      })
+      .catch((err) => console.warn('Failed to fetch home trending albums:', err))
+      .finally(() => setLoadingAlbums(false))
+  }, [])
 
   useEffect(() => {
     const handleSearchEvent = (e: any) => {
@@ -725,6 +742,81 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      {/* Global Trending Albums Showcase Section */}
+      {!isSearching && (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-white flex items-center gap-2">
+              <DiscAlbum style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
+              <span>Trending & Hot Albums</span>
+            </h2>
+            <Link
+              href="/albums"
+              className="text-xs font-semibold text-slate-400 hover:text-white hover:underline flex items-center gap-1 transition-colors"
+            >
+              <span>Xem tất cả</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          {loadingAlbums ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse flex flex-col gap-2">
+                  <div className="aspect-square bg-slate-800 rounded-xl" />
+                  <div className="h-3 bg-slate-700 rounded w-3/4" />
+                  <div className="h-2 bg-slate-800 rounded w-1/2" />
+                </div>
+              ))}
+            </div>
+          ) : trendingAlbums.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {trendingAlbums.map((album) => (
+                <Link
+                  key={album.id}
+                  href={`/album/${album.id}`}
+                  className="bg-white/[0.02] hover:bg-white/[0.06] p-3 rounded-2xl flex flex-col gap-2 cursor-pointer group hover:-translate-y-1.5 transition-all duration-300 border border-white/[0.04] hover:border-[var(--spotify-glow)]/40 shadow-sm"
+                >
+                  <div className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
+                    {album.cover_url ? (
+                      <img
+                        src={album.cover_url}
+                        alt={album.name}
+                        className="w-full h-full object-cover scale-[1.05] group-hover:scale-110 transition-transform duration-500"
+                      />
+                    ) : (
+                      <DiscAlbum className="w-8 h-8 text-slate-500 group-hover:scale-110 transition-transform duration-300" />
+                    )}
+                    <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[8px] font-mono text-cyan-300 uppercase tracking-wider">
+                      {album.album_type === 'single' ? 'Single' : 'Album'}
+                    </div>
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300">
+                      <div
+                        style={{
+                          background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                          boxShadow: '0 4px 12px var(--theme-glow-shadow, rgba(6,182,212,0.4))',
+                        }}
+                        className="w-9 h-9 rounded-full text-black flex items-center justify-center border border-white/20 transform group-hover:scale-100 scale-75 transition-all duration-300"
+                      >
+                        <Play className="w-4.5 h-4.5 fill-current text-black ml-0.5" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="truncate">
+                    <p className="text-xs font-bold text-white truncate group-hover:text-[var(--spotify-glow,#22d3ee)] transition-colors">
+                      {album.name}
+                    </p>
+                    <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                      {album.artist}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      )}
 
       {/* Global Trending Music Showcase Section */}
       {!isSearching && (

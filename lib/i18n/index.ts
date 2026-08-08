@@ -102,6 +102,7 @@ export const translations: Record<Language, Record<string, string>> = {
   en: {
     // Navigation
     home: 'Home',
+    albums: 'Albums',
     drive: 'Google Drive Sync',
     favorites: 'Favorites',
     history: 'History',
@@ -185,6 +186,7 @@ export const translations: Record<Language, Record<string, string>> = {
   zh: {
     // Navigation
     home: '首页',
+    albums: '专辑',
     drive: 'Google Drive 同步',
     favorites: '我的收藏',
     history: '播放历史',
@@ -268,6 +270,7 @@ export const translations: Record<Language, Record<string, string>> = {
   ja: {
     // Navigation
     home: 'ホーム',
+    albums: 'アルバム',
     drive: 'Google Drive 同期',
     favorites: 'お気に入り',
     history: '再生履歴',

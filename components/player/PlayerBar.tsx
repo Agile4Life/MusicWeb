@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useState } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { usePlayer, usePlaybackProgress } from './PlayerContext'
 import { LyricsView } from './LyricsView'
 import { QueueDrawer } from './QueueDrawer'
@@ -22,6 +24,7 @@ import {
   Heart,
   ListMusic,
   Loader2,
+  DiscAlbum,
 } from 'lucide-react'
 
 function formatTime(seconds: number) {
@@ -51,6 +54,42 @@ export function PlayerBar() {
     isQueueOpen,
     toggleQueue,
   } = usePlayer()
+  const router = useRouter()
+
+  const handleOpenAlbum = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (!currentTrack || !currentTrack.album || currentTrack.album === 'Google Drive' || currentTrack.album === 'Google Drive Sync') {
+      router.push('/albums')
+      return
+    }
+
+    if (currentTrack.spotify_album_id) {
+      setShowMobileFullPlayer(false)
+      router.push(`/album/${currentTrack.spotify_album_id}`)
+      return
+    }
+
+    try {
+      const res = await fetch(
+        `/api/albums/resolve?title=${encodeURIComponent(currentTrack.album)}&artist=${encodeURIComponent(currentTrack.artist || '')}`
+      )
+      if (res.ok) {
+        const data = await res.json()
+        if (data.albumId) {
+          setShowMobileFullPlayer(false)
+          router.push(`/album/${data.albumId}`)
+          return
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to resolve album ID:', err)
+    }
+
+    setShowMobileFullPlayer(false)
+    router.push(`/albums?q=${encodeURIComponent(currentTrack.album)}`)
+  }
 
   const [prevVol, setPrevVol] = useState(0.8)
   const [showMobileFullPlayer, setShowMobileFullPlayer] = useState(false)
@@ -273,6 +312,20 @@ export function PlayerBar() {
               <p className="text-xs text-slate-400 truncate w-full">
                 {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
               </p>
+              {currentTrack.album && currentTrack.album !== 'Google Drive' && currentTrack.album !== 'Google Drive Sync' && (
+                <div
+                  onClick={handleOpenAlbum}
+                  className="flex items-center gap-1.5 mt-1 text-xs truncate max-w-full cursor-pointer group"
+                >
+                  <DiscAlbum className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                  <span
+                    className="text-cyan-300 font-semibold group-hover:underline truncate"
+                    title={`Vào album: ${currentTrack.album}`}
+                  >
+                    {currentTrack.album}
+                  </span>
+                </div>
+              )}
             </div>
             <button
               onClick={toggleFavoriteCurrentTrack}
@@ -435,37 +488,25 @@ export function PlayerBar() {
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex items-center gap-2 mt-0.5 truncate">
               <p className="text-[11px] text-slate-400 truncate hover:text-slate-200 transition-colors cursor-pointer">
                 {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
               </p>
 
-              {/* Source Badge */}
-              {currentTrack.source === 'spotify' && (
-                <span className="text-[8px] font-mono font-bold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1 py-0.2 rounded shrink-0">
-                  Spotify
-                </span>
+              {/* Album Link Pill */}
+              {currentTrack.album && currentTrack.album !== 'Google Drive' && currentTrack.album !== 'Google Drive Sync' && (
+                <div
+                  onClick={handleOpenAlbum}
+                  className="flex items-center gap-1 shrink-0 text-[10px] text-slate-300 bg-white/[0.06] border border-white/10 px-1.5 py-0.5 rounded-md max-w-[130px] hover:border-cyan-500/40 cursor-pointer transition-colors group"
+                  title={`Vào album: ${currentTrack.album}`}
+                >
+                  <DiscAlbum className="w-3 h-3 text-cyan-400 shrink-0" />
+                  <span className="truncate font-semibold text-slate-200 group-hover:text-cyan-300 group-hover:underline transition-colors">
+                    {currentTrack.album}
+                  </span>
+                </div>
               )}
-              {currentTrack.source === 'itunes' && (
-                <span className="text-[8px] font-mono font-bold uppercase bg-pink-500/20 text-pink-300 border border-pink-500/30 px-1 py-0.2 rounded shrink-0">
-                  iTunes
-                </span>
-              )}
-              {currentTrack.source === 'youtube' && (
-                <span className="text-[8px] font-mono font-bold uppercase bg-red-500/20 text-red-400 border border-red-500/30 px-1 py-0.2 rounded shrink-0">
-                  YouTube
-                </span>
-              )}
-              {currentTrack.source === 'audius' && (
-                <span className="text-[8px] font-mono font-bold uppercase bg-purple-500/20 text-purple-300 border border-purple-500/30 px-1 py-0.2 rounded shrink-0">
-                  Audius
-                </span>
-              )}
-              {(!currentTrack.source || currentTrack.source === 'local') && (
-                <span className="text-[8px] font-mono font-bold uppercase bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-1 py-0.2 rounded shrink-0">
-                  Drive
-                </span>
-              )}
+
               {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && (
                 <span className="flex items-center gap-1 text-[10px] font-semibold text-cyan-300 bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 rounded-full animate-pulse shrink-0">
                   <Loader2 className="w-3 h-3 animate-spin text-cyan-400 shrink-0" />

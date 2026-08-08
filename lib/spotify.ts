@@ -135,46 +135,123 @@ export interface SpotifyAlbumItem {
   album_type: string
 }
 
-export async function fetchNewReleases(country = 'VN', limit = 20): Promise<SpotifyAlbumItem[]> {
+import { fetchDeezerNewReleases } from '@/lib/deezer'
+
+export async function fetchNewReleases(country = 'US', limit = 24): Promise<SpotifyAlbumItem[]> {
+  // Stage 0: Deezer Public API (100% Free, Global, No Token Expiration)
+  try {
+    const deezerAlbums = await fetchDeezerNewReleases(limit)
+    if (deezerAlbums && deezerAlbums.length > 0) {
+      return deezerAlbums
+    }
+  } catch (e) {
+    console.warn('Deezer new releases fallback to Spotify:', e)
+  }
+
   try {
     const token = await getSpotifyAccessToken()
     if (!token) {
       console.warn('No Spotify access token retrieved')
-      return []
+      return getFallbackCachedAlbums()
     }
 
-    const safeLimit = Math.min(limit, 10)
-    const searchQuery = encodeURIComponent('year:2024-2026 OR pop OR hits')
-    const searchRes = await fetch(
-      `https://api.spotify.com/v1/search?q=${searchQuery}&type=album&market=${encodeURIComponent(country)}&limit=${safeLimit}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: 'no-store',
-      }
-    )
+    const safeLimit = Math.min(limit, 30)
 
-    if (searchRes.ok) {
-      const sData = await searchRes.json()
-      const items = sData.albums?.items || []
-      console.log('Spotify search returned', items.length, 'albums')
-      if (items.length > 0) {
-        return items.map((item: any) => ({
-          id: item.id,
-          name: item.name,
-          artist: item.artists?.map((a: any) => a.name).join(', ') || 'Nghệ sĩ chưa xác định',
-          cover_url: item.images?.[0]?.url || item.images?.[1]?.url || null,
-          release_date: item.release_date || '',
-          total_tracks: item.total_tracks || 0,
-          album_type: item.album_type || 'album',
-        }))
+    // Stage 1: Official Spotify Browse New Releases (Global - Worldwide)
+    try {
+      const res1 = await fetch(
+        `https://api.spotify.com/v1/browse/new-releases?limit=${safeLimit}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        }
+      )
+      if (res1.ok) {
+        const data1 = await res1.json()
+        const items1 = data1.albums?.items || []
+        if (items1.length > 0) {
+          return mapSpotifyAlbumItems(items1)
+        }
       }
-    } else {
-      const errBody = await searchRes.text()
-      console.warn('Spotify search albums status:', searchRes.status, errBody)
+    } catch (e) {
+      console.warn('Browse new releases global error:', e)
+    }
+
+    // Stage 2: Official Spotify Browse New Releases (US / Country fallback)
+    try {
+      const res2 = await fetch(
+        `https://api.spotify.com/v1/browse/new-releases?country=${encodeURIComponent(country)}&limit=${safeLimit}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        }
+      )
+      if (res2.ok) {
+        const data2 = await res2.json()
+        const items2 = data2.albums?.items || []
+        if (items2.length > 0) {
+          return mapSpotifyAlbumItems(items2)
+        }
+      }
+    } catch (e) {
+      console.warn('Browse new releases country error:', e)
+    }
+
+    // Stage 3: Spotify Search API with clean query
+    try {
+      const searchQuery = encodeURIComponent('year:2024-2026')
+      const res3 = await fetch(
+        `https://api.spotify.com/v1/search?q=${searchQuery}&type=album&limit=${safeLimit}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        }
+      )
+      if (res3.ok) {
+        const data3 = await res3.json()
+        const items3 = data3.albums?.items || []
+        if (items3.length > 0) {
+          return mapSpotifyAlbumItems(items3)
+        }
+      }
+    } catch (e) {
+      console.warn('Spotify search albums error:', e)
     }
   } catch (err) {
     console.error('Spotify new releases fetch error:', err)
   }
+
+  // Final Fallback: Read from DB if Spotify API returned no items
+  return getFallbackCachedAlbums()
+}
+
+function mapSpotifyAlbumItems(items: any[]): SpotifyAlbumItem[] {
+  return items
+    .filter((item: any) => item && item.id && item.name)
+    .map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      artist: item.artists?.map((a: any) => a.name).join(', ') || 'Nghệ sĩ chưa xác định',
+      cover_url: item.images?.[0]?.url || item.images?.[1]?.url || null,
+      release_date: item.release_date || '',
+      total_tracks: item.total_tracks || 0,
+      album_type: item.album_type || 'album',
+    }))
+}
+
+async function getFallbackCachedAlbums(): Promise<SpotifyAlbumItem[]> {
+  try {
+    const { createClient } = await import('@supabase/supabase-js')
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    if (url && key) {
+      const supabase = createClient(url, key, { auth: { persistSession: false } })
+      const { data } = await supabase.from('spotify_albums').select('*').limit(24)
+      if (data && data.length > 0) {
+        return data as SpotifyAlbumItem[]
+      }
+    }
+  } catch {}
   return []
 }
 

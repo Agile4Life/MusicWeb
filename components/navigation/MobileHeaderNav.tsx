@@ -169,14 +169,14 @@ export function MobileHeaderNav() {
         </Link>
 
         <Link
-          href="/drive"
+          href="/albums"
           prefetch={false}
           className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-            pathname === '/drive' ? 'text-[var(--spotify-glow,#22d3ee)] font-bold' : 'text-slate-400'
+            pathname === '/albums' || pathname.startsWith('/album/') ? 'text-cyan-400 font-bold' : 'text-slate-400'
           }`}
         >
-          <Cloud className="w-5 h-5" />
-          <span className="text-[10px] truncate max-w-full">{t('drive')}</span>
+          <DiscAlbum className="w-5 h-5" />
+          <span className="text-[10px] truncate max-w-full">Albums</span>
         </Link>
 
         <Link
@@ -268,6 +268,18 @@ export function MobileHeaderNav() {
                 >
                   <Home className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
                   <span>Trang chủ</span>
+                </Link>
+
+                <Link
+                  href="/albums"
+                  prefetch={false}
+                  onClick={() => setIsDrawerOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold ${
+                    pathname === '/albums' || pathname.startsWith('/album/') ? 'bg-white/10 text-white font-bold' : 'text-slate-200 hover:bg-white/5'
+                  }`}
+                >
+                  <DiscAlbum className="w-4 h-4 text-cyan-400" />
+                  <span>Albums</span>
                 </Link>
 
                 <Link

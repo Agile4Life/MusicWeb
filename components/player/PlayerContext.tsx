@@ -10,6 +10,7 @@ import { deduplicateQueueTracks } from '@/lib/utils'
 import { findBestYouTubeMatch, normalizeTitle } from '@/lib/youtube'
 import { fetchUnifiedSearch } from '@/lib/searchApi'
 import { getSmartRecommendedTracks } from '@/lib/smartRecommend'
+import { NextQueueResponse, queueTrackToTrack } from '@/types/queue'
 
 export type RepeatMode = 'off' | 'all' | 'one'
 
@@ -171,16 +172,49 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const autoFetchSmartQueueRef = useRef(false)
 
+  const recordListenEvent = useCallback((track: Track | null, completed: boolean, skipAtSeconds?: number) => {
+    if (!track || !track.id) return
+    fetch('/api/listen-events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        track_id: track.id,
+        artist: track.artist || null,
+        completed,
+        skip_at_seconds: typeof skipAtSeconds === 'number' ? Math.round(skipAtSeconds) : null,
+      }),
+    }).catch(() => {})
+  }, [])
+
   const triggerSmartQueueFill = useCallback(async (seedTrack: Track, currentQ: Track[]) => {
     if (!seedTrack || autoFetchSmartQueueRef.current) return
     autoFetchSmartQueueRef.current = true
     try {
+      const seedId = seedTrack.id
+      const artist = seedTrack.artist || ''
+      const title = seedTrack.title || ''
+      const res = await fetch(
+        `/api/queue/next?current_track_id=${encodeURIComponent(seedId)}&artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}&limit=12`
+      )
+      if (res.ok) {
+        const data: NextQueueResponse = await res.json()
+        if (data.tracks && data.tracks.length > 0) {
+          const appTracks = data.tracks.map((qt) => queueTrackToTrack(qt))
+          setQueue((prev) => deduplicateQueueTracks([...prev, ...appTracks]))
+          return
+        }
+      }
+      // Fallback if API returned empty
       const recs = await getSmartRecommendedTracks(seedTrack, currentQ, 8)
       if (recs && recs.length > 0) {
         setQueue((prev) => deduplicateQueueTracks([...prev, ...recs]))
       }
     } catch (err) {
-      console.warn('Smart queue auto-fill warning:', err)
+      console.warn('Smart queue auto-fill error:', err)
+      const recs = await getSmartRecommendedTracks(seedTrack, currentQ, 8).catch(() => [])
+      if (recs && recs.length > 0) {
+        setQueue((prev) => deduplicateQueueTracks([...prev, ...recs]))
+      }
     } finally {
       autoFetchSmartQueueRef.current = false
     }
@@ -334,6 +368,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 setIsPlaying(false)
               } else if (event.data === 0) {
                 setIsPlaying(false)
+                recordListenEvent(currentTrackRef.current, true)
                 const mode = repeatModeRef.current
                 if (mode === 'one') {
                   setTimeout(() => {
@@ -392,7 +427,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             )
           }
         }
-      }, 250) // 250ms for ultra-responsive lyric scrolling & highlighting
+      }, 150) // 150ms for ultra-responsive lyric scrolling & highlighting
     }
     return () => {
       if (interval) clearInterval(interval)
@@ -562,13 +597,26 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const track = inferTrackSource(rawTrack)
 
     // 🚀 Push currentTrack onto true playback history stack when user changes track
-    if (!isPrevNextActionRef.current) {
-      if (currentTrackRef.current && currentTrackRef.current.id !== track.id) {
+    if (currentTrackRef.current && currentTrackRef.current.id !== track.id) {
+      let activeTime = currentTime
+      if (currentTrackRef.current.source === 'youtube' && ytPlayerRef.current?.getCurrentTime) {
+        try { activeTime = ytPlayerRef.current.getCurrentTime() || currentTime } catch {}
+      } else if (audioRef.current) {
+        activeTime = audioRef.current.currentTime || currentTime
+      }
+      const trackDur = currentTrackRef.current.duration || 0
+      if (activeTime > 2 && (trackDur === 0 || activeTime < trackDur - 5)) {
+        recordListenEvent(currentTrackRef.current, false, activeTime)
+      }
+
+      if (!isPrevNextActionRef.current) {
         playedHistoryStackRef.current.push(currentTrackRef.current)
         if (playedHistoryStackRef.current.length > 50) {
           playedHistoryStackRef.current.shift()
         }
       }
+    }
+    if (!isPrevNextActionRef.current) {
       forwardHistoryStackRef.current = []
     }
     isPrevNextActionRef.current = false
@@ -627,57 +675,72 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // 🎵 Full-Length Stream Resolver for iTunes & Spotify tracks (Resolves DRM/metadata into 100% playable full song)
     let activeTrack = track
     if ((track.source === 'itunes' || track.source === 'spotify' || (!track.youtube_id && (track.spotify_id || track.itunes_id))) && !track.youtube_id) {
-      // 🚀 STEP 1: Search local Supabase / Drive tracks FIRST and VERIFY accessibility on Drive
-      try {
-        const cleanTitle = normalizeTitle(track.title)
-        const cleanArtist = normalizeTitle(track.artist || '')
+      // 🚀 Parallel lookup: Search Drive tracks + YouTube simultaneously for faster resolution
+      const cleanTitle = normalizeTitle(track.title)
+      const cleanArtist = normalizeTitle(track.artist || '')
+      const cleanQueryTitle = track.title.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').trim()
+      const queryStr = `${cleanQueryTitle} ${track.artist || ''}`
 
-        if (cleanTitle) {
-          const { data: localMatches } = await supabase
-            .from('tracks')
-            .select('*')
-            .or(`title.ilike.%${cleanTitle}%,artist.ilike.%${cleanTitle}%`)
-            .limit(10)
+      // Launch both lookups in parallel — saves 1-3 seconds vs sequential
+      const [driveResult, ytResult] = await Promise.allSettled([
+        // Drive lookup
+        (async () => {
+          if (!cleanTitle) return null
+          try {
+            const { data: localMatches } = await supabase
+              .from('tracks')
+              .select('*')
+              .or(`title.ilike.%${cleanTitle}%,artist.ilike.%${cleanTitle}%`)
+              .limit(10)
 
-          if (localMatches && localMatches.length > 0) {
-            const driveCandidates = localMatches.filter((lt: any) => {
-              if (!lt.file_path || isPreviewUrl(lt.file_path)) return false
-              const ltTitle = normalizeTitle(lt.title)
-              const ltArtist = normalizeTitle(lt.artist || '')
-              const titleMatches = ltTitle.includes(cleanTitle) || cleanTitle.includes(ltTitle)
-              const artistMatches = !cleanArtist || ltArtist.includes(cleanArtist) || cleanArtist.includes(ltArtist)
-              return titleMatches && artistMatches
-            })
+            if (localMatches && localMatches.length > 0) {
+              const driveCandidates = localMatches.filter((lt: any) => {
+                if (!lt.file_path || isPreviewUrl(lt.file_path)) return false
+                const ltTitle = normalizeTitle(lt.title)
+                const ltArtist = normalizeTitle(lt.artist || '')
+                const titleMatches = ltTitle.includes(cleanTitle) || cleanTitle.includes(ltTitle)
+                const artistMatches = !cleanArtist || ltArtist.includes(cleanArtist) || cleanArtist.includes(ltArtist)
+                return titleMatches && artistMatches
+              })
 
-            for (const candidate of driveCandidates) {
-              const verification = await verifyDriveFile(candidate.file_path)
-              if (verification.valid) {
-                activeTrack = {
-                  ...candidate,
-                  source: 'local',
-                  cover_url: track.cover_url || candidate.cover_url,
-                }
-                if (requestId === playRequestRef.current) {
-                  setCurrentTrack(activeTrack)
-                  const streamUrl = verification.streamUrl || (await getAudioUrl(activeTrack))
-                  if (audioRef.current && streamUrl) {
-                    audioRef.current.src = streamUrl
-                    audioRef.current.currentTime = initialTime
-                    audioRef.current.volume = volumeRef.current
-                    await audioRef.current.play()
-                    setIsPlaying(true)
-                    return
+              // Skip verifyDriveFile HTTP call — trust URL format check (saves ~500ms per candidate)
+              for (const candidate of driveCandidates) {
+                const driveId = extractDriveFileId(candidate.file_path)
+                if (driveId || (candidate.file_path?.startsWith('http') && !isPreviewUrl(candidate.file_path))) {
+                  return {
+                    ...candidate,
+                    source: 'local' as const,
+                    cover_url: track.cover_url || candidate.cover_url,
                   }
                 }
               }
             }
+          } catch (e) {
+            console.warn('Drive track lookup error:', e)
           }
+          return null
+        })(),
+        // YouTube search
+        fetchUnifiedSearch(queryStr, 'youtube'),
+      ])
+
+      // Prefer Drive track if found (no DRM, direct stream)
+      const driveTrack = driveResult.status === 'fulfilled' ? driveResult.value : null
+      if (driveTrack && requestId === playRequestRef.current) {
+        activeTrack = driveTrack as Track
+        setCurrentTrack(activeTrack)
+        const streamUrl = await getAudioUrl(activeTrack)
+        if (audioRef.current && streamUrl) {
+          audioRef.current.src = streamUrl
+          audioRef.current.currentTime = initialTime
+          audioRef.current.volume = volumeRef.current
+          await audioRef.current.play()
+          setIsPlaying(true)
+          return
         }
-      } catch (e) {
-        console.warn('Drive track lookup error:', e)
       }
 
-      // STEP 2: Fall back to YouTube stream resolution if not found on Drive
+      // Fall back to YouTube stream
       if (ytPlayerRef.current) {
         try {
           if (ytPlayerRef.current.stopVideo) ytPlayerRef.current.stopVideo()
@@ -685,12 +748,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         } catch {}
       }
 
-      try {
-        const cleanTitle = track.title.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').trim()
-        const queryStr = `${cleanTitle} ${track.artist || ''}`
-        const data = await fetchUnifiedSearch(queryStr, 'youtube')
-        if (requestId !== playRequestRef.current) return
-        const ytList: Track[] = data.youtube || []
+      if (requestId !== playRequestRef.current) return
+      const ytData = ytResult.status === 'fulfilled' ? ytResult.value : null
+      if (ytData) {
+        const ytList: Track[] = ytData.youtube || []
         let bestMatch = findBestYouTubeMatch(ytList, track.title, track.artist, track.duration, track.album)
         if (!bestMatch && ytList.length > 0) {
           bestMatch = ytList[0]
@@ -702,7 +763,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             activeTrack = {
               ...track,
               youtube_id: bestMatch.youtube_id,
-              source: 'youtube', // Switch audio engine to YouTube for 100% full-length playback
+              source: 'youtube',
             }
             rawTrack.youtube_id = bestMatch.youtube_id
             track.youtube_id = bestMatch.youtube_id
@@ -716,8 +777,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             }
           }
         }
-      } catch (e) {
-        console.warn('Full length resolution fallback:', e)
       }
     }
 
@@ -1184,6 +1243,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     const handleEnded = () => {
       if (currentTrackRef.current?.source !== 'youtube') {
+        recordListenEvent(currentTrackRef.current, true)
         const mode = repeatModeRef.current
         if (mode === 'one') {
           if (audioRef.current) {
@@ -1236,6 +1296,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [currentIndex, queue, autoPlayNext, repeatMode])
 
   // Media Session API Sync (Lock Screen Controls)
+  // Separate metadata effect — only runs when track changes
   useEffect(() => {
     if (typeof window === 'undefined' || !('mediaSession' in navigator) || !currentTrack) return
 
@@ -1253,8 +1314,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         ],
       })
 
-      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused'
-
       navigator.mediaSession.setActionHandler('play', () => togglePlay())
       navigator.mediaSession.setActionHandler('pause', () => togglePlay())
       navigator.mediaSession.setActionHandler('previoustrack', () => prevTrack())
@@ -1265,8 +1324,22 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           if (details.seekTime !== undefined) seek(details.seekTime)
         })
       } catch (e) {}
+    } catch (err) {
+      console.warn('MediaSession init error:', err)
+    }
+  }, [currentTrack])
 
-      if ('setPositionState' in navigator.mediaSession && duration > 0 && currentTime >= 0) {
+  // Playback state & position — throttled to once per second to avoid overhead
+  const lastPositionUpdateRef = useRef<number>(0)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('mediaSession' in navigator) || !currentTrack) return
+
+    try {
+      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused'
+
+      const now = Date.now()
+      if ('setPositionState' in navigator.mediaSession && duration > 0 && currentTime >= 0 && (now - lastPositionUpdateRef.current > 1000)) {
+        lastPositionUpdateRef.current = now
         try {
           navigator.mediaSession.setPositionState({
             duration: Math.max(duration, 0),
@@ -1276,7 +1349,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         } catch (e) {}
       }
     } catch (err) {
-      console.warn('MediaSession init error:', err)
+      // silently ignore
     }
   }, [currentTrack, isPlaying, currentTime, duration])
 
@@ -1344,7 +1417,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     <PlayerContext.Provider value={playerValue}>
       <PlaybackProgressContext.Provider value={progressValue}>
         {children}
-        <audio ref={audioRef} preload="auto" playsInline />
+        {/* preload="metadata" — only load headers, not entire file. webkit-playsinline for iOS background audio */}
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <audio ref={audioRef} preload="metadata" playsInline {...({'webkit-playsinline': ''} as any)} />
         {/* Hidden YouTube Player IFrame container */}
         <div className="hidden pointer-events-none opacity-0 invisible w-0 h-0 overflow-hidden">
           <div id="yt-player-container" />
