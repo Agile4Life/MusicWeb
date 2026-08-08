@@ -183,11 +183,19 @@ function TrackRowComponent({
   return (
     <div
       onClick={handlePlayClick}
+      style={
+        isSelected
+          ? {
+              backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+              borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+            }
+          : undefined
+      }
       className={`group flex items-center justify-between px-3 md:px-4 py-2.5 rounded-xl transition-all duration-200 cursor-pointer select-none border ${
         showMenu ? 'relative z-40 bg-white/[0.08] border-white/10 text-white' : 'relative'
       } ${
         isSelected
-          ? 'bg-cyan-500/10 border-cyan-500/30'
+          ? 'text-white'
           : isCurrent
           ? 'bg-white/[0.08] border-white/10 text-white'
           : showMenu

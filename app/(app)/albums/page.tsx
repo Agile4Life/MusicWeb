@@ -170,11 +170,18 @@ export default function AlbumsPage() {
       {/* Header Banner */}
       <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] p-4 sm:p-6 md:p-8 bg-gradient-to-br from-[#0c121e] via-[#090e17] to-[#04060a] shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
         <div className="flex items-center gap-3.5 sm:gap-5">
-          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-cyan-500/20 via-purple-500/10 to-pink-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.2)] shrink-0">
+          <div
+            style={{
+              backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+              borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+              color: 'var(--spotify-glow, #22d3ee)',
+            }}
+            className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl border flex items-center justify-center shadow-lg shrink-0"
+          >
             <DiscAlbum className="w-6 h-6 sm:w-8 sm:h-8" />
           </div>
           <div>
-            <div className="flex items-center gap-2 text-[11px] font-mono text-cyan-400 uppercase tracking-widest mb-1">
+            <div style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-widest mb-1">
               <Sparkles className="w-3.5 h-3.5" />
               <span>Deezer & Global Collection</span>
             </div>
@@ -191,9 +198,17 @@ export default function AlbumsPage() {
         <div className="flex items-center gap-1.5 p-1 bg-white/[0.04] border border-white/[0.08] rounded-2xl backdrop-blur-md shrink-0">
           <button
             onClick={() => setActiveFilter('all')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+            style={
               activeFilter === 'all'
-                ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md'
+                ? {
+                    background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                    boxShadow: '0 4px 12px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                  }
+                : undefined
+            }
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              activeFilter === 'all'
+                ? 'text-black shadow-md'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -201,9 +216,17 @@ export default function AlbumsPage() {
           </button>
           <button
             onClick={() => setActiveFilter('albums')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+            style={
               activeFilter === 'albums'
-                ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md'
+                ? {
+                    background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                    boxShadow: '0 4px 12px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                  }
+                : undefined
+            }
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              activeFilter === 'albums'
+                ? 'text-black shadow-md'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -211,9 +234,17 @@ export default function AlbumsPage() {
           </button>
           <button
             onClick={() => setActiveFilter('singles')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+            style={
               activeFilter === 'singles'
-                ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md'
+                ? {
+                    background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                    boxShadow: '0 4px 12px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                  }
+                : undefined
+            }
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              activeFilter === 'singles'
+                ? 'text-black shadow-md'
                 : 'text-slate-400 hover:text-white'
             }`}
           >

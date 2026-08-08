@@ -398,10 +398,19 @@ export function PlayerBar() {
 
             <button
               onClick={toggleRepeat}
-              className={`p-3 rounded-full transition-all flex items-center justify-center ${
+              style={
                 repeatMode !== 'off'
-                  ? 'text-cyan-400 bg-cyan-500/20 border border-cyan-500/40 shadow-lg'
-                  : 'text-slate-400 hover:text-white bg-white/5'
+                  ? {
+                      color: 'var(--spotify-glow, #22d3ee)',
+                      backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                      borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                    }
+                  : undefined
+              }
+              className={`p-3 rounded-full border transition-all flex items-center justify-center ${
+                repeatMode !== 'off'
+                  ? 'border-[var(--spotify-glow)] shadow-lg'
+                  : 'text-slate-400 hover:text-white bg-white/5 border-transparent'
               }`}
               title={
                 repeatMode === 'one'
@@ -443,7 +452,7 @@ export function PlayerBar() {
               }}
               className="p-3 text-slate-300 hover:text-white rounded-full bg-white/5 border border-white/10 flex items-center gap-2 text-xs font-semibold"
             >
-              <Mic2 className="w-4 h-4 text-cyan-400" />
+              <Mic2 style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
               <span>Lời bài hát</span>
             </button>
 
@@ -452,13 +461,22 @@ export function PlayerBar() {
                 setShowMobileFullPlayer(false)
                 toggleQueue()
               }}
-              className={`p-3 rounded-full transition-all flex items-center gap-2 text-xs font-semibold ${
+              style={
                 isQueueOpen
-                  ? 'text-cyan-400 bg-cyan-500/20 border border-cyan-500/40 shadow-lg'
-                  : 'text-slate-300 hover:text-white bg-white/5 border border-white/10'
+                  ? {
+                      color: 'var(--spotify-glow, #22d3ee)',
+                      backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                      borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                    }
+                  : undefined
+              }
+              className={`p-3 rounded-full border transition-all flex items-center gap-2 text-xs font-semibold ${
+                isQueueOpen
+                  ? 'shadow-lg'
+                  : 'text-slate-300 hover:text-white bg-white/5 border-white/10'
               }`}
             >
-              <ListMusic className="w-4 h-4 text-cyan-400" />
+              <ListMusic style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
               <span>Hàng đợi</span>
             </button>
           </div>
@@ -500,16 +518,23 @@ export function PlayerBar() {
                   className="flex items-center gap-1 shrink-0 text-[10px] text-slate-300 bg-white/[0.06] border border-white/10 px-1.5 py-0.5 rounded-md max-w-[130px] hover:border-cyan-500/40 cursor-pointer transition-colors group"
                   title={`Vào album: ${currentTrack.album}`}
                 >
-                  <DiscAlbum className="w-3 h-3 text-cyan-400 shrink-0" />
-                  <span className="truncate font-semibold text-slate-200 group-hover:text-cyan-300 group-hover:underline transition-colors">
+                  <DiscAlbum style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3 h-3 shrink-0" />
+                  <span className="truncate font-semibold text-slate-200 group-hover:text-[var(--spotify-glow)] group-hover:underline transition-colors">
                     {currentTrack.album}
                   </span>
                 </div>
               )}
 
               {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && (
-                <span className="flex items-center gap-1 text-[10px] font-semibold text-cyan-300 bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 rounded-full animate-pulse shrink-0">
-                  <Loader2 className="w-3 h-3 animate-spin text-cyan-400 shrink-0" />
+                <span
+                  style={{
+                    color: 'var(--spotify-glow, #22d3ee)',
+                    backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                    borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                  }}
+                  className="flex items-center gap-1 text-[10px] font-semibold border px-2 py-0.5 rounded-full animate-pulse shrink-0"
+                >
+                  <Loader2 className="w-3 h-3 animate-spin shrink-0" style={{ color: 'var(--spotify-glow, #22d3ee)' }} />
                   <span>Đang tải bản Lossless...</span>
                 </span>
               )}

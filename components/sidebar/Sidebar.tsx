@@ -84,9 +84,16 @@ export function Sidebar() {
           <Link
             href="/"
             onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
-            className="inline-flex items-center gap-2.5 px-3 py-2 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-cyan-500/30 transition-all duration-200 group shadow-md backdrop-blur-xl w-fit shrink-0"
+            className="inline-flex items-center gap-2.5 px-3 py-2 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-[var(--spotify-glow)]/30 transition-all duration-200 group shadow-md backdrop-blur-xl w-fit shrink-0"
           >
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500/20 via-pink-500/10 to-purple-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 group-hover:scale-105 transition-all shadow-[0_0_12px_rgba(6,182,212,0.2)] shrink-0">
+            <div
+              style={{
+                color: 'var(--spotify-glow, #22d3ee)',
+                backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+              }}
+              className="w-9 h-9 rounded-xl border flex items-center justify-center group-hover:scale-105 transition-all shadow-md shrink-0"
+            >
               <Headphones className="w-4.5 h-4.5" />
             </div>
             <div className="flex items-center justify-center h-9 shrink-0">
@@ -204,7 +211,7 @@ export function Sidebar() {
         <div className="flex-1 flex flex-col min-h-0 pt-2 border-t border-white/[0.05]">
           <div className="flex items-center justify-between px-2.5 py-1.5 mb-1">
             <div className="flex items-center gap-2 text-slate-500 font-mono text-[11px] tracking-wider uppercase">
-              <ListMusic className="w-3.5 h-3.5 text-cyan-400" />
+              <ListMusic style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3.5 h-3.5" />
               <span>Playlist</span>
             </div>
             {isAdmin(user?.email) && (

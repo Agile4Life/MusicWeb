@@ -172,7 +172,7 @@ export function MobileHeaderNav() {
           href="/albums"
           prefetch={false}
           className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-            pathname === '/albums' || pathname.startsWith('/album/') ? 'text-cyan-400 font-bold' : 'text-slate-400'
+            pathname === '/albums' || pathname.startsWith('/album/') ? 'text-[var(--spotify-glow,#22d3ee)] font-bold' : 'text-slate-400'
           }`}
         >
           <DiscAlbum className="w-5 h-5" />
