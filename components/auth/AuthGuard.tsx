@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { createClient } from '@/lib/supabase/client'
@@ -11,7 +11,7 @@ import { AuthForm } from './AuthForm'
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const { data: nextAuthSession, status: nextAuthStatus } = useSession()
 
   const [checking, setChecking] = useState(true)
@@ -65,7 +65,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     return () => {
       isMounted = false
     }
-  }, [nextAuthSession, nextAuthStatus, pathname, router, supabase])
+  }, [nextAuthSession, nextAuthStatus, supabase])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()

@@ -56,11 +56,9 @@ export function TopBar() {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.location.search.includes('q=')) {
-      const url = new URL(window.location.href)
-      url.searchParams.delete('q')
-      window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''))
+      router.replace(pathname, { scroll: false })
     }
-  }, [])
+  }, [pathname, router])
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

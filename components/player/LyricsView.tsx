@@ -199,48 +199,50 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
       </div>
 
       {/* 🔝 Lyrics Header */}
-      <div className="relative z-10 flex items-center justify-between gap-4 p-4 md:px-6 md:py-4 border-b border-white/[0.08] shrink-0 bg-white/[0.02]">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-11 h-11 md:w-12 md:h-12 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden shadow-md">
+      <div className="relative z-10 flex items-center justify-between gap-2.5 sm:gap-4 p-3 sm:p-4 md:px-6 md:py-4 border-b border-white/[0.08] shrink-0 bg-white/[0.02]">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+          <div className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden shadow-md">
             {currentTrack.cover_url ? (
               <img src={currentTrack.cover_url} alt={currentTrack.title} className="w-full h-full object-cover" />
             ) : (
-              <Mic2 className="w-5 h-5 text-cyan-400" />
+              <Mic2 style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-5 h-5" />
             )}
           </div>
-          <div className="truncate flex flex-col">
-            <h2 className="text-xs md:text-sm font-bold text-white truncate flex items-center gap-2">
-              <span>{currentTrack.title}</span>
+          <div className="flex flex-col min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 min-w-0 w-full">
+              <h2 className="text-xs sm:text-sm font-bold text-white truncate min-w-0 flex-1">
+                {currentTrack.title}
+              </h2>
               {isSynced && (
-                <span className="text-[9px] uppercase font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
+                <span className="text-[8px] sm:text-[9px] uppercase font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
                   Synced
                 </span>
               )}
-            </h2>
-            <p className="text-[11px] text-slate-400 truncate mt-0.5">
+            </div>
+            <p className="text-[10px] sm:text-[11px] text-slate-400 truncate mt-0.5 w-full">
               {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
             </p>
           </div>
         </div>
 
         {/* Top Actions: Refresh & Optional Close button */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* Lyric offset adjustment buttons */}
           {isSynced && (
-            <div className="flex items-center gap-1 bg-white/5 rounded-xl border border-white/10 px-2 py-1">
+            <div className="flex items-center gap-0.5 sm:gap-1 bg-white/5 rounded-xl border border-white/10 px-1.5 py-0.5 sm:px-2 sm:py-1">
               <button
                 onClick={() => setLyricOffset((prev) => +(prev - 0.1).toFixed(1))}
-                className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                 title="Lời hiển thị sớm hơn 100ms"
               >
                 <Minus className="w-3 h-3" />
               </button>
-              <span className="text-[10px] font-mono text-slate-400 min-w-[40px] text-center" title="Offset lời bài hát (giây)">
+              <span className="text-[9px] sm:text-[10px] font-mono text-slate-400 min-w-[34px] sm:min-w-[40px] text-center" title="Offset lời bài hát (giây)">
                 {lyricOffset >= 0 ? '+' : ''}{lyricOffset.toFixed(1)}s
               </span>
               <button
                 onClick={() => setLyricOffset((prev) => +(prev + 0.1).toFixed(1))}
-                className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                 title="Lời hiển thị muộn hơn 100ms"
               >
                 <Plus className="w-3 h-3" />
@@ -251,10 +253,10 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
           <button
             onClick={() => loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.duration)}
             disabled={loading}
-            className="w-9 h-9 flex items-center justify-center bg-white/5 hover:bg-white/10 active:bg-white/15 text-slate-300 rounded-xl border border-white/10 transition-colors"
+            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-white/5 hover:bg-white/10 active:bg-white/15 text-slate-300 rounded-xl border border-white/10 transition-colors"
             title="Tải lại lời bài hát"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
 
           {onClose && (
