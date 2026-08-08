@@ -38,7 +38,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
   const router = useRouter()
   const supabase = createClient()
   const { playTrack, isShuffle, toggleShuffle } = usePlayer()
-  const { playlists: userPlaylists } = usePlaylists()
+  const { playlists: userPlaylists, createPlaylist } = usePlaylists()
 
   const { data: session } = useSession()
   const [userEmail, setUserEmail] = useState<string | null>(null)
@@ -478,23 +478,33 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
                   <Edit2 className="w-4 h-4" />
                 </button>
 
-                {userPlaylists.length > 1 && (
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowPlaylistSelector((prev) => !prev)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/10 border border-white/10 text-xs font-semibold text-cyan-400 hover:text-cyan-300 transition-colors shadow-sm"
-                    >
-                      <ListMusic className="w-3.5 h-3.5" />
-                      <span>Đổi Playlist ({userPlaylists.length})</span>
-                      <ChevronDown className="w-3.5 h-3.5" />
-                    </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowPlaylistSelector((prev) => !prev)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/15 border border-white/15 text-xs font-bold text-[var(--spotify-glow,#22d3ee)] transition-all shadow-md active:scale-95"
+                  >
+                    <ListMusic className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
+                    <span>Đổi Playlist ({userPlaylists.length})</span>
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
 
-                    {showPlaylistSelector && (
-                      <div className="absolute left-0 mt-2 w-60 rounded-2xl bg-[#0d1017] border border-white/10 shadow-2xl p-2 z-50 animate-in fade-in duration-150">
-                        <p className="text-[10px] font-mono uppercase text-slate-400 px-2.5 py-1">
-                          Danh sách playlist của bạn
-                        </p>
-                        <div className="flex flex-col gap-1 max-h-56 overflow-y-auto">
+                  {showPlaylistSelector && (
+                    <div className="fixed inset-0 z-[999] bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+                      <div className="w-full sm:max-w-md bg-[#0d1017] border-t sm:border border-white/15 rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl flex flex-col gap-4 max-h-[85vh] animate-in slide-in-from-bottom-5 duration-200">
+                        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                          <div className="flex items-center gap-2">
+                            <ListMusic className="w-5 h-5 text-[var(--spotify-glow,#22d3ee)]" />
+                            <h3 className="text-base font-extrabold text-white">Đổi Playlist Cá Nhân</h3>
+                          </div>
+                          <button
+                            onClick={() => setShowPlaylistSelector(false)}
+                            className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-white/10 transition-colors"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        <div className="flex flex-col gap-2 overflow-y-auto max-h-[50vh] pr-1">
                           {userPlaylists.map((pl) => (
                             <button
                               key={pl.id}
@@ -502,23 +512,42 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
                                 setShowPlaylistSelector(false)
                                 router.push(`/playlist/${pl.id}`)
                               }}
-                              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs text-left transition-colors ${
+                              className={`flex items-center justify-between px-4 py-3 rounded-2xl text-xs text-left transition-all ${
                                 pl.id === playlistId
-                                  ? 'bg-cyan-500/20 text-cyan-400 font-bold border border-cyan-500/30'
-                                  : 'text-slate-300 hover:bg-white/5'
+                                  ? 'bg-[var(--primary-spotify)]/20 text-[var(--spotify-glow,#22d3ee)] font-bold border border-[var(--primary-spotify)]/40 shadow-lg'
+                                  : 'bg-white/[0.04] text-slate-200 hover:bg-white/10 border border-white/5'
                               }`}
                             >
-                              <span className="truncate">{pl.name}</span>
+                              <div className="flex flex-col gap-0.5 truncate pr-2">
+                                <span className="truncate text-sm font-bold">{pl.name}</span>
+                                <span className="text-[10px] text-slate-400">Playlist cá nhân</span>
+                              </div>
                               {pl.id === playlistId && (
-                                <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                                <Check className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)] shrink-0" />
                               )}
                             </button>
                           ))}
                         </div>
+
+                        <div className="pt-2 border-t border-white/10">
+                          <button
+                            onClick={async () => {
+                              setShowPlaylistSelector(false)
+                              const newPl = await createPlaylist()
+                              if (newPl) {
+                                router.push(`/playlist/${newPl.id}`)
+                              }
+                            }}
+                            className="w-full bg-[var(--primary-spotify,#06b6d4)] text-black font-extrabold py-3 rounded-2xl flex items-center justify-center gap-2 text-xs hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-[var(--theme-glow-shadow)]"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span>Tạo Playlist Mới</span>
+                          </button>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                )}
+                    </div>
+                  )}
+                </div>
               </div>
               <p className="text-xs text-slate-400 mt-1">{playlist.description || 'Chưa có mô tả'}</p>
             </div>
