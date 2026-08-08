@@ -65,6 +65,7 @@ export const translations: Record<Language, Record<string, string>> = {
     forgot_password: 'Quên mật khẩu?',
     logging_in: 'Đang xử lý đăng nhập...',
     passkey_auth: 'Xác thực sinh trắc học Passkey',
+    passkey_first_note: 'Lưu ý lần đầu: Nếu đây là lần đầu đăng nhập, vui lòng xác thực bằng Passkey trước để kích hoạt quyền tài khoản, sau đó mới có thể đăng nhập bằng Google.',
 
     // Settings
     settings_title: 'Cài đặt hệ thống',
@@ -149,6 +150,7 @@ export const translations: Record<Language, Record<string, string>> = {
     forgot_password: 'Forgot password?',
     logging_in: 'Signing in...',
     passkey_auth: 'Passkey Biometric Authentication',
+    passkey_first_note: 'First-time note: If this is your first sign-in, please authenticate using Passkey first to activate your account permissions before signing in with Google.',
 
     // Settings
     settings_title: 'System Settings',
@@ -233,6 +235,7 @@ export const translations: Record<Language, Record<string, string>> = {
     forgot_password: '忘记密码？',
     logging_in: '正在登录...',
     passkey_auth: 'Passkey 生物识别认证',
+    passkey_first_note: '首次登录提示：如果您是首次登录，请先使用 Passkey 进行身份验证以激活账号权限，之后即可使用 Google 登录。',
 
     // Settings
     settings_title: '系统设置',
@@ -317,6 +320,7 @@ export const translations: Record<Language, Record<string, string>> = {
     forgot_password: 'パスワードをお忘れですか？',
     logging_in: 'ログイン中...',
     passkey_auth: 'Passkey 生体認証',
+    passkey_first_note: '初回ログインの注意：初めてログインする場合は、まず Passkey で認証してアカウントの権限を有効化してから、Google でログインしてください。',
 
     // Settings
     settings_title: 'システム設定',

@@ -3,6 +3,8 @@
 import React, { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useSession } from 'next-auth/react'
+import { isAdmin } from '@/lib/accessControl'
 import { Playlist, Track } from '@/types'
 import { TrackList } from '@/components/track/TrackList'
 import { usePlayer } from '@/components/player/PlayerContext'
@@ -37,6 +39,18 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
   const supabase = createClient()
   const { playTrack, isShuffle, toggleShuffle } = usePlayer()
   const { playlists: userPlaylists } = usePlaylists()
+
+  const { data: session } = useSession()
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then((res: any) => {
+      const email = res?.data?.user?.email || session?.user?.email || null
+      setUserEmail(email)
+    })
+  }, [supabase, session])
+
+  const userIsAdmin = isAdmin(userEmail)
 
   const [playlist, setPlaylist] = useState<Playlist | null>(null)
   const [tracks, setTracks] = useState<Track[]>([])
@@ -547,13 +561,15 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
             </>
           )}
 
-          <button
-            onClick={() => setShowUploadModal(true)}
-            className="bg-white/10 hover:bg-white/20 text-white font-bold px-4 py-3 rounded-full flex items-center gap-2 text-xs transition-all border border-white/10"
-          >
-            <Upload className="w-4 h-4 text-[var(--primary-spotify)]" />
-            <span>Upload nhạc vào Playlist này</span>
-          </button>
+          {userIsAdmin && (
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="bg-white/10 hover:bg-white/20 text-white font-bold px-4 py-3 rounded-full flex items-center gap-2 text-xs transition-all border border-white/10"
+            >
+              <Upload className="w-4 h-4 text-[var(--primary-spotify)]" />
+              <span>Upload nhạc vào Playlist này</span>
+            </button>
+          )}
 
           <button
             onClick={openLibraryModal}
@@ -585,18 +601,20 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
           <div>
             <h3 className="text-lg font-bold text-white mb-1">Playlist này chưa có bài hát nào</h3>
             <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              Bạn có thể tải nhạc trực tiếp từ máy tính vào playlist này hoặc chọn bài hát đã có sẵn từ thư viện cá nhân.
+              Bạn có thể chọn bài hát đã có sẵn từ thư viện hệ thống để thêm vào playlist cá nhân này.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
-            <button
-              onClick={() => setShowUploadModal(true)}
-              className="bg-[var(--primary-spotify)] text-black font-extrabold px-5 py-3 rounded-full flex items-center gap-2 text-xs hover:scale-105 transition-all shadow-lg shadow-[var(--theme-glow-shadow)]"
-            >
-              <Upload className="w-4 h-4" />
-              <span>Tải Nhạc Mới Vào Playlist</span>
-            </button>
+            {userIsAdmin && (
+              <button
+                onClick={() => setShowUploadModal(true)}
+                className="bg-[var(--primary-spotify)] text-black font-extrabold px-5 py-3 rounded-full flex items-center gap-2 text-xs hover:scale-105 transition-all shadow-lg shadow-[var(--theme-glow-shadow)]"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Tải Nhạc Mới Vào Playlist</span>
+              </button>
+            )}
 
             <button
               onClick={openLibraryModal}

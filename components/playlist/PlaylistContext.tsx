@@ -92,11 +92,8 @@ export function PlaylistProvider({ children }: { children: React.ReactNode }) {
   }, [activeUserId, refreshPlaylists, supabase])
 
   const createPlaylist = async (customName?: string): Promise<Playlist | null> => {
-    if (!user) {
-      return null
-    }
-    if (!isAdmin(user.email)) {
-      alert('Chỉ có tài khoản Admin mới có quyền tạo Playlist mới!')
+    if (!user || !activeUserId) {
+      alert('Vui lòng đăng nhập để tạo Playlist cá nhân!')
       return null
     }
 

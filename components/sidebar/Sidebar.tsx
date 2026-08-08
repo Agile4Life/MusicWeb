@@ -214,16 +214,14 @@ export function Sidebar() {
               <ListMusic style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3.5 h-3.5" />
               <span>Playlist</span>
             </div>
-            {isAdmin(user?.email) && (
-              <button
-                onClick={handleCreatePlaylist}
-                disabled={creating}
-                className="p-1 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                title="Tạo playlist mới"
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </button>
-            )}
+            <button
+              onClick={handleCreatePlaylist}
+              disabled={creating}
+              className="p-1 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+              title="Tạo playlist mới"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
           </div>
 
           <div className="flex-1 overflow-y-auto flex flex-col gap-0.5 pr-1">
