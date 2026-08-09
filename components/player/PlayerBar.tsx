@@ -73,14 +73,10 @@ export function PlayerBar() {
       return
     }
 
-    const titleNorm = (currentTrack.title || '').trim().toLowerCase()
-    const albumNorm = (currentTrack.album || '').trim().toLowerCase()
-    const isAlbumSameAsTitle = Boolean(titleNorm && albumNorm && (albumNorm === titleNorm || albumNorm.includes(titleNorm) || titleNorm.includes(albumNorm)))
-
-    const hasRealAlbum =
+    const hasRealAlbum = Boolean(
       currentTrack.album &&
-      !isAlbumSameAsTitle &&
-      !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album', 'Single', 'Unknown Album'].includes(currentTrack.album.trim())
+      !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album', 'Unknown Album'].includes(currentTrack.album.trim())
+    )
 
     const cached = getCachedResolvedAlbum(currentTrack.title, currentTrack.artist)
     if (cached?.albumName) {

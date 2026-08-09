@@ -141,14 +141,11 @@ function TrackRowComponent({
   }
 
   const currentAlbumDisplay = liveAlbum || track.album
-  const normAlbumDisplay = (currentAlbumDisplay || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-  const normTrackTitle = (track.title || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-  const isSameAsTitle = Boolean(normAlbumDisplay && normTrackTitle && normAlbumDisplay === normTrackTitle)
 
-  const hasRealAlbumDisplay =
+  const hasRealAlbumDisplay = Boolean(
     currentAlbumDisplay &&
-    !isSameAsTitle &&
-    !['Google Drive', 'Google Drive Sync', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album', 'YouTube Music', 'Single', 'Unknown Album'].includes(currentAlbumDisplay.trim())
+    !['Google Drive', 'Google Drive Sync', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album', 'YouTube Music', 'Unknown Album'].includes(currentAlbumDisplay.trim())
+  )
 
   useEffect(() => {
     if (!showMenu) return
