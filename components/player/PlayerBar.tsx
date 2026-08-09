@@ -7,7 +7,7 @@ import { usePlayer, usePlaybackProgress } from './PlayerContext'
 import { LyricsView } from './LyricsView'
 import { QueueDrawer } from './QueueDrawer'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
-import { setCachedResolvedAlbum } from '@/lib/albumCache'
+import { setCachedResolvedAlbum, getCachedResolvedAlbum } from '@/lib/albumCache'
 import { AudioWaveformScrubber } from './AudioWaveformScrubber'
 import {
   Play,
@@ -82,7 +82,16 @@ export function PlayerBar() {
       !isAlbumSameAsTitle &&
       !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album', 'Single', 'Unknown Album'].includes(currentTrack.album.trim())
 
-    if (hasRealAlbum && currentTrack.spotify_album_id) {
+    const cached = getCachedResolvedAlbum(currentTrack.title, currentTrack.artist)
+    if (cached?.albumName) {
+      setResolvedAlbumInfo({
+        id: cached.albumId,
+        name: cached.albumName,
+      })
+      if (cached.albumId) return
+    }
+
+    if (hasRealAlbum && currentTrack.spotify_album_id && currentTrack.album !== 'My Spot') {
       setResolvedAlbumInfo({
         id: currentTrack.spotify_album_id,
         name: currentTrack.album!,
@@ -481,11 +490,11 @@ export function PlayerBar() {
           <div className="w-full mb-6">
             <AudioWaveformScrubber
               currentTime={currentTime}
-              duration={effectiveDuration}
+              duration={duration || currentTrack.duration || 0}
               isPlaying={isPlaying}
               trackId={currentTrack.id}
               onSeek={seek}
-              barCount={55}
+              barCount={44}
             />
           </div>
 

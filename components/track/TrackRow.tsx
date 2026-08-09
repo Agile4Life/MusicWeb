@@ -74,10 +74,9 @@ function TrackRowComponent({
     const handleAlbumResolved = (e: any) => {
       const detail = e.detail
       if (detail && detail.album?.albumName) {
-        if (
-          (detail.title && track.title && detail.title.toLowerCase().trim() === track.title.toLowerCase().trim()) ||
-          (detail.artist && track.artist && detail.artist.toLowerCase().trim() === track.artist.toLowerCase().trim())
-        ) {
+        const isTitleMatch = detail.title && track.title && detail.title.toLowerCase().trim() === track.title.toLowerCase().trim()
+        const isArtistMatch = detail.artist && track.artist && detail.artist.toLowerCase().trim() === track.artist.toLowerCase().trim()
+        if (isTitleMatch && isArtistMatch) {
           setLiveAlbum(detail.album.albumName)
         }
       }

@@ -124,7 +124,7 @@ export function AudioWaveformScrubber({
             setHoverTime(null)
           }
         }}
-        className="relative flex-1 h-8 sm:h-9 flex items-center cursor-pointer group px-0.5 touch-none"
+        className="relative flex-1 h-10 sm:h-9 flex items-center cursor-pointer group px-0.5 touch-none"
       >
         {/* Floating Time Preview Tooltip */}
         {hoverTime !== null && (
@@ -145,48 +145,54 @@ export function AudioWaveformScrubber({
           />
         )}
 
-        {/* Dense Waveform Bars Container */}
-        <div className="w-full h-5 sm:h-6 flex items-center justify-between gap-[1.5px] sm:gap-[2px]">
+        {/* SVG Waveform Bars (100% Uniform Bar Widths) */}
+        <svg
+          className="w-full h-7 sm:h-6 overflow-visible pointer-events-none"
+          viewBox="0 0 1000 100"
+          preserveAspectRatio="none"
+        >
           {barHeights.map((heightPct, idx) => {
             const isPlayed = idx <= activeBarIndex
             const isHovered = hoverIndex !== null && idx <= hoverIndex
 
-            let barStyle: React.CSSProperties = {}
-            let extraClass = ''
+            const step = 1000 / barCount
+            const barWidth = Math.max(2, step * 0.58)
+            const x = idx * step + (step - barWidth) / 2
+            const height = Math.max(14, (heightPct / 100) * 85)
+            const y = (100 - height) / 2
+            const rx = barWidth / 2
 
+            let fillColor = 'rgba(255, 255, 255, 0.3)'
             if (isPlayed) {
-              barStyle = {
-                backgroundColor: 'var(--primary-spotify, #06b6d4)',
-                boxShadow: isPlaying && idx === activeBarIndex ? '0 0 8px var(--theme-glow-shadow, rgba(6,182,212,0.6))' : 'none',
-              }
+              fillColor = 'var(--primary-spotify, #06b6d4)'
             } else if (isHovered) {
-              barStyle = {
-                backgroundColor: 'rgba(255, 255, 255, 0.45)',
-              }
-            } else {
-              extraClass = 'bg-white/20 group-hover:bg-white/30'
+              fillColor = 'rgba(255, 255, 255, 0.65)'
             }
 
             const isActivePlaying = isPlaying && idx === activeBarIndex
 
             return (
-              <div
+              <rect
                 key={idx}
-                className="flex-1 flex items-center justify-center h-full max-w-[3px]"
-              >
-                <div
-                  className={`w-full rounded-full transition-all duration-150 ${extraClass} ${
-                    isActivePlaying ? 'animate-pulse scale-y-125' : ''
-                  }`}
-                  style={{
-                    height: `${heightPct}%`,
-                    ...barStyle,
-                  }}
-                />
-              </div>
+                x={x}
+                y={y}
+                width={barWidth}
+                height={height}
+                rx={rx}
+                ry={rx}
+                fill={fillColor}
+                className={`transition-all duration-150 ${
+                  isActivePlaying ? 'animate-pulse' : ''
+                }`}
+                style={{
+                  filter: isPlayed && isPlaying && idx === activeBarIndex
+                    ? 'drop-shadow(0 0 4px var(--theme-glow-shadow, rgba(6,182,212,0.8)))'
+                    : 'none',
+                }}
+              />
             )
           })}
-        </div>
+        </svg>
       </div>
 
       {/* Total / Remaining Duration toggle */}
