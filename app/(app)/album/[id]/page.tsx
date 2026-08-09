@@ -140,7 +140,15 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
         <div className="flex-1 flex flex-col gap-2.5 min-w-0">
           <p className="text-[11px] font-mono text-cyan-400 uppercase tracking-widest flex items-center gap-1.5">
             <Disc className="w-3.5 h-3.5" />
-            <span>Spotify Album</span>
+            <span>
+              {album.id.startsWith('itunes')
+                ? 'iTunes Album'
+                : album.id.startsWith('yt')
+                ? 'YouTube Music Album'
+                : album.id.startsWith('spotify')
+                ? 'Spotify Album'
+                : 'Deezer Album'}
+            </span>
           </p>
 
           <h1 className="text-xl sm:text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
