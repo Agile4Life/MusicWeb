@@ -259,6 +259,42 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const upcoming = queue.slice(currentIndex, currentIndex + 6)
       triggerDrivePrewarm(upcoming)
     }
+
+    // Pre-resolve metadata/stream for immediate next track to guarantee smooth background playback on mobile
+    if (queue && queue.length > 0 && currentIndex >= 0) {
+      const nextIdx = currentIndex + 1
+      if (nextIdx < queue.length) {
+        const nextTr = queue[nextIdx]
+        const hasDirectPlayable = Boolean(
+          nextTr.audio_url ||
+          nextTr.drive_file_id ||
+          extractDriveFileId(nextTr.file_path || '') ||
+          nextTr.youtube_id ||
+          (nextTr.file_path && (
+            nextTr.file_path.includes('.mp3') ||
+            nextTr.file_path.includes('preview') ||
+            nextTr.file_path.includes('dzcdn.net') ||
+            nextTr.file_path.includes('apple.com') ||
+            nextTr.file_path.includes('drive-stream') ||
+            nextTr.file_path.includes('audius')
+          ))
+        )
+
+        if (!hasDirectPlayable && (nextTr.source === 'itunes' || nextTr.source === 'spotify' || nextTr.spotify_id || nextTr.itunes_id) && !(nextTr as any)._preResolving) {
+          ;(nextTr as any)._preResolving = true
+          const queryStr = `${nextTr.title.replace(/\([^)]*\)/g, '').trim()} ${nextTr.artist || ''}`.trim()
+          fetchUnifiedSearch(queryStr, 'youtube').then((ytData) => {
+            const ytList: Track[] = ytData?.youtube || []
+            const bestMatch = findBestYouTubeMatch(ytList, nextTr.title, nextTr.artist, nextTr.duration, nextTr.album) || ytList[0]
+            if (bestMatch && bestMatch.youtube_id) {
+              setQueue((prevQ) =>
+                prevQ.map((t, idx) => (idx === nextIdx ? { ...t, youtube_id: bestMatch.youtube_id, source: 'youtube' as const } : t))
+              )
+            }
+          }).catch(() => {})
+        }
+      }
+    }
   }, [queue, currentIndex])
 
   const supabase = createClient()
@@ -406,6 +442,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                   setDuration(ytPlayerRef.current.getDuration() || 0)
                 }
               } else if (event.data === 2) {
+                if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+                  // Ignore OS force-pause of YouTube iframe when screen is locked/hidden
+                  return
+                }
                 setIsPlaying(false)
               } else if (event.data === 0) {
                 setIsPlaying(false)
@@ -533,7 +573,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return track.audio_url || track.file_path
     }
 
-    const filePath = track.file_path
+    const filePath = track.file_path || ''
     if (!filePath) return null
 
     // Spotify webpage URLs cannot be played directly by HTML5 <audio>
@@ -555,7 +595,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         track.title?.match(/\.(flac|mp3|wav|m4a|aac|ogg|wma)(?:[?#]|$)/i)?.[1]?.toLowerCase() ||
         ''
       const filenameParam = ext ? `&filename=${encodeURIComponent(`stream.${ext}`)}` : ''
-      return `/api/drive-stream?id=${encodeURIComponent(driveFileId)}${filenameParam}`
+      return `/api/drive-stream?id=${encodeURIComponent(driveFileId)}${filenameParam}&proxy=true`
     }
 
     let rawUrl: string | null = null
@@ -901,15 +941,44 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     if (requestId !== playRequestRef.current) return
 
-    // Handle YouTube track playback (or resolved Spotify/iTunes track)
-    if (activeTrack.source === 'youtube' && activeTrack.youtube_id) {
-      if (audioRef.current) {
+    // 🎵 Try HTML5 Direct Audio Stream first for ALL tracks (Drive, YouTube Stream Proxy, Audius, etc.)
+    // Direct HTML5 <audio> tag enables 100% native Mobile Background Playback on iOS Safari & Android Chrome
+    let url: string | null = null
+    try {
+      url = await getAudioUrl(activeTrack)
+    } catch (error: any) {}
+
+    const audio = audioRef.current
+
+    if (url && audio && requestId === playRequestRef.current) {
+      audio.pause()
+      audio.src = url
+      audio.volume = volume
+      audio.currentTime = initialTime > 0 ? initialTime : 0
+
+      try {
+        await audio.play()
+        if (requestId !== playRequestRef.current) return
+        setIsPlaying(true)
+        return
+      } catch (err: any) {
+        if (err?.name === 'AbortError' || String(err).includes('interrupted')) {
+          return // Ignore play interruption silently
+        }
+        console.warn('HTML5 audio stream playback info:', err)
+      }
+    }
+
+    // 🎬 Fallback Engine: YouTube IFrame Player (Used when direct audio stream proxy is unavailable)
+    const ytId = activeTrack.youtube_id || (activeTrack.source === 'youtube' ? extractYouTubeVideoId(activeTrack.file_path || '') : null)
+    if (ytId) {
+      if (audio) {
         try {
-          audioRef.current.pause()
-          audioRef.current.src = SILENT_AUDIO_URL
-          audioRef.current.loop = true
-          audioRef.current.volume = 0.001
-          audioRef.current.play().catch(() => {})
+          audio.pause()
+          audio.src = SILENT_AUDIO_URL
+          audio.loop = true
+          audio.volume = 0.001
+          audio.play().catch(() => {})
         } catch {}
       }
 
@@ -920,7 +989,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             if (ytPlayerRef.current.unMute) ytPlayerRef.current.unMute()
             ytPlayerRef.current.setVolume(volume * 100)
             ytPlayerRef.current.loadVideoById({
-              videoId: activeTrack.youtube_id,
+              videoId: ytId,
               startSeconds: initialTime,
             })
             setIsPlaying(true)
@@ -933,53 +1002,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
       tryLoadYt()
     } else {
-      // Handle HTML5 / Audius audio playback
-      if (ytPlayerRef.current && ytPlayerRef.current.pauseVideo) {
-        try {
-          ytPlayerRef.current.pauseVideo()
-        } catch {}
-      }
-
-      let url: string | null = null
-      try {
-        url = await getAudioUrl(activeTrack)
-      } catch (error: any) {
-        if (requestId === playRequestRef.current) {
-          setPlaybackError(error?.message || 'Không thể cấp quyền phát audio')
-        }
-        return
-      }
-
-      const audio = audioRef.current
-      if (!url || !audio || requestId !== playRequestRef.current) {
-        if (!url && requestId === playRequestRef.current) {
-          setIsPlaying(false)
-          setPlaybackError(`Bài hát "${activeTrack.title}" từ Spotify không hỗ trợ phát trực tiếp. Vui lòng chọn bài từ YouTube, Audius hoặc Thư viện.`)
-        }
-        return
-      }
-
-      audio.pause()
-      audio.src = url
-      audio.volume = volume
-      if (initialTime > 0) {
-        audio.currentTime = initialTime
-      } else {
-        audio.currentTime = 0
-      }
-
-      try {
-        await audio.play()
-        if (requestId !== playRequestRef.current) return
-        setIsPlaying(true)
-      } catch (err: any) {
-        if (err?.name === 'AbortError' || String(err).includes('interrupted')) {
-          return // Ignore play interruption silently
-        }
+      if (requestId === playRequestRef.current) {
         setIsPlaying(false)
-        const message = err instanceof Error ? err.message : String(err)
-        console.warn('Audio playback info:', { trackId: track.id, message })
-        return
+        setPlaybackError(`Bài hát "${activeTrack.title}" không hỗ trợ phát trực tiếp. Vui lòng chọn bài khác.`)
       }
     }
 
@@ -1598,7 +1623,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       } catch {}
     }
     requestWakeLock()
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isPlaying) {
+        requestWakeLock()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
       if (wakeLockSentinel && wakeLockSentinel.release) {
         wakeLockSentinel.release().catch(() => {})
       }
