@@ -47,10 +47,11 @@ export function parseLrc(lrcContent: string | null | undefined): LyricLine[] {
 
     const text = trimmed.replace(/\[\d{2,}:\d{2}(?:[\.\:]\d{2,3})?\]/g, '').trim()
 
+    // Only use the first timestamp per line. Enhanced/karaoke LRC repeats
+    // the full line text at multiple word-level timestamps — pushing all of
+    // them creates duplicate lines that appear to "jump" during playback.
     if (text.length > 0 && timestamps.length > 0) {
-      for (const time of timestamps) {
-        result.push({ time, text })
-      }
+      result.push({ time: timestamps[0], text })
     }
   }
 
@@ -72,22 +73,27 @@ export function parsePlainLyrics(plainContent: string | null | undefined): Lyric
 }
 
 /**
- * Find index of active line for current playback time accurately
+ * Find index of active line for current playback time accurately via Binary Search
  */
 export function findActiveLyricIndex(lyrics: LyricLine[], currentTime: number, userOffset: number = 0): number {
   if (!lyrics || lyrics.length === 0) return -1
 
   const adjustedTime = currentTime + userOffset
+  if (adjustedTime < lyrics[0].time) return -1
 
-  if (adjustedTime < lyrics[0].time) {
-    return -1
-  }
+  let lo = 0
+  let hi = lyrics.length - 1
+  let result = -1
 
-  for (let i = lyrics.length - 1; i >= 0; i--) {
-    if (adjustedTime >= lyrics[i].time) {
-      return i
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1
+    if (lyrics[mid].time <= adjustedTime) {
+      result = mid
+      lo = mid + 1
+    } else {
+      hi = mid - 1
     }
   }
 
-  return -1
+  return result
 }

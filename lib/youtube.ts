@@ -79,8 +79,8 @@ async function searchYouTubeInnerTube(query: string, limit = 15): Promise<Track[
           video.lengthText?.simpleText ||
           video.thumbnailOverlays?.[0]?.thumbnailOverlayTimeStatusRenderer?.text?.simpleText ||
           ''
-        if (durationStr) {
-          const parts = durationStr.split(':').map(Number)
+        if (durationStr && /^\d{1,2}(:\d{2}){1,2}$/.test(durationStr.trim())) {
+          const parts = durationStr.trim().split(':').map(Number)
           if (parts.length === 2) durationSeconds = parts[0] * 60 + parts[1]
           else if (parts.length === 3) durationSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2]
         }
@@ -169,8 +169,8 @@ async function scrapeYouTubeSearch(query: string, limit = 15): Promise<Track[]> 
           video.lengthText?.simpleText ||
           video.thumbnailOverlays?.[0]?.thumbnailOverlayTimeStatusRenderer?.text?.simpleText ||
           ''
-        if (durationStr) {
-          const parts = durationStr.split(':').map(Number)
+        if (durationStr && /^\d{1,2}(:\d{2}){1,2}$/.test(durationStr.trim())) {
+          const parts = durationStr.trim().split(':').map(Number)
           if (parts.length === 2) durationSeconds = parts[0] * 60 + parts[1]
           else if (parts.length === 3) durationSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2]
         }
@@ -386,11 +386,11 @@ export function findBestYouTubeMatch(
       if (diff <= 3) {
         score += 120 // Almost exact duration match
       } else if (diff <= 10) {
-        score += 60
+        score += 30
       } else if (diff <= 20) {
-        score += 10
+        score -= 30
       } else if (diff <= 30) {
-        score -= 50
+        score -= 150
       } else {
         score -= 300
       }
@@ -517,6 +517,16 @@ async function getVideoDurations(
             ...t,
             duration: (t.youtube_id && durations[t.youtube_id]) || 0,
           }))
+
+          // If duration enrichment failed for everything, don't trust this batch's duration=0.
+          // Fall back to InnerTube which parses duration directly from search results.
+          const allDurationsZero = tracks.every((t) => !t.duration)
+          if (allDurationsZero) {
+            const innerTubeTracks = await searchYouTubeInnerTube(query, limit)
+            if (innerTubeTracks.length > 0) {
+              tracks = innerTubeTracks
+            }
+          }
         }
       }
     } catch (err) {

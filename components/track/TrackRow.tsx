@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { Track, Playlist } from '@/types'
-import { Play, Pause, Music, Trash2, MoreVertical, Plus, Pencil, Check, X, Heart, Cloud, ListMusic } from 'lucide-react'
+import { Play, Pause, Music, Trash2, MoreVertical, Plus, Pencil, Check, X, Heart, Cloud, ListMusic, DiscAlbum } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { isAdmin, getValidUserId } from '@/lib/accessControl'
 import { useSession } from 'next-auth/react'
@@ -309,8 +309,16 @@ function TrackRowComponent({
             placeholder="Tên album..."
             className="text-xs bg-white/10 border border-[var(--primary-spotify)]/50 rounded px-1.5 py-0.5 text-white outline-none w-full max-w-[160px]"
           />
-        ) : !track.album || ['Google Drive', 'Google Drive Sync', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(track.album.trim()) ? (
-          '—'
+        ) : !track.album || ['Google Drive', 'Google Drive Sync', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album', 'YouTube Music'].includes(track.album.trim()) ? (
+          <Link
+            href={`/albums?q=${encodeURIComponent((track.artist || track.title).trim())}`}
+            onClick={(e) => e.stopPropagation()}
+            className="hover:text-[var(--spotify-glow,#22d3ee)] text-slate-400 hover:underline transition-colors text-[11px] inline-flex items-center gap-1 group"
+            title="Tìm album cho bài hát này"
+          >
+            <DiscAlbum className="w-3 h-3 text-cyan-400/80 group-hover:text-cyan-300" />
+            <span className="group-hover:text-cyan-300">Album</span>
+          </Link>
         ) : track.spotify_album_id ? (
           <Link
             href={`/album/${track.spotify_album_id}`}
@@ -320,7 +328,13 @@ function TrackRowComponent({
             {track.album}
           </Link>
         ) : (
-          track.album
+          <Link
+            href={`/albums?q=${encodeURIComponent(track.album.trim())}`}
+            onClick={(e) => e.stopPropagation()}
+            className="hover:text-[var(--spotify-glow,#22d3ee)] hover:underline transition-colors"
+          >
+            {track.album}
+          </Link>
         )}
       </div>
 

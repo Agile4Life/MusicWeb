@@ -26,7 +26,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
   const { id: albumId } = use(params)
   const router = useRouter()
   const supabase = createClient()
-  const { playTrack, isShuffle, toggleShuffle } = usePlayer()
+  const { playTrack, currentTrack, isPlaying, isShuffle, toggleShuffle } = usePlayer()
 
   const [album, setAlbum] = useState<AlbumDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -210,14 +210,21 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
             )}
 
             <div className="flex flex-col gap-1">
-              {discTracks.map((track, idx) => (
-                <TrackRow
-                  key={track.id || `track-${discNum}-${idx}`}
-                  track={track}
-                  index={idx}
-                  playlistTracks={album.tracks}
-                />
-              ))}
+              {discTracks.map((track, idx) => {
+                const isCurrent = currentTrack?.id === track.id
+                const isPlayingThis = isCurrent && isPlaying
+                return (
+                  <TrackRow
+                    key={track.id || `track-${discNum}-${idx}`}
+                    track={track}
+                    index={idx}
+                    isCurrent={isCurrent}
+                    isPlayingThis={isPlayingThis}
+                    playlistTracks={album.tracks}
+                    onPlayClick={() => playTrack(track, album.tracks)}
+                  />
+                )
+              })}
             </div>
           </div>
         ))}

@@ -92,3 +92,71 @@ export async function getTrendingITunesTracks(countryCode = 'vn', limit = 12): P
     return []
   }
 }
+
+export interface ITunesAlbumDetail {
+  id: string
+  name: string
+  artist: string
+  cover_url: string | null
+  release_date: string
+  total_tracks: number
+  album_type: string
+  tracks: Track[]
+}
+
+/**
+ * Fetch full album tracks and metadata using iTunes Lookup API
+ */
+export async function fetchITunesAlbumTracks(albumId: string): Promise<ITunesAlbumDetail | null> {
+  try {
+    const cleanId = albumId.replace(/^(itunes|itunes-rss|spotify|deezer)-/, '')
+    if (!cleanId || !/^\d+$/.test(cleanId)) return null
+
+    const res = await fetch(`https://itunes.apple.com/lookup?id=${cleanId}&entity=song`, {
+      signal: AbortSignal.timeout(4500),
+    })
+    if (!res.ok) return null
+
+    const data = await res.json()
+    const results: any[] = data.results || []
+    if (results.length === 0) return null
+
+    const collectionItem = results.find((r) => r.wrapperType === 'collection') || results[0]
+    const trackItems = results.filter((r) => r.wrapperType === 'track')
+
+    const coverUrl = cleanArtworkUrl(collectionItem.artworkUrl100 || collectionItem.artworkUrl60)
+    const systemUserId = '00000000-0000-4000-a000-000000000001'
+
+    const tracks: Track[] = trackItems.map((item: any, idx: number) => ({
+      id: `itunes-${item.trackId || idx}`,
+      user_id: systemUserId,
+      title: item.trackName || 'Untitled Track',
+      artist: item.artistName || collectionItem.artistName || 'iTunes Artist',
+      album: collectionItem.collectionName || item.collectionName || '',
+      spotify_album_id: `itunes-${collectionItem.collectionId}`,
+      disc_number: item.discNumber || 1,
+      track_number: item.trackNumber || idx + 1,
+      duration: Math.round((item.trackTimeMillis || 0) / 1000),
+      file_path: item.previewUrl || '',
+      audio_url: item.previewUrl || undefined,
+      cover_url: cleanArtworkUrl(item.artworkUrl100) || coverUrl,
+      created_at: item.releaseDate || new Date().toISOString(),
+      source: 'itunes',
+      itunes_id: item.trackId,
+    }))
+
+    return {
+      id: `itunes-${collectionItem.collectionId}`,
+      name: collectionItem.collectionName || 'iTunes Album',
+      artist: collectionItem.artistName || 'iTunes Artist',
+      cover_url: coverUrl,
+      release_date: collectionItem.releaseDate ? collectionItem.releaseDate.split('T')[0] : '',
+      total_tracks: collectionItem.trackCount || tracks.length,
+      album_type: collectionItem.collectionType === 'Single' ? 'single' : 'album',
+      tracks,
+    }
+  } catch (err) {
+    console.warn('iTunes album tracks lookup error:', err)
+    return null
+  }
+}

@@ -7,10 +7,11 @@ import { extractDriveFileId, isPreviewUrl, verifyDriveFile, triggerDrivePrewarm 
 import { useSession } from 'next-auth/react'
 import { getValidUserId } from '@/lib/accessControl'
 import { deduplicateQueueTracks } from '@/lib/utils'
-import { findBestYouTubeMatch, normalizeTitle } from '@/lib/youtube'
+import { findBestYouTubeMatch, normalizeTitle, extractYouTubeVideoId } from '@/lib/youtube'
 import { fetchUnifiedSearch } from '@/lib/searchApi'
 import { getSmartRecommendedTracks } from '@/lib/smartRecommend'
 import { NextQueueResponse, queueTrackToTrack } from '@/types/queue'
+import { getMusicOfftopicSegments, calculateIntroOffset } from '@/lib/sponsorblock'
 
 export type RepeatMode = 'off' | 'all' | 'one'
 
@@ -47,6 +48,7 @@ interface PlayerContextType {
   toggleQueue: () => void
   closeQueue: () => void
   audioRef: React.RefObject<HTMLAudioElement | null>
+  mvIntroOffset: number
 }
 
 interface PlaybackProgressContextType {
@@ -146,6 +148,28 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [duration, setDuration] = useState<number>(0)
   const [volume, setVolumeState] = useState<number>(0.8)
   const [playbackError, setPlaybackError] = useState<string | null>(null)
+  const [mvIntroOffset, setMvIntroOffset] = useState<number>(0)
+
+  // Fetch SponsorBlock MV Intro offset when track changes (Stage 2 & Stage 4)
+  useEffect(() => {
+    setMvIntroOffset(0) // Stage 4: reset immediately on track change
+    if (!currentTrack) return
+
+    const ytId =
+      currentTrack.youtube_id ||
+      extractYouTubeVideoId(currentTrack.file_path || '') ||
+      (currentTrack.id?.startsWith('yt-') ? currentTrack.id.replace('yt-', '') : null)
+
+    if (!ytId) return
+
+    // Stage 2: Fire off async without blocking audio playback
+    getMusicOfftopicSegments(ytId)
+      .then((segments) => {
+        const offset = calculateIntroOffset(segments)
+        setMvIntroOffset(offset)
+      })
+      .catch(() => setMvIntroOffset(0))
+  }, [currentTrack?.id])
   const [autoPlayNext, setAutoPlayNext] = useState(true)
   const [isShuffle, setIsShuffle] = useState(false)
   const [repeatMode, setRepeatMode] = useState<RepeatMode>('off')
@@ -742,7 +766,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       // Prefer Drive track if found (no DRM, direct stream)
       const driveTrack = driveResult.status === 'fulfilled' ? driveResult.value : null
       if (driveTrack && requestId === playRequestRef.current) {
-        activeTrack = driveTrack as Track
+        // Preserve original track metadata (album name, spotify_album_id, cover) so PlayerBar keeps album context
+        activeTrack = {
+          ...driveTrack as Track,
+          album: track.album || (driveTrack as any).album || null,
+          spotify_album_id: track.spotify_album_id || (driveTrack as any).spotify_album_id || null,
+          cover_url: track.cover_url || (driveTrack as any).cover_url || null,
+        }
         setCurrentTrack(activeTrack)
         const streamUrl = await getAudioUrl(activeTrack)
         if (audioRef.current && streamUrl) {
@@ -782,7 +812,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             }
             rawTrack.youtube_id = bestMatch.youtube_id
             track.youtube_id = bestMatch.youtube_id
-            if (track.id && !track.id.startsWith('spotify-')) {
+            const isValidUUID = (id?: string) => Boolean(id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))
+            if (isValidUUID(track.id)) {
               supabase.from('tracks').update({ youtube_id: bestMatch.youtube_id }).eq('id', track.id).then((res: any) => {
                 if (res?.error) console.warn('Failed to persist youtube_id:', res.error.message)
               })
@@ -1437,6 +1468,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       toggleQueue,
       closeQueue,
       audioRef,
+      mvIntroOffset,
     }),
     [
       currentTrack,
@@ -1449,6 +1481,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       repeatMode,
       playbackError,
       isQueueOpen,
+      mvIntroOffset,
       toggleShuffle,
       toggleRepeat,
       toggleFavoriteCurrentTrack,

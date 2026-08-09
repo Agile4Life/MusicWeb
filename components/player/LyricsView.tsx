@@ -53,6 +53,7 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
     volume,
     setVolume,
     toggleFavoriteCurrentTrack,
+    mvIntroOffset,
   } = usePlayer()
 
   const [prevVol, setPrevVol] = useState(0.8)
@@ -132,11 +133,11 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
   useEffect(() => {
     if (!isSynced || parsedLyrics.length === 0) return
 
-    const index = findActiveLyricIndex(parsedLyrics, currentTime, lyricOffset)
+    const index = findActiveLyricIndex(parsedLyrics, currentTime, lyricOffset - (mvIntroOffset || 0))
     if (index !== activeIndex) {
       setActiveIndex(index)
     }
-  }, [currentTime, parsedLyrics, isSynced, lyricOffset])
+  }, [currentTime, parsedLyrics, isSynced, lyricOffset, mvIntroOffset])
 
   // 3. Smooth scroll active lyric into view
   useEffect(() => {

@@ -60,7 +60,7 @@ export function PlayerBar() {
     e.preventDefault()
     e.stopPropagation()
 
-    if (!currentTrack || !currentTrack.album || currentTrack.album === 'Google Drive' || currentTrack.album === 'Google Drive Sync') {
+    if (!currentTrack) {
       router.push('/albums')
       return
     }
@@ -71,9 +71,16 @@ export function PlayerBar() {
       return
     }
 
+    const hasRealAlbum =
+      currentTrack.album &&
+      !['Google Drive', 'Google Drive Sync', 'YouTube Music'].includes(currentTrack.album.trim())
+
+    const titleToSearch = hasRealAlbum ? currentTrack.album : currentTrack.title
+    const artistToSearch = currentTrack.artist || ''
+
     try {
       const res = await fetch(
-        `/api/albums/resolve?title=${encodeURIComponent(currentTrack.album)}&artist=${encodeURIComponent(currentTrack.artist || '')}`
+        `/api/albums/resolve?title=${encodeURIComponent(titleToSearch!)}&artist=${encodeURIComponent(artistToSearch)}`
       )
       if (res.ok) {
         const data = await res.json()
@@ -88,7 +95,8 @@ export function PlayerBar() {
     }
 
     setShowMobileFullPlayer(false)
-    router.push(`/albums?q=${encodeURIComponent(currentTrack.album)}`)
+    const fallbackQuery = hasRealAlbum ? currentTrack.album : (currentTrack.artist || currentTrack.title)
+    router.push(`/albums?q=${encodeURIComponent(fallbackQuery!)}`)
   }
 
   const [prevVol, setPrevVol] = useState(0.8)
@@ -312,20 +320,20 @@ export function PlayerBar() {
               <p className="text-xs text-slate-400 truncate w-full">
                 {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
               </p>
-              {currentTrack.album && currentTrack.album !== 'Google Drive' && currentTrack.album !== 'Google Drive Sync' && (
-                <div
-                  onClick={handleOpenAlbum}
-                  className="flex items-center gap-1.5 mt-1 text-xs truncate max-w-full cursor-pointer group"
+              <div
+                onClick={handleOpenAlbum}
+                className="flex items-center gap-1.5 mt-1 text-xs truncate max-w-full cursor-pointer group"
+              >
+                <DiscAlbum className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                <span
+                  className="text-cyan-300 font-semibold group-hover:underline truncate"
+                  title="Vào Album bài hát"
                 >
-                  <DiscAlbum className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                  <span
-                    className="text-cyan-300 font-semibold group-hover:underline truncate"
-                    title={`Vào album: ${currentTrack.album}`}
-                  >
-                    {currentTrack.album}
-                  </span>
-                </div>
-              )}
+                  {currentTrack.album && !['Google Drive', 'Google Drive Sync', 'YouTube Music'].includes(currentTrack.album.trim())
+                    ? currentTrack.album
+                    : 'Xem Album bài hát'}
+                </span>
+              </div>
             </div>
             <button
               onClick={toggleFavoriteCurrentTrack}
@@ -512,18 +520,18 @@ export function PlayerBar() {
               </p>
 
               {/* Album Link Pill */}
-              {currentTrack.album && currentTrack.album !== 'Google Drive' && currentTrack.album !== 'Google Drive Sync' && (
-                <div
-                  onClick={handleOpenAlbum}
-                  className="flex items-center gap-1 shrink-0 text-[10px] text-slate-300 bg-white/[0.06] border border-white/10 px-1.5 py-0.5 rounded-md max-w-[130px] hover:border-cyan-500/40 cursor-pointer transition-colors group"
-                  title={`Vào album: ${currentTrack.album}`}
-                >
-                  <DiscAlbum style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3 h-3 shrink-0" />
-                  <span className="truncate font-semibold text-slate-200 group-hover:text-[var(--spotify-glow)] group-hover:underline transition-colors">
-                    {currentTrack.album}
-                  </span>
-                </div>
-              )}
+              <div
+                onClick={handleOpenAlbum}
+                className="flex items-center gap-1 shrink-0 text-[10px] text-slate-300 bg-white/[0.06] border border-white/10 px-1.5 py-0.5 rounded-md max-w-[140px] hover:border-cyan-500/40 cursor-pointer transition-colors group"
+                title={currentTrack.album ? `Vào album: ${currentTrack.album}` : 'Vào Album bài hát'}
+              >
+                <DiscAlbum style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3 h-3 shrink-0" />
+                <span className="truncate font-semibold text-slate-200 group-hover:text-[var(--spotify-glow)] group-hover:underline transition-colors">
+                  {currentTrack.album && !['Google Drive', 'Google Drive Sync', 'YouTube Music'].includes(currentTrack.album.trim())
+                    ? currentTrack.album
+                    : 'Album'}
+                </span>
+              </div>
 
               {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && (
                 <span

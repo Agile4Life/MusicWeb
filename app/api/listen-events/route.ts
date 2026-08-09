@@ -31,13 +31,13 @@ export async function POST(req: NextRequest) {
     })
 
     if (error) {
-      console.warn('Listen event insert error:', error.message)
-      return NextResponse.json({ success: false, message: error.message }, { status: 500 })
+      console.warn('Listen event insert info:', error.message)
+      return NextResponse.json({ success: false, message: error.message }, { status: 200 })
     }
 
     return NextResponse.json({ success: true })
   } catch (err: any) {
-    console.error('POST /api/listen-events error:', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.warn('POST /api/listen-events warning:', err)
+    return NextResponse.json({ success: false, error: 'Internal server warning' }, { status: 200 })
   }
 }

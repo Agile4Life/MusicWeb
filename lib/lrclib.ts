@@ -84,7 +84,7 @@ async function tryGetApi(trackName: string, artistName: string, duration = 0): P
   return null
 }
 
-async function trySearchApi(query: string): Promise<LrclibResponse | null> {
+async function trySearchApi(query: string, targetArtist?: string, targetDuration?: number): Promise<LrclibResponse | null> {
   try {
     const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(query)}`
     const res = await fetch(searchUrl, {
@@ -96,13 +96,39 @@ async function trySearchApi(query: string): Promise<LrclibResponse | null> {
     if (res.ok) {
       const results: LrclibResponse[] = await res.json()
       if (Array.isArray(results) && results.length > 0) {
-        const withSynced = results.find((r) => r.syncedLyrics && r.syncedLyrics.trim().length > 0)
-        if (withSynced) return withSynced
+        const matchCandidates = (maxDurDiff: number) =>
+          results.filter((r) => {
+            if (targetArtist && targetArtist.trim().length > 0) {
+              const candidateArtistNorm = (r.artistName || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+              const targetArtistNorm = targetArtist.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+              if (targetArtistNorm.length <= 2) {
+                if (candidateArtistNorm !== targetArtistNorm) return false
+              } else {
+                const isArtistMatched =
+                  candidateArtistNorm.includes(targetArtistNorm) ||
+                  targetArtistNorm.includes(candidateArtistNorm)
+                if (!isArtistMatched) return false
+              }
+            }
+            if (targetDuration && targetDuration > 0 && r.duration > 0) {
+              const durationDiff = Math.abs(r.duration - targetDuration)
+              if (durationDiff > maxDurDiff) return false
+            }
+            return true
+          })
 
-        const withPlain = results.find((r) => r.plainLyrics && r.plainLyrics.trim().length > 0)
-        if (withPlain) return withPlain
+        // Try strict duration tolerance first (25s), then relaxed (45s)
+        const validCandidates = matchCandidates(25).length > 0 ? matchCandidates(25) : matchCandidates(45)
 
-        return results[0]
+        if (validCandidates.length > 0) {
+          const withSynced = validCandidates.find((r) => r.syncedLyrics && r.syncedLyrics.trim().length > 0)
+          if (withSynced) return withSynced
+
+          const withPlain = validCandidates.find((r) => r.plainLyrics && r.plainLyrics.trim().length > 0)
+          if (withPlain) return withPlain
+
+          return validCandidates[0]
+        }
       }
     }
   } catch (e) {
@@ -113,7 +139,7 @@ async function trySearchApi(query: string): Promise<LrclibResponse | null> {
 
 /**
  * Fetch lyrics from LRCLIB API (lrclib.net) with in-memory caching & deduplication
- * Multi-stage resilient lookup strategy: exact match -> exact without duration -> search query -> title search
+ * Prioritizes syncedLyrics across all 4 stages before falling back to plainLyrics
  */
 export async function fetchLyricsFromLrclib({
   title,
@@ -140,41 +166,47 @@ export async function fetchLyricsFromLrclib({
 
   const fetchPromise = (async (): Promise<LrclibResponse | null> => {
     try {
-      // Stage 1: Try exact /api/get with cleanTitle & cleanArtist & duration
+      let fallback: LrclibResponse | null = null
+
       if (cleanArtist) {
+        // Stage 1: Try exact /api/get with cleanTitle & cleanArtist & duration
         const data1 = await tryGetApi(cleanTitle, cleanArtist, durRound)
-        if (data1 && (data1.syncedLyrics || data1.plainLyrics)) {
+        if (data1?.syncedLyrics) {
           lyricsCache.set(cacheKey, data1)
           return data1
         }
+        if (data1?.plainLyrics && !fallback) fallback = data1
 
         // Stage 2: Try /api/get WITHOUT duration parameter
         const data2 = await tryGetApi(cleanTitle, cleanArtist, 0)
-        if (data2 && (data2.syncedLyrics || data2.plainLyrics)) {
+        if (data2?.syncedLyrics) {
           lyricsCache.set(cacheKey, data2)
           return data2
         }
+        if (data2?.plainLyrics && !fallback) fallback = data2
       }
 
       // Stage 3: Try /api/search with q = "cleanTitle cleanArtist"
       const query1 = cleanArtist ? `${cleanTitle} ${cleanArtist}` : cleanTitle
-      const data3 = await trySearchApi(query1)
-      if (data3) {
+      const data3 = await trySearchApi(query1, cleanArtist, durRound)
+      if (data3?.syncedLyrics) {
         lyricsCache.set(cacheKey, data3)
         return data3
       }
+      if (data3 && !fallback) fallback = data3
 
       // Stage 4: Try /api/search with q = "cleanTitle" (Title only)
       if (cleanArtist) {
-        const data4 = await trySearchApi(cleanTitle)
-        if (data4) {
+        const data4 = await trySearchApi(cleanTitle, cleanArtist, durRound)
+        if (data4?.syncedLyrics) {
           lyricsCache.set(cacheKey, data4)
           return data4
         }
+        if (data4 && !fallback) fallback = data4
       }
 
-      lyricsCache.set(cacheKey, null)
-      return null
+      lyricsCache.set(cacheKey, fallback)
+      return fallback
     } finally {
       lyricsInFlight.delete(cacheKey)
     }
