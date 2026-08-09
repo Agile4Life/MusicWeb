@@ -253,11 +253,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Fire-and-forget prewarm for upcoming tracks in current queue (next 5 tracks)
+  // Fire-and-forget prewarm & audio URL prefetch for upcoming tracks (prevents iOS background autoplay blocks)
   useEffect(() => {
     if (queue && queue.length > 0) {
       const upcoming = queue.slice(currentIndex, currentIndex + 6)
       triggerDrivePrewarm(upcoming)
+
+      // Prefetch audio URLs for next 2 tracks into synchronous cache
+      const nextTracks = queue.slice(currentIndex + 1, currentIndex + 3)
+      for (const nextTr of nextTracks) {
+        if (nextTr && nextTr.id && !audioUrlCacheRef.current.has(nextTr.id)) {
+          getAudioUrlCached(nextTr).catch(() => {})
+        }
+      }
     }
 
     // Pre-resolve metadata/stream for immediate next track to guarantee smooth background playback on mobile
@@ -295,7 +303,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
       }
     }
-  }, [queue, currentIndex])
+  }, [queue, currentIndex, getAudioUrlCached])
 
   const supabase = createClient()
 
@@ -626,6 +634,22 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     return rawUrl
   }
 
+  const audioUrlCacheRef = useRef<Map<string, { url: string; ts: number }>>(new Map())
+  const URL_CACHE_TTL = 30 * 60 * 1000 // 30 mins
+
+  const getAudioUrlCached = useCallback(async (track: Track): Promise<string | null> => {
+    if (!track || !track.id) return null
+    const cached = audioUrlCacheRef.current.get(track.id)
+    if (cached && Date.now() - cached.ts < URL_CACHE_TTL) {
+      return cached.url
+    }
+    const url = await getAudioUrl(track)
+    if (url) {
+      audioUrlCacheRef.current.set(track.id, { url, ts: Date.now() })
+    }
+    return url
+  }, [])
+
   // Restore saved player state on mount
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -941,12 +965,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     if (requestId !== playRequestRef.current) return
 
-    // 🎵 Try HTML5 Direct Audio Stream first for ALL tracks (Drive, YouTube Stream Proxy, Audius, etc.)
-    // Direct HTML5 <audio> tag enables 100% native Mobile Background Playback on iOS Safari & Android Chrome
-    let url: string | null = null
-    try {
-      url = await getAudioUrl(activeTrack)
-    } catch (error: any) {}
+    // 🎵 1. Try SYNCHRONOUS URL cache hit first (Zero-await gap for unbroken iOS Safari background playback gesture chain)
+    let url: string | null = audioUrlCacheRef.current.get(activeTrack.id)?.url || null
+    if (!url) {
+      try {
+        url = await getAudioUrlCached(activeTrack)
+      } catch (error: any) {}
+    }
 
     const audio = audioRef.current
 
@@ -957,7 +982,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audio.currentTime = initialTime > 0 ? initialTime : 0
 
       try {
-        await audio.play()
+        audio.play()
         if (requestId !== playRequestRef.current) return
         setIsPlaying(true)
         return
@@ -1600,44 +1625,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentTrack, isPlaying, currentTime, duration])
 
-  // Keep-alive ping to Service Worker during audio playback (prevents mobile OS from suspending worker/audio)
-  useEffect(() => {
-    if (!isPlaying || typeof window === 'undefined' || !('serviceWorker' in navigator)) return
 
-    const interval = setInterval(() => {
-      if (navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({ type: 'KEEP_ALIVE' })
-      }
-    }, 10000)
-
-    return () => clearInterval(interval)
-  }, [isPlaying])
-
-  // Screen Wake Lock API (Prevents mobile OS CPU sleep during audio playback)
-  useEffect(() => {
-    if (!isPlaying || typeof window === 'undefined' || !('wakeLock' in navigator)) return
-    let wakeLockSentinel: any = null
-    const requestWakeLock = async () => {
-      try {
-        wakeLockSentinel = await (navigator as any).wakeLock.request('screen')
-      } catch {}
-    }
-    requestWakeLock()
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && isPlaying) {
-        requestWakeLock()
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      if (wakeLockSentinel && wakeLockSentinel.release) {
-        wakeLockSentinel.release().catch(() => {})
-      }
-    }
-  }, [isPlaying])
 
   const effectiveDuration = duration > 0 ? duration : (currentTrack?.duration || 0)
 
