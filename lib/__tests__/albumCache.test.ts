@@ -273,4 +273,9 @@ describe('isRealAlbumName', () => {
     expect(isRealAlbumName('petal')).toBe(true)
     expect(isRealAlbumName('The Dark Side of the Moon')).toBe(true)
   })
+
+  it('returns false when album name equals track title (single fallback)', () => {
+    expect(isRealAlbumName('hate that i made you love me', 'hate that i made you love me')).toBe(false)
+    expect(isRealAlbumName('Midnights', 'Anti-Hero')).toBe(true)
+  })
 })

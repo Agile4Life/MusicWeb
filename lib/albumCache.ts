@@ -28,11 +28,16 @@ const GENERIC_PLACEHOLDERS = new Set([
   'ep',
 ])
 
-export function isRealAlbumName(name?: string | null): boolean {
+export function isRealAlbumName(name?: string | null, title?: string | null): boolean {
   if (!name) return false
   const trimmed = name.trim().toLowerCase()
   if (!trimmed) return false
-  return !GENERIC_PLACEHOLDERS.has(trimmed)
+  if (GENERIC_PLACEHOLDERS.has(trimmed)) return false
+  if (title) {
+    const trimmedTitle = title.trim().toLowerCase()
+    if (trimmedTitle && trimmed === trimmedTitle) return false
+  }
+  return true
 }
 
 // ── Known-bad fallback IDs ──────────────────────────────
@@ -126,7 +131,7 @@ export function getCachedResolvedAlbum(
   }
 
   // If an expected real album is provided, verify cached album matches it
-  if (expectedAlbum && isRealAlbumName(expectedAlbum)) {
+  if (expectedAlbum && isRealAlbumName(expectedAlbum, title)) {
     if (!cached.albumName) return undefined
 
     const cachedNorm = normalizeAlbumName(cached.albumName)

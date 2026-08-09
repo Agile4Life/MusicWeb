@@ -7,7 +7,7 @@ import { usePlayer, usePlaybackProgress } from './PlayerContext'
 import { LyricsView } from './LyricsView'
 import { QueueDrawer } from './QueueDrawer'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
-import { setCachedResolvedAlbum, getCachedResolvedAlbum } from '@/lib/albumCache'
+import { setCachedResolvedAlbum, getCachedResolvedAlbum, isRealAlbumName } from '@/lib/albumCache'
 import { AudioWaveformScrubber } from './AudioWaveformScrubber'
 import {
   Play,
@@ -75,7 +75,7 @@ export function PlayerBar() {
 
     const hasRealAlbum = Boolean(
       currentTrack.album &&
-      !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album', 'Unknown Album'].includes(currentTrack.album.trim())
+      isRealAlbumName(currentTrack.album, currentTrack.title)
     )
 
     const cached = getCachedResolvedAlbum(currentTrack.title, currentTrack.artist, currentTrack.album)
@@ -148,7 +148,7 @@ export function PlayerBar() {
   }, [currentTrack?.id, currentTrack?.title, currentTrack?.artist, currentTrack?.album, currentTrack?.spotify_album_id])
 
   const displayAlbumName = resolvedAlbumInfo?.name || (
-    currentTrack?.album && !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(currentTrack.album.trim())
+    currentTrack?.album && isRealAlbumName(currentTrack.album, currentTrack.title)
       ? currentTrack.album
       : undefined
   )
@@ -176,7 +176,7 @@ export function PlayerBar() {
 
     const hasRealAlbum =
       currentTrack.album &&
-      !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(currentTrack.album.trim())
+      isRealAlbumName(currentTrack.album, currentTrack.title)
 
     const titleToSearch = currentTrack.title || ''
     const artistToSearch = currentTrack.artist || ''

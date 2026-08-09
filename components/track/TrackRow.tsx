@@ -63,14 +63,14 @@ function TrackRowComponent({
   const router = useRouter()
   const [isResolvingAlbum, setIsResolvingAlbum] = useState(false)
   const [liveAlbum, setLiveAlbum] = useState<string | null>(() => {
-    if (isRealAlbumName(track.album)) return track.album || null
+    if (isRealAlbumName(track.album, track.title)) return track.album || null
     const cached = getCachedResolvedAlbum(track.title, track.artist, track.album)
     if (cached?.albumName) return cached.albumName
     return track.album || null
   })
 
   useEffect(() => {
-    if (isRealAlbumName(track.album)) {
+    if (isRealAlbumName(track.album, track.title)) {
       setLiveAlbum(track.album || null)
       return
     }
@@ -84,7 +84,7 @@ function TrackRowComponent({
         const isTitleMatch = detail.title && track.title && detail.title.toLowerCase().trim() === track.title.toLowerCase().trim()
         const isArtistMatch = detail.artist && track.artist && detail.artist.toLowerCase().trim() === track.artist.toLowerCase().trim()
         if (isTitleMatch && isArtistMatch) {
-          if (!isRealAlbumName(track.album)) {
+          if (!isRealAlbumName(track.album, track.title)) {
             setLiveAlbum(detail.album.albumName)
           }
         }
