@@ -121,31 +121,47 @@ function TrackRowComponent({
   }, [showMenu])
 
   const [fetchedViews, setFetchedViews] = useState<number | null>(null)
+  const [loadingViews, setLoadingViews] = useState(false)
 
   useEffect(() => {
-    if (track.view_count != null || track.play_count != null || !track.youtube_id) return
+    if (track.view_count != null || track.play_count != null) return
 
-    let isMounted = true
-    const ytId = track.youtube_id
+    const cacheKey = track.youtube_id || `${(track.title || '').trim().toLowerCase()}_${(track.artist || '').trim().toLowerCase()}`
+    if (!cacheKey || cacheKey === '_') return
 
-    if (viewCountCache.has(ytId)) {
-      setFetchedViews(viewCountCache.get(ytId)!)
+    if (viewCountCache.has(cacheKey)) {
+      setFetchedViews(viewCountCache.get(cacheKey)!)
       return
     }
 
-    fetchViewCountForVideo(ytId)
-      .then((views) => {
-        if (isMounted && views != null && views > 0) {
-          viewCountCache.set(ytId, views)
-          setFetchedViews(views)
+    let isMounted = true
+    setLoadingViews(true)
+
+    const params = new URLSearchParams()
+    if (track.youtube_id) params.set('youtube_id', track.youtube_id)
+    if (track.title) params.set('title', track.title)
+    if (track.artist) params.set('artist', track.artist)
+
+    fetch(`/api/track-views?${params.toString()}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (isMounted) {
+          const views = data?.viewCount ?? null
+          if (views != null && views > 0) {
+            viewCountCache.set(cacheKey, views)
+            setFetchedViews(views)
+          }
         }
       })
       .catch(() => {})
+      .finally(() => {
+        if (isMounted) setLoadingViews(false)
+      })
 
     return () => {
       isMounted = false
     }
-  }, [track.youtube_id, track.view_count, track.play_count])
+  }, [track.youtube_id, track.title, track.artist, track.view_count, track.play_count])
 
   const displayViews = track.view_count ?? track.play_count ?? fetchedViews
 
@@ -406,22 +422,27 @@ function TrackRowComponent({
       {/* Views, Duration & Options */}
       <div className="shrink-0 flex items-center justify-end shrink-0 md:w-1/4 gap-3 sm:gap-4 text-xs text-slate-400 pr-2">
         {/* Views sub-column */}
-        <div className="hidden sm:flex items-center justify-end w-20 sm:w-24 shrink-0">
+        <div className="hidden sm:flex items-center justify-end w-24 sm:w-28 shrink-0">
           {displayViews != null && displayViews > 0 ? (
             <span
-              className="inline-flex items-center gap-1 text-[11px] font-mono text-cyan-400/90 bg-cyan-950/40 border border-cyan-500/20 px-2 py-0.5 rounded-full shrink-0"
-              title={`${displayViews.toLocaleString()} lượt xem / lượt nghe`}
+              className="inline-flex items-center gap-1 text-[11px] font-mono font-medium text-cyan-400 bg-cyan-950/60 border border-cyan-500/30 px-2.5 py-0.5 rounded-full shrink-0 shadow-sm transition-all"
+              title={`${displayViews.toLocaleString()} lượt xem`}
             >
               <Eye className="w-3 h-3 text-cyan-400 shrink-0" />
               {formatViewCount(displayViews)}
             </span>
+          ) : loadingViews ? (
+            <span className="inline-flex items-center gap-1 text-[10px] font-mono text-slate-500 animate-pulse">
+              <Eye className="w-3 h-3 text-slate-600 shrink-0" />
+              ...
+            </span>
           ) : (
-            <span className="text-[11px] font-mono text-slate-600/60">-</span>
+            <span className="text-xs font-mono text-slate-600/60">-</span>
           )}
         </div>
 
         {/* Duration sub-column */}
-        <span className="w-14 sm:w-16 text-right font-mono text-slate-300 shrink-0">
+        <span className="w-16 sm:w-20 text-right font-mono text-slate-300 shrink-0">
           {formatDuration(track.duration)}
         </span>
 

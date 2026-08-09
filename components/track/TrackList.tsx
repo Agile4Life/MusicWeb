@@ -245,11 +245,11 @@ export function TrackList({
         </div>
         <div className="hidden md:block w-1/4">ALBUM</div>
         <div className="flex items-center justify-end shrink-0 md:w-1/4 gap-3 sm:gap-4 pr-2">
-          <span className="hidden sm:inline-flex items-center justify-end gap-1 w-20 sm:w-24 text-right text-[11px] font-semibold text-slate-400" title="Lượt xem / Lượt nghe">
+          <span className="hidden sm:inline-flex items-center justify-end gap-1.5 w-24 sm:w-28 text-right text-[11px] font-semibold text-slate-400" title="Lượt xem / Lượt nghe">
             <Eye className="w-3.5 h-3.5 text-slate-400" />
             LƯỢT XEM
           </span>
-          <span className="w-14 sm:w-16 text-right flex justify-end" title="Thời lượng">
+          <span className="w-16 sm:w-20 text-right flex justify-end" title="Thời lượng">
             <Clock className="w-4 h-4" />
           </span>
         </div>
