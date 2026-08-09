@@ -59,7 +59,12 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
 
           setAlbum({
             ...cached,
-            tracks: cached.tracks.map((t: any) => ({ ...t, source: 'spotify' })),
+            tracks: cached.tracks.map((t: any) => ({
+              ...t,
+              album: cached.name || t.album,
+              spotify_album_id: cached.id || t.spotify_album_id,
+              source: 'spotify',
+            })),
           })
           setLoading(false)
           return
@@ -70,7 +75,14 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
         if (res.ok) {
           const data = await res.json()
           if (data && Array.isArray(data.tracks)) {
-            setAlbum(data)
+            setAlbum({
+              ...data,
+              tracks: data.tracks.map((t: any) => ({
+                ...t,
+                album: data.name || t.album,
+                spotify_album_id: data.id || t.spotify_album_id,
+              })),
+            })
             setLoading(false)
             return
           }
