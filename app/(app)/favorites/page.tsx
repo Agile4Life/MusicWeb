@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Track, Playlist } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
@@ -52,7 +52,7 @@ export default function FavoritesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [supabaseUser, setSupabaseUser] = useState<any>(null)
 
-  const fetchFavorites = async () => {
+  const fetchFavorites = useCallback(async () => {
     setLoading(true)
     try {
       const {
@@ -113,14 +113,14 @@ export default function FavoritesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [nextAuthSession, supabase])
 
   useEffect(() => {
     fetchFavorites()
-  }, [nextAuthSession])
+  }, [fetchFavorites])
 
   const handleAddToPlaylist = async (playlistId: string, track: Track) => {
-    let targetTrackId = track.id
+    const targetTrackId = track.id
 
     const { error: rpcError } = await Promise.resolve(
       supabase.rpc('fn_add_track_to_playlist', {

@@ -88,7 +88,7 @@ export default function AlbumsPage() {
   useEffect(() => {
     const q = searchParams.get('q') || searchParams.get('search')
     if (q) {
-      setAlbumQuery(q)
+      setAlbumQuery((prev) => (prev !== q ? q : prev))
     }
   }, [searchParams])
 
@@ -146,13 +146,13 @@ export default function AlbumsPage() {
     }
 
     loadAlbumsData()
-  }, [])
+  }, [supabase])
 
   // Live album search effect (debounced 400ms)
   useEffect(() => {
     if (!albumQuery.trim()) {
-      setSearchResults([])
-      setSearching(false)
+      setSearchResults((prev) => (prev.length > 0 ? [] : prev))
+      setSearching((prev) => (prev ? false : prev))
       return
     }
 

@@ -217,8 +217,8 @@ export function parseFilenameToTitleArtist(fileName: string): { title: string; a
   if (cleanName.includes(' - ')) {
     const parts = cleanName.split(' - ')
     if (parts.length >= 2) {
-      let artistPart = parts[0].trim().replace(leadingNumRegex, '').trim()
-      let titlePart = parts.slice(1).join(' - ').trim().replace(leadingNumRegex, '').trim()
+      const artistPart = parts[0].trim().replace(leadingNumRegex, '').trim()
+      const titlePart = parts.slice(1).join(' - ').trim().replace(leadingNumRegex, '').trim()
 
       return {
         artist: artistPart,

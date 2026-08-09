@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Track } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
@@ -63,7 +63,7 @@ export default function HistoryPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [clearing, setClearing] = useState(false)
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     setLoading(true)
     try {
       const {
@@ -134,11 +134,11 @@ export default function HistoryPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [nextAuthSession, supabase])
 
   useEffect(() => {
     fetchHistory()
-  }, [nextAuthSession])
+  }, [fetchHistory])
 
   const handleClearAllHistory = async () => {
     if (historyItems.length === 0) return

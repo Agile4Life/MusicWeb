@@ -539,7 +539,7 @@ export async function fetchSpotifyPlaylistTracks(playlistId: string): Promise<Sp
     const token = await getSpotifyAccessToken()
     if (!token) return []
 
-    let allTracks: SpotifyPlaylistTrack[] = []
+    const allTracks: SpotifyPlaylistTrack[] = []
     const limit = 100
     let offset = 0
     let total = 1

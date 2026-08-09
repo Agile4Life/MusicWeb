@@ -64,7 +64,7 @@ export default function HomePage() {
   }, [searchQuery])
 
   useEffect(() => {
-    setShowAllResults(false)
+    setShowAllResults((prev) => (prev ? false : prev))
   }, [searchQuery, searchSource])
 
   // Trending Albums state

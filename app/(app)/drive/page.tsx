@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Track, Playlist } from '@/types'
@@ -25,7 +25,7 @@ export default function DrivePage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [supabaseUser, setSupabaseUser] = useState<any>(null)
 
-  const fetchDriveTracks = async () => {
+  const fetchDriveTracks = useCallback(async () => {
     setLoading(true)
     try {
       const {
@@ -107,7 +107,7 @@ export default function DrivePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [nextAuthSession, supabase])
 
   useEffect(() => {
     fetchDriveTracks()
@@ -120,7 +120,7 @@ export default function DrivePage() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [])
+  }, [fetchDriveTracks, supabase])
 
   const filteredTracks = searchQuery.trim()
     ? driveTracks.filter(
