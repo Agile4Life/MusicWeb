@@ -1488,7 +1488,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (!audio) return
     const events = ['pause', 'play', 'stalled', 'waiting', 'suspend', 'abort', 'error', 'emptied', 'playing']
     const log = (evt: string) => {
-      const entry = `[${new Date().toISOString()}] ${evt} | paused=${audio.paused} readyState=${audio.readyState} networkState=${audio.networkState} currentTime=${audio.currentTime.toFixed(1)}`
+      const err = audio.error
+      const errInfo = err ? ` | ERROR_CODE=${err.code} ERROR_MSG=${err.message}` : ''
+      const entry = `[${new Date().toISOString()}] ${evt} | paused=${audio.paused} readyState=${audio.readyState} networkState=${audio.networkState} currentTime=${audio.currentTime.toFixed(1)}${errInfo}`
       console.log(entry)
       try {
         const logs = JSON.parse(localStorage.getItem('audio_debug_log') || '[]')
