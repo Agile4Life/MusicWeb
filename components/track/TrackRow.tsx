@@ -391,8 +391,8 @@ function TrackRowComponent({
       {/* Duration & Options */}
       <div className="shrink-0 flex items-center justify-end gap-1.5 sm:gap-2 md:w-1/4 text-xs text-slate-400">
         {track.view_count != null && track.view_count > 0 && (
-          <span className="hidden sm:inline-flex items-center gap-0.5 text-[10px] text-slate-500 font-mono shrink-0" title={`${track.view_count.toLocaleString()} lượt xem trên YouTube`}>
-            <Eye className="w-3 h-3" />
+          <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-400 font-mono shrink-0" title={`${track.view_count.toLocaleString()} lượt xem trên YouTube`}>
+            <Eye className="w-3 h-3 text-slate-500" />
             {formatViewCount(track.view_count)}
           </span>
         )}

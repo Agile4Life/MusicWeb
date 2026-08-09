@@ -100,7 +100,16 @@ export default function AlbumsPage() {
           .limit(30)
 
         if (!error && myAlbums) {
-          setListenedAlbums(myAlbums)
+          const uniqueAlbums: SpotifyAlbumItem[] = []
+          const seenKeys = new Set<string>()
+          for (const alb of myAlbums) {
+            const key = `${(alb.name || '').trim().toLowerCase()}::${(alb.artist || '').trim().toLowerCase()}`
+            if (!seenKeys.has(key)) {
+              seenKeys.add(key)
+              uniqueAlbums.push(alb)
+            }
+          }
+          setListenedAlbums(uniqueAlbums)
         }
       } catch (err) {
         console.warn('Error fetching listened albums from Supabase:', err)

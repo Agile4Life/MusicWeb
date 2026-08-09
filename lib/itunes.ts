@@ -34,6 +34,7 @@ export async function searchITunesTracks(query: string, limit = 15): Promise<Tra
         title: item.trackName || 'iTunes Track',
         artist: item.artistName || 'Nghệ sĩ iTunes',
         album: item.collectionName || '',
+        spotify_album_id: item.collectionId ? `itunes-${item.collectionId}` : undefined,
         duration: Math.round((item.trackTimeMillis || 30000) / 1000),
         file_path: item.previewUrl || '',
         cover_url: artwork,

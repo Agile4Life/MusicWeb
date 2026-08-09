@@ -71,9 +71,9 @@ export function PlayerBar() {
       currentTrack.album &&
       !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(currentTrack.album.trim())
 
-    if (hasRealAlbum) {
+    if (hasRealAlbum && currentTrack.spotify_album_id) {
       setResolvedAlbumInfo({
-        id: currentTrack.spotify_album_id || undefined,
+        id: currentTrack.spotify_album_id,
         name: currentTrack.album!,
       })
       return
@@ -275,6 +275,15 @@ export function PlayerBar() {
                     <span className="text-cyan-400/90 font-medium truncate">{displayAlbumName}</span>
                   </>
                 )}
+                {currentTrack.view_count != null && currentTrack.view_count > 0 && (
+                  <>
+                    <span className="text-slate-600">•</span>
+                    <span className="text-slate-400 font-mono inline-flex items-center gap-0.5 shrink-0" title={`${currentTrack.view_count.toLocaleString()} lượt xem`}>
+                      <Eye className="w-2.5 h-2.5 text-slate-500" />
+                      {formatViewCount(currentTrack.view_count)}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -420,6 +429,13 @@ export function PlayerBar() {
                   {displayAlbumName || 'Album'}
                 </span>
               </div>
+
+              {currentTrack.view_count != null && currentTrack.view_count > 0 && (
+                <div className="flex items-center gap-1.5 mt-1.5 text-xs font-mono text-slate-400 bg-white/[0.05] border border-white/10 px-2.5 py-1 rounded-lg shrink-0">
+                  <Eye className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                  <span>{formatViewCount(currentTrack.view_count)} ({currentTrack.view_count.toLocaleString()} lượt xem)</span>
+                </div>
+              )}
             </div>
             <button
               onClick={toggleFavoriteCurrentTrack}
