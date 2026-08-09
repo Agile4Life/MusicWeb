@@ -493,6 +493,18 @@ async function getVideoMeta(
 export async function searchYouTubeTracks(query: string, limit = 15): Promise<Track[]> {
   if (!query.trim()) return []
 
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&source=youtube`)
+      if (!res.ok) return []
+      const data = await res.json()
+      return (data.youtube || []).slice(0, limit)
+    } catch (err) {
+      console.warn('searchYouTubeTracks client proxy warning:', err)
+      return []
+    }
+  }
+
   const videoIdFromUrl = extractYouTubeVideoId(query)
   if (videoIdFromUrl) {
     return [

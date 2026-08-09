@@ -18,6 +18,7 @@ import {
   History,
   Trash2,
   DiscAlbum,
+  Sparkles,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
@@ -26,6 +27,7 @@ import { useSession, signOut } from 'next-auth/react'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
+import { ImportSpotifyModal } from '@/components/playlist/ImportSpotifyModal'
 
 export function Sidebar() {
   const { t } = useLanguage()
@@ -35,6 +37,7 @@ export function Sidebar() {
   const { data: nextAuthSession } = useSession()
   const { userEmail } = useCurrentUser()
   const { playlists, loading: creating, createPlaylist, deletePlaylist } = usePlaylists()
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
 
   const user = userEmail
     ? {
@@ -212,14 +215,24 @@ export function Sidebar() {
               <ListMusic style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3.5 h-3.5" />
               <span>Playlist</span>
             </div>
-            <button
-              onClick={handleCreatePlaylist}
-              disabled={creating}
-              className="p-1 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-              title="Tạo playlist mới"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setIsImportModalOpen(true)}
+                className="p-1 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition-colors flex items-center gap-1 text-[11px] font-semibold"
+                title="Nhập Spotify playlist"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span className="hidden lg:inline text-[10px]">Nhập Spotify</span>
+              </button>
+              <button
+                onClick={handleCreatePlaylist}
+                disabled={creating}
+                className="p-1 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                title="Tạo playlist mới"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto flex flex-col gap-0.5 pr-1">
@@ -316,6 +329,11 @@ export function Sidebar() {
           </div>
         )}
       </div>
+
+      <ImportSpotifyModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+      />
     </aside>
   )
 }

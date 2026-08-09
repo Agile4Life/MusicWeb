@@ -21,6 +21,7 @@ import {
   Trash2,
   DiscAlbum,
   ChevronLeft,
+  Sparkles,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
@@ -29,6 +30,7 @@ import { useSession, signOut } from 'next-auth/react'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
+import { ImportSpotifyModal } from '@/components/playlist/ImportSpotifyModal'
 
 export function MobileHeaderNav() {
   const { t } = useLanguage()
@@ -38,6 +40,7 @@ export function MobileHeaderNav() {
   const { data: nextAuthSession } = useSession()
   const { userEmail } = useCurrentUser()
   const { playlists, loading: creating, createPlaylist, deletePlaylist } = usePlaylists()
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [touchStartX, setTouchStartX] = useState<number | null>(null)
   const [touchEndX, setTouchEndX] = useState<number | null>(null)
@@ -341,12 +344,25 @@ export function MobileHeaderNav() {
                   <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
                     Playlist cá nhân
                   </span>
-                  <button
-                    onClick={handleCreatePlaylist}
-                    className="p-1 text-slate-400 hover:text-white rounded"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => {
+                        setIsDrawerOpen(false)
+                        setIsImportModalOpen(true)
+                      }}
+                      className="p-1 text-emerald-400 hover:text-emerald-300 rounded flex items-center gap-1 text-[10px] font-semibold"
+                      title="Nhập Spotify playlist"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Nhập Spotify</span>
+                    </button>
+                    <button
+                      onClick={handleCreatePlaylist}
+                      className="p-1 text-slate-400 hover:text-white rounded"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
@@ -410,6 +426,11 @@ export function MobileHeaderNav() {
           </div>
         </div>
       )}
+
+      <ImportSpotifyModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+      />
     </>
   )
 }
