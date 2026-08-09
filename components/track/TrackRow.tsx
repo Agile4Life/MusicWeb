@@ -419,26 +419,6 @@ function TrackRowComponent({
                 {track.title}
               </p>
             )}
-            {track.source === 'spotify' && (
-              <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20 shrink-0 hidden xs:inline">
-                Spotify
-              </span>
-            )}
-            {track.source === 'youtube' && (
-              <span className="text-[9px] font-mono text-red-400 bg-red-500/10 px-1.5 py-0.2 rounded border border-red-500/20 shrink-0 hidden xs:inline">
-                YouTube
-              </span>
-            )}
-            {track.source === 'audius' && (
-              <span className="text-[9px] font-mono text-purple-300 bg-purple-500/10 px-1.5 py-0.2 rounded border border-purple-500/20 shrink-0 hidden xs:inline">
-                Audius
-              </span>
-            )}
-            {track.source === 'itunes' && (
-              <span className="text-[9px] font-mono text-pink-400 bg-pink-500/10 px-1.5 py-0.2 rounded border border-pink-500/20 shrink-0 hidden xs:inline">
-                iTunes
-              </span>
-            )}
           </div>
 
           {/* Artist — editable inline */}

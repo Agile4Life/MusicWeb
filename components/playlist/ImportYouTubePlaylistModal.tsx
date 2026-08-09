@@ -29,6 +29,7 @@ import {
   YouTubePlaylistMeta,
 } from '@/lib/youtube'
 import { Track } from '@/types'
+import { resolvePlaylistTrackWithNct } from '@/lib/playlistNct'
 
 interface ImportYouTubePlaylistModalProps {
   isOpen: boolean
@@ -212,40 +213,52 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
       let successCount = 0
       for (let i = 0; i < tracksToImport.length; i++) {
         const track = tracksToImport[i]
+        const resolvedTrack = await resolvePlaylistTrackWithNct(track)
         let dbTrackId: string | null = null
 
-        // 1. Check existing track in DB by youtube_id OR file_path (using limit(1) to avoid single/maybeSingle errors)
-        if (track.youtube_id) {
+        // 1. Prefer stable NCT identity, then use fallback provider identity/path.
+        if (resolvedTrack.nhaccuatui_id) {
           const { data } = await supabase
             .from('tracks')
             .select('id')
-            .eq('youtube_id', track.youtube_id)
+            .eq('nhaccuatui_id', resolvedTrack.nhaccuatui_id)
             .limit(1)
           if (data && data.length > 0) dbTrackId = data[0].id
         }
 
-        if (!dbTrackId && track.file_path) {
+        if (!dbTrackId && resolvedTrack.youtube_id) {
           const { data } = await supabase
             .from('tracks')
             .select('id')
-            .eq('file_path', track.file_path)
+            .eq('youtube_id', resolvedTrack.youtube_id)
             .limit(1)
           if (data && data.length > 0) dbTrackId = data[0].id
         }
 
-        // 2. If track does not exist in DB yet, insert it (NOTE: tracks table schema has no 'source' or 'view_count' columns)
+        if (!dbTrackId && resolvedTrack.file_path) {
+          const { data } = await supabase
+            .from('tracks')
+            .select('id')
+            .eq('file_path', resolvedTrack.file_path)
+            .limit(1)
+          if (data && data.length > 0) dbTrackId = data[0].id
+        }
+
+        // 2. If track does not exist in DB yet, insert the NCT-first record.
         if (!dbTrackId) {
           const { data: insertedTrack, error: insertErr } = await supabase
             .from('tracks')
             .insert({
               user_id: userId,
-              title: track.title,
-              artist: track.artist,
-              album: track.album || 'YouTube Music',
-              duration: track.duration || 0,
-              file_path: track.file_path,
-              cover_url: track.cover_url,
-              youtube_id: track.youtube_id,
+              title: resolvedTrack.title,
+              artist: resolvedTrack.artist,
+              album: resolvedTrack.album || 'YouTube Music',
+              duration: resolvedTrack.duration || 0,
+              file_path: resolvedTrack.file_path,
+              cover_url: resolvedTrack.cover_url,
+              source: resolvedTrack.source || null,
+              youtube_id: resolvedTrack.nhaccuatui_id ? null : resolvedTrack.youtube_id || null,
+              nhaccuatui_id: resolvedTrack.nhaccuatui_id || null,
             })
             .select('id')
             .single()
@@ -254,11 +267,11 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
             dbTrackId = insertedTrack.id
           } else if (insertErr) {
             console.warn('Track insert warning, attempting re-fetch:', insertErr)
-            if (track.youtube_id) {
+            if (resolvedTrack.youtube_id) {
               const { data: refetched } = await supabase
                 .from('tracks')
                 .select('id')
-                .eq('youtube_id', track.youtube_id)
+                .eq('youtube_id', resolvedTrack.youtube_id)
                 .limit(1)
               if (refetched && refetched.length > 0) dbTrackId = refetched[0].id
             }

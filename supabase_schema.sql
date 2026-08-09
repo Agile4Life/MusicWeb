@@ -33,6 +33,10 @@ CREATE TABLE IF NOT EXISTS public.tracks (
     cover_url TEXT,
     play_count INTEGER DEFAULT 0,
     is_favorite BOOLEAN DEFAULT FALSE,
+    source TEXT,
+    spotify_id TEXT,
+    youtube_id TEXT,
+    nhaccuatui_id TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

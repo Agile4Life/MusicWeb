@@ -19,11 +19,12 @@ export interface Track {
   is_favorite?: boolean
   created_at: string
   audio_url?: string
-  source?: 'local' | 'youtube' | 'audius' | 'itunes' | 'spotify'
+  source?: 'local' | 'youtube' | 'audius' | 'itunes' | 'spotify' | 'nhaccuatui'
   youtube_id?: string
   audius_id?: string
   itunes_id?: string | number
   spotify_id?: string
+  nhaccuatui_id?: string
   file_ext?: string
   drive_file_id?: string
   disc_number?: number

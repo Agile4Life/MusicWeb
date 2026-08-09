@@ -37,6 +37,16 @@ function getDedupeKey(track: Track): string {
  * So sánh 2 track trùng tên, quyết định giữ bản chất lượng tốt hơn
  */
 function isBetterTrack(candidate: Track, current: Track): boolean {
+  const sourcePriority = (track: Track): number => {
+    if (track.source === 'nhaccuatui') return 1000
+    if (track.source === 'local' || !track.source) return 900
+    return 0
+  }
+
+  if (sourcePriority(candidate) !== sourcePriority(current)) {
+    return sourcePriority(candidate) > sourcePriority(current)
+  }
+
   const score = (t: Track): number => {
     const title = (t.title || '').toLowerCase()
     const artist = (t.artist || '').toLowerCase()

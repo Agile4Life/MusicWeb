@@ -12,7 +12,8 @@ import { fetchUnifiedSearch } from '@/lib/searchApi'
 import { getSmartRecommendedTracks } from '@/lib/smartRecommend'
 import { NextQueueResponse, queueTrackToTrack } from '@/types/queue'
 import { getMusicOfftopicSegments, calculateIntroOffset } from '@/lib/sponsorblock'
-import { playAudioElement, shouldUseHtml5Audio } from '@/lib/audioPlayback'
+import { playAudioElement, redactAudioSource, shouldUseHtml5Audio, toPersistedTrack } from '@/lib/audioPlayback'
+import { resolveNhacCuaTuiSong, resolveNhacCuaTuiTrack } from '@/lib/nhaccuatuiClient'
 
 export type RepeatMode = 'off' | 'all' | 'one'
 
@@ -79,9 +80,9 @@ const savePlayerStateToStorage = (
     localStorage.setItem(
       'musicweb_player_state',
       JSON.stringify({
-        track,
+        track: toPersistedTrack(track),
         currentTime: time,
-        queue: trackQueue,
+        queue: trackQueue.map(toPersistedTrack),
         currentIndex: index,
         volume: vol,
         savedAt: Date.now(),
@@ -328,6 +329,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const getAudioUrlCached = useCallback(
     async (track: Track): Promise<string | null> => {
       if (!track || !track.id) return null
+      // NCT URLs are signed and short-lived; always resolve them fresh.
+      if (track.source === 'nhaccuatui') return getAudioUrl(track)
       const cached = audioUrlCacheRef.current.get(track.id)
       if (cached && Date.now() - cached.ts < URL_CACHE_TTL) {
         return cached.url
@@ -731,7 +734,22 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               } catch (e) {}
             }
           } else {
-            getAudioUrl(restoredTrack)
+            const restoreTrack = restoredTrack.source === 'nhaccuatui' && restoredTrack.nhaccuatui_id
+              ? resolveNhacCuaTuiSong(restoredTrack.nhaccuatui_id).then((song) => song ? {
+                ...restoredTrack,
+                title: song.title || restoredTrack.title,
+                artist: song.artist || restoredTrack.artist,
+                cover_url: restoredTrack.cover_url || song.coverUrl || null,
+                duration: song.duration || restoredTrack.duration,
+                audio_url: song.audioUrl,
+                file_path: song.audioUrl,
+              } : restoredTrack)
+              : Promise.resolve(restoredTrack)
+
+            restoreTrack.then((playableTrack) => {
+                if (playableTrack !== restoredTrack) setCurrentTrack(playableTrack)
+                return getAudioUrl(playableTrack)
+              })
               .then((url) => {
                 const audio = audioRef.current
                 if (url && audio) {
@@ -896,7 +914,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       ))
     )
 
-    if (!hasDirectPlayableAudio && (track.source === 'itunes' || track.source === 'spotify' || (!track.youtube_id && (track.spotify_id || track.itunes_id))) && !track.youtube_id) {
+    const shouldResolveExternalCatalog = !hasDirectPlayableAudio && (
+      (track.source === 'nhaccuatui' && Boolean(track.nhaccuatui_id)) ||
+      track.source === 'itunes' ||
+      track.source === 'spotify' ||
+      (!track.youtube_id && (track.spotify_id || track.itunes_id))
+    ) && !track.youtube_id
+
+    if (shouldResolveExternalCatalog) {
       // 🚀 Parallel lookup: Search Drive tracks + YouTube simultaneously for faster resolution
       const cleanTitle = normalizeTitle(track.title)
       const cleanArtist = normalizeTitle(track.artist || '')
@@ -904,7 +929,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const queryStr = `${cleanQueryTitle} ${track.artist || ''}`
 
       // Launch both lookups in parallel — saves 1-3 seconds vs sequential
-      const [driveResult, ytResult] = await Promise.allSettled([
+      const [driveResult, nctResult, ytResult] = await Promise.allSettled([
         // Drive lookup
         (async () => {
           if (!cleanTitle) return null
@@ -942,9 +967,44 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           }
           return null
         })(),
-        // YouTube search
+        // NhacCuaTui metadata + fresh signed stream resolution
+        resolveNhacCuaTuiTrack(track),
+        // YouTube search fallback
         fetchUnifiedSearch(queryStr, 'youtube'),
       ])
+
+      // Prefer NhacCuaTui for external catalog tracks so Safari can use the
+      // native HTML5 audio engine and Media Session controls.
+      const nctSong = nctResult.status === 'fulfilled' ? nctResult.value : null
+      if (nctSong && requestId === playRequestRef.current) {
+        activeTrack = {
+          ...track,
+          source: 'nhaccuatui',
+          nhaccuatui_id: nctSong.id,
+          title: nctSong.title || track.title,
+          artist: nctSong.artist || track.artist,
+          duration: nctSong.duration || track.duration,
+          cover_url: track.cover_url || nctSong.coverUrl || null,
+          audio_url: nctSong.audioUrl,
+          file_path: nctSong.audioUrl,
+        }
+        setCurrentTrack(activeTrack)
+        const streamUrl = await getAudioUrl(activeTrack)
+        if (audioRef.current && streamUrl) {
+          audioRef.current.src = streamUrl
+          audioRef.current.currentTime = initialTime
+          audioRef.current.volume = volumeRef.current
+          try {
+            await playAudioElement(audioRef.current)
+            if (requestId !== playRequestRef.current) return
+            setIsPlaying(true)
+            return
+          } catch (err) {
+            setIsPlaying(false)
+            console.warn('Resolved NhacCuaTui audio playback failed:', err)
+          }
+        }
+      }
 
       // Prefer Drive track if found (no DRM, direct stream)
       const driveTrack = driveResult.status === 'fulfilled' ? driveResult.value : null
@@ -1546,7 +1606,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const log = (evt: string) => {
       const err = audio.error
       const errInfo = err ? ` | ERROR_CODE=${err.code} ERROR_MSG=${err.message}` : ''
-      const entry = `[${new Date().toISOString()}] ${evt} | src=${audio.src} paused=${audio.paused} readyState=${audio.readyState} networkState=${audio.networkState} currentTime=${audio.currentTime.toFixed(1)}${errInfo}`
+      const entry = `[${new Date().toISOString()}] ${evt} | src=${redactAudioSource(audio.src)} paused=${audio.paused} readyState=${audio.readyState} networkState=${audio.networkState} currentTime=${audio.currentTime.toFixed(1)}${errInfo}`
       console.log(entry)
       try {
         const logs = JSON.parse(localStorage.getItem('audio_debug_log') || '[]')
@@ -1555,8 +1615,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('audio_debug_log', JSON.stringify(logs))
       } catch {}
     }
-    events.forEach((evt) => audio.addEventListener(evt, () => log(evt)))
-    return () => events.forEach((evt) => audio.removeEventListener(evt, () => log(evt)))
+    const handlers = new Map(events.map((evt) => [evt, () => log(evt)] as const))
+    handlers.forEach((handler, evt) => audio.addEventListener(evt, handler))
+    return () => handlers.forEach((handler, evt) => audio.removeEventListener(evt, handler))
   }, [])
 
   // On-demand fetch view_count for current track if youtube_id exists and view_count is null

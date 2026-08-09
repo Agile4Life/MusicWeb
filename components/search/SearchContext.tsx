@@ -3,6 +3,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { fetchUnifiedSearch, GlobalSearchTracks } from '@/lib/searchApi'
 import { Track } from '@/types'
+import { searchNhacCuaTui } from '@/lib/nhaccuatuiClient'
+import { mergePrimarySearchResults } from '@/lib/searchFlow'
+import { nhacCuaTuiSearchItemToTrack } from '@/lib/nhaccuatui'
 
 interface SearchContextType {
   searchQuery: string
@@ -15,6 +18,7 @@ interface SearchContextType {
 }
 
 const emptyResults: GlobalSearchTracks = {
+  nhaccuatui: [],
   local: [],
   youtube: [],
   audius: [],
@@ -67,7 +71,14 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
 
     const timer = setTimeout(async () => {
       try {
-        const data = await fetchUnifiedSearch(trimmed, 'all', false)
+        const [fallbackData, nctItems] = await Promise.all([
+          fetchUnifiedSearch(trimmed, 'all', false),
+          searchNhacCuaTui(trimmed),
+        ])
+        const data = mergePrimarySearchResults(
+          nctItems.map(nhacCuaTuiSearchItemToTrack),
+          fallbackData,
+        )
         if (activeSearchRef.current === currentSearchId) {
           setGlobalTracks(data)
         }

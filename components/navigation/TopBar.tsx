@@ -11,7 +11,7 @@ import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
-import { deduplicateQueueTracks } from '@/lib/utils'
+import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 
 export function TopBar() {
@@ -41,14 +41,7 @@ export function TopBar() {
     : null
 
   const suggestions: Track[] = React.useMemo(() => {
-    const combined = [
-      ...(globalTracks.local || []),
-      ...(globalTracks.spotify || []),
-      ...(globalTracks.itunes || []),
-      ...(globalTracks.youtube || []),
-      ...(globalTracks.audius || []),
-    ]
-    return deduplicateQueueTracks(combined).slice(0, 6)
+    return flattenUnifiedSearchResults(globalTracks).slice(0, 6)
   }, [globalTracks])
 
   useEffect(() => {
@@ -99,7 +92,7 @@ export function TopBar() {
             onFocus={() => {
               if (searchQuery.trim()) setShowDropdown(true)
             }}
-            placeholder="Tìm bài hát, nghệ sĩ từ Spotify, YouTube, Drive..."
+            placeholder="Tìm bài hát, nghệ sĩ..."
             className="w-full bg-white/[0.04] border border-white/[0.07] focus:border-[var(--primary-spotify,#06b6d4)]/50 focus:bg-white/[0.06] rounded-full pl-9 sm:pl-10 pr-8 sm:pr-9 py-1.5 sm:py-2 text-xs text-white placeholder-slate-400 outline-none transition-all shadow-inner"
           />
           {searchingGlobal ? (

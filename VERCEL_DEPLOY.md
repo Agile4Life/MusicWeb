@@ -1,5 +1,18 @@
 # Hướng Dẫn Deploy Dự Án MusicWeb Lên Vercel
 
+## NhacCuaTui stream (tùy chọn)
+
+The custom NCT endpoint must return the same `/api/search` and `/api/song/{id}` response shapes used by the proxy, including an HTTPS `audioUrl` hosted on `stream.nct.vn`. Use an authorized endpoint only.
+
+For Spotify/YouTube Music playlist imports to persist the NCT match, run `supabase_nct_playlist_migration.sql` once in Supabase SQL Editor. It adds the `tracks.source` and `tracks.nhaccuatui_id` columns used to restore fresh NCT streams after reload.
+
+Tính năng phát ưu tiên NhacCuaTui không bắt buộc thêm biến môi trường vì route đã có endpoint mặc định:
+
+| Key | Value |
+| --- | --- |
+| `NCT_API_BASE_URL` | `https://music-api.vanhuy2004h.io.vn` |
+
+Chỉ thêm `NCT_API_BASE_URL` trên Vercel nếu bạn có backend NhacCuaTui được cấp quyền hoặc muốn dùng endpoint riêng. Để trống biến này sẽ dùng endpoint mặc định. Sau khi đổi biến môi trường, cần redeploy. URL stream ký hạn được lấy mới cho mỗi lần phát và không nên lưu vào Vercel env, database hoặc log.
 Dự án Next.js App Router này đã được cấu hình tối ưu và sẵn sàng 100% để deploy trực tiếp lên Vercel.
 
 ---

@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState, useRef } from 'react'
 import { usePlayer, usePlaybackProgress } from './PlayerContext'
-import { fetchLyricsFromLrclib, LrclibResponse } from '@/lib/lrclib'
+import { LrclibResponse } from '@/lib/lrclib'
+import { getPrimaryLyrics } from '@/lib/lyricsFlow'
 import { parseLrc, parsePlainLyrics, findActiveLyricIndex, LyricLine } from '@/lib/lrcParser'
 import {
   Headphones,
@@ -85,13 +86,21 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
     artist?: string | null,
     album?: string | null,
     duration?: number | null,
-    youtubeId?: string | null
+    youtubeId?: string | null,
+    nhaccuatuiId?: string | null,
   ) => {
     setLoading(true)
     setErrorMessage(null)
 
     try {
-      const data = await fetchLyricsFromLrclib({ title, artist, album, duration, youtubeId })
+      const data = await getPrimaryLyrics({
+        title,
+        artist,
+        album,
+        duration: duration || 0,
+        youtube_id: youtubeId || undefined,
+        nhaccuatui_id: nhaccuatuiId || undefined,
+      })
 
       if (data) {
         setLyricsData(data)
@@ -135,7 +144,14 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
     setErrorMessage(null)
     setActiveIndex(-1)
     setLyricOffset(0)
-    loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.album, currentTrack.duration, currentTrack.youtube_id)
+    loadLyricsForTrack(
+      currentTrack.title,
+      currentTrack.artist,
+      currentTrack.album,
+      currentTrack.duration,
+      currentTrack.youtube_id,
+      currentTrack.nhaccuatui_id,
+    )
   }, [currentTrack, loadLyricsForTrack])
 
   // 2. Track playback time & update active lyric line

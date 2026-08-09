@@ -36,6 +36,7 @@ import {
 } from '@/lib/playlist-import'
 import { searchYouTubeTracks } from '@/lib/youtube'
 import { Track } from '@/types'
+import { resolvePlaylistTrackWithNct } from '@/lib/playlistNct'
 
 interface ImportSpotifyModalProps {
   isOpen: boolean
@@ -313,29 +314,49 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
       for (let i = 0; i < tracksToImport.length; i++) {
         const item = tracksToImport[i]
         const matched = item.matchedTrack!
+        const candidate: Track = {
+          ...matched,
+          artist: matched.artist || item.spotifyTrack.artist,
+          album: item.spotifyTrack.album || matched.album,
+        }
+        const resolvedTrack = await resolvePlaylistTrackWithNct(candidate)
         let dbTrackId: string | null = null
 
-        // Check existing track in DB by file_path / youtube_id
-        const { data: existingTrack } = await supabase
-          .from('tracks')
-          .select('id')
-          .eq('file_path', matched.file_path)
-          .maybeSingle()
+        // NCT identity is stable; fallback tracks use their original file path.
+        if (resolvedTrack.nhaccuatui_id) {
+          const { data: existingNctTrack } = await supabase
+            .from('tracks')
+            .select('id')
+            .eq('nhaccuatui_id', resolvedTrack.nhaccuatui_id)
+            .limit(1)
+          if (existingNctTrack && existingNctTrack.length > 0) dbTrackId = existingNctTrack[0].id
+        }
 
-        if (existingTrack && existingTrack.id) {
-          dbTrackId = existingTrack.id
-        } else {
+        if (!dbTrackId && resolvedTrack.file_path) {
+          const { data: existingTrack } = await supabase
+            .from('tracks')
+            .select('id')
+            .eq('file_path', resolvedTrack.file_path)
+            .limit(1)
+          if (existingTrack && existingTrack.length > 0) dbTrackId = existingTrack[0].id
+        }
+
+        if (!dbTrackId) {
           // Insert new track
           const { data: inserted, error: trackInsertErr } = await supabase
             .from('tracks')
             .insert({
               user_id: activeUserId,
-              title: matched.title,
-              artist: matched.artist || item.spotifyTrack.artist,
-              album: item.spotifyTrack.album || matched.album || 'Spotify Import',
-              duration: matched.duration || item.spotifyTrack.duration || 0,
-              file_path: matched.file_path,
-              cover_url: matched.cover_url || item.spotifyTrack.cover_url,
+              title: resolvedTrack.title,
+              artist: resolvedTrack.artist || item.spotifyTrack.artist,
+              album: resolvedTrack.album || item.spotifyTrack.album || 'Spotify Import',
+              duration: resolvedTrack.duration || item.spotifyTrack.duration || 0,
+              file_path: resolvedTrack.file_path,
+              cover_url: resolvedTrack.cover_url || item.spotifyTrack.cover_url,
+              source: resolvedTrack.source || null,
+              youtube_id: resolvedTrack.youtube_id || null,
+              spotify_id: resolvedTrack.nhaccuatui_id ? null : resolvedTrack.spotify_id || item.spotify_id,
+              nhaccuatui_id: resolvedTrack.nhaccuatui_id || null,
               created_at: new Date().toISOString(),
             })
             .select('id')

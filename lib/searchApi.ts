@@ -1,6 +1,7 @@
 import { Track } from '@/types'
 
 export interface GlobalSearchTracks {
+  nhaccuatui: Track[]
   local: Track[]
   youtube: Track[]
   audius: Track[]
@@ -26,7 +27,7 @@ export async function fetchUnifiedSearch(
   const cacheKey = isTrending ? `trending_${source}` : `${trimmed}_${source}`
 
   if (!isTrending && !trimmed) {
-    return { local: [], youtube: [], audius: [], itunes: [], spotify: [] }
+    return { nhaccuatui: [], local: [], youtube: [], audius: [], itunes: [], spotify: [] }
   }
 
   // 1. Check in-memory LRU cache first
@@ -54,6 +55,7 @@ export async function fetchUnifiedSearch(
 
       const data = await res.json()
       const result: GlobalSearchTracks = {
+        nhaccuatui: Array.isArray(data.nhaccuatui) ? data.nhaccuatui : [],
         local: Array.isArray(data.local) ? data.local : [],
         youtube: Array.isArray(data.youtube) ? data.youtube : [],
         audius: Array.isArray(data.audius) ? data.audius : [],
@@ -71,7 +73,7 @@ export async function fetchUnifiedSearch(
       return result
     } catch (err) {
       console.warn('Unified Search Fetch Error:', err)
-      return { local: [], youtube: [], audius: [], itunes: [], spotify: [] }
+      return { nhaccuatui: [], local: [], youtube: [], audius: [], itunes: [], spotify: [] }
     } finally {
       inFlightRequests.delete(cacheKey)
     }
