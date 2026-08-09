@@ -265,14 +265,25 @@ export function PlayerBar() {
                   {currentTrack.title}
                 </span>
               </div>
-              <div className="flex items-center gap-1 text-[10px] text-slate-400 truncate">
-                <span className="truncate">{currentTrack.artist || 'Nghệ sĩ chưa xác định'}</span>
-                {displayAlbumName && (
-                  <>
-                    <span className="text-slate-600">•</span>
-                    <span className="text-cyan-400/90 font-medium truncate">{displayAlbumName}</span>
-                  </>
-                )}
+              <div className="overflow-hidden w-full relative">
+                <div
+                  className={`text-[10px] text-slate-400 whitespace-nowrap flex items-center gap-1.5 ${
+                    ((currentTrack.artist || '') + (displayAlbumName || '')).length > 14
+                      ? 'animate-marquee-text'
+                      : ''
+                  }`}
+                >
+                  <span className="shrink-0">{currentTrack.artist || 'Nghệ sĩ chưa xác định'}</span>
+                  {displayAlbumName && (
+                    <>
+                      <span className="text-slate-600 shrink-0">•</span>
+                      <span className="text-cyan-400 font-medium shrink-0 flex items-center gap-0.5">
+                        <DiscAlbum className="w-2.5 h-2.5 text-cyan-400 shrink-0 inline" />
+                        {displayAlbumName}
+                      </span>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </div>
