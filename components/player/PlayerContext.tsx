@@ -766,7 +766,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     // 🎵 Full-Length Stream Resolver for iTunes & Spotify tracks (Resolves DRM/metadata into 100% playable full song)
     let activeTrack = track
-    if ((track.source === 'itunes' || track.source === 'spotify' || (!track.youtube_id && (track.spotify_id || track.itunes_id))) && !track.youtube_id) {
+    const hasDirectPlayableAudio = Boolean(
+      track.audio_url ||
+      (track.file_path && (
+        track.file_path.includes('.mp3') ||
+        track.file_path.includes('preview') ||
+        track.file_path.includes('dzcdn.net') ||
+        track.file_path.includes('apple.com') ||
+        track.file_path.includes('drive-stream') ||
+        track.file_path.includes('audius')
+      ))
+    )
+
+    if (!hasDirectPlayableAudio && (track.source === 'itunes' || track.source === 'spotify' || (!track.youtube_id && (track.spotify_id || track.itunes_id))) && !track.youtube_id) {
       // 🚀 Parallel lookup: Search Drive tracks + YouTube simultaneously for faster resolution
       const cleanTitle = normalizeTitle(track.title)
       const cleanArtist = normalizeTitle(track.artist || '')

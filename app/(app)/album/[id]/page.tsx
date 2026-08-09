@@ -36,12 +36,17 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
       setLoading(true)
 
       try {
+        const cleanId = albumId.replace(/^(deezer|spotify|itunes|itunes-rss)-/, '')
+        const idVariants = Array.from(new Set([albumId, cleanId, `deezer-${cleanId}`, `itunes-${cleanId}`]))
+
         // 1. Try Supabase DB cache first
-        const { data: cached } = await supabase
+        const { data: cachedList } = await supabase
           .from('spotify_albums')
           .select('*, tracks:tracks!spotify_album_id(*)')
-          .eq('id', albumId)
-          .maybeSingle()
+          .in('id', idVariants)
+          .limit(1)
+
+        const cached = cachedList && cachedList.length > 0 ? cachedList[0] : null
 
         if (
           cached &&
@@ -63,15 +68,16 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
               ...t,
               album: cached.name || t.album,
               spotify_album_id: cached.id || t.spotify_album_id,
-              source: 'spotify',
+              cover_url: t.cover_url || cached.cover_url || null,
+              source: t.source || 'spotify',
             })),
           })
           setLoading(false)
           return
         }
 
-        // 2. Fetch from server API route (/api/albums/[id]) which has Spotify credentials
-        const res = await fetch(`/api/albums/${albumId}`)
+        // 2. Fetch from server API route (/api/albums/[id])
+        const res = await fetch(`/api/albums/${encodeURIComponent(albumId)}`)
         if (res.ok) {
           const data = await res.json()
           if (data && Array.isArray(data.tracks)) {
@@ -81,6 +87,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
                 ...t,
                 album: data.name || t.album,
                 spotify_album_id: data.id || t.spotify_album_id,
+                cover_url: t.cover_url || data.cover_url || null,
               })),
             })
             setLoading(false)

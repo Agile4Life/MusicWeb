@@ -64,26 +64,20 @@ export async function GET(req: NextRequest) {
     const supabase = getSupabaseClient()
 
     // Helper to persist resolved album back to tracks DB table if trackId provided
-    const persistToDb = async (albumId: string, albumName: string) => {
-      if (!supabase || !albumName || albumName === 'Album') return
+    const persistToDb = async (albumId: string, albumName: string, coverUrl?: string | null) => {
+      if (!supabase || !albumName || albumName === 'Album' || !albumId) return
       try {
-        // Try upserting spotify_albums first
-        if (albumId && !albumId.startsWith('deezer-') && !albumId.startsWith('itunes-')) {
-          try {
-            await supabase.from('spotify_albums').upsert({
-              id: albumId,
-              name: albumName,
-              artist: artist || 'Various Artists',
-            })
-          } catch {}
-        }
+        // Upsert spotify_albums first so Foreign Key fk_tracks_spotify_albums constraint is satisfied
+        await supabase.from('spotify_albums').upsert({
+          id: albumId,
+          name: albumName,
+          artist: artist || 'Various Artists',
+          cover_url: coverUrl || null,
+        })
 
-        const updatePayload: any = { album: albumName }
-        if (albumId && !albumId.startsWith('deezer-') && !albumId.startsWith('itunes-')) {
-          updatePayload.spotify_album_id = albumId
-        }
+        const updatePayload: any = { album: albumName, spotify_album_id: albumId }
 
-        if (trackId && !trackId.startsWith('yt-') && !trackId.startsWith('spotify-') && !trackId.startsWith('itunes-')) {
+        if (trackId && !trackId.startsWith('yt-') && !trackId.startsWith('spotify-') && !trackId.startsWith('itunes-') && !trackId.startsWith('deezer-')) {
           const { error: trackUpdateErr } = await supabase
             .from('tracks')
             .update(updatePayload)
@@ -209,7 +203,7 @@ export async function GET(req: NextRequest) {
                 albumName: bestTrack.album.title || albumParam || 'Single',
                 coverUrl: bestTrack.album.cover_medium || bestTrack.album.cover || null,
               }
-              await persistToDb(resData.albumId, resData.albumName)
+              await persistToDb(resData.albumId, resData.albumName, resData.coverUrl)
               return cachedResolveResponse(resData, cacheKey)
             }
           }
@@ -236,7 +230,7 @@ export async function GET(req: NextRequest) {
                 albumName: bestTrack.album.title || albumParam || 'Single',
                 coverUrl: bestTrack.album.cover_medium || bestTrack.album.cover || null,
               }
-              await persistToDb(resData.albumId, resData.albumName)
+              await persistToDb(resData.albumId, resData.albumName, resData.coverUrl)
               return cachedResolveResponse(resData, cacheKey)
             }
           }
@@ -264,7 +258,7 @@ export async function GET(req: NextRequest) {
                 albumName: match.collectionName || albumParam || 'Single',
                 coverUrl: match.artworkUrl100 || null,
               }
-              await persistToDb(resData.albumId, resData.albumName)
+              await persistToDb(resData.albumId, resData.albumName, resData.coverUrl)
               return cachedResolveResponse(resData, cacheKey)
             }
           }
@@ -292,7 +286,7 @@ export async function GET(req: NextRequest) {
             albumName: best.name,
             coverUrl: (best as any).cover_url || (best as any).cover || null,
           }
-          await persistToDb(resData.albumId, resData.albumName)
+          await persistToDb(resData.albumId, resData.albumName, resData.coverUrl)
           return cachedResolveResponse(resData, cacheKey)
         }
       }

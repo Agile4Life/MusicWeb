@@ -28,24 +28,78 @@ function getSupabaseClient() {
   return createClient(url, key, { auth: { persistSession: false } })
 }
 
+async function safeSaveAlbumToDb(supabase: any, albumMeta: any, tracksToSave: any[]) {
+  if (!supabase || !albumMeta || !albumMeta.id) return
+  try {
+    await supabase.from('spotify_albums').upsert({
+      id: String(albumMeta.id),
+      name: albumMeta.name,
+      artist: albumMeta.artist || 'Various Artists',
+      cover_url: albumMeta.cover_url || null,
+      release_date: albumMeta.release_date || '',
+      total_tracks: albumMeta.total_tracks || tracksToSave.length,
+      album_type: albumMeta.album_type || 'album',
+    })
+
+    if (tracksToSave && tracksToSave.length > 0) {
+      const { error: upsertErr } = await supabase.from('tracks').upsert(tracksToSave, {
+        onConflict: 'user_id,title,artist',
+        ignoreDuplicates: true,
+      })
+
+      // Fallback if ON CONFLICT constraint error (42P10) occurs
+      if (upsertErr) {
+        try {
+          const { data: existing } = await supabase
+            .from('tracks')
+            .select('title, artist')
+            .eq('spotify_album_id', String(albumMeta.id))
+
+          const existingKeys = new Set(
+            (existing || []).map((t: any) => `${(t.title || '').toLowerCase()}::${(t.artist || '').toLowerCase()}`)
+          )
+
+          const newTracks = tracksToSave.filter(
+            (t) => !existingKeys.has(`${(t.title || '').toLowerCase()}::${(t.artist || '').toLowerCase()}`)
+          )
+
+          if (newTracks.length > 0) {
+            await supabase.from('tracks').insert(newTracks)
+          }
+        } catch (fbErr) {
+          console.warn('Fallback track batch insert warning:', fbErr)
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Saving album to Supabase warning:', err)
+  }
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: albumId } = await params
-    if (!albumId) {
+    const { id: rawAlbumId } = await params
+    if (!rawAlbumId) {
       return NextResponse.json({ error: 'Missing album id' }, { status: 400 })
     }
 
+    const albumId = rawAlbumId.trim()
+    const cleanId = albumId.replace(/^(deezer|spotify|itunes|itunes-rss)-/, '')
+    const idVariants = Array.from(new Set([albumId, cleanId, `deezer-${cleanId}`, `itunes-${cleanId}`]))
+
     // 0. Check in-memory LRU cache (<2ms)
-    const memCached = albumMemoryCache.get(albumId)
-    if (memCached && Date.now() - memCached.timestamp < ALBUM_CACHE_TTL) {
-      return NextResponse.json(memCached.data, {
-        headers: {
-          'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=172800',
-        },
-      })
+    for (const key of idVariants) {
+      const memCached = albumMemoryCache.get(key)
+      if (memCached && Date.now() - memCached.timestamp < ALBUM_CACHE_TTL) {
+        return NextResponse.json(memCached.data, {
+          headers: {
+            'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=172800',
+          },
+        })
+      }
     }
 
     const supabase = getSupabaseClient()
@@ -53,11 +107,13 @@ export async function GET(
     // 1. Check Supabase DB cache first
     if (supabase) {
       try {
-        const { data: cached } = await supabase
+        const { data: cachedList } = await supabase
           .from('spotify_albums')
           .select('*, tracks:tracks!spotify_album_id(*)')
-          .eq('id', albumId)
-          .maybeSingle()
+          .in('id', idVariants)
+          .limit(1)
+
+        const cached = cachedList && cachedList.length > 0 ? cachedList[0] : null
 
         if (
           cached &&
@@ -76,7 +132,11 @@ export async function GET(
           return cachedAlbumResponse(
             {
               ...cached,
-              tracks: cached.tracks.map((t: any) => ({ ...t, source: 'spotify' })),
+              tracks: cached.tracks.map((t: any) => ({
+                ...t,
+                cover_url: t.cover_url || cached.cover_url || null,
+                source: t.source || 'spotify',
+              })),
             },
             albumId
           )
@@ -92,42 +152,21 @@ export async function GET(
         const iTunesRes = await fetchITunesAlbumTracks(albumId)
         if (iTunesRes && iTunesRes.tracks.length > 0) {
           if (supabase) {
-            ;(async () => {
-              try {
-                await supabase.from('spotify_albums').upsert({
-                  id: iTunesRes.id,
-                  name: iTunesRes.name,
-                  artist: iTunesRes.artist,
-                  cover_url: iTunesRes.cover_url,
-                  release_date: iTunesRes.release_date,
-                  total_tracks: iTunesRes.total_tracks || iTunesRes.tracks.length,
-                  album_type: iTunesRes.album_type,
-                })
+            const tracksToSave = iTunesRes.tracks.map((t) => ({
+              user_id: '00000000-0000-4000-a000-000000000001',
+              title: t.title,
+              artist: t.artist || iTunesRes.artist,
+              album: iTunesRes.name,
+              spotify_album_id: iTunesRes.id,
+              disc_number: t.disc_number || 1,
+              track_number: t.track_number || 1,
+              duration: t.duration || 0,
+              file_path: t.file_path || '',
+              cover_url: t.cover_url || iTunesRes.cover_url,
+              itunes_id: t.itunes_id ? String(t.itunes_id) : null,
+            }))
 
-                const tracksToSave = iTunesRes.tracks.map((t) => ({
-                  user_id: '00000000-0000-4000-a000-000000000001',
-                  title: t.title,
-                  artist: t.artist || iTunesRes.artist,
-                  album: iTunesRes.name,
-                  spotify_album_id: iTunesRes.id,
-                  disc_number: t.disc_number || 1,
-                  track_number: t.track_number || 1,
-                  duration: t.duration || 0,
-                  file_path: t.file_path || '',
-                  cover_url: t.cover_url || iTunesRes.cover_url,
-                  itunes_id: t.itunes_id ? String(t.itunes_id) : null,
-                }))
-
-                if (tracksToSave.length > 0) {
-                  await supabase.from('tracks').upsert(tracksToSave, {
-                    onConflict: 'user_id,title,artist',
-                    ignoreDuplicates: true,
-                  })
-                }
-              } catch (saveErr) {
-                console.warn('Saving iTunes album to Supabase warning:', saveErr)
-              }
-            })().catch(() => {})
+            safeSaveAlbumToDb(supabase, iTunesRes, tracksToSave).catch(() => {})
           }
           return cachedAlbumResponse(iTunesRes, albumId)
         }
@@ -142,30 +181,8 @@ export async function GET(
       if (deezerRes && deezerRes.meta && deezerRes.tracks.length > 0) {
         const { meta: albumMeta, tracks: tracksToSave } = deezerRes
 
-        // Cache in Supabase asynchronously
         if (supabase) {
-          ;(async () => {
-            try {
-              await supabase.from('spotify_albums').upsert({
-                id: albumMeta.id,
-                name: albumMeta.name,
-                artist: albumMeta.artist,
-                cover_url: albumMeta.cover_url,
-                release_date: albumMeta.release_date,
-                total_tracks: albumMeta.total_tracks || tracksToSave.length,
-                album_type: albumMeta.album_type,
-              })
-
-              if (tracksToSave.length > 0) {
-                await supabase.from('tracks').upsert(tracksToSave, {
-                  onConflict: 'user_id,title,artist',
-                  ignoreDuplicates: true,
-                })
-              }
-            } catch (saveErr) {
-              console.warn('Saving Deezer album to Supabase warning:', saveErr)
-            }
-          })().catch(() => {})
+          safeSaveAlbumToDb(supabase, albumMeta, tracksToSave).catch(() => {})
         }
 
         return cachedAlbumResponse(
@@ -185,6 +202,23 @@ export async function GET(
       try {
         const iTunesRes = await fetchITunesAlbumTracks(albumId)
         if (iTunesRes && iTunesRes.tracks.length > 0) {
+          if (supabase) {
+            const tracksToSave = iTunesRes.tracks.map((t) => ({
+              user_id: '00000000-0000-4000-a000-000000000001',
+              title: t.title,
+              artist: t.artist || iTunesRes.artist,
+              album: iTunesRes.name,
+              spotify_album_id: iTunesRes.id,
+              disc_number: t.disc_number || 1,
+              track_number: t.track_number || 1,
+              duration: t.duration || 0,
+              file_path: t.file_path || '',
+              cover_url: t.cover_url || iTunesRes.cover_url,
+              itunes_id: t.itunes_id ? String(t.itunes_id) : null,
+            }))
+
+            safeSaveAlbumToDb(supabase, iTunesRes, tracksToSave).catch(() => {})
+          }
           return cachedAlbumResponse(iTunesRes, albumId)
         }
       } catch (iErr) {
@@ -193,10 +227,10 @@ export async function GET(
     }
 
     // 5. Fallback to Spotify API (Only if valid Spotify ID pattern)
-    if (!/^\d+$/.test(albumId)) {
-      const albumMeta = await fetchSpotifyAlbumMeta(albumId)
+    if (!/^\d+$/.test(cleanId)) {
+      const albumMeta = await fetchSpotifyAlbumMeta(cleanId)
       if (albumMeta) {
-        const spotifyTracks = await fetchFullAlbumTracks(albumId)
+        const spotifyTracks = await fetchFullAlbumTracks(cleanId)
         const systemUserId = '00000000-0000-4000-a000-000000000001'
 
         const tracksToSave = spotifyTracks.map((item: any) => ({
@@ -213,30 +247,8 @@ export async function GET(
           spotify_id: item.id,
         }))
 
-        // Save/cache in Supabase asynchronously
         if (supabase) {
-          ;(async () => {
-            try {
-              await supabase.from('spotify_albums').upsert({
-                id: albumMeta.id,
-                name: albumMeta.name,
-                artist: albumMeta.artist,
-                cover_url: albumMeta.cover_url,
-                release_date: albumMeta.release_date,
-                total_tracks: albumMeta.total_tracks || tracksToSave.length,
-                album_type: albumMeta.album_type,
-              })
-
-              if (tracksToSave.length > 0) {
-                await supabase.from('tracks').upsert(tracksToSave, {
-                  onConflict: 'user_id,title,artist',
-                  ignoreDuplicates: true,
-                })
-              }
-            } catch (saveErr) {
-              console.warn('Saving album to Supabase warning:', saveErr)
-            }
-          })().catch(() => {})
+          safeSaveAlbumToDb(supabase, albumMeta, tracksToSave).catch(() => {})
         }
 
         const finalTracks = tracksToSave.map((t: any, idx: number) => ({
@@ -262,3 +274,4 @@ export async function GET(
     return NextResponse.json({ error: err?.message || 'Server error' }, { status: 500 })
   }
 }
+
