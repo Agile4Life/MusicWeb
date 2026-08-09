@@ -420,55 +420,59 @@ function TrackRowComponent({
       </div>
 
       {/* Duration & Options */}
-      <div className="shrink-0 flex items-center justify-end gap-1.5 sm:gap-2 md:w-1/4 text-xs text-slate-400">
-        <span className="font-mono text-slate-300">{formatDuration(track.duration)}</span>
+      <div className="shrink-0 flex items-center justify-end md:w-1/4 text-xs text-slate-400">
+        <span className="w-12 text-center font-mono text-slate-300 shrink-0">
+          {formatDuration(track.duration)}
+        </span>
 
-        {/* Edit mode save/cancel */}
-        {editMode ? (
-          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={handleSaveEdit}
-              disabled={saving}
-              className="p-1.5 bg-[var(--primary-spotify)] text-black rounded-lg hover:opacity-80 transition-opacity disabled:opacity-50"
-              title="Lưu"
-            >
-              <Check className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={handleCancelEdit}
-              className="p-1.5 bg-white/10 text-slate-300 rounded-lg hover:bg-white/20 transition-colors"
-              title="Hủy"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        ) : (
-          <div className="relative flex items-center gap-0.5">
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onAddToQueue?.()
-              }}
-              className={`p-1.5 text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10 rounded-lg transition-all hidden sm:block ${
-                showMenu ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-              }`}
-              title="Thêm vào hàng đợi"
-            >
-              <ListMusic className="w-4 h-4" />
-            </button>
+        {/* Options container matching header spacer (w-8) */}
+        <div className="w-8 flex items-center justify-end shrink-0">
+          {/* Edit mode save/cancel */}
+          {editMode ? (
+            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={handleSaveEdit}
+                disabled={saving}
+                className="p-1.5 bg-[var(--primary-spotify)] text-black rounded-lg hover:opacity-80 transition-opacity disabled:opacity-50"
+                title="Lưu"
+              >
+                <Check className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={handleCancelEdit}
+                className="p-1.5 bg-white/10 text-slate-300 rounded-lg hover:bg-white/20 transition-colors"
+                title="Hủy"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="relative flex items-center gap-0.5">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onAddToQueue?.()
+                }}
+                className={`p-1.5 text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10 rounded-lg transition-all hidden sm:block ${
+                  showMenu ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                }`}
+                title="Thêm vào hàng đợi"
+              >
+                <ListMusic className="w-4 h-4" />
+              </button>
 
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                setShowMenu(!showMenu)
-              }}
-              className={`p-1.5 hover:text-white hover:bg-white/10 rounded-lg transition-colors ${
-                showMenu ? 'opacity-100 text-white bg-white/10' : 'opacity-100 md:opacity-0 md:group-hover:opacity-100'
-              }`}
-              title="Khác"
-            >
-              <MoreVertical className="w-4 h-4" />
-            </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowMenu(!showMenu)
+                }}
+                className={`p-1.5 hover:text-white hover:bg-white/10 rounded-lg transition-colors ${
+                  showMenu ? 'opacity-100 text-white bg-white/10' : 'opacity-100 md:opacity-0 md:group-hover:opacity-100'
+                }`}
+                title="Khác"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
 
             {showMenu && (
               <div
@@ -558,10 +562,11 @@ function TrackRowComponent({
                   </button>
                 )}
               </div>
-          )}
+            )}
           </div>
         )}
       </div>
+    </div>
     </div>
   )
 }

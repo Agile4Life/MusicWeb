@@ -244,10 +244,11 @@ export function TrackList({
           <span>TIÊU ĐỀ</span>
         </div>
         <div className="hidden md:block w-1/4">ALBUM</div>
-        <div className="flex items-center justify-end shrink-0 md:w-1/4 pr-2">
-          <span title="Thời lượng">
+        <div className="flex items-center justify-end shrink-0 md:w-1/4 text-xs font-semibold text-slate-400 select-none">
+          <span className="w-12 flex justify-center shrink-0" title="Thời lượng">
             <Clock className="w-4 h-4 text-slate-400" />
           </span>
+          <div className="w-8 shrink-0" />
         </div>
       </div>
 
