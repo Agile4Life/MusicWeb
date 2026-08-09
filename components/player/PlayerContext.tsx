@@ -1482,6 +1482,25 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentIndex, queue, autoPlayNext, repeatMode])
 
+  // Persistent Audio Event Debug Logger for Background Playback Diagnosis
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+    const events = ['pause', 'play', 'stalled', 'waiting', 'suspend', 'abort', 'error', 'emptied', 'playing']
+    const log = (evt: string) => {
+      const entry = `[${new Date().toISOString()}] ${evt} | paused=${audio.paused} readyState=${audio.readyState} networkState=${audio.networkState} currentTime=${audio.currentTime.toFixed(1)}`
+      console.log(entry)
+      try {
+        const logs = JSON.parse(localStorage.getItem('audio_debug_log') || '[]')
+        logs.push(entry)
+        if (logs.length > 100) logs.shift()
+        localStorage.setItem('audio_debug_log', JSON.stringify(logs))
+      } catch {}
+    }
+    events.forEach((evt) => audio.addEventListener(evt, () => log(evt)))
+    return () => events.forEach((evt) => audio.removeEventListener(evt, () => log(evt)))
+  }, [])
+
   // On-demand fetch view_count for current track if youtube_id exists and view_count is null
   useEffect(() => {
     if (!currentTrack || !currentTrack.youtube_id || currentTrack.view_count != null) return
