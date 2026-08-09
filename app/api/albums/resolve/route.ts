@@ -135,15 +135,20 @@ export async function GET(req: NextRequest) {
         if (cleanTitle) {
           const { data: dbTrack } = await supabase
             .from('tracks')
-            .select('spotify_album_id, album')
+            .select('spotify_album_id, album, artist')
             .not('spotify_album_id', 'is', null)
             .ilike('title', `%${title.trim()}%`)
-            .limit(5)
+            .limit(10)
 
           if (dbTrack && dbTrack.length > 0) {
-            const foundTrack = dbTrack.find(
-              (t) => t.spotify_album_id && normalizeText(t.album) !== cleanTitle
-            )
+            const foundTrack = dbTrack.find((t) => {
+              if (!t.spotify_album_id || normalizeText(t.album) === cleanTitle) return false
+              if (cleanArtist && t.artist) {
+                const dbArtistNorm = normalizeText(t.artist)
+                if (!dbArtistNorm.includes(cleanArtist) && !cleanArtist.includes(dbArtistNorm)) return false
+              }
+              return true
+            })
             if (foundTrack && foundTrack.spotify_album_id) {
               const resData = { albumId: foundTrack.spotify_album_id, albumName: foundTrack.album || title }
               return cachedResolveResponse(resData, cacheKey)
@@ -164,9 +169,6 @@ export async function GET(req: NextRequest) {
               const nameMatch = albName === targetSearchName || albName.includes(targetSearchName) || targetSearchName.includes(albName)
               const artistMatch = !cleanArtist || albArtist.includes(cleanArtist) || cleanArtist.includes(albArtist)
               return nameMatch && artistMatch
-            }) || dbAlbums.find((alb) => {
-              const albName = normalizeText(alb.name)
-              return albName === targetSearchName || albName.includes(targetSearchName) || targetSearchName.includes(albName)
             })
 
             if (match && match.id) {
@@ -180,6 +182,14 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Helper for artist matching
+    const isArtistMatch = (candidateArtist?: string) => {
+      if (!cleanArtist) return true
+      if (!candidateArtist) return false
+      const cNorm = normalizeText(candidateArtist)
+      return cNorm.includes(cleanArtist) || cleanArtist.includes(cNorm)
+    }
+
     // 2. Primary track-to-album resolution via Deezer search API (artist + title)
     const searchQuery = `${artist.trim()} ${title.trim()}`.trim()
     if (searchQuery) {
@@ -191,11 +201,7 @@ export async function GET(req: NextRequest) {
         if (dTrackRes.ok) {
           const dData = await dTrackRes.json()
           if (dData.data && dData.data.length > 0) {
-            const bestTrack = dData.data.find((item: any) => {
-              if (!cleanArtist || !item.artist?.name) return true
-              const dArtist = normalizeText(item.artist.name)
-              return dArtist.includes(cleanArtist) || cleanArtist.includes(dArtist)
-            }) || dData.data[0]
+            const bestTrack = dData.data.find((item: any) => isArtistMatch(item.artist?.name))
 
             if (bestTrack && bestTrack.album?.id) {
               const resData = {
@@ -213,7 +219,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 3. Title-Only Deezer Track Search (for cases where artist is local/remix/channel like "Grando")
+    // 3. Title-Only Deezer Track Search (Strict Artist Match Only)
     if (cleanTitle) {
       try {
         const dTitleRes = await fetch(
@@ -223,7 +229,7 @@ export async function GET(req: NextRequest) {
         if (dTitleRes.ok) {
           const dTitleData = await dTitleRes.json()
           if (dTitleData.data && dTitleData.data.length > 0) {
-            const bestTrack = dTitleData.data[0]
+            const bestTrack = dTitleData.data.find((item: any) => isArtistMatch(item.artist?.name))
             if (bestTrack && bestTrack.album?.id) {
               const resData = {
                 albumId: String(bestTrack.album.id),
@@ -240,7 +246,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 4. iTunes Track / Collection Search Fallback
+    // 4. iTunes Track / Collection Search Fallback (Strict Artist Match Only)
     try {
       const iTunesSearchTerm = searchQuery || title.trim()
       if (iTunesSearchTerm) {
@@ -251,7 +257,7 @@ export async function GET(req: NextRequest) {
         if (iRes.ok) {
           const iData = await iRes.json()
           if (iData.results && iData.results.length > 0) {
-            const match = iData.results.find((t: any) => t.collectionId && t.collectionName) || iData.results[0]
+            const match = iData.results.find((t: any) => t.collectionId && t.collectionName && isArtistMatch(t.artistName))
             if (match && match.collectionId) {
               const resData = {
                 albumId: `itunes-${match.collectionId}`,
@@ -268,7 +274,7 @@ export async function GET(req: NextRequest) {
       console.warn('iTunes resolve fallback warning:', iErr)
     }
 
-    // 5. Deezer Album Direct Search Fallback
+    // 5. Deezer Album Direct Search Fallback (Strict Artist Match Only)
     const albumQuery = cleanAlbum ? `${artist.trim()} ${albumParam.trim()}`.trim() : searchQuery
     if (albumQuery) {
       const deezerResults = await searchDeezerAlbums(albumQuery, 5)
@@ -276,8 +282,9 @@ export async function GET(req: NextRequest) {
         const best = deezerResults.find((a) => {
           const albName = normalizeText(a.name)
           const target = cleanAlbum || cleanTitle
-          return target ? albName.includes(target) || target.includes(albName) : true
-        }) || deezerResults[0]
+          const nameOk = target ? albName.includes(target) || target.includes(albName) : true
+          return nameOk && isArtistMatch((a as any).artist?.name || (a as any).artist)
+        })
 
         if (best && best.id) {
           const resData = {
