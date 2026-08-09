@@ -145,15 +145,16 @@ export async function GET(req: NextRequest) {
       const targetNorm = cleanAlbum || cleanTitle
 
       const isBadDefianceCache = cachedId.includes('299152445') || cachedId.includes('296970753')
+      const isSingleCache = cleanTitle && cachedNameNorm === cleanTitle
       const isNameMatching = targetNorm && (cachedNameNorm.includes(targetNorm) || targetNorm.includes(cachedNameNorm))
 
-      if (!isBadDefianceCache && isNameMatching) {
+      if (!isBadDefianceCache && !isSingleCache && isNameMatching) {
         if (memCached.data?.albumId && memCached.data?.albumName) {
           persistToDb(memCached.data.albumId, memCached.data.albumName).catch(() => {})
         }
         return cachedResolveResponse(memCached.data, cacheKey)
       } else {
-        // Purge invalid cached entry
+        // Purge invalid or single cached entry
         resolveMemoryCache.delete(cacheKey)
       }
     }
@@ -195,9 +196,10 @@ export async function GET(req: NextRequest) {
             const match = dbAlbums.find((alb) => {
               const albName = normalizeText(alb.name)
               const albArtist = normalizeText(alb.artist)
+              const isNotSingle = !cleanTitle || albName !== cleanTitle
               const nameMatch = albName === targetSearchName || albName.includes(targetSearchName) || targetSearchName.includes(albName)
               const artistMatch = !cleanArtist || albArtist.includes(cleanArtist) || cleanArtist.includes(albArtist)
-              return nameMatch && artistMatch
+              return isNotSingle && nameMatch && artistMatch
             })
 
             if (match && match.id) {
