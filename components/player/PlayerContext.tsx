@@ -253,6 +253,89 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  const supabase = createClient()
+
+  const audioUrlCacheRef = useRef<Map<string, { url: string; ts: number }>>(new Map())
+  const URL_CACHE_TTL = 30 * 60 * 1000 // 30 mins
+
+  // Resolve audio URL for local and external tracks
+  const getAudioUrl = useCallback(
+    async (track: Track): Promise<string | null> => {
+      if (track.source === 'audius' || track.audio_url) {
+        return track.audio_url || track.file_path
+      }
+
+      const filePath = track.file_path || ''
+      if (!filePath) return null
+
+      // Spotify webpage URLs cannot be played directly by HTML5 <audio>
+      if (filePath.includes('spotify.com') || track.source === 'spotify') {
+        if (filePath.includes('.mp3') || filePath.includes('p.scdn.co') || filePath.includes('preview')) {
+          return filePath
+        }
+        return null
+      }
+
+      const driveFileId = track.drive_file_id || extractDriveFileId(filePath)
+      if (driveFileId) {
+        const cachedDirectUrl = getClientCdnCache(driveFileId)
+        if (cachedDirectUrl) {
+          return cachedDirectUrl
+        }
+        const ext =
+          track.file_ext ||
+          track.title?.match(/\.(flac|mp3|wav|m4a|aac|ogg|wma)(?:[?#]|$)/i)?.[1]?.toLowerCase() ||
+          ''
+        const filenameParam = ext ? `&filename=${encodeURIComponent(`stream.${ext}`)}` : ''
+        return `/api/drive-stream?id=${encodeURIComponent(driveFileId)}${filenameParam}&proxy=true`
+      }
+
+      let rawUrl: string | null = null
+      if (filePath.startsWith('http')) {
+        rawUrl = filePath
+      } else {
+        const { data, error } = await supabase.storage
+          .from('music-files')
+          .createSignedUrl(filePath, 3600)
+
+        if (error || !data?.signedUrl) {
+          const { data: pubData } = supabase.storage.from('music-files').getPublicUrl(filePath)
+          rawUrl = pubData.publicUrl
+        } else {
+          rawUrl = data.signedUrl
+        }
+      }
+
+      if (
+        rawUrl &&
+        rawUrl.startsWith('http://') &&
+        !rawUrl.startsWith('http://localhost') &&
+        !rawUrl.startsWith('http://127.0.0.1')
+      ) {
+        rawUrl = rawUrl.replace(/^http:\/\//i, 'https://')
+      }
+
+      return rawUrl
+    },
+    [supabase]
+  )
+
+  const getAudioUrlCached = useCallback(
+    async (track: Track): Promise<string | null> => {
+      if (!track || !track.id) return null
+      const cached = audioUrlCacheRef.current.get(track.id)
+      if (cached && Date.now() - cached.ts < URL_CACHE_TTL) {
+        return cached.url
+      }
+      const url = await getAudioUrl(track)
+      if (url) {
+        audioUrlCacheRef.current.set(track.id, { url, ts: Date.now() })
+      }
+      return url
+    },
+    [getAudioUrl]
+  )
+
   // Fire-and-forget prewarm & audio URL prefetch for upcoming tracks (prevents iOS background autoplay blocks)
   useEffect(() => {
     if (queue && queue.length > 0) {
@@ -305,7 +388,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [queue, currentIndex, getAudioUrlCached])
 
-  const supabase = createClient()
+
 
   useEffect(() => {
     currentTrackRef.current = currentTrack
@@ -575,80 +658,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [supabase])
 
-  // Resolve audio URL for local and external tracks
-  const getAudioUrl = async (track: Track): Promise<string | null> => {
-    if (track.source === 'audius' || track.audio_url) {
-      return track.audio_url || track.file_path
-    }
 
-    const filePath = track.file_path || ''
-    if (!filePath) return null
-
-    // Spotify webpage URLs cannot be played directly by HTML5 <audio>
-    if (filePath.includes('spotify.com') || track.source === 'spotify') {
-      if (filePath.includes('.mp3') || filePath.includes('p.scdn.co') || filePath.includes('preview')) {
-        return filePath
-      }
-      return null
-    }
-
-    const driveFileId = track.drive_file_id || extractDriveFileId(filePath)
-    if (driveFileId) {
-      const cachedDirectUrl = getClientCdnCache(driveFileId)
-      if (cachedDirectUrl) {
-        return cachedDirectUrl
-      }
-      const ext =
-        track.file_ext ||
-        track.title?.match(/\.(flac|mp3|wav|m4a|aac|ogg|wma)(?:[?#]|$)/i)?.[1]?.toLowerCase() ||
-        ''
-      const filenameParam = ext ? `&filename=${encodeURIComponent(`stream.${ext}`)}` : ''
-      return `/api/drive-stream?id=${encodeURIComponent(driveFileId)}${filenameParam}&proxy=true`
-    }
-
-    let rawUrl: string | null = null
-    if (filePath.startsWith('http')) {
-      rawUrl = filePath
-    } else {
-      const { data, error } = await supabase.storage
-        .from('music-files')
-        .createSignedUrl(filePath, 3600)
-
-      if (error || !data?.signedUrl) {
-        const { data: pubData } = supabase.storage.from('music-files').getPublicUrl(filePath)
-        rawUrl = pubData.publicUrl
-      } else {
-        rawUrl = data.signedUrl
-      }
-    }
-
-    if (
-      rawUrl &&
-      rawUrl.startsWith('http://') &&
-      !rawUrl.startsWith('http://localhost') &&
-      !rawUrl.startsWith('http://127.0.0.1')
-    ) {
-      rawUrl = rawUrl.replace(/^http:\/\//i, 'https://')
-    }
-
-    return rawUrl
-  }
-
-  const audioUrlCacheRef = useRef<Map<string, { url: string; ts: number }>>(new Map())
-  const URL_CACHE_TTL = 30 * 60 * 1000 // 30 mins
-
-  const getAudioUrlCached = useCallback(async (track: Track): Promise<string | null> => {
-    if (!track || !track.id) return null
-    const cached = audioUrlCacheRef.current.get(track.id)
-    if (cached && Date.now() - cached.ts < URL_CACHE_TTL) {
-      return cached.url
-    }
-    const url = await getAudioUrl(track)
-    if (url) {
-      audioUrlCacheRef.current.set(track.id, { url, ts: Date.now() })
-    }
-    return url
-  }, [])
 
   // Restore saved player state on mount
   useEffect(() => {
