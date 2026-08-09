@@ -419,32 +419,9 @@ function TrackRowComponent({
         )}
       </div>
 
-      {/* Views, Duration & Options */}
-      <div className="shrink-0 flex items-center justify-end shrink-0 md:w-1/4 gap-3 sm:gap-4 text-xs text-slate-400 pr-2">
-        {/* Views sub-column */}
-        <div className="hidden sm:flex items-center justify-end w-24 sm:w-28 shrink-0">
-          {displayViews != null && displayViews > 0 ? (
-            <span
-              className="inline-flex items-center gap-1 text-[11px] font-mono font-medium text-cyan-400 bg-cyan-950/60 border border-cyan-500/30 px-2.5 py-0.5 rounded-full shrink-0 shadow-sm transition-all"
-              title={`${displayViews.toLocaleString()} lượt xem`}
-            >
-              <Eye className="w-3 h-3 text-cyan-400 shrink-0" />
-              {formatViewCount(displayViews)}
-            </span>
-          ) : loadingViews ? (
-            <span className="inline-flex items-center gap-1 text-[10px] font-mono text-slate-500 animate-pulse">
-              <Eye className="w-3 h-3 text-slate-600 shrink-0" />
-              ...
-            </span>
-          ) : (
-            <span className="text-xs font-mono text-slate-600/60">-</span>
-          )}
-        </div>
-
-        {/* Duration sub-column */}
-        <span className="w-16 sm:w-20 text-right font-mono text-slate-300 shrink-0">
-          {formatDuration(track.duration)}
-        </span>
+      {/* Duration & Options */}
+      <div className="shrink-0 flex items-center justify-end gap-1.5 sm:gap-2 md:w-1/4 text-xs text-slate-400">
+        <span className="font-mono text-slate-300">{formatDuration(track.duration)}</span>
 
         {/* Edit mode save/cancel */}
         {editMode ? (
