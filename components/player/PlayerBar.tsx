@@ -71,9 +71,9 @@ export function PlayerBar() {
       currentTrack.album &&
       !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(currentTrack.album.trim())
 
-    if (hasRealAlbum && currentTrack.spotify_album_id) {
+    if (hasRealAlbum) {
       setResolvedAlbumInfo({
-        id: currentTrack.spotify_album_id,
+        id: currentTrack.spotify_album_id || undefined,
         name: currentTrack.album!,
       })
       return
