@@ -270,6 +270,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const filePath = track.file_path || ''
       if (!filePath) return null
 
+      // Direct YouTube Audio Stream Proxy (Enables 100% Mobile Background Lock-Screen Playback)
+      const ytId = track.youtube_id || (track.source === 'youtube' ? extractYouTubeVideoId(track.file_path || '') : null)
+      if (ytId) {
+        return `/api/youtube/stream?id=${encodeURIComponent(ytId)}`
+      }
+
       // Spotify webpage URLs cannot be played directly by HTML5 <audio>
       if (filePath.includes('spotify.com') || track.source === 'spotify') {
         if (filePath.includes('.mp3') || filePath.includes('p.scdn.co') || filePath.includes('preview')) {
