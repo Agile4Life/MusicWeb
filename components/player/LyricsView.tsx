@@ -91,15 +91,20 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
 
     setErrorMessage(null)
     setLyricOffset(0)
-    loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.duration)
+    loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.album, currentTrack.duration)
   }, [currentTrack?.id])
 
-  const loadLyricsForTrack = async (title: string, artist?: string | null, duration?: number | null) => {
+  const loadLyricsForTrack = async (
+    title: string,
+    artist?: string | null,
+    album?: string | null,
+    duration?: number | null
+  ) => {
     setLoading(true)
     setErrorMessage(null)
 
     try {
-      const data = await fetchLyricsFromLrclib({ title, artist, duration })
+      const data = await fetchLyricsFromLrclib({ title, artist, album, duration })
 
       if (data) {
         setLyricsData(data)
@@ -256,7 +261,7 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
           )}
 
           <button
-            onClick={() => loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.duration)}
+            onClick={() => loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.album, currentTrack.duration)}
             disabled={loading}
             className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-white/5 hover:bg-white/10 active:bg-white/15 text-slate-300 rounded-xl border border-white/10 transition-colors"
             title="Tải lại lời bài hát"
