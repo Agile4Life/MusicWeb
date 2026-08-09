@@ -13,6 +13,8 @@ import { getSmartRecommendedTracks } from '@/lib/smartRecommend'
 import { NextQueueResponse, queueTrackToTrack } from '@/types/queue'
 import { getMusicOfftopicSegments, calculateIntroOffset } from '@/lib/sponsorblock'
 
+const SILENT_AUDIO_URL = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
+
 export type RepeatMode = 'off' | 'all' | 'one'
 
 interface PlayerContextType {
@@ -834,7 +836,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     // Handle YouTube track playback (or resolved Spotify/iTunes track)
     if (activeTrack.source === 'youtube' && activeTrack.youtube_id) {
-      if (audioRef.current) audioRef.current.pause()
+      if (audioRef.current) {
+        try {
+          audioRef.current.pause()
+          audioRef.current.src = SILENT_AUDIO_URL
+          audioRef.current.loop = true
+          audioRef.current.volume = 0.001
+          audioRef.current.play().catch(() => {})
+        } catch {}
+      }
 
       const tryLoadYt = (retries = 5) => {
         if (requestId !== playRequestRef.current) return
@@ -1384,11 +1394,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         artist: currentTrack.artist || 'Nghệ sĩ chưa xác định',
         album: currentTrack.album || 'MusicWeb Studio',
         artwork: [
-          {
-            src: coverSrc,
-            sizes: '512x512',
-            type: 'image/png',
-          },
+          { src: coverSrc, sizes: '96x96', type: 'image/png' },
+          { src: coverSrc, sizes: '128x128', type: 'image/png' },
+          { src: coverSrc, sizes: '192x192', type: 'image/png' },
+          { src: coverSrc, sizes: '256x256', type: 'image/png' },
+          { src: coverSrc, sizes: '384x384', type: 'image/png' },
+          { src: coverSrc, sizes: '512x512', type: 'image/png' },
         ],
       })
 
@@ -1396,7 +1407,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         const isYouTube = currentTrackRef.current?.source === 'youtube' || Boolean(currentTrackRef.current?.youtube_id)
         if (isYouTube && ytPlayerRef.current?.playVideo) {
           try { ytPlayerRef.current.playVideo() } catch {}
-        } else if (audioRef.current) {
+        }
+        if (audioRef.current) {
           audioRef.current.play().catch(() => {})
         }
         setIsPlaying(true)
@@ -1406,18 +1418,65 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         const isYouTube = currentTrackRef.current?.source === 'youtube' || Boolean(currentTrackRef.current?.youtube_id)
         if (isYouTube && ytPlayerRef.current?.pauseVideo) {
           try { ytPlayerRef.current.pauseVideo() } catch {}
-        } else if (audioRef.current) {
+        }
+        if (audioRef.current) {
           audioRef.current.pause()
         }
         setIsPlaying(false)
       })
 
-      navigator.mediaSession.setActionHandler('previoustrack', () => prevTrack())
-      navigator.mediaSession.setActionHandler('nexttrack', () => nextTrack())
+      navigator.mediaSession.setActionHandler('previoustrack', () => prevTrackRef.current())
+      navigator.mediaSession.setActionHandler('nexttrack', () => nextTrackRef.current())
 
       try {
         navigator.mediaSession.setActionHandler('seekto', (details) => {
           if (details.seekTime !== undefined) seek(details.seekTime)
+        })
+      } catch (e) {}
+
+      try {
+        navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+          const skip = details.seekOffset || 10
+          if (ytPlayerRef.current?.getCurrentTime) {
+            try {
+              const cur = ytPlayerRef.current.getCurrentTime() || 0
+              seek(Math.max(cur - skip, 0))
+              return
+            } catch {}
+          }
+          if (audioRef.current) {
+            seek(Math.max(audioRef.current.currentTime - skip, 0))
+          }
+        })
+      } catch (e) {}
+
+      try {
+        navigator.mediaSession.setActionHandler('seekforward', (details) => {
+          const skip = details.seekOffset || 10
+          if (ytPlayerRef.current?.getCurrentTime) {
+            try {
+              const cur = ytPlayerRef.current.getCurrentTime() || 0
+              const dur = ytPlayerRef.current.getDuration() || 0
+              seek(Math.min(cur + skip, dur))
+              return
+            } catch {}
+          }
+          if (audioRef.current) {
+            seek(Math.min(audioRef.current.currentTime + skip, audioRef.current.duration || 0))
+          }
+        })
+      } catch (e) {}
+
+      try {
+        navigator.mediaSession.setActionHandler('stop', () => {
+          const isYouTube = currentTrackRef.current?.source === 'youtube' || Boolean(currentTrackRef.current?.youtube_id)
+          if (isYouTube && ytPlayerRef.current?.pauseVideo) {
+            try { ytPlayerRef.current.pauseVideo() } catch {}
+          }
+          if (audioRef.current) {
+            audioRef.current.pause()
+          }
+          setIsPlaying(false)
         })
       } catch (e) {}
     } catch (err) {
@@ -1460,6 +1519,23 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }, 10000)
 
     return () => clearInterval(interval)
+  }, [isPlaying])
+
+  // Screen Wake Lock API (Prevents mobile OS CPU sleep during audio playback)
+  useEffect(() => {
+    if (!isPlaying || typeof window === 'undefined' || !('wakeLock' in navigator)) return
+    let wakeLockSentinel: any = null
+    const requestWakeLock = async () => {
+      try {
+        wakeLockSentinel = await (navigator as any).wakeLock.request('screen')
+      } catch {}
+    }
+    requestWakeLock()
+    return () => {
+      if (wakeLockSentinel && wakeLockSentinel.release) {
+        wakeLockSentinel.release().catch(() => {})
+      }
+    }
   }, [isPlaying])
 
   const effectiveDuration = duration > 0 ? duration : (currentTrack?.duration || 0)
@@ -1530,9 +1606,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     <PlayerContext.Provider value={playerValue}>
       <PlaybackProgressContext.Provider value={progressValue}>
         {children}
-        {/* preload="metadata" — only load headers, not entire file. webkit-playsinline for iOS background audio */}
+        {/* preload="auto" — buffer audio frames. webkit-playsinline for iOS background audio */}
         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-        <audio ref={audioRef} preload="metadata" playsInline {...({'webkit-playsinline': ''} as any)} />
+        <audio ref={audioRef} preload="auto" playsInline {...({'webkit-playsinline': ''} as any)} />
         {/* Hidden YouTube Player IFrame container */}
         <div className="hidden pointer-events-none opacity-0 invisible w-0 h-0 overflow-hidden">
           <div id="yt-player-container" />
