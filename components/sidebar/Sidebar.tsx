@@ -238,7 +238,7 @@ export function Sidebar() {
               <button
                 onClick={handleCreatePlaylist}
                 disabled={creating}
-                className="w-7 h-7 rounded-lg text-cyan-400 hover:text-white hover:bg-cyan-500/20 flex items-center justify-center transition-all"
+                className="w-7 h-7 rounded-lg text-[var(--spotify-glow,#22d3ee)] hover:text-white hover:bg-[var(--primary-spotify)]/20 flex items-center justify-center transition-all"
                 title="Tạo Playlist mới"
               >
                 <Plus className="w-3.5 h-3.5" />

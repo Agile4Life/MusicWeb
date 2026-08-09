@@ -12,6 +12,7 @@ import { fetchViewCountForVideo } from '@/lib/youtube'
 import { useSession } from 'next-auth/react'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
+import { getCachedResolvedAlbum, setCachedResolvedAlbum } from '@/lib/albumCache'
 
 const viewCountCache = new Map<string, number>()
 
@@ -60,6 +61,36 @@ function TrackRowComponent({
 }: TrackRowProps) {
   const router = useRouter()
   const [isResolvingAlbum, setIsResolvingAlbum] = useState(false)
+  const [liveAlbum, setLiveAlbum] = useState<string | null>(() => {
+    const cached = getCachedResolvedAlbum(track.title, track.artist)
+    if (cached?.albumName) return cached.albumName
+    return track.album || null
+  })
+
+  useEffect(() => {
+    const cached = getCachedResolvedAlbum(track.title, track.artist)
+    if (cached?.albumName) setLiveAlbum(cached.albumName)
+
+    const handleAlbumResolved = (e: any) => {
+      const detail = e.detail
+      if (detail && detail.album?.albumName) {
+        if (
+          (detail.title && track.title && detail.title.toLowerCase().trim() === track.title.toLowerCase().trim()) ||
+          (detail.artist && track.artist && detail.artist.toLowerCase().trim() === track.artist.toLowerCase().trim())
+        ) {
+          setLiveAlbum(detail.album.albumName)
+        }
+      }
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('album-resolved', handleAlbumResolved)
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('album-resolved', handleAlbumResolved)
+      }
+    }
+  }, [track.title, track.artist])
   const supabase = createClient()
   const { data: nextAuthSession } = useSession()
   const [showMenu, setShowMenu] = useState(false)
@@ -91,20 +122,29 @@ function TrackRowComponent({
         const data = await res.json()
         if (data.albumId) {
           track.spotify_album_id = data.albumId
-          if (data.albumName) track.album = data.albumName
+          if (data.albumName) {
+            track.album = data.albumName
+            setLiveAlbum(data.albumName)
+            setCachedResolvedAlbum(track.title, track.artist, { albumId: data.albumId, albumName: data.albumName })
+          }
           onTrackUpdated?.(track.id, { spotify_album_id: data.albumId, album: data.albumName || undefined })
           router.push(`/album/${data.albumId}`)
           return
         }
       }
     } catch (err) {
-      console.warn('Failed to resolve track album:', err)
+      console.warn('TrackRow resolve album error:', err)
     } finally {
       setIsResolvingAlbum(false)
     }
 
     router.push('/albums')
   }
+
+  const currentAlbumDisplay = liveAlbum || track.album
+  const hasRealAlbumDisplay =
+    currentAlbumDisplay &&
+    !['Google Drive', 'Google Drive Sync', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album', 'YouTube Music', 'Single', 'Unknown Album'].includes(currentAlbumDisplay.trim())
 
   useEffect(() => {
     if (!showMenu) return
@@ -408,17 +448,15 @@ function TrackRowComponent({
             onClick={handleOpenTrackAlbum}
             disabled={isResolvingAlbum}
             className="hover:text-[var(--spotify-glow,#22d3ee)] hover:underline transition-colors text-left inline-flex items-center gap-1.5 max-w-[180px] truncate text-xs cursor-pointer group"
-            title={track.album ? `Vào album: ${track.album}` : 'Vào Album bài hát'}
+            title={hasRealAlbumDisplay ? `Vào album: ${currentAlbumDisplay}` : 'Vào Album bài hát'}
           >
             {isResolvingAlbum ? (
-              <Loader2 className="w-3 h-3 text-cyan-400 animate-spin shrink-0" />
+              <Loader2 className="w-3 h-3 text-[var(--primary-spotify,#06b6d4)] animate-spin shrink-0" />
             ) : (
-              <DiscAlbum className="w-3 h-3 text-cyan-400/80 group-hover:text-cyan-300 shrink-0" />
+              <DiscAlbum className="w-3 h-3 text-[var(--primary-spotify,#06b6d4)]/80 group-hover:text-[var(--primary-spotify,#06b6d4)] shrink-0" />
             )}
-            <span className="truncate group-hover:text-cyan-300">
-              {track.album && !['Google Drive', 'Google Drive Sync', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album', 'YouTube Music'].includes(track.album.trim())
-                ? track.album
-                : 'Album'}
+            <span className="truncate group-hover:text-[var(--primary-spotify,#06b6d4)]">
+              {hasRealAlbumDisplay ? currentAlbumDisplay : 'Album'}
             </span>
           </button>
         )}

@@ -61,34 +61,72 @@ export async function GET(req: NextRequest) {
 
     const cacheKey = `${cleanTitle}_${cleanArtist}_${cleanAlbum}`
 
-    const memCached = resolveMemoryCache.get(cacheKey)
-    if (memCached && Date.now() - memCached.timestamp < RESOLVE_CACHE_TTL) {
-      return cachedResolveResponse(memCached.data, cacheKey)
-    }
-
     const supabase = getSupabaseClient()
 
     // Helper to persist resolved album back to tracks DB table if trackId provided
-    const persistToDb = (albumId: string, albumName: string) => {
-      if (!supabase) return
-      ;(async () => {
-        try {
-          if (trackId && !trackId.startsWith('yt-') && !trackId.startsWith('spotify-') && !trackId.startsWith('itunes-')) {
-            await supabase
-              .from('tracks')
-              .update({ spotify_album_id: albumId, album: albumName })
-              .eq('id', trackId)
-          } else if (cleanTitle) {
-            await supabase
-              .from('tracks')
-              .update({ spotify_album_id: albumId, album: albumName })
-              .ilike('title', `%${title.trim()}%`)
-              .is('spotify_album_id', null)
-          }
-        } catch (e) {
-          console.warn('Persist resolved album DB warning:', e)
+    const persistToDb = async (albumId: string, albumName: string) => {
+      if (!supabase || !albumName || albumName === 'Album') return
+      try {
+        // Try upserting spotify_albums first
+        if (albumId && !albumId.startsWith('deezer-') && !albumId.startsWith('itunes-')) {
+          try {
+            await supabase.from('spotify_albums').upsert({
+              id: albumId,
+              name: albumName,
+              artist: artist || 'Various Artists',
+            })
+          } catch {}
         }
-      })().catch(() => {})
+
+        const updatePayload: any = { album: albumName }
+        if (albumId && !albumId.startsWith('deezer-') && !albumId.startsWith('itunes-')) {
+          updatePayload.spotify_album_id = albumId
+        }
+
+        if (trackId && !trackId.startsWith('yt-') && !trackId.startsWith('spotify-') && !trackId.startsWith('itunes-')) {
+          const { error: trackUpdateErr } = await supabase
+            .from('tracks')
+            .update(updatePayload)
+            .eq('id', trackId)
+
+          if (trackUpdateErr && updatePayload.spotify_album_id) {
+            await supabase.from('tracks').update({ album: albumName }).eq('id', trackId)
+          }
+        } else if (cleanTitle) {
+          const { data: matched } = await supabase
+            .from('tracks')
+            .select('id, title')
+            .ilike('artist', `%${artist.trim() || ''}%`)
+            .limit(20)
+
+          if (matched && matched.length > 0) {
+            const targetIds = matched
+              .filter((t) => !t.title || normalizeText(t.title) === cleanTitle || t.title.toLowerCase().includes(title.trim().toLowerCase()))
+              .map((t) => t.id)
+
+            if (targetIds.length > 0) {
+              const { error: batchErr } = await supabase
+                .from('tracks')
+                .update(updatePayload)
+                .in('id', targetIds)
+
+              if (batchErr && updatePayload.spotify_album_id) {
+                await supabase.from('tracks').update({ album: albumName }).in('id', targetIds)
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Persist resolved album DB warning:', e)
+      }
+    }
+
+    const memCached = resolveMemoryCache.get(cacheKey)
+    if (memCached && Date.now() - memCached.timestamp < RESOLVE_CACHE_TTL) {
+      if (memCached.data?.albumId && memCached.data?.albumName) {
+        persistToDb(memCached.data.albumId, memCached.data.albumName).catch(() => {})
+      }
+      return cachedResolveResponse(memCached.data, cacheKey)
     }
 
     // 1. Check local Supabase DB cache first
@@ -165,7 +203,7 @@ export async function GET(req: NextRequest) {
                 albumName: bestTrack.album.title || albumParam || 'Single',
                 coverUrl: bestTrack.album.cover_medium || bestTrack.album.cover || null,
               }
-              persistToDb(resData.albumId, resData.albumName)
+              await persistToDb(resData.albumId, resData.albumName)
               return cachedResolveResponse(resData, cacheKey)
             }
           }
@@ -192,7 +230,7 @@ export async function GET(req: NextRequest) {
                 albumName: bestTrack.album.title || albumParam || 'Single',
                 coverUrl: bestTrack.album.cover_medium || bestTrack.album.cover || null,
               }
-              persistToDb(resData.albumId, resData.albumName)
+              await persistToDb(resData.albumId, resData.albumName)
               return cachedResolveResponse(resData, cacheKey)
             }
           }
@@ -220,7 +258,7 @@ export async function GET(req: NextRequest) {
                 albumName: match.collectionName || albumParam || 'Single',
                 coverUrl: match.artworkUrl100 || null,
               }
-              persistToDb(resData.albumId, resData.albumName)
+              await persistToDb(resData.albumId, resData.albumName)
               return cachedResolveResponse(resData, cacheKey)
             }
           }
@@ -247,7 +285,7 @@ export async function GET(req: NextRequest) {
             albumName: best.name,
             coverUrl: (best as any).cover_url || (best as any).cover || null,
           }
-          persistToDb(resData.albumId, resData.albumName)
+          await persistToDb(resData.albumId, resData.albumName)
           return cachedResolveResponse(resData, cacheKey)
         }
       }

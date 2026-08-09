@@ -7,6 +7,7 @@ import { usePlayer, usePlaybackProgress } from './PlayerContext'
 import { LyricsView } from './LyricsView'
 import { QueueDrawer } from './QueueDrawer'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
+import { setCachedResolvedAlbum } from '@/lib/albumCache'
 import {
   Play,
   Pause,
@@ -105,14 +106,19 @@ export function PlayerBar() {
           if (isCancelled) return
           setIsResolvingAlbumInfo(false)
           if (data && data.albumId) {
+            const finalAlbumName = data.albumName || (hasRealAlbum ? currentTrack.album! : 'Album')
             setResolvedAlbumInfo({
               id: data.albumId,
-              name: data.albumName || (hasRealAlbum ? currentTrack.album! : 'Album'),
+              name: finalAlbumName,
             })
             if (currentTrack) {
               currentTrack.spotify_album_id = data.albumId
               if (data.albumName) currentTrack.album = data.albumName
             }
+            setCachedResolvedAlbum(currentTrack.title, currentTrack.artist, {
+              albumId: data.albumId,
+              albumName: data.albumName,
+            })
           } else {
             setResolvedAlbumInfo(
               hasRealAlbum ? { name: currentTrack.album! } : null
@@ -441,15 +447,15 @@ export function PlayerBar() {
               </p>
               <div
                 onClick={handleOpenAlbum}
-                className="flex items-center gap-1.5 mt-1.5 text-xs truncate max-w-full cursor-pointer group bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 rounded-lg hover:bg-cyan-500/20 transition-all"
+                className="flex items-center gap-1.5 mt-1.5 text-xs truncate max-w-full cursor-pointer group bg-[var(--primary-spotify)]/10 border border-[var(--primary-spotify)]/20 px-2.5 py-1 rounded-lg hover:bg-[var(--primary-spotify)]/20 transition-all"
               >
                 {isNavigatingAlbum ? (
-                  <Loader2 className="w-3.5 h-3.5 text-cyan-400 animate-spin shrink-0" />
+                  <Loader2 className="w-3.5 h-3.5 text-[var(--primary-spotify,#06b6d4)] animate-spin shrink-0" />
                 ) : (
-                  <DiscAlbum className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                  <DiscAlbum className="w-3.5 h-3.5 text-[var(--primary-spotify,#06b6d4)] shrink-0" />
                 )}
                 <span
-                  className="text-cyan-300 font-semibold group-hover:underline truncate"
+                  className="text-[var(--primary-spotify,#06b6d4)] font-semibold group-hover:underline truncate"
                   title={displayAlbumName ? `Vào Album: ${displayAlbumName}` : 'Vào Album bài hát'}
                 >
                   {displayAlbumName || 'Album'}

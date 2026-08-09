@@ -371,7 +371,7 @@ export function MobileHeaderNav() {
                     <div className="w-[1px] h-3 bg-white/10 my-auto mx-0.5" />
                     <button
                       onClick={handleCreatePlaylist}
-                      className="w-7 h-7 rounded-lg text-cyan-400 hover:text-white hover:bg-cyan-500/20 flex items-center justify-center transition-all"
+                      className="w-7 h-7 rounded-lg text-[var(--spotify-glow,#22d3ee)] hover:text-white hover:bg-[var(--primary-spotify)]/20 flex items-center justify-center transition-all"
                       title="Tạo Playlist mới"
                     >
                       <Plus className="w-3.5 h-3.5" />
