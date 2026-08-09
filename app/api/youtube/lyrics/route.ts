@@ -94,7 +94,7 @@ async function fetchLyricsFromYouTube(videoId: string): Promise<string | null> {
   }
 }
 
-async function searchYouTubeVideoId(query: string): Promise<string | null> {
+async function searchYouTubeVideoIds(query: string): Promise<string[]> {
   try {
     const res = await fetch('https://www.youtube.com/youtubei/v1/search', {
       method: 'POST',
@@ -116,41 +116,59 @@ async function searchYouTubeVideoId(query: string): Promise<string | null> {
       signal: AbortSignal.timeout(6000),
     })
 
-    if (!res.ok) return null
+    if (!res.ok) return []
     const data = await res.json()
 
     const str = JSON.stringify(data)
-    const match = str.match(/"videoId":"([a-zA-Z0-9_-]{11})"/)?.[1]
-    return match || null
+    const matches = Array.from(new Set(Array.from(str.matchAll(/"videoId":"([a-zA-Z0-9_-]{11})"/g)).map((m) => m[1])))
+    return matches.slice(0, 5)
   } catch {
-    return null
+    return []
   }
 }
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
-    let videoId = searchParams.get('videoId') || searchParams.get('youtube_id') || ''
+    const directVideoId = searchParams.get('videoId') || searchParams.get('youtube_id') || ''
     const title = searchParams.get('title') || ''
     const artist = searchParams.get('artist') || ''
 
-    if (!videoId && (title || artist)) {
-      const query = `${title} ${artist}`.trim()
-      videoId = (await searchYouTubeVideoId(query)) || ''
+    let plainLyrics: string | null = null
+    let successfulVideoId = directVideoId
+
+    // 1. Try direct videoId if provided
+    if (directVideoId) {
+      plainLyrics = await fetchLyricsFromYouTube(directVideoId)
     }
 
-    if (!videoId) {
-      return NextResponse.json({ error: 'Missing videoId or track info' }, { status: 400 })
-    }
+    // 2. If direct videoId failed or was missing, try searching YouTube Music audio tracks
+    if (!plainLyrics && (title || artist || directVideoId)) {
+      const searchQueries = [
+        `${title} ${artist} audio`.trim(),
+        `${title} ${artist}`.trim(),
+      ].filter(Boolean)
 
-    const plainLyrics = await fetchLyricsFromYouTube(videoId)
+      for (const query of searchQueries) {
+        const candidateIds = await searchYouTubeVideoIds(query)
+        for (const candidateId of candidateIds) {
+          if (candidateId === directVideoId) continue
+          plainLyrics = await fetchLyricsFromYouTube(candidateId)
+          if (plainLyrics) {
+            successfulVideoId = candidateId
+            break
+          }
+        }
+        if (plainLyrics) break
+      }
+    }
 
     if (!plainLyrics) {
       return NextResponse.json({ error: 'No lyrics found on YouTube Music' }, { status: 404 })
     }
 
     return NextResponse.json({
-      id: `yt-${videoId}`,
+      id: `yt-${successfulVideoId}`,
       trackName: title || 'YouTube Track',
       artistName: artist || 'YouTube Artist',
       plainLyrics,

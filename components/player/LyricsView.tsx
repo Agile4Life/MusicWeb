@@ -80,24 +80,7 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
     }
   }
 
-  // 1. Fetch lyrics when currentTrack changes
-  useEffect(() => {
-    if (!currentTrack) {
-      setLyricsData(null)
-      setParsedLyrics([])
-      setIsSynced(false)
-      setActiveIndex(-1)
-      setLyricOffset(0)
-      return
-    }
-
-    setErrorMessage(null)
-    setActiveIndex(-1)
-    setLyricOffset(0)
-    loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.album, currentTrack.duration, currentTrack.youtube_id)
-  }, [currentTrack?.id])
-
-  const loadLyricsForTrack = async (
+  const loadLyricsForTrack = React.useCallback(async (
     title: string,
     artist?: string | null,
     album?: string | null,
@@ -129,23 +112,38 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
         setParsedLyrics([])
         setIsSynced(false)
       }
-    } catch (err) {
+    } catch {
       setErrorMessage('Không thể tải lời bài hát')
       setParsedLyrics([])
       setIsSynced(false)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  // 1. Fetch lyrics when currentTrack changes
+  useEffect(() => {
+    if (!currentTrack) {
+      setLyricsData(null)
+      setParsedLyrics([])
+      setIsSynced(false)
+      setActiveIndex(-1)
+      setLyricOffset(0)
+      return
+    }
+
+    setErrorMessage(null)
+    setActiveIndex(-1)
+    setLyricOffset(0)
+    loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.album, currentTrack.duration, currentTrack.youtube_id)
+  }, [currentTrack, loadLyricsForTrack])
 
   // 2. Track playback time & update active lyric line
   useEffect(() => {
     if (!isSynced || parsedLyrics.length === 0) return
 
     const index = findActiveLyricIndex(parsedLyrics, currentTime, lyricOffset - (mvIntroOffset || 0))
-    if (index !== activeIndex) {
-      setActiveIndex(index)
-    }
+    setActiveIndex((prev) => (prev !== index ? index : prev))
   }, [currentTime, parsedLyrics, isSynced, lyricOffset, mvIntroOffset])
 
   // 3. Smooth scroll active lyric into view
@@ -267,7 +265,7 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
           )}
 
           <button
-            onClick={() => loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.album, currentTrack.duration)}
+            onClick={() => loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.album, currentTrack.duration, currentTrack.youtube_id)}
             disabled={loading}
             className="w-9 h-9 flex items-center justify-center bg-white/[0.06] hover:bg-white/15 active:scale-95 text-slate-200 rounded-full border border-white/10 transition-all shrink-0 shadow-md"
             title="Tải lại lời bài hát"

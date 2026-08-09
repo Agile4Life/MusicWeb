@@ -38,17 +38,18 @@ export function extractCleanTitleAndArtist(
   }
 
   // If title is in format "Artist - Title", split it if artist is missing or matches
-  if (title.includes(' - ') || title.includes(' – ') || title.includes(' — ')) {
-    const parts = title.split(/\s*[\-\–\—]\s*/)
+  // Require space around hyphen (-) so hyphenated names like "M-TP" or "T-Pain" aren't split
+  if (title.includes(' - ') || title.includes(' – ') || title.includes(' — ') || title.includes(' – ') || title.includes(' -')) {
+    const parts = title.split(/\s+[\-\–\—]\s+|\s*[\–\—]\s*/)
     if (parts.length >= 2) {
       if (!artist || artist === 'Nghệ sĩ chưa xác định' || artist === 'YouTube Artist' || artist === 'iTunes Artist') {
-        artist = parts[0]
-        title = parts.slice(1).join(' - ')
+        artist = parts[0].trim()
+        title = parts.slice(1).join(' - ').trim()
       } else {
-        const part0Norm = parts[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        const artistNorm = artist.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        const part0Norm = parts[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+        const artistNorm = artist.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
         if (part0Norm.includes(artistNorm) || artistNorm.includes(part0Norm)) {
-          title = parts.slice(1).join(' - ')
+          title = parts.slice(1).join(' - ').trim()
         }
       }
     }
@@ -62,12 +63,12 @@ export function extractCleanTitleAndArtist(
     .replace(/\s+/g, ' ')
     .trim()
 
-  // Clean artist: take primary artist before ft./feat./,/slash
+  // Clean artist: take primary artist before ft./feat./,/slash, keeping hyphens/dots intact
   artist = artist
     .replace(/[\(\[\{].*?[\)\]\}]/g, ' ')
     .replace(/\b(official|vevo|topic)\b/gi, ' ')
     .split(/\s*(?:ft\.?|feat\.?|\/|\\|,|&)\s*/i)[0]
-    .replace(/[\-\_\,\.\:]/g, ' ')
+    .replace(/[\_\,\:\;]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 
@@ -110,7 +111,7 @@ async function tryGetApi(
         return data
       }
     }
-  } catch (e) {
+  } catch {
     // ignore
   }
   return null
@@ -208,7 +209,7 @@ async function trySearchApi(
         }
       }
     }
-  } catch (e) {
+  } catch {
     // ignore
   }
   return null
