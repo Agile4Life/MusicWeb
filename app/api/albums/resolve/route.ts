@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const title = searchParams.get('title') || ''
     const artist = searchParams.get('artist') || ''
-    const albumParam = searchParams.get('album') || ''
+    let albumParam = searchParams.get('album') || ''
     const trackId = searchParams.get('track_id') || searchParams.get('id') || ''
 
     if (!title.trim() && !artist.trim() && !albumParam.trim()) {
@@ -51,7 +51,14 @@ export async function GET(req: NextRequest) {
 
     const cleanTitle = normalizeText(title)
     const cleanArtist = normalizeText(artist)
-    const cleanAlbum = normalizeText(albumParam)
+    let cleanAlbum = normalizeText(albumParam)
+
+    // If album parameter matches song title or generic placeholder, ignore it to find the real album
+    if (cleanAlbum === cleanTitle || cleanAlbum === 'single' || cleanAlbum === 'unknown album') {
+      cleanAlbum = ''
+      albumParam = ''
+    }
+
     const cacheKey = `${cleanTitle}_${cleanArtist}_${cleanAlbum}`
 
     const memCached = resolveMemoryCache.get(cacheKey)
@@ -96,7 +103,9 @@ export async function GET(req: NextRequest) {
             .limit(5)
 
           if (dbTrack && dbTrack.length > 0) {
-            const foundTrack = dbTrack.find((t) => t.spotify_album_id)
+            const foundTrack = dbTrack.find(
+              (t) => t.spotify_album_id && normalizeText(t.album) !== cleanTitle
+            )
             if (foundTrack && foundTrack.spotify_album_id) {
               const resData = { albumId: foundTrack.spotify_album_id, albumName: foundTrack.album || title }
               return cachedResolveResponse(resData, cacheKey)
@@ -153,7 +162,7 @@ export async function GET(req: NextRequest) {
             if (bestTrack && bestTrack.album?.id) {
               const resData = {
                 albumId: String(bestTrack.album.id),
-                albumName: bestTrack.album.title || albumParam || title,
+                albumName: bestTrack.album.title || albumParam || 'Single',
                 coverUrl: bestTrack.album.cover_medium || bestTrack.album.cover || null,
               }
               persistToDb(resData.albumId, resData.albumName)
@@ -180,7 +189,7 @@ export async function GET(req: NextRequest) {
             if (bestTrack && bestTrack.album?.id) {
               const resData = {
                 albumId: String(bestTrack.album.id),
-                albumName: bestTrack.album.title || albumParam || title,
+                albumName: bestTrack.album.title || albumParam || 'Single',
                 coverUrl: bestTrack.album.cover_medium || bestTrack.album.cover || null,
               }
               persistToDb(resData.albumId, resData.albumName)
@@ -208,7 +217,7 @@ export async function GET(req: NextRequest) {
             if (match && match.collectionId) {
               const resData = {
                 albumId: `itunes-${match.collectionId}`,
-                albumName: match.collectionName || albumParam || title,
+                albumName: match.collectionName || albumParam || 'Single',
                 coverUrl: match.artworkUrl100 || null,
               }
               persistToDb(resData.albumId, resData.albumName)

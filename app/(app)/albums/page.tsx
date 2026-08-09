@@ -66,12 +66,17 @@ function AlbumCard({ album }: AlbumCardProps) {
   )
 }
 
+let cachedListenedAlbums: SpotifyAlbumItem[] = []
+let cachedNewReleases: SpotifyAlbumItem[] = []
+let albumsLastFetchedAt = 0
+const ALBUMS_CACHE_TTL = 15 * 60 * 1000 // 15 mins
+
 export default function AlbumsPage() {
   const supabase = createClient()
   const searchParams = useSearchParams()
-  const [listenedAlbums, setListenedAlbums] = useState<SpotifyAlbumItem[]>([])
-  const [newReleases, setNewReleases] = useState<SpotifyAlbumItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const [listenedAlbums, setListenedAlbums] = useState<SpotifyAlbumItem[]>(cachedListenedAlbums)
+  const [newReleases, setNewReleases] = useState<SpotifyAlbumItem[]>(cachedNewReleases)
+  const [loading, setLoading] = useState<boolean>(cachedListenedAlbums.length === 0 && cachedNewReleases.length === 0)
   const [activeFilter, setActiveFilter] = useState<'all' | 'albums' | 'singles'>('all')
 
   // Search state
@@ -89,7 +94,13 @@ export default function AlbumsPage() {
 
   useEffect(() => {
     async function loadAlbumsData() {
-      setLoading(true)
+      const isCacheFresh = cachedListenedAlbums.length > 0 && (Date.now() - albumsLastFetchedAt < ALBUMS_CACHE_TTL)
+      if (!isCacheFresh) {
+        if (cachedListenedAlbums.length === 0) setLoading(true)
+      } else {
+        setLoading(false)
+        return
+      }
 
       // Source A: User Listened Albums stored in Supabase
       try {
@@ -110,6 +121,7 @@ export default function AlbumsPage() {
             }
           }
           setListenedAlbums(uniqueAlbums)
+          cachedListenedAlbums = uniqueAlbums
         }
       } catch (err) {
         console.warn('Error fetching listened albums from Supabase:', err)
@@ -120,12 +132,16 @@ export default function AlbumsPage() {
         const res = await fetch('/api/albums/new-releases')
         if (res.ok) {
           const releases = await res.json()
-          if (Array.isArray(releases)) setNewReleases(releases)
+          if (Array.isArray(releases)) {
+            setNewReleases(releases)
+            cachedNewReleases = releases
+          }
         }
       } catch (err) {
         console.warn('Error fetching new releases from API route:', err)
       }
 
+      albumsLastFetchedAt = Date.now()
       setLoading(false)
     }
 

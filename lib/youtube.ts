@@ -18,6 +18,27 @@ export function extractYouTubeVideoId(input: string): string | null {
 }
 
 /**
+ * Trích xuất playlist ID từ link chia sẻ YouTube Music hoặc YouTube thường.
+ * Hỗ trợ các dạng:
+ *  https://music.youtube.com/playlist?list=PLxxxxxxxx
+ *  https://www.youtube.com/playlist?list=PLxxxxxxxx
+ *  https://youtube.com/watch?v=xxxx&list=PLxxxxxxxx  (link 1 bài kèm playlist)
+ *  ID trần (thường bắt đầu bằng PL, OLAK5uy, RD, VL...)
+ */
+export function extractYouTubePlaylistId(input: string): string | null {
+  if (!input) return null
+  const trimmed = input.trim()
+
+  // Bare playlist ID (loose check — YouTube playlist IDs vary in length/prefix)
+  if (/^[a-zA-Z0-9_-]{10,64}$/.test(trimmed) && !trimmed.startsWith('http')) {
+    return trimmed
+  }
+
+  const match = trimmed.match(/[?&]list=([a-zA-Z0-9_-]+)/)
+  return match ? match[1] : null
+}
+
+/**
  * Parse human-readable view count string (e.g. "1,2M lượt xem", "12M views", "450K views") into integer
  */
 export function parseViewCountText(text?: string | null): number | null {
@@ -669,5 +690,154 @@ export async function fetchViewCountForVideo(youtubeId: string): Promise<number 
 
   const meta = await getVideoMeta([youtubeId], YOUTUBE_API_KEY)
   return meta[youtubeId]?.viewCount ?? null
+}
+
+export interface YouTubePlaylistMeta {
+  id: string
+  title: string
+  description: string
+  channelTitle: string
+  cover_url: string | null
+  total_tracks: number
+}
+
+/**
+ * Lấy metadata playlist (tên, kênh sở hữu, ảnh bìa, tổng số video).
+ * Trả về null nếu playlist private/không tồn tại/ID sai.
+ */
+export async function fetchYouTubePlaylistMeta(playlistId: string): Promise<YouTubePlaylistMeta | null> {
+  const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY || ''
+  if (!YOUTUBE_API_KEY) {
+    console.warn('YOUTUBE_API_KEY missing — playlist import requires the official API, InnerTube/scrape fallback does not support playlist metadata.')
+    return null
+  }
+
+  try {
+    const url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&id=${playlistId}&key=${YOUTUBE_API_KEY}`
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) })
+    if (!res.ok) return null
+
+    const data = await res.json()
+    const item = data.items?.[0]
+    if (!item) return null // private playlist or bad ID both land here — API returns empty items[], not a 4xx
+
+    const snippet = item.snippet || {}
+    return {
+      id: item.id,
+      title: snippet.title || 'Untitled Playlist',
+      description: snippet.description || '',
+      channelTitle: snippet.channelTitle || 'Unknown',
+      cover_url:
+        snippet.thumbnails?.maxres?.url ||
+        snippet.thumbnails?.high?.url ||
+        snippet.thumbnails?.medium?.url ||
+        null,
+      total_tracks: item.contentDetails?.itemCount || 0,
+    }
+  } catch (err) {
+    console.error('YouTube playlist meta fetch error:', err)
+    return null
+  }
+}
+
+/**
+ * Lấy toàn bộ video trong playlist, tự động phân trang qua pageToken.
+ * Mỗi video đã sẵn là 1 YouTube track hoàn chỉnh — map thẳng sang Track,
+ * KHÔNG cần bước match như luồng import Spotify.
+ */
+export async function fetchYouTubePlaylistTracks(playlistId: string): Promise<Track[]> {
+  const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY || ''
+  if (!YOUTUBE_API_KEY) return []
+
+  const allTracks: Track[] = []
+  let pageToken = ''
+
+  try {
+    do {
+      const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&maxResults=50&playlistId=${playlistId}&key=${YOUTUBE_API_KEY}${
+        pageToken ? `&pageToken=${pageToken}` : ''
+      }`
+      const res = await fetch(url, { signal: AbortSignal.timeout(5000) })
+      if (!res.ok) break
+
+      const data = await res.json()
+      const items = data.items || []
+
+      for (const item of items) {
+        const videoId = item.contentDetails?.videoId
+        const snippet = item.snippet || {}
+
+        // Deleted/private videos still appearing as playlist entries typically have
+        // this placeholder title — skip them, they have no playable content.
+        if (!videoId || snippet.title === 'Deleted video' || snippet.title === 'Private video') {
+          continue
+        }
+
+        const title = (snippet.title || 'YouTube Track')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/&amp;/g, '&')
+
+        allTracks.push({
+          id: `yt-${videoId}`,
+          user_id: 'youtube-global',
+          title,
+          artist: (snippet.videoOwnerChannelTitle || snippet.channelTitle || 'YouTube Artist')
+            .replace(' - Topic', '')
+            .replace('VEVO', ''),
+          album: 'YouTube Music',
+          duration: 0, // filled in Stage 4 — playlistItems does not return duration
+          file_path: `https://www.youtube.com/watch?v=${videoId}`,
+          cover_url:
+            snippet.thumbnails?.maxres?.url ||
+            snippet.thumbnails?.high?.url ||
+            snippet.thumbnails?.medium?.url ||
+            `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+          created_at: new Date().toISOString(),
+          source: 'youtube',
+          youtube_id: videoId,
+        })
+      }
+
+      pageToken = data.nextPageToken || ''
+    } while (pageToken)
+  } catch (err) {
+    console.error('YouTube playlist tracks fetch error:', err)
+  }
+
+  return allTracks
+}
+
+/**
+ * Điền duration thật (và view count nếu có getVideoMeta) cho danh sách track
+ * lấy từ playlist, gọi theo lô 50 ID/lần để tiết kiệm quota.
+ */
+export async function enrichPlaylistTracksWithMeta(tracks: Track[]): Promise<Track[]> {
+  const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY || ''
+  if (!YOUTUBE_API_KEY || tracks.length === 0) return tracks
+
+  const enriched = [...tracks]
+  const batchSize = 50
+
+  for (let i = 0; i < enriched.length; i += batchSize) {
+    const batch = enriched.slice(i, i + batchSize)
+    const ids = batch.map((t) => t.youtube_id).filter(Boolean) as string[]
+    if (ids.length === 0) continue
+
+    const meta = await getVideoMeta(ids, YOUTUBE_API_KEY)
+
+    for (let j = 0; j < batch.length; j++) {
+      const t = batch[j]
+      if (t.youtube_id && meta[t.youtube_id]) {
+        enriched[i + j] = {
+          ...t,
+          duration: meta[t.youtube_id].duration,
+          view_count: meta[t.youtube_id].viewCount ?? null,
+        }
+      }
+    }
+  }
+
+  return enriched
 }
 

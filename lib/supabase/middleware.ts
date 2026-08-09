@@ -68,8 +68,10 @@ export async function updateSession(request: NextRequest) {
     isLoggedIn = false
   }
 
+  const isApiRoute = request.nextUrl.pathname.startsWith('/api/')
+
   // Require login before viewing ANY application page
-  if (!isLoggedIn && !isAuthPage) {
+  if (!isLoggedIn && !isAuthPage && !isApiRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

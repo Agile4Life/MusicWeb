@@ -28,6 +28,8 @@ import { useLanguage } from '@/components/i18n/LanguageContext'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { ImportSpotifyModal } from '@/components/playlist/ImportSpotifyModal'
+import { ImportYouTubePlaylistModal } from '@/components/playlist/ImportYouTubePlaylistModal'
+import { YoutubeIcon } from '@/components/icons/YoutubeIcon'
 
 export function Sidebar() {
   const { t } = useLanguage()
@@ -38,6 +40,7 @@ export function Sidebar() {
   const { userEmail } = useCurrentUser()
   const { playlists, loading: creating, createPlaylist, deletePlaylist } = usePlaylists()
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+  const [isYtImportModalOpen, setIsYtImportModalOpen] = useState(false)
 
   const user = userEmail
     ? {
@@ -210,25 +213,33 @@ export function Sidebar() {
 
         {/* Playlists Container */}
         <div className="flex-1 flex flex-col min-h-0 pt-2 border-t border-white/[0.05]">
-          <div className="flex items-center justify-between px-2.5 py-1.5 mb-1">
-            <div className="flex items-center gap-2 text-slate-500 font-mono text-[11px] tracking-wider uppercase">
+          <div className="flex items-center justify-between px-3 py-2 mb-1.5 border-b border-white/[0.04]">
+            <div className="flex items-center gap-2 text-slate-400 font-mono text-[11px] tracking-wider uppercase font-bold">
               <ListMusic style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3.5 h-3.5" />
               <span>Playlist</span>
             </div>
-            <div className="flex items-center gap-1">
+
+            <div className="flex items-center gap-0.5 bg-white/[0.03] border border-white/[0.08] p-0.5 rounded-xl shadow-inner">
               <button
                 onClick={() => setIsImportModalOpen(true)}
-                className="p-1 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition-colors flex items-center gap-1 text-[11px] font-semibold"
-                title="Nhập Spotify playlist"
+                className="w-7 h-7 rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/20 flex items-center justify-center transition-all"
+                title="Nhập Playlist từ Spotify"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span className="hidden lg:inline text-[10px]">Nhập Spotify</span>
               </button>
+              <button
+                onClick={() => setIsYtImportModalOpen(true)}
+                className="w-7 h-7 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/20 flex items-center justify-center transition-all"
+                title="Nhập Playlist từ YouTube Music"
+              >
+                <YoutubeIcon className="w-3.5 h-3.5" />
+              </button>
+              <div className="w-[1px] h-3 bg-white/10 my-auto mx-0.5" />
               <button
                 onClick={handleCreatePlaylist}
                 disabled={creating}
-                className="p-1 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                title="Tạo playlist mới"
+                className="w-7 h-7 rounded-lg text-cyan-400 hover:text-white hover:bg-cyan-500/20 flex items-center justify-center transition-all"
+                title="Tạo Playlist mới"
               >
                 <Plus className="w-3.5 h-3.5" />
               </button>
@@ -333,6 +344,10 @@ export function Sidebar() {
       <ImportSpotifyModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
+      />
+      <ImportYouTubePlaylistModal
+        isOpen={isYtImportModalOpen}
+        onClose={() => setIsYtImportModalOpen(false)}
       />
     </aside>
   )

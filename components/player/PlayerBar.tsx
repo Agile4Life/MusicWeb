@@ -71,9 +71,14 @@ export function PlayerBar() {
       return
     }
 
+    const titleNorm = (currentTrack.title || '').trim().toLowerCase()
+    const albumNorm = (currentTrack.album || '').trim().toLowerCase()
+    const isAlbumSameAsTitle = Boolean(titleNorm && albumNorm && (albumNorm === titleNorm || albumNorm.includes(titleNorm) || titleNorm.includes(albumNorm)))
+
     const hasRealAlbum =
       currentTrack.album &&
-      !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(currentTrack.album.trim())
+      !isAlbumSameAsTitle &&
+      !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album', 'Single', 'Unknown Album'].includes(currentTrack.album.trim())
 
     if (hasRealAlbum && currentTrack.spotify_album_id) {
       setResolvedAlbumInfo({

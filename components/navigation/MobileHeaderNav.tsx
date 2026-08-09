@@ -31,6 +31,8 @@ import { useLanguage } from '@/components/i18n/LanguageContext'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { ImportSpotifyModal } from '@/components/playlist/ImportSpotifyModal'
+import { ImportYouTubePlaylistModal } from '@/components/playlist/ImportYouTubePlaylistModal'
+import { YoutubeIcon } from '@/components/icons/YoutubeIcon'
 
 export function MobileHeaderNav() {
   const { t } = useLanguage()
@@ -41,6 +43,7 @@ export function MobileHeaderNav() {
   const { userEmail } = useCurrentUser()
   const { playlists, loading: creating, createPlaylist, deletePlaylist } = usePlaylists()
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+  const [isYtImportModalOpen, setIsYtImportModalOpen] = useState(false)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [touchStartX, setTouchStartX] = useState<number | null>(null)
   const [touchEndX, setTouchEndX] = useState<number | null>(null)
@@ -340,25 +343,36 @@ export function MobileHeaderNav() {
 
               {/* Playlists in drawer */}
               <div className="border-t border-white/[0.05] pt-4 flex flex-col gap-2">
-                <div className="flex items-center justify-between px-1">
-                  <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
+                <div className="flex items-center justify-between px-1 mb-1">
+                  <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider font-bold">
                     Playlist cá nhân
                   </span>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-0.5 bg-white/[0.03] border border-white/[0.08] p-0.5 rounded-xl shadow-inner">
                     <button
                       onClick={() => {
                         setIsDrawerOpen(false)
                         setIsImportModalOpen(true)
                       }}
-                      className="p-1 text-emerald-400 hover:text-emerald-300 rounded flex items-center gap-1 text-[10px] font-semibold"
-                      title="Nhập Spotify playlist"
+                      className="w-7 h-7 rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/20 flex items-center justify-center transition-all"
+                      title="Nhập Playlist từ Spotify"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
-                      <span>Nhập Spotify</span>
                     </button>
                     <button
+                      onClick={() => {
+                        setIsDrawerOpen(false)
+                        setIsYtImportModalOpen(true)
+                      }}
+                      className="w-7 h-7 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/20 flex items-center justify-center transition-all"
+                      title="Nhập Playlist từ YouTube Music"
+                    >
+                      <YoutubeIcon className="w-3.5 h-3.5" />
+                    </button>
+                    <div className="w-[1px] h-3 bg-white/10 my-auto mx-0.5" />
+                    <button
                       onClick={handleCreatePlaylist}
-                      className="p-1 text-slate-400 hover:text-white rounded"
+                      className="w-7 h-7 rounded-lg text-cyan-400 hover:text-white hover:bg-cyan-500/20 flex items-center justify-center transition-all"
+                      title="Tạo Playlist mới"
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </button>
@@ -430,6 +444,10 @@ export function MobileHeaderNav() {
       <ImportSpotifyModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
+      />
+      <ImportYouTubePlaylistModal
+        isOpen={isYtImportModalOpen}
+        onClose={() => setIsYtImportModalOpen(false)}
       />
     </>
   )
