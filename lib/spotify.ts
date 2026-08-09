@@ -93,38 +93,42 @@ export async function searchSpotifyTracks(query: string, limit = 15): Promise<Tr
 export async function getTrendingSpotifyTracks(limit = 12): Promise<Track[]> {
   try {
     const token = await getSpotifyAccessToken()
-    if (!token) return []
+    if (token) {
+      const res = await fetch(`https://api.spotify.com/v1/search?q=year:2024-2026&type=track&limit=${limit}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
 
-    // Fetch Global Top Hits / Trending Tracks from Spotify API
-    const res = await fetch(`https://api.spotify.com/v1/search?q=year:2024-2026&type=track&limit=${limit}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
+      if (res.ok) {
+        const data = await res.json()
+        const items = data.tracks?.items || []
 
-    if (!res.ok) return []
-
-    const data = await res.json()
-    const items = data.tracks?.items || []
-
-    return items.map((item: any) => ({
-      id: `spotify-${item.id}`,
-      user_id: 'spotify',
-      title: item.name,
-      artist: item.artists?.map((a: any) => a.name).join(', ') || 'Nghệ sĩ chưa xác định',
-      album: item.album?.name || '',
-      spotify_album_id: item.album?.id || undefined,
-      duration: Math.round((item.duration_ms || 0) / 1000),
-      file_path: item.external_urls?.spotify || item.preview_url || '',
-      cover_url: item.album?.images?.[0]?.url || item.album?.images?.[1]?.url || null,
-      created_at: new Date().toISOString(),
-      source: 'spotify',
-      spotify_id: item.id,
-    }))
+        if (items.length > 0) {
+          return items.map((item: any) => ({
+            id: `spotify-${item.id}`,
+            user_id: 'spotify',
+            title: item.name,
+            artist: item.artists?.map((a: any) => a.name).join(', ') || 'Nghệ sĩ chưa xác định',
+            album: item.album?.name || '',
+            spotify_album_id: item.album?.id || undefined,
+            duration: Math.round((item.duration_ms || 0) / 1000),
+            file_path: item.external_urls?.spotify || item.preview_url || '',
+            cover_url: item.album?.images?.[0]?.url || item.album?.images?.[1]?.url || null,
+            created_at: new Date().toISOString(),
+            source: 'spotify',
+            spotify_id: item.id,
+          }))
+        }
+      }
+    }
   } catch (err) {
-    console.warn('Spotify trending fetch error:', err)
-    return []
+    console.warn('Spotify trending fetch error, using iTunes fallback:', err)
   }
+
+  // Fallback to iTunes Top Global Hits if Spotify API credentials are not set
+  const { searchITunesTracks } = await import('./itunes')
+  return searchITunesTracks('top spotify global hits 2026', limit)
 }
 
 export interface SpotifyAlbumItem {

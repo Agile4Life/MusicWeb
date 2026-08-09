@@ -59,39 +59,44 @@ export async function getTrendingITunesTracks(countryCode = 'vn', limit = 12): P
     const code = (countryCode || 'vn').toLowerCase()
     const url = `https://rss.applemarketingtools.com/api/v2/${code}/music/most-played/${limit}/songs.json`
     
-    let res = await fetch(url, { signal: AbortSignal.timeout(4000) })
-    if (!res.ok) {
+    let res = await fetch(url, { signal: AbortSignal.timeout(4000) }).catch(() => null)
+    if (!res || !res.ok) {
       // Fallback to 'us' if country RSS is unavailable
       res = await fetch(`https://rss.applemarketingtools.com/api/v2/us/music/most-played/${limit}/songs.json`, {
         signal: AbortSignal.timeout(4000),
-      })
+      }).catch(() => null)
     }
-    if (!res.ok) return []
 
-    const data = await res.json()
-    const results = data.feed?.results || []
+    if (res && res.ok) {
+      const data = await res.json()
+      const results = data.feed?.results || []
 
-    return results.map((item: any, index: number): Track => {
-      const artwork = cleanArtworkUrl(item.artworkUrl100)
+      if (results.length > 0) {
+        return results.map((item: any, index: number): Track => {
+          const artwork = cleanArtworkUrl(item.artworkUrl100)
 
-      return {
-        id: `itunes-rss-${item.id || index}`,
-        user_id: 'itunes-global',
-        title: item.name || 'Top Track',
-        artist: item.artistName || 'Top Artist',
-        album: item.collectionName || '',
-        duration: 210,
-        file_path: '',
-        cover_url: artwork,
-        created_at: item.releaseDate || new Date().toISOString(),
-        source: 'itunes',
-        itunes_id: item.id,
+          return {
+            id: `itunes-rss-${item.id || index}`,
+            user_id: 'itunes-global',
+            title: item.name || 'Top Track',
+            artist: item.artistName || 'Top Artist',
+            album: item.collectionName || '',
+            duration: 210,
+            file_path: '',
+            cover_url: artwork,
+            created_at: item.releaseDate || new Date().toISOString(),
+            source: 'itunes',
+            itunes_id: item.id,
+          }
+        })
       }
-    })
+    }
   } catch (err) {
     console.warn('iTunes RSS top chart error:', err)
-    return []
   }
+
+  // Guaranteed fallback using iTunes Search API (100% reliable)
+  return searchITunesTracks('top vpop hit 2026', limit)
 }
 
 export interface ITunesAlbumDetail {

@@ -25,7 +25,7 @@ export function parseLrc(lrcContent: string | null | undefined): LyricLine[] {
   }
 
   const lrcOffsetSec = lrcOffsetMs / 1000
-  const timeRegex = /\[(\d{2,}):(\d{2})(?:[\.\:](\d{2,3}))?\]/g
+  const timeRegex = /\[(\d+):(\d{2})(?:[\.\:](\d{1,3}))?\]/g
 
   for (const line of lines) {
     const trimmed = line.trim()
@@ -39,13 +39,17 @@ export function parseLrc(lrcContent: string | null | undefined): LyricLine[] {
       const minutes = parseInt(match[1], 10)
       const seconds = parseInt(match[2], 10)
       const msRaw = match[3] || '0'
-      const milliseconds = msRaw.length === 3 ? parseInt(msRaw, 10) : parseInt(msRaw, 10) * 10
+      let milliseconds = 0
+      if (msRaw.length === 1) milliseconds = parseInt(msRaw, 10) * 100
+      else if (msRaw.length === 2) milliseconds = parseInt(msRaw, 10) * 10
+      else milliseconds = parseInt(msRaw, 10)
+
       const totalSeconds = minutes * 60 + seconds + milliseconds / 1000 + lrcOffsetSec
 
       timestamps.push(Math.max(0, totalSeconds))
     }
 
-    const text = trimmed.replace(/\[\d{2,}:\d{2}(?:[\.\:]\d{2,3})?\]/g, '').trim()
+    const text = trimmed.replace(/\[\d+:\d{2}(?:[\.\:]\d{1,3})?\]/g, '').trim()
 
     // Only use the first timestamp per line. Enhanced/karaoke LRC repeats
     // the full line text at multiple word-level timestamps — pushing all of

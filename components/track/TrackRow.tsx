@@ -74,31 +74,36 @@ function TrackRowComponent({
       return
     }
 
-    const hasRealAlbum =
-      track.album &&
-      !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(track.album.trim())
+    try {
+      setIsResolvingAlbum(true)
+      const hasRealAlbum =
+        track.album &&
+        !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(track.album.trim())
 
-    if (hasRealAlbum) {
-      try {
-        setIsResolvingAlbum(true)
-        const res = await fetch(
-          `/api/albums/resolve?title=${encodeURIComponent(track.album!)}&artist=${encodeURIComponent(track.artist || '')}`
-        )
-        if (res.ok) {
-          const data = await res.json()
-          if (data.albumId) {
-            router.push(`/album/${data.albumId}`)
-            return
-          }
+      const titleToSearch = track.title || ''
+      const artistToSearch = track.artist || ''
+      const albumToSearch = hasRealAlbum ? track.album! : ''
+
+      const res = await fetch(
+        `/api/albums/resolve?title=${encodeURIComponent(titleToSearch)}&artist=${encodeURIComponent(artistToSearch)}&album=${encodeURIComponent(albumToSearch)}&track_id=${encodeURIComponent(track.id || '')}`
+      )
+      if (res.ok) {
+        const data = await res.json()
+        if (data.albumId) {
+          track.spotify_album_id = data.albumId
+          if (data.albumName) track.album = data.albumName
+          onTrackUpdated?.(track.id, { spotify_album_id: data.albumId, album: data.albumName || undefined })
+          router.push(`/album/${data.albumId}`)
+          return
         }
-      } catch (err) {
-        console.warn('Failed to resolve track album:', err)
-      } finally {
-        setIsResolvingAlbum(false)
       }
+    } catch (err) {
+      console.warn('Failed to resolve track album:', err)
+    } finally {
+      setIsResolvingAlbum(false)
     }
 
-    router.push(hasRealAlbum ? `/albums?q=${encodeURIComponent(track.album!)}` : '/albums')
+    router.push('/albums')
   }
 
   useEffect(() => {
@@ -420,13 +425,13 @@ function TrackRowComponent({
       </div>
 
       {/* Duration & Options */}
-      <div className="shrink-0 flex items-center justify-end md:w-1/4 text-xs text-slate-400">
+      <div className="shrink-0 flex items-center justify-end md:w-1/4 text-xs text-slate-400 gap-3">
         <span className="w-12 text-center font-mono text-slate-300 shrink-0">
           {formatDuration(track.duration)}
         </span>
 
-        {/* Options container matching header spacer (w-8) */}
-        <div className="w-8 flex items-center justify-end shrink-0">
+        {/* Options container */}
+        <div className="min-w-[32px] flex items-center justify-end shrink-0 gap-0.5">
           {/* Edit mode save/cancel */}
           {editMode ? (
             <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -499,6 +504,22 @@ function TrackRowComponent({
                 >
                   <ListMusic className="w-3.5 h-3.5 text-cyan-400" />
                   Thêm vào hàng đợi
+                </button>
+
+                <button
+                  onClick={(e) => {
+                    setShowMenu(false)
+                    handleOpenTrackAlbum(e)
+                  }}
+                  disabled={isResolvingAlbum}
+                  className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors text-purple-300"
+                >
+                  {isResolvingAlbum ? (
+                    <Loader2 className="w-3.5 h-3.5 text-purple-400 animate-spin" />
+                  ) : (
+                    <DiscAlbum className="w-3.5 h-3.5 text-purple-400" />
+                  )}
+                  <span>Vào Album bài hát</span>
                 </button>
                 {userIsAdmin && (
                   <button

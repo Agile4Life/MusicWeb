@@ -29,7 +29,7 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
   const [globalTracks, setGlobalTracks] = useState<GlobalSearchTracks>(emptyResults)
   const [searchingGlobal, setSearchingGlobal] = useState(false)
   const [trendingTracks, setTrendingTracks] = useState<GlobalSearchTracks>(emptyResults)
-  const [loadingTrending, setLoadingTrending] = useState(false)
+  const [loadingTrending, setLoadingTrending] = useState(true)
 
   const activeSearchRef = useRef<number>(0)
 

@@ -43,6 +43,7 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
     currentTrack,
     seek,
     isPlaying,
+    isBuffering,
     togglePlay,
     nextTrack,
     prevTrack,
@@ -85,11 +86,13 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
       setLyricsData(null)
       setParsedLyrics([])
       setIsSynced(false)
+      setActiveIndex(-1)
       setLyricOffset(0)
       return
     }
 
     setErrorMessage(null)
+    setActiveIndex(-1)
     setLyricOffset(0)
     loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.album, currentTrack.duration)
   }, [currentTrack?.id])
@@ -173,7 +176,8 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
 
   const handleLineClick = (line: LyricLine) => {
     if (line.time >= 0) {
-      seek(line.time)
+      const targetTime = Math.max(0, line.time - lyricOffset + (mvIntroOffset || 0))
+      seek(targetTime)
       isUserScrollingRef.current = false
     }
   }
@@ -189,70 +193,71 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
   }
 
   return (
-    <div className="relative w-full h-full flex flex-col overflow-hidden select-none bg-[#07080c] touch-manipulation">
-      {/* 🌟 Dynamic Blurred Album Cover Background */}
+    <div className="relative w-full h-full flex flex-col overflow-hidden select-none bg-[#07090e] touch-manipulation">
+      {/* 🌟 Rich Ambient Glassmorphic Background */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         {currentTrack.cover_url ? (
           <img
             src={currentTrack.cover_url}
             alt=""
-            className="w-full h-full object-cover blur-xl opacity-20 transform-gpu"
+            className="w-full h-full object-cover blur-3xl opacity-30 scale-125 transform-gpu transition-all duration-700"
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-emerald-950/30 via-[#0a0c14] to-purple-950/20" />
+          <div className="w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-900/30 via-[#0a0d14] to-[#07090e]" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#07080c] via-[#07080c]/85 to-[#07080c]/70" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#07090e]/70 via-[#07090e]/85 to-[#07090e]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(6,182,212,0.12),transparent_70%)]" />
       </div>
 
-      {/* 🔝 Lyrics Header */}
-      <div className="relative z-10 flex items-center justify-between gap-2 sm:gap-4 p-2.5 sm:p-4 md:px-6 md:py-4 border-b border-white/[0.08] shrink-0 bg-white/[0.02]">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-          <div className="w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden shadow-md">
+      {/* 🔝 Glassmorphic Header */}
+      <div className="relative z-20 flex items-center justify-between gap-3 p-3 sm:p-4 md:px-8 md:py-4 border-b border-white/[0.08] shrink-0 bg-black/40 backdrop-blur-2xl shadow-lg">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-slate-900 border border-white/15 flex items-center justify-center shrink-0 overflow-hidden shadow-xl relative group">
             {currentTrack.cover_url ? (
               <img src={currentTrack.cover_url} alt={currentTrack.title} className="w-full h-full object-cover" />
             ) : (
-              <Mic2 style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4 sm:w-5 sm:h-5" />
+              <Mic2 style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-5 h-5" />
             )}
           </div>
           <div className="flex flex-col min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-              <h2 className="text-xs sm:text-sm font-bold text-white truncate min-w-0 flex-1">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <h2 className="text-xs sm:text-sm md:text-base font-extrabold text-white truncate tracking-tight">
                 {currentTrack.title}
               </h2>
               {isSynced ? (
-                <span className="text-[9px] uppercase font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 shrink-0 shadow-[0_0_12px_rgba(16,185,129,0.3)] flex items-center gap-1.5 leading-none">
+                  <Sparkles className="w-3 h-3 text-emerald-400 shrink-0" />
                   Synced
                 </span>
               ) : parsedLyrics.length > 0 ? (
-                <span className="text-[9px] uppercase font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
-                  Plain
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/40 shrink-0 leading-none">
+                  Text
                 </span>
               ) : null}
             </div>
-            <p className="text-[10px] sm:text-[11px] text-slate-400 truncate mt-0.5 w-full">
+            <p className="text-[11px] font-semibold text-slate-400 truncate mt-0.5 w-full">
               {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
             </p>
           </div>
         </div>
 
-        {/* Top Actions: Refresh & Optional Close button */}
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-          {/* Lyric offset adjustment buttons */}
+        {/* Top Right Controls */}
+        <div className="flex items-center gap-2 shrink-0">
           {isSynced && (
-            <div className="flex items-center gap-0.5 sm:gap-1 bg-white/5 rounded-xl border border-white/10 px-1.5 py-0.5 sm:px-2 sm:py-1">
+            <div className="flex items-center gap-1 bg-white/[0.06] backdrop-blur-md rounded-full border border-white/10 px-2 py-1 shadow-inner">
               <button
                 onClick={() => setLyricOffset((prev) => +(prev - 0.1).toFixed(1))}
-                className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
                 title="Lời hiển thị sớm hơn 100ms"
               >
                 <Minus className="w-3 h-3" />
               </button>
-              <span className="text-[9px] sm:text-[10px] font-mono text-slate-400 min-w-[32px] sm:min-w-[40px] text-center" title="Offset lời bài hát (giây)">
+              <span className="text-[10px] font-mono font-bold text-cyan-300 min-w-[36px] text-center" title="Bù lệch thời gian (giây)">
                 {lyricOffset >= 0 ? '+' : ''}{lyricOffset.toFixed(1)}s
               </span>
               <button
                 onClick={() => setLyricOffset((prev) => +(prev + 0.1).toFixed(1))}
-                className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
                 title="Lời hiển thị muộn hơn 100ms"
               >
                 <Plus className="w-3 h-3" />
@@ -263,16 +268,16 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
           <button
             onClick={() => loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.album, currentTrack.duration)}
             disabled={loading}
-            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-white/5 hover:bg-white/10 active:bg-white/15 text-slate-300 rounded-xl border border-white/10 transition-colors shrink-0"
+            className="w-9 h-9 flex items-center justify-center bg-white/[0.06] hover:bg-white/15 active:scale-95 text-slate-200 rounded-full border border-white/10 transition-all shrink-0 shadow-md"
             title="Tải lại lời bài hát"
           >
-            <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-cyan-400' : ''}`} />
           </button>
 
           {onClose && (
             <button
               onClick={onClose}
-              className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-white/10 hover:bg-white/20 active:bg-white/25 text-white rounded-xl border border-white/10 transition-colors shrink-0"
+              className="w-9 h-9 flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-95 text-white rounded-full border border-white/15 transition-all shrink-0 shadow-md"
               title="Đóng lời bài hát"
             >
               <X className="w-4 h-4" />
@@ -281,20 +286,22 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
         </div>
       </div>
 
-      {/* 📜 Lyrics Main Content Area */}
+      {/* 📜 Main Lyrics Scroll Area */}
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="relative z-10 flex-1 overflow-y-auto px-4 md:px-8 no-scrollbar"
+        className="relative z-10 flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 no-scrollbar"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {loading ? (
-          <div className="h-full flex flex-col items-center justify-center text-slate-400 py-16">
-            <RefreshCw className="w-8 h-8 text-[var(--primary-spotify,#06b6d4)] animate-spin mb-3" />
-            <p className="text-sm font-semibold text-slate-300">Đang tải lời bài hát từ LRCLIB...</p>
+          <div className="h-full flex flex-col items-center justify-center text-slate-400 py-20">
+            <div className="w-12 h-12 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center mb-4 shadow-xl shadow-cyan-950/40">
+              <RefreshCw className="w-6 h-6 text-cyan-400 animate-spin" />
+            </div>
+            <p className="text-sm font-extrabold text-white tracking-wide">Đang tải lời bài hát từ thư viện...</p>
           </div>
         ) : parsedLyrics.length > 0 ? (
-          <div className="flex flex-col gap-4 py-12 md:py-20 text-center sm:text-left max-w-2xl mx-auto">
+          <div className="flex flex-col gap-6 md:gap-8 py-16 md:py-24 text-center sm:text-left max-w-3xl mx-auto">
             {parsedLyrics.map((line, index) => {
               const isActive = index === activeIndex
               const isPast = index < activeIndex
@@ -304,19 +311,21 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
                   key={index}
                   ref={isActive ? activeLineRef : null}
                   onClick={() => handleLineClick(line)}
-                  className={`transition-all duration-300 ease-out cursor-pointer rounded-2xl p-3 sm:px-5 sm:py-3.5 select-none transform-gpu origin-center sm:origin-left active:scale-[0.97] ${
+                  className={`transition-all duration-500 ease-out cursor-pointer py-1.5 px-3 rounded-2xl select-none transform-gpu origin-center sm:origin-left active:scale-95 ${
                     isActive
-                      ? 'scale-[1.03] bg-white/[0.08] border border-cyan-500/30 text-white font-extrabold text-lg sm:text-xl md:text-2xl shadow-xl shadow-cyan-950/40 opacity-100'
+                      ? 'scale-105 opacity-100 my-2'
                       : isPast
-                      ? 'text-slate-400 font-bold text-base sm:text-lg md:text-xl opacity-40 hover:opacity-75'
-                      : 'text-slate-300 font-bold text-base sm:text-lg md:text-xl opacity-50 hover:opacity-85'
+                      ? 'scale-98 opacity-30 hover:opacity-70'
+                      : 'scale-98 opacity-45 hover:opacity-85'
                   }`}
                 >
                   <p
-                    className={`transition-colors leading-snug ${
+                    className={`transition-all duration-500 leading-relaxed font-extrabold ${
                       isActive
-                        ? 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-white to-teal-300 drop-shadow-[0_0_18px_rgba(6,182,212,0.65)]'
-                        : ''
+                        ? 'text-xl sm:text-2xl md:text-3xl lg:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-white to-teal-200 drop-shadow-[0_0_24px_rgba(6,182,212,0.75)]'
+                        : isPast
+                        ? 'text-slate-300 text-base sm:text-xl md:text-2xl font-bold'
+                        : 'text-slate-200 text-base sm:text-xl md:text-2xl font-bold'
                     }`}
                   >
                     {line.text}
@@ -326,21 +335,23 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
             })}
           </div>
         ) : (
-          <div className="h-full flex flex-col items-center justify-center text-slate-400 py-16 text-center">
-            <AlertCircle className="w-12 h-12 text-slate-600 mb-3" />
-            <h4 className="text-base font-bold text-slate-300 mb-1">Không tìm thấy lời bài hát</h4>
-            <p className="text-xs text-slate-500 max-w-sm mb-4">
-              Bài hát này chưa có dữ liệu trên thư viện LRCLIB hoặc chưa cập nhật.
+          <div className="h-full flex flex-col items-center justify-center text-slate-400 py-20 text-center">
+            <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-4 shadow-xl">
+              <AlertCircle className="w-8 h-8 text-slate-400" />
+            </div>
+            <h4 className="text-base font-extrabold text-white mb-1">Chưa có dữ liệu lời bài hát</h4>
+            <p className="text-xs text-slate-400 max-w-sm">
+              Bài hát này chưa có bản ghi lời trên thư viện LRCLIB hoặc đang được cập nhật.
             </p>
           </div>
         )}
       </div>
 
-      {/* 🎵 BOTTOM PLAYER CONTROLS & SEEK BAR */}
-      <div className="relative z-20 bg-[#090b10]/95 backdrop-blur-2xl border-t border-white/[0.08] px-4 md:px-6 py-3 flex items-center justify-between text-slate-300 select-none shrink-0 pb-safe">
-        {/* Left: Track Metadata */}
-        <div className="hidden sm:flex items-center gap-3 w-1/4 min-w-[180px]">
-          <div className="w-10 h-10 bg-slate-800 rounded-xl overflow-hidden relative flex items-center justify-center border border-white/10 shadow-md shrink-0">
+      {/* 🎵 Bottom Glassmorphic Player Controls & Seekbar */}
+      <div className="relative z-20 bg-black/50 backdrop-blur-2xl border-t border-white/10 px-4 sm:px-8 py-3.5 flex flex-col sm:flex-row items-center justify-between text-slate-300 select-none shrink-0 gap-3">
+        {/* Left: Track Metadata (Desktop) */}
+        <div className="hidden sm:flex items-center gap-3 w-1/4 min-w-[200px]">
+          <div className="w-11 h-11 bg-slate-900 rounded-xl overflow-hidden relative flex items-center justify-center border border-white/15 shadow-md shrink-0">
             {currentTrack.cover_url ? (
               <img
                 src={currentTrack.cover_url}
@@ -348,94 +359,88 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <Headphones className="w-4 h-4 text-cyan-400" />
+              <Headphones className="w-5 h-5 text-cyan-400" />
             )}
           </div>
 
           <div className="truncate flex flex-col min-w-0">
-            <p className="text-xs font-bold text-white truncate hover:text-[var(--spotify-glow)] transition-colors cursor-pointer">
+            <p className="text-xs sm:text-sm font-extrabold text-white truncate hover:text-cyan-300 transition-colors cursor-pointer">
               {currentTrack.title}
             </p>
-            <p className="text-[10px] text-slate-400 truncate hover:text-slate-200 transition-colors cursor-pointer">
+            <p className="text-[11px] font-semibold text-slate-400 truncate hover:text-slate-200 transition-colors cursor-pointer">
               {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
             </p>
           </div>
 
           <button
             onClick={toggleFavoriteCurrentTrack}
-            className={`p-1.5 rounded-lg transition-all ml-1 shrink-0 ${
+            className={`p-2 rounded-xl transition-all ml-1 shrink-0 ${
               currentTrack.is_favorite
-                ? 'text-rose-500 bg-rose-500/15 border border-rose-500/30'
-                : 'text-slate-400 hover:text-rose-400 hover:bg-white/5'
+                ? 'text-rose-400 bg-rose-500/20 border border-rose-500/40 shadow-lg'
+                : 'text-slate-400 hover:text-rose-400 hover:bg-white/10'
             }`}
             title={currentTrack.is_favorite ? 'Bỏ khỏi bài hát yêu thích' : 'Thêm vào bài hát yêu thích'}
           >
             <Heart
-              className={`w-3.5 h-3.5 transition-all ${
-                currentTrack.is_favorite ? 'fill-current drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]' : ''
+              className={`w-4 h-4 transition-all ${
+                currentTrack.is_favorite ? 'fill-current drop-shadow-[0_0_10px_rgba(244,63,94,0.7)]' : ''
               }`}
             />
           </button>
         </div>
 
         {/* Center: Playback Controls & Seekbar */}
-        <div className="flex flex-col items-center gap-1.5 w-full sm:w-2/4 max-w-xl">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col items-center gap-2 w-full sm:w-2/4 max-w-xl">
+          <div className="flex items-center gap-5">
             <button
               onClick={toggleShuffle}
               style={
                 isShuffle
                   ? {
                       color: 'var(--spotify-glow, #22d3ee)',
-                      backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
-                      borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                      backgroundColor: 'rgba(6,182,212,0.15)',
+                      borderColor: 'rgba(6,182,212,0.4)',
                     }
                   : undefined
               }
-              className={`p-1.5 rounded-lg relative transition-all ${
-                isShuffle ? 'border shadow-md' : 'text-slate-400 hover:text-white hover:bg-white/5'
+              className={`p-2 rounded-xl relative transition-all active:scale-90 ${
+                isShuffle ? 'border shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/10'
               }`}
               title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
             >
               <Shuffle className="w-4 h-4" />
-              {isShuffle && (
-                <span
-                  style={{ backgroundColor: 'var(--spotify-glow, #22d3ee)' }}
-                  className="w-1 h-1 rounded-full absolute -bottom-0.5 left-1/2 -translate-x-1/2"
-                />
-              )}
             </button>
 
             <button
               onClick={prevTrack}
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-full transition-all active:scale-90"
+              className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
               title="Bài trước"
             >
-              <SkipBack className="w-4.5 h-4.5" />
+              <SkipBack className="w-5 h-5" />
             </button>
 
             <button
               onClick={togglePlay}
               style={{
                 background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                boxShadow: '0 4px 18px rgba(6,182,212,0.45)',
               }}
-              className="w-10 h-10 rounded-full hover:brightness-110 active:scale-95 transition-all flex items-center justify-center text-black font-bold shrink-0 border border-white/20"
+              className="w-11 h-11 rounded-full hover:scale-105 active:scale-95 transition-all flex items-center justify-center text-black font-extrabold shrink-0 border border-white/30"
               title={isPlaying ? 'Tạm dừng' : 'Phát'}
             >
               {isPlaying ? (
-                <Pause className="w-4 h-4 fill-current text-black" />
+                <Pause className="w-5 h-5 fill-current text-black" />
               ) : (
-                <Play className="w-4 h-4 fill-current text-black ml-0.5" />
+                <Play className="w-5 h-5 fill-current text-black ml-0.5" />
               )}
             </button>
 
             <button
               onClick={nextTrack}
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-full transition-all active:scale-90"
+              className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
               title="Bài tiếp theo"
             >
-              <SkipForward className="w-4.5 h-4.5" />
+              <SkipForward className="w-5 h-5" />
             </button>
 
             <button
@@ -444,13 +449,13 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
                 repeatMode !== 'off'
                   ? {
                       color: 'var(--spotify-glow, #22d3ee)',
-                      backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
-                      borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                      backgroundColor: 'rgba(6,182,212,0.15)',
+                      borderColor: 'rgba(6,182,212,0.4)',
                     }
                   : undefined
               }
-              className={`p-1.5 rounded-lg relative transition-all ${
-                repeatMode !== 'off' ? 'border shadow-md' : 'text-slate-400 hover:text-white hover:bg-white/5'
+              className={`p-2 rounded-xl relative transition-all active:scale-90 ${
+                repeatMode !== 'off' ? 'border shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/10'
               }`}
               title={
                 repeatMode === 'one'
@@ -461,17 +466,12 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
               }
             >
               {repeatMode === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
-              {repeatMode !== 'off' && (
-                <span
-                  style={{ backgroundColor: 'var(--spotify-glow, #22d3ee)' }}
-                  className="w-1 h-1 rounded-full absolute -bottom-0.5 left-1/2 -translate-x-1/2"
-                />
-              )}
             </button>
           </div>
 
-          <div className="w-full flex items-center gap-2.5 text-[11px] text-slate-400 font-mono">
-            <span className="w-9 text-right shrink-0">{formatTime(currentTime)}</span>
+          {/* Seekbar Progress */}
+          <div className="w-full flex items-center gap-3 text-[11px] text-slate-400 font-mono">
+            <span className="w-9 text-right shrink-0 font-bold">{formatTime(currentTime)}</span>
             <input
               type="range"
               min={0}
@@ -479,23 +479,23 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
               value={currentTime}
               onChange={(e) => seek(Number(e.target.value))}
               style={{
-                background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${(currentTime / (duration || 1)) * 100}%, rgba(255,255,255,0.12) ${(currentTime / (duration || 1)) * 100}%)`,
+                background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${(currentTime / (duration || 1)) * 100}%, rgba(255,255,255,0.15) ${(currentTime / (duration || 1)) * 100}%)`,
               }}
-              className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-all"
+              className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-all hover:h-2"
             />
-            <span className="w-9 shrink-0">{formatTime(duration)}</span>
+            <span className="w-9 shrink-0 font-bold">{formatTime(duration)}</span>
           </div>
         </div>
 
-        {/* Right: Volume Control Pill */}
+        {/* Right: Volume Control (Desktop) */}
         <div className="hidden sm:flex w-1/4 justify-end items-center">
-          <div className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1.5">
+          <div className="flex items-center gap-2.5 bg-white/[0.06] border border-white/10 rounded-full px-3.5 py-1.5 shadow-md">
             <button
               onClick={handleVolumeToggle}
-              className="text-slate-400 hover:text-white transition-colors p-0.5"
+              className="text-slate-300 hover:text-white transition-colors p-0.5"
               title={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}
             >
-              {volume === 0 ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+              {volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </button>
             <input
               type="range"
@@ -505,9 +505,9 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
               value={volume}
               onChange={(e) => setVolume(Number(e.target.value))}
               style={{
-                background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${volume * 100}%, rgba(255,255,255,0.12) ${volume * 100}%)`,
+                background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${volume * 100}%, rgba(255,255,255,0.15) ${volume * 100}%)`,
               }}
-              className="w-16 md:w-20 h-1 rounded-lg appearance-none cursor-pointer outline-none transition-all"
+              className="w-16 md:w-24 h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-all hover:h-2"
             />
           </div>
         </div>

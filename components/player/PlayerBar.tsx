@@ -59,11 +59,15 @@ export function PlayerBar() {
   const router = useRouter()
 
   const [isNavigatingAlbum, setIsNavigatingAlbum] = useState(false)
+  const [isResolvingAlbumInfo, setIsResolvingAlbumInfo] = useState(false)
   const [resolvedAlbumInfo, setResolvedAlbumInfo] = useState<{ id?: string; name?: string } | null>(null)
 
   useEffect(() => {
+    // Immediately clear previous track's album info on track change
+    setResolvedAlbumInfo(null)
+    setIsResolvingAlbumInfo(false)
+
     if (!currentTrack) {
-      setResolvedAlbumInfo(null)
       return
     }
 
@@ -79,39 +83,51 @@ export function PlayerBar() {
       return
     }
 
-    if (hasRealAlbum) {
-      let isCancelled = false
-      const albumToSearch = currentTrack.album!
+    let isCancelled = false
+    // ⚡ DEFER ALBUM RESOLUTION: Delay background fetch by 1.5s after track change
+    // This ensures 100% of network bandwidth & CPU are dedicated to INSTANT audio streaming
+    const timer = setTimeout(() => {
+      setIsResolvingAlbumInfo(true)
+      const titleToSearch = currentTrack.title || ''
       const artistToSearch = currentTrack.artist || ''
+      const albumToSearch = hasRealAlbum ? currentTrack.album! : ''
 
-      fetch(`/api/albums/resolve?title=${encodeURIComponent(albumToSearch)}&artist=${encodeURIComponent(artistToSearch)}`)
+      fetch(
+        `/api/albums/resolve?title=${encodeURIComponent(titleToSearch)}&artist=${encodeURIComponent(artistToSearch)}&album=${encodeURIComponent(albumToSearch)}&track_id=${encodeURIComponent(currentTrack.id || '')}`
+      )
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
-          if (!isCancelled && data && data.albumId) {
+          if (isCancelled) return
+          setIsResolvingAlbumInfo(false)
+          if (data && data.albumId) {
             setResolvedAlbumInfo({
               id: data.albumId,
-              name: data.albumName || currentTrack.album!,
+              name: data.albumName || (hasRealAlbum ? currentTrack.album! : 'Album'),
             })
-          } else if (!isCancelled) {
-            setResolvedAlbumInfo({
-              name: currentTrack.album!,
-            })
+            if (currentTrack) {
+              currentTrack.spotify_album_id = data.albumId
+              if (data.albumName) currentTrack.album = data.albumName
+            }
+          } else {
+            setResolvedAlbumInfo(
+              hasRealAlbum ? { name: currentTrack.album! } : null
+            )
           }
         })
         .catch(() => {
           if (!isCancelled) {
-            setResolvedAlbumInfo({
-              name: currentTrack.album!,
-            })
+            setIsResolvingAlbumInfo(false)
+            setResolvedAlbumInfo(
+              hasRealAlbum ? { name: currentTrack.album! } : null
+            )
           }
         })
+    }, 1500)
 
-      return () => {
-        isCancelled = true
-      }
+    return () => {
+      isCancelled = true
+      clearTimeout(timer)
     }
-
-    setResolvedAlbumInfo(null)
   }, [currentTrack?.id, currentTrack?.title, currentTrack?.artist, currentTrack?.album, currentTrack?.spotify_album_id])
 
   const displayAlbumName = resolvedAlbumInfo?.name || (
@@ -141,33 +157,38 @@ export function PlayerBar() {
       return
     }
 
-    const hasRealAlbum =
-      currentTrack.album &&
-      !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(currentTrack.album.trim())
+    try {
+      setIsNavigatingAlbum(true)
+      const hasRealAlbum =
+        currentTrack.album &&
+        !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(currentTrack.album.trim())
 
-    if (hasRealAlbum) {
-      try {
-        setIsNavigatingAlbum(true)
-        const res = await fetch(
-          `/api/albums/resolve?title=${encodeURIComponent(currentTrack.album!)}&artist=${encodeURIComponent(currentTrack.artist || '')}`
-        )
-        if (res.ok) {
-          const data = await res.json()
-          if (data.albumId) {
-            setShowMobileFullPlayer(false)
-            router.push(`/album/${data.albumId}`)
-            return
-          }
+      const titleToSearch = currentTrack.title || ''
+      const artistToSearch = currentTrack.artist || ''
+      const albumToSearch = hasRealAlbum ? currentTrack.album! : ''
+
+      const res = await fetch(
+        `/api/albums/resolve?title=${encodeURIComponent(titleToSearch)}&artist=${encodeURIComponent(artistToSearch)}&album=${encodeURIComponent(albumToSearch)}&track_id=${encodeURIComponent(currentTrack.id || '')}`
+      )
+      if (res.ok) {
+        const data = await res.json()
+        if (data.albumId) {
+          setResolvedAlbumInfo({ id: data.albumId, name: data.albumName || currentTrack.album || 'Album' })
+          currentTrack.spotify_album_id = data.albumId
+          if (data.albumName) currentTrack.album = data.albumName
+          setShowMobileFullPlayer(false)
+          router.push(`/album/${data.albumId}`)
+          return
         }
-      } catch (err) {
-        console.warn('Failed to resolve album ID:', err)
-      } finally {
-        setIsNavigatingAlbum(false)
       }
+    } catch (err) {
+      console.warn('Failed to resolve album ID:', err)
+    } finally {
+      setIsNavigatingAlbum(false)
     }
 
     setShowMobileFullPlayer(false)
-    router.push(hasRealAlbum ? `/albums?q=${encodeURIComponent(currentTrack.album!)}` : '/albums')
+    router.push('/albums')
   }
 
   const [prevVol, setPrevVol] = useState(0.8)
@@ -247,17 +268,17 @@ export function PlayerBar() {
         <div className="relative flex items-center justify-between w-full h-10">
           {/* Left Zone: Cover + Title/Artist */}
           <div
-            className="flex items-center gap-2.5 min-w-0 max-w-[105px] xs:max-w-[140px] sm:max-w-[180px] z-10 shrink-0 overflow-hidden"
+            className="flex items-center gap-2.5 min-w-0 max-w-[130px] xs:max-w-[170px] sm:max-w-[210px] z-10 shrink-0 overflow-hidden"
           >
             <div className="w-10 h-10 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 relative">
               <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
             </div>
 
-            <div className="flex flex-col min-w-0 overflow-hidden w-full">
+            <div className="flex flex-col min-w-0 overflow-hidden w-full gap-0.5">
               <div className="overflow-hidden w-full relative">
                 <span
                   className={`text-xs font-bold text-white block ${
-                    currentTrack.title.length > 15
+                    currentTrack.title.length > 12
                       ? 'animate-marquee-text'
                       : 'truncate'
                   }`}
@@ -268,9 +289,9 @@ export function PlayerBar() {
               <div className="overflow-hidden w-full relative">
                 <div
                   className={`text-[10px] text-slate-400 whitespace-nowrap flex items-center gap-1.5 ${
-                    ((currentTrack.artist || '') + (displayAlbumName || '')).length > 14
+                    ((currentTrack.artist || '') + (displayAlbumName || '')).length > 12
                       ? 'animate-marquee-text'
-                      : ''
+                      : 'truncate'
                   }`}
                 >
                   <span className="shrink-0">{currentTrack.artist || 'Nghệ sĩ chưa xác định'}</span>

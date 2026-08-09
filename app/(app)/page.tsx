@@ -895,7 +895,17 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
-          ) : null}
+          ) : (
+            <div className="p-6 bg-white/[0.02] border border-white/10 rounded-2xl flex flex-col items-center justify-center text-center gap-2">
+              <p className="text-xs text-slate-400">Đang cập nhật danh sách bài hát Trending...</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="text-xs text-cyan-400 hover:underline font-semibold"
+              >
+                Tải lại trang
+              </button>
+            </div>
+          )}
         </div>
       )}
 
