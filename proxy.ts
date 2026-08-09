@@ -1,11 +1,11 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 
-export async function middleware(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   try {
     return await updateSession(request)
   } catch (err) {
-    console.error('Middleware execution error:', err)
+    console.error('Proxy execution error:', err)
     const isAuthPage =
       request.nextUrl.pathname.startsWith('/login') ||
       request.nextUrl.pathname.startsWith('/register') ||
