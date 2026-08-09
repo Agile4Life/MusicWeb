@@ -127,6 +127,25 @@ export function extractDriveFileId(filePath: string): string | null {
   return null
 }
 
+const clientCdnCache = new Map<string, { url: string; timestamp: number }>()
+const CLIENT_CDN_CACHE_TTL = 40 * 60 * 1000 // 40 minutes
+
+export function setClientCdnCache(fileId: string, url: string) {
+  if (!fileId || !url) return
+  clientCdnCache.set(fileId, { url, timestamp: Date.now() })
+}
+
+export function getClientCdnCache(fileId: string): string | null {
+  if (!fileId) return null
+  const entry = clientCdnCache.get(fileId)
+  if (!entry) return null
+  if (Date.now() - entry.timestamp > CLIENT_CDN_CACHE_TTL) {
+    clientCdnCache.delete(fileId)
+    return null
+  }
+  return entry.url
+}
+
 /**
  * Prewarm CDN stream URLs for a list of tracks (fire-and-forget, non-blocking)
  */
@@ -139,7 +158,7 @@ export function triggerDrivePrewarm(tracks: { file_path?: string }[]) {
   for (const track of tracks) {
     const fp = track.file_path || ''
     const id = extractDriveFileId(fp)
-    if (id && !seen.has(id)) {
+    if (id && !seen.has(id) && !getClientCdnCache(id)) {
       seen.add(id)
       fileIds.push(id)
       if (fileIds.length >= 15) break
@@ -152,7 +171,16 @@ export function triggerDrivePrewarm(tracks: { file_path?: string }[]) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ fileIds }),
-  }).catch(() => {})
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      if (data && data.resolvedUrls) {
+        Object.entries(data.resolvedUrls).forEach(([id, url]) => {
+          if (typeof url === 'string') setClientCdnCache(id, url)
+        })
+      }
+    })
+    .catch(() => {})
 }
 
 export function extractDriveFolderId(input: string): string | null {

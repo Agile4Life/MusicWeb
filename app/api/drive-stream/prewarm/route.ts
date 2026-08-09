@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
 
     const resolved: string[] = []
     const failed: string[] = []
+    const resolvedUrls: Record<string, string> = {}
 
     // Batch process with concurrency limit ~5
     const batchSize = 5
@@ -39,6 +40,7 @@ export async function POST(req: NextRequest) {
         const fileId = batch[idx]
         if (res.status === 'fulfilled' && res.value && res.value.url) {
           resolved.push(fileId)
+          resolvedUrls[fileId] = res.value.url
         } else {
           failed.push(fileId)
         }
@@ -51,6 +53,7 @@ export async function POST(req: NextRequest) {
       resolvedCount: resolved.length,
       failedCount: failed.length,
       resolved,
+      resolvedUrls,
       failed,
     })
   } catch (err: any) {

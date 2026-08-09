@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
       resHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
       resHeaders.set('Access-Control-Allow-Headers', 'Range, Content-Type')
       resHeaders.set('Accept-Ranges', 'bytes')
-      resHeaders.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
+    resHeaders.set('Cache-Control', 'public, max-age=2700, s-maxage=2700, stale-while-revalidate=600')
 
       const cl = streamRes.headers.get('content-length')
       if (cl) resHeaders.set('Content-Length', cl)
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
     redirectHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
     redirectHeaders.set('Access-Control-Allow-Headers', 'Range, Content-Type')
     redirectHeaders.set('Accept-Ranges', 'bytes')
-    redirectHeaders.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
+    redirectHeaders.set('Cache-Control', 'public, max-age=2700, s-maxage=2700, stale-while-revalidate=600')
 
     return new Response(null, { status: 302, headers: redirectHeaders })
   } catch (err: any) {
@@ -113,7 +113,7 @@ export async function HEAD(req: NextRequest) {
     headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
     headers.set('Access-Control-Allow-Headers', 'Range, Content-Type')
     headers.set('Accept-Ranges', 'bytes')
-    headers.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
+    headers.set('Cache-Control', 'public, max-age=2700, s-maxage=2700, stale-while-revalidate=600')
     headers.set('Location', resolved.url)
     headers.set('Content-Type', resolved.contentType || 'audio/mpeg')
 

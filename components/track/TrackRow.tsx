@@ -13,6 +13,7 @@ import { useSession } from 'next-auth/react'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import { getCachedResolvedAlbum, setCachedResolvedAlbum } from '@/lib/albumCache'
+import { triggerDrivePrewarm } from '@/lib/googleDriveUpload'
 
 const viewCountCache = new Map<string, number>()
 
@@ -94,6 +95,18 @@ function TrackRowComponent({
   const { data: nextAuthSession } = useSession()
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const hoverTimeoutRef = useRef<any>(null)
+
+  const handleMouseEnter = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
+    hoverTimeoutRef.current = setTimeout(() => {
+      triggerDrivePrewarm([track])
+    }, 150)
+  }
+
+  const handleMouseLeave = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
+  }
 
   const handleOpenTrackAlbum = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -310,6 +323,8 @@ function TrackRowComponent({
   return (
     <div
       onClick={onPlayClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       style={
         isSelected
           ? {

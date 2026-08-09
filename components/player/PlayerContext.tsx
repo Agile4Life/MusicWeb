@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { Track } from '@/types'
 import { createClient } from '@/lib/supabase/client'
-import { extractDriveFileId, isPreviewUrl, verifyDriveFile, triggerDrivePrewarm } from '@/lib/googleDriveUpload'
+import { extractDriveFileId, isPreviewUrl, verifyDriveFile, triggerDrivePrewarm, getClientCdnCache } from '@/lib/googleDriveUpload'
 import { useSession } from 'next-auth/react'
 import { getValidUserId } from '@/lib/accessControl'
 import { deduplicateQueueTracks } from '@/lib/utils'
@@ -546,6 +546,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     const driveFileId = track.drive_file_id || extractDriveFileId(filePath)
     if (driveFileId) {
+      const cachedDirectUrl = getClientCdnCache(driveFileId)
+      if (cachedDirectUrl) {
+        return cachedDirectUrl
+      }
       const ext =
         track.file_ext ||
         track.title?.match(/\.(flac|mp3|wav|m4a|aac|ogg|wma)(?:[?#]|$)/i)?.[1]?.toLowerCase() ||
