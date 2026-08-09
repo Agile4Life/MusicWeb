@@ -205,18 +205,18 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
       </div>
 
       {/* 🔝 Lyrics Header */}
-      <div className="relative z-10 flex items-center justify-between gap-2.5 sm:gap-4 p-3 sm:p-4 md:px-6 md:py-4 border-b border-white/[0.08] shrink-0 bg-white/[0.02]">
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-          <div className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden shadow-md">
+      <div className="relative z-10 flex items-center justify-between gap-2 sm:gap-4 p-2.5 sm:p-4 md:px-6 md:py-4 border-b border-white/[0.08] shrink-0 bg-white/[0.02]">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          <div className="w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden shadow-md">
             {currentTrack.cover_url ? (
               <img src={currentTrack.cover_url} alt={currentTrack.title} className="w-full h-full object-cover" />
             ) : (
-              <Mic2 style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-5 h-5" />
+              <Mic2 style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4 sm:w-5 sm:h-5" />
             )}
           </div>
           <div className="flex flex-col min-w-0 flex-1">
-            <div className="flex items-center gap-2 min-w-0">
-              <h2 className="text-xs sm:text-sm font-bold text-white truncate shrink-0 max-w-[200px] sm:max-w-xs md:max-w-md">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <h2 className="text-xs sm:text-sm font-bold text-white truncate min-w-0 flex-1">
                 {currentTrack.title}
               </h2>
               {isSynced ? (
@@ -247,7 +247,7 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
               >
                 <Minus className="w-3 h-3" />
               </button>
-              <span className="text-[9px] sm:text-[10px] font-mono text-slate-400 min-w-[34px] sm:min-w-[40px] text-center" title="Offset lời bài hát (giây)">
+              <span className="text-[9px] sm:text-[10px] font-mono text-slate-400 min-w-[32px] sm:min-w-[40px] text-center" title="Offset lời bài hát (giây)">
                 {lyricOffset >= 0 ? '+' : ''}{lyricOffset.toFixed(1)}s
               </span>
               <button
@@ -263,7 +263,7 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
           <button
             onClick={() => loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.album, currentTrack.duration)}
             disabled={loading}
-            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-white/5 hover:bg-white/10 active:bg-white/15 text-slate-300 rounded-xl border border-white/10 transition-colors"
+            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-white/5 hover:bg-white/10 active:bg-white/15 text-slate-300 rounded-xl border border-white/10 transition-colors shrink-0"
             title="Tải lại lời bài hát"
           >
             <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -272,7 +272,7 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
           {onClose && (
             <button
               onClick={onClose}
-              className="w-9 h-9 flex items-center justify-center bg-white/10 hover:bg-white/20 active:bg-white/25 text-white rounded-xl border border-white/10 transition-colors"
+              className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-white/10 hover:bg-white/20 active:bg-white/25 text-white rounded-xl border border-white/10 transition-colors shrink-0"
               title="Đóng lời bài hát"
             >
               <X className="w-4 h-4" />
