@@ -5,6 +5,7 @@ import { Playlist } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import { getValidUserId, isAdmin } from '@/lib/accessControl'
 import { useSession } from 'next-auth/react'
+import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 
 interface PlaylistContextType {
   playlists: Playlist[]
@@ -19,21 +20,19 @@ const PlaylistContext = createContext<PlaylistContextType | undefined>(undefined
 export function PlaylistProvider({ children }: { children: React.ReactNode }) {
   const supabase = useMemo(() => createClient(), [])
   const { data: nextAuthSession } = useSession()
-  const [supabaseUser, setSupabaseUser] = useState<any>(null)
+  const { userEmail } = useCurrentUser()
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    supabase.auth.getUser().then((res: any) => {
-      setSupabaseUser(res?.data?.user || null)
-    })
-  }, [supabase])
-
-  const user = supabaseUser || (nextAuthSession?.user ? {
-    id: nextAuthSession.user.email,
-    email: nextAuthSession.user.email,
-    user_metadata: { full_name: nextAuthSession.user.name, avatar_url: nextAuthSession.user.image }
-  } : null)
+  const user = userEmail
+    ? {
+        id: userEmail,
+        email: userEmail,
+        user_metadata: nextAuthSession?.user
+          ? { full_name: nextAuthSession.user.name, avatar_url: nextAuthSession.user.image }
+          : {},
+      }
+    : null
 
   const activeUserId = useMemo(() => {
     return user ? getValidUserId(user) : null

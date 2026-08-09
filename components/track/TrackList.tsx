@@ -6,6 +6,7 @@ import { TrackRow } from './TrackRow'
 import { Clock, CheckSquare, Pencil, Trash2, X, Loader2, User, Disc, Scissors } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { triggerDrivePrewarm } from '@/lib/googleDriveUpload'
+import { usePlayer } from '@/components/player/PlayerContext'
 
 interface TrackListProps {
   tracks: Track[]
@@ -30,6 +31,7 @@ export function TrackList({
   onBulkUpdated,
   onBulkDeleted,
 }: TrackListProps) {
+  const { currentTrack, isPlaying, playTrack, togglePlay, addToQueue } = usePlayer()
   const supabase = createClient()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showBulkModal, setShowBulkModal] = useState(false)
@@ -39,6 +41,13 @@ export function TrackList({
   const [updateAlbum, setUpdateAlbum] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+
+  React.useEffect(() => {
+    console.log('%c[TrackList] MOUNTED', 'color: lime; font-weight: bold')
+    return () => {
+      console.log('%c[TrackList] UNMOUNTED', 'color: red; font-weight: bold')
+    }
+  }, [])
 
   React.useEffect(() => {
     if (showBulkModal) {
@@ -241,22 +250,36 @@ export function TrackList({
       </div>
 
       {/* Track Rows */}
-      {tracks.map((track, idx) => (
-        <TrackRow
-          key={`${track.source || 'local'}_${track.id}`}
-          track={track}
-          index={idx}
-          playlistTracks={tracks}
-          userPlaylists={userPlaylists}
-          onAddToPlaylist={onAddToPlaylist}
-          onDeleteTrack={onDeleteTrack}
-          onDeleteTrackPermanently={onDeleteTrackPermanently}
-          onTrackUpdated={onTrackUpdated}
-          selectable={isAdmin}
-          isSelected={selectedIds.has(track.id)}
-          onToggleSelect={() => toggleSelect(track.id)}
-        />
-      ))}
+      {tracks.map((track, idx) => {
+        const isCurrent = currentTrack?.id === track.id
+        const isPlayingThis = isCurrent && isPlaying
+        return (
+          <TrackRow
+            key={`${track.source || 'local'}_${track.id}`}
+            track={track}
+            index={idx}
+            isCurrent={isCurrent}
+            isPlayingThis={isPlayingThis}
+            onPlayClick={() => {
+              if (isCurrent) {
+                togglePlay()
+              } else {
+                playTrack(track, tracks)
+              }
+            }}
+            onAddToQueue={() => addToQueue(track)}
+            playlistTracks={tracks}
+            userPlaylists={userPlaylists}
+            onAddToPlaylist={onAddToPlaylist}
+            onDeleteTrack={onDeleteTrack}
+            onDeleteTrackPermanently={onDeleteTrackPermanently}
+            onTrackUpdated={onTrackUpdated}
+            selectable={isAdmin}
+            isSelected={selectedIds.has(track.id)}
+            onToggleSelect={() => toggleSelect(track.id)}
+          />
+        )
+      })}
 
       {/* 🚀 FLOATING BULK ACTION BAR (ADMIN ONLY) */}
       {isAdmin && selectedIds.size > 0 && (

@@ -3,15 +3,20 @@
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { Track, Playlist } from '@/types'
-import { usePlayer } from '@/components/player/PlayerContext'
 import { Play, Pause, Music, Trash2, MoreVertical, Plus, Pencil, Check, X, Heart, Cloud, ListMusic } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { isAdmin, getValidUserId } from '@/lib/accessControl'
 import { useSession } from 'next-auth/react'
+import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
+
 interface TrackRowProps {
   track: Track
   index: number
+  isCurrent?: boolean
+  isPlayingThis?: boolean
+  onPlayClick?: () => void
+  onAddToQueue?: () => void
   playlistTracks?: Track[]
   userPlaylists?: Playlist[]
   onAddToPlaylist?: (playlistId: string, track: Track) => void
@@ -34,6 +39,10 @@ function formatDuration(seconds: number) {
 function TrackRowComponent({
   track,
   index,
+  isCurrent = false,
+  isPlayingThis = false,
+  onPlayClick,
+  onAddToQueue,
   playlistTracks = [],
   userPlaylists = [],
   onAddToPlaylist,
@@ -46,7 +55,6 @@ function TrackRowComponent({
 }: TrackRowProps) {
   const supabase = createClient()
   const { data: nextAuthSession } = useSession()
-  const { currentTrack, isPlaying, playTrack, togglePlay, queue, addToQueue } = usePlayer()
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -74,26 +82,10 @@ function TrackRowComponent({
   const [editAlbum, setEditAlbum] = useState(track.album || '')
   const [saving, setSaving] = useState(false)
   const [isFavorite, setIsFavorite] = useState(Boolean(track.is_favorite))
-  const [supabaseEmail, setSupabaseEmail] = useState<string | null>(null)
+  const { userEmail: contextEmail } = useCurrentUser()
 
-  React.useEffect(() => {
-    supabase.auth.getUser().then((res: any) => {
-      setSupabaseEmail(res?.data?.user?.email || null)
-    })
-  }, [])
-
-  const userEmail = supabaseEmail || nextAuthSession?.user?.email
+  const userEmail = contextEmail || nextAuthSession?.user?.email
   const userIsAdmin = isAdmin(userEmail)
-
-  const isCurrent = currentTrack?.id === track.id
-
-  const handlePlayClick = () => {
-    if (isCurrent) {
-      togglePlay()
-    } else {
-      playTrack(track, playlistTracks.length > 0 ? playlistTracks : [track])
-    }
-  }
 
   const handleSaveEdit = async () => {
     setSaving(true)
@@ -133,9 +125,7 @@ function TrackRowComponent({
     onTrackUpdated?.(track.id, { is_favorite: nextValue })
 
     try {
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
-      const activeUser = currentUser || (nextAuthSession?.user ? { id: nextAuthSession.user.email, email: nextAuthSession.user.email } : null)
-      const userId = activeUser ? getValidUserId(activeUser) : null
+      const userId = userEmail ? getValidUserId({ email: userEmail }) : null
 
       let dbTrackId = track.id
 
@@ -182,7 +172,7 @@ function TrackRowComponent({
 
   return (
     <div
-      onClick={handlePlayClick}
+      onClick={onPlayClick}
       style={
         isSelected
           ? {
@@ -219,7 +209,7 @@ function TrackRowComponent({
       <div className="flex items-center gap-2.5 sm:gap-3.5 flex-1 min-w-0 pr-2 truncate">
         <div className="w-5 text-center text-xs font-mono text-slate-400 shrink-0">
           <span className="group-hover:hidden">
-            {isCurrent && isPlaying ? (
+            {isPlayingThis ? (
               <div className="flex items-end justify-center gap-0.5 h-3">
                 <span className="w-0.5 bg-[var(--primary-spotify)] rounded-full eq-bar-1" />
                 <span className="w-0.5 bg-[var(--primary-spotify)] rounded-full eq-bar-2" />
@@ -230,10 +220,13 @@ function TrackRowComponent({
             )}
           </span>
           <button
-            onClick={handlePlayClick}
+            onClick={(e) => {
+              e.stopPropagation()
+              onPlayClick?.()
+            }}
             className="hidden group-hover:inline-block text-white hover:scale-110 transition-transform"
           >
-            {isCurrent && isPlaying ? (
+            {isPlayingThis ? (
               <Pause className="w-4 h-4 fill-current text-[var(--primary-spotify)]" />
             ) : (
               <Play className="w-4 h-4 fill-current text-white" />
@@ -359,7 +352,7 @@ function TrackRowComponent({
             <button
               onClick={(e) => {
                 e.stopPropagation()
-                addToQueue(track)
+                onAddToQueue?.()
               }}
               className={`p-1.5 text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10 rounded-lg transition-all hidden sm:block ${
                 showMenu ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
@@ -401,7 +394,7 @@ function TrackRowComponent({
                   onClick={(e) => {
                     e.stopPropagation()
                     setShowMenu(false)
-                    addToQueue(track)
+                    onAddToQueue?.()
                   }}
                   className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors text-cyan-400"
                 >

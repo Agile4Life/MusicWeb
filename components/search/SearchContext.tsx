@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { fetchUnifiedSearch, GlobalSearchTracks } from '@/lib/searchApi'
 import { Track } from '@/types'
 
@@ -91,18 +91,21 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
     setSearchingGlobal(false)
   }, [])
 
+  const value = useMemo(
+    () => ({
+      searchQuery,
+      setSearchQuery,
+      globalTracks,
+      searchingGlobal,
+      trendingTracks,
+      loadingTrending,
+      clearSearch,
+    }),
+    [searchQuery, globalTracks, searchingGlobal, trendingTracks, loadingTrending, clearSearch]
+  )
+
   return (
-    <SearchContext.Provider
-      value={{
-        searchQuery,
-        setSearchQuery,
-        globalTracks,
-        searchingGlobal,
-        trendingTracks,
-        loadingTrending,
-        clearSearch,
-      }}
-    >
+    <SearchContext.Provider value={value}>
       {children}
     </SearchContext.Provider>
   )

@@ -7,6 +7,7 @@ import { Track } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { useSearch } from '@/components/search/SearchContext'
 import { useSession } from 'next-auth/react'
+import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
@@ -19,25 +20,25 @@ export function TopBar() {
   const { playTrack } = usePlayer()
   const { searchQuery, setSearchQuery, globalTracks, searchingGlobal, clearSearch } = useSearch()
   const { data: nextAuthSession } = useSession()
+  const { userEmail } = useCurrentUser()
   const supabase = createClient()
 
-  const [supabaseUser, setSupabaseUser] = useState<any>(null)
   const [showDropdown, setShowDropdown] = useState(false)
 
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const user =
-    supabaseUser ||
-    (nextAuthSession?.user
-      ? {
-          id: nextAuthSession.user.email,
-          email: nextAuthSession.user.email,
-          user_metadata: {
-            full_name: nextAuthSession.user.name,
-            avatar_url: nextAuthSession.user.image,
-          },
-        }
-      : null)
+  const user = userEmail
+    ? {
+        id: userEmail,
+        email: userEmail,
+        user_metadata: nextAuthSession?.user
+          ? {
+              full_name: nextAuthSession.user.name,
+              avatar_url: nextAuthSession.user.image,
+            }
+          : {},
+      }
+    : null
 
   const suggestions: Track[] = React.useMemo(() => {
     const combined = [
@@ -49,10 +50,6 @@ export function TopBar() {
     ]
     return deduplicateQueueTracks(combined).slice(0, 6)
   }, [globalTracks])
-
-  useEffect(() => {
-    supabase.auth.getUser().then((res: any) => setSupabaseUser(res?.data?.user))
-  }, [])
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.location.search.includes('q=')) {

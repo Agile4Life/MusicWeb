@@ -28,6 +28,7 @@ import { isAdmin, getValidUserId } from '@/lib/accessControl'
 import { useSession, signOut } from 'next-auth/react'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
+import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 
 export function MobileHeaderNav() {
   const { t } = useLanguage()
@@ -35,8 +36,8 @@ export function MobileHeaderNav() {
   const router = useRouter()
   const supabase = createClient()
   const { data: nextAuthSession } = useSession()
-  const { playlists, createPlaylist, deletePlaylist } = usePlaylists()
-  const [supabaseUser, setSupabaseUser] = useState<any>(null)
+  const { userEmail } = useCurrentUser()
+  const { playlists, loading: creating, createPlaylist, deletePlaylist } = usePlaylists()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [touchStartX, setTouchStartX] = useState<number | null>(null)
   const [touchEndX, setTouchEndX] = useState<number | null>(null)
@@ -61,22 +62,19 @@ export function MobileHeaderNav() {
     setTouchEndX(null)
   }
 
-  const user = supabaseUser || (nextAuthSession?.user ? {
-    id: nextAuthSession.user.email,
-    email: nextAuthSession.user.email,
-    user_metadata: { full_name: nextAuthSession.user.name, avatar_url: nextAuthSession.user.image }
-  } : null)
-
-  useEffect(() => {
-    supabase.auth.getUser().then((res: any) => {
-      setSupabaseUser(res?.data?.user || null)
-    })
-  }, [supabase])
+  const user = userEmail
+    ? {
+        id: userEmail,
+        email: userEmail,
+        user_metadata: nextAuthSession?.user
+          ? { full_name: nextAuthSession.user.name, avatar_url: nextAuthSession.user.image }
+          : {},
+      }
+    : null
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     await signOut({ callbackUrl: '/login' })
-    setSupabaseUser(null)
     setIsDrawerOpen(false)
     window.location.href = '/login'
   }

@@ -129,6 +129,13 @@ function inferTrackSource(track: Track): Track {
 }
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    console.log('%c[PlayerProvider] MOUNTED', 'color: lime; font-weight: bold')
+    return () => {
+      console.log('%c[PlayerProvider] UNMOUNTED', 'color: red; font-weight: bold')
+    }
+  }, [])
+
   const { data: nextAuthSession } = useSession()
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null)
   const [isPlaying, setIsPlaying] = useState<boolean>(false)

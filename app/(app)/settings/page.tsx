@@ -5,6 +5,8 @@ import { ThemeSelector } from '@/components/theme/ThemeSelector'
 import { LanguageSelector } from '@/components/i18n/LanguageSelector'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { createClient } from '@/lib/supabase/client'
+import { useCurrentUser } from '@/components/auth/CurrentUserContext'
+import { getValidUserId } from '@/lib/accessControl'
 import { Volume2, Globe, Bell, Mail } from 'lucide-react'
 
 function FacebookIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -28,29 +30,29 @@ function InstagramIcon(props: React.SVGProps<SVGSVGElement>) {
 export default function SettingsPage() {
   const { t } = useLanguage()
   const supabase = createClient()
+  const { userEmail } = useCurrentUser()
   const [autoPlayNext, setAutoPlayNext] = useState(true)
 
   React.useEffect(() => {
-    supabase.auth.getUser().then(async (result: { data: { user: { id: string } | null } }) => {
-      const user = result.data.user
-      if (!user) return
-      const { data } = await supabase
-        .from('user_settings')
-        .select('auto_play')
-        .eq('user_id', user.id)
-        .maybeSingle()
-      if (data) {
-        setAutoPlayNext(data.auto_play ?? true)
-      }
-    })
-  }, [supabase])
+    if (!userEmail) return
+    const userId = getValidUserId({ email: userEmail })
+    supabase
+      .from('user_settings')
+      .select('auto_play')
+      .eq('user_id', userId)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (data) {
+          setAutoPlayNext(data.auto_play ?? true)
+        }
+      })
+  }, [supabase, userEmail])
 
   const saveSettings = async (updates: { auto_play?: boolean }) => {
-    const result = await supabase.auth.getUser() as { data: { user: { id: string } | null } }
-    const user = result.data.user
-    if (!user) return
+    if (!userEmail) return
+    const userId = getValidUserId({ email: userEmail })
     await supabase.from('user_settings').upsert({
-      user_id: user.id,
+      user_id: userId,
       auto_play: updates.auto_play ?? autoPlayNext,
       updated_at: new Date().toISOString(),
     })

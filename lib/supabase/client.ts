@@ -1,29 +1,30 @@
 import { createBrowserClient } from '@supabase/ssr'
 
-let client: ReturnType<typeof createBrowserClient> | undefined
+declare global {
+  // eslint-disable-next-line no-var
+  var __supabaseBrowserClient: ReturnType<typeof createBrowserClient> | undefined
+}
 
 export function createClient() {
   const cookieOptions = {
-    maxAge: 60 * 60 * 24 * 365, // 1 year persistent session (remembers login across browser restarts)
+    maxAge: 60 * 60 * 24 * 365,
     path: '/',
     sameSite: 'lax' as const,
   }
 
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+
   if (typeof window === 'undefined') {
-    return createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-      { cookieOptions }
-    )
+    // Server: luôn tạo instance mới, không cache (đúng như cũ)
+    return createBrowserClient(url, key, { cookieOptions })
   }
 
-  if (!client) {
-    client = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-      { cookieOptions }
-    )
+  // Browser: cache trên `globalThis` thay vì module-level `let`
+  // để sống sót qua các lần Fast Refresh / HMR re-evaluate module trong dev mode
+  if (!globalThis.__supabaseBrowserClient) {
+    globalThis.__supabaseBrowserClient = createBrowserClient(url, key, { cookieOptions })
   }
 
-  return client
+  return globalThis.__supabaseBrowserClient
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Track, Playlist } from '@/types'
@@ -56,6 +56,16 @@ export default function HomePage() {
   const [recentTracks, setRecentTracks] = useState<Track[]>([])
   const [searchSource, setSearchSource] = useState<'all' | 'youtube' | 'audius' | 'itunes' | 'spotify' | 'local'>('all')
   const [libraryTab, setLibraryTab] = useState<'all' | 'drive' | 'recent'>('recent')
+  const [showAllResults, setShowAllResults] = useState(false)
+
+  const searchQueryRef = useRef(searchQuery)
+  useEffect(() => {
+    searchQueryRef.current = searchQuery
+  }, [searchQuery])
+
+  useEffect(() => {
+    setShowAllResults(false)
+  }, [searchQuery, searchSource])
 
   // Trending Albums state
   const [trendingAlbums, setTrendingAlbums] = useState<SpotifyAlbumItem[]>([])
@@ -328,12 +338,6 @@ export default function HomePage() {
       supabase.removeChannel(channel)
     }
   }, [])
-
-  const searchQueryRef = React.useRef(searchQuery)
-
-  useEffect(() => {
-    searchQueryRef.current = searchQuery
-  }, [searchQuery])
 
   const userFavTrackIdsRef = React.useRef(userFavTrackIds)
   useEffect(() => {
@@ -659,47 +663,50 @@ export default function HomePage() {
   const isAdmin = checkIsAdmin(user?.email) || user?.app_metadata?.role === 'admin'
 
   const isSearching = searchQuery.trim().length > 0
-  let displayedTracks: Track[] = []
 
-  const driveTracks = tracks.filter((t) => {
-    const fp = t.file_path || ''
-    return Boolean(
-      extractDriveFileId(fp) ||
-      fp.includes('drive-stream') ||
-      fp.includes('drive.google.com') ||
-      fp.includes('lh3.googleusercontent.com')
-    )
-  })
+  const driveTracks = useMemo(() => {
+    return tracks.filter((t) => {
+      const fp = t.file_path || ''
+      return Boolean(
+        extractDriveFileId(fp) ||
+        fp.includes('drive-stream') ||
+        fp.includes('drive.google.com') ||
+        fp.includes('lh3.googleusercontent.com')
+      )
+    })
+  }, [tracks])
 
-  if (isSearching) {
-    if (searchSource === 'all') {
-      displayedTracks = deduplicateQueueTracks([
-        ...globalTracks.local,
-        ...globalTracks.spotify,
-        ...globalTracks.itunes,
-        ...globalTracks.youtube,
-        ...globalTracks.audius,
-      ])
-    } else if (searchSource === 'local') {
-      displayedTracks = globalTracks.local
-    } else if (searchSource === 'spotify') {
-      displayedTracks = globalTracks.spotify
-    } else if (searchSource === 'itunes') {
-      displayedTracks = globalTracks.itunes
-    } else if (searchSource === 'youtube') {
-      displayedTracks = globalTracks.youtube
-    } else if (searchSource === 'audius') {
-      displayedTracks = globalTracks.audius
+  const displayedTracks: Track[] = useMemo(() => {
+    if (isSearching) {
+      if (searchSource === 'all') {
+        return deduplicateQueueTracks([
+          ...globalTracks.local,
+          ...globalTracks.spotify,
+          ...globalTracks.itunes,
+          ...globalTracks.youtube,
+          ...globalTracks.audius,
+        ])
+      }
+      if (searchSource === 'local') return globalTracks.local
+      if (searchSource === 'spotify') return globalTracks.spotify
+      if (searchSource === 'itunes') return globalTracks.itunes
+      if (searchSource === 'youtube') return globalTracks.youtube
+      if (searchSource === 'audius') return globalTracks.audius
+      return []
     }
-  } else {
-    if (libraryTab === 'drive') {
-      displayedTracks = driveTracks
-    } else if (libraryTab === 'recent') {
-      displayedTracks = recentTracks
-    } else {
-      displayedTracks = tracks
+    if (libraryTab === 'drive') return driveTracks
+    if (libraryTab === 'recent') return recentTracks
+    return tracks
+  }, [isSearching, searchSource, globalTracks, libraryTab, driveTracks, recentTracks, tracks])
+
+  const isShortQuery = isSearching && searchQuery.trim().length <= 2
+
+  const finalTracksToRender: Track[] = useMemo(() => {
+    if (isShortQuery && !showAllResults) {
+      return displayedTracks.slice(0, 15)
     }
-  }
+    return displayedTracks
+  }, [isShortQuery, showAllResults, displayedTracks])
 
   return (
     <div className="p-3.5 sm:p-6 md:p-8 flex flex-col gap-4 sm:gap-6 md:gap-8 max-w-7xl mx-auto w-full pb-36 md:pb-8 select-none">
@@ -1026,19 +1033,38 @@ export default function HomePage() {
           </div>
         )}
 
-        {(loading || (isSearching && searchingGlobal && displayedTracks.length === 0)) ? (
+        {loading ? (
           <TrackListSkeleton count={8} />
+        ) : isSearching && searchingGlobal && displayedTracks.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-slate-400 bg-[#181818]/60 border border-white/5 rounded-2xl gap-3">
+            <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
+            <p className="text-sm font-medium text-white">Đang tìm kiếm bài hát...</p>
+          </div>
         ) : (
-          <TrackList
-            tracks={displayedTracks}
-            userPlaylists={playlists}
-            onAddToPlaylist={handleAddToPlaylist}
-            onDeleteTrack={handleDeleteTrack}
-            onTrackUpdated={handleTrackUpdated}
-            isAdmin={isAdmin}
-            onBulkUpdated={handleBulkUpdated}
-            onBulkDeleted={handleBulkDeleted}
-          />
+          <>
+            <TrackList
+              tracks={finalTracksToRender}
+              userPlaylists={playlists}
+              onAddToPlaylist={handleAddToPlaylist}
+              onDeleteTrack={handleDeleteTrack}
+              onTrackUpdated={handleTrackUpdated}
+              isAdmin={isAdmin}
+              onBulkUpdated={handleBulkUpdated}
+              onBulkDeleted={handleBulkDeleted}
+            />
+
+            {isShortQuery && !showAllResults && displayedTracks.length > 15 && (
+              <div className="flex justify-center pt-3 pb-2">
+                <button
+                  onClick={() => setShowAllResults(true)}
+                  className="bg-white/5 hover:bg-white/10 text-cyan-400 hover:text-cyan-300 border border-white/10 text-xs font-bold px-6 py-2.5 rounded-full transition-all flex items-center gap-2 shadow-lg hover:scale-105"
+                >
+                  <span>Xem thêm {displayedTracks.length - 15} kết quả cho &quot;{searchQuery.trim()}&quot;</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

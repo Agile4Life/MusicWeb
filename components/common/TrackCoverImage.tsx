@@ -10,13 +10,14 @@ interface TrackCoverImageProps {
   fallbackIconClassName?: string
 }
 
-export function TrackCoverImage({
+function TrackCoverImageComponent({
   src,
   alt = '',
   className = 'w-full h-full object-cover',
   fallbackIconClassName = 'w-4 h-4 text-slate-400',
 }: TrackCoverImageProps) {
   const [hasError, setHasError] = useState(false)
+  const [loaded, setLoaded] = useState(false)
 
   if (!src || hasError) {
     return (
@@ -30,9 +31,12 @@ export function TrackCoverImage({
     <img
       src={src}
       alt={alt}
-      className={className}
+      className={`${className} transition-opacity duration-200 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+      onLoad={() => setLoaded(true)}
       onError={() => setHasError(true)}
       loading="lazy"
     />
   )
 }
+
+export const TrackCoverImage = React.memo(TrackCoverImageComponent)
