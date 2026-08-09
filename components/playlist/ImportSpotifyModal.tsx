@@ -383,20 +383,23 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl max-h-[90vh] bg-[#0f121a] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-200">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md p-0 sm:p-4 animate-in fade-in duration-200">
+      <div className="relative w-full max-sm:rounded-t-3xl max-sm:rounded-b-none sm:max-w-2xl max-h-[92vh] sm:max-h-[85vh] bg-[#0f121a] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-200 animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200">
         
+        {/* Mobile Drag Indicator Bar */}
+        <div className="w-12 h-1 bg-white/20 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
+
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] bg-white/[0.02]">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-white/[0.08] bg-white/[0.02] shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
               <Sparkles className="w-5 h-5" />
             </div>
-            <div>
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
+            <div className="min-w-0">
+              <h2 className="text-sm sm:text-base font-bold text-white truncate">
                 Nhập Playlist từ Spotify
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-[11px] sm:text-xs text-slate-400 truncate">
                 Tự động tìm kiếm & ghép nối video YouTube tương ứng
               </p>
             </div>
@@ -404,14 +407,15 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
 
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
+            className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition-colors shrink-0 ml-2"
+            aria-label="Đóng"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
 
           {/* STEP 1: INPUT LINK */}
           {step === 'input' && (
@@ -427,13 +431,20 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
                     onChange={(e) => setUrlInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleParseAndFetchMeta()}
                     placeholder="https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"
-                    className="w-full px-4 py-3 bg-white/[0.04] border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
+                    className="w-full px-4 py-3 bg-white/[0.04] border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors pr-10"
                   />
-                  {loadingMeta && (
-                    <div className="absolute right-3.5 top-3.5 text-emerald-400">
+                  {loadingMeta ? (
+                    <div className="absolute right-3 top-3.5 text-emerald-400">
                       <Loader2 className="w-5 h-5 animate-spin" />
                     </div>
-                  )}
+                  ) : urlInput ? (
+                    <button
+                      onClick={() => setUrlInput('')}
+                      className="absolute right-3 top-3.5 text-slate-500 hover:text-slate-300"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  ) : null}
                 </div>
               </div>
 
@@ -446,18 +457,18 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
 
               <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl text-xs space-y-2 text-slate-400">
                 <p className="font-semibold text-slate-300">Định dạng URL được hỗ trợ:</p>
-                <ul className="list-disc pl-4 space-y-1 font-mono text-[11px] text-slate-400">
-                  <li>https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=...</li>
-                  <li>spotify:playlist:37i9dQZF1DXcBWIGoYBM5M</li>
-                  <li>37i9dQZF1DXcBWIGoYBM5M (Mã 22 ký tự base62)</li>
+                <ul className="list-disc pl-4 space-y-1.5 font-mono text-[11px] text-slate-400 break-all">
+                  <li className="break-all">https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=...</li>
+                  <li className="break-all">spotify:playlist:37i9dQZF1DXcBWIGoYBM5M</li>
+                  <li className="break-all">37i9dQZF1DXcBWIGoYBM5M (Mã 22 ký tự base62)</li>
                 </ul>
               </div>
 
-              <div className="flex justify-end pt-2">
+              <div className="pt-2">
                 <button
                   onClick={() => handleParseAndFetchMeta()}
                   disabled={loadingMeta || !urlInput.trim()}
-                  className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-black font-bold text-xs rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/20"
+                  className="w-full sm:w-auto sm:ml-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] disabled:opacity-50 text-black font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20"
                 >
                   {loadingMeta ? (
                     <>
@@ -477,35 +488,35 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
 
           {/* STEP 2: PREVIEW & FETCH TRACKS */}
           {step === 'preview' && meta && (
-            <div className="space-y-6">
-              <div className="flex items-start gap-4 p-4 bg-white/[0.03] border border-white/[0.08] rounded-2xl">
+            <div className="space-y-5 sm:space-y-6">
+              <div className="flex items-center sm:items-start gap-3 sm:gap-4 p-3.5 sm:p-4 bg-white/[0.03] border border-white/[0.08] rounded-2xl">
                 {meta.cover_url ? (
                   <img
                     src={meta.cover_url}
                     alt={meta.name}
-                    className="w-24 h-24 rounded-xl object-cover border border-white/10 shrink-0 shadow-md"
+                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover border border-white/10 shrink-0 shadow-md"
                   />
                 ) : (
-                  <div className="w-24 h-24 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-500 shrink-0">
-                    <Music className="w-8 h-8" />
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-500 shrink-0">
+                    <Music className="w-7 h-7 sm:w-8 sm:h-8" />
                   </div>
                 )}
 
-                <div className="flex-1 min-w-0 space-y-1.5">
-                  <div className="flex items-center gap-2 text-[11px] font-mono text-emerald-400 font-semibold uppercase">
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center gap-2 text-[10px] sm:text-[11px] font-mono text-emerald-400 font-semibold uppercase">
                     <span>Spotify Playlist Public</span>
                   </div>
-                  <h3 className="text-lg font-bold text-white truncate">{meta.name}</h3>
+                  <h3 className="text-base sm:text-lg font-bold text-white truncate">{meta.name}</h3>
                   <p className="text-xs text-slate-400 line-clamp-2">
                     {meta.description || 'Không có mô tả'}
                   </p>
-                  <div className="flex items-center gap-4 pt-1 text-xs text-slate-400">
-                    <span className="flex items-center gap-1">
-                      <User className="w-3.5 h-3.5 text-slate-500" />
-                      {meta.owner}
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-[11px] sm:text-xs text-slate-400">
+                    <span className="flex items-center gap-1 truncate max-w-[140px]">
+                      <User className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                      <span className="truncate">{meta.owner}</span>
                     </span>
                     <span className="flex items-center gap-1">
-                      <ListMusic className="w-3.5 h-3.5 text-slate-500" />
+                      <ListMusic className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                       {spotifyTracks.length > 0 ? spotifyTracks.length : meta.total_tracks} bài hát
                     </span>
                   </div>
@@ -521,36 +532,36 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
                   type="text"
                   value={playlistName}
                   onChange={(e) => setPlaylistName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-white/[0.04] border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 bg-white/[0.04] border border-white/10 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
               {/* Tracks Loading State */}
               {loadingTracks ? (
-                <div className="p-8 text-center bg-white/[0.02] border border-white/[0.05] rounded-xl space-y-3">
+                <div className="p-6 sm:p-8 text-center bg-white/[0.02] border border-white/[0.05] rounded-xl space-y-3">
                   <Loader2 className="w-7 h-7 text-emerald-400 animate-spin mx-auto" />
                   <p className="text-xs text-slate-300 font-medium">
                     Đang lấy toàn bộ danh sách {meta.total_tracks} bài hát từ Spotify...
                   </p>
                 </div>
               ) : (
-                <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between text-xs text-emerald-300">
+                <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between gap-2 text-xs text-emerald-300">
                   <span>Đã tải thành công {spotifyTracks.length} bài hát sẵn sàng ghép nối.</span>
-                  <Check className="w-4 h-4 text-emerald-400" />
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
                 </div>
               )}
 
-              <div className="flex items-center justify-between pt-2">
+              <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2.5 pt-2">
                 <button
                   onClick={() => setStep('input')}
-                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white"
+                  className="w-full sm:w-auto px-4 py-2.5 text-xs font-semibold text-slate-400 hover:text-white border border-white/10 sm:border-transparent rounded-xl text-center"
                 >
                   Quay lại
                 </button>
                 <button
                   onClick={handleStartMatching}
                   disabled={loadingTracks || spotifyTracks.length === 0}
-                  className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-black font-bold text-xs rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/20"
+                  className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20 active:scale-[0.98]"
                 >
                   <span>Tìm nhạc trên YouTube</span>
                   <ArrowRight className="w-4 h-4" />
@@ -561,14 +572,14 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
 
           {/* STEP 3: MATCHING PROGRESS */}
           {step === 'matching' && (
-            <div className="py-8 space-y-6 text-center">
+            <div className="py-6 sm:py-8 space-y-6 text-center">
               <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
                 <Loader2 className="w-20 h-20 text-emerald-400 animate-spin" />
                 <Music className="w-8 h-8 text-white absolute" />
               </div>
 
-              <div className="space-y-2">
-                <h3 className="text-base font-bold text-white">
+              <div className="space-y-1.5 px-2">
+                <h3 className="text-sm sm:text-base font-bold text-white">
                   Đang tìm kiếm & đối soát video trên YouTube...
                 </h3>
                 <p className="text-xs text-slate-400">
@@ -577,7 +588,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
               </div>
 
               {/* Progress bar */}
-              <div className="max-w-md mx-auto space-y-1.5">
+              <div className="max-w-md mx-auto space-y-1.5 px-2">
                 <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300 rounded-full"
@@ -594,10 +605,10 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
                 </div>
               </div>
 
-              <div className="pt-4">
+              <div className="pt-2">
                 <button
                   onClick={handleCancelMatching}
-                  className="px-4 py-2 border border-white/10 hover:bg-white/10 text-xs font-semibold text-slate-300 rounded-xl transition-colors"
+                  className="w-full sm:w-auto px-4 py-2.5 border border-white/10 hover:bg-white/10 text-xs font-semibold text-slate-300 rounded-xl transition-colors"
                 >
                   Dừng & Duyệt kết quả hiện tại
                 </button>
@@ -607,71 +618,76 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
 
           {/* STEP 4: REVIEW MATCHES */}
           {step === 'review' && (
-            <div className="space-y-4">
-              {/* Filter Tabs & Quick Actions */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-white/[0.08]">
-                <div className="flex items-center gap-1 bg-white/[0.03] p-1 rounded-xl border border-white/[0.05]">
+            <div className="space-y-3 sm:space-y-4">
+              {/* Filter Tabs Header - Horizontal scroll on mobile */}
+              <div className="space-y-2 pb-2 border-b border-white/[0.08]">
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
                   <button
                     onClick={() => setActiveTab('all')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                       activeTab === 'all'
                         ? 'bg-emerald-500 text-black shadow-sm'
-                        : 'text-slate-400 hover:text-white'
+                        : 'bg-white/[0.04] text-slate-400 hover:text-white border border-white/5'
                     }`}
                   >
                     Tất cả ({importResults.length})
                   </button>
                   <button
                     onClick={() => setActiveTab('high')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                       activeTab === 'high'
                         ? 'bg-emerald-500 text-black shadow-sm'
-                        : 'text-slate-400 hover:text-white'
+                        : 'bg-white/[0.04] text-slate-400 hover:text-white border border-white/5'
                     }`}
                   >
                     Khớp tốt ({highCount})
                   </button>
                   <button
                     onClick={() => setActiveTab('low')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                       activeTab === 'low'
-                        ? 'bg-emerald-500 text-black shadow-sm'
-                        : 'text-slate-400 hover:text-white'
+                        ? 'bg-amber-500 text-black shadow-sm'
+                        : 'bg-white/[0.04] text-slate-400 hover:text-white border border-white/5'
                     }`}
                   >
                     Cơ bản ({lowCount})
                   </button>
                   <button
                     onClick={() => setActiveTab('none')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                       activeTab === 'none'
-                        ? 'bg-emerald-500 text-black shadow-sm'
-                        : 'text-slate-400 hover:text-white'
+                        ? 'bg-rose-500 text-white shadow-sm'
+                        : 'bg-white/[0.04] text-slate-400 hover:text-white border border-white/5'
                     }`}
                   >
                     Chưa khớp ({noneCount})
                   </button>
                 </div>
 
-                <div className="flex items-center gap-2 text-xs">
-                  <button
-                    onClick={handleSelectAll}
-                    className="text-emerald-400 hover:underline font-medium"
-                  >
-                    Chọn tất cả
-                  </button>
-                  <span className="text-slate-600">•</span>
-                  <button
-                    onClick={handleDeselectAll}
-                    className="text-slate-400 hover:underline font-medium"
-                  >
-                    Bỏ chọn tất cả
-                  </button>
+                <div className="flex items-center justify-between text-xs px-1">
+                  <div className="text-slate-400 font-medium text-[11px] sm:text-xs">
+                    Đã chọn <span className="text-emerald-400 font-bold">{selectedIds.size}</span> / {importResults.length} bài
+                  </div>
+                  <div className="flex items-center gap-3 text-[11px] sm:text-xs">
+                    <button
+                      onClick={handleSelectAll}
+                      className="text-emerald-400 hover:underline font-semibold"
+                    >
+                      Chọn tất cả
+                    </button>
+                    <span className="text-slate-600">•</span>
+                    <button
+                      onClick={handleDeselectAll}
+                      className="text-slate-400 hover:underline font-medium"
+                    >
+                      Bỏ chọn tất cả
+                    </button>
+                  </div>
                 </div>
               </div>
 
               {/* Track List */}
-              <div className="max-h-[350px] overflow-y-auto space-y-2 pr-1">
+              <div className="max-h-[300px] sm:max-h-[360px] overflow-y-auto space-y-2 pr-1">
                 {filteredResults.length === 0 ? (
                   <div className="p-8 text-center text-slate-400 text-xs">
                     Không có bài hát nào trong nhóm này.
@@ -686,28 +702,28 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
                     return (
                       <div
                         key={item.spotify_id}
-                        className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+                        className={`p-3 rounded-xl border transition-all space-y-2 ${
                           isSelected
                             ? 'bg-white/[0.04] border-white/15'
                             : 'bg-white/[0.01] border-white/[0.05] opacity-60'
                         }`}
                       >
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                        {/* Row 1: Spotify Track info + Checkbox */}
+                        <div className="flex items-start gap-3 min-w-0">
                           <input
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => toggleSelectTrack(item.spotify_id)}
-                            className="w-4 h-4 accent-emerald-500 rounded cursor-pointer shrink-0"
+                            className="w-4 h-4 mt-0.5 accent-emerald-500 rounded cursor-pointer shrink-0"
                           />
 
-                          {/* Spotify Track info */}
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-white truncate">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs sm:text-sm font-bold text-white truncate">
                                 {item.spotifyTrack.title}
                               </span>
                               <span className="text-[10px] font-mono text-slate-400 shrink-0">
-                                ({formatSeconds(item.spotifyTrack.duration)})
+                                {formatSeconds(item.spotifyTrack.duration)}
                               </span>
                             </div>
                             <p className="text-[11px] text-slate-400 truncate">
@@ -716,45 +732,48 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
                           </div>
                         </div>
 
-                        {/* Matched YouTube info / badge */}
-                        <div className="flex items-center gap-2 text-right shrink-0">
-                          {item.matchConfidence === 'high' && item.matchedTrack && (
-                            <div className="flex flex-col items-end">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-semibold rounded-md">
-                                <CheckCircle2 className="w-3 h-3" />
-                                Khớp tốt (±{durDiff}s)
-                              </span>
-                              <span className="text-[10px] text-slate-400 truncate max-w-[150px]">
-                                {item.matchedTrack.title}
-                              </span>
-                            </div>
-                          )}
+                        {/* Row 2: YouTube Match Info & Search button */}
+                        <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/[0.04] text-xs pl-7">
+                          <div className="min-w-0 flex-1">
+                            {item.matchConfidence === 'high' && item.matchedTrack && (
+                              <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-semibold rounded-md shrink-0">
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  Khớp tốt (±{durDiff}s)
+                                </span>
+                                <span className="text-[10px] text-slate-400 truncate max-w-[180px] sm:max-w-[240px]">
+                                  {item.matchedTrack.title}
+                                </span>
+                              </div>
+                            )}
 
-                          {item.matchConfidence === 'low' && item.matchedTrack && (
-                            <div className="flex flex-col items-end">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-semibold rounded-md">
-                                <AlertTriangle className="w-3 h-3" />
-                                Cơ bản (±{durDiff}s)
-                              </span>
-                              <span className="text-[10px] text-slate-400 truncate max-w-[150px]">
-                                {item.matchedTrack.title}
-                              </span>
-                            </div>
-                          )}
+                            {item.matchConfidence === 'low' && item.matchedTrack && (
+                              <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-semibold rounded-md shrink-0">
+                                  <AlertTriangle className="w-3 h-3" />
+                                  Cơ bản (±{durDiff}s)
+                                </span>
+                                <span className="text-[10px] text-slate-400 truncate max-w-[180px] sm:max-w-[240px]">
+                                  {item.matchedTrack.title}
+                                </span>
+                              </div>
+                            )}
 
-                          {item.matchConfidence === 'none' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-semibold rounded-md">
-                              <XCircle className="w-3 h-3" />
-                              Không khớp
-                            </span>
-                          )}
+                            {item.matchConfidence === 'none' && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-semibold rounded-md">
+                                <XCircle className="w-3 h-3" />
+                                Không khớp YouTube
+                              </span>
+                            )}
+                          </div>
 
                           <button
                             onClick={() => handleOpenManualSearch(item.spotifyTrack)}
-                            className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                            className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors shrink-0 flex items-center gap-1 text-[11px]"
                             title="Tìm video thủ công trên YouTube"
                           >
                             <Search className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Đổi video</span>
                           </button>
                         </div>
                       </div>
@@ -764,39 +783,31 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
               </div>
 
               {/* Bottom bar */}
-              <div className="flex items-center justify-between pt-3 border-t border-white/[0.08]">
-                <div className="text-xs text-slate-400 font-medium">
-                  Đã chọn{' '}
-                  <span className="text-emerald-400 font-bold">{selectedIds.size}</span> /{' '}
-                  {importResults.length} bài hát
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setStep('preview')}
-                    className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white"
-                  >
-                    Quay lại
-                  </button>
-                  <button
-                    onClick={handleConfirmImport}
-                    disabled={selectedIds.size === 0}
-                    className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-black font-bold text-xs rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/20"
-                  >
-                    <span>Tạo Playlist ({selectedIds.size} bài)</span>
-                    <Check className="w-4 h-4" />
-                  </button>
-                </div>
+              <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2.5 pt-3 border-t border-white/[0.08]">
+                <button
+                  onClick={() => setStep('preview')}
+                  className="w-full sm:w-auto px-4 py-2.5 text-xs font-semibold text-slate-400 hover:text-white border border-white/10 sm:border-transparent rounded-xl text-center"
+                >
+                  Quay lại
+                </button>
+                <button
+                  onClick={handleConfirmImport}
+                  disabled={selectedIds.size === 0}
+                  className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20 active:scale-[0.98]"
+                >
+                  <span>Tạo Playlist ({selectedIds.size} bài)</span>
+                  <Check className="w-4 h-4" />
+                </button>
               </div>
             </div>
           )}
 
           {/* STEP 5: IMPORTING */}
           {step === 'importing' && (
-            <div className="py-12 space-y-6 text-center">
-              <Loader2 className="w-12 h-12 text-emerald-400 animate-spin mx-auto" />
+            <div className="py-10 sm:py-12 space-y-6 text-center">
+              <Loader2 className="w-10 h-10 sm:w-12 sm:h-12 text-emerald-400 animate-spin mx-auto" />
               <div className="space-y-1">
-                <h3 className="text-base font-bold text-white">
+                <h3 className="text-sm sm:text-base font-bold text-white">
                   Đang lưu Playlist vào cơ sở dữ liệu...
                 </h3>
                 <p className="text-xs text-slate-400">
@@ -808,23 +819,23 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
 
           {/* STEP 6: COMPLETE */}
           {step === 'complete' && (
-            <div className="py-8 space-y-6 text-center">
-              <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mx-auto shadow-lg shadow-emerald-500/10">
-                <CheckCircle2 className="w-10 h-10" />
+            <div className="py-6 sm:py-8 space-y-5 sm:space-y-6 text-center">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mx-auto shadow-lg shadow-emerald-500/10">
+                <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10" />
               </div>
 
               <div className="space-y-2">
-                <h3 className="text-xl font-bold text-white">Nhập Playlist thành công!</h3>
-                <p className="text-xs text-slate-300 max-w-md mx-auto">
+                <h3 className="text-lg sm:text-xl font-bold text-white">Nhập Playlist thành công!</h3>
+                <p className="text-xs text-slate-300 max-w-md mx-auto leading-relaxed">
                   Đã thêm thành công <strong className="text-emerald-400">{importedTrackCount}</strong> bài hát vào playlist{' '}
                   <strong className="text-white">"{playlistName}"</strong>.
                 </p>
               </div>
 
-              <div className="flex items-center justify-center gap-3 pt-4">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-3">
                 <button
                   onClick={onClose}
-                  className="px-4 py-2.5 border border-white/10 hover:bg-white/10 text-xs font-semibold text-slate-300 rounded-xl"
+                  className="w-full sm:w-auto px-4 py-2.5 border border-white/10 hover:bg-white/10 text-xs font-semibold text-slate-300 rounded-xl"
                 >
                   Đóng
                 </button>
@@ -834,7 +845,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
                       onClose()
                       router.push(`/playlist/${createdPlaylistId}`)
                     }}
-                    className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-500/20"
+                    className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
                   >
                     <span>Mở Playlist ngay</span>
                     <ExternalLink className="w-4 h-4" />
@@ -849,36 +860,40 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
 
       {/* MANUAL MATCHING SUB-MODAL */}
       {manualMatchTrack && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg bg-[#141824] border border-white/15 rounded-2xl p-5 shadow-2xl space-y-4 text-slate-200">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div>
-                <h4 className="text-sm font-bold text-white">
-                  Tìm video thay thế cho: {manualMatchTrack.title}
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="w-full max-sm:rounded-t-3xl max-sm:rounded-b-none sm:max-w-lg max-h-[85vh] bg-[#141824] border border-white/15 rounded-2xl p-4 sm:p-5 shadow-2xl space-y-4 text-slate-200 flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
+            
+            {/* Mobile handle indicator */}
+            <div className="w-10 h-1 bg-white/20 rounded-full mx-auto my-1 sm:hidden shrink-0" />
+
+            <div className="flex items-start justify-between border-b border-white/10 pb-3 shrink-0">
+              <div className="min-w-0 pr-2">
+                <h4 className="text-xs sm:text-sm font-bold text-white truncate">
+                  Tìm video cho: {manualMatchTrack.title}
                 </h4>
-                <p className="text-xs text-slate-400">{manualMatchTrack.artist}</p>
+                <p className="text-[11px] text-slate-400 truncate">{manualMatchTrack.artist}</p>
               </div>
               <button
                 onClick={() => setManualMatchTrack(null)}
-                className="p-1 text-slate-400 hover:text-white rounded-lg"
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg shrink-0"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 shrink-0">
               <input
                 type="text"
                 value={manualSearchQuery}
                 onChange={(e) => setManualSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleRunManualSearch(manualSearchQuery)}
-                placeholder="Nhập từ khóa tìm kiếm trên YouTube..."
-                className="flex-1 px-3.5 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500"
+                placeholder="Từ khóa tìm kiếm YouTube..."
+                className="flex-1 px-3.5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500"
               />
               <button
                 onClick={() => handleRunManualSearch(manualSearchQuery)}
                 disabled={searchingManual}
-                className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs rounded-xl flex items-center gap-1.5"
+                className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs rounded-xl flex items-center gap-1.5 shrink-0"
               >
                 {searchingManual ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -890,7 +905,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
             </div>
 
             {/* Candidates list */}
-            <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
               {searchingManual ? (
                 <div className="p-6 text-center text-xs text-slate-400 space-y-2">
                   <Loader2 className="w-5 h-5 animate-spin mx-auto text-emerald-400" />
@@ -922,7 +937,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
                         {cand.artist} • {formatSeconds(cand.duration)}
                       </p>
                     </div>
-                    <button className="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 text-[11px] font-bold rounded-lg group-hover:bg-emerald-500 group-hover:text-black transition-colors shrink-0">
+                    <button className="px-3 py-1.5 bg-emerald-500/20 text-emerald-300 text-[11px] font-bold rounded-lg group-hover:bg-emerald-500 group-hover:text-black transition-colors shrink-0">
                       Chọn
                     </button>
                   </div>
