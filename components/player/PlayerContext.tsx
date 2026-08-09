@@ -554,6 +554,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           setQueue(deduplicateQueueTracks(restoredQueue))
           setCurrentIndex(restoredIndex)
           setCurrentTime(restoredTime)
+          setDuration(restoredTrack.duration || 0)
           setVolumeState(restoredVol)
           lastSavedTimeRef.current = restoredTime
 
@@ -575,6 +576,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                     if (restoredTime > 0 && restoredTime < (audio.duration || Infinity)) {
                       audio.currentTime = restoredTime
                       setCurrentTime(restoredTime)
+                    }
+                    if (audio.duration && !isNaN(audio.duration) && audio.duration > 0) {
+                      setDuration(Math.round(audio.duration))
                     }
                     audio.removeEventListener('loadedmetadata', onLoaded)
                   }
@@ -1458,7 +1462,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval)
   }, [isPlaying])
 
-  const progressValue = useMemo(() => ({ currentTime, duration }), [currentTime, duration])
+  const effectiveDuration = duration > 0 ? duration : (currentTrack?.duration || 0)
+
+  const progressValue = useMemo(() => ({ currentTime, duration: effectiveDuration }), [currentTime, duration, currentTrack?.duration])
 
   const playerValue = useMemo(
     () => ({
@@ -1468,7 +1474,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       queue,
       currentIndex,
       currentTime,
-      duration,
+      duration: effectiveDuration,
       volume,
       isShuffle,
       toggleShuffle,

@@ -183,7 +183,8 @@ export function PlayerBar() {
     }
   }
 
-  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0
+  const effectiveDuration = duration > 0 ? duration : (currentTrack?.duration || 0)
+  const progressPercent = effectiveDuration > 0 ? Math.min(100, Math.max(0, (currentTime / effectiveDuration) * 100)) : 0
 
   if (!currentTrack) {
     return (
@@ -456,7 +457,7 @@ export function PlayerBar() {
             <input
               type="range"
               min={0}
-              max={duration || 100}
+              max={effectiveDuration || 100}
               value={currentTime}
               onChange={(e) => seek(Number(e.target.value))}
               style={{
@@ -466,7 +467,7 @@ export function PlayerBar() {
             />
             <div className="flex items-center justify-between text-xs font-mono text-slate-400">
               <span>{formatTime(currentTime)}</span>
-              <span>{formatTime(duration)}</span>
+              <span>{formatTime(effectiveDuration)}</span>
             </div>
           </div>
 
@@ -761,7 +762,7 @@ export function PlayerBar() {
             <input
               type="range"
               min={0}
-              max={duration || 100}
+              max={effectiveDuration || 100}
               value={currentTime}
               onChange={(e) => seek(Number(e.target.value))}
               style={{
@@ -769,7 +770,7 @@ export function PlayerBar() {
               }}
               className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-all"
             />
-            <span className="w-9 shrink-0">{formatTime(duration)}</span>
+            <span className="w-9 shrink-0">{formatTime(effectiveDuration)}</span>
           </div>
         </div>
 
