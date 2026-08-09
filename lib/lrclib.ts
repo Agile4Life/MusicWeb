@@ -118,6 +118,7 @@ async function tryGetApi(
 
 async function trySearchApi(
   query: string,
+  targetTitle?: string,
   targetArtist?: string,
   targetAlbum?: string,
   targetDuration?: number
@@ -135,6 +136,19 @@ async function trySearchApi(
       if (Array.isArray(results) && results.length > 0) {
         const matchCandidates = (maxDurDiff: number, requireAlbum = false) =>
           results.filter((r) => {
+            // 1. Strict Title Validation: avoid matching "Chúng ta không thuộc về nhau" for "Không thuộc về"
+            if (targetTitle && targetTitle.trim().length > 0) {
+              const candidateTitleNorm = (r.trackName || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, ' ').trim()
+              const targetTitleNorm = targetTitle.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, ' ').trim()
+
+              if (candidateTitleNorm !== targetTitleNorm) {
+                const lenRatio = Math.min(candidateTitleNorm.length, targetTitleNorm.length) / Math.max(candidateTitleNorm.length, targetTitleNorm.length)
+                if (lenRatio < 0.75) return false
+                if (!candidateTitleNorm.includes(targetTitleNorm) && !targetTitleNorm.includes(candidateTitleNorm)) return false
+              }
+            }
+
+            // 2. Strict Artist Validation
             if (targetArtist && targetArtist.trim().length > 0) {
               const candidateArtistNorm = (r.artistName || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
               const targetArtistNorm = targetArtist.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
@@ -146,7 +160,15 @@ async function trySearchApi(
                   targetArtistNorm.includes(candidateArtistNorm)
                 if (!isArtistMatched) return false
               }
+            } else {
+              // If targetArtist is NOT provided, require exact title match to avoid cross-artist mismatch
+              if (targetTitle) {
+                const candidateTitleNorm = (r.trackName || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, ' ').trim()
+                const targetTitleNorm = targetTitle.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, ' ').trim()
+                if (candidateTitleNorm !== targetTitleNorm) return false
+              }
             }
+
             if (requireAlbum && targetAlbum && targetAlbum.trim().length > 0) {
               const candidateAlbNorm = (r.albumName || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
               const targetAlbNorm = targetAlbum.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
@@ -246,29 +268,21 @@ export async function fetchLyricsFromLrclib({
       if (data1 && !fallback) fallback = data1
 
       // Step C: Try search API with title + artist
-      const data2 = await trySearchApi(cleanTitle, cleanArtist, cleanAlbum, durRound)
+      const data2 = await trySearchApi(cleanTitle, cleanTitle, cleanArtist, cleanAlbum, durRound)
       if (data2?.syncedLyrics) {
         lyricsCache.set(cacheKey, data2)
         return data2
       }
       if (data2 && !fallback) fallback = data2
 
-      // Step D: Try search API with title only
-      const data3 = await trySearchApi(cleanTitle, '', undefined, durRound)
-      if (data3?.syncedLyrics) {
-        lyricsCache.set(cacheKey, data3)
-        return data3
-      }
-      if (data3 && !fallback) fallback = data3
-
-      // Step E: Try search API with artist + clean title
+      // Step D: Try search API with title + artist (without album restriction)
       if (cleanArtist) {
-        const data4 = await trySearchApi(cleanTitle, cleanArtist, cleanAlbum, durRound)
-        if (data4?.syncedLyrics) {
-          lyricsCache.set(cacheKey, data4)
-          return data4
+        const data3 = await trySearchApi(`${cleanTitle} ${cleanArtist}`, cleanTitle, cleanArtist, undefined, durRound)
+        if (data3?.syncedLyrics) {
+          lyricsCache.set(cacheKey, data3)
+          return data3
         }
-        if (data4 && !fallback) fallback = data4
+        if (data3 && !fallback) fallback = data3
       }
 
       // Step F: YouTube Music Lyrics Fallback if LRCLIB returned no lyrics or no synced lyrics

@@ -8,6 +8,7 @@ import { LyricsView } from './LyricsView'
 import { QueueDrawer } from './QueueDrawer'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import { setCachedResolvedAlbum } from '@/lib/albumCache'
+import { AudioWaveformScrubber } from './AudioWaveformScrubber'
 import {
   Play,
   Pause,
@@ -476,23 +477,16 @@ export function PlayerBar() {
             </button>
           </div>
 
-          {/* Scrubber Slider */}
-          <div className="flex flex-col gap-1.5 mb-8">
-            <input
-              type="range"
-              min={0}
-              max={effectiveDuration || 100}
-              value={currentTime}
-              onChange={(e) => seek(Number(e.target.value))}
-              style={{
-                background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${progressPercent}%, rgba(255,255,255,0.1) ${progressPercent}%)`,
-              }}
-              className="w-full h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-all"
+          {/* Waveform Scrubber (Mobile Modal View) */}
+          <div className="w-full mb-6">
+            <AudioWaveformScrubber
+              currentTime={currentTime}
+              duration={effectiveDuration}
+              isPlaying={isPlaying}
+              trackId={currentTrack.id}
+              onSeek={seek}
+              barCount={55}
             />
-            <div className="flex items-center justify-between text-xs font-mono text-slate-400">
-              <span>{formatTime(currentTime)}</span>
-              <span>{formatTime(effectiveDuration)}</span>
-            </div>
           </div>
 
           {/* Full Playback Controls */}
@@ -621,7 +615,7 @@ export function PlayerBar() {
       )}
 
       {/* 💻 DESKTOP PLAYER BAR (Visible on >= 768px screens) */}
-      <footer className="hidden md:flex h-20 md:h-22 bg-[#090b10]/95 backdrop-blur-2xl rounded-2xl border border-white/[0.08] px-6 md:px-8 items-center justify-between text-slate-300 select-none z-30 shadow-2xl shrink-0">
+      <footer className="hidden md:flex h-[96px] py-3.5 bg-[#090b10]/95 backdrop-blur-2xl rounded-2xl border border-white/[0.08] px-6 md:px-8 items-center justify-between text-slate-300 select-none z-30 shadow-2xl shrink-0">
         {/* Left: Track Metadata */}
         <div className="flex items-center gap-3.5 w-1/4 min-w-[220px]">
           <div className="relative group shrink-0">
@@ -775,20 +769,16 @@ export function PlayerBar() {
             </button>
           </div>
 
-          <div className="w-full flex items-center gap-2.5 text-[11px] text-slate-400 font-mono">
-            <span className="w-9 text-right shrink-0">{formatTime(currentTime)}</span>
-            <input
-              type="range"
-              min={0}
-              max={effectiveDuration || 100}
-              value={currentTime}
-              onChange={(e) => seek(Number(e.target.value))}
-              style={{
-                background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${progressPercent}%, rgba(255,255,255,0.12) ${progressPercent}%)`,
-              }}
-              className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-all"
+          {/* Waveform Scrubber (Desktop PlayerBar View) */}
+          <div className="w-full max-w-2xl px-2">
+            <AudioWaveformScrubber
+              currentTime={currentTime}
+              duration={duration || currentTrack.duration || 0}
+              isPlaying={isPlaying}
+              trackId={currentTrack.id}
+              onSeek={seek}
+              barCount={100}
             />
-            <span className="w-9 shrink-0">{formatTime(effectiveDuration)}</span>
           </div>
         </div>
 
