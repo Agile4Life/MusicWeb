@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Track, Playlist } from '@/types'
-import { Play, Pause, Music, Trash2, MoreVertical, Plus, Pencil, Check, X, Heart, Cloud, ListMusic, DiscAlbum } from 'lucide-react'
+import { Play, Pause, Music, Trash2, MoreVertical, Plus, Pencil, Check, X, Heart, Cloud, ListMusic, DiscAlbum, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { isAdmin, getValidUserId } from '@/lib/accessControl'
 import { useSession } from 'next-auth/react'
@@ -53,10 +54,66 @@ function TrackRowComponent({
   isSelected = false,
   onToggleSelect,
 }: TrackRowProps) {
+  const router = useRouter()
+  const [isResolvingAlbum, setIsResolvingAlbum] = useState(false)
   const supabase = createClient()
   const { data: nextAuthSession } = useSession()
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  const handleOpenTrackAlbum = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (track.spotify_album_id) {
+      router.push(`/album/${track.spotify_album_id}`)
+      return
+    }
+
+    const hasRealAlbum =
+      track.album &&
+      !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(track.album.trim())
+
+    const titleToSearch = hasRealAlbum ? track.album : track.title
+    const artistToSearch = track.artist || ''
+
+    try {
+      setIsResolvingAlbum(true)
+      const res = await fetch(
+        `/api/albums/resolve?title=${encodeURIComponent(titleToSearch!)}&artist=${encodeURIComponent(artistToSearch)}`
+      )
+      if (res.ok) {
+        const data = await res.json()
+        if (data.albumId) {
+          router.push(`/album/${data.albumId}`)
+          return
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to resolve track album:', err)
+    } finally {
+      setIsResolvingAlbum(false)
+    }
+
+    // Fallback: search Deezer albums directly
+    try {
+      setIsResolvingAlbum(true)
+      const fallbackRes = await fetch(`/api/albums/search?q=${encodeURIComponent((track.artist || track.title).trim())}`)
+      if (fallbackRes.ok) {
+        const searchData = await fallbackRes.json()
+        if (Array.isArray(searchData) && searchData.length > 0 && searchData[0].id) {
+          router.push(`/album/${searchData[0].id}`)
+          return
+        }
+      }
+    } catch (fErr) {
+      console.warn('Fallback album search failed:', fErr)
+    } finally {
+      setIsResolvingAlbum(false)
+    }
+
+    router.push('/albums')
+  }
 
   useEffect(() => {
     if (!showMenu) return
@@ -309,32 +366,24 @@ function TrackRowComponent({
             placeholder="Tên album..."
             className="text-xs bg-white/10 border border-[var(--primary-spotify)]/50 rounded px-1.5 py-0.5 text-white outline-none w-full max-w-[160px]"
           />
-        ) : !track.album || ['Google Drive', 'Google Drive Sync', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album', 'YouTube Music'].includes(track.album.trim()) ? (
-          <Link
-            href={`/albums?q=${encodeURIComponent((track.artist || track.title).trim())}`}
-            onClick={(e) => e.stopPropagation()}
-            className="hover:text-[var(--spotify-glow,#22d3ee)] text-slate-400 hover:underline transition-colors text-[11px] inline-flex items-center gap-1 group"
-            title="Tìm album cho bài hát này"
-          >
-            <DiscAlbum className="w-3 h-3 text-cyan-400/80 group-hover:text-cyan-300" />
-            <span className="group-hover:text-cyan-300">Album</span>
-          </Link>
-        ) : track.spotify_album_id ? (
-          <Link
-            href={`/album/${track.spotify_album_id}`}
-            onClick={(e) => e.stopPropagation()}
-            className="hover:text-[var(--spotify-glow,#22d3ee)] hover:underline transition-colors"
-          >
-            {track.album}
-          </Link>
         ) : (
-          <Link
-            href={`/albums?q=${encodeURIComponent(track.album.trim())}`}
-            onClick={(e) => e.stopPropagation()}
-            className="hover:text-[var(--spotify-glow,#22d3ee)] hover:underline transition-colors"
+          <button
+            onClick={handleOpenTrackAlbum}
+            disabled={isResolvingAlbum}
+            className="hover:text-[var(--spotify-glow,#22d3ee)] hover:underline transition-colors text-left inline-flex items-center gap-1.5 max-w-[180px] truncate text-xs cursor-pointer group"
+            title={track.album ? `Vào album: ${track.album}` : 'Vào Album bài hát'}
           >
-            {track.album}
-          </Link>
+            {isResolvingAlbum ? (
+              <Loader2 className="w-3 h-3 text-cyan-400 animate-spin shrink-0" />
+            ) : (
+              <DiscAlbum className="w-3 h-3 text-cyan-400/80 group-hover:text-cyan-300 shrink-0" />
+            )}
+            <span className="truncate group-hover:text-cyan-300">
+              {track.album && !['Google Drive', 'Google Drive Sync', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album', 'YouTube Music'].includes(track.album.trim())
+                ? track.album
+                : 'Album'}
+            </span>
+          </button>
         )}
       </div>
 

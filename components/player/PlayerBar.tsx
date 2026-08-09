@@ -56,6 +56,8 @@ export function PlayerBar() {
   } = usePlayer()
   const router = useRouter()
 
+  const [isNavigatingAlbum, setIsNavigatingAlbum] = useState(false)
+
   const handleOpenAlbum = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -73,12 +75,13 @@ export function PlayerBar() {
 
     const hasRealAlbum =
       currentTrack.album &&
-      !['Google Drive', 'Google Drive Sync', 'YouTube Music'].includes(currentTrack.album.trim())
+      !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(currentTrack.album.trim())
 
     const titleToSearch = hasRealAlbum ? currentTrack.album : currentTrack.title
     const artistToSearch = currentTrack.artist || ''
 
     try {
+      setIsNavigatingAlbum(true)
       const res = await fetch(
         `/api/albums/resolve?title=${encodeURIComponent(titleToSearch!)}&artist=${encodeURIComponent(artistToSearch)}`
       )
@@ -92,11 +95,30 @@ export function PlayerBar() {
       }
     } catch (err) {
       console.warn('Failed to resolve album ID:', err)
+    } finally {
+      setIsNavigatingAlbum(false)
+    }
+
+    // Fallback: search Deezer albums directly for top result
+    try {
+      setIsNavigatingAlbum(true)
+      const fallbackRes = await fetch(`/api/albums/search?q=${encodeURIComponent((currentTrack.artist || currentTrack.title).trim())}`)
+      if (fallbackRes.ok) {
+        const searchData = await fallbackRes.json()
+        if (Array.isArray(searchData) && searchData.length > 0 && searchData[0].id) {
+          setShowMobileFullPlayer(false)
+          router.push(`/album/${searchData[0].id}`)
+          return
+        }
+      }
+    } catch (fErr) {
+      console.warn('Fallback album search failed:', fErr)
+    } finally {
+      setIsNavigatingAlbum(false)
     }
 
     setShowMobileFullPlayer(false)
-    const fallbackQuery = hasRealAlbum ? currentTrack.album : (currentTrack.artist || currentTrack.title)
-    router.push(`/albums?q=${encodeURIComponent(fallbackQuery!)}`)
+    router.push('/albums')
   }
 
   const [prevVol, setPrevVol] = useState(0.8)
@@ -189,9 +211,15 @@ export function PlayerBar() {
                   {currentTrack.title}
                 </span>
               </div>
-              <span className="text-[10px] text-slate-400 truncate block">
-                {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
-              </span>
+              <div className="flex items-center gap-1 text-[10px] text-slate-400 truncate">
+                <span className="truncate">{currentTrack.artist || 'Nghệ sĩ chưa xác định'}</span>
+                {currentTrack.album && !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(currentTrack.album.trim()) && (
+                  <>
+                    <span className="text-slate-600">•</span>
+                    <span className="text-cyan-400/90 font-medium truncate">{currentTrack.album}</span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
@@ -322,14 +350,18 @@ export function PlayerBar() {
               </p>
               <div
                 onClick={handleOpenAlbum}
-                className="flex items-center gap-1.5 mt-1 text-xs truncate max-w-full cursor-pointer group"
+                className="flex items-center gap-1.5 mt-1.5 text-xs truncate max-w-full cursor-pointer group bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 rounded-lg hover:bg-cyan-500/20 transition-all"
               >
-                <DiscAlbum className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                {isNavigatingAlbum ? (
+                  <Loader2 className="w-3.5 h-3.5 text-cyan-400 animate-spin shrink-0" />
+                ) : (
+                  <DiscAlbum className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                )}
                 <span
                   className="text-cyan-300 font-semibold group-hover:underline truncate"
                   title="Vào Album bài hát"
                 >
-                  {currentTrack.album && !['Google Drive', 'Google Drive Sync', 'YouTube Music'].includes(currentTrack.album.trim())
+                  {currentTrack.album && !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(currentTrack.album.trim())
                     ? currentTrack.album
                     : 'Xem Album bài hát'}
                 </span>
@@ -522,12 +554,16 @@ export function PlayerBar() {
               {/* Album Link Pill */}
               <div
                 onClick={handleOpenAlbum}
-                className="flex items-center gap-1 shrink-0 text-[10px] text-slate-300 bg-white/[0.06] border border-white/10 px-1.5 py-0.5 rounded-md max-w-[140px] hover:border-cyan-500/40 cursor-pointer transition-colors group"
+                className="flex items-center gap-1 shrink-0 text-[10px] text-slate-300 bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 px-2 py-0.5 rounded-md max-w-[180px] hover:border-cyan-500/50 cursor-pointer transition-all group shadow-sm"
                 title={currentTrack.album ? `Vào album: ${currentTrack.album}` : 'Vào Album bài hát'}
               >
-                <DiscAlbum style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3 h-3 shrink-0" />
-                <span className="truncate font-semibold text-slate-200 group-hover:text-[var(--spotify-glow)] group-hover:underline transition-colors">
-                  {currentTrack.album && !['Google Drive', 'Google Drive Sync', 'YouTube Music'].includes(currentTrack.album.trim())
+                {isNavigatingAlbum ? (
+                  <Loader2 className="w-3 h-3 animate-spin text-cyan-400 shrink-0" />
+                ) : (
+                  <DiscAlbum style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3 h-3 shrink-0" />
+                )}
+                <span className="truncate font-semibold text-slate-200 group-hover:text-[var(--spotify-glow)] transition-colors">
+                  {currentTrack.album && !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(currentTrack.album.trim())
                     ? currentTrack.album
                     : 'Album'}
                 </span>

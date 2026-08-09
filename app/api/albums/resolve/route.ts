@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { searchDeezerAlbums } from '@/lib/deezer'
+import { searchITunesTracks } from '@/lib/itunes'
 import { createClient } from '@supabase/supabase-js'
 
 function getSupabaseClient() {
@@ -15,14 +16,14 @@ export async function GET(req: NextRequest) {
     const title = searchParams.get('title') || ''
     const artist = searchParams.get('artist') || ''
 
-    if (!title.trim()) {
-      return NextResponse.json({ error: 'Missing album title' }, { status: 400 })
+    if (!title.trim() && !artist.trim()) {
+      return NextResponse.json({ error: 'Missing title or artist' }, { status: 400 })
     }
 
     const supabase = getSupabaseClient()
 
     // 1. Check Supabase DB for matching album title/artist first
-    if (supabase) {
+    if (supabase && title.trim()) {
       try {
         const { data: dbAlbum } = await supabase
           .from('spotify_albums')
@@ -46,7 +47,7 @@ export async function GET(req: NextRequest) {
     if (deezerResults && deezerResults.length > 0) {
       const cleanTitle = title.trim().toLowerCase()
       const best = deezerResults.find((a) =>
-        a.name.toLowerCase().includes(cleanTitle)
+        cleanTitle ? a.name.toLowerCase().includes(cleanTitle) : true
       ) || deezerResults[0]
 
       if (best && best.id) {
@@ -54,10 +55,38 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 3. Fallback search by title alone
-    const titleResults = await searchDeezerAlbums(title.trim(), 3)
-    if (titleResults && titleResults.length > 0) {
-      return NextResponse.json({ albumId: titleResults[0].id })
+    // 3. Search Deezer tracks API to get track's album ID
+    try {
+      const dTrackRes = await fetch(
+        `https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=1`,
+        { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(3000) }
+      )
+      if (dTrackRes.ok) {
+        const dData = await dTrackRes.json()
+        if (dData.data && dData.data.length > 0 && dData.data[0].album?.id) {
+          return NextResponse.json({ albumId: String(dData.data[0].album.id) })
+        }
+      }
+    } catch (dTrackErr) {
+      console.warn('Deezer track resolve warning:', dTrackErr)
+    }
+
+    // 4. Fallback search by title alone on Deezer
+    if (title.trim()) {
+      const titleResults = await searchDeezerAlbums(title.trim(), 3)
+      if (titleResults && titleResults.length > 0) {
+        return NextResponse.json({ albumId: titleResults[0].id })
+      }
+    }
+
+    // 5. iTunes fallback search for song/album
+    try {
+      const iTunesTracks = await searchITunesTracks(query, 1)
+      if (iTunesTracks.length > 0 && iTunesTracks[0].itunes_id) {
+        return NextResponse.json({ albumId: `itunes-${iTunesTracks[0].itunes_id}` })
+      }
+    } catch (iErr) {
+      console.warn('iTunes resolve fallback error:', iErr)
     }
 
     return NextResponse.json({ error: 'Album not found' }, { status: 404 })
@@ -66,3 +95,4 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: err?.message || 'Server error' }, { status: 500 })
   }
 }
+
