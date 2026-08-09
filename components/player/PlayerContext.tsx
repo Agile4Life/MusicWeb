@@ -7,7 +7,7 @@ import { extractDriveFileId, isPreviewUrl, verifyDriveFile, triggerDrivePrewarm 
 import { useSession } from 'next-auth/react'
 import { getValidUserId } from '@/lib/accessControl'
 import { deduplicateQueueTracks } from '@/lib/utils'
-import { findBestYouTubeMatch, normalizeTitle, extractYouTubeVideoId } from '@/lib/youtube'
+import { findBestYouTubeMatch, normalizeTitle, extractYouTubeVideoId, fetchViewCountForVideo } from '@/lib/youtube'
 import { fetchUnifiedSearch } from '@/lib/searchApi'
 import { getSmartRecommendedTracks } from '@/lib/smartRecommend'
 import { NextQueueResponse, queueTrackToTrack } from '@/types/queue'
@@ -1340,6 +1340,27 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audio.removeEventListener('playing', handlePlaying)
     }
   }, [currentIndex, queue, autoPlayNext, repeatMode])
+
+  // On-demand fetch view_count for current track if youtube_id exists and view_count is null
+  useEffect(() => {
+    if (!currentTrack || !currentTrack.youtube_id || currentTrack.view_count != null) return
+
+    let cancelled = false
+    const ytId = currentTrack.youtube_id
+
+    fetchViewCountForVideo(ytId).then((views) => {
+      if (!cancelled && views != null) {
+        setCurrentTrack((prev) => (prev && prev.youtube_id === ytId ? { ...prev, view_count: views } : prev))
+        setQueue((prevQueue) =>
+          prevQueue.map((t) => (t.youtube_id === ytId ? { ...t, view_count: views } : t))
+        )
+      }
+    }).catch(() => {})
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentTrack?.id, currentTrack?.youtube_id, currentTrack?.view_count])
 
   // Media Session API Sync (Lock Screen Controls & Mobile Background Playback)
   useEffect(() => {

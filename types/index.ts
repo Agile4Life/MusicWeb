@@ -28,6 +28,7 @@ export interface Track {
   drive_file_id?: string
   disc_number?: number
   track_number?: number
+  view_count?: number | null   // Real YouTube view count, only set when youtube_id exists.
 }
 
 export interface Playlist {

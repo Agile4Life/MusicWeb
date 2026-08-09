@@ -25,7 +25,9 @@ import {
   ListMusic,
   Loader2,
   DiscAlbum,
+  Eye,
 } from 'lucide-react'
+import { formatViewCount } from '@/lib/utils'
 
 function formatTime(seconds: number) {
   if (isNaN(seconds) || seconds < 0) return '0:00'
@@ -618,6 +620,14 @@ export function PlayerBar() {
                   {displayAlbumName || 'Album'}
                 </span>
               </div>
+
+              {/* View Count Pill */}
+              {currentTrack.view_count != null && currentTrack.view_count > 0 && (
+                <span className="inline-flex items-center gap-0.5 shrink-0 text-[10px] text-slate-500 font-mono" title={`${currentTrack.view_count.toLocaleString()} lượt xem trên YouTube`}>
+                  <Eye className="w-3 h-3" />
+                  {formatViewCount(currentTrack.view_count)}
+                </span>
+              )}
 
               {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && (
                 <span

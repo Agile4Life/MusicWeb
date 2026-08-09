@@ -106,3 +106,14 @@ export function deduplicateQueueTracks(tracks: Track[]): Track[] {
 
   return Array.from(seenMap.values())
 }
+
+/**
+ * Format view count kiểu YouTube: 1.2K, 3.4M, 1.1B
+ */
+export function formatViewCount(count: number | null | undefined): string {
+  if (count == null || count < 0) return ''
+  if (count < 1000) return `${count} lượt xem`
+  if (count < 1_000_000) return `${(count / 1000).toFixed(1).replace(/\.0$/, '')}K lượt xem`
+  if (count < 1_000_000_000) return `${(count / 1_000_000).toFixed(1).replace(/\.0$/, '')}M lượt xem`
+  return `${(count / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B lượt xem`
+}

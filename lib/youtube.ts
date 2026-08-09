@@ -405,6 +405,46 @@ export function findBestYouTubeMatch(
   return bestMatch
 }
 
+interface VideoMeta {
+  duration: number
+  viewCount: number
+}
+
+/**
+ * Lấy duration thật (giây) VÀ view count thật cho danh sách videoId qua 1 lần gọi
+ * videos.list (part=contentDetails,statistics) — gộp chung để tiết kiệm quota thay vì 2 request riêng.
+ */
+async function getVideoMeta(
+  videoIds: string[],
+  apiKey: string
+): Promise<Record<string, VideoMeta>> {
+  if (videoIds.length === 0) return {}
+  try {
+    const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics&id=${videoIds.join(
+      ','
+    )}&key=${apiKey}`
+    const res = await fetch(url, { signal: AbortSignal.timeout(4500) })
+    if (!res.ok) return {}
+    const data = await res.json()
+    const map: Record<string, VideoMeta> = {}
+    for (const item of data.items || []) {
+      const iso = item.contentDetails?.duration || ''
+      const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
+      let duration = 0
+      if (match) {
+        const [, h, m, s] = match
+        duration = parseInt(h || '0') * 3600 + parseInt(m || '0') * 60 + parseInt(s || '0')
+      }
+      const viewCount = item.statistics?.viewCount != null ? parseInt(item.statistics.viewCount, 10) || 0 : 0
+      map[item.id] = { duration, viewCount }
+    }
+    return map
+  } catch (err) {
+    console.warn('getVideoMeta warning:', err)
+    return {}
+  }
+}
+
 /**
  * Search YouTube Data API v3 or InnerTube API + HTML Scraper Fallback
  */
@@ -432,38 +472,6 @@ export async function searchYouTubeTracks(query: string, limit = 15): Promise<Tr
 
   let tracks: Track[] = []
   const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY || ''
-
-/**
- * Lấy duration thật (giây) cho danh sách videoId qua YouTube Data API v3 videos.list
- */
-async function getVideoDurations(
-  videoIds: string[],
-  apiKey: string
-): Promise<Record<string, number>> {
-  if (videoIds.length === 0) return {}
-  try {
-    const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoIds.join(
-      ','
-    )}&key=${apiKey}`
-    const res = await fetch(url, { signal: AbortSignal.timeout(4500) })
-    if (!res.ok) return {}
-    const data = await res.json()
-    const map: Record<string, number> = {}
-    for (const item of data.items || []) {
-      const iso = item.contentDetails?.duration || ''
-      const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
-      if (match) {
-        const [, h, m, s] = match
-        map[item.id] =
-          parseInt(h || '0') * 3600 + parseInt(m || '0') * 60 + parseInt(s || '0')
-      }
-    }
-    return map
-  } catch (err) {
-    console.warn('getVideoDurations warning:', err)
-    return {}
-  }
-}
 
   // 1. Official YouTube Data API v3 if API key is provided
   if (YOUTUBE_API_KEY) {
@@ -510,12 +518,13 @@ async function getVideoDurations(
             }
           })
 
-          // Fetch real durations via videos.list to replace duration: 0
+          // Fetch real duration + view count via videos.list (combined request)
           const videoIds = tracks.map((t) => t.youtube_id).filter(Boolean) as string[]
-          const durations = await getVideoDurations(videoIds, YOUTUBE_API_KEY)
+          const meta = await getVideoMeta(videoIds, YOUTUBE_API_KEY)
           tracks = tracks.map((t) => ({
             ...t,
-            duration: (t.youtube_id && durations[t.youtube_id]) || 0,
+            duration: (t.youtube_id && meta[t.youtube_id]?.duration) || 0,
+            view_count: t.youtube_id && meta[t.youtube_id] ? meta[t.youtube_id].viewCount : null,
           }))
 
           // If duration enrichment failed for everything, don't trust this batch's duration=0.
@@ -594,3 +603,17 @@ export async function getTrendingYouTubeTracks(limit = 12): Promise<Track[]> {
   })
   return filtered.length > 0 ? filtered.slice(0, limit) : tracks.slice(0, limit)
 }
+
+/**
+ * On-demand: lấy view count thật cho MỘT track cụ thể (vd khi mở trang chi tiết
+ * hoặc khi track bắt đầu phát). KHÔNG gọi hàm này cho toàn bộ danh sách kết quả
+ * tìm kiếm — chỉ dùng khi cần hiển thị 1 track cụ thể, để tránh tốn quota.
+ */
+export async function fetchViewCountForVideo(youtubeId: string): Promise<number | null> {
+  const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY || ''
+  if (!YOUTUBE_API_KEY || !youtubeId) return null
+
+  const meta = await getVideoMeta([youtubeId], YOUTUBE_API_KEY)
+  return meta[youtubeId]?.viewCount ?? null
+}
+
