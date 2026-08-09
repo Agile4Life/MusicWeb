@@ -45,39 +45,33 @@ self.addEventListener('fetch', (event) => {
 
 async function handleAudioFetch(request) {
   try {
-    // Always try network first for fresh audio
+    const isRangeRequest = request.headers.has('range')
     const networkResponse = await fetch(request)
 
-    // If the response is a redirect (302), follow it and cache the final response
-    // The drive-stream API now returns 302 redirects to Google CDN
-    if (networkResponse.ok || networkResponse.status === 206 || networkResponse.type === 'opaqueredirect') {
-      // Clone the response before caching (response body can only be consumed once)
+    // Only cache full HTTP 200 responses (skip 206 Partial Content / Range requests)
+    if (!isRangeRequest && networkResponse.status === 200) {
       const responseToCache = networkResponse.clone()
 
-      // Cache in background — don't block the response
       caches.open(CACHE_NAME).then(async (cache) => {
         try {
           await cache.put(request, responseToCache)
-          // Evict oldest entries if cache is too large
           const keys = await cache.keys()
           if (keys.length > MAX_CACHED_AUDIO) {
             const toDelete = keys.slice(0, keys.length - MAX_CACHED_AUDIO)
             await Promise.all(toDelete.map((key) => cache.delete(key)))
           }
         } catch (e) {
-          // Cache storage full or other error — not critical
+          // Cache storage error ignored
         }
       })
     }
 
     return networkResponse
   } catch (err) {
-    // Network failed — try serving from cache (offline playback)
     const cachedResponse = await caches.match(request)
     if (cachedResponse) {
       return cachedResponse
     }
-    // No cache available either
     return new Response('Audio unavailable offline', {
       status: 503,
       headers: { 'Content-Type': 'text/plain' },

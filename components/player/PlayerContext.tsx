@@ -768,12 +768,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     let activeTrack = track
     const hasDirectPlayableAudio = Boolean(
       track.audio_url ||
+      track.drive_file_id ||
+      extractDriveFileId(track.file_path || '') ||
       (track.file_path && (
         track.file_path.includes('.mp3') ||
         track.file_path.includes('preview') ||
         track.file_path.includes('dzcdn.net') ||
         track.file_path.includes('apple.com') ||
         track.file_path.includes('drive-stream') ||
+        track.file_path.includes('drive.google') ||
+        track.file_path.includes('lh3.googleusercontent') ||
         track.file_path.includes('audius')
       ))
     )

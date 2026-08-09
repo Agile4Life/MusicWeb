@@ -8,6 +8,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const fileId = searchParams.get('id') || searchParams.get('fileId')
     const titleParam = searchParams.get('filename') || searchParams.get('title') || ''
+    const isProxy = searchParams.get('proxy') === 'true'
 
     if (!fileId) {
       return NextResponse.json({ error: 'Missing fileId parameter' }, { status: 400 })
@@ -22,6 +23,41 @@ export async function GET(req: NextRequest) {
       )
     }
 
+    // 🚀 Proxy mode: stream audio body directly when requested (for strict CORS / Safari clients)
+    if (isProxy) {
+      const range = req.headers.get('range')
+      const proxyHeaders: Record<string, string> = {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      }
+      if (range) proxyHeaders['Range'] = range
+
+      const streamRes = await fetch(resolved.url, {
+        headers: proxyHeaders,
+        cache: 'no-store',
+      })
+
+      const resHeaders = new Headers()
+      resHeaders.set('Content-Type', resolved.contentType || streamRes.headers.get('content-type') || 'audio/mpeg')
+      resHeaders.set('Access-Control-Allow-Origin', '*')
+      resHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
+      resHeaders.set('Access-Control-Allow-Headers', 'Range, Content-Type')
+      resHeaders.set('Accept-Ranges', 'bytes')
+      resHeaders.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
+
+      const cl = streamRes.headers.get('content-length')
+      if (cl) resHeaders.set('Content-Length', cl)
+
+      const cr = streamRes.headers.get('content-range')
+      if (cr) resHeaders.set('Content-Range', cr)
+
+      return new Response(streamRes.body, {
+        status: streamRes.status,
+        headers: resHeaders,
+      })
+    }
+
+    // ⚡ Redirect mode (default): 302 Redirect to high-speed CDN URL
     const redirectHeaders = new Headers()
     redirectHeaders.set('Location', resolved.url)
     redirectHeaders.set('Access-Control-Allow-Origin', '*')
@@ -52,13 +88,18 @@ export async function HEAD(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const fileId = searchParams.get('id') || searchParams.get('fileId')
+    const titleParam = searchParams.get('filename') || searchParams.get('title') || ''
 
     if (!fileId) {
       return new NextResponse(null, { status: 400 })
     }
 
-    const cdnUrl = `https://lh3.googleusercontent.com/d/${encodeURIComponent(fileId)}`
-    const res = await fetch(cdnUrl, {
+    const resolved = await resolveDriveStreamUrl(fileId, undefined, titleParam)
+    if (!resolved || !resolved.url) {
+      return new NextResponse(null, { status: 502 })
+    }
+
+    const res = await fetch(resolved.url, {
       method: 'HEAD',
       headers: {
         'User-Agent':
@@ -67,15 +108,15 @@ export async function HEAD(req: NextRequest) {
       cache: 'no-store',
     })
 
-    if (!res.ok) {
-      return new NextResponse(null, { status: res.status })
-    }
-
     const headers = new Headers()
     headers.set('Access-Control-Allow-Origin', '*')
+    headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
+    headers.set('Access-Control-Allow-Headers', 'Range, Content-Type')
     headers.set('Accept-Ranges', 'bytes')
-    headers.set('Cache-Control', 'public, max-age=31536000, immutable')
-    headers.set('ETag', `W/"drive-${fileId}"`)
+    headers.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
+    headers.set('Location', resolved.url)
+    headers.set('Content-Type', resolved.contentType || 'audio/mpeg')
+
     const cl = res.headers.get('content-length')
     if (cl) headers.set('Content-Length', cl)
 

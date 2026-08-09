@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
-// ⚡ Cache TTL cho CDN URL đã xác minh (6 giờ — link drive.usercontent.google.com sống lâu hơn 1h)
-export const CDN_CACHE_TTL_MS = 6 * 60 * 60 * 1000
+// ⚡ Cache TTL cho CDN URL đã xác minh (45 phút — Google CDN URLs expire in ~1h)
+export const CDN_CACHE_TTL_MS = 45 * 60 * 1000
 
 // Service-role client để đọc/ghi cache mà không bị chặn bởi RLS
 export function getServiceClient() {
@@ -48,10 +48,28 @@ export async function getCachedCdnUrl(
     const isFresh = Date.now() - new Date(data.drive_stream_cached_at).getTime() < CDN_CACHE_TTL_MS
     if (!isFresh) return null
 
-    return {
-      url: data.drive_stream_url,
-      contentType: data.drive_stream_content_type || '',
+    // ⚡ Fast HEAD validation: Verify cached URL is still alive (< 1.5s timeout)
+    try {
+      const checkRes = await fetch(data.drive_stream_url, {
+        method: 'HEAD',
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        },
+        signal: AbortSignal.timeout(1500),
+      })
+      const ct = checkRes.headers.get('content-type') || ''
+      if ((checkRes.ok || checkRes.status === 206) && !ct.includes('text/html')) {
+        return {
+          url: data.drive_stream_url,
+          contentType: data.drive_stream_content_type || ct || 'audio/mpeg',
+        }
+      }
+    } catch {
+      // Cached CDN URL is dead or timed out — fallback to re-probing fresh CDN URL
     }
+
+    return null
   } catch (err) {
     console.warn('getCachedCdnUrl error (continuing to probe):', err)
     return null
@@ -181,7 +199,7 @@ export async function resolveDriveStreamUrl(
     }).then((res) => {
       const ct = res.headers.get('content-type') || ''
       if ((res.ok || res.status === 206) && !ct.includes('text/html')) {
-        return { cdnUrl, contentType: ct }
+        return { cdnUrl: res.url || cdnUrl, contentType: ct }
       }
       throw new Error('Not direct audio')
     })
@@ -225,7 +243,9 @@ export async function resolveDriveStreamUrl(
       const confirmMatch =
         responseText.match(/confirm=([a-zA-Z0-9_-]+)/) ||
         responseText.match(/name="confirm"\s+value="([a-zA-Z0-9_-]+)"/) ||
-        responseText.match(/uuid=([a-zA-Z0-9_-]+)/)
+        responseText.match(/href="[^"]*confirm=([a-zA-Z0-9_-]+)"/) ||
+        responseText.match(/uuid=([a-zA-Z0-9_-]+)/) ||
+        responseText.match(/at=([a-zA-Z0-9_-]+)/)
 
       const warningCookie = decodeCookieConfirmToken(rawCookies)
       const confirmToken = confirmMatch?.[1] || warningCookie || 't'

@@ -116,7 +116,7 @@ export function extractDriveFileId(filePath: string): string | null {
   }
 
   try {
-    const parsed = new URL(trimmed)
+    const parsed = new URL(trimmed, 'https://localhost')
     if (parsed.pathname.includes('/folders/')) return null
     const id =
       parsed.searchParams.get('id') ||

@@ -728,6 +728,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
         album: driveAlbum.trim() || null,
         duration: 0,
         file_path: streamUrl,
+        drive_file_id: fileId,
         created_at: new Date().toISOString(),
       }).select().single()
 
@@ -741,6 +742,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
           album: driveAlbum.trim() || null,
           duration: 0,
           file_path: streamUrl,
+          drive_file_id: fileId,
           created_at: new Date().toISOString(),
         }).select().single()
 
@@ -881,6 +883,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
           album: null,
           duration: 0,
           file_path: streamUrl,
+          drive_file_id: item.fileId,
           created_at: new Date().toISOString(),
         })
 
@@ -893,6 +896,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
             album: null,
             duration: 0,
             file_path: streamUrl,
+            drive_file_id: item.fileId,
             created_at: new Date().toISOString(),
           })
           error = fbErr
