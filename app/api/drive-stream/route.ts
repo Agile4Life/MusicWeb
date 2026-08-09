@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveDriveStreamUrl } from '@/lib/drive-stream-resolver'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
@@ -25,6 +27,7 @@ export async function GET(req: NextRequest) {
     redirectHeaders.set('Access-Control-Allow-Origin', '*')
     redirectHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
     redirectHeaders.set('Access-Control-Allow-Headers', 'Range, Content-Type')
+    redirectHeaders.set('Accept-Ranges', 'bytes')
     redirectHeaders.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
 
     return new Response(null, { status: 302, headers: redirectHeaders })

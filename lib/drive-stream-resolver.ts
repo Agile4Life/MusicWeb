@@ -8,7 +8,8 @@ export function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !serviceKey) {
-    throw new Error('Thiếu NEXT_PUBLIC_SUPABASE_URL hoặc SUPABASE_SERVICE_ROLE_KEY trong env')
+    console.warn('getServiceClient warning: Thiếu SUPABASE_SERVICE_ROLE_KEY (Bỏ qua DB CDN caching)')
+    return null
   }
   return createClient(url, serviceKey, {
     auth: { persistSession: false },
@@ -24,6 +25,7 @@ export async function getCachedCdnUrl(
   fileId: string,
   supabase: ReturnType<typeof getServiceClient>
 ): Promise<CachedCdnEntry | null> {
+  if (!supabase) return null
   try {
     let { data } = await supabase
       .from('tracks')
@@ -62,6 +64,7 @@ export async function saveCdnUrl(
   contentType: string,
   supabase: ReturnType<typeof getServiceClient>
 ) {
+  if (!supabase) return
   try {
     const updatePayload = {
       drive_stream_url: url,

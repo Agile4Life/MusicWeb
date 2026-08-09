@@ -432,9 +432,44 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 }
               }
             },
-            onError: (err: any) => {
+            onError: async (err: any) => {
               console.warn('YouTube Player Error:', err)
-              setPlaybackError('Không thể phát video YouTube này')
+              const active = currentTrackRef.current
+              const errorCode = err?.data
+              const isEmbedError = errorCode === 150 || errorCode === 101 || errorCode === 100
+
+              if (active && isEmbedError && !(active as any)._ytRetried) {
+                console.log('[YouTube Fallback] Error 150/101/100 encountered, attempting automatic fallback match...')
+                ;(active as any)._ytRetried = true
+                try {
+                  const queryStr = `${active.title} ${active.artist || ''}`.trim()
+                  const searchRes = await fetchUnifiedSearch(queryStr, 'youtube')
+                  const candidates = (searchRes?.youtube || []).filter((t: Track) => t.youtube_id && t.youtube_id !== active.youtube_id)
+                  if (candidates.length > 0) {
+                    const fallbackMatch = findBestYouTubeMatch(candidates, active.title, active.artist, active.duration, active.album) || candidates[0]
+                    if (fallbackMatch && fallbackMatch.youtube_id) {
+                      console.log('[YouTube Fallback] Swapping to alternative YouTube video:', fallbackMatch.youtube_id)
+                      const updatedTrack = { ...active, youtube_id: fallbackMatch.youtube_id }
+                      currentTrackRef.current = updatedTrack
+                      setCurrentTrack(updatedTrack)
+                      if (ytPlayerRef.current?.loadVideoById) {
+                        ytPlayerRef.current.loadVideoById({ videoId: fallbackMatch.youtube_id })
+                        setIsPlaying(true)
+                        setPlaybackError(null)
+                        return
+                      }
+                    }
+                  }
+                } catch (fallbackErr) {
+                  console.warn('YouTube fallback retry error:', fallbackErr)
+                }
+              }
+
+              setPlaybackError(
+                errorCode === 150 || errorCode === 101
+                  ? 'Video này bị cấm nhúng phát ngoài YouTube. Vui lòng chọn bài khác.'
+                  : 'Không thể phát video YouTube này'
+              )
             },
           },
         })
@@ -519,20 +554,32 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return `/api/drive-stream?id=${encodeURIComponent(driveFileId)}${filenameParam}`
     }
 
+    let rawUrl: string | null = null
     if (filePath.startsWith('http')) {
-      return filePath
+      rawUrl = filePath
+    } else {
+      const { data, error } = await supabase.storage
+        .from('music-files')
+        .createSignedUrl(filePath, 3600)
+
+      if (error || !data?.signedUrl) {
+        const { data: pubData } = supabase.storage.from('music-files').getPublicUrl(filePath)
+        rawUrl = pubData.publicUrl
+      } else {
+        rawUrl = data.signedUrl
+      }
     }
 
-    const { data, error } = await supabase.storage
-      .from('music-files')
-      .createSignedUrl(filePath, 3600)
-
-    if (error || !data?.signedUrl) {
-      const { data: pubData } = supabase.storage.from('music-files').getPublicUrl(filePath)
-      return pubData.publicUrl
+    if (
+      rawUrl &&
+      rawUrl.startsWith('http://') &&
+      !rawUrl.startsWith('http://localhost') &&
+      !rawUrl.startsWith('http://127.0.0.1')
+    ) {
+      rawUrl = rawUrl.replace(/^http:\/\//i, 'https://')
     }
 
-    return data.signedUrl
+    return rawUrl
   }
 
   // Restore saved player state on mount

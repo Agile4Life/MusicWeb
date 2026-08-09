@@ -12,6 +12,7 @@ const inFlightRequests = new Map<string, Promise<any>>()
 const CACHE_TTL = 180 * 1000
 
 export const maxDuration = 15
+export const dynamic = 'force-dynamic'
 
 function cachedJsonResponse(data: any, status = 200) {
   return NextResponse.json(data, {
