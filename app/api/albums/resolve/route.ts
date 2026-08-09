@@ -47,8 +47,8 @@ export async function GET(req: NextRequest) {
     if (deezerResults && deezerResults.length > 0) {
       const cleanTitle = title.trim().toLowerCase()
       const best = deezerResults.find((a) =>
-        cleanTitle ? a.name.toLowerCase().includes(cleanTitle) : true
-      ) || deezerResults[0]
+        cleanTitle ? a.name.toLowerCase().includes(cleanTitle) || cleanTitle.includes(a.name.toLowerCase()) : true
+      )
 
       if (best && best.id) {
         return NextResponse.json({ albumId: best.id, albumName: best.name })
@@ -65,10 +65,14 @@ export async function GET(req: NextRequest) {
         const dData = await dTrackRes.json()
         if (dData.data && dData.data.length > 0 && dData.data[0].album?.id) {
           const item = dData.data[0]
-          return NextResponse.json({
-            albumId: String(item.album.id),
-            albumName: item.album.title || item.title || title,
-          })
+          const albTitle = (item.album.title || '').toLowerCase()
+          const cleanTitle = title.trim().toLowerCase()
+          if (!cleanTitle || albTitle.includes(cleanTitle) || cleanTitle.includes(albTitle)) {
+            return NextResponse.json({
+              albumId: String(item.album.id),
+              albumName: item.album.title || item.title || title,
+            })
+          }
         }
       }
     } catch (dTrackErr) {
@@ -79,7 +83,11 @@ export async function GET(req: NextRequest) {
     if (title.trim()) {
       const titleResults = await searchDeezerAlbums(title.trim(), 3)
       if (titleResults && titleResults.length > 0) {
-        return NextResponse.json({ albumId: titleResults[0].id, albumName: titleResults[0].name })
+        const cleanTitle = title.trim().toLowerCase()
+        const bestTitle = titleResults.find((a) => a.name.toLowerCase().includes(cleanTitle) || cleanTitle.includes(a.name.toLowerCase()))
+        if (bestTitle && bestTitle.id) {
+          return NextResponse.json({ albumId: bestTitle.id, albumName: bestTitle.name })
+        }
       }
     }
 

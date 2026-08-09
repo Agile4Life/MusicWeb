@@ -71,35 +71,47 @@ export function PlayerBar() {
       currentTrack.album &&
       !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(currentTrack.album.trim())
 
-    if (hasRealAlbum) {
+    if (hasRealAlbum && currentTrack.spotify_album_id) {
       setResolvedAlbumInfo({
-        id: currentTrack.spotify_album_id || undefined,
+        id: currentTrack.spotify_album_id,
         name: currentTrack.album!,
       })
       return
     }
 
-    setResolvedAlbumInfo(null)
+    if (hasRealAlbum) {
+      let isCancelled = false
+      const albumToSearch = currentTrack.album!
+      const artistToSearch = currentTrack.artist || ''
 
-    let isCancelled = false
-    const titleToSearch = currentTrack.title
-    const artistToSearch = currentTrack.artist || ''
+      fetch(`/api/albums/resolve?title=${encodeURIComponent(albumToSearch)}&artist=${encodeURIComponent(artistToSearch)}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (!isCancelled && data && data.albumId) {
+            setResolvedAlbumInfo({
+              id: data.albumId,
+              name: data.albumName || currentTrack.album!,
+            })
+          } else if (!isCancelled) {
+            setResolvedAlbumInfo({
+              name: currentTrack.album!,
+            })
+          }
+        })
+        .catch(() => {
+          if (!isCancelled) {
+            setResolvedAlbumInfo({
+              name: currentTrack.album!,
+            })
+          }
+        })
 
-    fetch(`/api/albums/resolve?title=${encodeURIComponent(titleToSearch)}&artist=${encodeURIComponent(artistToSearch)}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!isCancelled && data && data.albumName) {
-          setResolvedAlbumInfo({
-            id: data.albumId,
-            name: data.albumName,
-          })
-        }
-      })
-      .catch(() => {})
-
-    return () => {
-      isCancelled = true
+      return () => {
+        isCancelled = true
+      }
     }
+
+    setResolvedAlbumInfo(null)
   }, [currentTrack?.id, currentTrack?.title, currentTrack?.artist, currentTrack?.album, currentTrack?.spotify_album_id])
 
   const displayAlbumName = resolvedAlbumInfo?.name || (
@@ -117,15 +129,15 @@ export function PlayerBar() {
       return
     }
 
-    if (resolvedAlbumInfo?.id) {
-      setShowMobileFullPlayer(false)
-      router.push(`/album/${resolvedAlbumInfo.id}`)
-      return
-    }
-
     if (currentTrack.spotify_album_id) {
       setShowMobileFullPlayer(false)
       router.push(`/album/${currentTrack.spotify_album_id}`)
+      return
+    }
+
+    if (resolvedAlbumInfo?.id) {
+      setShowMobileFullPlayer(false)
+      router.push(`/album/${resolvedAlbumInfo.id}`)
       return
     }
 
@@ -133,48 +145,29 @@ export function PlayerBar() {
       currentTrack.album &&
       !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(currentTrack.album.trim())
 
-    const titleToSearch = hasRealAlbum ? currentTrack.album : currentTrack.title
-    const artistToSearch = currentTrack.artist || ''
-
-    try {
-      setIsNavigatingAlbum(true)
-      const res = await fetch(
-        `/api/albums/resolve?title=${encodeURIComponent(titleToSearch!)}&artist=${encodeURIComponent(artistToSearch)}`
-      )
-      if (res.ok) {
-        const data = await res.json()
-        if (data.albumId) {
-          setShowMobileFullPlayer(false)
-          router.push(`/album/${data.albumId}`)
-          return
+    if (hasRealAlbum) {
+      try {
+        setIsNavigatingAlbum(true)
+        const res = await fetch(
+          `/api/albums/resolve?title=${encodeURIComponent(currentTrack.album!)}&artist=${encodeURIComponent(currentTrack.artist || '')}`
+        )
+        if (res.ok) {
+          const data = await res.json()
+          if (data.albumId) {
+            setShowMobileFullPlayer(false)
+            router.push(`/album/${data.albumId}`)
+            return
+          }
         }
+      } catch (err) {
+        console.warn('Failed to resolve album ID:', err)
+      } finally {
+        setIsNavigatingAlbum(false)
       }
-    } catch (err) {
-      console.warn('Failed to resolve album ID:', err)
-    } finally {
-      setIsNavigatingAlbum(false)
-    }
-
-    // Fallback: search Deezer albums directly for top result
-    try {
-      setIsNavigatingAlbum(true)
-      const fallbackRes = await fetch(`/api/albums/search?q=${encodeURIComponent((currentTrack.artist || currentTrack.title).trim())}`)
-      if (fallbackRes.ok) {
-        const searchData = await fallbackRes.json()
-        if (Array.isArray(searchData) && searchData.length > 0 && searchData[0].id) {
-          setShowMobileFullPlayer(false)
-          router.push(`/album/${searchData[0].id}`)
-          return
-        }
-      }
-    } catch (fErr) {
-      console.warn('Fallback album search failed:', fErr)
-    } finally {
-      setIsNavigatingAlbum(false)
     }
 
     setShowMobileFullPlayer(false)
-    router.push('/albums')
+    router.push(hasRealAlbum ? `/albums?q=${encodeURIComponent(currentTrack.album!)}` : '/albums')
   }
 
   const [prevVol, setPrevVol] = useState(0.8)

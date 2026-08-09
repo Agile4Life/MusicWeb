@@ -75,45 +75,27 @@ function TrackRowComponent({
       track.album &&
       !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(track.album.trim())
 
-    const titleToSearch = hasRealAlbum ? track.album : track.title
-    const artistToSearch = track.artist || ''
-
-    try {
-      setIsResolvingAlbum(true)
-      const res = await fetch(
-        `/api/albums/resolve?title=${encodeURIComponent(titleToSearch!)}&artist=${encodeURIComponent(artistToSearch)}`
-      )
-      if (res.ok) {
-        const data = await res.json()
-        if (data.albumId) {
-          router.push(`/album/${data.albumId}`)
-          return
+    if (hasRealAlbum) {
+      try {
+        setIsResolvingAlbum(true)
+        const res = await fetch(
+          `/api/albums/resolve?title=${encodeURIComponent(track.album!)}&artist=${encodeURIComponent(track.artist || '')}`
+        )
+        if (res.ok) {
+          const data = await res.json()
+          if (data.albumId) {
+            router.push(`/album/${data.albumId}`)
+            return
+          }
         }
+      } catch (err) {
+        console.warn('Failed to resolve track album:', err)
+      } finally {
+        setIsResolvingAlbum(false)
       }
-    } catch (err) {
-      console.warn('Failed to resolve track album:', err)
-    } finally {
-      setIsResolvingAlbum(false)
     }
 
-    // Fallback: search Deezer albums directly
-    try {
-      setIsResolvingAlbum(true)
-      const fallbackRes = await fetch(`/api/albums/search?q=${encodeURIComponent((track.artist || track.title).trim())}`)
-      if (fallbackRes.ok) {
-        const searchData = await fallbackRes.json()
-        if (Array.isArray(searchData) && searchData.length > 0 && searchData[0].id) {
-          router.push(`/album/${searchData[0].id}`)
-          return
-        }
-      }
-    } catch (fErr) {
-      console.warn('Fallback album search failed:', fErr)
-    } finally {
-      setIsResolvingAlbum(false)
-    }
-
-    router.push('/albums')
+    router.push(hasRealAlbum ? `/albums?q=${encodeURIComponent(track.album!)}` : '/albums')
   }
 
   useEffect(() => {
