@@ -12,7 +12,7 @@ import { fetchViewCountForVideo } from '@/lib/youtube'
 import { useSession } from 'next-auth/react'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
-import { getCachedResolvedAlbum, setCachedResolvedAlbum } from '@/lib/albumCache'
+import { getCachedResolvedAlbum, setCachedResolvedAlbum, isRealAlbumName } from '@/lib/albumCache'
 import { triggerDrivePrewarm } from '@/lib/googleDriveUpload'
 
 const viewCountCache = new Map<string, number>()
@@ -63,13 +63,19 @@ function TrackRowComponent({
   const router = useRouter()
   const [isResolvingAlbum, setIsResolvingAlbum] = useState(false)
   const [liveAlbum, setLiveAlbum] = useState<string | null>(() => {
-    const cached = getCachedResolvedAlbum(track.title, track.artist)
+    if (isRealAlbumName(track.album)) return track.album || null
+    const cached = getCachedResolvedAlbum(track.title, track.artist, track.album)
     if (cached?.albumName) return cached.albumName
     return track.album || null
   })
 
   useEffect(() => {
-    const cached = getCachedResolvedAlbum(track.title, track.artist)
+    if (isRealAlbumName(track.album)) {
+      setLiveAlbum(track.album || null)
+      return
+    }
+
+    const cached = getCachedResolvedAlbum(track.title, track.artist, track.album)
     if (cached?.albumName) setLiveAlbum(cached.albumName)
 
     const handleAlbumResolved = (e: any) => {
@@ -78,7 +84,9 @@ function TrackRowComponent({
         const isTitleMatch = detail.title && track.title && detail.title.toLowerCase().trim() === track.title.toLowerCase().trim()
         const isArtistMatch = detail.artist && track.artist && detail.artist.toLowerCase().trim() === track.artist.toLowerCase().trim()
         if (isTitleMatch && isArtistMatch) {
-          setLiveAlbum(detail.album.albumName)
+          if (!isRealAlbumName(track.album)) {
+            setLiveAlbum(detail.album.albumName)
+          }
         }
       }
     }
@@ -90,7 +98,7 @@ function TrackRowComponent({
         window.removeEventListener('album-resolved', handleAlbumResolved)
       }
     }
-  }, [track.title, track.artist])
+  }, [track.title, track.artist, track.album])
   const supabase = createClient()
   const { data: nextAuthSession } = useSession()
   const [showMenu, setShowMenu] = useState(false)

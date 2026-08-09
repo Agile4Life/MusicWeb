@@ -134,6 +134,8 @@ export async function GET(
               ...cached,
               tracks: cached.tracks.map((t: any) => ({
                 ...t,
+                album: cached.name || t.album,
+                spotify_album_id: cached.id || t.spotify_album_id,
                 cover_url: t.cover_url || cached.cover_url || null,
                 source: t.source || 'spotify',
               })),
