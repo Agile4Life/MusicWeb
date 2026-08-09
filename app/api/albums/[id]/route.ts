@@ -4,6 +4,23 @@ import { fetchSpotifyAlbumMeta, fetchFullAlbumTracks } from '@/lib/spotify'
 import { fetchDeezerAlbumTracks } from '@/lib/deezer'
 import { fetchITunesAlbumTracks } from '@/lib/itunes'
 
+const albumMemoryCache = new Map<string, { data: any; timestamp: number }>()
+const ALBUM_CACHE_TTL = 30 * 60 * 1000 // 30 minutes
+
+function cachedAlbumResponse(data: any, albumId: string) {
+  if (albumMemoryCache.size > 200) {
+    const oldestKey = albumMemoryCache.keys().next().value
+    if (oldestKey) albumMemoryCache.delete(oldestKey)
+  }
+  albumMemoryCache.set(albumId, { data, timestamp: Date.now() })
+
+  return NextResponse.json(data, {
+    headers: {
+      'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=172800',
+    },
+  })
+}
+
 function getSupabaseClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -19,6 +36,16 @@ export async function GET(
     const { id: albumId } = await params
     if (!albumId) {
       return NextResponse.json({ error: 'Missing album id' }, { status: 400 })
+    }
+
+    // 0. Check in-memory LRU cache (<2ms)
+    const memCached = albumMemoryCache.get(albumId)
+    if (memCached && Date.now() - memCached.timestamp < ALBUM_CACHE_TTL) {
+      return NextResponse.json(memCached.data, {
+        headers: {
+          'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=172800',
+        },
+      })
     }
 
     const supabase = getSupabaseClient()
@@ -46,16 +73,12 @@ export async function GET(
             return (a.track_number || 1) - (b.track_number || 1)
           })
 
-          return NextResponse.json(
+          return cachedAlbumResponse(
             {
               ...cached,
               tracks: cached.tracks.map((t: any) => ({ ...t, source: 'spotify' })),
             },
-            {
-              headers: {
-                'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=172800',
-              },
-            }
+            albumId
           )
         }
       } catch (cacheErr) {
@@ -68,11 +91,45 @@ export async function GET(
       try {
         const iTunesRes = await fetchITunesAlbumTracks(albumId)
         if (iTunesRes && iTunesRes.tracks.length > 0) {
-          return NextResponse.json(iTunesRes, {
-            headers: {
-              'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=172800',
-            },
-          })
+          if (supabase) {
+            ;(async () => {
+              try {
+                await supabase.from('spotify_albums').upsert({
+                  id: iTunesRes.id,
+                  name: iTunesRes.name,
+                  artist: iTunesRes.artist,
+                  cover_url: iTunesRes.cover_url,
+                  release_date: iTunesRes.release_date,
+                  total_tracks: iTunesRes.total_tracks || iTunesRes.tracks.length,
+                  album_type: iTunesRes.album_type,
+                })
+
+                const tracksToSave = iTunesRes.tracks.map((t) => ({
+                  user_id: '00000000-0000-4000-a000-000000000001',
+                  title: t.title,
+                  artist: t.artist || iTunesRes.artist,
+                  album: iTunesRes.name,
+                  spotify_album_id: iTunesRes.id,
+                  disc_number: t.disc_number || 1,
+                  track_number: t.track_number || 1,
+                  duration: t.duration || 0,
+                  file_path: t.file_path || '',
+                  cover_url: t.cover_url || iTunesRes.cover_url,
+                  itunes_id: t.itunes_id ? String(t.itunes_id) : null,
+                }))
+
+                if (tracksToSave.length > 0) {
+                  await supabase.from('tracks').upsert(tracksToSave, {
+                    onConflict: 'user_id,title,artist',
+                    ignoreDuplicates: true,
+                  })
+                }
+              } catch (saveErr) {
+                console.warn('Saving iTunes album to Supabase warning:', saveErr)
+              }
+            })().catch(() => {})
+          }
+          return cachedAlbumResponse(iTunesRes, albumId)
         }
       } catch (iErr) {
         console.warn('iTunes album fetch error:', iErr)
@@ -111,16 +168,12 @@ export async function GET(
           })().catch(() => {})
         }
 
-        return NextResponse.json(
+        return cachedAlbumResponse(
           {
             ...albumMeta,
             tracks: tracksToSave,
           },
-          {
-            headers: {
-              'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=172800',
-            },
-          }
+          albumId
         )
       }
     } catch (dErr) {
@@ -132,11 +185,7 @@ export async function GET(
       try {
         const iTunesRes = await fetchITunesAlbumTracks(albumId)
         if (iTunesRes && iTunesRes.tracks.length > 0) {
-          return NextResponse.json(iTunesRes, {
-            headers: {
-              'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=172800',
-            },
-          })
+          return cachedAlbumResponse(iTunesRes, albumId)
         }
       } catch (iErr) {
         // ignore
@@ -197,16 +246,12 @@ export async function GET(
           created_at: new Date().toISOString(),
         }))
 
-        return NextResponse.json(
+        return cachedAlbumResponse(
           {
             ...albumMeta,
             tracks: finalTracks,
           },
-          {
-            headers: {
-              'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=172800',
-            },
-          }
+          albumId
         )
       }
     }

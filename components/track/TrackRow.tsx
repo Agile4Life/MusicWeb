@@ -403,18 +403,27 @@ function TrackRowComponent({
         )}
       </div>
 
-      {/* Duration & Options */}
-      <div className="shrink-0 flex items-center justify-end gap-2 sm:gap-3 md:w-1/4 text-xs text-slate-400">
-        {displayViews != null && displayViews > 0 && (
-          <span
-            className="inline-flex items-center gap-1 text-[11px] font-mono text-cyan-400/90 bg-cyan-950/40 border border-cyan-500/20 px-2 py-0.5 rounded-full shrink-0"
-            title={`${displayViews.toLocaleString()} lượt xem / lượt nghe`}
-          >
-            <Eye className="w-3 h-3 text-cyan-400 shrink-0" />
-            {formatViewCount(displayViews)}
-          </span>
-        )}
-        <span className="font-mono text-slate-300">{formatDuration(track.duration)}</span>
+      {/* Views, Duration & Options */}
+      <div className="shrink-0 flex items-center justify-end shrink-0 md:w-1/4 gap-3 sm:gap-4 text-xs text-slate-400 pr-2">
+        {/* Views sub-column */}
+        <div className="hidden sm:flex items-center justify-end w-20 sm:w-24 shrink-0">
+          {displayViews != null && displayViews > 0 ? (
+            <span
+              className="inline-flex items-center gap-1 text-[11px] font-mono text-cyan-400/90 bg-cyan-950/40 border border-cyan-500/20 px-2 py-0.5 rounded-full shrink-0"
+              title={`${displayViews.toLocaleString()} lượt xem / lượt nghe`}
+            >
+              <Eye className="w-3 h-3 text-cyan-400 shrink-0" />
+              {formatViewCount(displayViews)}
+            </span>
+          ) : (
+            <span className="text-[11px] font-mono text-slate-600/60">-</span>
+          )}
+        </div>
+
+        {/* Duration sub-column */}
+        <span className="w-14 sm:w-16 text-right font-mono text-slate-300 shrink-0">
+          {formatDuration(track.duration)}
+        </span>
 
         {/* Edit mode save/cancel */}
         {editMode ? (

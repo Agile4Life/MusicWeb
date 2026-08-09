@@ -21,6 +21,22 @@ function normalizeText(str?: string | null): string {
     .replace(/\s+/g, ' ')
 }
 
+const resolveMemoryCache = new Map<string, { data: any; timestamp: number }>()
+const RESOLVE_CACHE_TTL = 30 * 60 * 1000 // 30 mins
+
+function cachedResolveResponse(data: any, key: string) {
+  if (resolveMemoryCache.size > 300) {
+    const oldestKey = resolveMemoryCache.keys().next().value
+    if (oldestKey) resolveMemoryCache.delete(oldestKey)
+  }
+  resolveMemoryCache.set(key, { data, timestamp: Date.now() })
+  return NextResponse.json(data, {
+    headers: {
+      'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=172800',
+    },
+  })
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
@@ -33,6 +49,17 @@ export async function GET(req: NextRequest) {
 
     const cleanTitle = normalizeText(title)
     const cleanArtist = normalizeText(artist)
+    const cacheKey = `${cleanTitle}_${cleanArtist}`
+
+    const memCached = resolveMemoryCache.get(cacheKey)
+    if (memCached && Date.now() - memCached.timestamp < RESOLVE_CACHE_TTL) {
+      return NextResponse.json(memCached.data, {
+        headers: {
+          'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=172800',
+        },
+      })
+    }
+
     const supabase = getSupabaseClient()
 
     // 1. Check local Supabase DB cache first
