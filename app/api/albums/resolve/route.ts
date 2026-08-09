@@ -140,10 +140,22 @@ export async function GET(req: NextRequest) {
 
     const memCached = resolveMemoryCache.get(cacheKey)
     if (memCached && Date.now() - memCached.timestamp < RESOLVE_CACHE_TTL) {
-      if (memCached.data?.albumId && memCached.data?.albumName) {
-        persistToDb(memCached.data.albumId, memCached.data.albumName).catch(() => {})
+      const cachedId = String(memCached.data?.albumId || '')
+      const cachedNameNorm = normalizeText(memCached.data?.albumName)
+      const targetNorm = cleanAlbum || cleanTitle
+
+      const isBadDefianceCache = cachedId.includes('299152445') || cachedId.includes('296970753')
+      const isNameMatching = targetNorm && (cachedNameNorm.includes(targetNorm) || targetNorm.includes(cachedNameNorm))
+
+      if (!isBadDefianceCache && isNameMatching) {
+        if (memCached.data?.albumId && memCached.data?.albumName) {
+          persistToDb(memCached.data.albumId, memCached.data.albumName).catch(() => {})
+        }
+        return cachedResolveResponse(memCached.data, cacheKey)
+      } else {
+        // Purge invalid cached entry
+        resolveMemoryCache.delete(cacheKey)
       }
-      return cachedResolveResponse(memCached.data, cacheKey)
     }
 
     // 1. Check local Supabase DB cache first

@@ -14,9 +14,37 @@ function makeKey(title?: string | null, artist?: string | null): string {
   return `${cleanT}___${cleanA}`
 }
 
-export function getCachedResolvedAlbum(title?: string | null, artist?: string | null): ResolvedAlbum | undefined {
+export function getCachedResolvedAlbum(
+  title?: string | null,
+  artist?: string | null,
+  expectedAlbum?: string | null
+): ResolvedAlbum | undefined {
   const key = makeKey(title, artist)
-  return resolvedAlbumCache.get(key)
+  const cached = resolvedAlbumCache.get(key)
+  if (!cached) return undefined
+
+  // Sanity check: If cached album ID is a known bad fallback (e.g. Defiance 299152445)
+  // or if cached album name doesn't match track title/expected album, clear cache entry
+  if (cached.albumId?.includes('299152445') || cached.albumId?.includes('296970753')) {
+    resolvedAlbumCache.delete(key)
+    return undefined
+  }
+
+  if (cached.albumName) {
+    const cachedNameNorm = (cached.albumName || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+    const titleNorm = (title || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+    const albumNorm = (expectedAlbum || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+
+    const matchesTitle = titleNorm && (cachedNameNorm.includes(titleNorm) || titleNorm.includes(cachedNameNorm))
+    const matchesAlbum = albumNorm && (cachedNameNorm.includes(albumNorm) || albumNorm.includes(cachedNameNorm))
+
+    if (!matchesTitle && !matchesAlbum) {
+      resolvedAlbumCache.delete(key)
+      return undefined
+    }
+  }
+
+  return cached
 }
 
 export function setCachedResolvedAlbum(

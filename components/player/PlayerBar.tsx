@@ -78,8 +78,8 @@ export function PlayerBar() {
       !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album', 'Unknown Album'].includes(currentTrack.album.trim())
     )
 
-    const cached = getCachedResolvedAlbum(currentTrack.title, currentTrack.artist)
-    if (cached?.albumName) {
+    const cached = getCachedResolvedAlbum(currentTrack.title, currentTrack.artist, currentTrack.album)
+    if (cached?.albumId && !cached.albumId.includes('299152445') && !cached.albumId.includes('296970753')) {
       setResolvedAlbumInfo({
         id: cached.albumId,
         name: cached.albumName,
@@ -87,7 +87,7 @@ export function PlayerBar() {
       if (cached.albumId) return
     }
 
-    if (hasRealAlbum && currentTrack.spotify_album_id && currentTrack.album !== 'My Spot') {
+    if (hasRealAlbum && currentTrack.spotify_album_id && currentTrack.album !== 'My Spot' && !currentTrack.spotify_album_id.includes('299152445') && !currentTrack.spotify_album_id.includes('296970753')) {
       setResolvedAlbumInfo({
         id: currentTrack.spotify_album_id,
         name: currentTrack.album!,
@@ -162,13 +162,13 @@ export function PlayerBar() {
       return
     }
 
-    if (currentTrack.spotify_album_id) {
+    if (currentTrack.spotify_album_id && !currentTrack.spotify_album_id.includes('299152445') && !currentTrack.spotify_album_id.includes('296970753')) {
       setShowMobileFullPlayer(false)
       router.push(`/album/${currentTrack.spotify_album_id}`)
       return
     }
 
-    if (resolvedAlbumInfo?.id) {
+    if (resolvedAlbumInfo?.id && !resolvedAlbumInfo.id.includes('299152445') && !resolvedAlbumInfo.id.includes('296970753')) {
       setShowMobileFullPlayer(false)
       router.push(`/album/${resolvedAlbumInfo.id}`)
       return

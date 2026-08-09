@@ -99,7 +99,7 @@ function TrackRowComponent({
     e.preventDefault()
     e.stopPropagation()
 
-    if (track.spotify_album_id) {
+    if (track.spotify_album_id && !track.spotify_album_id.includes('299152445') && !track.spotify_album_id.includes('296970753')) {
       router.push(`/album/${track.spotify_album_id}`)
       return
     }
