@@ -13,7 +13,7 @@ import { getSmartRecommendedTracks } from '@/lib/smartRecommend'
 import { NextQueueResponse, queueTrackToTrack } from '@/types/queue'
 import { getMusicOfftopicSegments, calculateIntroOffset } from '@/lib/sponsorblock'
 
-const SILENT_AUDIO_URL = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA=='
+const SILENT_AUDIO_URL = '/silent.wav'
 
 export type RepeatMode = 'off' | 'all' | 'one'
 
@@ -184,6 +184,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const closeQueue = () => setIsQueueOpen(false)
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const audioRetryCountRef = useRef(0)
   const ytPlayerRef = useRef<any>(null)
   const ytReadyRef = useRef<boolean>(false)
   const playRequestRef = useRef(0)
@@ -1428,6 +1429,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const handleError = async () => {
       if (currentTrackRef.current?.source !== 'youtube') {
         const current = currentTrackRef.current
+        if (audioRetryCountRef.current < 2) {
+          audioRetryCountRef.current++
+          setTimeout(() => {
+            if (audioRef.current) {
+              audioRef.current.load()
+              audioRef.current.play().catch(() => {})
+            }
+          }, 500 * audioRetryCountRef.current)
+          return
+        }
         if (current && current.file_path) {
           await fallbackToYouTube(current)
           return
@@ -1472,7 +1483,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const handleStalled = () => setIsBuffering(true)
     const handleLoadStart = () => setIsBuffering(true)
     const handleCanPlay = () => setIsBuffering(false)
-    const handlePlaying = () => setIsBuffering(false)
+    const handlePlaying = () => {
+      setIsBuffering(false)
+      audioRetryCountRef.current = 0
+    }
 
     audio.addEventListener('timeupdate', handleTimeUpdate)
     audio.addEventListener('loadedmetadata', handleLoadedMetadata)
