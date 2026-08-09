@@ -104,15 +104,16 @@ function TrackRowComponent({
       return
     }
 
+    const hasRealAlbum =
+      track.album &&
+      !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(track.album.trim())
+
+    const titleToSearch = track.title || ''
+    const artistToSearch = track.artist || ''
+    const albumToSearch = hasRealAlbum ? track.album! : ''
+
     try {
       setIsResolvingAlbum(true)
-      const hasRealAlbum =
-        track.album &&
-        !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(track.album.trim())
-
-      const titleToSearch = track.title || ''
-      const artistToSearch = track.artist || ''
-      const albumToSearch = hasRealAlbum ? track.album! : ''
 
       const res = await fetch(
         `/api/albums/resolve?title=${encodeURIComponent(titleToSearch)}&artist=${encodeURIComponent(artistToSearch)}&album=${encodeURIComponent(albumToSearch)}&track_id=${encodeURIComponent(track.id || '')}`
@@ -137,7 +138,8 @@ function TrackRowComponent({
       setIsResolvingAlbum(false)
     }
 
-    router.push('/albums')
+    const targetQuery = albumToSearch || titleToSearch
+    router.push(targetQuery ? `/albums?q=${encodeURIComponent(targetQuery)}` : '/albums')
   }
 
   const currentAlbumDisplay = liveAlbum || track.album

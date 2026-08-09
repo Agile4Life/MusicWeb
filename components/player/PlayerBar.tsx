@@ -174,15 +174,16 @@ export function PlayerBar() {
       return
     }
 
+    const hasRealAlbum =
+      currentTrack.album &&
+      !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(currentTrack.album.trim())
+
+    const titleToSearch = currentTrack.title || ''
+    const artistToSearch = currentTrack.artist || ''
+    const albumToSearch = hasRealAlbum ? currentTrack.album! : ''
+
     try {
       setIsNavigatingAlbum(true)
-      const hasRealAlbum =
-        currentTrack.album &&
-        !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(currentTrack.album.trim())
-
-      const titleToSearch = currentTrack.title || ''
-      const artistToSearch = currentTrack.artist || ''
-      const albumToSearch = hasRealAlbum ? currentTrack.album! : ''
 
       const res = await fetch(
         `/api/albums/resolve?title=${encodeURIComponent(titleToSearch)}&artist=${encodeURIComponent(artistToSearch)}&album=${encodeURIComponent(albumToSearch)}&track_id=${encodeURIComponent(currentTrack.id || '')}`
@@ -204,8 +205,9 @@ export function PlayerBar() {
       setIsNavigatingAlbum(false)
     }
 
+    const targetQuery = albumToSearch || titleToSearch
     setShowMobileFullPlayer(false)
-    router.push('/albums')
+    router.push(targetQuery ? `/albums?q=${encodeURIComponent(targetQuery)}` : '/albums')
   }
 
   const [prevVol, setPrevVol] = useState(0.8)
