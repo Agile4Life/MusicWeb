@@ -211,6 +211,56 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Helper: detect if a Deezer result is likely a single (album name ≈ track title)
+    const isLikelySingle = (albumTitle?: string, trackTitle?: string) => {
+      if (!albumTitle || !trackTitle) return false
+      return normalizeText(albumTitle) === normalizeText(trackTitle)
+    }
+
+    // Helper: try to find the real parent album for a track via Deezer album search
+    const tryFindRealAlbum = async (artistName: string, trackTitle: string): Promise<{ albumId: string; albumName: string; coverUrl: string | null } | null> => {
+      try {
+        const deezerAlbumResults = await searchDeezerAlbums(`${artistName}`.trim(), 10)
+        if (deezerAlbumResults && deezerAlbumResults.length > 0) {
+          // Find an album that is NOT named after the track (i.e. not a single) and matches the artist
+          const realAlbum = deezerAlbumResults.find((a) => {
+            const albName = normalizeText(a.name)
+            const isNotSingle = albName !== normalizeText(trackTitle)
+            const hasMultipleTracks = (a as any).nb_tracks > 1
+            return isNotSingle && hasMultipleTracks && isArtistMatch((a as any).artist?.name || (a as any).artist)
+          })
+          // As a secondary check, verify this album actually contains the track
+          if (realAlbum && realAlbum.id) {
+            try {
+              const albumDetailRes = await fetch(
+                `https://api.deezer.com/album/${realAlbum.id}/tracks?limit=50`,
+                { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(4000) }
+              )
+              if (albumDetailRes.ok) {
+                const albumDetailData = await albumDetailRes.json()
+                const trackInAlbum = (albumDetailData.data || []).find((t: any) =>
+                  normalizeText(t.title).includes(normalizeText(trackTitle)) ||
+                  normalizeText(trackTitle).includes(normalizeText(t.title))
+                )
+                if (trackInAlbum) {
+                  return {
+                    albumId: String(realAlbum.id),
+                    albumName: realAlbum.name,
+                    coverUrl: (realAlbum as any).cover_url || (realAlbum as any).cover_medium || (realAlbum as any).cover || null,
+                  }
+                }
+              }
+            } catch {
+              // Fall through — album track list check failed
+            }
+          }
+        }
+      } catch {
+        // Fall through
+      }
+      return null
+    }
+
     // Helper for artist matching
     const isArtistMatch = (candidateArtist?: string) => {
       if (!cleanArtist) return true
@@ -272,6 +322,15 @@ export async function GET(req: NextRequest) {
             const bestTrack = dData.data.find((item: any) => isArtistMatch(item.artist?.name))
 
             if (bestTrack && bestTrack.album?.id) {
+              // Check if result is likely a single (album name ≈ track title)
+              if (isLikelySingle(bestTrack.album.title, bestTrack.title)) {
+                const realAlbum = await tryFindRealAlbum(primaryArtist, bestTrack.title)
+                if (realAlbum) {
+                  await persistToDb(realAlbum.albumId, realAlbum.albumName, realAlbum.coverUrl)
+                  return cachedResolveResponse(realAlbum, cacheKey)
+                }
+              }
+
               const resData = {
                 albumId: String(bestTrack.album.id),
                 albumName: bestTrack.album.title || albumParam || 'Single',
@@ -299,6 +358,15 @@ export async function GET(req: NextRequest) {
           if (dTitleData.data && dTitleData.data.length > 0) {
             const bestTrack = dTitleData.data.find((item: any) => isArtistMatch(item.artist?.name))
             if (bestTrack && bestTrack.album?.id) {
+              // Check if result is likely a single (album name ≈ track title)
+              if (isLikelySingle(bestTrack.album.title, bestTrack.title)) {
+                const realAlbum = await tryFindRealAlbum(primaryArtist, bestTrack.title)
+                if (realAlbum) {
+                  await persistToDb(realAlbum.albumId, realAlbum.albumName, realAlbum.coverUrl)
+                  return cachedResolveResponse(realAlbum, cacheKey)
+                }
+              }
+
               const resData = {
                 albumId: String(bestTrack.album.id),
                 albumName: bestTrack.album.title || albumParam || 'Single',
