@@ -219,10 +219,18 @@ export const LONG_COMPILATION_KEYWORDS = [
 ]
 
 export const NEGATIVE_KEYWORDS = [
-  'cover', 'karaoke', 'instrumental', 'reaction', 'live',
-  'sped up', 'nightcore', '8d audio', 'piano version',
-  'acoustic version', 'remix', 'reverb', 'slowed'
+  'remix', 'reverb', 'slowed', 'sped up', 'speed up', '8d audio',
+  'bass boosted', 'nightcore', 'lofi', 'lo-fi', 'piano version',
+  'acoustic version', 'cover', 'karaoke', 'instrumental', 'reaction',
+  'live', 'tiktok', 'chuẩn hot', 'hot tiktok', '1 hour', '1hour',
+  '30min', 'loop', 'mashup'
 ]
+
+export function isOriginalTrackOnly(title?: string): boolean {
+  if (!title) return true
+  const lower = title.toLowerCase().normalize('NFC')
+  return !NEGATIVE_KEYWORDS.some((kw) => lower.includes(kw))
+}
 
 export function normalizeTitle(text: string): string {
   if (!text) return ''

@@ -1,5 +1,5 @@
 import { Track } from '@/types'
-import { normalizeTitle } from './youtube'
+import { normalizeTitle, isOriginalTrackOnly } from './youtube'
 
 function extractDriveId(path?: string): string | null {
   if (!path) return null
@@ -7,12 +7,29 @@ function extractDriveId(path?: string): string | null {
   return m ? m[1] : null
 }
 
+export function extractCoreSongTitle(title?: string): string {
+  if (!title) return ''
+  return title
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .replace(/[\(\[\{].*?[\)\]\}]/g, ' ')
+    .replace(/\b(remix|reverb|slowed|speed up|sped up|lofi|lo-fi|lyrics?|lyric video|official video|official music video|official audio|official mv|mv|audio|full video|video|1\s*hour|1hour|30\s*min|loop|podcast|compilation|playlist|hot tiktok|tiktok|chu\u1ea9n hot|hay nhat|mashup|prod|beat)\b/gi, ' ')
+    .replace(/feat\.?|ft\.?/gi, ' ')
+    .replace(/[\-\_\,\.\:\;\|\/\\]/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ')
+}
+
 /**
  * Sinh khoá dedupe từ title + artist đã chuẩn hoá
  */
 function getDedupeKey(track: Track): string {
-  const cleanTitle = normalizeTitle(track.title || '')
+  const cleanTitle = extractCoreSongTitle(track.title || '')
   const cleanArtist = normalizeTitle(track.artist || '')
+  if (!cleanTitle) return `id_${track.id}`
   return `${cleanTitle}::${cleanArtist}`
 }
 
@@ -30,7 +47,7 @@ function isBetterTrack(candidate: Track, current: Track): boolean {
     if (title.includes('lyric') || title.includes('lyrics')) s += 20
     if (title.includes('lo-fi') || title.includes('lofi')) s -= 10
     if (title.includes('remix')) s -= 30
-    if (title.includes('30min') || title.includes('loop') || title.includes('podcast')) s -= 200
+    if (title.includes('30min') || title.includes('loop') || title.includes('1 hour') || title.includes('podcast')) s -= 200
     return s
   }
   return score(candidate) > score(current)
@@ -46,9 +63,11 @@ export function deduplicateQueueTracks(tracks: Track[]): Track[] {
 
   const seenMap = new Map<string, Track>()
   const seenDriveIds = new Set<string>()
+  const seenCoreTitles = new Map<string, Track>()
 
   for (const track of tracks) {
     if (!track || !track.title) continue
+    if (!isOriginalTrackOnly(track.title)) continue
 
     const driveId = extractDriveId(track.file_path || '')
     if (driveId) {
@@ -57,21 +76,32 @@ export function deduplicateQueueTracks(tracks: Track[]): Track[] {
     }
 
     const key = getDedupeKey(track)
-    if (!key || key === '::') {
-      seenMap.set(`id_${track.id}`, track)
+    const coreTitle = extractCoreSongTitle(track.title)
+
+    const existingExact = seenMap.get(key)
+    if (existingExact) {
+      if (isBetterTrack(track, existingExact)) {
+        seenMap.set(key, track)
+        if (coreTitle) seenCoreTitles.set(coreTitle, track)
+      }
       continue
     }
 
-    const existing = seenMap.get(key)
-    if (!existing) {
-      seenMap.set(key, track)
-      continue
+    // Check fuzzy core title deduplication if title is substantial (> 2 chars)
+    if (coreTitle && coreTitle.length > 2) {
+      const existingCore = seenCoreTitles.get(coreTitle)
+      if (existingCore) {
+        if (isBetterTrack(track, existingCore)) {
+          seenMap.delete(getDedupeKey(existingCore))
+          seenMap.set(key, track)
+          seenCoreTitles.set(coreTitle, track)
+        }
+        continue
+      }
     }
 
-    // Nếu đã có bản trùng tên, ưu tiên giữ bản "tốt hơn" (Official Audio > MV > Remix)
-    if (isBetterTrack(track, existing)) {
-      seenMap.set(key, track)
-    }
+    seenMap.set(key, track)
+    if (coreTitle) seenCoreTitles.set(coreTitle, track)
   }
 
   return Array.from(seenMap.values())

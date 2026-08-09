@@ -1310,27 +1310,52 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentIndex, queue, autoPlayNext, repeatMode])
 
-  // Media Session API Sync (Lock Screen Controls)
-  // Separate metadata effect — only runs when track changes
+  // Media Session API Sync (Lock Screen Controls & Mobile Background Playback)
   useEffect(() => {
     if (typeof window === 'undefined' || !('mediaSession' in navigator) || !currentTrack) return
 
     try {
+      const origin = window.location.origin
+      const rawCover = currentTrack.cover_url || ''
+      const coverSrc = rawCover
+        ? rawCover.startsWith('http')
+          ? rawCover
+          : `${origin}${rawCover}`
+        : `${origin}/favicon.ico`
+
       navigator.mediaSession.metadata = new MediaMetadata({
         title: currentTrack.title,
         artist: currentTrack.artist || 'Nghệ sĩ chưa xác định',
         album: currentTrack.album || 'MusicWeb Studio',
         artwork: [
           {
-            src: currentTrack.cover_url || '/favicon.ico',
+            src: coverSrc,
             sizes: '512x512',
             type: 'image/png',
           },
         ],
       })
 
-      navigator.mediaSession.setActionHandler('play', () => togglePlay())
-      navigator.mediaSession.setActionHandler('pause', () => togglePlay())
+      navigator.mediaSession.setActionHandler('play', () => {
+        const isYouTube = currentTrackRef.current?.source === 'youtube' || Boolean(currentTrackRef.current?.youtube_id)
+        if (isYouTube && ytPlayerRef.current?.playVideo) {
+          try { ytPlayerRef.current.playVideo() } catch {}
+        } else if (audioRef.current) {
+          audioRef.current.play().catch(() => {})
+        }
+        setIsPlaying(true)
+      })
+
+      navigator.mediaSession.setActionHandler('pause', () => {
+        const isYouTube = currentTrackRef.current?.source === 'youtube' || Boolean(currentTrackRef.current?.youtube_id)
+        if (isYouTube && ytPlayerRef.current?.pauseVideo) {
+          try { ytPlayerRef.current.pauseVideo() } catch {}
+        } else if (audioRef.current) {
+          audioRef.current.pause()
+        }
+        setIsPlaying(false)
+      })
+
       navigator.mediaSession.setActionHandler('previoustrack', () => prevTrack())
       navigator.mediaSession.setActionHandler('nexttrack', () => nextTrack())
 
@@ -1367,6 +1392,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       // silently ignore
     }
   }, [currentTrack, isPlaying, currentTime, duration])
+
+  // Keep-alive ping to Service Worker during audio playback (prevents mobile OS from suspending worker/audio)
+  useEffect(() => {
+    if (!isPlaying || typeof window === 'undefined' || !('serviceWorker' in navigator)) return
+
+    const interval = setInterval(() => {
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'KEEP_ALIVE' })
+      }
+    }, 10000)
+
+    return () => clearInterval(interval)
+  }, [isPlaying])
 
   const progressValue = useMemo(() => ({ currentTime, duration }), [currentTime, duration])
 

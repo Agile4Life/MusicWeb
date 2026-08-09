@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { searchAudiusTracks, getTrendingAudiusTracks } from '@/lib/audius'
-import { searchYouTubeTracks, getTrendingYouTubeTracks, findBestYouTubeMatch } from '@/lib/youtube'
+import { searchYouTubeTracks, getTrendingYouTubeTracks, findBestYouTubeMatch, isOriginalTrackOnly } from '@/lib/youtube'
 import { searchITunesTracks, getTrendingITunesTracks } from '@/lib/itunes'
 import { searchSpotifyTracks, getTrendingSpotifyTracks } from '@/lib/spotify'
 import { Track } from '@/types'
@@ -182,14 +182,14 @@ export async function GET(request: Request) {
       return yTrack
     })
 
-    const minDurationFilter = (t: Track) => !t.duration || t.duration >= 25
+    const isValidTrackFilter = (t: Track) => (!t.duration || t.duration >= 25) && isOriginalTrackOnly(t.title)
 
     return {
-      local: localTracks,
-      youtube: enhancedYouTube.filter(minDurationFilter),
-      audius: audiusTracks,
-      itunes: enhancedITunes.filter(minDurationFilter),
-      spotify: enhancedSpotify.filter(minDurationFilter),
+      local: localTracks.filter(isValidTrackFilter),
+      youtube: enhancedYouTube.filter(isValidTrackFilter),
+      audius: audiusTracks.filter(isValidTrackFilter),
+      itunes: enhancedITunes.filter(isValidTrackFilter),
+      spotify: enhancedSpotify.filter(isValidTrackFilter),
     }
   })()
 

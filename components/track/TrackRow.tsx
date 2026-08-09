@@ -309,7 +309,7 @@ function TrackRowComponent({
             placeholder="Tên album..."
             className="text-xs bg-white/10 border border-[var(--primary-spotify)]/50 rounded px-1.5 py-0.5 text-white outline-none w-full max-w-[160px]"
           />
-        ) : !track.album || track.album === 'Google Drive' || track.album === 'Google Drive Sync' ? (
+        ) : !track.album || ['Google Drive', 'Google Drive Sync', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(track.album.trim()) ? (
           '—'
         ) : track.spotify_album_id ? (
           <Link

@@ -61,7 +61,7 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
   const [parsedLyrics, setParsedLyrics] = useState<LyricLine[]>([])
   const [isSynced, setIsSynced] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
-  const [lyricOffset, setLyricOffset] = useState(-0.3) // Default -0.3s: lyrics display 300ms early to match audio perception
+  const [lyricOffset, setLyricOffset] = useState(0) // Default 0.0s
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const activeLineRef = useRef<HTMLDivElement | null>(null)
@@ -84,12 +84,12 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
       setLyricsData(null)
       setParsedLyrics([])
       setIsSynced(false)
-      setLyricOffset(-0.3)
+      setLyricOffset(0)
       return
     }
 
     setErrorMessage(null)
-    setLyricOffset(-0.3)
+    setLyricOffset(0)
     loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.duration)
   }, [currentTrack?.id])
 
@@ -209,15 +209,19 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
             )}
           </div>
           <div className="flex flex-col min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 min-w-0 w-full">
-              <h2 className="text-xs sm:text-sm font-bold text-white truncate min-w-0 flex-1">
+            <div className="flex items-center gap-2 min-w-0">
+              <h2 className="text-xs sm:text-sm font-bold text-white truncate shrink-0 max-w-[200px] sm:max-w-xs md:max-w-md">
                 {currentTrack.title}
               </h2>
-              {isSynced && (
-                <span className="text-[8px] sm:text-[9px] uppercase font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
+              {isSynced ? (
+                <span className="text-[9px] uppercase font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
                   Synced
                 </span>
-              )}
+              ) : parsedLyrics.length > 0 ? (
+                <span className="text-[9px] uppercase font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
+                  Plain
+                </span>
+              ) : null}
             </div>
             <p className="text-[10px] sm:text-[11px] text-slate-400 truncate mt-0.5 w-full">
               {currentTrack.artist || 'Nghệ sĩ chưa xác định'}

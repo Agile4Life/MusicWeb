@@ -3,6 +3,7 @@ import { getDeezerArtistRadio, getDeezerRelatedArtistsTopTracks, getDeezerArtist
 import { searchSpotifyTracks } from './spotify'
 import { removeDiacritics } from './smartRecommend'
 import { createClient } from './supabase/server'
+import { isOriginalTrackOnly } from './youtube'
 
 /**
  * Normalize title or artist string for deduplication comparison
@@ -11,6 +12,7 @@ export function normalizeString(str: string): string {
   if (!str) return ''
   return removeDiacritics(str)
     .replace(/[\(\[\{].*?[\)\]\}]/g, '') // remove bracketed text like (Official Video), [Remix]
+    .replace(/\b(remix|reverb|slowed|speed up|sped up|lofi|lo-fi|lyrics?|lyric video|official video|official music video|official audio|official mv|mv|audio|full video|video|1\s*hour|1hour|30\s*min|loop|podcast|compilation|playlist|hot tiktok|tiktok|chu\u1ea9n hot|hay nhat|mashup|prod|beat)\b/gi, ' ')
     .replace(/[^a-z0-9]/g, '')           // keep only alphanumeric
     .trim()
 }
@@ -334,12 +336,24 @@ export async function buildNextQueue(
   candidates = dedupCandidates(candidates)
 
   // 3. Filter out seedTrack & recent session history
+  const seedNormTitle = normalizeString(seedTrack.title)
   const sessionDedupKeys = new Set<string>()
   sessionDedupKeys.add(getDedupKey(seedTrack))
   for (const track of sessionHistory) {
     sessionDedupKeys.add(getDedupKey(track))
   }
-  candidates = candidates.filter((c) => !sessionDedupKeys.has(getDedupKey(c)))
+
+  candidates = candidates.filter((c) => {
+    if (!isOriginalTrackOnly(c.title)) return false
+    if (sessionDedupKeys.has(getDedupKey(c))) return false
+    const candidateNormTitle = normalizeString(c.title)
+    if (seedNormTitle && candidateNormTitle && seedNormTitle.length > 2) {
+      if (candidateNormTitle.includes(seedNormTitle) || seedNormTitle.includes(candidateNormTitle)) {
+        return false
+      }
+    }
+    return true
+  })
 
   // 4. Filter out user's frequently skipped tracks
   const skippedSet = await getFrequentlySkippedTrackIds(userId)
