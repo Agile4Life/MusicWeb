@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { searchDeezerAlbums } from '@/lib/deezer'
-import { searchITunesTracks } from '@/lib/itunes'
 import { createClient } from '@supabase/supabase-js'
 
 function getSupabaseClient() {
@@ -8,6 +7,18 @@ function getSupabaseClient() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   if (!url || !key) return null
   return createClient(url, key, { auth: { persistSession: false } })
+}
+
+function normalizeText(str?: string | null): string {
+  if (!str) return ''
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[&(),.\-_]/g, ' ')
+    .replace(/\b(single|ep|album|remix|official|audio|video|mv)\b/gi, ' ')
+    .trim()
+    .replace(/\s+/g, ' ')
 }
 
 export async function GET(req: NextRequest) {
@@ -20,57 +31,68 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Missing title or artist' }, { status: 400 })
     }
 
+    const cleanTitle = normalizeText(title)
+    const cleanArtist = normalizeText(artist)
     const supabase = getSupabaseClient()
 
-    // 1. Check Supabase DB for matching album title/artist first
-    if (supabase && title.trim()) {
+    // 1. Check local Supabase DB cache first
+    if (supabase && cleanTitle) {
       try {
-        const { data: dbAlbum } = await supabase
+        const { data: dbAlbums } = await supabase
           .from('spotify_albums')
-          .select('id, name')
-          .ilike('name', `%${title.trim()}%`)
-          .limit(1)
-          .maybeSingle()
+          .select('id, name, artist')
 
-        if (dbAlbum && dbAlbum.id) {
-          return NextResponse.json({ albumId: dbAlbum.id, albumName: dbAlbum.name })
+        if (dbAlbums && dbAlbums.length > 0) {
+          const match = dbAlbums.find((alb) => {
+            const albName = normalizeText(alb.name)
+            const albArtist = normalizeText(alb.artist)
+            const nameMatch = albName === cleanTitle || albName.includes(cleanTitle) || cleanTitle.includes(albName)
+            const artistMatch = !cleanArtist || albArtist.includes(cleanArtist) || cleanArtist.includes(albArtist)
+            return nameMatch && artistMatch
+          }) || dbAlbums.find((alb) => {
+            const albName = normalizeText(alb.name)
+            return albName === cleanTitle || albName.includes(cleanTitle) || cleanTitle.includes(albName)
+          })
+
+          if (match && match.id) {
+            return NextResponse.json({ albumId: match.id, albumName: match.name })
+          }
         }
       } catch (dbErr) {
         console.warn('DB album resolve error:', dbErr)
       }
     }
 
-    // 2. Search Deezer API for matching album by Artist + Title
+    // 2. Search primary global music database (Deezer)
     const query = `${artist.trim()} ${title.trim()}`.trim()
     const deezerResults = await searchDeezerAlbums(query, 5)
 
     if (deezerResults && deezerResults.length > 0) {
-      const cleanTitle = title.trim().toLowerCase()
-      const best = deezerResults.find((a) =>
-        cleanTitle ? a.name.toLowerCase().includes(cleanTitle) || cleanTitle.includes(a.name.toLowerCase()) : true
-      )
+      const best = deezerResults.find((a) => {
+        const albName = normalizeText(a.name)
+        return cleanTitle ? albName.includes(cleanTitle) || cleanTitle.includes(albName) : true
+      })
 
       if (best && best.id) {
-        return NextResponse.json({ albumId: best.id, albumName: best.name })
+        return NextResponse.json({ albumId: String(best.id), albumName: best.name })
       }
     }
 
-    // 3. Search Deezer tracks API to get track's album ID and title
+    // 3. Search track API to get exact album container
     try {
       const dTrackRes = await fetch(
         `https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=1`,
-        { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(3000) }
+        { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(3500) }
       )
       if (dTrackRes.ok) {
         const dData = await dTrackRes.json()
         if (dData.data && dData.data.length > 0 && dData.data[0].album?.id) {
           const item = dData.data[0]
-          const albTitle = (item.album.title || '').toLowerCase()
-          const cleanTitle = title.trim().toLowerCase()
+          const albTitle = normalizeText(item.album.title)
           if (!cleanTitle || albTitle.includes(cleanTitle) || cleanTitle.includes(albTitle)) {
             return NextResponse.json({
               albumId: String(item.album.id),
-              albumName: item.album.title || item.title || title,
+              albumName: item.album.title || title,
             })
           }
         }
@@ -79,38 +101,9 @@ export async function GET(req: NextRequest) {
       console.warn('Deezer track resolve warning:', dTrackErr)
     }
 
-    // 4. Fallback search by title alone on Deezer
-    if (title.trim()) {
-      const titleResults = await searchDeezerAlbums(title.trim(), 3)
-      if (titleResults && titleResults.length > 0) {
-        const cleanTitle = title.trim().toLowerCase()
-        const bestTitle = titleResults.find((a) => a.name.toLowerCase().includes(cleanTitle) || cleanTitle.includes(a.name.toLowerCase()))
-        if (bestTitle && bestTitle.id) {
-          return NextResponse.json({ albumId: bestTitle.id, albumName: bestTitle.name })
-        }
-      }
-    }
-
-    // 5. iTunes fallback search for song/album
-    try {
-      const iTunesTracks = await searchITunesTracks(query, 1)
-      if (iTunesTracks.length > 0 && iTunesTracks[0].itunes_id) {
-        const item = iTunesTracks[0]
-        return NextResponse.json({
-          albumId: `itunes-${item.itunes_id}`,
-          albumName: item.album && !['iTunes Global', 'Apple Music Top Hits'].includes(item.album.trim()) ? item.album : item.title,
-        })
-      }
-    } catch (iErr) {
-      console.warn('iTunes resolve fallback error:', iErr)
-    }
-
     return NextResponse.json({ error: 'Album not found' }, { status: 404 })
   } catch (err: any) {
     console.error('API album resolve error:', err)
     return NextResponse.json({ error: err?.message || 'Server error' }, { status: 500 })
   }
 }
-
-
-

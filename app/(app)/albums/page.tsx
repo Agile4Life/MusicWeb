@@ -192,7 +192,7 @@ export default function AlbumsPage() {
           <div>
             <div style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-widest mb-1">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Deezer & Global Collection</span>
+              <span>BỘ SƯU TẬP ALBUM NỔI BẬT</span>
             </div>
             <h1 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight">
               Thư Viện Albums
