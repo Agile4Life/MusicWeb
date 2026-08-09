@@ -16,7 +16,51 @@ interface ResolvedYouTubeStream {
 async function resolveYouTubeAudioStream(videoId: string): Promise<ResolvedYouTubeStream | null> {
   if (!videoId) return null
 
-  // Stage 1: Try @distube/ytdl-core (Direct YouTube InnerTube Decipher)
+  // Stage 1: Official YouTube InnerTube TVHTML5 Client (100% un-ciphered direct audio URLs, fast & datacenter-friendly)
+  try {
+    const res = await fetch('https://www.youtube.com/youtubei/v1/player', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (SmartHub; SMART-TV; U; Linux/SmartTV) AppleWebKit/537.42',
+      },
+      body: JSON.stringify({
+        context: {
+          client: {
+            clientName: 'TVHTML5_SIMPLY_EMBEDDED_PLAYER',
+            clientVersion: '2.0',
+            clientScreen: 'WATCH',
+          },
+        },
+        videoId: videoId,
+      }),
+      signal: AbortSignal.timeout(4500),
+    })
+
+    if (res.ok) {
+      const data = await res.json()
+      const streamingData = data.streamingData || {}
+      const formats = [...(streamingData.formats || []), ...(streamingData.adaptiveFormats || [])]
+      const audioOnly = formats.filter((f: any) => f.mimeType && f.mimeType.includes('audio'))
+
+      if (audioOnly.length > 0) {
+        const bestAudio =
+          audioOnly.find((f: any) => f.url && f.mimeType.includes('audio/mp4')) ||
+          audioOnly.find((f: any) => f.url)
+
+        if (bestAudio && bestAudio.url) {
+          return {
+            url: bestAudio.url,
+            mimeType: bestAudio.mimeType || 'audio/mp4',
+          }
+        }
+      }
+    }
+  } catch (err: any) {
+    console.warn('InnerTube TVHTML5 stream resolution warning:', err?.message || err)
+  }
+
+  // Stage 2: Fallback to @distube/ytdl-core
   try {
     const info = await ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`, {
       requestOptions: {
@@ -40,22 +84,18 @@ async function resolveYouTubeAudioStream(videoId: string): Promise<ResolvedYouTu
     console.warn('ytdl-core stream resolution warning:', err?.message || err)
   }
 
-  // Stage 2: Fallback to Piped API instances
+  // Stage 3: Fallback to Piped API instances
   const pipedInstances = [
-    'https://pipedapi.kavin.rocks/streams/',
-    'https://api.piped.video/streams/',
-    'https://pipedapi.palvelintalo.fi/streams/',
     'https://pipedapi.mha.fi/streams/',
     'https://pipedapi.adminforge.de/streams/',
-    'https://pipedapi.aston.cx/streams/',
+    'https://pipedapi.kavin.rocks/streams/',
+    'https://api.piped.video/streams/',
   ]
 
   for (const base of pipedInstances) {
     try {
       const res = await fetch(`${base}${videoId}`, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0',
-        },
+        headers: { 'User-Agent': 'Mozilla/5.0' },
         signal: AbortSignal.timeout(3500),
       })
       if (res.ok) {
@@ -68,35 +108,6 @@ async function resolveYouTubeAudioStream(videoId: string): Promise<ResolvedYouTu
               url: best.url,
               mimeType: best.mimeType || 'audio/mp4',
             }
-          }
-        }
-      }
-    } catch {}
-  }
-
-  // Stage 3: Fallback to Invidious API instances
-  const invidiousInstances = [
-    'https://inv.tux.pizza/api/v1/videos/',
-    'https://invidious.nerdvpn.de/api/v1/videos/',
-    'https://invidious.flokinet.to/api/v1/videos/',
-  ]
-
-  for (const base of invidiousInstances) {
-    try {
-      const res = await fetch(`${base}${videoId}`, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0',
-        },
-        signal: AbortSignal.timeout(3500),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        const adaptiveFormats = data.adaptiveFormats || []
-        const audio = adaptiveFormats.filter((f: any) => f.type && f.type.includes('audio'))
-        if (audio.length > 0 && audio[0].url) {
-          return {
-            url: audio[0].url,
-            mimeType: audio[0].type || 'audio/mp4',
           }
         }
       }
