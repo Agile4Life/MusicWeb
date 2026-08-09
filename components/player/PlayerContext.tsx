@@ -187,6 +187,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const audioRetryCountRef = useRef(0)
   const ytPlayerRef = useRef<any>(null)
   const ytReadyRef = useRef<boolean>(false)
+  const ytStuckTimerRef = useRef<any>(null)
   const playRequestRef = useRef(0)
 
   const currentTrackRef = useRef<Track | null>(null)
@@ -502,14 +503,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (ytPlayerRef.current || !window.YT) return
       try {
         ytPlayerRef.current = new window.YT.Player('yt-player-container', {
-          height: '0',
-          width: '0',
+          height: '1',
+          width: '1',
           playerVars: {
-            autoplay: 0,
+            autoplay: 1,
             controls: 0,
             disablekb: 1,
             fs: 0,
+            playsinline: 1,
+            enablejsapi: 1,
             rel: 0,
+            origin: typeof window !== 'undefined' ? window.location.origin : '',
           },
           events: {
             onReady: () => {
@@ -540,12 +544,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               // YT.PlayerState.PLAYING = 1, PAUSED = 2, ENDED = 0
               if (event.data === 1) {
                 log('PLAYING')
+                if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
                 setIsPlaying(true)
                 if (ytPlayerRef.current?.getDuration) {
                   setDuration(ytPlayerRef.current.getDuration() || 0)
                 }
               } else if (event.data === 2) {
                 log('PAUSED_BY_YT')
+                if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
                 if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
                   log('IGNORED (screen hidden, giữ MediaSession)')
                   return
@@ -553,6 +559,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 setIsPlaying(false)
               } else if (event.data === 0) {
                 log('ENDED')
+                if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
                 setIsPlaying(false)
                 recordListenEvent(currentTrackRef.current, true)
                 const mode = repeatModeRef.current
@@ -577,6 +584,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 }
               } else if (event.data === -1 || event.data === 3 || event.data === 5) {
                 log('BUFFERING_OR_CUED_OR_UNSTARTED')
+                // Cold-start watchdog: if stuck in cued/buffering/unstarted for > 800ms, auto-trigger playVideo()
+                if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
+                ytStuckTimerRef.current = setTimeout(() => {
+                  if (ytPlayerRef.current && ytPlayerRef.current.playVideo) {
+                    try {
+                      log('AUTO_RETRY_PLAY_VIDEO (cold-start watchdog)')
+                      ytPlayerRef.current.playVideo()
+                    } catch {}
+                  }
+                }, 800)
               }
             },
             onError: async (err: any) => {
@@ -1040,6 +1057,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               videoId: ytId,
               startSeconds: initialTime,
             })
+            if (ytPlayerRef.current.playVideo) {
+              try { ytPlayerRef.current.playVideo() } catch {}
+            }
             setIsPlaying(true)
           } catch (e) {
             console.warn('YT loadVideoById error:', e)
@@ -1581,8 +1601,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         const isYouTube = currentTrackRef.current?.source === 'youtube' || Boolean(currentTrackRef.current?.youtube_id)
         if (isYouTube && ytPlayerRef.current?.playVideo) {
           try { ytPlayerRef.current.playVideo() } catch {}
-        }
-        if (audioRef.current) {
+        } else if (audioRef.current) {
           audioRef.current.play().catch(() => {})
         }
         setIsPlaying(true)
@@ -1592,8 +1611,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         const isYouTube = currentTrackRef.current?.source === 'youtube' || Boolean(currentTrackRef.current?.youtube_id)
         if (isYouTube && ytPlayerRef.current?.pauseVideo) {
           try { ytPlayerRef.current.pauseVideo() } catch {}
-        }
-        if (audioRef.current) {
+        } else if (audioRef.current) {
           audioRef.current.pause()
         }
         setIsPlaying(false)
@@ -1755,8 +1773,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         {/* preload="auto" — buffer audio frames. webkit-playsinline for iOS background audio */}
         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
         <audio ref={audioRef} preload="auto" playsInline {...({'webkit-playsinline': ''} as any)} />
-        {/* Hidden YouTube Player IFrame container */}
-        <div className="hidden pointer-events-none opacity-0 invisible w-0 h-0 overflow-hidden">
+        {/* Hidden YouTube Player IFrame container (Must have non-zero dimensions to prevent YouTube SDK 4s auto-pause) */}
+        <div className="fixed top-0 left-0 w-1 h-1 opacity-0 pointer-events-none overflow-hidden -z-50">
           <div id="yt-player-container" />
         </div>
       </PlaybackProgressContext.Provider>
