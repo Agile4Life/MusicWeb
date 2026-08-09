@@ -1026,10 +1026,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (audio) {
         try {
           audio.pause()
-          audio.src = SILENT_AUDIO_URL
-          audio.loop = true
-          audio.volume = 0.001
-          audio.play().catch(() => {})
+          audio.removeAttribute('src')
         } catch {}
       }
 
