@@ -9,6 +9,27 @@ function getSupabaseClient() {
   return createClient(url, key, { auth: { persistSession: false } })
 }
 
+function cleanTitleString(rawTitle?: string | null, rawArtist?: string | null): string {
+  if (!rawTitle) return ''
+  let cleaned = rawTitle
+    .replace(/[\(\[\{].*?(official|video|audio|mv|lyric|lyrics|full|hd|4k|mp3|visualizer).*?[\)\]\}]/gi, '')
+    .trim()
+
+  if (cleaned.includes(' - ')) {
+    const parts = cleaned.split(' - ')
+    if (parts.length >= 2) {
+      const firstPartNorm = parts[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+      const artistNorm = (rawArtist || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+      const primaryArtist = artistNorm.split(/[,&/]/)[0].trim()
+      if (artistNorm.includes(firstPartNorm) || (primaryArtist && firstPartNorm.includes(primaryArtist))) {
+        cleaned = parts.slice(1).join(' - ').trim()
+      }
+    }
+  }
+
+  return cleaned
+}
+
 function normalizeText(str?: string | null): string {
   if (!str) return ''
   return str
@@ -49,7 +70,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Missing title, artist, or album' }, { status: 400 })
     }
 
-    const cleanTitle = normalizeText(title)
+    const displayTitle = cleanTitleString(title, artist)
+    const cleanTitle = normalizeText(displayTitle || title)
     const cleanArtist = normalizeText(artist)
     let cleanAlbum = normalizeText(albumParam)
 
@@ -59,6 +81,7 @@ export async function GET(req: NextRequest) {
       albumParam = ''
     }
 
+    const primaryArtist = artist.split(/[,&/]/)[0].trim()
     const cacheKey = `${cleanTitle}_${cleanArtist}_${cleanAlbum}`
 
     const supabase = getSupabaseClient()
@@ -131,7 +154,7 @@ export async function GET(req: NextRequest) {
             .from('tracks')
             .select('spotify_album_id, album, artist')
             .not('spotify_album_id', 'is', null)
-            .ilike('title', `%${title.trim()}%`)
+            .ilike('title', `%${(displayTitle || title).trim()}%`)
             .limit(10)
 
           if (dbTrack && dbTrack.length > 0) {
@@ -181,11 +204,50 @@ export async function GET(req: NextRequest) {
       if (!cleanArtist) return true
       if (!candidateArtist) return false
       const cNorm = normalizeText(candidateArtist)
-      return cNorm.includes(cleanArtist) || cleanArtist.includes(cNorm)
+      if (!cNorm) return false
+
+      if (cNorm === cleanArtist || cNorm.includes(cleanArtist) || cleanArtist.includes(cNorm)) {
+        return true
+      }
+
+      const cleanTokens = cleanArtist.split(' ').filter((t) => t.length > 2)
+      const candidateTokens = cNorm.split(' ').filter((t) => t.length > 2)
+      return cleanTokens.some((t) => candidateTokens.includes(t))
     }
 
-    // 2. Primary track-to-album resolution via Deezer search API (artist + title)
-    const searchQuery = `${artist.trim()} ${title.trim()}`.trim()
+    // 2. Priority Direct Deezer Album Search
+    const directAlbumQuery = cleanAlbum
+      ? `${primaryArtist} ${albumParam}`.trim()
+      : `${primaryArtist} ${displayTitle || title}`.trim()
+
+    if (directAlbumQuery) {
+      try {
+        const deezerResults = await searchDeezerAlbums(directAlbumQuery, 5)
+        if (deezerResults && deezerResults.length > 0) {
+          const best = deezerResults.find((a) => {
+            const albName = normalizeText(a.name)
+            const target = cleanAlbum || cleanTitle
+            const nameOk = target ? albName.includes(target) || target.includes(albName) : true
+            return nameOk && isArtistMatch((a as any).artist?.name || (a as any).artist)
+          })
+
+          if (best && best.id) {
+            const resData = {
+              albumId: String(best.id),
+              albumName: best.name,
+              coverUrl: (best as any).cover_url || (best as any).cover || null,
+            }
+            await persistToDb(resData.albumId, resData.albumName, resData.coverUrl)
+            return cachedResolveResponse(resData, cacheKey)
+          }
+        }
+      } catch (dDirectErr) {
+        console.warn('Deezer direct album search resolve warning:', dDirectErr)
+      }
+    }
+
+    // 3. Primary track-to-album resolution via Deezer search API (primary artist + display title)
+    const searchQuery = `${primaryArtist} ${displayTitle || title}`.trim()
     if (searchQuery) {
       try {
         const dTrackRes = await fetch(
@@ -213,11 +275,11 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 3. Title-Only Deezer Track Search (Strict Artist Match Only)
+    // 4. Title-Only Deezer Track Search (Strict Artist Match Only)
     if (cleanTitle) {
       try {
         const dTitleRes = await fetch(
-          `https://api.deezer.com/search?q=${encodeURIComponent(title.trim())}&limit=5`,
+          `https://api.deezer.com/search?q=${encodeURIComponent(displayTitle || title)}&limit=5`,
           { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(4000) }
         )
         if (dTitleRes.ok) {
@@ -240,9 +302,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 4. iTunes Track / Collection Search Fallback (Strict Artist Match Only)
+    // 5. iTunes Track / Collection Search Fallback (Strict Artist Match Only)
     try {
-      const iTunesSearchTerm = searchQuery || title.trim()
+      const iTunesSearchTerm = searchQuery || (displayTitle || title).trim()
       if (iTunesSearchTerm) {
         const iRes = await fetch(
           `https://itunes.apple.com/search?term=${encodeURIComponent(iTunesSearchTerm)}&entity=song&limit=5`,
@@ -268,33 +330,10 @@ export async function GET(req: NextRequest) {
       console.warn('iTunes resolve fallback warning:', iErr)
     }
 
-    // 5. Deezer Album Direct Search Fallback (Strict Artist Match Only)
-    const albumQuery = cleanAlbum ? `${artist.trim()} ${albumParam.trim()}`.trim() : searchQuery
-    if (albumQuery) {
-      const deezerResults = await searchDeezerAlbums(albumQuery, 5)
-      if (deezerResults && deezerResults.length > 0) {
-        const best = deezerResults.find((a) => {
-          const albName = normalizeText(a.name)
-          const target = cleanAlbum || cleanTitle
-          const nameOk = target ? albName.includes(target) || target.includes(albName) : true
-          return nameOk && isArtistMatch((a as any).artist?.name || (a as any).artist)
-        })
-
-        if (best && best.id) {
-          const resData = {
-            albumId: String(best.id),
-            albumName: best.name,
-            coverUrl: (best as any).cover_url || (best as any).cover || null,
-          }
-          await persistToDb(resData.albumId, resData.albumName, resData.coverUrl)
-          return cachedResolveResponse(resData, cacheKey)
-        }
-      }
-    }
-
     return NextResponse.json({ error: 'Album not found' }, { status: 404 })
   } catch (err: any) {
     console.error('API album resolve error:', err)
     return NextResponse.json({ error: err?.message || 'Server error' }, { status: 500 })
   }
 }
+
