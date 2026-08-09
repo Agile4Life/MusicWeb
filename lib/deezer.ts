@@ -146,6 +146,8 @@ export async function searchDeezerAlbums(query: string, limit = 30): Promise<Dee
 export async function fetchDeezerAlbumMeta(albumId: string): Promise<DeezerAlbumItem | null> {
   try {
     const cleanId = albumId.replace(/^(deezer|spotify)-/, '')
+    if (!cleanId || !/^\d+$/.test(cleanId)) return null
+
     const res = await fetch(`https://api.deezer.com/album/${encodeURIComponent(cleanId)}`, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -183,6 +185,8 @@ export async function fetchDeezerAlbumMeta(albumId: string): Promise<DeezerAlbum
 export async function fetchDeezerAlbumTracks(albumId: string): Promise<{ meta: DeezerAlbumItem; tracks: Track[] } | null> {
   try {
     const cleanId = albumId.replace(/^(deezer|spotify)-/, '')
+    if (!cleanId || !/^\d+$/.test(cleanId)) return null
+
     const res = await fetch(`https://api.deezer.com/album/${encodeURIComponent(cleanId)}`, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',

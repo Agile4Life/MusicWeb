@@ -175,96 +175,73 @@ export async function GET(
       }
     }
 
-    // 3. Try Deezer Public API
-    try {
-      const deezerRes = await fetchDeezerAlbumTracks(albumId)
-      if (deezerRes && deezerRes.meta && deezerRes.tracks.length > 0) {
-        const { meta: albumMeta, tracks: tracksToSave } = deezerRes
-
-        if (supabase) {
-          safeSaveAlbumToDb(supabase, albumMeta, tracksToSave).catch(() => {})
-        }
-
-        return cachedAlbumResponse(
-          {
-            ...albumMeta,
-            tracks: tracksToSave,
-          },
-          albumId
-        )
-      }
-    } catch (dErr) {
-      console.warn('Deezer album fetch warning:', dErr)
-    }
-
-    // 4. Try iTunes Fallback if not attempted yet
-    if (!albumId.startsWith('itunes')) {
+    // 3. Spotify API Branch (Primary provider for alphanumeric Spotify IDs)
+    if (albumId.startsWith('spotify') || !/^\d+$/.test(cleanId)) {
       try {
-        const iTunesRes = await fetchITunesAlbumTracks(albumId)
-        if (iTunesRes && iTunesRes.tracks.length > 0) {
-          if (supabase) {
-            const tracksToSave = iTunesRes.tracks.map((t) => ({
-              user_id: '00000000-0000-4000-a000-000000000001',
-              title: t.title,
-              artist: t.artist || iTunesRes.artist,
-              album: iTunesRes.name,
-              spotify_album_id: iTunesRes.id,
-              disc_number: t.disc_number || 1,
-              track_number: t.track_number || 1,
-              duration: t.duration || 0,
-              file_path: t.file_path || '',
-              cover_url: t.cover_url || iTunesRes.cover_url,
-              itunes_id: t.itunes_id ? String(t.itunes_id) : null,
-            }))
+        const albumMeta = await fetchSpotifyAlbumMeta(cleanId)
+        if (albumMeta) {
+          const spotifyTracks = await fetchFullAlbumTracks(cleanId)
+          const systemUserId = '00000000-0000-4000-a000-000000000001'
 
-            safeSaveAlbumToDb(supabase, iTunesRes, tracksToSave).catch(() => {})
+          const tracksToSave = spotifyTracks.map((item: any) => ({
+            user_id: systemUserId,
+            title: item.name,
+            artist: item.artists?.map((a: any) => a.name).join(', ') || albumMeta.artist,
+            album: albumMeta.name,
+            spotify_album_id: albumMeta.id,
+            disc_number: item.disc_number || 1,
+            track_number: item.track_number || 1,
+            duration: Math.round((item.duration_ms || 0) / 1000),
+            file_path: item.external_urls?.spotify || item.preview_url || `spotify:${item.id}`,
+            cover_url: albumMeta.cover_url,
+            spotify_id: item.id,
+          }))
+
+          if (supabase) {
+            safeSaveAlbumToDb(supabase, albumMeta, tracksToSave).catch(() => {})
           }
-          return cachedAlbumResponse(iTunesRes, albumId)
+
+          const finalTracks = tracksToSave.map((t: any, idx: number) => ({
+            ...t,
+            id: `spotify-${t.spotify_id || idx}`,
+            source: 'spotify' as const,
+            created_at: new Date().toISOString(),
+          }))
+
+          return cachedAlbumResponse(
+            {
+              ...albumMeta,
+              tracks: finalTracks,
+            },
+            albumId
+          )
         }
-      } catch (iErr) {
-        // ignore
+      } catch (spErr) {
+        console.warn('Spotify album fetch error:', spErr)
       }
     }
 
-    // 5. Fallback to Spotify API (Only if valid Spotify ID pattern)
-    if (!/^\d+$/.test(cleanId)) {
-      const albumMeta = await fetchSpotifyAlbumMeta(cleanId)
-      if (albumMeta) {
-        const spotifyTracks = await fetchFullAlbumTracks(cleanId)
-        const systemUserId = '00000000-0000-4000-a000-000000000001'
+    // 4. Deezer Public API Branch (Primary provider for strictly numeric IDs)
+    if (/^\d+$/.test(cleanId) || albumId.startsWith('deezer')) {
+      try {
+        const deezerRes = await fetchDeezerAlbumTracks(albumId)
+        if (deezerRes && deezerRes.meta && deezerRes.tracks.length > 0) {
+          const { meta: albumMeta, tracks: tracksToSave } = deezerRes
 
-        const tracksToSave = spotifyTracks.map((item: any) => ({
-          user_id: systemUserId,
-          title: item.name,
-          artist: item.artists?.map((a: any) => a.name).join(', ') || albumMeta.artist,
-          album: albumMeta.name,
-          spotify_album_id: albumMeta.id,
-          disc_number: item.disc_number || 1,
-          track_number: item.track_number || 1,
-          duration: Math.round((item.duration_ms || 0) / 1000),
-          file_path: item.external_urls?.spotify || item.preview_url || `spotify:${item.id}`,
-          cover_url: albumMeta.cover_url,
-          spotify_id: item.id,
-        }))
+          if (supabase) {
+            safeSaveAlbumToDb(supabase, albumMeta, tracksToSave).catch(() => {})
+          }
 
-        if (supabase) {
-          safeSaveAlbumToDb(supabase, albumMeta, tracksToSave).catch(() => {})
+          return cachedAlbumResponse(
+            {
+              ...albumMeta,
+              tracks: tracksToSave,
+            },
+            albumId
+          )
         }
-
-        const finalTracks = tracksToSave.map((t: any, idx: number) => ({
-          ...t,
-          id: `spotify-${t.spotify_id || idx}`,
-          source: 'spotify' as const,
-          created_at: new Date().toISOString(),
-        }))
-
-        return cachedAlbumResponse(
-          {
-            ...albumMeta,
-            tracks: finalTracks,
-          },
-          albumId
-        )
+      } catch (dErr) {
+        console.warn('Deezer album fetch warning:', dErr)
       }
     }
 
