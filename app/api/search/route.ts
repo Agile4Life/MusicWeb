@@ -155,13 +155,17 @@ export async function GET(request: Request) {
     const enhancedSpotify = spotifyTracks.map((sTrack: Track) => {
       if (sTrack.youtube_id) return sTrack
       const match = findBestYouTubeMatch(youtubeTracks, sTrack.title, sTrack.artist, sTrack.duration, sTrack.album)
-      return match?.youtube_id ? { ...sTrack, youtube_id: match.youtube_id } : sTrack
+      return match?.youtube_id
+        ? { ...sTrack, youtube_id: match.youtube_id, view_count: sTrack.view_count || match.view_count }
+        : sTrack
     })
 
     const enhancedITunes = itunesTracks.map((iTrack: Track) => {
       if (iTrack.youtube_id) return iTrack
       const match = findBestYouTubeMatch(youtubeTracks, iTrack.title, iTrack.artist, iTrack.duration, iTrack.album)
-      return match?.youtube_id ? { ...iTrack, youtube_id: match.youtube_id } : iTrack
+      return match?.youtube_id
+        ? { ...iTrack, youtube_id: match.youtube_id, view_count: iTrack.view_count || match.view_count }
+        : iTrack
     })
 
     // Enrich YouTube tracks with high-res 1:1 Spotify/iTunes album artwork if available

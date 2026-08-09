@@ -18,6 +18,30 @@ export function extractYouTubeVideoId(input: string): string | null {
 }
 
 /**
+ * Parse human-readable view count string (e.g. "1,2M lượt xem", "12M views", "450K views") into integer
+ */
+export function parseViewCountText(text?: string | null): number | null {
+  if (!text) return null
+  const cleaned = text.toLowerCase().replace(/,/g, '.').trim()
+
+  const bMatch = cleaned.match(/([\d\.]+)\s*(?:b|tỷ)/i)
+  if (bMatch) return Math.round(parseFloat(bMatch[1]) * 1000000000)
+
+  const mMatch = cleaned.match(/([\d\.]+)\s*(?:m|tr|triệu)/i)
+  if (mMatch) return Math.round(parseFloat(mMatch[1]) * 1000000)
+
+  const kMatch = cleaned.match(/([\d\.]+)\s*(?:k|n|nghìn|ngàn)/i)
+  if (kMatch) return Math.round(parseFloat(kMatch[1]) * 1000)
+
+  const digits = cleaned.replace(/[^\d]/g, '')
+  if (digits) {
+    const parsed = parseInt(digits, 10)
+    return isNaN(parsed) || parsed === 0 ? null : parsed
+  }
+  return null
+}
+
+/**
  * Primary YouTube Search via YouTube InnerTube API (Fastest, 100% Reliable on Vercel Serverless Datacenters)
  */
 async function searchYouTubeInnerTube(query: string, limit = 15): Promise<Track[]> {
@@ -90,6 +114,14 @@ async function searchYouTubeInnerTube(query: string, limit = 15): Promise<Track[
           continue
         }
 
+        const viewText =
+          video.viewCountText?.simpleText ||
+          video.viewCountText?.runs?.map((r: any) => r.text).join('') ||
+          video.shortViewCountText?.simpleText ||
+          video.shortViewCountText?.runs?.map((r: any) => r.text).join('') ||
+          ''
+        const viewCount = parseViewCountText(viewText)
+
         tracks.push({
           id: `yt-${videoId}`,
           user_id: 'youtube-global',
@@ -102,6 +134,7 @@ async function searchYouTubeInnerTube(query: string, limit = 15): Promise<Track[
           created_at: new Date().toISOString(),
           source: 'youtube',
           youtube_id: videoId,
+          view_count: viewCount,
         })
       }
     }
@@ -180,6 +213,14 @@ async function scrapeYouTubeSearch(query: string, limit = 15): Promise<Track[]> 
           continue
         }
 
+        const viewText =
+          video.viewCountText?.simpleText ||
+          video.viewCountText?.runs?.map((r: any) => r.text).join('') ||
+          video.shortViewCountText?.simpleText ||
+          video.shortViewCountText?.runs?.map((r: any) => r.text).join('') ||
+          ''
+        const viewCount = parseViewCountText(viewText)
+
         tracks.push({
           id: `yt-${videoId}`,
           user_id: 'youtube-global',
@@ -192,6 +233,7 @@ async function scrapeYouTubeSearch(query: string, limit = 15): Promise<Track[]> 
           created_at: new Date().toISOString(),
           source: 'youtube',
           youtube_id: videoId,
+          view_count: viewCount,
         })
       }
     }

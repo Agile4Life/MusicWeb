@@ -8,9 +8,12 @@ import { Play, Pause, Music, Trash2, MoreVertical, Plus, Pencil, Check, X, Heart
 import { createClient } from '@/lib/supabase/client'
 import { isAdmin, getValidUserId } from '@/lib/accessControl'
 import { formatViewCount } from '@/lib/utils'
+import { fetchViewCountForVideo } from '@/lib/youtube'
 import { useSession } from 'next-auth/react'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
+
+const viewCountCache = new Map<string, number>()
 
 interface TrackRowProps {
   track: Track
@@ -115,7 +118,35 @@ function TrackRowComponent({
       clearTimeout(timer)
       window.removeEventListener('pointerdown', handlePointerDownOutside)
     }
-  }, [showMenu])
+  const [fetchedViews, setFetchedViews] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (track.view_count != null || track.play_count != null || !track.youtube_id) return
+
+    let isMounted = true
+    const ytId = track.youtube_id
+
+    if (viewCountCache.has(ytId)) {
+      setFetchedViews(viewCountCache.get(ytId)!)
+      return
+    }
+
+    fetchViewCountForVideo(ytId)
+      .then((views) => {
+        if (isMounted && views != null && views > 0) {
+          viewCountCache.set(ytId, views)
+          setFetchedViews(views)
+        }
+      })
+      .catch(() => {})
+
+    return () => {
+      isMounted = false
+    }
+  }, [track.youtube_id, track.view_count, track.play_count])
+
+  const displayViews = track.view_count ?? track.play_count ?? fetchedViews
+
   const [editMode, setEditMode] = useState(false)
   const [editTitle, setEditTitle] = useState(track.title || '')
   const [editArtist, setEditArtist] = useState(track.artist || '')
@@ -371,14 +402,17 @@ function TrackRowComponent({
       </div>
 
       {/* Duration & Options */}
-      <div className="shrink-0 flex items-center justify-end gap-1.5 sm:gap-2 md:w-1/4 text-xs text-slate-400">
-        {track.view_count != null && track.view_count > 0 && (
-          <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-400 font-mono shrink-0" title={`${track.view_count.toLocaleString()} lượt xem trên YouTube`}>
-            <Eye className="w-3 h-3 text-slate-500" />
-            {formatViewCount(track.view_count)}
+      <div className="shrink-0 flex items-center justify-end gap-2 sm:gap-3 md:w-1/4 text-xs text-slate-400">
+        {displayViews != null && displayViews > 0 && (
+          <span
+            className="inline-flex items-center gap-1 text-[11px] font-mono text-cyan-400/90 bg-cyan-950/40 border border-cyan-500/20 px-2 py-0.5 rounded-full shrink-0"
+            title={`${displayViews.toLocaleString()} lượt xem / lượt nghe`}
+          >
+            <Eye className="w-3 h-3 text-cyan-400 shrink-0" />
+            {formatViewCount(displayViews)}
           </span>
         )}
-        <span className="font-mono">{formatDuration(track.duration)}</span>
+        <span className="font-mono text-slate-300">{formatDuration(track.duration)}</span>
 
         {/* Edit mode save/cancel */}
         {editMode ? (

@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { Track, Playlist } from '@/types'
 import { TrackRow } from './TrackRow'
-import { Clock, CheckSquare, Pencil, Trash2, X, Loader2, User, Disc, Scissors } from 'lucide-react'
+import { Clock, CheckSquare, Pencil, Trash2, X, Loader2, User, Disc, Scissors, Eye } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { triggerDrivePrewarm } from '@/lib/googleDriveUpload'
 import { usePlayer } from '@/components/player/PlayerContext'
@@ -244,8 +244,12 @@ export function TrackList({
           <span>TIÊU ĐỀ</span>
         </div>
         <div className="hidden md:block w-1/4">ALBUM</div>
-        <div className="flex items-center justify-end shrink-0 md:w-1/4 pr-2">
-          <Clock className="w-4 h-4" />
+        <div className="flex items-center justify-end gap-3 sm:gap-6 shrink-0 md:w-1/4 pr-2">
+          <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400" title="Lượt xem / Lượt nghe">
+            <Eye className="w-3.5 h-3.5 text-slate-400" />
+            LƯỢT XEM
+          </span>
+          <Clock className="w-4 h-4" title="Thời lượng" />
         </div>
       </div>
 

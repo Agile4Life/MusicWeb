@@ -225,6 +225,10 @@ export function PlayerBar() {
   return (
     <>
       {/* 📱 Mobile Centered Screen Loading Toast */}
+      {(() => {
+        const currentViews = currentTrack?.view_count ?? currentTrack?.play_count
+        return null
+      })()}
       {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && !showMobileFullPlayer && (
         <div className="md:hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-[#0a0d14]/95 backdrop-blur-2xl border border-cyan-500/40 px-6 py-4 rounded-2xl shadow-2xl flex flex-col items-center justify-center gap-2.5 text-center pointer-events-none">
           <div className="w-11 h-11 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shadow-lg">
@@ -268,15 +272,20 @@ export function PlayerBar() {
                     <span className="text-cyan-400/90 font-medium truncate">{displayAlbumName}</span>
                   </>
                 )}
-                {currentTrack.view_count != null && currentTrack.view_count > 0 && (
-                  <>
-                    <span className="text-slate-600">•</span>
-                    <span className="text-slate-400 font-mono inline-flex items-center gap-0.5 shrink-0" title={`${currentTrack.view_count.toLocaleString()} lượt xem`}>
-                      <Eye className="w-2.5 h-2.5 text-slate-500" />
-                      {formatViewCount(currentTrack.view_count)}
-                    </span>
-                  </>
-                )}
+                {currentTrack?.view_count != null || currentTrack?.play_count != null ? (
+                  (() => {
+                    const currentViews = currentTrack.view_count ?? currentTrack.play_count
+                    return currentViews && currentViews > 0 ? (
+                      <>
+                        <span className="text-slate-600">•</span>
+                        <span className="text-slate-400 font-mono inline-flex items-center gap-0.5 shrink-0" title={`${currentViews.toLocaleString()} lượt xem`}>
+                          <Eye className="w-2.5 h-2.5 text-cyan-400" />
+                          {formatViewCount(currentViews)}
+                        </span>
+                      </>
+                    ) : null
+                  })()
+                ) : null}
               </div>
             </div>
           </div>
@@ -423,10 +432,10 @@ export function PlayerBar() {
                 </span>
               </div>
 
-              {currentTrack.view_count != null && currentTrack.view_count > 0 && (
+              {(currentTrack.view_count ?? currentTrack.play_count) != null && (currentTrack.view_count ?? currentTrack.play_count)! > 0 && (
                 <div className="flex items-center gap-1.5 mt-1.5 text-xs font-mono text-slate-400 bg-white/[0.05] border border-white/10 px-2.5 py-1 rounded-lg shrink-0">
                   <Eye className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                  <span>{formatViewCount(currentTrack.view_count)} ({currentTrack.view_count.toLocaleString()} lượt xem)</span>
+                  <span>{formatViewCount(currentTrack.view_count ?? currentTrack.play_count)} ({(currentTrack.view_count ?? currentTrack.play_count)!.toLocaleString()} lượt xem)</span>
                 </div>
               )}
             </div>
@@ -631,10 +640,10 @@ export function PlayerBar() {
               </div>
 
               {/* View Count Pill */}
-              {currentTrack.view_count != null && currentTrack.view_count > 0 && (
-                <span className="inline-flex items-center gap-0.5 shrink-0 text-[10px] text-slate-500 font-mono" title={`${currentTrack.view_count.toLocaleString()} lượt xem trên YouTube`}>
-                  <Eye className="w-3 h-3" />
-                  {formatViewCount(currentTrack.view_count)}
+              {(currentTrack.view_count ?? currentTrack.play_count) != null && (currentTrack.view_count ?? currentTrack.play_count)! > 0 && (
+                <span className="inline-flex items-center gap-0.5 shrink-0 text-[10px] text-slate-500 font-mono" title={`${(currentTrack.view_count ?? currentTrack.play_count)!.toLocaleString()} lượt xem`}>
+                  <Eye className="w-3 h-3 text-cyan-400" />
+                  {formatViewCount(currentTrack.view_count ?? currentTrack.play_count)}
                 </span>
               )}
 
