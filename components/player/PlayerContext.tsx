@@ -12,8 +12,7 @@ import { fetchUnifiedSearch } from '@/lib/searchApi'
 import { getSmartRecommendedTracks } from '@/lib/smartRecommend'
 import { NextQueueResponse, queueTrackToTrack } from '@/types/queue'
 import { getMusicOfftopicSegments, calculateIntroOffset } from '@/lib/sponsorblock'
-
-const SILENT_AUDIO_URL = '/silent.wav'
+import { playAudioElement, shouldUseHtml5Audio } from '@/lib/audioPlayback'
 
 export type RepeatMode = 'off' | 'all' | 'one'
 
@@ -267,14 +266,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         return track.audio_url || track.file_path
       }
 
+      // YouTube tracks use the IFrame engine. The old server-side audio proxy
+      // relies on deprecated YouTube extraction clients.
+      if (!shouldUseHtml5Audio(track)) return null
+
       const filePath = track.file_path || ''
       if (!filePath) return null
-
-      // Direct YouTube Audio Stream Proxy (Enables 100% Mobile Background Lock-Screen Playback)
-      const ytId = track.youtube_id || (track.source === 'youtube' ? extractYouTubeVideoId(track.file_path || '') : null)
-      if (ytId) {
-        return `/api/youtube/stream?id=${encodeURIComponent(ytId)}`
-      }
 
       // Spotify webpage URLs cannot be played directly by HTML5 <audio>
       if (filePath.includes('spotify.com') || track.source === 'spotify') {
@@ -869,7 +866,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     // ⚡ 2. UPDATE UI INSTANTLY (< 5ms)
     setCurrentTrack(track)
-    setIsPlaying(true)
+    setIsPlaying(false)
     setIsBuffering(true)
     setCurrentTime(initialTime)
     setDuration(track.duration || 0)
@@ -965,9 +962,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           audioRef.current.src = streamUrl
           audioRef.current.currentTime = initialTime
           audioRef.current.volume = volumeRef.current
-          await audioRef.current.play()
-          setIsPlaying(true)
-          return
+          try {
+            await playAudioElement(audioRef.current)
+            if (requestId !== playRequestRef.current) return
+            setIsPlaying(true)
+            return
+          } catch (err) {
+            setIsPlaying(false)
+            console.warn('Resolved Drive audio playback failed:', err)
+          }
         }
       }
 
@@ -1031,7 +1034,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audio.currentTime = initialTime > 0 ? initialTime : 0
 
       try {
-        audio.play()
+        await playAudioElement(audio)
         if (requestId !== playRequestRef.current) return
         setIsPlaying(true)
         return
@@ -1039,6 +1042,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (err?.name === 'AbortError' || String(err).includes('interrupted')) {
           return // Ignore play interruption silently
         }
+        setIsPlaying(false)
         console.warn('HTML5 audio stream playback info:', err)
       }
     }
@@ -1604,13 +1608,29 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       })
 
       navigator.mediaSession.setActionHandler('play', () => {
-        const isYouTube = currentTrackRef.current?.source === 'youtube' || Boolean(currentTrackRef.current?.youtube_id)
-        if (isYouTube && ytPlayerRef.current?.playVideo) {
-          try { ytPlayerRef.current.playVideo() } catch {}
-        } else if (audioRef.current) {
-          audioRef.current.play().catch(() => {})
-        }
-        setIsPlaying(true)
+        void (async () => {
+          const isYouTube = currentTrackRef.current?.source === 'youtube' || Boolean(currentTrackRef.current?.youtube_id)
+          if (isYouTube && ytPlayerRef.current?.playVideo) {
+            try {
+              ytPlayerRef.current.playVideo()
+              setIsPlaying(true)
+            } catch (err) {
+              setIsPlaying(false)
+              console.warn('Media Session YouTube play failed:', err)
+            }
+            return
+          }
+
+          if (!audioRef.current) return
+
+          try {
+            await playAudioElement(audioRef.current)
+            setIsPlaying(true)
+          } catch (err) {
+            setIsPlaying(false)
+            console.warn('Media Session audio play failed:', err)
+          }
+        })()
       })
 
       navigator.mediaSession.setActionHandler('pause', () => {
