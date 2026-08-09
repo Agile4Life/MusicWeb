@@ -526,19 +526,32 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               }
             },
             onStateChange: (event: any) => {
+              const log = (msg: string) => {
+                const entry = `[${new Date().toISOString()}] YT_STATE=${event.data} | ${msg} | visibility=${document.visibilityState}`
+                console.log(entry)
+                try {
+                  const logs = JSON.parse(localStorage.getItem('audio_debug_log') || '[]')
+                  logs.push(entry)
+                  if (logs.length > 100) logs.shift()
+                  localStorage.setItem('audio_debug_log', JSON.stringify(logs))
+                } catch {}
+              }
               // YT.PlayerState.PLAYING = 1, PAUSED = 2, ENDED = 0
               if (event.data === 1) {
+                log('PLAYING')
                 setIsPlaying(true)
                 if (ytPlayerRef.current?.getDuration) {
                   setDuration(ytPlayerRef.current.getDuration() || 0)
                 }
               } else if (event.data === 2) {
+                log('PAUSED_BY_YT')
                 if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-                  // Ignore OS force-pause of YouTube iframe when screen is locked/hidden
+                  log('IGNORED (screen hidden, giữ MediaSession)')
                   return
                 }
                 setIsPlaying(false)
               } else if (event.data === 0) {
+                log('ENDED')
                 setIsPlaying(false)
                 recordListenEvent(currentTrackRef.current, true)
                 const mode = repeatModeRef.current
@@ -561,6 +574,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                     }, 0)
                   }
                 }
+              } else if (event.data === -1 || event.data === 3 || event.data === 5) {
+                log('BUFFERING_OR_CUED_OR_UNSTARTED')
               }
             },
             onError: async (err: any) => {
@@ -1490,7 +1505,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const log = (evt: string) => {
       const err = audio.error
       const errInfo = err ? ` | ERROR_CODE=${err.code} ERROR_MSG=${err.message}` : ''
-      const entry = `[${new Date().toISOString()}] ${evt} | paused=${audio.paused} readyState=${audio.readyState} networkState=${audio.networkState} currentTime=${audio.currentTime.toFixed(1)}${errInfo}`
+      const entry = `[${new Date().toISOString()}] ${evt} | src=${audio.src} paused=${audio.paused} readyState=${audio.readyState} networkState=${audio.networkState} currentTime=${audio.currentTime.toFixed(1)}${errInfo}`
       console.log(entry)
       try {
         const logs = JSON.parse(localStorage.getItem('audio_debug_log') || '[]')
