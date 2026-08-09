@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { usePlayer, usePlaybackProgress } from './PlayerContext'
@@ -57,6 +57,54 @@ export function PlayerBar() {
   const router = useRouter()
 
   const [isNavigatingAlbum, setIsNavigatingAlbum] = useState(false)
+  const [resolvedAlbumInfo, setResolvedAlbumInfo] = useState<{ id?: string; name?: string } | null>(null)
+
+  useEffect(() => {
+    if (!currentTrack) {
+      setResolvedAlbumInfo(null)
+      return
+    }
+
+    const hasRealAlbum =
+      currentTrack.album &&
+      !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(currentTrack.album.trim())
+
+    if (hasRealAlbum) {
+      setResolvedAlbumInfo({
+        id: currentTrack.spotify_album_id || undefined,
+        name: currentTrack.album!,
+      })
+      return
+    }
+
+    setResolvedAlbumInfo(null)
+
+    let isCancelled = false
+    const titleToSearch = currentTrack.title
+    const artistToSearch = currentTrack.artist || ''
+
+    fetch(`/api/albums/resolve?title=${encodeURIComponent(titleToSearch)}&artist=${encodeURIComponent(artistToSearch)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!isCancelled && data && data.albumName) {
+          setResolvedAlbumInfo({
+            id: data.albumId,
+            name: data.albumName,
+          })
+        }
+      })
+      .catch(() => {})
+
+    return () => {
+      isCancelled = true
+    }
+  }, [currentTrack?.id, currentTrack?.title, currentTrack?.artist, currentTrack?.album, currentTrack?.spotify_album_id])
+
+  const displayAlbumName = resolvedAlbumInfo?.name || (
+    currentTrack?.album && !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(currentTrack.album.trim())
+      ? currentTrack.album
+      : undefined
+  )
 
   const handleOpenAlbum = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -64,6 +112,12 @@ export function PlayerBar() {
 
     if (!currentTrack) {
       router.push('/albums')
+      return
+    }
+
+    if (resolvedAlbumInfo?.id) {
+      setShowMobileFullPlayer(false)
+      router.push(`/album/${resolvedAlbumInfo.id}`)
       return
     }
 
@@ -213,10 +267,10 @@ export function PlayerBar() {
               </div>
               <div className="flex items-center gap-1 text-[10px] text-slate-400 truncate">
                 <span className="truncate">{currentTrack.artist || 'Nghệ sĩ chưa xác định'}</span>
-                {currentTrack.album && !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(currentTrack.album.trim()) && (
+                {displayAlbumName && (
                   <>
                     <span className="text-slate-600">•</span>
-                    <span className="text-cyan-400/90 font-medium truncate">{currentTrack.album}</span>
+                    <span className="text-cyan-400/90 font-medium truncate">{displayAlbumName}</span>
                   </>
                 )}
               </div>
@@ -359,11 +413,9 @@ export function PlayerBar() {
                 )}
                 <span
                   className="text-cyan-300 font-semibold group-hover:underline truncate"
-                  title="Vào Album bài hát"
+                  title={displayAlbumName ? `Vào Album: ${displayAlbumName}` : 'Vào Album bài hát'}
                 >
-                  {currentTrack.album && !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(currentTrack.album.trim())
-                    ? currentTrack.album
-                    : 'Xem Album bài hát'}
+                  {displayAlbumName || 'Album'}
                 </span>
               </div>
             </div>
@@ -554,8 +606,8 @@ export function PlayerBar() {
               {/* Album Link Pill */}
               <div
                 onClick={handleOpenAlbum}
-                className="flex items-center gap-1 shrink-0 text-[10px] text-slate-300 bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 px-2 py-0.5 rounded-md max-w-[180px] hover:border-cyan-500/50 cursor-pointer transition-all group shadow-sm"
-                title={currentTrack.album ? `Vào album: ${currentTrack.album}` : 'Vào Album bài hát'}
+                className="flex items-center gap-1 shrink-0 text-[10px] text-slate-300 bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 px-2 py-0.5 rounded-md max-w-[200px] hover:border-cyan-500/50 cursor-pointer transition-all group shadow-sm"
+                title={displayAlbumName ? `Vào album: ${displayAlbumName}` : 'Vào Album bài hát'}
               >
                 {isNavigatingAlbum ? (
                   <Loader2 className="w-3 h-3 animate-spin text-cyan-400 shrink-0" />
@@ -563,9 +615,7 @@ export function PlayerBar() {
                   <DiscAlbum style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3 h-3 shrink-0" />
                 )}
                 <span className="truncate font-semibold text-slate-200 group-hover:text-[var(--spotify-glow)] transition-colors">
-                  {currentTrack.album && !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(currentTrack.album.trim())
-                    ? currentTrack.album
-                    : 'Album'}
+                  {displayAlbumName || 'Album'}
                 </span>
               </div>
 

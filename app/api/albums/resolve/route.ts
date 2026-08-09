@@ -27,13 +27,13 @@ export async function GET(req: NextRequest) {
       try {
         const { data: dbAlbum } = await supabase
           .from('spotify_albums')
-          .select('id')
+          .select('id, name')
           .ilike('name', `%${title.trim()}%`)
           .limit(1)
           .maybeSingle()
 
         if (dbAlbum && dbAlbum.id) {
-          return NextResponse.json({ albumId: dbAlbum.id })
+          return NextResponse.json({ albumId: dbAlbum.id, albumName: dbAlbum.name })
         }
       } catch (dbErr) {
         console.warn('DB album resolve error:', dbErr)
@@ -51,11 +51,11 @@ export async function GET(req: NextRequest) {
       ) || deezerResults[0]
 
       if (best && best.id) {
-        return NextResponse.json({ albumId: best.id })
+        return NextResponse.json({ albumId: best.id, albumName: best.name })
       }
     }
 
-    // 3. Search Deezer tracks API to get track's album ID
+    // 3. Search Deezer tracks API to get track's album ID and title
     try {
       const dTrackRes = await fetch(
         `https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=1`,
@@ -64,7 +64,11 @@ export async function GET(req: NextRequest) {
       if (dTrackRes.ok) {
         const dData = await dTrackRes.json()
         if (dData.data && dData.data.length > 0 && dData.data[0].album?.id) {
-          return NextResponse.json({ albumId: String(dData.data[0].album.id) })
+          const item = dData.data[0]
+          return NextResponse.json({
+            albumId: String(item.album.id),
+            albumName: item.album.title || item.title || title,
+          })
         }
       }
     } catch (dTrackErr) {
@@ -75,7 +79,7 @@ export async function GET(req: NextRequest) {
     if (title.trim()) {
       const titleResults = await searchDeezerAlbums(title.trim(), 3)
       if (titleResults && titleResults.length > 0) {
-        return NextResponse.json({ albumId: titleResults[0].id })
+        return NextResponse.json({ albumId: titleResults[0].id, albumName: titleResults[0].name })
       }
     }
 
@@ -83,7 +87,11 @@ export async function GET(req: NextRequest) {
     try {
       const iTunesTracks = await searchITunesTracks(query, 1)
       if (iTunesTracks.length > 0 && iTunesTracks[0].itunes_id) {
-        return NextResponse.json({ albumId: `itunes-${iTunesTracks[0].itunes_id}` })
+        const item = iTunesTracks[0]
+        return NextResponse.json({
+          albumId: `itunes-${item.itunes_id}`,
+          albumName: item.album && !['iTunes Global', 'Apple Music Top Hits'].includes(item.album.trim()) ? item.album : item.title,
+        })
       }
     } catch (iErr) {
       console.warn('iTunes resolve fallback error:', iErr)
@@ -95,4 +103,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: err?.message || 'Server error' }, { status: 500 })
   }
 }
+
 
