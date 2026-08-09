@@ -249,7 +249,9 @@ export function TrackList({
             <Eye className="w-3.5 h-3.5 text-slate-400" />
             LƯỢT XEM
           </span>
-          <Clock className="w-4 h-4" title="Thời lượng" />
+          <span title="Thời lượng">
+            <Clock className="w-4 h-4" />
+          </span>
         </div>
       </div>
 

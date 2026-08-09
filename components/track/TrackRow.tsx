@@ -118,6 +118,8 @@ function TrackRowComponent({
       clearTimeout(timer)
       window.removeEventListener('pointerdown', handlePointerDownOutside)
     }
+  }, [showMenu])
+
   const [fetchedViews, setFetchedViews] = useState<number | null>(null)
 
   useEffect(() => {
