@@ -94,20 +94,21 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
     setErrorMessage(null)
     setActiveIndex(-1)
     setLyricOffset(0)
-    loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.album, currentTrack.duration)
+    loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.album, currentTrack.duration, currentTrack.youtube_id)
   }, [currentTrack?.id])
 
   const loadLyricsForTrack = async (
     title: string,
     artist?: string | null,
     album?: string | null,
-    duration?: number | null
+    duration?: number | null,
+    youtubeId?: string | null
   ) => {
     setLoading(true)
     setErrorMessage(null)
 
     try {
-      const data = await fetchLyricsFromLrclib({ title, artist, album, duration })
+      const data = await fetchLyricsFromLrclib({ title, artist, album, duration, youtubeId })
 
       if (data) {
         setLyricsData(data)

@@ -201,11 +201,13 @@ export async function fetchLyricsFromLrclib({
   artist,
   album,
   duration,
+  youtubeId,
 }: {
   title: string
   artist?: string | null
   album?: string | null
   duration?: number | null
+  youtubeId?: string | null
 }): Promise<LrclibResponse | null> {
   const { cleanTitle, cleanArtist, cleanAlbum } = extractCleanTitleAndArtist(title, artist, album)
   const durRound = duration && duration > 0 ? Math.round(duration) : 0
@@ -216,7 +218,7 @@ export async function fetchLyricsFromLrclib({
     return lyricsCache.get(cacheKey)!
   }
 
-  // 2. Check in-flight deduplication Map
+  // 2. Check in-flight requests (deduplication)
   if (lyricsInFlight.has(cacheKey)) {
     return lyricsInFlight.get(cacheKey)!
   }
@@ -225,48 +227,41 @@ export async function fetchLyricsFromLrclib({
     try {
       let fallback: LrclibResponse | null = null
 
-      // Stage 1: Try exact /api/get with Album verification
-      if (cleanArtist && cleanAlbum) {
+      // Step A: If cleanAlbum exists, try with album first
+      if (cleanAlbum) {
         const data0 = await tryGetApi(cleanTitle, cleanArtist, cleanAlbum, durRound)
         if (data0?.syncedLyrics) {
           lyricsCache.set(cacheKey, data0)
           return data0
         }
-        if (data0?.plainLyrics && !fallback) fallback = data0
+        if (data0) fallback = data0
       }
 
-      if (cleanArtist) {
-        // Stage 2: Try /api/get with cleanTitle & cleanArtist & duration
-        const data1 = await tryGetApi(cleanTitle, cleanArtist, undefined, durRound)
-        if (data1?.syncedLyrics) {
-          lyricsCache.set(cacheKey, data1)
-          return data1
-        }
-        if (data1?.plainLyrics && !fallback) fallback = data1
-
-        // Stage 3: Try /api/get WITHOUT duration parameter
-        const data2 = await tryGetApi(cleanTitle, cleanArtist, undefined, 0)
-        if (data2?.syncedLyrics) {
-          lyricsCache.set(cacheKey, data2)
-          return data2
-        }
-        if (data2?.plainLyrics && !fallback) fallback = data2
+      // Step B: Direct lookup without album
+      const data1 = await tryGetApi(cleanTitle, cleanArtist, undefined, durRound)
+      if (data1?.syncedLyrics) {
+        lyricsCache.set(cacheKey, data1)
+        return data1
       }
+      if (data1 && !fallback) fallback = data1
 
-      // Stage 4: Try /api/search with q = "cleanTitle cleanArtist cleanAlbum"
-      const query1 = cleanAlbum
-        ? `${cleanTitle} ${cleanArtist} ${cleanAlbum}`
-        : cleanArtist
-        ? `${cleanTitle} ${cleanArtist}`
-        : cleanTitle
-      const data3 = await trySearchApi(query1, cleanArtist, cleanAlbum, durRound)
+      // Step C: Try search API with title + artist
+      const data2 = await trySearchApi(cleanTitle, cleanArtist, cleanAlbum, durRound)
+      if (data2?.syncedLyrics) {
+        lyricsCache.set(cacheKey, data2)
+        return data2
+      }
+      if (data2 && !fallback) fallback = data2
+
+      // Step D: Try search API with title only
+      const data3 = await trySearchApi(cleanTitle, '', undefined, durRound)
       if (data3?.syncedLyrics) {
         lyricsCache.set(cacheKey, data3)
         return data3
       }
       if (data3 && !fallback) fallback = data3
 
-      // Stage 5: Try /api/search with q = "cleanTitle" (Title only)
+      // Step E: Try search API with artist + clean title
       if (cleanArtist) {
         const data4 = await trySearchApi(cleanTitle, cleanArtist, cleanAlbum, durRound)
         if (data4?.syncedLyrics) {
@@ -274,6 +269,36 @@ export async function fetchLyricsFromLrclib({
           return data4
         }
         if (data4 && !fallback) fallback = data4
+      }
+
+      // Step F: YouTube Music Lyrics Fallback if LRCLIB returned no lyrics or no synced lyrics
+      if (!fallback || (!fallback.syncedLyrics && !fallback.plainLyrics)) {
+        try {
+          const ytParams = new URLSearchParams()
+          if (youtubeId) ytParams.append('videoId', youtubeId)
+          if (cleanTitle) ytParams.append('title', cleanTitle)
+          if (cleanArtist) ytParams.append('artist', cleanArtist)
+
+          const ytRes = await fetch(`/api/youtube/lyrics?${ytParams.toString()}`)
+          if (ytRes.ok) {
+            const ytData = await ytRes.json()
+            if (ytData && ytData.plainLyrics) {
+              const ytResponse: LrclibResponse = {
+                id: 999999,
+                trackName: ytData.trackName || title,
+                artistName: ytData.artistName || artist || 'YouTube Music',
+                duration: durRound,
+                instrumental: false,
+                plainLyrics: ytData.plainLyrics,
+                syncedLyrics: null,
+              }
+              lyricsCache.set(cacheKey, ytResponse)
+              return ytResponse
+            }
+          }
+        } catch (ytErr) {
+          console.warn('YouTube Music lyrics fallback warning:', ytErr)
+        }
       }
 
       lyricsCache.set(cacheKey, fallback)
