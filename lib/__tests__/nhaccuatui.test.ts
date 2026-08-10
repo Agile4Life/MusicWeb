@@ -19,6 +19,7 @@ describe('NhacCuaTui response normalization', () => {
 
   it('accepts only HTTPS NCT stream URLs', () => {
     expect(isValidNhacCuaTuiAudioUrl('https://stream.nct.vn/song.mp3?st=123&e=456')).toBe(true)
+    expect(isValidNhacCuaTuiAudioUrl('https://a01.nct.vn/song.mp3?st=123&e=456')).toBe(true)
     expect(isValidNhacCuaTuiAudioUrl('http://stream.nct.vn/song.mp3')).toBe(false)
     expect(isValidNhacCuaTuiAudioUrl('https://example.com/song.mp3')).toBe(false)
   })

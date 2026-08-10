@@ -156,7 +156,7 @@ export function isValidNhacCuaTuiAudioUrl(value: unknown): value is string {
 
   try {
     const url = new URL(value)
-    return url.protocol === 'https:' && url.hostname === 'stream.nct.vn'
+    return url.protocol === 'https:' && (url.hostname === 'nct.vn' || url.hostname.endsWith('.nct.vn'))
   } catch {
     return false
   }
