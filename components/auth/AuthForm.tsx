@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
 import { createClient } from '@/lib/supabase/client'
-import { isAllowedToLogin, markEmailAsAllowed } from '@/lib/accessControl'
+import { isAllowedToLogin, markEmailAsAllowed, checkServerApproval } from '@/lib/accessControl'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { LanguageSelector } from '@/components/i18n/LanguageSelector'
 import { FloatingMusicNotes } from './FloatingMusicNotes'
@@ -70,11 +70,22 @@ export function AuthForm({ mode }: AuthFormProps) {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [rawError, setRawError] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
+  const [authMode, setAuthMode] = useState<'login' | 'register'>(mode)
+
+  // Map a login account (username or email) to the auth email used by Supabase.
+  // Plain usernames are treated as <username>@musicweb.com accounts.
+  const toAuthEmail = (account: string): string => {
+    const trimmed = account.trim().toLowerCase()
+    if (!trimmed) return ''
+    if (trimmed.includes('@')) return trimmed
+    return `${trimmed}@musicweb.com`
+  }
 
   useEffect(() => {
     if (searchParams) {
@@ -195,22 +206,34 @@ export function AuthForm({ mode }: AuthFormProps) {
       return
     }
 
+    const authEmail = toAuthEmail(email)
+
     try {
-      if (mode === 'register') {
+      if (authMode === 'register') {
+        if (confirmPassword !== password) {
+          setError('Mật khẩu xác nhận không khớp')
+          setLoading(false)
+          return
+        }
+
         const { data, error: signUpError } = await supabase.auth.signUp({
-          email,
+          email: authEmail,
           password,
         })
 
         if (signUpError) throw signUpError
 
-        // Approve the email server-side so Google login works on any browser/device
+        // Approve the account server-side (roles table + auto-confirm email) so the
+        // user can log in immediately with the account just registered.
         if (data?.user?.email) {
-          fetch('/api/approve-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: data.user.email }),
-          }).catch(() => {})
+          markEmailAsAllowed(data.user.email)
+          try {
+            await fetch('/api/approve-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: data.user.email, userId: data.user.id }),
+            })
+          } catch {}
         }
 
         if (data.session) {
@@ -222,20 +245,23 @@ export function AuthForm({ mode }: AuthFormProps) {
           setSuccessMsg(
             'Đăng ký thành công! Bạn có thể đăng nhập ngay hoặc kiểm tra email nếu yêu cầu xác nhận.'
           )
+          setAuthMode('login')
           setTimeout(() => {
             router.push('/login')
           }, 2500)
         }
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
+          email: authEmail,
           password,
         })
 
         if (signInError) throw signInError
 
-        // ⛔ Access control: check against allowedAccounts.json
-        if (!isAllowedToLogin(email)) {
+        // ⛔ Access control: check against allowlist (local) + server approval (roles table)
+        const locallyAllowed = isAllowedToLogin(authEmail)
+        const serverApproved = await checkServerApproval(authEmail)
+        if (!locallyAllowed && !serverApproved) {
           await supabase.auth.signOut()
           setError('🚫 Tài khoản này chưa được cấp quyền truy cập. Vui lòng liên hệ Admin để được cấp quyền!')
           setLoading(false)
@@ -325,7 +351,7 @@ export function AuthForm({ mode }: AuthFormProps) {
             </div>
           </div>
           <h1 className="text-2xl font-extrabold text-white tracking-tight">
-            {mode === 'login' ? t('welcome_back') : t('register')}
+            {authMode === 'login' ? t('welcome_back') : t('register')}
           </h1>
           <p className="text-xs text-slate-400">{t('login_subtitle')}</p>
         </div>
@@ -355,6 +381,148 @@ export function AuthForm({ mode }: AuthFormProps) {
             <span>{successMsg}</span>
           </div>
         )}
+
+        {/* ─── Account + Password Form (Đăng nhập / Đăng ký) ─── */}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3.5 relative z-10 w-full">
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1.5">{t('account_label')}</label>
+            <div className="relative">
+              <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+              <input
+                type="text"
+                required
+                autoComplete="username"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value)
+                  setError(null)
+                  setRawError(null)
+                }}
+                placeholder={t('account_placeholder')}
+                className="w-full glass-input rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none focus:border-[var(--primary-spotify)] transition-colors"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1.5">{t('password_label')}</label>
+            <div className="relative">
+              <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                autoComplete={authMode === 'register' ? 'new-password' : 'current-password'}
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  setError(null)
+                  setRawError(null)
+                }}
+                placeholder={t('password_placeholder')}
+                className="w-full glass-input rounded-xl pl-10 pr-10 py-2.5 text-xs text-white outline-none focus:border-[var(--primary-spotify)] transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-white transition-colors"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          {authMode === 'register' && (
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">{t('confirm_password')}</label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value)
+                    setError(null)
+                    setRawError(null)
+                  }}
+                  placeholder={t('password_placeholder')}
+                  className="w-full glass-input rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none focus:border-[var(--primary-spotify)] transition-colors"
+                />
+              </div>
+            </div>
+          )}
+
+          {authMode === 'login' && (
+            <div className="flex justify-end -mt-1">
+              <Link
+                href="/reset-password"
+                className="text-[11px] font-semibold text-[var(--primary-spotify)] hover:underline"
+              >
+                {t('forgot_password')}
+              </Link>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-[var(--primary-spotify)] text-black font-extrabold py-3 rounded-full transition-transform active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-[var(--theme-glow-shadow)] disabled:opacity-50 text-xs hover:scale-[1.01]"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-black" />
+                <span>{authMode === 'login' ? t('logging_in') : t('registering')}</span>
+              </>
+            ) : (
+              <span>{authMode === 'login' ? t('login_submit') : t('register')}</span>
+            )}
+          </button>
+
+          <div className="text-center text-[11px] text-slate-400 mt-1">
+            {authMode === 'login' ? (
+              <>
+                {t('no_account')}{' '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('register')
+                    setError(null)
+                    setRawError(null)
+                    setSuccessMsg(null)
+                  }}
+                  className="font-bold text-[var(--primary-spotify)] hover:underline"
+                >
+                  {t('register_now')}
+                </button>
+              </>
+            ) : (
+              <>
+                {t('have_account')}{' '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('login')
+                    setError(null)
+                    setRawError(null)
+                    setSuccessMsg(null)
+                  }}
+                  className="font-bold text-[var(--primary-spotify)] hover:underline"
+                >
+                  {t('login_now')}
+                </button>
+              </>
+            )}
+          </div>
+        </form>
+
+        {/* ─── Divider ─── */}
+        <div className="flex items-center gap-3 my-5 relative z-10">
+          <div className="flex-1 h-px bg-white/10" />
+          <span className="text-[10px] uppercase tracking-widest font-bold text-slate-500">{t('or_continue_with')}</span>
+          <div className="flex-1 h-px bg-white/10" />
+        </div>
 
         {/* Google & Passkey Buttons */}
         <div className="flex flex-col gap-3 relative z-10 w-full mt-2">

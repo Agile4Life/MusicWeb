@@ -1,6 +1,7 @@
 import { Track } from '@/types'
 import { SpotifyPlaylistTrack } from '@/lib/spotify'
 import { searchYouTubeTracks, findBestYouTubeMatch } from '@/lib/youtube'
+import { resolveNhacCuaTuiTrack } from '@/lib/nhaccuatuiClient'
 
 export interface PlaylistImportResult {
   spotify_id: string
@@ -10,12 +11,13 @@ export interface PlaylistImportResult {
 }
 
 // In-memory cache so re-importing overlapping playlists, or retrying a failed
-// import, doesn't re-search YouTube for tracks already matched this session.
+// import, doesn't re-search for tracks already matched this session.
 const matchCache = new Map<string, Track | null>()
 
 /**
- * Match MỘT track Spotify sang YouTube. Tách riêng để dùng lại được cho
- * cả batch import lẫn re-match thủ công 1 bài từ UI review.
+ * Match MỘT track Spotify. Ưu tiên Nhạc Của Tui (NCT) trước — nếu bài có trên
+ * NCT sẽ dùng ngay nguồn + ảnh NCT; chỉ khi không tìm thấy mới fallback sang
+ * YouTube. Tách riêng để dùng lại được cho cả batch import lẫn re-match thủ công.
  */
 export async function matchSingleTrack(spotifyTrack: SpotifyPlaylistTrack): Promise<PlaylistImportResult> {
   const cacheKey = spotifyTrack.isrc || spotifyTrack.spotify_id
@@ -30,6 +32,42 @@ export async function matchSingleTrack(spotifyTrack: SpotifyPlaylistTrack): Prom
     }
   }
 
+  // 1. NCT-first: lấy bài từ Nhạc Của Tui (nguồn + ảnh theo web đang dùng)
+  try {
+    const nctSong = await resolveNhacCuaTuiTrack({
+      title: spotifyTrack.title,
+      artist: spotifyTrack.artist,
+      album: spotifyTrack.album,
+      duration: spotifyTrack.duration,
+      source: 'spotify',
+      nhaccuatui_id: undefined,
+    })
+    if (nctSong) {
+      const nctTrack: Track = {
+        id: `nct-${nctSong.id}`,
+        user_id: 'nhaccuatui-global',
+        title: nctSong.title || spotifyTrack.title,
+        artist: nctSong.artist || spotifyTrack.artist,
+        duration: nctSong.duration || spotifyTrack.duration || 0,
+        file_path: '',
+        cover_url: nctSong.coverUrl || null,
+        created_at: new Date().toISOString(),
+        source: 'nhaccuatui',
+        nhaccuatui_id: nctSong.id,
+      }
+      matchCache.set(cacheKey, nctTrack)
+      return {
+        spotify_id: spotifyTrack.spotify_id,
+        spotifyTrack,
+        matchedTrack: nctTrack,
+        matchConfidence: 'high',
+      }
+    }
+  } catch (err) {
+    console.warn('NCT match error:', spotifyTrack.title, err)
+  }
+
+  // 2. Fallback: YouTube
   try {
     const query = `${spotifyTrack.title} ${spotifyTrack.artist}`
     const candidates = await searchYouTubeTracks(query, 8)

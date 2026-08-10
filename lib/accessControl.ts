@@ -94,8 +94,7 @@ export function isAllowedToLogin(email?: string | null): boolean {
 }
 
 /** Utility to mark an email as authorized via Passkey verification */
-export function markEmailAsAllowed(email: string) {
-  if (typeof window === 'undefined' || !email) return
+export function markEmailAsAllowed(email: string) {  if (typeof window === 'undefined' || !email) return
   try {
     const normalized = email.trim().toLowerCase()
 
@@ -126,6 +125,26 @@ export function markEmailAsAllowed(email: string) {
     document.cookie = `approved_emails=${JSON.stringify(cookieList)}; path=/; max-age=31536000; SameSite=Lax`
   } catch {
     // ignore storage error
+  }
+}
+
+/**
+ * Client-side wrapper for the server approval check (/api/check-approval).
+ * Returns true when the email is approved in the bundled config allowlist OR in
+ * the server-persistent Supabase roles table (passkey/register approvals).
+ */
+export async function checkServerApproval(email?: string | null): Promise<boolean> {
+  if (!email) return false
+  try {
+    const res = await fetch(
+      `/api/check-approval?email=${encodeURIComponent(email.trim().toLowerCase())}`,
+      { cache: 'no-store' }
+    )
+    if (!res.ok) return false
+    const data = await res.json()
+    return Boolean(data?.approved)
+  } catch {
+    return false
   }
 }
 

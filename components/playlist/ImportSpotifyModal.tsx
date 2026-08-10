@@ -442,7 +442,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
                 Nhập Playlist từ Spotify
               </h2>
               <p className="text-[11px] sm:text-xs text-slate-400 truncate">
-                Tự động tìm kiếm & ghép nối video YouTube tương ứng
+                Tự động tìm kiếm & thêm nhạc vào playlist cho bạn
               </p>
             </div>
           </div>
@@ -605,7 +605,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
                   disabled={loadingTracks || spotifyTracks.length === 0}
                   className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20 active:scale-[0.98]"
                 >
-                  <span>Tìm nhạc trên YouTube</span>
+                  <span>Bắt đầu thêm nhạc</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
@@ -622,7 +622,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
 
               <div className="space-y-1.5 px-2">
                 <h3 className="text-sm sm:text-base font-bold text-white">
-                  Đang tìm kiếm & đối soát video trên YouTube...
+                  Đang tìm kiếm & thêm vào playlist cho bạn...
                 </h3>
                 <p className="text-xs text-slate-400">
                   Đã hoàn tất {progress.done} / {progress.total} bài hát
@@ -783,6 +783,9 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
                                   <CheckCircle2 className="w-3 h-3" />
                                   Khớp tốt (±{durDiff}s)
                                 </span>
+                                <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold rounded-md shrink-0 ${item.matchedTrack.source === 'nhaccuatui' ? 'bg-teal-500/10 border border-teal-500/30 text-teal-300' : 'bg-white/5 border border-white/10 text-slate-300'}`}>
+                                  {item.matchedTrack.source === 'nhaccuatui' ? 'NCT' : 'YouTube'}
+                                </span>
                                 <span className="text-[10px] text-slate-400 truncate max-w-[180px] sm:max-w-[240px]">
                                   {item.matchedTrack.title}
                                 </span>
@@ -794,6 +797,9 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
                                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-semibold rounded-md shrink-0">
                                   <AlertTriangle className="w-3 h-3" />
                                   Cơ bản (±{durDiff}s)
+                                </span>
+                                <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold rounded-md shrink-0 ${item.matchedTrack.source === 'nhaccuatui' ? 'bg-teal-500/10 border border-teal-500/30 text-teal-300' : 'bg-white/5 border border-white/10 text-slate-300'}`}>
+                                  {item.matchedTrack.source === 'nhaccuatui' ? 'NCT' : 'YouTube'}
                                 </span>
                                 <span className="text-[10px] text-slate-400 truncate max-w-[180px] sm:max-w-[240px]">
                                   {item.matchedTrack.title}

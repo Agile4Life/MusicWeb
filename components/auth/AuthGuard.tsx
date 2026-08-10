@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { createClient } from '@/lib/supabase/client'
-import { isAllowedToLogin } from '@/lib/accessControl'
+import { isAllowedToLogin, checkServerApproval } from '@/lib/accessControl'
 import { Headphones, ShieldAlert, LogOut } from 'lucide-react'
 import { AuthForm } from './AuthForm'
 
@@ -47,7 +47,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
       if (email) {
         setUserEmail(email)
-        const allowed = isAllowedToLogin(email)
+        const allowed = isAllowedToLogin(email) || (await checkServerApproval(email))
         setIsAllowed(allowed)
       } else {
         setUserEmail(null)
