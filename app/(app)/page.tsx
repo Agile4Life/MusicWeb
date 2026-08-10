@@ -8,6 +8,7 @@ import { TrackList } from '@/components/track/TrackList'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { deduplicateQueueTracks } from '@/lib/utils'
+import { resolveExternalTrackId } from '@/lib/trackPersistence'
 import {
   Play,
   Upload,
@@ -393,36 +394,12 @@ export default function HomePage() {
         return
       }
 
-      const { data: existing } = await supabase
-        .from('tracks')
-        .select('id')
-        .eq('file_path', track.file_path)
-        .maybeSingle()
-
-      if (existing && existing.id) {
-        targetTrackId = existing.id
-      } else {
-        const { data: inserted, error: insertError } = await supabase
-          .from('tracks')
-          .insert({
-            user_id: userId,
-            title: track.title,
-            artist: track.artist || null,
-            album: track.album || null,
-            duration: track.duration || 0,
-            file_path: track.file_path,
-            cover_url: track.cover_url || null,
-            created_at: new Date().toISOString(),
-          })
-          .select('id')
-          .single()
-
-        if (insertError || !inserted) {
-          alert('Lỗi lưu bài hát vào CSDL: ' + (insertError?.message || ''))
-          return
-        }
-        targetTrackId = inserted.id
+      const resolvedId = await resolveExternalTrackId(supabase, track, userId)
+      if (!resolvedId) {
+        alert('Lỗi lưu bài hát vào CSDL')
+        return
       }
+      targetTrackId = resolvedId
     }
 
     const { error: rpcError } = await Promise.resolve(

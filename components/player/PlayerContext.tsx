@@ -7,6 +7,7 @@ import { extractDriveFileId, isPreviewUrl, verifyDriveFile, triggerDrivePrewarm,
 import { useSession } from 'next-auth/react'
 import { getValidUserId } from '@/lib/accessControl'
 import { deduplicateQueueTracks } from '@/lib/utils'
+import { resolveExternalTrackId } from '@/lib/trackPersistence'
 import { findBestYouTubeMatch, normalizeTitle, extractYouTubeVideoId, fetchViewCountForVideo } from '@/lib/youtube'
 import { fetchUnifiedSearch } from '@/lib/searchApi'
 import { getSmartRecommendedTracks } from '@/lib/smartRecommend'
@@ -496,32 +497,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       // If track is from external source (YouTube, iTunes, Audius), ensure it exists in tracks table
       if (currentTrack.source && currentTrack.source !== 'local') {
-        const { data: existing } = await supabase
-          .from('tracks')
-          .select('id')
-          .eq('file_path', currentTrack.file_path)
-          .maybeSingle()
-
-        if (existing && existing.id) {
-          dbTrackId = existing.id
-        } else {
-          const { data: inserted } = await supabase
-            .from('tracks')
-            .insert({
-              user_id: userId,
-              title: currentTrack.title,
-              artist: currentTrack.artist || null,
-              album: currentTrack.album || null,
-              duration: currentTrack.duration || 0,
-              file_path: currentTrack.file_path,
-              cover_url: currentTrack.cover_url || null,
-              created_at: new Date().toISOString(),
-            })
-            .select('id')
-            .single()
-
-          if (inserted && inserted.id) dbTrackId = inserted.id
-        }
+        const resolvedId = await resolveExternalTrackId(supabase, currentTrack, userId)
+        if (resolvedId) dbTrackId = resolvedId
       }
 
       if (nextValue) {
@@ -1385,36 +1362,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         // If track is from an external global source (YouTube, Audius, iTunes),
         // upsert it into the DB tracks table first to get a valid UUID for listening_history!
         if (track.source && track.source !== 'local') {
-          const { data: existing } = await supabase
-            .from('tracks')
-            .select('id')
-            .eq('file_path', track.file_path)
-            .maybeSingle()
-
-          if (existing && existing.id) {
-            dbTrackId = existing.id
-          } else {
-            const { data: inserted } = await supabase
-              .from('tracks')
-              .insert({
-                user_id: userId,
-                title: track.title,
-                artist: track.artist || null,
-                album: track.album || null,
-                duration: track.duration || 0,
-                file_path: track.file_path,
-                cover_url: track.cover_url || null,
-                created_at: new Date().toISOString(),
-              })
-              .select('id')
-              .single()
-
-            if (inserted && inserted.id) {
-              dbTrackId = inserted.id
-            } else {
-              return
-            }
-          }
+          const resolvedId = await resolveExternalTrackId(supabase, track, userId)
+          if (!resolvedId) return
+          dbTrackId = resolvedId
         }
 
         await supabase.from('listening_history').insert({

@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 import { isAdmin, getValidUserId } from '@/lib/accessControl'
 import { formatViewCount } from '@/lib/utils'
 import { fetchViewCountForVideo } from '@/lib/youtube'
+import { resolveExternalTrackId } from '@/lib/trackPersistence'
 import { useSession } from 'next-auth/react'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
@@ -291,32 +292,8 @@ function TrackRowComponent({
       let dbTrackId = track.id
 
       if (track.source && track.source !== 'local' && userId) {
-        const { data: existing } = await supabase
-          .from('tracks')
-          .select('id')
-          .eq('file_path', track.file_path)
-          .maybeSingle()
-
-        if (existing && existing.id) {
-          dbTrackId = existing.id
-        } else {
-          const { data: inserted } = await supabase
-            .from('tracks')
-            .insert({
-              user_id: userId,
-              title: track.title,
-              artist: track.artist || null,
-              album: track.album || null,
-              duration: track.duration || 0,
-              file_path: track.file_path,
-              cover_url: track.cover_url || null,
-              created_at: new Date().toISOString(),
-            })
-            .select('id')
-            .single()
-
-          if (inserted && inserted.id) dbTrackId = inserted.id
-        }
+        const resolvedId = await resolveExternalTrackId(supabase, track, userId)
+        if (resolvedId) dbTrackId = resolvedId
       }
 
       if (userId && dbTrackId) {
