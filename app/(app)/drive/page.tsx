@@ -12,6 +12,7 @@ import { TrackList } from '@/components/track/TrackList'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 import { extractDriveFileId } from '@/lib/googleDriveUpload'
 import { addTrackToPlaylist } from '@/lib/trackPersistence'
+import { toast } from '@/components/ui/ToastContext'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 
 export default function DrivePage() {
@@ -143,7 +144,7 @@ export default function DrivePage() {
 
     const userId = activeUser ? getValidUserId(activeUser) : ''
     const result = await addTrackToPlaylist(supabase, playlistId, track, userId)
-    alert(result.message)
+    toast(result.message, result.success ? 'success' : 'error', track.title)
   }
 
   const handlePlayAll = () => {

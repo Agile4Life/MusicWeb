@@ -11,6 +11,7 @@ import { TrackListSkeleton, HeroCardSkeleton } from '@/components/common/Skeleto
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { useSession } from 'next-auth/react'
 import { addTrackToPlaylist } from '@/lib/trackPersistence'
+import { toast } from '@/components/ui/ToastContext'
 import { Play, DiscAlbum, Calendar, Music, Shuffle, Disc } from 'lucide-react'
 
 interface AlbumDetail {
@@ -44,7 +45,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
       userId = `${padded.slice(0, 8)}-${padded.slice(8, 12)}-4${padded.slice(13, 16)}-a${padded.slice(17, 20)}-${padded.slice(20, 32)}`
     }
     const result = await addTrackToPlaylist(supabase, playlistId, track, userId)
-    alert(result.message)
+    toast(result.message, result.success ? 'success' : 'error', track.title)
   }
 
   useEffect(() => {

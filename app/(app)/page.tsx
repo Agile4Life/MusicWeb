@@ -10,6 +10,7 @@ import { usePlayer } from '@/components/player/PlayerContext'
 import { deduplicateQueueTracks } from '@/lib/utils'
 import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
 import { resolveExternalTrackId, isExternalTrack, addTrackToPlaylist } from '@/lib/trackPersistence'
+import { toast } from '@/components/ui/ToastContext'
 import {
   Play,
   Upload,
@@ -384,7 +385,7 @@ export default function HomePage() {
     const activeUser = user ? { id: user.id, email: user.email } : null
     const userId = activeUser ? getValidUserId(activeUser) : ''
     const result = await addTrackToPlaylist(supabase, playlistId, track, userId)
-    alert(result.message)
+    toast(result.message, result.success ? 'success' : 'error', track.title)
   }
 
   const handleDeleteTrack = async (trackId: string) => {

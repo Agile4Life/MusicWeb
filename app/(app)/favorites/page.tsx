@@ -6,6 +6,7 @@ import { Track, Playlist } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { getValidUserId } from '@/lib/accessControl'
 import { resolveExternalTrackId, isExternalTrack, addTrackToPlaylist } from '@/lib/trackPersistence'
+import { toast } from '@/components/ui/ToastContext'
 import { useSession } from 'next-auth/react'
 import { Heart, Play, Search, Music, Sparkles, Loader2, ChevronLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -132,7 +133,7 @@ export default function FavoritesPage() {
 
     const userId = activeUser ? getValidUserId(activeUser) : ''
     const result = await addTrackToPlaylist(supabase, playlistId, track, userId)
-    alert(result.message)
+    toast(result.message, result.success ? 'success' : 'error', track.title)
   }
 
   const handleTrackUpdated = (trackId: string, updates: Partial<Track>) => {

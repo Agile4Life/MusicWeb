@@ -8,6 +8,7 @@ import { getValidUserId, isAdmin } from '@/lib/accessControl'
 import { addTrackToPlaylist } from '@/lib/trackPersistence'
 import { fetchUnifiedSearch } from '@/lib/searchApi'
 import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
+import { toast } from '@/components/ui/ToastContext'
 import { Playlist, Track } from '@/types'
 import { TrackList } from '@/components/track/TrackList'
 import { usePlayer } from '@/components/player/PlayerContext'
@@ -432,10 +433,11 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
       const result = await addTrackToPlaylist(supabase, playlistId, track, userId)
 
       if (result.success) {
+        toast(result.message, 'success', track.title)
         // Fetch playlist data in background without triggering full-page skeleton loading
         await fetchPlaylistData(false)
       } else {
-        alert(result.message)
+        toast(result.message, 'error', track.title)
       }
     } finally {
       setAddingTrackId(null)
