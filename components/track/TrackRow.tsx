@@ -9,7 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 import { isAdmin, getValidUserId } from '@/lib/accessControl'
 import { formatViewCount } from '@/lib/utils'
 import { fetchViewCountForVideo } from '@/lib/youtube'
-import { resolveExternalTrackId } from '@/lib/trackPersistence'
+import { resolveExternalTrackId, isExternalTrack } from '@/lib/trackPersistence'
 import { useSession } from 'next-auth/react'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
@@ -292,7 +292,7 @@ function TrackRowComponent({
 
       let dbTrackId = track.id
 
-      if (track.source && track.source !== 'local' && userId) {
+      if (isExternalTrack(track) && userId) {
         const resolvedId = await resolveExternalTrackId(supabase, track, userId)
         if (resolvedId) dbTrackId = resolvedId
       }

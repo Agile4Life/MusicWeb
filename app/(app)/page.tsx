@@ -9,7 +9,7 @@ import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { deduplicateQueueTracks } from '@/lib/utils'
 import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
-import { resolveExternalTrackId } from '@/lib/trackPersistence'
+import { resolveExternalTrackId, isExternalTrack } from '@/lib/trackPersistence'
 import {
   Play,
   Upload,
@@ -387,7 +387,7 @@ export default function HomePage() {
     }
     let targetTrackId = track.id
 
-    if (track.source && track.source !== 'local') {
+    if (isExternalTrack(track)) {
       const activeUser = user ? { id: user.id, email: user.email } : null
       const userId = activeUser ? getValidUserId(activeUser) : null
       if (!userId) {

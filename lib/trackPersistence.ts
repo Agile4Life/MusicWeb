@@ -19,12 +19,8 @@ import type { Track } from '@/types'
  *
  * @returns the DB track id, or `null` when persistence failed.
  */
-export async function resolveExternalTrackId(
-  supabase: SupabaseClient,
-  track: Track,
-  userId: string,
-): Promise<string | null> {
-  const isExternalTrack =
+export function isExternalTrack(track: Track): boolean {
+  return (
     Boolean(track.source && track.source !== 'local') ||
     track.id?.startsWith('yt-') ||
     track.id?.startsWith('spotify-') ||
@@ -32,8 +28,17 @@ export async function resolveExternalTrackId(
     track.id?.startsWith('nct-') ||
     track.id?.startsWith('itunes-') ||
     track.id?.startsWith('audius-')
+  )
+}
 
-  if (!isExternalTrack) return track.id
+export async function resolveExternalTrackId(
+  supabase: SupabaseClient,
+  track: Track,
+  userId: string,
+): Promise<string | null> {
+  const isExternalTrackFlag = isExternalTrack(track)
+
+  if (!isExternalTrackFlag) return track.id
 
   // 1. Look for an existing row using the most stable identity first.
   //    file_path is the last resort because some sources (NhacCuaTui) leave it empty.
