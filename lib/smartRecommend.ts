@@ -1,5 +1,4 @@
 import { Track } from '@/types'
-import { searchITunesTracks } from './itunes'
 import { searchYouTubeTracks, NEGATIVE_KEYWORDS, normalizeTitle } from './youtube'
 import { deduplicateQueueTracks } from './utils'
 
@@ -135,14 +134,7 @@ export async function getSmartRecommendedTracks(
   const recommended: Track[] = []
 
   try {
-    // 1. Fetch iTunes candidates by region code
-    const itunesQuery = seedTrack.artist && seedTrack.artist !== 'Nghệ sĩ chưa xác định'
-      ? `${seedTrack.artist}`
-      : analysis.queryTerms[0]
-
-    const itunesTask = searchITunesTracks(itunesQuery, 12).catch(() => [])
-
-    // 2. Fetch YouTube candidates in PARALLEL and filter NEGATIVE_KEYWORDS (cover, karaoke, etc.)
+    // 1. Fetch YouTube candidates in PARALLEL and filter NEGATIVE_KEYWORDS (cover, karaoke, etc.)
     const ytTasks = analysis.queryTerms.map((query) =>
       searchYouTubeTracks(query, 10)
         .then((results) =>
@@ -154,15 +146,7 @@ export async function getSmartRecommendedTracks(
         .catch(() => [])
     )
 
-    const [itunesResults, ...ytResultsArray] = await Promise.all([itunesTask, ...ytTasks])
-
-    // Add iTunes matches first
-    for (const tr of itunesResults) {
-      if (!existingIds.has(tr.id)) {
-        existingIds.add(tr.id)
-        recommended.push(tr)
-      }
-    }
+    const ytResultsArray = await Promise.all(ytTasks)
 
     // Add YouTube matches next
     for (const ytResults of ytResultsArray) {

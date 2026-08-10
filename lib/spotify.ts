@@ -117,18 +117,14 @@ export async function getTrendingSpotifyTracks(limit = 12): Promise<Track[]> {
             cover_url: item.album?.images?.[0]?.url || item.album?.images?.[1]?.url || null,
             created_at: new Date().toISOString(),
             source: 'spotify',
-            spotify_id: item.id,
           }))
         }
       }
     }
   } catch (err) {
-    console.warn('Spotify trending fetch error, using iTunes fallback:', err)
+    console.warn('Spotify trending fetch error:', err)
   }
-
-  // Fallback to iTunes Top Global Hits if Spotify API credentials are not set
-  const { searchITunesTracks } = await import('./itunes')
-  return searchITunesTracks('top spotify global hits 2026', limit)
+  return []
 }
 
 export interface SpotifyAlbumItem {

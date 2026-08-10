@@ -62,28 +62,7 @@ export async function fetchDeezerNewReleases(limit = 60): Promise<DeezerAlbumIte
       return mapDeezerAlbums(combined.slice(0, limit))
     }
   } catch (err) {
-    console.warn('Deezer Global Worldwide albums fetch error, trying iTunes fallback:', err)
-  }
-
-  // Fallback to iTunes Top Albums Search API if Deezer fails or times out
-  try {
-    const iTunesUrl = `https://itunes.apple.com/search?term=top+albums&entity=album&limit=${limit}`
-    const iTunesRes = await fetch(iTunesUrl, { signal: AbortSignal.timeout(4000) })
-    if (iTunesRes.ok) {
-      const data = await iTunesRes.json()
-      const results = data.results || []
-      return results.map((item: any) => ({
-        id: `itunes-${item.collectionId}`,
-        name: item.collectionName || 'iTunes Album',
-        artist: item.artistName || 'iTunes Artist',
-        cover_url: item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb', '600x600bb') : null,
-        release_date: item.releaseDate ? item.releaseDate.split('T')[0] : '',
-        total_tracks: item.trackCount || 0,
-        album_type: item.collectionType === 'Single' ? 'single' : 'album',
-      }))
-    }
-  } catch (iErr) {
-    console.warn('iTunes new releases fallback warning:', iErr)
+    console.warn('Deezer Global Worldwide albums fetch error:', err)
   }
 
   return []
@@ -113,28 +92,7 @@ export async function searchDeezerAlbums(query: string, limit = 30): Promise<Dee
       }
     }
   } catch (err) {
-    console.warn('Deezer search albums warning, trying iTunes fallback:', err)
-  }
-
-  // Fallback to iTunes Album Search API (100% Free, Global, 0 IP blocks)
-  try {
-    const iTunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query.trim())}&entity=album&limit=${limit}`
-    const iTunesRes = await fetch(iTunesUrl, { signal: AbortSignal.timeout(4000) })
-    if (iTunesRes.ok) {
-      const data = await iTunesRes.json()
-      const results = data.results || []
-      return results.map((item: any) => ({
-        id: `itunes-${item.collectionId}`,
-        name: item.collectionName || 'iTunes Album',
-        artist: item.artistName || 'iTunes Artist',
-        cover_url: item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb', '600x600bb') : null,
-        release_date: item.releaseDate ? item.releaseDate.split('T')[0] : '',
-        total_tracks: item.trackCount || 0,
-        album_type: item.collectionType === 'Single' ? 'single' : 'album',
-      }))
-    }
-  } catch (iErr) {
-    console.warn('iTunes album search fallback warning:', iErr)
+    console.warn('Deezer search albums warning:', err)
   }
 
   return []

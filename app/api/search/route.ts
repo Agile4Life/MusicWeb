@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { searchAudiusTracks, getTrendingAudiusTracks } from '@/lib/audius'
 import { searchYouTubeTracks, getTrendingYouTubeTracks, findBestYouTubeMatch, isOriginalTrackOnly } from '@/lib/youtube'
-import { searchITunesTracks, getTrendingITunesTracks } from '@/lib/itunes'
 import { searchSpotifyTracks, getTrendingSpotifyTracks } from '@/lib/spotify'
 import { Track } from '@/types'
 
@@ -44,16 +43,15 @@ export async function GET(request: Request) {
       }
 
       const trendingPromise = (async () => {
-        const [ytTrending, itunesTrending, spotifyTrending] = await Promise.all([
+        const [ytTrending, spotifyTrending] = await Promise.all([
           getTrendingYouTubeTracks(16).catch(() => []),
-          getTrendingITunesTracks('vn', 16).catch(() => []),
           getTrendingSpotifyTracks(16).catch(() => []),
         ])
 
         return {
           youtube: ytTrending,
           audius: [],
-          itunes: itunesTrending,
+          itunes: [],
           spotify: spotifyTrending,
         }
       })()
@@ -142,17 +140,10 @@ export async function GET(request: Request) {
 
     const [localTracks, spotifyTracks, youtubeTracks] = await Promise.all(primaryPromises)
 
-    // Phase 2: Sequential Fallback to iTunes API
-    // Only search iTunes if Spotify returned 0 results or if user specifically requested source === 'itunes'
-    let itunesTracks: Track[] = []
-    if ((source === 'all' && spotifyTracks.length === 0) || source === 'itunes') {
-      itunesTracks = await searchITunesTracks(q.trim(), 10).catch(() => [])
-    }
-
-    // Phase 3: Audius is temporarily disabled for speed (return empty array)
+    const itunesTracks: Track[] = []
     const audiusTracks: Track[] = []
 
-    // Pre-assign YouTube stream IDs for Spotify & iTunes tracks using smart matching
+    // Pre-assign YouTube stream IDs for Spotify tracks using smart matching
     const enhancedSpotify = spotifyTracks.map((sTrack: Track) => {
       if (sTrack.youtube_id) return sTrack
       const match = findBestYouTubeMatch(youtubeTracks, sTrack.title, sTrack.artist, sTrack.duration, sTrack.album)
@@ -161,13 +152,7 @@ export async function GET(request: Request) {
         : sTrack
     })
 
-    const enhancedITunes = itunesTracks.map((iTrack: Track) => {
-      if (iTrack.youtube_id) return iTrack
-      const match = findBestYouTubeMatch(youtubeTracks, iTrack.title, iTrack.artist, iTrack.duration, iTrack.album)
-      return match?.youtube_id
-        ? { ...iTrack, youtube_id: match.youtube_id, view_count: iTrack.view_count || match.view_count }
-        : iTrack
-    })
+    const enhancedITunes: Track[] = []
 
     // Enrich YouTube tracks with high-res 1:1 Spotify/iTunes album artwork if available
     const enhancedYouTube = youtubeTracks.map((yTrack: Track) => {

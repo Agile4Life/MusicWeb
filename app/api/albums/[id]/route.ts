@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { fetchSpotifyAlbumMeta, fetchFullAlbumTracks } from '@/lib/spotify'
 import { fetchDeezerAlbumTracks } from '@/lib/deezer'
-import { fetchITunesAlbumTracks } from '@/lib/itunes'
 
 const albumMemoryCache = new Map<string, { data: any; timestamp: number }>()
 const ALBUM_CACHE_TTL = 30 * 60 * 1000 // 30 minutes
@@ -148,34 +147,7 @@ export async function GET(
       }
     }
 
-    // 2. iTunes Album Lookup Branch (if albumId starts with iTunes prefix or RSS)
-    if (albumId.startsWith('itunes') || albumId.startsWith('itunes-rss')) {
-      try {
-        const iTunesRes = await fetchITunesAlbumTracks(albumId)
-        if (iTunesRes && iTunesRes.tracks.length > 0) {
-          if (supabase) {
-            const tracksToSave = iTunesRes.tracks.map((t) => ({
-              user_id: '00000000-0000-4000-a000-000000000001',
-              title: t.title,
-              artist: t.artist || iTunesRes.artist,
-              album: iTunesRes.name,
-              spotify_album_id: iTunesRes.id,
-              disc_number: t.disc_number || 1,
-              track_number: t.track_number || 1,
-              duration: t.duration || 0,
-              file_path: t.file_path || '',
-              cover_url: t.cover_url || iTunesRes.cover_url,
-              itunes_id: t.itunes_id ? String(t.itunes_id) : null,
-            }))
 
-            safeSaveAlbumToDb(supabase, iTunesRes, tracksToSave).catch(() => {})
-          }
-          return cachedAlbumResponse(iTunesRes, albumId)
-        }
-      } catch (iErr) {
-        console.warn('iTunes album fetch error:', iErr)
-      }
-    }
 
     // 3. Spotify API Branch (Primary provider for alphanumeric Spotify IDs)
     if (albumId.startsWith('spotify') || !/^\d+$/.test(cleanId)) {

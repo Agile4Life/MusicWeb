@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
-import { getTrendingITunesTracks } from '@/lib/itunes'
-import { searchYouTubeTracks, findBestYouTubeMatch } from '@/lib/youtube'
-import { Track } from '@/types'
+import { getTrendingYouTubeTracks } from '@/lib/youtube'
+import { getTrendingSpotifyTracks } from '@/lib/spotify'
 
 export const runtime = 'nodejs'
 
@@ -17,34 +16,17 @@ export async function GET(req: Request) {
     const countryCode = countryHeader.toLowerCase()
     const limit = parseInt(searchParams.get('limit') || '12', 10)
 
-    // 1. Fetch Top RSS Chart for User's Country from Apple Music API
-    const rawITunesTracks = await getTrendingITunesTracks(countryCode, limit)
+    const [ytTrending, spotifyTrending] = await Promise.all([
+      getTrendingYouTubeTracks(limit).catch(() => []),
+      getTrendingSpotifyTracks(limit).catch(() => []),
+    ])
 
-    // 2. Pre-assign YouTube stream IDs for seamless instant playback
-    const enhancedTracks = await Promise.all(
-      rawITunesTracks.map(async (track: Track) => {
-        try {
-          const queryStr = `${track.artist} - ${track.title}`
-          const ytCandidates = await searchYouTubeTracks(queryStr, 5)
-          const bestMatch = findBestYouTubeMatch(
-            ytCandidates,
-            track.title,
-            track.artist,
-            track.duration,
-            track.album
-          )
-          return bestMatch?.youtube_id ? { ...track, youtube_id: bestMatch.youtube_id } : track
-        } catch {
-          return track
-        }
-      })
-    )
+    const tracks = ytTrending.length > 0 ? ytTrending : spotifyTrending
 
-    // 3. Return JSON response with Vercel Edge CDN Cache-Control (24 Hours Cache)
     return NextResponse.json(
       {
         country: countryCode.toUpperCase(),
-        tracks: enhancedTracks,
+        tracks,
       },
       {
         headers: {

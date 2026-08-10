@@ -938,7 +938,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       )) ||
       track.source === 'itunes' ||
       track.source === 'spotify' ||
-      track.source === 'deezer'
+      (track as any).source === 'deezer'
     )
 
     const hasDirectPlayableAudio = !isPreviewAudio && Boolean(
@@ -947,9 +947,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       extractDriveFileId(track.file_path || '') ||
       (track.file_path && (
         track.file_path.includes('drive-stream') ||
-        track.file_path.includes('drive.google') ||
-        track.file_path.includes('lh3.googleusercontent') ||
-        track.file_path.includes('audius')
+        track.file_path.includes('drive.google')
       ))
     )
 
@@ -957,7 +955,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       (track.source === 'nhaccuatui' && Boolean(track.nhaccuatui_id)) ||
       track.source === 'itunes' ||
       track.source === 'spotify' ||
-      track.source === 'deezer' ||
+      (track as any).source === 'deezer' ||
       isPreviewAudio ||
       (!track.youtube_id && (track.spotify_id || track.itunes_id || track.nhaccuatui_id))
     ) && !track.youtube_id
