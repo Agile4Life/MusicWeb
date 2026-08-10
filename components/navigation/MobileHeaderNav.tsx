@@ -114,28 +114,35 @@ export function MobileHeaderNav() {
     <>
       {/* 📱 Mobile Top Header Bar (< 768px) */}
       <div className="mobile-header md:hidden h-14 px-3 xs:px-4 flex items-center justify-between select-none shrink-0">
-        {pathname !== '/' ? (
+        <div className="flex items-center gap-2 shrink-0">
+          {pathname !== '/' && (
+            <button
+              onClick={() => {
+                if (navBackBusyRef.current) return
+                navBackBusyRef.current = true
+                if (window.history.length > 1) {
+                  router.back()
+                } else {
+                  router.push('/')
+                }
+                setTimeout(() => {
+                  navBackBusyRef.current = false
+                }, 500)
+              }}
+              className="p-2 text-slate-300 hover:text-white rounded-xl bg-white/[0.04] border border-white/[0.06] active:scale-95 transition-transform shrink-0"
+              title="Quay lại"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+          )}
           <button
-            onClick={() => {
-              if (navBackBusyRef.current) return
-              navBackBusyRef.current = true
-              if (window.history.length > 1) {
-                router.back()
-              } else {
-                router.push('/')
-              }
-              setTimeout(() => {
-                navBackBusyRef.current = false
-              }, 500)
-            }}
+            onClick={() => setIsDrawerOpen(true)}
             className="p-2 text-slate-300 hover:text-white rounded-xl bg-white/[0.04] border border-white/[0.06] active:scale-95 transition-transform shrink-0"
-            title="Quay lại"
+            title="Menu"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <Menu className="w-5 h-5" />
           </button>
-        ) : (
-          <div className="w-9 h-9" />
-        )}
+        </div>
 
         <Link
           href="/"
@@ -154,14 +161,7 @@ export function MobileHeaderNav() {
           </div>
         </Link>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsDrawerOpen(true)}
-            className="p-2 text-slate-300 hover:text-white rounded-xl bg-white/[0.04] border border-white/[0.06]"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-        </div>
+        <div className="w-9 h-9 shrink-0" />
       </div>
 
       {/* 📱 Mobile Bottom Navigation Bar (< 768px) */}

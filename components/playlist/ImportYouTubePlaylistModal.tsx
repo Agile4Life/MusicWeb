@@ -319,7 +319,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-white/10 bg-white/[0.02] gap-3">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/30 flex items-center justify-center text-[var(--primary-spotify,#06b6d4)] shrink-0">
               <YoutubeIcon className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
             </div>
             <div className="min-w-0 flex-1">
@@ -327,7 +327,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
                 <h2 className="text-sm sm:text-base font-bold text-white leading-tight">
                   Nhập Playlist YouTube
                 </h2>
-                <span className="text-[9px] sm:text-[10px] font-mono font-semibold uppercase px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 shrink-0">
+                <span className="text-[9px] sm:text-[10px] font-mono font-semibold uppercase px-1.5 py-0.5 rounded-full bg-[var(--primary-spotify,#06b6d4)]/15 text-[var(--primary-spotify,#06b6d4)] border border-[var(--primary-spotify,#06b6d4)]/30 shrink-0">
                   YouTube API
                 </span>
               </div>
@@ -363,7 +363,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
                       setInputError(null)
                     }}
                     placeholder="Dán link playlist tại đây..."
-                    className="w-full bg-white/[0.04] border border-white/10 focus:border-red-400/60 rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none transition-all"
+                    className="w-full bg-white/[0.04] border border-white/10 focus:border-[var(--primary-spotify,#06b6d4)]/60 rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none transition-all"
                     autoFocus
                   />
                   {urlInput && (
@@ -386,7 +386,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
 
               <div className="p-3 sm:p-4 bg-white/[0.02] border border-white/5 rounded-xl sm:rounded-2xl flex flex-col gap-2">
                 <span className="text-xs font-bold text-slate-300 flex items-center gap-2">
-                  <Sparkles className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                  <Sparkles className="w-3.5 h-3.5 text-[var(--primary-spotify,#06b6d4)] shrink-0" />
                   <span>Định dạng liên kết được hỗ trợ:</span>
                 </span>
                 <ul className="text-[11px] text-slate-400 flex flex-col gap-1 font-mono pl-4 list-disc break-all">
@@ -400,7 +400,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
               <button
                 type="submit"
                 disabled={!urlInput.trim() || loadingMeta}
-                className="w-full py-3 sm:py-3.5 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 text-white shadow-lg shadow-red-500/25 flex items-center justify-center gap-2 disabled:opacity-50 transition-all cursor-pointer"
+                className="w-full py-3 sm:py-3.5 rounded-xl font-bold text-xs sm:text-sm bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black shadow-lg shadow-[var(--theme-glow-shadow)] flex items-center justify-center gap-2 disabled:opacity-50 transition-all cursor-pointer"
               >
                 {loadingMeta ? (
                   <>
@@ -434,14 +434,14 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
                     <User className="w-3 h-3 text-slate-500" />
                     <span>{meta.channelTitle}</span>
                   </p>
-                  <p className="text-xs text-red-400 font-mono mt-1">
+                  <p className="text-xs text-[var(--primary-spotify,#06b6d4)] font-mono mt-1">
                     {meta.total_tracks} bài hát trong playlist gốc
                   </p>
                 </div>
               </div>
 
               <div className="flex flex-col items-center gap-2.5 sm:gap-3 text-center">
-                <Loader2 className="w-7 h-7 sm:w-8 sm:h-8 text-red-400 animate-spin" />
+                <Loader2 className="w-7 h-7 sm:w-8 sm:h-8 text-[var(--primary-spotify,#06b6d4)] animate-spin" />
                 <div>
                   <p className="text-xs sm:text-sm font-bold text-white">
                     {step === 'preview' ? 'Đang tải danh sách bài hát...' : 'Đang bổ sung thông tin bài hát...'}
@@ -474,12 +474,12 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
                     value={playlistName}
                     onChange={(e) => setPlaylistName(e.target.value)}
                     placeholder="Tên Playlist mới"
-                    className="w-full bg-white/[0.04] border border-white/10 focus:border-red-400 rounded-lg px-2.5 py-1 text-xs sm:text-sm font-bold text-white outline-none"
+                    className="w-full bg-white/[0.04] border border-white/10 focus:border-[var(--primary-spotify,#06b6d4)] rounded-lg px-2.5 py-1 text-xs sm:text-sm font-bold text-white outline-none"
                   />
                   <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1 flex items-center gap-1.5 flex-wrap">
                     <span className="truncate max-w-[120px] sm:max-w-none">Tạo bởi: {meta.channelTitle}</span>
                     <span>•</span>
-                    <span className="text-red-400 font-semibold">{fetchedTracks.length} bài sẵn sàng</span>
+                    <span className="text-[var(--primary-spotify,#06b6d4)] font-semibold">{fetchedTracks.length} bài sẵn sàng</span>
                   </p>
                 </div>
               </div>
@@ -501,7 +501,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
                   <input
                     type="checkbox"
                     checked={selectedTrackIds.size === fetchedTracks.length && fetchedTracks.length > 0}
-                    className="rounded accent-red-500 cursor-pointer"
+                    className="rounded accent-[var(--primary-spotify,#06b6d4)] cursor-pointer"
                   />
                   <span>Chọn tất cả ({selectedTrackIds.size}/{fetchedTracks.length})</span>
                 </button>
@@ -518,14 +518,14 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
                       onClick={() => toggleSelectTrack(t.id)}
                       className={`flex items-center gap-2.5 sm:gap-3 p-2 sm:p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
                         isChecked
-                          ? 'bg-white/[0.04] border-white/10 hover:border-red-400/40'
+                          ? 'bg-white/[0.04] border-white/10 hover:border-[var(--primary-spotify,#06b6d4)]/40'
                           : 'bg-white/[0.01] border-transparent opacity-60 hover:opacity-100'
                       }`}
                     >
                       <input
                         type="checkbox"
                         checked={isChecked}
-                        className="rounded accent-red-500 cursor-pointer"
+                        className="rounded accent-[var(--primary-spotify,#06b6d4)] cursor-pointer"
                       />
                       <span className="text-[11px] font-mono text-slate-500 w-4 text-center">{index + 1}</span>
                       <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-slate-800 overflow-hidden shrink-0">
@@ -559,7 +559,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
                   type="button"
                   onClick={handleConfirmImport}
                   disabled={selectedTrackIds.size === 0}
-                  className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 text-white shadow-lg shadow-red-500/20 flex items-center gap-1.5 sm:gap-2 disabled:opacity-50 transition-all cursor-pointer"
+                  className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs font-bold bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black shadow-lg shadow-[var(--theme-glow-shadow)] flex items-center gap-1.5 sm:gap-2 disabled:opacity-50 transition-all cursor-pointer"
                 >
                   <Check className="w-4 h-4" />
                   <span>Xác nhận ({selectedTrackIds.size} bài)</span>
@@ -571,7 +571,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
           {/* STEP 5: Importing progress */}
           {step === 'importing' && (
             <div className="flex flex-col items-center justify-center gap-5 sm:gap-6 py-8 sm:py-10 text-center">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 shadow-xl">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/30 flex items-center justify-center text-[var(--primary-spotify,#06b6d4)] shadow-xl">
                 <Loader2 className="w-7 h-7 sm:w-8 sm:h-8 animate-spin" />
               </div>
               <div className="flex flex-col gap-1">
@@ -582,7 +582,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
               </div>
               <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden max-w-md">
                 <div
-                  className="bg-gradient-to-r from-red-500 to-rose-500 h-full transition-all duration-200"
+                  className="bg-gradient-to-r from-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#3b82f6)] h-full transition-all duration-200"
                   style={{
                     width: `${importingProgress.total > 0 ? (importingProgress.done / importingProgress.total) * 100 : 0}%`,
                   }}
