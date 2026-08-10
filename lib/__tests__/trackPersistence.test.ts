@@ -5,6 +5,7 @@ import { resolveExternalTrackId } from '../trackPersistence'
 
 interface MockQuery {
   select: (columns: string) => MockQuery
+  insert?: (row: any) => MockQuery
   eq: (column: string, value: string | null) => MockQuery
   limit?: (count: number) => Promise<{ data: any[] | null }>
   single?: () => Promise<{ data: any | null; error?: any }>
@@ -15,7 +16,7 @@ type MockSupabase = {
 }
 
 function createMockSupabase(selectRow?: any, insertRow?: any): SupabaseClient {
-  const selectQuery = {
+  const selectQuery: MockQuery = {
     select(columns: string) {
       return this
     },
@@ -25,29 +26,32 @@ function createMockSupabase(selectRow?: any, insertRow?: any): SupabaseClient {
     limit(count: number) {
       return Promise.resolve({ data: selectRow ? [selectRow] : [] })
     },
-  } as unknown as MockQuery
+  }
 
-  const insertQuery = {
-    insert(row: any) {
+  const insertQuery: MockQuery = {
+    select(columns: string) {
       return this
     },
-    select(columns: string) {
+    insert(row: any) {
       return this
     },
     single() {
       return Promise.resolve({ data: insertRow || null, error: insertRow ? undefined : { message: 'insert failed' } })
     },
-  } as unknown as MockQuery
+    eq(column: string, value: string | null) {
+      return this
+    },
+  }
 
   const supabase = {
     from(table: string) {
       if (table === 'tracks') {
         return {
           select: selectQuery.select.bind(selectQuery),
-          insert: insertQuery.insert.bind(insertQuery),
+          insert: insertQuery.insert?.bind(insertQuery),
           eq: selectQuery.eq.bind(selectQuery),
-          limit: selectQuery.limit.bind(selectQuery),
-          single: insertQuery.single.bind(insertQuery),
+          limit: selectQuery.limit?.bind(selectQuery),
+          single: insertQuery.single?.bind(insertQuery),
         }
       }
       return selectQuery

@@ -8,6 +8,7 @@ import { TrackList } from '@/components/track/TrackList'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { deduplicateQueueTracks } from '@/lib/utils'
+import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
 import { resolveExternalTrackId } from '@/lib/trackPersistence'
 import {
   Play,
@@ -687,22 +688,18 @@ export default function HomePage() {
     })
   }, [tracks])
 
+  const searchResults: Track[] = useMemo(() => {
+    return flattenUnifiedSearchResults(globalTracks)
+  }, [globalTracks])
+
   const displayedTracks: Track[] = useMemo(() => {
     if (isSearching) {
-      return deduplicateQueueTracks([
-        ...globalTracks.nhaccuatui,
-        ...globalTracks.local,
-        ...globalTracks.spotify,
-        ...globalTracks.itunes,
-        ...globalTracks.youtube,
-        ...globalTracks.audius,
-        ...globalTracks.deezer,
-      ])
+      return searchResults
     }
     if (libraryTab === 'drive') return driveTracks
     if (libraryTab === 'recent') return recentTracks
     return tracks
-  }, [isSearching, globalTracks, libraryTab, driveTracks, recentTracks, tracks])
+  }, [isSearching, searchResults, libraryTab, driveTracks, recentTracks, tracks])
 
   const isShortQuery = isSearching && searchQuery.trim().length <= 2
 
