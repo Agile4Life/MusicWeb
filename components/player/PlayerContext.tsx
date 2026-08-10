@@ -921,15 +921,31 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     // 🎵 Full-Length Stream Resolver for iTunes & Spotify tracks (Resolves DRM/metadata into 100% playable full song)
     let activeTrack = track
-    const hasDirectPlayableAudio = Boolean(
-      track.audio_url ||
+    const isPreviewAudio = Boolean(
+      (track.audio_url && (
+        track.audio_url.includes('apple.com') ||
+        track.audio_url.includes('dzcdn.net') ||
+        track.audio_url.includes('p.scdn.co') ||
+        track.audio_url.includes('mzstatic.com') ||
+        track.audio_url.includes('preview')
+      )) ||
+      (track.file_path && (
+        track.file_path.includes('apple.com') ||
+        track.file_path.includes('dzcdn.net') ||
+        track.file_path.includes('p.scdn.co') ||
+        track.file_path.includes('mzstatic.com') ||
+        track.file_path.includes('preview')
+      )) ||
+      track.source === 'itunes' ||
+      track.source === 'spotify' ||
+      track.source === 'deezer'
+    )
+
+    const hasDirectPlayableAudio = !isPreviewAudio && Boolean(
+      (track.audio_url && track.source !== 'nhaccuatui') ||
       track.drive_file_id ||
       extractDriveFileId(track.file_path || '') ||
       (track.file_path && (
-        track.file_path.includes('.mp3') ||
-        track.file_path.includes('preview') ||
-        track.file_path.includes('dzcdn.net') ||
-        track.file_path.includes('apple.com') ||
         track.file_path.includes('drive-stream') ||
         track.file_path.includes('drive.google') ||
         track.file_path.includes('lh3.googleusercontent') ||
@@ -937,11 +953,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       ))
     )
 
-    const shouldResolveExternalCatalog = !hasDirectPlayableAudio && (
+    const shouldResolveExternalCatalog = (!hasDirectPlayableAudio || isPreviewAudio) && (
       (track.source === 'nhaccuatui' && Boolean(track.nhaccuatui_id)) ||
       track.source === 'itunes' ||
       track.source === 'spotify' ||
-      (!track.youtube_id && (track.spotify_id || track.itunes_id))
+      track.source === 'deezer' ||
+      isPreviewAudio ||
+      (!track.youtube_id && (track.spotify_id || track.itunes_id || track.nhaccuatui_id))
     ) && !track.youtube_id
 
     if (shouldResolveExternalCatalog) {
