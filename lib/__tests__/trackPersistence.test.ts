@@ -189,7 +189,15 @@ describe('resolveExternalTrackId', () => {
 describe('addTrackToPlaylist', () => {
   it('fails with login prompt if userId is empty', async () => {
     const supabase = createMockSupabase()
-    const track: Track = { id: '00000000-0000-4000-a000-000000000005', title: 'Song', file_path: '' }
+    const track: Track = {
+      id: '00000000-0000-4000-a000-000000000005',
+      user_id: 'user-1',
+      title: 'Song',
+      duration: 180,
+      file_path: '',
+      cover_url: null,
+      created_at: new Date().toISOString(),
+    }
     const result = await addTrackToPlaylist(supabase, 'pl-1', track, '')
     expect(result.success).toBe(false)
     expect(result.message).toContain('Vui lòng đăng nhập')
@@ -197,7 +205,15 @@ describe('addTrackToPlaylist', () => {
 
   it('successfully adds valid track to playlist', async () => {
     const supabase = createMockSupabase()
-    const track: Track = { id: '00000000-0000-4000-a000-000000000005', title: 'Song', file_path: '' }
+    const track: Track = {
+      id: '00000000-0000-4000-a000-000000000005',
+      user_id: 'user-1',
+      title: 'Song',
+      duration: 180,
+      file_path: '',
+      cover_url: null,
+      created_at: new Date().toISOString(),
+    }
     const result = await addTrackToPlaylist(supabase, 'pl-1', track, 'user-1')
     expect(result.success).toBe(true)
     expect(result.message).toContain('Đã thêm bài hát vào playlist!')
