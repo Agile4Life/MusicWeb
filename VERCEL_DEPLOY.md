@@ -11,8 +11,9 @@ Tính năng phát ưu tiên NhacCuaTui không bắt buộc thêm biến môi tr�
 | Key | Value |
 | --- | --- |
 | `NCT_API_BASE_URL` | `https://music-api.vanhuy2004h.io.vn` |
+| `NEXT_PUBLIC_NCT_STREAM_CACHE_URL` | `https://music-stream-cache.phongtct.workers.dev` (optional)
 
-Chỉ thêm `NCT_API_BASE_URL` trên Vercel nếu bạn có backend NhacCuaTui được cấp quyền hoặc muốn dùng endpoint riêng. Để trống biến này sẽ dùng endpoint mặc định. Sau khi đổi biến môi trường, cần redeploy. URL stream ký hạn được lấy mới cho mỗi lần phát và không nên lưu vào Vercel env, database hoặc log.
+Chỉ thêm `NCT_API_BASE_URL` trên Vercel nếu bạn có backend NhacCuaTui được cấp quyền hoặc muốn dùng endpoint riêng. Để trống biến này sẽ dùng endpoint mặc định. `NEXT_PUBLIC_NCT_STREAM_CACHE_URL` là tùy chọn để chơi NCT qua Cloudflare Worker cache proxy thay vì qua Next.js origin; nếu được cấu hình, player sẽ gửi audio request trực tiếp đến Worker. Sau khi đổi biến môi trường, cần redeploy. URL stream ký hạn được lấy mới cho mỗi lần phát và không nên lưu vào Vercel env, database hoặc log.
 Dự án Next.js App Router này đã được cấu hình tối ưu và sẵn sàng 100% để deploy trực tiếp lên Vercel.
 
 ---

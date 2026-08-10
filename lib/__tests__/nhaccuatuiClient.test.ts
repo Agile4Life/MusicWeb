@@ -2,12 +2,25 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getNhacCuaTuiStreamUrl, resolveNhacCuaTuiAudio, resolveNhacCuaTuiSong, resolveNhacCuaTuiTrack, searchNhacCuaTui } from '../nhaccuatuiClient'
 
 describe('NhacCuaTui browser client', () => {
-  afterEach(() => vi.restoreAllMocks())
+  afterEach(() => {
+    vi.restoreAllMocks()
+    delete process.env.NEXT_PUBLIC_NCT_STREAM_CACHE_URL
+  })
 
   it('builds an encoded same-origin stream URL for an NCT track', () => {
     expect(getNhacCuaTuiStreamUrl({ source: 'nhaccuatui', nhaccuatui_id: 'id/with space' }))
       .toBe('/api/nhaccuatui/stream?id=id%2Fwith%20space')
     expect(getNhacCuaTuiStreamUrl({ source: 'youtube', nhaccuatui_id: 'nct-1' })).toBeNull()
+  })
+
+  it('uses the configured NCT stream cache worker URL when available', () => {
+    process.env.NEXT_PUBLIC_NCT_STREAM_CACHE_URL = 'https://music-stream-cache.phongtct.workers.dev'
+    expect(getNhacCuaTuiStreamUrl({ source: 'nhaccuatui', nhaccuatui_id: 'nct-1' }))
+      .toBe('https://music-stream-cache.phongtct.workers.dev/api/stream?id=nct-1')
+
+    process.env.NEXT_PUBLIC_NCT_STREAM_CACHE_URL = 'https://music-stream-cache.phongtct.workers.dev/api/stream'
+    expect(getNhacCuaTuiStreamUrl({ source: 'nhaccuatui', nhaccuatui_id: 'nct-1' }))
+      .toBe('https://music-stream-cache.phongtct.workers.dev/api/stream?id=nct-1')
   })
 
   it('searches through the internal metadata route', async () => {

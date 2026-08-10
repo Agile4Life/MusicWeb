@@ -8,11 +8,30 @@ import {
 } from './nhaccuatui'
 import type { Track } from '@/types'
 
+function getNhacCuaTuiStreamProxyBase(): string | null {
+  const raw = process.env.NEXT_PUBLIC_NCT_STREAM_CACHE_URL?.trim()
+  if (!raw) return null
+
+  try {
+    const url = new URL(raw, typeof window !== 'undefined' ? window.location.href : 'http://localhost')
+    const pathname = url.pathname.replace(/\/+$/, '')
+    const normalizedPath = pathname.endsWith('/api/stream')
+      ? pathname
+      : `${pathname}/api/stream`
+
+    return `${url.origin}${normalizedPath}`
+  } catch {
+    return null
+  }
+}
+
 export function getNhacCuaTuiStreamUrl(
   track: Pick<Track, 'source' | 'nhaccuatui_id'>,
 ): string | null {
   if (track.source !== 'nhaccuatui' || !track.nhaccuatui_id) return null
-  return `/api/nhaccuatui/stream?id=${encodeURIComponent(track.nhaccuatui_id)}`
+  const proxyBase = getNhacCuaTuiStreamProxyBase()
+  const endpoint = proxyBase ?? '/api/nhaccuatui/stream'
+  return `${endpoint}?id=${encodeURIComponent(track.nhaccuatui_id)}`
 }
 
 async function readJson(response: Response): Promise<unknown | null> {
