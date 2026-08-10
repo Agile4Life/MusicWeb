@@ -144,8 +144,11 @@ export default function HomePage() {
 
   const [userFavTrackIds, setUserFavTrackIds] = useState<Set<string>>(new Set())
 
+  const fetchSeqRef = useRef(0)
+
   const fetchData = async (showSkeleton = false) => {
     if (showSkeleton) setLoading(true)
+    const mySeq = ++fetchSeqRef.current
     try {
       const {
         data: { user: currentUser },
@@ -173,6 +176,7 @@ export default function HomePage() {
           userFavSet = new Set(userFavs.map((f: any) => f.track_id))
         }
       }
+      if (mySeq !== fetchSeqRef.current) return
       setUserFavTrackIds(userFavSet)
 
       // Query all tracks from database
@@ -213,6 +217,7 @@ export default function HomePage() {
           }
         }
 
+        if (mySeq !== fetchSeqRef.current) return
         setTracks(
           uniqueVisibleTracks.map((t: Track) => ({
             ...t,
@@ -241,17 +246,20 @@ export default function HomePage() {
               recent.push({ ...tr, source: tr.source || 'local' })
             }
           }
+          if (mySeq !== fetchSeqRef.current) return
           setRecentTracks(recent)
         } else {
+          if (mySeq !== fetchSeqRef.current) return
           setRecentTracks([])
         }
       } else {
+        if (mySeq !== fetchSeqRef.current) return
         setRecentTracks([])
       }
     } catch (err) {
       console.error('fetchData error in page.tsx:', err)
     } finally {
-      setLoading(false)
+      if (mySeq === fetchSeqRef.current) setLoading(false)
     }
   }
 

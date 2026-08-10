@@ -100,6 +100,7 @@ export function AuthForm({ mode }: AuthFormProps) {
 
   const handlePasskeySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (passkeyLoading) return
     setPasskeyLoading(true)
     setPasskeyError(null)
     setPasskeySuccess(null)

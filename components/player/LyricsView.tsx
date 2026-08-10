@@ -71,6 +71,7 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
   const isUserScrollingRef = useRef(false)
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lyricsReqIdRef = useRef(0)
 
   const handleVolumeToggle = () => {
     if (volume > 0) {
@@ -89,6 +90,7 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
     youtubeId?: string | null,
     nhaccuatuiId?: string | null,
   ) => {
+    const reqId = ++lyricsReqIdRef.current
     setLoading(true)
     setErrorMessage(null)
 
@@ -101,6 +103,8 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
         youtube_id: youtubeId || undefined,
         nhaccuatui_id: nhaccuatuiId || undefined,
       })
+
+      if (reqId !== lyricsReqIdRef.current) return
 
       if (data) {
         setLyricsData(data)
@@ -122,11 +126,12 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
         setIsSynced(false)
       }
     } catch {
+      if (reqId !== lyricsReqIdRef.current) return
       setErrorMessage('Không thể tải lời bài hát')
       setParsedLyrics([])
       setIsSynced(false)
     } finally {
-      setLoading(false)
+      if (reqId === lyricsReqIdRef.current) setLoading(false)
     }
   }, [])
 
@@ -281,7 +286,7 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
           )}
 
           <button
-            onClick={() => loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.album, currentTrack.duration, currentTrack.youtube_id)}
+            onClick={() => loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.album, currentTrack.duration, currentTrack.youtube_id, currentTrack.nhaccuatui_id)}
             disabled={loading}
             className="w-9 h-9 flex items-center justify-center bg-white/[0.06] hover:bg-white/15 active:scale-95 text-slate-200 rounded-full border border-white/10 transition-all shrink-0 shadow-md"
             title="Tải lại lời bài hát"

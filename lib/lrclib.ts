@@ -99,7 +99,7 @@ async function tryGetApi(
       params.append('duration', duration.toString())
     }
 
-    const res = await fetch(`https://lrclib.net/api/get?${params.toString()}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_LRCLIB_URL || 'https://lrclib.net'}/api/get?${params.toString()}`, {
       headers: {
         'Lrclib-Client': 'MusicWeb/1.0.0 (https://github.com/MusicWeb)',
       },
@@ -125,7 +125,7 @@ async function trySearchApi(
   targetDuration?: number
 ): Promise<LrclibResponse | null> {
   try {
-    const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(query)}`
+    const searchUrl = `${process.env.NEXT_PUBLIC_LRCLIB_URL || 'https://lrclib.net'}/api/search?q=${encodeURIComponent(query)}`
     const res = await fetch(searchUrl, {
       headers: {
         'Lrclib-Client': 'MusicWeb/1.0.0 (https://github.com/MusicWeb)',
@@ -196,7 +196,8 @@ async function trySearchApi(
         }
 
         // 2. Try duration tolerance (25s then 45s)
-        const validCandidates = matchCandidates(25).length > 0 ? matchCandidates(25) : matchCandidates(45)
+        const strictCandidates = matchCandidates(25)
+        const validCandidates = strictCandidates.length > 0 ? strictCandidates : matchCandidates(45)
 
         if (validCandidates.length > 0) {
           const withSynced = validCandidates.find((r) => r.syncedLyrics && r.syncedLyrics.trim().length > 0)

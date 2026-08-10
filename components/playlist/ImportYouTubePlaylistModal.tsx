@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   X,
@@ -50,6 +50,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
   const supabase = createClient()
   const { userEmail } = useCurrentUser()
   const { refreshPlaylists } = usePlaylists()
+  const importingRef = useRef(false)
 
   // Steps & inputs
   const [step, setStep] = useState<ModalStep>('input')
@@ -158,158 +159,164 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
 
   // Step 5: Confirm Import to Database
   const handleConfirmImport = async () => {
-    const tracksToImport = fetchedTracks.filter((t) => selectedTrackIds.has(t.id))
-    if (tracksToImport.length === 0) {
-      alert('Vui lòng chọn ít nhất 1 bài hát để nhập vào playlist.')
-      return
-    }
-
-    setStep('importing')
-    setImportingProgress({ done: 0, total: tracksToImport.length })
-
+    if (importingRef.current) return
+    importingRef.current = true
     try {
-      const userObj = userEmail ? { id: userEmail, email: userEmail } : null
-      const userId = userObj ? getValidUserId(userObj) : null
-
-      if (!userId) {
-        alert('Vui lòng đăng nhập để tạo playlist.')
-        setStep('review')
+      const tracksToImport = fetchedTracks.filter((t) => selectedTrackIds.has(t.id))
+      if (tracksToImport.length === 0) {
+        alert('Vui lòng chọn ít nhất 1 bài hát để nhập vào playlist.')
         return
       }
 
-      // Create new playlist in DB
-      const { data: playlistData, error: playlistErr } = await supabase
-        .from('playlists')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('name', playlistName.trim() || meta?.title || 'YouTube Playlist Import')
-        .maybeSingle()
+      setStep('importing')
+      setImportingProgress({ done: 0, total: tracksToImport.length })
 
-      let targetPlaylistId = playlistData?.id
+      try {
+        const userObj = userEmail ? { id: userEmail, email: userEmail } : null
+        const userId = userObj ? getValidUserId(userObj) : null
 
-      if (!targetPlaylistId) {
-        const { data: newPl, error: createErr } = await supabase
+        if (!userId) {
+          alert('Vui lòng đăng nhập để tạo playlist.')
+          setStep('review')
+          return
+        }
+
+        // Create new playlist in DB
+        const { data: playlistData, error: playlistErr } = await supabase
           .from('playlists')
-          .insert({
-            user_id: userId,
-            name: playlistName.trim() || meta?.title || 'YouTube Playlist Import',
-            description: meta?.description
-              ? `${meta.description} (Imported from YouTube Music)`
-              : 'Imported from YouTube Music',
-            cover_url: meta?.cover_url || null,
-          })
-          .select('id')
-          .single()
+          .select('*')
+          .eq('user_id', userId)
+          .eq('name', playlistName.trim() || meta?.title || 'YouTube Playlist Import')
+          .maybeSingle()
 
-        if (createErr || !newPl) {
-          throw new Error(createErr?.message || 'Không thể tạo playlist mới trong CSDL.')
-        }
-        targetPlaylistId = newPl.id
-      }
+        let targetPlaylistId = playlistData?.id
 
-      setCreatedPlaylistId(targetPlaylistId)
-
-      // Insert tracks into DB and playlist_tracks
-      let successCount = 0
-      for (let i = 0; i < tracksToImport.length; i++) {
-        const track = tracksToImport[i]
-        const resolvedTrack = await resolvePlaylistTrackWithNct(track)
-        let dbTrackId: string | null = null
-
-        // 1. Prefer stable NCT identity, then use fallback provider identity/path.
-        if (resolvedTrack.nhaccuatui_id) {
-          const { data } = await supabase
-            .from('tracks')
-            .select('id')
-            .eq('nhaccuatui_id', resolvedTrack.nhaccuatui_id)
-            .limit(1)
-          if (data && data.length > 0) dbTrackId = data[0].id
-        }
-
-        if (!dbTrackId && resolvedTrack.youtube_id) {
-          const { data } = await supabase
-            .from('tracks')
-            .select('id')
-            .eq('youtube_id', resolvedTrack.youtube_id)
-            .limit(1)
-          if (data && data.length > 0) dbTrackId = data[0].id
-        }
-
-        if (!dbTrackId && resolvedTrack.file_path) {
-          const { data } = await supabase
-            .from('tracks')
-            .select('id')
-            .eq('file_path', resolvedTrack.file_path)
-            .limit(1)
-          if (data && data.length > 0) dbTrackId = data[0].id
-        }
-
-        // 2. If track does not exist in DB yet, insert the NCT-first record.
-        if (!dbTrackId) {
-          const { data: insertedTrack, error: insertErr } = await supabase
-            .from('tracks')
+        if (!targetPlaylistId) {
+          const { data: newPl, error: createErr } = await supabase
+            .from('playlists')
             .insert({
               user_id: userId,
-              title: resolvedTrack.title,
-              artist: resolvedTrack.artist,
-              album: resolvedTrack.album || 'YouTube Music',
-              duration: resolvedTrack.duration || 0,
-              file_path: resolvedTrack.file_path,
-              cover_url: resolvedTrack.cover_url,
-              source: resolvedTrack.source || null,
-              youtube_id: resolvedTrack.nhaccuatui_id ? null : resolvedTrack.youtube_id || null,
-              nhaccuatui_id: resolvedTrack.nhaccuatui_id || null,
+              name: playlistName.trim() || meta?.title || 'YouTube Playlist Import',
+              description: meta?.description
+                ? `${meta.description} (Imported from YouTube Music)`
+                : 'Imported from YouTube Music',
+              cover_url: meta?.cover_url || null,
             })
             .select('id')
             .single()
 
-          if (insertedTrack?.id) {
-            dbTrackId = insertedTrack.id
-          } else if (insertErr) {
-            console.warn('Track insert warning, attempting re-fetch:', insertErr)
-            if (resolvedTrack.youtube_id) {
-              const { data: refetched } = await supabase
-                .from('tracks')
-                .select('id')
-                .eq('youtube_id', resolvedTrack.youtube_id)
-                .limit(1)
-              if (refetched && refetched.length > 0) dbTrackId = refetched[0].id
+          if (createErr || !newPl) {
+            throw new Error(createErr?.message || 'Không thể tạo playlist mới trong CSDL.')
+          }
+          targetPlaylistId = newPl.id
+        }
+
+        setCreatedPlaylistId(targetPlaylistId)
+
+        // Insert tracks into DB and playlist_tracks
+        let successCount = 0
+        for (let i = 0; i < tracksToImport.length; i++) {
+          const track = tracksToImport[i]
+          const resolvedTrack = await resolvePlaylistTrackWithNct(track)
+          let dbTrackId: string | null = null
+
+          // 1. Prefer stable NCT identity, then use fallback provider identity/path.
+          if (resolvedTrack.nhaccuatui_id) {
+            const { data } = await supabase
+              .from('tracks')
+              .select('id')
+              .eq('nhaccuatui_id', resolvedTrack.nhaccuatui_id)
+              .limit(1)
+            if (data && data.length > 0) dbTrackId = data[0].id
+          }
+
+          if (!dbTrackId && resolvedTrack.youtube_id) {
+            const { data } = await supabase
+              .from('tracks')
+              .select('id')
+              .eq('youtube_id', resolvedTrack.youtube_id)
+              .limit(1)
+            if (data && data.length > 0) dbTrackId = data[0].id
+          }
+
+          if (!dbTrackId && resolvedTrack.file_path) {
+            const { data } = await supabase
+              .from('tracks')
+              .select('id')
+              .eq('file_path', resolvedTrack.file_path)
+              .limit(1)
+            if (data && data.length > 0) dbTrackId = data[0].id
+          }
+
+          // 2. If track does not exist in DB yet, insert the NCT-first record.
+          if (!dbTrackId) {
+            const { data: insertedTrack, error: insertErr } = await supabase
+              .from('tracks')
+              .insert({
+                user_id: userId,
+                title: resolvedTrack.title,
+                artist: resolvedTrack.artist,
+                album: resolvedTrack.album || 'YouTube Music',
+                duration: resolvedTrack.duration || 0,
+                file_path: resolvedTrack.file_path,
+                cover_url: resolvedTrack.cover_url,
+                source: resolvedTrack.source || null,
+                youtube_id: resolvedTrack.nhaccuatui_id ? null : resolvedTrack.youtube_id || null,
+                nhaccuatui_id: resolvedTrack.nhaccuatui_id || null,
+              })
+              .select('id')
+              .single()
+
+            if (insertedTrack?.id) {
+              dbTrackId = insertedTrack.id
+            } else if (insertErr) {
+              console.warn('Track insert warning, attempting re-fetch:', insertErr)
+              if (resolvedTrack.youtube_id) {
+                const { data: refetched } = await supabase
+                  .from('tracks')
+                  .select('id')
+                  .eq('youtube_id', resolvedTrack.youtube_id)
+                  .limit(1)
+                if (refetched && refetched.length > 0) dbTrackId = refetched[0].id
+              }
             }
           }
-        }
 
-        // 3. Link track to playlist_tracks using valid DB track UUID
-        if (dbTrackId) {
-          const { error: plLinkErr } = await supabase
-            .from('playlist_tracks')
-            .insert({
-              playlist_id: targetPlaylistId,
-              track_id: dbTrackId,
-              position: i,
-            })
+          // 3. Link track to playlist_tracks using valid DB track UUID
+          if (dbTrackId) {
+            const { error: plLinkErr } = await supabase
+              .from('playlist_tracks')
+              .insert({
+                playlist_id: targetPlaylistId,
+                track_id: dbTrackId,
+                position: i,
+              })
 
-          if (!plLinkErr) {
-            successCount++
-          } else {
-            console.warn('playlist_tracks link warning:', plLinkErr)
-            // If link failed (e.g. duplicate link), still count as success if link exists
-            successCount++
+            if (!plLinkErr) {
+              successCount++
+            } else {
+              console.warn('playlist_tracks link warning:', plLinkErr)
+              // If link failed (e.g. duplicate link), still count as success if link exists
+              successCount++
+            }
           }
+
+          setImportingProgress({ done: i + 1, total: tracksToImport.length })
         }
 
-        setImportingProgress({ done: i + 1, total: tracksToImport.length })
+        setImportedTrackCount(successCount)
+        await refreshPlaylists()
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('playlist-updated'))
+        }
+        setStep('complete')
+      } catch (err: any) {
+        console.error('Import YouTube playlist error:', err)
+        alert(`Có lỗi xảy ra khi nhập playlist: ${err?.message || err}`)
+        setStep('review')
       }
-
-      setImportedTrackCount(successCount)
-      await refreshPlaylists()
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('playlist-updated'))
-      }
-      setStep('complete')
-    } catch (err: any) {
-      console.error('Import YouTube playlist error:', err)
-      alert(`Có lỗi xảy ra khi nhập playlist: ${err?.message || err}`)
-      setStep('review')
+    } finally {
+      importingRef.current = false
     }
   }
 
@@ -506,7 +513,6 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
                   <input
                     type="checkbox"
                     checked={selectedTrackIds.size === fetchedTracks.length && fetchedTracks.length > 0}
-                    onChange={toggleSelectAll}
                     className="rounded accent-red-500 cursor-pointer"
                   />
                   <span>Chọn tất cả ({selectedTrackIds.size}/{fetchedTracks.length})</span>
@@ -531,7 +537,6 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
                       <input
                         type="checkbox"
                         checked={isChecked}
-                        onChange={() => toggleSelectTrack(t.id)}
                         className="rounded accent-red-500 cursor-pointer"
                       />
                       <span className="text-[11px] font-mono text-slate-500 w-4 text-center">{index + 1}</span>

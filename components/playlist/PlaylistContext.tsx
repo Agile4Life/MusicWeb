@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react'
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { Playlist } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import { getValidUserId, isAdmin } from '@/lib/accessControl'
@@ -23,6 +23,8 @@ export function PlaylistProvider({ children }: { children: React.ReactNode }) {
   const { userEmail } = useCurrentUser()
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [loading, setLoading] = useState(true)
+  const createBusyRef = useRef(false)
+  const refreshSeqRef = useRef(0)
 
   const user = userEmail
     ? {
@@ -39,6 +41,7 @@ export function PlaylistProvider({ children }: { children: React.ReactNode }) {
   }, [user])
 
   const refreshPlaylists = useCallback(async () => {
+    const seq = ++refreshSeqRef.current
     if (!activeUserId) {
       setPlaylists([])
       setLoading(false)
@@ -53,12 +56,13 @@ export function PlaylistProvider({ children }: { children: React.ReactNode }) {
         .order('created_at', { ascending: false })
 
       if (!error && data) {
+        if (seq !== refreshSeqRef.current) return
         setPlaylists(data)
       }
     } catch (err) {
       console.warn('PlaylistContext fetch error:', err)
     } finally {
-      setLoading(false)
+      if (seq === refreshSeqRef.current) setLoading(false)
     }
   }, [activeUserId, supabase])
 
@@ -91,36 +95,42 @@ export function PlaylistProvider({ children }: { children: React.ReactNode }) {
   }, [activeUserId, refreshPlaylists, supabase])
 
   const createPlaylist = async (customName?: string): Promise<Playlist | null> => {
-    if (!user || !activeUserId) {
-      alert('Vui lòng đăng nhập để tạo Playlist cá nhân!')
-      return null
-    }
-
-    const newName = customName || `Playlist #${playlists.length + 1}`
-
+    if (createBusyRef.current) return null
+    createBusyRef.current = true
     try {
-      const { data, error } = await supabase
-        .from('playlists')
-        .insert({
-          user_id: activeUserId,
-          name: newName,
-          description: 'Playlist cá nhân',
-          is_public: false,
-        })
-        .select()
-        .single()
-
-      if (data && !error) {
-        setPlaylists((prev) => [data, ...prev])
-        window.dispatchEvent(new Event('playlist-updated'))
-        return data
-      } else if (error) {
-        alert('Lỗi tạo playlist: ' + error.message)
+      if (!user || !activeUserId) {
+        alert('Vui lòng đăng nhập để tạo Playlist cá nhân!')
+        return null
       }
-    } catch (err: any) {
-      alert('Lỗi tạo playlist: ' + err?.message)
+
+      const newName = customName || `Playlist #${playlists.length + 1}`
+
+      try {
+        const { data, error } = await supabase
+          .from('playlists')
+          .insert({
+            user_id: activeUserId,
+            name: newName,
+            description: 'Playlist cá nhân',
+            is_public: false,
+          })
+          .select()
+          .single()
+
+        if (data && !error) {
+          setPlaylists((prev) => [data, ...prev])
+          window.dispatchEvent(new Event('playlist-updated'))
+          return data
+        } else if (error) {
+          alert('Lỗi tạo playlist: ' + error.message)
+        }
+      } catch (err: any) {
+        alert('Lỗi tạo playlist: ' + err?.message)
+      }
+      return null
+    } finally {
+      createBusyRef.current = false
     }
-    return null
   }
 
   const deletePlaylist = async (playlistId: string, playlistName: string): Promise<boolean> => {

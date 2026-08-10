@@ -105,6 +105,9 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
   const supabase = createClient()
   const { data: nextAuthSession } = useSession()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const uploadingRef = useRef(false)
+  const importingDriveRef = useRef(false)
+  const syncingFolderRef = useRef(false)
 
   const [queue, setQueue] = useState<QueueItem[]>([])
   // Duplicate uploads are always blocked automatically.
@@ -613,6 +616,8 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
 
     if (itemsToUpload.length === 0) return
 
+    if (uploadingRef.current) return
+    uploadingRef.current = true
     setIsUploading(true)
     const total = itemsToUpload.length
     setOverallBatchInfo(`Chuẩn bị upload song song (${concurrency} bài cùng lúc)...`)
@@ -671,6 +676,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
     } catch (err: any) {
       console.error('Upload error:', err)
     } finally {
+      uploadingRef.current = false
       setIsUploading(false)
     }
   }
@@ -717,6 +723,8 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       return
     }
 
+    if (importingDriveRef.current) return
+    importingDriveRef.current = true
     setImportingDrive(true)
     try {
       const streamUrl = buildDriveStreamUrl(fileId)
@@ -761,6 +769,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
     } catch (err: any) {
       alert('Lỗi: ' + (err?.message || 'Không thể kết nối'))
     } finally {
+      importingDriveRef.current = false
       setImportingDrive(false)
     }
   }
@@ -781,6 +790,8 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       return
     }
 
+    if (syncingFolderRef.current) return
+    syncingFolderRef.current = true
     setSyncingFolder(true)
     setSyncStatus('Đang đọc danh sách file...')
 
@@ -914,6 +925,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
     } catch (err: any) {
       alert('Lỗi đồng bộ: ' + (err?.message || 'Có lỗi xảy ra'))
     } finally {
+      syncingFolderRef.current = false
       setSyncingFolder(false)
       setSyncStatus(null)
     }

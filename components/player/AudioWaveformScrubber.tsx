@@ -118,6 +118,7 @@ export function AudioWaveformScrubber({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
         onPointerLeave={() => {
           if (!isDragging) {
             setHoverIndex(null)

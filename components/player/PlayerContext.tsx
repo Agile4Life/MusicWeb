@@ -182,6 +182,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const ytReadyRef = useRef<boolean>(false)
   const ytStuckTimerRef = useRef<any>(null)
   const playRequestRef = useRef(0)
+  const ytLoadedIdRef = useRef<string | null>(null)
+  const pendingSeekRef = useRef<number | null>(null)
 
   const currentTrackRef = useRef<Track | null>(null)
   const queueRef = useRef<Track[]>([])
@@ -563,6 +565,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 }
                 setIsPlaying(false)
               } else if (event.data === 0) {
+                // Ignore ENDED events from a previously stopped video (rapid track switch)
+                const loadedVideoId = ytLoadedIdRef.current
+                const activeForEnded = currentTrackRef.current
+                if (
+                  loadedVideoId &&
+                  activeForEnded &&
+                  activeForEnded.youtube_id &&
+                  activeForEnded.youtube_id !== loadedVideoId
+                ) {
+                  return
+                }
                 if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
                 setIsPlaying(false)
                 recordListenEvent(currentTrackRef.current, true)
@@ -620,6 +633,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                       currentTrackRef.current = updatedTrack
                       setCurrentTrack(updatedTrack)
                       if (ytPlayerRef.current?.loadVideoById) {
+                        ytLoadedIdRef.current = fallbackMatch.youtube_id
                         ytPlayerRef.current.loadVideoById({ videoId: fallbackMatch.youtube_id })
                         setIsPlaying(true)
                         setPlaybackError(null)
@@ -699,6 +713,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // Restore saved player state on mount
   useEffect(() => {
     if (typeof window === 'undefined') return
+    const restoreRequestId = playRequestRef.current
     try {
       const savedRaw = localStorage.getItem('musicweb_player_state')
       if (savedRaw) {
@@ -724,6 +739,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           if (restoredTrack.source === 'youtube' && restoredTrack.youtube_id) {
             if (ytReadyRef.current && ytPlayerRef.current?.cueVideoById) {
               try {
+                ytLoadedIdRef.current = restoredTrack.youtube_id
                 ytPlayerRef.current.cueVideoById({
                   videoId: restoredTrack.youtube_id,
                   startSeconds: restoredTime,
@@ -742,10 +758,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               : Promise.resolve(restoredTrack)
 
             restoreTrack.then((playableTrack) => {
+                if (playRequestRef.current !== restoreRequestId) return
                 if (playableTrack !== restoredTrack) setCurrentTrack(playableTrack)
                 return getAudioUrl(playableTrack)
               })
               .then((url) => {
+                if (playRequestRef.current !== restoreRequestId) return
                 const audio = audioRef.current
                 if (url && audio) {
                   const onLoaded = () => {
@@ -813,6 +831,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     startFromTime?: number
   ) => {
     const requestId = ++playRequestRef.current
+    audioRetryCountRef.current = 0
     const track = inferTrackSource(rawTrack)
 
     // 🚀 Push currentTrack onto true playback history stack when user changes track
@@ -880,6 +899,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     const initialTime = typeof startFromTime === 'number' && startFromTime >= 0 ? startFromTime : 0
+
+    // Apply a seek the user performed while the track was still resolving
+    const consumePendingSeek = (fallback: number): number => {
+      const p = pendingSeekRef.current
+      if (p !== null) {
+        pendingSeekRef.current = null
+        return p
+      }
+      return fallback
+    }
 
     // ⚡ 2. UPDATE UI INSTANTLY (< 5ms)
     setCurrentTrack(track)
@@ -1016,7 +1045,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
         if (audioRef.current && streamUrl) {
           audioRef.current.src = streamUrl
-          audioRef.current.currentTime = initialTime
+          audioRef.current.currentTime = consumePendingSeek(initialTime)
           audioRef.current.volume = volumeRef.current
           try {
             await playAudioElement(audioRef.current)
@@ -1027,6 +1056,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             setIsPlaying(true)
             return
           } catch (err) {
+            if (requestId !== playRequestRef.current) return
             setIsPlaying(false)
             if (audioRef.current) {
               try {
@@ -1054,7 +1084,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (requestId !== playRequestRef.current) return
         if (audioRef.current && streamUrl) {
           audioRef.current.src = streamUrl
-          audioRef.current.currentTime = initialTime
+          audioRef.current.currentTime = consumePendingSeek(initialTime)
           audioRef.current.volume = volumeRef.current
           try {
             await playAudioElement(audioRef.current)
@@ -1065,6 +1095,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             setIsPlaying(true)
             return
           } catch (err) {
+            if (requestId !== playRequestRef.current) return
             setIsPlaying(false)
             if (audioRef.current) {
               try {
@@ -1140,7 +1171,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audio.pause()
       audio.src = url
       audio.volume = volume
-      audio.currentTime = initialTime > 0 ? initialTime : 0
+      audio.currentTime = consumePendingSeek(initialTime > 0 ? initialTime : 0)
 
       try {
         await playAudioElement(audio)
@@ -1181,9 +1212,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           try {
             if (ytPlayerRef.current.unMute) ytPlayerRef.current.unMute()
             ytPlayerRef.current.setVolume(volume * 100)
+            ytLoadedIdRef.current = ytId
             ytPlayerRef.current.loadVideoById({
               videoId: ytId,
-              startSeconds: initialTime,
+              startSeconds: consumePendingSeek(initialTime),
             })
             if (ytPlayerRef.current.playVideo) {
               try { ytPlayerRef.current.playVideo() } catch {}
@@ -1333,12 +1365,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     setCurrentTime(time)
 
     const isYouTubeEngine = currentTrack?.source === 'youtube' || Boolean(currentTrack?.youtube_id)
-    if (isYouTubeEngine && ytPlayerRef.current?.seekTo) {
+    const audio = audioRef.current
+    const ytEngine = isYouTubeEngine && ytPlayerRef.current?.seekTo
+    if (ytEngine && currentTrackRef.current?.youtube_id === ytLoadedIdRef.current) {
       try {
         ytPlayerRef.current.seekTo(time, true)
       } catch {}
-    } else if (audioRef.current) {
-      audioRef.current.currentTime = time
+    } else if (audio && audio.src) {
+      audio.currentTime = time
+    } else {
+      // Track still resolving — apply the seek once playback starts
+      pendingSeekRef.current = time
     }
 
     if (currentTrackRef.current) {
@@ -1400,6 +1437,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       nextIdx = (idx + 1) % q.length
     }
     setCurrentIndex(nextIdx)
+    currentIndexRef.current = nextIdx
     playTrack(q[nextIdx], undefined, nextIdx)
 
     // Auto-fetch next batch of matching recommendations when queue is near end
@@ -1466,6 +1504,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       prevIdx = (idx - 1 + q.length) % q.length
     }
     setCurrentIndex(prevIdx)
+    currentIndexRef.current = prevIdx
     playTrack(q[prevIdx], undefined, prevIdx)
   }
 
@@ -1523,6 +1562,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       try {
         const query = `${track.title} ${track.artist || ''}`.trim()
         const data = await fetchUnifiedSearch(query, 'youtube')
+        if (currentTrackRef.current?.id !== track.id) return
         const ytList: Track[] = data.youtube || []
           const bestMatch = findBestYouTubeMatch(ytList, track.title, track.artist, track.duration, track.album)
           if (bestMatch && bestMatch.youtube_id) {
@@ -1574,9 +1614,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const handleError = async () => {
       if (currentTrackRef.current?.source !== 'youtube') {
         const current = currentTrackRef.current
+        const erroredTrack = current
         if (audioRetryCountRef.current < 2) {
           audioRetryCountRef.current++
           setTimeout(() => {
+            if (erroredTrack && currentTrackRef.current?.id !== erroredTrack.id) return
             if (audioRef.current) {
               audioRef.current.load()
               audioRef.current.play().catch(() => {})

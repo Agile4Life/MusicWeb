@@ -20,6 +20,7 @@ export function CurrentUserProvider({ children }: { children: React.ReactNode })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let cancelled = false
     if (nextAuthStatus === 'loading') return
 
     if (nextAuthStatus === 'authenticated' && nextAuthSession?.user?.email) {
@@ -30,9 +31,13 @@ export function CurrentUserProvider({ children }: { children: React.ReactNode })
 
     const supabase = createClient()
     supabase.auth.getUser().then((res: any) => {
+      if (cancelled) return
       setSupabaseEmail(res?.data?.user?.email || null)
       setLoading(false)
     })
+    return () => {
+      cancelled = true
+    }
   }, [nextAuthStatus, nextAuthSession])
 
   const userEmail = nextAuthSession?.user?.email || supabaseEmail

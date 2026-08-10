@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -47,6 +47,7 @@ export function MobileHeaderNav() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [touchStartX, setTouchStartX] = useState<number | null>(null)
   const [touchEndX, setTouchEndX] = useState<number | null>(null)
+  const navBackBusyRef = useRef(false)
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStartX(e.targetTouches[0].clientX)
@@ -116,11 +117,16 @@ export function MobileHeaderNav() {
         {pathname !== '/' ? (
           <button
             onClick={() => {
+              if (navBackBusyRef.current) return
+              navBackBusyRef.current = true
               if (window.history.length > 1) {
                 router.back()
               } else {
                 router.push('/')
               }
+              setTimeout(() => {
+                navBackBusyRef.current = false
+              }, 500)
             }}
             className="p-2 text-slate-300 hover:text-white rounded-xl bg-white/[0.04] border border-white/[0.06] active:scale-95 transition-transform shrink-0"
             title="Quay lại"

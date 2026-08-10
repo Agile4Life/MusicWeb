@@ -104,6 +104,7 @@ function TrackRowComponent({
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const hoverTimeoutRef = useRef<any>(null)
+  const favBusyRef = useRef(false)
 
   const handleMouseEnter = () => {
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
@@ -277,6 +278,8 @@ function TrackRowComponent({
   }
 
   const handleToggleFavorite = async (event: React.MouseEvent) => {
+    if (favBusyRef.current) return
+    favBusyRef.current = true
     event.stopPropagation()
     const nextValue = !isFavorite
     setIsFavorite(nextValue)
@@ -325,6 +328,8 @@ function TrackRowComponent({
       }
     } catch (e) {
       console.warn('Favorite toggle sync error:', e)
+    } finally {
+      favBusyRef.current = false
     }
   }
 

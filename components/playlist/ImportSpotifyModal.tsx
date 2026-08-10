@@ -74,6 +74,9 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
   const [progress, setProgress] = useState({ done: 0, total: 0 })
   const [importResults, setImportResults] = useState<PlaylistImportResult[]>([])
   const abortControllerRef = useRef<AbortController | null>(null)
+  const importingRef = useRef(false)
+  const matchingRef = useRef(false)
+  const loadingMetaRef = useRef(false)
 
   // Review & Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -112,82 +115,94 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
 
   // STAGE 4.1: Handle URL input submission
   const handleParseAndFetchMeta = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault()
-    setInputError(null)
-
-    const playlistId = extractSpotifyPlaylistId(urlInput)
-    if (!playlistId) {
-      setInputError('Không nhận diện được link playlist Spotify. Vui lòng kiểm tra lại đường dẫn!')
-      return
-    }
-
-    setLoadingMeta(true)
+    if (loadingMetaRef.current) return
+    loadingMetaRef.current = true
     try {
-      const playlistMeta = await fetchSpotifyPlaylistMeta(playlistId)
-      if (!playlistMeta) {
-        setInputError(
-          'Không thể truy cập playlist Spotify này. Playlist có thể ở chế độ Riêng tư (Private) hoặc không tồn tại. Spotify API chỉ có thể lấy dữ liệu từ link playlist Công khai (Public).'
-        )
+      if (e) e.preventDefault()
+      setInputError(null)
+
+      const playlistId = extractSpotifyPlaylistId(urlInput)
+      if (!playlistId) {
+        setInputError('Không nhận diện được link playlist Spotify. Vui lòng kiểm tra lại đường dẫn!')
         return
       }
 
-      setMeta(playlistMeta)
-      setPlaylistName(playlistMeta.name)
-      setStep('preview')
+      setLoadingMeta(true)
+      try {
+        const playlistMeta = await fetchSpotifyPlaylistMeta(playlistId)
+        if (!playlistMeta) {
+          setInputError(
+            'Không thể truy cập playlist Spotify này. Playlist có thể ở chế độ Riêng tư (Private) hoặc không tồn tại. Spotify API chỉ có thể lấy dữ liệu từ link playlist Công khai (Public).'
+          )
+          return
+        }
 
-      // Auto start fetching track list
-      setLoadingTracks(true)
-      const tracks = await fetchSpotifyPlaylistTracks(playlistId)
-      setSpotifyTracks(tracks)
-      if (tracks.length > 0) {
-        setMeta((prev) => (prev ? { ...prev, total_tracks: tracks.length } : prev))
+        setMeta(playlistMeta)
+        setPlaylistName(playlistMeta.name)
+        setStep('preview')
+
+        // Auto start fetching track list
+        setLoadingTracks(true)
+        const tracks = await fetchSpotifyPlaylistTracks(playlistId)
+        setSpotifyTracks(tracks)
+        if (tracks.length > 0) {
+          setMeta((prev) => (prev ? { ...prev, total_tracks: tracks.length } : prev))
+        }
+        setLoadingTracks(false)
+      } catch (err) {
+        console.error('Fetch meta error:', err)
+        setInputError('Lỗi kết nối khi tải dữ liệu từ Spotify. Vui lòng thử lại sau.')
+      } finally {
+        setLoadingMeta(false)
       }
-      setLoadingTracks(false)
-    } catch (err) {
-      console.error('Fetch meta error:', err)
-      setInputError('Lỗi kết nối khi tải dữ liệu từ Spotify. Vui lòng thử lại sau.')
     } finally {
-      setLoadingMeta(false)
+      loadingMetaRef.current = false
     }
   }
 
   // STAGE 4.3: Start batch YouTube matching
   const handleStartMatching = async () => {
-    if (spotifyTracks.length === 0) return
-    setStep('matching')
-    setProgress({ done: 0, total: spotifyTracks.length })
-
-    const controller = new AbortController()
-    abortControllerRef.current = controller
-
+    if (matchingRef.current) return
+    matchingRef.current = true
     try {
-      const results = await matchPlaylistToYouTube(
-        spotifyTracks,
-        (done, total) => {
-          setProgress({ done, total })
-        },
-        4,
-        controller.signal
-      )
+      if (spotifyTracks.length === 0) return
+      setStep('matching')
+      setProgress({ done: 0, total: spotifyTracks.length })
 
-      // Filter out empty items if canceled early
-      const finalResults = results.filter(Boolean)
-      setImportResults(finalResults)
+      const controller = new AbortController()
+      abortControllerRef.current = controller
 
-      // Pre-select high & low confidence matches by default
-      const initialSelected = new Set<string>()
-      finalResults.forEach((r) => {
-        if (r.matchedTrack && (r.matchConfidence === 'high' || r.matchConfidence === 'low')) {
-          initialSelected.add(r.spotify_id)
-        }
-      })
-      setSelectedIds(initialSelected)
-      setStep('review')
-    } catch (err) {
-      console.error('Matching error:', err)
-      setStep('review')
+      try {
+        const results = await matchPlaylistToYouTube(
+          spotifyTracks,
+          (done, total) => {
+            setProgress({ done, total })
+          },
+          4,
+          controller.signal
+        )
+
+        // Filter out empty items if canceled early
+        const finalResults = results.filter(Boolean)
+        setImportResults(finalResults)
+
+        // Pre-select high & low confidence matches by default
+        const initialSelected = new Set<string>()
+        finalResults.forEach((r) => {
+          if (r.matchedTrack && (r.matchConfidence === 'high' || r.matchConfidence === 'low')) {
+            initialSelected.add(r.spotify_id)
+          }
+        })
+        setSelectedIds(initialSelected)
+        setStep('review')
+      } catch (err) {
+        console.error('Matching error:', err)
+        setStep('review')
+      } finally {
+        abortControllerRef.current = null
+      }
     } finally {
-      abortControllerRef.current = null
+      matchingRef.current = false
     }
   }
 
@@ -262,30 +277,33 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
 
   // STAGE 4.5: Save playlist & tracks into Supabase DB
   const handleConfirmImport = async () => {
-    if (!userEmail) {
-      alert('Vui lòng đăng nhập để lưu playlist vào tài khoản cá nhân!')
-      return
-    }
-
-    const activeUserId = getValidUserId({ id: userEmail, email: userEmail })
-    if (!activeUserId) {
-      alert('Không tìm thấy thông tin người dùng hợp lệ!')
-      return
-    }
-
-    const tracksToImport = importResults.filter(
-      (r) => selectedIds.has(r.spotify_id) && r.matchedTrack !== null
-    )
-
-    if (tracksToImport.length === 0) {
-      alert('Chưa có bài hát nào được chọn để thêm vào playlist!')
-      return
-    }
-
-    setStep('importing')
-    setImportingProgress({ done: 0, total: tracksToImport.length })
-
+    if (importingRef.current) return
+    importingRef.current = true
     try {
+      if (!userEmail) {
+        alert('Vui lòng đăng nhập để lưu playlist vào tài khoản cá nhân!')
+        return
+      }
+
+      const activeUserId = getValidUserId({ id: userEmail, email: userEmail })
+      if (!activeUserId) {
+        alert('Không tìm thấy thông tin người dùng hợp lệ!')
+        return
+      }
+
+      const tracksToImport = importResults.filter(
+        (r) => selectedIds.has(r.spotify_id) && r.matchedTrack !== null
+      )
+
+      if (tracksToImport.length === 0) {
+        alert('Chưa có bài hát nào được chọn để thêm vào playlist!')
+        return
+      }
+
+      setStep('importing')
+      setImportingProgress({ done: 0, total: tracksToImport.length })
+
+      try {
       // 1. Create Playlist row
       const { data: newPlaylist, error: plError } = await supabase
         .from('playlists')
@@ -388,6 +406,9 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
       console.error('Import DB error:', err)
       alert('Có lỗi xảy ra trong quá trình lưu dữ liệu: ' + err?.message)
       setStep('review')
+    }
+    } finally {
+      importingRef.current = false
     }
   }
 
