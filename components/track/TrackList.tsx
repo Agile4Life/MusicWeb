@@ -43,13 +43,6 @@ export function TrackList({
   const [deleting, setDeleting] = useState(false)
 
   React.useEffect(() => {
-    console.log('%c[TrackList] MOUNTED', 'color: lime; font-weight: bold')
-    return () => {
-      console.log('%c[TrackList] UNMOUNTED', 'color: red; font-weight: bold')
-    }
-  }, [])
-
-  React.useEffect(() => {
     if (showBulkModal) {
       document.body.style.overflow = 'hidden'
     } else {

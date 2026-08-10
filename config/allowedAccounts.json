@@ -32,6 +32,10 @@
     {
       "email": "listener@gmail.com",
       "role": "listener"
+    },
+    {
+      "email": "tuanphong@homeviet.com",
+      "role": "listener"
     }
   ]
 }

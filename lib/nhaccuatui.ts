@@ -136,6 +136,13 @@ export function normalizeNhacCuaTuiSearchResponse(value: unknown): NhacCuaTuiSea
   return items.map(readCandidate).filter((item): item is NhacCuaTuiSearchItem => Boolean(item))
 }
 
+export function normalizeNhacCuaTuiChartResponse(value: unknown): NhacCuaTuiSearchItem[] {
+  if (!value || typeof value !== 'object') return []
+  const root = value as Record<string, unknown>
+  const songs = Array.isArray(root.songs) ? root.songs : []
+  return songs.map(readCandidate).filter((item): item is NhacCuaTuiSearchItem => Boolean(item))
+}
+
 export function nhacCuaTuiSearchItemToTrack(item: NhacCuaTuiSearchItem): Track {
   return {
     id: `nct-${item.id}`,

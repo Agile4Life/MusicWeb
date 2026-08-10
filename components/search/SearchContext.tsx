@@ -2,10 +2,9 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { fetchUnifiedSearch, GlobalSearchTracks } from '@/lib/searchApi'
-import { Track } from '@/types'
 import { searchNhacCuaTui } from '@/lib/nhaccuatuiClient'
-import { mergePrimarySearchResults } from '@/lib/searchFlow'
 import { nhacCuaTuiSearchItemToTrack } from '@/lib/nhaccuatui'
+import { combineCombinedSearchResults } from '@/lib/searchFlow'
 
 interface SearchContextType {
   searchQuery: string
@@ -24,6 +23,7 @@ const emptyResults: GlobalSearchTracks = {
   audius: [],
   itunes: [],
   spotify: [],
+  deezer: [],
 }
 
 const SearchContext = createContext<SearchContextType | undefined>(undefined)
@@ -60,25 +60,40 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
   // Single centralized debounced search effect
   useEffect(() => {
     const trimmed = searchQuery.trim()
-    if (!trimmed) {
-      setGlobalTracks(emptyResults)
-      setSearchingGlobal(false)
-      return
+    if (trimmed) {
+      setSearchingGlobal(true)
     }
 
     const currentSearchId = ++activeSearchRef.current
-    setSearchingGlobal(true)
 
     const timer = setTimeout(async () => {
+      if (!trimmed) {
+        // Debounce the empty state too: transient intermediate "" values (e.g. IME
+        // reverting a lone tone-mark key like "s") must not clear the results.
+        setGlobalTracks(emptyResults)
+        setSearchingGlobal(false)
+        return
+      }
       try {
-        const [fallbackData, nctItems] = await Promise.all([
-          fetchUnifiedSearch(trimmed, 'all', false),
+        // Combine NhacCuaTui + Spotify + Deezer in parallel, dedupe duplicates
+        const [nctItems, spotifyData, deezerData] = await Promise.all([
           searchNhacCuaTui(trimmed),
+          fetchUnifiedSearch(trimmed, 'spotify', false),
+          fetchUnifiedSearch(trimmed, 'deezer', false),
         ])
-        const data = mergePrimarySearchResults(
+
+        const data = combineCombinedSearchResults(
           nctItems.map(nhacCuaTuiSearchItemToTrack),
-          fallbackData,
+          spotifyData.spotify,
+          deezerData.deezer,
         )
+
+        if (data.nhaccuatui.length + data.spotify.length + data.deezer.length === 0) {
+          // All 3 sources empty -> final YouTube fallback
+          const youtubeData = await fetchUnifiedSearch(trimmed, 'youtube', false)
+          data.youtube = youtubeData.youtube
+        }
+
         if (activeSearchRef.current === currentSearchId) {
           setGlobalTracks(data)
         }

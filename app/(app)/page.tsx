@@ -31,7 +31,7 @@ import {
 import { SpotifyAlbumItem } from '@/lib/spotify'
 import { useSession } from 'next-auth/react'
 import { getValidUserId, isAdmin as checkIsAdmin } from '@/lib/accessControl'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, usePathname } from 'next/navigation'
 import { extractDriveFileId, parseFilenameToTitleArtist } from '@/lib/googleDriveUpload'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { useSearch } from '@/components/search/SearchContext'
@@ -51,6 +51,7 @@ export default function HomePage() {
   } = useSearch()
   const { data: nextAuthSession } = useSession()
   const searchParams = useSearchParams()
+  const pathname = usePathname()
 
   const [tracks, setTracks] = useState<Track[]>([])
   const [recentTracks, setRecentTracks] = useState<Track[]>([])
@@ -95,6 +96,9 @@ export default function HomePage() {
     }
 
     const handleTabHome = () => {
+      if (pathname === '/' && window.location.hash !== '#drive') {
+        return
+      }
       setLibraryTab('recent')
       setSearchQuery('')
       if (window.location.hash === '#drive') {
@@ -121,7 +125,7 @@ export default function HomePage() {
       window.removeEventListener('musicweb-tab-drive', handleTabDrive)
       window.removeEventListener('musicweb-search', handleSearchEvent)
     }
-  }, [setSearchQuery])
+  }, [setSearchQuery, pathname])
 
   const [loading, setLoading] = useState(true)
   const [supabaseUser, setSupabaseUser] = useState<any>(null)
@@ -252,13 +256,15 @@ export default function HomePage() {
   }
 
   const combinedTrendingTracks: Track[] = useMemo(() => {
+    const nct = trendingTracks.nhaccuatui || []
     const yt = trendingTracks.youtube || []
     const audius = trendingTracks.audius || []
     const itunes = trendingTracks.itunes || []
     const spotify = trendingTracks.spotify || []
     const rawList: Track[] = []
-    const maxLen = Math.max(yt.length, audius.length, itunes.length, spotify.length)
+    const maxLen = Math.max(nct.length, yt.length, audius.length, itunes.length, spotify.length)
     for (let i = 0; i < maxLen; i++) {
+      if (nct[i]) rawList.push(nct[i])
       if (spotify[i]) rawList.push(spotify[i])
       if (itunes[i]) rawList.push(itunes[i])
       if (audius[i]) rawList.push(audius[i])
@@ -684,6 +690,7 @@ export default function HomePage() {
         ...globalTracks.itunes,
         ...globalTracks.youtube,
         ...globalTracks.audius,
+        ...globalTracks.deezer,
       ])
     }
     if (libraryTab === 'drive') return driveTracks
@@ -699,6 +706,13 @@ export default function HomePage() {
     }
     return displayedTracks
   }, [isShortQuery, showAllResults, displayedTracks])
+
+  const branch =
+    loading
+      ? 'skeleton'
+      : isSearching && searchingGlobal && displayedTracks.length === 0
+        ? 'spinner'
+        : 'tracklist'
 
   return (
     <div className="p-3.5 sm:p-6 md:p-8 flex flex-col gap-4 sm:gap-6 md:gap-8 max-w-7xl mx-auto w-full pb-36 md:pb-8 select-none">

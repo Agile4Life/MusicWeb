@@ -133,13 +133,6 @@ function inferTrackSource(track: Track): Track {
 }
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    console.log('%c[PlayerProvider] MOUNTED', 'color: lime; font-weight: bold')
-    return () => {
-      console.log('%c[PlayerProvider] UNMOUNTED', 'color: red; font-weight: bold')
-    }
-  }, [])
-
   const { data: nextAuthSession } = useSession()
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null)
   const [isPlaying, setIsPlaying] = useState<boolean>(false)
@@ -540,17 +533,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               }
             },
             onStateChange: (event: any) => {
-              const log = (msg: string) => {
-                const entry = `[${new Date().toISOString()}] YT_STATE=${event.data} | ${msg} | visibility=${document.visibilityState}`
-                console.log(entry)
-                try {
-                  const logs = JSON.parse(localStorage.getItem('audio_debug_log') || '[]')
-                  logs.push(entry)
-                  if (logs.length > 100) logs.shift()
-                  localStorage.setItem('audio_debug_log', JSON.stringify(logs))
-                } catch {}
-              }
-
               const active = currentTrackRef.current
               // If active track is NOT a YouTube track, ensure YouTube player is stopped immediately
               if (active && active.source !== 'youtube') {
@@ -569,22 +551,18 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
               // YT.PlayerState.PLAYING = 1, PAUSED = 2, ENDED = 0
               if (event.data === 1) {
-                log('PLAYING')
                 if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
                 setIsPlaying(true)
                 if (ytPlayerRef.current?.getDuration) {
                   setDuration(ytPlayerRef.current.getDuration() || 0)
                 }
               } else if (event.data === 2) {
-                log('PAUSED_BY_YT')
                 if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
                 if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-                  log('IGNORED (screen hidden, giữ MediaSession)')
                   return
                 }
                 setIsPlaying(false)
               } else if (event.data === 0) {
-                log('ENDED')
                 if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
                 setIsPlaying(false)
                 recordListenEvent(currentTrackRef.current, true)
@@ -609,14 +587,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                   }
                 }
               } else if (event.data === -1 || event.data === 3 || event.data === 5) {
-                log('BUFFERING_OR_CUED_OR_UNSTARTED')
                 // Cold-start watchdog: if stuck in cued/buffering/unstarted for > 800ms, auto-trigger playVideo() ONLY if active track is YouTube
                 if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
                 ytStuckTimerRef.current = setTimeout(() => {
                   const currentActive = currentTrackRef.current
                   if (currentActive && currentActive.source === 'youtube' && ytPlayerRef.current && ytPlayerRef.current.playVideo) {
                     try {
-                      log('AUTO_RETRY_PLAY_VIDEO (cold-start watchdog)')
                       ytPlayerRef.current.playVideo()
                     } catch (e) {}
                   }
@@ -1679,28 +1655,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audio.removeEventListener('playing', handlePlaying)
     }
   }, [currentIndex, queue, autoPlayNext, repeatMode])
-
-  // Persistent Audio Event Debug Logger for Background Playback Diagnosis
-  useEffect(() => {
-    const audio = audioRef.current
-    if (!audio) return
-    const events = ['pause', 'play', 'stalled', 'waiting', 'suspend', 'abort', 'error', 'emptied', 'playing']
-    const log = (evt: string) => {
-      const err = audio.error
-      const errInfo = err ? ` | ERROR_CODE=${err.code} ERROR_MSG=${err.message}` : ''
-      const entry = `[${new Date().toISOString()}] ${evt} | src=${redactAudioSource(audio.src)} paused=${audio.paused} readyState=${audio.readyState} networkState=${audio.networkState} currentTime=${audio.currentTime.toFixed(1)}${errInfo}`
-      console.log(entry)
-      try {
-        const logs = JSON.parse(localStorage.getItem('audio_debug_log') || '[]')
-        logs.push(entry)
-        if (logs.length > 100) logs.shift()
-        localStorage.setItem('audio_debug_log', JSON.stringify(logs))
-      } catch {}
-    }
-    const handlers = new Map(events.map((evt) => [evt, () => log(evt)] as const))
-    handlers.forEach((handler, evt) => audio.addEventListener(evt, handler))
-    return () => handlers.forEach((handler, evt) => audio.removeEventListener(evt, handler))
-  }, [])
 
   // On-demand fetch view_count for current track if youtube_id exists and view_count is null
   useEffect(() => {

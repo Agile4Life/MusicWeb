@@ -159,7 +159,7 @@ export function MobileHeaderNav() {
       </div>
 
       {/* 📱 Mobile Bottom Navigation Bar (< 768px) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 h-16 bg-[#090b10]/95 backdrop-blur-2xl border-t border-white/[0.05] grid grid-cols-5 items-center select-none px-1">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 h-16 bg-[#090b10] border-t border-white/[0.05] grid grid-cols-5 items-center select-none px-1">
         <Link
           href="/"
           prefetch={false}

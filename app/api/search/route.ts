@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { searchAudiusTracks, getTrendingAudiusTracks } from '@/lib/audius'
-import { searchYouTubeTracks, getTrendingYouTubeTracks, findBestYouTubeMatch, isOriginalTrackOnly } from '@/lib/youtube'
+import { searchYouTubeTracks, findBestYouTubeMatch, isOriginalTrackOnly } from '@/lib/youtube'
 import { searchSpotifyTracks, getTrendingSpotifyTracks } from '@/lib/spotify'
+import { getTrendingDeezerTracks, searchDeezerTracks } from '@/lib/deezer'
+import { normalizeNhacCuaTuiChartResponse, nhacCuaTuiSearchItemToTrack } from '@/lib/nhaccuatui'
 import { Track } from '@/types'
 
 // In-memory LRU search cache & in-flight request deduplication map
@@ -12,6 +13,26 @@ const CACHE_TTL = 180 * 1000
 
 export const maxDuration = 15
 export const dynamic = 'force-dynamic'
+
+async function getNhacCuaTuiTrending(limit = 20): Promise<Track[]> {
+  try {
+    const nctUrl = new URL(process.env.NCT_API_BASE_URL || 'https://music-api.vanhuy2004h.io.vn')
+    nctUrl.pathname = '/api/chart'
+    nctUrl.search = ''
+    const res = await fetch(nctUrl, {
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!res.ok) return []
+    const payload: unknown = await res.json()
+    return normalizeNhacCuaTuiChartResponse(payload)
+      .slice(0, limit)
+      .map(nhacCuaTuiSearchItemToTrack)
+  } catch {
+    return []
+  }
+}
 
 function cachedJsonResponse(data: any, status = 200) {
   return NextResponse.json(data, {
@@ -43,16 +64,19 @@ export async function GET(request: Request) {
       }
 
       const trendingPromise = (async () => {
-        const [ytTrending, spotifyTrending] = await Promise.all([
-          getTrendingYouTubeTracks(16).catch(() => []),
+        const [nctTrending, spotifyTrending, deezerTrending] = await Promise.all([
+          getNhacCuaTuiTrending(20).catch(() => []),
           getTrendingSpotifyTracks(16).catch(() => []),
+          getTrendingDeezerTracks(16).catch(() => []),
         ])
 
         return {
-          youtube: ytTrending,
+          nhaccuatui: nctTrending,
+          youtube: [],
           audius: [],
           itunes: [],
-          spotify: spotifyTrending,
+          spotify: [...spotifyTrending, ...deezerTrending],
+          deezer: [],
         }
       })()
 
@@ -66,12 +90,12 @@ export async function GET(request: Request) {
         inFlightRequests.delete(cacheKey)
       }
     } catch (err: any) {
-      return NextResponse.json({ youtube: [], audius: [], itunes: [], spotify: [] })
+      return NextResponse.json({ nhaccuatui: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: [] })
     }
   }
 
   if (!q.trim()) {
-    return cachedJsonResponse({ local: [], youtube: [], audius: [], itunes: [], spotify: [] })
+    return cachedJsonResponse({ local: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: [] })
   }
 
   const query = q.trim().toLowerCase()
@@ -131,6 +155,13 @@ export async function GET(request: Request) {
       primaryPromises.push(Promise.resolve([]))
     }
 
+    // 2b. Search Deezer Global tracks
+    if (source === 'all' || source === 'deezer') {
+      primaryPromises.push(searchDeezerTracks(q.trim(), 10).catch(() => []))
+    } else {
+      primaryPromises.push(Promise.resolve([]))
+    }
+
     // 3. Search YouTube tracks (for stream ID matching)
     if (source === 'all' || source === 'youtube' || source === 'spotify' || source === 'itunes') {
       primaryPromises.push(searchYouTubeTracks(q.trim(), 10).catch(() => []))
@@ -138,7 +169,7 @@ export async function GET(request: Request) {
       primaryPromises.push(Promise.resolve([]))
     }
 
-    const [localTracks, spotifyTracks, youtubeTracks] = await Promise.all(primaryPromises)
+    const [localTracks, spotifyTracks, deezerTracks, youtubeTracks] = await Promise.all(primaryPromises)
 
     const itunesTracks: Track[] = []
     const audiusTracks: Track[] = []
@@ -174,13 +205,26 @@ export async function GET(request: Request) {
 
     const isValidTrackFilter = (t: Track) => (!t.duration || t.duration >= 25) && isOriginalTrackOnly(t.title)
 
-    return {
+    const allResults = {
       local: localTracks.filter(isValidTrackFilter),
       youtube: enhancedYouTube.filter(isValidTrackFilter),
       audius: audiusTracks.filter(isValidTrackFilter),
       itunes: enhancedITunes.filter(isValidTrackFilter),
       spotify: enhancedSpotify.filter(isValidTrackFilter),
+      deezer: deezerTracks.filter(isValidTrackFilter),
     }
+
+    // Single-source mode: only return the requested source so the UI shows one source at a time
+    if (source === 'spotify') {
+      return { local: [], youtube: [], audius: [], itunes: [], spotify: allResults.spotify, deezer: [] }
+    }
+    if (source === 'deezer') {
+      return { local: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: allResults.deezer }
+    }
+    if (source === 'youtube') {
+      return { local: [], youtube: allResults.youtube, audius: [], itunes: [], spotify: [], deezer: [] }
+    }
+    return allResults
   })()
 
   inFlightRequests.set(cacheKey, searchPromise)

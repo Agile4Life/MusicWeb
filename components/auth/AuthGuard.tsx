@@ -9,13 +9,6 @@ import { Headphones, ShieldAlert, LogOut } from 'lucide-react'
 import { AuthForm } from './AuthForm'
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    console.log('%c[AuthGuard] MOUNTED', 'color: lime; font-weight: bold')
-    return () => {
-      console.log('%c[AuthGuard] UNMOUNTED', 'color: red; font-weight: bold')
-    }
-  }, [])
-
   const router = useRouter()
   const pathname = usePathname()
   const supabase = useMemo(() => createClient(), [])

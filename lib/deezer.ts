@@ -213,6 +213,91 @@ export async function fetchDeezerAlbumTracks(albumId: string): Promise<{ meta: D
   }
 }
 
+/**
+ * 🔥 Fetch Deezer Global Chart Top Tracks (Trending)
+ * GET https://api.deezer.com/chart/0/tracks
+ */
+export async function getTrendingDeezerTracks(limit = 16): Promise<Track[]> {
+  try {
+    const safeLimit = Math.min(limit, 50)
+    const res = await fetch(`https://api.deezer.com/chart/0/tracks?limit=${safeLimit}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      signal: AbortSignal.timeout(4000),
+      next: { revalidate: 3600 },
+    })
+    if (!res.ok) return []
+
+    const data = await res.json()
+    const items = data.data || []
+    const systemUserId = '00000000-0000-4000-a000-000000000001'
+
+    return items
+      .filter((item: any) => item && item.id && (item.title || item.title_short))
+      .map((item: any) => ({
+        id: `deezer-${item.id}`,
+        user_id: systemUserId,
+        title: item.title || item.title_short || 'Untitled Track',
+        artist: item.artist?.name || 'Nghệ sĩ chưa xác định',
+        album: item.album?.title || undefined,
+        duration: Math.round(item.duration || 0),
+        file_path: item.preview || item.link || `deezer:${item.id}`,
+        audio_url: item.preview || undefined,
+        cover_url: item.album?.cover_xl || item.album?.cover_big || item.album?.cover_medium || item.album?.cover || null,
+        created_at: new Date().toISOString(),
+        source: 'spotify', // Seamless audio engine handling
+        spotify_id: String(item.id),
+      }))
+  } catch (err) {
+    console.warn('Deezer trending fetch error:', err)
+    return []
+  }
+}
+
+/**
+ * 🔍 Search Deezer Global Tracks
+ * GET https://api.deezer.com/search?q=...
+ */
+export async function searchDeezerTracks(query: string, limit = 15): Promise<Track[]> {
+  const cleanQuery = query.trim()
+  if (!cleanQuery) return []
+  try {
+    const safeLimit = Math.min(limit, 50)
+    const res = await fetch(
+      `https://api.deezer.com/search?q=${encodeURIComponent(cleanQuery)}&limit=${safeLimit}`,
+      {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+        signal: AbortSignal.timeout(4000),
+        next: { revalidate: 300 },
+      }
+    )
+    if (!res.ok) return []
+
+    const data = await res.json()
+    const items = data.data || []
+    const systemUserId = '00000000-0000-4000-a000-000000000001'
+
+    return items
+      .filter((item: any) => item && item.id && (item.title || item.title_short))
+      .map((item: any) => ({
+        id: `deezer-${item.id}`,
+        user_id: systemUserId,
+        title: item.title || item.title_short || 'Untitled Track',
+        artist: item.artist?.name || 'Nghệ sĩ chưa xác định',
+        album: item.album?.title || undefined,
+        duration: Math.round(item.duration || 0),
+        file_path: item.preview || item.link || `deezer:${item.id}`,
+        audio_url: item.preview || undefined,
+        cover_url: item.album?.cover_xl || item.album?.cover_big || item.album?.cover_medium || item.album?.cover || null,
+        created_at: new Date().toISOString(),
+        source: 'spotify', // Seamless audio engine handling
+        spotify_id: String(item.id),
+      }))
+  } catch (err) {
+    console.warn('Deezer search error:', err)
+    return []
+  }
+}
+
 function mapDeezerAlbums(items: any[]): DeezerAlbumItem[] {
   return items
     .filter((item: any) => item && item.id && (item.title || item.name))

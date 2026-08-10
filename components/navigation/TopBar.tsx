@@ -85,6 +85,8 @@ export function TopBar() {
           <input
             type="text"
             value={searchQuery}
+            autoComplete="off"
+            spellCheck={false}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Escape') handleClearSearch()
