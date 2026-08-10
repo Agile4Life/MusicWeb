@@ -90,35 +90,42 @@ export async function resolveExternalTrackId(
 
   // 1. Look for an existing row in `tracks` table.
   // We check BOTH per-user rows AND global/system rows so existing tracks can be reused.
+  // Note: Only query columns that actually exist in the database schema (nhaccuatui_id, spotify_id, youtube_id, file_path)
   const lookups: Array<{ column: string; value: string }> = []
   if (normalizedTrack.nhaccuatui_id) lookups.push({ column: 'nhaccuatui_id', value: normalizedTrack.nhaccuatui_id })
   if (normalizedTrack.spotify_id) lookups.push({ column: 'spotify_id', value: normalizedTrack.spotify_id })
   if (normalizedTrack.youtube_id) lookups.push({ column: 'youtube_id', value: normalizedTrack.youtube_id })
-  if (normalizedTrack.itunes_id) lookups.push({ column: 'itunes_id', value: String(normalizedTrack.itunes_id) })
-  if (normalizedTrack.audius_id) lookups.push({ column: 'audius_id', value: normalizedTrack.audius_id })
   if (normalizedTrack.file_path) lookups.push({ column: 'file_path', value: normalizedTrack.file_path })
 
   // Phase A: Search under current user_id first
   for (const { column, value } of lookups) {
     if (!value) continue
-    const { data } = await supabase
-      .from('tracks')
-      .select('id')
-      .eq('user_id', userId)
-      .eq(column, value)
-      .limit(1)
-    if (data && data.length > 0 && data[0].id) return data[0].id
+    try {
+      const { data } = await supabase
+        .from('tracks')
+        .select('id')
+        .eq('user_id', userId)
+        .eq(column, value)
+        .limit(1)
+      if (data && data.length > 0 && data[0].id) return data[0].id
+    } catch {
+      // Ignore column or query errors
+    }
   }
 
   // Phase B: Search globally across all users / system user
   for (const { column, value } of lookups) {
     if (!value) continue
-    const { data } = await supabase
-      .from('tracks')
-      .select('id')
-      .eq(column, value)
-      .limit(1)
-    if (data && data.length > 0 && data[0].id) return data[0].id
+    try {
+      const { data } = await supabase
+        .from('tracks')
+        .select('id')
+        .eq(column, value)
+        .limit(1)
+      if (data && data.length > 0 && data[0].id) return data[0].id
+    } catch {
+      // Ignore column or query errors
+    }
   }
 
   // Phase C: Search by exact title + artist match
@@ -160,28 +167,33 @@ export async function resolveExternalTrackId(
               ? `audius:${normalizedTrack.audius_id}`
               : `ext:${Date.now()}`)
 
+  // Insert payload containing ONLY valid PostgreSQL table columns
+  const insertPayload: Record<string, any> = {
+    user_id: userId,
+    title: normalizedTrack.title || 'Untitled Track',
+    artist: normalizedTrack.artist || null,
+    album: normalizedTrack.album || null,
+    duration: normalizedTrack.duration || 0,
+    file_path: fallbackPath,
+    cover_url: normalizedTrack.cover_url || null,
+    source: normalizedTrack.source || null,
+    youtube_id: normalizedTrack.youtube_id || null,
+    spotify_id: normalizedTrack.spotify_id || null,
+    nhaccuatui_id: normalizedTrack.nhaccuatui_id || null,
+    created_at: new Date().toISOString(),
+  }
+
   const { data: inserted, error } = await supabase
     .from('tracks')
-    .insert({
-      user_id: userId,
-      title: normalizedTrack.title || 'Untitled Track',
-      artist: normalizedTrack.artist || null,
-      album: normalizedTrack.album || null,
-      duration: normalizedTrack.duration || 0,
-      file_path: fallbackPath,
-      cover_url: normalizedTrack.cover_url || null,
-      source: normalizedTrack.source || null,
-      youtube_id: normalizedTrack.youtube_id || null,
-      spotify_id: normalizedTrack.spotify_id || null,
-      nhaccuatui_id: normalizedTrack.nhaccuatui_id || null,
-      itunes_id: normalizedTrack.itunes_id || null,
-      audius_id: normalizedTrack.audius_id || null,
-      created_at: new Date().toISOString(),
-    })
+    .insert(insertPayload)
     .select('id')
     .single()
 
   if (!error && inserted && inserted.id) return inserted.id
+
+  if (error) {
+    console.warn('Track insert warning:', error.message || error)
+  }
 
   // 3. Fallback recovery if insert failed (e.g. unique constraint or duplicate)
   if (normalizedTrack.title) {
@@ -191,16 +203,26 @@ export async function resolveExternalTrackId(
       .from('tracks')
       .select('id')
       .eq('user_id', userId)
-      .ilike('title', titleVal)
+      .eq('title', titleVal)
       .limit(1)
     if (fallbackUser && fallbackUser.length > 0 && fallbackUser[0].id) return fallbackUser[0].id
 
     const { data: fallbackGlobal } = await supabase
       .from('tracks')
       .select('id')
-      .ilike('title', titleVal)
+      .eq('title', titleVal)
       .limit(1)
     if (fallbackGlobal && fallbackGlobal.length > 0 && fallbackGlobal[0].id) return fallbackGlobal[0].id
+  }
+
+  // Final fallback: match by file_path
+  if (fallbackPath) {
+    const { data: pathMatch } = await supabase
+      .from('tracks')
+      .select('id')
+      .eq('file_path', fallbackPath)
+      .limit(1)
+    if (pathMatch && pathMatch.length > 0 && pathMatch[0].id) return pathMatch[0].id
   }
 
   return null
