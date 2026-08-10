@@ -19,7 +19,7 @@ export interface Track {
   is_favorite?: boolean
   created_at: string
   audio_url?: string
-  source?: 'local' | 'youtube' | 'audius' | 'itunes' | 'spotify' | 'nhaccuatui'
+  source?: 'local' | 'youtube' | 'audius' | 'itunes' | 'spotify' | 'nhaccuatui' | 'deezer'
   youtube_id?: string
   audius_id?: string
   itunes_id?: string | number
