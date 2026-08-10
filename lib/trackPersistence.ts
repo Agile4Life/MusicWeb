@@ -24,8 +24,16 @@ export async function resolveExternalTrackId(
   track: Track,
   userId: string,
 ): Promise<string | null> {
-  // Local tracks already reference a real DB row.
-  if (!track.source || track.source === 'local') return track.id
+  const isExternalTrack =
+    Boolean(track.source && track.source !== 'local') ||
+    track.id?.startsWith('yt-') ||
+    track.id?.startsWith('spotify-') ||
+    track.id?.startsWith('deezer-') ||
+    track.id?.startsWith('nct-') ||
+    track.id?.startsWith('itunes-') ||
+    track.id?.startsWith('audius-')
+
+  if (!isExternalTrack) return track.id
 
   // 1. Look for an existing row using the most stable identity first.
   //    file_path is the last resort because some sources (NhacCuaTui) leave it empty.
@@ -33,10 +41,17 @@ export async function resolveExternalTrackId(
   if (track.nhaccuatui_id) lookups.push({ column: 'nhaccuatui_id', value: track.nhaccuatui_id })
   if (track.spotify_id) lookups.push({ column: 'spotify_id', value: track.spotify_id })
   if (track.youtube_id) lookups.push({ column: 'youtube_id', value: track.youtube_id })
+  if (track.itunes_id) lookups.push({ column: 'itunes_id', value: String(track.itunes_id) })
+  if (track.audius_id) lookups.push({ column: 'audius_id', value: track.audius_id })
   if (track.file_path) lookups.push({ column: 'file_path', value: track.file_path })
 
   for (const { column, value } of lookups) {
-    const { data } = await supabase.from('tracks').select('id').eq(column, value).limit(1)
+    const { data } = await supabase
+      .from('tracks')
+      .select('id')
+      .eq('user_id', userId)
+      .eq(column, value)
+      .limit(1)
     if (data && data.length > 0) return data[0].id
   }
 
@@ -50,7 +65,11 @@ export async function resolveExternalTrackId(
         ? `https://www.youtube.com/watch?v=${track.youtube_id}`
         : track.spotify_id
           ? `spotify:${track.spotify_id}`
-          : '')
+          : track.itunes_id
+            ? `itunes:${track.itunes_id}`
+            : track.audius_id
+              ? `audius:${track.audius_id}`
+              : '')
 
   const { data: inserted, error } = await supabase
     .from('tracks')
@@ -66,11 +85,31 @@ export async function resolveExternalTrackId(
       youtube_id: track.youtube_id || null,
       spotify_id: track.spotify_id || null,
       nhaccuatui_id: track.nhaccuatui_id || null,
+      itunes_id: track.itunes_id || null,
+      audius_id: track.audius_id || null,
       created_at: new Date().toISOString(),
     })
     .select('id')
     .single()
 
-  if (error || !inserted) return null
-  return inserted.id
+  if (!error && inserted) return inserted.id
+
+  // If the insert failed due to a unique song tuple on the user's library,
+  // try to recover by finding the existing track row by title/artist.
+  if (track.title) {
+    const titleValue = track.title.trim()
+    const artistValue = (track.artist || '').trim()
+    let query = supabase.from('tracks').select('id').eq('user_id', userId).ilike('title', titleValue)
+
+    if (artistValue) {
+      query = query.ilike('artist', artistValue)
+    } else {
+      query = query.is('artist', null)
+    }
+
+    const { data: titleMatches } = await query.limit(1)
+    if (titleMatches && titleMatches.length > 0) return titleMatches[0].id
+  }
+
+  return null
 }
