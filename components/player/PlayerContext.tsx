@@ -12,7 +12,7 @@ import { fetchUnifiedSearch } from '@/lib/searchApi'
 import { getSmartRecommendedTracks } from '@/lib/smartRecommend'
 import { NextQueueResponse, queueTrackToTrack } from '@/types/queue'
 import { getMusicOfftopicSegments, calculateIntroOffset } from '@/lib/sponsorblock'
-import { playAudioElement, redactAudioSource, shouldUseHtml5Audio, toPersistedTrack } from '@/lib/audioPlayback'
+import { isIOSDevice, playAudioElement, redactAudioSource, shouldUseHtml5Audio, toPersistedTrack } from '@/lib/audioPlayback'
 import { getNhacCuaTuiStreamUrl, resolveNhacCuaTuiSong, resolveNhacCuaTuiTrack } from '@/lib/nhaccuatuiClient'
 
 export type RepeatMode = 'off' | 'all' | 'one'
@@ -184,6 +184,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const playRequestRef = useRef(0)
   const ytLoadedIdRef = useRef<string | null>(null)
   const pendingSeekRef = useRef<number | null>(null)
+  // True when a YouTube-sourced track is playing through the HTML5 <audio> proxy
+  // (iOS only — the iframe engine is paused by iOS when the screen locks/app backgrounds)
+  const ytHtml5ModeRef = useRef<boolean>(false)
 
   const currentTrackRef = useRef<Track | null>(null)
   const queueRef = useRef<Track[]>([])
@@ -199,6 +202,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   >(async () => {})
   const nextTrackRef = useRef<() => void>(() => {})
   const prevTrackRef = useRef<() => void>(() => {})
+
+  // "YouTube iframe engine active" — false when the same track streams via HTML5 audio (iOS background mode)
+  const isYtIframeEngine = useCallback((): boolean => {
+    const t = currentTrackRef.current
+    return (t?.source === 'youtube' || Boolean(t?.youtube_id)) && !ytHtml5ModeRef.current
+  }, [])
 
   const autoFetchSmartQueueRef = useRef(false)
 
@@ -260,6 +269,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     async (track: Track): Promise<string | null> => {
       const nctStreamUrl = getNhacCuaTuiStreamUrl(track)
       if (nctStreamUrl) return nctStreamUrl
+
+      // iOS (Safari & Chrome): play YouTube through the HTML5 stream proxy so audio
+      // keeps playing in the background — iOS pauses the iframe engine on lock/background.
+      if (isIOSDevice() && track.youtube_id) {
+        return `/api/youtube/stream?id=${encodeURIComponent(track.youtube_id)}`
+      }
 
       if (track.source === 'audius' || track.audio_url) {
         return track.audio_url || track.file_path
@@ -663,7 +678,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // Sync YouTube Player timer when playing YouTube track (or Spotify/iTunes track resolved to YouTube stream)
   useEffect(() => {
     let interval: any = null
-    const isYouTubeEngine = currentTrack?.source === 'youtube' || Boolean(currentTrack?.youtube_id)
+    const isYouTubeEngine = (currentTrack?.source === 'youtube' || Boolean(currentTrack?.youtube_id)) && !ytHtml5ModeRef.current
     if (isYouTubeEngine && isPlaying) {
       interval = setInterval(() => {
         if (ytPlayerRef.current && ytPlayerRef.current.getCurrentTime) {
@@ -736,7 +751,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           setVolumeState(restoredVol)
           lastSavedTimeRef.current = restoredTime
 
-          if (restoredTrack.source === 'youtube' && restoredTrack.youtube_id) {
+          if (restoredTrack.source === 'youtube' && restoredTrack.youtube_id && !ytHtml5ModeRef.current) {
             if (ytReadyRef.current && ytPlayerRef.current?.cueVideoById) {
               try {
                 ytLoadedIdRef.current = restoredTrack.youtube_id
@@ -801,7 +816,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const handleUnload = () => {
       if (currentTrackRef.current) {
         let finalTime = currentTime
-        if (currentTrackRef.current.source === 'youtube' && ytPlayerRef.current?.getCurrentTime) {
+        if (currentTrackRef.current.source === 'youtube' && !ytHtml5ModeRef.current && ytPlayerRef.current?.getCurrentTime) {
           finalTime = ytPlayerRef.current.getCurrentTime() || currentTime
         } else if (audioRef.current) {
           finalTime = audioRef.current.currentTime || currentTime
@@ -845,12 +860,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   ) => {
     const requestId = ++playRequestRef.current
     audioRetryCountRef.current = 0
+    ytHtml5ModeRef.current = false
     const track = inferTrackSource(rawTrack)
 
     // 🚀 Push currentTrack onto true playback history stack when user changes track
     if (currentTrackRef.current && currentTrackRef.current.id !== track.id) {
       let activeTime = currentTime
-      if (currentTrackRef.current.source === 'youtube' && ytPlayerRef.current?.getCurrentTime) {
+      if (currentTrackRef.current.source === 'youtube' && !ytHtml5ModeRef.current && ytPlayerRef.current?.getCurrentTime) {
         try { activeTime = ytPlayerRef.current.getCurrentTime() || currentTime } catch {}
       } else if (audioRef.current) {
         activeTime = audioRef.current.currentTime || currentTime
@@ -1195,6 +1211,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const audio = audioRef.current
 
     if (url && audio && requestId === playRequestRef.current) {
+      ytHtml5ModeRef.current = isIOSDevice() && (activeTrack.source === 'youtube' || Boolean(activeTrack.youtube_id))
       audio.pause()
       audio.src = url
       audio.volume = volume
@@ -1226,6 +1243,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // 🎬 Fallback Engine: YouTube IFrame Player (Used when direct audio stream proxy is unavailable)
     const ytId = activeTrack.youtube_id || (activeTrack.source === 'youtube' ? extractYouTubeVideoId(activeTrack.file_path || '') : null)
     if (ytId) {
+      ytHtml5ModeRef.current = false
       if (audio) {
         try {
           audio.pause()
@@ -1333,7 +1351,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     const track = inferTrackSource(currentTrack)
 
-    if (track.source === 'youtube') {
+    if (track.source === 'youtube' && !ytHtml5ModeRef.current) {
       if (isPlaying) {
         if (ytPlayerRef.current?.pauseVideo) {
           try {
@@ -1391,7 +1409,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const seek = (time: number) => {
     setCurrentTime(time)
 
-    const isYouTubeEngine = currentTrack?.source === 'youtube' || Boolean(currentTrack?.youtube_id)
+    const isYouTubeEngine = (currentTrack?.source === 'youtube' || Boolean(currentTrack?.youtube_id)) && !ytHtml5ModeRef.current
     const audio = audioRef.current
     const ytEngine = isYouTubeEngine && ytPlayerRef.current?.seekTo
     if (ytEngine && currentTrackRef.current?.youtube_id === ytLoadedIdRef.current) {
@@ -1482,7 +1500,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     // Determine current play time across YouTube & HTML5 engines
     let activeTime = currentTime
-    if (currentTrackRef.current?.source === 'youtube' || currentTrackRef.current?.youtube_id) {
+    if ((currentTrackRef.current?.source === 'youtube' || currentTrackRef.current?.youtube_id) && !ytHtml5ModeRef.current) {
       if (ytPlayerRef.current?.getCurrentTime) {
         try {
           activeTime = ytPlayerRef.current.getCurrentTime() || currentTime
@@ -1570,7 +1588,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (!audio) return
 
     const handleTimeUpdate = () => {
-      if (currentTrackRef.current?.source !== 'youtube') {
+      if (!isYtIframeEngine()) {
         setCurrentTime(audio.currentTime)
         if (Math.abs(audio.currentTime - lastSavedTimeRef.current) > 2 && currentTrackRef.current) {
           lastSavedTimeRef.current = audio.currentTime
@@ -1619,7 +1637,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     const handleLoadedMetadata = () => {
-      if (currentTrackRef.current?.source !== 'youtube') {
+      if (!isYtIframeEngine()) {
         const loadedDuration = audio.duration || 0
         setDuration(loadedDuration)
 
@@ -1639,7 +1657,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     const handleError = async () => {
-      if (currentTrackRef.current?.source !== 'youtube') {
+      if (!isYtIframeEngine()) {
         const current = currentTrackRef.current
         const erroredTrack = current
         if (audioRetryCountRef.current < 2) {
@@ -1669,7 +1687,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     const handleEnded = () => {
-      if (currentTrackRef.current?.source !== 'youtube') {
+      if (!isYtIframeEngine()) {
         recordListenEvent(currentTrackRef.current, true)
         const mode = repeatModeRef.current
         if (mode === 'one') {
@@ -1775,7 +1793,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       navigator.mediaSession.setActionHandler('play', () => {
         void (async () => {
-          const isYouTube = currentTrackRef.current?.source === 'youtube' || Boolean(currentTrackRef.current?.youtube_id)
+          const isYouTube = (currentTrackRef.current?.source === 'youtube' || Boolean(currentTrackRef.current?.youtube_id)) && !ytHtml5ModeRef.current
           if (isYouTube && ytPlayerRef.current?.playVideo) {
             try {
               ytPlayerRef.current.playVideo()
@@ -1800,7 +1818,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       })
 
       navigator.mediaSession.setActionHandler('pause', () => {
-        const isYouTube = currentTrackRef.current?.source === 'youtube' || Boolean(currentTrackRef.current?.youtube_id)
+        const isYouTube = (currentTrackRef.current?.source === 'youtube' || Boolean(currentTrackRef.current?.youtube_id)) && !ytHtml5ModeRef.current
         if (isYouTube && ytPlayerRef.current?.pauseVideo) {
           try { ytPlayerRef.current.pauseVideo() } catch {}
         } else if (audioRef.current) {
@@ -1821,7 +1839,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       try {
         navigator.mediaSession.setActionHandler('seekbackward', (details) => {
           const skip = details.seekOffset || 10
-          if (ytPlayerRef.current?.getCurrentTime) {
+          if (!ytHtml5ModeRef.current && ytPlayerRef.current?.getCurrentTime) {
             try {
               const cur = ytPlayerRef.current.getCurrentTime() || 0
               seek(Math.max(cur - skip, 0))
@@ -1837,7 +1855,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       try {
         navigator.mediaSession.setActionHandler('seekforward', (details) => {
           const skip = details.seekOffset || 10
-          if (ytPlayerRef.current?.getCurrentTime) {
+          if (!ytHtml5ModeRef.current && ytPlayerRef.current?.getCurrentTime) {
             try {
               const cur = ytPlayerRef.current.getCurrentTime() || 0
               const dur = ytPlayerRef.current.getDuration() || 0
@@ -1853,7 +1871,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       try {
         navigator.mediaSession.setActionHandler('stop', () => {
-          const isYouTube = currentTrackRef.current?.source === 'youtube' || Boolean(currentTrackRef.current?.youtube_id)
+          const isYouTube = (currentTrackRef.current?.source === 'youtube' || Boolean(currentTrackRef.current?.youtube_id)) && !ytHtml5ModeRef.current
           if (isYouTube && ytPlayerRef.current?.pauseVideo) {
             try { ytPlayerRef.current.pauseVideo() } catch {}
           }

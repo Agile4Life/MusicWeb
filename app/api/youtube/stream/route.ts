@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import dns from 'dns'
 import ytdl from '@distube/ytdl-core'
+import { execFile } from 'child_process'
+import { promisify } from 'util'
+import path from 'path'
+import fs from 'fs'
 
 try {
   dns.setDefaultResultOrder('ipv4first')
@@ -8,15 +12,69 @@ try {
 
 export const dynamic = 'force-dynamic'
 
+const execFileAsync = promisify(execFile)
+
 interface ResolvedYouTubeStream {
   url: string
   mimeType: string
 }
 
+function findYtDlpBinary(): string | null {
+  const candidates = [
+    process.env.YTDLP_PATH,
+    path.join(process.cwd(), 'bin', process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp'),
+    'yt-dlp',
+  ].filter(Boolean) as string[]
+
+  for (const candidate of candidates) {
+    if (candidate === 'yt-dlp' || fs.existsSync(candidate)) return candidate
+  }
+  return null
+}
+
+// Stage 1: yt-dlp binary extraction (handles YouTube PO-token enforcement & cipher challenges)
+async function resolveViaYtDlp(videoId: string): Promise<ResolvedYouTubeStream | null> {
+  const binary = findYtDlpBinary()
+  if (!binary) return null
+
+  try {
+    const { stdout } = await execFileAsync(
+      binary,
+      [
+        '--get-url',
+        '--no-playlist',
+        '--no-warnings',
+        '--socket-timeout',
+        '15',
+        '-f',
+        'bestaudio[ext=m4a]/bestaudio[ext=mp4]/bestaudio',
+        `https://www.youtube.com/watch?v=${videoId}`,
+      ],
+      { timeout: 25000, windowsHide: true, maxBuffer: 2 * 1024 * 1024 }
+    )
+
+    const url = stdout.split(/\r?\n/).map((l) => l.trim()).find((l) => l.startsWith('http'))
+    if (!url) return null
+
+    let mimeType = ''
+    if (/\.(m4a|mp4)(\?|$)/.test(url)) mimeType = 'audio/mp4'
+    else if (/\.(webm|opus)(\?|$)/.test(url)) mimeType = 'audio/webm'
+
+    return { url, mimeType }
+  } catch (err: any) {
+    console.warn('yt-dlp stream resolution warning:', err?.message || err)
+    return null
+  }
+}
+
 async function resolveYouTubeAudioStream(videoId: string): Promise<ResolvedYouTubeStream | null> {
   if (!videoId) return null
 
-  // Stage 1: Official YouTube InnerTube TVHTML5 Client (100% un-ciphered direct audio URLs, fast & datacenter-friendly)
+  // Stage 1: yt-dlp (most reliable; handles PO tokens)
+  const ytDlpStream = await resolveViaYtDlp(videoId)
+  if (ytDlpStream) return ytDlpStream
+
+  // Stage 2: Official YouTube InnerTube TVHTML5 Client (100% un-ciphered direct audio URLs, fast & datacenter-friendly)
   try {
     const res = await fetch('https://www.youtube.com/youtubei/v1/player', {
       method: 'POST',
@@ -60,7 +118,7 @@ async function resolveYouTubeAudioStream(videoId: string): Promise<ResolvedYouTu
     console.warn('InnerTube TVHTML5 stream resolution warning:', err?.message || err)
   }
 
-  // Stage 2: Fallback to @distube/ytdl-core
+  // Stage 3: Fallback to @distube/ytdl-core
   try {
     const info = await ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`, {
       requestOptions: {
@@ -84,7 +142,7 @@ async function resolveYouTubeAudioStream(videoId: string): Promise<ResolvedYouTu
     console.warn('ytdl-core stream resolution warning:', err?.message || err)
   }
 
-  // Stage 3: Fallback to Piped API instances
+  // Stage 4: Fallback to Piped API instances
   const pipedInstances = [
     'https://pipedapi.mha.fi/streams/',
     'https://pipedapi.adminforge.de/streams/',
