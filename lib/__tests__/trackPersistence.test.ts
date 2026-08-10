@@ -15,7 +15,7 @@ type MockSupabase = {
   from: (table: string) => MockQuery
 }
 
-function createMockSupabase(selectRow?: any, insertRow?: any): SupabaseClient {
+function createMockSupabase(selectRow?: any, insertRow?: any, onInsert?: (row: any) => void): SupabaseClient {
   const selectQuery: MockQuery = {
     select(columns: string) {
       return this
@@ -33,6 +33,7 @@ function createMockSupabase(selectRow?: any, insertRow?: any): SupabaseClient {
       return this
     },
     insert(row: any) {
+      if (onInsert) onInsert(row)
       return this
     },
     single() {
@@ -116,5 +117,31 @@ describe('resolveExternalTrackId', () => {
 
     const result = await resolveExternalTrackId(supabase, track, 'user-1')
     expect(result).toBe('new-uuid')
+  })
+
+  it('inserts a new external track when id prefix is present but source fields are missing', async () => {
+    let insertedRow: any = null
+    const supabase = createMockSupabase(undefined, { id: 'new-uuid' }, (row) => {
+      insertedRow = row
+    })
+
+    const track: Track = {
+      id: 'yt-video-1',
+      user_id: 'youtube-global',
+      title: 'YouTube Song',
+      artist: 'YouTube Artist',
+      duration: 200,
+      file_path: '',
+      cover_url: 'https://img.youtube.com/vi/video-1/hqdefault.jpg',
+      created_at: new Date().toISOString(),
+    }
+
+    const result = await resolveExternalTrackId(supabase, track, 'user-1')
+
+    expect(result).toBe('new-uuid')
+    expect(insertedRow).not.toBeNull()
+    expect(insertedRow.source).toBe('youtube')
+    expect(insertedRow.youtube_id).toBe('video-1')
+    expect(insertedRow.file_path).toBe('https://www.youtube.com/watch?v=video-1')
   })
 })

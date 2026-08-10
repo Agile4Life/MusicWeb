@@ -7,7 +7,7 @@ import { extractDriveFileId, isPreviewUrl, verifyDriveFile, triggerDrivePrewarm,
 import { useSession } from 'next-auth/react'
 import { getValidUserId } from '@/lib/accessControl'
 import { deduplicateQueueTracks } from '@/lib/utils'
-import { resolveExternalTrackId } from '@/lib/trackPersistence'
+import { resolveExternalTrackId, isExternalTrack } from '@/lib/trackPersistence'
 import { findBestYouTubeMatch, normalizeTitle, extractYouTubeVideoId, fetchViewCountForVideo } from '@/lib/youtube'
 import { fetchUnifiedSearch } from '@/lib/searchApi'
 import { getSmartRecommendedTracks } from '@/lib/smartRecommend'
@@ -1359,9 +1359,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
         let dbTrackId = track.id
 
-        // If track is from an external global source (YouTube, Audius, iTunes),
-        // upsert it into the DB tracks table first to get a valid UUID for listening_history!
-        if (track.source && track.source !== 'local') {
+        // If track is from an external global source, upsert it into the DB tracks table
+        // first to get a valid UUID for listening_history.
+        if (isExternalTrack(track)) {
           const resolvedId = await resolveExternalTrackId(supabase, track, userId)
           if (!resolvedId) return
           dbTrackId = resolvedId
