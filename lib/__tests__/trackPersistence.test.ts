@@ -144,4 +144,29 @@ describe('resolveExternalTrackId', () => {
     expect(insertedRow.youtube_id).toBe('video-1')
     expect(insertedRow.file_path).toBe('https://www.youtube.com/watch?v=video-1')
   })
+
+  it('inserts a new deezer external track when id prefix is present and source is missing', async () => {
+    let insertedRow: any = null
+    const supabase = createMockSupabase(undefined, { id: 'new-uuid' }, (row) => {
+      insertedRow = row
+    })
+
+    const track: Track = {
+      id: 'deezer-12345',
+      user_id: 'deezer-global',
+      title: 'Deezer Song',
+      artist: 'Deezer Artist',
+      duration: 180,
+      file_path: 'https://www.deezer.com/track/12345',
+      cover_url: 'https://api.deezer.com/track/12345/image',
+      created_at: new Date().toISOString(),
+    }
+
+    const result = await resolveExternalTrackId(supabase, track, 'user-1')
+
+    expect(result).toBe('new-uuid')
+    expect(insertedRow).not.toBeNull()
+    expect(insertedRow.source).toBe('deezer')
+    expect(insertedRow.file_path).toBe('https://www.deezer.com/track/12345')
+  })
 })
