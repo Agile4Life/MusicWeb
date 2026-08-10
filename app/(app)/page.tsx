@@ -381,20 +381,16 @@ export default function HomePage() {
   }, [userFavTrackIds])
 
   const handleAddToPlaylist = async (playlistId: string, track: Track) => {
-    if (!isAdmin) {
-      alert('Chỉ có tài khoản Admin mới có quyền thêm bài hát vào Playlist!')
-      return
-    }
     let targetTrackId = track.id
 
-    if (isExternalTrack(track)) {
-      const activeUser = user ? { id: user.id, email: user.email } : null
-      const userId = activeUser ? getValidUserId(activeUser) : null
-      if (!userId) {
-        alert('Vui lòng đăng nhập để thêm bài hát vào playlist!')
-        return
-      }
+    const activeUser = user ? { id: user.id, email: user.email } : null
+    const userId = activeUser ? getValidUserId(activeUser) : null
+    if (!userId) {
+      alert('Vui lòng đăng nhập để thêm bài hát vào playlist!')
+      return
+    }
 
+    if (isExternalTrack(track)) {
       const resolvedId = await resolveExternalTrackId(supabase, track, userId)
       if (!resolvedId) {
         alert('Lỗi lưu bài hát vào CSDL')
