@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Track, Playlist } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { getValidUserId } from '@/lib/accessControl'
+import { resolveExternalTrackId, isExternalTrack } from '@/lib/trackPersistence'
 import { useSession } from 'next-auth/react'
 import { Heart, Play, Search, Music, Sparkles, Loader2, ChevronLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -120,7 +121,31 @@ export default function FavoritesPage() {
   }, [fetchFavorites])
 
   const handleAddToPlaylist = async (playlistId: string, track: Track) => {
-    const targetTrackId = track.id
+    const activeUser =
+      supabaseUser ||
+      (nextAuthSession?.user
+        ? {
+            id: nextAuthSession.user.email,
+            email: nextAuthSession.user.email,
+          }
+        : null)
+
+    const userId = activeUser ? getValidUserId(activeUser) : null
+    if (!userId) {
+      alert('Vui lòng đăng nhập để thêm bài hát vào playlist!')
+      return
+    }
+
+    let targetTrackId = track.id
+
+    if (isExternalTrack(track)) {
+      const resolvedId = await resolveExternalTrackId(supabase, track, userId)
+      if (!resolvedId) {
+        alert('Lỗi lưu bài hát vào CSDL')
+        return
+      }
+      targetTrackId = resolvedId
+    }
 
     const { error: rpcError } = await Promise.resolve(
       supabase.rpc('fn_add_track_to_playlist', {

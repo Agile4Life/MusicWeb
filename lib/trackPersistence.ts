@@ -19,20 +19,25 @@ import type { Track } from '@/types'
  *
  * @returns the DB track id, or `null` when persistence failed.
  */
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
 export function isExternalTrack(track: Track): boolean {
-  return (
-    Boolean(track.source && track.source !== 'local') ||
-    track.id?.startsWith('yt-') ||
-    track.id?.startsWith('spotify-') ||
-    track.id?.startsWith('deezer-') ||
-    track.id?.startsWith('nct-') ||
-    track.id?.startsWith('itunes-') ||
-    track.id?.startsWith('audius-')
-  )
+  if (!track.id) return false
+  const syntheticId =
+    track.id.startsWith('yt-') ||
+    track.id.startsWith('spotify-') ||
+    track.id.startsWith('deezer-') ||
+    track.id.startsWith('nct-') ||
+    track.id.startsWith('itunes-') ||
+    track.id.startsWith('audius-')
+
+  if (syntheticId) return true
+  if (track.source && track.source !== 'local' && !UUID_REGEX.test(track.id)) return true
+  return false
 }
 
 function inferTrackSource(track: Track): Track {
-  if (track.source && track.source !== 'local') return track
+  if (track.source && track.source !== 'local' && UUID_REGEX.test(track.id || '')) return track
 
   const normalized: Track = { ...track }
   if (!normalized.source) {
@@ -41,12 +46,14 @@ function inferTrackSource(track: Track): Track {
     else if (normalized.nhaccuatui_id || normalized.id?.startsWith('nct-')) normalized.source = 'nhaccuatui'
     else if (normalized.itunes_id || normalized.id?.startsWith('itunes-')) normalized.source = 'itunes'
     else if (normalized.audius_id || normalized.id?.startsWith('audius-')) normalized.source = 'audius'
+    else if (normalized.id?.startsWith('deezer-')) normalized.source = 'deezer'
     else {
       const fp = normalized.file_path || ''
       if (fp.includes('youtube.com') || fp.includes('youtu.be')) normalized.source = 'youtube'
       else if (fp.includes('spotify.com')) normalized.source = 'spotify'
       else if (fp.includes('itunes.apple.com')) normalized.source = 'itunes'
       else if (fp.includes('audius.co')) normalized.source = 'audius'
+      else if (fp.includes('deezer.com') || fp.startsWith('deezer:')) normalized.source = 'deezer'
     }
   }
 
