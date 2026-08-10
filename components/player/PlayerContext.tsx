@@ -202,6 +202,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   >(async () => {})
   const nextTrackRef = useRef<() => void>(() => {})
   const prevTrackRef = useRef<() => void>(() => {})
+  const pendingResumeRef = useRef<boolean>(false)
 
   // "YouTube iframe engine active" — false when the same track streams via HTML5 audio (iOS background mode)
   const isYtIframeEngine = useCallback((): boolean => {
@@ -1212,7 +1213,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     if (url && audio && requestId === playRequestRef.current) {
       ytHtml5ModeRef.current = isIOSDevice() && (activeTrack.source === 'youtube' || Boolean(activeTrack.youtube_id))
-      audio.pause()
+      // Note: intentionally NO audio.pause() here — pausing first can revoke the active
+      // iOS audio session and make the following play() require a fresh user gesture.
       audio.src = url
       audio.volume = volume
       audio.currentTime = consumePendingSeek(initialTime > 0 ? initialTime : 0)
@@ -1230,6 +1232,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           return // Ignore play interruption silently
         }
         setIsPlaying(false)
+        setIsBuffering(false)
+        if (isIOSDevice() && (err?.name === 'NotAllowedError' || String(err?.message || '').includes('not allowed'))) {
+          // iOS background: play() needs a fresh user gesture. Keep the stream loaded and
+          // resume on the next media-session action (lock-screen play button) or when visible.
+          pendingResumeRef.current = true
+          return
+        }
         if (audioRef.current) {
           try {
             audioRef.current.pause()
@@ -1446,6 +1455,78 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // ⚡ Fast-path: play a track synchronously from the URL cache so lock-screen / background
+  // next/prev actions keep their iOS user-gesture chain (no awaits before play()).
+  const tryQuickPlayFromCache = (track: Track, idx?: number): boolean => {
+    if (!track || typeof window === 'undefined') return false
+    const cached = audioUrlCacheRef.current.get(track.id)?.url
+    const audio = audioRef.current
+    if (!cached || !audio) return false
+
+    // Cancel any pending async play requests
+    playRequestRef.current++
+
+    // Stop the YouTube iframe engine if it was active
+    if (ytStuckTimerRef.current) {
+      clearTimeout(ytStuckTimerRef.current)
+      ytStuckTimerRef.current = null
+    }
+    if (ytPlayerRef.current) {
+      try {
+        if (ytPlayerRef.current.stopVideo) ytPlayerRef.current.stopVideo()
+        else if (ytPlayerRef.current.pauseVideo) ytPlayerRef.current.pauseVideo()
+      } catch {}
+    }
+
+    // Resolve the queue index (track id-based lookup, falls back to the provided index)
+    const q = queueRef.current.length > 0 ? queueRef.current : queue
+    let targetIdx = typeof idx === 'number' && idx >= 0 ? idx : q.findIndex((t) => t.id === track.id)
+    if (targetIdx < 0) targetIdx = currentIndexRef.current
+    currentIndexRef.current = targetIdx
+    setCurrentIndex(targetIdx)
+
+    ytHtml5ModeRef.current = isIOSDevice() && (track.source === 'youtube' || Boolean(track.youtube_id))
+
+    setCurrentTrack(track)
+    if (targetIdx >= 0 && targetIdx < q.length) {
+      setQueue((prevQ) => {
+        const synced = [...prevQ]
+        synced[targetIdx] = { ...synced[targetIdx], ...track }
+        return synced
+      })
+    }
+    setCurrentTime(0)
+    setDuration(track.duration || 0)
+    setPlaybackError(null)
+    setIsBuffering(true)
+    savePlayerStateToStorage(track, 0, q, targetIdx, volume)
+
+    // Swap src WITHOUT pausing first (pausing can revoke the active iOS audio session / gesture chain)
+    audio.src = cached
+    audio.volume = volumeRef.current || volume
+    audio.currentTime = 0
+
+    audio.play()
+      .then(() => {
+        setIsBuffering(false)
+        setIsPlaying(true)
+        audioRetryCountRef.current = 0
+      })
+      .catch((err: any) => {
+        setIsBuffering(false)
+        setIsPlaying(false)
+        // On iOS background, play() without a fresh gesture is rejected — keep src loaded
+        // and let the next media-session action / visibility retry resume it.
+        if (err?.name === 'NotAllowedError' || String(err?.message || '').includes('not allowed')) {
+          pendingResumeRef.current = true
+        } else {
+          console.warn('Quick-play audio failed:', err?.message || err)
+        }
+      })
+
+    return true
+  }
+
   const nextTrack = () => {
     isPrevNextActionRef.current = true
 
@@ -1456,7 +1537,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (currentTrackRef.current) {
           playedHistoryStackRef.current.push(currentTrackRef.current)
         }
-        playTrack(forwardSong)
+        if (!tryQuickPlayFromCache(forwardSong)) playTrack(forwardSong)
         return
       }
     }
@@ -1480,6 +1561,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       } while (nextIdx === idx && q.length > 1)
     } else {
       nextIdx = (idx + 1) % q.length
+    }
+    if (tryQuickPlayFromCache(q[nextIdx], nextIdx)) {
+      if (nextIdx >= q.length - 2) {
+        triggerSmartQueueFill(q[nextIdx], q)
+      }
+      return
     }
     setCurrentIndex(nextIdx)
     currentIndexRef.current = nextIdx
@@ -1523,7 +1610,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (currentTrackRef.current) {
           forwardHistoryStackRef.current.push(currentTrackRef.current)
         }
-        playTrack(prevSong)
+        if (!tryQuickPlayFromCache(prevSong)) playTrack(prevSong)
         return
       }
     }
@@ -1548,6 +1635,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     } else {
       prevIdx = (idx - 1 + q.length) % q.length
     }
+    if (tryQuickPlayFromCache(q[prevIdx], prevIdx)) return
     setCurrentIndex(prevIdx)
     currentIndexRef.current = prevIdx
     playTrack(q[prevIdx], undefined, prevIdx)
@@ -1714,10 +1802,27 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const handleWaiting = () => setIsBuffering(true)
     const handleStalled = () => setIsBuffering(true)
     const handleLoadStart = () => setIsBuffering(true)
-    const handleCanPlay = () => setIsBuffering(false)
+    const handleCanPlay = () => {
+      setIsBuffering(false)
+      // Retry a background play() that was rejected by iOS for lacking a fresh gesture
+      if (pendingResumeRef.current && audioRef.current && audioRef.current.paused) {
+        pendingResumeRef.current = false
+        audioRef.current.play().catch(() => {
+          pendingResumeRef.current = true
+        })
+      }
+    }
     const handlePlaying = () => {
       setIsBuffering(false)
       audioRetryCountRef.current = 0
+    }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && pendingResumeRef.current && audioRef.current && audioRef.current.paused) {
+        pendingResumeRef.current = false
+        audioRef.current.play().catch(() => {
+          pendingResumeRef.current = true
+        })
+      }
     }
 
     audio.addEventListener('timeupdate', handleTimeUpdate)
@@ -1729,6 +1834,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     audio.addEventListener('loadstart', handleLoadStart)
     audio.addEventListener('canplay', handleCanPlay)
     audio.addEventListener('playing', handlePlaying)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate)
@@ -1740,6 +1846,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audio.removeEventListener('loadstart', handleLoadStart)
       audio.removeEventListener('canplay', handleCanPlay)
       audio.removeEventListener('playing', handlePlaying)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [currentIndex, queue, autoPlayNext, repeatMode])
 
