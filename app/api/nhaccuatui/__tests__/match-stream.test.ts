@@ -36,6 +36,18 @@ function innerTubeSearchResponse(videos: MockVideo[]): Response {
   }), { status: 200 })
 }
 
+function androidPlayerResponse(videoUrl: string | null): Response {
+  if (!videoUrl) {
+    // YouTube's bot-check answer for videos blocked on datacenter IPs
+    return new Response(JSON.stringify({ playabilityStatus: { status: 'LOGIN_REQUIRED' } }), { status: 200 })
+  }
+  return new Response(JSON.stringify({
+    streamingData: {
+      adaptiveFormats: [{ mimeType: 'audio/mp4; codecs="mp4a.40.2"', url: videoUrl }],
+    },
+  }), { status: 200 })
+}
+
 describe('NhacCuaTui match-stream route', () => {
   beforeEach(() => {
     // Force the InnerTube search path (no official Data API key in tests)
@@ -69,6 +81,8 @@ describe('NhacCuaTui match-stream route', () => {
       .mockResolvedValueOnce(innerTubeSearchResponse([
         { videoId: 'abcDEF12345', title: 'Xương Rồng - Dangrangto (Official Audio)', artist: 'Dangrangto', length: '4:12' },
       ]))
+      // Streamability verification of the matched video (ANDROID InnerTube player)
+      .mockResolvedValueOnce(androidPlayerResponse('https://googlevideo.test/audio-1'))
 
     const response = await GET(new Request('https://music.test/api/nhaccuatui/match-stream?id=nct-match-1'))
 
@@ -91,6 +105,7 @@ describe('NhacCuaTui match-stream route', () => {
       .mockResolvedValueOnce(innerTubeSearchResponse([
         { videoId: 'cacheID1234', title: 'Xương Rồng - Dangrangto (Official Audio)', artist: 'Dangrangto', length: '4:12' },
       ]))
+      .mockResolvedValueOnce(androidPlayerResponse('https://googlevideo.test/audio-cache'))
 
     const url = 'https://music.test/api/nhaccuatui/match-stream?id=nct-match-cache'
     const first = await GET(new Request(url))
@@ -99,8 +114,32 @@ describe('NhacCuaTui match-stream route', () => {
     expect(first.status).toBe(200)
     expect(second.status).toBe(200)
     await expect(second.json()).resolves.toMatchObject({ videoId: 'cacheID1234' })
-    // 1 NCT metadata fetch + 1 InnerTube search — the second request hit the cache
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    // NCT metadata + InnerTube search + ANDROID verification — second request hit the cache
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('skips matched videos that cannot be resolved from this server', async () => {
+    process.env.NCT_API_BASE_URL = 'https://nct-api.test'
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        song: { id: 'nct-match-blocked', title: 'Xương Rồng', artist: 'Dangrangto', duration: 254 },
+      }), { status: 200 }))
+      .mockResolvedValueOnce(innerTubeSearchResponse([
+        // Higher score (Official Audio) but blocked on datacenter IPs...
+        { videoId: 'blockedAud1', title: 'Xương Rồng - Dangrangto (Official Audio)', artist: 'Dangrangto', length: '4:14' },
+        // ...lower score (MV) but resolvable
+        { videoId: 'workingMV22', title: 'Xương Rồng - Dangrangto (Official MV)', artist: 'Dangrangto', length: '4:14' },
+      ]))
+      .mockResolvedValueOnce(androidPlayerResponse(null)) // blockedAud1 verification fails
+      .mockResolvedValueOnce(androidPlayerResponse('https://googlevideo.test/audio-2')) // workingMV22 ok
+
+    const response = await GET(new Request('https://music.test/api/nhaccuatui/match-stream?id=nct-match-blocked'))
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toMatchObject({
+      videoId: 'workingMV22',
+      url: 'https://music.test/api/youtube/stream?id=workingMV22',
+    })
   })
 
   it('returns 502 when the NCT song has no usable metadata', async () => {

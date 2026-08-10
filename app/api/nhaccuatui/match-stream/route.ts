@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { normalizeNhacCuaTuiSongMetadata } from '@/lib/nhaccuatui'
 import { findBestYouTubeMatch, searchYouTubeTracks } from '@/lib/youtube'
+import { resolveYouTubeAudioStreamAndroid } from '@/app/api/youtube/stream/route'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,11 +35,22 @@ async function resolveYouTubeVideoIdForNctSong(id: string): Promise<string | nul
     if (songRes.ok) {
       const song = normalizeNhacCuaTuiSongMetadata(await songRes.json())
       if (song) {
-        const candidates = await searchYouTubeTracks(`${song.title} ${song.artist}`.trim(), 10)
+        let candidates = await searchYouTubeTracks(`${song.title} ${song.artist}`.trim(), 10)
         // Strict scoring only — no "first result" fallback. A wrong match would be
         // cached into the worker's permanent R2 bucket, so missing is better than wrong.
-        const best = findBestYouTubeMatch(candidates, song.title, song.artist, song.duration)
-        videoId = best?.youtube_id || null
+        // Each picked video is also verified extractable from THIS server: YouTube
+        // refuses some videos (LOGIN_REQUIRED) on datacenter IPs, and the worker can
+        // only stream what this origin's proxy is able to resolve.
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const best = findBestYouTubeMatch(candidates, song.title, song.artist, song.duration)
+          if (!best?.youtube_id) break
+          const resolved = await resolveYouTubeAudioStreamAndroid(best.youtube_id)
+          if (resolved?.url) {
+            videoId = best.youtube_id
+            break
+          }
+          candidates = candidates.filter((c) => c.youtube_id !== best.youtube_id)
+        }
       }
     }
   } catch {

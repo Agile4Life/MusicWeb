@@ -85,18 +85,16 @@ async function resolveViaYtDlp(videoId: string): Promise<ResolvedYouTubeStream |
   }
 }
 
-async function resolveYouTubeAudioStream(videoId: string): Promise<ResolvedYouTubeStream | null> {
-  if (!videoId) return null
-
-  // Stage 1: yt-dlp (most reliable; handles PO tokens)
-  const ytDlpStream = await resolveViaYtDlp(videoId)
-  if (ytDlpStream) return ytDlpStream
-
-  // Stage 2: Official YouTube InnerTube ANDROID client (returns un-ciphered direct
-  // audio URLs). The old TVHTML5_SIMPLY_EMBEDDED_PLAYER client was deprecated by
-  // YouTube ("YouTube is no longer supported in this application or device").
-  // NOTE: googlevideo URLs are IP-bound — they only work when fetched from the
-  // same server that resolved them (the proxy GET below), not from other clients.
+// Stage 2 (exported for reuse): Official YouTube InnerTube ANDROID client —
+// returns un-ciphered direct audio URLs. The old TVHTML5_SIMPLY_EMBEDDED_PLAYER
+// client was deprecated by YouTube ("YouTube is no longer supported in this
+// application or device").
+// NOTE: googlevideo URLs are IP-bound — they only work when fetched from the
+// same server that resolved them (the proxy GET below), not from other clients.
+// Exported so the NCT->YouTube matching endpoint can cheaply verify that a
+// candidate video is actually extractable from this server before caching it:
+// YouTube refuses some videos (LOGIN_REQUIRED) when resolved from datacenter IPs.
+export async function resolveYouTubeAudioStreamAndroid(videoId: string): Promise<ResolvedYouTubeStream | null> {
   try {
     const res = await fetch('https://www.youtube.com/youtubei/v1/player', {
       method: 'POST',
@@ -139,6 +137,19 @@ async function resolveYouTubeAudioStream(videoId: string): Promise<ResolvedYouTu
   } catch (err: any) {
     console.warn('InnerTube ANDROID stream resolution warning:', err?.message || err)
   }
+  return null
+}
+
+async function resolveYouTubeAudioStream(videoId: string): Promise<ResolvedYouTubeStream | null> {
+  if (!videoId) return null
+
+  // Stage 1: yt-dlp (most reliable; handles PO tokens)
+  const ytDlpStream = await resolveViaYtDlp(videoId)
+  if (ytDlpStream) return ytDlpStream
+
+  // Stage 2: InnerTube ANDROID client
+  const androidStream = await resolveYouTubeAudioStreamAndroid(videoId)
+  if (androidStream) return androidStream
 
   // Stage 3: Fallback to @distube/ytdl-core
   try {
