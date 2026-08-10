@@ -18,7 +18,7 @@ describe('NhacCuaTui audio stream route', () => {
     process.env.NCT_API_BASE_URL = 'https://nct-api.test'
     vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify({
-        id: 'nct-1',
+        id: 'nct-head-1',
         title: 'Xương Rồng',
         artist: 'Dangrangto',
         audioUrl: 'https://stream.nct.vn/song.mp3?expires=secret',
@@ -31,7 +31,7 @@ describe('NhacCuaTui audio stream route', () => {
         },
       }))
 
-    const response = await HEAD(new Request('https://music.test/api/nhaccuatui/stream?id=nct-1'))
+    const response = await HEAD(new Request('https://music.test/api/nhaccuatui/stream?id=nct-head-1'))
     expect(response.status).toBe(200)
     expect(response.headers.get('Content-Type')).toBe('audio/mpeg')
     expect(response.headers.get('Content-Length')).toBe('1024')
@@ -57,7 +57,7 @@ describe('NhacCuaTui audio stream route', () => {
     })
     const fetchMock = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify({
-        id: 'nct-1',
+        id: 'nct-get-1',
         title: 'Xương Rồng',
         artist: 'Dangrangto',
         audioUrl: 'https://stream.nct.vn/song.mp3?expires=secret',
@@ -65,7 +65,7 @@ describe('NhacCuaTui audio stream route', () => {
       .mockResolvedValueOnce(upstreamAudio)
 
     const response = await GET(new Request(
-      'https://music.test/api/nhaccuatui/stream?id=nct-1',
+      'https://music.test/api/nhaccuatui/stream?id=nct-get-1',
       { headers: { Range: 'bytes=0-2' } },
     ))
 
@@ -81,13 +81,13 @@ describe('NhacCuaTui audio stream route', () => {
 
   it('rejects a resolved URL outside stream.nct.vn', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
-      id: 'nct-1',
+      id: 'nct-reject-1',
       title: 'Xương Rồng',
       artist: 'Dangrangto',
       audioUrl: 'https://evil.example/audio.mp3?token=secret',
     }), { status: 200 }))
 
-    const response = await GET(new Request('https://music.test/api/nhaccuatui/stream?id=nct-1'))
+    const response = await GET(new Request('https://music.test/api/nhaccuatui/stream?id=nct-reject-1'))
 
     expect(response.status).toBe(502)
     await expect(response.json()).resolves.toEqual({ error: 'Song stream unavailable' })

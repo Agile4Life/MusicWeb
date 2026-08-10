@@ -23,9 +23,14 @@ id = "32507b30619d40f7be17434056667486"
 # NCT music API (same base used by app/api/nhaccuatui/stream)
 NCT_API_BASE_URL = "https://music-api.vanhuy2004h.io.vn"
 
-# Optional fallback backend that resolves an id to a stream URL (e.g. YouTube).
-# Contract: GET <MATCHING_SERVICE_URL>?id=<id>  ->  JSON { "url": "https://..." }
-# Point this at the deployed Next.js app's endpoint:
-#   MATCHING_SERVICE_URL = "https://<musicweb-xxx>.vercel.app/api/youtube/stream-url"
-# Leave commented out to disable the YouTube fallback tier.
-MATCHING_SERVICE_URL = "https://phongtctmusic.vercel.app/api/youtube/stream-url"
+# Optional fallback backend that resolves an NCT song id to a playable stream URL.
+# Contract: GET <MATCHING_SERVICE_URL>?id=<nctSongId>
+#   -> 200 JSON { "url": "https://<app>/api/youtube/stream?id=<videoId>" }
+#
+# The app-side endpoint (/api/nhaccuatui/match-stream) resolves NCT metadata
+# (title/artist/duration), finds the best matching YouTube video, and returns a
+# URL pointing at the YouTube PROXY endpoint (/api/youtube/stream) — never a raw
+# googlevideo URL. googlevideo URLs are IP-bound to the Vercel instance that
+# extracted them; fetching one directly from this Worker returns 403, while the
+# proxy re-serves the bytes from the resolving server, so it works from anywhere.
+MATCHING_SERVICE_URL = "https://phongtctmusic.vercel.app/api/nhaccuatui/match-stream"

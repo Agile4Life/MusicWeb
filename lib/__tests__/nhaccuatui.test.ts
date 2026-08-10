@@ -5,6 +5,7 @@ import {
   nhacCuaTuiSearchItemToTrack,
   normalizeNhacCuaTuiLyrics,
   normalizeNhacCuaTuiSearchResponse,
+  normalizeNhacCuaTuiSongMetadata,
   normalizeNhacCuaTuiSongResponse,
 } from '../nhaccuatui'
 
@@ -26,6 +27,22 @@ describe('NhacCuaTui response normalization', () => {
 
   it('rejects song details without a usable audio URL', () => {
     expect(normalizeNhacCuaTuiSongResponse({ id: 'nct-1', title: 'X', artist: 'A' })).toBeNull()
+  })
+
+  it('normalizes song metadata even when no playable audio URL exists', () => {
+    expect(normalizeNhacCuaTuiSongMetadata({
+      song: { id: 'nct-1', title: 'Xương Rồng', artist: 'Dangrangto', duration: 254 },
+    })).toEqual({ id: 'nct-1', title: 'Xương Rồng', artist: 'Dangrangto', duration: 254 })
+
+    expect(normalizeNhacCuaTuiSongMetadata({
+      id: 'nct-2', name: 'Xương Rồng', artistName: 'Dangrangto',
+    })).toEqual({ id: 'nct-2', title: 'Xương Rồng', artist: 'Dangrangto', duration: null })
+  })
+
+  it('rejects song metadata missing title or artist', () => {
+    expect(normalizeNhacCuaTuiSongMetadata({ id: 'nct-1', artist: 'A' })).toBeNull()
+    expect(normalizeNhacCuaTuiSongMetadata({ id: 'nct-1', title: 'X' })).toBeNull()
+    expect(normalizeNhacCuaTuiSongMetadata(null)).toBeNull()
   })
 
   it('normalizes NCT lyrics and removes empty placeholder content', () => {

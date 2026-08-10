@@ -64,7 +64,9 @@ async function handleStream(id, request, env, ctx) {
     const cached = await caches.default.match(cacheKey)
     if (cached && cached.ok) {
       const bytes = await cached.arrayBuffer()
-      return sliceAndServe(bytes, parseRange(rangeHeader, bytes.byteLength), cached.headers.get('content-type'))
+      const range = parseRange(rangeHeader, bytes.byteLength)
+      if (range && range.unsatisfiable) return rangeNotSatisfiable(bytes.byteLength)
+      return sliceAndServe(bytes, range, cached.headers.get('content-type'))
     }
   } catch {
     /* cache read error -> fall through to R2 */

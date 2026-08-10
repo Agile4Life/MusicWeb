@@ -42,8 +42,12 @@ npx wrangler r2 bucket create music-audio-cache
 
 - `NCT_API_BASE_URL` (có sẵn mặc định `https://music-api.vanhuy2004h.io.vn`) — API NCT.
 - `MATCHING_SERVICE_URL` (tùy chọn) — backend matching service fallback (YouTube).
-  **Contract:** `GET <MATCHING_SERVICE_URL>?id=<songId>` → JSON `{ "url": "https://..." }` (hoặc chuỗi URL).
-  Trả URL trực tiếp được (đã đứng sẵn sàng để fetch). Bỏ comment để bật tầng này.
+  **Contract:** `GET <MATCHING_SERVICE_URL>?id=<nctSongId>` → **JSON** `{ "url": "https://..." }`.
+  Trỏ về `/api/nhaccuatui/match-stream` trên app Vercel: endpoint này lấy metadata bài NCT
+  (title/artist/duration), tìm video YouTube khớp nhất, rồi trả về URL **proxy**
+  (`/api/youtube/stream?id=<videoId>`). Worker fetch URL đó để lấy audio bytes.
+  TUYỆT ĐỐI không trả về URL googlevideo thô: googlevideo gắn với IP của server đã resolve,
+  Worker fetch trực tiếp sẽ bị 403 — proxy phát lại bytes từ chính server đó nên chạy được từ mọi nơi.
 
 ## Chạy & deploy
 

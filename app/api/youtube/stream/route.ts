@@ -92,20 +92,24 @@ async function resolveYouTubeAudioStream(videoId: string): Promise<ResolvedYouTu
   const ytDlpStream = await resolveViaYtDlp(videoId)
   if (ytDlpStream) return ytDlpStream
 
-  // Stage 2: Official YouTube InnerTube TVHTML5 Client (100% un-ciphered direct audio URLs, fast & datacenter-friendly)
+  // Stage 2: Official YouTube InnerTube ANDROID client (returns un-ciphered direct
+  // audio URLs). The old TVHTML5_SIMPLY_EMBEDDED_PLAYER client was deprecated by
+  // YouTube ("YouTube is no longer supported in this application or device").
+  // NOTE: googlevideo URLs are IP-bound — they only work when fetched from the
+  // same server that resolved them (the proxy GET below), not from other clients.
   try {
     const res = await fetch('https://www.youtube.com/youtubei/v1/player', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (SmartHub; SMART-TV; U; Linux/SmartTV) AppleWebKit/537.42',
+        'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip',
       },
       body: JSON.stringify({
         context: {
           client: {
-            clientName: 'TVHTML5_SIMPLY_EMBEDDED_PLAYER',
-            clientVersion: '2.0',
-            clientScreen: 'WATCH',
+            clientName: 'ANDROID',
+            clientVersion: '20.10.38',
+            androidSdkVersion: 34,
           },
         },
         videoId: videoId,
@@ -133,7 +137,7 @@ async function resolveYouTubeAudioStream(videoId: string): Promise<ResolvedYouTu
       }
     }
   } catch (err: any) {
-    console.warn('InnerTube TVHTML5 stream resolution warning:', err?.message || err)
+    console.warn('InnerTube ANDROID stream resolution warning:', err?.message || err)
   }
 
   // Stage 3: Fallback to @distube/ytdl-core
@@ -202,7 +206,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Missing YouTube video ID parameter' }, { status: 400 })
     }
 
-    const resolved = await resolveYouTubeAudioStreamCached(videoId)
+    let resolved = await resolveYouTubeAudioStreamCached(videoId)
     if (!resolved || !resolved.url) {
       return NextResponse.json(
         { error: 'YouTube: could not extract playable audio stream' },
@@ -211,16 +215,35 @@ export async function GET(req: NextRequest) {
     }
 
     const range = req.headers.get('range')
-    const proxyHeaders: Record<string, string> = {
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    const fetchUpstream = (url: string) => {
+      const proxyHeaders: Record<string, string> = {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      }
+      if (range) proxyHeaders['Range'] = range
+      return fetch(url, { headers: proxyHeaders, cache: 'no-store' })
     }
-    if (range) proxyHeaders['Range'] = range
 
-    const streamRes = await fetch(resolved.url, {
-      headers: proxyHeaders,
-      cache: 'no-store',
-    })
+    let streamRes = await fetchUpstream(resolved.url)
+
+    // The cached googlevideo URL may be stale (expired, or resolved on another
+    // serverless instance — googlevideo URLs are IP-bound). Drop it and
+    // re-resolve once before giving up.
+    if (!streamRes.ok) {
+      streamUrlCache.delete(videoId)
+      const fresh = await resolveYouTubeAudioStreamCached(videoId)
+      if (fresh && fresh.url) {
+        resolved = fresh
+        streamRes = await fetchUpstream(resolved.url)
+      }
+    }
+
+    if (!streamRes.ok) {
+      return NextResponse.json(
+        { error: 'YouTube: could not extract playable audio stream' },
+        { status: 502 }
+      )
+    }
 
     const resHeaders = new Headers()
     resHeaders.set('Content-Type', resolved.mimeType || streamRes.headers.get('content-type') || 'audio/mp4')

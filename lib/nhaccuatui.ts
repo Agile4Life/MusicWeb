@@ -169,6 +169,31 @@ export function isValidNhacCuaTuiAudioUrl(value: unknown): value is string {
   }
 }
 
+export interface NhacCuaTuiSongMetadata {
+  id: string
+  title: string
+  artist: string
+  duration: number | null
+}
+
+/**
+ * Metadata-tolerant variant of normalizeNhacCuaTuiSongResponse: keeps songs whose
+ * audioUrl is missing/invalid. Used by the YouTube-matching fallback, where the
+ * missing NCT audio URL is exactly why a match is needed in the first place.
+ */
+export function normalizeNhacCuaTuiSongMetadata(value: unknown): NhacCuaTuiSongMetadata | null {
+  if (!value || typeof value !== 'object') return null
+  const root = value as Record<string, unknown>
+  const item = root.song && typeof root.song === 'object' ? root.song as Record<string, unknown> : root
+  const id = asText(item.id)
+  const title = asText(item.title || item.name)
+  const artist = asText(item.artist || item.artistName)
+
+  if (!id || !title || !artist) return null
+
+  return { id, title, artist, duration: asDuration(item.duration) }
+}
+
 export function normalizeNhacCuaTuiSongResponse(value: unknown): NhacCuaTuiSong | null {
   if (!value || typeof value !== 'object') return null
   const root = value as Record<string, unknown>
