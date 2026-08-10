@@ -13,7 +13,7 @@ import { getSmartRecommendedTracks } from '@/lib/smartRecommend'
 import { NextQueueResponse, queueTrackToTrack } from '@/types/queue'
 import { getMusicOfftopicSegments, calculateIntroOffset } from '@/lib/sponsorblock'
 import { playAudioElement, redactAudioSource, shouldUseHtml5Audio, toPersistedTrack } from '@/lib/audioPlayback'
-import { resolveNhacCuaTuiSong, resolveNhacCuaTuiTrack } from '@/lib/nhaccuatuiClient'
+import { getNhacCuaTuiStreamUrl, resolveNhacCuaTuiSong, resolveNhacCuaTuiTrack } from '@/lib/nhaccuatuiClient'
 
 export type RepeatMode = 'off' | 'all' | 'one'
 
@@ -263,6 +263,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // Resolve audio URL for local and external tracks
   const getAudioUrl = useCallback(
     async (track: Track): Promise<string | null> => {
+      const nctStreamUrl = getNhacCuaTuiStreamUrl(track)
+      if (nctStreamUrl) return nctStreamUrl
+
       if (track.source === 'audius' || track.audio_url) {
         return track.audio_url || track.file_path
       }
@@ -741,8 +744,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 artist: song.artist || restoredTrack.artist,
                 cover_url: restoredTrack.cover_url || song.coverUrl || null,
                 duration: song.duration || restoredTrack.duration,
-                audio_url: song.audioUrl,
-                file_path: song.audioUrl,
               } : restoredTrack)
               : Promise.resolve(restoredTrack)
 
@@ -985,8 +986,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           artist: nctSong.artist || track.artist,
           duration: nctSong.duration || track.duration,
           cover_url: track.cover_url || nctSong.coverUrl || null,
-          audio_url: nctSong.audioUrl,
-          file_path: nctSong.audioUrl,
         }
         setCurrentTrack(activeTrack)
         const streamUrl = await getAudioUrl(activeTrack)
