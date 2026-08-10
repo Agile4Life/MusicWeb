@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState, use } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useSession } from 'next-auth/react'
@@ -9,6 +9,7 @@ import { Playlist, Track } from '@/types'
 import { TrackList } from '@/components/track/TrackList'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { UploadForm } from '@/components/upload/UploadForm'
+import { normalizeTitle } from '@/lib/utils'
 import {
   Play,
   Music,
@@ -34,8 +35,18 @@ import { compressAudioIfNeeded } from '@/lib/audioCompressor'
 import { TrackListSkeleton, HeroCardSkeleton } from '@/components/common/SkeletonLoader'
 
 export default function PlaylistDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id: playlistId } = use(params)
+  const [playlistId, setPlaylistId] = useState<string>('')
   const router = useRouter()
+
+  useEffect(() => {
+    let mounted = true
+    params.then((resolved) => {
+      if (mounted) setPlaylistId(resolved.id)
+    })
+    return () => {
+      mounted = false
+    }
+  }, [params])
   const supabase = createClient()
   const { playTrack, isShuffle, toggleShuffle } = usePlayer()
   const { playlists: userPlaylists, createPlaylist } = usePlaylists()
@@ -79,6 +90,21 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
   const [librarySearch, setLibrarySearch] = useState('')
   const [loadingLibrary, setLoadingLibrary] = useState(false)
   const [addingTrackId, setAddingTrackId] = useState<string | null>(null)
+
+  const normalizedLibrarySearch = useMemo(() => normalizeTitle(librarySearch.trim()), [librarySearch])
+  const filteredLibraryTracks = useMemo(() => {
+    if (!normalizedLibrarySearch) return libraryTracks
+    return libraryTracks.filter((track) => {
+      const normalizedTitle = normalizeTitle(track.title || '')
+      const normalizedArtist = normalizeTitle(track.artist || '')
+      const combined = `${normalizedTitle} ${normalizedArtist}`.trim()
+      return (
+        normalizedTitle.includes(normalizedLibrarySearch) ||
+        normalizedArtist.includes(normalizedLibrarySearch) ||
+        combined.includes(normalizedLibrarySearch)
+      )
+    })
+  }, [libraryTracks, normalizedLibrarySearch])
 
   const fetchPlaylistData = async (showSkeleton = true) => {
     if (showSkeleton) setLoading(true)
@@ -705,15 +731,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
               {loadingLibrary ? (
                 <p className="text-xs text-slate-400 text-center py-6">Đang tải danh sách bài hát...</p>
               ) : (
-                libraryTracks
-                  .filter((t) => {
-                    const query = librarySearch.toLowerCase()
-                    return (
-                      t.title.toLowerCase().includes(query) ||
-                      (t.artist && t.artist.toLowerCase().includes(query))
-                    )
-                  })
-                  .map((t) => {
+                filteredLibraryTracks.map((t) => {
                     const inPlaylist = tracks.some((pt) => pt.id === t.id)
 
                     return (

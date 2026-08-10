@@ -63,6 +63,7 @@ function TrackRowComponent({
 }: TrackRowProps) {
   const router = useRouter()
   const [isResolvingAlbum, setIsResolvingAlbum] = useState(false)
+  const [showPlaylistMenu, setShowPlaylistMenu] = useState(false)
   const [liveAlbum, setLiveAlbum] = useState<string | null>(() => {
     if (isRealAlbumName(track.album, track.title)) return track.album || null
     const cached = getCachedResolvedAlbum(track.title, track.artist, track.album)
@@ -561,25 +562,27 @@ function TrackRowComponent({
                   </button>
                 )}
 
-                {userIsAdmin && userPlaylists.length > 0 && onAddToPlaylist && (
-                  <div className="px-3 py-1 text-slate-400 font-semibold text-[10px] uppercase tracking-wider border-b border-white/10">
-                    Thêm vào Playlist
-                  </div>
+                {onAddToPlaylist && userPlaylists.length > 0 && (
+                  <>
+                    <div className="px-3 py-1 text-slate-400 font-semibold text-[10px] uppercase tracking-wider border-b border-white/10">
+                      Thêm vào Playlist
+                    </div>
+                    {userPlaylists.map((pl) => (
+                      <button
+                        key={pl.id}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onAddToPlaylist?.(pl.id, track)
+                          setShowMenu(false)
+                        }}
+                        className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 truncate transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="truncate">{pl.name}</span>
+                      </button>
+                    ))}
+                  </>
                 )}
-                {userIsAdmin && userPlaylists.map((pl) => (
-                  <button
-                    key={pl.id}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onAddToPlaylist?.(pl.id, track)
-                      setShowMenu(false)
-                    }}
-                    className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 truncate transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="truncate">{pl.name}</span>
-                  </button>
-                ))}
 
                 {onDeleteTrack && (
                   <button

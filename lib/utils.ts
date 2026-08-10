@@ -1,6 +1,8 @@
 import { Track } from '@/types'
 import { normalizeTitle, isOriginalTrackOnly } from './youtube'
 
+export { normalizeTitle }
+
 function extractDriveId(path?: string): string | null {
   if (!path) return null
   const m = path.match(/\/file\/d\/([a-zA-Z0-9_-]{18,45})/) || path.match(/id=([a-zA-Z0-9_-]{18,45})/)
