@@ -73,7 +73,7 @@ describe('NhacCuaTui audio stream route', () => {
     expect(response.headers.get('Content-Type')).toBe('audio/mpeg')
     expect(response.headers.get('Content-Range')).toBe('bytes 0-2/10')
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*')
-    expect(response.headers.get('Cache-Control')).toBe('private, no-store')
+    expect(response.headers.get('Cache-Control')).toContain('max-age')
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]))
     const streamInit = fetchMock.mock.calls[1]?.[1] as RequestInit
     expect(new Headers(streamInit?.headers).get('Range')).toBe('bytes=0-2')

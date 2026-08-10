@@ -91,7 +91,11 @@ export async function GET(request: Request): Promise<Response> {
       return NextResponse.json({ error: 'Song stream unavailable' }, { status: 502 })
     }
 
-    const upstreamHeaders = new Headers({ Accept: 'audio/mpeg' })
+    const upstreamHeaders = new Headers({
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      Accept: 'audio/mpeg,audio/*;q=0.9,*/*;q=0.8',
+    })
     const range = request.headers.get('range')
     if (range) upstreamHeaders.set('Range', range)
 
@@ -107,7 +111,7 @@ export async function GET(request: Request): Promise<Response> {
     }
 
     const headers = new Headers()
-    headers.set('Cache-Control', 'private, no-store')
+    headers.set('Cache-Control', 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=600')
     applyCorsHeaders(headers)
 
     const contentType = upstream.headers.get('content-type')
