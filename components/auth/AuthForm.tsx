@@ -204,6 +204,15 @@ export function AuthForm({ mode }: AuthFormProps) {
 
         if (signUpError) throw signUpError
 
+        // Approve the email server-side so Google login works on any browser/device
+        if (data?.user?.email) {
+          fetch('/api/approve-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: data.user.email }),
+          }).catch(() => {})
+        }
+
         if (data.session) {
           setSuccessMsg('Đăng ký thành công! Đang chuyển hướng...')
           setTimeout(() => {

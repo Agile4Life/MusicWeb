@@ -135,7 +135,9 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
     }
   }, [])
 
-  // 1. Fetch lyrics when currentTrack changes
+  // 1. Fetch lyrics when currentTrack's lyrics-relevant fields change.
+  // Key on fields (not the object reference): UI-only updates like toggling
+  // favorite recreate the track object and must NOT reload lyrics.
   useEffect(() => {
     if (!currentTrack) {
       setLyricsData(null)
@@ -157,7 +159,16 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
       currentTrack.youtube_id,
       currentTrack.nhaccuatui_id,
     )
-  }, [currentTrack, loadLyricsForTrack])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    currentTrack?.id,
+    currentTrack?.title,
+    currentTrack?.artist,
+    currentTrack?.album,
+    currentTrack?.duration,
+    currentTrack?.youtube_id,
+    currentTrack?.nhaccuatui_id,
+  ])
 
   // 2. Track playback time & update active lyric line
   useEffect(() => {

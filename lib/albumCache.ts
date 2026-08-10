@@ -23,6 +23,7 @@ const GENERIC_PLACEHOLDERS = new Set([
   'apple music top hits',
   'itunes global',
   'spotify album',
+  'spotify import',
   'unknown album',
   'single',
   'ep',

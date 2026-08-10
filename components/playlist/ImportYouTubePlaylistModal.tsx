@@ -256,7 +256,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
                 user_id: userId,
                 title: resolvedTrack.title,
                 artist: resolvedTrack.artist,
-                album: resolvedTrack.album || 'YouTube Music',
+                album: resolvedTrack.source === 'nhaccuatui' ? null : resolvedTrack.album || 'YouTube Music',
                 duration: resolvedTrack.duration || 0,
                 file_path: resolvedTrack.file_path,
                 cover_url: resolvedTrack.cover_url,

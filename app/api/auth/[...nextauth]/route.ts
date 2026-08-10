@@ -131,9 +131,42 @@ export const authOptions: NextAuthOptions = {
         }
 
         console.log('[AUTH SIGNIN] Final allowed list (JSON + cookies):', JSON.stringify(allowedList))
-        console.log('[AUTH SIGNIN] Checking if email is allowed:', cleanEmail, '→', allowedList.includes(cleanEmail))
 
-        const isAllowed = allowedList.includes(cleanEmail)
+        // 3. Server-side persistent approval: check Supabase `roles` table (written by
+        //    the passkey & register flows). This makes approval work across browsers/devices,
+        //    not just the browser that originally entered the passkey.
+        let isAllowed = allowedList.includes(cleanEmail)
+        if (!isAllowed) {
+          try {
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+            const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+            if (supabaseUrl && adminKey) {
+              const rolesRes = await fetch(
+                `https://${supabaseUrl.replace('https://', '')}/rest/v1/roles?email=eq.${encodeURIComponent(cleanEmail)}&select=roleApproved`,
+                {
+                  headers: {
+                    apikey: adminKey,
+                    Authorization: `Bearer ${adminKey}`,
+                  },
+                  cache: 'no-store',
+                }
+              )
+              if (rolesRes.ok) {
+                const rows = await rolesRes.json()
+                if (Array.isArray(rows) && rows.length > 0 && rows[0].roleApproved === true) {
+                  console.log('[AUTH SIGNIN] ✅ Email approved via Supabase roles table:', cleanEmail)
+                  isAllowed = true
+                }
+              } else {
+                console.warn('[AUTH SIGNIN] Supabase roles lookup status:', rolesRes.status)
+              }
+            }
+          } catch (dbErr) {
+            console.warn('[AUTH SIGNIN] Could not check Supabase roles table:', dbErr)
+          }
+        }
+
+        console.log('[AUTH SIGNIN] Checking if email is allowed:', cleanEmail, '→', isAllowed)
 
         if (!isAllowed) {
           console.warn(`[AUTH GUARD] ❌ Access DENIED for unapproved Google account: ${cleanEmail}`)

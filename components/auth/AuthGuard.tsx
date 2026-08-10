@@ -126,6 +126,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
             <span>Đăng xuất để Đăng Ký Passkey</span>
           </button>
 
+          <button
+            onClick={handleSignOut}
+            className="w-full bg-white/5 hover:bg-white/10 text-slate-200 font-bold py-3 rounded-full transition-all flex items-center justify-center gap-2 text-xs mt-2"
+          >
+            <span>Mở lại form đăng nhập</span>
+          </button>
+
         </div>
       </div>
     )

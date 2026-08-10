@@ -923,6 +923,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return fallback
     }
 
+    // Keep the queue row in sync with the resolved track so PlayerBar, QueueDrawer
+    // and track rows all show the title/artist/cover of the website actually playing.
+    const syncQueueEntry = (resolvedTrack: Track) => {
+      if (nextIndex >= 0 && nextIndex < nextQueue.length) {
+        const synced = [...nextQueue]
+        synced[nextIndex] = { ...synced[nextIndex], ...resolvedTrack }
+        nextQueue = synced
+        setQueue(synced)
+      }
+    }
+
     // ⚡ 2. UPDATE UI INSTANTLY (< 5ms)
     setCurrentTrack(track)
     setIsPlaying(false)
@@ -1041,9 +1052,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           title: nctSong.title || track.title,
           artist: nctSong.artist || track.artist,
           duration: nctSong.duration || track.duration,
-          cover_url: track.cover_url || nctSong.coverUrl || null,
+          cover_url: nctSong.coverUrl || track.cover_url || null,
         }
         setCurrentTrack(activeTrack)
+        syncQueueEntry(activeTrack)
         const streamUrl = await getAudioUrl(activeTrack)
         if (requestId !== playRequestRef.current) return
         if (ytStuckTimerRef.current) {
@@ -1093,6 +1105,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           cover_url: track.cover_url || (driveTrack as any).cover_url || null,
         }
         setCurrentTrack(activeTrack)
+        syncQueueEntry(activeTrack)
         const streamUrl = await getAudioUrl(activeTrack)
         if (requestId !== playRequestRef.current) return
         if (audioRef.current && streamUrl) {
@@ -1162,6 +1175,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             }
             if (requestId === playRequestRef.current) {
               setCurrentTrack(activeTrack)
+              syncQueueEntry(activeTrack)
             }
           }
         }
