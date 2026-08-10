@@ -15,7 +15,8 @@ export interface NhacCuaTuiSong {
   coverUrl?: string | null
   duration?: number | null
   lyric?: string | null
-  audioUrl: string
+  audioUrl?: string
+  streamUrl?: string
 }
 
 export interface NhacCuaTuiMatchTarget {
@@ -180,6 +181,28 @@ export function normalizeNhacCuaTuiSongResponse(value: unknown): NhacCuaTuiSong 
     duration: asDuration(item.duration),
     lyric: normalizeNhacCuaTuiLyrics(item.lyric || item.lyrics || item.lyricText),
     audioUrl,
+  }
+}
+
+export function normalizePublicNhacCuaTuiSongResponse(value: unknown): NhacCuaTuiSong | null {
+  if (!value || typeof value !== 'object') return null
+  const root = value as Record<string, unknown>
+  const item = root.song && typeof root.song === 'object' ? root.song as Record<string, unknown> : root
+  const id = asText(item.id)
+  const title = asText(item.title || item.name)
+  const artist = asText(item.artist || item.artistName)
+  const streamUrl = asText(item.streamUrl || item.stream_url)
+
+  if (!id || !title || !artist || !streamUrl) return null
+
+  return {
+    id,
+    title,
+    artist,
+    coverUrl: asText(item.coverUrl || item.cover_url || item.thumbnail) || null,
+    duration: asDuration(item.duration),
+    lyric: normalizeNhacCuaTuiLyrics(item.lyric || item.lyrics || item.lyricText),
+    streamUrl,
   }
 }
 

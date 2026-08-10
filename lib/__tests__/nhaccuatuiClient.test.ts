@@ -1,8 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { resolveNhacCuaTuiAudio, resolveNhacCuaTuiSong, resolveNhacCuaTuiTrack, searchNhacCuaTui } from '../nhaccuatuiClient'
+import { getNhacCuaTuiStreamUrl, resolveNhacCuaTuiAudio, resolveNhacCuaTuiSong, resolveNhacCuaTuiTrack, searchNhacCuaTui } from '../nhaccuatuiClient'
 
 describe('NhacCuaTui browser client', () => {
   afterEach(() => vi.restoreAllMocks())
+
+  it('builds an encoded same-origin stream URL for an NCT track', () => {
+    expect(getNhacCuaTuiStreamUrl({ source: 'nhaccuatui', nhaccuatui_id: 'id/with space' }))
+      .toBe('/api/nhaccuatui/stream?id=id%2Fwith%20space')
+    expect(getNhacCuaTuiStreamUrl({ source: 'youtube', nhaccuatui_id: 'nct-1' })).toBeNull()
+  })
 
   it('searches through the internal metadata route', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
@@ -28,14 +34,14 @@ describe('NhacCuaTui browser client', () => {
           title: 'Xương Rồng',
           artist: 'Dangrangto',
           lyric: '[00:01.00]line one',
-          audioUrl: 'https://stream.nct.vn/song.mp3?expires=123',
+          streamUrl: '/api/nhaccuatui/stream?id=nct-1',
         },
       }), { status: 200 }),
     )
 
     await expect(resolveNhacCuaTuiSong('nct-1')).resolves.toMatchObject({
       id: 'nct-1',
-      audioUrl: 'https://stream.nct.vn/song.mp3?expires=123',
+      streamUrl: '/api/nhaccuatui/stream?id=nct-1',
       lyric: '[00:01.00]line one',
     })
   })
@@ -60,7 +66,7 @@ describe('NhacCuaTui browser client', () => {
           title: 'Xương Rồng',
           artist: 'Dangrangto',
           lyric: '[00:01.00]line one',
-          audioUrl: 'https://stream.nct.vn/song.mp3?expires=123',
+          streamUrl: '/api/nhaccuatui/stream?id=nct-1',
         },
       }), { status: 200 }))
 
@@ -78,7 +84,7 @@ describe('NhacCuaTui browser client', () => {
           id: 'nct-1',
           title: 'XÆ°Æ¡ng Rá»“ng',
           artist: 'Dangrangto',
-          audioUrl: 'https://stream.nct.vn/song.mp3?expires=123',
+          streamUrl: '/api/nhaccuatui/stream?id=nct-1',
         },
       }), { status: 200 }),
     )

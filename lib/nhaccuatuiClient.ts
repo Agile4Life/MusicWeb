@@ -1,13 +1,19 @@
 import {
   findBestNhacCuaTuiMatch,
-  isValidNhacCuaTuiAudioUrl,
+  normalizePublicNhacCuaTuiSongResponse,
   normalizeNhacCuaTuiSearchResponse,
-  normalizeNhacCuaTuiSongResponse,
   type NhacCuaTuiSearchItem,
   type NhacCuaTuiMatchTarget,
   type NhacCuaTuiSong,
 } from './nhaccuatui'
 import type { Track } from '@/types'
+
+export function getNhacCuaTuiStreamUrl(
+  track: Pick<Track, 'source' | 'nhaccuatui_id'>,
+): string | null {
+  if (track.source !== 'nhaccuatui' || !track.nhaccuatui_id) return null
+  return `/api/nhaccuatui/stream?id=${encodeURIComponent(track.nhaccuatui_id)}`
+}
 
 async function readJson(response: Response): Promise<unknown | null> {
   if (!response.ok) return null
@@ -49,8 +55,7 @@ export async function resolveNhacCuaTuiSong(id: string): Promise<NhacCuaTuiSong 
     if (!payload || typeof payload !== 'object') return null
 
     const song = (payload as { song?: unknown }).song
-    const normalized = normalizeNhacCuaTuiSongResponse(song || payload)
-    return normalized && isValidNhacCuaTuiAudioUrl(normalized.audioUrl) ? normalized : null
+    return normalizePublicNhacCuaTuiSongResponse(song || payload)
   } catch {
     return null
   }

@@ -29,7 +29,14 @@ export async function GET(
     const song = normalizeNhacCuaTuiSongResponse(payload)
     if (!song) return NextResponse.json({ error: 'Song stream unavailable' }, { status: 502 })
 
-    return NextResponse.json({ song }, { headers: { 'Cache-Control': 'no-store' } })
+    const { audioUrl: _signedAudioUrl, ...publicSong } = song
+
+    return NextResponse.json({
+      song: {
+        ...publicSong,
+        streamUrl: `/api/nhaccuatui/stream?id=${encodeURIComponent(song.id)}`,
+      },
+    }, { headers: { 'Cache-Control': 'no-store' } })
   } catch {
     return NextResponse.json({ error: 'Song stream unavailable' }, { status: 502 })
   }
