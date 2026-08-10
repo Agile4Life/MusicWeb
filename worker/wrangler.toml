@@ -1,0 +1,31 @@
+# Cloudflare Worker — MusicStream Cache
+# Deploy: npx wrangler deploy  (from this folder)
+name = "music-stream-cache"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+
+# Serve on the default *.workers.dev subdomain
+workers_dev = true
+
+# ---- Tier-2 cache: permanent full audio files ----
+[[r2_buckets]]
+binding = "AUDIO_BUCKET"
+bucket_name = "music-audio-cache"
+
+# ---- Short-lived stream URL cache (signed NCT tokens expire after a few hours) ----
+# Create first with: npx wrangler kv namespace create STREAM_URL_KV
+# Then paste the generated "id" below.
+[[kv_namespaces]]
+binding = "STREAM_URL_KV"
+id = "32507b30619d40f7be17434056667486"
+
+[vars]
+# NCT music API (same base used by app/api/nhaccuatui/stream)
+NCT_API_BASE_URL = "https://music-api.vanhuy2004h.io.vn"
+
+# Optional fallback backend that resolves an id to a stream URL (e.g. YouTube).
+# Contract: GET <MATCHING_SERVICE_URL>?id=<id>  ->  JSON { "url": "https://..." }
+# Point this at the deployed Next.js app's endpoint:
+#   MATCHING_SERVICE_URL = "https://<musicweb-xxx>.vercel.app/api/youtube/stream-url"
+# Leave commented out to disable the YouTube fallback tier.
+MATCHING_SERVICE_URL = "https://phongtctmusic.vercel.app/api/youtube/stream-url"

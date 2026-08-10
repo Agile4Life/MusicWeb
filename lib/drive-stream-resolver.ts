@@ -3,6 +3,26 @@ import { createClient } from '@supabase/supabase-js'
 // ⚡ Cache TTL cho CDN URL đã xác minh (45 phút — Google CDN URLs expire in ~1h)
 export const CDN_CACHE_TTL_MS = 45 * 60 * 1000
 
+// In-memory CDN URL cache — checked FIRST so repeated plays / range requests skip
+// the Supabase queries AND the HEAD validation entirely (both live on the critical path).
+const memoryCdnCache = new Map<string, { url: string; contentType: string; expiresAt: number }>()
+
+export function getMemoryCachedCdnUrl(fileId: string): { url: string; contentType: string } | null {
+  const entry = memoryCdnCache.get(fileId)
+  if (entry && Date.now() < entry.expiresAt) {
+    return { url: entry.url, contentType: entry.contentType }
+  }
+  return null
+}
+
+export function setMemoryCachedCdnUrl(fileId: string, url: string, contentType: string) {
+  memoryCdnCache.set(fileId, { url, contentType, expiresAt: Date.now() + CDN_CACHE_TTL_MS })
+}
+
+export function clearMemoryCachedCdnUrl(fileId: string) {
+  memoryCdnCache.delete(fileId)
+}
+
 // Service-role client để đọc/ghi cache mà không bị chặn bởi RLS
 export function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -48,9 +68,10 @@ export async function getCachedCdnUrl(
     const isFresh = Date.now() - new Date(data.drive_stream_cached_at).getTime() < CDN_CACHE_TTL_MS
     if (!isFresh) return null
 
-    // ⚡ Fast HEAD validation: Verify cached URL is still alive (< 1.5s timeout)
+    // ⚡ Validate cached URL in the background (non-blocking): the play path must not
+    // wait for a HEAD round-trip. If the URL turns out dead, the stream route re-resolves.
     try {
-      const checkRes = await fetch(data.drive_stream_url, {
+      fetch(data.drive_stream_url, {
         method: 'HEAD',
         headers: {
           'User-Agent':
@@ -58,18 +79,21 @@ export async function getCachedCdnUrl(
         },
         signal: AbortSignal.timeout(1500),
       })
-      const ct = checkRes.headers.get('content-type') || ''
-      if ((checkRes.ok || checkRes.status === 206) && !ct.includes('text/html')) {
-        return {
-          url: data.drive_stream_url,
-          contentType: data.drive_stream_content_type || ct || 'audio/mpeg',
-        }
-      }
-    } catch {
-      // Cached CDN URL is dead or timed out — fallback to re-probing fresh CDN URL
-    }
+        .then((checkRes) => {
+          const ct = checkRes.headers.get('content-type') || ''
+          if (!(checkRes.ok || checkRes.status === 206) || ct.includes('text/html')) {
+            memoryCdnCache.delete(fileId)
+          }
+        })
+        .catch(() => {
+          memoryCdnCache.delete(fileId)
+        })
+    } catch {}
 
-    return null
+    return {
+      url: data.drive_stream_url,
+      contentType: data.drive_stream_content_type || 'audio/mpeg',
+    }
   } catch (err) {
     console.warn('getCachedCdnUrl error (continuing to probe):', err)
     return null
@@ -168,10 +192,21 @@ export async function resolveDriveStreamUrl(
     }
   }
 
-  // ⚡ 1. Check Supabase DB cache first
+  // ⚡ 0. In-memory cache first — zero-latency repeat plays & range requests
+  const memoryHit = getMemoryCachedCdnUrl(fileId)
+  if (memoryHit && memoryHit.url) {
+    return {
+      url: memoryHit.url,
+      contentType: memoryHit.contentType || 'audio/mpeg',
+      fromCache: true,
+    }
+  }
+
+  // ⚡ 1. Check Supabase DB cache next
   if (supabase) {
     const cachedCdn = await getCachedCdnUrl(fileId, supabase)
     if (cachedCdn && cachedCdn.url) {
+      setMemoryCachedCdnUrl(fileId, cachedCdn.url, cachedCdn.contentType || 'audio/mpeg')
       return {
         url: cachedCdn.url,
         contentType: cachedCdn.contentType || 'audio/mpeg',
@@ -196,6 +231,7 @@ export async function resolveDriveStreamUrl(
       headers: { 'User-Agent': UA_HEADER },
       cache: 'no-store',
       redirect: 'follow',
+      signal: AbortSignal.timeout(4000),
     }).then((res) => {
       const ct = res.headers.get('content-type') || ''
       if ((res.ok || res.status === 206) && !ct.includes('text/html')) {
@@ -212,6 +248,7 @@ export async function resolveDriveStreamUrl(
         fetchedContentType: winner.contentType,
         titleParam: filenameHint,
       })
+      setMemoryCachedCdnUrl(fileId, winner.cdnUrl, finalCt)
       if (supabase) {
         saveCdnUrl(fileId, winner.cdnUrl, finalCt, supabase).catch(() => {})
       }
@@ -230,7 +267,12 @@ export async function resolveDriveStreamUrl(
     const fallbackUrl = `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`
     const headers: Record<string, string> = { 'User-Agent': UA_HEADER }
 
-    const testRes = await fetch(fallbackUrl, { headers, cache: 'no-store', redirect: 'follow' })
+    const testRes = await fetch(fallbackUrl, {
+      headers,
+      cache: 'no-store',
+      redirect: 'follow',
+      signal: AbortSignal.timeout(6000),
+    })
     const testCt = testRes.headers.get('content-type') || ''
 
     if (testCt.includes('text/html')) {
@@ -258,7 +300,12 @@ export async function resolveDriveStreamUrl(
         ...headers,
         ...(cookieHeader ? { Cookie: cookieHeader } : {}),
       }
-      const res2 = await fetch(confirmUrl, { headers: fetchHeaders, cache: 'no-store', redirect: 'follow' })
+      const res2 = await fetch(confirmUrl, {
+        headers: fetchHeaders,
+        cache: 'no-store',
+        redirect: 'follow',
+        signal: AbortSignal.timeout(6000),
+      })
       const ct2 = res2.headers.get('content-type') || ''
 
       if (!ct2.includes('text/html') && (res2.ok || res2.status === 206)) {
@@ -271,6 +318,7 @@ export async function resolveDriveStreamUrl(
         if (supabase) {
           saveCdnUrl(fileId, confirmUrl, finalCt, supabase).catch(() => {})
         }
+        setMemoryCachedCdnUrl(fileId, confirmUrl, finalCt)
         return {
           url: confirmUrl,
           contentType: finalCt,
@@ -286,6 +334,7 @@ export async function resolveDriveStreamUrl(
       if (supabase) {
         saveCdnUrl(fileId, finalCdnUrl, finalCt, supabase).catch(() => {})
       }
+      setMemoryCachedCdnUrl(fileId, finalCdnUrl, finalCt)
       return {
         url: finalCdnUrl,
         contentType: finalCt,

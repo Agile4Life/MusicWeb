@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic'
 
 const execFileAsync = promisify(execFile)
 
-interface ResolvedYouTubeStream {
+export interface ResolvedYouTubeStream {
   url: string
   mimeType: string
 }
@@ -24,7 +24,7 @@ interface ResolvedYouTubeStream {
 const streamUrlCache = new Map<string, { url: string; mimeType: string; expiresAt: number }>()
 const STREAM_CACHE_TTL = 2.5 * 60 * 60 * 1000 // googlevideo URLs expire after ~6h
 
-async function resolveYouTubeAudioStreamCached(videoId: string): Promise<ResolvedYouTubeStream | null> {
+export async function resolveYouTubeAudioStreamCached(videoId: string): Promise<ResolvedYouTubeStream | null> {
   const cached = streamUrlCache.get(videoId)
   if (cached && Date.now() < cached.expiresAt) {
     return { url: cached.url, mimeType: cached.mimeType }

@@ -394,6 +394,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           getAudioUrlCached(nextTr).catch(() => {})
         }
       }
+
+      // Also warm the CURRENT track's URL (e.g. YouTube stream on iOS runs yt-dlp server-side
+      // in the background so the very first play doesn't wait for extraction).
+      const currentTr = queue[currentIndex]
+      if (currentTr && currentTr.id && !audioUrlCacheRef.current.has(currentTr.id)) {
+        getAudioUrlCached(currentTr).catch(() => {})
+      }
     }
 
     // Pre-resolve metadata/stream for next tracks to guarantee smooth background playback on mobile
@@ -1030,6 +1037,29 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       (!track.youtube_id && (track.spotify_id || track.itunes_id || track.nhaccuatui_id))
     ) && !track.youtube_id
 
+    // ⚡ FAST-START: for catalog tracks with an immediate preview/direct URL, start audio
+    // NOW (same call stack as the user gesture) and let the full-length resolution below
+    // upgrade the source to the real stream when it's ready.
+    if (isPreviewAudio && audioRef.current && requestId === playRequestRef.current) {
+      const immediateUrl = (track.audio_url && track.audio_url.startsWith('http'))
+        ? track.audio_url
+        : (track.file_path && track.file_path.startsWith('http') ? track.file_path : null)
+      if (immediateUrl) {
+        try {
+          audioRef.current.src = immediateUrl
+          audioRef.current.volume = volumeRef.current
+          audioRef.current.play()
+            .then(() => {
+              if (requestId === playRequestRef.current) {
+                setIsBuffering(false)
+                setIsPlaying(true)
+              }
+            })
+            .catch(() => {})
+        } catch {}
+      }
+    }
+
     // ⚡ Fast path: reuse a previously resolved catalog match for this track.id
     const cachedResolution = shouldResolveExternalCatalog
       ? trackResolutionCacheRef.current.get(track.id)
@@ -1048,8 +1078,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const cleanQueryTitle = track.title.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').trim()
       const queryStr = `${cleanQueryTitle} ${track.artist || ''}`
 
-      // Launch both lookups in parallel — saves 1-3 seconds vs sequential
-      const [driveResult, nctResult, ytResult] = await Promise.allSettled([
+      // Launch YouTube search early (in-flight in parallel), but DON'T let it gate
+      // playback — it's awaited last, only for the fallback path.
+      const ytPromise = fetchUnifiedSearch(queryStr, 'youtube')
+
+      // Launch both fast lookups in parallel — saves 1-3 seconds vs sequential
+      const [driveResult, nctResult] = await Promise.allSettled([
         // Drive lookup
         (async () => {
           if (!cleanTitle) return null
@@ -1059,7 +1093,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               .select('*')
               .or(`title.ilike.%${cleanTitle}%,artist.ilike.%${cleanTitle}%`)
               .limit(10)
-
             if (localMatches && localMatches.length > 0) {
               const driveCandidates = localMatches.filter((lt: any) => {
                 if (!lt.file_path || isPreviewUrl(lt.file_path)) return false
@@ -1089,8 +1122,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         })(),
         // NhacCuaTui metadata + fresh signed stream resolution
         resolveNhacCuaTuiTrack(track),
-        // YouTube search fallback
-        fetchUnifiedSearch(queryStr, 'youtube'),
       ])
 
       // Prefer NhacCuaTui for external catalog tracks so Safari can use the
@@ -1203,6 +1234,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (requestId !== playRequestRef.current) return
+
+      // YouTube search fallback — awaited last so its latency never delays a
+      // successful NhacCuaTui / Drive resolution above.
+      const ytResult = await ytPromise.then(
+        (value) => ({ status: 'fulfilled' as const, value }),
+        (reason) => ({ status: 'rejected' as const, reason })
+      )
       const ytData = ytResult.status === 'fulfilled' ? ytResult.value : null
       if (ytData) {
         const ytList: Track[] = ytData.youtube || []

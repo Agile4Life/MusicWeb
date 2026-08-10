@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { resolveDriveStreamUrl } from '@/lib/drive-stream-resolver'
+import { resolveDriveStreamUrl, clearMemoryCachedCdnUrl } from '@/lib/drive-stream-resolver'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,10 +32,22 @@ export async function GET(req: NextRequest) {
       }
       if (range) proxyHeaders['Range'] = range
 
-      const streamRes = await fetch(resolved.url, {
+      let streamRes = await fetch(resolved.url, {
         headers: proxyHeaders,
         cache: 'no-store',
       })
+
+      // Cached CDN URL may have died upstream — invalidate caches and re-resolve once
+      if (!streamRes.ok) {
+        clearMemoryCachedCdnUrl(fileId)
+        const reResolved = await resolveDriveStreamUrl(fileId, undefined, titleParam)
+        if (reResolved && reResolved.url) {
+          streamRes = await fetch(reResolved.url, {
+            headers: proxyHeaders,
+            cache: 'no-store',
+          })
+        }
+      }
 
       const resHeaders = new Headers()
       resHeaders.set('Content-Type', resolved.contentType || streamRes.headers.get('content-type') || 'audio/mpeg')
