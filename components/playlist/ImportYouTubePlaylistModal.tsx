@@ -29,7 +29,6 @@ import {
   YouTubePlaylistMeta,
 } from '@/lib/youtube'
 import { Track } from '@/types'
-import { resolvePlaylistTrackWithNct } from '@/lib/playlistNct'
 
 interface ImportYouTubePlaylistModalProps {
   isOpen: boolean
@@ -213,56 +212,45 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
 
         setCreatedPlaylistId(targetPlaylistId)
 
-        // Insert tracks into DB and playlist_tracks
+        // Insert tracks into DB and playlist_tracks (kept sourced from YouTube Music)
         let successCount = 0
         for (let i = 0; i < tracksToImport.length; i++) {
           const track = tracksToImport[i]
-          const resolvedTrack = await resolvePlaylistTrackWithNct(track)
           let dbTrackId: string | null = null
 
-          // 1. Prefer stable NCT identity, then use fallback provider identity/path.
-          if (resolvedTrack.nhaccuatui_id) {
+          // 1. Look up existing track in DB by YouTube identity.
+          if (track.youtube_id) {
             const { data } = await supabase
               .from('tracks')
               .select('id')
-              .eq('nhaccuatui_id', resolvedTrack.nhaccuatui_id)
+              .eq('youtube_id', track.youtube_id)
               .limit(1)
             if (data && data.length > 0) dbTrackId = data[0].id
           }
 
-          if (!dbTrackId && resolvedTrack.youtube_id) {
+          if (!dbTrackId && track.file_path) {
             const { data } = await supabase
               .from('tracks')
               .select('id')
-              .eq('youtube_id', resolvedTrack.youtube_id)
+              .eq('file_path', track.file_path)
               .limit(1)
             if (data && data.length > 0) dbTrackId = data[0].id
           }
 
-          if (!dbTrackId && resolvedTrack.file_path) {
-            const { data } = await supabase
-              .from('tracks')
-              .select('id')
-              .eq('file_path', resolvedTrack.file_path)
-              .limit(1)
-            if (data && data.length > 0) dbTrackId = data[0].id
-          }
-
-          // 2. If track does not exist in DB yet, insert the NCT-first record.
+          // 2. If track does not exist in DB yet, insert the YouTube record.
           if (!dbTrackId) {
             const { data: insertedTrack, error: insertErr } = await supabase
               .from('tracks')
               .insert({
                 user_id: userId,
-                title: resolvedTrack.title,
-                artist: resolvedTrack.artist,
-                album: resolvedTrack.source === 'nhaccuatui' ? null : resolvedTrack.album || 'YouTube Music',
-                duration: resolvedTrack.duration || 0,
-                file_path: resolvedTrack.file_path,
-                cover_url: resolvedTrack.cover_url,
-                source: resolvedTrack.source || null,
-                youtube_id: resolvedTrack.nhaccuatui_id ? null : resolvedTrack.youtube_id || null,
-                nhaccuatui_id: resolvedTrack.nhaccuatui_id || null,
+                title: track.title,
+                artist: track.artist,
+                album: track.album || 'YouTube Music',
+                duration: track.duration || 0,
+                file_path: track.file_path,
+                cover_url: track.cover_url,
+                source: 'youtube',
+                youtube_id: track.youtube_id || null,
               })
               .select('id')
               .single()
@@ -271,11 +259,11 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
               dbTrackId = insertedTrack.id
             } else if (insertErr) {
               console.warn('Track insert warning, attempting re-fetch:', insertErr)
-              if (resolvedTrack.youtube_id) {
+              if (track.youtube_id) {
                 const { data: refetched } = await supabase
                   .from('tracks')
                   .select('id')
-                  .eq('youtube_id', resolvedTrack.youtube_id)
+                  .eq('youtube_id', track.youtube_id)
                   .limit(1)
                 if (refetched && refetched.length > 0) dbTrackId = refetched[0].id
               }
