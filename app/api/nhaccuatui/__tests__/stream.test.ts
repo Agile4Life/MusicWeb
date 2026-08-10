@@ -1,10 +1,41 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { GET } from '../stream/route'
+import { GET, HEAD, OPTIONS } from '../stream/route'
 
 describe('NhacCuaTui audio stream route', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     delete process.env.NCT_API_BASE_URL
+  })
+
+  it('handles OPTIONS CORS preflight requests', async () => {
+    const response = await OPTIONS()
+    expect(response.status).toBe(204)
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*')
+    expect(response.headers.get('Access-Control-Allow-Methods')).toBe('GET, HEAD, OPTIONS')
+  })
+
+  it('handles HEAD requests for song metadata inspection', async () => {
+    process.env.NCT_API_BASE_URL = 'https://nct-api.test'
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        id: 'nct-1',
+        title: 'Xương Rồng',
+        artist: 'Dangrangto',
+        audioUrl: 'https://stream.nct.vn/song.mp3?expires=secret',
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(null, {
+        status: 200,
+        headers: {
+          'Content-Type': 'audio/mpeg',
+          'Content-Length': '1024',
+        },
+      }))
+
+    const response = await HEAD(new Request('https://music.test/api/nhaccuatui/stream?id=nct-1'))
+    expect(response.status).toBe(200)
+    expect(response.headers.get('Content-Type')).toBe('audio/mpeg')
+    expect(response.headers.get('Content-Length')).toBe('1024')
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*')
   })
 
   it('returns 400 for a missing song id', async () => {
@@ -41,6 +72,7 @@ describe('NhacCuaTui audio stream route', () => {
     expect(response.status).toBe(206)
     expect(response.headers.get('Content-Type')).toBe('audio/mpeg')
     expect(response.headers.get('Content-Range')).toBe('bytes 0-2/10')
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*')
     expect(response.headers.get('Cache-Control')).toBe('private, no-store')
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]))
     const streamInit = fetchMock.mock.calls[1]?.[1] as RequestInit

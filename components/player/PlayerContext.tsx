@@ -989,17 +989,27 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
         setCurrentTrack(activeTrack)
         const streamUrl = await getAudioUrl(activeTrack)
+        if (requestId !== playRequestRef.current) return
         if (audioRef.current && streamUrl) {
           audioRef.current.src = streamUrl
           audioRef.current.currentTime = initialTime
           audioRef.current.volume = volumeRef.current
           try {
             await playAudioElement(audioRef.current)
-            if (requestId !== playRequestRef.current) return
+            if (requestId !== playRequestRef.current) {
+              audioRef.current.pause()
+              return
+            }
             setIsPlaying(true)
             return
           } catch (err) {
             setIsPlaying(false)
+            if (audioRef.current) {
+              try {
+                audioRef.current.pause()
+                audioRef.current.removeAttribute('src')
+              } catch {}
+            }
             console.warn('Resolved NhacCuaTui audio playback failed:', err)
           }
         }
@@ -1017,23 +1027,39 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
         setCurrentTrack(activeTrack)
         const streamUrl = await getAudioUrl(activeTrack)
+        if (requestId !== playRequestRef.current) return
         if (audioRef.current && streamUrl) {
           audioRef.current.src = streamUrl
           audioRef.current.currentTime = initialTime
           audioRef.current.volume = volumeRef.current
           try {
             await playAudioElement(audioRef.current)
-            if (requestId !== playRequestRef.current) return
+            if (requestId !== playRequestRef.current) {
+              audioRef.current.pause()
+              return
+            }
             setIsPlaying(true)
             return
           } catch (err) {
             setIsPlaying(false)
+            if (audioRef.current) {
+              try {
+                audioRef.current.pause()
+                audioRef.current.removeAttribute('src')
+              } catch {}
+            }
             console.warn('Resolved Drive audio playback failed:', err)
           }
         }
       }
 
-      // Fall back to YouTube stream
+      // Fall back to YouTube stream — ensure HTML5 audio is paused first so it never plays simultaneously
+      if (audioRef.current) {
+        try {
+          audioRef.current.pause()
+          audioRef.current.removeAttribute('src')
+        } catch {}
+      }
       if (ytPlayerRef.current) {
         try {
           if (ytPlayerRef.current.stopVideo) ytPlayerRef.current.stopVideo()
@@ -1094,7 +1120,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       try {
         await playAudioElement(audio)
-        if (requestId !== playRequestRef.current) return
+        if (requestId !== playRequestRef.current) {
+          audio.pause()
+          return
+        }
         setIsPlaying(true)
         return
       } catch (err: any) {
@@ -1102,6 +1131,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           return // Ignore play interruption silently
         }
         setIsPlaying(false)
+        if (audioRef.current) {
+          try {
+            audioRef.current.pause()
+            audioRef.current.removeAttribute('src')
+          } catch {}
+        }
         console.warn('HTML5 audio stream playback info:', err)
       }
     }
