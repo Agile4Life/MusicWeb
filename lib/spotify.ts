@@ -227,6 +227,58 @@ export async function fetchNewReleases(country = 'US', limit = 24): Promise<Spot
   return getFallbackCachedAlbums()
 }
 
+/**
+ * Fetch new releases directly from the Spotify API (no Deezer shortcut).
+ * Used for multi-platform trending album merging.
+ */
+export async function fetchSpotifyNewReleases(country = 'US', limit = 30): Promise<SpotifyAlbumItem[]> {
+  try {
+    const token = await getSpotifyAccessToken()
+    if (!token) return []
+    const safeLimit = Math.min(limit, 50)
+
+    // Spotify Search API first (reliable: browse/new-releases can 403 for some accounts)
+    try {
+      const res = await fetch(
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent('year:2024-2026')}&type=album&limit=${safeLimit}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        }
+      )
+      if (res.ok) {
+        const data = await res.json()
+        const items = data.albums?.items || []
+        if (items.length > 0) return mapSpotifyAlbumItems(items)
+      }
+    } catch (e) {
+      console.warn('Spotify search albums error:', e)
+    }
+
+    for (const url of [
+      `https://api.spotify.com/v1/browse/new-releases?limit=${safeLimit}`,
+      `https://api.spotify.com/v1/browse/new-releases?country=${encodeURIComponent(country)}&limit=${safeLimit}`,
+    ]) {
+      try {
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        })
+        if (res.ok) {
+          const data = await res.json()
+          const items = data.albums?.items || []
+          if (items.length > 0) return mapSpotifyAlbumItems(items)
+        }
+      } catch (e) {
+        console.warn('Spotify browse new releases error:', e)
+      }
+    }
+  } catch (err) {
+    console.error('Spotify new releases fetch error:', err)
+  }
+  return []
+}
+
 function mapSpotifyAlbumItems(items: any[]): SpotifyAlbumItem[] {
   return items
     .filter((item: any) => item && item.id && item.name)

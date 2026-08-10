@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { fetchSpotifyAlbumMeta, fetchFullAlbumTracks } from '@/lib/spotify'
 import { fetchDeezerAlbumTracks } from '@/lib/deezer'
+import { fetchITunesAlbumTracks } from '@/lib/itunes'
 
 const albumMemoryCache = new Map<string, { data: any; timestamp: number }>()
 const ALBUM_CACHE_TTL = 30 * 60 * 1000 // 30 minutes
@@ -195,8 +196,32 @@ export async function GET(
       }
     }
 
+    // 3. iTunes Public API Branch (itunes-{collectionId})
+    if (albumId.startsWith('itunes-')) {
+      try {
+        const itunesDetail = await fetchITunesAlbumTracks(albumId)
+        if (itunesDetail && itunesDetail.tracks.length > 0) {
+          const { tracks: itunesTracks, ...meta } = itunesDetail
+
+          if (supabase) {
+            safeSaveAlbumToDb(supabase, meta, itunesTracks).catch(() => {})
+          }
+
+          return cachedAlbumResponse(
+            {
+              ...meta,
+              tracks: itunesTracks,
+            },
+            albumId
+          )
+        }
+      } catch (itErr) {
+        console.warn('iTunes album fetch warning:', itErr)
+      }
+    }
+
     // 4. Deezer Public API Branch (Primary provider for strictly numeric IDs)
-    if (/^\d+$/.test(cleanId) || albumId.startsWith('deezer')) {
+    if (!albumId.startsWith('itunes-') && (/^\d+$/.test(cleanId) || albumId.startsWith('deezer'))) {
       try {
         const deezerRes = await fetchDeezerAlbumTracks(albumId)
         if (deezerRes && deezerRes.meta && deezerRes.tracks.length > 0) {

@@ -70,6 +70,27 @@ export default function HomePage() {
   // Trending Albums state
   const [trendingAlbums, setTrendingAlbums] = useState<SpotifyAlbumItem[]>([])
   const [loadingAlbums, setLoadingAlbums] = useState(true)
+  const albumDetailCacheRef = useRef(new Map<string, { detail: { tracks: Track[] } | null; at: number }>())
+
+  const handlePlayAlbum = async (e: React.MouseEvent | React.KeyboardEvent, album: SpotifyAlbumItem) => {
+    e.preventDefault()
+    e.stopPropagation()
+    try {
+      const cached = albumDetailCacheRef.current.get(album.id)
+      const detail =
+        cached && Date.now() - cached.at < 10 * 60 * 1000
+          ? cached.detail
+          : await fetch(`/api/albums/${album.id}`).then((r) => (r.ok ? r.json() : null))
+      if (detail && Array.isArray(detail.tracks) && detail.tracks.length > 0) {
+        albumDetailCacheRef.current.set(album.id, { detail, at: Date.now() })
+        playTrack(detail.tracks[0], detail.tracks)
+      } else {
+        window.location.href = `/album/${album.id}`
+      }
+    } catch {
+      window.location.href = `/album/${album.id}`
+    }
+  }
 
   useEffect(() => {
     fetch('/api/albums/new-releases')
@@ -800,11 +821,18 @@ export default function HomePage() {
                     </div>
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300">
                       <div
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Phát album ${album.name}`}
+                        onClick={(e) => void handlePlayAlbum(e, album)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') void handlePlayAlbum(e, album)
+                        }}
                         style={{
                           background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
                           boxShadow: '0 4px 12px var(--theme-glow-shadow, rgba(6,182,212,0.4))',
                         }}
-                        className="w-9 h-9 rounded-full text-black flex items-center justify-center border border-white/20 transform group-hover:scale-100 scale-75 transition-all duration-300"
+                        className="w-9 h-9 rounded-full text-black flex items-center justify-center border border-white/20 transform group-hover:scale-100 scale-75 transition-all duration-300 cursor-pointer"
                       >
                         <Play className="w-4.5 h-4.5 fill-current text-black ml-0.5" />
                       </div>

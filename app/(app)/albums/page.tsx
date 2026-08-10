@@ -1,10 +1,12 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { SpotifyAlbumItem } from '@/lib/spotify'
+import { Track } from '@/types'
+import { usePlayer } from '@/components/player/PlayerContext'
 import { DiscAlbum, Sparkles, Music, Play, Search, X, Loader2 } from 'lucide-react'
 import { HeroCardSkeleton } from '@/components/common/SkeletonLoader'
 
@@ -13,7 +15,29 @@ interface AlbumCardProps {
 }
 
 function AlbumCard({ album }: AlbumCardProps) {
+  const { playTrack } = usePlayer()
+  const albumDetailCacheRef = useRef(new Map<string, { detail: { tracks: Track[] } | null; at: number }>())
   const releaseYear = album.release_date ? album.release_date.split('-')[0] : ''
+
+  const handlePlayAlbum = async (e: React.MouseEvent | React.KeyboardEvent, albumToPlay: SpotifyAlbumItem) => {
+    e.preventDefault()
+    e.stopPropagation()
+    try {
+      const cached = albumDetailCacheRef.current.get(albumToPlay.id)
+      const detail =
+        cached && Date.now() - cached.at < 10 * 60 * 1000
+          ? cached.detail
+          : await fetch(`/api/albums/${albumToPlay.id}`).then((r) => (r.ok ? r.json() : null))
+      if (detail && Array.isArray(detail.tracks) && detail.tracks.length > 0) {
+        albumDetailCacheRef.current.set(albumToPlay.id, { detail, at: Date.now() })
+        playTrack(detail.tracks[0], detail.tracks)
+      } else {
+        window.location.href = `/album/${albumToPlay.id}`
+      }
+    } catch {
+      window.location.href = `/album/${albumToPlay.id}`
+    }
+  }
 
   return (
     <Link
@@ -41,7 +65,16 @@ function AlbumCard({ album }: AlbumCardProps) {
 
         {/* Hover Overlay Play Button */}
         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
-          <div className="w-12 h-12 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center shadow-xl shadow-cyan-500/30 transform group-hover:scale-110 transition-transform duration-200">
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label={`Phát album ${album.name}`}
+            onClick={(e) => void handlePlayAlbum(e, album)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') void handlePlayAlbum(e, album)
+            }}
+            className="w-12 h-12 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center shadow-xl shadow-cyan-500/30 transform group-hover:scale-110 transition-transform duration-200 cursor-pointer"
+          >
             <Play className="w-5 h-5 fill-current ml-0.5" />
           </div>
         </div>
@@ -214,7 +247,7 @@ export default function AlbumsPage() {
               Thư Viện Albums
             </h1>
             <p className="text-xs text-slate-400 mt-1 max-w-md">
-              Khám phá và tìm kiếm hơn 60+ album phát hành mới nhất trên toàn thế giới từ Deezer & Spotify.
+              Khám phá và tìm kiếm hơn 60+ album phát hành mới nhất trên toàn thế giới từ Deezer, Spotify & iTunes.
             </p>
           </div>
         </div>
@@ -373,7 +406,7 @@ export default function AlbumsPage() {
                 </h2>
               </div>
               <span className="text-xs font-mono text-slate-500">
-                {filteredNew.length} Albums • Deezer Top Charts
+                {filteredNew.length} Albums • 3 Nền Tảng
               </span>
             </div>
 

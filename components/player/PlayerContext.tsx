@@ -824,6 +824,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentTime])
 
+  // Keep the service worker alive during playback (iOS Safari background audio)
+  useEffect(() => {
+    if (!isPlaying) return
+    const ping = () => {
+      if (navigator.serviceWorker?.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'KEEP_ALIVE' })
+      }
+    }
+    ping()
+    const timer = setInterval(ping, 20000)
+    return () => clearInterval(timer)
+  }, [isPlaying])
+
   const playTrack = async (
     rawTrack: Track,
     newQueue?: Track[],
