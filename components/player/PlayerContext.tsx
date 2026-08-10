@@ -550,6 +550,23 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                   localStorage.setItem('audio_debug_log', JSON.stringify(logs))
                 } catch {}
               }
+
+              const active = currentTrackRef.current
+              // If active track is NOT a YouTube track, ensure YouTube player is stopped immediately
+              if (active && active.source !== 'youtube') {
+                if (ytStuckTimerRef.current) {
+                  clearTimeout(ytStuckTimerRef.current)
+                  ytStuckTimerRef.current = null
+                }
+                if (event.data === 1 || event.data === 3) {
+                  try {
+                    if (ytPlayerRef.current?.pauseVideo) ytPlayerRef.current.pauseVideo()
+                    if (ytPlayerRef.current?.stopVideo) ytPlayerRef.current.stopVideo()
+                  } catch {}
+                }
+                return
+              }
+
               // YT.PlayerState.PLAYING = 1, PAUSED = 2, ENDED = 0
               if (event.data === 1) {
                 log('PLAYING')
@@ -593,14 +610,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 }
               } else if (event.data === -1 || event.data === 3 || event.data === 5) {
                 log('BUFFERING_OR_CUED_OR_UNSTARTED')
-                // Cold-start watchdog: if stuck in cued/buffering/unstarted for > 800ms, auto-trigger playVideo()
+                // Cold-start watchdog: if stuck in cued/buffering/unstarted for > 800ms, auto-trigger playVideo() ONLY if active track is YouTube
                 if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
                 ytStuckTimerRef.current = setTimeout(() => {
-                  if (ytPlayerRef.current && ytPlayerRef.current.playVideo) {
+                  const currentActive = currentTrackRef.current
+                  if (currentActive && currentActive.source === 'youtube' && ytPlayerRef.current && ytPlayerRef.current.playVideo) {
                     try {
                       log('AUTO_RETRY_PLAY_VIDEO (cold-start watchdog)')
                       ytPlayerRef.current.playVideo()
-                    } catch {}
+                    } catch (e) {}
                   }
                 }, 800)
               }
@@ -847,6 +865,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     isPrevNextActionRef.current = false
 
     // ⚡ 1. PAUSE & STOP ALL PREVIOUS AUDIO ENGINES IMMEDIATELY (ZERO DELAY OVERLAP)
+    if (ytStuckTimerRef.current) {
+      clearTimeout(ytStuckTimerRef.current)
+      ytStuckTimerRef.current = null
+    }
     if (audioRef.current) {
       try {
         audioRef.current.pause()
@@ -858,7 +880,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (ytPlayerRef.current) {
       try {
         if (ytPlayerRef.current.stopVideo) ytPlayerRef.current.stopVideo()
-        else if (ytPlayerRef.current.pauseVideo) ytPlayerRef.current.pauseVideo()
+        if (ytPlayerRef.current.pauseVideo) ytPlayerRef.current.pauseVideo()
       } catch {}
     }
 
@@ -990,6 +1012,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         setCurrentTrack(activeTrack)
         const streamUrl = await getAudioUrl(activeTrack)
         if (requestId !== playRequestRef.current) return
+        if (ytStuckTimerRef.current) {
+          clearTimeout(ytStuckTimerRef.current)
+          ytStuckTimerRef.current = null
+        }
+        if (ytPlayerRef.current) {
+          try {
+            if (ytPlayerRef.current.pauseVideo) ytPlayerRef.current.pauseVideo()
+            if (ytPlayerRef.current.stopVideo) ytPlayerRef.current.stopVideo()
+          } catch {}
+        }
         if (audioRef.current && streamUrl) {
           audioRef.current.src = streamUrl
           audioRef.current.currentTime = initialTime
