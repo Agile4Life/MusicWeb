@@ -4,7 +4,10 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useSession } from 'next-auth/react'
-import { isAdmin } from '@/lib/accessControl'
+import { getValidUserId, isAdmin } from '@/lib/accessControl'
+import { addTrackToPlaylist } from '@/lib/trackPersistence'
+import { fetchUnifiedSearch } from '@/lib/searchApi'
+import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
 import { Playlist, Track } from '@/types'
 import { TrackList } from '@/components/track/TrackList'
 import { usePlayer } from '@/components/player/PlayerContext'
@@ -85,26 +88,44 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
 
-  // Library Tracks Picker State
+  // Library & Global Tracks Picker State
   const [libraryTracks, setLibraryTracks] = useState<Track[]>([])
+  const [searchResults, setSearchResults] = useState<Track[]>([])
   const [librarySearch, setLibrarySearch] = useState('')
   const [loadingLibrary, setLoadingLibrary] = useState(false)
   const [addingTrackId, setAddingTrackId] = useState<string | null>(null)
 
-  const normalizedLibrarySearch = useMemo(() => normalizeTitle(librarySearch.trim()), [librarySearch])
-  const filteredLibraryTracks = useMemo(() => {
-    if (!normalizedLibrarySearch) return libraryTracks
-    return libraryTracks.filter((track) => {
-      const normalizedTitle = normalizeTitle(track.title || '')
-      const normalizedArtist = normalizeTitle(track.artist || '')
-      const combined = `${normalizedTitle} ${normalizedArtist}`.trim()
-      return (
-        normalizedTitle.includes(normalizedLibrarySearch) ||
-        normalizedArtist.includes(normalizedLibrarySearch) ||
-        combined.includes(normalizedLibrarySearch)
-      )
-    })
-  }, [libraryTracks, normalizedLibrarySearch])
+  // Debounced search for Online + Local tracks in modal
+  useEffect(() => {
+    if (!showLibraryModal) return
+    const q = librarySearch.trim()
+    if (!q) {
+      setSearchResults([])
+      return
+    }
+
+    setLoadingLibrary(true)
+    const timer = setTimeout(async () => {
+      try {
+        const rawResults = await fetchUnifiedSearch(q)
+        const flattened = flattenUnifiedSearchResults(rawResults)
+        setSearchResults(flattened)
+      } catch (err) {
+        console.warn('Modal search error:', err)
+      } finally {
+        setLoadingLibrary(false)
+      }
+    }, 350)
+
+    return () => clearTimeout(timer)
+  }, [librarySearch, showLibraryModal])
+
+  const displayedModalTracks = useMemo(() => {
+    if (librarySearch.trim()) {
+      return searchResults
+    }
+    return libraryTracks
+  }, [librarySearch, searchResults, libraryTracks])
 
   const fetchPlaylistData = async (showSkeleton = true) => {
     if (showSkeleton) setLoading(true)
@@ -395,29 +416,26 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
     setLoadingLibrary(false)
   }
 
-  // Add track from library to playlist smoothly without full-page flickering
-  const handleAddTrackToThisPlaylist = async (trackId: string) => {
-    setAddingTrackId(trackId)
+  // Add track (local or external online) to playlist smoothly without full-page flickering
+  const handleAddTrackToThisPlaylist = async (track: Track) => {
+    setAddingTrackId(track.id)
     try {
-      let { error } = await supabase.from('playlist_tracks').insert({
-        playlist_id: playlistId,
-        track_id: trackId,
-      })
+      const activeUser =
+        userEmail || session?.user?.email
+          ? {
+              id: userEmail || session?.user?.email,
+              email: userEmail || session?.user?.email,
+            }
+          : null
 
-      if (error) {
-        // Fallback to RPC
-        const rpcRes = await supabase.rpc('fn_add_track_to_playlist', {
-          p_playlist_id: playlistId,
-          p_track_id: trackId,
-        })
-        error = rpcRes.error
-      }
+      const userId = activeUser ? getValidUserId(activeUser) : ''
+      const result = await addTrackToPlaylist(supabase, playlistId, track, userId)
 
-      if (!error) {
+      if (result.success) {
         // Fetch playlist data in background without triggering full-page skeleton loading
         await fetchPlaylistData(false)
       } else {
-        alert('Lỗi thêm bài hát: ' + error.message)
+        alert(result.message)
       }
     } finally {
       setAddingTrackId(null)
@@ -719,58 +737,72 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
               <input
                 type="text"
-                placeholder="Tìm bài hát..."
+                placeholder="Tìm bài hát từ thư viện hoặc online (Spotify, YouTube, NCT)..."
                 value={librarySearch}
                 onChange={(e) => setLibrarySearch(e.target.value)}
                 className="w-full glass-input rounded-xl pl-9 pr-3 py-2 text-xs text-white outline-none"
               />
             </div>
 
-            {/* Library Tracks List */}
+            {/* Library / Search Tracks List */}
             <div className="flex-1 overflow-y-auto flex flex-col gap-2 max-h-96 pr-1">
               {loadingLibrary ? (
-                <p className="text-xs text-slate-400 text-center py-6">Đang tải danh sách bài hát...</p>
+                <p className="text-xs text-slate-400 text-center py-6">Đang tìm bài hát...</p>
+              ) : displayedModalTracks.length === 0 ? (
+                <p className="text-xs text-slate-400 text-center py-6">
+                  {librarySearch.trim() ? 'Không tìm thấy bài hát phù hợp' : 'Thư viện trống'}
+                </p>
               ) : (
-                filteredLibraryTracks.map((t) => {
-                    const inPlaylist = tracks.some((pt) => pt.id === t.id)
+                displayedModalTracks.map((t) => {
+                  const inPlaylist = tracks.some(
+                    (pt) =>
+                      pt.id === t.id ||
+                      (t.title &&
+                        pt.title?.toLowerCase().trim() === t.title.toLowerCase().trim() &&
+                        (pt.artist || '').toLowerCase().trim() === (t.artist || '').toLowerCase().trim())
+                  )
 
-                    return (
-                      <div
-                        key={t.id}
-                        className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/10 transition-colors"
-                      >
-                        <div className="flex items-center gap-3 truncate">
-                          <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center shrink-0">
+                  return (
+                    <div
+                      key={t.id}
+                      className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/10 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 truncate">
+                        <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center shrink-0 overflow-hidden border border-white/10">
+                          {t.cover_url ? (
+                            <img src={t.cover_url} alt={t.title} className="w-full h-full object-cover" />
+                          ) : (
                             <Music className="w-4 h-4 text-slate-400" />
-                          </div>
-                          <div className="truncate">
-                            <p className="text-xs font-bold text-white truncate">{t.title}</p>
-                            <p className="text-[10px] text-slate-400 truncate">{t.artist || 'Nghệ sĩ chưa xác định'}</p>
-                          </div>
+                          )}
                         </div>
-
-                        {inPlaylist ? (
-                          <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 shrink-0 flex items-center gap-1">
-                            <Check className="w-3 h-3" />
-                            Đã thêm
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => handleAddTrackToThisPlaylist(t.id)}
-                            disabled={addingTrackId === t.id}
-                            className="bg-[var(--primary-spotify)] hover:scale-105 active:scale-95 text-black p-1.5 rounded-lg font-bold transition-all shrink-0 disabled:opacity-50 flex items-center justify-center min-w-[32px] min-h-[32px]"
-                            title="Thêm vào playlist"
-                          >
-                            {addingTrackId === t.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin text-black" />
-                            ) : (
-                              <Plus className="w-4 h-4" />
-                            )}
-                          </button>
-                        )}
+                        <div className="truncate">
+                          <p className="text-xs font-bold text-white truncate">{t.title}</p>
+                          <p className="text-[10px] text-slate-400 truncate">{t.artist || 'Nghệ sĩ chưa xác định'}</p>
+                        </div>
                       </div>
-                    )
-                  })
+
+                      {inPlaylist ? (
+                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 shrink-0 flex items-center gap-1">
+                          <Check className="w-3 h-3" />
+                          Đã thêm
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleAddTrackToThisPlaylist(t)}
+                          disabled={addingTrackId === t.id}
+                          className="bg-[var(--primary-spotify)] hover:scale-105 active:scale-95 text-black p-1.5 rounded-lg font-bold transition-all shrink-0 disabled:opacity-50 flex items-center justify-center min-w-[32px] min-h-[32px]"
+                          title="Thêm vào playlist"
+                        >
+                          {addingTrackId === t.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-black" />
+                          ) : (
+                            <Plus className="w-4 h-4" />
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  )
+                })
               )}
             </div>
           </div>
