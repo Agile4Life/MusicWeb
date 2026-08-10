@@ -282,14 +282,14 @@ export function PlayerBar() {
       {/* 📱 MOBILE FLOATING MINI PLAYER BAR (Visible on < 768px) */}
       <div
         onClick={() => setShowMobileFullPlayer(true)}
-        className="md:hidden fixed bottom-[68px] left-3 right-3 z-40 bg-[#0d1017]/95 backdrop-blur-2xl border border-white/10 rounded-2xl p-2.5 pb-3 shadow-2xl select-none overflow-hidden cursor-pointer active:opacity-95"
+        className="mini-player md:hidden backdrop-blur-2xl rounded-t-2xl select-none overflow-hidden cursor-pointer active:opacity-95"
       >
         <div className="relative flex items-center justify-between w-full h-10">
           {/* Left Zone: Cover + Title/Artist */}
           <div
             className="flex items-center gap-2.5 min-w-0 max-w-[130px] xs:max-w-[170px] sm:max-w-[210px] z-10 shrink-0 overflow-hidden"
           >
-            <div className="w-10 h-10 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 relative">
+            <div className={`player-cover w-10 h-10 bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 relative ${isPlaying ? 'is-playing' : ''}`}>
               <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
             </div>
 
@@ -317,8 +317,8 @@ export function PlayerBar() {
                   {displayAlbumName && (
                     <>
                       <span className="text-slate-600 shrink-0">•</span>
-                      <span className="text-cyan-400 font-medium shrink-0 flex items-center gap-0.5">
-                        <DiscAlbum className="w-2.5 h-2.5 text-cyan-400 shrink-0 inline" />
+                      <span className="text-[var(--accent)] font-medium shrink-0 flex items-center gap-0.5">
+                        <DiscAlbum className="w-2.5 h-2.5 text-[var(--accent)] shrink-0 inline" />
                         {displayAlbumName}
                       </span>
                     </>
@@ -626,7 +626,7 @@ export function PlayerBar() {
         {/* Left: Track Metadata */}
         <div className="flex items-center gap-3.5 w-1/4 min-w-[220px]">
           <div className="relative group shrink-0">
-            <div className="w-12 h-12 bg-slate-800 rounded-xl overflow-hidden relative flex items-center justify-center border border-white/10 shadow-md">
+            <div className={`player-cover w-14 h-14 bg-slate-800 flex items-center justify-center border border-white/10 shadow-md ${isPlaying ? 'is-playing' : ''}`}>
               <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
             </div>
           </div>
@@ -790,7 +790,7 @@ export function PlayerBar() {
         </div>
 
         {/* Right: Volume & Extra Controls */}
-        <div className="w-1/4 flex justify-end items-center gap-2.5">
+        <div className="w-1/4 flex justify-end items-center gap-4">
           <button
             onClick={toggleFavoriteCurrentTrack}
             className={`p-2 rounded-xl transition-all ${

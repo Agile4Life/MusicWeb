@@ -237,7 +237,7 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
           <div className="w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-900/30 via-[#0a0d14] to-[#07090e]" />
         )}
         <div className="absolute inset-0 bg-gradient-to-b from-[#07090e]/70 via-[#07090e]/85 to-[#07090e]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(6,182,212,0.12),transparent_70%)]" />
+        <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 50% 30%, var(--accent-dim), transparent 70%)' }} />
       </div>
 
       {/* 🔝 Glassmorphic Header */}
@@ -353,7 +353,7 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
                   <p
                     className={`transition-all duration-500 leading-relaxed font-extrabold ${
                       isActive
-                        ? 'text-xl sm:text-2xl md:text-3xl lg:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-white to-teal-200 drop-shadow-[0_0_24px_rgba(6,182,212,0.75)]'
+                        ? 'text-xl sm:text-2xl md:text-3xl lg:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] via-white to-[var(--primary-spotify,#06b6d4)] drop-shadow-[0_0_24px_var(--theme-glow-shadow)]'
                         : isPast
                         ? 'text-slate-300 text-base sm:text-xl md:text-2xl font-bold'
                         : 'text-slate-200 text-base sm:text-xl md:text-2xl font-bold'

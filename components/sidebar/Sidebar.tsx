@@ -120,65 +120,47 @@ export function Sidebar() {
             href="/"
             prefetch={false}
             onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
-            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors duration-150 ${
-              pathname === '/'
-                ? 'bg-white/10 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-            }`}
+            className={`sidebar-item text-xs font-semibold ${pathname === '/' ? 'active' : ''}`}
           >
-            <Home className={`w-4 h-4 ${pathname === '/' ? 'text-[var(--primary-spotify,#06b6d4)]' : ''}`} />
+            <Home className="w-4 h-4" />
             <span>{t('home')}</span>
           </Link>
 
           <Link
             href="/albums"
             prefetch={false}
-            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors duration-150 ${
-              pathname === '/albums' || pathname.startsWith('/album/')
-                ? 'bg-white/10 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
+            className={`sidebar-item text-xs font-semibold ${
+              pathname === '/albums' || pathname.startsWith('/album/') ? 'active' : ''
             }`}
           >
-            <DiscAlbum className={`w-4 h-4 ${pathname === '/albums' || pathname.startsWith('/album/') ? 'text-[var(--primary-spotify,#06b6d4)]' : ''}`} />
+            <DiscAlbum className="w-4 h-4" />
             <span>{t('albums')}</span>
           </Link>
 
           <Link
             href="/drive"
             prefetch={false}
-            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors duration-150 ${
-              pathname === '/drive'
-                ? 'bg-white/10 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-            }`}
+            className={`sidebar-item text-xs font-semibold ${pathname === '/drive' ? 'active' : ''}`}
           >
-            <Cloud className={`w-4 h-4 ${pathname === '/drive' ? 'text-[var(--spotify-glow,#22d3ee)]' : ''}`} />
+            <Cloud className="w-4 h-4" />
             <span>{t('drive')}</span>
           </Link>
 
           <Link
             href="/favorites"
             prefetch={false}
-            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors duration-150 ${
-              pathname === '/favorites'
-                ? 'bg-white/10 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-            }`}
+            className={`sidebar-item text-xs font-semibold ${pathname === '/favorites' ? 'active' : ''}`}
           >
-            <Heart className={`w-4 h-4 ${pathname === '/favorites' ? 'text-rose-400 fill-rose-400' : ''}`} />
+            <Heart className="w-4 h-4" />
             <span>{t('favorites')}</span>
           </Link>
 
           <Link
             href="/history"
             prefetch={false}
-            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors duration-150 ${
-              pathname === '/history'
-                ? 'bg-white/10 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-            }`}
+            className={`sidebar-item text-xs font-semibold ${pathname === '/history' ? 'active' : ''}`}
           >
-            <History className={`w-4 h-4 ${pathname === '/history' ? 'text-[var(--primary-spotify,#06b6d4)]' : ''}`} />
+            <History className="w-4 h-4" />
             <span>{t('history')}</span>
           </Link>
 
@@ -186,13 +168,9 @@ export function Sidebar() {
             <Link
               href="/upload"
               prefetch={false}
-              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors duration-150 ${
-                pathname === '/upload'
-                  ? 'bg-white/10 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-              }`}
+              className={`sidebar-item text-xs font-semibold ${pathname === '/upload' ? 'active' : ''}`}
             >
-              <Upload className={`w-4 h-4 ${pathname === '/upload' ? 'text-[var(--primary-spotify,#06b6d4)]' : ''}`} />
+              <Upload className="w-4 h-4" />
               <span>{t('upload')}</span>
             </Link>
           )}
@@ -200,13 +178,9 @@ export function Sidebar() {
           <Link
             href="/settings"
             prefetch={false}
-            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors duration-150 ${
-              pathname === '/settings'
-                ? 'bg-white/10 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-            }`}
+            className={`sidebar-item text-xs font-semibold ${pathname === '/settings' ? 'active' : ''}`}
           >
-            <Settings className={`w-4 h-4 ${pathname === '/settings' ? 'text-[var(--primary-spotify,#06b6d4)]' : ''}`} />
+            <Settings className="w-4 h-4" />
             <span>{t('settings')}</span>
           </Link>
         </nav>
@@ -253,10 +227,8 @@ export function Sidebar() {
                   <Link
                     key={pl.id}
                     href={`/playlist/${pl.id}`}
-                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-colors group ${
-                      pathname === `/playlist/${pl.id}`
-                        ? 'bg-white/10 text-white font-bold'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.03]'
+                    className={`sidebar-item text-xs group ${
+                      pathname === `/playlist/${pl.id}` ? 'active font-semibold' : ''
                     }`}
                   >
                     <div className="w-7 h-7 rounded-lg bg-white/[0.04] border border-white/5 flex items-center justify-center text-slate-400 shrink-0">

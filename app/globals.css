@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Permanent+Marker&family=Rock+Salt&family=Sedgwick+Ave&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap');
 @import "tailwindcss";
 
 .font-graffiti {
@@ -47,7 +48,7 @@
 
 
 :root {
-  --font-sans: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  --font-sans: 'Inter', var(--font-geist-sans), system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-geist-mono), monospace;
   --bg-space: #07090e;
   --spotify-green: #06b6d4;
@@ -63,7 +64,33 @@
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 20px;
+
+  /* === Design tokens (theme-adaptive, do not hardcode accent) === */
+  --accent: var(--primary-spotify, #06b6d4);
+  --accent-secondary: var(--theme-secondary, #3b82f6);
+  --accent-dim: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-dim-strong: color-mix(in srgb, var(--accent) 20%, transparent);
+  --accent-gradient: linear-gradient(135deg, var(--accent), var(--accent-secondary, var(--accent)));
+  --bg-page: #0b0710;
+  --bg-surface-1: #150d1c;
+  --bg-surface-2: #1e1428;
+  --text-primary: #f5f3f7;
+  --text-secondary: #a39ab0;
+  --text-muted: #6f6779;
+  --radius-card: 14px;
+  --radius-control: 8px;
+  --shadow-elevated: 0 12px 24px rgba(0, 0, 0, 0.4);
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.25s ease;
+  --bottom-nav-height: 64px;
+  --border-subtle: rgba(255, 255, 255, 0.08);
 }
+
+/* Font weight discipline: collapse to 400 / 500 / 700 */
+.font-extrabold { font-weight: 700; }
+.font-bold { font-weight: 700; }
+.font-semibold { font-weight: 500; }
+.font-medium { font-weight: 500; }
 
 html, body {
   -webkit-tap-highlight-color: transparent;
@@ -233,5 +260,274 @@ input[type='range']:hover::-moz-range-thumb {
 
 .animate-spin-slow {
   animation: spinSlow 22s linear infinite;
+}
+
+/* ================================================================
+   Redesign: Hero Banner
+   ================================================================ */
+.hero-banner {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1a1025 0%, #201526 55%, #1a1025 100%);
+  border-radius: var(--radius-card);
+}
+.hero-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 82% 15%, var(--accent-dim), transparent 55%);
+  pointer-events: none;
+  z-index: 0;
+}
+.hero-banner > * {
+  position: relative;
+  z-index: 1;
+}
+
+.btn-outline-accent {
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent);
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+}
+.btn-outline-accent:hover {
+  background: var(--accent-dim);
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+/* ================================================================
+   Redesign: Album / Song Cards
+   ================================================================ */
+.album-card {
+  position: relative;
+  border-radius: var(--radius-card);
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+.album-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: var(--shadow-elevated);
+}
+
+.album-card .play-overlay {
+  opacity: 0;
+  transform: scale(0.8);
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 14px var(--theme-glow-shadow, rgba(0, 0, 0, 0.45));
+  transition: var(--transition-fast);
+}
+.album-card:hover .play-overlay {
+  opacity: 1;
+  transform: scale(1);
+}
+.album-card .play-overlay svg {
+  fill: currentColor;
+}
+
+.badge-glass {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ================================================================
+   Redesign: Song Rows (TrackList)
+   ================================================================ */
+.song-row {
+  border-radius: var(--radius-control);
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.song-row:hover {
+  background: var(--bg-surface-2);
+}
+.song-row.is-playing {
+  background: var(--accent-dim);
+  border-left: 3px solid var(--accent);
+  border-radius: 0;
+}
+
+/* ================================================================
+   Redesign: Player Bar
+   ================================================================ */
+.player-cover {
+  border-radius: 8px;
+  overflow: hidden;
+}
+.player-cover.is-playing {
+  animation: pulse-ring 2s ease-in-out infinite;
+}
+@keyframes pulse-ring {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent-dim); }
+  50% { box-shadow: 0 0 0 6px var(--accent-dim); }
+}
+
+/* Thin Spotify-style progress track + round thumb (replaces waveform bars) */
+.scrubber-track {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  touch-action: none;
+}
+.scrubber-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  border-radius: 9999px;
+  background: var(--accent);
+}
+.scrubber-thumb {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  transform: translate(-50%, -50%) scale(0.6);
+  opacity: 0;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+  pointer-events: none;
+}
+.scrubber-track:hover .scrubber-thumb,
+.scrubber-track.is-dragging .scrubber-thumb {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+/* ================================================================
+   Redesign: Sidebar
+   ================================================================ */
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
+  color: var(--text-secondary);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.sidebar-item:hover {
+  background: var(--bg-surface-2);
+  color: var(--text-primary);
+}
+.sidebar-item.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.sidebar-item svg {
+  color: inherit;
+}
+
+/* ================================================================
+   Redesign: Mobile (max-width: 768px)
+   ================================================================ */
+.mobile-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(11, 7, 16, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 0.5px solid var(--border-subtle);
+}
+
+.search-input {
+  min-height: 44px;
+  border-radius: var(--radius-control);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.search-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+@media (max-width: 768px) {
+  .album-card .play-overlay {
+    opacity: 0.85;
+    transform: scale(0.9);
+  }
+  .album-card .play-overlay:active {
+    opacity: 1;
+    transform: scale(0.95);
+  }
+}
+
+.mini-player {
+  position: fixed;
+  bottom: calc(var(--bottom-nav-height) + 8px);
+  left: 0;
+  right: 0;
+  padding: 8px 12px;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--bg-surface-2);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 15;
+  border-top: 0.5px solid var(--border-subtle);
+}
+
+.bottom-nav {
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--bg-surface-1);
+  border-top: 0.5px solid var(--border-subtle);
+}
+.bottom-nav-item {
+  min-height: 48px;
+  color: var(--text-secondary);
+  transition: color var(--transition-fast);
+}
+.bottom-nav-item.active {
+  color: var(--accent);
+  font-weight: 500;
+}
+.bottom-nav-item.active svg {
+  color: var(--accent);
+}
+
+.mobile-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 85%;
+  max-width: 320px;
+  background: var(--bg-surface-1);
+  transform: translateX(-100%);
+  transition: transform var(--transition-base);
+  z-index: 50;
+}
+.mobile-drawer.open {
+  transform: translateX(0);
+}
+.mobile-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-base);
+  z-index: 45;
+}
+.mobile-drawer-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
 }
 

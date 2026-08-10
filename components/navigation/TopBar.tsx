@@ -95,7 +95,7 @@ export function TopBar() {
               if (searchQuery.trim()) setShowDropdown(true)
             }}
             placeholder="Tìm bài hát, nghệ sĩ..."
-            className="w-full bg-white/[0.04] border border-white/[0.07] focus:border-[var(--primary-spotify,#06b6d4)]/50 focus:bg-white/[0.06] rounded-full pl-9 sm:pl-10 pr-8 sm:pr-9 py-1.5 sm:py-2 text-xs text-white placeholder-slate-400 outline-none transition-all shadow-inner"
+            className="search-input w-full bg-white/[0.04] border border-white/[0.07] focus:bg-white/[0.06] rounded-full pl-9 sm:pl-10 pr-8 sm:pr-9 py-1.5 sm:py-2 text-xs text-white placeholder-slate-400 outline-none transition-all shadow-inner"
           />
           {searchingGlobal ? (
             <Loader2 className="w-3.5 h-3.5 text-cyan-400 animate-spin absolute right-3" />

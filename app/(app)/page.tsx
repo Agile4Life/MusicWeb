@@ -746,7 +746,7 @@ export default function HomePage() {
   return (
     <div className="p-3.5 sm:p-6 md:p-8 flex flex-col gap-4 sm:gap-6 md:gap-8 max-w-7xl mx-auto w-full pb-36 md:pb-8 select-none">
       {/* High-Impact Clean Hero Card */}
-      <div className="relative overflow-hidden rounded-2xl border border-white/[0.06] p-4 sm:p-6 md:p-10 bg-[#0d1017]">
+      <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.06] p-4 sm:p-6 md:p-10">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-6">
           <div className="flex flex-col gap-1.5 sm:gap-2 max-w-xl">
             <h1 className="text-xl sm:text-2xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
@@ -761,7 +761,7 @@ export default function HomePage() {
             {isAdmin && (
               <Link
                 href="/upload"
-                className="bg-white/5 border border-white/10 hover:bg-white/10 text-white font-semibold px-4 py-2.5 rounded-full flex items-center gap-2 text-xs transition-colors"
+                className="btn-outline-accent font-bold px-4 py-2.5 rounded-full flex items-center gap-2 text-xs"
               >
                 <Upload className="w-3.5 h-3.5" />
                 <span>Upload</span>
@@ -804,7 +804,7 @@ export default function HomePage() {
                 <Link
                   key={album.id}
                   href={`/album/${album.id}`}
-                  className="bg-white/[0.02] hover:bg-white/[0.06] p-3 rounded-2xl flex flex-col gap-2 cursor-pointer group hover:-translate-y-1.5 transition-all duration-300 border border-white/[0.04] hover:border-[var(--spotify-glow)]/40 shadow-sm"
+                  className="album-card bg-white/[0.02] hover:bg-white/[0.06] p-3 rounded-2xl flex flex-col gap-2 cursor-pointer group border border-white/[0.04] hover:border-[var(--spotify-glow)]/40 shadow-sm"
                 >
                   <div className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
                     {album.cover_url ? (
@@ -816,26 +816,20 @@ export default function HomePage() {
                     ) : (
                       <DiscAlbum className="w-8 h-8 text-slate-500 group-hover:scale-110 transition-transform duration-300" />
                     )}
-                    <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[8px] font-mono text-cyan-300 uppercase tracking-wider">
+                    <div className="badge-glass absolute top-2 left-2 px-1.5 py-0.5 rounded-full text-[8px] font-mono text-[var(--accent)] uppercase tracking-wider">
                       {album.album_type === 'single' ? 'Single' : 'Album'}
                     </div>
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300">
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`Phát album ${album.name}`}
-                        onClick={(e) => void handlePlayAlbum(e, album)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') void handlePlayAlbum(e, album)
-                        }}
-                        style={{
-                          background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                          boxShadow: '0 4px 12px var(--theme-glow-shadow, rgba(6,182,212,0.4))',
-                        }}
-                        className="w-9 h-9 rounded-full text-black flex items-center justify-center border border-white/20 transform group-hover:scale-100 scale-75 transition-all duration-300 cursor-pointer"
-                      >
-                        <Play className="w-4.5 h-4.5 fill-current text-black ml-0.5" />
-                      </div>
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Phát album ${album.name}`}
+                      onClick={(e) => void handlePlayAlbum(e, album)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') void handlePlayAlbum(e, album)
+                      }}
+                      className="play-overlay"
+                    >
+                      <Play className="w-4 h-4 ml-0.5" />
                     </div>
                   </div>
                   <div className="truncate">
@@ -880,7 +874,7 @@ export default function HomePage() {
                 <div
                   key={t.id}
                   onClick={() => playTrack(t, combinedTrendingTracks)}
-                  className="bg-white/[0.02] hover:bg-white/[0.06] p-3 rounded-2xl flex flex-col gap-2 cursor-pointer group hover:-translate-y-1.5 transition-all duration-300 border border-white/[0.04] hover:border-[var(--spotify-glow)]/40 shadow-sm"
+                  className="album-card bg-white/[0.02] hover:bg-white/[0.06] p-3 rounded-2xl flex flex-col gap-2 cursor-pointer group border border-white/[0.04] hover:border-[var(--spotify-glow)]/40 shadow-sm"
                 >
                   <div className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
                     {t.cover_url ? (
@@ -889,16 +883,8 @@ export default function HomePage() {
                       <Music className="w-7 h-7 text-slate-500 group-hover:scale-110 transition-transform duration-300" />
                     )}
 
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300">
-                      <div
-                        style={{
-                          background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                          boxShadow: '0 4px 12px var(--theme-glow-shadow, rgba(6,182,212,0.4))',
-                        }}
-                        className="w-10 h-10 rounded-full text-black flex items-center justify-center border border-white/20 transform group-hover:scale-100 scale-75 transition-all duration-300"
-                      >
-                        <Play className="w-5 h-5 fill-current text-black ml-0.5" />
-                      </div>
+                    <div className="play-overlay">
+                      <Play className="w-4 h-4 ml-0.5" />
                     </div>
                   </div>
 

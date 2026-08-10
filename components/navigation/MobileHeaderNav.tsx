@@ -113,7 +113,7 @@ export function MobileHeaderNav() {
   return (
     <>
       {/* 📱 Mobile Top Header Bar (< 768px) */}
-      <div className="md:hidden h-14 bg-[#090b10] border-b border-white/[0.05] px-3 xs:px-4 flex items-center justify-between select-none z-30 shrink-0 relative">
+      <div className="mobile-header md:hidden h-14 px-3 xs:px-4 flex items-center justify-between select-none shrink-0">
         {pathname !== '/' ? (
           <button
             onClick={() => {
@@ -165,14 +165,12 @@ export function MobileHeaderNav() {
       </div>
 
       {/* 📱 Mobile Bottom Navigation Bar (< 768px) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 h-16 bg-[#090b10] border-t border-white/[0.05] grid grid-cols-5 items-center select-none px-1">
+      <div className="bottom-nav md:hidden fixed bottom-0 left-0 right-0 z-40 h-16 grid grid-cols-5 items-center select-none px-1">
         <Link
           href="/"
           prefetch={false}
           onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
-          className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-            pathname === '/' ? 'text-[var(--primary-spotify,#06b6d4)] font-bold' : 'text-slate-400'
-          }`}
+          className={`bottom-nav-item flex flex-col items-center justify-center gap-1 ${pathname === '/' ? 'active' : ''}`}
         >
           <Home className="w-5 h-5" />
           <span className="text-[10px] truncate max-w-full">Trang chủ</span>
@@ -181,8 +179,8 @@ export function MobileHeaderNav() {
         <Link
           href="/albums"
           prefetch={false}
-          className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-            pathname === '/albums' || pathname.startsWith('/album/') ? 'text-[var(--spotify-glow,#22d3ee)] font-bold' : 'text-slate-400'
+          className={`bottom-nav-item flex flex-col items-center justify-center gap-1 ${
+            pathname === '/albums' || pathname.startsWith('/album/') ? 'active' : ''
           }`}
         >
           <DiscAlbum className="w-5 h-5" />
@@ -192,11 +190,11 @@ export function MobileHeaderNav() {
         <Link
           href="/favorites"
           prefetch={false}
-          className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-            pathname === '/favorites' ? 'text-rose-400 font-bold' : 'text-slate-400'
+          className={`bottom-nav-item flex flex-col items-center justify-center gap-1 ${
+            pathname === '/favorites' ? 'active' : ''
           }`}
         >
-          <Heart className={`w-5 h-5 ${pathname === '/favorites' ? 'fill-current' : ''}`} />
+          <Heart className="w-5 h-5" />
           <span className="text-[10px] truncate max-w-full">Yêu thích</span>
         </Link>
 
@@ -215,8 +213,8 @@ export function MobileHeaderNav() {
               setIsDrawerOpen(true)
             }
           }}
-          className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-            pathname.startsWith('/playlist/') ? 'text-[var(--primary-spotify,#06b6d4)] font-bold' : 'text-slate-400'
+          className={`bottom-nav-item flex flex-col items-center justify-center gap-1 ${
+            pathname.startsWith('/playlist/') ? 'active' : ''
           }`}
         >
           <ListMusic className="w-5 h-5" />
@@ -225,127 +223,129 @@ export function MobileHeaderNav() {
 
         <button
           onClick={() => setIsDrawerOpen(true)}
-          className="flex flex-col items-center justify-center gap-1 text-slate-400"
+          className="bottom-nav-item flex flex-col items-center justify-center gap-1"
         >
           <Menu className="w-5 h-5" />
           <span className="text-[10px] truncate max-w-full">Menu</span>
         </button>
       </div>
 
-      {/* 📱 Mobile Slide Drawer Navigation */}
-      {isDrawerOpen && (
+      {/* 📱 Mobile Slide Drawer Navigation (from left, with backdrop) */}
+      <div
+        onClick={() => setIsDrawerOpen(false)}
+        className={`mobile-drawer-backdrop md:hidden ${isDrawerOpen ? 'open' : ''}`}
+      />
+
+      <div
+        className={`mobile-drawer md:hidden border-r border-white/10 ${isDrawerOpen ? 'open' : ''}`}
+      >
         <div
-          onClick={() => setIsDrawerOpen(false)}
-          className="md:hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex justify-end animate-in fade-in duration-200"
+          onClick={(e) => e.stopPropagation()}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          className="h-full p-5 flex flex-col justify-between overflow-y-auto select-none touch-pan-y"
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            className="w-4/5 max-w-xs h-full bg-[#0d1017] border-l border-white/10 p-5 flex flex-col justify-between overflow-y-auto select-none touch-pan-y"
-          >
-            <div className="flex flex-col gap-5">
-              <div className="flex items-center justify-between border-b border-white/[0.05] pb-4">
-                <div className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.08]">
-                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-500/20 to-pink-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
-                    <Headphones className="w-3.5 h-3.5" />
-                  </div>
-                  <img
-                    src="/phong-signature.png"
-                    alt="Phong's Music Signature"
-                    className="h-6 w-auto object-contain signature-img-invert translate-y-[1px]"
-                  />
+          <div className="flex flex-col gap-5">
+            <div className="flex items-center justify-between border-b border-white/[0.05] pb-4">
+              <div className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.08]">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-500/20 to-pink-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+                  <Headphones className="w-3.5 h-3.5" />
                 </div>
-                <button
-                  onClick={() => setIsDrawerOpen(false)}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg bg-white/[0.04]"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <img
+                  src="/phong-signature.png"
+                  alt="Phong's Music Signature"
+                  className="h-6 w-auto object-contain signature-img-invert translate-y-[1px]"
+                />
               </div>
+              <button
+                onClick={() => setIsDrawerOpen(false)}
+                className="w-11 h-11 flex items-center justify-center text-slate-400 hover:text-white rounded-xl bg-white/[0.04] active:scale-95 transition-all"
+                title="Đóng menu"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-              {/* Navigation links */}
-              <nav className="flex flex-col gap-1">
+            {/* Navigation links */}
+            <nav className="flex flex-col gap-1">
+              <Link
+                href="/"
+                prefetch={false}
+                onClick={() => {
+                  window.dispatchEvent(new Event('musicweb-tab-home'))
+                  setIsDrawerOpen(false)
+                }}
+                className={`sidebar-item text-xs font-semibold ${pathname === '/' ? 'active' : ''}`}
+              >
+                <Home className="w-4 h-4" />
+                <span>Trang chủ</span>
+              </Link>
+
+              <Link
+                href="/albums"
+                prefetch={false}
+                onClick={() => setIsDrawerOpen(false)}
+                className={`sidebar-item text-xs font-semibold ${
+                  pathname === '/albums' || pathname.startsWith('/album/') ? 'active' : ''
+                }`}
+              >
+                <DiscAlbum className="w-4 h-4" />
+                <span>Albums</span>
+              </Link>
+
+              <Link
+                href="/drive"
+                prefetch={false}
+                onClick={() => setIsDrawerOpen(false)}
+                className={`sidebar-item text-xs font-semibold ${pathname === '/drive' ? 'active' : ''}`}
+              >
+                <Cloud className="w-4 h-4" />
+                <span>{t('drive')}</span>
+              </Link>
+
+              <Link
+                href="/favorites"
+                prefetch={false}
+                onClick={() => setIsDrawerOpen(false)}
+                className={`sidebar-item text-xs font-semibold ${pathname === '/favorites' ? 'active' : ''}`}
+              >
+                <Heart className="w-4 h-4" />
+                <span>Yêu thích</span>
+              </Link>
+
+              <Link
+                href="/history"
+                prefetch={false}
+                onClick={() => setIsDrawerOpen(false)}
+                className={`sidebar-item text-xs font-semibold ${pathname === '/history' ? 'active' : ''}`}
+              >
+                <History className="w-4 h-4" />
+                <span>Lịch sử nghe</span>
+              </Link>
+
+              {isAdmin(user?.email) && (
                 <Link
-                  href="/"
-                  prefetch={false}
-                  onClick={() => {
-                    window.dispatchEvent(new Event('musicweb-tab-home'))
-                    setIsDrawerOpen(false)
-                  }}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-200 hover:bg-white/5"
-                >
-                  <Home className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
-                  <span>Trang chủ</span>
-                </Link>
-
-                <Link
-                  href="/albums"
-                  prefetch={false}
-                  onClick={() => setIsDrawerOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold ${
-                    pathname === '/albums' || pathname.startsWith('/album/') ? 'bg-white/10 text-white font-bold' : 'text-slate-200 hover:bg-white/5'
-                  }`}
-                >
-                  <DiscAlbum className="w-4 h-4 text-cyan-400" />
-                  <span>Albums</span>
-                </Link>
-
-                <Link
-                  href="/drive"
-                  prefetch={false}
-                  onClick={() => setIsDrawerOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold ${
-                    pathname === '/drive' ? 'bg-white/10 text-white font-bold' : 'text-slate-200 hover:bg-white/5'
-                  }`}
-                >
-                  <Cloud className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
-                  <span>{t('drive')}</span>
-                </Link>
-
-                <Link
-                  href="/favorites"
-                  prefetch={false}
-                  onClick={() => setIsDrawerOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-200 hover:bg-white/5"
-                >
-                  <Heart className="w-4 h-4 text-rose-400" />
-                  <span>Yêu thích</span>
-                </Link>
-
-                <Link
-                  href="/history"
-                  prefetch={false}
-                  onClick={() => setIsDrawerOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-200 hover:bg-white/5"
-                >
-                  <History className="w-4 h-4" />
-                  <span>Lịch sử nghe</span>
-                </Link>
-
-                {isAdmin(user?.email) && (
-                  <Link
-                    href="/upload"
-                    prefetch={false}
-                    onClick={() => setIsDrawerOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-200 hover:bg-white/5"
-                  >
-                    <Upload className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
-                    <span>Upload Nhạc</span>
-                  </Link>
-                )}
-
-                <Link
-                  href="/settings"
+                  href="/upload"
                   prefetch={false}
                   onClick={() => setIsDrawerOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-200 hover:bg-white/5"
+                  className={`sidebar-item text-xs font-semibold ${pathname === '/upload' ? 'active' : ''}`}
                 >
-                  <Settings className="w-4 h-4" />
-                  <span>Cài đặt & Màu sắc</span>
+                  <Upload className="w-4 h-4" />
+                  <span>Upload Nhạc</span>
                 </Link>
-              </nav>
+              )}
+
+              <Link
+                href="/settings"
+                prefetch={false}
+                onClick={() => setIsDrawerOpen(false)}
+                className={`sidebar-item text-xs font-semibold ${pathname === '/settings' ? 'active' : ''}`}
+              >
+                <Settings className="w-4 h-4" />
+                <span>Cài đặt & Màu sắc</span>
+              </Link>
+            </nav>
 
               {/* Playlists in drawer */}
               <div className="border-t border-white/[0.05] pt-4 flex flex-col gap-2">
@@ -391,12 +391,14 @@ export function MobileHeaderNav() {
                       key={pl.id}
                       href={`/playlist/${pl.id}`}
                       onClick={() => setIsDrawerOpen(false)}
-                      className="flex items-center justify-between p-2 rounded-xl text-xs text-slate-300 hover:bg-white/5"
+                      className={`sidebar-item text-xs ${
+                        pathname === `/playlist/${pl.id}` ? 'active font-semibold' : ''
+                      }`}
                     >
-                      <span className="truncate">{pl.name}</span>
+                      <span className="truncate flex-1">{pl.name}</span>
                       <button
                         onClick={(e) => handleDeletePlaylist(e, pl.id, pl.name)}
-                        className="p-1 text-slate-500 hover:text-red-400"
+                        className="p-1 text-slate-500 hover:text-red-400 opacity-60"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -444,8 +446,7 @@ export function MobileHeaderNav() {
               )}
             </div>
           </div>
-        </div>
-      )}
+      </div>
 
       <ImportSpotifyModal
         isOpen={isImportModalOpen}

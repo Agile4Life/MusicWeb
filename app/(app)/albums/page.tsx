@@ -42,7 +42,7 @@ function AlbumCard({ album }: AlbumCardProps) {
   return (
     <Link
       href={`/album/${album.id}`}
-      className="group relative bg-[#0e131f]/60 hover:bg-[#141b2d]/80 border border-white/[0.06] hover:border-cyan-500/30 rounded-2xl p-3.5 transition-all duration-300 flex flex-col gap-3 shadow-md hover:shadow-cyan-500/10 hover:-translate-y-1"
+      className="album-card group relative bg-[#0e131f]/60 hover:bg-[#141b2d]/80 border border-white/[0.06] hover:border-[var(--accent)]/40 rounded-2xl p-3.5 transition-all duration-300 flex flex-col gap-3 shadow-md hover:shadow-[0_4px_14px_var(--theme-glow-shadow)]"
     >
       {/* Cover Image Container */}
       <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-slate-900 border border-white/10 shadow-inner">
@@ -59,24 +59,22 @@ function AlbumCard({ album }: AlbumCardProps) {
         )}
 
         {/* Floating Album Type Badge */}
-        <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[10px] font-mono text-cyan-300 uppercase tracking-wider">
+        <div className="badge-glass absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-mono text-[var(--accent)] uppercase tracking-wider">
           {album.album_type === 'single' ? 'Single / EP' : 'Album'}
         </div>
 
         {/* Hover Overlay Play Button */}
-        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
-          <div
-            role="button"
-            tabIndex={0}
-            aria-label={`Phát album ${album.name}`}
-            onClick={(e) => void handlePlayAlbum(e, album)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') void handlePlayAlbum(e, album)
-            }}
-            className="w-12 h-12 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center shadow-xl shadow-cyan-500/30 transform group-hover:scale-110 transition-transform duration-200 cursor-pointer"
-          >
-            <Play className="w-5 h-5 fill-current ml-0.5" />
-          </div>
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label={`Phát album ${album.name}`}
+          onClick={(e) => void handlePlayAlbum(e, album)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') void handlePlayAlbum(e, album)
+          }}
+          className="play-overlay"
+        >
+          <Play className="w-4.5 h-4.5 ml-0.5" />
         </div>
       </div>
 
@@ -226,7 +224,7 @@ export default function AlbumsPage() {
   return (
     <div className="p-3.5 sm:p-6 md:p-8 flex flex-col gap-5 sm:gap-8 max-w-7xl mx-auto w-full pb-36 md:pb-8 select-none">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] p-4 sm:p-6 md:p-8 bg-gradient-to-br from-[#0c121e] via-[#090e17] to-[#04060a] shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
+      <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.08] p-4 sm:p-6 md:p-8 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
         <div className="flex items-center gap-3.5 sm:gap-5">
           <div
             style={{
