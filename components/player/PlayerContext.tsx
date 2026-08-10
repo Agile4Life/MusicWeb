@@ -17,6 +17,24 @@ import { getNhacCuaTuiStreamUrl, resolveNhacCuaTuiSong, resolveNhacCuaTuiTrack }
 
 export type RepeatMode = 'off' | 'all' | 'one'
 
+// Tracks that can keep playing in the background (resolvable to a direct HTML5 stream
+// without runtime matching). YouTube tracks resolve through the /api/youtube/stream proxy.
+function isBackgroundPlayableTrack(t: Track | null | undefined): boolean {
+  if (!t) return false
+  if (t.youtube_id || t.source === 'youtube') return true
+  if (t.nhaccuatui_id || t.source === 'nhaccuatui') return true
+  if (t.drive_file_id || extractDriveFileId(t.file_path || '')) return true
+  if (t.source === 'local') return true
+  if (t.audio_url && t.audio_url.startsWith('http') && !isPreviewUrl(t.audio_url)) return true
+  return false
+}
+
+// Inside a queue whose tracks all come from YouTube (a YouTube-sourced album/playlist),
+// keep the original order — no background filtering, everything is stream-resolvable.
+function isFullYouTubeQueue(q: Track[]): boolean {
+  return q.length > 0 && q.every((t) => Boolean(t.youtube_id) || t.source === 'youtube')
+}
+
 interface PlayerContextType {
   currentTrack: Track | null
   isPlaying: boolean
@@ -1555,12 +1573,39 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     let nextIdx = 0
+    const preserveOrder = isFullYouTubeQueue(q)
     if (isShuffleRef.current && q.length > 1) {
-      do {
-        nextIdx = Math.floor(Math.random() * q.length)
-      } while (nextIdx === idx && q.length > 1)
+      // Random pick, preferring tracks that can play in the background (skip the rest)
+      let found = -1
+      for (let attempt = 0; attempt < 20; attempt++) {
+        const cand = Math.floor(Math.random() * q.length)
+        if (cand === idx) continue
+        if (preserveOrder || isBackgroundPlayableTrack(q[cand])) {
+          found = cand
+          break
+        }
+      }
+      if (found < 0) {
+        do {
+          nextIdx = Math.floor(Math.random() * q.length)
+        } while (nextIdx === idx && q.length > 1)
+      } else {
+        nextIdx = found
+      }
     } else {
-      nextIdx = (idx + 1) % q.length
+      // Sequential: advance to the next track that can play in the background,
+      // unless this is a full-YouTube queue (keep strict album/playlist order).
+      nextIdx = -1
+      for (let step = 1; step <= q.length; step++) {
+        const cand = (idx + step) % q.length
+        if (preserveOrder || isBackgroundPlayableTrack(q[cand])) {
+          nextIdx = cand
+          break
+        }
+      }
+      // Wrapped back to the current track (no other background-playable track) → keep original behavior
+      if (nextIdx === idx) nextIdx = (idx + 1) % q.length
+      if (nextIdx < 0) nextIdx = (idx + 1) % q.length
     }
     if (tryQuickPlayFromCache(q[nextIdx], nextIdx)) {
       if (nextIdx >= q.length - 2) {
