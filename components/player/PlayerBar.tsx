@@ -282,112 +282,82 @@ export function PlayerBar() {
       {/* 📱 MOBILE FLOATING MINI PLAYER BAR (Visible on < 768px) */}
       <div
         onClick={() => setShowMobileFullPlayer(true)}
-        className="mini-player md:hidden backdrop-blur-2xl rounded-t-2xl select-none overflow-hidden cursor-pointer active:opacity-95"
+        className="mini-player md:hidden backdrop-blur-2xl select-none cursor-pointer active:opacity-90 transition-opacity relative"
+        style={{ borderRadius: '16px 16px 0 0' }}
       >
-        <div className="relative flex items-center justify-between w-full h-10">
-          {/* Left Zone: Cover + Title/Artist */}
-          <div
-            className="flex items-center gap-2.5 min-w-0 max-w-[130px] xs:max-w-[170px] sm:max-w-[210px] z-10 shrink-0 overflow-hidden"
-          >
-            <div className={`player-cover w-10 h-10 bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 relative ${isPlaying ? 'is-playing' : ''}`}>
-              <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
-            </div>
-
-            <div className="flex flex-col min-w-0 overflow-hidden w-full gap-0.5">
-              <div className="overflow-hidden w-full relative">
-                <span
-                  className={`text-xs font-bold text-white block ${
-                    currentTrack.title.length > 12
-                      ? 'animate-marquee-text'
-                      : 'truncate'
-                  }`}
-                >
-                  {currentTrack.title}
-                </span>
-              </div>
-              <div className="overflow-hidden w-full relative">
-                <div
-                  className={`text-[10px] text-slate-400 whitespace-nowrap flex items-center gap-1.5 ${
-                    ((currentTrack.artist || '') + (displayAlbumName || '')).length > 12
-                      ? 'animate-marquee-text'
-                      : 'truncate'
-                  }`}
-                >
-                  <span className="shrink-0">{currentTrack.artist || 'Nghệ sĩ chưa xác định'}</span>
-                  {displayAlbumName && (
-                    <>
-                      <span className="text-slate-600 shrink-0">•</span>
-                      <span className="text-[var(--accent)] font-medium shrink-0 flex items-center gap-0.5">
-                        <DiscAlbum className="w-2.5 h-2.5 text-[var(--accent)] shrink-0 inline" />
-                        {displayAlbumName}
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
+        {/* Main row */}
+        <div className="flex items-center gap-2 w-full h-[52px]">
+          {/* Cover Art */}
+          <div className={`player-cover w-10 h-10 bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 relative rounded-xl ${isPlaying ? 'is-playing' : ''}`}>
+            <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
           </div>
 
-          {/* Center Zone: Absolute 50% Centered Playback Controls */}
-          <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center gap-1 z-20 pointer-events-auto">
+          {/* Title + Artist — flex-1 takes remaining space */}
+          <div className="flex flex-col min-w-0 flex-1 overflow-hidden justify-center gap-0.5">
+            <span className="text-xs font-bold text-white truncate leading-tight">
+              {currentTrack.title}
+            </span>
+            <span className="text-[10px] text-slate-400 truncate leading-tight">
+              {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
+            </span>
+          </div>
+
+          {/* Compact Controls: Prev + Play/Pause + Next + Heart */}
+          <div className="flex items-center shrink-0 gap-0.5">
             <button
-              onClick={(e) => {
-                e.stopPropagation()
-                prevTrack()
-              }}
-              className="p-2 text-slate-300 active:text-white active:scale-95 transition-transform flex items-center justify-center"
+              onClick={(e) => { e.stopPropagation(); prevTrack() }}
+              className="w-9 h-9 flex items-center justify-center text-slate-400 active:text-white active:scale-90 transition-all rounded-full"
               title="Bài trước"
             >
-              <SkipBack className="w-4.5 h-4.5" />
+              <SkipBack className="w-[17px] h-[17px]" />
             </button>
 
             <button
-              onClick={(e) => {
-                e.stopPropagation()
-                togglePlay()
+              onClick={(e) => { e.stopPropagation(); togglePlay() }}
+              className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 active:scale-90 transition-transform shadow-lg"
+              style={{
+                background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                boxShadow: '0 2px 10px var(--theme-glow-shadow, rgba(6,182,212,0.4))',
               }}
-              className="w-9.5 h-9.5 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center font-bold shadow-md active:scale-95 transition-transform shrink-0"
               title={isPlaying ? 'Tạm dừng' : 'Phát'}
             >
-              {isPlaying ? <Pause className="w-4.5 h-4.5 fill-current" /> : <Play className="w-4.5 h-4.5 fill-current" />}
+              {isPlaying
+                ? <Pause className="w-[17px] h-[17px] fill-current text-black" />
+                : <Play className="w-[17px] h-[17px] fill-current text-black ml-0.5" />}
             </button>
 
             <button
-              onClick={(e) => {
-                e.stopPropagation()
-                nextTrack()
-              }}
-              className="p-2 text-slate-300 active:text-white active:scale-95 transition-transform flex items-center justify-center"
+              onClick={(e) => { e.stopPropagation(); nextTrack() }}
+              className="w-9 h-9 flex items-center justify-center text-slate-400 active:text-white active:scale-90 transition-all rounded-full"
               title="Bài kế tiếp"
             >
-              <SkipForward className="w-4.5 h-4.5" />
+              <SkipForward className="w-[17px] h-[17px]" />
             </button>
-          </div>
 
-          {/* Right Zone: Favorite Heart */}
-          <div className="flex items-center justify-end z-10">
             <button
-              onClick={(e) => {
-                e.stopPropagation()
-                toggleFavoriteCurrentTrack()
-              }}
-              className="p-2 text-slate-400 active:text-rose-400 transition-colors flex items-center justify-center"
+              onClick={(e) => { e.stopPropagation(); toggleFavoriteCurrentTrack() }}
+              className="w-9 h-9 flex items-center justify-center active:scale-90 transition-all rounded-full"
               title={currentTrack.is_favorite ? 'Bỏ yêu thích' : 'Thêm yêu thích'}
             >
               <Heart
-                className={`w-4.5 h-4.5 ${
-                  currentTrack.is_favorite ? 'text-rose-500 fill-current' : 'text-slate-400'
+                className={`w-4 h-4 transition-all ${
+                  currentTrack.is_favorite
+                    ? 'text-rose-500 fill-current drop-shadow-[0_0_6px_rgba(244,63,94,0.6)]'
+                    : 'text-slate-500'
                 }`}
               />
             </button>
           </div>
         </div>
 
-        {/* Mini progress bar on bottom edge */}
-        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/10 overflow-hidden">
+        {/* Progress bar at bottom edge */}
+        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-white/[0.08]">
           <div
-            className="h-full bg-[var(--primary-spotify,#06b6d4)] transition-all duration-200"
-            style={{ width: `${progressPercent}%` }}
+            className="h-full transition-all duration-200"
+            style={{
+              width: `${progressPercent}%`,
+              background: 'linear-gradient(to right, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+            }}
           />
         </div>
       </div>

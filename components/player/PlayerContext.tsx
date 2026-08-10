@@ -1836,38 +1836,42 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         })
       } catch (e) {}
 
-      try {
-        navigator.mediaSession.setActionHandler('seekbackward', (details) => {
-          const skip = details.seekOffset || 10
-          if (!ytHtml5ModeRef.current && ytPlayerRef.current?.getCurrentTime) {
-            try {
-              const cur = ytPlayerRef.current.getCurrentTime() || 0
-              seek(Math.max(cur - skip, 0))
-              return
-            } catch {}
-          }
-          if (audioRef.current) {
-            seek(Math.max(audioRef.current.currentTime - skip, 0))
-          }
-        })
-      } catch (e) {}
+      // iOS hides next/prev track buttons when seekbackward/seekforward are registered,
+      // so on iOS we only register the skip buttons (next/prev) and let the scrubber handle seeking.
+      if (!isIOSDevice()) {
+        try {
+          navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+            const skip = details.seekOffset || 10
+            if (!ytHtml5ModeRef.current && ytPlayerRef.current?.getCurrentTime) {
+              try {
+                const cur = ytPlayerRef.current.getCurrentTime() || 0
+                seek(Math.max(cur - skip, 0))
+                return
+              } catch {}
+            }
+            if (audioRef.current) {
+              seek(Math.max(audioRef.current.currentTime - skip, 0))
+            }
+          })
+        } catch (e) {}
 
-      try {
-        navigator.mediaSession.setActionHandler('seekforward', (details) => {
-          const skip = details.seekOffset || 10
-          if (!ytHtml5ModeRef.current && ytPlayerRef.current?.getCurrentTime) {
-            try {
-              const cur = ytPlayerRef.current.getCurrentTime() || 0
-              const dur = ytPlayerRef.current.getDuration() || 0
-              seek(Math.min(cur + skip, dur))
-              return
-            } catch {}
-          }
-          if (audioRef.current) {
-            seek(Math.min(audioRef.current.currentTime + skip, audioRef.current.duration || 0))
-          }
-        })
-      } catch (e) {}
+        try {
+          navigator.mediaSession.setActionHandler('seekforward', (details) => {
+            const skip = details.seekOffset || 10
+            if (!ytHtml5ModeRef.current && ytPlayerRef.current?.getCurrentTime) {
+              try {
+                const cur = ytPlayerRef.current.getCurrentTime() || 0
+                const dur = ytPlayerRef.current.getDuration() || 0
+                seek(Math.min(cur + skip, dur))
+                return
+              } catch {}
+            }
+            if (audioRef.current) {
+              seek(Math.min(audioRef.current.currentTime + skip, audioRef.current.duration || 0))
+            }
+          })
+        } catch (e) {}
+      }
 
       try {
         navigator.mediaSession.setActionHandler('stop', () => {
