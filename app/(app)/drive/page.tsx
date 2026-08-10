@@ -11,6 +11,7 @@ import { Cloud, Play, Shuffle, Music, Sparkles, Upload, FolderSync } from 'lucid
 import { TrackList } from '@/components/track/TrackList'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 import { extractDriveFileId } from '@/lib/googleDriveUpload'
+import { addTrackToPlaylist } from '@/lib/trackPersistence'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 
 export default function DrivePage() {
@@ -130,6 +131,21 @@ export default function DrivePage() {
       )
     : driveTracks
 
+  const handleAddToPlaylist = async (playlistId: string, track: Track) => {
+    const activeUser =
+      supabaseUser ||
+      (nextAuthSession?.user
+        ? {
+            id: nextAuthSession.user.email,
+            email: nextAuthSession.user.email,
+          }
+        : null)
+
+    const userId = activeUser ? getValidUserId(activeUser) : ''
+    const result = await addTrackToPlaylist(supabase, playlistId, track, userId)
+    alert(result.message)
+  }
+
   const handlePlayAll = () => {
     if (filteredTracks.length === 0) return
     if (isShuffle) {
@@ -226,6 +242,7 @@ export default function DrivePage() {
           <TrackList
             tracks={filteredTracks}
             userPlaylists={playlists}
+            onAddToPlaylist={handleAddToPlaylist}
             onTrackUpdated={fetchDriveTracks}
           />
         ) : (

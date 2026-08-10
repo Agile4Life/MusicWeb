@@ -8,7 +8,9 @@ import { Track } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { TrackRow } from '@/components/track/TrackRow'
 import { TrackListSkeleton, HeroCardSkeleton } from '@/components/common/SkeletonLoader'
-import { getValidUserId } from '@/lib/accessControl'
+import { usePlaylists } from '@/components/playlist/PlaylistContext'
+import { useSession } from 'next-auth/react'
+import { addTrackToPlaylist } from '@/lib/trackPersistence'
 import { Play, DiscAlbum, Calendar, Music, Shuffle, Disc } from 'lucide-react'
 
 interface AlbumDetail {
@@ -27,9 +29,23 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
   const router = useRouter()
   const supabase = createClient()
   const { playTrack, currentTrack, isPlaying, isShuffle, toggleShuffle } = usePlayer()
+  const { playlists } = usePlaylists()
+  const { data: session } = useSession()
 
   const [album, setAlbum] = useState<AlbumDetail | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const handleAddToPlaylist = async (playlistId: string, track: Track) => {
+    const userEmail = session?.user?.email
+    let userId = ''
+    if (userEmail) {
+      const hex = Array.from(userEmail).map((c) => c.charCodeAt(0).toString(16)).join('')
+      const padded = (hex + '0123456789abcdef0123456789abcdef').slice(0, 32)
+      userId = `${padded.slice(0, 8)}-${padded.slice(8, 12)}-4${padded.slice(13, 16)}-a${padded.slice(17, 20)}-${padded.slice(20, 32)}`
+    }
+    const result = await addTrackToPlaylist(supabase, playlistId, track, userId)
+    alert(result.message)
+  }
 
   useEffect(() => {
     async function loadAlbum() {
@@ -240,6 +256,8 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
                     isCurrent={isCurrent}
                     isPlayingThis={isPlayingThis}
                     playlistTracks={album.tracks}
+                    userPlaylists={playlists}
+                    onAddToPlaylist={handleAddToPlaylist}
                     onPlayClick={() => playTrack(track, album.tracks)}
                   />
                 )

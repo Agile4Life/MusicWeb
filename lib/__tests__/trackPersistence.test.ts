@@ -1,18 +1,20 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Track } from '@/types'
-import { resolveExternalTrackId } from '../trackPersistence'
+import { resolveExternalTrackId, addTrackToPlaylist } from '../trackPersistence'
 
 interface MockQuery {
   select: (columns: string) => MockQuery
   insert?: (row: any) => MockQuery
   eq: (column: string, value: string | null) => MockQuery
+  ilike?: (column: string, value: string | null) => MockQuery
   limit?: (count: number) => Promise<{ data: any[] | null }>
   single?: () => Promise<{ data: any | null; error?: any }>
 }
 
 type MockSupabase = {
   from: (table: string) => MockQuery
+  rpc?: (fn: string, params: any) => Promise<{ error?: any }>
 }
 
 function createMockSupabase(selectRow?: any, insertRow?: any, onInsert?: (row: any) => void): SupabaseClient {
@@ -21,6 +23,9 @@ function createMockSupabase(selectRow?: any, insertRow?: any, onInsert?: (row: a
       return this
     },
     eq(column: string, value: string | null) {
+      return this
+    },
+    ilike(column: string, value: string | null) {
       return this
     },
     limit(count: number) {
@@ -42,6 +47,9 @@ function createMockSupabase(selectRow?: any, insertRow?: any, onInsert?: (row: a
     eq(column: string, value: string | null) {
       return this
     },
+    ilike(column: string, value: string | null) {
+      return this
+    },
   }
 
   const supabase = {
@@ -51,22 +59,29 @@ function createMockSupabase(selectRow?: any, insertRow?: any, onInsert?: (row: a
           select: selectQuery.select.bind(selectQuery),
           insert: insertQuery.insert?.bind(insertQuery),
           eq: selectQuery.eq.bind(selectQuery),
+          ilike: selectQuery.ilike?.bind(selectQuery),
           limit: selectQuery.limit?.bind(selectQuery),
           single: insertQuery.single?.bind(insertQuery),
         }
       }
+      if (table === 'playlist_tracks') {
+        return {
+          insert: () => Promise.resolve({ error: undefined }),
+        }
+      }
       return selectQuery
     },
+    rpc: () => Promise.resolve({ error: undefined }),
   } as unknown as SupabaseClient
 
   return supabase
 }
 
 describe('resolveExternalTrackId', () => {
-  it('returns local track id unchanged', async () => {
+  it('returns local track id unchanged when valid UUID', async () => {
     const supabase = createMockSupabase()
     const track: Track = {
-      id: 'local-123',
+      id: '00000000-0000-4000-a000-000000000005',
       user_id: 'user-1',
       title: 'Local Song',
       artist: 'Artist',
@@ -78,7 +93,7 @@ describe('resolveExternalTrackId', () => {
     }
 
     const result = await resolveExternalTrackId(supabase, track, 'user-1')
-    expect(result).toBe('local-123')
+    expect(result).toBe('00000000-0000-4000-a000-000000000005')
   })
 
   it('resolves an existing external track by nhaccuatui_id', async () => {
@@ -170,3 +185,23 @@ describe('resolveExternalTrackId', () => {
     expect(insertedRow.file_path).toBe('https://www.deezer.com/track/12345')
   })
 })
+
+describe('addTrackToPlaylist', () => {
+  it('fails with login prompt if userId is empty', async () => {
+    const supabase = createMockSupabase()
+    const track: Track = { id: '00000000-0000-4000-a000-000000000005', title: 'Song', file_path: '' }
+    const result = await addTrackToPlaylist(supabase, 'pl-1', track, '')
+    expect(result.success).toBe(false)
+    expect(result.message).toContain('Vui lòng đăng nhập')
+  })
+
+  it('successfully adds valid track to playlist', async () => {
+    const supabase = createMockSupabase()
+    const track: Track = { id: '00000000-0000-4000-a000-000000000005', title: 'Song', file_path: '' }
+    const result = await addTrackToPlaylist(supabase, 'pl-1', track, 'user-1')
+    expect(result.success).toBe(true)
+    expect(result.message).toContain('Đã thêm bài hát vào playlist!')
+  })
+})
+
+

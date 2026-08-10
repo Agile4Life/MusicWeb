@@ -57,20 +57,20 @@ function inferTrackSource(track: Track): Track {
     }
   }
 
-  if (!normalized.youtube_id && normalized.id?.startsWith('yt-')) {
-    normalized.youtube_id = normalized.id.slice(3)
+  if (!normalized.youtube_id && (normalized.id?.startsWith('yt-') || normalized.source === 'youtube')) {
+    normalized.youtube_id = normalized.id?.startsWith('yt-') ? normalized.id.slice(3) : normalized.id
   }
-  if (!normalized.spotify_id && normalized.id?.startsWith('spotify-')) {
-    normalized.spotify_id = normalized.id.slice(8)
+  if (!normalized.spotify_id && (normalized.id?.startsWith('spotify-') || normalized.source === 'spotify')) {
+    normalized.spotify_id = normalized.id?.startsWith('spotify-') ? normalized.id.slice(8) : normalized.id
   }
-  if (!normalized.nhaccuatui_id && normalized.id?.startsWith('nct-')) {
-    normalized.nhaccuatui_id = normalized.id.slice(4)
+  if (!normalized.nhaccuatui_id && (normalized.id?.startsWith('nct-') || normalized.source === 'nhaccuatui')) {
+    normalized.nhaccuatui_id = normalized.id?.startsWith('nct-') ? normalized.id.slice(4) : normalized.id
   }
-  if (!normalized.itunes_id && normalized.id?.startsWith('itunes-')) {
-    normalized.itunes_id = normalized.id.slice(7)
+  if (!normalized.itunes_id && (normalized.id?.startsWith('itunes-') || normalized.source === 'itunes')) {
+    normalized.itunes_id = normalized.id?.startsWith('itunes-') ? normalized.id.slice(7) : String(normalized.id)
   }
-  if (!normalized.audius_id && normalized.id?.startsWith('audius-')) {
-    normalized.audius_id = normalized.id.slice(7)
+  if (!normalized.audius_id && (normalized.id?.startsWith('audius-') || normalized.source === 'audius')) {
+    normalized.audius_id = normalized.id?.startsWith('audius-') ? normalized.id.slice(7) : normalized.id
   }
 
   return normalized
@@ -84,10 +84,12 @@ export async function resolveExternalTrackId(
   const normalizedTrack = inferTrackSource(track)
   const isExternalTrackFlag = isExternalTrack(normalizedTrack)
 
-  if (!isExternalTrackFlag) return normalizedTrack.id
+  if (!isExternalTrackFlag && normalizedTrack.id && UUID_REGEX.test(normalizedTrack.id)) {
+    return normalizedTrack.id
+  }
 
-  // 1. Look for an existing row using the most stable identity first.
-  //    file_path is the last resort because some sources (NhacCuaTui) leave it empty.
+  // 1. Look for an existing row in `tracks` table.
+  // We check BOTH per-user rows AND global/system rows so existing tracks can be reused.
   const lookups: Array<{ column: string; value: string }> = []
   if (normalizedTrack.nhaccuatui_id) lookups.push({ column: 'nhaccuatui_id', value: normalizedTrack.nhaccuatui_id })
   if (normalizedTrack.spotify_id) lookups.push({ column: 'spotify_id', value: normalizedTrack.spotify_id })
@@ -96,18 +98,54 @@ export async function resolveExternalTrackId(
   if (normalizedTrack.audius_id) lookups.push({ column: 'audius_id', value: normalizedTrack.audius_id })
   if (normalizedTrack.file_path) lookups.push({ column: 'file_path', value: normalizedTrack.file_path })
 
+  // Phase A: Search under current user_id first
   for (const { column, value } of lookups) {
+    if (!value) continue
     const { data } = await supabase
       .from('tracks')
       .select('id')
       .eq('user_id', userId)
       .eq(column, value)
       .limit(1)
-    if (data && data.length > 0) return data[0].id
+    if (data && data.length > 0 && data[0].id) return data[0].id
   }
 
-  // 2. No existing row — insert a complete record. Guarantee a non-empty,
-  //    unique file_path so later lookups and playback resolution keep working.
+  // Phase B: Search globally across all users / system user
+  for (const { column, value } of lookups) {
+    if (!value) continue
+    const { data } = await supabase
+      .from('tracks')
+      .select('id')
+      .eq(column, value)
+      .limit(1)
+    if (data && data.length > 0 && data[0].id) return data[0].id
+  }
+
+  // Phase C: Search by exact title + artist match
+  if (normalizedTrack.title) {
+    const titleVal = normalizedTrack.title.trim()
+    const artistVal = (normalizedTrack.artist || '').trim()
+
+    let query = supabase.from('tracks').select('id').eq('user_id', userId).eq('title', titleVal)
+    if (artistVal) {
+      query = query.eq('artist', artistVal)
+    }
+    const { data: userTitleMatches } = await query.limit(1)
+    if (userTitleMatches && userTitleMatches.length > 0 && userTitleMatches[0].id) {
+      return userTitleMatches[0].id
+    }
+
+    let globalQuery = supabase.from('tracks').select('id').eq('title', titleVal)
+    if (artistVal) {
+      globalQuery = globalQuery.eq('artist', artistVal)
+    }
+    const { data: globalTitleMatches } = await globalQuery.limit(1)
+    if (globalTitleMatches && globalTitleMatches.length > 0 && globalTitleMatches[0].id) {
+      return globalTitleMatches[0].id
+    }
+  }
+
+  // 2. No existing row found — insert a complete record for this user.
   const fallbackPath =
     normalizedTrack.file_path ||
     (normalizedTrack.nhaccuatui_id
@@ -120,13 +158,13 @@ export async function resolveExternalTrackId(
             ? `itunes:${normalizedTrack.itunes_id}`
             : normalizedTrack.audius_id
               ? `audius:${normalizedTrack.audius_id}`
-              : '')
+              : `ext:${Date.now()}`)
 
   const { data: inserted, error } = await supabase
     .from('tracks')
     .insert({
       user_id: userId,
-      title: normalizedTrack.title,
+      title: normalizedTrack.title || 'Untitled Track',
       artist: normalizedTrack.artist || null,
       album: normalizedTrack.album || null,
       duration: normalizedTrack.duration || 0,
@@ -143,24 +181,97 @@ export async function resolveExternalTrackId(
     .select('id')
     .single()
 
-  if (!error && inserted) return inserted.id
+  if (!error && inserted && inserted.id) return inserted.id
 
-  // If the insert failed due to a unique song tuple on the user's library,
-  // try to recover by finding the existing track row by title/artist.
+  // 3. Fallback recovery if insert failed (e.g. unique constraint or duplicate)
   if (normalizedTrack.title) {
-    const titleValue = normalizedTrack.title.trim()
-    const artistValue = (normalizedTrack.artist || '').trim()
-    let query = supabase.from('tracks').select('id').eq('user_id', userId).ilike('title', titleValue)
+    const titleVal = normalizedTrack.title.trim()
 
-    if (artistValue) {
-      query = query.ilike('artist', artistValue)
-    } else {
-      query = query.is('artist', null)
-    }
+    const { data: fallbackUser } = await supabase
+      .from('tracks')
+      .select('id')
+      .eq('user_id', userId)
+      .ilike('title', titleVal)
+      .limit(1)
+    if (fallbackUser && fallbackUser.length > 0 && fallbackUser[0].id) return fallbackUser[0].id
 
-    const { data: titleMatches } = await query.limit(1)
-    if (titleMatches && titleMatches.length > 0) return titleMatches[0].id
+    const { data: fallbackGlobal } = await supabase
+      .from('tracks')
+      .select('id')
+      .ilike('title', titleVal)
+      .limit(1)
+    if (fallbackGlobal && fallbackGlobal.length > 0 && fallbackGlobal[0].id) return fallbackGlobal[0].id
   }
 
   return null
 }
+
+export async function addTrackToPlaylist(
+  supabase: SupabaseClient,
+  playlistId: string,
+  track: Track,
+  userId: string,
+): Promise<{ success: boolean; message: string }> {
+  if (!userId) {
+    return { success: false, message: 'Vui lòng đăng nhập để thêm bài hát vào playlist!' }
+  }
+
+  let targetTrackId = track.id
+
+  if (
+    isExternalTrack(track) ||
+    !track.id ||
+    !UUID_REGEX.test(track.id)
+  ) {
+    const resolvedId = await resolveExternalTrackId(supabase, track, userId)
+    if (!resolvedId) {
+      return { success: false, message: 'Lỗi lưu bài hát vào CSDL. Vui lòng thử lại!' }
+    }
+    targetTrackId = resolvedId
+  }
+
+  // 1. Direct insert to playlist_tracks table
+  const { error: directInsertError } = await supabase.from('playlist_tracks').insert({
+    playlist_id: playlistId,
+    track_id: targetTrackId,
+  })
+
+  if (!directInsertError) {
+    return { success: true, message: 'Đã thêm bài hát vào playlist!' }
+  }
+
+  // Handle duplicate / unique constraint
+  if (
+    directInsertError.code === '23505' ||
+    directInsertError.message?.includes('unique') ||
+    directInsertError.message?.includes('duplicate')
+  ) {
+    return { success: true, message: 'Bài hát này đã có trong playlist!' }
+  }
+
+  // 2. Fallback to RPC function
+  const { error: rpcError } = await Promise.resolve(
+    supabase.rpc('fn_add_track_to_playlist', {
+      p_playlist_id: playlistId,
+      p_track_id: targetTrackId,
+    })
+  )
+
+  if (!rpcError) {
+    return { success: true, message: 'Đã thêm bài hát vào playlist!' }
+  }
+
+  if (
+    rpcError.code === '23505' ||
+    rpcError.message?.includes('unique') ||
+    rpcError.message?.includes('duplicate')
+  ) {
+    return { success: true, message: 'Bài hát này đã có trong playlist!' }
+  }
+
+  return {
+    success: false,
+    message: directInsertError.message || rpcError.message || 'Lỗi thêm bài hát vào playlist',
+  }
+}
+

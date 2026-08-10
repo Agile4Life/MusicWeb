@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Track, Playlist } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { getValidUserId } from '@/lib/accessControl'
-import { resolveExternalTrackId, isExternalTrack } from '@/lib/trackPersistence'
+import { resolveExternalTrackId, isExternalTrack, addTrackToPlaylist } from '@/lib/trackPersistence'
 import { useSession } from 'next-auth/react'
 import { Heart, Play, Search, Music, Sparkles, Loader2, ChevronLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -130,45 +130,9 @@ export default function FavoritesPage() {
           }
         : null)
 
-    const userId = activeUser ? getValidUserId(activeUser) : null
-    if (!userId) {
-      alert('Vui lòng đăng nhập để thêm bài hát vào playlist!')
-      return
-    }
-
-    let targetTrackId = track.id
-
-    if (isExternalTrack(track)) {
-      const resolvedId = await resolveExternalTrackId(supabase, track, userId)
-      if (!resolvedId) {
-        alert('Lỗi lưu bài hát vào CSDL')
-        return
-      }
-      targetTrackId = resolvedId
-    }
-
-    const { error: rpcError } = await Promise.resolve(
-      supabase.rpc('fn_add_track_to_playlist', {
-        p_playlist_id: playlistId,
-        p_track_id: targetTrackId,
-      })
-    )
-
-    if (!rpcError) {
-      alert('Đã thêm bài hát vào playlist!')
-      return
-    }
-
-    const { error } = await supabase.from('playlist_tracks').insert({
-      playlist_id: playlistId,
-      track_id: targetTrackId,
-    })
-
-    if (!error) {
-      alert('Đã thêm bài hát vào playlist!')
-    } else {
-      alert(error.message || 'Lỗi thêm bài hát vào playlist')
-    }
+    const userId = activeUser ? getValidUserId(activeUser) : ''
+    const result = await addTrackToPlaylist(supabase, playlistId, track, userId)
+    alert(result.message)
   }
 
   const handleTrackUpdated = (trackId: string, updates: Partial<Track>) => {
