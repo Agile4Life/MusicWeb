@@ -19,6 +19,24 @@ interface ResolvedYouTubeStream {
   mimeType: string
 }
 
+// Direct stream URLs are valid for hours — cache them server-side so repeated
+// plays / track switches resolve instantly instead of re-running yt-dlp (~3-5s).
+const streamUrlCache = new Map<string, { url: string; mimeType: string; expiresAt: number }>()
+const STREAM_CACHE_TTL = 2.5 * 60 * 60 * 1000 // googlevideo URLs expire after ~6h
+
+async function resolveYouTubeAudioStreamCached(videoId: string): Promise<ResolvedYouTubeStream | null> {
+  const cached = streamUrlCache.get(videoId)
+  if (cached && Date.now() < cached.expiresAt) {
+    return { url: cached.url, mimeType: cached.mimeType }
+  }
+
+  const resolved = await resolveYouTubeAudioStream(videoId)
+  if (resolved && resolved.url) {
+    streamUrlCache.set(videoId, { ...resolved, expiresAt: Date.now() + STREAM_CACHE_TTL })
+  }
+  return resolved
+}
+
 function findYtDlpBinary(): string | null {
   const candidates = [
     process.env.YTDLP_PATH,
@@ -184,7 +202,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Missing YouTube video ID parameter' }, { status: 400 })
     }
 
-    const resolved = await resolveYouTubeAudioStream(videoId)
+    const resolved = await resolveYouTubeAudioStreamCached(videoId)
     if (!resolved || !resolved.url) {
       return NextResponse.json(
         { error: 'YouTube: could not extract playable audio stream' },
@@ -248,7 +266,7 @@ export async function HEAD(req: NextRequest) {
       return new NextResponse(null, { status: 400 })
     }
 
-    const resolved = await resolveYouTubeAudioStream(videoId)
+    const resolved = await resolveYouTubeAudioStreamCached(videoId)
     if (!resolved || !resolved.url) {
       return new NextResponse(null, { status: 502 })
     }

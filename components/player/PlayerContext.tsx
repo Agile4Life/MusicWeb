@@ -283,6 +283,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const audioUrlCacheRef = useRef<Map<string, { url: string; ts: number }>>(new Map())
   const URL_CACHE_TTL = 30 * 60 * 1000 // 30 mins
 
+  // Cached catalog-track resolution (NCT/Drive/YouTube matching) so switching back to a
+  // previously resolved track skips the slow network matching entirely.
+  const trackResolutionCacheRef = useRef<Map<string, { activeTrack: Track; expiresAt: number }>>(new Map())
+  const TRACK_RESOLUTION_TTL = 30 * 60 * 1000
+
   // Resolve audio URL for local and external tracks
   const getAudioUrl = useCallback(
     async (track: Track): Promise<string | null> => {
@@ -382,8 +387,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const upcoming = queue.slice(currentIndex, currentIndex + 6)
       triggerDrivePrewarm(upcoming)
 
-      // Prefetch audio URLs for next 2 tracks into synchronous cache
-      const nextTracks = queue.slice(currentIndex + 1, currentIndex + 3)
+      // Prefetch audio URLs for next 4 tracks into synchronous cache
+      const nextTracks = queue.slice(currentIndex + 1, currentIndex + 5)
       for (const nextTr of nextTracks) {
         if (nextTr && nextTr.id && !audioUrlCacheRef.current.has(nextTr.id)) {
           getAudioUrlCached(nextTr).catch(() => {})
@@ -391,10 +396,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Pre-resolve metadata/stream for immediate next track to guarantee smooth background playback on mobile
+    // Pre-resolve metadata/stream for next tracks to guarantee smooth background playback on mobile
     if (queue && queue.length > 0 && currentIndex >= 0) {
-      const nextIdx = currentIndex + 1
-      if (nextIdx < queue.length) {
+      for (let offset = 1; offset <= 3; offset++) {
+        const nextIdx = currentIndex + offset
+        if (nextIdx >= queue.length) break
         const nextTr = queue[nextIdx]
         const hasDirectPlayable = Boolean(
           nextTr.audio_url ||
@@ -1024,7 +1030,18 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       (!track.youtube_id && (track.spotify_id || track.itunes_id || track.nhaccuatui_id))
     ) && !track.youtube_id
 
-    if (shouldResolveExternalCatalog) {
+    // ⚡ Fast path: reuse a previously resolved catalog match for this track.id
+    const cachedResolution = shouldResolveExternalCatalog
+      ? trackResolutionCacheRef.current.get(track.id)
+      : undefined
+    const useCachedResolution = cachedResolution && Date.now() < cachedResolution.expiresAt
+    if (useCachedResolution && requestId === playRequestRef.current) {
+      activeTrack = cachedResolution.activeTrack
+      setCurrentTrack(activeTrack)
+      syncQueueEntry(activeTrack)
+    }
+
+    if (shouldResolveExternalCatalog && !useCachedResolution) {
       // 🚀 Parallel lookup: Search Drive tracks + YouTube simultaneously for faster resolution
       const cleanTitle = normalizeTitle(track.title)
       const cleanArtist = normalizeTitle(track.artist || '')
@@ -1089,6 +1106,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           duration: nctSong.duration || track.duration,
           cover_url: nctSong.coverUrl || track.cover_url || null,
         }
+        trackResolutionCacheRef.current.set(track.id, { activeTrack, expiresAt: Date.now() + TRACK_RESOLUTION_TTL })
         setCurrentTrack(activeTrack)
         syncQueueEntry(activeTrack)
         const streamUrl = await getAudioUrl(activeTrack)
@@ -1139,6 +1157,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           spotify_album_id: track.spotify_album_id || (driveTrack as any).spotify_album_id || null,
           cover_url: track.cover_url || (driveTrack as any).cover_url || null,
         }
+        trackResolutionCacheRef.current.set(track.id, { activeTrack, expiresAt: Date.now() + TRACK_RESOLUTION_TTL })
         setCurrentTrack(activeTrack)
         syncQueueEntry(activeTrack)
         const streamUrl = await getAudioUrl(activeTrack)
@@ -1200,6 +1219,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               youtube_id: bestMatch.youtube_id,
               source: 'youtube',
             }
+            trackResolutionCacheRef.current.set(track.id, { activeTrack, expiresAt: Date.now() + TRACK_RESOLUTION_TTL })
             rawTrack.youtube_id = bestMatch.youtube_id
             track.youtube_id = bestMatch.youtube_id
             const isValidUUID = (id?: string) => Boolean(id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))

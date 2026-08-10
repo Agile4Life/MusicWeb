@@ -12,6 +12,39 @@ function getNctSongUrl(id: string): URL {
   return url
 }
 
+// Signed NCT stream URLs are reused within a short window to avoid hitting the
+// external API on every track switch (that call is the slow part of loading).
+const nctAudioUrlCache = new Map<string, { audioUrl: string; expiresAt: number }>()
+const NCT_CACHE_TTL = 8 * 60 * 1000
+
+async function resolveNctAudioUrlCached(id: string): Promise<string | null> {
+  const trimmed = id.trim()
+  if (!trimmed) return null
+
+  const cached = nctAudioUrlCache.get(trimmed)
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.audioUrl
+  }
+
+  try {
+    const songRes = await fetch(getNctSongUrl(trimmed), {
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!songRes.ok) return null
+
+    const payload: unknown = await songRes.json()
+    const song = normalizeNhacCuaTuiSongResponse(payload)
+    if (!song || !song.audioUrl) return null
+
+    nctAudioUrlCache.set(trimmed, { audioUrl: song.audioUrl, expiresAt: Date.now() + NCT_CACHE_TTL })
+    return song.audioUrl
+  } catch {
+    return null
+  }
+}
+
 function applyCorsHeaders(headers: Headers) {
   headers.set('Access-Control-Allow-Origin', '*')
   headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
@@ -33,23 +66,26 @@ export async function HEAD(request: Request): Promise<Response> {
   }
 
   try {
-    const songRes = await fetch(getNctSongUrl(id.trim()), {
-      cache: 'no-store',
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(8000),
-    })
+    let audioUrl = await resolveNctAudioUrlCached(id.trim())
+    if (!audioUrl) return new Response(null, { status: 502 })
 
-    if (!songRes.ok) return new Response(null, { status: 502 })
-
-    const payload: unknown = await songRes.json()
-    const song = normalizeNhacCuaTuiSongResponse(payload)
-    if (!song || !song.audioUrl) return new Response(null, { status: 502 })
-
-    const upstream = await fetch(song.audioUrl, {
+    let upstream = await fetch(audioUrl, {
       method: 'HEAD',
       cache: 'no-store',
       signal: AbortSignal.timeout(8000),
     })
+
+    // Cached URL may have expired upstream — re-resolve once before giving up
+    if (!upstream.ok) {
+      nctAudioUrlCache.delete(id.trim())
+      audioUrl = await resolveNctAudioUrlCached(id.trim())
+      if (!audioUrl) return new Response(null, { status: 502 })
+      upstream = await fetch(audioUrl, {
+        method: 'HEAD',
+        cache: 'no-store',
+        signal: AbortSignal.timeout(8000),
+      })
+    }
 
     const headers = new Headers()
     headers.set('Cache-Control', 'private, no-store')
@@ -75,19 +111,8 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   try {
-    const songRes = await fetch(getNctSongUrl(id.trim()), {
-      cache: 'no-store',
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(8000),
-    })
-
-    if (!songRes.ok) {
-      return NextResponse.json({ error: 'Song stream unavailable' }, { status: 502 })
-    }
-
-    const payload: unknown = await songRes.json()
-    const song = normalizeNhacCuaTuiSongResponse(payload)
-    if (!song || !song.audioUrl) {
+    let audioUrl = await resolveNctAudioUrlCached(id.trim())
+    if (!audioUrl) {
       return NextResponse.json({ error: 'Song stream unavailable' }, { status: 502 })
     }
 
@@ -99,12 +124,27 @@ export async function GET(request: Request): Promise<Response> {
     const range = request.headers.get('range')
     if (range) upstreamHeaders.set('Range', range)
 
-    const upstream = await fetch(song.audioUrl, {
+    let upstream = await fetch(audioUrl, {
       method: 'GET',
       headers: upstreamHeaders,
       cache: 'no-store',
       signal: AbortSignal.timeout(8000),
     })
+
+    // Cached URL may have expired upstream — re-resolve once before giving up
+    if (!upstream.ok) {
+      nctAudioUrlCache.delete(id.trim())
+      audioUrl = await resolveNctAudioUrlCached(id.trim())
+      if (!audioUrl) {
+        return NextResponse.json({ error: 'Song stream unavailable' }, { status: 502 })
+      }
+      upstream = await fetch(audioUrl, {
+        method: 'GET',
+        headers: upstreamHeaders,
+        cache: 'no-store',
+        signal: AbortSignal.timeout(8000),
+      })
+    }
 
     if (!upstream.ok) {
       return NextResponse.json({ error: 'Song stream unavailable' }, { status: 502 })
