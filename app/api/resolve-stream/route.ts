@@ -103,7 +103,11 @@ function isPreviewUrl(filePath: string): boolean {
     lower.includes('itunes.apple.com') ||
     lower.includes('audio-ssl.itunes.apple.com') ||
     lower.includes('is1-ssl.mzstatic.com') ||
-    lower.includes('mzstatic.com')
+    lower.includes('mzstatic.com') ||
+    lower.includes('spotify.com') ||
+    lower.includes('scdn.co') ||
+    lower.includes('deezer.com') ||
+    lower.includes('dzcdn.net')
 }
 
 // ── Server-side full resolution (Drive → NCT → YouTube) ────────────
@@ -134,7 +138,12 @@ async function resolveStream(
           const artistMatches = !cleanArtist || ltArtist.includes(cleanArtist) || cleanArtist.includes(ltArtist)
           if (titleMatches && artistMatches) {
             const driveId = lt.drive_file_id || extractDriveFileId(lt.file_path)
-            if (driveId || (lt.file_path?.startsWith('http') && !isPreviewUrl(lt.file_path))) {
+            const isPlayableDrive = driveId || (
+              lt.file_path?.startsWith('http') &&
+              !isPreviewUrl(lt.file_path) &&
+              (lt.file_path.includes('drive.google') || lt.file_path.includes('googleusercontent') || /\.(mp3|flac|m4a|wav|aac|ogg)(?:[?#]|$)/i.test(lt.file_path))
+            )
+            if (isPlayableDrive) {
               return {
                 source: 'drive',
                 resolvedId: lt.file_path || lt.id,

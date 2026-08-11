@@ -1013,13 +1013,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     )
 
     const shouldResolveExternalCatalog = (!hasDirectPlayableAudio || isPreviewAudio) && (
-      (track.source === 'nhaccuatui' && Boolean(track.nhaccuatui_id)) ||
       track.source === 'itunes' ||
       track.source === 'spotify' ||
       (track as any).source === 'deezer' ||
       isPreviewAudio ||
-      (!track.youtube_id && (track.spotify_id || track.itunes_id || track.nhaccuatui_id))
-    ) && !track.youtube_id
+      (!track.youtube_id && !track.nhaccuatui_id && (track.spotify_id || track.itunes_id))
+    ) && !track.youtube_id && !(track.source === 'nhaccuatui' && Boolean(track.nhaccuatui_id))
 
     // ⚡ FAST-START: for catalog tracks with an immediate preview/direct URL, start audio
     // NOW (same call stack as the user gesture) and let the full-length resolution below
