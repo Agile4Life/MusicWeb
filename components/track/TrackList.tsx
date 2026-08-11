@@ -53,10 +53,10 @@ export function TrackList({
     }
   }, [showBulkModal])
 
-  // Fire-and-forget prewarm for top visible Drive tracks
+  // Fire-and-forget prewarm for top 3 visible Drive tracks
   React.useEffect(() => {
     if (tracks && tracks.length > 0) {
-      triggerDrivePrewarm(tracks.slice(0, 15))
+      triggerDrivePrewarm(tracks.slice(0, 3))
     }
   }, [tracks])
 

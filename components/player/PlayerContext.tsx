@@ -332,7 +332,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           track.title?.match(/\.(flac|mp3|wav|m4a|aac|ogg|wma)(?:[?#]|$)/i)?.[1]?.toLowerCase() ||
           ''
         const filenameParam = ext ? `&filename=${encodeURIComponent(`stream.${ext}`)}` : ''
-        return `/api/drive-stream?id=${encodeURIComponent(driveFileId)}${filenameParam}&proxy=true`
+        return `/api/drive-stream?id=${encodeURIComponent(driveFileId)}${filenameParam}`
       }
 
       let rawUrl: string | null = null
