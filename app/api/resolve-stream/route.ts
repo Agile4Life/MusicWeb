@@ -193,8 +193,15 @@ async function resolveStream(
 
   // === 3. YouTube search + match ===
   try {
-    const ytCandidates = await searchYouTubeTracks(queryStr, 10)
-    const best = findBestYouTubeMatch(ytCandidates, title, artist, duration)
+    let ytCandidates = await searchYouTubeTracks(queryStr, 10)
+    let best = findBestYouTubeMatch(ytCandidates, title, artist, duration)
+
+    if (!best && ytCandidates.length === 0 && cleanTitle) {
+      const fallbackQuery = `${cleanTitle} ${cleanArtist} audio`.trim()
+      ytCandidates = await searchYouTubeTracks(fallbackQuery, 10)
+      best = findBestYouTubeMatch(ytCandidates, title, artist, duration)
+    }
+
     if (best?.youtube_id) {
       return {
         source: 'youtube',

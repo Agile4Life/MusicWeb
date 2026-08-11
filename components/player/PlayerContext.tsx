@@ -1059,6 +1059,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const useCachedResolution = cachedResolution && Date.now() < cachedResolution.expiresAt
     if (useCachedResolution && requestId === playRequestRef.current) {
       activeTrack = cachedResolution.activeTrack
+      audioUrlCacheRef.current.delete(track.id)
       setCurrentTrack(activeTrack)
       syncQueueEntry(activeTrack)
     }
@@ -1075,12 +1076,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (requestId !== playRequestRef.current) return
 
       if (resolved) {
+        // Evict any stale audio URL cache entry for this catalog track ID so the player fetches the new stream!
+        audioUrlCacheRef.current.delete(track.id)
+
         if (resolved.source === 'nhaccuatui') {
           activeTrack = {
             ...track,
             source: 'nhaccuatui',
             nhaccuatui_id: resolved.id,
             audio_url: undefined,
+            file_path: '',
             title: resolved.title || track.title,
             artist: resolved.artist || track.artist,
             duration: resolved.duration || track.duration,
@@ -1105,6 +1110,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             youtube_id: resolved.id,
             source: 'youtube',
             audio_url: undefined,
+            file_path: '',
           }
           rawTrack.youtube_id = resolved.id
           track.youtube_id = resolved.id
@@ -1122,6 +1128,21 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           setCurrentTrack(activeTrack)
           currentTrackRef.current = activeTrack
           syncQueueEntry(activeTrack)
+        }
+      } else {
+        // Resolution returned NULL (Miss or Resolution Failure for catalog track)
+        // Never play a 30s preview as a full-length track at full volume!
+        audioUrlCacheRef.current.delete(track.id)
+        if (audioRef.current && audioRef.current.src.includes('preview')) {
+          try {
+            audioRef.current.pause()
+            audioRef.current.removeAttribute('src')
+          } catch {}
+        }
+        activeTrack = {
+          ...track,
+          audio_url: undefined,
+          file_path: '',
         }
       }
     }
