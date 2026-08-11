@@ -55,6 +55,15 @@ export const CURSOR_CONFIGS: CursorConfig[] = [
     shadowClass: 'shadow-[0_0_12px_rgba(168,85,247,0.3)]',
   },
   {
+    id: 'hu-tao',
+    name: 'Hu Tao (Liyue)',
+    desc: 'Genshin Impact Anime',
+    themeColor: 'amber',
+    bgClass: 'bg-amber-500/15',
+    borderClass: 'border-amber-500/30',
+    shadowClass: 'shadow-[0_0_12px_rgba(245,158,11,0.3)]',
+  },
+  {
     id: 'default',
     name: 'Hệ thống (Default)',
     desc: 'Con trỏ mặc định',

@@ -204,9 +204,9 @@ const allFiles = getAllFiles(sourceFolder);
 const fileMap = {
   Normal: allFiles.find(f => /Normal/i.test(f) && /\.(ani|cur|png)$/i.test(f)),
   Link: allFiles.find(f => /Link/i.test(f) && /\.(ani|cur|png)$/i.test(f)),
-  Working: allFiles.find(f => /(Working|Busy)/i.test(f) && /\.(ani|cur|png)$/i.test(f)),
-  Busy: allFiles.find(f => /Busy/i.test(f) && /\.(ani|cur|png)$/i.test(f)),
-  Text: allFiles.find(f => /Text/i.test(f) && /\.(ani|cur|png)$/i.test(f)),
+  Working: allFiles.find(f => /(Working|Busy|Loading)/i.test(f) && /\.(ani|cur|png)$/i.test(f)),
+  Busy: allFiles.find(f => /(Busy|Loading|Working)/i.test(f) && /\.(ani|cur|png)$/i.test(f)),
+  Text: allFiles.find(f => /Text Select\.ani$/i.test(f)) || allFiles.find(f => /Text/i.test(f) && /\.(ani|cur|png)$/i.test(f)),
   Help: allFiles.find(f => /Help/i.test(f) && /\.(ani|cur|png)$/i.test(f)),
   Unavailable: allFiles.find(f => /Unavailable/i.test(f) && /\.(ani|cur|png)$/i.test(f)),
 };
