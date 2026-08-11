@@ -38,8 +38,8 @@ export function NowPlayingStage({
       )}
 
       {/* Hero Album Cover */}
-      <div className="relative z-20 flex flex-col items-center justify-center gap-6 max-w-md w-full">
-        <div className="now-playing-cover relative w-64 h-64 sm:w-72 sm:h-72 lg:w-80 lg:h-80 rounded-2xl overflow-hidden border border-white/10 shadow-2xl transition-transform duration-300 hover:scale-[1.02]">
+      <div className="relative z-20 flex flex-col items-center justify-center gap-6 max-w-lg w-full">
+        <div className="now-playing-cover relative w-72 h-72 sm:w-88 sm:h-88 lg:w-[380px] lg:h-[380px] rounded-3xl overflow-hidden border border-white/15 shadow-[0_20px_60px_rgba(0,0,0,0.6),0_0_80px_var(--accent-dim)] transition-transform duration-300 hover:scale-[1.02]">
           <TrackCoverImage src={coverUrl} alt={title || 'Now Playing'} />
         </div>
 

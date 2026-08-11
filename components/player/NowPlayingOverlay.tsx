@@ -131,8 +131,8 @@ export function NowPlayingOverlay() {
           </div>
 
           {/* Right Column (~45%): Synchronized Lyrics */}
-          <div className="w-[45%] h-full relative">
-            <LyricsView isModal={false} />
+          <div className="w-[45%] h-full relative lyrics-panel-fade">
+            <LyricsView isModal={false} showControls={false} />
           </div>
         </div>
 
@@ -150,7 +150,7 @@ export function NowPlayingOverlay() {
             </div>
           ) : (
             <div className="w-full h-full relative">
-              <LyricsView isModal={false} />
+              <LyricsView isModal={false} showControls={false} />
             </div>
           )}
         </div>

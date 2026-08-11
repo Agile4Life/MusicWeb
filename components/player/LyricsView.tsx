@@ -29,6 +29,7 @@ import {
 interface LyricsViewProps {
   onClose?: () => void
   isModal?: boolean
+  showControls?: boolean
 }
 
 function formatTime(seconds: number) {
@@ -38,7 +39,7 @@ function formatTime(seconds: number) {
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`
 }
 
-export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
+export function LyricsView({ onClose, isModal = false, showControls = true }: LyricsViewProps) {
   const { currentTime, duration } = usePlaybackProgress()
   const {
     currentTrack,
@@ -321,7 +322,7 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="relative z-10 flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 no-scrollbar"
+        className="relative z-10 flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 no-scrollbar lyrics-scroll-mask"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {loading ? (
@@ -379,170 +380,172 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
       </div>
 
       {/* 🎵 Bottom Glassmorphic Player Controls & Seekbar */}
-      <div className="relative z-20 bg-black/50 backdrop-blur-2xl border-t border-white/10 px-4 sm:px-8 py-3.5 flex flex-col sm:flex-row items-center justify-between text-slate-300 select-none shrink-0 gap-3">
-        {/* Left: Track Metadata (Desktop) */}
-        <div className="hidden sm:flex items-center gap-3 w-1/4 min-w-[200px]">
-          <div className="w-11 h-11 bg-slate-900 rounded-xl overflow-hidden relative flex items-center justify-center border border-white/15 shadow-md shrink-0">
-            {currentTrack.cover_url ? (
-              <img
-                src={currentTrack.cover_url}
-                alt={currentTrack.title}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <Headphones className="w-5 h-5 text-cyan-400" />
-            )}
-          </div>
-
-          <div className="truncate flex flex-col min-w-0">
-            <p className="text-xs sm:text-sm font-extrabold text-white truncate hover:text-cyan-300 transition-colors cursor-pointer">
-              {currentTrack.title}
-            </p>
-            <p className="text-[11px] font-semibold text-slate-400 truncate hover:text-slate-200 transition-colors cursor-pointer">
-              {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
-            </p>
-          </div>
-
-          <button
-            onClick={toggleFavoriteCurrentTrack}
-            className={`p-2 rounded-xl transition-all ml-1 shrink-0 ${
-              currentTrack.is_favorite
-                ? 'text-rose-400 bg-rose-500/20 border border-rose-500/40 shadow-lg'
-                : 'text-slate-400 hover:text-rose-400 hover:bg-white/10'
-            }`}
-            title={currentTrack.is_favorite ? 'Bỏ khỏi bài hát yêu thích' : 'Thêm vào bài hát yêu thích'}
-          >
-            <Heart
-              className={`w-4 h-4 transition-all ${
-                currentTrack.is_favorite ? 'fill-current drop-shadow-[0_0_10px_rgba(244,63,94,0.7)]' : ''
-              }`}
-            />
-          </button>
-        </div>
-
-        {/* Center: Playback Controls & Seekbar */}
-        <div className="flex flex-col items-center gap-2 w-full sm:w-2/4 max-w-xl">
-          <div className="flex items-center gap-5">
-            <button
-              onClick={toggleShuffle}
-              style={
-                isShuffle
-                  ? {
-                      color: 'var(--spotify-glow, #22d3ee)',
-                      backgroundColor: 'rgba(6,182,212,0.15)',
-                      borderColor: 'rgba(6,182,212,0.4)',
-                    }
-                  : undefined
-              }
-              className={`p-2 rounded-xl relative transition-all active:scale-90 ${
-                isShuffle ? 'border shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/10'
-              }`}
-              title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
-            >
-              <Shuffle className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={prevTrack}
-              className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
-              title="Bài trước"
-            >
-              <SkipBack className="w-5 h-5" />
-            </button>
-
-            <button
-              onClick={togglePlay}
-              style={{
-                background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                boxShadow: '0 4px 18px rgba(6,182,212,0.45)',
-              }}
-              className="w-11 h-11 rounded-full hover:scale-105 active:scale-95 transition-all flex items-center justify-center text-black font-extrabold shrink-0 border border-white/30"
-              title={isPlaying ? 'Tạm dừng' : 'Phát'}
-            >
-              {isPlaying ? (
-                <Pause className="w-5 h-5 fill-current text-black" />
+      {showControls && (
+        <div className="relative z-20 bg-black/50 backdrop-blur-2xl border-t border-white/10 px-4 sm:px-8 py-3.5 flex flex-col sm:flex-row items-center justify-between text-slate-300 select-none shrink-0 gap-3">
+          {/* Left: Track Metadata (Desktop) */}
+          <div className="hidden sm:flex items-center gap-3 w-1/4 min-w-[200px]">
+            <div className="w-11 h-11 bg-slate-900 rounded-xl overflow-hidden relative flex items-center justify-center border border-white/15 shadow-md shrink-0">
+              {currentTrack.cover_url ? (
+                <img
+                  src={currentTrack.cover_url}
+                  alt={currentTrack.title}
+                  className="w-full h-full object-cover"
+                />
               ) : (
-                <Play className="w-5 h-5 fill-current text-black ml-0.5" />
+                <Headphones className="w-5 h-5 text-cyan-400" />
               )}
-            </button>
+            </div>
+
+            <div className="truncate flex flex-col min-w-0">
+              <p className="text-xs sm:text-sm font-extrabold text-white truncate hover:text-cyan-300 transition-colors cursor-pointer">
+                {currentTrack.title}
+              </p>
+              <p className="text-[11px] font-semibold text-slate-400 truncate hover:text-slate-200 transition-colors cursor-pointer">
+                {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
+              </p>
+            </div>
 
             <button
-              onClick={nextTrack}
-              className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
-              title="Bài tiếp theo"
-            >
-              <SkipForward className="w-5 h-5" />
-            </button>
-
-            <button
-              onClick={toggleRepeat}
-              style={
-                repeatMode !== 'off'
-                  ? {
-                      color: 'var(--spotify-glow, #22d3ee)',
-                      backgroundColor: 'rgba(6,182,212,0.15)',
-                      borderColor: 'rgba(6,182,212,0.4)',
-                    }
-                  : undefined
-              }
-              className={`p-2 rounded-xl relative transition-all active:scale-90 ${
-                repeatMode !== 'off' ? 'border shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/10'
+              onClick={toggleFavoriteCurrentTrack}
+              className={`p-2 rounded-xl transition-all ml-1 shrink-0 ${
+                currentTrack.is_favorite
+                  ? 'text-rose-400 bg-rose-500/20 border border-rose-500/40 shadow-lg'
+                  : 'text-slate-400 hover:text-rose-400 hover:bg-white/10'
               }`}
-              title={
-                repeatMode === 'one'
-                  ? 'Lặp lại 1 bài'
-                  : repeatMode === 'all'
-                  ? 'Lặp lại toàn bộ danh sách'
-                  : 'Bật lặp lại bài hát'
-              }
+              title={currentTrack.is_favorite ? 'Bỏ khỏi bài hát yêu thích' : 'Thêm vào bài hát yêu thích'}
             >
-              {repeatMode === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
+              <Heart
+                className={`w-4 h-4 transition-all ${
+                  currentTrack.is_favorite ? 'fill-current drop-shadow-[0_0_10px_rgba(244,63,94,0.7)]' : ''
+                }`}
+              />
             </button>
           </div>
 
-          {/* Seekbar Progress */}
-          <div className="w-full flex items-center gap-3 text-[11px] text-slate-400 font-mono">
-            <span className="w-9 text-right shrink-0 font-bold">{formatTime(currentTime)}</span>
-            <input
-              type="range"
-              min={0}
-              max={duration || 100}
-              value={currentTime}
-              onChange={(e) => seek(Number(e.target.value))}
-              style={{
-                background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${(currentTime / (duration || 1)) * 100}%, rgba(255,255,255,0.15) ${(currentTime / (duration || 1)) * 100}%)`,
-              }}
-              className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-all hover:h-2"
-            />
-            <span className="w-9 shrink-0 font-bold">{formatTime(duration)}</span>
-          </div>
-        </div>
+          {/* Center: Playback Controls & Seekbar */}
+          <div className="flex flex-col items-center gap-2 w-full sm:w-2/4 max-w-xl">
+            <div className="flex items-center gap-5">
+              <button
+                onClick={toggleShuffle}
+                style={
+                  isShuffle
+                    ? {
+                        color: 'var(--spotify-glow, #22d3ee)',
+                        backgroundColor: 'rgba(6,182,212,0.15)',
+                        borderColor: 'rgba(6,182,212,0.4)',
+                      }
+                    : undefined
+                }
+                className={`p-2 rounded-xl relative transition-all active:scale-90 ${
+                  isShuffle ? 'border shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/10'
+                }`}
+                title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
+              >
+                <Shuffle className="w-4 h-4" />
+              </button>
 
-        {/* Right: Volume Control (Desktop) */}
-        <div className="hidden sm:flex w-1/4 justify-end items-center">
-          <div className="flex items-center gap-2.5 bg-white/[0.06] border border-white/10 rounded-full px-3.5 py-1.5 shadow-md">
-            <button
-              onClick={handleVolumeToggle}
-              className="text-slate-300 hover:text-white transition-colors p-0.5"
-              title={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}
-            >
-              {volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-            </button>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={volume}
-              onChange={(e) => setVolume(Number(e.target.value))}
-              style={{
-                background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${volume * 100}%, rgba(255,255,255,0.15) ${volume * 100}%)`,
-              }}
-              className="w-16 md:w-24 h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-all hover:h-2"
-            />
+              <button
+                onClick={prevTrack}
+                className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
+                title="Bài trước"
+              >
+                <SkipBack className="w-5 h-5" />
+              </button>
+
+              <button
+                onClick={togglePlay}
+                style={{
+                  background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                  boxShadow: '0 4px 18px rgba(6,182,212,0.45)',
+                }}
+                className="w-11 h-11 rounded-full hover:scale-105 active:scale-95 transition-all flex items-center justify-center text-black font-extrabold shrink-0 border border-white/30"
+                title={isPlaying ? 'Tạm dừng' : 'Phát'}
+              >
+                {isPlaying ? (
+                  <Pause className="w-5 h-5 fill-current text-black" />
+                ) : (
+                  <Play className="w-5 h-5 fill-current text-black ml-0.5" />
+                )}
+              </button>
+
+              <button
+                onClick={nextTrack}
+                className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
+                title="Bài tiếp theo"
+              >
+                <SkipForward className="w-5 h-5" />
+              </button>
+
+              <button
+                onClick={toggleRepeat}
+                style={
+                  repeatMode !== 'off'
+                    ? {
+                        color: 'var(--spotify-glow, #22d3ee)',
+                        backgroundColor: 'rgba(6,182,212,0.15)',
+                        borderColor: 'rgba(6,182,212,0.4)',
+                      }
+                    : undefined
+                }
+                className={`p-2 rounded-xl relative transition-all active:scale-90 ${
+                  repeatMode !== 'off' ? 'border shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/10'
+                }`}
+                title={
+                  repeatMode === 'one'
+                    ? 'Lặp lại 1 bài'
+                    : repeatMode === 'all'
+                    ? 'Lặp lại toàn bộ danh sách'
+                    : 'Bật lặp lại bài hát'
+                }
+              >
+                {repeatMode === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
+              </button>
+            </div>
+
+            {/* Seekbar Progress */}
+            <div className="w-full flex items-center gap-3 text-[11px] text-slate-400 font-mono">
+              <span className="w-9 text-right shrink-0 font-bold">{formatTime(currentTime)}</span>
+              <input
+                type="range"
+                min={0}
+                max={duration || 100}
+                value={currentTime}
+                onChange={(e) => seek(Number(e.target.value))}
+                style={{
+                  background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${(currentTime / (duration || 1)) * 100}%, rgba(255,255,255,0.15) ${(currentTime / (duration || 1)) * 100}%)`,
+                }}
+                className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-all hover:h-2"
+              />
+              <span className="w-9 shrink-0 font-bold">{formatTime(duration)}</span>
+            </div>
+          </div>
+
+          {/* Right: Volume Control (Desktop) */}
+          <div className="hidden sm:flex w-1/4 justify-end items-center">
+            <div className="flex items-center gap-2.5 bg-white/[0.06] border border-white/10 rounded-full px-3.5 py-1.5 shadow-md">
+              <button
+                onClick={handleVolumeToggle}
+                className="text-slate-300 hover:text-white transition-colors p-0.5"
+                title={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}
+              >
+                {volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              </button>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={volume}
+                onChange={(e) => setVolume(Number(e.target.value))}
+                style={{
+                  background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${volume * 100}%, rgba(255,255,255,0.15) ${volume * 100}%)`,
+                }}
+                className="w-16 md:w-24 h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-all hover:h-2"
+              />
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

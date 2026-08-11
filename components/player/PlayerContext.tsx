@@ -176,36 +176,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const openNowPlayingOverlay = useCallback(() => setIsNowPlayingOpen(true), [])
   const closeNowPlayingOverlay = useCallback(() => setIsNowPlayingOpen(false), [])
 
-  const analyserRef = useRef<AnalyserNode | null>(null)
-
   useEffect(() => {
-    if (!audioRef.current || analyserRef.current) return
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
-      if (AudioCtx) {
-        const ctx = new AudioCtx()
-        const analyser = ctx.createAnalyser()
-        analyser.fftSize = 32
-        const source = ctx.createMediaElementSource(audioRef.current)
-        source.connect(analyser)
-        analyser.connect(ctx.destination)
-        analyserRef.current = analyser
-      }
-    } catch {
-      // Ignore audio context initialization error (CORS / autoplay restrictions)
+    if (!isPlaying) {
+      setFrequencyData(new Uint8Array(16))
+      return
     }
-  }, [])
-
-  useEffect(() => {
-    if (!isPlaying) return
     let animId: number
     const dataArr = new Uint8Array(16)
 
     const tick = () => {
-      if (analyserRef.current) {
-        analyserRef.current.getByteFrequencyData(dataArr)
-        setFrequencyData(new Uint8Array(dataArr))
+      const now = Date.now() / 120
+      for (let i = 0; i < 16; i++) {
+        dataArr[i] = Math.floor(Math.sin(now + i * 0.8) * 80 + 150 + Math.random() * 25)
       }
+      setFrequencyData(new Uint8Array(dataArr))
       animId = requestAnimationFrame(tick)
     }
 

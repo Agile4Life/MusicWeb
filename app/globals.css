@@ -409,6 +409,15 @@ input[type='range']:hover::-moz-range-thumb {
   50%      { background-position: 100% 50%; }
 }
 
+/* Lyrics panel seamless column blend & scroll mask */
+.lyrics-panel-fade {
+  background: linear-gradient(to right, transparent, rgba(11, 7, 16, 0.85) 20%);
+}
+.lyrics-scroll-mask {
+  mask-image: linear-gradient(to bottom, transparent, black 8%, black 92%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 8%, black 92%, transparent);
+}
+
 /* Equalizer mini visualizer */
 .eq-container {
   display: flex;

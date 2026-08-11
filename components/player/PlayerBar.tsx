@@ -58,9 +58,12 @@ export function PlayerBar() {
     prevTrack,
     isQueueOpen,
     toggleQueue,
+    isNowPlayingOpen,
     openNowPlayingOverlay,
   } = usePlayer()
   const router = useRouter()
+
+  if (isNowPlayingOpen) return null
 
   const [isNavigatingAlbum, setIsNavigatingAlbum] = useState(false)
   const [isResolvingAlbumInfo, setIsResolvingAlbumInfo] = useState(false)
@@ -594,7 +597,10 @@ export function PlayerBar() {
       )}
 
       {/* 💻 DESKTOP PLAYER BAR (Visible on >= 768px screens) */}
-      <footer className="hidden md:flex h-[96px] py-3.5 bg-[#090b10]/95 backdrop-blur-2xl rounded-2xl border border-white/[0.08] px-6 md:px-8 items-center justify-between text-slate-300 select-none z-30 shadow-2xl shrink-0">
+      <footer
+        onClick={openNowPlayingOverlay}
+        className="hidden md:flex h-[96px] py-3.5 bg-[#090b10]/95 backdrop-blur-2xl rounded-2xl border border-white/[0.08] px-6 md:px-8 items-center justify-between text-slate-300 select-none z-30 shadow-2xl shrink-0 cursor-pointer hover:border-white/20 transition-all"
+      >
         {/* Left: Track Metadata */}
         <div className="flex items-center gap-3.5 w-1/4 min-w-[220px]">
           <div onClick={openNowPlayingOverlay} className="relative group shrink-0 cursor-pointer" title="Mở Now Playing">
@@ -609,11 +615,7 @@ export function PlayerBar() {
                 {currentTrack.title}
               </p>
               {isPlaying && (
-                <div className="flex items-end gap-0.5 h-3 shrink-0" title="Đang phát">
-                  <span className="w-0.5 bg-[var(--primary-spotify,#06b6d4)] rounded-full eq-bar-1" />
-                  <span className="w-0.5 bg-[var(--primary-spotify,#06b6d4)] rounded-full eq-bar-2" />
-                  <span className="w-0.5 bg-[var(--primary-spotify,#06b6d4)] rounded-full eq-bar-3" />
-                </div>
+                <MiniEqualizer isPlaying={isPlaying} />
               )}
             </div>
             <div className="flex items-center gap-2 mt-0.5 truncate">
@@ -660,7 +662,7 @@ export function PlayerBar() {
         <div className="flex flex-col items-center gap-1.5 w-2/4 max-w-xl">
           <div className="flex items-center gap-4">
             <button
-              onClick={toggleShuffle}
+              onClick={(e) => { e.stopPropagation(); toggleShuffle() }}
               style={
                 isShuffle
                   ? {
@@ -685,7 +687,7 @@ export function PlayerBar() {
             </button>
 
             <button
-              onClick={prevTrack}
+              onClick={(e) => { e.stopPropagation(); prevTrack() }}
               className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-full transition-all active:scale-90"
               title="Bài trước"
             >
@@ -693,7 +695,7 @@ export function PlayerBar() {
             </button>
 
             <button
-              onClick={togglePlay}
+              onClick={(e) => { e.stopPropagation(); togglePlay() }}
               style={{
                 background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
                 boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
@@ -708,10 +710,8 @@ export function PlayerBar() {
               )}
             </button>
 
-            <MiniEqualizer isPlaying={isPlaying} />
-
             <button
-              onClick={nextTrack}
+              onClick={(e) => { e.stopPropagation(); nextTrack() }}
               className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-full transition-all active:scale-90"
               title="Bài kế tiếp"
             >
@@ -719,7 +719,7 @@ export function PlayerBar() {
             </button>
 
             <button
-              onClick={toggleRepeat}
+              onClick={(e) => { e.stopPropagation(); toggleRepeat() }}
               style={
                 repeatMode !== 'off'
                   ? {
@@ -751,7 +751,7 @@ export function PlayerBar() {
           </div>
 
           {/* Waveform Scrubber (Desktop PlayerBar View) */}
-          <div className="w-full max-w-2xl px-2">
+          <div className="w-full max-w-2xl px-2" onClick={(e) => e.stopPropagation()}>
             <AudioWaveformScrubber
               currentTime={currentTime}
               duration={duration || currentTrack.duration || 0}
@@ -766,7 +766,7 @@ export function PlayerBar() {
         {/* Right: Volume & Extra Controls */}
         <div className="w-1/4 flex justify-end items-center gap-4">
           <button
-            onClick={toggleFavoriteCurrentTrack}
+            onClick={(e) => { e.stopPropagation(); toggleFavoriteCurrentTrack() }}
             className={`p-2 rounded-xl transition-all ${
               currentTrack.is_favorite
                 ? 'text-rose-500 bg-rose-500/15 border border-rose-500/30'
@@ -782,7 +782,7 @@ export function PlayerBar() {
           </button>
 
           <button
-            onClick={() => setShowLyricsModal(!showLyricsModal)}
+            onClick={(e) => { e.stopPropagation(); setShowLyricsModal(!showLyricsModal) }}
             className={`p-2 rounded-xl transition-all ${
               showLyricsModal
                 ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md font-bold'
@@ -794,7 +794,7 @@ export function PlayerBar() {
           </button>
 
           <button
-            onClick={toggleQueue}
+            onClick={(e) => { e.stopPropagation(); toggleQueue() }}
             style={
               isQueueOpen
                 ? {
@@ -820,9 +820,9 @@ export function PlayerBar() {
 
           <div className="h-4 w-[1px] bg-white/10" />
 
-          <div className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1.5">
+          <div className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1.5" onClick={(e) => e.stopPropagation()}>
             <button
-              onClick={handleVolumeToggle}
+              onClick={(e) => { e.stopPropagation(); handleVolumeToggle() }}
               className="text-slate-400 hover:text-white transition-colors p-0.5"
               title={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}
             >

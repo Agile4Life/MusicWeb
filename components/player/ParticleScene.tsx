@@ -12,7 +12,8 @@ interface ParticlesProps {
 }
 
 function Particles({ analyserData, isPlaying }: ParticlesProps) {
-  const pointsRef = useRef<THREE.Points>(null)
+  const pointsRef1 = useRef<THREE.Points>(null)
+  const pointsRef2 = useRef<THREE.Points>(null)
   const [accentColor, setAccentColor] = useState('#06b6d4')
 
   useEffect(() => {
@@ -22,10 +23,14 @@ function Particles({ analyserData, isPlaying }: ParticlesProps) {
     }
   }, [])
 
-  const basePositions = useMemo(() => {
-    const arr = new Float32Array(PARTICLE_COUNT * 3)
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      const radius = 2.2 + Math.random() * 1.2
+  // 70% background particles, 30% foreground particles
+  const bgCount = Math.floor(PARTICLE_COUNT * 0.7)
+  const fgCount = PARTICLE_COUNT - bgCount
+
+  const bgPositions = useMemo(() => {
+    const arr = new Float32Array(bgCount * 3)
+    for (let i = 0; i < bgCount; i++) {
+      const radius = 1.4 + Math.random() * 0.8
       const theta = Math.random() * Math.PI * 2
       const phi = Math.acos(2 * Math.random() - 1)
       arr[i * 3] = radius * Math.sin(phi) * Math.cos(theta)
@@ -33,45 +38,74 @@ function Particles({ analyserData, isPlaying }: ParticlesProps) {
       arr[i * 3 + 2] = radius * Math.cos(phi)
     }
     return arr
-  }, [])
+  }, [bgCount])
+
+  const fgPositions = useMemo(() => {
+    const arr = new Float32Array(fgCount * 3)
+    for (let i = 0; i < fgCount; i++) {
+      const radius = 1.2 + Math.random() * 0.7
+      const theta = Math.random() * Math.PI * 2
+      const phi = Math.acos(2 * Math.random() - 1)
+      arr[i * 3] = radius * Math.sin(phi) * Math.cos(theta)
+      arr[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta)
+      arr[i * 3 + 2] = radius * Math.cos(phi)
+    }
+    return arr
+  }, [fgCount])
 
   useFrame((state) => {
-    if (!pointsRef.current) return
     const t = state.clock.getElapsedTime()
+    let scale = 1
 
-    // Slow ambient rotation
-    pointsRef.current.rotation.y = t * 0.05
-
-    // Audio reactive pulse / breathing
     if (isPlaying && analyserData && analyserData.length > 0) {
       let sum = 0
       for (let i = 0; i < analyserData.length; i++) {
         sum += analyserData[i]
       }
       const avg = sum / analyserData.length
-      const scale = 1 + (avg / 255) * 0.15
-      pointsRef.current.scale.setScalar(scale)
-    } else {
-      pointsRef.current.scale.setScalar(1)
+      scale = 1 + (avg / 255) * 0.15
+    }
+
+    if (pointsRef1.current) {
+      pointsRef1.current.rotation.y = t * 0.04
+      pointsRef1.current.scale.setScalar(scale)
+    }
+    if (pointsRef2.current) {
+      pointsRef2.current.rotation.y = -t * 0.06
+      pointsRef2.current.scale.setScalar(scale * 1.05)
     }
   })
 
   return (
-    <points ref={pointsRef}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          args={[basePositions, 3]}
+    <group>
+      {/* 70% Faint Background Particles */}
+      <points ref={pointsRef1}>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[bgPositions, 3]} />
+        </bufferGeometry>
+        <pointsMaterial
+          size={0.025}
+          color={accentColor}
+          transparent
+          opacity={0.45}
+          sizeAttenuation
         />
-      </bufferGeometry>
-      <pointsMaterial
-        size={0.035}
-        color={accentColor}
-        transparent
-        opacity={0.7}
-        sizeAttenuation
-      />
-    </points>
+      </points>
+
+      {/* 30% Brighter Foreground Particles */}
+      <points ref={pointsRef2}>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[fgPositions, 3]} />
+        </bufferGeometry>
+        <pointsMaterial
+          size={0.05}
+          color={accentColor}
+          transparent
+          opacity={0.75}
+          sizeAttenuation
+        />
+      </points>
+    </group>
   )
 }
 
