@@ -89,6 +89,32 @@ export function ThemeSelector() {
                     : 'bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.05] hover:border-white/10'
                 }`}
               >
+                {/* Cursor Preview Icon */}
+                <div className="mb-2.5">
+                  {item.id === 'lottie' && (
+                    <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center shadow-[0_0_12px_rgba(6,182,212,0.35)]">
+                      <MousePointer className="w-4 h-4 text-cyan-400 fill-cyan-400/20" />
+                    </div>
+                  )}
+
+                  {item.id === 'virtual-singer' && (
+                    <div className="w-8 h-8 rounded-xl bg-pink-500/15 border border-pink-500/30 flex items-center justify-center shadow-[0_0_12px_rgba(236,72,153,0.3)]">
+                      <img
+                        src="/cursors/virtual-singer/static/Normal.png"
+                        alt="VirtualSinger Cursor"
+                        className="w-6 h-6 object-contain pointer-events-none select-none"
+                        style={{ imageRendering: 'pixelated' }}
+                      />
+                    </div>
+                  )}
+
+                  {item.id === 'default' && (
+                    <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center">
+                      <MousePointer className="w-4 h-4 text-slate-300" />
+                    </div>
+                  )}
+                </div>
+
                 <p className="font-bold text-xs text-white mb-0.5">{item.name}</p>
                 <p className="text-[11px] text-slate-400">{item.desc}</p>
 
