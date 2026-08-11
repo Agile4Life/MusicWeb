@@ -599,7 +599,7 @@ export function PlayerBar() {
       {/* 💻 DESKTOP PLAYER BAR (Visible on >= 768px screens) */}
       <footer
         onClick={openNowPlayingOverlay}
-        className="hidden md:flex h-[96px] py-3.5 bg-[#090b10]/95 backdrop-blur-2xl rounded-2xl border border-white/[0.08] px-6 md:px-8 items-center justify-between text-slate-300 select-none z-30 shadow-2xl shrink-0 cursor-pointer hover:border-white/20 transition-all"
+        className="hidden md:flex h-[96px] py-3.5 bg-[#090b10]/95 backdrop-blur-2xl rounded-2xl border border-white/[0.08] px-6 md:px-8 items-center justify-between text-slate-300 select-none z-30 shadow-2xl shrink-0 cursor-pointer panel-theme-hover transition-all"
       >
         {/* Left: Track Metadata */}
         <div className="flex items-center gap-3.5 w-1/4 min-w-[220px]">
