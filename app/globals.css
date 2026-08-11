@@ -629,9 +629,46 @@ html[data-cursor="furina"][data-buffering="true"] * {
   cursor: url('/cursors/furina/static/Working.png') 0 0, wait !important;
 }
 
+/* Haru Urara Custom Static CSS Cursor */
+html[data-cursor="haru-urara"],
+html[data-cursor="haru-urara"] body,
+html[data-cursor="haru-urara"] * {
+  cursor: url('/cursors/haru-urara/static/Normal.png') 0 0, auto !important;
+}
+
+html[data-cursor="haru-urara"] a,
+html[data-cursor="haru-urara"] button,
+html[data-cursor="haru-urara"] [role="button"],
+html[data-cursor="haru-urara"] input[type="button"],
+html[data-cursor="haru-urara"] input[type="submit"],
+html[data-cursor="haru-urara"] select,
+html[data-cursor="haru-urara"] label {
+  cursor: url('/cursors/haru-urara/static/Link.png') 4 0, pointer !important;
+}
+
+html[data-cursor="haru-urara"] input[type="text"],
+html[data-cursor="haru-urara"] input[type="search"],
+html[data-cursor="haru-urara"] input[type="email"],
+html[data-cursor="haru-urara"] input[type="password"],
+html[data-cursor="haru-urara"] textarea {
+  cursor: url('/cursors/haru-urara/static/Text.png') 4 9, text !important;
+}
+
+html[data-cursor="haru-urara"] [disabled],
+html[data-cursor="haru-urara"] .disabled {
+  cursor: url('/cursors/haru-urara/static/Unavailable.png') 0 0, not-allowed !important;
+}
+
+html[data-cursor="haru-urara"][data-buffering="true"],
+html[data-cursor="haru-urara"][data-buffering="true"] body,
+html[data-cursor="haru-urara"][data-buffering="true"] * {
+  cursor: url('/cursors/haru-urara/static/Working.png') 0 0, wait !important;
+}
+
 html[data-cursor="default"][data-buffering="true"],
 html[data-cursor="default"][data-buffering="true"] * {
   cursor: wait !important;
 }
+
 
 

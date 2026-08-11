@@ -13,6 +13,7 @@ export function ThemeSelector() {
     { id: 'lottie', name: 'Lottie Synth', desc: 'Con trỏ phát sáng động' },
     { id: 'virtual-singer', name: 'VirtualSinger', desc: 'Hatsune Miku Anime' },
     { id: 'furina', name: 'Furina (Fontaine)', desc: 'Genshin Impact Anime' },
+    { id: 'haru-urara', name: 'Haru Urara', desc: 'Uma Musume Anime' },
     { id: 'default', name: 'Hệ thống (Default)', desc: 'Con trỏ mặc định' },
   ]
 
@@ -76,7 +77,7 @@ export function ThemeSelector() {
           <span>Kiểu con trỏ chuột (Cursor Style)</span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           {cursorOptions.map((item) => {
             const isSelected = cursorStyle === item.id
 
@@ -114,6 +115,17 @@ export function ThemeSelector() {
                       <img
                         src="/cursors/furina/static/Normal.png"
                         alt="Furina Cursor"
+                        className="w-6 h-6 object-contain pointer-events-none select-none"
+                        style={{ imageRendering: 'pixelated' }}
+                      />
+                    </div>
+                  )}
+
+                  {item.id === 'haru-urara' && (
+                    <div className="w-8 h-8 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center shadow-[0_0_12px_rgba(244,63,94,0.3)]">
+                      <img
+                        src="/cursors/haru-urara/static/Normal.png"
+                        alt="Haru Urara Cursor"
                         className="w-6 h-6 object-contain pointer-events-none select-none"
                         style={{ imageRendering: 'pixelated' }}
                       />
