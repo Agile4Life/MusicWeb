@@ -46,6 +46,15 @@ export const CURSOR_CONFIGS: CursorConfig[] = [
     shadowClass: 'shadow-[0_0_12px_rgba(244,63,94,0.3)]',
   },
   {
+    id: 'albedo',
+    name: 'Albedo',
+    desc: 'Overlord Anime',
+    themeColor: 'purple',
+    bgClass: 'bg-purple-500/15',
+    borderClass: 'border-purple-500/30',
+    shadowClass: 'shadow-[0_0_12px_rgba(168,85,247,0.3)]',
+  },
+  {
     id: 'default',
     name: 'Hệ thống (Default)',
     desc: 'Con trỏ mặc định',
