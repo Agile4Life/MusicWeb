@@ -13,13 +13,14 @@ Implement modern, high-performance 60fps hover and motion effects for song cards
   - `--ease-out-smooth: cubic-bezier(0.16, 1, 0.3, 1);`
   - `--ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);`
 
-### 2. Card Hover Effects (`.media-card`)
-- **Layer A (Lift & Shadow)**:
-  - `transform: translateY(-6px) scale(1.015)` on hover.
-  - Shadow: `0 12px 24px -8px color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, transparent), 0 4px 8px -4px rgba(0, 0, 0, 0.4)`.
-- **Layer B (Gradient Border Glow)**:
-  - `::before` pseudo-element with `linear-gradient(135deg, color-mix(in srgb, var(--spotify-glow, #22d3ee) 60%, transparent), transparent 60%)`.
-  - Border mask using `-webkit-mask` / `mask-composite: exclude` for crisp border glow.
+### 2. GPU-Optimized Card Hover Effects (`.media-card`)
+- **Layer A (Lift & Shadow Layer via `::after`)**:
+  - Card lift: `transform: translateY(-6px) scale(1.015)` on hover.
+  - `will-change: transform` applied strictly on `.media-card:hover` to prevent GPU memory bloat.
+  - Shadow glow layer (`::after`): Positioned `inset: 0` with `box-shadow: 0 12px 24px -8px color-mix(in srgb, var(--spotify-glow) 35%, transparent), 0 4px 8px -4px rgba(0, 0, 0, 0.4)`. Transitions `opacity 0 -> 1` on hover for 60fps GPU compositor rendering without repaints.
+- **Layer B (Gradient Border Glow via `::before`)**:
+  - `::before` pseudo-element with `linear-gradient(135deg, color-mix(in srgb, var(--spotify-glow) 60%, transparent), transparent 60%)`.
+  - Border mask using `-webkit-mask` / `mask-composite: exclude` for crisp border glow. Transitions `opacity 0 -> 1`.
 - **Layer C (Cover Zoom & Play Button Spring)**:
   - Cover image: `transform: scale(1.06)` on hover.
   - Gradient overlay (`.cover-overlay`): Fades in on hover.
@@ -36,10 +37,17 @@ Implement modern, high-performance 60fps hover and motion effects for song cards
 ### 4. Staggered Entry & Accessibility
 - `@keyframes card-in` with `animation-delay: calc(var(--i, 0) * 40ms)`.
 - `@media (prefers-reduced-motion: reduce)` disables all animations and transitions.
-- Focus visible support matching `:hover` for keyboard navigation.
+- Focus visible support matching `:hover` for keyboard navigation (`:focus-visible`).
 
 ## Verification Plan
-1. Test hovering over Album Cards and Song Cards on Home page — verify lift, glowing gradient border, cover image zoom, and play button spring transition.
-2. Test hovering over Track Rows — verify left accent bar scaleY(1), thumbnail zoom, and index crossfade.
-3. Test theme switching — verify all hover colors adapt to the selected theme.
-4. Run `cmd /c "npm run test"` to ensure no regression errors.
+1. **Visual & Theme Verification**:
+   - Test hovering over Album Cards and Song Cards on Home page — verify lift, glowing gradient border, cover image zoom, and play button spring transition.
+   - Switch themes across all 8 options (Emerald Synth, Neon Gold, Sakura Cyber, Cyber Cyan, Autumn Sunset, Galaxy Indigo, Blood Crimson, Vintage Amber) and verify all glow effects match the active theme.
+2. **Track Rows Verification**:
+   - Test hovering over Track Rows — verify left accent bar `scaleY(1)`, thumbnail zoom, and index crossfade.
+3. **Accessibility Verification**:
+   - Enable `prefers-reduced-motion: reduce` in browser DevTools rendering settings → verify all transitions and animations are completely disabled.
+   - Test keyboard navigation (`Tab` / `:focus-visible`) → verify focus outlines and hover styles trigger cleanly.
+4. **Automated & Performance Verification**:
+   - Check performance on long card lists to ensure 60fps scrolling without dropped frames.
+   - Run `cmd /c "npm run test"` to ensure no regression errors.
