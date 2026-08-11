@@ -302,7 +302,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         return `/api/youtube/stream?id=${encodeURIComponent(track.youtube_id)}`
       }
 
-      if (track.source === 'audius' || track.audio_url) {
+      if (track.source === 'audius' || (track.audio_url && !isPreviewUrl(track.audio_url) && !track.youtube_id && !track.nhaccuatui_id)) {
         return track.audio_url || track.file_path
       }
 
