@@ -55,12 +55,30 @@ export function UpNextList() {
             >
               <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 border border-white/10 relative bg-slate-900 shadow">
                 <TrackCoverImage src={track.cover_url} alt={track.title} />
+                {isCurrent && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <div className="flex items-end justify-center gap-0.5 h-3">
+                      <span className="w-0.5 bg-[var(--spotify-glow,#22d3ee)] rounded-full eq-bar-1" />
+                      <span className="w-0.5 bg-[var(--spotify-glow,#22d3ee)] rounded-full eq-bar-2" />
+                      <span className="w-0.5 bg-[var(--spotify-glow,#22d3ee)] rounded-full eq-bar-3" />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="min-w-0 flex-1">
-                <p className={`text-xs font-semibold truncate ${isCurrent ? 'text-[var(--spotify-glow,#22d3ee)] font-bold' : 'text-slate-200 group-hover:text-white'}`}>
-                  {track.title}
-                </p>
+                <div className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
+                  <p className={`text-xs font-semibold truncate ${isCurrent ? 'text-[var(--spotify-glow,#22d3ee)] font-bold' : 'text-slate-200 group-hover:text-white'}`}>
+                    {track.title}
+                  </p>
+                  {isCurrent && (
+                    <div className="flex items-end justify-center gap-0.5 h-3 shrink-0 ml-0.5">
+                      <span className="w-0.5 bg-[var(--spotify-glow,#22d3ee)] rounded-full eq-bar-1" />
+                      <span className="w-0.5 bg-[var(--spotify-glow,#22d3ee)] rounded-full eq-bar-2" />
+                      <span className="w-0.5 bg-[var(--spotify-glow,#22d3ee)] rounded-full eq-bar-3" />
+                    </div>
+                  )}
+                </div>
                 <p className="text-[10px] text-slate-400 truncate mt-0.5">
                   {track.artist || track.artist_name || 'Nghệ sĩ chưa xác định'}
                 </p>

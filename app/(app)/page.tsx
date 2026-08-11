@@ -747,7 +747,11 @@ export default function HomePage() {
                       <img
                         src={album.cover_url}
                         alt={album.name}
-                        className="cover-img w-full h-full object-cover scale-[1.05]"
+                        width={300}
+                        height={300}
+                        decoding="async"
+                        className="cover-img w-full h-full object-cover"
+                        style={{ aspectRatio: '1 / 1' }}
                       />
                     ) : (
                       <DiscAlbum className="cover-img w-8 h-8 text-slate-500" />
@@ -816,7 +820,15 @@ export default function HomePage() {
                 >
                   <div className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
                     {t.cover_url ? (
-                      <img src={t.cover_url} alt={t.title} className="cover-img w-full h-full object-cover scale-[1.05]" />
+                      <img
+                        src={t.cover_url}
+                        alt={t.title}
+                        width={300}
+                        height={300}
+                        decoding="async"
+                        className="cover-img w-full h-full object-cover"
+                        style={{ aspectRatio: '1 / 1' }}
+                      />
                     ) : (
                       <Music className="cover-img w-7 h-7 text-slate-500" />
                     )}

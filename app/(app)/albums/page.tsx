@@ -52,7 +52,11 @@ function AlbumCard({ album, index = 0 }: AlbumCardProps) {
           <img
             src={album.cover_url}
             alt={album.name}
-            className="cover-img w-full h-full object-cover scale-[1.05]"
+            width={300}
+            height={300}
+            decoding="async"
+            className="cover-img w-full h-full object-cover"
+            style={{ aspectRatio: '1 / 1' }}
           />
         ) : (
           <DiscAlbum className="cover-img w-12 h-12 text-slate-500" />

@@ -607,15 +607,15 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
           </div>
 
           <div className="truncate flex flex-col flex-1 min-w-0">
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="inline-flex items-center gap-2 min-w-0 max-w-full">
               <OverflowMarqueeText
                 text={currentTrack.title}
-                className="text-xs md:text-sm font-bold text-white hover:text-[var(--spotify-glow)] transition-colors cursor-pointer min-w-0 flex-1"
+                className="text-xs md:text-sm font-bold text-white hover:text-[var(--spotify-glow)] transition-colors cursor-pointer min-w-0 shrink"
                 title="Mở Now Playing"
                 onClick={openNowPlayingOverlay}
               />
               {isPlaying && (
-                <MiniEqualizer isPlaying={isPlaying} />
+                <MiniEqualizer isPlaying={isPlaying} className="shrink-0" />
               )}
             </div>
             <div className="flex items-center gap-2 mt-0.5 truncate">

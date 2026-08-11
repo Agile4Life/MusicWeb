@@ -67,7 +67,11 @@ function TrackCoverImageComponent({
     <img
       src={currentSrc}
       alt={alt}
+      width={600}
+      height={600}
+      decoding="async"
       className={`${className} transition-opacity duration-200 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+      style={{ aspectRatio: '1 / 1' }}
       onLoad={() => setLoaded(true)}
       onError={() => {
         // If high-res URL failed (e.g. hq720 not available for older YouTube video), fall back to original src

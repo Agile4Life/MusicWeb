@@ -122,7 +122,6 @@
   background: rgba(9, 11, 16, 0.95);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  transition: box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .app-sidebar::before {
@@ -135,33 +134,14 @@
   border-radius: inherit;
 }
 
-.app-sidebar.is-scrolled {
-  box-shadow:
-    10px 0 36px rgba(0, 0, 0, 0.85),
-    1px 0 0 rgba(255, 255, 255, 0.12) inset,
-    0 0 20px rgba(34, 211, 238, 0.15);
-}
-
 /* === Elevation 3: Player Bar (Glassmorphism layer) === */
 .player-bar {
   z-index: 30;
-  background: rgba(5, 8, 18, 0.72);
+  background: rgba(8, 11, 18, 0.85);
   backdrop-filter: blur(16px) saturate(120%);
   -webkit-backdrop-filter: blur(16px) saturate(120%);
-  border: 1px solid var(--accent-dim, rgba(255, 45, 90, 0.22));
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.35),
-    0 0 24px var(--theme-glow-shadow, rgba(255, 30, 80, 0.06));
-  transition: box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease;
-}
-
-.player-bar.is-scrolled {
-  box-shadow:
-    0 -14px 44px rgba(0, 0, 0, 0.9),
-    0 -1px 0 rgba(255, 255, 255, 0.2) inset,
-    0 0 28px rgba(34, 211, 238, 0.22);
-  background: rgba(8, 11, 18, 0.85);
-  border-color: rgba(34, 211, 238, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -182,6 +162,7 @@
 
 /* === Elevation 1: Main Content Bottom Fade Mask === */
 .main-content-scroll {
+  scrollbar-gutter: stable;
   -webkit-mask-image: linear-gradient(
     to bottom,
     black calc(100% - 48px),
@@ -217,7 +198,6 @@ body {
   color: #f3f4f6;
   overflow: hidden;
   user-select: none;
-  transition: background-color 0.4s cubic-bezier(0.16, 1, 0.3, 1), background-image 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @media (pointer: fine) {
@@ -1015,8 +995,6 @@ input[type='range']:hover::-moz-range-thumb {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.05);
   transition: transform var(--motion-base) var(--ease-out-smooth), border-color var(--motion-base) var(--ease-out-smooth);
-  animation: card-in var(--motion-slow) var(--ease-out-smooth) backwards;
-  animation-delay: calc(var(--i, 0) * 40ms);
 }
 
 .media-card:hover {
