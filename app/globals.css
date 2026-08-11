@@ -585,3 +585,16 @@ html[data-cursor="default"],
 html[data-cursor="default"] * {
   cursor: auto !important;
 }
+
+/* Buffering / Loading State Cursors */
+html[data-cursor="virtual-singer"][data-buffering="true"],
+html[data-cursor="virtual-singer"][data-buffering="true"] body,
+html[data-cursor="virtual-singer"][data-buffering="true"] * {
+  cursor: url('/cursors/virtual-singer/static/Working.png') 0 0, wait !important;
+}
+
+html[data-cursor="default"][data-buffering="true"],
+html[data-cursor="default"][data-buffering="true"] * {
+  cursor: wait !important;
+}
+

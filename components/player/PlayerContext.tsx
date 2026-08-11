@@ -575,15 +575,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 return
               }
 
-              // YT.PlayerState.PLAYING = 1, PAUSED = 2, ENDED = 0
+              // YT.PlayerState.PLAYING = 1, PAUSED = 2, ENDED = 0, BUFFERING = 3
               if (event.data === 1) {
                 if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
                 setIsPlaying(true)
+                setIsBuffering(false)
                 if (ytPlayerRef.current?.getDuration) {
                   setDuration(ytPlayerRef.current.getDuration() || 0)
                 }
+              } else if (event.data === 3) {
+                setIsBuffering(true)
               } else if (event.data === 2) {
                 if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
+                setIsBuffering(false)
                 if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
                   return
                 }
@@ -2149,13 +2153,33 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     ]
   )
 
+  // Toggle data-buffering attribute on document element for cursor/UI feedback
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    if (isBuffering) {
+      document.documentElement.setAttribute('data-buffering', 'true')
+    } else {
+      document.documentElement.removeAttribute('data-buffering')
+    }
+  }, [isBuffering])
+
   return (
     <PlayerContext.Provider value={playerValue}>
       <PlaybackProgressContext.Provider value={progressValue}>
         {children}
         {/* preload="auto" — buffer audio frames. webkit-playsinline for iOS background audio */}
         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-        <audio ref={audioRef} preload="auto" playsInline {...({'webkit-playsinline': ''} as any)} />
+        <audio
+          ref={audioRef}
+          preload="auto"
+          playsInline
+          {...({'webkit-playsinline': ''} as any)}
+          onWaiting={() => setIsBuffering(true)}
+          onStalled={() => setIsBuffering(true)}
+          onLoadStart={() => setIsBuffering(true)}
+          onCanPlay={() => setIsBuffering(false)}
+          onPlaying={() => setIsBuffering(false)}
+        />
         {/* Hidden YouTube Player IFrame container (Must have non-zero dimensions to prevent YouTube SDK 4s auto-pause) */}
         <div className="fixed top-0 left-0 w-1 h-1 opacity-0 pointer-events-none overflow-hidden -z-50">
           <div id="yt-player-container" />
