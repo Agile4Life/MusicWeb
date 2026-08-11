@@ -42,24 +42,24 @@ function AlbumCard({ album }: AlbumCardProps) {
   return (
     <Link
       href={`/album/${album.id}`}
-      className="album-card group relative bg-[#0e131f]/60 hover:bg-[#141b2d]/80 border border-white/[0.06] hover:border-[var(--accent)]/40 rounded-2xl p-3.5 transition-all duration-300 flex flex-col gap-3 shadow-md hover:shadow-[0_4px_14px_var(--theme-glow-shadow)]"
+      style={{ '--i': index } as React.CSSProperties}
+      className="media-card group p-3.5 flex flex-col gap-3 outline-none"
     >
       {/* Cover Image Container */}
-      <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-slate-900 border border-white/10 shadow-inner">
+      <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-slate-900 border border-white/10 shadow-inner flex items-center justify-center">
         {album.cover_url ? (
           <img
             src={album.cover_url}
             alt={album.name}
-            className="w-full h-full object-cover scale-[1.05] group-hover:scale-110 transition-transform duration-500"
+            className="cover-img w-full h-full object-cover scale-[1.05]"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-slate-500">
-            <DiscAlbum className="w-12 h-12" />
-          </div>
+          <DiscAlbum className="cover-img w-12 h-12 text-slate-500" />
         )}
+        <div className="cover-overlay" />
 
         {/* Floating Album Type Badge */}
-        <div className="badge-glass absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-mono text-[var(--accent)] uppercase tracking-wider">
+        <div className="badge-glass absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-mono text-[var(--accent)] uppercase tracking-wider z-10">
           {album.album_type === 'single' ? 'Single / EP' : 'Album'}
         </div>
 
@@ -72,15 +72,15 @@ function AlbumCard({ album }: AlbumCardProps) {
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') void handlePlayAlbum(e, album)
           }}
-          className="play-overlay"
+          className="play-btn z-10"
         >
-          <Play className="w-4.5 h-4.5 ml-0.5" />
+          <Play className="w-4.5 h-4.5 ml-0.5 fill-current" />
         </div>
       </div>
 
       {/* Info */}
       <div className="flex flex-col gap-1 min-w-0">
-        <h3 className="text-xs font-bold text-white truncate group-hover:text-[var(--primary-spotify,#06b6d4)] transition-colors">
+        <h3 className="card-title text-xs font-bold text-white truncate">
           {album.name}
         </h3>
         <p className="text-[11px] text-slate-400 truncate font-medium">

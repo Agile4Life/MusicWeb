@@ -735,23 +735,25 @@ export default function HomePage() {
             </div>
           ) : trendingAlbums.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              {trendingAlbums.map((album) => (
+              {trendingAlbums.map((album, idx) => (
                 <Link
                   key={album.id}
                   href={`/album/${album.id}`}
-                  className="album-card bg-white/[0.02] hover:bg-white/[0.06] p-3 rounded-2xl flex flex-col gap-2 cursor-pointer group border border-white/[0.04] hover:border-[var(--spotify-glow)]/40 shadow-sm"
+                  style={{ '--i': idx } as React.CSSProperties}
+                  className="media-card group p-3 flex flex-col gap-2 cursor-pointer outline-none"
                 >
                   <div className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
                     {album.cover_url ? (
                       <img
                         src={album.cover_url}
                         alt={album.name}
-                        className="w-full h-full object-cover scale-[1.05] group-hover:scale-110 transition-transform duration-500"
+                        className="cover-img w-full h-full object-cover scale-[1.05]"
                       />
                     ) : (
-                      <DiscAlbum className="w-8 h-8 text-slate-500 group-hover:scale-110 transition-transform duration-300" />
+                      <DiscAlbum className="cover-img w-8 h-8 text-slate-500" />
                     )}
-                    <div className="badge-glass absolute top-2 left-2 px-1.5 py-0.5 rounded-full text-[8px] font-mono text-[var(--accent)] uppercase tracking-wider">
+                    <div className="cover-overlay" />
+                    <div className="badge-glass absolute top-2 left-2 px-1.5 py-0.5 rounded-full text-[8px] font-mono text-[var(--accent)] uppercase tracking-wider z-10">
                       {album.album_type === 'single' ? 'Single' : 'Album'}
                     </div>
                     <div
@@ -762,13 +764,13 @@ export default function HomePage() {
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') void handlePlayAlbum(e, album)
                       }}
-                      className="play-overlay"
+                      className="play-btn z-10"
                     >
-                      <Play className="w-4 h-4 ml-0.5" />
+                      <Play className="w-4 h-4 ml-0.5 fill-current" />
                     </div>
                   </div>
                   <div className="truncate">
-                    <p className="text-xs font-bold text-white truncate group-hover:text-[var(--spotify-glow,#22d3ee)] transition-colors">
+                    <p className="card-title text-xs font-bold text-white truncate">
                       {album.name}
                     </p>
                     <p className="text-[10px] text-slate-400 truncate mt-0.5">
@@ -805,26 +807,27 @@ export default function HomePage() {
             </div>
           ) : displayTrending.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              {displayTrending.map((t) => (
+              {displayTrending.map((t, idx) => (
                 <div
                   key={t.id}
                   onClick={() => playTrack(t, combinedTrendingTracks)}
-                  className="album-card bg-white/[0.02] hover:bg-white/[0.06] p-3 rounded-2xl flex flex-col gap-2 cursor-pointer group border border-white/[0.04] hover:border-[var(--spotify-glow)]/40 shadow-sm"
+                  style={{ '--i': idx } as React.CSSProperties}
+                  className="media-card group p-3 flex flex-col gap-2 cursor-pointer outline-none"
                 >
                   <div className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
                     {t.cover_url ? (
-                      <img src={t.cover_url} alt={t.title} className="w-full h-full object-cover scale-[1.05] group-hover:scale-110 transition-transform duration-500" />
+                      <img src={t.cover_url} alt={t.title} className="cover-img w-full h-full object-cover scale-[1.05]" />
                     ) : (
-                      <Music className="w-7 h-7 text-slate-500 group-hover:scale-110 transition-transform duration-300" />
+                      <Music className="cover-img w-7 h-7 text-slate-500" />
                     )}
-
-                    <div className="play-overlay">
-                      <Play className="w-4 h-4 ml-0.5" />
+                    <div className="cover-overlay" />
+                    <div className="play-btn z-10">
+                      <Play className="w-4 h-4 ml-0.5 fill-current" />
                     </div>
                   </div>
 
                   <div className="truncate">
-                    <p className="text-xs font-bold text-white truncate group-hover:text-[var(--spotify-glow,#22d3ee)] transition-colors">
+                    <p className="card-title text-xs font-bold text-white truncate">
                       {t.title}
                     </p>
                     <p className="text-[10px] text-slate-400 truncate mt-0.5">
