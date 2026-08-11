@@ -550,25 +550,34 @@ input[type='range']:hover::-moz-range-thumb {
   pointer-events: auto;
 }
 
-/* VirtualSinger Custom Cursor */
+/* VirtualSinger Custom Static CSS Cursor */
 html[data-cursor="virtual-singer"],
 html[data-cursor="virtual-singer"] body,
 html[data-cursor="virtual-singer"] * {
-  cursor: url('/cursors/virtual-singer/Normal.ani'), auto;
+  cursor: url('/cursors/virtual-singer/static/Normal.png') 0 0, auto !important;
 }
 
 html[data-cursor="virtual-singer"] a,
 html[data-cursor="virtual-singer"] button,
 html[data-cursor="virtual-singer"] [role="button"],
 html[data-cursor="virtual-singer"] input[type="button"],
-html[data-cursor="virtual-singer"] input[type="submit"] {
-  cursor: url('/cursors/virtual-singer/Link.ani'), pointer !important;
+html[data-cursor="virtual-singer"] input[type="submit"],
+html[data-cursor="virtual-singer"] select,
+html[data-cursor="virtual-singer"] label {
+  cursor: url('/cursors/virtual-singer/static/Link.png') 4 0, pointer !important;
 }
 
 html[data-cursor="virtual-singer"] input[type="text"],
 html[data-cursor="virtual-singer"] input[type="search"],
+html[data-cursor="virtual-singer"] input[type="email"],
+html[data-cursor="virtual-singer"] input[type="password"],
 html[data-cursor="virtual-singer"] textarea {
-  cursor: url('/cursors/virtual-singer/Text.ani'), text !important;
+  cursor: url('/cursors/virtual-singer/static/Text.png') 4 9, text !important;
+}
+
+html[data-cursor="virtual-singer"] [disabled],
+html[data-cursor="virtual-singer"] .disabled {
+  cursor: url('/cursors/virtual-singer/static/Unavailable.png') 0 0, not-allowed !important;
 }
 
 /* Default Cursor mode */
