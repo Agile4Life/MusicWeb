@@ -15,6 +15,7 @@ import { NextQueueResponse, queueTrackToTrack } from '@/types/queue'
 import { getMusicOfftopicSegments, calculateIntroOffset } from '@/lib/sponsorblock'
 import { isIOSDevice, playAudioElement, redactAudioSource, shouldUseHtml5Audio, toPersistedTrack } from '@/lib/audioPlayback'
 import { getNhacCuaTuiStreamUrl, resolveNhacCuaTuiSong, resolveNhacCuaTuiTrack } from '@/lib/nhaccuatuiClient'
+import { resolveStreamCached, invalidateStreamResolution } from '@/lib/resolveStreamClient'
 
 export type RepeatMode = 'off' | 'all' | 'one'
 
@@ -1062,205 +1063,60 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (shouldResolveExternalCatalog && !useCachedResolution) {
-      // 🚀 Parallel lookup: Search Drive tracks + YouTube simultaneously for faster resolution
-      const cleanTitle = normalizeTitle(track.title)
-      const cleanArtist = normalizeTitle(track.artist || '')
-      const cleanQueryTitle = track.title.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').trim()
-      const queryStr = `${cleanQueryTitle} ${track.artist || ''}`
-
-      // Launch YouTube search early (in-flight in parallel), but DON'T let it gate
-      // playback — it's awaited last, only for the fallback path.
-      const ytPromise = fetchUnifiedSearch(queryStr, 'youtube')
-
-      // Launch both fast lookups in parallel — saves 1-3 seconds vs sequential
-      const [driveResult, nctResult] = await Promise.allSettled([
-        // Drive lookup
-        (async () => {
-          if (!cleanTitle) return null
-          try {
-            const { data: localMatches } = await supabase
-              .from('tracks')
-              .select('*')
-              .or(`title.ilike.%${cleanTitle}%,artist.ilike.%${cleanTitle}%`)
-              .limit(10)
-            if (localMatches && localMatches.length > 0) {
-              const driveCandidates = localMatches.filter((lt: any) => {
-                if (!lt.file_path || isPreviewUrl(lt.file_path)) return false
-                const ltTitle = normalizeTitle(lt.title)
-                const ltArtist = normalizeTitle(lt.artist || '')
-                const titleMatches = ltTitle.includes(cleanTitle) || cleanTitle.includes(ltTitle)
-                const artistMatches = !cleanArtist || ltArtist.includes(cleanArtist) || cleanArtist.includes(ltArtist)
-                return titleMatches && artistMatches
-              })
-
-              // Skip verifyDriveFile HTTP call — trust URL format check (saves ~500ms per candidate)
-              for (const candidate of driveCandidates) {
-                const driveId = extractDriveFileId(candidate.file_path)
-                if (driveId || (candidate.file_path?.startsWith('http') && !isPreviewUrl(candidate.file_path))) {
-                  return {
-                    ...candidate,
-                    source: 'local' as const,
-                    cover_url: track.cover_url || candidate.cover_url,
-                  }
-                }
-              }
-            }
-          } catch (e) {
-            console.warn('Drive track lookup error:', e)
-          }
-          return null
-        })(),
-        // NhacCuaTui metadata + fresh signed stream resolution
-        resolveNhacCuaTuiTrack(track),
-      ])
-
-      // Prefer NhacCuaTui for external catalog tracks so Safari can use the
-      // native HTML5 audio engine and Media Session controls.
-      const nctSong = nctResult.status === 'fulfilled' ? nctResult.value : null
-      if (nctSong && requestId === playRequestRef.current) {
-        activeTrack = {
-          ...track,
-          source: 'nhaccuatui',
-          nhaccuatui_id: nctSong.id,
-          title: nctSong.title || track.title,
-          artist: nctSong.artist || track.artist,
-          duration: nctSong.duration || track.duration,
-          cover_url: nctSong.coverUrl || track.cover_url || null,
-        }
-        trackResolutionCacheRef.current.set(track.id, { activeTrack, expiresAt: Date.now() + TRACK_RESOLUTION_TTL })
-        setCurrentTrack(activeTrack)
-        syncQueueEntry(activeTrack)
-        const streamUrl = await getAudioUrl(activeTrack)
-        if (requestId !== playRequestRef.current) return
-        if (ytStuckTimerRef.current) {
-          clearTimeout(ytStuckTimerRef.current)
-          ytStuckTimerRef.current = null
-        }
-        if (ytPlayerRef.current) {
-          try {
-            if (ytPlayerRef.current.pauseVideo) ytPlayerRef.current.pauseVideo()
-            if (ytPlayerRef.current.stopVideo) ytPlayerRef.current.stopVideo()
-          } catch {}
-        }
-        if (audioRef.current && streamUrl) {
-          audioRef.current.src = streamUrl
-          audioRef.current.currentTime = consumePendingSeek(initialTime)
-          audioRef.current.volume = volumeRef.current
-          try {
-            await playAudioElement(audioRef.current)
-            if (requestId !== playRequestRef.current) {
-              audioRef.current.pause()
-              return
-            }
-            setIsPlaying(true)
-            return
-          } catch (err) {
-            if (requestId !== playRequestRef.current) return
-            setIsPlaying(false)
-            if (audioRef.current) {
-              try {
-                audioRef.current.pause()
-                audioRef.current.removeAttribute('src')
-              } catch {}
-            }
-            console.warn('Resolved NhacCuaTui audio playback failed:', err)
-          }
-        }
-      }
-
-      // Prefer Drive track if found (no DRM, direct stream)
-      const driveTrack = driveResult.status === 'fulfilled' ? driveResult.value : null
-      if (driveTrack && requestId === playRequestRef.current) {
-        // Preserve original track metadata (album name, spotify_album_id, cover) so PlayerBar keeps album context
-        activeTrack = {
-          ...driveTrack as Track,
-          album: track.album || (driveTrack as any).album || null,
-          spotify_album_id: track.spotify_album_id || (driveTrack as any).spotify_album_id || null,
-          cover_url: track.cover_url || (driveTrack as any).cover_url || null,
-        }
-        trackResolutionCacheRef.current.set(track.id, { activeTrack, expiresAt: Date.now() + TRACK_RESOLUTION_TTL })
-        setCurrentTrack(activeTrack)
-        syncQueueEntry(activeTrack)
-        const streamUrl = await getAudioUrl(activeTrack)
-        if (requestId !== playRequestRef.current) return
-        if (audioRef.current && streamUrl) {
-          audioRef.current.src = streamUrl
-          audioRef.current.currentTime = consumePendingSeek(initialTime)
-          audioRef.current.volume = volumeRef.current
-          try {
-            await playAudioElement(audioRef.current)
-            if (requestId !== playRequestRef.current) {
-              audioRef.current.pause()
-              return
-            }
-            setIsPlaying(true)
-            return
-          } catch (err) {
-            if (requestId !== playRequestRef.current) return
-            setIsPlaying(false)
-            if (audioRef.current) {
-              try {
-                audioRef.current.pause()
-                audioRef.current.removeAttribute('src')
-              } catch {}
-            }
-            console.warn('Resolved Drive audio playback failed:', err)
-          }
-        }
-      }
-
-      // Fall back to YouTube stream — ensure HTML5 audio is paused first so it never plays simultaneously
-      if (audioRef.current) {
-        try {
-          audioRef.current.pause()
-          audioRef.current.removeAttribute('src')
-        } catch {}
-      }
-      if (ytPlayerRef.current) {
-        try {
-          if (ytPlayerRef.current.stopVideo) ytPlayerRef.current.stopVideo()
-          else if (ytPlayerRef.current.pauseVideo) ytPlayerRef.current.pauseVideo()
-        } catch {}
-      }
+      // 🚀 Single-call resolution via /api/resolve-stream (L1→L2→full resolve)
+      const resolved = await resolveStreamCached({
+        title: track.title,
+        artist: track.artist,
+        duration: track.duration,
+        album: track.album,
+      })
 
       if (requestId !== playRequestRef.current) return
 
-      // YouTube search fallback — awaited last so its latency never delays a
-      // successful NhacCuaTui / Drive resolution above.
-      const ytResult = await ytPromise.then(
-        (value) => ({ status: 'fulfilled' as const, value }),
-        (reason) => ({ status: 'rejected' as const, reason })
-      )
-      const ytData = ytResult.status === 'fulfilled' ? ytResult.value : null
-      if (ytData) {
-        const ytList: Track[] = ytData.youtube || []
-        let bestMatch = findBestYouTubeMatch(ytList, track.title, track.artist, track.duration, track.album)
-        if (!bestMatch && ytList.length > 0) {
-          bestMatch = ytList[0]
-        }
-        if (bestMatch && bestMatch.youtube_id) {
-          const candidateDuration = bestMatch.duration || 0
-          const isTargetShort = !track.duration || track.duration < 900
-          if (!isTargetShort || candidateDuration <= 1200 || ytList.length === 1) {
-            activeTrack = {
-              ...track,
-              youtube_id: bestMatch.youtube_id,
-              source: 'youtube',
-            }
-            trackResolutionCacheRef.current.set(track.id, { activeTrack, expiresAt: Date.now() + TRACK_RESOLUTION_TTL })
-            rawTrack.youtube_id = bestMatch.youtube_id
-            track.youtube_id = bestMatch.youtube_id
-            const isValidUUID = (id?: string) => Boolean(id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))
-            if (isValidUUID(track.id)) {
-              supabase.from('tracks').update({ youtube_id: bestMatch.youtube_id }).eq('id', track.id).then((res: any) => {
-                if (res?.error) console.warn('Failed to persist youtube_id:', res.error.message)
-              })
-            }
-            if (requestId === playRequestRef.current) {
-              setCurrentTrack(activeTrack)
-              syncQueueEntry(activeTrack)
-            }
+      if (resolved) {
+        if (resolved.source === 'nhaccuatui') {
+          activeTrack = {
+            ...track,
+            source: 'nhaccuatui',
+            nhaccuatui_id: resolved.id,
+            title: resolved.title || track.title,
+            artist: resolved.artist || track.artist,
+            duration: resolved.duration || track.duration,
+            cover_url: resolved.coverUrl || track.cover_url || null,
           }
+        } else if (resolved.source === 'drive') {
+          activeTrack = {
+            ...track,
+            source: 'local' as const,
+            file_path: resolved.id,
+            title: resolved.title || track.title,
+            artist: resolved.artist || track.artist,
+            duration: resolved.duration || track.duration,
+            cover_url: resolved.coverUrl || track.cover_url || null,
+            album: track.album || null,
+            spotify_album_id: track.spotify_album_id || null,
+          }
+        } else if (resolved.source === 'youtube') {
+          activeTrack = {
+            ...track,
+            youtube_id: resolved.id,
+            source: 'youtube',
+          }
+          rawTrack.youtube_id = resolved.id
+          track.youtube_id = resolved.id
+          const isValidUUID = (id?: string) => Boolean(id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))
+          if (isValidUUID(track.id)) {
+            supabase.from('tracks').update({ youtube_id: resolved.id }).eq('id', track.id).then((res: any) => {
+              if (res?.error) console.warn('Failed to persist youtube_id:', res.error.message)
+            })
+          }
+        }
+
+        trackResolutionCacheRef.current.set(track.id, { activeTrack, expiresAt: Date.now() + TRACK_RESOLUTION_TTL })
+
+        if (requestId === playRequestRef.current) {
+          setCurrentTrack(activeTrack)
+          syncQueueEntry(activeTrack)
         }
       }
     }
