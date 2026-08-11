@@ -8,9 +8,9 @@ const ParticleScene = lazy(() => import('./ParticleScene'))
 
 interface NowPlayingStageProps {
   analyserData?: Uint8Array
-  coverUrl?: string
-  title?: string
-  artist?: string
+  coverUrl?: string | null
+  title?: string | null
+  artist?: string | null
   isPlaying: boolean
 }
 
