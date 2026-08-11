@@ -324,7 +324,7 @@ function TrackRowComponent({
             }
           : undefined
       }
-      className={`song-row group flex items-center justify-between px-3 md:px-4 py-2.5 rounded-xl transition-all duration-200 cursor-pointer select-none border ${
+      className={`recent-row song-row group flex items-center justify-between px-3 md:px-4 py-2.5 rounded-xl transition-all duration-200 cursor-pointer select-none border ${
         showMenu ? 'relative z-40 bg-white/[0.08] border-white/10 text-white' : 'relative'
       } ${
         isSelected
@@ -333,7 +333,7 @@ function TrackRowComponent({
           ? 'is-playing border-transparent text-white'
           : showMenu
           ? ''
-          : 'border-transparent hover:border-white/[0.08]'
+          : 'border-transparent'
       }`}
     >
       {/* Select Checkbox */}
@@ -378,7 +378,7 @@ function TrackRowComponent({
         </div>
 
         {/* Cover thumbnail & Title/Artist */}
-        <div className="w-9 h-9 bg-slate-800 rounded-lg overflow-hidden shrink-0 flex items-center justify-center border border-white/10">
+        <div className="row-thumb w-9 h-9 bg-slate-800 rounded-lg overflow-hidden shrink-0 flex items-center justify-center border border-white/10">
           <TrackCoverImage src={track.cover_url} alt={track.title} />
         </div>
 
