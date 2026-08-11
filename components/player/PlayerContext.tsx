@@ -1024,7 +1024,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (immediateUrl) {
         try {
           audioRef.current.src = immediateUrl
-          audioRef.current.volume = volumeRef.current
+          // Muted fast-start: keep the iOS gesture chain alive, but the 30s preview
+          // must never become audible — the resolved full-length stream (or the preview
+          // fallback path below) restores the real volume when it takes over.
+          audioRef.current.volume = 0
           audioRef.current.play()
             .then(() => {
               if (requestId === playRequestRef.current) {
@@ -1032,7 +1035,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 setIsPlaying(true)
               }
             })
-            .catch(() => {})
+            .catch(() => {
+              // Play rejected (e.g. iOS background autoplay block) — never leave the
+              // element stuck muted, unless a newer play request owns the element now.
+              if (requestId === playRequestRef.current && audioRef.current) {
+                audioRef.current.volume = volumeRef.current
+              }
+            })
         } catch {}
       }
     }
