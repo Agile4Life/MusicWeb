@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { Search, X, Music, Play, Upload, User, Loader2 } from 'lucide-react'
+import { Search, X, Music, Play, Upload, User, Loader2, LogOut } from 'lucide-react'
 import { Track } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { useSearch } from '@/components/search/SearchContext'
-import { useSession } from 'next-auth/react'
+import { useSession, signOut } from 'next-auth/react'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { createClient } from '@/lib/supabase/client'
+import { isAdmin } from '@/lib/accessControl'
 import Link from 'next/link'
 
 import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
@@ -39,6 +40,12 @@ export function TopBar() {
           : {},
       }
     : null
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    await signOut({ callbackUrl: '/login' })
+    window.location.href = '/login'
+  }
 
   const suggestions: Track[] = React.useMemo(() => {
     return flattenUnifiedSearchResults(globalTracks).slice(0, 6)
@@ -156,28 +163,42 @@ export function TopBar() {
       </div>
 
       {/* Right Slot: User Actions */}
-      <div className="shrink-0 flex items-center justify-end gap-3 my-auto sm:w-36 md:w-48">
+      <div className="shrink-0 flex items-center justify-end gap-2 my-auto">
         {user ? (
-          <div className="hidden sm:flex items-center gap-2.5 py-1">
-            <div className="w-8 h-8 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-[var(--primary-spotify,#06b6d4)] font-bold text-xs shrink-0">
-              {user.user_metadata?.avatar_url ? (
-                <img
-                  src={user.user_metadata.avatar_url}
-                  alt={user.email}
-                  className="w-full h-full rounded-full object-cover"
-                />
-              ) : (
-                <User className="w-4 h-4" />
-              )}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5 px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] transition-all">
+              <div className="w-8 h-8 rounded-full bg-rose-600 text-white border border-white/20 flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden shadow-sm">
+                {user.user_metadata?.avatar_url ? (
+                  <img
+                    src={user.user_metadata.avatar_url}
+                    alt={user.email}
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                ) : (
+                  <span>{(user.user_metadata?.full_name || user.email || 'U').charAt(0).toUpperCase()}</span>
+                )}
+              </div>
+              <div className="hidden sm:flex flex-col text-left min-w-0 pr-1">
+                <span className="text-xs font-bold text-white truncate max-w-[140px]">
+                  {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                </span>
+                <span className="text-[10px] font-mono text-slate-400 leading-none mt-0.5">
+                  {isAdmin(user?.email) ? 'Admin' : 'Listener'}
+                </span>
+              </div>
             </div>
-            <span className="hidden sm:inline text-xs font-bold text-white truncate max-w-[120px]">
-              {user.user_metadata?.full_name || user.email?.split('@')[0]}
-            </span>
+            <button
+              onClick={handleLogout}
+              className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-colors shrink-0"
+              title="Đăng xuất"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         ) : (
           <Link
             href="/login"
-            className="text-xs font-bold text-black bg-white hover:bg-slate-200 px-3 py-1 sm:px-4 sm:py-1.5 rounded-full transition-colors"
+            className="text-xs font-bold text-black bg-white hover:bg-slate-200 px-3.5 py-1.5 rounded-full transition-colors"
           >
             Đăng nhập
           </Link>

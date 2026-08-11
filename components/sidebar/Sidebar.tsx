@@ -400,49 +400,6 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
         </div>
       </div>
 
-      {/* User Auth Profile Footer */}
-      <div className="pt-3 border-t border-white/[0.05]">
-        {user ? (
-          <div className="flex items-center justify-between px-2 py-1">
-            <div className="flex items-center gap-2.5 truncate min-w-0">
-              <div className="w-8 h-8 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-[var(--primary-spotify,#06b6d4)] shrink-0 font-bold text-xs overflow-hidden">
-                {user.user_metadata?.avatar_url ? (
-                  <img
-                    src={user.user_metadata.avatar_url}
-                    alt={user.email}
-                    className="w-full h-full rounded-full object-cover"
-                  />
-                ) : (
-                  <UserCheck className="w-4 h-4" />
-                )}
-              </div>
-              <div className="truncate min-w-0">
-                <p className="text-[11px] font-bold text-white truncate">{user.user_metadata?.full_name || user.email?.split('@')[0]}</p>
-                <p className="text-[10px] font-mono text-slate-400 truncate">
-                  {isAdmin(user?.email) ? 'Admin' : 'Listener'}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors shrink-0"
-              title="Đăng xuất"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 px-1">
-            <Link
-              href="/login"
-              className="flex-1 text-center py-1.5 bg-[var(--primary-spotify,#06b6d4)] text-black font-bold text-xs rounded-xl"
-            >
-              Đăng nhập
-            </Link>
-          </div>
-        )}
-      </div>
-
       <ImportSpotifyModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
