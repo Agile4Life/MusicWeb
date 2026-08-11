@@ -561,8 +561,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             },
             onStateChange: (event: any) => {
               const active = currentTrackRef.current
-              // If active track is NOT a YouTube track, ensure YouTube player is stopped immediately
-              if (active && active.source !== 'youtube') {
+              const isYouTubeEngine = active && (active.source === 'youtube' || Boolean(active.youtube_id)) && !ytHtml5ModeRef.current
+              // If active track is NOT running YouTube engine, ensure YouTube player is stopped immediately
+              if (!isYouTubeEngine) {
                 if (ytStuckTimerRef.current) {
                   clearTimeout(ytStuckTimerRef.current)
                   ytStuckTimerRef.current = null
@@ -966,6 +967,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     // ⚡ 2. UPDATE UI INSTANTLY (< 5ms)
     setCurrentTrack(track)
+    currentTrackRef.current = track
     setIsPlaying(false)
     setIsBuffering(true)
     setCurrentTime(initialTime)
@@ -1079,6 +1081,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             ...track,
             source: 'nhaccuatui',
             nhaccuatui_id: resolved.id,
+            audio_url: undefined,
             title: resolved.title || track.title,
             artist: resolved.artist || track.artist,
             duration: resolved.duration || track.duration,
@@ -1089,6 +1092,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             ...track,
             source: 'local' as const,
             file_path: resolved.id,
+            audio_url: undefined,
             title: resolved.title || track.title,
             artist: resolved.artist || track.artist,
             duration: resolved.duration || track.duration,
@@ -1101,6 +1105,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             ...track,
             youtube_id: resolved.id,
             source: 'youtube',
+            audio_url: undefined,
           }
           rawTrack.youtube_id = resolved.id
           track.youtube_id = resolved.id
@@ -1116,6 +1121,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
         if (requestId === playRequestRef.current) {
           setCurrentTrack(activeTrack)
+          currentTrackRef.current = activeTrack
           syncQueueEntry(activeTrack)
         }
       }
