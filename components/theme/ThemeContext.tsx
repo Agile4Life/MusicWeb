@@ -176,7 +176,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [themeId, setThemeId] = useState<ThemeId>('summer')
-  const [cursorStyle, setCursorStyleState] = useState<CursorStyle>('lottie')
+  const [cursorStyle, setCursorStyleState] = useState<CursorStyle>('default')
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('musicweb-theme') as ThemeId
@@ -191,7 +191,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (savedCursor && CURSOR_CONFIGS.some((c) => c.id === savedCursor)) {
       applyCursorStyle(savedCursor)
     } else {
-      applyCursorStyle('lottie')
+      applyCursorStyle('default')
     }
   }, [])
 
