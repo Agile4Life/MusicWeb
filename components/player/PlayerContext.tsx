@@ -290,6 +290,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const trackResolutionCacheRef = useRef<Map<string, { activeTrack: Track; expiresAt: number }>>(new Map())
   const TRACK_RESOLUTION_TTL = 30 * 60 * 1000
 
+  // Track consecutive auto skips to prevent infinite skip loops when multiple tracks fail
+  const consecutiveSkipRef = useRef(0)
+  const pendingAutoSkipTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
   // Resolve audio URL for local and external tracks
   const getAudioUrl = useCallback(
     async (track: Track): Promise<string | null> => {
@@ -580,6 +584,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               // YT.PlayerState.PLAYING = 1, PAUSED = 2, ENDED = 0, BUFFERING = 3
               if (event.data === 1) {
                 if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
+                consecutiveSkipRef.current = 0
                 setIsPlaying(true)
                 setIsBuffering(false)
                 if (ytPlayerRef.current?.getDuration) {
@@ -647,6 +652,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               const active = currentTrackRef.current
               const errorCode = err?.data
               const isEmbedError = errorCode === 150 || errorCode === 101 || errorCode === 100
+
+              if (active && isEmbedError) {
+                invalidateStreamResolution(active)
+                trackResolutionCacheRef.current.delete(active.id)
+              }
 
               if (active && isEmbedError && !(active as any)._ytRetried) {
                 console.log('[YouTube Fallback] Error 150/101/100 encountered, attempting automatic fallback match...')
@@ -874,6 +884,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     startFromTime?: number
   ) => {
     const requestId = ++playRequestRef.current
+    if (pendingAutoSkipTimeoutRef.current) {
+      clearTimeout(pendingAutoSkipTimeoutRef.current)
+      pendingAutoSkipTimeoutRef.current = null
+    }
     audioRetryCountRef.current = 0
     ytHtml5ModeRef.current = false
     const track = inferTrackSource(rawTrack)
@@ -1173,6 +1187,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           audio.pause()
           return
         }
+        consecutiveSkipRef.current = 0
         setIsPlaying(true)
         setIsBuffering(false)
         return
@@ -1190,6 +1205,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
         if (audioRef.current) {
           try {
+            const mediaErr = audioRef.current.error
+            if (!mediaErr || mediaErr.code !== 2) { // 2 = MEDIA_ERR_NETWORK (transient)
+              invalidateStreamResolution(activeTrack)
+              trackResolutionCacheRef.current.delete(activeTrack.id)
+            }
             audioRef.current.pause()
             audioRef.current.removeAttribute('src')
           } catch {}
@@ -1237,7 +1257,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (requestId === playRequestRef.current) {
         setIsPlaying(false)
         setIsBuffering(false)
-        setPlaybackError(`Bài hát "${activeTrack.title}" không hỗ trợ phát trực tiếp. Vui lòng chọn bài khác.`)
+        if (consecutiveSkipRef.current < 3) {
+          consecutiveSkipRef.current += 1
+          setPlaybackError(`Bài hát "${activeTrack.title}" không hỗ trợ phát trực tiếp. Đang chuyển bài tiếp theo...`)
+          const skipTimeoutId = setTimeout(() => {
+            if (requestId === playRequestRef.current) {
+              playNextTrack()
+            }
+          }, 1500)
+          pendingAutoSkipTimeoutRef.current = skipTimeoutId
+        } else {
+          consecutiveSkipRef.current = 0
+          setPlaybackError(`Nhiều bài hát liên tiếp không phát được. Vui lòng chọn bài khác thủ công.`)
+        }
       }
     }
 
