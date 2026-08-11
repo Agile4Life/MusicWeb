@@ -223,7 +223,11 @@ export function AuthForm({ mode }: AuthFormProps) {
           password,
         })
 
-        if (signUpError) throw signUpError
+        if (signUpError) {
+          setError(translateAuthError(signUpError))
+          setLoading(false)
+          return
+        }
 
         // Approve the account server-side (roles table + auto-confirm email) so the
         // user can log in immediately with the account just registered.
@@ -256,7 +260,11 @@ export function AuthForm({ mode }: AuthFormProps) {
           password,
         })
 
-        if (signInError) throw signInError
+        if (signInError) {
+          setError(translateAuthError(signInError))
+          setLoading(false)
+          return
+        }
 
         // ⛔ Access control: check against allowlist (local) + server approval (roles table)
         const locallyAllowed = isAllowedToLogin(authEmail)
@@ -270,14 +278,15 @@ export function AuthForm({ mode }: AuthFormProps) {
 
         setSuccessMsg('Đăng nhập thành công! Đang chuyển hướng...')
         if (!signInData.session?.access_token) {
-          throw new Error('KhÃ´ng thá»ƒ táº¡o phiÃªn Ä‘Äƒng nháº­p. Vui lÃ²ng thá»­ láº¡i!')
+          setError('Không thể tạo phiên đăng nhập. Vui lòng thử lại!')
+          setLoading(false)
+          return
         }
 
         await createPasswordSession(signIn, authEmail, signInData.session.access_token)
         scheduleAuthRedirect(router, 800)
       }
     } catch (err: any) {
-      console.error('Auth action failed:', err)
       setError(translateAuthError(err))
       try {
         setRawError(
@@ -471,7 +480,7 @@ export function AuthForm({ mode }: AuthFormProps) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[var(--primary-spotify)] text-black font-extrabold py-3 rounded-full transition-transform active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-[var(--theme-glow-shadow)] disabled:opacity-50 text-xs hover:scale-[1.01]"
+            className="btn-tactile w-full bg-[var(--primary-spotify)] text-black font-extrabold py-3 rounded-full transition-transform active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-[var(--theme-glow-shadow)] disabled:opacity-50 text-xs hover:scale-[1.01]"
           >
             {loading ? (
               <>

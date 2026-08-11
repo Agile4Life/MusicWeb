@@ -170,7 +170,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [playbackError, setPlaybackError] = useState<string | null>(null)
   const [mvIntroOffset, setMvIntroOffset] = useState<number>(0)
   const [isNowPlayingOpen, setIsNowPlayingOpen] = useState<boolean>(false)
-  const [frequencyData, setFrequencyData] = useState<Uint8Array>(new Uint8Array(16))
+  const frequencyData = React.useMemo(() => new Uint8Array(16), [])
 
   const toggleNowPlayingOverlay = useCallback(() => setIsNowPlayingOpen((prev) => !prev), [])
   const openNowPlayingOverlay = useCallback(() => setIsNowPlayingOpen(true), [])
@@ -178,24 +178,22 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isPlaying) {
-      setFrequencyData(new Uint8Array(16))
+      frequencyData.fill(0)
       return
     }
     let animId: number
-    const dataArr = new Uint8Array(16)
 
     const tick = () => {
       const now = Date.now() / 120
       for (let i = 0; i < 16; i++) {
-        dataArr[i] = Math.floor(Math.sin(now + i * 0.8) * 80 + 150 + Math.random() * 25)
+        frequencyData[i] = Math.floor(Math.sin(now + i * 0.8) * 80 + 150 + Math.random() * 25)
       }
-      setFrequencyData(new Uint8Array(dataArr))
       animId = requestAnimationFrame(tick)
     }
 
     animId = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(animId)
-  }, [isPlaying])
+  }, [isPlaying, frequencyData])
 
   // Fetch SponsorBlock MV Intro offset when track changes (Stage 2 & Stage 4)
   useEffect(() => {

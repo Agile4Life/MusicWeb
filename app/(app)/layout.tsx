@@ -34,7 +34,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <PlaylistProvider>
               <SearchProvider>
                 <AlbumCardEffects />
-                <div className="h-screen w-screen flex flex-col bg-[var(--bg-space,#07090e)] overflow-hidden font-sans p-1.5 xs:p-2 md:p-3 gap-1.5 md:gap-3">
+                <div className="h-screen w-screen flex flex-col bg-[var(--bg-space,#07090e)] overflow-hidden font-sans p-1.5 xs:p-2 md:p-3 relative">
                   {/* Mobile Header (Smartphone view) */}
                   <MobileHeaderNav />
 
@@ -47,7 +47,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       <TopBar />
                       <div
                         onScroll={handleScroll}
-                        className="flex-1 overflow-y-auto min-h-0 relative main-content-scroll"
+                        className="flex-1 overflow-y-auto min-h-0 relative main-content-scroll pb-28 md:pb-32"
                       >
                         {children}
                       </div>
@@ -57,8 +57,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <QueueDrawer />
                   </div>
 
-                  {/* Player Bar (Desktop Bar + Mobile Floating Player) */}
-                  <PlayerBar isScrolled={isScrolled} />
+                  {/* Player Bar (Elevation 3 - Floating sheet on top) */}
+                  <div className="absolute bottom-1.5 xs:bottom-2 md:bottom-3 left-1.5 xs:left-2 md:left-3 right-1.5 xs:right-2 md:right-3 z-30 pointer-events-auto">
+                    <PlayerBar isScrolled={isScrolled} />
+                  </div>
                   <NowPlayingOverlay />
                 </div>
               </SearchProvider>

@@ -5,6 +5,7 @@ import { usePlayer, usePlaybackProgress } from './PlayerContext'
 import { LrclibResponse } from '@/lib/lrclib'
 import { getPrimaryLyrics } from '@/lib/lyricsFlow'
 import { parseLrc, parsePlainLyrics, findActiveLyricIndex, LyricLine } from '@/lib/lrcParser'
+import { OverflowMarqueeText } from '@/components/common/OverflowMarqueeText'
 import {
   Headphones,
   RefreshCw,
@@ -33,6 +34,14 @@ interface LyricsViewProps {
   showHeader?: boolean
 }
 
+/**
+ * ARCHITECTURE DECISION (v3 Spec):
+ * LyricsView is used in 2 contexts:
+ * 1) Standalone modal (opened via Mic2 button on PlayerBar): Intentionally lightweight & minimal
+ *    without heavy 3D particle Canvas layers to maximize reading speed & save CPU/GPU resources.
+ * 2) Right column in NowPlayingOverlay: Embedded inside the full 3D cinematic stage (NowPlayingStage).
+ */
+
 function formatTime(seconds: number) {
   if (isNaN(seconds) || seconds < 0) return '0:00'
   const mins = Math.floor(seconds / 60)
@@ -40,7 +49,7 @@ function formatTime(seconds: number) {
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`
 }
 
-export function LyricsView({ onClose, isModal = false, showControls = true, showHeader = true }: LyricsViewProps) {
+export const LyricsView = React.memo(function LyricsView({ onClose, isModal = false, showControls = true, showHeader = true }: LyricsViewProps) {
   const { currentTime, duration } = usePlaybackProgress()
   const {
     currentTrack,
@@ -172,9 +181,15 @@ export function LyricsView({ onClose, isModal = false, showControls = true, show
     currentTrack?.nhaccuatui_id,
   ])
 
-  // 2. Track playback time & update active lyric line
+  const lastLyricCheckRef = useRef(0)
+
+  // 2. Track playback time & update active lyric line (throttled to ~12 FPS per Section 7 spec)
   useEffect(() => {
     if (!isSynced || parsedLyrics.length === 0) return
+
+    const now = performance.now()
+    if (now - lastLyricCheckRef.current < 80) return
+    lastLyricCheckRef.current = now
 
     const index = findActiveLyricIndex(parsedLyrics, currentTime, lyricOffset - (mvIntroOffset || 0))
     setActiveIndex((prev) => (prev !== index ? index : prev))
@@ -226,21 +241,23 @@ export function LyricsView({ onClose, isModal = false, showControls = true, show
   }
 
   return (
-    <div className="relative w-full h-full flex flex-col overflow-hidden select-none bg-[#07090e] now-playing-bg touch-manipulation">
-      {/* 🌟 Rich Ambient Glassmorphic Background */}
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        {currentTrack.cover_url ? (
-          <img
-            src={currentTrack.cover_url}
-            alt=""
-            className="w-full h-full object-cover blur-3xl opacity-30 scale-125 transform-gpu transition-all duration-700"
-          />
-        ) : (
-          <div className="w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-900/30 via-[#0a0d14] to-[#07090e]" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#07090e]/70 via-[#07090e]/85 to-[#07090e]" />
-        <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 50% 30%, var(--accent-dim), transparent 70%)' }} />
-      </div>
+    <div className={`relative w-full h-full flex flex-col overflow-hidden select-none touch-manipulation ${isModal ? 'bg-[#07090e] now-playing-bg' : 'bg-transparent'}`}>
+      {/* 🌟 Rich Ambient Glassmorphic Background (only when standalone modal) */}
+      {isModal && (
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+          {currentTrack.cover_url ? (
+            <img
+              src={currentTrack.cover_url}
+              alt=""
+              className="w-full h-full object-cover blur-3xl opacity-30 scale-125 transform-gpu transition-all duration-700"
+            />
+          ) : (
+            <div className="w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-900/30 via-[#0a0d14] to-[#07090e]" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-b from-[#07090e]/70 via-[#07090e]/85 to-[#07090e]" />
+          <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 50% 30%, var(--accent-dim), transparent 70%)' }} />
+        </div>
+      )}
 
       {/* 🔝 Glassmorphic Header */}
       {showHeader && (
@@ -255,12 +272,13 @@ export function LyricsView({ onClose, isModal = false, showControls = true, show
             </div>
             <div className="flex flex-col min-w-0 flex-1">
               <div className="flex items-center gap-2.5 min-w-0">
-                <h2 className="text-xs sm:text-sm md:text-base font-extrabold text-white truncate tracking-tight">
-                  {currentTrack.title}
-                </h2>
+                <OverflowMarqueeText
+                  text={currentTrack.title}
+                  className="text-xs sm:text-sm md:text-base font-extrabold text-white tracking-tight flex-1 min-w-0"
+                />
                 {isSynced ? (
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 shrink-0 shadow-[0_0_12px_rgba(16,185,129,0.3)] flex items-center gap-1.5 leading-none">
-                    <Sparkles className="w-3 h-3 text-emerald-400 shrink-0" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[var(--accent,#06b6d4)]/10 text-[var(--spotify-glow,#22d3ee)] border border-[var(--accent,#06b6d4)]/25 shrink-0 shadow-[0_0_12px_var(--theme-glow-shadow)] flex items-center gap-1.5 leading-none">
+                    <Sparkles className="w-3 h-3 text-[var(--spotify-glow,#22d3ee)] shrink-0" />
                     Synced
                   </span>
                 ) : parsedLyrics.length > 0 ? (
@@ -325,8 +343,12 @@ export function LyricsView({ onClose, isModal = false, showControls = true, show
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="relative z-10 flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 pt-6 pb-20 no-scrollbar lyrics-scroll-mask"
-        style={{ WebkitOverflowScrolling: 'touch' }}
+        className="relative z-10 flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 pt-6 pb-8 no-scrollbar"
+        style={{
+          WebkitOverflowScrolling: 'touch',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 6%, black 86%, transparent 100%)',
+          maskImage: 'linear-gradient(to bottom, transparent 0%, black 6%, black 86%, transparent 100%)',
+        }}
       >
         {loading ? (
           <div className="h-full flex flex-col items-center justify-center text-slate-400 py-20">
@@ -336,32 +358,60 @@ export function LyricsView({ onClose, isModal = false, showControls = true, show
             <p className="text-sm font-extrabold text-white tracking-wide">Đang tải lời bài hát từ thư viện...</p>
           </div>
         ) : parsedLyrics.length > 0 ? (
-          <div className="flex flex-col gap-6 md:gap-8 py-16 md:py-24 text-center sm:text-left max-w-3xl mx-auto">
+          <div className="flex flex-col gap-6 md:gap-8 pt-12 pb-28 md:pt-16 md:pb-36 text-center sm:text-left max-w-3xl mx-auto">
             {parsedLyrics.map((line, index) => {
               const isActive = index === activeIndex
-              const isPast = index < activeIndex
+              const distance = activeIndex >= 0 ? Math.abs(index - activeIndex) : Infinity
+              const isEven = index % 2 === 0
+
+              // 4-tier crisp depth hierarchy (scale & opacity, 0 blur for maximum sharpness)
+              let scale: number
+              let opacity: number
+              if (isActive) {
+                scale = 1.05
+                opacity = 1.0
+              } else if (distance === 1) {
+                scale = 0.97
+                opacity = 0.75 // Sharp & clear
+              } else if (distance === 2) {
+                scale = 0.94
+                opacity = 0.55 // Clear readability
+              } else {
+                scale = 0.90
+                opacity = activeIndex < 0 ? 0.65 : 0.38 // Legible receding lines
+              }
+
+              const floatClass = isActive
+                ? ''
+                : isEven
+                  ? 'lyric-float-even'
+                  : 'lyric-float-odd'
+
+              const willChangeClass = isActive || distance <= 1 ? 'will-change-[transform,opacity]' : ''
 
               return (
                 <div
                   key={index}
                   ref={isActive ? activeLineRef : null}
                   onClick={() => handleLineClick(line)}
-                  className={`transition-all duration-500 ease-out cursor-pointer py-1.5 px-3 rounded-2xl select-none transform-gpu origin-center sm:origin-left active:scale-95 ${
-                    isActive
-                      ? 'scale-105 opacity-100 my-2'
-                      : isPast
-                      ? 'scale-98 opacity-30 hover:opacity-70'
-                      : 'scale-98 opacity-45 hover:opacity-85'
-                  }`}
+                  className={`lyric-line-item cursor-pointer py-1.5 px-3 rounded-2xl select-none transform-gpu origin-center sm:origin-left active:scale-95 ${willChangeClass} ${floatClass}`}
+                  style={{
+                    '--l-scale': scale,
+                    transform: `scale(${scale})`,
+                    opacity,
+                    transition: 'transform 400ms var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1)), opacity 400ms ease-out',
+                    marginBlock: isActive ? '8px' : undefined,
+                  } as React.CSSProperties}
                 >
                   <p
-                    className={`transition-all duration-500 leading-relaxed font-extrabold ${
-                      isActive
-                        ? 'text-xl sm:text-2xl md:text-3xl lg:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] via-white to-[var(--primary-spotify,#06b6d4)] drop-shadow-[0_0_24px_var(--theme-glow-shadow)]'
-                        : isPast
-                        ? 'text-slate-300 text-base sm:text-xl md:text-2xl font-bold'
-                        : 'text-slate-200 text-base sm:text-xl md:text-2xl font-bold'
-                    }`}
+                    className={`leading-relaxed font-extrabold transition-colors duration-300 ${isActive
+                        ? 'text-xl sm:text-2xl md:text-3xl lg:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] via-white to-[var(--primary-spotify,#06b6d4)] drop-shadow-[0_2px_8px_rgba(6,182,212,0.4)]'
+                        : distance === 1
+                          ? 'text-white text-base sm:text-xl md:text-2xl font-extrabold'
+                          : distance === 2
+                            ? 'text-slate-200 text-base sm:text-xl md:text-2xl font-bold'
+                            : 'text-slate-300 text-base sm:text-xl md:text-2xl font-bold'
+                      }`}
                   >
                     {line.text}
                   </p>
@@ -410,17 +460,15 @@ export function LyricsView({ onClose, isModal = false, showControls = true, show
 
             <button
               onClick={toggleFavoriteCurrentTrack}
-              className={`p-2 rounded-xl transition-all ml-1 shrink-0 ${
-                currentTrack.is_favorite
+              className={`p-2 rounded-xl transition-all ml-1 shrink-0 ${currentTrack.is_favorite
                   ? 'text-rose-400 bg-rose-500/20 border border-rose-500/40 shadow-lg'
                   : 'text-slate-400 hover:text-rose-400 hover:bg-white/10'
-              }`}
+                }`}
               title={currentTrack.is_favorite ? 'Bỏ khỏi bài hát yêu thích' : 'Thêm vào bài hát yêu thích'}
             >
               <Heart
-                className={`w-4 h-4 transition-all ${
-                  currentTrack.is_favorite ? 'fill-current drop-shadow-[0_0_10px_rgba(244,63,94,0.7)]' : ''
-                }`}
+                className={`w-4 h-4 transition-all ${currentTrack.is_favorite ? 'fill-current drop-shadow-[0_0_10px_rgba(244,63,94,0.7)]' : ''
+                  }`}
               />
             </button>
           </div>
@@ -433,15 +481,14 @@ export function LyricsView({ onClose, isModal = false, showControls = true, show
                 style={
                   isShuffle
                     ? {
-                        color: 'var(--spotify-glow, #22d3ee)',
-                        backgroundColor: 'rgba(6,182,212,0.15)',
-                        borderColor: 'rgba(6,182,212,0.4)',
-                      }
+                      color: 'var(--spotify-glow, #22d3ee)',
+                      backgroundColor: 'rgba(6,182,212,0.15)',
+                      borderColor: 'rgba(6,182,212,0.4)',
+                    }
                     : undefined
                 }
-                className={`p-2 rounded-xl relative transition-all active:scale-90 ${
-                  isShuffle ? 'border shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/10'
-                }`}
+                className={`p-2 rounded-xl relative transition-all active:scale-90 ${isShuffle ? 'border shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/10'
+                  }`}
                 title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
               >
                 <Shuffle className="w-4 h-4" />
@@ -461,7 +508,7 @@ export function LyricsView({ onClose, isModal = false, showControls = true, show
                   background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
                   boxShadow: '0 4px 18px rgba(6,182,212,0.45)',
                 }}
-                className="w-11 h-11 rounded-full hover:scale-105 active:scale-95 transition-all flex items-center justify-center text-black font-extrabold shrink-0 border border-white/30"
+                className="w-11 h-11 rounded-full hover:scale-[1.08] hover:shadow-[0_0_30px_rgba(6,182,212,0.45)] active:scale-95 transition-all flex items-center justify-center text-black font-extrabold shrink-0 border border-white/30"
                 title={isPlaying ? 'Tạm dừng' : 'Phát'}
               >
                 {isPlaying ? (
@@ -484,21 +531,20 @@ export function LyricsView({ onClose, isModal = false, showControls = true, show
                 style={
                   repeatMode !== 'off'
                     ? {
-                        color: 'var(--spotify-glow, #22d3ee)',
-                        backgroundColor: 'rgba(6,182,212,0.15)',
-                        borderColor: 'rgba(6,182,212,0.4)',
-                      }
+                      color: 'var(--spotify-glow, #22d3ee)',
+                      backgroundColor: 'rgba(6,182,212,0.15)',
+                      borderColor: 'rgba(6,182,212,0.4)',
+                    }
                     : undefined
                 }
-                className={`p-2 rounded-xl relative transition-all active:scale-90 ${
-                  repeatMode !== 'off' ? 'border shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/10'
-                }`}
+                className={`p-2 rounded-xl relative transition-all active:scale-90 ${repeatMode !== 'off' ? 'border shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/10'
+                  }`}
                 title={
                   repeatMode === 'one'
                     ? 'Lặp lại 1 bài'
                     : repeatMode === 'all'
-                    ? 'Lặp lại toàn bộ danh sách'
-                    : 'Bật lặp lại bài hát'
+                      ? 'Lặp lại toàn bộ danh sách'
+                      : 'Bật lặp lại bài hát'
                 }
               >
                 {repeatMode === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
@@ -554,4 +600,4 @@ export function LyricsView({ onClose, isModal = false, showControls = true, show
       )}
     </div>
   )
-}
+})

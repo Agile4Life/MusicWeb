@@ -86,16 +86,31 @@
   --border-subtle: rgba(255, 255, 255, 0.08);
 
   /* === Elevation Model Tokens (Fake 3D Layering) === */
-  --elev-1-shadow: 0 1px 2px hsl(0 0% 0% / 0.2);
+  --elev-1-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
   --elev-2-shadow:
-    2px 0 8px hsl(0 0% 0% / 0.35),
-    1px 0 0 hsl(0 0% 100% / 0.04) inset; /* viền sáng bên trong cạnh phải */
+    8px 0 28px rgba(0, 0, 0, 0.75),
+    1px 0 0 rgba(255, 255, 255, 0.08) inset,
+    0 1px 0 rgba(255, 255, 255, 0.12) inset;
   --elev-3-shadow:
-    0 -6px 24px hsl(0 0% 0% / 0.45),
-    0 -1px 0 hsl(0 0% 100% / 0.06) inset; /* viền sáng cạnh trên */
+    0 -10px 36px rgba(0, 0, 0, 0.85),
+    0 -1px 0 rgba(255, 255, 255, 0.16) inset,
+    0 0 24px rgba(34, 211, 238, 0.15);
 
-  --glass-blur: 16px;
-  --glass-tint: hsl(240 6% 8% / 0.72); /* nền bán trong suốt cho player bar */
+  --glass-blur: 20px;
+  --glass-tint: rgba(10, 14, 24, 0.75); /* nền bán trong suốt cho player bar */
+
+  /* === Animate Skill Easing Tokens (Emil Kowalski Course) === */
+  --ease-out-quint: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-cubic: cubic-bezier(0.645, 0.045, 0.355, 1);
+  --ease-out-cubic: cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+/* === Button Press & Interactive Feedback (Tactile Motion) === */
+.btn-tactile {
+  transition: transform 120ms var(--ease-out-quint), opacity 120ms ease, box-shadow 120ms ease;
+}
+.btn-tactile:active {
+  transform: scale(0.96);
 }
 
 /* === Elevation 2: Sidebar (Navigation) === */
@@ -103,66 +118,78 @@
   position: relative;
   z-index: 20;
   box-shadow: var(--elev-2-shadow);
-  border-right: 1px solid hsl(0 0% 100% / 0.06);
-  transition: box-shadow 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(9, 11, 16, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .app-sidebar::before {
   content: "";
   position: absolute;
   inset: 0 0 auto 0;
-  height: 60px;
-  background: linear-gradient(to bottom, hsl(0 0% 100% / 0.03), transparent);
+  height: 70px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.06), transparent);
   pointer-events: none;
   border-radius: inherit;
 }
 
 .app-sidebar.is-scrolled {
-  box-shadow: var(--elev-2-shadow), 2px 0 16px hsl(0 0% 0% / 0.25);
+  box-shadow:
+    10px 0 36px rgba(0, 0, 0, 0.85),
+    1px 0 0 rgba(255, 255, 255, 0.12) inset,
+    0 0 20px rgba(34, 211, 238, 0.15);
 }
 
 /* === Elevation 3: Player Bar (Glassmorphism layer) === */
 .player-bar {
-  position: relative;
   z-index: 30;
-  background: var(--glass-tint);
-  backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
-  box-shadow: var(--elev-3-shadow);
-  border-top: 1px solid hsl(0 0% 100% / 0.08);
-  transition: box-shadow 0.3s ease, background 0.3s ease;
+  background: rgba(5, 8, 18, 0.72);
+  backdrop-filter: blur(16px) saturate(120%);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  border: 1px solid var(--accent-dim, rgba(255, 45, 90, 0.22));
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.35),
+    0 0 24px var(--theme-glow-shadow, rgba(255, 30, 80, 0.06));
+  transition: box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease;
 }
 
 .player-bar.is-scrolled {
-  box-shadow: var(--elev-3-shadow), 0 -12px 32px hsl(0 0% 0% / 0.2);
+  box-shadow:
+    0 -14px 44px rgba(0, 0, 0, 0.9),
+    0 -1px 0 rgba(255, 255, 255, 0.2) inset,
+    0 0 28px rgba(34, 211, 238, 0.22);
+  background: rgba(8, 11, 18, 0.85);
+  border-color: rgba(34, 211, 238, 0.25);
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .player-bar {
-    background: hsl(240 6% 8% / 0.95);
+    background: rgba(10, 14, 24, 0.98);
   }
 }
 
 /* Depth contrast on Progress Track & Fill inside Player Bar */
 .player-bar .progress-track {
-  box-shadow: inset 0 1px 2px hsl(0 0% 0% / 0.4);
+  box-shadow: inset 0 1.5px 3px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.05);
   border-radius: 999px;
 }
 
 .player-bar .progress-fill {
-  box-shadow: 0 0 8px hsl(var(--primary-spotify, #06b6d4) / 0.6);
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.8), 0 0 4px rgba(6, 182, 212, 0.9);
 }
 
 /* === Elevation 1: Main Content Bottom Fade Mask === */
 .main-content-scroll {
   -webkit-mask-image: linear-gradient(
     to bottom,
-    black calc(100% - 24px),
+    black calc(100% - 48px),
     transparent 100%
   );
   mask-image: linear-gradient(
     to bottom,
-    black calc(100% - 24px),
+    black calc(100% - 48px),
     transparent 100%
   );
 }
@@ -400,11 +427,14 @@ input[type='range']:hover::-moz-range-thumb {
 .album-card {
   position: relative;
   border-radius: var(--radius-card);
-  transition: transform var(--transition-base), box-shadow var(--transition-base);
+  transition: transform 220ms var(--ease-out-quint), box-shadow 220ms var(--ease-out-quint);
 }
 .album-card:hover {
   transform: translateY(-4px) scale(1.02);
   box-shadow: var(--shadow-elevated);
+}
+.album-card:active {
+  transform: translateY(-2px) scale(0.99);
 }
 
 .album-card .play-overlay {
@@ -424,11 +454,14 @@ input[type='range']:hover::-moz-range-thumb {
   cursor: pointer;
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 4px 14px var(--theme-glow-shadow, rgba(0, 0, 0, 0.45));
-  transition: var(--transition-fast);
+  transition: transform 200ms var(--ease-out-quint), opacity 180ms ease;
 }
 .album-card:hover .play-overlay {
   opacity: 1;
   transform: scale(1);
+}
+.album-card .play-overlay:active {
+  transform: scale(0.93);
 }
 .album-card .play-overlay svg {
   fill: currentColor;
@@ -444,12 +477,15 @@ input[type='range']:hover::-moz-range-thumb {
 /* ================================================================
    Redesign: Song Rows (TrackList)
    ================================================================ */
-.song-row {
+.song-row, .recent-row {
   border-radius: var(--radius-control);
-  transition: background var(--transition-fast), border-color var(--transition-fast);
+  transition: transform 180ms var(--ease-out-quint), background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
-.song-row:hover {
+.song-row:hover, .recent-row:hover {
   background: var(--bg-surface-2);
+}
+.song-row:active, .recent-row:active {
+  transform: scale(0.985) translateX(1px);
 }
 .song-row.is-playing {
   background: var(--accent-dim);
@@ -476,27 +512,85 @@ input[type='range']:hover::-moz-range-thumb {
   to   { transform: rotate(360deg); }
 }
 
-/* Ambient gradient background for Now Playing / Lyrics */
+/* Ambient static layered gradient background for Now Playing / Lyrics (Section 9 spec optimization) */
 .now-playing-bg {
-  background: linear-gradient(-45deg,
-    color-mix(in srgb, var(--accent, #06b6d4) 25%, #0b0710),
-    #0b0710,
-    color-mix(in srgb, var(--accent, #06b6d4) 15%, #0b0710));
-  background-size: 200% 200%;
-  animation: ambient-shift 12s ease-in-out infinite;
-}
-@keyframes ambient-shift {
-  0%, 100% { background-position: 0% 50%; }
-  50%      { background-position: 100% 50%; }
+  background:
+    radial-gradient(
+      circle at 25% 35%,
+      color-mix(in srgb, var(--accent, #06b6d4) 18%, transparent),
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 75% 65%,
+      color-mix(in srgb, var(--spotify-glow, #22d3ee) 12%, transparent),
+      transparent 55%
+    ),
+    #07090e;
 }
 
-/* Lyrics panel seamless column blend & scroll mask */
-.lyrics-panel-fade {
-  background: linear-gradient(to right, transparent, rgba(11, 7, 16, 0.85) 20%);
+/* === Album Art Fake 3D + Parallax Layers === */
+.album-3d-container {
+  perspective: 800px;
+  perspective-origin: center;
 }
-.lyrics-scroll-mask {
-  mask-image: linear-gradient(to bottom, transparent, black 8%, black 92%, transparent);
-  -webkit-mask-image: linear-gradient(to bottom, transparent, black 8%, black 92%, transparent);
+.album-3d-card {
+  transform-style: preserve-3d;
+  will-change: transform;
+  transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+}
+.album-3d-card.pointer-gone {
+  transition: transform 600ms var(--ease-out-quint);
+}
+.now-playing-cover img {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  object-fit: cover;
+}
+/* Specular light reflection overlay */
+.album-3d-reflection {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 5;
+  background: radial-gradient(
+    circle at var(--reflect-x, 50%) var(--reflect-y, 30%),
+    rgba(255, 255, 255, 0.18) 0%,
+    rgba(255, 255, 255, 0.06) 30%,
+    transparent 70%
+  );
+  transition: opacity 300ms ease;
+  opacity: var(--reflect-opacity, 0);
+  mix-blend-mode: overlay;
+}
+@keyframes album-float {
+  0%, 100% { --float-y: 0px; }
+  50% { --float-y: -6px; }
+}
+
+/* Parallax layer base (JS controlled via requestAnimationFrame) */
+.parallax-layer {
+  position: absolute;
+  top: -40px;
+  bottom: -40px;
+  left: -40px;
+  right: -40px;
+  will-change: transform;
+  transform: translate3d(var(--px, 0), var(--py, 0), 0);
+}
+.parallax-layer.reset,
+.scene-layer.reset {
+  transition: transform 600ms var(--ease-out-quint);
+}
+.scene-layer {
+  will-change: transform;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+/* Lyrics panel seamless column blend */
+.lyrics-panel-fade {
+  background: transparent;
 }
 
 /* Equalizer mini visualizer */
@@ -532,6 +626,19 @@ input[type='range']:hover::-moz-range-thumb {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  .album-3d-card, .lyric-float-even, .lyric-float-odd {
+    transform: none !important;
+    animation: none !important;
+  }
+  .parallax-layer {
+    transform: none !important;
+  }
+  .album-3d-reflection {
+    opacity: 0 !important;
+  }
+  .lyric-line-item {
+    filter: none !important;
   }
 }
 
@@ -771,11 +878,11 @@ input[type='range']:hover::-moz-range-thumb {
   pointer-events: none;
   z-index: 0;
   transition:
-    transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
-    height 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.25s ease,
-    background 0.3s ease,
-    border-color 0.3s ease;
+    transform 280ms var(--ease-out-quint),
+    height 220ms var(--ease-out-quint),
+    opacity 180ms ease,
+    background 220ms ease,
+    border-color 220ms ease;
 }
 
 .sidebar-item {
@@ -1198,6 +1305,22 @@ html[data-cursor="default"][data-buffering="true"],
 html[data-cursor="default"][data-buffering="true"] * {
   cursor: wait !important;
 }
+
+/* Custom Thin Scrollbar for UpNextList */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
 
 
 

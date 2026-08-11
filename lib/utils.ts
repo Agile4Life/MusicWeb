@@ -129,3 +129,13 @@ export function formatViewCount(count: number | null | undefined): string {
   if (count < 1_000_000_000) return `${(count / 1_000_000).toFixed(1).replace(/\.0$/, '')}M lượt xem`
   return `${(count / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B lượt xem`
 }
+
+/**
+ * Format seconds into mm:ss string
+ */
+export function formatTime(seconds: number): string {
+  if (isNaN(seconds) || seconds < 0) return '0:00'
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${mins}:${secs < 10 ? '0' : ''}${secs}`
+}

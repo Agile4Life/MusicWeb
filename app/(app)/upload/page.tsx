@@ -4,7 +4,7 @@ import { UploadForm } from '@/components/upload/UploadForm'
 import Link from 'next/link'
 import { ShieldAlert, Music } from 'lucide-react'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/authOptions'
 
 export default async function UploadPage() {
   const supabase = await createClient()

@@ -232,7 +232,7 @@ export function TrackList({
               />
             </div>
           ) : (
-            <span className="w-6 text-center">#</span>
+            <span className="w-8 text-center shrink-0">#</span>
           )}
           <span>TIÊU ĐỀ</span>
         </div>

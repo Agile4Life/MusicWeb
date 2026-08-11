@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { resolveYouTubeAudioStreamCached } from '../stream/route'
+import { resolveYouTubeAudioStreamCached } from '@/lib/youtubeStream'
 
 export const dynamic = 'force-dynamic'
 

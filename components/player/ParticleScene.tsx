@@ -4,7 +4,7 @@ import React, { useRef, useMemo, useEffect, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
-const PARTICLE_COUNT = 400 // Keep low under 500 for optimal 60fps performance
+const PARTICLE_COUNT = 520 // Rich 3D background particle density
 
 interface ParticlesProps {
   analyserData?: Uint8Array
@@ -14,12 +14,23 @@ interface ParticlesProps {
 function Particles({ analyserData, isPlaying }: ParticlesProps) {
   const pointsRef1 = useRef<THREE.Points>(null)
   const pointsRef2 = useRef<THREE.Points>(null)
+  const targetMouseRef = useRef({ x: 0, y: 0 })
+  const currentMouseRef = useRef({ x: 0, y: 0 })
   const [accentColor, setAccentColor] = useState('#06b6d4')
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const color = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()
       if (color) setAccentColor(color)
+
+      const handlePointerMove = (e: PointerEvent) => {
+        const nx = (e.clientX / window.innerWidth - 0.5) * 2
+        const ny = (e.clientY / window.innerHeight - 0.5) * 2
+        targetMouseRef.current = { x: nx, y: ny }
+      }
+
+      window.addEventListener('pointermove', handlePointerMove)
+      return () => window.removeEventListener('pointermove', handlePointerMove)
     }
   }, [])
 
@@ -55,6 +66,14 @@ function Particles({ analyserData, isPlaying }: ParticlesProps) {
 
   useFrame((state) => {
     const t = state.clock.getElapsedTime()
+
+    // Smooth lerp mouse coordinates for fluid physics feel
+    currentMouseRef.current.x += (targetMouseRef.current.x - currentMouseRef.current.x) * 0.06
+    currentMouseRef.current.y += (targetMouseRef.current.y - currentMouseRef.current.y) * 0.06
+
+    const mx = currentMouseRef.current.x
+    const my = currentMouseRef.current.y
+
     let scale = 1
 
     if (isPlaying && analyserData && analyserData.length > 0) {
@@ -67,11 +86,13 @@ function Particles({ analyserData, isPlaying }: ParticlesProps) {
     }
 
     if (pointsRef1.current) {
-      pointsRef1.current.rotation.y = t * 0.04
+      pointsRef1.current.rotation.y = t * 0.03 + mx * 0.4
+      pointsRef1.current.rotation.x = my * 0.4
       pointsRef1.current.scale.setScalar(scale)
     }
     if (pointsRef2.current) {
-      pointsRef2.current.rotation.y = -t * 0.06
+      pointsRef2.current.rotation.y = -t * 0.05 + mx * 0.75
+      pointsRef2.current.rotation.x = my * 0.75
       pointsRef2.current.scale.setScalar(scale * 1.05)
     }
   })
@@ -114,7 +135,7 @@ export default function ParticleScene({ analyserData, isPlaying }: ParticlesProp
     <Canvas
       className="particle-canvas"
       camera={{ position: [0, 0, 5], fov: 45 }}
-      dpr={[1, 1.5]}
+      dpr={1}
       gl={{ antialias: false, alpha: true }}
     >
       <Particles analyserData={analyserData} isPlaying={isPlaying} />

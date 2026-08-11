@@ -1,11 +1,15 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { usePlayer, usePlaybackProgress } from './PlayerContext'
 import { NowPlayingStage } from './NowPlayingStage'
 import { LyricsView } from './LyricsView'
 import { MiniEqualizer } from './MiniEqualizer'
 import { AudioWaveformScrubber } from './AudioWaveformScrubber'
+import { TrackCoverImage } from '../common/TrackCoverImage'
+import { OverflowMarqueeText } from '../common/OverflowMarqueeText'
+import { setCachedResolvedAlbum, getCachedResolvedAlbum, isRealAlbumName } from '@/lib/albumCache'
 import {
   ChevronDown,
   Play,
@@ -21,13 +25,43 @@ import {
   DiscAlbum,
   Mic2,
   Sparkles,
+  ListMusic,
+  Loader2,
 } from 'lucide-react'
+
+const StageWithFrequencyData = React.memo(function StageWithFrequencyData({
+  coverUrl,
+  title,
+  artist,
+  isPlaying,
+  children,
+}: {
+  coverUrl?: string | null
+  title?: string | null
+  artist?: string | null
+  isPlaying: boolean
+  children?: React.ReactNode
+}) {
+  const { frequencyData } = usePlayer()
+  return (
+    <NowPlayingStage
+      analyserData={frequencyData}
+      coverUrl={coverUrl}
+      title={title}
+      artist={artist}
+      isPlaying={isPlaying}
+    >
+      {children}
+    </NowPlayingStage>
+  )
+})
 
 export function NowPlayingOverlay() {
   const { currentTime, duration } = usePlaybackProgress()
   const {
     currentTrack,
     isPlaying,
+    isBuffering,
     togglePlay,
     nextTrack,
     prevTrack,
@@ -41,11 +75,159 @@ export function NowPlayingOverlay() {
     toggleFavoriteCurrentTrack,
     isNowPlayingOpen,
     closeNowPlayingOverlay,
-    frequencyData,
+    toggleQueue,
+    isQueueOpen,
+    queue,
+    currentIndex,
   } = usePlayer()
 
+  const router = useRouter()
   const [mobileTab, setMobileTab] = useState<'cover' | 'lyrics'>('cover')
-  const [isLiked, setIsLiked] = useState<boolean>(false)
+  const [isNavigatingAlbum, setIsNavigatingAlbum] = useState(false)
+  const [resolvedAlbumInfo, setResolvedAlbumInfo] = useState<{ id?: string; name?: string } | null>(null)
+
+  useEffect(() => {
+    setResolvedAlbumInfo(null)
+
+    if (!currentTrack) return
+
+    const hasRealAlbum = Boolean(
+      currentTrack.album &&
+      isRealAlbumName(currentTrack.album, currentTrack.title)
+    )
+
+    const cached = getCachedResolvedAlbum(currentTrack.title, currentTrack.artist, currentTrack.album)
+    if (cached?.albumId && !cached.albumId.includes('299152445') && !cached.albumId.includes('296970753')) {
+      setResolvedAlbumInfo({
+        id: cached.albumId,
+        name: cached.albumName,
+      })
+      if (cached.albumId) return
+    }
+
+    if (hasRealAlbum && currentTrack.spotify_album_id && currentTrack.album !== 'My Spot' && !currentTrack.spotify_album_id.includes('299152445') && !currentTrack.spotify_album_id.includes('296970753')) {
+      setResolvedAlbumInfo({
+        id: currentTrack.spotify_album_id,
+        name: currentTrack.album!,
+      })
+      return
+    }
+
+    let isCancelled = false
+    const timer = setTimeout(() => {
+      const titleToSearch = currentTrack.title || ''
+      const artistToSearch = currentTrack.artist || ''
+      const albumToSearch = hasRealAlbum ? currentTrack.album! : ''
+
+      fetch(
+        `/api/albums/resolve?title=${encodeURIComponent(titleToSearch)}&artist=${encodeURIComponent(artistToSearch)}&album=${encodeURIComponent(albumToSearch)}&track_id=${encodeURIComponent(currentTrack.id || '')}`
+      )
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (isCancelled) return
+          if (data && data.albumId) {
+            const finalAlbumName = data.albumName || (hasRealAlbum ? currentTrack.album! : 'Album')
+            setResolvedAlbumInfo({
+              id: data.albumId,
+              name: finalAlbumName,
+            })
+            if (currentTrack) {
+              currentTrack.spotify_album_id = data.albumId
+              if (data.albumName) currentTrack.album = data.albumName
+            }
+            setCachedResolvedAlbum(currentTrack.title, currentTrack.artist, {
+              albumId: data.albumId,
+              albumName: data.albumName,
+            })
+          } else {
+            setResolvedAlbumInfo(
+              hasRealAlbum ? { name: currentTrack.album! } : null
+            )
+          }
+        })
+        .catch(() => {
+          if (!isCancelled) {
+            setResolvedAlbumInfo(
+              hasRealAlbum ? { name: currentTrack.album! } : null
+            )
+          }
+        })
+    }, 1500)
+
+    return () => {
+      isCancelled = true
+      clearTimeout(timer)
+    }
+  }, [currentTrack?.id, currentTrack?.title, currentTrack?.artist, currentTrack?.album, currentTrack?.spotify_album_id])
+
+  const displayAlbumName = resolvedAlbumInfo?.name || (
+    currentTrack?.album && isRealAlbumName(currentTrack.album, currentTrack.title)
+      ? currentTrack.album
+      : undefined
+  )
+
+  const trackNum = (currentIndex >= 0 ? currentIndex : 0) + 1
+  const totalTracks = queue?.length || 1
+  const releaseYear = currentTrack?.created_at ? new Date(currentTrack.created_at).getFullYear() : null
+  const contextAlbumName = displayAlbumName || 'Album'
+
+  const handleOpenAlbum = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (!currentTrack) {
+      closeNowPlayingOverlay()
+      router.push('/albums')
+      return
+    }
+
+    if (currentTrack.spotify_album_id && !currentTrack.spotify_album_id.includes('299152445') && !currentTrack.spotify_album_id.includes('296970753')) {
+      closeNowPlayingOverlay()
+      router.push(`/album/${currentTrack.spotify_album_id}`)
+      return
+    }
+
+    if (resolvedAlbumInfo?.id && !resolvedAlbumInfo.id.includes('299152445') && !resolvedAlbumInfo.id.includes('296970753')) {
+      closeNowPlayingOverlay()
+      router.push(`/album/${resolvedAlbumInfo.id}`)
+      return
+    }
+
+    const hasRealAlbum =
+      currentTrack.album &&
+      isRealAlbumName(currentTrack.album, currentTrack.title)
+
+    const titleToSearch = currentTrack.title || ''
+    const artistToSearch = currentTrack.artist || ''
+    const albumToSearch = hasRealAlbum ? currentTrack.album! : ''
+
+    try {
+      setIsNavigatingAlbum(true)
+
+      const res = await fetch(
+        `/api/albums/resolve?title=${encodeURIComponent(titleToSearch)}&artist=${encodeURIComponent(artistToSearch)}&album=${encodeURIComponent(albumToSearch)}&track_id=${encodeURIComponent(currentTrack.id || '')}`
+      )
+      if (res.ok) {
+        const data = await res.json()
+        if (data.albumId) {
+          setResolvedAlbumInfo({ id: data.albumId, name: data.albumName || currentTrack.album || 'Album' })
+          currentTrack.spotify_album_id = data.albumId
+          if (data.albumName) currentTrack.album = data.albumName
+          closeNowPlayingOverlay()
+          router.push(`/album/${data.albumId}`)
+          return
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to resolve album ID:', err)
+    } finally {
+      setIsNavigatingAlbum(false)
+    }
+
+    const targetQuery = albumToSearch || titleToSearch
+    closeNowPlayingOverlay()
+    router.push(targetQuery ? `/albums?q=${encodeURIComponent(targetQuery)}` : '/albums')
+  }
 
   // Listen to Esc key to close overlay
   useEffect(() => {
@@ -61,8 +243,8 @@ export function NowPlayingOverlay() {
 
   if (!currentTrack) return null
 
-  const handleFavoriteClick = async () => {
-    setIsLiked((prev) => !prev)
+  const handleFavoriteClick = async (e: React.MouseEvent) => {
+    e.stopPropagation()
     await toggleFavoriteCurrentTrack()
   }
 
@@ -73,15 +255,24 @@ export function NowPlayingOverlay() {
 
   return (
     <div
-      className={`now-playing-overlay fixed inset-0 z-[100] bg-[#07090e] text-white flex flex-col transition-transform duration-350 ease-[cubic-bezier(0.22,1,0.36,1)] select-none ${
-        isNowPlayingOpen ? 'open translate-y-0' : 'translate-y-full pointer-events-none'
-      }`}
+      className={`now-playing-overlay fixed inset-0 z-[100] bg-[#07090e] text-white flex flex-col transition-transform duration-350 ease-[cubic-bezier(0.22,1,0.36,1)] select-none ${isNowPlayingOpen ? 'open translate-y-0' : 'translate-y-full pointer-events-none'
+        }`}
     >
-      {/* 🔝 Unified Top Header (Full Width) */}
-      <div className="relative z-30 flex items-center justify-between h-16 px-6 border-b border-white/[0.08] shrink-0 bg-black/40 backdrop-blur-xl">
+      {/* 🌟 Single Shared Ambient Glow Layer (Behind Top Bar, Stage & PlayerBar) */}
+      <div
+        className="absolute inset-0 z-0 pointer-events-none overflow-hidden opacity-60"
+        aria-hidden="true"
+      >
+        <div className="absolute -top-1/4 -left-1/4 w-[75vw] h-[75vw] rounded-full bg-[radial-gradient(circle,var(--spotify-glow,rgba(34,211,238,0.25))_0%,transparent_65%)] blur-3xl" />
+        <div className="absolute -bottom-1/4 -right-1/4 w-[75vw] h-[75vw] rounded-full bg-[radial-gradient(circle,var(--theme-gradient-1,rgba(168,85,247,0.2))_0%,transparent_65%)] blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[55vw] h-[55vw] rounded-full bg-[radial-gradient(circle,var(--theme-gradient-2,rgba(6,182,212,0.15))_0%,transparent_70%)] blur-3xl" />
+      </div>
+
+      {/* 🔝 Unified Top Header (Transparent, Seamless Background) */}
+      <div className="relative z-30 flex items-center justify-between h-16 px-6 border-b border-white/[0.06] shrink-0 bg-transparent">
         <button
           onClick={closeNowPlayingOverlay}
-          className="p-2 text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-all active:scale-95 flex items-center gap-1.5 text-xs font-semibold"
+          className="p-2 text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-all active:scale-95 flex items-center gap-1.5 text-xs font-semibold shrink-0"
           title="Thu nhỏ player (Esc)"
         >
           <ChevronDown className="w-5 h-5" />
@@ -89,25 +280,23 @@ export function NowPlayingOverlay() {
         </button>
 
         {/* Mobile Tab Switcher (<1024px screens) */}
-        <div className="flex lg:hidden items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-xl">
+        <div className="flex lg:hidden items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-xl shrink-0">
           <button
             onClick={() => setMobileTab('cover')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-              mobileTab === 'cover'
-                ? 'bg-[var(--accent,#06b6d4)] text-black shadow-md'
-                : 'text-slate-400 hover:text-white'
-            }`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${mobileTab === 'cover'
+              ? 'bg-[var(--accent,#06b6d4)] text-black shadow-md'
+              : 'text-slate-400 hover:text-white'
+              }`}
           >
             <DiscAlbum className="w-3.5 h-3.5" />
             <span>Ảnh bìa</span>
           </button>
           <button
             onClick={() => setMobileTab('lyrics')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-              mobileTab === 'lyrics'
-                ? 'bg-[var(--accent,#06b6d4)] text-black shadow-md'
-                : 'text-slate-400 hover:text-white'
-            }`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${mobileTab === 'lyrics'
+              ? 'bg-[var(--accent,#06b6d4)] text-black shadow-md'
+              : 'text-slate-400 hover:text-white'
+              }`}
           >
             <Mic2 className="w-3.5 h-3.5" />
             <span>Lời bài hát</span>
@@ -115,22 +304,21 @@ export function NowPlayingOverlay() {
         </div>
 
         {/* Right Header context badge */}
-        <div className="hidden lg:flex items-center gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 shadow-[0_0_12px_rgba(16,185,129,0.25)]">
-            <Sparkles className="w-3 h-3 text-emerald-400" />
+        <div className="hidden lg:flex items-center gap-2 shrink-0">
+          <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[var(--accent,#06b6d4)]/10 text-[var(--spotify-glow,#22d3ee)] border border-[var(--accent,#06b6d4)]/25 flex items-center gap-1.5 shadow-[0_0_12px_var(--theme-glow-shadow)]">
+            <Sparkles className="w-3 h-3 text-[var(--spotify-glow,#22d3ee)]" />
             SYNCED LYRICS
           </span>
         </div>
       </div>
 
-      {/* 🎭 Main Stage Area */}
+      {/* 🎭 Main Stage Area (Full Height underneath header so Lyrics & Particles scroll under the glass PlayerBar) */}
       <div className="flex-1 min-h-0 relative flex overflow-hidden bg-gradient-to-r from-[#07090e] via-[#07090e] to-[#0f0b16]">
-        {/* Desktop View (>=1024px): 2 Columns (Seamless blend, no vertical seam line) */}
-        <div className="hidden lg:flex w-full h-full">
-          {/* Left Column (~55%): 3D Particles + Album Cover */}
-          <div className="w-[55%] h-full relative bg-transparent">
-            <NowPlayingStage
-              analyserData={frequencyData}
+        {/* Desktop View (>=1024px): Centered 2-Column Unified Stage (Album 320px Left, Lyrics Right) */}
+        <div className="hidden lg:block w-full h-full relative">
+          {/* Layer 1 & 2: Full Stage 3D Background & Left Album Scene */}
+          <div className="absolute inset-0 z-0">
+            <StageWithFrequencyData
               coverUrl={currentTrack.cover_url}
               title={currentTrack.title}
               artist={currentTrack.artist}
@@ -138,18 +326,20 @@ export function NowPlayingOverlay() {
             />
           </div>
 
-          {/* Right Column (~45%): Synchronized Lyrics */}
-          <div className="w-[45%] h-full relative bg-transparent lyrics-panel-fade">
-            <LyricsView isModal={false} showControls={false} showHeader={false} />
+          {/* Layer 3: Right Column Lyrics (Centered inside shared max-w-[1360px] stage) */}
+          <div className="absolute inset-0 z-10 w-full h-full max-w-[1360px] xl:max-w-[1440px] mx-auto px-6 lg:px-12 flex items-center justify-end pointer-events-none">
+            <div className="w-full max-w-[640px] lg:w-[50%] xl:w-[48%] h-full pointer-events-auto flex flex-col justify-center">
+              <LyricsView isModal={false} showControls={false} showHeader={false} />
+            </div>
           </div>
         </div>
+
 
         {/* Mobile View (<1024px): 1 Column Tab Switcher */}
         <div className="flex lg:hidden w-full h-full">
           {mobileTab === 'cover' ? (
             <div className="w-full h-full relative">
-              <NowPlayingStage
-                analyserData={frequencyData}
+              <StageWithFrequencyData
                 coverUrl={currentTrack.cover_url}
                 title={currentTrack.title}
                 artist={currentTrack.artist}
@@ -158,115 +348,251 @@ export function NowPlayingOverlay() {
             </div>
           ) : (
             <div className="w-full h-full relative">
-              <LyricsView isModal={false} showControls={false} showHeader={false} />
+              <LyricsView isModal={false} showControls={false} showHeader={true} />
             </div>
           )}
         </div>
-      </div>
 
-      {/* 🎛️ Bottom Control Bar (Full-width) */}
-      <div className="relative z-30 px-6 py-4 bg-black/60 backdrop-blur-2xl border-t border-white/10 shrink-0 flex flex-col gap-3">
-        {/* Progress Bar Flex Row (Unified AudioWaveformScrubber) */}
-        <div className="w-full max-w-4xl mx-auto px-2">
-          <AudioWaveformScrubber
-            currentTime={currentTime}
-            duration={duration || currentTrack.duration || 0}
-            isPlaying={isPlaying}
-            trackId={currentTrack.id}
-            onSeek={seek}
-          />
-        </div>
+        {/* 🎛️ Floating Control Bar (Uses exact player-bar class matching user-specified glassmorphism styles) */}
+        <div className="player-bar group/playerbar absolute bottom-3 sm:bottom-4 inset-x-3 sm:inset-x-6 z-30 px-6 md:px-8 py-3.5 h-[96px] flex items-center justify-between rounded-2xl transition-all duration-300 select-none">
+          {/* Top ambient highlight reflection line (fades in on hover) */}
+          <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-[var(--spotify-glow,#22d3ee)]/35 to-transparent pointer-events-none rounded-t-2xl opacity-0 group-hover/playerbar:opacity-100 transition-opacity duration-300" />
 
-        {/* Playback Controls Row */}
-        <div className="flex items-center justify-between w-full max-w-4xl mx-auto">
-          {/* Left: Like button & Mini Equalizer */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleFavoriteClick}
-              className={`like-btn p-2.5 rounded-full border border-white/10 transition-all ${
-                isLiked ? 'liked bg-rose-500/20 text-rose-400 border-rose-500/30' : 'text-slate-400 hover:text-white bg-white/5'
-              }`}
-              title={isLiked ? 'Đã yêu thích' : 'Yêu thích bài hát'}
-            >
-              <Heart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
-            </button>
-            <MiniEqualizer isPlaying={isPlaying} />
+          {/* Left: Track Metadata (Matches Main Menu PlayerBar) */}
+          <div className="flex items-center gap-3.5 w-1/4 min-w-[220px]">
+            <div className="relative group shrink-0 cursor-pointer" title="Thông tin bài hát">
+              <div className={`player-cover w-14 h-14 bg-slate-800 flex items-center justify-center border border-white/10 shadow-md ${isPlaying ? 'is-playing' : ''}`}>
+                <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
+              </div>
+            </div>
+
+            <div className="truncate flex flex-col flex-1 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <OverflowMarqueeText
+                  text={currentTrack.title}
+                  className="text-xs md:text-sm font-bold text-white hover:text-[var(--spotify-glow)] transition-colors cursor-pointer min-w-0 flex-1"
+                />
+                {isPlaying && (
+                  <MiniEqualizer isPlaying={isPlaying} />
+                )}
+              </div>
+              <div className="flex items-center gap-2 mt-0.5 truncate">
+                <p className="text-[11px] text-slate-400 truncate hover:text-slate-200 transition-colors cursor-pointer">
+                  {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
+                </p>
+
+                {/* Album Link Pill */}
+                <div
+                  onClick={handleOpenAlbum}
+                  className="flex items-center gap-1 shrink-0 text-[10px] text-slate-300 bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 px-2 py-0.5 rounded-md max-w-[200px] hover:border-cyan-500/50 cursor-pointer transition-all group shadow-sm"
+                  title={displayAlbumName ? `Vào album: ${displayAlbumName}` : 'Vào Album bài hát'}
+                >
+                  {isNavigatingAlbum ? (
+                    <Loader2 className="w-3 h-3 animate-spin text-cyan-400 shrink-0" />
+                  ) : (
+                    <DiscAlbum style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3 h-3 shrink-0" />
+                  )}
+                  <span className="truncate font-semibold text-slate-200 group-hover:text-[var(--spotify-glow)] transition-colors">
+                    {displayAlbumName || 'Album'}
+                  </span>
+                </div>
+
+                {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && (
+                  <span
+                    style={{
+                      color: 'var(--spotify-glow, #22d3ee)',
+                      backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                      borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                    }}
+                    className="flex items-center gap-1 text-[10px] font-semibold border px-2 py-0.5 rounded-full animate-pulse shrink-0"
+                  >
+                    <Loader2 className="w-3 h-3 animate-spin shrink-0" style={{ color: 'var(--spotify-glow, #22d3ee)' }} />
+                    <span>Đang tải bản Lossless...</span>
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
 
-          {/* Center: Shuffle, Prev, Main Play (56px), Next, Repeat */}
-          <div className="flex items-center gap-5">
+          {/* Center: Playback Controls & Seekbar (Matches Main Menu PlayerBar Layout) */}
+          <div className="flex flex-col items-center gap-1.5 w-2/4 max-w-xl">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={toggleShuffle}
+                style={
+                  isShuffle
+                    ? {
+                      color: 'var(--spotify-glow, #22d3ee)',
+                      backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                      borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                    }
+                    : undefined
+                }
+                className={`p-2 rounded-xl relative transition-all duration-200 hover:scale-110 active:scale-95 ${isShuffle ? 'border shadow-md' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
+                  }`}
+                title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
+              >
+                <Shuffle className="w-4 h-4" />
+                {isShuffle && (
+                  <span
+                    style={{ backgroundColor: 'var(--spotify-glow, #22d3ee)' }}
+                    className="w-1.5 h-1.5 rounded-full absolute -bottom-0.5 left-1/2 -translate-x-1/2 shadow-[0_0_6px_var(--spotify-glow,#22d3ee)]"
+                  />
+                )}
+              </button>
+
+              <button
+                onClick={prevTrack}
+                className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-all duration-200 hover:scale-110 active:scale-95"
+                title="Bài trước"
+              >
+                <SkipBack className="w-4.5 h-4.5" />
+              </button>
+
+              <button
+                onClick={togglePlay}
+                style={{
+                  background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                  boxShadow: '0 4px 16px var(--theme-glow-shadow, rgba(6,182,212,0.45))',
+                }}
+                className="w-10 h-10 rounded-full hover:scale-110 hover:brightness-110 active:scale-95 transition-all duration-200 flex items-center justify-center text-black font-bold shrink-0 border border-white/20"
+                title={isPlaying ? 'Tạm dừng' : 'Phát'}
+              >
+                {isPlaying ? (
+                  <Pause className="w-4 h-4 fill-current text-black" />
+                ) : (
+                  <Play className="w-4 h-4 fill-current text-black ml-0.5" />
+                )}
+              </button>
+
+              <button
+                onClick={nextTrack}
+                className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-all duration-200 hover:scale-110 active:scale-95"
+                title="Bài kế tiếp"
+              >
+                <SkipForward className="w-4.5 h-4.5" />
+              </button>
+
+              <button
+                onClick={toggleRepeat}
+                style={
+                  repeatMode !== 'off'
+                    ? {
+                      color: 'var(--spotify-glow, #22d3ee)',
+                      backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                      borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                    }
+                    : undefined
+                }
+                className={`p-2 rounded-xl relative transition-all duration-200 hover:scale-110 active:scale-95 ${repeatMode !== 'off' ? 'border shadow-md' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
+                  }`}
+                title={
+                  repeatMode === 'one'
+                    ? 'Lặp lại 1 bài'
+                    : repeatMode === 'all'
+                      ? 'Lặp lại toàn bộ danh sách'
+                      : 'Bật lặp lại bài hát'
+                }
+              >
+                {repeatMode === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
+                {repeatMode !== 'off' && (
+                  <span
+                    style={{ backgroundColor: 'var(--spotify-glow, #22d3ee)' }}
+                    className="w-1.5 h-1.5 rounded-full absolute -bottom-0.5 left-1/2 -translate-x-1/2 shadow-[0_0_6px_var(--spotify-glow,#22d3ee)]"
+                  />
+                )}
+              </button>
+            </div>
+
+            {/* Waveform Scrubber Under Playback Controls */}
+            <div className="w-full max-w-2xl px-2">
+              <AudioWaveformScrubber
+                currentTime={currentTime}
+                duration={duration || currentTrack.duration || 0}
+                isPlaying={isPlaying}
+                trackId={currentTrack.id}
+                onSeek={seek}
+                barCount={100}
+              />
+            </div>
+          </div>
+
+          {/* Right: Volume & Extra Controls (Matches Main Menu PlayerBar) */}
+          <div className="w-1/4 flex justify-end items-center gap-4">
             <button
-              onClick={toggleShuffle}
-              className={`p-2.5 rounded-full transition-all ${
-                isShuffle ? 'text-[var(--accent,#06b6d4)] bg-white/10' : 'text-slate-400 hover:text-white'
-              }`}
-              title="Phát ngẫu nhiên"
+              onClick={handleFavoriteClick}
+              className={`p-2 rounded-xl transition-all ${currentTrack.is_favorite
+                ? 'text-rose-500 bg-rose-500/15 border border-rose-500/30'
+                : 'text-slate-400 hover:text-rose-400 hover:bg-white/5'
+                }`}
+              title={currentTrack.is_favorite ? 'Bỏ khỏi bài hát yêu thích' : 'Thêm vào bài hát yêu thích'}
             >
-              <Shuffle className="w-5 h-5" />
+              <Heart
+                className={`w-4 h-4 transition-all ${currentTrack.is_favorite ? 'fill-current drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]' : ''
+                  }`}
+              />
             </button>
 
             <button
-              onClick={prevTrack}
-              className="p-2.5 text-slate-300 hover:text-white active:scale-90 transition-transform"
-              title="Bài trước"
+              onClick={() => setMobileTab(mobileTab === 'lyrics' ? 'cover' : 'lyrics')}
+              className={`p-2 rounded-xl transition-all ${mobileTab === 'lyrics'
+                ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md font-bold'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              title="Lời bài hát (Lyrics)"
             >
-              <SkipBack className="w-6 h-6" />
+              <Mic2 className="w-4 h-4" />
             </button>
 
             <button
-              onClick={togglePlay}
-              style={{
-                background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--accent, #06b6d4))',
-                boxShadow: '0 4px 20px var(--theme-glow-shadow, rgba(6,182,212,0.4))',
-              }}
-              className="w-14 h-14 rounded-full text-black flex items-center justify-center font-bold hover:brightness-110 active:scale-95 transition-all border border-white/20"
-              title={isPlaying ? 'Tạm dừng' : 'Phát'}
+              onClick={toggleQueue}
+              style={
+                isQueueOpen
+                  ? {
+                    color: 'var(--spotify-glow, #22d3ee)',
+                    backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                    borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                  }
+                  : undefined
+              }
+              className={`p-2 rounded-xl relative transition-all ${isQueueOpen ? 'border shadow-md font-bold' : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              title="Danh sách hàng đợi (Queue)"
             >
-              {isPlaying ? (
-                <Pause className="w-6 h-6 fill-current text-black" />
-              ) : (
-                <Play className="w-6 h-6 fill-current text-black ml-0.5" />
+              <ListMusic className="w-4 h-4" />
+              {isQueueOpen && (
+                <span
+                  style={{ backgroundColor: 'var(--spotify-glow, #22d3ee)' }}
+                  className="w-1 h-1 rounded-full absolute -bottom-0.5 left-1/2 -translate-x-1/2"
+                />
               )}
             </button>
 
-            <button
-              onClick={nextTrack}
-              className="p-2.5 text-slate-300 hover:text-white active:scale-90 transition-transform"
-              title="Bài kế tiếp"
-            >
-              <SkipForward className="w-6 h-6" />
-            </button>
+            <div className="h-4 w-[1px] bg-white/10" />
 
-            <button
-              onClick={toggleRepeat}
-              className={`p-2.5 rounded-full transition-all ${
-                repeatMode !== 'off' ? 'text-[var(--accent,#06b6d4)] bg-white/10' : 'text-slate-400 hover:text-white'
-              }`}
-              title="Lặp lại"
-            >
-              {repeatMode === 'one' ? <Repeat1 className="w-5 h-5" /> : <Repeat className="w-5 h-5" />}
-            </button>
-          </div>
-
-          {/* Right: Volume Control (Matching Progress Bar Style) */}
-          <div className="hidden sm:flex items-center gap-2.5">
-            <button onClick={handleVolumeToggle} className="text-slate-400 hover:text-white p-0.5 shrink-0" title={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}>
-              {volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-            </button>
-            <div className="volume-track-wrapper w-24 ml-0.5">
-              <div className="volume-track">
-                <div className="volume-fill" style={{ width: `${volume * 100}%` }} />
-                <div className="volume-thumb" style={{ left: `${volume * 100}%` }} />
+            <div className="flex items-center gap-2.5 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1">
+              <button
+                onClick={handleVolumeToggle}
+                className="text-slate-400 hover:text-white transition-colors p-0.5 shrink-0"
+                title={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}
+              >
+                {volume === 0 ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+              </button>
+              <div className="volume-track-wrapper w-16 md:w-20 ml-0.5">
+                <div className="volume-track">
+                  <div className="volume-fill" style={{ width: `${volume * 100}%` }} />
+                  <div className="volume-thumb" style={{ left: `${volume * 100}%` }} />
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={volume}
+                  onChange={(e) => setVolume(Number(e.target.value))}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                />
               </div>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={volume}
-                onChange={(e) => setVolume(Number(e.target.value))}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-              />
             </div>
           </div>
         </div>

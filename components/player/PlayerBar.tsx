@@ -7,6 +7,7 @@ import { usePlayer, usePlaybackProgress } from './PlayerContext'
 import { LyricsView } from './LyricsView'
 import { QueueDrawer } from './QueueDrawer'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
+import { OverflowMarqueeText } from '@/components/common/OverflowMarqueeText'
 import { setCachedResolvedAlbum, getCachedResolvedAlbum, isRealAlbumName } from '@/lib/albumCache'
 import { AudioWaveformScrubber } from './AudioWaveformScrubber'
 import { MiniEqualizer } from './MiniEqualizer'
@@ -299,9 +300,10 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           {/* Title + Artist — flex-1 takes remaining space */}
           <div className="flex flex-col min-w-0 flex-1 overflow-hidden justify-center gap-0.5">
-            <span className="text-xs font-bold text-white truncate leading-tight">
-              {currentTrack.title}
-            </span>
+            <OverflowMarqueeText
+              text={currentTrack.title}
+              className="text-xs font-bold text-white leading-tight"
+            />
             <span className="text-[10px] text-slate-400 truncate leading-tight">
               {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
             </span>
@@ -345,11 +347,10 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
               title={currentTrack.is_favorite ? 'Bỏ yêu thích' : 'Thêm yêu thích'}
             >
               <Heart
-                className={`w-4 h-4 transition-all ${
-                  currentTrack.is_favorite
+                className={`w-4 h-4 transition-all ${currentTrack.is_favorite
                     ? 'text-rose-500 fill-current drop-shadow-[0_0_6px_rgba(244,63,94,0.6)]'
                     : 'text-slate-500'
-                }`}
+                  }`}
               />
             </button>
           </div>
@@ -452,9 +453,8 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
               className="p-2.5 rounded-xl bg-white/5 text-slate-400 border border-white/10 shrink-0"
             >
               <Heart
-                className={`w-5 h-5 ${
-                  currentTrack.is_favorite ? 'text-rose-500 fill-current' : 'text-slate-400'
-                }`}
+                className={`w-5 h-5 ${currentTrack.is_favorite ? 'text-rose-500 fill-current' : 'text-slate-400'
+                  }`}
               />
             </button>
           </div>
@@ -475,11 +475,10 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <div className="grid grid-cols-5 items-center justify-items-center w-full px-2 mb-8">
             <button
               onClick={toggleShuffle}
-              className={`p-3 rounded-full transition-all flex items-center justify-center ${
-                isShuffle
+              className={`p-3 rounded-full transition-all flex items-center justify-center ${isShuffle
                   ? 'text-[var(--primary-spotify,#06b6d4)] bg-[var(--primary-spotify,#06b6d4)]/20 border border-[var(--primary-spotify,#06b6d4)]/40 shadow-lg'
                   : 'text-slate-400 hover:text-white bg-white/5'
-              }`}
+                }`}
               title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
             >
               <Shuffle className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -514,23 +513,22 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
               style={
                 repeatMode !== 'off'
                   ? {
-                      color: 'var(--spotify-glow, #22d3ee)',
-                      backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
-                      borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
-                    }
+                    color: 'var(--spotify-glow, #22d3ee)',
+                    backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                    borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                  }
                   : undefined
               }
-              className={`p-3 rounded-full border transition-all flex items-center justify-center ${
-                repeatMode !== 'off'
+              className={`p-3 rounded-full border transition-all flex items-center justify-center ${repeatMode !== 'off'
                   ? 'border-[var(--spotify-glow)] shadow-lg'
                   : 'text-slate-400 hover:text-white bg-white/5 border-transparent'
-              }`}
+                }`}
               title={
                 repeatMode === 'one'
                   ? 'Lặp lại 1 bài'
                   : repeatMode === 'all'
-                  ? 'Lặp lại danh sách'
-                  : 'Tắt lặp lại'
+                    ? 'Lặp lại danh sách'
+                    : 'Tắt lặp lại'
               }
             >
               {repeatMode === 'one' ? <Repeat1 className="w-5 h-5 sm:w-6 sm:h-6" /> : <Repeat className="w-5 h-5 sm:w-6 sm:h-6" />}
@@ -577,17 +575,16 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
               style={
                 isQueueOpen
                   ? {
-                      color: 'var(--spotify-glow, #22d3ee)',
-                      backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
-                      borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
-                    }
+                    color: 'var(--spotify-glow, #22d3ee)',
+                    backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                    borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                  }
                   : undefined
               }
-              className={`p-3 rounded-full border transition-all flex items-center gap-2 text-xs font-semibold ${
-                isQueueOpen
+              className={`p-3 rounded-full border transition-all flex items-center gap-2 text-xs font-semibold ${isQueueOpen
                   ? 'shadow-lg'
                   : 'text-slate-300 hover:text-white bg-white/5 border-white/10'
-              }`}
+                }`}
             >
               <ListMusic style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
               <span>Hàng đợi</span>
@@ -610,10 +607,13 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
           </div>
 
           <div className="truncate flex flex-col flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <p onClick={openNowPlayingOverlay} className="text-xs md:text-sm font-bold text-white truncate hover:text-[var(--spotify-glow)] transition-colors cursor-pointer" title="Mở Now Playing">
-                {currentTrack.title}
-              </p>
+            <div className="flex items-center gap-2 min-w-0">
+              <OverflowMarqueeText
+                text={currentTrack.title}
+                className="text-xs md:text-sm font-bold text-white hover:text-[var(--spotify-glow)] transition-colors cursor-pointer min-w-0 flex-1"
+                title="Mở Now Playing"
+                onClick={openNowPlayingOverlay}
+              />
               {isPlaying && (
                 <MiniEqualizer isPlaying={isPlaying} />
               )}
@@ -666,29 +666,28 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
               style={
                 isShuffle
                   ? {
-                      color: 'var(--spotify-glow, #22d3ee)',
-                      backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
-                      borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
-                    }
+                    color: 'var(--spotify-glow, #22d3ee)',
+                    backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                    borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                  }
                   : undefined
               }
-              className={`p-1.5 rounded-lg relative transition-all ${
-                isShuffle ? 'border shadow-md' : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
+              className={`p-2 rounded-xl relative transition-all duration-200 hover:scale-110 active:scale-95 ${isShuffle ? 'border shadow-md' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
+                }`}
               title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
             >
               <Shuffle className="w-4 h-4" />
               {isShuffle && (
                 <span
                   style={{ backgroundColor: 'var(--spotify-glow, #22d3ee)' }}
-                  className="w-1 h-1 rounded-full absolute -bottom-0.5 left-1/2 -translate-x-1/2"
+                  className="w-1.5 h-1.5 rounded-full absolute -bottom-0.5 left-1/2 -translate-x-1/2 shadow-[0_0_6px_var(--spotify-glow,#22d3ee)]"
                 />
               )}
             </button>
 
             <button
               onClick={(e) => { e.stopPropagation(); prevTrack() }}
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-full transition-all active:scale-90"
+              className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-all duration-200 hover:scale-110 active:scale-95"
               title="Bài trước"
             >
               <SkipBack className="w-4.5 h-4.5" />
@@ -698,9 +697,9 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
               onClick={(e) => { e.stopPropagation(); togglePlay() }}
               style={{
                 background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                boxShadow: '0 4px 16px var(--theme-glow-shadow, rgba(6,182,212,0.45))',
               }}
-              className="w-10 h-10 rounded-full hover:brightness-110 active:scale-95 transition-all flex items-center justify-center text-black font-bold shrink-0 border border-white/20"
+              className="w-10 h-10 rounded-full hover:scale-110 hover:brightness-110 active:scale-95 transition-all duration-200 flex items-center justify-center text-black font-bold shrink-0 border border-white/20"
               title={isPlaying ? 'Tạm dừng' : 'Phát'}
             >
               {isPlaying ? (
@@ -712,7 +711,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
             <button
               onClick={(e) => { e.stopPropagation(); nextTrack() }}
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-full transition-all active:scale-90"
+              className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-all duration-200 hover:scale-110 active:scale-95"
               title="Bài kế tiếp"
             >
               <SkipForward className="w-4.5 h-4.5" />
@@ -723,28 +722,27 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
               style={
                 repeatMode !== 'off'
                   ? {
-                      color: 'var(--spotify-glow, #22d3ee)',
-                      backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
-                      borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
-                    }
+                    color: 'var(--spotify-glow, #22d3ee)',
+                    backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                    borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                  }
                   : undefined
               }
-              className={`p-1.5 rounded-lg relative transition-all ${
-                repeatMode !== 'off' ? 'border shadow-md' : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
+              className={`p-2 rounded-xl relative transition-all duration-200 hover:scale-110 active:scale-95 ${repeatMode !== 'off' ? 'border shadow-md' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
+                }`}
               title={
                 repeatMode === 'one'
                   ? 'Lặp lại 1 bài'
                   : repeatMode === 'all'
-                  ? 'Lặp lại toàn bộ danh sách'
-                  : 'Bật lặp lại bài hát'
+                    ? 'Lặp lại toàn bộ danh sách'
+                    : 'Bật lặp lại bài hát'
               }
             >
               {repeatMode === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
               {repeatMode !== 'off' && (
                 <span
                   style={{ backgroundColor: 'var(--spotify-glow, #22d3ee)' }}
-                  className="w-1 h-1 rounded-full absolute -bottom-0.5 left-1/2 -translate-x-1/2"
+                  className="w-1.5 h-1.5 rounded-full absolute -bottom-0.5 left-1/2 -translate-x-1/2 shadow-[0_0_6px_var(--spotify-glow,#22d3ee)]"
                 />
               )}
             </button>
@@ -767,27 +765,24 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         <div className="w-1/4 flex justify-end items-center gap-4">
           <button
             onClick={(e) => { e.stopPropagation(); toggleFavoriteCurrentTrack() }}
-            className={`p-2 rounded-xl transition-all ${
-              currentTrack.is_favorite
+            className={`p-2 rounded-xl transition-all ${currentTrack.is_favorite
                 ? 'text-rose-500 bg-rose-500/15 border border-rose-500/30'
                 : 'text-slate-400 hover:text-rose-400 hover:bg-white/5'
-            }`}
+              }`}
             title={currentTrack.is_favorite ? 'Bỏ khỏi bài hát yêu thích' : 'Thêm vào bài hát yêu thích'}
           >
             <Heart
-              className={`w-4 h-4 transition-all ${
-                currentTrack.is_favorite ? 'fill-current drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]' : ''
-              }`}
+              className={`w-4 h-4 transition-all ${currentTrack.is_favorite ? 'fill-current drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]' : ''
+                }`}
             />
           </button>
 
           <button
             onClick={(e) => { e.stopPropagation(); setShowLyricsModal(!showLyricsModal) }}
-            className={`p-2 rounded-xl transition-all ${
-              showLyricsModal
+            className={`p-2 rounded-xl transition-all ${showLyricsModal
                 ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md font-bold'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
+              }`}
             title="Lời bài hát (Lyrics)"
           >
             <Mic2 className="w-4 h-4" />
@@ -798,15 +793,14 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             style={
               isQueueOpen
                 ? {
-                    color: 'var(--spotify-glow, #22d3ee)',
-                    backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
-                    borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
-                  }
+                  color: 'var(--spotify-glow, #22d3ee)',
+                  backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                  borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                }
                 : undefined
             }
-            className={`p-2 rounded-xl relative transition-all ${
-              isQueueOpen ? 'border shadow-md font-bold' : 'text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
+            className={`p-2 rounded-xl relative transition-all ${isQueueOpen ? 'border shadow-md font-bold' : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
             title="Danh sách hàng đợi (Queue)"
           >
             <ListMusic className="w-4 h-4" />
@@ -849,11 +843,10 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
       {/* 🎤 FULLSCREEN / MODAL LYRICS OVERLAY FOR MOBILE (ANDROID/IOS) & DESKTOP */}
       <div
-        className={`fixed inset-0 z-50 bg-black/85 p-2 md:p-6 flex items-center justify-center transition-all duration-200 ${
-          showLyricsModal
+        className={`fixed inset-0 z-50 bg-black/85 p-2 md:p-6 flex items-center justify-center transition-all duration-200 ${showLyricsModal
             ? 'opacity-100 pointer-events-auto visible scale-100'
             : 'opacity-0 pointer-events-none invisible scale-95'
-        }`}
+          }`}
       >
         <div className="w-full h-full max-w-5xl bg-[#090b10] rounded-2xl border border-white/[0.1] shadow-2xl overflow-hidden flex flex-col relative">
           <LyricsView onClose={() => setShowLyricsModal(false)} isModal={true} />

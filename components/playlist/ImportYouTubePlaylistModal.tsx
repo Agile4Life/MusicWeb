@@ -527,7 +527,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
                         checked={isChecked}
                         className="rounded accent-[var(--primary-spotify,#06b6d4)] cursor-pointer"
                       />
-                      <span className="text-[11px] font-mono text-slate-500 w-4 text-center">{index + 1}</span>
+                      <span className="text-[11px] font-mono text-slate-500 w-6 shrink-0 text-center">{index + 1}</span>
                       <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-slate-800 overflow-hidden shrink-0">
                         {t.cover_url ? (
                           <img src={t.cover_url} alt={t.title} className="w-full h-full object-cover" />

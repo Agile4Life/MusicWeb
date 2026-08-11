@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { normalizeNhacCuaTuiSongMetadata } from '@/lib/nhaccuatui'
 import { findBestYouTubeMatch, searchYouTubeTracks } from '@/lib/youtube'
-import { resolveYouTubeAudioStreamAndroid } from '@/app/api/youtube/stream/route'
+import { resolveYouTubeAudioStreamAndroid } from '@/lib/youtubeStream'
 
 export const dynamic = 'force-dynamic'
 
