@@ -6,6 +6,7 @@ import { SessionProvider } from '@/components/auth/SessionProvider'
 import { ThemeProvider } from '@/components/theme/ThemeContext'
 import { LanguageProvider } from '@/components/i18n/LanguageContext'
 import { CursorSpotlight } from '@/components/theme/CursorSpotlight'
+import { CustomCursor } from '@/components/theme/CustomCursor'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -53,6 +54,7 @@ export default function RootLayout({
           <LanguageProvider>
             <ThemeProvider>
               <CursorSpotlight />
+              <CustomCursor />
               {children}
             </ThemeProvider>
           </LanguageProvider>
