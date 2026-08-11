@@ -224,7 +224,7 @@ export function LyricsView({ onClose, isModal = false }: LyricsViewProps) {
   }
 
   return (
-    <div className="relative w-full h-full flex flex-col overflow-hidden select-none bg-[#07090e] touch-manipulation">
+    <div className="relative w-full h-full flex flex-col overflow-hidden select-none bg-[#07090e] now-playing-bg touch-manipulation">
       {/* 🌟 Rich Ambient Glassmorphic Background */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         {currentTrack.cover_url ? (

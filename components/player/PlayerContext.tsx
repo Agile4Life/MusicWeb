@@ -69,6 +69,11 @@ interface PlayerContextType {
   isQueueOpen: boolean
   toggleQueue: () => void
   closeQueue: () => void
+  isNowPlayingOpen: boolean
+  toggleNowPlayingOverlay: () => void
+  openNowPlayingOverlay: () => void
+  closeNowPlayingOverlay: () => void
+  frequencyData: Uint8Array
   audioRef: React.RefObject<HTMLAudioElement | null>
   mvIntroOffset: number
 }
@@ -164,6 +169,49 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [volume, setVolumeState] = useState<number>(0.8)
   const [playbackError, setPlaybackError] = useState<string | null>(null)
   const [mvIntroOffset, setMvIntroOffset] = useState<number>(0)
+  const [isNowPlayingOpen, setIsNowPlayingOpen] = useState<boolean>(false)
+  const [frequencyData, setFrequencyData] = useState<Uint8Array>(new Uint8Array(16))
+
+  const toggleNowPlayingOverlay = useCallback(() => setIsNowPlayingOpen((prev) => !prev), [])
+  const openNowPlayingOverlay = useCallback(() => setIsNowPlayingOpen(true), [])
+  const closeNowPlayingOverlay = useCallback(() => setIsNowPlayingOpen(false), [])
+
+  const analyserRef = useRef<AnalyserNode | null>(null)
+
+  useEffect(() => {
+    if (!audioRef.current || analyserRef.current) return
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+      if (AudioCtx) {
+        const ctx = new AudioCtx()
+        const analyser = ctx.createAnalyser()
+        analyser.fftSize = 32
+        const source = ctx.createMediaElementSource(audioRef.current)
+        source.connect(analyser)
+        analyser.connect(ctx.destination)
+        analyserRef.current = analyser
+      }
+    } catch {
+      // Ignore audio context initialization error (CORS / autoplay restrictions)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isPlaying) return
+    let animId: number
+    const dataArr = new Uint8Array(16)
+
+    const tick = () => {
+      if (analyserRef.current) {
+        analyserRef.current.getByteFrequencyData(dataArr)
+        setFrequencyData(new Uint8Array(dataArr))
+      }
+      animId = requestAnimationFrame(tick)
+    }
+
+    animId = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(animId)
+  }, [isPlaying])
 
   // Fetch SponsorBlock MV Intro offset when track changes (Stage 2 & Stage 4)
   useEffect(() => {
@@ -2038,6 +2086,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       isQueueOpen,
       toggleQueue,
       closeQueue,
+      isNowPlayingOpen,
+      toggleNowPlayingOverlay,
+      openNowPlayingOverlay,
+      closeNowPlayingOverlay,
+      frequencyData,
       audioRef,
       mvIntroOffset,
     }),
@@ -2052,6 +2105,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       repeatMode,
       playbackError,
       isQueueOpen,
+      isNowPlayingOpen,
+      frequencyData,
       mvIntroOffset,
       toggleShuffle,
       toggleRepeat,
@@ -2067,6 +2122,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       clearQueue,
       toggleQueue,
       closeQueue,
+      toggleNowPlayingOverlay,
+      openNowPlayingOverlay,
+      closeNowPlayingOverlay,
     ]
   )
 

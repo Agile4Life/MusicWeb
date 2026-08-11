@@ -9,6 +9,7 @@ import { QueueDrawer } from './QueueDrawer'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import { setCachedResolvedAlbum, getCachedResolvedAlbum, isRealAlbumName } from '@/lib/albumCache'
 import { AudioWaveformScrubber } from './AudioWaveformScrubber'
+import { MiniEqualizer } from './MiniEqualizer'
 import {
   Play,
   Pause,
@@ -57,6 +58,7 @@ export function PlayerBar() {
     prevTrack,
     isQueueOpen,
     toggleQueue,
+    openNowPlayingOverlay,
   } = usePlayer()
   const router = useRouter()
 
@@ -281,7 +283,7 @@ export function PlayerBar() {
 
       {/* 📱 MOBILE FLOATING MINI PLAYER BAR (Visible on < 768px) */}
       <div
-        onClick={() => setShowMobileFullPlayer(true)}
+        onClick={openNowPlayingOverlay}
         className="mini-player md:hidden backdrop-blur-2xl select-none cursor-pointer active:opacity-90 transition-opacity relative"
         style={{ borderRadius: '16px 16px 0 0' }}
       >
@@ -595,7 +597,7 @@ export function PlayerBar() {
       <footer className="hidden md:flex h-[96px] py-3.5 bg-[#090b10]/95 backdrop-blur-2xl rounded-2xl border border-white/[0.08] px-6 md:px-8 items-center justify-between text-slate-300 select-none z-30 shadow-2xl shrink-0">
         {/* Left: Track Metadata */}
         <div className="flex items-center gap-3.5 w-1/4 min-w-[220px]">
-          <div className="relative group shrink-0">
+          <div onClick={openNowPlayingOverlay} className="relative group shrink-0 cursor-pointer" title="Mở Now Playing">
             <div className={`player-cover w-14 h-14 bg-slate-800 flex items-center justify-center border border-white/10 shadow-md ${isPlaying ? 'is-playing' : ''}`}>
               <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
             </div>
@@ -603,7 +605,7 @@ export function PlayerBar() {
 
           <div className="truncate flex flex-col flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <p className="text-xs md:text-sm font-bold text-white truncate hover:text-[var(--spotify-glow)] transition-colors cursor-pointer">
+              <p onClick={openNowPlayingOverlay} className="text-xs md:text-sm font-bold text-white truncate hover:text-[var(--spotify-glow)] transition-colors cursor-pointer" title="Mở Now Playing">
                 {currentTrack.title}
               </p>
               {isPlaying && (
@@ -705,6 +707,8 @@ export function PlayerBar() {
                 <Play className="w-4 h-4 fill-current text-black ml-0.5" />
               )}
             </button>
+
+            <MiniEqualizer isPlaying={isPlaying} />
 
             <button
               onClick={nextTrack}

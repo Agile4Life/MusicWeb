@@ -10,6 +10,8 @@ import { CurrentUserProvider } from '@/components/auth/CurrentUserContext'
 import { MobileHeaderNav } from '@/components/navigation/MobileHeaderNav'
 import { TopBar } from '@/components/navigation/TopBar'
 import { QueueDrawer } from '@/components/player/QueueDrawer'
+import { AlbumCardEffects } from '@/components/common/AlbumCardEffects'
+import { NowPlayingOverlay } from '@/components/player/NowPlayingOverlay'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -19,6 +21,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <PlayerProvider>
             <PlaylistProvider>
               <SearchProvider>
+                <AlbumCardEffects />
                 <div className="h-screen w-screen flex flex-col bg-[var(--bg-space,#07090e)] overflow-hidden font-sans p-1.5 xs:p-2 md:p-3 gap-1.5 md:gap-3">
                   {/* Mobile Header (Smartphone view) */}
                   <MobileHeaderNav />
@@ -41,6 +44,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
                   {/* Player Bar (Desktop Bar + Mobile Floating Player) */}
                   <PlayerBar />
+                  <NowPlayingOverlay />
                 </div>
               </SearchProvider>
             </PlaylistProvider>
