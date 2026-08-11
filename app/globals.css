@@ -113,9 +113,8 @@ body {
 }
 
 @media (pointer: fine) {
-  body,
-  body * {
-    cursor: none;
+  * {
+    cursor: none !important;
   }
 }
 
@@ -549,4 +548,31 @@ input[type='range']:hover::-moz-range-thumb {
 .mobile-drawer-backdrop.open {
   opacity: 1;
   pointer-events: auto;
+}
+
+/* VirtualSinger Custom Cursor */
+html[data-cursor="virtual-singer"],
+html[data-cursor="virtual-singer"] body,
+html[data-cursor="virtual-singer"] * {
+  cursor: url('/cursors/virtual-singer/Normal.ani'), auto;
+}
+
+html[data-cursor="virtual-singer"] a,
+html[data-cursor="virtual-singer"] button,
+html[data-cursor="virtual-singer"] [role="button"],
+html[data-cursor="virtual-singer"] input[type="button"],
+html[data-cursor="virtual-singer"] input[type="submit"] {
+  cursor: url('/cursors/virtual-singer/Link.ani'), pointer !important;
+}
+
+html[data-cursor="virtual-singer"] input[type="text"],
+html[data-cursor="virtual-singer"] input[type="search"],
+html[data-cursor="virtual-singer"] textarea {
+  cursor: url('/cursors/virtual-singer/Text.ani'), text !important;
+}
+
+/* Default Cursor mode */
+html[data-cursor="default"],
+html[data-cursor="default"] * {
+  cursor: auto !important;
 }

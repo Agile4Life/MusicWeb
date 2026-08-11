@@ -3,12 +3,15 @@
 import React, { useEffect, useRef } from 'react'
 import lottie, { type AnimationItem } from 'lottie-web'
 import { createCursorAnimationOptions, getCursorTransform, restartCursorAnimation } from './customCursorBehavior'
+import { useTheme } from './ThemeContext'
 
 export function CustomCursor() {
+  const { cursorStyle } = useTheme()
   const containerRef = useRef<HTMLDivElement>(null)
   const animRef = useRef<AnimationItem | null>(null)
 
   useEffect(() => {
+    if (cursorStyle !== 'lottie') return
     if (!window.matchMedia('(pointer: fine)').matches) return
 
     const container = containerRef.current
@@ -28,10 +31,16 @@ export function CustomCursor() {
     const onMouseMove = (e: MouseEvent) => {
       mouseX = e.clientX
       mouseY = e.clientY
+      container.style.opacity = '1'
     }
 
     const onMouseDown = () => {
       restartCursorAnimation(anim)
+    }
+
+    const onMouseLeave = () => {
+      container.style.opacity = '0'
+      container.style.transform = 'translate(-9999px, -9999px)'
     }
 
     const renderLoop = () => {
@@ -43,17 +52,21 @@ export function CustomCursor() {
 
     window.addEventListener('mousemove', onMouseMove, { passive: true })
     window.addEventListener('mousedown', onMouseDown, { passive: true })
+    document.addEventListener('mouseleave', onMouseLeave)
     frameId = requestAnimationFrame(renderLoop)
 
     return () => {
       window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('mousedown', onMouseDown)
+      document.removeEventListener('mouseleave', onMouseLeave)
       cancelAnimationFrame(frameId)
       anim.removeEventListener('complete', onComplete)
       anim.destroy()
       animRef.current = null
     }
-  }, [])
+  }, [cursorStyle])
+
+  if (cursorStyle !== 'lottie') return null
 
   return <div ref={containerRef} id="custom-cursor" />
 }

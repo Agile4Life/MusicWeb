@@ -161,15 +161,20 @@ export const THEMES: Record<ThemeId, ThemeConfig> = {
   },
 }
 
+export type CursorStyle = 'lottie' | 'virtual-singer' | 'default'
+
 interface ThemeContextType {
   currentTheme: ThemeConfig
   setTheme: (id: ThemeId) => void
+  cursorStyle: CursorStyle
+  setCursorStyle: (style: CursorStyle) => void
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [themeId, setThemeId] = useState<ThemeId>('summer')
+  const [cursorStyle, setCursorStyleState] = useState<CursorStyle>('lottie')
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('musicweb-theme') as ThemeId
@@ -179,8 +184,24 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } else {
       applyTheme(THEMES.summer)
     }
+
+    const savedCursor = localStorage.getItem('musicweb-cursor-style') as CursorStyle
+    if (savedCursor && ['lottie', 'virtual-singer', 'default'].includes(savedCursor)) {
+      applyCursorStyle(savedCursor)
+    } else {
+      applyCursorStyle('lottie')
+    }
   }, [])
 
+  const applyCursorStyle = (style: CursorStyle) => {
+    setCursorStyleState(style)
+    document.documentElement.setAttribute('data-cursor', style)
+  }
+
+  const setCursorStyle = (style: CursorStyle) => {
+    localStorage.setItem('musicweb-cursor-style', style)
+    applyCursorStyle(style)
+  }
 
   const applyTheme = (theme: ThemeConfig) => {
     const root = document.documentElement
@@ -207,7 +228,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <ThemeContext.Provider value={{ currentTheme: THEMES[themeId], setTheme }}>
+    <ThemeContext.Provider value={{ currentTheme: THEMES[themeId], setTheme, cursorStyle, setCursorStyle }}>
       {children}
     </ThemeContext.Provider>
   )
