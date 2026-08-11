@@ -525,7 +525,7 @@ export function LyricsView({ onClose, isModal = false, showControls = true, show
 
           {/* Right: Volume Control (Desktop) */}
           <div className="hidden sm:flex w-1/4 justify-end items-center">
-            <div className="flex items-center gap-2.5 bg-white/[0.06] border border-white/10 rounded-full px-3.5 py-1.5 shadow-md">
+            <div className="flex items-center gap-2.5 bg-white/[0.06] border border-white/10 rounded-full px-3.5 py-1 shadow-md">
               <button
                 onClick={handleVolumeToggle}
                 className="text-slate-300 hover:text-white transition-colors p-0.5"
@@ -533,18 +533,22 @@ export function LyricsView({ onClose, isModal = false, showControls = true, show
               >
                 {volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
               </button>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={volume}
-                onChange={(e) => setVolume(Number(e.target.value))}
-                style={{
-                  background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${volume * 100}%, rgba(255,255,255,0.15) ${volume * 100}%)`,
-                }}
-                className="w-16 md:w-24 h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-all hover:h-2"
-              />
+              <div className="volume-track-wrapper w-16 md:w-24">
+                <div className="volume-track">
+                  <div className="volume-fill" style={{ width: `${volume * 100}%` }} />
+                  <div className="volume-thumb" style={{ left: `${volume * 100}%` }} />
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={volume}
+                  onChange={(e) => setVolume(Number(e.target.value))}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  title="Chỉnh âm lượng"
+                />
+              </div>
             </div>
           </div>
         </div>

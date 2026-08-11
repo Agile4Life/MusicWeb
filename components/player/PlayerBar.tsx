@@ -820,7 +820,7 @@ export function PlayerBar() {
 
           <div className="h-4 w-[1px] bg-white/10" />
 
-          <div className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1.5" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1" onClick={(e) => e.stopPropagation()}>
             <button
               onClick={(e) => { e.stopPropagation(); handleVolumeToggle() }}
               className="text-slate-400 hover:text-white transition-colors p-0.5"
@@ -828,18 +828,22 @@ export function PlayerBar() {
             >
               {volume === 0 ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
             </button>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={volume}
-              onChange={(e) => setVolume(Number(e.target.value))}
-              style={{
-                background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${volume * 100}%, rgba(255,255,255,0.12) ${volume * 100}%)`,
-              }}
-              className="w-16 md:w-20 h-1 rounded-lg appearance-none cursor-pointer outline-none transition-all"
-            />
+            <div className="volume-track-wrapper w-16 md:w-20">
+              <div className="volume-track">
+                <div className="volume-fill" style={{ width: `${volume * 100}%` }} />
+                <div className="volume-thumb" style={{ left: `${volume * 100}%` }} />
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={volume}
+                onChange={(e) => setVolume(Number(e.target.value))}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                title="Chỉnh âm lượng"
+              />
+            </div>
           </div>
         </div>
       </footer>

@@ -268,23 +268,27 @@ export function NowPlayingOverlay() {
             </button>
           </div>
 
-          {/* Right: Volume Control */}
-          <div className="hidden sm:flex items-center gap-2 w-32">
-            <button onClick={handleVolumeToggle} className="text-slate-400 hover:text-white">
+          {/* Right: Volume Control (Matching Progress Bar Style) */}
+          <div className="hidden sm:flex items-center gap-2">
+            <button onClick={handleVolumeToggle} className="text-slate-400 hover:text-white p-0.5" title={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}>
               {volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </button>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={volume}
-              onChange={(e) => setVolume(Number(e.target.value))}
-              style={{
-                background: `linear-gradient(to right, var(--accent,#06b6d4) ${volume * 100}%, rgba(255,255,255,0.1) ${volume * 100}%)`,
-              }}
-              className="w-full h-1 rounded-lg appearance-none cursor-pointer outline-none"
-            />
+            <div className="volume-track-wrapper w-24">
+              <div className="volume-track">
+                <div className="volume-fill" style={{ width: `${volume * 100}%` }} />
+                <div className="volume-thumb" style={{ left: `${volume * 100}%` }} />
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={volume}
+                onChange={(e) => setVolume(Number(e.target.value))}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                title="Chỉnh âm lượng"
+              />
+            </div>
           </div>
         </div>
       </div>

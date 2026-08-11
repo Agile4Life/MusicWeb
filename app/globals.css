@@ -518,6 +518,56 @@ input[type='range']:hover::-moz-range-thumb {
   height: 6px;
 }
 
+/* Volume Slider - Matching Progress Bar Style */
+.volume-track-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 80px;
+  padding: 8px 0;
+  cursor: pointer;
+}
+.volume-track {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.15);
+  transition: height 0.15s ease;
+}
+.volume-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 9999px;
+  background: var(--accent, #06b6d4);
+}
+.volume-thumb {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px var(--accent-dim, rgba(6, 182, 212, 0.35));
+  transform: translate(-50%, -50%) scale(0.7);
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  pointer-events: none;
+}
+.volume-track-wrapper:hover .volume-thumb,
+.volume-track-wrapper.dragging .volume-thumb,
+.volume-track-wrapper:hover .volume-track,
+.volume-track-wrapper.dragging .volume-track {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+.volume-track-wrapper:hover .volume-track,
+.volume-track-wrapper.dragging .volume-track {
+  height: 6px;
+}
+
 .scrubber-track {
   position: relative;
   flex: 1;
