@@ -454,7 +454,70 @@ input[type='range']:hover::-moz-range-thumb {
   }
 }
 
-/* Thin Spotify-style progress track + round thumb (replaces waveform bars) */
+/* Thin Spotify-style progress track + round thumb */
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+.progress-time {
+  flex-shrink: 0;
+  min-width: 38px;
+  font-size: 12px;
+  font-family: monospace, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  color: #94a3b8;
+}
+.progress-track-wrapper {
+  position: relative;
+  flex: 1;
+  padding: 8px 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+.progress-track {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.15);
+  transition: height 0.15s ease;
+}
+.progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 9999px;
+  background: var(--accent, #06b6d4);
+}
+.progress-thumb {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px var(--accent-dim, rgba(6, 182, 212, 0.35));
+  transform: translate(-50%, -50%) scale(0.7);
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  pointer-events: none;
+}
+.progress-track-wrapper:hover .progress-thumb,
+.progress-track-wrapper.dragging .progress-thumb,
+.progress-track-wrapper:hover .progress-track,
+.progress-track-wrapper.dragging .progress-track {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+.progress-track-wrapper:hover .progress-track,
+.progress-track-wrapper.dragging .progress-track {
+  height: 6px;
+}
+
 .scrubber-track {
   position: relative;
   flex: 1;
@@ -463,6 +526,11 @@ input[type='range']:hover::-moz-range-thumb {
   background: rgba(255, 255, 255, 0.12);
   cursor: pointer;
   touch-action: none;
+  transition: height 0.15s ease;
+}
+.scrubber-track:hover,
+.scrubber-track.is-dragging {
+  height: 6px;
 }
 .scrubber-fill {
   position: absolute;
@@ -470,7 +538,7 @@ input[type='range']:hover::-moz-range-thumb {
   left: 0;
   bottom: 0;
   border-radius: 9999px;
-  background: var(--accent);
+  background: var(--accent, #06b6d4);
 }
 .scrubber-thumb {
   position: absolute;
@@ -479,10 +547,10 @@ input[type='range']:hover::-moz-range-thumb {
   height: 12px;
   border-radius: 50%;
   background: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
-  transform: translate(-50%, -50%) scale(0.6);
+  box-shadow: 0 0 0 3px var(--accent-dim, rgba(6, 182, 212, 0.35));
+  transform: translate(-50%, -50%) scale(0.7);
   opacity: 0;
-  transition: opacity var(--transition-fast), transform var(--transition-fast);
+  transition: opacity 0.15s ease, transform 0.15s ease;
   pointer-events: none;
 }
 .scrubber-track:hover .scrubber-thumb,

@@ -77,7 +77,7 @@ export function AudioWaveformScrubber({
   return (
     <div className="w-full flex items-center justify-between gap-3 sm:gap-4 select-none px-1">
       {/* Elapsed time */}
-      <span className="text-[11px] sm:text-xs font-mono text-slate-400 font-semibold w-10 text-right shrink-0">
+      <span className="text-[11px] sm:text-xs font-mono tabular-nums text-slate-400 font-semibold w-10 text-right shrink-0">
         {formatTime(currentTime)}
       </span>
 
@@ -123,7 +123,7 @@ export function AudioWaveformScrubber({
       {/* Total / Remaining Duration toggle */}
       <button
         onClick={() => setShowRemaining((prev) => !prev)}
-        className="text-[11px] sm:text-xs font-mono text-slate-400 hover:text-white font-semibold w-10 text-left shrink-0 transition-colors cursor-pointer"
+        className="text-[11px] sm:text-xs font-mono tabular-nums text-slate-400 hover:text-white font-semibold w-10 text-left shrink-0 transition-colors cursor-pointer"
         title="Bấm để đổi giữa Thời lượng & Thời gian còn lại"
       >
         {showRemaining ? `-${formatTime(remainingTime)}` : formatTime(effectiveDuration)}

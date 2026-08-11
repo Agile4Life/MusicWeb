@@ -30,6 +30,7 @@ interface LyricsViewProps {
   onClose?: () => void
   isModal?: boolean
   showControls?: boolean
+  showHeader?: boolean
 }
 
 function formatTime(seconds: number) {
@@ -39,7 +40,7 @@ function formatTime(seconds: number) {
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`
 }
 
-export function LyricsView({ onClose, isModal = false, showControls = true }: LyricsViewProps) {
+export function LyricsView({ onClose, isModal = false, showControls = true, showHeader = true }: LyricsViewProps) {
   const { currentTime, duration } = usePlaybackProgress()
   const {
     currentTrack,
@@ -242,87 +243,89 @@ export function LyricsView({ onClose, isModal = false, showControls = true }: Ly
       </div>
 
       {/* 🔝 Glassmorphic Header */}
-      <div className="relative z-20 flex items-center justify-between gap-3 p-3 sm:p-4 md:px-8 md:py-4 border-b border-white/[0.08] shrink-0 bg-black/40 backdrop-blur-2xl shadow-lg">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-slate-900 border border-white/15 flex items-center justify-center shrink-0 overflow-hidden shadow-xl relative group">
-            {currentTrack.cover_url ? (
-              <img src={currentTrack.cover_url} alt={currentTrack.title} className="w-full h-full object-cover" />
-            ) : (
-              <Mic2 style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-5 h-5" />
+      {showHeader && (
+        <div className="relative z-20 flex items-center justify-between gap-3 p-3 sm:p-4 md:px-8 md:py-4 border-b border-white/[0.08] shrink-0 bg-black/40 backdrop-blur-2xl shadow-lg">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-slate-900 border border-white/15 flex items-center justify-center shrink-0 overflow-hidden shadow-xl relative group">
+              {currentTrack.cover_url ? (
+                <img src={currentTrack.cover_url} alt={currentTrack.title} className="w-full h-full object-cover" />
+              ) : (
+                <Mic2 style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-5 h-5" />
+              )}
+            </div>
+            <div className="flex flex-col min-w-0 flex-1">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <h2 className="text-xs sm:text-sm md:text-base font-extrabold text-white truncate tracking-tight">
+                  {currentTrack.title}
+                </h2>
+                {isSynced ? (
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 shrink-0 shadow-[0_0_12px_rgba(16,185,129,0.3)] flex items-center gap-1.5 leading-none">
+                    <Sparkles className="w-3 h-3 text-emerald-400 shrink-0" />
+                    Synced
+                  </span>
+                ) : parsedLyrics.length > 0 ? (
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/40 shrink-0 leading-none">
+                    Text
+                  </span>
+                ) : null}
+              </div>
+              <p className="text-[11px] font-semibold text-slate-400 truncate mt-0.5 w-full">
+                {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
+              </p>
+            </div>
+          </div>
+
+          {/* Top Right Controls */}
+          <div className="flex items-center gap-2 shrink-0">
+            {isSynced && (
+              <div className="flex items-center gap-1 bg-white/[0.06] backdrop-blur-md rounded-full border border-white/10 px-2 py-1 shadow-inner">
+                <button
+                  onClick={() => setLyricOffset((prev) => +(prev - 0.1).toFixed(1))}
+                  className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
+                  title="Lời hiển thị sớm hơn 100ms"
+                >
+                  <Minus className="w-3 h-3" />
+                </button>
+                <span className="text-[10px] font-mono font-bold text-cyan-300 min-w-[36px] text-center" title="Bù lệch thời gian (giây)">
+                  {lyricOffset >= 0 ? '+' : ''}{lyricOffset.toFixed(1)}s
+                </span>
+                <button
+                  onClick={() => setLyricOffset((prev) => +(prev + 0.1).toFixed(1))}
+                  className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
+                  title="Lời hiển thị muộn hơn 100ms"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+
+            <button
+              onClick={() => loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.album, currentTrack.duration, currentTrack.youtube_id, currentTrack.nhaccuatui_id)}
+              disabled={loading}
+              className="w-9 h-9 flex items-center justify-center bg-white/[0.06] hover:bg-white/15 active:scale-95 text-slate-200 rounded-full border border-white/10 transition-all shrink-0 shadow-md"
+              title="Tải lại lời bài hát"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-cyan-400' : ''}`} />
+            </button>
+
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="w-9 h-9 flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-95 text-white rounded-full border border-white/15 transition-all shrink-0 shadow-md"
+                title="Đóng lời bài hát"
+              >
+                <X className="w-4 h-4" />
+              </button>
             )}
           </div>
-          <div className="flex flex-col min-w-0 flex-1">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <h2 className="text-xs sm:text-sm md:text-base font-extrabold text-white truncate tracking-tight">
-                {currentTrack.title}
-              </h2>
-              {isSynced ? (
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 shrink-0 shadow-[0_0_12px_rgba(16,185,129,0.3)] flex items-center gap-1.5 leading-none">
-                  <Sparkles className="w-3 h-3 text-emerald-400 shrink-0" />
-                  Synced
-                </span>
-              ) : parsedLyrics.length > 0 ? (
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/40 shrink-0 leading-none">
-                  Text
-                </span>
-              ) : null}
-            </div>
-            <p className="text-[11px] font-semibold text-slate-400 truncate mt-0.5 w-full">
-              {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
-            </p>
-          </div>
         </div>
-
-        {/* Top Right Controls */}
-        <div className="flex items-center gap-2 shrink-0">
-          {isSynced && (
-            <div className="flex items-center gap-1 bg-white/[0.06] backdrop-blur-md rounded-full border border-white/10 px-2 py-1 shadow-inner">
-              <button
-                onClick={() => setLyricOffset((prev) => +(prev - 0.1).toFixed(1))}
-                className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
-                title="Lời hiển thị sớm hơn 100ms"
-              >
-                <Minus className="w-3 h-3" />
-              </button>
-              <span className="text-[10px] font-mono font-bold text-cyan-300 min-w-[36px] text-center" title="Bù lệch thời gian (giây)">
-                {lyricOffset >= 0 ? '+' : ''}{lyricOffset.toFixed(1)}s
-              </span>
-              <button
-                onClick={() => setLyricOffset((prev) => +(prev + 0.1).toFixed(1))}
-                className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
-                title="Lời hiển thị muộn hơn 100ms"
-              >
-                <Plus className="w-3 h-3" />
-              </button>
-            </div>
-          )}
-
-          <button
-            onClick={() => loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.album, currentTrack.duration, currentTrack.youtube_id, currentTrack.nhaccuatui_id)}
-            disabled={loading}
-            className="w-9 h-9 flex items-center justify-center bg-white/[0.06] hover:bg-white/15 active:scale-95 text-slate-200 rounded-full border border-white/10 transition-all shrink-0 shadow-md"
-            title="Tải lại lời bài hát"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-cyan-400' : ''}`} />
-          </button>
-
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="w-9 h-9 flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-95 text-white rounded-full border border-white/15 transition-all shrink-0 shadow-md"
-              title="Đóng lời bài hát"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-      </div>
+      )}
 
       {/* 📜 Main Lyrics Scroll Area */}
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="relative z-10 flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 no-scrollbar lyrics-scroll-mask"
+        className="relative z-10 flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 pt-6 pb-20 no-scrollbar lyrics-scroll-mask"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {loading ? (

@@ -19,6 +19,7 @@ import {
   VolumeX,
   DiscAlbum,
   Mic2,
+  Sparkles,
 } from 'lucide-react'
 
 export function NowPlayingOverlay() {
@@ -75,8 +76,8 @@ export function NowPlayingOverlay() {
         isNowPlayingOpen ? 'open translate-y-0' : 'translate-y-full pointer-events-none'
       }`}
     >
-      {/* 🔝 Top Header: Close Button & Mobile Tabs */}
-      <div className="relative z-30 flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0 bg-black/40 backdrop-blur-xl">
+      {/* 🔝 Unified Top Header (Full Width) */}
+      <div className="relative z-30 flex items-center justify-between h-16 px-6 border-b border-white/[0.08] shrink-0 bg-black/40 backdrop-blur-xl">
         <button
           onClick={closeNowPlayingOverlay}
           className="p-2 text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-all active:scale-95 flex items-center gap-1.5 text-xs font-semibold"
@@ -112,15 +113,21 @@ export function NowPlayingOverlay() {
           </button>
         </div>
 
-        <div className="w-10 sm:w-20" />
+        {/* Right Header context badge */}
+        <div className="hidden lg:flex items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 shadow-[0_0_12px_rgba(16,185,129,0.25)]">
+            <Sparkles className="w-3 h-3 text-emerald-400" />
+            SYNCED LYRICS
+          </span>
+        </div>
       </div>
 
       {/* 🎭 Main Stage Area */}
-      <div className="flex-1 min-h-0 relative flex overflow-hidden">
-        {/* Desktop View (>=1024px): 2 Columns */}
+      <div className="flex-1 min-h-0 relative flex overflow-hidden bg-gradient-to-r from-[#07090e] via-[#07090e] to-[#0f0b16]">
+        {/* Desktop View (>=1024px): 2 Columns (Seamless blend, no vertical seam line) */}
         <div className="hidden lg:flex w-full h-full">
           {/* Left Column (~55%): 3D Particles + Album Cover */}
-          <div className="w-[55%] h-full relative border-r border-white/10">
+          <div className="w-[55%] h-full relative bg-transparent">
             <NowPlayingStage
               analyserData={frequencyData}
               coverUrl={currentTrack.cover_url}
@@ -131,8 +138,8 @@ export function NowPlayingOverlay() {
           </div>
 
           {/* Right Column (~45%): Synchronized Lyrics */}
-          <div className="w-[45%] h-full relative lyrics-panel-fade">
-            <LyricsView isModal={false} showControls={false} />
+          <div className="w-[45%] h-full relative bg-transparent lyrics-panel-fade">
+            <LyricsView isModal={false} showControls={false} showHeader={false} />
           </div>
         </div>
 
@@ -150,7 +157,7 @@ export function NowPlayingOverlay() {
             </div>
           ) : (
             <div className="w-full h-full relative">
-              <LyricsView isModal={false} showControls={false} />
+              <LyricsView isModal={false} showControls={false} showHeader={false} />
             </div>
           )}
         </div>
@@ -158,12 +165,22 @@ export function NowPlayingOverlay() {
 
       {/* 🎛️ Bottom Control Bar (Full-width) */}
       <div className="relative z-30 px-6 py-4 bg-black/60 backdrop-blur-2xl border-t border-white/10 shrink-0 flex flex-col gap-3">
-        {/* Progress Bar Scrubber */}
-        <div className="flex items-center gap-3 w-full max-w-4xl mx-auto">
-          <span className="text-xs font-mono text-slate-400 min-w-[36px] text-right">
+        {/* Progress Bar Flex Row (Unified Single Row) */}
+        <div className="progress-row max-w-4xl mx-auto">
+          <span className="progress-time text-right">
             {Math.floor(currentTime / 60)}:{(Math.floor(currentTime % 60) < 10 ? '0' : '') + Math.floor(currentTime % 60)}
           </span>
-          <div className="scrubber-track relative flex-1 h-1.5 bg-white/10 rounded-full cursor-pointer">
+          <div className="progress-track-wrapper">
+            <div className="progress-track">
+              <div
+                className="progress-fill"
+                style={{ width: `${Math.min(100, Math.max(0, (currentTime / (duration || currentTrack.duration || 1)) * 100))}%` }}
+              />
+              <div
+                className="progress-thumb"
+                style={{ left: `${Math.min(100, Math.max(0, (currentTime / (duration || currentTrack.duration || 1)) * 100))}%` }}
+              />
+            </div>
             <input
               type="range"
               min={0}
@@ -171,13 +188,11 @@ export function NowPlayingOverlay() {
               step={0.1}
               value={currentTime}
               onChange={(e) => seek(Number(e.target.value))}
-              style={{
-                background: `linear-gradient(to right, var(--accent,#06b6d4) ${((currentTime / (duration || currentTrack.duration || 1)) * 100).toFixed(2)}%, rgba(255,255,255,0.1) ${((currentTime / (duration || currentTrack.duration || 1)) * 100).toFixed(2)}%)`,
-              }}
-              className="w-full h-full rounded-full appearance-none cursor-pointer outline-none opacity-90"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              title="Kéo để tua nhạc"
             />
           </div>
-          <span className="text-xs font-mono text-slate-400 min-w-[36px]">
+          <span className="progress-time">
             {Math.floor((duration || currentTrack.duration || 0) / 60)}:{(Math.floor((duration || currentTrack.duration || 0) % 60) < 10 ? '0' : '') + Math.floor((duration || currentTrack.duration || 0) % 60)}
           </span>
         </div>
