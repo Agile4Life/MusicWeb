@@ -593,8 +593,45 @@ html[data-cursor="virtual-singer"][data-buffering="true"] * {
   cursor: url('/cursors/virtual-singer/static/Working.png') 0 0, wait !important;
 }
 
+/* Furina Custom Static CSS Cursor */
+html[data-cursor="furina"],
+html[data-cursor="furina"] body,
+html[data-cursor="furina"] * {
+  cursor: url('/cursors/furina/static/Normal.png') 0 0, auto !important;
+}
+
+html[data-cursor="furina"] a,
+html[data-cursor="furina"] button,
+html[data-cursor="furina"] [role="button"],
+html[data-cursor="furina"] input[type="button"],
+html[data-cursor="furina"] input[type="submit"],
+html[data-cursor="furina"] select,
+html[data-cursor="furina"] label {
+  cursor: url('/cursors/furina/static/Link.png') 4 0, pointer !important;
+}
+
+html[data-cursor="furina"] input[type="text"],
+html[data-cursor="furina"] input[type="search"],
+html[data-cursor="furina"] input[type="email"],
+html[data-cursor="furina"] input[type="password"],
+html[data-cursor="furina"] textarea {
+  cursor: url('/cursors/furina/static/Text.png') 4 9, text !important;
+}
+
+html[data-cursor="furina"] [disabled],
+html[data-cursor="furina"] .disabled {
+  cursor: url('/cursors/furina/static/Unavailable.png') 0 0, not-allowed !important;
+}
+
+html[data-cursor="furina"][data-buffering="true"],
+html[data-cursor="furina"][data-buffering="true"] body,
+html[data-cursor="furina"][data-buffering="true"] * {
+  cursor: url('/cursors/furina/static/Working.png') 0 0, wait !important;
+}
+
 html[data-cursor="default"][data-buffering="true"],
 html[data-cursor="default"][data-buffering="true"] * {
   cursor: wait !important;
 }
+
 

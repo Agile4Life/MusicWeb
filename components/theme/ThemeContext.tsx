@@ -161,7 +161,7 @@ export const THEMES: Record<ThemeId, ThemeConfig> = {
   },
 }
 
-export type CursorStyle = 'lottie' | 'virtual-singer' | 'default'
+export type CursorStyle = 'lottie' | 'virtual-singer' | 'furina' | 'default'
 
 interface ThemeContextType {
   currentTheme: ThemeConfig
@@ -186,7 +186,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
 
     const savedCursor = localStorage.getItem('musicweb-cursor-style') as CursorStyle
-    if (savedCursor && ['lottie', 'virtual-singer', 'default'].includes(savedCursor)) {
+    if (savedCursor && ['lottie', 'virtual-singer', 'furina', 'default'].includes(savedCursor)) {
       applyCursorStyle(savedCursor)
     } else {
       applyCursorStyle('lottie')
