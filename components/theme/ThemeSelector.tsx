@@ -1,21 +1,14 @@
 'use client'
 
 import React from 'react'
-import { useTheme, THEMES, ThemeId, CursorStyle } from './ThemeContext'
+import { useTheme, THEMES, ThemeId } from './ThemeContext'
 import { Palette, Check, MousePointer } from 'lucide-react'
 import { useLanguage } from '@/components/i18n/LanguageContext'
+import { CURSOR_CONFIGS } from '@/lib/cursors'
 
 export function ThemeSelector() {
   const { currentTheme, setTheme, cursorStyle, setCursorStyle } = useTheme()
   const { t } = useLanguage()
-
-  const cursorOptions: { id: CursorStyle; name: string; desc: string }[] = [
-    { id: 'lottie', name: 'Lottie Synth', desc: 'Con trỏ phát sáng động' },
-    { id: 'virtual-singer', name: 'VirtualSinger', desc: 'Hatsune Miku Anime' },
-    { id: 'furina', name: 'Furina (Fontaine)', desc: 'Genshin Impact Anime' },
-    { id: 'haru-urara', name: 'Haru Urara', desc: 'Uma Musume Anime' },
-    { id: 'default', name: 'Hệ thống (Default)', desc: 'Con trỏ mặc định' },
-  ]
 
   return (
     <div className="flex flex-col gap-6">
@@ -78,7 +71,7 @@ export function ThemeSelector() {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-          {cursorOptions.map((item) => {
+          {CURSOR_CONFIGS.map((item) => {
             const isSelected = cursorStyle === item.id
 
             return (
@@ -93,48 +86,22 @@ export function ThemeSelector() {
               >
                 {/* Cursor Preview Icon */}
                 <div className="mb-2.5">
-                  {item.id === 'lottie' && (
-                    <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center shadow-[0_0_12px_rgba(6,182,212,0.35)]">
+                  {item.id === 'lottie' ? (
+                    <div className={`w-8 h-8 rounded-xl ${item.bgClass} border ${item.borderClass} flex items-center justify-center ${item.shadowClass}`}>
                       <MousePointer className="w-4 h-4 text-cyan-400 fill-cyan-400/20" />
                     </div>
-                  )}
-
-                  {item.id === 'virtual-singer' && (
-                    <div className="w-8 h-8 rounded-xl bg-pink-500/15 border border-pink-500/30 flex items-center justify-center shadow-[0_0_12px_rgba(236,72,153,0.3)]">
-                      <img
-                        src="/cursors/virtual-singer/static/Normal.png"
-                        alt="VirtualSinger Cursor"
-                        className="w-6 h-6 object-contain pointer-events-none select-none"
-                        style={{ imageRendering: 'pixelated' }}
-                      />
-                    </div>
-                  )}
-
-                  {item.id === 'furina' && (
-                    <div className="w-8 h-8 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center shadow-[0_0_12px_rgba(59,130,246,0.3)]">
-                      <img
-                        src="/cursors/furina/static/Normal.png"
-                        alt="Furina Cursor"
-                        className="w-6 h-6 object-contain pointer-events-none select-none"
-                        style={{ imageRendering: 'pixelated' }}
-                      />
-                    </div>
-                  )}
-
-                  {item.id === 'haru-urara' && (
-                    <div className="w-8 h-8 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center shadow-[0_0_12px_rgba(244,63,94,0.3)]">
-                      <img
-                        src="/cursors/haru-urara/static/Normal.png"
-                        alt="Haru Urara Cursor"
-                        className="w-6 h-6 object-contain pointer-events-none select-none"
-                        style={{ imageRendering: 'pixelated' }}
-                      />
-                    </div>
-                  )}
-
-                  {item.id === 'default' && (
-                    <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center">
+                  ) : item.id === 'default' ? (
+                    <div className={`w-8 h-8 rounded-xl ${item.bgClass} border ${item.borderClass} flex items-center justify-center`}>
                       <MousePointer className="w-4 h-4 text-slate-300" />
+                    </div>
+                  ) : (
+                    <div className={`w-8 h-8 rounded-xl ${item.bgClass} border ${item.borderClass} flex items-center justify-center ${item.shadowClass}`}>
+                      <img
+                        src={`/cursors/${item.id}/static/Normal.png`}
+                        alt={`${item.name} Cursor`}
+                        className="w-6 h-6 object-contain pointer-events-none select-none"
+                        style={{ imageRendering: 'pixelated' }}
+                      />
                     </div>
                   )}
                 </div>

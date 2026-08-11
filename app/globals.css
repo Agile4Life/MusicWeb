@@ -550,34 +550,40 @@ input[type='range']:hover::-moz-range-thumb {
   pointer-events: auto;
 }
 
-/* VirtualSinger Custom Static CSS Cursor */
-html[data-cursor="virtual-singer"],
-html[data-cursor="virtual-singer"] body,
-html[data-cursor="virtual-singer"] * {
-  cursor: url('/cursors/virtual-singer/static/Normal.png') 0 0, auto !important;
+/* Dynamic Native Custom CSS Cursor System */
+html:not([data-cursor="lottie"]):not([data-cursor="default"])[data-cursor],
+html:not([data-cursor="lottie"]):not([data-cursor="default"])[data-cursor] body,
+html:not([data-cursor="lottie"]):not([data-cursor="default"])[data-cursor] * {
+  cursor: var(--cursor-normal, auto) !important;
 }
 
-html[data-cursor="virtual-singer"] a,
-html[data-cursor="virtual-singer"] button,
-html[data-cursor="virtual-singer"] [role="button"],
-html[data-cursor="virtual-singer"] input[type="button"],
-html[data-cursor="virtual-singer"] input[type="submit"],
-html[data-cursor="virtual-singer"] select,
-html[data-cursor="virtual-singer"] label {
-  cursor: url('/cursors/virtual-singer/static/Link.png') 4 0, pointer !important;
+html:not([data-cursor="lottie"]):not([data-cursor="default"])[data-cursor] a,
+html:not([data-cursor="lottie"]):not([data-cursor="default"])[data-cursor] button,
+html:not([data-cursor="lottie"]):not([data-cursor="default"])[data-cursor] [role="button"],
+html:not([data-cursor="lottie"]):not([data-cursor="default"])[data-cursor] input[type="button"],
+html:not([data-cursor="lottie"]):not([data-cursor="default"])[data-cursor] input[type="submit"],
+html:not([data-cursor="lottie"]):not([data-cursor="default"])[data-cursor] select,
+html:not([data-cursor="lottie"]):not([data-cursor="default"])[data-cursor] label {
+  cursor: var(--cursor-link, pointer) !important;
 }
 
-html[data-cursor="virtual-singer"] input[type="text"],
-html[data-cursor="virtual-singer"] input[type="search"],
-html[data-cursor="virtual-singer"] input[type="email"],
-html[data-cursor="virtual-singer"] input[type="password"],
-html[data-cursor="virtual-singer"] textarea {
-  cursor: url('/cursors/virtual-singer/static/Text.png') 4 9, text !important;
+html:not([data-cursor="lottie"]):not([data-cursor="default"])[data-cursor] input[type="text"],
+html:not([data-cursor="lottie"]):not([data-cursor="default"])[data-cursor] input[type="search"],
+html:not([data-cursor="lottie"]):not([data-cursor="default"])[data-cursor] input[type="email"],
+html:not([data-cursor="lottie"]):not([data-cursor="default"])[data-cursor] input[type="password"],
+html:not([data-cursor="lottie"]):not([data-cursor="default"])[data-cursor] textarea {
+  cursor: var(--cursor-text, text) !important;
 }
 
-html[data-cursor="virtual-singer"] [disabled],
-html[data-cursor="virtual-singer"] .disabled {
-  cursor: url('/cursors/virtual-singer/static/Unavailable.png') 0 0, not-allowed !important;
+html:not([data-cursor="lottie"]):not([data-cursor="default"])[data-cursor] [disabled],
+html:not([data-cursor="lottie"]):not([data-cursor="default"])[data-cursor] .disabled {
+  cursor: var(--cursor-unavailable, not-allowed) !important;
+}
+
+html:not([data-cursor="lottie"]):not([data-cursor="default"])[data-cursor][data-buffering="true"],
+html:not([data-cursor="lottie"]):not([data-cursor="default"])[data-cursor][data-buffering="true"] body,
+html:not([data-cursor="lottie"]):not([data-cursor="default"])[data-cursor][data-buffering="true"] * {
+  cursor: var(--cursor-working, wait) !important;
 }
 
 /* Default Cursor mode */
@@ -586,89 +592,11 @@ html[data-cursor="default"] * {
   cursor: auto !important;
 }
 
-/* Buffering / Loading State Cursors */
-html[data-cursor="virtual-singer"][data-buffering="true"],
-html[data-cursor="virtual-singer"][data-buffering="true"] body,
-html[data-cursor="virtual-singer"][data-buffering="true"] * {
-  cursor: url('/cursors/virtual-singer/static/Working.png') 0 0, wait !important;
-}
-
-/* Furina Custom Static CSS Cursor */
-html[data-cursor="furina"],
-html[data-cursor="furina"] body,
-html[data-cursor="furina"] * {
-  cursor: url('/cursors/furina/static/Normal.png') 0 0, auto !important;
-}
-
-html[data-cursor="furina"] a,
-html[data-cursor="furina"] button,
-html[data-cursor="furina"] [role="button"],
-html[data-cursor="furina"] input[type="button"],
-html[data-cursor="furina"] input[type="submit"],
-html[data-cursor="furina"] select,
-html[data-cursor="furina"] label {
-  cursor: url('/cursors/furina/static/Link.png') 4 0, pointer !important;
-}
-
-html[data-cursor="furina"] input[type="text"],
-html[data-cursor="furina"] input[type="search"],
-html[data-cursor="furina"] input[type="email"],
-html[data-cursor="furina"] input[type="password"],
-html[data-cursor="furina"] textarea {
-  cursor: url('/cursors/furina/static/Text.png') 4 9, text !important;
-}
-
-html[data-cursor="furina"] [disabled],
-html[data-cursor="furina"] .disabled {
-  cursor: url('/cursors/furina/static/Unavailable.png') 0 0, not-allowed !important;
-}
-
-html[data-cursor="furina"][data-buffering="true"],
-html[data-cursor="furina"][data-buffering="true"] body,
-html[data-cursor="furina"][data-buffering="true"] * {
-  cursor: url('/cursors/furina/static/Working.png') 0 0, wait !important;
-}
-
-/* Haru Urara Custom Static CSS Cursor */
-html[data-cursor="haru-urara"],
-html[data-cursor="haru-urara"] body,
-html[data-cursor="haru-urara"] * {
-  cursor: url('/cursors/haru-urara/static/Normal.png') 0 0, auto !important;
-}
-
-html[data-cursor="haru-urara"] a,
-html[data-cursor="haru-urara"] button,
-html[data-cursor="haru-urara"] [role="button"],
-html[data-cursor="haru-urara"] input[type="button"],
-html[data-cursor="haru-urara"] input[type="submit"],
-html[data-cursor="haru-urara"] select,
-html[data-cursor="haru-urara"] label {
-  cursor: url('/cursors/haru-urara/static/Link.png') 4 0, pointer !important;
-}
-
-html[data-cursor="haru-urara"] input[type="text"],
-html[data-cursor="haru-urara"] input[type="search"],
-html[data-cursor="haru-urara"] input[type="email"],
-html[data-cursor="haru-urara"] input[type="password"],
-html[data-cursor="haru-urara"] textarea {
-  cursor: url('/cursors/haru-urara/static/Text.png') 4 9, text !important;
-}
-
-html[data-cursor="haru-urara"] [disabled],
-html[data-cursor="haru-urara"] .disabled {
-  cursor: url('/cursors/haru-urara/static/Unavailable.png') 0 0, not-allowed !important;
-}
-
-html[data-cursor="haru-urara"][data-buffering="true"],
-html[data-cursor="haru-urara"][data-buffering="true"] body,
-html[data-cursor="haru-urara"][data-buffering="true"] * {
-  cursor: url('/cursors/haru-urara/static/Working.png') 0 0, wait !important;
-}
-
 html[data-cursor="default"][data-buffering="true"],
 html[data-cursor="default"][data-buffering="true"] * {
   cursor: wait !important;
 }
+
 
 
 

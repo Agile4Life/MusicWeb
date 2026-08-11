@@ -161,7 +161,9 @@ export const THEMES: Record<ThemeId, ThemeConfig> = {
   },
 }
 
-export type CursorStyle = 'lottie' | 'virtual-singer' | 'furina' | 'haru-urara' | 'default'
+import { CURSOR_CONFIGS } from '@/lib/cursors'
+
+export type CursorStyle = string
 
 interface ThemeContextType {
   currentTheme: ThemeConfig
@@ -186,7 +188,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
 
     const savedCursor = localStorage.getItem('musicweb-cursor-style') as CursorStyle
-    if (savedCursor && ['lottie', 'virtual-singer', 'furina', 'haru-urara', 'default'].includes(savedCursor)) {
+    if (savedCursor && CURSOR_CONFIGS.some((c) => c.id === savedCursor)) {
       applyCursorStyle(savedCursor)
     } else {
       applyCursorStyle('lottie')
@@ -195,7 +197,21 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const applyCursorStyle = (style: CursorStyle) => {
     setCursorStyleState(style)
-    document.documentElement.setAttribute('data-cursor', style)
+    const root = document.documentElement
+    root.setAttribute('data-cursor', style)
+    if (style !== 'lottie' && style !== 'default') {
+      root.style.setProperty('--cursor-normal', `url('/cursors/${style}/static/Normal.png') 0 0, auto`)
+      root.style.setProperty('--cursor-link', `url('/cursors/${style}/static/Link.png') 4 0, pointer`)
+      root.style.setProperty('--cursor-text', `url('/cursors/${style}/static/Text.png') 4 9, text`)
+      root.style.setProperty('--cursor-unavailable', `url('/cursors/${style}/static/Unavailable.png') 0 0, not-allowed`)
+      root.style.setProperty('--cursor-working', `url('/cursors/${style}/static/Working.png') 0 0, wait`)
+    } else {
+      root.style.removeProperty('--cursor-normal')
+      root.style.removeProperty('--cursor-link')
+      root.style.removeProperty('--cursor-text')
+      root.style.removeProperty('--cursor-unavailable')
+      root.style.removeProperty('--cursor-working')
+    }
   }
 
   const setCursorStyle = (style: CursorStyle) => {

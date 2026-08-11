@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "add-cursor": "node scripts/add-cursor.js"
   },
   "dependencies": {
     "@breezystack/lamejs": "^1.2.7",
