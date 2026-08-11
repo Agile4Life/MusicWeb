@@ -1310,7 +1310,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           setPlaybackError(`Bài hát "${activeTrack.title}" không hỗ trợ phát trực tiếp. Đang chuyển bài tiếp theo...`)
           const skipTimeoutId = setTimeout(() => {
             if (requestId === playRequestRef.current) {
-              playNextTrack()
+              nextTrackRef.current()
             }
           }, 1500)
           pendingAutoSkipTimeoutRef.current = skipTimeoutId

@@ -61,9 +61,7 @@ function Particles({ analyserData, isPlaying }: ParticlesProps) {
       <bufferGeometry>
         <bufferAttribute
           attach="attributes-position"
-          count={PARTICLE_COUNT}
-          array={basePositions}
-          itemSize={3}
+          args={[basePositions, 3]}
         />
       </bufferGeometry>
       <pointsMaterial
