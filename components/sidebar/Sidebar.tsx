@@ -42,6 +42,92 @@ export function Sidebar() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [isYtImportModalOpen, setIsYtImportModalOpen] = useState(false)
 
+  const exploreNavRef = React.useRef<HTMLElement>(null)
+  const playlistNavRef = React.useRef<HTMLDivElement>(null)
+
+  const [exploreIndicator, setExploreIndicator] = useState<{ top: number; height: number; opacity: number }>({
+    top: 0,
+    height: 38,
+    opacity: 0,
+  })
+
+  const [playlistIndicator, setPlaylistIndicator] = useState<{ top: number; height: number; opacity: number }>({
+    top: 0,
+    height: 36,
+    opacity: 0,
+  })
+
+  const handleItemMouseEnter = (
+    e: React.MouseEvent<HTMLElement>,
+    setIndicator: React.Dispatch<React.SetStateAction<{ top: number; height: number; opacity: number }>>
+  ) => {
+    const el = e.currentTarget
+    setIndicator({
+      top: el.offsetTop,
+      height: el.offsetHeight,
+      opacity: 1,
+    })
+  }
+
+  const handleSectionMouseLeave = (
+    containerRef: React.RefObject<HTMLElement | HTMLDivElement | null>,
+    setIndicator: React.Dispatch<React.SetStateAction<{ top: number; height: number; opacity: number }>>
+  ) => {
+    if (containerRef.current) {
+      const activeItem = containerRef.current.querySelector('.sidebar-item.active') as HTMLElement | null
+      if (activeItem) {
+        setIndicator({
+          top: activeItem.offsetTop,
+          height: activeItem.offsetHeight,
+          opacity: 1,
+        })
+        return
+      }
+    }
+    setIndicator((prev) => ({ ...prev, opacity: 0 }))
+  }
+
+  const handleItemClick = (e: React.MouseEvent<HTMLElement>) => {
+    const item = e.currentTarget
+    const rect = item.getBoundingClientRect()
+    const ripple = document.createElement('span')
+    ripple.className = 'ripple'
+    const size = Math.max(rect.width, rect.height)
+    ripple.style.width = ripple.style.height = `${size}px`
+    ripple.style.left = `${e.clientX - rect.left - size / 2}px`
+    ripple.style.top = `${e.clientY - rect.top - size / 2}px`
+    item.appendChild(ripple)
+    ripple.addEventListener('animationend', () => ripple.remove())
+  }
+
+  useEffect(() => {
+    if (exploreNavRef.current) {
+      const activeItem = exploreNavRef.current.querySelector('.sidebar-item.active') as HTMLElement | null
+      if (activeItem) {
+        setExploreIndicator({
+          top: activeItem.offsetTop,
+          height: activeItem.offsetHeight,
+          opacity: 1,
+        })
+      } else {
+        setExploreIndicator((prev) => ({ ...prev, opacity: 0 }))
+      }
+    }
+
+    if (playlistNavRef.current) {
+      const activeItem = playlistNavRef.current.querySelector('.sidebar-item.active') as HTMLElement | null
+      if (activeItem) {
+        setPlaylistIndicator({
+          top: activeItem.offsetTop,
+          height: activeItem.offsetHeight,
+          opacity: 1,
+        })
+      } else {
+        setPlaylistIndicator((prev) => ({ ...prev, opacity: 0 }))
+      }
+    }
+  }, [pathname, playlists])
+
   const user = userEmail
     ? {
         id: userEmail,
@@ -111,56 +197,81 @@ export function Sidebar() {
         </div>
 
         {/* Main Navigation List */}
-        <nav className="flex flex-col gap-1">
-          <p className="text-[11px] font-mono tracking-wider text-slate-500 uppercase px-2.5 py-1">
+        <nav
+          ref={exploreNavRef}
+          onMouseLeave={() => handleSectionMouseLeave(exploreNavRef, setExploreIndicator)}
+          className="flex flex-col gap-1 relative"
+        >
+          <div
+            className="nav-indicator"
+            style={{
+              transform: `translateY(${exploreIndicator.top}px)`,
+              height: `${exploreIndicator.height}px`,
+              opacity: exploreIndicator.opacity,
+            }}
+          />
+
+          <p className="text-[11px] font-mono tracking-wider text-slate-500 uppercase px-2.5 py-1 relative z-10">
             Khám phá
           </p>
 
           <Link
             href="/"
             prefetch={false}
-            onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
+            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onClick={(e) => {
+              window.dispatchEvent(new Event('musicweb-tab-home'))
+              handleItemClick(e)
+            }}
             className={`sidebar-item text-xs font-semibold ${pathname === '/' ? 'active' : ''}`}
           >
-            <Home className="w-4 h-4" />
+            <Home className="w-4 h-4 icon" />
             <span>{t('home')}</span>
           </Link>
 
           <Link
             href="/albums"
             prefetch={false}
+            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onClick={handleItemClick}
             className={`sidebar-item text-xs font-semibold ${
               pathname === '/albums' || pathname.startsWith('/album/') ? 'active' : ''
             }`}
           >
-            <DiscAlbum className="w-4 h-4" />
+            <DiscAlbum className="w-4 h-4 icon" />
             <span>{t('albums')}</span>
           </Link>
 
           <Link
             href="/drive"
             prefetch={false}
+            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onClick={handleItemClick}
             className={`sidebar-item text-xs font-semibold ${pathname === '/drive' ? 'active' : ''}`}
           >
-            <Cloud className="w-4 h-4" />
+            <Cloud className="w-4 h-4 icon" />
             <span>{t('drive')}</span>
           </Link>
 
           <Link
             href="/favorites"
             prefetch={false}
+            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onClick={handleItemClick}
             className={`sidebar-item text-xs font-semibold ${pathname === '/favorites' ? 'active' : ''}`}
           >
-            <Heart className="w-4 h-4" />
+            <Heart className="w-4 h-4 icon" />
             <span>{t('favorites')}</span>
           </Link>
 
           <Link
             href="/history"
             prefetch={false}
+            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onClick={handleItemClick}
             className={`sidebar-item text-xs font-semibold ${pathname === '/history' ? 'active' : ''}`}
           >
-            <History className="w-4 h-4" />
+            <History className="w-4 h-4 icon" />
             <span>{t('history')}</span>
           </Link>
 
@@ -168,9 +279,11 @@ export function Sidebar() {
             <Link
               href="/upload"
               prefetch={false}
+              onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+              onClick={handleItemClick}
               className={`sidebar-item text-xs font-semibold ${pathname === '/upload' ? 'active' : ''}`}
             >
-              <Upload className="w-4 h-4" />
+              <Upload className="w-4 h-4 icon" />
               <span>{t('upload')}</span>
             </Link>
           )}
@@ -178,9 +291,11 @@ export function Sidebar() {
           <Link
             href="/settings"
             prefetch={false}
+            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onClick={handleItemClick}
             className={`sidebar-item text-xs font-semibold ${pathname === '/settings' ? 'active' : ''}`}
           >
-            <Settings className="w-4 h-4" />
+            <Settings className="w-4 h-4 icon" />
             <span>{t('settings')}</span>
           </Link>
         </nav>
@@ -220,24 +335,39 @@ export function Sidebar() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto flex flex-col gap-0.5 pr-1">
+          <div
+            ref={playlistNavRef}
+            onMouseLeave={() => handleSectionMouseLeave(playlistNavRef, setPlaylistIndicator)}
+            className="flex-1 overflow-y-auto flex flex-col gap-0.5 pr-1 relative"
+          >
+            <div
+              className="nav-indicator"
+              style={{
+                transform: `translateY(${playlistIndicator.top}px)`,
+                height: `${playlistIndicator.height}px`,
+                opacity: playlistIndicator.opacity,
+              }}
+            />
+
             {user ? (
               playlists.length > 0 ? (
                 playlists.map((pl) => (
                   <Link
                     key={pl.id}
                     href={`/playlist/${pl.id}`}
+                    onMouseEnter={(e) => handleItemMouseEnter(e, setPlaylistIndicator)}
+                    onClick={handleItemClick}
                     className={`sidebar-item text-xs group ${
                       pathname === `/playlist/${pl.id}` ? 'active font-semibold' : ''
                     }`}
                   >
-                    <div className="w-7 h-7 rounded-lg bg-white/[0.04] border border-white/5 flex items-center justify-center text-slate-400 shrink-0">
+                    <div className="w-7 h-7 rounded-lg bg-white/[0.04] border border-white/5 flex items-center justify-center text-slate-400 shrink-0 icon">
                       <Music className="w-3.5 h-3.5" />
                     </div>
                     <span className="truncate flex-1 font-medium">{pl.name}</span>
                     <button
                       onClick={(e) => handleDeletePlaylistFromSidebar(e, pl.id, pl.name)}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-red-400 rounded transition-opacity"
+                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-red-400 rounded transition-opacity relative z-10"
                       title="Xóa playlist"
                     >
                       <Trash2 className="w-3 h-3" />
