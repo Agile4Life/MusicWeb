@@ -31,7 +31,7 @@ import { ImportSpotifyModal } from '@/components/playlist/ImportSpotifyModal'
 import { ImportYouTubePlaylistModal } from '@/components/playlist/ImportYouTubePlaylistModal'
 import { YoutubeIcon } from '@/components/icons/YoutubeIcon'
 
-export function Sidebar() {
+export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
   const { t } = useLanguage()
   const pathname = usePathname()
   const router = useRouter()
@@ -167,7 +167,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="hidden md:flex w-64 bg-[#090b10] flex-col justify-between p-3.5 h-full select-none text-slate-300 rounded-2xl border border-white/[0.05] panel-theme-hover shrink-0">
+    <aside className={`app-sidebar hidden md:flex w-64 bg-[#090b10] flex-col justify-between p-3.5 h-full select-none text-slate-300 rounded-2xl border border-white/[0.05] panel-theme-hover shrink-0 ${isScrolled ? 'is-scrolled' : ''}`}>
       <div className="flex flex-col gap-5 min-h-0 flex-1">
         {/* App Branding Header */}
         <div className="px-1 py-1 flex justify-start">
