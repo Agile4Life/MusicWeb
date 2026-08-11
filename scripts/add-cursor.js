@@ -202,7 +202,7 @@ function getAllFiles(dirPath, arrayOfFiles = []) {
 const allFiles = getAllFiles(sourceFolder);
 
 const fileMap = {
-  Normal: allFiles.find(f => /Normal/i.test(f) && /\.(ani|cur|png)$/i.test(f)),
+  Normal: allFiles.find(f => /Normal/i.test(f) && /\.(ani|cur|png)$/i.test(f)) || allFiles.find(f => !/(link|working|busy|loading|text|help|unavailable|handwriting|move|diagonal|horizontal|vertical|person|precision|location|alternate)/i.test(f) && /\.(ani|cur|png)$/i.test(f)),
   Link: allFiles.find(f => /Link/i.test(f) && /\.(ani|cur|png)$/i.test(f)),
   Working: allFiles.find(f => /(Working|Busy|Loading)/i.test(f) && /\.(ani|cur|png)$/i.test(f)),
   Busy: allFiles.find(f => /(Busy|Loading|Working)/i.test(f) && /\.(ani|cur|png)$/i.test(f)),

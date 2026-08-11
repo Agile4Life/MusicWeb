@@ -64,6 +64,15 @@ export const CURSOR_CONFIGS: CursorConfig[] = [
     shadowClass: 'shadow-[0_0_12px_rgba(245,158,11,0.3)]',
   },
   {
+    id: 'spider-man',
+    name: 'Spider-Man',
+    desc: 'Marvel Superhero',
+    themeColor: 'emerald',
+    bgClass: 'bg-emerald-500/15',
+    borderClass: 'border-emerald-500/30',
+    shadowClass: 'shadow-[0_0_12px_rgba(16,185,129,0.3)]',
+  },
+  {
     id: 'default',
     name: 'Hệ thống (Default)',
     desc: 'Con trỏ mặc định',
