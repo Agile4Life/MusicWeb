@@ -189,7 +189,6 @@ export function NowPlayingOverlay() {
               value={currentTime}
               onChange={(e) => seek(Number(e.target.value))}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-              title="Kéo để tua nhạc"
             />
           </div>
           <span className="progress-time">
@@ -214,7 +213,7 @@ export function NowPlayingOverlay() {
           </div>
 
           {/* Center: Shuffle, Prev, Main Play (56px), Next, Repeat */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-5">
             <button
               onClick={toggleShuffle}
               className={`p-2.5 rounded-full transition-all ${
@@ -269,11 +268,11 @@ export function NowPlayingOverlay() {
           </div>
 
           {/* Right: Volume Control (Matching Progress Bar Style) */}
-          <div className="hidden sm:flex items-center gap-2">
-            <button onClick={handleVolumeToggle} className="text-slate-400 hover:text-white p-0.5" title={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}>
+          <div className="hidden sm:flex items-center gap-2.5">
+            <button onClick={handleVolumeToggle} className="text-slate-400 hover:text-white p-0.5 shrink-0" title={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}>
               {volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </button>
-            <div className="volume-track-wrapper w-24">
+            <div className="volume-track-wrapper w-24 ml-0.5">
               <div className="volume-track">
                 <div className="volume-fill" style={{ width: `${volume * 100}%` }} />
                 <div className="volume-thumb" style={{ left: `${volume * 100}%` }} />
@@ -286,7 +285,6 @@ export function NowPlayingOverlay() {
                 value={volume}
                 onChange={(e) => setVolume(Number(e.target.value))}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                title="Chỉnh âm lượng"
               />
             </div>
           </div>

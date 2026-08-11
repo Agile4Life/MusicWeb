@@ -524,7 +524,7 @@ input[type='range']:hover::-moz-range-thumb {
   display: flex;
   align-items: center;
   width: 80px;
-  padding: 8px 0;
+  padding: 8px 6px;
   cursor: pointer;
 }
 .volume-track {

@@ -820,15 +820,15 @@ export function PlayerBar() {
 
           <div className="h-4 w-[1px] bg-white/10" />
 
-          <div className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-2.5 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1" onClick={(e) => e.stopPropagation()}>
             <button
               onClick={(e) => { e.stopPropagation(); handleVolumeToggle() }}
-              className="text-slate-400 hover:text-white transition-colors p-0.5"
+              className="text-slate-400 hover:text-white transition-colors p-0.5 shrink-0"
               title={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}
             >
               {volume === 0 ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
             </button>
-            <div className="volume-track-wrapper w-16 md:w-20">
+            <div className="volume-track-wrapper w-16 md:w-20 ml-0.5">
               <div className="volume-track">
                 <div className="volume-fill" style={{ width: `${volume * 100}%` }} />
                 <div className="volume-thumb" style={{ left: `${volume * 100}%` }} />
@@ -841,7 +841,6 @@ export function PlayerBar() {
                 value={volume}
                 onChange={(e) => setVolume(Number(e.target.value))}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                title="Chỉnh âm lượng"
               />
             </div>
           </div>

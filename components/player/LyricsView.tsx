@@ -546,7 +546,6 @@ export function LyricsView({ onClose, isModal = false, showControls = true, show
                   value={volume}
                   onChange={(e) => setVolume(Number(e.target.value))}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                  title="Chỉnh âm lượng"
                 />
               </div>
             </div>
