@@ -332,7 +332,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           track.title?.match(/\.(flac|mp3|wav|m4a|aac|ogg|wma)(?:[?#]|$)/i)?.[1]?.toLowerCase() ||
           ''
         const filenameParam = ext ? `&filename=${encodeURIComponent(`stream.${ext}`)}` : ''
-        return `/api/drive-stream?id=${encodeURIComponent(driveFileId)}${filenameParam}`
+        return `/api/drive-stream?id=${encodeURIComponent(driveFileId)}${filenameParam}&proxy=true`
       }
 
       let rawUrl: string | null = null
@@ -1148,6 +1148,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           return
         }
         setIsPlaying(true)
+        setIsBuffering(false)
         return
       } catch (err: any) {
         if (err?.name === 'AbortError' || String(err).includes('interrupted')) {
@@ -1197,6 +1198,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               try { ytPlayerRef.current.playVideo() } catch {}
             }
             setIsPlaying(true)
+            setIsBuffering(false)
           } catch (e) {
             console.warn('YT loadVideoById error:', e)
           }
@@ -1208,6 +1210,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     } else {
       if (requestId === playRequestRef.current) {
         setIsPlaying(false)
+        setIsBuffering(false)
         setPlaybackError(`Bài hát "${activeTrack.title}" không hỗ trợ phát trực tiếp. Vui lòng chọn bài khác.`)
       }
     }
