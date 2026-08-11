@@ -719,13 +719,6 @@ input[type='range']:hover::-moz-range-thumb {
   box-shadow: 0 0 25px color-mix(in srgb, var(--spotify-glow, #22d3ee) 15%, transparent) !important;
 }
 
-.album-card,
-.search-input:hover,
-.search-input:focus {
-  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
-}
-
-.album-card:hover,
 .search-input:hover,
 .search-input:focus {
   border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 45%, transparent) !important;
@@ -734,6 +727,205 @@ input[type='range']:hover::-moz-range-thumb {
 .search-input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+/* ================================================================
+   Motion Tokens & GPU-Optimized Hover Effects
+   ================================================================ */
+:root {
+  --motion-fast: 160ms;
+  --motion-base: 240ms;
+  --motion-slow: 400ms;
+  --ease-out-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Staggered Entrance Animation */
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 3-Layer GPU-Optimized Media Card */
+.media-card {
+  position: relative;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: transform var(--motion-base) var(--ease-out-smooth), border-color var(--motion-base) var(--ease-out-smooth);
+  animation: card-in var(--motion-slow) var(--ease-out-smooth) backwards;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+
+.media-card:hover {
+  transform: translateY(-6px) scale(1.015);
+  will-change: transform;
+  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 40%, transparent);
+}
+
+/* Layer A: GPU Shadow Glow Layer via ::after */
+.media-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    0 14px 28px -8px color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, transparent),
+    0 4px 10px -4px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transition: opacity var(--motion-base) var(--ease-out-smooth);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.media-card:hover::after,
+.media-card:focus-visible::after {
+  opacity: 1;
+}
+
+/* Layer B: Border Glow Gradient via ::before */
+.media-card::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--spotify-glow, #22d3ee) 60%, transparent),
+    transparent 60%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity var(--motion-base) var(--ease-out-smooth);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.media-card:hover::before,
+.media-card:focus-visible::before {
+  opacity: 1;
+}
+
+/* Layer C: Cover Zoom, Overlay & Spring Play Button */
+.media-card .cover-img {
+  transition: transform var(--motion-slow) var(--ease-out-smooth);
+}
+
+.media-card:hover .cover-img {
+  transform: scale(1.06);
+}
+
+.media-card .cover-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 60%);
+  opacity: 0;
+  transition: opacity var(--motion-base) var(--ease-out-smooth);
+  pointer-events: none;
+}
+
+.media-card:hover .cover-overlay {
+  opacity: 1;
+}
+
+.media-card .play-btn {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--primary-spotify, #06b6d4);
+  color: #000000;
+  opacity: 0;
+  transform: scale(0.8) translateY(6px);
+  transition:
+    opacity var(--motion-fast) var(--ease-out-smooth),
+    transform var(--motion-fast) var(--ease-spring);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--spotify-glow, #22d3ee) 50%, transparent);
+}
+
+.media-card:hover .play-btn,
+.media-card:focus-visible .play-btn {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.media-card .card-title {
+  transition: color var(--motion-base) var(--ease-out-smooth);
+}
+
+.media-card:hover .card-title {
+  color: var(--spotify-glow, #22d3ee);
+}
+
+/* Track Row / List Hover Effects */
+.recent-row {
+  position: relative;
+  border-radius: 12px;
+  transition: background-color var(--motion-fast) var(--ease-out-smooth);
+}
+
+.recent-row:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.recent-row::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3.5px;
+  border-radius: 4px;
+  background: var(--spotify-glow, #22d3ee);
+  transform: scaleY(0);
+  transition: transform var(--motion-fast) var(--ease-out-smooth);
+}
+
+.recent-row:hover::before {
+  transform: scaleY(1);
+}
+
+.recent-row .row-thumb {
+  transition: transform var(--motion-fast) var(--ease-out-smooth);
+}
+
+.recent-row:hover .row-thumb {
+  transform: scale(1.08);
+  will-change: transform;
+}
+
+/* Accessibility: Prefers Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .media-card,
+  .media-card::before,
+  .media-card::after,
+  .media-card .cover-img,
+  .media-card .cover-overlay,
+  .media-card .play-btn,
+  .media-card .card-title,
+  .recent-row,
+  .recent-row::before,
+  .recent-row .row-thumb {
+    transition: none !important;
+    animation: none !important;
+  }
+  .media-card:hover {
+    transform: none !important;
+  }
 }
 
 @media (max-width: 768px) {
