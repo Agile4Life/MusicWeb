@@ -557,9 +557,7 @@ input[type='range']:hover::-moz-range-thumb {
   pointer-events: none;
 }
 .volume-track-wrapper:hover .volume-thumb,
-.volume-track-wrapper.dragging .volume-thumb,
-.volume-track-wrapper:hover .volume-track,
-.volume-track-wrapper.dragging .volume-track {
+.volume-track-wrapper.dragging .volume-thumb {
   opacity: 1;
   transform: translate(-50%, -50%) scale(1);
 }
