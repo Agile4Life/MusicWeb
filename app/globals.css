@@ -123,8 +123,8 @@ body {
   position: fixed;
   top: 0;
   left: 0;
-  width: 64px;
-  height: 64px;
+  width: 38px;
+  height: 38px;
   pointer-events: none;
   z-index: 9999;
   will-change: transform;
@@ -550,4 +550,3 @@ input[type='range']:hover::-moz-range-thumb {
   opacity: 1;
   pointer-events: auto;
 }
-

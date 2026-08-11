@@ -10,6 +10,8 @@ import { isAllowedToLogin, markEmailAsAllowed, checkServerApproval } from '@/lib
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { LanguageSelector } from '@/components/i18n/LanguageSelector'
 import { FloatingMusicNotes } from './FloatingMusicNotes'
+import { scheduleAuthRedirect } from './authNavigation'
+import { createPasswordSession } from './passwordSession'
 import { Lock, Mail, Loader2, AlertCircle, CheckCircle2, Headphones, Eye, EyeOff, ShieldAlert, Key, X, Send } from 'lucide-react'
 
 interface AuthFormProps {
@@ -238,9 +240,7 @@ export function AuthForm({ mode }: AuthFormProps) {
 
         if (data.session) {
           setSuccessMsg('Đăng ký thành công! Đang chuyển hướng...')
-          setTimeout(() => {
-            window.location.href = '/'
-          }, 1000)
+          scheduleAuthRedirect(router, 1000)
         } else {
           setSuccessMsg(
             'Đăng ký thành công! Bạn có thể đăng nhập ngay hoặc kiểm tra email nếu yêu cầu xác nhận.'
@@ -251,7 +251,7 @@ export function AuthForm({ mode }: AuthFormProps) {
           }, 2500)
         }
       } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email: authEmail,
           password,
         })
@@ -269,9 +269,12 @@ export function AuthForm({ mode }: AuthFormProps) {
         }
 
         setSuccessMsg('Đăng nhập thành công! Đang chuyển hướng...')
-        setTimeout(() => {
-          window.location.href = '/'
-        }, 800)
+        if (!signInData.session?.access_token) {
+          throw new Error('KhÃ´ng thá»ƒ táº¡o phiÃªn Ä‘Äƒng nháº­p. Vui lÃ²ng thá»­ láº¡i!')
+        }
+
+        await createPasswordSession(signIn, authEmail, signInData.session.access_token)
+        scheduleAuthRedirect(router, 800)
       }
     } catch (err: any) {
       console.error('Auth action failed:', err)

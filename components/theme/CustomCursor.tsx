@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from 'react'
 import lottie, { type AnimationItem } from 'lottie-web'
+import { createCursorAnimationOptions, getCursorTransform, restartCursorAnimation } from './customCursorBehavior'
 
 export function CustomCursor() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -13,13 +14,7 @@ export function CustomCursor() {
     const container = containerRef.current
     if (!container) return
 
-    const anim = lottie.loadAnimation({
-      container,
-      renderer: 'svg',
-      loop: false,
-      autoplay: false,
-      path: '/icons8-cursor.json',
-    })
+    const anim = lottie.loadAnimation(createCursorAnimationOptions(container))
     animRef.current = anim
     anim.goToAndStop(0, true)
 
@@ -36,12 +31,12 @@ export function CustomCursor() {
     }
 
     const onMouseDown = () => {
-      anim.goToAndPlay(0, true)
+      restartCursorAnimation(anim)
     }
 
     const renderLoop = () => {
       if (container) {
-        container.style.transform = `translate(${mouseX - 4}px, ${mouseY - 4}px)`
+        container.style.transform = getCursorTransform(mouseX, mouseY)
       }
       frameId = requestAnimationFrame(renderLoop)
     }
