@@ -5,6 +5,7 @@ import { usePlayer, usePlaybackProgress } from './PlayerContext'
 import { NowPlayingStage } from './NowPlayingStage'
 import { LyricsView } from './LyricsView'
 import { MiniEqualizer } from './MiniEqualizer'
+import { AudioWaveformScrubber } from './AudioWaveformScrubber'
 import {
   ChevronDown,
   Play,
@@ -165,35 +166,15 @@ export function NowPlayingOverlay() {
 
       {/* 🎛️ Bottom Control Bar (Full-width) */}
       <div className="relative z-30 px-6 py-4 bg-black/60 backdrop-blur-2xl border-t border-white/10 shrink-0 flex flex-col gap-3">
-        {/* Progress Bar Flex Row (Unified Single Row) */}
-        <div className="progress-row max-w-4xl mx-auto">
-          <span className="progress-time text-right">
-            {Math.floor(currentTime / 60)}:{(Math.floor(currentTime % 60) < 10 ? '0' : '') + Math.floor(currentTime % 60)}
-          </span>
-          <div className="progress-track-wrapper">
-            <div className="progress-track">
-              <div
-                className="progress-fill"
-                style={{ width: `${Math.min(100, Math.max(0, (currentTime / (duration || currentTrack.duration || 1)) * 100))}%` }}
-              />
-              <div
-                className="progress-thumb"
-                style={{ left: `${Math.min(100, Math.max(0, (currentTime / (duration || currentTrack.duration || 1)) * 100))}%` }}
-              />
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={duration || currentTrack.duration || 1}
-              step={0.1}
-              value={currentTime}
-              onChange={(e) => seek(Number(e.target.value))}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-            />
-          </div>
-          <span className="progress-time">
-            {Math.floor((duration || currentTrack.duration || 0) / 60)}:{(Math.floor((duration || currentTrack.duration || 0) % 60) < 10 ? '0' : '') + Math.floor((duration || currentTrack.duration || 0) % 60)}
-          </span>
+        {/* Progress Bar Flex Row (Unified AudioWaveformScrubber) */}
+        <div className="w-full max-w-4xl mx-auto px-2">
+          <AudioWaveformScrubber
+            currentTime={currentTime}
+            duration={duration || currentTrack.duration || 0}
+            isPlaying={isPlaying}
+            trackId={currentTrack.id}
+            onSeek={seek}
+          />
         </div>
 
         {/* Playback Controls Row */}

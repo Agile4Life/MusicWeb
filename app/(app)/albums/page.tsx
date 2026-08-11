@@ -12,9 +12,10 @@ import { HeroCardSkeleton } from '@/components/common/SkeletonLoader'
 
 interface AlbumCardProps {
   album: SpotifyAlbumItem
+  index?: number
 }
 
-function AlbumCard({ album }: AlbumCardProps) {
+function AlbumCard({ album, index = 0 }: AlbumCardProps) {
   const { playTrack } = usePlayer()
   const albumDetailCacheRef = useRef(new Map<string, { detail: { tracks: Track[] } | null; at: number }>())
   const releaseYear = album.release_date ? album.release_date.split('-')[0] : ''
@@ -357,8 +358,8 @@ export default function AlbumsPage() {
             </div>
           ) : filteredSearch.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-5">
-              {filteredSearch.map((album) => (
-                <AlbumCard key={album.id} album={album} />
+              {filteredSearch.map((album, idx) => (
+                <AlbumCard key={album.id} album={album} index={idx} />
               ))}
             </div>
           ) : (
@@ -387,8 +388,8 @@ export default function AlbumsPage() {
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-5">
-                {filteredListened.map((album) => (
-                  <AlbumCard key={album.id} album={album} />
+                {filteredListened.map((album, idx) => (
+                  <AlbumCard key={album.id} album={album} index={idx} />
                 ))}
               </div>
             </div>
@@ -410,8 +411,8 @@ export default function AlbumsPage() {
 
             {filteredNew.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-5">
-                {filteredNew.map((album) => (
-                  <AlbumCard key={album.id} album={album} />
+                {filteredNew.map((album, idx) => (
+                  <AlbumCard key={album.id} album={album} index={idx} />
                 ))}
               </div>
             ) : (
