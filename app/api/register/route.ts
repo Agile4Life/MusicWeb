@@ -96,8 +96,10 @@ export async function POST(req: NextRequest) {
       .from('roles')
       .upsert({ email: authEmail, role: 'user', roleApproved: true }, { onConflict: 'email' })
 
-    // --- Notify admin (fire-and-forget) ---
-    notifyAdmin(username, authEmail, realEmail).catch(() => {})
+    // --- Notify admin (fire-and-forget with error logging) ---
+    notifyAdmin(username, authEmail, realEmail).catch((err) => {
+      console.warn('[REGISTER NOTIFY] Error sending notification email:', err?.message || err)
+    })
 
     return NextResponse.json({ ok: true, authEmail, userId, username })
   } catch (err: any) {

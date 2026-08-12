@@ -117,7 +117,7 @@ function isPreviewUrl(filePath: string): boolean {
     lower.includes('dzcdn.net')
 }
 
-// ── Server-side full resolution (Drive → NCT → YouTube) ────────────
+// ── Server-side full resolution (Drive ‖ NCT ‖ YouTube — chạy SONG SONG) ────
 async function resolveStream(
   title: string,
   artist: string,
@@ -128,106 +128,108 @@ async function resolveStream(
   const cleanArtist = normalizeTitle(artist)
   const queryStr = `${title.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').trim()} ${artist}`.trim()
 
-  // === 1. Drive lookup (query Supabase tracks table) ===
-  if (supabase && cleanTitle) {
+  // === Drive: tách logic cũ thành hàm riêng, không đổi nội dung xử lý ===
+  async function tryDrive(): Promise<L1Entry | null> {
+    if (!supabase || !cleanTitle) return null
     try {
       const { data: localMatches } = await supabase
         .from('tracks')
         .select('*')
         .or(`title.ilike.%${cleanTitle}%,artist.ilike.%${cleanTitle}%`)
         .limit(10)
-      if (localMatches && localMatches.length > 0) {
-        for (const lt of localMatches as any[]) {
-          if (!lt.file_path || isPreviewUrl(lt.file_path)) continue
-          const ltTitle = normalizeTitle(lt.title)
-          const ltArtist = normalizeTitle(lt.artist || '')
-          const titleMatches = ltTitle.includes(cleanTitle) || cleanTitle.includes(ltTitle)
-          const artistMatches = !cleanArtist || ltArtist.includes(cleanArtist) || cleanArtist.includes(ltArtist)
-          if (titleMatches && artistMatches) {
-            const driveId = lt.drive_file_id || extractDriveFileId(lt.file_path)
-            const isPlayableDrive = driveId || (
-              lt.file_path?.startsWith('http') &&
-              !isPreviewUrl(lt.file_path) &&
-              (lt.file_path.includes('drive.google') || lt.file_path.includes('googleusercontent') || /\.(mp3|flac|m4a|wav|aac|ogg)(?:[?#]|$)/i.test(lt.file_path))
-            )
-            if (isPlayableDrive) {
-              return {
-                source: 'drive',
-                resolvedId: lt.file_path || lt.id,
-                title: lt.title,
-                artist: lt.artist,
-                duration: lt.duration,
-                coverUrl: lt.cover_url,
-                isMiss: false,
-                expiresAt: Date.now() + L1_HIT_TTL,
-              }
-            }
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('Drive track lookup error in resolve-stream:', e)
-    }
-  }
+      if (!localMatches || localMatches.length === 0) return null
 
-  // === 2. NhacCuaTui search + match (reuse existing matching logic) ===
-  try {
-    const nctCandidates = await searchNctServer(queryStr)
-    if (nctCandidates.length > 0) {
-      const match = findBestNhacCuaTuiMatch(nctCandidates, {
-        title,
-        artist,
-        duration,
-      })
-      if (match) {
-        const song = await fetchNctSong(match.id)
-        if (song) {
+      for (const lt of localMatches as any[]) {
+        if (!lt.file_path || isPreviewUrl(lt.file_path)) continue
+        const ltTitle = normalizeTitle(lt.title)
+        const ltArtist = normalizeTitle(lt.artist || '')
+        const titleMatches = ltTitle.includes(cleanTitle) || cleanTitle.includes(ltTitle)
+        const artistMatches = !cleanArtist || ltArtist.includes(cleanArtist) || cleanArtist.includes(ltArtist)
+        if (!titleMatches || !artistMatches) continue
+
+        const driveId = lt.drive_file_id || extractDriveFileId(lt.file_path)
+        const isPlayableDrive = driveId || (
+          lt.file_path?.startsWith('http') &&
+          !isPreviewUrl(lt.file_path) &&
+          (lt.file_path.includes('drive.google') || lt.file_path.includes('googleusercontent') || /\.(mp3|flac|m4a|wav|aac|ogg)(?:[?#]|$)/i.test(lt.file_path))
+        )
+        if (isPlayableDrive) {
           return {
-            source: 'nhaccuatui',
-            resolvedId: song.id,
-            title: song.title,
-            artist: song.artist,
-            duration: song.duration ?? undefined,
+            source: 'drive',
+            resolvedId: lt.file_path || lt.id,
+            title: lt.title,
+            artist: lt.artist,
+            duration: lt.duration,
+            coverUrl: lt.cover_url,
             isMiss: false,
             expiresAt: Date.now() + L1_HIT_TTL,
           }
         }
       }
+      return null
+    } catch (e) {
+      console.warn('Drive track lookup error in resolve-stream:', e)
+      return null
     }
-  } catch (e) {
-    console.warn('NCT resolution error in resolve-stream:', e)
   }
 
-  // === 3. YouTube search + match ===
-  try {
-    let ytCandidates = await searchYouTubeTracks(queryStr, 10)
-    let best = findBestYouTubeMatch(ytCandidates, title, artist, duration)
-
-    if (!best && cleanTitle) {
-      const fallbackQuery = `${cleanTitle} ${cleanArtist} audio`.trim()
-      const fallbackCandidates = await searchYouTubeTracks(fallbackQuery, 10)
-      if (fallbackCandidates.length > 0) {
-        ytCandidates = fallbackCandidates
-        best = findBestYouTubeMatch(ytCandidates, title, artist, duration)
+  // === NCT: tách logic cũ thành hàm riêng, không đổi nội dung xử lý ===
+  async function tryNct(): Promise<L1Entry | null> {
+    try {
+      const nctCandidates = await searchNctServer(queryStr)
+      if (nctCandidates.length === 0) return null
+      const match = findBestNhacCuaTuiMatch(nctCandidates, { title, artist, duration })
+      if (!match) return null
+      const song = await fetchNctSong(match.id)
+      if (!song) return null
+      return {
+        source: 'nhaccuatui',
+        resolvedId: song.id,
+        title: song.title,
+        artist: song.artist,
+        duration: song.duration ?? undefined,
+        isMiss: false,
+        expiresAt: Date.now() + L1_HIT_TTL,
       }
+    } catch (e) {
+      console.warn('NCT resolution error in resolve-stream:', e)
+      return null
     }
+  }
 
-    if (!best && cleanTitle) {
-      const fallbackQuery2 = `${cleanTitle} ${cleanArtist}`.trim()
-      const fallbackCandidates2 = await searchYouTubeTracks(fallbackQuery2, 10)
-      if (fallbackCandidates2.length > 0) {
-        ytCandidates = fallbackCandidates2
-        best = findBestYouTubeMatch(ytCandidates, title, artist, duration)
+  // === YouTube: gộp 3 lượt query fallback thành SONG SONG thay vì tuần tự ===
+  async function tryYoutube(): Promise<L1Entry | null> {
+    try {
+      const queries = [queryStr]
+      if (cleanTitle) {
+        queries.push(`${cleanTitle} ${cleanArtist} audio`.trim())
+        queries.push(`${cleanTitle} ${cleanArtist}`.trim())
       }
-    }
 
-    // Fallback: If search returned candidates but strict scoring filtered them out,
-    // pick the top candidate so the track can still be played!
-    if (!best && ytCandidates.length > 0) {
-      best = ytCandidates[0]
-    }
+      const results = await Promise.allSettled(
+        queries.map((q) => searchYouTubeTracks(q, 10))
+      )
 
-    if (best?.youtube_id) {
+      // Gộp candidate từ mọi query thành công, loại trùng theo youtube_id
+      const seen = new Set<string>()
+      const allCandidates: any[] = []
+      for (const r of results) {
+        if (r.status === 'fulfilled') {
+          for (const c of r.value) {
+            if (c.youtube_id && !seen.has(c.youtube_id)) {
+              seen.add(c.youtube_id)
+              allCandidates.push(c)
+            }
+          }
+        }
+      }
+
+      let best = findBestYouTubeMatch(allCandidates, title, artist, duration)
+      if (!best && allCandidates.length > 0) {
+        best = allCandidates[0]
+      }
+
+      if (!best?.youtube_id) return null
       return {
         source: 'youtube',
         resolvedId: best.youtube_id,
@@ -237,12 +239,29 @@ async function resolveStream(
         isMiss: false,
         expiresAt: Date.now() + L1_HIT_TTL,
       }
+    } catch (e) {
+      console.warn('YouTube resolution error in resolve-stream:', e)
+      return null
     }
-  } catch (e) {
-    console.warn('YouTube resolution error in resolve-stream:', e)
   }
 
-  // === Miss ===
+  // === Khởi động CẢ 3 song song ngay từ đầu ===
+  const drivePromise = tryDrive()
+  const nctPromise = tryNct()
+  const ytPromise = tryYoutube()
+
+  // Await theo ĐÚNG thứ tự ưu tiên cũ — nhưng vì cả 3 đã chạy song song từ trước,
+  // việc await promise đầu tiên không làm chậm các promise sau.
+  const driveResult = await drivePromise
+  if (driveResult) return driveResult
+
+  const nctResult = await nctPromise
+  if (nctResult) return nctResult
+
+  const ytResult = await ytPromise
+  if (ytResult) return ytResult
+
+  // === Miss — cả 3 nguồn đều không tìm được ===
   return {
     source: null,
     resolvedId: null,
