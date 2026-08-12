@@ -6,11 +6,13 @@ import { createClient } from '@/lib/supabase/client'
 
 interface CurrentUserContextType {
   userEmail: string | null
+  username: string | null
   loading: boolean
 }
 
 const CurrentUserContext = createContext<CurrentUserContextType>({
   userEmail: null,
+  username: null,
   loading: true,
 })
 
@@ -24,6 +26,14 @@ export function CurrentUserProvider({ children }: { children: React.ReactNode })
     if (nextAuthStatus === 'loading') return
 
     if (nextAuthStatus === 'authenticated' && nextAuthSession?.user?.email) {
+      // If Google login produced a linked Supabase session, establish it client-side
+      const accessToken = (nextAuthSession as any).supabaseAccessToken
+      const refreshToken = (nextAuthSession as any).supabaseRefreshToken
+      if (accessToken && refreshToken) {
+        const supabase = createClient()
+        supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).catch(() => {})
+      }
+
       setSupabaseEmail(nextAuthSession.user.email)
       setLoading(false)
       return
@@ -41,9 +51,10 @@ export function CurrentUserProvider({ children }: { children: React.ReactNode })
   }, [nextAuthStatus, nextAuthSession])
 
   const userEmail = nextAuthSession?.user?.email || supabaseEmail
+  const username = (nextAuthSession?.user as any)?.username || null
 
   return (
-    <CurrentUserContext.Provider value={{ userEmail, loading }}>
+    <CurrentUserContext.Provider value={{ userEmail, loading, username }}>
       {children}
     </CurrentUserContext.Provider>
   )

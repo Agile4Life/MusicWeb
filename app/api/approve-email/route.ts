@@ -3,11 +3,9 @@ import { createClient } from '@supabase/supabase-js'
 
 /**
  * Server-side persistent account approval + auto email confirmation.
- * 1. Upserts the email into the Supabase `roles` table (roleApproved = true) so the
- *    NextAuth signIn callback accepts the account from ANY browser/device.
- * 2. Auto-confirms the Supabase Auth user (email_confirm = true) when a service-role
- *    key is configured, so a freshly registered account can log in immediately
- *    without clicking an email confirmation link.
+ * Accepts either:
+ *   - { email, userId } — confirm by known userId (fast, used on registration)
+ *   - { email }         — look up userId via admin API then confirm (used on login retry)
  */
 export async function POST(req: NextRequest) {
   try {
@@ -29,30 +27,55 @@ export async function POST(req: NextRequest) {
     const supabase = createClient(url, key, { auth: { persistSession: false } })
 
     // 1. Persist approval in roles table
-    const { error } = await supabase
+    const { error: upsertError } = await supabase
       .from('roles')
       .upsert({ email, role: 'user', roleApproved: true }, { onConflict: 'email' })
 
-    if (error) {
-      console.warn('[APPROVE EMAIL] Upsert failed:', error.message)
+    if (upsertError) {
+      console.warn('[APPROVE EMAIL] Upsert failed:', upsertError.message)
     }
 
-    // 2. Auto-confirm the newly registered auth user (requires service role key)
+    // 2. Auto-confirm the auth user (requires service role key)
     let confirmed = false
-    if (serviceKey && userId) {
-      try {
-        const adminClient = createClient(url, serviceKey, { auth: { persistSession: false } })
-        const { error: confirmErr } = await adminClient.auth.admin.updateUserById(userId, {
-          email_confirm: true,
-        })
-        if (!confirmErr) {
-          confirmed = true
-          console.log('[APPROVE EMAIL] Auto-confirmed email for:', email)
-        } else {
-          console.warn('[APPROVE EMAIL] Auto-confirm failed:', confirmErr.message)
+    if (serviceKey) {
+      const adminClient = createClient(url, serviceKey, { auth: { persistSession: false } })
+
+      // Resolve userId: use provided one, or look up by email
+      let targetUserId = userId || ''
+      if (!targetUserId) {
+        try {
+          // List users filtered by email to find the userId
+          const { data: listData, error: listErr } = await adminClient.auth.admin.listUsers({
+            page: 1,
+            perPage: 1000,
+          })
+          if (!listErr && listData?.users) {
+            const found = listData.users.find(
+              (u) => u.email?.trim().toLowerCase() === email
+            )
+            if (found) targetUserId = found.id
+          }
+        } catch (err) {
+          console.warn('[APPROVE EMAIL] User lookup failed (non-fatal):', err)
         }
-      } catch (err) {
-        console.warn('[APPROVE EMAIL] Auto-confirm error:', err)
+      }
+
+      if (targetUserId) {
+        try {
+          const { error: confirmErr } = await adminClient.auth.admin.updateUserById(targetUserId, {
+            email_confirm: true,
+          })
+          if (!confirmErr) {
+            confirmed = true
+            console.log('[APPROVE EMAIL] Auto-confirmed email for:', email)
+          } else {
+            console.warn('[APPROVE EMAIL] Auto-confirm failed:', confirmErr.message)
+          }
+        } catch (err) {
+          console.warn('[APPROVE EMAIL] Auto-confirm error:', err)
+        }
+      } else {
+        console.warn('[APPROVE EMAIL] Could not resolve userId for:', email)
       }
     }
 
