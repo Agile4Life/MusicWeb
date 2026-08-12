@@ -33,6 +33,7 @@ export function AudioWaveformScrubber({
   const [showRemaining, setShowRemaining] = useState<boolean>(false)
 
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const rafRef = useRef<number | null>(null)
 
   const safeDuration = effectiveDuration > 0 ? effectiveDuration : 0.0001
   const progressRatio = safeDuration > 1 ? Math.min(Math.max(0, currentTime / safeDuration), 1) : 0
@@ -40,17 +41,27 @@ export function AudioWaveformScrubber({
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (!containerRef.current) return
-      const rect = containerRef.current.getBoundingClientRect()
-      const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width))
-      const ratio = x / rect.width
-      const calculatedTime = ratio * effectiveDuration
+      const clientX = e.clientX
 
-      setHoverX(x)
-      setHoverTime(calculatedTime)
-
-      if (isDragging && effectiveDuration > 0) {
-        onSeek(calculatedTime)
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current)
       }
+
+      rafRef.current = requestAnimationFrame(() => {
+        if (!containerRef.current) return
+        const rect = containerRef.current.getBoundingClientRect()
+        if (rect.width === 0) return
+        const x = Math.max(0, Math.min(clientX - rect.left, rect.width))
+        const ratio = x / rect.width
+        const calculatedTime = ratio * effectiveDuration
+
+        setHoverX(x)
+        setHoverTime(calculatedTime)
+
+        if (isDragging && effectiveDuration > 0) {
+          onSeek(calculatedTime)
+        }
+      })
     },
     [effectiveDuration, isDragging, onSeek]
   )
@@ -66,6 +77,9 @@ export function AudioWaveformScrubber({
   }
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current)
+    }
     try {
       e.currentTarget.releasePointerCapture(e.pointerId)
     } catch {}

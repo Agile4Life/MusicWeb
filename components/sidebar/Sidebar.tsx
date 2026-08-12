@@ -27,6 +27,7 @@ import { useSession, signOut } from 'next-auth/react'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
+import { useSearch } from '@/components/search/SearchContext'
 import { ImportSpotifyModal } from '@/components/playlist/ImportSpotifyModal'
 import { ImportYouTubePlaylistModal } from '@/components/playlist/ImportYouTubePlaylistModal'
 import { YoutubeIcon } from '@/components/icons/YoutubeIcon'
@@ -39,6 +40,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
   const { data: nextAuthSession } = useSession()
   const { userEmail } = useCurrentUser()
   const { playlists, loading: creating, createPlaylist, deletePlaylist } = usePlaylists()
+  const { clearSearch } = useSearch()
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [isYtImportModalOpen, setIsYtImportModalOpen] = useState(false)
 
@@ -62,6 +64,10 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
     setIndicator: React.Dispatch<React.SetStateAction<{ top: number; height: number; opacity: number }>>
   ) => {
     const el = e.currentTarget
+    if (el.classList.contains('active')) {
+      setIndicator((prev) => ({ ...prev, opacity: 0 }))
+      return
+    }
     setIndicator({
       top: el.offsetTop,
       height: el.offsetHeight,
@@ -73,17 +79,6 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
     containerRef: React.RefObject<HTMLElement | HTMLDivElement | null>,
     setIndicator: React.Dispatch<React.SetStateAction<{ top: number; height: number; opacity: number }>>
   ) => {
-    if (containerRef.current) {
-      const activeItem = containerRef.current.querySelector('.sidebar-item.active') as HTMLElement | null
-      if (activeItem) {
-        setIndicator({
-          top: activeItem.offsetTop,
-          height: activeItem.offsetHeight,
-          opacity: 1,
-        })
-        return
-      }
-    }
     setIndicator((prev) => ({ ...prev, opacity: 0 }))
   }
 
@@ -101,31 +96,8 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
   }
 
   useEffect(() => {
-    if (exploreNavRef.current) {
-      const activeItem = exploreNavRef.current.querySelector('.sidebar-item.active') as HTMLElement | null
-      if (activeItem) {
-        setExploreIndicator({
-          top: activeItem.offsetTop,
-          height: activeItem.offsetHeight,
-          opacity: 1,
-        })
-      } else {
-        setExploreIndicator((prev) => ({ ...prev, opacity: 0 }))
-      }
-    }
-
-    if (playlistNavRef.current) {
-      const activeItem = playlistNavRef.current.querySelector('.sidebar-item.active') as HTMLElement | null
-      if (activeItem) {
-        setPlaylistIndicator({
-          top: activeItem.offsetTop,
-          height: activeItem.offsetHeight,
-          opacity: 1,
-        })
-      } else {
-        setPlaylistIndicator((prev) => ({ ...prev, opacity: 0 }))
-      }
-    }
+    setExploreIndicator((prev) => ({ ...prev, opacity: 0 }))
+    setPlaylistIndicator((prev) => ({ ...prev, opacity: 0 }))
   }, [pathname, playlists])
 
   const user = userEmail
@@ -167,13 +139,16 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
   }
 
   return (
-    <aside className={`app-sidebar hidden md:flex w-64 bg-[#090b10] flex-col justify-between p-3.5 h-full select-none text-slate-300 rounded-2xl border border-white/[0.05] panel-theme-hover shrink-0 ${isScrolled ? 'is-scrolled' : ''}`}>
+    <aside className={`app-sidebar hidden md:flex w-64 bg-[var(--elevation-1-bg)] flex-col justify-between p-3.5 h-full select-none text-slate-300 rounded-2xl border border-white/[0.06] panel-theme-hover shrink-0 z-10 shadow-[4px_0_24px_rgba(0,0,0,0.4)] ${isScrolled ? 'is-scrolled' : ''}`}>
       <div className="flex flex-col gap-5 min-h-0 flex-1">
         {/* App Branding Header */}
         <div className="px-1 py-1 flex justify-start">
           <Link
             href="/"
-            onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
+            onClick={() => {
+              clearSearch()
+              window.dispatchEvent(new Event('musicweb-tab-home'))
+            }}
             className="inline-flex items-center gap-2.5 px-3 py-2 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-[var(--spotify-glow)]/30 transition-all duration-200 group shadow-md backdrop-blur-xl w-fit shrink-0"
           >
             <div
@@ -220,6 +195,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
             prefetch={false}
             onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
             onClick={(e) => {
+              clearSearch()
               window.dispatchEvent(new Event('musicweb-tab-home'))
               handleItemClick(e)
             }}

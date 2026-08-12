@@ -81,7 +81,7 @@ export function TopBar() {
   }
 
   return (
-    <header className="sticky top-0 z-20 h-14 sm:h-16 md:h-18 px-3 sm:px-4 md:px-8 py-2 md:py-3 bg-[#10131c]/90 backdrop-blur-xl border-b border-white/[0.06] flex items-center justify-between gap-2.5 sm:gap-4 select-none">
+    <header className="sticky top-0 z-20 h-14 sm:h-16 md:h-18 px-3 sm:px-4 md:px-8 py-2 md:py-3 bg-[var(--elevation-1-bg)]/90 backdrop-blur-xl border-b border-white/[0.06] flex items-center justify-between gap-2.5 sm:gap-4 select-none shadow-[0_4px_16px_rgba(0,0,0,0.3)]">
       {/* Left Slot: Spacer balancing right side so search is centered */}
       <div className="w-36 md:w-48 shrink-0 hidden sm:block" />
 
@@ -102,7 +102,7 @@ export function TopBar() {
               if (searchQuery.trim()) setShowDropdown(true)
             }}
             placeholder="Tìm bài hát, nghệ sĩ..."
-            className="search-input w-full bg-white/[0.04] border border-white/[0.07] focus:bg-white/[0.06] rounded-full pl-9 sm:pl-10 pr-8 sm:pr-9 py-1.5 sm:py-2 text-xs text-white placeholder-slate-400 outline-none transition-all shadow-inner"
+            className="search-input w-full border border-white/[0.07] rounded-full pl-9 sm:pl-10 pr-8 sm:pr-9 py-1.5 sm:py-2 text-xs text-white placeholder-slate-400 outline-none transition-all"
           />
           {searchingGlobal ? (
             <Loader2 className="w-3.5 h-3.5 text-cyan-400 animate-spin absolute right-3" />
@@ -116,9 +116,9 @@ export function TopBar() {
           ) : null}
         </div>
 
-        {/* Suggestions Dropdown Popup */}
+        {/* Suggestions Dropdown Popup — Elevation Level 3 */}
         {showDropdown && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-[#0d1017] border border-white/10 rounded-2xl p-2 shadow-2xl z-50 flex flex-col gap-1 max-h-80 overflow-y-auto">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--elevation-3-bg)] border border-white/10 rounded-2xl p-2 shadow-2xl z-40 flex flex-col gap-1 max-h-80 overflow-y-auto">
             {searchingGlobal && suggestions.length === 0 ? (
               <div className="p-4 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />

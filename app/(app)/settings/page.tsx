@@ -69,12 +69,12 @@ export default function SettingsPage() {
       </div>
 
       {/* Theme Selection Section */}
-      <div className="bg-[#0d1017] p-4 sm:p-6 rounded-2xl border border-white/[0.06]">
+      <div className="bg-[var(--elevation-1-bg)] p-4 sm:p-6 rounded-2xl border border-white/[0.06]">
         <ThemeSelector />
       </div>
 
       {/* Language Selection Section */}
-      <div className="bg-[#0d1017] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-4">
+      <div className="bg-[var(--elevation-1-bg)] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-4">
         <div className="flex items-center gap-2 text-sm font-bold text-white border-b border-white/[0.05] pb-3">
           <Globe className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
           <span>{t('language_title')}</span>
@@ -89,7 +89,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Playback Options */}
-      <div className="bg-[#0d1017] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-5">
+      <div className="bg-[var(--elevation-1-bg)] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-5">
         <div className="flex items-center gap-2 text-sm font-bold text-white border-b border-white/[0.05] pb-3">
           <Volume2 className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
           <span>{t('audio_playback_title')}</span>
@@ -97,8 +97,8 @@ export default function SettingsPage() {
 
         <div className="flex items-center justify-between py-1">
           <div>
-            <p className="text-xs font-bold text-white">Tự động phát bài tiếp theo</p>
-            <p className="text-[11px] text-slate-400">Tự động phát bài kế tiếp khi hết danh sách</p>
+            <p className="text-xs font-bold text-white">{t('auto_play')}</p>
+            <p className="text-[11px] text-slate-400">{t('auto_play_desc')}</p>
           </div>
           <button
             onClick={() => {
@@ -120,7 +120,7 @@ export default function SettingsPage() {
       </div>
 
       {/* 🔔 Notifications / Thông báo từ Tác giả */}
-      <div className="bg-[#0d1017] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-4 relative overflow-hidden">
+      <div className="bg-[var(--elevation-1-bg)] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-4 relative overflow-hidden">
         <div className="flex items-center gap-2 text-sm font-bold text-white border-b border-white/[0.05] pb-3">
           <Bell className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
           <span>Notifications / Thông báo</span>

@@ -85,6 +85,22 @@
   --bottom-nav-height: 64px;
   --border-subtle: rgba(255, 255, 255, 0.08);
 
+  /* === Centralized HSL Elevation System Tokens === */
+  --base-h: 213;
+  --base-s: 74%;
+
+  --elevation-0-bg: hsl(var(--base-h) var(--base-s) 5%);
+  --elevation-1-bg: hsl(var(--base-h) var(--base-s) 8%);
+  --elevation-2-bg: hsl(var(--base-h) var(--base-s) 11%);
+  --elevation-3-bg: hsl(var(--base-h) var(--base-s) 15%);
+
+  --shadow-1: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-2: 0 8px 20px rgba(0, 0, 0, 0.35);
+  --shadow-3: 0 -8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-hover: 0 16px 32px rgba(0, 0, 0, 0.5);
+
+  --elevation-transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease;
+
   /* === Elevation Model Tokens (Fake 3D Layering) === */
   --elev-1-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
   --elev-2-shadow:
@@ -137,16 +153,17 @@
 /* === Elevation 3: Player Bar (Glassmorphism layer) === */
 .player-bar {
   z-index: 30;
-  background: rgba(8, 11, 18, 0.85);
-  backdrop-filter: blur(16px) saturate(120%);
-  -webkit-backdrop-filter: blur(16px) saturate(120%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  background: hsla(var(--base-h, 213) var(--base-s, 74%) 15% / 0.85);
+  backdrop-filter: blur(20px) saturate(120%);
+  -webkit-backdrop-filter: blur(20px) saturate(120%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: var(--shadow-3);
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .player-bar {
-    background: rgba(10, 14, 24, 0.98);
+    background: var(--elevation-3-bg);
   }
 }
 
@@ -458,19 +475,11 @@ input[type='range']:hover::-moz-range-thumb {
    Redesign: Song Rows (TrackList)
    ================================================================ */
 .song-row, .recent-row {
-  border-radius: var(--radius-control);
-  transition: transform 180ms var(--ease-out-quint), background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-}
-.song-row:hover, .recent-row:hover {
-  background: var(--bg-surface-2);
+  border-radius: var(--radius-control, 12px);
+  transition: transform 180ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 .song-row:active, .recent-row:active {
-  transform: scale(0.985) translateX(1px);
-}
-.song-row.is-playing {
-  background: var(--accent-dim);
-  border-left: 3px solid var(--accent);
-  border-radius: 0;
+  transform: scale(0.995);
 }
 
 /* ================================================================
@@ -901,6 +910,9 @@ input[type='range']:hover::-moz-range-thumb {
 .sidebar-item.active {
   color: var(--spotify-glow, #22d3ee);
   font-weight: 600;
+  background: color-mix(in srgb, var(--primary-spotify, #06b6d4) 15%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--primary-spotify, #06b6d4) 30%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary-spotify, #06b6d4) 25%, transparent);
 }
 
 .sidebar-item.active .icon,
@@ -939,30 +951,16 @@ input[type='range']:hover::-moz-range-thumb {
 }
 
 .search-input {
-  min-height: 44px;
+  min-height: 40px;
+  background: var(--elevation-0-bg) !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4) !important;
   border-radius: var(--radius-control);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
 }
 
-/* ================================================================
-   Theme-Adaptive Panel & Card Hover Glow Effects
-   ================================================================ */
-.panel-theme-hover {
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-.panel-theme-hover:hover {
-  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 30%, transparent) !important;
-  box-shadow: 0 0 25px color-mix(in srgb, var(--spotify-glow, #22d3ee) 15%, transparent) !important;
-}
-
-.search-input:hover,
 .search-input:focus {
-  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 45%, transparent) !important;
-  box-shadow: 0 0 20px color-mix(in srgb, var(--spotify-glow, #22d3ee) 20%, transparent) !important;
-}
-.search-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-dim);
+  border-color: var(--accent) !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 0 2px var(--accent-dim) !important;
 }
 
 /* ================================================================
@@ -992,15 +990,18 @@ input[type='range']:hover::-moz-range-thumb {
 .media-card {
   position: relative;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  transition: transform var(--motion-base) var(--ease-out-smooth), border-color var(--motion-base) var(--ease-out-smooth);
+  background: var(--elevation-2-bg);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: var(--shadow-1);
+  transition: var(--elevation-transition), border-color var(--motion-base) var(--ease-out-smooth);
 }
 
 .media-card:hover {
-  transform: translateY(-6px) scale(1.015);
+  transform: translateY(-4px) scale(1.015);
   will-change: transform;
   border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 40%, transparent);
+  box-shadow: var(--shadow-hover);
+  z-index: 1;
 }
 
 /* Layer A: GPU Shadow Glow Layer via ::after */
@@ -1112,24 +1113,23 @@ input[type='range']:hover::-moz-range-thumb {
   transition: background-color var(--motion-fast) var(--ease-out-smooth);
 }
 
-.recent-row:hover {
-  background-color: rgba(255, 255, 255, 0.06);
-}
-
 .recent-row::before {
   content: "";
   position: absolute;
   left: 0;
-  top: 4px;
-  bottom: 4px;
+  top: 8px;
+  bottom: 8px;
   width: 3.5px;
-  border-radius: 4px;
+  border-radius: 0 4px 4px 0;
   background: var(--spotify-glow, #22d3ee);
+  box-shadow: 0 0 8px var(--theme-glow-shadow, rgba(34, 211, 238, 0.6));
   transform: scaleY(0);
   transition: transform var(--motion-fast) var(--ease-out-smooth);
+  pointer-events: none;
+  z-index: 10;
 }
 
-.recent-row:hover::before {
+.recent-row:hover:not(.is-playing)::before {
   transform: scaleY(1);
 }
 
@@ -1297,6 +1297,51 @@ html[data-cursor="default"][data-buffering="true"] * {
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.35);
+}
+
+/* ==========================================
+   Hyper-3D Specification (v2) Utilities
+   ========================================== */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.preserve-3d,
+[transform-style="preserve-3d"] {
+  transform-style: preserve-3d;
+}
+
+.shadow-3d-raised {
+  box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.5), -4px -4px 12px rgba(255, 255, 255, 0.05);
+}
+
+.shadow-3d-pressed {
+  box-shadow: inset 4px 4px 8px rgba(0, 0, 0, 0.6), inset -4px -4px 8px rgba(255, 255, 255, 0.05);
+}
+
+/* Tactile 3D Button Controls */
+.btn-3d-tactile {
+  box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4), -2px -2px 6px rgba(255, 255, 255, 0.06);
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease;
+  will-change: transform;
+}
+
+.btn-3d-tactile:hover {
+  transform: translateY(-1px) scale(1.03);
+  box-shadow: 6px 6px 14px rgba(0, 0, 0, 0.5), -3px -3px 8px rgba(255, 255, 255, 0.08);
+}
+
+.btn-3d-tactile:active,
+.btn-3d-tactile.active-pressed {
+  transform: translateY(1px) scale(0.95);
+  box-shadow: inset 3px 3px 6px rgba(0, 0, 0, 0.6), inset -3px -3px 6px rgba(255, 255, 255, 0.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-3d-tactile {
+    transition: none !important;
+    transform: none !important;
+  }
 }
 
 

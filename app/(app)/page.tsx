@@ -11,6 +11,7 @@ import { deduplicateQueueTracks } from '@/lib/utils'
 import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
 import { resolveExternalTrackId, isExternalTrack, addTrackToPlaylist } from '@/lib/trackPersistence'
 import { toast } from '@/components/ui/ToastContext'
+import { TiltCard } from '@/components/common/TiltCard'
 import {
   Play,
   Upload,
@@ -120,11 +121,9 @@ export default function HomePage() {
     }
 
     const handleTabHome = () => {
-      if (pathname === '/' && window.location.hash !== '#drive') {
-        return
-      }
       setLibraryTab('recent')
       setSearchQuery('')
+      setShowAllResults(false)
       if (window.location.hash === '#drive') {
         history.replaceState(null, '', window.location.pathname + window.location.search)
       }
@@ -736,52 +735,60 @@ export default function HomePage() {
           ) : trendingAlbums.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
               {trendingAlbums.map((album, idx) => (
-                <Link
+                <TiltCard
                   key={album.id}
-                  href={`/album/${album.id}`}
-                  style={{ '--i': idx } as React.CSSProperties}
                   className="media-card group p-3 flex flex-col gap-2 cursor-pointer outline-none"
+                  style={{ '--i': idx } as React.CSSProperties}
                 >
-                  <div className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
-                    {album.cover_url ? (
-                      <img
-                        src={album.cover_url}
-                        alt={album.name}
-                        width={300}
-                        height={300}
-                        decoding="async"
-                        className="cover-img w-full h-full object-cover"
-                        style={{ aspectRatio: '1 / 1' }}
-                      />
-                    ) : (
-                      <DiscAlbum className="cover-img w-8 h-8 text-slate-500" />
-                    )}
-                    <div className="cover-overlay" />
-                    <div className="badge-glass absolute top-2 left-2 px-1.5 py-0.5 rounded-full text-[8px] font-mono text-[var(--accent)] uppercase tracking-wider z-10">
-                      {album.album_type === 'single' ? 'Single' : 'Album'}
-                    </div>
+                  <Link href={`/album/${album.id}`} className="flex flex-col gap-2 h-full outline-none [transform-style:preserve-3d]">
                     <div
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`Phát album ${album.name}`}
-                      onClick={(e) => void handlePlayAlbum(e, album)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') void handlePlayAlbum(e, album)
-                      }}
-                      className="play-btn z-10"
+                      className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center [transform-style:preserve-3d]"
+                      style={{ transform: 'translateZ(20px)' }}
                     >
-                      <Play className="w-4 h-4 ml-0.5 fill-current" />
+                      {album.cover_url ? (
+                        <img
+                          src={album.cover_url}
+                          alt={album.name}
+                          width={300}
+                          height={300}
+                          decoding="async"
+                          className="cover-img w-full h-full object-cover"
+                          style={{ aspectRatio: '1 / 1' }}
+                        />
+                      ) : (
+                        <DiscAlbum className="cover-img w-8 h-8 text-slate-500" />
+                      )}
+                      <div className="cover-overlay" />
+                      <div
+                        className="badge-glass absolute top-2 left-2 px-1.5 py-0.5 rounded-full text-[8px] font-mono text-[var(--accent)] uppercase tracking-wider z-10 [transform-style:preserve-3d]"
+                        style={{ transform: 'translateZ(35px)' }}
+                      >
+                        {album.album_type === 'single' ? 'Single' : 'Album'}
+                      </div>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Phát album ${album.name}`}
+                        onClick={(e) => void handlePlayAlbum(e, album)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') void handlePlayAlbum(e, album)
+                        }}
+                        className="play-btn z-10 btn-3d-tactile [transform-style:preserve-3d]"
+                        style={{ transform: 'translateZ(50px)' }}
+                      >
+                        <Play className="w-4 h-4 ml-0.5 fill-current" />
+                      </div>
                     </div>
-                  </div>
-                  <div className="truncate">
-                    <p className="card-title text-xs font-bold text-white truncate">
-                      {album.name}
-                    </p>
-                    <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                      {album.artist}
-                    </p>
-                  </div>
-                </Link>
+                    <div className="truncate [transform-style:preserve-3d]" style={{ transform: 'translateZ(30px)' }}>
+                      <p className="card-title text-xs font-bold text-white truncate">
+                        {album.name}
+                      </p>
+                      <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                        {album.artist}
+                      </p>
+                    </div>
+                  </Link>
+                </TiltCard>
               ))}
             </div>
           ) : null}
@@ -812,41 +819,45 @@ export default function HomePage() {
           ) : displayTrending.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
               {displayTrending.map((t, idx) => (
-                <div
+                <TiltCard
                   key={t.id}
-                  onClick={() => playTrack(t, combinedTrendingTracks)}
                   style={{ '--i': idx } as React.CSSProperties}
                   className="media-card group p-3 flex flex-col gap-2 cursor-pointer outline-none"
                 >
-                  <div className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
-                    {t.cover_url ? (
-                      <img
-                        src={t.cover_url}
-                        alt={t.title}
-                        width={300}
-                        height={300}
-                        decoding="async"
-                        className="cover-img w-full h-full object-cover"
-                        style={{ aspectRatio: '1 / 1' }}
-                      />
-                    ) : (
-                      <Music className="cover-img w-7 h-7 text-slate-500" />
-                    )}
-                    <div className="cover-overlay" />
-                    <div className="play-btn z-10">
-                      <Play className="w-4 h-4 ml-0.5 fill-current" />
+                  <div className="flex flex-col gap-2 h-full outline-none [transform-style:preserve-3d]" onClick={() => playTrack(t, combinedTrendingTracks)}>
+                    <div
+                      className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center [transform-style:preserve-3d]"
+                      style={{ transform: 'translateZ(20px)' }}
+                    >
+                      {t.cover_url ? (
+                        <img
+                          src={t.cover_url}
+                          alt={t.title}
+                          width={300}
+                          height={300}
+                          decoding="async"
+                          className="cover-img w-full h-full object-cover"
+                          style={{ aspectRatio: '1 / 1' }}
+                        />
+                      ) : (
+                        <Music className="cover-img w-7 h-7 text-slate-500" />
+                      )}
+                      <div className="cover-overlay" />
+                      <div className="play-btn z-10 btn-3d-tactile [transform-style:preserve-3d]" style={{ transform: 'translateZ(50px)' }}>
+                        <Play className="w-4 h-4 ml-0.5 fill-current" />
+                      </div>
+                    </div>
+
+                    <div className="truncate [transform-style:preserve-3d]" style={{ transform: 'translateZ(30px)' }}>
+                      <p className="card-title text-xs font-bold text-white truncate">
+                        {t.title}
+                      </p>
+                      <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                        {t.artist || 'Nghệ sĩ chưa xác định'}
+                      </p>
                     </div>
                   </div>
-
-                  <div className="truncate">
-                    <p className="card-title text-xs font-bold text-white truncate">
-                      {t.title}
-                    </p>
-                    <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                      {t.artist || 'Nghệ sĩ chưa xác định'}
-                    </p>
-                  </div>
-                </div>
+                </TiltCard>
               ))}
             </div>
           ) : (

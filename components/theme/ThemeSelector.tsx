@@ -27,10 +27,18 @@ export function ThemeSelector() {
               <button
                 key={theme.id}
                 onClick={() => setTheme(theme.id as ThemeId)}
-                className={`relative flex flex-col items-start p-3.5 rounded-2xl transition-all cursor-pointer text-left border ${
+                style={
                   isSelected
-                    ? 'bg-white/[0.08] border-white/20'
-                    : 'bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.05] hover:border-white/10'
+                    ? {
+                        boxShadow: 'var(--shadow-2), 0 0 0 2px var(--primary-spotify, #06b6d4)',
+                        transform: 'scale(1.02)',
+                      }
+                    : undefined
+                }
+                className={`relative flex flex-col items-start p-3.5 rounded-2xl transition-all cursor-pointer text-left border bg-[var(--elevation-2-bg)] ${
+                  isSelected
+                    ? 'border-transparent shadow-lg z-10 font-semibold'
+                    : 'border-white/[0.06] shadow-[var(--shadow-1)] hover:bg-white/[0.06] hover:border-white/15 hover:-translate-y-0.5'
                 }`}
               >
                 {/* Color dots preview */}
@@ -78,10 +86,18 @@ export function ThemeSelector() {
               <button
                 key={item.id}
                 onClick={() => setCursorStyle(item.id)}
-                className={`relative flex flex-col items-start p-3.5 rounded-2xl transition-all cursor-pointer text-left border ${
+                style={
                   isSelected
-                    ? 'bg-white/[0.08] border-white/20'
-                    : 'bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.05] hover:border-white/10'
+                    ? {
+                        boxShadow: 'var(--shadow-2), 0 0 0 2px var(--primary-spotify, #06b6d4)',
+                        transform: 'scale(1.02)',
+                      }
+                    : undefined
+                }
+                className={`relative flex flex-col items-start p-3.5 rounded-2xl transition-all cursor-pointer text-left border bg-[var(--elevation-2-bg)] ${
+                  isSelected
+                    ? 'border-transparent shadow-lg z-10 font-semibold'
+                    : 'border-white/[0.06] shadow-[var(--shadow-1)] hover:bg-white/[0.06] hover:border-white/15 hover:-translate-y-0.5'
                 }`}
               >
                 {/* Cursor Preview Icon */}

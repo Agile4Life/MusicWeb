@@ -404,12 +404,21 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (!track || !track.id) return null
       // NCT URLs are signed and short-lived; always resolve them fresh.
       if (track.source === 'nhaccuatui') return getAudioUrl(track)
+      // Catalog/preview tracks should NOT cache preview URLs as playable full-length audio!
+      if (
+        (track.audio_url && isPreviewUrl(track.audio_url)) ||
+        (track.file_path && isPreviewUrl(track.file_path)) ||
+        track.source === 'spotify' ||
+        track.source === 'itunes'
+      ) {
+        return null
+      }
       const cached = audioUrlCacheRef.current.get(track.id)
       if (cached && Date.now() - cached.ts < URL_CACHE_TTL) {
         return cached.url
       }
       const url = await getAudioUrl(track)
-      if (url) {
+      if (url && !isPreviewUrl(url)) {
         audioUrlCacheRef.current.set(track.id, { url, ts: Date.now() })
       }
       return url
@@ -1443,9 +1452,31 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // next/prev actions keep their iOS user-gesture chain (no awaits before play()).
   const tryQuickPlayFromCache = (track: Track, idx?: number): boolean => {
     if (!track || typeof window === 'undefined') return false
+
+    // ⚠️ Catalog & preview tracks MUST NOT bypass full-length stream resolution via tryQuickPlayFromCache.
+    // They MUST go through playTrack() to resolve full-length streams via /api/resolve-stream!
+    const isCatalogOrPreview = Boolean(
+      (track.audio_url && isPreviewUrl(track.audio_url)) ||
+      (track.file_path && isPreviewUrl(track.file_path)) ||
+      track.source === 'spotify' ||
+      track.source === 'itunes' ||
+      (track as any).source === 'deezer'
+    )
+    const hasFullLengthSource = Boolean(
+      track.youtube_id ||
+      track.nhaccuatui_id ||
+      track.drive_file_id ||
+      extractDriveFileId(track.file_path || '') ||
+      (track.source === 'local' && track.file_path && !isPreviewUrl(track.file_path))
+    )
+
+    if (isCatalogOrPreview && !hasFullLengthSource) {
+      return false
+    }
+
     const cached = audioUrlCacheRef.current.get(track.id)?.url
+    if (!cached || isPreviewUrl(cached) || !audioRef.current) return false
     const audio = audioRef.current
-    if (!cached || !audio) return false
 
     // Capture requestId — cancels any pending async play requests AND lets
     // this call's own play().then/catch verify it's still the active request.
@@ -1565,19 +1596,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         nextIdx = found
       }
     } else {
-      // Sequential: advance to the next track that can play in the background,
-      // unless this is a full-YouTube queue (keep strict album/playlist order).
-      nextIdx = -1
-      for (let step = 1; step <= q.length; step++) {
-        const cand = (idx + step) % q.length
-        if (preserveOrder || isBackgroundPlayableTrack(q[cand])) {
-          nextIdx = cand
-          break
-        }
-      }
-      // Wrapped back to the current track (no other background-playable track) → keep original behavior
-      if (nextIdx === idx) nextIdx = (idx + 1) % q.length
-      if (nextIdx < 0) nextIdx = (idx + 1) % q.length
+      // Sequential: advance to the next consecutive track in queue
+      nextIdx = (idx + 1) % q.length
     }
     if (tryQuickPlayFromCache(q[nextIdx], nextIdx)) {
       if (nextIdx >= q.length - 2) {

@@ -27,6 +27,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
 import { isAdmin, getValidUserId } from '@/lib/accessControl'
 import { useSession, signOut } from 'next-auth/react'
+import { useSearch } from '@/components/search/SearchContext'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
@@ -42,6 +43,7 @@ export function MobileHeaderNav() {
   const { data: nextAuthSession } = useSession()
   const { userEmail } = useCurrentUser()
   const { playlists, loading: creating, createPlaylist, deletePlaylist } = usePlaylists()
+  const { clearSearch } = useSearch()
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [isYtImportModalOpen, setIsYtImportModalOpen] = useState(false)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
@@ -146,7 +148,10 @@ export function MobileHeaderNav() {
 
         <Link
           href="/"
-          onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
+          onClick={() => {
+            clearSearch()
+            window.dispatchEvent(new Event('musicweb-tab-home'))
+          }}
           className="absolute left-1/2 -translate-x-1/2 inline-flex items-center gap-2 xs:gap-2.5 px-2.5 xs:px-3 py-1.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-sm backdrop-blur-md hover:bg-white/[0.06] transition-all w-fit"
         >
           <div className="w-7 h-7 xs:w-8 xs:h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-pink-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
@@ -169,7 +174,10 @@ export function MobileHeaderNav() {
         <Link
           href="/"
           prefetch={false}
-          onClick={() => window.dispatchEvent(new Event('musicweb-tab-home'))}
+          onClick={() => {
+            clearSearch()
+            window.dispatchEvent(new Event('musicweb-tab-home'))
+          }}
           className={`bottom-nav-item flex flex-col items-center justify-center gap-1 ${pathname === '/' ? 'active' : ''}`}
         >
           <Home className="w-5 h-5" />
@@ -273,6 +281,7 @@ export function MobileHeaderNav() {
                 href="/"
                 prefetch={false}
                 onClick={() => {
+                  clearSearch()
                   window.dispatchEvent(new Event('musicweb-tab-home'))
                   setIsDrawerOpen(false)
                 }}

@@ -316,45 +316,37 @@ function TrackRowComponent({
       onClick={onPlayClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      style={
-        isSelected
-          ? {
-              backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
-              borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
-            }
-          : undefined
-      }
-      className={`recent-row song-row group flex items-center justify-between px-3 md:px-4 py-2.5 rounded-xl transition-all duration-200 cursor-pointer select-none border hover:bg-white/[0.06] hover:border-white/10 hover:shadow-md ${
-        showMenu ? 'relative z-40 bg-white/[0.08] border-white/10 text-white' : 'relative'
-      } ${
-        isSelected
-          ? 'text-white bg-white/[0.08] border-white/10'
+      className={`recent-row song-row group flex items-center justify-between px-3 md:px-4 py-2.5 rounded-xl transition-all duration-200 cursor-pointer select-none border relative ${
+        showMenu
+          ? 'z-40 bg-white/[0.12] border-white/20 text-white shadow-lg'
+          : isSelected
+          ? 'bg-[var(--primary-spotify,#06b6d4)]/20 border-[var(--primary-spotify,#06b6d4)]/50 text-white font-bold shadow-md hover:bg-[var(--primary-spotify,#06b6d4)]/25'
           : isCurrent
-          ? 'is-playing bg-[var(--primary-spotify)]/10 border-white/10 border-l-transparent text-white'
-          : showMenu
-          ? ''
-          : 'border-transparent'
+          ? 'is-playing bg-[var(--primary-spotify,#06b6d4)]/10 border-[var(--primary-spotify,#06b6d4)]/30 text-white hover:bg-[var(--primary-spotify,#06b6d4)]/18 shadow-[0_2px_12px_color-mix(in_srgb,var(--primary-spotify,#06b6d4)_15%,transparent)]'
+          : 'bg-transparent border-transparent hover:bg-white/[0.06] hover:border-white/10 hover:shadow-sm'
       }`}
     >
       {/* Active Left Accent Indicator Bar */}
       {isCurrent && (
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[var(--spotify-glow,#22d3ee)] rounded-r-full shadow-[0_0_10px_rgba(34,211,238,0.9)] transition-all duration-300 scale-y-100 origin-center" />
-      )}
-      {/* Select Checkbox */}
-      {selectable && (
-        <div className="shrink-0 flex items-center pr-2.5" onClick={(e) => e.stopPropagation()}>
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={() => onToggleSelect?.()}
-            className="rounded accent-cyan-400 w-4 h-4 cursor-pointer"
-          />
-        </div>
+        <div className="absolute left-0 top-2 bottom-2 w-1 bg-[var(--spotify-glow,#22d3ee)] rounded-r-md shadow-[0_0_10px_rgba(34,211,238,0.8)]" />
       )}
 
-      {/* Index & Play button */}
-      <div className="flex items-center gap-2.5 sm:gap-3.5 flex-1 min-w-0 pr-2 truncate">
-        <div className="w-8 flex items-center justify-center text-xs font-mono text-slate-400 shrink-0 select-none">
+      {/* Left Slot: Checkbox (optional) + Index/Play + Cover + Metadata */}
+      <div className="flex items-center gap-2.5 sm:gap-3 flex-1 min-w-0 pr-2 truncate">
+        {/* Select Checkbox */}
+        {selectable && (
+          <div className="w-5 shrink-0 flex items-center justify-center z-10" onClick={(e) => e.stopPropagation()}>
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onToggleSelect?.()}
+              className="rounded accent-cyan-400 w-4 h-4 cursor-pointer"
+            />
+          </div>
+        )}
+
+        {/* Index & Play button */}
+        <div className="w-7 sm:w-8 shrink-0 flex items-center justify-center text-xs font-mono text-slate-400 select-none">
           <span className="group-hover:hidden flex items-center justify-center">
             {isPlayingThis ? (
               <div className="flex items-end justify-center gap-0.5 h-3">
@@ -363,7 +355,7 @@ function TrackRowComponent({
                 <span className="w-0.5 bg-[var(--primary-spotify)] rounded-full eq-bar-3" />
               </div>
             ) : (
-              <span className={isCurrent ? 'text-[var(--primary-spotify)] font-bold' : ''}>{index + 1}</span>
+              <span className={isCurrent ? 'text-[var(--spotify-glow,#22d3ee)] font-bold' : ''}>{index + 1}</span>
             )}
           </span>
           <button
@@ -376,7 +368,7 @@ function TrackRowComponent({
             className="hidden group-hover:flex items-center justify-center text-white hover:scale-110 transition-transform"
           >
             {isPlayingThis ? (
-              <Pause className="w-4 h-4 fill-current text-[var(--primary-spotify)]" />
+              <Pause className="w-4 h-4 fill-current text-[var(--spotify-glow,#22d3ee)]" />
             ) : (
               <Play className="w-4 h-4 fill-current text-white" />
             )}
@@ -515,7 +507,7 @@ function TrackRowComponent({
             {showMenu && (
               <div
                 ref={menuRef}
-                className="absolute right-0 top-9 bg-[#0b121e]/95 backdrop-blur-2xl shadow-2xl rounded-2xl py-2 w-56 z-50 text-xs text-slate-200 border border-white/15 animate-in fade-in zoom-in-95 duration-150"
+                className="absolute right-0 top-9 bg-[var(--elevation-3-bg)] shadow-2xl rounded-2xl py-2 w-56 z-50 text-xs text-slate-200 border border-white/15 animate-in fade-in zoom-in-95 duration-150"
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Edit artist/album */}

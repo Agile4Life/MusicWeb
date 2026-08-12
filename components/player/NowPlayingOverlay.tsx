@@ -255,7 +255,7 @@ export function NowPlayingOverlay() {
 
   return (
     <div
-      className={`now-playing-overlay fixed inset-0 z-[100] bg-[#07090e] text-white flex flex-col transition-transform duration-350 ease-[cubic-bezier(0.22,1,0.36,1)] select-none ${isNowPlayingOpen ? 'open translate-y-0' : 'translate-y-full pointer-events-none'
+      className={`now-playing-overlay fixed inset-0 z-50 bg-[var(--elevation-0-bg,#07090e)] text-white flex flex-col transition-transform duration-350 ease-[cubic-bezier(0.22,1,0.36,1)] select-none ${isNowPlayingOpen ? 'open translate-y-0' : 'translate-y-full pointer-events-none'
         }`}
     >
       {/* 🌟 Single Shared Ambient Glow Layer (Behind Top Bar, Stage & PlayerBar) */}
@@ -353,8 +353,122 @@ export function NowPlayingOverlay() {
           )}
         </div>
 
-        {/* 🎛️ Floating Control Bar (Uses exact player-bar class matching user-specified glassmorphism styles) */}
-        <div className="player-bar group/playerbar absolute bottom-3 sm:bottom-4 inset-x-3 sm:inset-x-6 z-30 px-6 md:px-8 py-3.5 h-[96px] flex items-center justify-between rounded-2xl transition-all duration-300 select-none">
+        {/* 🎛️ MOBILE COMPACT FLOATING CONTROL BAR (< 768px) */}
+        <div className="player-bar md:hidden absolute bottom-3 inset-x-3 z-30 p-3 flex flex-col gap-2 rounded-2xl transition-all duration-300 select-none shadow-2xl border border-white/10">
+          {/* Top Row: Track Metadata + Album/Heart/Queue Actions */}
+          <div className="flex items-center justify-between gap-2 w-full">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className={`player-cover w-10 h-10 bg-slate-800 flex items-center justify-center border border-white/10 shadow-md shrink-0 ${isPlaying ? 'is-playing' : ''}`}>
+                <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
+              </div>
+              <div className="flex flex-col min-w-0 flex-1 truncate">
+                <div className="flex items-center gap-1.5 truncate">
+                  <OverflowMarqueeText
+                    text={currentTrack.title}
+                    className="text-xs font-bold text-white min-w-0 truncate"
+                  />
+                  {isPlaying && <MiniEqualizer isPlaying={isPlaying} className="shrink-0" />}
+                </div>
+                <span className="text-[10px] text-slate-400 truncate">
+                  {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
+                </span>
+              </div>
+            </div>
+
+            {/* Quick Actions: Album Link + Heart + Queue */}
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={handleOpenAlbum}
+                className="p-1.5 rounded-lg text-slate-300 bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 text-[10px] font-semibold flex items-center gap-1"
+                title={displayAlbumName ? `Vào album: ${displayAlbumName}` : 'Album'}
+              >
+                <DiscAlbum style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                onClick={handleFavoriteClick}
+                className={`p-1.5 rounded-lg transition-all ${currentTrack.is_favorite ? 'text-rose-500 bg-rose-500/15 border border-rose-500/30' : 'text-slate-400 hover:text-white bg-white/5'}`}
+                title={currentTrack.is_favorite ? 'Bỏ yêu thích' : 'Yêu thích'}
+              >
+                <Heart className={`w-3.5 h-3.5 ${currentTrack.is_favorite ? 'fill-current' : ''}`} />
+              </button>
+
+              <button
+                onClick={toggleQueue}
+                className={`p-1.5 rounded-lg transition-all ${isQueueOpen ? 'text-[var(--spotify-glow,#22d3ee)] bg-[var(--spotify-glow)]/15 border border-[var(--spotify-glow)]/30' : 'text-slate-400 hover:text-white bg-white/5'}`}
+                title="Hàng đợi"
+              >
+                <ListMusic className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Middle Row: Waveform Scrubber */}
+          <div className="w-full px-1">
+            <AudioWaveformScrubber
+              currentTime={currentTime}
+              duration={duration || currentTrack.duration || 0}
+              isPlaying={isPlaying}
+              trackId={currentTrack.id}
+              onSeek={seek}
+              barCount={70}
+            />
+          </div>
+
+          {/* Bottom Row: Centered Playback Controls */}
+          <div className="flex items-center justify-center gap-5 w-full pt-0.5">
+            <button
+              onClick={toggleShuffle}
+              className={`p-1.5 rounded-lg transition-all ${isShuffle ? 'text-[var(--spotify-glow,#22d3ee)] bg-[var(--spotify-glow)]/15 border border-[var(--spotify-glow)]/30' : 'text-slate-400'}`}
+              title="Phát ngẫu nhiên"
+            >
+              <Shuffle className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={prevTrack}
+              className="p-1.5 text-slate-300 hover:text-white active:scale-95 transition-transform"
+              title="Bài trước"
+            >
+              <SkipBack className="w-5 h-5" />
+            </button>
+
+            <button
+              onClick={togglePlay}
+              style={{
+                background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                boxShadow: '0 3px 12px var(--theme-glow-shadow, rgba(6,182,212,0.45))',
+              }}
+              className="w-10 h-10 rounded-full flex items-center justify-center text-black font-bold shrink-0 active:scale-95 transition-transform border border-white/20"
+              title={isPlaying ? 'Tạm dừng' : 'Phát'}
+            >
+              {isPlaying ? (
+                <Pause className="w-4.5 h-4.5 fill-current text-black" />
+              ) : (
+                <Play className="w-4.5 h-4.5 fill-current text-black ml-0.5" />
+              )}
+            </button>
+
+            <button
+              onClick={nextTrack}
+              className="p-1.5 text-slate-300 hover:text-white active:scale-95 transition-transform"
+              title="Bài kế tiếp"
+            >
+              <SkipForward className="w-5 h-5" />
+            </button>
+
+            <button
+              onClick={toggleRepeat}
+              className={`p-1.5 rounded-lg transition-all ${repeatMode !== 'off' ? 'text-[var(--spotify-glow,#22d3ee)] bg-[var(--spotify-glow)]/15 border border-[var(--spotify-glow)]/30' : 'text-slate-400'}`}
+              title="Lặp lại"
+            >
+              {repeatMode === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {/* 🎛️ DESKTOP FLOATING CONTROL BAR (>= 768px) */}
+        <div className="player-bar group/playerbar hidden md:flex absolute bottom-3 sm:bottom-4 inset-x-3 sm:inset-x-6 z-30 px-6 md:px-8 py-3.5 h-[96px] items-center justify-between rounded-2xl transition-all duration-300 select-none">
           {/* Top ambient highlight reflection line (fades in on hover) */}
           <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-[var(--spotify-glow,#22d3ee)]/35 to-transparent pointer-events-none rounded-t-2xl opacity-0 group-hover/playerbar:opacity-100 transition-opacity duration-300" />
 

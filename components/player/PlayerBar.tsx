@@ -475,8 +475,8 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <div className="grid grid-cols-5 items-center justify-items-center w-full px-2 mb-8">
             <button
               onClick={toggleShuffle}
-              className={`p-3 rounded-full transition-all flex items-center justify-center ${isShuffle
-                  ? 'text-[var(--primary-spotify,#06b6d4)] bg-[var(--primary-spotify,#06b6d4)]/20 border border-[var(--primary-spotify,#06b6d4)]/40 shadow-lg'
+              className={`p-3 rounded-full transition-all flex items-center justify-center btn-3d-tactile ${isShuffle
+                  ? 'text-[var(--primary-spotify,#06b6d4)] bg-[var(--primary-spotify,#06b6d4)]/20 border border-[var(--primary-spotify,#06b6d4)]/40 shadow-3d-raised'
                   : 'text-slate-400 hover:text-white bg-white/5'
                 }`}
               title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
@@ -486,7 +486,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
             <button
               onClick={prevTrack}
-              className="p-3 text-slate-300 hover:text-white active:scale-95 transition-transform flex items-center justify-center"
+              className="p-3 text-slate-300 hover:text-white btn-3d-tactile rounded-full flex items-center justify-center"
               title="Bài trước"
             >
               <SkipBack className="w-7 h-7 sm:w-8 sm:h-8" />
@@ -494,7 +494,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
             <button
               onClick={togglePlay}
-              className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center shadow-xl active:scale-95 transition-transform border border-white/20 shrink-0"
+              className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center btn-3d-tactile border border-white/20 shrink-0 shadow-3d-raised"
               title={isPlaying ? 'Tạm dừng' : 'Phát'}
             >
               {isPlaying ? <Pause className="w-7 h-7 sm:w-8 sm:h-8 fill-current" /> : <Play className="w-7 h-7 sm:w-8 sm:h-8 fill-current" />}
@@ -502,7 +502,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
             <button
               onClick={nextTrack}
-              className="p-3 text-slate-300 hover:text-white active:scale-95 transition-transform flex items-center justify-center"
+              className="p-3 text-slate-300 hover:text-white btn-3d-tactile rounded-full flex items-center justify-center"
               title="Bài kế tiếp"
             >
               <SkipForward className="w-7 h-7 sm:w-8 sm:h-8" />
@@ -519,8 +519,8 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                   }
                   : undefined
               }
-              className={`p-3 rounded-full border transition-all flex items-center justify-center ${repeatMode !== 'off'
-                  ? 'border-[var(--spotify-glow)] shadow-lg'
+              className={`p-3 rounded-full border transition-all flex items-center justify-center btn-3d-tactile ${repeatMode !== 'off'
+                  ? 'border-[var(--spotify-glow)] shadow-3d-raised'
                   : 'text-slate-400 hover:text-white bg-white/5 border-transparent'
                 }`}
               title={
@@ -672,7 +672,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                   }
                   : undefined
               }
-              className={`p-2 rounded-xl relative transition-all duration-200 hover:scale-110 active:scale-95 ${isShuffle ? 'border shadow-md' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
+              className={`p-2 rounded-xl relative btn-3d-tactile ${isShuffle ? 'border shadow-md' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
                 }`}
               title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
             >
@@ -687,7 +687,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
             <button
               onClick={(e) => { e.stopPropagation(); prevTrack() }}
-              className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-all duration-200 hover:scale-110 active:scale-95"
+              className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full btn-3d-tactile"
               title="Bài trước"
             >
               <SkipBack className="w-4.5 h-4.5" />
@@ -699,7 +699,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                 background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
                 boxShadow: '0 4px 16px var(--theme-glow-shadow, rgba(6,182,212,0.45))',
               }}
-              className="w-10 h-10 rounded-full hover:scale-110 hover:brightness-110 active:scale-95 transition-all duration-200 flex items-center justify-center text-black font-bold shrink-0 border border-white/20"
+              className="w-10 h-10 rounded-full btn-3d-tactile flex items-center justify-center text-black font-bold shrink-0 border border-white/20"
               title={isPlaying ? 'Tạm dừng' : 'Phát'}
             >
               {isPlaying ? (
@@ -711,7 +711,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
             <button
               onClick={(e) => { e.stopPropagation(); nextTrack() }}
-              className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-all duration-200 hover:scale-110 active:scale-95"
+              className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full btn-3d-tactile"
               title="Bài kế tiếp"
             >
               <SkipForward className="w-4.5 h-4.5" />
@@ -728,7 +728,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                   }
                   : undefined
               }
-              className={`p-2 rounded-xl relative transition-all duration-200 hover:scale-110 active:scale-95 ${repeatMode !== 'off' ? 'border shadow-md' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
+              className={`p-2 rounded-xl relative btn-3d-tactile ${repeatMode !== 'off' ? 'border shadow-md' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
                 }`}
               title={
                 repeatMode === 'one'

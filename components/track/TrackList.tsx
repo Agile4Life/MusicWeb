@@ -221,9 +221,9 @@ export function TrackList({
     <div className="flex flex-col gap-1 relative">
       {/* Table Header */}
       <div className="flex items-center justify-between px-3 sm:px-4 py-2 text-xs font-semibold text-gray-400 border-b border-[#282828] mb-2 select-none">
-        <div className="flex items-center gap-3 sm:gap-4 flex-1">
-          {isAdmin ? (
-            <div className="shrink-0 flex items-center pr-1" title="Chọn tất cả">
+        <div className="flex items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
+          {isAdmin && (
+            <div className="w-5 shrink-0 flex items-center justify-center" title="Chọn tất cả">
               <input
                 type="checkbox"
                 checked={allSelected}
@@ -231,9 +231,8 @@ export function TrackList({
                 className="rounded accent-cyan-400 w-4 h-4 cursor-pointer"
               />
             </div>
-          ) : (
-            <span className="w-8 text-center shrink-0">#</span>
           )}
+          <span className="w-7 sm:w-8 text-center shrink-0">#</span>
           <span>TIÊU ĐỀ</span>
         </div>
         <div className="hidden md:block w-1/4">ALBUM</div>

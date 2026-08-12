@@ -65,6 +65,13 @@ function Particles({ analyserData, isPlaying }: ParticlesProps) {
   }, [fgCount])
 
   useFrame((state) => {
+    // When paused and mouse is stationary, throttle frame updates to conserve CPU/GPU
+    const dx = Math.abs(targetMouseRef.current.x - currentMouseRef.current.x)
+    const dy = Math.abs(targetMouseRef.current.y - currentMouseRef.current.y)
+    if (!isPlaying && dx < 0.001 && dy < 0.001) {
+      return
+    }
+
     const t = state.clock.getElapsedTime()
 
     // Smooth lerp mouse coordinates for fluid physics feel

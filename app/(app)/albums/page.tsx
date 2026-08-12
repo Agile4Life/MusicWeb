@@ -9,6 +9,7 @@ import { Track } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { DiscAlbum, Sparkles, Music, Play, Search, X, Loader2 } from 'lucide-react'
 import { HeroCardSkeleton } from '@/components/common/SkeletonLoader'
+import { TiltCard } from '@/components/common/TiltCard'
 
 interface AlbumCardProps {
   album: SpotifyAlbumItem
@@ -41,66 +42,75 @@ function AlbumCard({ album, index = 0 }: AlbumCardProps) {
   }
 
   return (
-    <Link
-      href={`/album/${album.id}`}
-      style={{ '--i': index } as React.CSSProperties}
+    <TiltCard
       className="media-card group p-3.5 flex flex-col gap-3 outline-none"
+      style={{ '--i': index } as React.CSSProperties}
     >
-      {/* Cover Image Container */}
-      <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-slate-900 border border-white/10 shadow-inner flex items-center justify-center">
-        {album.cover_url ? (
-          <img
-            src={album.cover_url}
-            alt={album.name}
-            width={300}
-            height={300}
-            decoding="async"
-            className="cover-img w-full h-full object-cover"
-            style={{ aspectRatio: '1 / 1' }}
-          />
-        ) : (
-          <DiscAlbum className="cover-img w-12 h-12 text-slate-500" />
-        )}
-        <div className="cover-overlay" />
-
-        {/* Floating Album Type Badge */}
-        <div className="badge-glass absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-mono text-[var(--accent)] uppercase tracking-wider z-10">
-          {album.album_type === 'single' ? 'Single / EP' : 'Album'}
-        </div>
-
-        {/* Hover Overlay Play Button */}
+      <Link href={`/album/${album.id}`} className="flex flex-col gap-3 h-full outline-none [transform-style:preserve-3d]">
+        {/* Cover Image Container — Depth Layer 20px */}
         <div
-          role="button"
-          tabIndex={0}
-          aria-label={`Phát album ${album.name}`}
-          onClick={(e) => void handlePlayAlbum(e, album)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') void handlePlayAlbum(e, album)
-          }}
-          className="play-btn z-10"
+          className="relative aspect-square w-full rounded-xl overflow-hidden bg-slate-900 border border-white/10 shadow-inner flex items-center justify-center [transform-style:preserve-3d] transition-transform duration-200"
+          style={{ transform: 'translateZ(20px)' }}
         >
-          <Play className="w-4.5 h-4.5 ml-0.5 fill-current" />
-        </div>
-      </div>
+          {album.cover_url ? (
+            <img
+              src={album.cover_url}
+              alt={album.name}
+              width={300}
+              height={300}
+              decoding="async"
+              className="cover-img w-full h-full object-cover"
+              style={{ aspectRatio: '1 / 1' }}
+            />
+          ) : (
+            <DiscAlbum className="cover-img w-12 h-12 text-slate-500" />
+          )}
+          <div className="cover-overlay" />
 
-      {/* Info */}
-      <div className="flex flex-col gap-1 min-w-0">
-        <h3 className="card-title text-xs font-bold text-white truncate">
-          {album.name}
-        </h3>
-        <p className="text-[11px] text-slate-400 truncate font-medium">
-          {album.artist}
-        </p>
+          {/* Floating Album Type Badge — Depth Layer 35px */}
+          <div
+            className="badge-glass absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-mono text-[var(--accent)] uppercase tracking-wider z-10 [transform-style:preserve-3d]"
+            style={{ transform: 'translateZ(35px)' }}
+          >
+            {album.album_type === 'single' ? 'Single / EP' : 'Album'}
+          </div>
 
-        <div className="flex items-center gap-2 text-[10px] font-mono text-slate-500 mt-1">
-          {releaseYear && <span>{releaseYear}</span>}
-          {releaseYear && album.total_tracks > 0 && <span>•</span>}
-          {album.total_tracks > 0 && <span>{album.total_tracks} bài</span>}
+          {/* Hover Overlay Play Button — Depth Layer 50px */}
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label={`Phát album ${album.name}`}
+            onClick={(e) => void handlePlayAlbum(e, album)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') void handlePlayAlbum(e, album)
+            }}
+            className="play-btn z-10 btn-3d-tactile [transform-style:preserve-3d]"
+            style={{ transform: 'translateZ(50px)' }}
+          >
+            <Play className="w-4.5 h-4.5 ml-0.5 fill-current" />
+          </div>
         </div>
-      </div>
-    </Link>
+
+        {/* Info — Depth Layer 30px */}
+        <div className="flex flex-col gap-1 min-w-0 [transform-style:preserve-3d]" style={{ transform: 'translateZ(30px)' }}>
+          <h3 className="card-title text-xs font-bold text-white truncate">
+            {album.name}
+          </h3>
+          <p className="text-[11px] text-slate-400 truncate font-medium">
+            {album.artist}
+          </p>
+
+          <div className="flex items-center gap-2 text-[10px] font-mono text-slate-500 mt-1">
+            {releaseYear && <span>{releaseYear}</span>}
+            {releaseYear && album.total_tracks > 0 && <span>•</span>}
+            {album.total_tracks > 0 && <span>{album.total_tracks} bài</span>}
+          </div>
+        </div>
+      </Link>
+    </TiltCard>
   )
 }
+
 
 let cachedListenedAlbums: SpotifyAlbumItem[] = []
 let cachedNewReleases: SpotifyAlbumItem[] = []

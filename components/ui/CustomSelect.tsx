@@ -47,7 +47,7 @@ export function CustomSelect({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between gap-3 px-3.5 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-semibold text-white transition-all backdrop-blur-xl active:scale-95 shadow-md min-w-[160px]"
+        className="flex items-center justify-between gap-3 px-3.5 py-2 rounded-xl bg-[var(--elevation-2-bg)] hover:bg-white/[0.12] border border-white/10 text-xs font-semibold text-white transition-all active:scale-95 shadow-md min-w-[160px]"
       >
         <div className="flex items-center gap-2 truncate">
           {icon && <span className="text-[var(--primary-spotify,#06b6d4)] shrink-0">{icon}</span>}
@@ -62,7 +62,7 @@ export function CustomSelect({
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-full min-w-[200px] rounded-2xl bg-[#0d1017]/98 backdrop-blur-2xl border border-white/10 shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute right-0 mt-2 w-full min-w-[200px] rounded-2xl bg-[var(--elevation-3-bg)] border border-white/10 shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
           {options.map((opt) => {
             const isSelected = opt.value === value
             return (
