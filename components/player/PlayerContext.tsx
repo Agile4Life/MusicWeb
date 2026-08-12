@@ -719,7 +719,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               setPlaybackError(
                 errorCode === 150 || errorCode === 101
                   ? 'Video này bị cấm nhúng phát ngoài YouTube. Vui lòng chọn bài khác.'
-                  : 'Không thể phát video YouTube này'
+                  : errorCode === 100
+                    ? 'Video này không còn tồn tại trên YouTube. Vui lòng chọn bài khác.'
+                    : 'Không thể phát video YouTube này'
               )
             },
           },
