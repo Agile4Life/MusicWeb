@@ -39,6 +39,26 @@ export function extractYouTubePlaylistId(input: string): string | null {
 }
 
 /**
+ * Trả về URL thumbnail chất lượng cao nhất cho YouTube track (maxresdefault.jpg 1280x720).
+ * Loại bỏ query parameter `?sqp=...` gây nén/giảm chất lượng ảnh từ YouTubei CDN.
+ */
+export function getBestYouTubeThumbnailUrl(videoId: string, rawUrl?: string | null): string {
+  if (videoId && videoId.trim().length === 11) {
+    return `https://i.ytimg.com/vi/${videoId.trim()}/maxresdefault.jpg`
+  }
+  if (rawUrl) {
+    const cleanUrl = rawUrl.split('?')[0]
+    const match = cleanUrl.match(/\/(?:vi|vi_webp)\/([a-zA-Z0-9_-]{11})/)
+    if (match && match[1]) {
+      return `https://i.ytimg.com/vi/${match[1]}/maxresdefault.jpg`
+    }
+    return cleanUrl.replace(/\/(hqdefault|mqdefault|default|sddefault|hq720)\.(jpg|webp)/g, '/maxresdefault.jpg')
+  }
+  return `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
+}
+
+
+/**
  * Parse human-readable view count string (e.g. "1,2M lượt xem", "12M views", "450K views") into integer
  */
 export function parseViewCountText(text?: string | null): number | null {
@@ -115,9 +135,10 @@ async function searchYouTubeInnerTube(query: string, limit = 15): Promise<Track[
           video.shortBylineText?.runs?.[0]?.text ||
           'YouTube Artist'
 
-        const thumbnail =
-          video.thumbnail?.thumbnails?.slice(-1)?.[0]?.url ||
-          `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+        const thumbnail = getBestYouTubeThumbnailUrl(
+          videoId,
+          video.thumbnail?.thumbnails?.slice(-1)?.[0]?.url
+        )
 
         let durationSeconds = 0
         const durationStr =
@@ -214,9 +235,10 @@ async function scrapeYouTubeSearch(query: string, limit = 15): Promise<Track[]> 
           video.shortBylineText?.runs?.[0]?.text ||
           'YouTube Artist'
 
-        const thumbnail =
-          video.thumbnail?.thumbnails?.slice(-1)?.[0]?.url ||
-          `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+        const thumbnail = getBestYouTubeThumbnailUrl(
+          videoId,
+          video.thumbnail?.thumbnails?.slice(-1)?.[0]?.url
+        )
 
         let durationSeconds = 0
         const durationStr =
@@ -537,7 +559,7 @@ export async function searchYouTubeTracks(query: string, limit = 15): Promise<Tr
         album: 'YouTube Music',
         duration: 0,
         file_path: `https://www.youtube.com/watch?v=${videoIdFromUrl}`,
-        cover_url: `https://img.youtube.com/vi/${videoIdFromUrl}/hqdefault.jpg`,
+        cover_url: getBestYouTubeThumbnailUrl(videoIdFromUrl),
         created_at: new Date().toISOString(),
         source: 'youtube',
         youtube_id: videoIdFromUrl,
@@ -572,11 +594,13 @@ export async function searchYouTubeTracks(query: string, limit = 15): Promise<Tr
               ? snippet.channelTitle.replace(' - Topic', '').replace('VEVO', '')
               : 'YouTube Artist'
 
-            const thumbnail =
-              snippet.thumbnails?.high?.url ||
-              snippet.thumbnails?.medium?.url ||
-              snippet.thumbnails?.default?.url ||
-              `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+            const thumbnail = getBestYouTubeThumbnailUrl(
+              videoId,
+              snippet.thumbnails?.maxres?.url ||
+                snippet.thumbnails?.high?.url ||
+                snippet.thumbnails?.medium?.url ||
+                snippet.thumbnails?.default?.url
+            )
 
             return {
               id: `yt-${videoId}`,
@@ -727,11 +751,10 @@ export async function fetchYouTubePlaylistMeta(playlistId: string): Promise<YouT
       title: snippet.title || 'Untitled Playlist',
       description: snippet.description || '',
       channelTitle: snippet.channelTitle || 'Unknown',
-      cover_url:
-        snippet.thumbnails?.maxres?.url ||
-        snippet.thumbnails?.high?.url ||
-        snippet.thumbnails?.medium?.url ||
-        null,
+      cover_url: getBestYouTubeThumbnailUrl(
+        item.id,
+        snippet.thumbnails?.maxres?.url || snippet.thumbnails?.high?.url
+      ),
       total_tracks: item.contentDetails?.itemCount || 0,
     }
   } catch (err) {
@@ -788,11 +811,10 @@ export async function fetchYouTubePlaylistTracks(playlistId: string): Promise<Tr
           album: 'YouTube Music',
           duration: 0, // filled in Stage 4 — playlistItems does not return duration
           file_path: `https://www.youtube.com/watch?v=${videoId}`,
-          cover_url:
-            snippet.thumbnails?.maxres?.url ||
-            snippet.thumbnails?.high?.url ||
-            snippet.thumbnails?.medium?.url ||
-            `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+          cover_url: getBestYouTubeThumbnailUrl(
+            videoId,
+            snippet.thumbnails?.maxres?.url || snippet.thumbnails?.high?.url
+          ),
           created_at: new Date().toISOString(),
           source: 'youtube',
           youtube_id: videoId,

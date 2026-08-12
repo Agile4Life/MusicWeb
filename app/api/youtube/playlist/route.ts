@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Track } from '@/types'
+import { getBestYouTubeThumbnailUrl } from '@/lib/youtube'
 
 export interface YouTubePlaylistMeta {
   id: string
@@ -74,7 +75,7 @@ async function fetchViaInnerTube(playlistId: string): Promise<{ meta: YouTubePla
         const videoId = playlistItemData.videoId || r.doubleTapCommand?.watchEndpoint?.videoId
 
         const thumbs = r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || []
-        const itemCover = thumbs[thumbs.length - 1]?.url || coverUrl || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+        const itemCover = getBestYouTubeThumbnailUrl(videoId, thumbs[thumbs.length - 1]?.url || coverUrl)
 
         if (videoId && titleRun && !seenIds.has(videoId)) {
           seenIds.add(videoId)
@@ -99,7 +100,7 @@ async function fetchViaInnerTube(playlistId: string): Promise<{ meta: YouTubePla
         const artist = r.shortBylineText?.runs?.[0]?.text || channelTitle
 
         const thumbs = r.thumbnail?.thumbnails || []
-        const itemCover = thumbs[thumbs.length - 1]?.url || coverUrl || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+        const itemCover = getBestYouTubeThumbnailUrl(videoId, thumbs[thumbs.length - 1]?.url || coverUrl)
 
         if (videoId && title && !seenIds.has(videoId)) {
           seenIds.add(videoId)
@@ -203,11 +204,12 @@ async function fetchViaOfficialApi(playlistId: string, apiKey: string): Promise<
           album: 'YouTube Music',
           duration: 0,
           file_path: `https://www.youtube.com/watch?v=${videoId}`,
-          cover_url:
+          cover_url: getBestYouTubeThumbnailUrl(
+            videoId,
             rawSnippet.thumbnails?.maxres?.url ||
-            rawSnippet.thumbnails?.high?.url ||
-            rawSnippet.thumbnails?.medium?.url ||
-            `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+              rawSnippet.thumbnails?.high?.url ||
+              rawSnippet.thumbnails?.medium?.url
+          ),
           created_at: new Date().toISOString(),
           source: 'youtube',
           youtube_id: videoId,

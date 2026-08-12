@@ -312,6 +312,37 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const supabase = createClient()
 
+  const AUDIO_URL_MAX_ENTRIES = 200
+  const TRACK_RESOLUTION_MAX_ENTRIES = 200
+
+  // Set với giới hạn số lượng entry — khi vượt ngưỡng, xoá entry cũ nhất (insertion order = Map mặc định).
+  // Đồng thời "refresh" vị trí LRU khi ghi đè key đã tồn tại (delete rồi set lại để đẩy xuống cuối).
+  function setBounded<K, V>(map: Map<K, V>, key: K, value: V, maxEntries: number) {
+    if (map.has(key)) map.delete(key)
+    map.set(key, value)
+    if (map.size > maxEntries) {
+      const oldestKey = map.keys().next().value
+      if (oldestKey !== undefined) map.delete(oldestKey)
+    }
+  }
+
+  // Refresh vị trí LRU khi đọc — nếu entry đã hết hạn (TTL), tự xoá (evict) và trả về undefined.
+  function getBoundedRefreshed<K, V>(
+    map: Map<K, V>,
+    key: K,
+    isExpired?: (val: V) => boolean
+  ): V | undefined {
+    if (!map.has(key)) return undefined
+    const value = map.get(key) as V
+    if (isExpired && isExpired(value)) {
+      map.delete(key)
+      return undefined
+    }
+    map.delete(key)
+    map.set(key, value)
+    return value
+  }
+
   const audioUrlCacheRef = useRef<Map<string, { url: string; ts: number }>>(new Map())
   const URL_CACHE_TTL = 30 * 60 * 1000 // 30 mins
 
@@ -319,6 +350,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // previously resolved track skips the slow network matching entirely.
   const trackResolutionCacheRef = useRef<Map<string, { activeTrack: Track; expiresAt: number }>>(new Map())
   const TRACK_RESOLUTION_TTL = 30 * 60 * 1000
+
+  // Theo dõi track đang được pre-resolve bằng ID — thay cho mutation `_preResolving` trên object.
+  const resolvingTrackIdsRef = useRef<Set<string>>(new Set())
 
   // Track consecutive auto skips to prevent infinite skip loops when multiple tracks fail
   const consecutiveSkipRef = useRef(0)
@@ -413,13 +447,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       ) {
         return null
       }
-      const cached = audioUrlCacheRef.current.get(track.id)
-      if (cached && Date.now() - cached.ts < URL_CACHE_TTL) {
+      const cached = getBoundedRefreshed(
+        audioUrlCacheRef.current,
+        track.id,
+        (entry) => Date.now() - entry.ts >= URL_CACHE_TTL
+      )
+      if (cached) {
         return cached.url
       }
       const url = await getAudioUrl(track)
       if (url && !isPreviewUrl(url)) {
-        audioUrlCacheRef.current.set(track.id, { url, ts: Date.now() })
+        setBounded(audioUrlCacheRef.current, track.id, { url, ts: Date.now() }, AUDIO_URL_MAX_ENTRIES)
       }
       return url
     },
@@ -454,6 +492,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         const nextIdx = currentIndex + offset
         if (nextIdx >= queue.length) break
         const nextTr = queue[nextIdx]
+        const targetTrackId = nextTr.id
         const hasDirectPlayable = Boolean(
           nextTr.audio_url ||
           nextTr.drive_file_id ||
@@ -469,32 +508,52 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           ))
         )
 
-        if (!hasDirectPlayable && !(nextTr as any)._preResolving) {
-          ;(nextTr as any)._preResolving = true
+        if (!hasDirectPlayable && !resolvingTrackIdsRef.current.has(targetTrackId)) {
+          resolvingTrackIdsRef.current.add(targetTrackId)
+
           resolveStreamCached({
             title: nextTr.title,
             artist: nextTr.artist,
             duration: nextTr.duration,
             album: nextTr.album,
-          }).then((resolved) => {
-            if (resolved) {
+          })
+            .then((resolved) => {
+              if (!resolved) return
+
               let updatedTrack: Track | null = null
               if (resolved.source === 'nhaccuatui') {
-                updatedTrack = { ...nextTr, source: 'nhaccuatui', nhaccuatui_id: resolved.id }
+                updatedTrack = { source: 'nhaccuatui', nhaccuatui_id: resolved.id } as Partial<Track> as Track
               } else if (resolved.source === 'drive') {
-                updatedTrack = { ...nextTr, source: 'local' as const, file_path: resolved.id }
+                updatedTrack = { source: 'local' as const, file_path: resolved.id } as Partial<Track> as Track
               } else if (resolved.source === 'youtube') {
-                updatedTrack = { ...nextTr, source: 'youtube' as const, youtube_id: resolved.id }
+                updatedTrack = { source: 'youtube' as const, youtube_id: resolved.id } as Partial<Track> as Track
               }
+              if (!updatedTrack) return
 
-              if (updatedTrack) {
-                trackResolutionCacheRef.current.set(nextTr.id, { activeTrack: updatedTrack, expiresAt: Date.now() + TRACK_RESOLUTION_TTL })
-                setQueue((prevQ) =>
-                  prevQ.map((t, idx) => (idx === nextIdx ? { ...t, ...updatedTrack } : t))
-                )
-              }
-            }
-          }).catch(() => {})
+              // Cache resolution outside state update function
+              const mergedTrack = { ...nextTr, ...updatedTrack }
+              setBounded(
+                trackResolutionCacheRef.current,
+                targetTrackId,
+                {
+                  activeTrack: mergedTrack,
+                  expiresAt: Date.now() + TRACK_RESOLUTION_TTL,
+                },
+                TRACK_RESOLUTION_MAX_ENTRIES
+              )
+
+              setQueue((prevQ) => {
+                const idx = prevQ.findIndex((t) => t.id === targetTrackId)
+                if (idx === -1) return prevQ
+                const next = [...prevQ]
+                next[idx] = { ...prevQ[idx], ...updatedTrack }
+                return next
+              })
+            })
+            .catch(() => {})
+            .finally(() => {
+              resolvingTrackIdsRef.current.delete(targetTrackId)
+            })
         }
       }
     }
@@ -969,13 +1028,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       pendingAutoSkipTimeoutRef.current = null
     }
     audioRetryCountRef.current = 0
-    ytHtml5ModeRef.current = false
+
+    // ⚡ FIX #1: snapshot engine của track SẮP BỊ THAY THẾ trước khi reset state.
+    const previousTrackUsedYouTubeHtml5 = ytHtml5ModeRef.current
     const track = inferTrackSource(rawTrack)
 
     // 🚀 Push currentTrack onto true playback history stack when user changes track
     if (currentTrackRef.current && currentTrackRef.current.id !== track.id) {
       let activeTime = currentTime
-      if (currentTrackRef.current.source === 'youtube' && !ytHtml5ModeRef.current && ytPlayerRef.current?.getCurrentTime) {
+      if (
+        currentTrackRef.current.source === 'youtube' &&
+        !previousTrackUsedYouTubeHtml5 &&
+        ytPlayerRef.current?.getCurrentTime
+      ) {
         try { activeTime = ytPlayerRef.current.getCurrentTime() || currentTime } catch {}
       } else if (audioRef.current) {
         activeTime = audioRef.current.currentTime || currentTime
@@ -996,6 +1061,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       forwardHistoryStackRef.current = []
     }
     isPrevNextActionRef.current = false
+
+    // ⚡ Reset engine state CHỈ SAU KHI đã dùng xong snapshot ở trên.
+    ytHtml5ModeRef.current = false
 
     // ⚡ 1. PAUSE & STOP ALL PREVIOUS AUDIO ENGINES IMMEDIATELY (ZERO DELAY OVERLAP)
     if (ytStuckTimerRef.current) {
@@ -1154,10 +1222,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     // ⚡ Fast path: reuse a previously resolved catalog match for this track.id
     const cachedResolution = shouldResolveExternalCatalog
-      ? trackResolutionCacheRef.current.get(track.id)
+      ? getBoundedRefreshed(
+          trackResolutionCacheRef.current,
+          track.id,
+          (entry) => Date.now() >= entry.expiresAt
+        )
       : undefined
-    const useCachedResolution = cachedResolution && Date.now() < cachedResolution.expiresAt
-    if (useCachedResolution && requestId === playRequestRef.current) {
+    const useCachedResolution = Boolean(cachedResolution)
+    if (cachedResolution && requestId === playRequestRef.current) {
       activeTrack = cachedResolution.activeTrack
       audioUrlCacheRef.current.delete(track.id)
       setCurrentTrack(activeTrack)
@@ -1231,7 +1303,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        trackResolutionCacheRef.current.set(track.id, { activeTrack, expiresAt: Date.now() + TRACK_RESOLUTION_TTL })
+        setBounded(trackResolutionCacheRef.current, track.id, { activeTrack, expiresAt: Date.now() + TRACK_RESOLUTION_TTL }, TRACK_RESOLUTION_MAX_ENTRIES)
 
         if (requestId === playRequestRef.current) {
           setCurrentTrack(activeTrack)
@@ -2192,6 +2264,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       isBuffering,
       queue,
       currentIndex,
+      currentTime,
+      effectiveDuration,
       volume,
       isShuffle,
       repeatMode,

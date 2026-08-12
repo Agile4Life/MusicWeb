@@ -19,9 +19,14 @@ export function getHighResCoverUrl(url: string | null | undefined): string | nul
 
   let highRes = url
 
-  // 1. YouTube Thumbnails: Upgrade hqdefault/mqdefault/default to hq720 or maxresdefault
+  // 1. YouTube Thumbnails: Strip downscaling sqp query params & upgrade to maxresdefault (1280x720)
   if (highRes.includes('ytimg.com') || highRes.includes('youtube.com')) {
-    highRes = highRes.replace(/\/(hqdefault|mqdefault|default|sddefault)\.jpg/g, '/hq720.jpg')
+    const cleanUrl = highRes.split('?')[0]
+    const match = cleanUrl.match(/\/(?:vi|vi_webp)\/([a-zA-Z0-9_-]{11})/)
+    if (match && match[1]) {
+      return `https://i.ytimg.com/vi/${match[1]}/maxresdefault.jpg`
+    }
+    highRes = cleanUrl.replace(/\/(hqdefault|mqdefault|default|sddefault|hq720)\.(jpg|webp)/g, '/maxresdefault.jpg')
   }
 
   // 2. iTunes / Apple Music: Upgrade 100x100bb / 200x200bb to 600x600bb
@@ -50,10 +55,33 @@ function TrackCoverImageComponent({
 }: TrackCoverImageProps) {
   const [hasError, setHasError] = useState(false)
   const [loaded, setLoaded] = useState(false)
-  const [useFallbackUrl, setUseFallbackUrl] = useState(false)
+  const [fallbackStage, setFallbackStage] = useState(0)
 
   const highResSrc = useMemo(() => getHighResCoverUrl(src), [src])
-  const currentSrc = useFallbackUrl ? src : highResSrc
+
+  const youtubeVideoId = useMemo(() => {
+    if (!src) return null
+    const match = src.match(/\/(?:vi|vi_webp)\/([a-zA-Z0-9_-]{11})/)
+    return match ? match[1] : null
+  }, [src])
+
+  const currentSrc = useMemo(() => {
+    if (!youtubeVideoId) {
+      return fallbackStage > 0 ? src : highResSrc
+    }
+    switch (fallbackStage) {
+      case 0:
+        return highResSrc || `https://i.ytimg.com/vi/${youtubeVideoId}/maxresdefault.jpg`
+      case 1:
+        return `https://i.ytimg.com/vi/${youtubeVideoId}/sddefault.jpg`
+      case 2:
+        return `https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg`
+      case 3:
+        return src || null
+      default:
+        return null
+    }
+  }, [youtubeVideoId, fallbackStage, highResSrc, src])
 
   if (!currentSrc || hasError) {
     return (
@@ -74,9 +102,14 @@ function TrackCoverImageComponent({
       style={{ aspectRatio: '1 / 1' }}
       onLoad={() => setLoaded(true)}
       onError={() => {
-        // If high-res URL failed (e.g. hq720 not available for older YouTube video), fall back to original src
-        if (!useFallbackUrl && src && src !== highResSrc) {
-          setUseFallbackUrl(true)
+        if (youtubeVideoId) {
+          if (fallbackStage < 3) {
+            setFallbackStage((prev) => prev + 1)
+          } else {
+            setHasError(true)
+          }
+        } else if (fallbackStage === 0 && src && src !== highResSrc) {
+          setFallbackStage(1)
         } else {
           setHasError(true)
         }
