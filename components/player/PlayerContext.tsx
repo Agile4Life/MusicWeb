@@ -1245,6 +1245,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           } catch {}
         }
         console.warn('HTML5 audio stream playback info:', err)
+        if (requestId === playRequestRef.current) {
+          setIsPlaying(false)
+          setIsBuffering(false)
+          setPlaybackError(`Không thể phát bài hát "${activeTrack.title}". Vui lòng chọn bài khác.`)
+        }
+        return
       }
     }
 
@@ -1287,19 +1293,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (requestId === playRequestRef.current) {
         setIsPlaying(false)
         setIsBuffering(false)
-        if (consecutiveSkipRef.current < 3) {
-          consecutiveSkipRef.current += 1
-          setPlaybackError(`Bài hát "${activeTrack.title}" không hỗ trợ phát trực tiếp. Đang chuyển bài tiếp theo...`)
-          const skipTimeoutId = setTimeout(() => {
-            if (requestId === playRequestRef.current) {
-              nextTrackRef.current()
-            }
-          }, 1500)
-          pendingAutoSkipTimeoutRef.current = skipTimeoutId
-        } else {
-          consecutiveSkipRef.current = 0
-          setPlaybackError(`Nhiều bài hát liên tiếp không phát được. Vui lòng chọn bài khác thủ công.`)
-        }
+        setPlaybackError(`Không thể tìm thấy nguồn phát trực tiếp cho bài hát "${activeTrack.title}". Vui lòng chọn bài khác.`)
       }
     }
 
@@ -1449,10 +1443,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const audio = audioRef.current
     if (!cached || !audio) return false
 
-    // Cancel any pending async play requests
-    playRequestRef.current++
+    // Capture requestId — cancels any pending async play requests AND lets
+    // this call's own play().then/catch verify it's still the active request.
+    const requestId = ++playRequestRef.current
 
-    // Stop the YouTube iframe engine if it was active
     if (ytStuckTimerRef.current) {
       clearTimeout(ytStuckTimerRef.current)
       ytStuckTimerRef.current = null
@@ -1464,7 +1458,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       } catch {}
     }
 
-    // Resolve the queue index (track id-based lookup, falls back to the provided index)
     const q = queueRef.current.length > 0 ? queueRef.current : queue
     let targetIdx = typeof idx === 'number' && idx >= 0 ? idx : q.findIndex((t) => t.id === track.id)
     if (targetIdx < 0) targetIdx = currentIndexRef.current
@@ -1473,6 +1466,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     ytHtml5ModeRef.current = isIOSDevice() && (track.source === 'youtube' || Boolean(track.youtube_id))
 
+    // Keep currentTrackRef in sync SYNCHRONOUSLY, same as playTrack does —
+    // currentIndexRef above is already synchronous, this must match.
+    currentTrackRef.current = track
     setCurrentTrack(track)
     if (targetIdx >= 0 && targetIdx < q.length) {
       setQueue((prevQ) => {
@@ -1487,22 +1483,26 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     setIsBuffering(true)
     savePlayerStateToStorage(track, 0, q, targetIdx, volume)
 
-    // Swap src WITHOUT pausing first (pausing can revoke the active iOS audio session / gesture chain)
     audio.src = cached
     audio.volume = volumeRef.current || volume
     audio.currentTime = 0
 
     audio.play()
       .then(() => {
+        if (requestId !== playRequestRef.current) {
+          // A newer play request has taken over — don't touch playback state
+          // and don't leave this element playing under it.
+          audio.pause()
+          return
+        }
         setIsBuffering(false)
         setIsPlaying(true)
         audioRetryCountRef.current = 0
       })
       .catch((err: any) => {
+        if (requestId !== playRequestRef.current) return
         setIsBuffering(false)
         setIsPlaying(false)
-        // On iOS background, play() without a fresh gesture is rejected — keep src loaded
-        // and let the next media-session action / visibility retry resume it.
         if (err?.name === 'NotAllowedError' || String(err?.message || '').includes('not allowed')) {
           pendingResumeRef.current = true
         } else {
@@ -1742,9 +1742,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         const loadedDuration = audio.duration || 0
         setDuration(loadedDuration)
 
-        // Automatically skip short sound snippets / meme clips under 15 seconds
-        if (loadedDuration > 0 && loadedDuration < 15) {
-          console.warn('Track audio duration too short (< 15s), skipping automatically:', currentTrackRef.current?.title)
+        // Automatically skip invalid sound snippets under 3 seconds
+        if (loadedDuration > 0 && loadedDuration < 3) {
+          console.warn('Track audio duration invalid (< 3s), skipping automatically:', currentTrackRef.current?.title)
           nextTrackRef.current()
           return
         }
