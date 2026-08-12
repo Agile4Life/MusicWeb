@@ -12,7 +12,6 @@ import {
   ListMusic,
   UserCheck,
   Cloud,
-  Headphones,
   Settings,
   Heart,
   History,
@@ -141,31 +140,22 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
   return (
     <aside className={`app-sidebar hidden md:flex w-64 bg-[var(--elevation-1-bg)] flex-col justify-between p-3.5 h-full select-none text-slate-300 rounded-2xl border border-white/[0.06] panel-theme-hover shrink-0 z-10 shadow-[4px_0_24px_rgba(0,0,0,0.4)] ${isScrolled ? 'is-scrolled' : ''}`}>
       <div className="flex flex-col gap-5 min-h-0 flex-1">
-        {/* App Branding Header */}
-        <div className="px-1 py-1 flex justify-start">
+        {/* App Branding Header (Mini Glass Plaque) */}
+        <div className="px-0.5 py-0.5">
           <Link
             href="/"
             onClick={() => {
               clearSearch()
               window.dispatchEvent(new Event('musicweb-tab-home'))
             }}
-            className="inline-flex items-center gap-2.5 px-3 py-2 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-[var(--spotify-glow)]/30 transition-all duration-200 group shadow-md backdrop-blur-xl w-fit shrink-0"
+            className="sidebar-logo-plaque w-full flex items-center justify-start px-3.5 py-2.5 rounded-2xl group cursor-pointer"
+            title="MusicWeb"
           >
-            <div
-              style={{
-                color: 'var(--spotify-glow, #22d3ee)',
-                backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
-                borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
-              }}
-              className="w-9 h-9 rounded-xl border flex items-center justify-center group-hover:scale-105 transition-all shadow-md shrink-0"
-            >
-              <Headphones className="w-4.5 h-4.5" />
-            </div>
-            <div className="flex items-center justify-center h-9 shrink-0">
+            <div className="flex items-center justify-start h-9 shrink-0">
               <img
                 src="/phong-signature.png"
-                alt="Phong's Music Signature"
-                className="h-8 w-auto object-contain signature-img-invert translate-y-[1.5px] group-hover:scale-105 transition-transform"
+                alt="MusicWeb Logo"
+                className="h-9 w-auto object-contain signature-img-invert group-hover:scale-[1.03] transition-transform"
               />
             </div>
           </Link>

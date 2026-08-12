@@ -143,6 +143,41 @@ body {
   transform: scale(0.96);
 }
 
+/* === Sidebar Logo Mini Glass Plaque === */
+.sidebar-logo-plaque {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--spotify-glow, #22d3ee) 8%, rgba(20, 24, 36, 0.75)),
+    rgba(14, 18, 28, 0.65)
+  ) !important;
+  backdrop-filter: blur(16px) saturate(135%);
+  -webkit-backdrop-filter: blur(16px) saturate(135%);
+  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 14%, rgba(255, 255, 255, 0.08)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.15),
+    0 6px 18px rgba(0, 0, 0, 0.22) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sidebar-logo-plaque::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), transparent 35%);
+}
+
+.sidebar-logo-plaque:hover {
+  transform: translateY(-0.5px);
+  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 22%, rgba(255, 255, 255, 0.12)) !important;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.2),
+    0 8px 20px rgba(0, 0, 0, 0.28) !important;
+}
+
 /* === Elevation 2: Sidebar (Theme-Aware Medium Glass with Reduced Theme Flooding) === */
 .app-sidebar {
   position: relative;
