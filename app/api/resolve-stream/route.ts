@@ -196,10 +196,28 @@ async function resolveStream(
     let ytCandidates = await searchYouTubeTracks(queryStr, 10)
     let best = findBestYouTubeMatch(ytCandidates, title, artist, duration)
 
-    if (!best && ytCandidates.length === 0 && cleanTitle) {
+    if (!best && cleanTitle) {
       const fallbackQuery = `${cleanTitle} ${cleanArtist} audio`.trim()
-      ytCandidates = await searchYouTubeTracks(fallbackQuery, 10)
-      best = findBestYouTubeMatch(ytCandidates, title, artist, duration)
+      const fallbackCandidates = await searchYouTubeTracks(fallbackQuery, 10)
+      if (fallbackCandidates.length > 0) {
+        ytCandidates = fallbackCandidates
+        best = findBestYouTubeMatch(ytCandidates, title, artist, duration)
+      }
+    }
+
+    if (!best && cleanTitle) {
+      const fallbackQuery2 = `${cleanTitle} ${cleanArtist}`.trim()
+      const fallbackCandidates2 = await searchYouTubeTracks(fallbackQuery2, 10)
+      if (fallbackCandidates2.length > 0) {
+        ytCandidates = fallbackCandidates2
+        best = findBestYouTubeMatch(ytCandidates, title, artist, duration)
+      }
+    }
+
+    // Fallback: If search returned candidates but strict scoring filtered them out,
+    // pick the top candidate so the track can still be played!
+    if (!best && ytCandidates.length > 0) {
+      best = ytCandidates[0]
     }
 
     if (best?.youtube_id) {
@@ -209,18 +227,6 @@ async function resolveStream(
         title: best.title || undefined,
         artist: best.artist || undefined,
         duration: best.duration,
-        isMiss: false,
-        expiresAt: Date.now() + L1_HIT_TTL,
-      }
-    }
-    // Fallback: first result if available
-    if (ytCandidates.length > 0 && ytCandidates[0].youtube_id) {
-      return {
-        source: 'youtube',
-        resolvedId: ytCandidates[0].youtube_id,
-        title: ytCandidates[0].title || undefined,
-        artist: ytCandidates[0].artist || undefined,
-        duration: ytCandidates[0].duration,
         isMiss: false,
         expiresAt: Date.now() + L1_HIT_TTL,
       }
@@ -264,21 +270,15 @@ export async function GET(request: NextRequest): Promise<Response> {
   // ── Invalidate path ───────────────────────────────────────────────
   if (invalidate && supabase) {
     try {
-      // Increment fail_count via raw SQL since supabase-js doesn't support increment()
-      await supabase.rpc('increment_fail_count', {
-        p_title_key: titleKey,
-        p_artist_key: artistKey,
-        p_duration_bucket: durBucket,
-      }).then(null, () => {
-        // Fallback: simple update if RPC doesn't exist
-        return supabase
-          .from('stream_resolutions')
-          .delete()
-          .eq('title_key', titleKey)
-          .eq('artist_key', artistKey)
-          .eq('duration_bucket', durBucket)
-      })
-    } catch {}
+      await supabase
+        .from('stream_resolutions')
+        .delete()
+        .eq('title_key', titleKey)
+        .eq('artist_key', artistKey)
+        .eq('duration_bucket', durBucket)
+    } catch (e) {
+      console.warn('Failed to invalidate stream_resolutions row:', e)
+    }
     l1Cache.delete(cacheKey)
     // Fall through to re-resolve
   }
