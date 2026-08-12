@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getServerSession } from 'next-auth'
+import { getValidUserId } from '@/lib/accessControl'
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,8 +15,8 @@ export async function POST(req: NextRequest) {
     let userId = '00000000-0000-4000-a000-000000000001'
     try {
       const session = await getServerSession()
-      if (session?.user && (session.user as any).id) {
-        userId = (session.user as any).id
+      if (session?.user) {
+        userId = getValidUserId(session.user)
       }
     } catch {}
 

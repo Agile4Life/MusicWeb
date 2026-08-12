@@ -47,7 +47,7 @@ export function UpNextList() {
               type="button"
               onClick={() => playTrack(track, queue, actualIndex)}
               aria-label={`Phát bài ${track.title} của ${track.artist || 'Nghệ sĩ'}`}
-              className={`w-full flex items-center gap-3 p-2 rounded-xl text-left transition-all duration-200 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-glow,#22d3ee)] ${
+              className={`w-full cv-auto flex items-center gap-3 p-2 rounded-xl text-left transition-all duration-200 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-glow,#22d3ee)] ${
                 isCurrent
                   ? 'bg-[var(--accent,#06b6d4)]/15 border border-[var(--accent,#06b6d4)]/30 text-[var(--spotify-glow,#22d3ee)] shadow-sm'
                   : 'hover:bg-white/10 border border-transparent text-slate-300 hover:text-white'

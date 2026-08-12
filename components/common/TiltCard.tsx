@@ -105,6 +105,8 @@ export function TiltCard({
             ? 'perspective(1000px) rotateX(var(--rotate-x, 0deg)) rotateY(var(--rotate-y, 0deg))'
             : 'none',
         willChange: 'transform',
+        backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden',
         ...style,
       }}
     >

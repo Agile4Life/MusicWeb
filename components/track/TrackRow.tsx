@@ -316,7 +316,7 @@ function TrackRowComponent({
       onClick={onPlayClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`recent-row song-row group flex items-center justify-between px-3 md:px-4 py-2.5 rounded-xl transition-all duration-200 cursor-pointer select-none border relative ${
+      className={`recent-row song-row cv-auto group flex items-center justify-between px-3 md:px-4 py-2.5 rounded-xl transition-all duration-200 cursor-pointer select-none border relative ${
         showMenu
           ? 'z-40 bg-white/[0.12] border-white/20 text-white shadow-lg'
           : isSelected

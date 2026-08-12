@@ -17,7 +17,7 @@ export function QueueDrawer() {
   const nextUpTracks = currentIndex >= 0 ? queue.slice(currentIndex + 1) : queue
 
   return (
-    <aside className="fixed inset-x-2 top-16 bottom-36 z-40 lg:z-40 lg:static lg:inset-auto lg:top-auto lg:bottom-auto lg:h-full w-auto lg:w-80 xl:w-96 bg-[var(--elevation-3-bg)] backdrop-blur-2xl rounded-2xl border border-white/10 panel-theme-hover shadow-2xl flex flex-col overflow-hidden shrink-0 select-none animate-in slide-in-from-bottom lg:slide-in-from-right duration-200">
+    <aside className="fixed inset-x-2 top-16 bottom-36 z-40 lg:z-40 lg:static lg:inset-auto lg:top-auto lg:bottom-auto lg:h-full w-auto lg:w-80 xl:w-96 bg-[var(--elevation-3-bg)] backdrop-blur-2xl rounded-2xl border border-white/10 panel-theme-hover shadow-2xl flex flex-col overflow-hidden shrink-0 select-none animate-in slide-in-from-bottom lg:slide-in-from-right duration-200 transform-gpu">
       {/* Drawer Header */}
       <div className="flex items-center justify-between px-4 py-3.5 border-b border-white/10 shrink-0">
         <div className="flex items-center gap-4">
