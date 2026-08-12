@@ -10,37 +10,86 @@ interface LanguageSelectorProps {
   className?: string
 }
 
-const SVG_FLAGS: Record<Language, React.ReactNode> = {
-  vi: (
-    <svg className="w-5 h-3.5 rounded-sm object-cover shadow-sm shrink-0 border border-white/10" viewBox="0 0 30 20">
-      <rect width="30" height="20" fill="#da251d" />
-      <polygon fill="#ffff00" points="15,4 16.5,8.5 21.2,8.5 17.4,11.3 18.9,15.8 15,13 11.1,15.8 12.6,11.3 8.8,8.5 13.5,8.5" />
-    </svg>
-  ),
-  en: (
-    <svg className="w-5 h-3.5 rounded-sm object-cover shadow-sm shrink-0 border border-white/10" viewBox="0 0 60 30">
-      <clipPath id="s"><path d="M0,0 v30 h60 v-30 z"/></clipPath>
-      <clipPath id="t"><path d="M0,0 L60,30 M60,0 L0,30"/></clipPath>
-      <g clipPath="url(#s)">
-        <path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" strokeWidth="6"/>
-        <path d="M0,0 L60,30 M60,0 L0,30" clipPath="url(#t)" stroke="#cc0000" strokeWidth="4"/>
-        <path d="M30,0 v30 M0,15 h60" stroke="#fff" strokeWidth="10"/>
-        <path d="M30,0 v30 M0,15 h60" stroke="#cc0000" strokeWidth="6"/>
-      </g>
-    </svg>
-  ),
-  zh: (
-    <svg className="w-5 h-3.5 rounded-sm object-cover shadow-sm shrink-0 border border-white/10" viewBox="0 0 30 20">
-      <rect width="30" height="20" fill="#de2910" />
-      <polygon fill="#ffde00" points="5,3 5.9,5.9 8.8,5.9 6.4,7.6 7.3,10.5 5,8.8 2.7,10.5 3.6,7.6 1.2,5.9 4.1,5.9" />
-    </svg>
-  ),
-  ja: (
-    <svg className="w-5 h-3.5 rounded-sm object-cover shadow-sm shrink-0 border border-white/20" viewBox="0 0 30 20">
-      <rect width="30" height="20" fill="#ffffff" />
-      <circle cx="15" cy="10" r="6" fill="#bc002d" />
-    </svg>
-  ),
+const renderFlag = (code: Language, isRound = false) => {
+  if (isRound) {
+    switch (code) {
+      case 'vi':
+        return (
+          <svg className="w-6 h-6 rounded-full shrink-0 border border-white/20 shadow-sm overflow-hidden block" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="12" fill="#da251d" />
+            <polygon fill="#ffff00" points="12,5 13.4,9.3 17.9,9.3 14.3,11.9 15.7,16.2 12,13.5 8.3,16.2 9.7,11.9 6.1,9.3 10.6,9.3" />
+          </svg>
+        )
+      case 'en':
+        return (
+          <svg className="w-6 h-6 rounded-full shrink-0 border border-white/20 shadow-sm overflow-hidden block" viewBox="0 0 30 30">
+            <circle cx="15" cy="15" r="15" fill="#00247d" />
+            <clipPath id="circle-clip-en">
+              <circle cx="15" cy="15" r="15" />
+            </clipPath>
+            <g clipPath="url(#circle-clip-en)">
+              <path d="M0,0 L30,30 M30,0 L0,30" stroke="#fff" strokeWidth="4"/>
+              <path d="M0,0 L30,30 M30,0 L0,30" stroke="#cc0000" strokeWidth="2.5"/>
+              <path d="M15,0 v30 M0,15 h30" stroke="#fff" strokeWidth="7"/>
+              <path d="M15,0 v30 M0,15 h30" stroke="#cc0000" strokeWidth="4.5"/>
+            </g>
+          </svg>
+        )
+      case 'zh':
+        return (
+          <svg className="w-6 h-6 rounded-full shrink-0 border border-white/20 shadow-sm overflow-hidden block" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="12" fill="#de2910" />
+            <polygon fill="#ffde00" points="7,5 7.9,7.9 10.8,7.9 8.4,9.6 9.3,12.5 7,10.8 4.7,12.5 5.6,9.6 3.2,7.9 6.1,7.9" />
+          </svg>
+        )
+      case 'ja':
+      default:
+        return (
+          <svg className="w-6 h-6 rounded-full shrink-0 border border-white/20 shadow-sm overflow-hidden block" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="12" fill="#ffffff" />
+            <circle cx="12" cy="12" r="6" fill="#bc002d" />
+          </svg>
+        )
+    }
+  }
+
+  switch (code) {
+    case 'vi':
+      return (
+        <svg className="w-5 h-3.5 rounded-sm object-cover shadow-sm shrink-0 border border-white/10" viewBox="0 0 30 20">
+          <rect width="30" height="20" fill="#da251d" />
+          <polygon fill="#ffff00" points="15,4 16.5,8.5 21.2,8.5 17.4,11.3 18.9,15.8 15,13 11.1,15.8 12.6,11.3 8.8,8.5 13.5,8.5" />
+        </svg>
+      )
+    case 'en':
+      return (
+        <svg className="w-5 h-3.5 rounded-sm object-cover shadow-sm shrink-0 border border-white/10" viewBox="0 0 60 30">
+          <clipPath id="s"><path d="M0,0 v30 h60 v-30 z"/></clipPath>
+          <clipPath id="t"><path d="M0,0 L60,30 M60,0 L0,30"/></clipPath>
+          <g clipPath="url(#s)">
+            <path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" strokeWidth="6"/>
+            <path d="M0,0 L60,30 M60,0 L0,30" clipPath="url(#t)" stroke="#cc0000" strokeWidth="4"/>
+            <path d="M30,0 v30 M0,15 h60" stroke="#fff" strokeWidth="10"/>
+            <path d="M30,0 v30 M0,15 h60" stroke="#cc0000" strokeWidth="6"/>
+          </g>
+        </svg>
+      )
+    case 'zh':
+      return (
+        <svg className="w-5 h-3.5 rounded-sm object-cover shadow-sm shrink-0 border border-white/10" viewBox="0 0 30 20">
+          <rect width="30" height="20" fill="#de2910" />
+          <polygon fill="#ffde00" points="5,3 5.9,5.9 8.8,5.9 6.4,7.6 7.3,10.5 5,8.8 2.7,10.5 3.6,7.6 1.2,5.9 4.1,5.9" />
+        </svg>
+      )
+    case 'ja':
+    default:
+      return (
+        <svg className="w-5 h-3.5 rounded-sm object-cover shadow-sm shrink-0 border border-white/20" viewBox="0 0 30 20">
+          <rect width="30" height="20" fill="#ffffff" />
+          <circle cx="15" cy="10" r="6" fill="#bc002d" />
+        </svg>
+      )
+  }
 }
 
 export function LanguageSelector({ variant = 'dropdown', className = '' }: LanguageSelectorProps) {
@@ -65,12 +114,21 @@ export function LanguageSelector({ variant = 'dropdown', className = '' }: Langu
           type="button"
           onClick={() => setIsOpen(!isOpen)}
           aria-label={`Ngôn ngữ: ${currentOption.nativeName}`}
-          className={`flex items-center justify-center w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.14] border border-white/10 text-xs font-semibold text-white transition-all active:scale-95 shadow-md backdrop-blur-md ${
-            isOpen ? 'border-[var(--spotify-glow,#22d3ee)]/50 shadow-[0_0_12px_var(--theme-glow-shadow)]' : ''
-          }`}
+          className="flex items-center justify-center p-0 bg-transparent border-0 outline-none cursor-pointer transition-all active:scale-95"
           title={currentOption.nativeName}
         >
-          {SVG_FLAGS[currentOption.code]}
+          <span
+            style={{
+              display: 'inline-flex',
+              borderRadius: '50%',
+              boxShadow: isOpen
+                ? '0 0 0 1.5px color-mix(in srgb, var(--spotify-glow, #22d3ee) 55%, transparent), 0 0 10px var(--theme-glow-shadow, rgba(34, 211, 238, 0.5))'
+                : '0 0 0 1.5px color-mix(in srgb, var(--spotify-glow, #22d3ee) 30%, rgba(255,255,255,0.18)), 0 0 7px var(--theme-glow-shadow, rgba(34, 211, 238, 0.28))',
+              transition: 'box-shadow 0.2s ease',
+            }}
+          >
+            {renderFlag(currentOption.code, true)}
+          </span>
         </button>
 
         {isOpen && (
@@ -98,7 +156,7 @@ export function LanguageSelector({ variant = 'dropdown', className = '' }: Langu
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      {SVG_FLAGS[opt.code]}
+                      {renderFlag(opt.code, false)}
                       <span>{opt.nativeName}</span>
                     </div>
                     {isSelected && <Check className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)]" />}
@@ -123,7 +181,7 @@ export function LanguageSelector({ variant = 'dropdown', className = '' }: Langu
       >
         <div className="flex items-center gap-2">
           {variant === 'select' && <Globe className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)] shrink-0" />}
-          {SVG_FLAGS[currentOption.code]}
+          {renderFlag(currentOption.code, false)}
           <span>{currentOption.nativeName}</span>
         </div>
         <ChevronDown
@@ -158,7 +216,7 @@ export function LanguageSelector({ variant = 'dropdown', className = '' }: Langu
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    {SVG_FLAGS[opt.code]}
+                    {renderFlag(opt.code, false)}
                     <div className="flex flex-col items-start leading-tight">
                       <span className="font-semibold">{opt.nativeName}</span>
                       {opt.name !== opt.nativeName && (
