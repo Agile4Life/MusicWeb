@@ -30,7 +30,7 @@ export function FloatingMusicNotes() {
         left: Math.floor(Math.random() * 92), // 0% to 92%
         size: Math.floor(Math.random() * 28) + 16, // 16px to 44px
         rotate: Math.floor(Math.random() * 90) - 45, // -45deg to 45deg
-        opacity: Math.random() * 0.2 + 0.05, // 0.05 to 0.25
+        opacity: Math.random() * 0.09 + 0.03, // 0.03 to 0.12 subtle background texture
         duration: Math.floor(Math.random() * 6) + 4, // 4s to 10s
         delay: Math.floor(Math.random() * 5), // 0s to 5s
         glow: Math.random() > 0.5,
@@ -41,8 +41,8 @@ export function FloatingMusicNotes() {
 
   const renderIcon = (type: number, size: number, glow: boolean) => {
     const colorClass = glow
-      ? 'text-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_0_12px_var(--theme-glow-shadow)]'
-      : 'text-white'
+      ? 'text-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_0_8px_var(--theme-glow-shadow)]'
+      : 'text-slate-400'
 
     switch (type) {
       case 0:
@@ -70,15 +70,15 @@ export function FloatingMusicNotes() {
       {/* Dynamic Ambient Theme Light Blobs */}
       <div
         style={{
-          background: 'radial-gradient(500px circle at 20% 30%, var(--theme-gradient-1, rgba(6,182,212,0.18)), transparent 70%)',
+          background: 'radial-gradient(500px circle at 20% 30%, color-mix(in srgb, var(--spotify-glow, #22d3ee) 5%, transparent), transparent 70%)',
         }}
-        className="absolute inset-0 pointer-events-none animate-pulse duration-[6000ms]"
+        className="absolute inset-0 pointer-events-none"
       />
       <div
         style={{
-          background: 'radial-gradient(600px circle at 80% 70%, var(--theme-gradient-2, rgba(34,211,238,0.15)), transparent 70%)',
+          background: 'radial-gradient(600px circle at 80% 70%, color-mix(in srgb, var(--primary-spotify, #06b6d4) 3.5%, transparent), transparent 70%)',
         }}
-        className="absolute inset-0 pointer-events-none animate-pulse duration-[8000ms] delay-1000"
+        className="absolute inset-0 pointer-events-none"
       />
 
       {/* Random Floating Music Icons */}

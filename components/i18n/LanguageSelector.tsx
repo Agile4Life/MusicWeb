@@ -6,7 +6,7 @@ import { Language } from '@/lib/i18n'
 import { Globe, ChevronDown, Check } from 'lucide-react'
 
 interface LanguageSelectorProps {
-  variant?: 'pill' | 'select' | 'dropdown'
+  variant?: 'pill' | 'select' | 'dropdown' | 'flag-only'
   className?: string
 }
 
@@ -57,6 +57,60 @@ export function LanguageSelector({ variant = 'dropdown', className = '' }: Langu
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  if (variant === 'flag-only') {
+    return (
+      <div ref={dropdownRef} className={`relative inline-block select-none ${className}`}>
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          aria-label={`Ngôn ngữ: ${currentOption.nativeName}`}
+          className={`flex items-center justify-center w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.14] border border-white/10 text-xs font-semibold text-white transition-all active:scale-95 shadow-md backdrop-blur-md ${
+            isOpen ? 'border-[var(--spotify-glow,#22d3ee)]/50 shadow-[0_0_12px_var(--theme-glow-shadow)]' : ''
+          }`}
+          title={currentOption.nativeName}
+        >
+          {SVG_FLAGS[currentOption.code]}
+        </button>
+
+        {isOpen && (
+          <div className="absolute right-0 mt-2 w-44 rounded-2xl bg-[#0e121c]/95 border border-white/10 shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl">
+            <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-white/5 mb-1 flex items-center justify-between">
+              <span>Ngôn ngữ</span>
+              <Globe className="w-3 h-3 text-[var(--primary-spotify,#06b6d4)]" />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              {options.map((opt) => {
+                const isSelected = opt.code === language
+                return (
+                  <button
+                    key={opt.code}
+                    type="button"
+                    onClick={() => {
+                      setLanguage(opt.code)
+                      setIsOpen(false)
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                      isSelected
+                        ? 'bg-[var(--spotify-glow,#22d3ee)]/15 text-[var(--spotify-glow,#22d3ee)] font-bold'
+                        : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {SVG_FLAGS[opt.code]}
+                      <span>{opt.nativeName}</span>
+                    </div>
+                    {isSelected && <Check className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)]" />}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div ref={dropdownRef} className={`relative inline-block select-none ${className}`}>

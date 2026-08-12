@@ -12,7 +12,7 @@ import { LanguageSelector } from '@/components/i18n/LanguageSelector'
 import { FloatingMusicNotes } from './FloatingMusicNotes'
 import { scheduleAuthRedirect } from './authNavigation'
 import { createPasswordSession } from './passwordSession'
-import { Lock, Mail, Loader2, AlertCircle, CheckCircle2, Headphones, Eye, EyeOff } from 'lucide-react'
+import { Lock, Mail, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react'
 
 interface AuthFormProps {
   mode: 'login' | 'register'
@@ -319,9 +319,9 @@ export function AuthForm({ mode }: AuthFormProps) {
       className="min-h-screen w-screen flex items-center justify-center p-4 sm:p-6 relative overflow-hidden select-none glass-3d-container"
       style={{
         background: `
-          radial-gradient(ellipse at 15% 15%, color-mix(in srgb, var(--spotify-glow, #22d3ee) 22%, transparent), transparent 60%),
-          radial-gradient(ellipse at 85% 85%, color-mix(in srgb, var(--spotify-glow, #22d3ee) 10%, transparent), transparent 55%),
-          linear-gradient(160deg, var(--bg-space, #07090e), var(--elevation-1-bg, #0d1017) 55%, var(--bg-space, #07090e) 100%)
+          radial-gradient(ellipse at 15% 15%, color-mix(in srgb, var(--spotify-glow, #22d3ee) 5%, transparent), transparent 50%),
+          radial-gradient(ellipse at 85% 85%, color-mix(in srgb, var(--primary-spotify, #06b6d4) 3.5%, transparent), transparent 55%),
+          linear-gradient(160deg, var(--bg-space, #07090e), #0d1017 55%, var(--bg-space, #07090e) 100%)
         `,
       }}
     >
@@ -352,22 +352,22 @@ export function AuthForm({ mode }: AuthFormProps) {
           }}
         />
 
-        {/* 1. Language Selector Pill (Top Right) */}
-        <div className="absolute top-4 right-4 sm:top-5 sm:right-5 z-20">
-          <div className="backdrop-blur-md bg-white/10 border border-white/15 rounded-full px-2.5 py-1 shadow-lg">
-            <LanguageSelector variant="dropdown" />
-          </div>
+        {/* 1. Language Selector Button (Top Right - Flag Only) */}
+        <div className="absolute top-3 right-3 sm:top-3.5 sm:right-3.5 z-20">
+          <LanguageSelector variant="flag-only" />
         </div>
 
-        {/* 2. Headphones Icon Box & 3. Title */}
-        <div className="flex flex-col items-center gap-3 mb-6 text-center relative z-10 pt-10 sm:pt-2">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[var(--primary-spotify,#06b6d4)] via-[var(--spotify-glow,#22d3ee)] to-blue-600 p-0.5 shadow-xl shadow-[var(--theme-glow-shadow)]">
-            <div className="w-full h-full bg-[#080c14] rounded-[14px] flex items-center justify-center">
-              <Headphones className="w-8 h-8 text-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_0_10px_var(--theme-glow-shadow)]" />
-            </div>
+        {/* 2. MuSic Wordmark Brand Logo & 3. Title */}
+        <div className="flex flex-col items-center gap-3 mb-5 text-center relative z-10 pt-8 sm:pt-2">
+          <div className="flex items-center justify-center h-10 shrink-0 mb-3">
+            <img
+              src="/phong-signature.png"
+              alt="MuSic"
+              className="h-10 w-auto object-contain signature-img-invert"
+            />
           </div>
 
-          <div className="flex flex-col items-center gap-1">
+          <div className="flex flex-col items-center gap-1.5">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
               {authMode === 'login' ? t('welcome_back') : t('register')}
             </h1>
@@ -404,7 +404,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         )}
 
         {/* ─── 4. Account + 5. Password Form (Đăng nhập / Đăng ký) ─── */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 relative z-20 w-full">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3.5 relative z-20 w-full">
           <div>
             <label className="block text-xs font-bold text-slate-300 mb-1.5">{t('account_label')}</label>
             <div className="relative">
