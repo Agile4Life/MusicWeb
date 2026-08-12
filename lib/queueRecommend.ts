@@ -30,6 +30,20 @@ export function getDedupKey(track: QueueTrack): string {
 }
 
 /**
+ * Get all identity variants of a track (id, source_id, prefixed IDs)
+ */
+export function getTrackIdentityVariants(track: Partial<QueueTrack>): string[] {
+  const variants = new Set<string>()
+  if (track.id) variants.add(track.id)
+  if (track.source_id) {
+    variants.add(track.source_id)
+    variants.add(`spotify-${track.source_id}`)
+    variants.add(`deezer-${track.source_id}`)
+  }
+  return Array.from(variants)
+}
+
+/**
  * Fetch Internal Collaborative Candidates from Supabase
  * Users who listened to seedTrack also listened to...
  */
@@ -48,48 +62,61 @@ export async function getInternalCollaborativeCandidates(
       p_limit: 15,
     })
 
+    let candidateTrackIds: string[] = []
     if (!error && data && data.length > 0) {
-      return data.map((item: any, idx: number) => ({
-        id: item.track_id,
-        title: item.artist ? `${item.artist} Track` : 'Recommended Track',
-        artist: item.artist || seedArtist,
-        cover_url: null,
-        duration: 210,
-        source: 'internal_history',
-        source_id: item.track_id,
-        score: 1.2, // High priority for internal personalized CF
-        score_reasons: ['internal_collaborative_filtering'],
-      }))
-    }
-
-    // 2. Fallback query: top played tracks by current user or recent global events
-    if (userId) {
+      candidateTrackIds = data.map((item: any) => item.track_id).filter(Boolean)
+    } else if (userId) {
+      // 2. Fallback query: top played tracks by current user
       const { data: userEvents } = await supabase
         .from('listen_events')
-        .select('track_id, artist')
+        .select('track_id')
         .eq('user_id', userId)
         .eq('completed', true)
         .order('played_at', { ascending: false })
         .limit(20)
 
       if (userEvents && userEvents.length > 0) {
-        const uniqueTrackIds = Array.from(new Set(userEvents.map((e) => e.track_id))).filter(
+        candidateTrackIds = Array.from(new Set(userEvents.map((e) => e.track_id))).filter(
           (id) => id !== seedTrackId
         )
-
-        return uniqueTrackIds.slice(0, 10).map((tId) => ({
-          id: tId,
-          title: 'Bài hát gần đây',
-          artist: seedArtist,
-          cover_url: null,
-          duration: 200,
-          source: 'internal_history',
-          source_id: tId,
-          score: 1.1,
-          score_reasons: ['internal_user_recent_history'],
-        }))
       }
     }
+
+    if (candidateTrackIds.length === 0) return []
+
+    // 3. Resolve real track metadata from database if available
+    const { data: dbTracks } = await supabase
+      .from('tracks')
+      .select('id, title, artist, album, cover_url, duration, spotify_id')
+      .in('id', candidateTrackIds)
+
+    const metaMap = new Map<string, any>()
+    if (dbTracks) {
+      for (const t of dbTracks) {
+        metaMap.set(t.id, t)
+      }
+    }
+
+    return candidateTrackIds.slice(0, 10).map((tId) => {
+      const realMeta = metaMap.get(tId)
+      const title = realMeta?.title || undefined
+      const artist = realMeta?.artist || seedArtist
+      const cover_url = realMeta?.cover_url || null
+      const duration = realMeta?.duration || 200
+
+      return {
+        id: tId,
+        title: title || `Track ${tId}`,
+        artist: artist || 'Nghệ sĩ chưa xác định',
+        album: realMeta?.album || undefined,
+        cover_url,
+        duration,
+        source: 'internal_history' as const,
+        source_id: realMeta?.spotify_id || tId,
+        score: 1.2, // High priority for internal personalized CF
+        score_reasons: ['internal_collaborative_filtering'],
+      }
+    })
   } catch (err) {
     console.warn('getInternalCollaborativeCandidates error:', err)
   }
@@ -273,7 +300,7 @@ export async function buildNextQueue(
   const sourcesUsed: string[] = []
   const sourcesFailed: string[] = []
 
-  // 1. Parallel candidate generation
+  // 1. Parallel primary candidate generation
   const [deezerRadioRes, deezerRelatedRes, internalCFRes] = await Promise.allSettled([
     getDeezerArtistRadio(seedTrack.artist, 30),
     getDeezerRelatedArtistsTopTracks(seedTrack.artist, 30),
@@ -313,23 +340,10 @@ export async function buildNextQueue(
     }
   }
 
-  // Fallback to Spotify Search if total candidates < 5
-  let spotifyFallbackTracks: QueueTrack[] = []
-  const totalCandidatesSoFar = deezerRadioTracks.length + deezerRelatedTracks.length + internalCFTracks.length
-  if (totalCandidatesSoFar < 5) {
-    spotifyFallbackTracks = await maybeSpotifySearchFallback(seedTrack, 15)
-    if (spotifyFallbackTracks.length > 0) {
-      sourcesUsed.push('spotify_fallback')
-    } else {
-      sourcesFailed.push('spotify_fallback')
-    }
-  }
-
   let candidates: QueueTrack[] = [
     ...internalCFTracks,
     ...deezerRadioTracks,
     ...deezerRelatedTracks,
-    ...spotifyFallbackTracks,
   ]
 
   // 2. Deduplication (ISRC primary, title+artist secondary)
@@ -343,7 +357,7 @@ export async function buildNextQueue(
     sessionDedupKeys.add(getDedupKey(track))
   }
 
-  candidates = candidates.filter((c) => {
+  const filterCandidate = (c: QueueTrack) => {
     if (!isOriginalTrackOnly(c.title)) return false
     if (sessionDedupKeys.has(getDedupKey(c))) return false
     const candidateNormTitle = normalizeString(c.title)
@@ -353,15 +367,40 @@ export async function buildNextQueue(
       }
     }
     return true
-  })
-
-  // 4. Filter out user's frequently skipped tracks
-  const skippedSet = await getFrequentlySkippedTrackIds(userId)
-  if (skippedSet.size > 0) {
-    candidates = candidates.filter((c) => !skippedSet.has(c.id) && !skippedSet.has(c.source_id))
   }
 
-  // 5. Multi-factor Scoring
+  candidates = candidates.filter(filterCandidate)
+
+  // 4. Filter out user's frequently skipped tracks using identity variants
+  const skippedSet = await getFrequentlySkippedTrackIds(userId)
+  if (skippedSet.size > 0) {
+    candidates = candidates.filter((c) => {
+      const variants = getTrackIdentityVariants(c)
+      return !variants.some((v) => skippedSet.has(v))
+    })
+  }
+
+  // 5. Check UNIQUE filtered candidate count before triggering Spotify fallback
+  const MIN_CANDIDATES_BEFORE_SPOTIFY = 5
+  if (candidates.length < MIN_CANDIDATES_BEFORE_SPOTIFY) {
+    const spotifyFallbackTracks = await maybeSpotifySearchFallback(seedTrack, 15)
+    if (spotifyFallbackTracks.length > 0) {
+      sourcesUsed.push('spotify_fallback')
+      // Merge, re-dedup and re-filter Spotify candidates
+      const merged = dedupCandidates([...candidates, ...spotifyFallbackTracks])
+      candidates = merged.filter(filterCandidate)
+      if (skippedSet.size > 0) {
+        candidates = candidates.filter((c) => {
+          const variants = getTrackIdentityVariants(c)
+          return !variants.some((v) => skippedSet.has(v))
+        })
+      }
+    } else {
+      sourcesFailed.push('spotify_fallback')
+    }
+  }
+
+  // 6. Multi-factor Scoring
   const normSeedArtist = normalizeString(seedTrack.artist)
 
   for (const c of candidates) {
@@ -375,19 +414,22 @@ export async function buildNextQueue(
     const normCandidateArtist = normalizeString(c.artist)
     if (normCandidateArtist && normCandidateArtist === normSeedArtist) {
       score += 0.3
-      c.score_reasons.push('same_artist_bonus')
+      if (!c.score_reasons.includes('same_artist_bonus')) {
+        c.score_reasons.push('same_artist_bonus')
+      }
     }
 
-    c.score = parseFloat(score.toFixed(3))
+    const numericScore = Number.isFinite(score) ? score : 1.0
+    c.score = parseFloat(numericScore.toFixed(3))
   }
 
   // Sort descending by score
   candidates.sort((a, b) => b.score - a.score)
 
-  // 6. Diversity constraint: Max 2 tracks per artist in batch
+  // 7. Diversity constraint: Max 2 tracks per artist in batch
   let ranked = diversify(candidates, { maxPerArtist: 2 })
 
-  // 7. Inject Exploration Slots (20% ratio)
+  // 8. Inject Exploration Slots (20% ratio)
   ranked = injectExplorationSlots(ranked, { exploreRatio: 0.2 })
 
   const finalBatch = ranked.slice(0, limit)

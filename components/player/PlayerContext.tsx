@@ -261,6 +261,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const autoFetchSmartQueueRef = useRef(false)
+  const activeQueueRequestIdRef = useRef(0)
 
   const recordListenEvent = useCallback((track: Track | null, completed: boolean, skipAtSeconds?: number) => {
     if (!track || !track.id) return
@@ -279,15 +280,23 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const triggerSmartQueueFill = useCallback(async (seedTrack: Track, currentQ: Track[]) => {
     if (!seedTrack || autoFetchSmartQueueRef.current) return
     autoFetchSmartQueueRef.current = true
+    const requestId = ++activeQueueRequestIdRef.current
     try {
       const seedId = seedTrack.id
       const artist = seedTrack.artist || ''
       const title = seedTrack.title || ''
-      const res = await fetch(
-        `/api/queue/next?current_track_id=${encodeURIComponent(seedId)}&artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}&limit=12`
-      )
+      const isrc = (seedTrack as any).isrc || ''
+
+      let url = `/api/queue/next?current_track_id=${encodeURIComponent(seedId)}&artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}&limit=12`
+      if (isrc) url += `&isrc=${encodeURIComponent(isrc)}`
+
+      const res = await fetch(url)
+      if (requestId !== activeQueueRequestIdRef.current) return
+      if (currentTrackRef.current?.id !== seedId) return
+
       if (res.ok) {
         const data: NextQueueResponse = await res.json()
+        if (requestId !== activeQueueRequestIdRef.current) return
         if (data.tracks && data.tracks.length > 0) {
           const appTracks = data.tracks.map((qt) => queueTrackToTrack(qt))
           setQueue((prev) => deduplicateQueueTracks([...prev, ...appTracks]))
@@ -296,12 +305,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
       // Fallback if API returned empty
       const recs = await getSmartRecommendedTracks(seedTrack, currentQ, 8)
+      if (requestId !== activeQueueRequestIdRef.current) return
       if (recs && recs.length > 0) {
         setQueue((prev) => deduplicateQueueTracks([...prev, ...recs]))
       }
     } catch (err) {
       console.warn('Smart queue auto-fill error:', err)
+      if (requestId !== activeQueueRequestIdRef.current) return
       const recs = await getSmartRecommendedTracks(seedTrack, currentQ, 8).catch(() => [])
+      if (requestId !== activeQueueRequestIdRef.current) return
       if (recs && recs.length > 0) {
         setQueue((prev) => deduplicateQueueTracks([...prev, ...recs]))
       }

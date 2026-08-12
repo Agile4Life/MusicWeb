@@ -3,6 +3,10 @@ import { buildNextQueue } from '@/lib/queueRecommend'
 import { QueueTrack } from '@/types/queue'
 import { getServerSession } from 'next-auth'
 
+const DEFAULT_LIMIT = 12
+const MIN_LIMIT = 1
+const MAX_LIMIT = 30
+
 // In-memory cache for queue recommendations by seed track ID (15 minutes expiry)
 const queueCache = new Map<string, { data: any; expiresAt: number }>()
 
@@ -13,8 +17,20 @@ export async function GET(req: NextRequest) {
     const artist = searchParams.get('artist') || ''
     const title = searchParams.get('title') || ''
     const isrc = searchParams.get('isrc') || undefined
-    const limit = parseInt(searchParams.get('limit') || '12', 10)
+    const limitRaw = searchParams.get('limit')
     let userId = searchParams.get('user_id') || undefined
+
+    let limit = DEFAULT_LIMIT
+    if (limitRaw !== null) {
+      const parsed = parseInt(limitRaw, 10)
+      if (isNaN(parsed) || parsed < MIN_LIMIT) {
+        return NextResponse.json(
+          { error: 'Invalid limit parameter. Limit must be a positive integer.' },
+          { status: 400 }
+        )
+      }
+      limit = Math.min(parsed, MAX_LIMIT)
+    }
 
     if (!artist && !title && !currentTrackId) {
       return NextResponse.json(
@@ -32,13 +48,26 @@ export async function GET(req: NextRequest) {
       } catch {}
     }
 
-    // Generate cache key
-    const cacheKey = `${currentTrackId}:${artist}:${title}:${userId || 'anonymous'}`
+    // Generate structured cache key including all parameters that affect recommendation output
+    const cacheKey = JSON.stringify({
+      currentTrackId: currentTrackId || null,
+      artist: artist || null,
+      title: title || null,
+      isrc: isrc || null,
+      userId: userId || 'anonymous',
+      limit,
+    })
+
+    const isAuth = Boolean(userId)
+    const cacheControlHeader = isAuth
+      ? 'private, no-cache, no-store, must-revalidate'
+      : 'public, s-maxage=900, stale-while-revalidate=60'
+
     const cached = queueCache.get(cacheKey)
 
     if (cached && Date.now() < cached.expiresAt) {
       return NextResponse.json(cached.data, {
-        headers: { 'X-Cache': 'HIT', 'Cache-Control': 'public, s-maxage=900, stale-while-revalidate=60' },
+        headers: { 'X-Cache': 'HIT', 'Cache-Control': cacheControlHeader },
       })
     }
 
@@ -77,7 +106,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json(result, {
-      headers: { 'X-Cache': 'MISS', 'Cache-Control': 'public, s-maxage=900, stale-while-revalidate=60' },
+      headers: { 'X-Cache': 'MISS', 'Cache-Control': cacheControlHeader },
     })
   } catch (err: any) {
     console.error('Queue next API route error:', err)
