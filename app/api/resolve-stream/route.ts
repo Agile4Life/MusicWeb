@@ -38,8 +38,15 @@ function evictL1IfFull(): void {
 // ── Supabase client (service role for upserts) ──────────────────────
 function getSupabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const key = serviceKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   if (!url || !key) return null
+  if (!serviceKey) {
+    console.warn(
+      'SUPABASE_SERVICE_ROLE_KEY missing — resolve-stream falling back to anon key; ' +
+      'L2 cache writes to stream_resolutions may silently fail under RLS.'
+    )
+  }
   return createClient(url, key, { auth: { persistSession: false } })
 }
 
