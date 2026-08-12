@@ -709,7 +709,7 @@ export default function HomePage() {
       {!isSearching && (
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-white flex items-center gap-2">
+            <h2 className="text-sm font-bold font-display text-white flex items-center gap-2">
               <DiscAlbum style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
               <span>Trending & Hot Albums</span>
             </h2>
@@ -799,7 +799,7 @@ export default function HomePage() {
       {!isSearching && (
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-white flex items-center gap-2">
+            <h2 className="text-sm font-bold font-display text-white flex items-center gap-2">
               <TrendingUp style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
               <span>Trending & Hot Songs</span>
             </h2>
@@ -939,7 +939,7 @@ export default function HomePage() {
         {isSearching && (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
             <div className="flex items-center gap-3">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <h2 className="text-lg font-bold font-display text-white flex items-center gap-2">
                 <Search className="w-5 h-5 text-cyan-400" />
                 Kết Quả Tìm Kiếm Toàn Cầu
               </h2>
