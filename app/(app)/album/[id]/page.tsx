@@ -3,7 +3,6 @@
 import React, { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { fetchSpotifyAlbumMeta, fetchFullAlbumTracks } from '@/lib/spotify'
 import { Track } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { TrackRow } from '@/components/track/TrackRow'
@@ -11,6 +10,8 @@ import { TrackListSkeleton, HeroCardSkeleton } from '@/components/common/Skeleto
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { useSession } from 'next-auth/react'
 import { addTrackToPlaylist } from '@/lib/trackPersistence'
+import { getValidUserId } from '@/lib/accessControl'
+import { stripAlbumIdPrefix } from '@/lib/albumId'
 import { toast } from '@/components/ui/ToastContext'
 import { Play, DiscAlbum, Calendar, Music, Shuffle, Disc } from 'lucide-react'
 
@@ -37,12 +38,18 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(true)
 
   const handleAddToPlaylist = async (playlistId: string, track: Track) => {
-    const userEmail = session?.user?.email
-    let userId = ''
-    if (userEmail) {
-      const hex = Array.from(userEmail).map((c) => c.charCodeAt(0).toString(16)).join('')
-      const padded = (hex + '0123456789abcdef0123456789abcdef').slice(0, 32)
-      userId = `${padded.slice(0, 8)}-${padded.slice(8, 12)}-4${padded.slice(13, 16)}-a${padded.slice(17, 20)}-${padded.slice(20, 32)}`
+    if (!session?.user) {
+      toast('Bạn cần đăng nhập để thực hiện chức năng này', 'error')
+      return
+    }
+    const activeUser = {
+      id: (session.user as any).id || session.user.email,
+      email: session.user.email,
+    }
+    const userId = getValidUserId(activeUser)
+    if (!userId) {
+      toast('Không xác định được tài khoản', 'error')
+      return
     }
     const result = await addTrackToPlaylist(supabase, playlistId, track, userId)
     toast(result.message, result.success ? 'success' : 'error', track.title)
@@ -53,7 +60,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
       setLoading(true)
 
       try {
-        const cleanId = albumId.replace(/^(deezer|spotify|itunes|itunes-rss)-/, '')
+        const cleanId = stripAlbumIdPrefix(albumId)
         const idVariants = Array.from(new Set([albumId, cleanId, `deezer-${cleanId}`, `itunes-${cleanId}`]))
 
         // 1. Try Supabase DB cache first

@@ -153,14 +153,25 @@ export async function checkServerApproval(email?: string | null): Promise<boolea
 /** Converts any user object or email into a valid Postgres UUID format */
 export function getValidUserId(user?: any): string {
   if (!user) return '00000000-0000-4000-a000-000000000000'
-  if (user.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)) {
-    return user.id
+
+  const possibleId = user.id || user.user_id || user.sub
+  if (possibleId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(possibleId)) {
+    return possibleId
   }
-  const email = (user.email || user.id || 'default@musicweb.com').trim().toLowerCase()
-  let hex = ''
+
+  const email = (user.email || possibleId || 'default@musicweb.com').trim().toLowerCase()
+  let rawHex = ''
   for (let i = 0; i < email.length; i++) {
-    hex += email.charCodeAt(i).toString(16)
+    rawHex += email.charCodeAt(i).toString(16)
   }
-  hex = (hex + '0123456789abcdef0123456789abcdef').slice(0, 32)
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`
+  // Ensure we have at least 30 hex characters by repeating
+  let hex = rawHex
+  while (hex.length < 30) {
+    hex += '0123456789abcdef'
+  }
+  hex = hex.slice(0, 30)
+
+  // Format into 8-4-4-4-12 UUID using continuous hex slices without skipping any indices
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(12, 15)}-a${hex.slice(15, 18)}-${hex.slice(18, 30)}`
 }
+

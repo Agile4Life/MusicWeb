@@ -140,6 +140,7 @@ export function getCachedResolvedAlbum(
 
     // Exact normalized equality — no unsafe substring matching
     if (cachedNorm !== expectedNorm) {
+      resolvedAlbumCache.delete(key)
       return undefined
     }
   }

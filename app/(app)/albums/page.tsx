@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { SpotifyAlbumItem } from '@/lib/spotify'
 import { Track } from '@/types'
@@ -17,27 +17,32 @@ interface AlbumCardProps {
 }
 
 function AlbumCard({ album, index = 0 }: AlbumCardProps) {
+  const router = useRouter()
   const { playTrack } = usePlayer()
-  const albumDetailCacheRef = useRef(new Map<string, { detail: { tracks: Track[] } | null; at: number }>())
+  const albumDetailCacheRef = useRef<Map<string, { detail: { tracks: Track[] } | null; at: number }> | null>(null)
+  if (!albumDetailCacheRef.current) {
+    albumDetailCacheRef.current = new Map()
+  }
+
   const releaseYear = album.release_date ? album.release_date.split('-')[0] : ''
 
   const handlePlayAlbum = async (e: React.MouseEvent | React.KeyboardEvent, albumToPlay: SpotifyAlbumItem) => {
     e.preventDefault()
     e.stopPropagation()
     try {
-      const cached = albumDetailCacheRef.current.get(albumToPlay.id)
+      const cached = albumDetailCacheRef.current!.get(albumToPlay.id)
       const detail =
         cached && Date.now() - cached.at < 10 * 60 * 1000
           ? cached.detail
           : await fetch(`/api/albums/${albumToPlay.id}`).then((r) => (r.ok ? r.json() : null))
       if (detail && Array.isArray(detail.tracks) && detail.tracks.length > 0) {
-        albumDetailCacheRef.current.set(albumToPlay.id, { detail, at: Date.now() })
+        albumDetailCacheRef.current!.set(albumToPlay.id, { detail, at: Date.now() })
         playTrack(detail.tracks[0], detail.tracks)
       } else {
-        window.location.href = `/album/${albumToPlay.id}`
+        router.push(`/album/${albumToPlay.id}`)
       }
     } catch {
-      window.location.href = `/album/${albumToPlay.id}`
+      router.push(`/album/${albumToPlay.id}`)
     }
   }
 
@@ -140,7 +145,10 @@ export default function AlbumsPage() {
 
   useEffect(() => {
     async function loadAlbumsData() {
-      const isCacheFresh = cachedListenedAlbums.length > 0 && (Date.now() - albumsLastFetchedAt < ALBUMS_CACHE_TTL)
+      const isCacheFresh =
+        cachedListenedAlbums.length > 0 &&
+        cachedNewReleases.length > 0 &&
+        Date.now() - albumsLastFetchedAt < ALBUMS_CACHE_TTL
       if (!isCacheFresh) {
         if (cachedListenedAlbums.length === 0) setLoading(true)
       } else {
@@ -194,7 +202,7 @@ export default function AlbumsPage() {
     loadAlbumsData()
   }, [supabase])
 
-  // Live album search effect (debounced 400ms)
+  // Live album search effect (debounced 400ms) with AbortController
   useEffect(() => {
     if (!albumQuery.trim()) {
       setSearchResults((prev) => (prev.length > 0 ? [] : prev))
@@ -202,24 +210,36 @@ export default function AlbumsPage() {
       return
     }
 
+    const controller = new AbortController()
+    const currentQuery = albumQuery.trim()
+
     const timer = setTimeout(async () => {
       setSearching(true)
       try {
-        const res = await fetch(`/api/albums/search?q=${encodeURIComponent(albumQuery.trim())}`)
+        const res = await fetch(`/api/albums/search?q=${encodeURIComponent(currentQuery)}`, {
+          signal: controller.signal,
+        })
         if (res.ok) {
           const data = await res.json()
-          if (Array.isArray(data)) {
+          if (Array.isArray(data) && albumQuery.trim() === currentQuery) {
             setSearchResults(data)
           }
         }
-      } catch (e) {
-        console.warn('Album search fetch error:', e)
+      } catch (e: any) {
+        if (e?.name !== 'AbortError') {
+          console.warn('Album search fetch error:', e)
+        }
       } finally {
-        setSearching(false)
+        if (!controller.signal.aborted) {
+          setSearching(false)
+        }
       }
     }, 400)
 
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
   }, [albumQuery])
 
   const filterAlbums = (albums: SpotifyAlbumItem[]) => {

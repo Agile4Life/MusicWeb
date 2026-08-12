@@ -3,9 +3,15 @@ import { createClient } from '@supabase/supabase-js'
 import { fetchSpotifyAlbumMeta, fetchFullAlbumTracks } from '@/lib/spotify'
 import { fetchDeezerAlbumTracks } from '@/lib/deezer'
 import { fetchITunesAlbumTracks } from '@/lib/itunes'
+import { stripAlbumIdPrefix } from '@/lib/albumId'
 
 const albumMemoryCache = new Map<string, { data: any; timestamp: number }>()
 const ALBUM_CACHE_TTL = 30 * 60 * 1000 // 30 minutes
+
+function touchMemCache(key: string, value: { data: any; timestamp: number }) {
+  albumMemoryCache.delete(key)
+  albumMemoryCache.set(key, value)
+}
 
 function cachedAlbumResponse(data: any, albumId: string) {
   if (albumMemoryCache.size > 200) {
@@ -43,7 +49,7 @@ async function safeSaveAlbumToDb(supabase: any, albumMeta: any, tracksToSave: an
 
     if (tracksToSave && tracksToSave.length > 0) {
       const { error: upsertErr } = await supabase.from('tracks').upsert(tracksToSave, {
-        onConflict: 'user_id,title,artist',
+        onConflict: 'user_id,title,artist,spotify_album_id',
         ignoreDuplicates: true,
       })
 
@@ -52,15 +58,21 @@ async function safeSaveAlbumToDb(supabase: any, albumMeta: any, tracksToSave: an
         try {
           const { data: existing } = await supabase
             .from('tracks')
-            .select('title, artist')
+            .select('title, artist, spotify_album_id')
             .eq('spotify_album_id', String(albumMeta.id))
 
           const existingKeys = new Set(
-            (existing || []).map((t: any) => `${(t.title || '').toLowerCase()}::${(t.artist || '').toLowerCase()}`)
+            (existing || []).map(
+              (t: any) =>
+                `${(t.title || '').toLowerCase()}::${(t.artist || '').toLowerCase()}::${(t.spotify_album_id || '').toLowerCase()}`
+            )
           )
 
           const newTracks = tracksToSave.filter(
-            (t) => !existingKeys.has(`${(t.title || '').toLowerCase()}::${(t.artist || '').toLowerCase()}`)
+            (t) =>
+              !existingKeys.has(
+                `${(t.title || '').toLowerCase()}::${(t.artist || '').toLowerCase()}::${(t.spotify_album_id || '').toLowerCase()}`
+              )
           )
 
           if (newTracks.length > 0) {
@@ -87,13 +99,14 @@ export async function GET(
     }
 
     const albumId = rawAlbumId.trim()
-    const cleanId = albumId.replace(/^(deezer|spotify|itunes|itunes-rss)-/, '')
+    const cleanId = stripAlbumIdPrefix(albumId)
     const idVariants = Array.from(new Set([albumId, cleanId, `deezer-${cleanId}`, `itunes-${cleanId}`]))
 
     // 0. Check in-memory LRU cache (<2ms)
     for (const key of idVariants) {
       const memCached = albumMemoryCache.get(key)
       if (memCached && Date.now() - memCached.timestamp < ALBUM_CACHE_TTL) {
+        touchMemCache(key, memCached)
         return NextResponse.json(memCached.data, {
           headers: {
             'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=172800',

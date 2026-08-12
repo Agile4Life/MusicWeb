@@ -84,8 +84,10 @@ describe('expected album matching', () => {
     expect(getCachedResolvedAlbum('Canción', 'Artista', 'Cafe')).toBeDefined()
   })
 
-  it('clearly different album → rejected', () => {
+  it('clearly different album → rejected and evicted', () => {
     expect(getCachedResolvedAlbum('Song', 'Artist', 'Reputation')).toBeUndefined()
+    // Subsequent lookup without expectedAlbum should now return undefined because key was evicted
+    expect(getCachedResolvedAlbum('Song', 'Artist')).toBeUndefined()
   })
 
   it('short album "Love" does NOT match "Love Story" via substring', () => {
