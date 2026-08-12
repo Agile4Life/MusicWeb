@@ -469,16 +469,30 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           ))
         )
 
-        if (!hasDirectPlayable && (nextTr.source === 'itunes' || nextTr.source === 'spotify' || nextTr.spotify_id || nextTr.itunes_id) && !(nextTr as any)._preResolving) {
+        if (!hasDirectPlayable && !(nextTr as any)._preResolving) {
           ;(nextTr as any)._preResolving = true
-          const queryStr = `${nextTr.title.replace(/\([^)]*\)/g, '').trim()} ${nextTr.artist || ''}`.trim()
-          fetchUnifiedSearch(queryStr, 'youtube').then((ytData) => {
-            const ytList: Track[] = ytData?.youtube || []
-            const bestMatch = findBestYouTubeMatch(ytList, nextTr.title, nextTr.artist, nextTr.duration, nextTr.album) || ytList[0]
-            if (bestMatch && bestMatch.youtube_id) {
-              setQueue((prevQ) =>
-                prevQ.map((t, idx) => (idx === nextIdx ? { ...t, youtube_id: bestMatch.youtube_id, source: 'youtube' as const } : t))
-              )
+          resolveStreamCached({
+            title: nextTr.title,
+            artist: nextTr.artist,
+            duration: nextTr.duration,
+            album: nextTr.album,
+          }).then((resolved) => {
+            if (resolved) {
+              let updatedTrack: Track | null = null
+              if (resolved.source === 'nhaccuatui') {
+                updatedTrack = { ...nextTr, source: 'nhaccuatui', nhaccuatui_id: resolved.id }
+              } else if (resolved.source === 'drive') {
+                updatedTrack = { ...nextTr, source: 'local' as const, file_path: resolved.id }
+              } else if (resolved.source === 'youtube') {
+                updatedTrack = { ...nextTr, source: 'youtube' as const, youtube_id: resolved.id }
+              }
+
+              if (updatedTrack) {
+                trackResolutionCacheRef.current.set(nextTr.id, { activeTrack: updatedTrack, expiresAt: Date.now() + TRACK_RESOLUTION_TTL })
+                setQueue((prevQ) =>
+                  prevQ.map((t, idx) => (idx === nextIdx ? { ...t, ...updatedTrack } : t))
+                )
+              }
             }
           }).catch(() => {})
         }
@@ -1086,11 +1100,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (immediateUrl) {
         firedPreviewFastStart = true
         try {
-          audioRef.current.src = immediateUrl
-          // Muted fast-start: keep the iOS gesture chain alive, but the 30s preview
-          // must never become audible — the resolved full-length stream (or the preview
-          // fallback path below) restores the real volume when it takes over.
-          audioRef.current.volume = 0
+          // Fast-start: play immediate preview audibly so user hears sound instantly (<50ms)
+          // while the full-length stream is being resolved in the background.
+          audioRef.current.volume = volumeRef.current
           audioRef.current.play()
             .then(() => {
               if (requestId === playRequestRef.current) {
