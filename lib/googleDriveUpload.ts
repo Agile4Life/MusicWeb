@@ -59,12 +59,20 @@ export interface GoogleDriveUploadResult {
   error?: string;
 }
 
+const DRIVE_STREAM_WORKER_BASE = process.env.NEXT_PUBLIC_DRIVE_STREAM_WORKER_URL?.trim() || null
+
 /**
  * Build a direct-download / streaming URL from a Google Drive file ID.
  * This URL works with HTML5 <audio> and <video> elements.
+ * Prefers the R2-backed Cloudflare Worker (no egress cost, no Drive quota risk
+ * on repeat plays); falls back to the legacy Next.js proxy route if the Worker
+ * URL isn't configured.
  */
 export function buildDriveStreamUrl(fileId: string): string {
-  return `/api/drive-stream?id=${encodeURIComponent(fileId)}`;
+  if (DRIVE_STREAM_WORKER_BASE) {
+    return `${DRIVE_STREAM_WORKER_BASE}/api/drive-stream?id=${encodeURIComponent(fileId)}`
+  }
+  return `/api/drive-stream?id=${encodeURIComponent(fileId)}`
 }
 
 export function isPreviewUrl(filePath: string): boolean {
