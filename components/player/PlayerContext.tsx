@@ -1067,11 +1067,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // ⚡ FAST-START: for catalog tracks with an immediate preview/direct URL, start audio
     // NOW (same call stack as the user gesture) and let the full-length resolution below
     // upgrade the source to the real stream when it's ready.
+    let firedPreviewFastStart = false
     if (isPreviewAudio && audioRef.current && requestId === playRequestRef.current) {
       const immediateUrl = (track.audio_url && track.audio_url.startsWith('http'))
         ? track.audio_url
         : (track.file_path && track.file_path.startsWith('http') ? track.file_path : null)
       if (immediateUrl) {
+        firedPreviewFastStart = true
         try {
           audioRef.current.src = immediateUrl
           // Muted fast-start: keep the iOS gesture chain alive, but the 30s preview
@@ -1175,9 +1177,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         // Resolution returned NULL (Miss or Resolution Failure for catalog track)
-        // Never play a 30s preview as a full-length track at full volume!
+        // Never leave a muted fast-start preview playing silently in the background.
         audioUrlCacheRef.current.delete(track.id)
-        if (audioRef.current && audioRef.current.src.includes('preview')) {
+        if (firedPreviewFastStart && audioRef.current && requestId === playRequestRef.current) {
           try {
             audioRef.current.pause()
             audioRef.current.removeAttribute('src')
