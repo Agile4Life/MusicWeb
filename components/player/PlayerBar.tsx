@@ -695,7 +695,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
               aria-label={isBuffering ? 'Đang tải bài hát' : isPlaying ? 'Tạm dừng bài hát' : 'Phát bài hát'}
               style={{
                 background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                boxShadow: '0 4px 16px var(--theme-glow-shadow, rgba(6,182,212,0.45))',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.4), 0 0 10px var(--theme-glow-shadow, rgba(6,182,212,0.25))',
               }}
               className="w-10 h-10 rounded-full btn-3d-tactile flex items-center justify-center text-black font-bold shrink-0 border border-white/20"
               title={isBuffering ? 'Đang tải...' : isPlaying ? 'Tạm dừng' : 'Phát'}

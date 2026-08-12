@@ -125,6 +125,16 @@
   --ease-out-cubic: cubic-bezier(0.33, 1, 0.68, 1);
 }
 
+/* === Page Ambient Theme Lighting (Soft Ambient Reflection for Glass Surfaces) === */
+body {
+  position: relative;
+  background-color: var(--bg-space, #07090e);
+  background-image:
+    radial-gradient(circle at 85% 5%, color-mix(in srgb, var(--spotify-glow, #22d3ee) 3.5%, transparent) 0%, transparent 50%),
+    radial-gradient(circle at 15% 95%, color-mix(in srgb, var(--primary-spotify, #06b6d4) 2.5%, transparent) 0%, transparent 55%);
+  background-attachment: fixed;
+}
+
 /* === Button Press & Interactive Feedback (Tactile Motion) === */
 .btn-tactile {
   transition: transform 120ms var(--ease-out-quint), opacity 120ms ease, box-shadow 120ms ease;
@@ -133,15 +143,19 @@
   transform: scale(0.96);
 }
 
-/* === Elevation 2: Sidebar (Navigation) === */
+/* === Elevation 2: Sidebar (Theme-Aware Medium Glass with Reduced Theme Flooding) === */
 .app-sidebar {
   position: relative;
   z-index: 20;
   box-shadow: var(--elev-2-shadow);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(9, 11, 16, 0.95);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  border-right: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 12%, rgba(255, 255, 255, 0.08));
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--spotify-glow, #22d3ee) 5%, rgba(8, 12, 16, 0.85)),
+    rgba(8, 12, 16, 0.7)
+  ) !important;
+  backdrop-filter: blur(22px) saturate(130%);
+  -webkit-backdrop-filter: blur(22px) saturate(130%);
 }
 
 .app-sidebar::before {
@@ -154,23 +168,33 @@
   border-radius: inherit;
 }
 
-/* === Elevation 3: Player Bar (Refined Subtle Glassmorphism, 3D Tactile & Ambient Glow) === */
+/* === Elevation 1.5: Header Bar (Theme-Aware Light-Medium Glass & Depth Separation) === */
+.app-header {
+  position: relative;
+  z-index: 25;
+  background: color-mix(in srgb, var(--elevation-2-bg, rgba(15, 20, 32, 0.6)) 55%, transparent) !important;
+  backdrop-filter: blur(20px) saturate(135%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(135%) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 10%, rgba(255, 255, 255, 0.07)) !important;
+}
+
+/* === Elevation 3: Player Bar (Tier 1 Focal Glass Surface, Increased Opacity for Separation) === */
 .player-bar {
   z-index: 30;
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.06) 0%,
-    hsla(var(--base-h, 213) var(--base-s, 74%) 12% / 0.6) 40%,
-    hsla(var(--base-h, 213) var(--base-s, 74%) 8% / 0.7) 100%
+    color-mix(in srgb, var(--spotify-glow, #22d3ee) 5%, rgba(20, 24, 36, 0.75)) 0%,
+    hsla(var(--base-h, 213) var(--base-s, 74%) 10% / 0.72) 40%,
+    hsla(var(--base-h, 213) var(--base-s, 74%) 6% / 0.82) 100%
   ) !important;
-  backdrop-filter: blur(24px) saturate(160%) contrast(105%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%) contrast(105%);
-  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 20%, rgba(255, 255, 255, 0.12)) !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.28) !important;
+  backdrop-filter: blur(28px) saturate(170%) contrast(105%);
+  -webkit-backdrop-filter: blur(28px) saturate(170%) contrast(105%);
+  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 12%, rgba(255, 255, 255, 0.08)) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.16) !important;
   box-shadow:
-    0 16px 40px -10px rgba(0, 0, 0, 0.75),
-    0 0 20px -6px var(--theme-glow-shadow, rgba(34, 211, 238, 0.25)),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+    0 16px 40px -10px rgba(0, 0, 0, 0.82),
+    0 0 16px -6px var(--theme-glow-shadow, rgba(34, 211, 238, 0.2)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -544,25 +568,63 @@ input[type='range']:hover::-moz-range-thumb {
 }
 
 /* ================================================================
-   Redesign: Hero Banner
+   Redesign: Hero Banner (Surface-Bound Specular Reflection & Surface Depth)
    ================================================================ */
 .hero-banner {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, #1a1025 0%, #201526 55%, #1a1025 100%);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--spotify-glow, #22d3ee) 5%, #0d111a) 0%,
+    #111622 55%,
+    #0d111a 100%
+  ) !important;
+  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 10%, rgba(255, 255, 255, 0.08)) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 12px 30px -10px rgba(0, 0, 0, 0.5) !important;
   border-radius: var(--radius-card);
 }
 .hero-banner::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 82% 15%, var(--accent-dim), transparent 55%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--spotify-glow, #22d3ee) 8%, transparent) 0%, transparent 40%),
+              radial-gradient(ellipse at 25% 0%, rgba(255, 255, 255, 0.06) 0%, transparent 60%);
   pointer-events: none;
   z-index: 0;
 }
 .hero-banner > * {
   position: relative;
   z-index: 1;
+}
+
+/* ================================================================
+   Media Cards & Album Cards: 3-Stage Hierarchy & Metadata Neutralization
+   ================================================================ */
+.media-card {
+  background: rgba(18, 22, 34, 0.6) !important;
+  border: 1px solid rgba(255, 255, 255, 0.07) !important;
+  border-radius: var(--radius-card);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s ease,
+              background-color 0.2s ease;
+}
+
+.media-card:hover {
+  transform: translateY(-2px) !important;
+  background: rgba(22, 28, 42, 0.8) !important;
+  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 25%, rgba(255, 255, 255, 0.12)) !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35) !important;
+}
+
+.media-card:hover .card-title {
+  color: var(--spotify-glow, #22d3ee) !important;
+}
+
+.media-card.is-playing,
+.media-card.is-selected {
+  border-color: var(--spotify-glow, #22d3ee) !important;
+  box-shadow: 0 0 12px var(--theme-glow-shadow, rgba(34, 211, 238, 0.25)) !important;
 }
 
 .btn-outline-accent {
