@@ -154,52 +154,49 @@
   border-radius: inherit;
 }
 
-/* === Elevation 3: Player Bar (Ultra Glassmorphism, 3D Relief & Dynamic Theme Glow) === */
+/* === Elevation 3: Player Bar (Refined Subtle Glassmorphism, 3D Tactile & Ambient Glow) === */
 .player-bar {
   z-index: 30;
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.08) 0%,
-    hsla(var(--base-h, 213) var(--base-s, 74%) 12% / 0.52) 40%,
-    hsla(var(--base-h, 213) var(--base-s, 74%) 8% / 0.62) 100%
+    rgba(255, 255, 255, 0.06) 0%,
+    hsla(var(--base-h, 213) var(--base-s, 74%) 12% / 0.6) 40%,
+    hsla(var(--base-h, 213) var(--base-s, 74%) 8% / 0.7) 100%
   ) !important;
-  backdrop-filter: blur(36px) saturate(200%) contrast(110%);
-  -webkit-backdrop-filter: blur(36px) saturate(200%) contrast(110%);
-  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 28%, rgba(255, 255, 255, 0.14)) !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.35) !important;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.4) !important;
+  backdrop-filter: blur(24px) saturate(160%) contrast(105%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%) contrast(105%);
+  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 20%, rgba(255, 255, 255, 0.12)) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.28) !important;
   box-shadow:
-    0 20px 50px -10px rgba(0, 0, 0, 0.8),
-    0 0 35px -5px var(--theme-glow-shadow, rgba(34, 211, 238, 0.3)),
-    inset 0 1px 1.5px rgba(255, 255, 255, 0.35),
-    inset 0 -2px 6px rgba(0, 0, 0, 0.4) !important;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    0 16px 40px -10px rgba(0, 0, 0, 0.75),
+    0 0 20px -6px var(--theme-glow-shadow, rgba(34, 211, 238, 0.25)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .player-bar:hover {
-  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 45%, rgba(255, 255, 255, 0.25)) !important;
+  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, rgba(255, 255, 255, 0.2)) !important;
   box-shadow:
-    0 24px 60px -10px rgba(0, 0, 0, 0.85),
-    0 0 50px -2px var(--theme-glow-shadow, rgba(34, 211, 238, 0.45)),
-    inset 0 1.5px 2px rgba(255, 255, 255, 0.45),
-    inset 0 -2px 6px rgba(0, 0, 0, 0.4) !important;
+    0 20px 50px -10px rgba(0, 0, 0, 0.8),
+    0 0 30px -4px var(--theme-glow-shadow, rgba(34, 211, 238, 0.35)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
 }
 
 .mini-player {
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.09) 0%,
-    hsla(var(--base-h, 213) var(--base-s, 74%) 12% / 0.7) 100%
+    rgba(255, 255, 255, 0.08) 0%,
+    hsla(var(--base-h, 213) var(--base-s, 74%) 12% / 0.75) 100%
   ) !important;
-  backdrop-filter: blur(36px) saturate(200%) !important;
-  -webkit-backdrop-filter: blur(36px) saturate(200%) !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.35) !important;
-  border-left: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 25%, rgba(255, 255, 255, 0.12)) !important;
-  border-right: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 25%, rgba(255, 255, 255, 0.12)) !important;
+  backdrop-filter: blur(24px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(160%) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.28) !important;
+  border-left: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 20%, rgba(255, 255, 255, 0.1)) !important;
+  border-right: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 20%, rgba(255, 255, 255, 0.1)) !important;
   box-shadow:
-    0 -12px 35px -5px rgba(0, 0, 0, 0.75),
-    0 0 30px -5px var(--theme-glow-shadow, rgba(34, 211, 238, 0.3)),
-    inset 0 1px 1.5px rgba(255, 255, 255, 0.35) !important;
+    0 -10px 30px -5px rgba(0, 0, 0, 0.7),
+    0 0 20px -5px var(--theme-glow-shadow, rgba(34, 211, 238, 0.25)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -365,18 +362,29 @@ body {
 
 /* 3D Tactile Button Effects for Player Controls */
 .btn-3d-tactile {
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.35), inset 0 -1.5px 3px rgba(0, 0, 0, 0.3);
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.3);
 }
 
 .btn-3d-tactile:hover {
-  transform: translateY(-1.5px) scale(1.04);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 16px var(--theme-glow-shadow, rgba(34, 211, 238, 0.35)), inset 0 1.5px 1.5px rgba(255, 255, 255, 0.45);
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.45), 0 0 14px var(--theme-glow-shadow, rgba(34, 211, 238, 0.3)), inset 0 1px 1px rgba(255, 255, 255, 0.4);
 }
 
 .btn-3d-tactile:active {
-  transform: translateY(1px) scale(0.96);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+  transform: translateY(1px) scale(0.97);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), inset 0 2px 3px rgba(0, 0, 0, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-bar,
+  .btn-3d-tactile {
+    transition: none !important;
+  }
+  .btn-3d-tactile:hover,
+  .btn-3d-tactile:active {
+    transform: none !important;
+  }
 }
 
 .btn-3d-primary {

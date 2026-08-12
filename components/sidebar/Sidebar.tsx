@@ -325,7 +325,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
               }}
             />
 
-            {user ? (
+            {user || playlists.length > 0 ? (
               playlists.length > 0 ? (
                 playlists.map((pl) => (
                   <Link

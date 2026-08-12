@@ -29,9 +29,7 @@ import {
   ListMusic,
   Loader2,
   DiscAlbum,
-  Eye,
 } from 'lucide-react'
-import { formatViewCount } from '@/lib/utils'
 
 function formatTime(seconds: number) {
   if (isNaN(seconds) || seconds < 0) return '0:00'
@@ -595,11 +593,10 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
       {/* 💻 DESKTOP PLAYER BAR (Visible on >= 768px screens) */}
       <footer
-        onClick={openNowPlayingOverlay}
-        className={`player-bar hidden md:flex h-[96px] py-3.5 rounded-2xl px-6 md:px-8 items-center justify-between text-slate-300 select-none shrink-0 cursor-pointer panel-theme-hover transition-all ${isScrolled ? 'is-scrolled' : ''}`}
+        className={`player-bar hidden md:flex h-[96px] py-3.5 rounded-2xl px-6 md:px-8 items-center justify-between text-slate-300 select-none shrink-0 panel-theme-hover transition-all ${isScrolled ? 'is-scrolled' : ''}`}
       >
         {/* Left: Track Metadata */}
-        <div className="flex items-center gap-3.5 w-1/4 min-w-[220px]">
+        <div className="flex items-center gap-3.5 flex-[0_0_240px] md:flex-[0_0_260px] min-w-0">
           <div onClick={openNowPlayingOverlay} className="relative group shrink-0 cursor-pointer" title="Mở Now Playing">
             <div className={`player-cover w-14 h-14 bg-slate-800 flex items-center justify-center border border-white/10 shadow-md ${isPlaying ? 'is-playing' : ''}`}>
               <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
@@ -639,8 +636,6 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                 </span>
               </div>
 
-              {/* View Count Pill hidden */}
-
               {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && (
                 <span
                   style={{
@@ -659,10 +654,11 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         </div>
 
         {/* Center: Playback Controls & Seekbar */}
-        <div className="flex flex-col items-center gap-1.5 w-2/4 max-w-xl">
+        <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0 px-4 max-w-2xl">
           <div className="flex items-center gap-4">
             <button
               onClick={(e) => { e.stopPropagation(); toggleShuffle() }}
+              aria-label={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
               style={
                 isShuffle
                   ? {
@@ -687,38 +683,50 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
             <button
               onClick={(e) => { e.stopPropagation(); prevTrack() }}
+              aria-label="Bài trước"
               className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full btn-3d-tactile"
               title="Bài trước"
             >
-              <SkipBack className="w-4.5 h-4.5" />
+              <SkipBack className="w-5 h-5" />
             </button>
 
             <button
               onClick={(e) => { e.stopPropagation(); togglePlay() }}
+              aria-label={isBuffering ? 'Đang tải bài hát' : isPlaying ? 'Tạm dừng bài hát' : 'Phát bài hát'}
               style={{
                 background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
                 boxShadow: '0 4px 16px var(--theme-glow-shadow, rgba(6,182,212,0.45))',
               }}
               className="w-10 h-10 rounded-full btn-3d-tactile flex items-center justify-center text-black font-bold shrink-0 border border-white/20"
-              title={isPlaying ? 'Tạm dừng' : 'Phát'}
+              title={isBuffering ? 'Đang tải...' : isPlaying ? 'Tạm dừng' : 'Phát'}
             >
-              {isPlaying ? (
-                <Pause className="w-4 h-4 fill-current text-black" />
+              {isBuffering ? (
+                <Loader2 className="w-4 h-4 animate-spin text-black shrink-0" />
+              ) : isPlaying ? (
+                <Pause className="w-4 h-4 fill-current text-black shrink-0" />
               ) : (
-                <Play className="w-4 h-4 fill-current text-black ml-0.5" />
+                <Play className="w-4 h-4 fill-current text-black ml-0.5 shrink-0" />
               )}
             </button>
 
             <button
               onClick={(e) => { e.stopPropagation(); nextTrack() }}
+              aria-label="Bài kế tiếp"
               className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full btn-3d-tactile"
               title="Bài kế tiếp"
             >
-              <SkipForward className="w-4.5 h-4.5" />
+              <SkipForward className="w-5 h-5" />
             </button>
 
             <button
               onClick={(e) => { e.stopPropagation(); toggleRepeat() }}
+              aria-label={
+                repeatMode === 'one'
+                  ? 'Lặp lại 1 bài'
+                  : repeatMode === 'all'
+                    ? 'Lặp lại danh sách'
+                    : 'Tắt lặp lại'
+              }
               style={
                 repeatMode !== 'off'
                   ? {
@@ -762,10 +770,11 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         </div>
 
         {/* Right: Volume & Extra Controls */}
-        <div className="w-1/4 flex justify-end items-center gap-4">
+        <div className="flex items-center justify-end gap-3 flex-[0_0_200px] md:flex-[0_0_240px] shrink-0">
           <button
             onClick={(e) => { e.stopPropagation(); toggleFavoriteCurrentTrack() }}
-            className={`p-2 rounded-xl transition-all ${currentTrack.is_favorite
+            aria-label={currentTrack.is_favorite ? 'Bỏ khỏi bài hát yêu thích' : 'Thêm vào bài hát yêu thích'}
+            className={`p-2 rounded-xl transition-all btn-3d-tactile ${currentTrack.is_favorite
                 ? 'text-rose-500 bg-rose-500/15 border border-rose-500/30'
                 : 'text-slate-400 hover:text-rose-400 hover:bg-white/5'
               }`}
@@ -779,7 +788,8 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <button
             onClick={(e) => { e.stopPropagation(); setShowLyricsModal(!showLyricsModal) }}
-            className={`p-2 rounded-xl transition-all ${showLyricsModal
+            aria-label={showLyricsModal ? 'Ẩn lời bài hát' : 'Xem lời bài hát'}
+            className={`p-2 rounded-xl transition-all btn-3d-tactile ${showLyricsModal
                 ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md font-bold'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
@@ -790,6 +800,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <button
             onClick={(e) => { e.stopPropagation(); toggleQueue() }}
+            aria-label={isQueueOpen ? 'Đóng danh sách hàng đợi' : 'Xem danh sách hàng đợi'}
             style={
               isQueueOpen
                 ? {
@@ -799,7 +810,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                 }
                 : undefined
             }
-            className={`p-2 rounded-xl relative transition-all ${isQueueOpen ? 'border shadow-md font-bold' : 'text-slate-400 hover:text-white hover:bg-white/5'
+            className={`p-2 rounded-xl relative transition-all btn-3d-tactile ${isQueueOpen ? 'border shadow-md font-bold' : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
             title="Danh sách hàng đợi (Queue)"
           >
@@ -817,6 +828,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <div className="flex items-center gap-2.5 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1" onClick={(e) => e.stopPropagation()}>
             <button
               onClick={(e) => { e.stopPropagation(); handleVolumeToggle() }}
+              aria-label={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}
               className="text-slate-400 hover:text-white transition-colors p-0.5 shrink-0"
               title={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}
             >
