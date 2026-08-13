@@ -231,7 +231,7 @@ export async function resolveDriveStreamUrl(
       headers: { 'User-Agent': UA_HEADER },
       cache: 'no-store',
       redirect: 'follow',
-      signal: AbortSignal.timeout(4000),
+      signal: AbortSignal.timeout(1200),
     }).then((res) => {
       const ct = res.headers.get('content-type') || ''
       if ((res.ok || res.status === 206) && !ct.includes('text/html')) {

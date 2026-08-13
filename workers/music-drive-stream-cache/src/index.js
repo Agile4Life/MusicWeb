@@ -76,7 +76,7 @@ async function handleStream(fileId, filenameHint, request, env, ctx) {
   // ---- T2: R2 (permanent, native range reads — no need to load full file into memory) ----
   try {
     const meta = await env.AUDIO_BUCKET.head(r2Key)
-    if (meta) {
+    if (meta && meta.size > 0) {
       const total = meta.size
       const range = parseRange(rangeHeader, total)
       if (range && range.unsatisfiable) return rangeNotSatisfiable(total)
@@ -84,11 +84,16 @@ async function handleStream(fileId, filenameHint, request, env, ctx) {
       const part = range && !range.invalid
         ? await env.AUDIO_BUCKET.get(r2Key, { range: { offset: range.start, length: range.end - range.start + 1 } })
         : await env.AUDIO_BUCKET.get(r2Key)
-      if (part) {
+      if (part && part.body && !part.body.locked) {
         return serveR2(part, total, range && !range.invalid ? range : null, meta.httpMetadata?.contentType)
       }
+    } else if (meta && meta.size === 0) {
+      // 0-byte incomplete/corrupt entry from aborted write — delete it and fall through to origin
+      ctx.waitUntil(env.AUDIO_BUCKET.delete(r2Key).catch(() => { }))
     }
-  } catch {
+  } catch (r2Err) {
+    console.warn('R2 read failed for', fileId, r2Err?.message || r2Err)
+    ctx.waitUntil(env.AUDIO_BUCKET.delete(r2Key).catch(() => { }))
     /* fall through to origin */
   }
 
@@ -121,9 +126,17 @@ async function handleStream(fileId, filenameHint, request, env, ctx) {
   const [clientBody, r2Body] = originRes.body.tee()
 
   ctx.waitUntil(
-    env.AUDIO_BUCKET.put(r2Key, r2Body, {
-      httpMetadata: { contentType },
-    }).catch((e) => console.warn('R2 put failed for', fileId, e))
+    (async () => {
+      try {
+        await env.AUDIO_BUCKET.put(r2Key, r2Body, {
+          httpMetadata: { contentType },
+        })
+      } catch (e) {
+        console.warn('R2 put failed for', fileId, e?.message || e)
+        // If background write was aborted (e.g. client disconnect/skip), delete partial R2 object
+        await env.AUDIO_BUCKET.delete(r2Key).catch(() => { })
+      }
+    })()
   )
 
   const headers = new Headers(CORS)
@@ -150,12 +163,12 @@ async function handleHead(fileId, env) {
     if (cached && cached.ok) {
       return headerOnly(parseInt(cached.headers.get('content-length') || '0', 10), cached.headers.get('content-type'))
     }
-  } catch {}
+  } catch { }
 
   try {
     const meta = await env.AUDIO_BUCKET.head(r2Key)
     if (meta) return headerOnly(meta.size, meta.httpMetadata?.contentType)
-  } catch {}
+  } catch { }
 
   // Not cached anywhere yet — HEAD should not trigger a full origin fetch+R2 populate.
   // Return 404 so the caller falls back to a GET (which will populate the cache).
