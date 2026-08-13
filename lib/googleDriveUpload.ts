@@ -59,7 +59,10 @@ export interface GoogleDriveUploadResult {
   error?: string;
 }
 
-const DRIVE_STREAM_WORKER_BASE = process.env.NEXT_PUBLIC_DRIVE_STREAM_WORKER_URL?.trim() || null
+const DRIVE_STREAM_WORKER_BASE =
+  process.env.NEXT_PUBLIC_DRIVE_STREAM_WORKER_URL?.trim() ||
+  process.env.NEXT_PUBLIC_CLOUDFLARE_WORKER_URL?.trim() ||
+  null
 
 /**
  * Build a direct-download / streaming URL from a Google Drive file ID.
