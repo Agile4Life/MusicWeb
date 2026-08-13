@@ -9,6 +9,10 @@ import { combineCombinedSearchResults } from '@/lib/searchFlow'
 interface SearchContextType {
   searchQuery: string
   setSearchQuery: (query: string) => void
+  suggestionQuery: string
+  setSuggestionQuery: (query: string) => void
+  suggestionTracks: GlobalSearchTracks
+  searchingSuggestions: boolean
   globalTracks: GlobalSearchTracks
   searchingGlobal: boolean
   trendingTracks: GlobalSearchTracks
@@ -32,10 +36,14 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [globalTracks, setGlobalTracks] = useState<GlobalSearchTracks>(emptyResults)
   const [searchingGlobal, setSearchingGlobal] = useState(false)
+  const [suggestionQuery, setSuggestionQuery] = useState('')
+  const [suggestionTracks, setSuggestionTracks] = useState<GlobalSearchTracks>(emptyResults)
+  const [searchingSuggestions, setSearchingSuggestions] = useState(false)
   const [trendingTracks, setTrendingTracks] = useState<GlobalSearchTracks>(emptyResults)
   const [loadingTrending, setLoadingTrending] = useState(true)
 
   const activeSearchRef = useRef<number>(0)
+  const activeSuggestionRef = useRef<number>(0)
 
   // Fetch Trending Tracks once on initial mount
   useEffect(() => {
@@ -57,7 +65,7 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Single centralized debounced search effect
+  // Global search is committed separately from the text currently being typed.
   useEffect(() => {
     const trimmed = searchQuery.trim()
     if (trimmed) {
@@ -111,23 +119,69 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(timer)
   }, [searchQuery])
 
+  // Quick suggestions are isolated from global result state and never change the homepage result list.
+  useEffect(() => {
+    const trimmed = suggestionQuery.trim()
+    const currentSearchId = ++activeSuggestionRef.current
+
+    if (!trimmed) {
+      setSuggestionTracks(emptyResults)
+      setSearchingSuggestions(false)
+      return
+    }
+
+    setSearchingSuggestions(true)
+    const timer = setTimeout(async () => {
+      try {
+        const [nctItems, spotifyData, deezerData] = await Promise.all([
+          searchNhacCuaTui(trimmed),
+          fetchUnifiedSearch(trimmed, 'spotify', false),
+          fetchUnifiedSearch(trimmed, 'deezer', false),
+        ])
+        const data = combineCombinedSearchResults(
+          nctItems.map(nhacCuaTuiSearchItemToTrack),
+          spotifyData.spotify,
+          deezerData.deezer,
+        )
+        if (activeSuggestionRef.current === currentSearchId) {
+          setSuggestionTracks(data)
+          setSearchingSuggestions(false)
+        }
+      } catch {
+        if (activeSuggestionRef.current === currentSearchId) {
+          setSuggestionTracks(emptyResults)
+          setSearchingSuggestions(false)
+        }
+      }
+    }, 250)
+
+    return () => clearTimeout(timer)
+  }, [suggestionQuery])
+
   const clearSearch = useCallback(() => {
     setSearchQuery('')
+    setSuggestionQuery('')
     setGlobalTracks(emptyResults)
+    setSuggestionTracks(emptyResults)
     setSearchingGlobal(false)
+    setSearchingSuggestions(false)
   }, [])
 
   const value = useMemo(
     () => ({
       searchQuery,
       setSearchQuery,
+      suggestionQuery,
+      setSuggestionQuery,
+      suggestionTracks,
+      searchingSuggestions,
       globalTracks,
       searchingGlobal,
       trendingTracks,
       loadingTrending,
       clearSearch,
     }),
-    [searchQuery, globalTracks, searchingGlobal, trendingTracks, loadingTrending, clearSearch]
+    [searchQuery, globalTracks, searchingGlobal, suggestionQuery, suggestionTracks, searchingSuggestions, trendingTracks, loadingTrending, clearSearch]
   )
 
   return (

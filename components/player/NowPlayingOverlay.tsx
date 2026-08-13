@@ -9,6 +9,11 @@ import { MiniEqualizer } from './MiniEqualizer'
 import { AudioWaveformScrubber } from './AudioWaveformScrubber'
 import { TrackCoverImage } from '../common/TrackCoverImage'
 import { OverflowMarqueeText } from '../common/OverflowMarqueeText'
+import {
+  trackMetadataArtistClass,
+  trackMetadataLoadingClass,
+  trackMetadataTitleClass,
+} from './trackMetadataLayout'
 import { setCachedResolvedAlbum, getCachedResolvedAlbum, isRealAlbumName } from '@/lib/albumCache'
 import {
   ChevronDown,
@@ -484,14 +489,32 @@ export function NowPlayingOverlay() {
               <div className="inline-flex items-center gap-2 min-w-0 max-w-full">
                 <OverflowMarqueeText
                   text={currentTrack.title}
-                  className="text-xs md:text-sm font-bold text-white hover:text-[var(--spotify-glow)] transition-colors cursor-pointer min-w-0 shrink"
+                  className={`text-xs md:text-sm font-bold text-white hover:text-[var(--spotify-glow)] transition-colors cursor-pointer ${trackMetadataTitleClass}`}
                 />
                 {isPlaying && (
                   <MiniEqualizer isPlaying={isPlaying} className="shrink-0" />
                 )}
+                {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && (
+                  <span
+                    style={{
+                      color: 'var(--spotify-glow, #22d3ee)',
+                      backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                      borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                    }}
+                    className={`${trackMetadataLoadingClass} inline-flex items-center gap-1 text-[10px] font-semibold border px-2 py-0.5 rounded-full animate-pulse`}
+                    title="Đang tải bản Lossless..."
+                  >
+                    <Loader2 className="w-3 h-3 animate-spin shrink-0" style={{ color: 'var(--spotify-glow, #22d3ee)' }} />
+                    <span className="min-w-0 truncate">Đang tải bản Lossless...</span>
+                  </span>
+                )}
               </div>
-              <div className="flex items-center gap-2 mt-0.5 truncate">
-                <p className="text-[11px] text-slate-400 truncate hover:text-slate-200 transition-colors cursor-pointer">
+              <div className="flex items-center gap-2 mt-0.5 min-w-0">
+                <p
+                  data-playerbar-exclude-fullview
+                  className={`${trackMetadataArtistClass} text-[11px] text-slate-400 hover:text-slate-200 transition-colors cursor-pointer`}
+                  onClick={(e) => e.stopPropagation()}
+                >
                   {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
                 </p>
 
@@ -511,19 +534,6 @@ export function NowPlayingOverlay() {
                   </span>
                 </div>
 
-                {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && (
-                  <span
-                    style={{
-                      color: 'var(--spotify-glow, #22d3ee)',
-                      backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
-                      borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
-                    }}
-                    className="flex items-center gap-1 text-[10px] font-semibold border px-2 py-0.5 rounded-full animate-pulse shrink-0"
-                  >
-                    <Loader2 className="w-3 h-3 animate-spin shrink-0" style={{ color: 'var(--spotify-glow, #22d3ee)' }} />
-                    <span>Đang tải bản Lossless...</span>
-                  </span>
-                )}
               </div>
             </div>
           </div>

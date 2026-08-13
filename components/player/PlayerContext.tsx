@@ -17,6 +17,7 @@ import { isIOSDevice, playAudioElement, redactAudioSource, shouldUseHtml5Audio, 
 import { isCurrentPlayback } from '@/lib/playbackRaceGuards'
 import { getNhacCuaTuiStreamUrl, resolveNhacCuaTuiSong, resolveNhacCuaTuiTrack } from '@/lib/nhaccuatuiClient'
 import { resolveStreamCached, invalidateStreamResolution } from '@/lib/resolveStreamClient'
+import { setAudioSourceForPlayback } from './audioSourceSwitch'
 
 export type RepeatMode = 'off' | 'all' | 'one'
 
@@ -1259,9 +1260,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (immediateUrl) {
         firedPreviewFastStart = true
         try {
+          // The element may still contain the previous track. Assign the preview
+          // source before play() so a fast track switch cannot replay stale audio.
+          setAudioSourceForPlayback(audioRef.current, immediateUrl, volumeRef.current, 0)
           // Fast-start: play immediate preview audibly so user hears sound instantly (<50ms)
           // while the full-length stream is being resolved in the background.
-          audioRef.current.volume = volumeRef.current
           audioRef.current.play()
             .then(() => {
               if (requestId === playRequestRef.current) {
@@ -1404,9 +1407,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       ytHtml5ModeRef.current = isIOSDevice() && (activeTrack.source === 'youtube' || Boolean(activeTrack.youtube_id))
       // Note: intentionally NO audio.pause() here — pausing first can revoke the active
       // iOS audio session and make the following play() require a fresh user gesture.
-      audio.src = url
-      audio.volume = volume
-      audio.currentTime = consumePendingSeek(initialTime > 0 ? initialTime : 0)
+      setAudioSourceForPlayback(
+        audio,
+        url,
+        volume,
+        consumePendingSeek(initialTime > 0 ? initialTime : 0),
+      )
 
       try {
         await playAudioElement(audio)

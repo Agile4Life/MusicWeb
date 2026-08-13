@@ -12,6 +12,12 @@ import { setCachedResolvedAlbum, getCachedResolvedAlbum, isRealAlbumName } from 
 import { AudioWaveformScrubber } from './AudioWaveformScrubber'
 import { MiniEqualizer } from './MiniEqualizer'
 import {
+  trackMetadataArtistClass,
+  trackMetadataLoadingClass,
+  trackMetadataTitleClass,
+} from './trackMetadataLayout'
+import { isPlayerBarFeatureTarget } from './playerBarInteraction'
+import {
   Play,
   Pause,
   SkipBack,
@@ -300,7 +306,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <div className="flex flex-col min-w-0 flex-1 overflow-hidden justify-center gap-0.5">
             <OverflowMarqueeText
               text={currentTrack.title}
-              className="text-xs font-bold text-white leading-tight"
+              className={`text-xs font-bold text-white leading-tight ${trackMetadataTitleClass}`}
             />
             <span className="text-[10px] text-slate-400 truncate leading-tight">
               {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
@@ -594,6 +600,12 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
       {/* 💻 DESKTOP PLAYER BAR (Visible on >= 768px screens) */}
       <footer
         className={`player-bar hidden md:flex h-[96px] py-3.5 rounded-2xl px-6 md:px-8 items-center justify-between text-slate-300 select-none shrink-0 panel-theme-hover transition-all ${isScrolled ? 'is-scrolled' : ''}`}
+        onClick={(e) => {
+          if (!isPlayerBarFeatureTarget(e.target as { closest?: (selector: string) => unknown })) {
+            openNowPlayingOverlay()
+          }
+        }}
+        role="presentation"
       >
         {/* Left: Track Metadata */}
         <div className="flex items-center gap-3.5 flex-[0_0_240px] md:flex-[0_0_260px] min-w-0">
@@ -607,22 +619,41 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             <div className="inline-flex items-center gap-2 min-w-0 max-w-full">
               <OverflowMarqueeText
                 text={currentTrack.title}
-                className="text-xs md:text-sm font-bold text-white hover:text-[var(--spotify-glow)] transition-colors cursor-pointer min-w-0 shrink"
+                className={`text-xs md:text-sm font-bold text-white hover:text-[var(--spotify-glow)] transition-colors cursor-pointer ${trackMetadataTitleClass}`}
                 title="Mở Now Playing"
                 onClick={openNowPlayingOverlay}
               />
               {isPlaying && (
                 <MiniEqualizer isPlaying={isPlaying} className="shrink-0" />
               )}
+              {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && (
+                <span
+                  style={{
+                    color: 'var(--spotify-glow, #22d3ee)',
+                    backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                    borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                  }}
+                  className={`${trackMetadataLoadingClass} inline-flex items-center gap-1 text-[10px] font-semibold border px-2 py-0.5 rounded-full animate-pulse`}
+                  title="Đang tải bản Lossless..."
+                >
+                  <Loader2 className="w-3 h-3 animate-spin shrink-0" style={{ color: 'var(--spotify-glow, #22d3ee)' }} />
+                  <span className="min-w-0 truncate">Đang tải bản Lossless...</span>
+                </span>
+              )}
             </div>
-            <div className="flex items-center gap-2 mt-0.5 truncate">
-              <p className="text-[11px] text-slate-400 truncate hover:text-slate-200 transition-colors cursor-pointer">
+            <div className="flex items-center gap-2 mt-0.5 min-w-0">
+              <p
+                data-playerbar-exclude-fullview
+                className={`${trackMetadataArtistClass} text-[11px] text-slate-400 hover:text-slate-200 transition-colors cursor-pointer`}
+                onClick={(e) => e.stopPropagation()}
+              >
                 {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
               </p>
 
               {/* Album Link Pill */}
               <div
                 onClick={handleOpenAlbum}
+                data-playerbar-exclude-fullview
                 className="flex items-center gap-1 shrink-0 text-[10px] text-slate-300 bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 px-2 py-0.5 rounded-md max-w-[200px] hover:border-cyan-500/50 cursor-pointer transition-all group shadow-sm"
                 title={displayAlbumName ? `Vào album: ${displayAlbumName}` : 'Vào Album bài hát'}
               >
@@ -636,19 +667,6 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                 </span>
               </div>
 
-              {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && (
-                <span
-                  style={{
-                    color: 'var(--spotify-glow, #22d3ee)',
-                    backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
-                    borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
-                  }}
-                  className="flex items-center gap-1 text-[10px] font-semibold border px-2 py-0.5 rounded-full animate-pulse shrink-0"
-                >
-                  <Loader2 className="w-3 h-3 animate-spin shrink-0" style={{ color: 'var(--spotify-glow, #22d3ee)' }} />
-                  <span>Đang tải bản Lossless...</span>
-                </span>
-              )}
             </div>
           </div>
         </div>
@@ -867,4 +885,3 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
     </>
   )
 }
-

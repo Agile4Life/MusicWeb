@@ -14,17 +14,26 @@ import Link from 'next/link'
 
 import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
+import { shouldCommitGlobalSearch } from '@/components/search/searchInteraction'
 
 export function TopBar() {
   const router = useRouter()
   const pathname = usePathname()
   const { playTrack } = usePlayer()
-  const { searchQuery, setSearchQuery, globalTracks, searchingGlobal, clearSearch } = useSearch()
+  const {
+    searchQuery,
+    setSearchQuery,
+    suggestionTracks,
+    searchingSuggestions,
+    setSuggestionQuery,
+    clearSearch,
+  } = useSearch()
   const { data: nextAuthSession } = useSession()
   const { userEmail } = useCurrentUser()
   const supabase = createClient()
 
   const [showDropdown, setShowDropdown] = useState(false)
+  const [inputQuery, setInputQuery] = useState(searchQuery)
 
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -48,8 +57,12 @@ export function TopBar() {
   }
 
   const suggestions: Track[] = React.useMemo(() => {
-    return flattenUnifiedSearchResults(globalTracks).slice(0, 6)
-  }, [globalTracks])
+    return flattenUnifiedSearchResults(suggestionTracks).slice(0, 6)
+  }, [suggestionTracks])
+
+  useEffect(() => {
+    setInputQuery(searchQuery)
+  }, [searchQuery])
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.location.search.includes('q=')) {
@@ -67,16 +80,17 @@ export function TopBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  useEffect(() => {
-    if (searchQuery.trim()) {
-      setShowDropdown(true)
-    } else {
-      setShowDropdown(false)
-    }
-  }, [searchQuery])
-
   const handleClearSearch = () => {
     clearSearch()
+    setInputQuery('')
+    setShowDropdown(false)
+  }
+
+  const handleSubmitSearch = () => {
+    const trimmed = inputQuery.trim()
+    if (!trimmed) return
+    setSearchQuery(trimmed)
+    setSuggestionQuery('')
     setShowDropdown(false)
   }
 
@@ -91,20 +105,26 @@ export function TopBar() {
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
           <input
             type="text"
-            value={searchQuery}
+            value={inputQuery}
             autoComplete="off"
             spellCheck={false}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              const nextValue = e.target.value
+              setInputQuery(nextValue)
+              setSuggestionQuery(nextValue)
+              setShowDropdown(Boolean(nextValue.trim()))
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Escape') handleClearSearch()
+              if (shouldCommitGlobalSearch(inputQuery, e.key)) handleSubmitSearch()
             }}
             onFocus={() => {
-              if (searchQuery.trim()) setShowDropdown(true)
+              if (inputQuery.trim()) setShowDropdown(true)
             }}
             placeholder="Tìm bài hát, nghệ sĩ..."
             className="search-input w-full border border-white/[0.07] rounded-full pl-9 sm:pl-10 pr-8 sm:pr-9 py-1.5 sm:py-2 text-xs text-white placeholder-slate-400 outline-none transition-all"
           />
-          {searchingGlobal ? (
+          {searchingSuggestions ? (
             <Loader2 className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)] animate-spin absolute right-3" />
           ) : searchQuery ? (
             <button
@@ -119,7 +139,7 @@ export function TopBar() {
         {/* Suggestions Dropdown Popup — Elevation Level 3 */}
         {showDropdown && (
           <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--elevation-3-bg)] border border-white/10 rounded-2xl p-2 shadow-2xl z-40 flex flex-col gap-1 max-h-80 overflow-y-auto">
-            {searchingGlobal && suggestions.length === 0 ? (
+            {searchingSuggestions && suggestions.length === 0 ? (
               <div className="p-4 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-[var(--spotify-glow,#22d3ee)]" />
                 <span>Đang tìm kiếm...</span>
