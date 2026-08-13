@@ -130,7 +130,22 @@ export default function HistoryPage() {
 
   useEffect(() => {
     fetchHistory()
-  }, [fetchHistory])
+
+    const channel = supabase
+      .channel('history-page-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'listening_history' },
+        () => {
+          fetchHistory()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [fetchHistory, supabase])
 
   const handleClearAllHistory = async () => {
     if (historyItems.length === 0) return

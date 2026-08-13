@@ -45,10 +45,24 @@ export function QueueDrawer() {
       }
     }
 
+    if (!isQueueOpen || activeTab !== 'history') return
+
     loadRecentHistory()
+
+    const channel = supabase
+      .channel('queue-drawer-history-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'listening_history' },
+        () => {
+          loadRecentHistory()
+        }
+      )
+      .subscribe()
 
     return () => {
       cancelled = true
+      supabase.removeChannel(channel)
     }
   }, [isQueueOpen, activeTab, supabase, nextAuthSession])
 

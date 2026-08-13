@@ -250,6 +250,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const playedHistoryStackRef = useRef<Track[]>([])
   const forwardHistoryStackRef = useRef<Track[]>([])
   const isPrevNextActionRef = useRef<boolean>(false)
+  const isBackwardActionRef = useRef<boolean>(false)
   const playTrackRef = useRef<
     (track: Track, newQueue?: Track[], forceIndex?: number, startFromTime?: number) => Promise<void>
   >(async () => {})
@@ -326,6 +327,101 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const supabase = createClient()
+
+  const lastRecordedTrackRef = useRef<{ trackId: string; ts: number } | null>(null)
+
+  // Helper to record listening history in background
+  const recordHistory = useCallback((track: Track) => {
+    if (!track || !track.id) return
+    const now = Date.now()
+    if (
+      lastRecordedTrackRef.current &&
+      lastRecordedTrackRef.current.trackId === track.id &&
+      now - lastRecordedTrackRef.current.ts < 3000
+    ) {
+      return
+    }
+    lastRecordedTrackRef.current = { trackId: track.id, ts: now }
+
+    setTimeout(async () => {
+      try {
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser()
+        const activeUser = currentUser || (nextAuthSession?.user ? {
+          id: nextAuthSession.user.email,
+          email: nextAuthSession.user.email,
+        } : null)
+
+        const userId = activeUser ? getValidUserId(activeUser) : null
+        if (!userId) return
+
+        let dbTrackId = track.id
+
+        if (isExternalTrack(track)) {
+          const resolvedId = await resolveExternalTrackId(supabase, track, userId)
+          if (!resolvedId) return
+          dbTrackId = resolvedId
+        }
+
+        const { error: insertErr } = await supabase.from('listening_history').insert({
+          user_id: userId,
+          track_id: dbTrackId,
+          played_at: new Date().toISOString(),
+        })
+
+        if (insertErr) {
+          console.error('[PlayerContext] History insert FAILED:', insertErr.code, insertErr.message)
+        }
+      } catch (historyErr) {
+        console.warn('History tracking error:', historyErr)
+      }
+    }, 100)
+  }, [nextAuthSession, supabase])
+
+  // Synchronous state committer to avoid out-of-sync states
+  const commitNavigation = useCallback((track: Track, index: number, targetQueue: Track[], time = 0) => {
+    // 1. Manage played track history stack transition
+    const oldTrack = currentTrackRef.current
+    if (oldTrack && oldTrack.id !== track.id) {
+      if (!isBackwardActionRef.current) {
+        playedHistoryStackRef.current.push(oldTrack)
+        if (playedHistoryStackRef.current.length > 50) {
+          playedHistoryStackRef.current.shift()
+        }
+      }
+    }
+    isBackwardActionRef.current = false
+
+    // 2. Clear forward history if not explicit prev/next navigation
+    if (!isPrevNextActionRef.current) {
+      forwardHistoryStackRef.current = []
+    }
+    isPrevNextActionRef.current = false
+
+    // 3. Synchronously commit state and references
+    currentTrackRef.current = track
+    setCurrentTrack(track)
+
+    const targetIndex = typeof index === 'number' && index >= 0 ? index : -1
+    currentIndexRef.current = targetIndex
+    setCurrentIndex(targetIndex)
+
+    setCurrentTime(time)
+    setDuration(track.duration || 0)
+    setPlaybackError(null)
+    setIsBuffering(true)
+
+    savePlayerStateToStorage(track, time, targetQueue, targetIndex, volumeRef.current || volume)
+  }, [volume])
+
+  // Centralized playback controller for navigation convergence
+  const playResolvedTrack = (track: Track, index: number) => {
+    const targetIdx = index >= 0 ? index : -1
+    if (!tryQuickPlayFromCache(track, targetIdx >= 0 ? targetIdx : undefined)) {
+      playTrack(track, undefined, targetIdx >= 0 ? targetIdx : undefined)
+    }
+  }
 
   const AUDIO_URL_MAX_ENTRIES = 200
   const TRACK_RESOLUTION_MAX_ENTRIES = 200
@@ -1113,18 +1209,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (activeTime > 2 && (trackDur === 0 || activeTime < trackDur - 5)) {
         recordListenEvent(currentTrackRef.current, false, activeTime)
       }
-
-      if (!isPrevNextActionRef.current) {
-        playedHistoryStackRef.current.push(currentTrackRef.current)
-        if (playedHistoryStackRef.current.length > 50) {
-          playedHistoryStackRef.current.shift()
-        }
-      }
     }
-    if (!isPrevNextActionRef.current) {
-      forwardHistoryStackRef.current = []
-    }
-    isPrevNextActionRef.current = false
 
     // ⚡ Reset engine state CHỈ SAU KHI đã dùng xong snapshot ở trên.
     ytHtml5ModeRef.current = false
@@ -1152,23 +1237,23 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       } catch {}
     }
 
-    let nextQueue = queue
-    let nextIndex = currentIndex
+    let nextQueue = queueRef.current.length > 0 ? queueRef.current : queue
+    let nextIndex = currentIndexRef.current >= 0 ? currentIndexRef.current : currentIndex
 
     if (newQueue) {
       nextQueue = deduplicateQueueTracks(newQueue)
       setQueue(nextQueue)
       const index = nextQueue.findIndex((t) => t.id === track.id)
       nextIndex = index >= 0 ? index : 0
-      setCurrentIndex(nextIndex)
     } else if (typeof forceIndex === 'number') {
       nextIndex = forceIndex
-      setCurrentIndex(forceIndex)
     } else if (queue.length === 0) {
       nextQueue = [track]
       setQueue(nextQueue)
       nextIndex = 0
-      setCurrentIndex(0)
+    } else {
+      const index = nextQueue.findIndex((t) => t.id === track.id)
+      nextIndex = index >= 0 ? index : -1
     }
 
     const initialTime = typeof startFromTime === 'number' && startFromTime >= 0 ? startFromTime : 0
@@ -1194,15 +1279,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // ⚡ 2. UPDATE UI INSTANTLY (< 5ms)
-    setCurrentTrack(track)
-    currentTrackRef.current = track
+    // ⚡ 2. UPDATE UI INSTANTLY (< 5ms) via commitNavigation
+    commitNavigation(track, nextIndex, nextQueue, initialTime)
     setIsPlaying(false)
-    setIsBuffering(true)
-    setCurrentTime(initialTime)
-    setDuration(track.duration || 0)
-    setPlaybackError(null)
-    savePlayerStateToStorage(track, initialTime, nextQueue, nextIndex, volume)
 
     // 🧠 SMART AUTOPLAY: Automatically fill queue with matching genre & region tracks when starting track from main feed
     if (nextQueue.length <= 5) {
@@ -1423,6 +1502,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         consecutiveSkipRef.current = 0
         setIsPlaying(true)
         setIsBuffering(false)
+        recordHistory(track)
         return
       } catch (err: any) {
         if (err?.name === 'AbortError' || String(err).includes('interrupted')) {
@@ -1484,6 +1564,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             }
             setIsPlaying(true)
             setIsBuffering(false)
+            recordHistory(track)
           } catch (e) {
             console.warn('YT loadVideoById error:', e)
           }
@@ -1499,44 +1580,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         setPlaybackError(`Không thể tìm thấy nguồn phát trực tiếp cho bài hát "${activeTrack.title}". Vui lòng chọn bài khác.`)
       }
     }
-
-    // Record listening history in background for ALL sources (Local, iTunes, YouTube, Audius)
-    setTimeout(async () => {
-      try {
-        const {
-          data: { user: currentUser },
-        } = await supabase.auth.getUser()
-        const activeUser = currentUser || (nextAuthSession?.user ? {
-          id: nextAuthSession.user.email,
-          email: nextAuthSession.user.email,
-        } : null)
-
-        const userId = activeUser ? getValidUserId(activeUser) : null
-        if (!userId) return
-
-        let dbTrackId = track.id
-
-        // If track is from an external global source, upsert it into the DB tracks table
-        // first to get a valid UUID for listening_history.
-        if (isExternalTrack(track)) {
-          const resolvedId = await resolveExternalTrackId(supabase, track, userId)
-          if (!resolvedId) return
-          dbTrackId = resolvedId
-        }
-
-        const { error: insertErr } = await supabase.from('listening_history').insert({
-          user_id: userId,
-          track_id: dbTrackId,
-          played_at: new Date().toISOString(),
-        })
-
-        if (insertErr) {
-          console.warn('[PlayerContext] History insert error:', insertErr.message)
-        }
-      } catch (historyErr) {
-        console.warn('History tracking error:', historyErr)
-      }
-    }, 100)
   }
 
   // Keep playTrackRef in sync so YouTube onStateChange closure always calls latest version
@@ -1684,23 +1727,21 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
     if (ytPlayerRef.current) {
       try {
+        if (ytPlayerRef.current.mute) ytPlayerRef.current.mute()
         if (ytPlayerRef.current.stopVideo) ytPlayerRef.current.stopVideo()
-        else if (ytPlayerRef.current.pauseVideo) ytPlayerRef.current.pauseVideo()
+        if (ytPlayerRef.current.pauseVideo) ytPlayerRef.current.pauseVideo()
       } catch {}
     }
 
     const q = queueRef.current.length > 0 ? queueRef.current : queue
     let targetIdx = typeof idx === 'number' && idx >= 0 ? idx : q.findIndex((t) => t.id === track.id)
-    if (targetIdx < 0) targetIdx = currentIndexRef.current
-    currentIndexRef.current = targetIdx
-    setCurrentIndex(targetIdx)
+    if (targetIdx < 0) targetIdx = -1
 
     ytHtml5ModeRef.current = isIOSDevice() && (track.source === 'youtube' || Boolean(track.youtube_id))
 
-    // Keep currentTrackRef in sync SYNCHRONOUSLY, same as playTrack does —
-    // currentIndexRef above is already synchronous, this must match.
-    currentTrackRef.current = track
-    setCurrentTrack(track)
+    // Commit navigation state synchronously
+    commitNavigation(track, targetIdx, q, 0)
+
     if (targetIdx >= 0 && targetIdx < q.length) {
       setQueue((prevQ) => {
         const synced = [...prevQ]
@@ -1708,11 +1749,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         return synced
       })
     }
-    setCurrentTime(0)
-    setDuration(track.duration || 0)
-    setPlaybackError(null)
-    setIsBuffering(true)
-    savePlayerStateToStorage(track, 0, q, targetIdx, volume)
 
     audio.src = cached
     audio.volume = volumeRef.current || volume
@@ -1729,6 +1765,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         setIsBuffering(false)
         setIsPlaying(true)
         audioRetryCountRef.current = 0
+        recordHistory(track)
       })
       .catch((err: any) => {
         if (requestId !== playRequestRef.current) return
@@ -1746,15 +1783,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const nextTrack = () => {
     isPrevNextActionRef.current = true
+    isBackwardActionRef.current = false
 
     // 🚀 STEP 1: Check forward history stack first (if user clicked Previous earlier)
     if (forwardHistoryStackRef.current.length > 0) {
       const forwardSong = forwardHistoryStackRef.current.pop()
       if (forwardSong) {
-        if (currentTrackRef.current) {
-          playedHistoryStackRef.current.push(currentTrackRef.current)
-        }
-        if (!tryQuickPlayFromCache(forwardSong)) playTrack(forwardSong)
+        const q = queueRef.current.length > 0 ? queueRef.current : queue
+        const forwardIndex = q.findIndex((t) => t.id === forwardSong.id)
+        playResolvedTrack(forwardSong, forwardIndex)
         return
       }
     }
@@ -1774,38 +1811,38 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     let nextIdx = 0
     const preserveOrder = isFullYouTubeQueue(q)
     if (isShuffleRef.current && q.length > 1) {
-      // Random pick, preferring tracks that can play in the background (skip the rest)
-      let found = -1
-      for (let attempt = 0; attempt < 20; attempt++) {
-        const cand = Math.floor(Math.random() * q.length)
-        if (cand === idx) continue
-        if (preserveOrder || isBackgroundPlayableTrack(q[cand])) {
-          found = cand
-          break
-        }
-      }
-      if (found < 0) {
+      if (preserveOrder) {
         do {
           nextIdx = Math.floor(Math.random() * q.length)
-        } while (nextIdx === idx && q.length > 1)
+        } while (nextIdx === idx)
       } else {
-        nextIdx = found
+        const candidates: { track: Track; index: number }[] = []
+        const fallbackCandidates: { track: Track; index: number }[] = []
+
+        q.forEach((t, i) => {
+          if (i === idx) return
+          fallbackCandidates.push({ track: t, index: i })
+          if (isBackgroundPlayableTrack(t)) {
+            candidates.push({ track: t, index: i })
+          }
+        })
+
+        if (candidates.length > 0) {
+          const chosen = candidates[Math.floor(Math.random() * candidates.length)]
+          nextIdx = chosen.index
+        } else if (fallbackCandidates.length > 0) {
+          const chosen = fallbackCandidates[Math.floor(Math.random() * fallbackCandidates.length)]
+          nextIdx = chosen.index
+        } else {
+          nextIdx = idx
+        }
       }
     } else {
-      // Sequential: advance to the next consecutive track in queue
       nextIdx = (idx + 1) % q.length
     }
-    if (tryQuickPlayFromCache(q[nextIdx], nextIdx)) {
-      if (nextIdx >= q.length - 2) {
-        triggerSmartQueueFill(q[nextIdx], q)
-      }
-      return
-    }
-    setCurrentIndex(nextIdx)
-    currentIndexRef.current = nextIdx
-    playTrack(q[nextIdx], undefined, nextIdx)
 
-    // Auto-fetch next batch of matching recommendations when queue is near end
+    playResolvedTrack(q[nextIdx], nextIdx)
+
     if (nextIdx >= q.length - 2) {
       triggerSmartQueueFill(q[nextIdx], q)
     }
@@ -1813,6 +1850,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const prevTrack = () => {
     isPrevNextActionRef.current = true
+    isBackwardActionRef.current = true
 
     const now = Date.now()
     const isRecentClick = now - lastPrevClickRef.current < 2500
@@ -1833,6 +1871,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // If played > 3 seconds AND not clicked recently, restart track at 0:00.
     if (activeTime > 3 && !isRecentClick) {
       seek(0)
+      isPrevNextActionRef.current = false
+      isBackwardActionRef.current = false
       return
     }
 
@@ -1843,7 +1883,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (currentTrackRef.current) {
           forwardHistoryStackRef.current.push(currentTrackRef.current)
         }
-        if (!tryQuickPlayFromCache(prevSong)) playTrack(prevSong)
+        const q = queueRef.current.length > 0 ? queueRef.current : queue
+        const prevIndex = q.findIndex((t) => t.id === prevSong.id)
+        playResolvedTrack(prevSong, prevIndex)
         return
       }
     }
@@ -1868,10 +1910,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     } else {
       prevIdx = (idx - 1 + q.length) % q.length
     }
-    if (tryQuickPlayFromCache(q[prevIdx], prevIdx)) return
-    setCurrentIndex(prevIdx)
-    currentIndexRef.current = prevIdx
-    playTrack(q[prevIdx], undefined, prevIdx)
+
+    // Push current track to forward history so Next can restore it
+    if (currentTrackRef.current) {
+      forwardHistoryStackRef.current.push(currentTrackRef.current)
+    }
+
+    playResolvedTrack(q[prevIdx], prevIdx)
   }
 
   nextTrackRef.current = nextTrack
