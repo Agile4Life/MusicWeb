@@ -115,8 +115,9 @@ async function handleStream(fileId, filenameHint, request, env, ctx) {
   const contentLengthHeader = originRes.headers.get('content-length')
 
   // Large audio files (FLAC/WAV can be 40-80MB) — DO NOT buffer the whole body into
-  // memory like the YouTube worker does. Tee the stream: one branch goes to the
-  // client immediately, the other is persisted to R2 in the background.
+  // memory. Tee the stream: one branch goes to the client immediately, the other is
+  // persisted to R2 in the background. Do NOT call originRes.clone() after tee() —
+  // originRes.body is already locked and clone() will throw a synchronous TypeError.
   const [clientBody, r2Body] = originRes.body.tee()
 
   ctx.waitUntil(
@@ -125,23 +126,15 @@ async function handleStream(fileId, filenameHint, request, env, ctx) {
     }).catch((e) => console.warn('R2 put failed for', fileId, e))
   )
 
-  // First-time fetch: we don't have a known total size to honor an incoming Range
-  // request precisely without buffering, so serve this first response as a plain 200
-  // full-body stream. Any client Range request on this exact hit gets the whole file
-  // (acceptable — HTML5 <audio> handles a 200 with a full body fine); subsequent
-  // requests hit R2 above and get proper 206 Range responses.
   const headers = new Headers(CORS)
   headers.set('Content-Type', contentType)
   headers.set('Accept-Ranges', 'bytes')
   headers.set('Cache-Control', `public, max-age=${FULL_CACHE_TTL_SECONDS}, immutable`)
   if (contentLengthHeader) headers.set('Content-Length', contentLengthHeader)
 
-  ctx.waitUntil(
-    caches.default.put(
-      cacheKey,
-      new Response(await originRes.clone().arrayBuffer().catch(() => null), { headers })
-    ).catch(() => {})
-  )
+  // Note: We omit caches.default.put here because R2 is our primary, permanent cache
+  // with native byte-range read support, and avoiding full-body arrayBuffer buffering
+  // keeps Worker memory usage minimal for large audio files.
 
   return new Response(clientBody, { status: 200, headers })
 }
