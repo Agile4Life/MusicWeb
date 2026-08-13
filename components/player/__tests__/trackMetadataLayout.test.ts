@@ -4,7 +4,7 @@ import {
   trackMetadataArtistClass,
   trackMetadataArtistInlineClass,
   trackMetadataLoadingClass,
-  trackMetadataLoopScrubberClass,
+  trackMetadataProgressClass,
   trackMetadataTitleClass,
 } from '../trackMetadataLayout'
 
@@ -22,11 +22,15 @@ describe('track metadata layout contract', () => {
     expect(trackMetadataLoadingClass).toContain('truncate')
   })
 
-  it('keeps the desktop artist stable and the scrubber beside loop controls', () => {
+  it('keeps the desktop artist stable for the controls row', () => {
     expect(trackMetadataArtistInlineClass).toContain('min-w-0')
     expect(trackMetadataArtistInlineClass).toContain('truncate')
     expect(trackMetadataArtistInlineClass).toContain('shrink')
-    expect(trackMetadataLoopScrubberClass).toContain('shrink-0')
-    expect(trackMetadataLoopScrubberClass).toContain('w-[')
+  })
+
+  it('uses a stable centered width for the progress row below playback controls', () => {
+    expect(trackMetadataProgressClass).toContain('w-full')
+    expect(trackMetadataProgressClass).toContain('max-w-[560px]')
+    expect(trackMetadataProgressClass).toContain('min-w-[320px]')
   })
 })

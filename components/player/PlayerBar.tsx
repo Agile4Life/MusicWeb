@@ -14,7 +14,7 @@ import { MiniEqualizer } from './MiniEqualizer'
 import {
   trackMetadataArtistInlineClass,
   trackMetadataLoadingClass,
-  trackMetadataLoopScrubberClass,
+  trackMetadataProgressClass,
   trackMetadataTitleClass,
 } from './trackMetadataLayout'
 import { isPlayerBarFeatureTarget } from './playerBarInteraction'
@@ -774,7 +774,10 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                 />
               )}
             </button>
-            <div className={trackMetadataLoopScrubberClass} onClick={(e) => e.stopPropagation()}>
+          </div>
+
+          {/* Progress track stays centered directly below the play controls. */}
+          <div className={`${trackMetadataProgressClass} shrink-0`} onClick={(e) => e.stopPropagation()}>
               <AudioWaveformScrubber
                 currentTime={currentTime}
                 duration={duration || currentTrack.duration || 0}
@@ -783,7 +786,6 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                 onSeek={seek}
                 barCount={56}
               />
-            </div>
           </div>
 
         </div>

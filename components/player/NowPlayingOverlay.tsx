@@ -12,7 +12,7 @@ import { OverflowMarqueeText } from '../common/OverflowMarqueeText'
 import {
   trackMetadataArtistInlineClass,
   trackMetadataLoadingClass,
-  trackMetadataLoopScrubberClass,
+  trackMetadataProgressClass,
   trackMetadataTitleClass,
 } from './trackMetadataLayout'
 import { setCachedResolvedAlbum, getCachedResolvedAlbum, isRealAlbumName } from '@/lib/albumCache'
@@ -627,16 +627,18 @@ export function NowPlayingOverlay() {
                   />
                 )}
               </button>
-              <div className={trackMetadataLoopScrubberClass} onClick={(e) => e.stopPropagation()}>
-                <AudioWaveformScrubber
-                  currentTime={currentTime}
-                  duration={duration || currentTrack.duration || 0}
-                  isPlaying={isPlaying}
-                  trackId={currentTrack.id}
-                  onSeek={seek}
-                  barCount={56}
-                />
-              </div>
+            </div>
+
+            {/* Progress track stays centered directly below the play controls. */}
+            <div className={`${trackMetadataProgressClass} shrink-0`} onClick={(e) => e.stopPropagation()}>
+              <AudioWaveformScrubber
+                currentTime={currentTime}
+                duration={duration || currentTrack.duration || 0}
+                isPlaying={isPlaying}
+                trackId={currentTrack.id}
+                onSeek={seek}
+                barCount={56}
+              />
             </div>
 
           </div>
