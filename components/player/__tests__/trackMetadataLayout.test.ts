@@ -4,7 +4,7 @@ import {
   trackMetadataArtistClass,
   trackMetadataArtistInlineClass,
   trackMetadataLoadingClass,
-  trackMetadataScrubberClass,
+  trackMetadataLoopScrubberClass,
   trackMetadataTitleClass,
 } from '../trackMetadataLayout'
 
@@ -22,11 +22,11 @@ describe('track metadata layout contract', () => {
     expect(trackMetadataLoadingClass).toContain('truncate')
   })
 
-  it('keeps the desktop artist and scrubber adjacent to track metadata', () => {
+  it('keeps the desktop artist stable and the scrubber beside loop controls', () => {
     expect(trackMetadataArtistInlineClass).toContain('min-w-0')
     expect(trackMetadataArtistInlineClass).toContain('truncate')
     expect(trackMetadataArtistInlineClass).toContain('shrink')
-    expect(trackMetadataScrubberClass).toContain('w-full')
-    expect(trackMetadataScrubberClass).toContain('min-w-0')
+    expect(trackMetadataLoopScrubberClass).toContain('shrink-0')
+    expect(trackMetadataLoopScrubberClass).toContain('w-[')
   })
 })

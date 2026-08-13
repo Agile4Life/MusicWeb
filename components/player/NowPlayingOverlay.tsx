@@ -12,7 +12,7 @@ import { OverflowMarqueeText } from '../common/OverflowMarqueeText'
 import {
   trackMetadataArtistInlineClass,
   trackMetadataLoadingClass,
-  trackMetadataScrubberClass,
+  trackMetadataLoopScrubberClass,
   trackMetadataTitleClass,
 } from './trackMetadataLayout'
 import { setCachedResolvedAlbum, getCachedResolvedAlbum, isRealAlbumName } from '@/lib/albumCache'
@@ -536,16 +536,6 @@ export function NowPlayingOverlay() {
               </div>
               </div>
 
-              <div className={`${trackMetadataScrubberClass} mt-1.5 px-0.5`} onClick={(e) => e.stopPropagation()}>
-                <AudioWaveformScrubber
-                  currentTime={currentTime}
-                  duration={duration || currentTrack.duration || 0}
-                  isPlaying={isPlaying}
-                  trackId={currentTrack.id}
-                  onSeek={seek}
-                  barCount={56}
-                />
-              </div>
             </div>
           </div>
 
@@ -637,12 +627,22 @@ export function NowPlayingOverlay() {
                   />
                 )}
               </button>
+              <div className={trackMetadataLoopScrubberClass} onClick={(e) => e.stopPropagation()}>
+                <AudioWaveformScrubber
+                  currentTime={currentTime}
+                  duration={duration || currentTrack.duration || 0}
+                  isPlaying={isPlaying}
+                  trackId={currentTrack.id}
+                  onSeek={seek}
+                  barCount={56}
+                />
+              </div>
             </div>
 
           </div>
 
           {/* Right: Volume & Extra Controls (Matches Main Menu PlayerBar) */}
-          <div className="w-1/4 flex justify-end items-center gap-4">
+          <div className="w-1/4 flex justify-end items-center gap-3 min-w-0">
             <button
               onClick={handleFavoriteClick}
               className={`p-2 rounded-xl transition-all ${currentTrack.is_favorite

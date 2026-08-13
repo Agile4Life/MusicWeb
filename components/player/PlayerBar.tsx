@@ -14,7 +14,7 @@ import { MiniEqualizer } from './MiniEqualizer'
 import {
   trackMetadataArtistInlineClass,
   trackMetadataLoadingClass,
-  trackMetadataScrubberClass,
+  trackMetadataLoopScrubberClass,
   trackMetadataTitleClass,
 } from './trackMetadataLayout'
 import { isPlayerBarFeatureTarget } from './playerBarInteraction'
@@ -670,16 +670,6 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
               </div>
             </div>
 
-            <div className={`${trackMetadataScrubberClass} mt-1.5 px-0.5`} onClick={(e) => e.stopPropagation()}>
-              <AudioWaveformScrubber
-                currentTime={currentTime}
-                duration={duration || currentTrack.duration || 0}
-                isPlaying={isPlaying}
-                trackId={currentTrack.id}
-                onSeek={seek}
-                barCount={56}
-              />
-            </div>
           </div>
         </div>
 
@@ -784,6 +774,16 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                 />
               )}
             </button>
+            <div className={trackMetadataLoopScrubberClass} onClick={(e) => e.stopPropagation()}>
+              <AudioWaveformScrubber
+                currentTime={currentTime}
+                duration={duration || currentTrack.duration || 0}
+                isPlaying={isPlaying}
+                trackId={currentTrack.id}
+                onSeek={seek}
+                barCount={56}
+              />
+            </div>
           </div>
 
         </div>

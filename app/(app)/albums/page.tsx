@@ -128,7 +128,6 @@ export default function AlbumsPage() {
   const [listenedAlbums, setListenedAlbums] = useState<SpotifyAlbumItem[]>(cachedListenedAlbums)
   const [newReleases, setNewReleases] = useState<SpotifyAlbumItem[]>(cachedNewReleases)
   const [loading, setLoading] = useState<boolean>(cachedListenedAlbums.length === 0 && cachedNewReleases.length === 0)
-  const [activeFilter, setActiveFilter] = useState<'all' | 'albums' | 'singles'>('all')
 
   // Search state
   const [albumQuery, setAlbumQuery] = useState('')
@@ -242,20 +241,6 @@ export default function AlbumsPage() {
     }
   }, [albumQuery])
 
-  const filterAlbums = (albums: SpotifyAlbumItem[]) => {
-    if (activeFilter === 'albums') {
-      return albums.filter((a) => a.album_type !== 'single')
-    }
-    if (activeFilter === 'singles') {
-      return albums.filter((a) => a.album_type === 'single')
-    }
-    return albums
-  }
-
-  const filteredListened = filterAlbums(listenedAlbums)
-  const filteredNew = filterAlbums(newReleases)
-  const filteredSearch = filterAlbums(searchResults)
-
   return (
     <div className="p-3.5 sm:p-6 lg:p-8 flex flex-col gap-5 sm:gap-8 max-w-7xl mx-auto w-full pb-36 lg:pb-8 select-none">
       {/* Header Banner */}
@@ -285,63 +270,6 @@ export default function AlbumsPage() {
           </div>
         </div>
 
-        {/* Category Filters */}
-        <div className="flex items-center gap-1.5 p-1 bg-white/[0.04] border border-white/[0.08] rounded-2xl backdrop-blur-md shrink-0">
-          <button
-            onClick={() => setActiveFilter('all')}
-            style={
-              activeFilter === 'all'
-                ? {
-                    background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                    boxShadow: '0 4px 12px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
-                  }
-                : undefined
-            }
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              activeFilter === 'all'
-                ? 'text-black shadow-md'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Tất cả
-          </button>
-          <button
-            onClick={() => setActiveFilter('albums')}
-            style={
-              activeFilter === 'albums'
-                ? {
-                    background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                    boxShadow: '0 4px 12px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
-                  }
-                : undefined
-            }
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              activeFilter === 'albums'
-                ? 'text-black shadow-md'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Albums
-          </button>
-          <button
-            onClick={() => setActiveFilter('singles')}
-            style={
-              activeFilter === 'singles'
-                ? {
-                    background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                    boxShadow: '0 4px 12px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
-                  }
-                : undefined
-            }
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              activeFilter === 'singles'
-                ? 'text-black shadow-md'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Singles & EPs
-          </button>
-        </div>
       </div>
 
       {/* Album Search Input */}
@@ -382,7 +310,7 @@ export default function AlbumsPage() {
               </h2>
             </div>
             <span className="text-xs font-mono text-slate-500">
-              {filteredSearch.length} albums
+              {searchResults.length} albums
             </span>
           </div>
 
@@ -390,9 +318,9 @@ export default function AlbumsPage() {
             <div className="flex flex-col gap-4">
               <HeroCardSkeleton />
             </div>
-          ) : filteredSearch.length > 0 ? (
+          ) : searchResults.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-5">
-              {filteredSearch.map((album, idx) => (
+              {searchResults.map((album, idx) => (
                 <AlbumCard key={album.id} album={album} index={idx} />
               ))}
             </div>
@@ -407,7 +335,7 @@ export default function AlbumsPage() {
         /* Normal Discovery Mode */
         <div className="flex flex-col gap-10">
           {/* Section A: Listened Albums */}
-          {filteredListened.length > 0 && (
+          {listenedAlbums.length > 0 && (
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -417,12 +345,12 @@ export default function AlbumsPage() {
                   </h2>
                 </div>
                 <span className="text-xs font-mono text-slate-500">
-                  {filteredListened.length} albums
+                  {listenedAlbums.length} albums
                 </span>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-5">
-                {filteredListened.map((album, idx) => (
+                {listenedAlbums.map((album, idx) => (
                   <AlbumCard key={album.id} album={album} index={idx} />
                 ))}
               </div>
@@ -439,13 +367,13 @@ export default function AlbumsPage() {
                 </h2>
               </div>
               <span className="text-xs font-mono text-slate-500">
-                {filteredNew.length} Albums • 3 Nền Tảng
+                {newReleases.length} Albums • 3 Nền Tảng
               </span>
             </div>
 
-            {filteredNew.length > 0 ? (
+            {newReleases.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-5">
-                {filteredNew.map((album, idx) => (
+                {newReleases.map((album, idx) => (
                   <AlbumCard key={album.id} album={album} index={idx} />
                 ))}
               </div>
