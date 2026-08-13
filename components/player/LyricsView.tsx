@@ -346,8 +346,8 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
         className="relative z-10 flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 pt-6 pb-8 no-scrollbar"
         style={{
           WebkitOverflowScrolling: 'touch',
-          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 6%, black 86%, transparent 100%)',
-          maskImage: 'linear-gradient(to bottom, transparent 0%, black 6%, black 86%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 3%, black 94%, transparent 100%)',
+          maskImage: 'linear-gradient(to bottom, transparent 0%, black 3%, black 94%, transparent 100%)',
         }}
       >
         {loading ? (
@@ -364,21 +364,21 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
               const distance = activeIndex >= 0 ? Math.abs(index - activeIndex) : Infinity
               const isEven = index % 2 === 0
 
-              // 4-tier crisp depth hierarchy (scale & opacity, 0 blur for maximum sharpness)
+              // Preserve motion hierarchy without shrinking text into a blurry layer.
               let scale: number
               let opacity: number
               if (isActive) {
-                scale = 1.05
+                scale = 1.02
                 opacity = 1.0
               } else if (distance === 1) {
-                scale = 0.97
-                opacity = 0.75 // Sharp & clear
+                scale = 0.99
+                opacity = 0.9
               } else if (distance === 2) {
-                scale = 0.94
-                opacity = 0.55 // Clear readability
+                scale = 0.97
+                opacity = 0.76
               } else {
-                scale = 0.90
-                opacity = activeIndex < 0 ? 0.65 : 0.38 // Legible receding lines
+                scale = 0.95
+                opacity = activeIndex < 0 ? 0.78 : 0.62
               }
 
               const floatClass = isActive

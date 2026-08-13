@@ -225,7 +225,7 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
             </div>
 
             {/* Title & Artist — GPU accelerated, subpixel smooth */}
-            <div className="text-center px-4 max-w-md w-full transform-gpu">
+            <div className="text-center px-4 max-w-md w-full">
               <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white tracking-tight line-clamp-2">
                 {title || 'Chưa chọn bài hát'}
               </h2>
@@ -253,4 +253,3 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
     </div>
   )
 })
-

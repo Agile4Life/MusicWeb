@@ -821,7 +821,6 @@ input[type='range']:hover::-moz-range-thumb {
   left: -40px;
   right: -40px;
   will-change: transform;
-  transform: translate3d(var(--px, 0), var(--py, 0), 0);
 }
 .parallax-layer.reset,
 .scene-layer.reset {
@@ -1642,8 +1641,5 @@ html[data-cursor="default"][data-buffering="true"] * {
 .btn-3d-primary:active {
   transform: translateY(1px) scale(0.98);
 }
-
-
-
 
 
