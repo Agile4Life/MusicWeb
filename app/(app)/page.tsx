@@ -719,7 +719,7 @@ export default function HomePage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse flex flex-col gap-2">
-                  <div className="aspect-square bg-slate-800 rounded-xl" />
+                  <div className="aspect-square w-full bg-slate-800 rounded-xl" />
                   <div className="h-3 bg-slate-700 rounded w-3/4" />
                   <div className="h-2 bg-slate-800 rounded w-1/2" />
                 </div>
@@ -730,12 +730,12 @@ export default function HomePage() {
               {trendingAlbums.map((album, idx) => (
                 <TiltCard
                   key={album.id}
-                  className="media-card group p-3 flex flex-col gap-2 cursor-pointer outline-none"
+                  className="media-card group p-3 flex flex-col gap-2 cursor-pointer outline-none w-full"
                   style={{ '--i': idx } as React.CSSProperties}
                 >
-                  <Link href={`/album/${album.id}`} className="flex flex-col gap-2 h-full outline-none [transform-style:preserve-3d]">
+                  <Link href={`/album/${album.id}`} className="flex flex-col gap-2 h-full w-full outline-none [transform-style:preserve-3d]">
                     <div
-                      className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center [transform-style:preserve-3d]"
+                      className="aspect-square w-full bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center [transform-style:preserve-3d]"
                       style={{ transform: 'translateZ(20px)' }}
                     >
                       {album.cover_url ? (
@@ -803,7 +803,7 @@ export default function HomePage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse flex flex-col gap-2">
-                  <div className="aspect-square bg-slate-800 rounded-xl" />
+                  <div className="aspect-square w-full bg-slate-800 rounded-xl" />
                   <div className="h-3 bg-slate-700 rounded w-3/4" />
                   <div className="h-2 bg-slate-800 rounded w-1/2" />
                 </div>
@@ -815,11 +815,11 @@ export default function HomePage() {
                 <TiltCard
                   key={t.id}
                   style={{ '--i': idx } as React.CSSProperties}
-                  className="media-card group p-3 flex flex-col gap-2 cursor-pointer outline-none"
+                  className="media-card group p-3 flex flex-col gap-2 cursor-pointer outline-none w-full"
                 >
-                  <div className="flex flex-col gap-2 h-full outline-none [transform-style:preserve-3d]" onClick={() => playTrack(t, combinedTrendingTracks)}>
+                  <div className="flex flex-col gap-2 h-full w-full outline-none [transform-style:preserve-3d]" onClick={() => playTrack(t, combinedTrendingTracks)}>
                     <div
-                      className="aspect-square bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center [transform-style:preserve-3d]"
+                      className="aspect-square w-full bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center [transform-style:preserve-3d]"
                       style={{ transform: 'translateZ(20px)' }}
                     >
                       {t.cover_url ? (
