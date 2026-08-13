@@ -394,7 +394,7 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
                   key={index}
                   ref={isActive ? activeLineRef : null}
                   onClick={() => handleLineClick(line)}
-                  className={`lyric-line-item cursor-pointer py-1.5 px-3 rounded-2xl select-none transform-gpu origin-center sm:origin-left active:scale-95 ${willChangeClass} ${floatClass}`}
+                  className={`lyric-line-item cursor-pointer py-1.5 px-3 rounded-2xl select-none origin-center sm:origin-left active:scale-95 ${willChangeClass} ${floatClass}`}
                   style={{
                     '--l-scale': scale,
                     transform: `scale(${scale})`,

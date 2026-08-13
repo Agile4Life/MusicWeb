@@ -1,10 +1,11 @@
 'use client'
 
-import React, { lazy, Suspense, useRef, useEffect } from 'react'
+import React, { lazy, Suspense, useRef, useEffect, useState } from 'react'
 import { useCanUse3D } from '@/hooks/useCanUse3D'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import { usePlayer, usePlaybackProgress } from './PlayerContext'
 import { UpNextList } from './UpNextList'
+import { extractCoverAccent } from '@/lib/coverColor'
 
 const ParticleScene = lazy(() => import('./ParticleScene'))
 
@@ -33,6 +34,17 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
   const canUse3D = useCanUse3D()
   const { currentTime, duration } = usePlaybackProgress()
   const { queue, currentIndex, currentTrack } = usePlayer()
+  const [derivedAccent, setDerivedAccent] = useState('var(--accent)')
+
+  useEffect(() => {
+    let cancelled = false
+    extractCoverAccent(coverUrl).then((color) => {
+      if (!cancelled) setDerivedAccent(color)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [coverUrl])
 
   const trackNum = (currentIndex >= 0 ? currentIndex : 0) + 1
   const totalTracks = queue?.length || 1
@@ -155,6 +167,7 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
     <div
       ref={stageRef}
       className="now-playing-stage relative w-full h-full flex flex-col items-center justify-center overflow-hidden p-6 pb-24 lg:pb-28"
+      style={{ '--player-derived-accent': derivedAccent } as React.CSSProperties}
     >
 
       {/* Layer 1: Ambient gradient background (1× parallax) */}

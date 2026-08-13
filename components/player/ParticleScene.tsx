@@ -14,6 +14,7 @@ interface ParticlesProps {
 function Particles({ analyserData, isPlaying }: ParticlesProps) {
   const pointsRef1 = useRef<THREE.Points>(null)
   const pointsRef2 = useRef<THREE.Points>(null)
+  const pointsRef3 = useRef<THREE.Points>(null)
   const targetMouseRef = useRef({ x: 0, y: 0 })
   const currentMouseRef = useRef({ x: 0, y: 0 })
   const [accentColor, setAccentColor] = useState('#06b6d4')
@@ -34,9 +35,10 @@ function Particles({ analyserData, isPlaying }: ParticlesProps) {
     }
   }, [])
 
-  // 70% background particles, 30% foreground particles
-  const bgCount = Math.floor(PARTICLE_COUNT * 0.7)
-  const fgCount = PARTICLE_COUNT - bgCount
+  // Three restrained depth layers: far, middle, and near.
+  const bgCount = Math.floor(PARTICLE_COUNT * 0.55)
+  const midCount = Math.floor(PARTICLE_COUNT * 0.3)
+  const fgCount = PARTICLE_COUNT - bgCount - midCount
 
   const bgPositions = useMemo(() => {
     const arr = new Float32Array(bgCount * 3)
@@ -63,6 +65,19 @@ function Particles({ analyserData, isPlaying }: ParticlesProps) {
     }
     return arr
   }, [fgCount])
+
+  const midPositions = useMemo(() => {
+    const arr = new Float32Array(midCount * 3)
+    for (let i = 0; i < midCount; i++) {
+      const radius = 1.3 + Math.random() * 0.75
+      const theta = Math.random() * Math.PI * 2
+      const phi = Math.acos(2 * Math.random() - 1)
+      arr[i * 3] = radius * Math.sin(phi) * Math.cos(theta)
+      arr[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta)
+      arr[i * 3 + 2] = radius * Math.cos(phi)
+    }
+    return arr
+  }, [midCount])
 
   useFrame((state) => {
     // When paused and mouse is stationary, throttle frame updates to conserve CPU/GPU
@@ -102,6 +117,11 @@ function Particles({ analyserData, isPlaying }: ParticlesProps) {
       pointsRef2.current.rotation.x = my * 0.75
       pointsRef2.current.scale.setScalar(scale * 1.05)
     }
+    if (pointsRef3.current) {
+      pointsRef3.current.rotation.y = t * 0.08 - mx * 0.9
+      pointsRef3.current.rotation.x = -my * 0.9
+      pointsRef3.current.scale.setScalar(scale * 1.1)
+    }
   })
 
   return (
@@ -120,7 +140,21 @@ function Particles({ analyserData, isPlaying }: ParticlesProps) {
         />
       </points>
 
-      {/* 30% Brighter Foreground Particles */}
+      {/* 30% Middle-depth particles */}
+      <points ref={pointsRef3}>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[midPositions, 3]} />
+        </bufferGeometry>
+        <pointsMaterial
+          size={0.035}
+          color={accentColor}
+          transparent
+          opacity={0.58}
+          sizeAttenuation
+        />
+      </points>
+
+      {/* 15% Brighter Foreground Particles */}
       <points ref={pointsRef2}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[fgPositions, 3]} />

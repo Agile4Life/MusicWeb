@@ -19,7 +19,7 @@ export function UpNextList() {
 
   return (
     <div
-      className="w-full mt-3 bg-[#0d1020] border border-white/15 rounded-2xl shadow-2xl overflow-y-auto overscroll-contain max-h-[225px] min-h-0 select-none z-10 relative no-scrollbar shrink-0"
+      className="up-next-list w-full mt-3 bg-[#0d1020] border border-white/15 rounded-2xl shadow-2xl overflow-y-auto overscroll-contain max-h-[225px] min-h-0 select-none z-10 relative no-scrollbar shrink-0"
       style={{
         WebkitMaskImage: 'linear-gradient(to bottom, black 86%, transparent 100%)',
         maskImage: 'linear-gradient(to bottom, black 86%, transparent 100%)',
@@ -49,7 +49,7 @@ export function UpNextList() {
               aria-label={`Phát bài ${track.title} của ${track.artist || 'Nghệ sĩ'}`}
               className={`w-full cv-auto flex items-center gap-3 p-2 rounded-xl text-left transition-all duration-200 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-glow,#22d3ee)] ${
                 isCurrent
-                  ? 'bg-[var(--accent,#06b6d4)]/15 border border-[var(--accent,#06b6d4)]/30 text-[var(--spotify-glow,#22d3ee)] shadow-sm'
+                  ? 'queue-track-current bg-[var(--accent,#06b6d4)]/15 border border-[var(--accent,#06b6d4)]/30 text-[var(--spotify-glow,#22d3ee)] shadow-sm'
                   : 'hover:bg-white/10 border border-transparent text-slate-300 hover:text-white'
               }`}
             >

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useRef, useCallback, useEffect, useState } from 'react'
+import { calculateTilt } from './tiltCardMath'
 
 interface TiltCardProps {
   children: React.ReactNode
@@ -13,20 +14,21 @@ export function TiltCard({
   children,
   className = '',
   style = {},
-  maxTilt = 10,
+  maxTilt = 8,
 }: TiltCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const rafRef = useRef<number | null>(null)
-  const [isHoverCapable, setIsHoverCapable] = useState(true)
-  const [isReducedMotion, setIsReducedMotion] = useState(false)
+  const [isHoverCapable, setIsHoverCapable] = useState(() =>
+    typeof window === 'undefined' ? true : window.matchMedia('(hover: hover)').matches,
+  )
+  const [isReducedMotion, setIsReducedMotion] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  )
 
   useEffect(() => {
     if (typeof window === 'undefined') return
     const hoverMatch = window.matchMedia('(hover: hover)')
-    setIsHoverCapable(hoverMatch.matches)
-
     const motionMatch = window.matchMedia('(prefers-reduced-motion: reduce)')
-    setIsReducedMotion(motionMatch.matches)
 
     const handleHoverChange = (e: MediaQueryListEvent) => setIsHoverCapable(e.matches)
     const handleMotionChange = (e: MediaQueryListEvent) => setIsReducedMotion(e.matches)
@@ -57,18 +59,15 @@ export function TiltCard({
         const rect = card.getBoundingClientRect()
         if (rect.width === 0 || rect.height === 0) return
 
-        const x = clientX - rect.left
-        const y = clientY - rect.top
-        const centerX = rect.width / 2
-        const centerY = rect.height / 2
+        const { rotateX, rotateY } = calculateTilt(
+          { x: clientX - rect.left, y: clientY - rect.top, width: rect.width, height: rect.height },
+          maxTilt,
+        )
 
-        const rotateX = ((y - centerY) / centerY) * maxTilt
-        const rotateY = ((centerX - x) / centerX) * maxTilt
-
-        card.style.setProperty('--rotate-x', `${rotateX.toFixed(2)}deg`)
-        card.style.setProperty('--rotate-y', `${rotateY.toFixed(2)}deg`)
-        card.style.setProperty('--mouse-x', `${((x / rect.width) * 100).toFixed(1)}%`)
-        card.style.setProperty('--mouse-y', `${((y / rect.height) * 100).toFixed(1)}%`)
+        card.style.setProperty('--rotate-x', `${rotateX}deg`)
+        card.style.setProperty('--rotate-y', `${rotateY}deg`)
+        card.style.setProperty('--mouse-x', `${(((clientX - rect.left) / rect.width) * 100).toFixed(1)}%`)
+        card.style.setProperty('--mouse-y', `${(((clientY - rect.top) / rect.height) * 100).toFixed(1)}%`)
       })
     },
     [isHoverCapable, isReducedMotion, maxTilt]
