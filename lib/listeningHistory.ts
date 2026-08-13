@@ -7,13 +7,29 @@ function toError(message: string | undefined, fallback: string): Error {
 
 export async function fetchListeningHistory(
   supabase: SupabaseClient,
-  userId: string,
+  userIds: string | string[],
   limit: number,
 ): Promise<ListeningHistoryItem[]> {
-  const { data: historyRows, error: historyError } = await supabase
+  const ids = Array.from(
+    new Set(
+      (Array.isArray(userIds) ? userIds : [userIds])
+        .filter((id): id is string => Boolean(id && typeof id === 'string')),
+    ),
+  )
+
+  if (ids.length === 0) {
+    return []
+  }
+
+  const query = supabase
     .from('listening_history')
     .select('id, user_id, track_id, played_at')
-    .eq('user_id', userId)
+
+  const { data: historyRows, error: historyError } = await (
+    ids.length === 1
+      ? query.eq('user_id', ids[0])
+      : query.in('user_id', ids)
+  )
     .order('played_at', { ascending: false })
     .limit(limit)
 

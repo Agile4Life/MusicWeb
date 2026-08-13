@@ -25,6 +25,10 @@ function createMockSupabase(behavior: QueryBehavior = {}) {
       calls.push({ table: 'listening_history', method: 'eq', args: [column, value] })
       return listeningHistoryQuery
     }),
+    in: vi.fn((column: string, values: string[]) => {
+      calls.push({ table: 'listening_history', method: 'in', args: [column, values] })
+      return listeningHistoryQuery
+    }),
     order: vi.fn((column: string, options: { ascending: boolean }) => {
       calls.push({ table: 'listening_history', method: 'order', args: [column, options] })
       return listeningHistoryQuery
@@ -141,6 +145,29 @@ describe('fetchListeningHistory', () => {
     expect(history).toHaveLength(1)
     expect(history[0].id).toBe('history-1')
     expect(history[0].track?.id).toBe('track-1')
+  })
+
+  it('supports querying listening history for multiple user IDs', async () => {
+    const { supabase, calls } = createMockSupabase({
+      listeningHistory: {
+        data: [
+          { id: 'history-1', user_id: 'uuid-1', track_id: 'track-1', played_at: '2026-08-13T10:00:00.000Z' },
+          { id: 'history-2', user_id: 'uuid-2', track_id: 'track-2', played_at: '2026-08-13T09:00:00.000Z' },
+        ],
+      },
+      tracks: {
+        data: [
+          { id: 'track-1', title: 'Song A', artist: 'Artist A', duration: 180, file_path: '/a.mp3', cover_url: null, created_at: '2026-08-13T00:00:00.000Z' },
+          { id: 'track-2', title: 'Song B', artist: 'Artist B', duration: 200, file_path: '/b.mp3', cover_url: null, created_at: '2026-08-13T00:00:00.000Z' },
+        ],
+      },
+    })
+
+    const history = await fetchListeningHistory(supabase, ['uuid-1', 'uuid-2'], 20)
+
+    expect(history).toHaveLength(2)
+    const inCall = calls.find((call) => call.table === 'listening_history' && call.method === 'in')
+    expect(inCall?.args).toEqual(['user_id', ['uuid-1', 'uuid-2']])
   })
 
   it('returns query errors to the caller', async () => {

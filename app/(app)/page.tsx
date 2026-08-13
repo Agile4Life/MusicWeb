@@ -10,6 +10,7 @@ import { usePlayer } from '@/components/player/PlayerContext'
 import { deduplicateQueueTracks } from '@/lib/utils'
 import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
 import { resolveExternalTrackId, isExternalTrack, addTrackToPlaylist } from '@/lib/trackPersistence'
+import { getValidUserId, getAllValidUserIds } from '@/lib/accessControl'
 import { toast } from '@/components/ui/ToastContext'
 import { fetchListeningHistory, getRecentUniqueTracks } from '@/lib/listeningHistory'
 import { TiltCard } from '@/components/common/TiltCard'
@@ -35,7 +36,7 @@ import {
 } from 'lucide-react'
 import { SpotifyAlbumItem } from '@/lib/spotify'
 import { useSession } from 'next-auth/react'
-import { getValidUserId, isAdmin as checkIsAdmin } from '@/lib/accessControl'
+import { isAdmin as checkIsAdmin } from '@/lib/accessControl'
 import { useSearchParams, usePathname } from 'next/navigation'
 import { extractDriveFileId, parseFilenameToTitleArtist } from '@/lib/googleDriveUpload'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
@@ -251,9 +252,11 @@ export default function HomePage() {
         )
       }
 
-      if (userId) {
+      const userIds = getAllValidUserIds(currentUser, nextAuthSession)
+
+      if (userIds.length > 0) {
         try {
-          const historyItems = await fetchListeningHistory(supabase, userId, 100)
+          const historyItems = await fetchListeningHistory(supabase, userIds, 100)
           const recent = getRecentUniqueTracks(historyItems).map((tr) => ({
             ...tr,
             source: tr.source || 'local',

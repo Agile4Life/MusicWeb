@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Track } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
-import { getValidUserId } from '@/lib/accessControl'
+import { getValidUserId, getAllValidUserIds } from '@/lib/accessControl'
 import { useSession } from 'next-auth/react'
 import {
   History,
@@ -72,20 +72,15 @@ export default function HistoryPage() {
         data: { user: currentUser },
       } = await supabase.auth.getUser()
 
-      const activeUser = currentUser || (nextAuthSession?.user ? {
-        id: nextAuthSession.user.email,
-        email: nextAuthSession.user.email,
-      } : null)
+      const userIds = getAllValidUserIds(currentUser, nextAuthSession)
 
-      const userId = activeUser ? getValidUserId(activeUser) : null
-
-      if (!userId) {
+      if (userIds.length === 0) {
         setHistoryItems([])
         setLoading(false)
         return
       }
 
-      const rawItems = await fetchListeningHistory(supabase, userId, 100)
+      const rawItems = await fetchListeningHistory(supabase, userIds, 100)
 
       const validEntries: HistoryEntry[] = rawItems.flatMap((item) => {
         const tr = item.track
@@ -147,14 +142,9 @@ export default function HistoryPage() {
         data: { user: currentUser },
       } = await supabase.auth.getUser()
 
-      const activeUser = currentUser || (nextAuthSession?.user ? {
-        id: nextAuthSession.user.email,
-        email: nextAuthSession.user.email,
-      } : null)
-
-      const userId = activeUser ? getValidUserId(activeUser) : null
-      if (userId) {
-        await supabase.from('listening_history').delete().eq('user_id', userId)
+      const userIds = getAllValidUserIds(currentUser, nextAuthSession)
+      if (userIds.length > 0) {
+        await supabase.from('listening_history').delete().in('user_id', userIds)
         setHistoryItems([])
       }
     } catch (err) {

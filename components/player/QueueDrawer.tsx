@@ -7,7 +7,7 @@ import { X, Play, Music, History, Sparkles } from 'lucide-react'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import { createClient } from '@/lib/supabase/client'
 import { useSession } from 'next-auth/react'
-import { getValidUserId } from '@/lib/accessControl'
+import { getValidUserId, getAllValidUserIds } from '@/lib/accessControl'
 import { fetchListeningHistory, getRecentUniqueTracks } from '@/lib/listeningHistory'
 import { Track } from '@/types'
 
@@ -29,18 +29,13 @@ export function QueueDrawer() {
           data: { user: currentUser },
         } = await supabase.auth.getUser()
 
-        const activeUser = currentUser || (nextAuthSession?.user ? {
-          id: nextAuthSession.user.email,
-          email: nextAuthSession.user.email,
-        } : null)
-
-        const userId = activeUser ? getValidUserId(activeUser) : null
-        if (!userId) {
+        const userIds = getAllValidUserIds(currentUser, nextAuthSession)
+        if (userIds.length === 0) {
           if (!cancelled) setPersistedRecentTracks([])
           return
         }
 
-        const items = await fetchListeningHistory(supabase, userId, 50)
+        const items = await fetchListeningHistory(supabase, userIds, 50)
         const unique = getRecentUniqueTracks(items)
         if (!cancelled) {
           setPersistedRecentTracks(unique)

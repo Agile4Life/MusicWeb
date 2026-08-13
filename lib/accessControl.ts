@@ -175,3 +175,26 @@ export function getValidUserId(user?: any): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(12, 15)}-a${hex.slice(15, 18)}-${hex.slice(18, 30)}`
 }
 
+/** Collects all candidate user IDs for a given user identity across Supabase Auth and NextAuth */
+export function getAllValidUserIds(currentUser?: any, nextAuthSession?: any): string[] {
+  const ids = new Set<string>()
+
+  if (currentUser) {
+    const cid = getValidUserId(currentUser)
+    if (cid) ids.add(cid)
+    if (currentUser.email) {
+      ids.add(getValidUserId({ email: currentUser.email }))
+    }
+  }
+
+  if (nextAuthSession?.user) {
+    const nid = getValidUserId(nextAuthSession.user)
+    if (nid) ids.add(nid)
+    if (nextAuthSession.user.email) {
+      ids.add(getValidUserId({ email: nextAuthSession.user.email }))
+    }
+  }
+
+  return Array.from(ids).filter(Boolean)
+}
+
