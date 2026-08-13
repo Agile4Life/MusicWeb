@@ -23,7 +23,17 @@ const USER_AGENT =
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-  'Access-Control-Allow-Headers': 'Range, Content-Type',
+  'Access-Control-Allow-Headers': 'Range, Content-Type, Accept-Ranges',
+  'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges, Content-Type',
+}
+
+function detectAudioContentType(filenameHint = '') {
+  const lower = filenameHint.toLowerCase()
+  if (lower.endsWith('.flac') || lower.includes('.flac')) return 'audio/flac'
+  if (lower.endsWith('.wav') || lower.includes('.wav')) return 'audio/wav'
+  if (lower.endsWith('.m4a') || lower.endsWith('.aac')) return 'audio/mp4'
+  if (lower.endsWith('.ogg')) return 'audio/ogg'
+  return 'audio/mpeg'
 }
 
 export default {
@@ -89,11 +99,11 @@ async function handleStream(fileId, filenameHint, request, env, ctx) {
       }
     } else if (meta && meta.size === 0) {
       // 0-byte incomplete/corrupt entry from aborted write — delete it and fall through to origin
-      ctx.waitUntil(env.AUDIO_BUCKET.delete(r2Key).catch(() => { }))
+      ctx.waitUntil(env.AUDIO_BUCKET.delete(r2Key).catch(() => {}))
     }
   } catch (r2Err) {
     console.warn('R2 read failed for', fileId, r2Err?.message || r2Err)
-    ctx.waitUntil(env.AUDIO_BUCKET.delete(r2Key).catch(() => { }))
+    ctx.waitUntil(env.AUDIO_BUCKET.delete(r2Key).catch(() => {}))
     /* fall through to origin */
   }
 
@@ -101,22 +111,31 @@ async function handleStream(fileId, filenameHint, request, env, ctx) {
   const resolved = await resolveViaApp(fileId, filenameHint, env)
   if (!resolved) return json({ error: 'Google Drive: could not resolve a playable stream URL' }, 502)
 
+  const controller = new AbortController()
+  const originTimeout = setTimeout(() => controller.abort(), ORIGIN_TIMEOUT_MS)
+
   let originRes
   try {
     originRes = await fetch(resolved.url, {
       method: 'GET',
       headers: { 'User-Agent': USER_AGENT },
       cache: 'no-store',
-      signal: AbortSignal.timeout(ORIGIN_TIMEOUT_MS),
+      signal: controller.signal,
     })
   } catch {
+    clearTimeout(originTimeout)
     return json({ error: 'Google Drive: origin fetch failed' }, 502)
   }
+  clearTimeout(originTimeout)
+
   if (!originRes.ok || !originRes.body) {
     return json({ error: 'Google Drive: origin fetch failed' }, 502)
   }
 
-  const contentType = resolved.contentType || originRes.headers.get('content-type') || 'audio/mpeg'
+  let contentType = resolved.contentType || originRes.headers.get('content-type') || 'audio/mpeg'
+  if (contentType.includes('text/html') || contentType.includes('octet-stream')) {
+    contentType = detectAudioContentType(filenameHint)
+  }
   const contentLengthHeader = originRes.headers.get('content-length')
 
   // Large audio files (FLAC/WAV can be 40-80MB) — DO NOT buffer the whole body into
@@ -134,7 +153,7 @@ async function handleStream(fileId, filenameHint, request, env, ctx) {
       } catch (e) {
         console.warn('R2 put failed for', fileId, e?.message || e)
         // If background write was aborted (e.g. client disconnect/skip), delete partial R2 object
-        await env.AUDIO_BUCKET.delete(r2Key).catch(() => { })
+        await env.AUDIO_BUCKET.delete(r2Key).catch(() => {})
       }
     })()
   )
@@ -143,11 +162,21 @@ async function handleStream(fileId, filenameHint, request, env, ctx) {
   headers.set('Content-Type', contentType)
   headers.set('Accept-Ranges', 'bytes')
   headers.set('Cache-Control', `public, max-age=${FULL_CACHE_TTL_SECONDS}, immutable`)
-  if (contentLengthHeader) headers.set('Content-Length', contentLengthHeader)
 
-  // Note: We omit caches.default.put here because R2 is our primary, permanent cache
-  // with native byte-range read support, and avoiding full-body arrayBuffer buffering
-  // keeps Worker memory usage minimal for large audio files.
+  if (contentLengthHeader) {
+    const total = Number(contentLengthHeader)
+    if (Number.isFinite(total) && total > 0) {
+      if (rangeHeader) {
+        const range = parseRange(rangeHeader, total)
+        if (range && !range.invalid) {
+          headers.set('Content-Range', `bytes ${range.start}-${range.end}/${total}`)
+          headers.set('Content-Length', String(range.end - range.start + 1))
+          return new Response(clientBody, { status: 206, headers })
+        }
+      }
+      headers.set('Content-Length', String(total))
+    }
+  }
 
   return new Response(clientBody, { status: 200, headers })
 }
