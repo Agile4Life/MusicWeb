@@ -14,6 +14,7 @@ import { getSmartRecommendedTracks } from '@/lib/smartRecommend'
 import { NextQueueResponse, queueTrackToTrack } from '@/types/queue'
 import { getMusicOfftopicSegments, calculateIntroOffset } from '@/lib/sponsorblock'
 import { isIOSDevice, playAudioElement, redactAudioSource, shouldUseHtml5Audio, toPersistedTrack } from '@/lib/audioPlayback'
+import { isCurrentPlayback } from '@/lib/playbackRaceGuards'
 import { getNhacCuaTuiStreamUrl, resolveNhacCuaTuiSong, resolveNhacCuaTuiTrack } from '@/lib/nhaccuatuiClient'
 import { resolveStreamCached, invalidateStreamResolution } from '@/lib/resolveStreamClient'
 
@@ -233,6 +234,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const ytStuckTimerRef = useRef<any>(null)
   const playRequestRef = useRef(0)
   const ytLoadedIdRef = useRef<string | null>(null)
+  const audioRequestRef = useRef(0)
   const pendingSeekRef = useRef<number | null>(null)
   // True when a YouTube-sourced track is playing through the HTML5 <audio> proxy
   // (iOS only — the iframe engine is paused by iOS when the screen locks/app backgrounds)
@@ -369,6 +371,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // Track consecutive auto skips to prevent infinite skip loops when multiple tracks fail
   const consecutiveSkipRef = useRef(0)
   const pendingAutoSkipTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  const clearPlaybackTimers = () => {
+    if (pendingAutoSkipTimeoutRef.current) {
+      clearTimeout(pendingAutoSkipTimeoutRef.current)
+      pendingAutoSkipTimeoutRef.current = null
+    }
+    if (ytStuckTimerRef.current) {
+      clearTimeout(ytStuckTimerRef.current)
+      ytStuckTimerRef.current = null
+    }
+  }
 
   // Resolve audio URL for local and external tracks
   const getAudioUrl = useCallback(
@@ -733,9 +746,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 // tự nudge playVideo() để giải cứu (trước đây case này KHÔNG có watchdog
                 // vì bị nhánh else-if cuối "che" mất — xem FIX 4).
                 if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
+                const requestId = playRequestRef.current
+                const trackId = active?.id
                 ytStuckTimerRef.current = setTimeout(() => {
                   const currentActive = currentTrackRef.current
-                  if (currentActive && currentActive.source === 'youtube' && ytPlayerRef.current?.playVideo) {
+                  if (currentActive && currentActive.source === 'youtube' && ytPlayerRef.current?.playVideo && isCurrentPlayback({
+                    requestId,
+                    currentRequestId: playRequestRef.current,
+                    trackId,
+                    currentTrackId: currentActive.id,
+                  })) {
                     try {
                       ytPlayerRef.current.playVideo()
                     } catch (e) {}
@@ -763,32 +783,56 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
                 setIsPlaying(false)
                 recordListenEvent(currentTrackRef.current, true)
+                const endedRequestId = playRequestRef.current
+                const endedTrackId = activeForEnded?.id
                 const mode = repeatModeRef.current
                 if (mode === 'one') {
                   setTimeout(() => {
-                    if (currentTrackRef.current) {
+                    if (currentTrackRef.current && isCurrentPlayback({
+                      requestId: endedRequestId,
+                      currentRequestId: playRequestRef.current,
+                      trackId: endedTrackId,
+                      currentTrackId: currentTrackRef.current.id,
+                    })) {
                       playTrackRef.current(currentTrackRef.current)
                     }
                   }, 0)
                 } else if (mode === 'all') {
                   setTimeout(() => {
-                    nextTrackRef.current()
+                    if (isCurrentPlayback({
+                      requestId: endedRequestId,
+                      currentRequestId: playRequestRef.current,
+                      trackId: endedTrackId,
+                      currentTrackId: currentTrackRef.current?.id,
+                    })) nextTrackRef.current()
                   }, 0)
                 } else if (autoPlayNextRef.current) {
                   const q = queueRef.current
                   const idx = currentIndexRef.current
                   if (isShuffleRef.current || idx < q.length - 1) {
                     setTimeout(() => {
-                      nextTrackRef.current()
+                      if (isCurrentPlayback({
+                        requestId: endedRequestId,
+                        currentRequestId: playRequestRef.current,
+                        trackId: endedTrackId,
+                        currentTrackId: currentTrackRef.current?.id,
+                      })) nextTrackRef.current()
                     }, 0)
                   }
                 }
               } else if (event.data === -1 || event.data === 5) {
                 // Cold-start watchdog: if stuck in cued/unstarted for > 800ms, auto-trigger playVideo() ONLY if active track is YouTube
                 if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
+                const requestId = playRequestRef.current
+                const trackId = active?.id
                 ytStuckTimerRef.current = setTimeout(() => {
                   const currentActive = currentTrackRef.current
-                  if (currentActive && currentActive.source === 'youtube' && ytPlayerRef.current && ytPlayerRef.current.playVideo) {
+                  if (currentActive && currentActive.source === 'youtube' && ytPlayerRef.current && ytPlayerRef.current.playVideo && isCurrentPlayback({
+                    requestId,
+                    currentRequestId: playRequestRef.current,
+                    trackId,
+                    currentTrackId: currentActive.id,
+                  })) {
                     try {
                       ytPlayerRef.current.playVideo()
                     } catch (e) {}
@@ -799,6 +843,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             onError: async (err: any) => {
               console.warn('YouTube Player Error:', err)
               const active = currentTrackRef.current
+              const requestId = playRequestRef.current
+              const trackId = active?.id
               const errorCode = err?.data
               const isEmbedError = errorCode === 150 || errorCode === 101 || errorCode === 100
 
@@ -813,6 +859,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 try {
                   const queryStr = `${active.title} ${active.artist || ''}`.trim()
                   const searchRes = await fetchUnifiedSearch(queryStr, 'youtube')
+                  if (!isCurrentPlayback({
+                    requestId,
+                    currentRequestId: playRequestRef.current,
+                    trackId,
+                    currentTrackId: currentTrackRef.current?.id,
+                  })) return
                   const candidates = (searchRes?.youtube || []).filter((t: Track) => t.youtube_id && t.youtube_id !== active.youtube_id)
                   if (candidates.length > 0) {
                     const fallbackMatch = findBestYouTubeMatch(candidates, active.title, active.artist, active.duration, active.album) || candidates[0]
@@ -835,6 +887,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 }
               }
 
+              if (requestId !== playRequestRef.current || trackId !== currentTrackRef.current?.id) return
               setPlaybackError(
                 errorCode === 150 || errorCode === 101
                   ? 'Video này bị cấm nhúng phát ngoài YouTube. Vui lòng chọn bài khác.'
@@ -1035,10 +1088,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     startFromTime?: number
   ) => {
     const requestId = ++playRequestRef.current
-    if (pendingAutoSkipTimeoutRef.current) {
-      clearTimeout(pendingAutoSkipTimeoutRef.current)
-      pendingAutoSkipTimeoutRef.current = null
-    }
+    audioRequestRef.current = requestId
+    clearPlaybackTimers()
     audioRetryCountRef.current = 0
 
     // ⚡ FIX #1: snapshot engine của track SẮP BỊ THAY THẾ trước khi reset state.
@@ -1078,10 +1129,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     ytHtml5ModeRef.current = false
 
     // ⚡ 1. PAUSE & STOP ALL PREVIOUS AUDIO ENGINES IMMEDIATELY (ZERO DELAY OVERLAP)
-    if (ytStuckTimerRef.current) {
-      clearTimeout(ytStuckTimerRef.current)
-      ytStuckTimerRef.current = null
-    }
+    clearPlaybackTimers()
     if (audioRef.current) {
       try {
         audioRef.current.pause()
@@ -1617,6 +1665,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // Capture requestId — cancels any pending async play requests AND lets
     // this call's own play().then/catch verify it's still the active request.
     const requestId = ++playRequestRef.current
+    audioRequestRef.current = requestId
+    clearPlaybackTimers()
 
     if (ytStuckTimerRef.current) {
       clearTimeout(ytStuckTimerRef.current)
@@ -1827,10 +1877,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }
 
   const removeFromQueue = (indexToRemove: number) => {
-    const isRemovingCurrent = indexToRemove === currentIndex
+    const activeIndex = currentIndexRef.current
+    const isRemovingCurrent = indexToRemove === activeIndex
     setQueue((prev) => prev.filter((_, idx) => idx !== indexToRemove))
 
-    if (currentIndex > indexToRemove) {
+    if (activeIndex > indexToRemove) {
       setCurrentIndex((prev) => prev - 1)
       currentIndexRef.current = currentIndexRef.current - 1
     } else if (isRemovingCurrent) {
@@ -1891,11 +1942,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    const fallbackToYouTube = async (track: Track) => {
+    const fallbackToYouTube = async (track: Track, requestId: number) => {
       try {
         const query = `${track.title} ${track.artist || ''}`.trim()
         const data = await fetchUnifiedSearch(query, 'youtube')
-        if (currentTrackRef.current?.id !== track.id) return
+        if (!isCurrentPlayback({
+          requestId,
+          currentRequestId: playRequestRef.current,
+          trackId: track.id,
+          currentTrackId: currentTrackRef.current?.id,
+        })) return
         const ytList: Track[] = data.youtube || []
           const bestMatch = findBestYouTubeMatch(ytList, track.title, track.artist, track.duration, track.album)
           if (bestMatch && bestMatch.youtube_id) {
@@ -1920,11 +1976,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {
         console.warn('YouTube fallback failed:', e)
       }
+      if (requestId !== playRequestRef.current) return
       setIsPlaying(false)
       setPlaybackError('Không thể phát file nhạc này từ Google Drive hoặc YouTube.')
     }
 
     const handleLoadedMetadata = () => {
+      if (audioRequestRef.current !== playRequestRef.current) return
       if (!isYtIframeEngine()) {
         const loadedDuration = audio.duration || 0
         setDuration(loadedDuration)
@@ -1951,13 +2009,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     const handleError = async () => {
+      const requestId = playRequestRef.current
       if (!isYtIframeEngine()) {
         const current = currentTrackRef.current
         const erroredTrack = current
         if (audioRetryCountRef.current < 2) {
           audioRetryCountRef.current++
           setTimeout(() => {
-            if (erroredTrack && currentTrackRef.current?.id !== erroredTrack.id) return
+            if (!erroredTrack || !isCurrentPlayback({
+              requestId,
+              currentRequestId: playRequestRef.current,
+              trackId: erroredTrack.id,
+              currentTrackId: currentTrackRef.current?.id,
+            })) return
             if (audioRef.current) {
               audioRef.current.load()
               audioRef.current.play().catch(() => {})
@@ -1966,9 +2030,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           return
         }
         if (current && current.file_path) {
-          await fallbackToYouTube(current)
+          await fallbackToYouTube(current, requestId)
           return
         }
+        if (requestId !== playRequestRef.current) return
         consecutiveSkipRef.current += 1
         setIsPlaying(false)
         setDuration(0)
@@ -1983,6 +2048,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     const handleEnded = () => {
       if (!isYtIframeEngine()) {
+        if (!audio.ended || audioRequestRef.current !== playRequestRef.current) return
         recordListenEvent(currentTrackRef.current, true)
         const mode = repeatModeRef.current
         if (mode === 'one') {
