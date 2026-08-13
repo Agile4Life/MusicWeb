@@ -19,6 +19,8 @@ import {
 } from 'lucide-react'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 
+import { fetchListeningHistory } from '@/lib/listeningHistory'
+
 interface HistoryEntry {
   id: string
   played_at: string
@@ -83,54 +85,49 @@ export default function HistoryPage() {
         return
       }
 
-      const { data, error } = await supabase
-        .from('listening_history')
-        .select('id, played_at, tracks:track_id(*)')
-        .eq('user_id', userId)
-        .order('played_at', { ascending: false })
-        .limit(100)
+      const rawItems = await fetchListeningHistory(supabase, userId, 100)
 
-      if (!error && data) {
-        const validEntries: HistoryEntry[] = data
-          .filter((item: any) => item.tracks && typeof item.tracks === 'object')
-          .map((item: any) => {
-            const tr = item.tracks
-            let source = tr.source || 'local'
-            let youtube_id = tr.youtube_id
-            const fp = tr.file_path || ''
+      const validEntries: HistoryEntry[] = rawItems.flatMap((item) => {
+        const tr = item.track
+        if (!tr) return []
+        let source: Track['source'] = tr.source || 'local'
+        let youtube_id = tr.youtube_id
+        const fp = tr.file_path || ''
 
-            if (fp.includes('youtube.com') || fp.includes('youtu.be') || tr.id?.startsWith?.('yt-')) {
-              source = 'youtube'
-              if (!youtube_id) {
-                const match = fp.match(/(?:v=|\/embed\/|\/1\/|\/v\/|https:\/\/youtu\.be\/|^yt-)([a-zA-Z0-9_-]{11})/)
-                if (match) youtube_id = match[1]
-                else if (tr.id?.startsWith?.('yt-')) youtube_id = tr.id.replace('yt-', '')
-              }
-            } else if (fp.includes('spotify.com') || tr.id?.startsWith?.('spotify-')) {
-              source = 'spotify'
-            } else if (fp.includes('itunes.apple.com') || tr.id?.startsWith?.('itunes-')) {
-              source = 'itunes'
-            } else if (fp.includes('audius.co') || tr.id?.startsWith?.('audius-')) {
-              source = 'audius'
-            }
+        if (fp.includes('youtube.com') || fp.includes('youtu.be') || tr.id?.startsWith?.('yt-')) {
+          source = 'youtube'
+          if (!youtube_id) {
+            const match = fp.match(/(?:v=|\/embed\/|\/1\/|\/v\/|https:\/\/youtu\.be\/|^yt-)([a-zA-Z0-9_-]{11})/)
+            if (match) youtube_id = match[1]
+            else if (tr.id?.startsWith?.('yt-')) youtube_id = tr.id.replace('yt-', '')
+          }
+        } else if (fp.includes('spotify.com') || tr.id?.startsWith?.('spotify-')) {
+          source = 'spotify'
+        } else if (fp.includes('itunes.apple.com') || tr.id?.startsWith?.('itunes-')) {
+          source = 'itunes'
+        } else if (fp.includes('audius.co') || tr.id?.startsWith?.('audius-')) {
+          source = 'audius'
+        }
 
-            return {
-              id: item.id,
-              played_at: item.played_at,
-              track: {
-                ...tr,
-                source,
-                youtube_id,
-                artist: tr.artist || null,
-                album: tr.album || null,
-              },
-            }
-          })
+        return [
+          {
+            id: item.id,
+            played_at: item.played_at,
+            track: {
+              ...tr,
+              source,
+              youtube_id,
+              artist: tr.artist || null,
+              album: tr.album || null,
+            },
+          },
+        ]
+      })
 
-        setHistoryItems(validEntries)
-      }
+      setHistoryItems(validEntries)
     } catch (err) {
       console.error('Fetch history error:', err)
+      setHistoryItems([])
     } finally {
       setLoading(false)
     }

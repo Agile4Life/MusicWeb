@@ -11,6 +11,7 @@ import { deduplicateQueueTracks } from '@/lib/utils'
 import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
 import { resolveExternalTrackId, isExternalTrack, addTrackToPlaylist } from '@/lib/trackPersistence'
 import { toast } from '@/components/ui/ToastContext'
+import { fetchListeningHistory, getRecentUniqueTracks } from '@/lib/listeningHistory'
 import { TiltCard } from '@/components/common/TiltCard'
 import {
   Play,
@@ -251,27 +252,16 @@ export default function HomePage() {
       }
 
       if (userId) {
-        // Query Recently Played Songs strictly for CURRENT user_id
-        const { data: historyData } = await supabase
-          .from('listening_history')
-          .select('id, played_at, tracks:track_id(*)')
-          .eq('user_id', userId)
-          .order('played_at', { ascending: false })
-          .limit(100)
-
-        if (historyData && historyData.length > 0) {
-          const seen = new Set<string>()
-          const recent: Track[] = []
-          for (const item of historyData) {
-            const tr = item.tracks as any
-            if (tr && tr.id && !seen.has(tr.id)) {
-              seen.add(tr.id)
-              recent.push({ ...tr, source: tr.source || 'local' })
-            }
-          }
+        try {
+          const historyItems = await fetchListeningHistory(supabase, userId, 100)
+          const recent = getRecentUniqueTracks(historyItems).map((tr) => ({
+            ...tr,
+            source: tr.source || 'local',
+          }))
           if (mySeq !== fetchSeqRef.current) return
           setRecentTracks(recent)
-        } else {
+        } catch (hErr) {
+          console.error('Failed to fetch recent listening history:', hErr)
           if (mySeq !== fetchSeqRef.current) return
           setRecentTracks([])
         }

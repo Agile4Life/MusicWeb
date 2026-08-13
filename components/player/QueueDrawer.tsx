@@ -1,20 +1,70 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { usePlayer } from './PlayerContext'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { X, Play, Music, History, Sparkles } from 'lucide-react'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
+import { createClient } from '@/lib/supabase/client'
+import { useSession } from 'next-auth/react'
+import { getValidUserId } from '@/lib/accessControl'
+import { fetchListeningHistory, getRecentUniqueTracks } from '@/lib/listeningHistory'
+import { Track } from '@/types'
 
 export function QueueDrawer() {
+  const supabase = createClient()
+  const { data: nextAuthSession } = useSession()
   const { t } = useLanguage()
   const { currentTrack, queue, currentIndex, playTrack, isPlaying, removeFromQueue, clearQueue, isQueueOpen, closeQueue } = usePlayer()
   const [activeTab, setActiveTab] = useState<'queue' | 'history'>('queue')
+  const [persistedRecentTracks, setPersistedRecentTracks] = useState<Track[]>([])
+
+  useEffect(() => {
+    if (!isQueueOpen || activeTab !== 'history') return
+
+    let cancelled = false
+    async function loadRecentHistory() {
+      try {
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser()
+
+        const activeUser = currentUser || (nextAuthSession?.user ? {
+          id: nextAuthSession.user.email,
+          email: nextAuthSession.user.email,
+        } : null)
+
+        const userId = activeUser ? getValidUserId(activeUser) : null
+        if (!userId) {
+          if (!cancelled) setPersistedRecentTracks([])
+          return
+        }
+
+        const items = await fetchListeningHistory(supabase, userId, 50)
+        const unique = getRecentUniqueTracks(items)
+        if (!cancelled) {
+          setPersistedRecentTracks(unique)
+        }
+      } catch (err) {
+        console.error('QueueDrawer history load error:', err)
+      }
+    }
+
+    loadRecentHistory()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isQueueOpen, activeTab, supabase, nextAuthSession])
 
   if (!isQueueOpen) return null
 
   // Remaining upcoming tracks in queue after current index
   const nextUpTracks = currentIndex >= 0 ? queue.slice(currentIndex + 1) : queue
+
+  // Fallback to memory queue history if persisted history is empty
+  const fallbackQueueHistory = queue.slice(0, currentIndex).reverse()
+  const displayHistoryTracks = persistedRecentTracks.length > 0 ? persistedRecentTracks : fallbackQueueHistory
 
   return (
     <aside className="queue-drawer fixed inset-x-2 top-16 bottom-36 z-40 lg:z-40 lg:static lg:inset-auto lg:top-auto lg:bottom-auto lg:h-full w-auto lg:w-80 xl:w-96 bg-[var(--elevation-3-bg)] backdrop-blur-2xl rounded-2xl border border-white/10 panel-theme-hover shadow-2xl flex flex-col overflow-hidden shrink-0 select-none animate-in slide-in-from-bottom lg:slide-in-from-right duration-200 transform-gpu">
@@ -176,9 +226,9 @@ export function QueueDrawer() {
           <div className="flex flex-col gap-2.5">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('recently_played')}</h3>
 
-            {queue.slice(0, currentIndex).length > 0 ? (
+            {displayHistoryTracks.length > 0 ? (
               <div className="flex flex-col gap-1.5">
-                {queue.slice(0, currentIndex).reverse().map((track, idx) => (
+                {displayHistoryTracks.map((track, idx) => (
                   <div
                     key={`hist-${track.id}-${idx}`}
                     onClick={() => playTrack(track)}

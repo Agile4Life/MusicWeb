@@ -1524,11 +1524,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           dbTrackId = resolvedId
         }
 
-        await supabase.from('listening_history').insert({
+        const { error: insertErr } = await supabase.from('listening_history').insert({
           user_id: userId,
           track_id: dbTrackId,
           played_at: new Date().toISOString(),
         })
+
+        if (insertErr) {
+          console.warn('[PlayerContext] History insert error:', insertErr.message)
+        }
       } catch (historyErr) {
         console.warn('History tracking error:', historyErr)
       }
