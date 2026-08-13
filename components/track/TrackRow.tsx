@@ -421,7 +421,7 @@ function TrackRowComponent({
       </div>
 
       {/* Album — editable inline */}
-      <div className="hidden md:block w-1/4 truncate text-xs text-slate-400">
+      <div className="hidden lg:block w-1/4 truncate text-xs text-slate-400">
         {editMode ? (
           <input
             value={editAlbum}
@@ -450,7 +450,7 @@ function TrackRowComponent({
       </div>
 
       {/* Duration & Options */}
-      <div className="shrink-0 flex items-center justify-end md:w-1/4 text-xs text-slate-400 gap-3">
+      <div className="shrink-0 flex items-center justify-end lg:w-1/4 text-xs text-slate-400 gap-3">
         <span className={`w-12 text-center font-mono shrink-0 ${track.duration ? 'text-slate-300' : 'text-slate-600'}`}>
           {formatDuration(track.duration)}
         </span>

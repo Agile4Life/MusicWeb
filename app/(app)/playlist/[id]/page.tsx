@@ -466,7 +466,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
   }
 
   return (
-    <div className="p-3.5 sm:p-6 md:p-8 flex flex-col gap-4 sm:gap-6 md:gap-8 max-w-7xl mx-auto w-full pb-36 md:pb-8 select-none">
+    <div className="p-3.5 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6 lg:gap-8 max-w-7xl mx-auto w-full pb-36 lg:pb-8 select-none">
       {/* Header Banner */}
       <div className="relative overflow-hidden rounded-2xl border border-white/[0.06] p-4 sm:p-6 md:p-8 bg-[#0d1017] flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
         <div className="w-28 h-28 sm:w-36 sm:h-36 bg-slate-800 rounded-xl flex items-center justify-center shrink-0 border border-white/10 overflow-hidden">

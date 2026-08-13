@@ -13,6 +13,7 @@ import { MobileHeaderNav } from '@/components/navigation/MobileHeaderNav'
 import { TopBar } from '@/components/navigation/TopBar'
 import { QueueDrawer } from '@/components/player/QueueDrawer'
 import { NowPlayingOverlay } from '@/components/player/NowPlayingOverlay'
+import { mobileContentPaddingClassName } from '@/components/player/mobileLayout'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isScrolled, setIsScrolled] = useState(false)
@@ -32,11 +33,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <PlayerProvider>
             <PlaylistProvider>
               <SearchProvider>
-                <div className="h-screen w-screen flex flex-col bg-[var(--bg-space,#07090e)] overflow-hidden font-sans p-1.5 xs:p-2 md:p-3 relative">
+                <div className="h-screen w-screen flex flex-col bg-[var(--bg-space,#07090e)] overflow-hidden font-sans p-1.5 xs:p-2 lg:p-3 relative">
                   {/* Mobile Header (Smartphone view) */}
                   <MobileHeaderNav />
 
-                  <div className="flex-1 flex min-h-0 relative gap-1.5 md:gap-3">
+                  <div className="flex-1 flex min-h-0 relative gap-1.5 lg:gap-3">
                     {/* Desktop Left Sidebar */}
                     <Sidebar isScrolled={isScrolled} />
 
@@ -45,7 +46,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       <TopBar />
                       <div
                         onScroll={handleScroll}
-                        className="flex-1 overflow-y-auto min-h-0 relative main-content-scroll pb-32 md:pb-40"
+                        className={`flex-1 overflow-y-auto min-h-0 relative main-content-scroll ${mobileContentPaddingClassName} lg:pb-40`}
                       >
                         {children}
                       </div>
@@ -56,7 +57,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   </div>
 
                   {/* Player Bar (Elevation 3 - Floating sheet on top) */}
-                  <div className="absolute bottom-1.5 xs:bottom-2 md:bottom-3 left-1.5 xs:left-2 md:left-3 right-1.5 xs:right-2 md:right-3 z-30 pointer-events-auto">
+                  <div className="absolute bottom-1.5 xs:bottom-2 lg:bottom-3 left-1.5 xs:left-2 lg:left-3 right-1.5 xs:right-2 lg:right-3 z-30 pointer-events-auto">
                     <PlayerBar isScrolled={isScrolled} />
                   </div>
                   <NowPlayingOverlay />
@@ -69,5 +70,3 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </AuthGuard>
   )
 }
-
-

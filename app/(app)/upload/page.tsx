@@ -46,7 +46,7 @@ export default async function UploadPage() {
   }
 
   return (
-    <div className="p-3.5 sm:p-6 md:p-8 flex flex-col justify-center min-h-[80vh] pb-36 md:pb-8">
+    <div className="p-3.5 sm:p-6 lg:p-8 flex flex-col justify-center min-h-[80vh] pb-36 lg:pb-8">
       <UploadForm />
     </div>
   )

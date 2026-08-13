@@ -10,8 +10,9 @@ import { AudioWaveformScrubber } from './AudioWaveformScrubber'
 import { TrackCoverImage } from '../common/TrackCoverImage'
 import { OverflowMarqueeText } from '../common/OverflowMarqueeText'
 import {
-  trackMetadataArtistClass,
+  trackMetadataArtistInlineClass,
   trackMetadataLoadingClass,
+  trackMetadataScrubberClass,
   trackMetadataTitleClass,
 } from './trackMetadataLayout'
 import { setCachedResolvedAlbum, getCachedResolvedAlbum, isRealAlbumName } from '@/lib/albumCache'
@@ -359,7 +360,7 @@ export function NowPlayingOverlay() {
         </div>
 
         {/* 🎛️ MOBILE COMPACT FLOATING CONTROL BAR (< 768px) */}
-        <div className="player-bar md:hidden absolute bottom-3 inset-x-3 z-30 p-3 flex flex-col gap-2 rounded-2xl transition-all duration-300 select-none shadow-2xl border border-white/10">
+        <div className="player-bar lg:hidden absolute bottom-3 inset-x-3 z-30 p-3 flex flex-col gap-2 rounded-2xl transition-all duration-300 select-none shadow-2xl border border-white/10">
           {/* Top Row: Track Metadata + Album/Heart/Queue Actions */}
           <div className="flex items-center justify-between gap-2 w-full">
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -473,7 +474,7 @@ export function NowPlayingOverlay() {
         </div>
 
         {/* 🎛️ DESKTOP FLOATING CONTROL BAR (>= 768px) */}
-        <div className="player-bar group/playerbar hidden md:flex absolute bottom-3 sm:bottom-4 inset-x-3 sm:inset-x-6 z-30 px-6 md:px-8 py-3.5 h-[96px] items-center justify-between rounded-2xl transition-all duration-300 select-none">
+        <div className="player-bar group/playerbar hidden lg:flex absolute bottom-3 sm:bottom-4 inset-x-3 sm:inset-x-6 z-30 px-6 lg:px-8 py-3.5 h-[96px] items-center justify-between rounded-2xl transition-all duration-300 select-none">
           {/* Top ambient highlight reflection line (fades in on hover) */}
           <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-[var(--spotify-glow,#22d3ee)]/35 to-transparent pointer-events-none rounded-t-2xl opacity-0 group-hover/playerbar:opacity-100 transition-opacity duration-300" />
 
@@ -489,7 +490,7 @@ export function NowPlayingOverlay() {
               <div className="inline-flex items-center gap-2 min-w-0 max-w-full">
                 <OverflowMarqueeText
                   text={currentTrack.title}
-                  className={`text-xs md:text-sm font-bold text-white hover:text-[var(--spotify-glow)] transition-colors cursor-pointer ${trackMetadataTitleClass}`}
+                  className={`text-xs lg:text-sm font-bold text-white hover:text-[var(--spotify-glow)] transition-colors cursor-pointer ${trackMetadataTitleClass}`}
                 />
                 {isPlaying && (
                   <MiniEqualizer isPlaying={isPlaying} className="shrink-0" />
@@ -512,7 +513,7 @@ export function NowPlayingOverlay() {
               <div className="flex items-center gap-2 mt-0.5 min-w-0">
                 <p
                   data-playerbar-exclude-fullview
-                  className={`${trackMetadataArtistClass} text-[11px] text-slate-400 hover:text-slate-200 transition-colors cursor-pointer`}
+                  className={`${trackMetadataArtistInlineClass} text-[11px] text-slate-400 hover:text-slate-200 transition-colors cursor-pointer`}
                   onClick={(e) => e.stopPropagation()}
                 >
                   {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
@@ -530,10 +531,20 @@ export function NowPlayingOverlay() {
                     <DiscAlbum style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3 h-3 shrink-0" />
                   )}
                   <span className="truncate font-semibold text-slate-200 group-hover:text-[var(--spotify-glow)] transition-colors">
-                    {displayAlbumName || 'Album'}
-                  </span>
-                </div>
+                  {displayAlbumName || 'Album'}
+                </span>
+              </div>
+              </div>
 
+              <div className={`${trackMetadataScrubberClass} mt-1.5 px-0.5`} onClick={(e) => e.stopPropagation()}>
+                <AudioWaveformScrubber
+                  currentTime={currentTime}
+                  duration={duration || currentTrack.duration || 0}
+                  isPlaying={isPlaying}
+                  trackId={currentTrack.id}
+                  onSeek={seek}
+                  barCount={56}
+                />
               </div>
             </div>
           </div>
@@ -628,17 +639,6 @@ export function NowPlayingOverlay() {
               </button>
             </div>
 
-            {/* Waveform Scrubber Under Playback Controls */}
-            <div className="w-full max-w-2xl px-2">
-              <AudioWaveformScrubber
-                currentTime={currentTime}
-                duration={duration || currentTrack.duration || 0}
-                isPlaying={isPlaying}
-                trackId={currentTrack.id}
-                onSeek={seek}
-                barCount={100}
-              />
-            </div>
           </div>
 
           {/* Right: Volume & Extra Controls (Matches Main Menu PlayerBar) */}
@@ -702,7 +702,7 @@ export function NowPlayingOverlay() {
               >
                 {volume === 0 ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
               </button>
-              <div className="volume-track-wrapper w-16 md:w-20 ml-0.5">
+              <div className="volume-track-wrapper w-16 lg:w-20 ml-0.5">
                 <div className="volume-track">
                   <div className="volume-fill" style={{ width: `${volume * 100}%` }} />
                   <div className="volume-thumb" style={{ left: `${volume * 100}%` }} />

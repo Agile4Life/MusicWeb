@@ -158,7 +158,7 @@ export default function DrivePage() {
   }
 
   return (
-    <div className="p-3.5 sm:p-6 md:p-8 flex flex-col gap-4 sm:gap-6 md:gap-8 max-w-7xl mx-auto w-full select-none pb-36 md:pb-8">
+    <div className="p-3.5 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6 lg:gap-8 max-w-7xl mx-auto w-full select-none pb-36 lg:pb-8">
       {/* Header Banner */}
       <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] p-4 sm:p-6 md:p-8 bg-gradient-to-r from-[#0b1320] via-[#0d1627] to-[#070b12] shadow-2xl">
         {/* Glow backdrop */}

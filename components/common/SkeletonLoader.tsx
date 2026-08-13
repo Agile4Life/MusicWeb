@@ -13,7 +13,7 @@ export function TrackRowSkeleton() {
           <div className="w-1/2 h-2.5 bg-slate-800/60 rounded-md" />
         </div>
       </div>
-      <div className="hidden md:block w-1/4">
+      <div className="hidden lg:block w-1/4">
         <div className="w-1/2 h-3 bg-slate-800/60 rounded-md" />
       </div>
       <div className="flex items-center justify-end gap-3 w-1/4">
@@ -37,7 +37,7 @@ export function TrackListSkeleton({ count = 6 }: { count?: number }) {
 export function HeroCardSkeleton() {
   return (
     <div className="relative overflow-hidden rounded-3xl border border-white/10 p-8 md:p-10 bg-slate-900/60 animate-pulse">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
         <div className="flex flex-col gap-3 w-full max-w-xl">
           <div className="w-40 h-5 bg-slate-800 rounded-full" />
           <div className="w-3/4 h-10 bg-slate-800 rounded-2xl" />

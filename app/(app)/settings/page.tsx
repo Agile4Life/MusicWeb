@@ -59,7 +59,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-3.5 sm:p-6 md:p-8 flex flex-col gap-4 sm:gap-6 md:gap-8 max-w-5xl mx-auto w-full select-none pb-36 md:pb-8">
+    <div className="p-3.5 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6 lg:gap-8 max-w-5xl mx-auto w-full select-none pb-36 lg:pb-8">
       {/* Settings Header */}
       <div className="flex flex-col gap-1 border-b border-white/[0.05] pb-4">
         <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">{t('settings_title')}</h1>

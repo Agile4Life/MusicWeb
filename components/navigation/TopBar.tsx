@@ -15,6 +15,7 @@ import Link from 'next/link'
 import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import { shouldCommitGlobalSearch } from '@/components/search/searchInteraction'
+import { shouldCloseProfileMenu, shouldToggleProfileMenu } from './profileMenuInteraction'
 
 export function TopBar() {
   const router = useRouter()
@@ -34,8 +35,11 @@ export function TopBar() {
 
   const [showDropdown, setShowDropdown] = useState(false)
   const [inputQuery, setInputQuery] = useState(searchQuery)
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
 
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const profileMenuRef = useRef<HTMLDivElement>(null)
+  const profileTriggerRef = useRef<HTMLButtonElement>(null)
 
   const user = userEmail
     ? {
@@ -51,6 +55,7 @@ export function TopBar() {
     : null
 
   const handleLogout = async () => {
+    setIsProfileMenuOpen(false)
     await supabase.auth.signOut()
     await signOut({ callbackUrl: '/login' })
     window.location.href = '/login'
@@ -80,6 +85,28 @@ export function TopBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  useEffect(() => {
+    const handleProfilePointerDown = (e: MouseEvent) => {
+      if (shouldCloseProfileMenu(e.target, profileMenuRef.current, profileTriggerRef.current)) {
+        setIsProfileMenuOpen(false)
+      }
+    }
+    const handleProfileKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsProfileMenuOpen(false)
+    }
+
+    document.addEventListener('mousedown', handleProfilePointerDown)
+    document.addEventListener('keydown', handleProfileKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleProfilePointerDown)
+      document.removeEventListener('keydown', handleProfileKeyDown)
+    }
+  }, [])
+
+  useEffect(() => {
+    setIsProfileMenuOpen(false)
+  }, [pathname])
+
   const handleClearSearch = () => {
     clearSearch()
     setInputQuery('')
@@ -95,9 +122,9 @@ export function TopBar() {
   }
 
   return (
-    <header className="sticky top-0 z-20 h-14 sm:h-16 md:h-18 px-3 sm:px-4 md:px-8 py-2 md:py-3 app-header flex items-center justify-between gap-2.5 sm:gap-4 select-none shadow-[0_4px_16px_rgba(0,0,0,0.3)]">
+    <header className="sticky top-0 z-20 h-14 sm:h-16 lg:h-18 px-3 sm:px-4 lg:px-8 py-2 lg:py-3 app-header flex items-center justify-between gap-2.5 sm:gap-4 select-none shadow-[0_4px_16px_rgba(0,0,0,0.3)]">
       {/* Left Slot: Spacer balancing right side so search is centered */}
-      <div className="w-36 md:w-48 shrink-0 hidden sm:block" />
+      <div className="w-36 lg:w-48 shrink-0 hidden sm:block" />
 
       {/* Center Slot: Perfectly Centered Search Input Container */}
       <div className="relative flex-1 max-w-xl mx-auto my-auto" ref={dropdownRef}>
@@ -185,10 +212,18 @@ export function TopBar() {
       </div>
 
       {/* Right Slot: User Actions */}
-      <div className="shrink-0 flex items-center justify-end gap-2 my-auto">
+      <div className="shrink-0 flex items-center justify-end gap-2 my-auto relative">
         {user ? (
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2.5 px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] transition-all">
+          <div className="relative">
+            <button
+              ref={profileTriggerRef}
+              type="button"
+              onClick={() => setIsProfileMenuOpen(shouldToggleProfileMenu(isProfileMenuOpen))}
+              aria-expanded={isProfileMenuOpen}
+              aria-controls="topbar-profile-menu"
+              aria-label="Mở menu tài khoản"
+              className="flex items-center gap-2.5 min-h-11 px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/[0.1] hover:bg-white/[0.08] active:scale-[0.98] transition-all"
+            >
               <div className="w-8 h-8 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black border border-white/20 flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden shadow-sm">
                 {user.user_metadata?.avatar_url ? (
                   <img
@@ -208,14 +243,34 @@ export function TopBar() {
                   {isAdmin(user?.email) ? 'Admin' : 'Listener'}
                 </span>
               </div>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-colors shrink-0"
-              title="Đăng xuất"
-            >
-              <LogOut className="w-4 h-4" />
             </button>
+            {isProfileMenuOpen && (
+              <div
+                ref={profileMenuRef}
+                id="topbar-profile-menu"
+                role="menu"
+                className="absolute right-0 top-full mt-2 w-60 rounded-2xl border border-white/[0.14] bg-[var(--elevation-3-bg,#111827)]/95 p-2 shadow-2xl backdrop-blur-xl z-50"
+              >
+                <div className="px-3 py-2 border-b border-white/[0.08]">
+                  <p className="text-sm font-bold text-white truncate">
+                    {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                  </p>
+                  <p className="text-[11px] text-slate-300 truncate mt-0.5">{user.email}</p>
+                  <p className="text-[10px] font-mono text-[var(--spotify-glow,#22d3ee)] mt-1">
+                    {isAdmin(user.email) ? 'Admin' : 'Listener'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handleLogout}
+                  className="w-full min-h-11 mt-1 flex items-center gap-2 rounded-xl px-3 text-sm font-semibold text-rose-300 hover:bg-rose-500/10 hover:text-rose-200 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Đăng xuất</span>
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <Link

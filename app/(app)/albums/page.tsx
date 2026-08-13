@@ -257,7 +257,7 @@ export default function AlbumsPage() {
   const filteredSearch = filterAlbums(searchResults)
 
   return (
-    <div className="p-3.5 sm:p-6 md:p-8 flex flex-col gap-5 sm:gap-8 max-w-7xl mx-auto w-full pb-36 md:pb-8 select-none">
+    <div className="p-3.5 sm:p-6 lg:p-8 flex flex-col gap-5 sm:gap-8 max-w-7xl mx-auto w-full pb-36 lg:pb-8 select-none">
       {/* Header Banner */}
       <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.08] p-4 sm:p-6 md:p-8 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
         <div className="flex items-center gap-3.5 sm:gap-5">
@@ -391,7 +391,7 @@ export default function AlbumsPage() {
               <HeroCardSkeleton />
             </div>
           ) : filteredSearch.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-5">
               {filteredSearch.map((album, idx) => (
                 <AlbumCard key={album.id} album={album} index={idx} />
               ))}
@@ -421,7 +421,7 @@ export default function AlbumsPage() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-5">
                 {filteredListened.map((album, idx) => (
                   <AlbumCard key={album.id} album={album} index={idx} />
                 ))}
@@ -444,7 +444,7 @@ export default function AlbumsPage() {
             </div>
 
             {filteredNew.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-5">
                 {filteredNew.map((album, idx) => (
                   <AlbumCard key={album.id} album={album} index={idx} />
                 ))}

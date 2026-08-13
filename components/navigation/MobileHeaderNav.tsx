@@ -34,6 +34,7 @@ import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { ImportSpotifyModal } from '@/components/playlist/ImportSpotifyModal'
 import { ImportYouTubePlaylistModal } from '@/components/playlist/ImportYouTubePlaylistModal'
 import { YoutubeIcon } from '@/components/icons/YoutubeIcon'
+import { shouldCloseProfileMenu, shouldToggleProfileMenu } from './profileMenuInteraction'
 
 export function MobileHeaderNav() {
   const { t } = useLanguage()
@@ -47,9 +48,12 @@ export function MobileHeaderNav() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [isYtImportModalOpen, setIsYtImportModalOpen] = useState(false)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [touchStartX, setTouchStartX] = useState<number | null>(null)
   const [touchEndX, setTouchEndX] = useState<number | null>(null)
   const navBackBusyRef = useRef(false)
+  const profileMenuRef = useRef<HTMLDivElement>(null)
+  const profileTriggerRef = useRef<HTMLButtonElement>(null)
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStartX(e.targetTouches[0].clientX)
@@ -71,6 +75,28 @@ export function MobileHeaderNav() {
     setTouchEndX(null)
   }
 
+  useEffect(() => {
+    const handleProfilePointerDown = (e: MouseEvent) => {
+      if (shouldCloseProfileMenu(e.target, profileMenuRef.current, profileTriggerRef.current)) {
+        setIsProfileMenuOpen(false)
+      }
+    }
+    const handleProfileKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsProfileMenuOpen(false)
+    }
+
+    document.addEventListener('mousedown', handleProfilePointerDown)
+    document.addEventListener('keydown', handleProfileKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleProfilePointerDown)
+      document.removeEventListener('keydown', handleProfileKeyDown)
+    }
+  }, [])
+
+  useEffect(() => {
+    setIsProfileMenuOpen(false)
+  }, [pathname])
+
   const user = userEmail
     ? {
         id: userEmail,
@@ -82,6 +108,7 @@ export function MobileHeaderNav() {
     : null
 
   const handleLogout = async () => {
+    setIsProfileMenuOpen(false)
     await supabase.auth.signOut()
     await signOut({ callbackUrl: '/login' })
     setIsDrawerOpen(false)
@@ -115,7 +142,7 @@ export function MobileHeaderNav() {
   return (
     <>
       {/* 📱 Mobile Top Header Bar (< 768px) */}
-      <div className="mobile-header md:hidden h-14 px-3 xs:px-4 flex items-center justify-between select-none shrink-0">
+      <div className="mobile-header lg:hidden h-14 px-3 xs:px-4 flex items-center justify-between select-none shrink-0">
         <div className="flex items-center gap-2 shrink-0">
           {pathname !== '/' && (
             <button
@@ -170,7 +197,7 @@ export function MobileHeaderNav() {
       </div>
 
       {/* 📱 Mobile Bottom Navigation Bar (< 768px) */}
-      <div className="bottom-nav md:hidden fixed bottom-0 left-0 right-0 z-40 h-16 grid grid-cols-5 items-center select-none px-1">
+      <div className="bottom-nav lg:hidden fixed bottom-0 left-0 right-0 z-40 h-16 grid grid-cols-5 items-center select-none px-1">
         <Link
           href="/"
           prefetch={false}
@@ -241,11 +268,11 @@ export function MobileHeaderNav() {
       {/* 📱 Mobile Slide Drawer Navigation (from left, with backdrop) */}
       <div
         onClick={() => setIsDrawerOpen(false)}
-        className={`mobile-drawer-backdrop md:hidden ${isDrawerOpen ? 'open' : ''}`}
+        className={`mobile-drawer-backdrop lg:hidden ${isDrawerOpen ? 'open' : ''}`}
       />
 
       <div
-        className={`mobile-drawer md:hidden border-r border-white/10 ${isDrawerOpen ? 'open' : ''}`}
+        className={`mobile-drawer lg:hidden border-r border-white/10 ${isDrawerOpen ? 'open' : ''}`}
       >
         <div
           onClick={(e) => e.stopPropagation()}
@@ -420,8 +447,16 @@ export function MobileHeaderNav() {
             {/* Footer user info */}
             <div className="border-t border-white/[0.05] pt-4">
               {user ? (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5 truncate">
+                <div className="relative">
+                  <button
+                    ref={profileTriggerRef}
+                    type="button"
+                    onClick={() => setIsProfileMenuOpen(shouldToggleProfileMenu(isProfileMenuOpen))}
+                    aria-expanded={isProfileMenuOpen}
+                    aria-controls="mobile-profile-menu"
+                    aria-label="Mở menu tài khoản"
+                    className="w-full min-h-11 flex items-center gap-2.5 rounded-xl px-2 text-left hover:bg-white/[0.06] active:scale-[0.99] transition-all"
+                  >
                     <div className="w-7 h-7 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-[var(--spotify-glow,#22d3ee)] shrink-0 font-bold text-xs overflow-hidden">
                       {user.user_metadata?.avatar_url ? (
                         <img
@@ -436,13 +471,31 @@ export function MobileHeaderNav() {
                     <span className="text-xs font-bold text-white truncate">
                       {user.user_metadata?.full_name || user.email?.split('@')[0]}
                     </span>
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="p-1.5 text-slate-400 hover:text-red-400"
-                  >
-                    <LogOut className="w-4 h-4" />
                   </button>
+                  {isProfileMenuOpen && (
+                    <div
+                      ref={profileMenuRef}
+                      id="mobile-profile-menu"
+                      role="menu"
+                      className="absolute bottom-full left-0 right-0 mb-2 rounded-2xl border border-white/[0.14] bg-[var(--elevation-3-bg,#111827)]/95 p-2 shadow-2xl backdrop-blur-xl z-50"
+                    >
+                      <div className="px-3 py-2 border-b border-white/[0.08]">
+                        <p className="text-sm font-bold text-white truncate">
+                          {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                        </p>
+                        <p className="text-[11px] text-slate-300 truncate mt-0.5">{user.email}</p>
+                      </div>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={handleLogout}
+                        className="w-full min-h-11 mt-1 flex items-center gap-2 rounded-xl px-3 text-sm font-semibold text-rose-300 hover:bg-rose-500/10 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Đăng xuất</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <Link
@@ -468,4 +521,3 @@ export function MobileHeaderNav() {
     </>
   )
 }
-

@@ -12,11 +12,13 @@ import { setCachedResolvedAlbum, getCachedResolvedAlbum, isRealAlbumName } from 
 import { AudioWaveformScrubber } from './AudioWaveformScrubber'
 import { MiniEqualizer } from './MiniEqualizer'
 import {
-  trackMetadataArtistClass,
+  trackMetadataArtistInlineClass,
   trackMetadataLoadingClass,
+  trackMetadataScrubberClass,
   trackMetadataTitleClass,
 } from './trackMetadataLayout'
 import { isPlayerBarFeatureTarget } from './playerBarInteraction'
+import { miniPlayerClassName } from './mobileLayout'
 import {
   Play,
   Pause,
@@ -238,7 +240,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
   if (!currentTrack) {
     return (
-      <footer className={`player-bar hidden md:flex h-20 rounded-2xl px-6 items-center justify-between text-slate-400 select-none shrink-0 ${isScrolled ? 'is-scrolled' : ''}`}>
+      <footer className={`player-bar hidden lg:flex h-20 rounded-2xl px-6 items-center justify-between text-slate-400 select-none shrink-0 ${isScrolled ? 'is-scrolled' : ''}`}>
         <div className="flex items-center gap-3 w-1/4 min-w-[200px]">
           <div className="w-11 h-11 bg-white/5 rounded-xl flex items-center justify-center text-slate-600 border border-white/5">
             <Music className="w-5 h-5" />
@@ -281,7 +283,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         return null
       })()}
       {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && !showMobileFullPlayer && (
-        <div className="md:hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-[#0a0d14]/95 backdrop-blur-2xl border border-cyan-500/40 px-6 py-4 rounded-2xl shadow-2xl flex flex-col items-center justify-center gap-2.5 text-center pointer-events-none">
+        <div className="lg:hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-[#0a0d14]/95 backdrop-blur-2xl border border-cyan-500/40 px-6 py-4 rounded-2xl shadow-2xl flex flex-col items-center justify-center gap-2.5 text-center pointer-events-none">
           <div className="w-11 h-11 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shadow-lg">
             <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
           </div>
@@ -292,7 +294,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
       {/* 📱 MOBILE FLOATING MINI PLAYER BAR (Visible on < 768px) */}
       <div
         onClick={openNowPlayingOverlay}
-        className="mini-player md:hidden backdrop-blur-2xl select-none cursor-pointer active:opacity-90 transition-opacity relative"
+        className={`${miniPlayerClassName} backdrop-blur-2xl select-none cursor-pointer active:opacity-90 transition-opacity relative`}
         style={{ borderRadius: '16px 16px 0 0' }}
       >
         {/* Main row */}
@@ -374,7 +376,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
       {/* 📱 FULL-SCREEN MOBILE PLAYER OVERLAY MODAL */}
       {showMobileFullPlayer && (
-        <div className="md:hidden fixed inset-0 z-50 bg-[#07090e] flex flex-col justify-between p-6 select-none overflow-y-auto">
+        <div className="lg:hidden fixed inset-0 z-50 bg-[#07090e] flex flex-col justify-between p-6 select-none overflow-y-auto">
           {/* Header handle */}
           <div className="flex items-center justify-between pb-4 border-b border-white/[0.05]">
             <button
@@ -599,7 +601,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
       {/* 💻 DESKTOP PLAYER BAR (Visible on >= 768px screens) */}
       <footer
-        className={`player-bar hidden md:flex h-[96px] py-3.5 rounded-2xl px-6 md:px-8 items-center justify-between text-slate-300 select-none shrink-0 panel-theme-hover transition-all ${isScrolled ? 'is-scrolled' : ''}`}
+        className={`player-bar hidden lg:flex h-[96px] py-3.5 rounded-2xl px-6 lg:px-8 items-center justify-between text-slate-300 select-none shrink-0 panel-theme-hover transition-all ${isScrolled ? 'is-scrolled' : ''}`}
         onClick={(e) => {
           if (!isPlayerBarFeatureTarget(e.target as { closest?: (selector: string) => unknown })) {
             openNowPlayingOverlay()
@@ -608,7 +610,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         role="presentation"
       >
         {/* Left: Track Metadata */}
-        <div className="flex items-center gap-3.5 flex-[0_0_240px] md:flex-[0_0_260px] min-w-0">
+        <div className="flex items-center gap-3.5 flex-[0_0_240px] lg:flex-[0_0_260px] min-w-0">
           <div onClick={openNowPlayingOverlay} className="relative group shrink-0 cursor-pointer" title="Mở Now Playing">
             <div className={`player-cover w-14 h-14 bg-slate-800 flex items-center justify-center border border-white/10 shadow-md ${isPlaying ? 'is-playing' : ''}`}>
               <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
@@ -619,7 +621,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             <div className="inline-flex items-center gap-2 min-w-0 max-w-full">
               <OverflowMarqueeText
                 text={currentTrack.title}
-                className={`text-xs md:text-sm font-bold text-white hover:text-[var(--spotify-glow)] transition-colors cursor-pointer ${trackMetadataTitleClass}`}
+                className={`text-xs lg:text-sm font-bold text-white hover:text-[var(--spotify-glow)] transition-colors cursor-pointer ${trackMetadataTitleClass}`}
                 title="Mở Now Playing"
                 onClick={openNowPlayingOverlay}
               />
@@ -644,7 +646,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             <div className="flex items-center gap-2 mt-0.5 min-w-0">
               <p
                 data-playerbar-exclude-fullview
-                className={`${trackMetadataArtistClass} text-[11px] text-slate-400 hover:text-slate-200 transition-colors cursor-pointer`}
+                className={`${trackMetadataArtistInlineClass} text-[11px] text-slate-400 hover:text-slate-200 transition-colors cursor-pointer`}
                 onClick={(e) => e.stopPropagation()}
               >
                 {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
@@ -666,12 +668,22 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                   {displayAlbumName || 'Album'}
                 </span>
               </div>
+            </div>
 
+            <div className={`${trackMetadataScrubberClass} mt-1.5 px-0.5`} onClick={(e) => e.stopPropagation()}>
+              <AudioWaveformScrubber
+                currentTime={currentTime}
+                duration={duration || currentTrack.duration || 0}
+                isPlaying={isPlaying}
+                trackId={currentTrack.id}
+                onSeek={seek}
+                barCount={56}
+              />
             </div>
           </div>
         </div>
 
-        {/* Center: Playback Controls & Seekbar */}
+        {/* Center: Playback Controls */}
         <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0 px-4 max-w-2xl">
           <div className="flex items-center gap-4">
             <button
@@ -774,21 +786,10 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             </button>
           </div>
 
-          {/* Waveform Scrubber (Desktop PlayerBar View) */}
-          <div className="w-full max-w-2xl px-2" onClick={(e) => e.stopPropagation()}>
-            <AudioWaveformScrubber
-              currentTime={currentTime}
-              duration={duration || currentTrack.duration || 0}
-              isPlaying={isPlaying}
-              trackId={currentTrack.id}
-              onSeek={seek}
-              barCount={100}
-            />
-          </div>
         </div>
 
         {/* Right: Volume & Extra Controls */}
-        <div className="flex items-center justify-end gap-3 flex-[0_0_200px] md:flex-[0_0_240px] shrink-0">
+        <div className="flex items-center justify-end gap-3 flex-[0_0_200px] lg:flex-[0_0_240px] shrink-0">
           <button
             onClick={(e) => { e.stopPropagation(); toggleFavoriteCurrentTrack() }}
             aria-label={currentTrack.is_favorite ? 'Bỏ khỏi bài hát yêu thích' : 'Thêm vào bài hát yêu thích'}
@@ -852,7 +853,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             >
               {volume === 0 ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
             </button>
-            <div className="volume-track-wrapper w-16 md:w-20 ml-0.5">
+            <div className="volume-track-wrapper w-16 lg:w-20 ml-0.5">
               <div className="volume-track">
                 <div className="volume-fill" style={{ width: `${volume * 100}%` }} />
                 <div className="volume-thumb" style={{ left: `${volume * 100}%` }} />

@@ -1254,7 +1254,7 @@ input[type='range']:hover::-moz-range-thumb {
 }
 
 /* ================================================================
-   Redesign: Mobile (max-width: 768px)
+   Redesign: Mobile/tablet (max-width: 1023px)
    ================================================================ */
 .mobile-header {
   position: sticky;
@@ -1283,6 +1283,7 @@ input[type='range']:hover::-moz-range-thumb {
    Motion Tokens & GPU-Optimized Hover Effects
    ================================================================ */
 :root {
+  --mobile-player-stack-height: calc(var(--bottom-nav-height) + 76px);
   --motion-fast: 160ms;
   --motion-base: 240ms;
   --motion-slow: 400ms;
@@ -1480,7 +1481,7 @@ input[type='range']:hover::-moz-range-thumb {
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1023px) {
   .album-card .play-overlay {
     opacity: 0.85;
     transform: scale(0.9);
@@ -1498,11 +1499,15 @@ input[type='range']:hover::-moz-range-thumb {
   right: 0;
   padding: 4px 10px;
   padding-bottom: 4px;
+  min-height: 60px;
+  width: 100%;
+  max-width: 100vw;
+  box-sizing: border-box;
   background: var(--bg-surface-2);
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.35), 0 -1px 0 rgba(255,255,255,0.05);
   z-index: 30;
   border-top: 0.5px solid var(--border-subtle);
-  overflow: visible;
+  overflow: hidden;
   position: fixed;
 }
 
