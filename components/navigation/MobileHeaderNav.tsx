@@ -193,7 +193,34 @@ export function MobileHeaderNav() {
           </div>
         </Link>
 
-        <div className="w-9 h-9 shrink-0" />
+        {/* Right Slot: User Avatar / Login */}
+        <div className="flex items-center gap-2 shrink-0">
+          {user ? (
+            <button
+              type="button"
+              onClick={() => setIsDrawerOpen(true)}
+              className="w-9 h-9 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black border border-white/20 flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden shadow-sm active:scale-95 transition-transform"
+              title={user.email}
+            >
+              {user.user_metadata?.avatar_url ? (
+                <img
+                  src={user.user_metadata.avatar_url}
+                  alt={user.email}
+                  className="w-full h-full rounded-full object-cover"
+                />
+              ) : (
+                <span>{(user.user_metadata?.full_name || user.email || 'U').charAt(0).toUpperCase()}</span>
+              )}
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              className="text-[11px] font-bold text-black bg-white hover:bg-slate-200 px-2.5 py-1 rounded-full transition-colors shrink-0"
+            >
+              Đăng nhập
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* 📱 Mobile Bottom Navigation Bar (< 768px) */}
@@ -256,13 +283,16 @@ export function MobileHeaderNav() {
           <span className="text-[10px] truncate max-w-full">Playlist</span>
         </button>
 
-        <button
-          onClick={() => setIsDrawerOpen(true)}
-          className="bottom-nav-item flex flex-col items-center justify-center gap-1"
+        <Link
+          href="/history"
+          prefetch={false}
+          className={`bottom-nav-item flex flex-col items-center justify-center gap-1 ${
+            pathname === '/history' ? 'active' : ''
+          }`}
         >
-          <Menu className="w-5 h-5" />
-          <span className="text-[10px] truncate max-w-full">Menu</span>
-        </button>
+          <History className="w-5 h-5" />
+          <span className="text-[10px] truncate max-w-full">Lịch sử</span>
+        </Link>
       </div>
 
       {/* 📱 Mobile Slide Drawer Navigation (from left, with backdrop) */}

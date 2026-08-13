@@ -57,7 +57,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   </div>
 
                   {/* Player Bar (Elevation 3 - Floating sheet on top) */}
-                  <div className="absolute bottom-1.5 xs:bottom-2 lg:bottom-3 left-1.5 xs:left-2 lg:left-3 right-1.5 xs:right-2 lg:right-3 z-30 pointer-events-auto">
+                  <div className="absolute bottom-[calc(var(--bottom-nav-height,64px)+env(safe-area-inset-bottom,0px)+8px)] lg:bottom-3 left-1.5 sm:left-2 lg:left-3 right-1.5 sm:right-2 lg:right-3 z-50 pointer-events-auto">
                     <PlayerBar isScrolled={isScrolled} />
                   </div>
                   <NowPlayingOverlay />

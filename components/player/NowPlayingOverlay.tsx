@@ -334,7 +334,7 @@ export function NowPlayingOverlay() {
 
           {/* Layer 3: Right Column Lyrics (Centered inside shared max-w-[1360px] stage) */}
           <div className="absolute inset-0 z-10 w-full h-full max-w-[1360px] xl:max-w-[1440px] mx-auto px-6 lg:px-12 flex items-center justify-end pointer-events-none">
-            <div className="w-full max-w-[640px] lg:w-[50%] xl:w-[48%] h-full pointer-events-auto flex flex-col justify-center">
+            <div className="w-full max-w-[640px] lg:w-[50%] xl:w-[48%] h-full pointer-events-auto flex flex-col justify-center pb-28 lg:pb-36 pt-4">
               <LyricsView isModal={false} showControls={false} showHeader={false} />
             </div>
           </div>
@@ -360,7 +360,7 @@ export function NowPlayingOverlay() {
         </div>
 
         {/* 🎛️ MOBILE COMPACT FLOATING CONTROL BAR (< 768px) */}
-        <div className="player-bar lg:hidden absolute bottom-3 inset-x-3 z-30 p-3 flex flex-col gap-2 rounded-2xl transition-all duration-300 select-none shadow-2xl border border-white/10">
+        <div className="player-bar lg:hidden absolute bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))] inset-x-3 z-30 p-3 flex flex-col gap-2 rounded-2xl transition-all duration-300 select-none shadow-2xl border border-white/10">
           {/* Top Row: Track Metadata + Album/Heart/Queue Actions */}
           <div className="flex items-center justify-between gap-2 w-full">
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -474,7 +474,7 @@ export function NowPlayingOverlay() {
         </div>
 
         {/* 🎛️ DESKTOP FLOATING CONTROL BAR (>= 768px) */}
-        <div className="player-bar group/playerbar hidden lg:flex absolute bottom-3 sm:bottom-4 inset-x-3 sm:inset-x-6 z-30 px-6 lg:px-8 py-3.5 h-[96px] items-center justify-between rounded-2xl transition-all duration-300 select-none">
+        <div className="player-bar group/playerbar hidden lg:flex absolute bottom-3 sm:bottom-4 inset-x-3 sm:inset-x-6 z-30 px-4 lg:px-6 xl:px-8 py-2.5 xl:py-3.5 h-[84px] xl:h-[96px] items-center justify-between rounded-2xl transition-all duration-300 select-none">
           {/* Top ambient highlight reflection line (fades in on hover) */}
           <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-[var(--spotify-glow,#22d3ee)]/35 to-transparent pointer-events-none rounded-t-2xl opacity-0 group-hover/playerbar:opacity-100 transition-opacity duration-300" />
 

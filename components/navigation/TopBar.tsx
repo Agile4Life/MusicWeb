@@ -124,7 +124,7 @@ export function TopBar() {
   return (
     <header className="sticky top-0 z-20 h-14 sm:h-16 lg:h-18 px-3 sm:px-4 lg:px-8 py-2 lg:py-3 app-header flex items-center justify-between gap-2.5 sm:gap-4 select-none shadow-[0_4px_16px_rgba(0,0,0,0.3)]">
       {/* Left Slot: Spacer balancing right side so search is centered */}
-      <div className="w-36 lg:w-48 shrink-0 hidden sm:block" />
+      <div className="w-24 lg:w-36 xl:w-48 shrink-0 hidden sm:block" />
 
       {/* Center Slot: Perfectly Centered Search Input Container */}
       <div className="relative flex-1 max-w-xl mx-auto my-auto" ref={dropdownRef}>
@@ -212,7 +212,7 @@ export function TopBar() {
       </div>
 
       {/* Right Slot: User Actions */}
-      <div className="shrink-0 flex items-center justify-end gap-2 my-auto relative">
+      <div className="hidden sm:flex shrink-0 items-center justify-end gap-2 my-auto relative">
         {user ? (
           <div className="relative">
             <button

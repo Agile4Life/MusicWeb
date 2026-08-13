@@ -19,7 +19,7 @@ export function UpNextList() {
 
   return (
     <div
-      className="up-next-list w-full mt-3 bg-[#0d1020] border border-white/15 rounded-2xl shadow-2xl overflow-y-auto overscroll-contain max-h-[225px] min-h-0 select-none z-10 relative no-scrollbar shrink-0"
+      className="up-next-list w-full mt-2.5 bg-[#0d1020] border border-white/15 rounded-2xl shadow-2xl overflow-y-auto overscroll-contain max-h-[140px] sm:max-h-[170px] xl:max-h-[210px] min-h-0 select-none z-10 relative no-scrollbar shrink-0"
       style={{
         WebkitMaskImage: 'linear-gradient(to bottom, black 86%, transparent 100%)',
         maskImage: 'linear-gradient(to bottom, black 86%, transparent 100%)',

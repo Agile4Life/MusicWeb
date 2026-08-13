@@ -138,7 +138,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
   }
 
   return (
-    <aside className={`app-sidebar hidden lg:flex w-64 bg-[var(--elevation-1-bg)] flex-col justify-between p-3.5 h-full select-none text-slate-300 rounded-2xl border border-white/[0.06] panel-theme-hover shrink-0 z-10 shadow-[4px_0_24px_rgba(0,0,0,0.4)] ${isScrolled ? 'is-scrolled' : ''}`}>
+    <aside className={`app-sidebar hidden lg:flex w-56 lg:w-60 xl:w-64 bg-[var(--elevation-1-bg)] flex-col justify-between p-3 lg:p-3.5 h-full select-none text-slate-300 rounded-2xl border border-white/[0.06] panel-theme-hover shrink-0 z-10 shadow-[4px_0_24px_rgba(0,0,0,0.4)] ${isScrolled ? 'is-scrolled' : ''}`}>
       <div className="flex flex-col gap-5 min-h-0 flex-1">
         {/* App Branding Header (Mini Glass Plaque) */}
         <div className="px-0.5 py-0.5">

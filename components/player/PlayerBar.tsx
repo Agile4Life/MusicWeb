@@ -294,8 +294,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
       {/* 📱 MOBILE FLOATING MINI PLAYER BAR (Visible on < 768px) */}
       <div
         onClick={openNowPlayingOverlay}
-        className={`${miniPlayerClassName} backdrop-blur-2xl select-none cursor-pointer active:opacity-90 transition-opacity relative`}
-        style={{ borderRadius: '16px 16px 0 0' }}
+        className={`${miniPlayerClassName} rounded-2xl border border-white/10 shadow-2xl backdrop-blur-2xl select-none cursor-pointer active:opacity-90 transition-opacity relative`}
       >
         {/* Main row */}
         <div className="flex items-center gap-2 w-full h-[52px]">
@@ -601,7 +600,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
       {/* 💻 DESKTOP PLAYER BAR (Visible on >= 768px screens) */}
       <footer
-        className={`player-bar hidden lg:flex h-[96px] py-3.5 rounded-2xl px-6 lg:px-8 items-center justify-between text-slate-300 select-none shrink-0 panel-theme-hover transition-all ${isScrolled ? 'is-scrolled' : ''}`}
+        className={`player-bar hidden lg:flex h-[84px] xl:h-[96px] py-2.5 xl:py-3.5 rounded-2xl px-4 lg:px-6 xl:px-8 items-center justify-between text-slate-300 select-none shrink-0 panel-theme-hover transition-all ${isScrolled ? 'is-scrolled' : ''}`}
         onClick={(e) => {
           if (!isPlayerBarFeatureTarget(e.target as { closest?: (selector: string) => unknown })) {
             openNowPlayingOverlay()
@@ -610,7 +609,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         role="presentation"
       >
         {/* Left: Track Metadata */}
-        <div className="flex items-center gap-3.5 flex-[0_0_240px] lg:flex-[0_0_260px] min-w-0">
+        <div className="flex items-center gap-3 flex-[0_0_200px] lg:flex-[0_0_230px] xl:flex-[0_0_260px] min-w-0">
           <div onClick={openNowPlayingOverlay} className="relative group shrink-0 cursor-pointer" title="Mở Now Playing">
             <div className={`player-cover w-14 h-14 bg-slate-800 flex items-center justify-center border border-white/10 shadow-md ${isPlaying ? 'is-playing' : ''}`}>
               <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
@@ -791,7 +790,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         </div>
 
         {/* Right: Volume & Extra Controls */}
-        <div className="flex items-center justify-end gap-3 flex-[0_0_200px] lg:flex-[0_0_240px] shrink-0">
+        <div className="flex items-center justify-end gap-2 lg:gap-3 flex-[0_0_170px] lg:flex-[0_0_200px] xl:flex-[0_0_240px] shrink-0">
           <button
             onClick={(e) => { e.stopPropagation(); toggleFavoriteCurrentTrack() }}
             aria-label={currentTrack.is_favorite ? 'Bỏ khỏi bài hát yêu thích' : 'Thêm vào bài hát yêu thích'}

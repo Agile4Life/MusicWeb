@@ -166,7 +166,7 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
   return (
     <div
       ref={stageRef}
-      className="now-playing-stage relative w-full h-full flex flex-col items-center justify-center overflow-hidden p-6 pb-24 lg:pb-28"
+      className="now-playing-stage relative w-full h-full flex flex-col items-center justify-center overflow-hidden p-4 sm:p-6 pb-28 lg:pb-36"
       style={{ '--player-derived-accent': derivedAccent } as React.CSSProperties}
     >
 
@@ -190,14 +190,14 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
 
       {/* Layer 3: Album Cover + Title (3× parallax + 3D tilt) + Stationary Up Next List */}
       <div className="relative z-20 w-full h-full max-w-[1360px] xl:max-w-[1440px] mx-auto px-6 lg:px-12 flex items-center justify-center lg:justify-start">
-        <div className="w-full max-w-md lg:max-w-[420px] flex flex-col items-center justify-center gap-4">
+        <div className="w-full max-w-sm sm:max-w-md lg:max-w-[400px] xl:max-w-[440px] flex flex-col items-center justify-center gap-2.5 sm:gap-3.5">
           {/* Parallax 3D moving wrapper for Album Cover & Track Details */}
-          <div ref={sceneLayerRef} className="scene-layer w-full flex flex-col items-center justify-center gap-4">
+          <div ref={sceneLayerRef} className="scene-layer w-full flex flex-col items-center justify-center gap-2 sm:gap-3">
             {/* Perspective container with Album Art + Progress Ring */}
-            <div className="album-3d-container relative flex items-center justify-center p-2">
+            <div className="album-3d-container relative flex items-center justify-center p-1.5 sm:p-2 shrink-0">
               <div
                 ref={cardRef}
-                className="album-3d-card pointer-gone now-playing-cover relative w-56 h-56 sm:w-64 sm:h-64 lg:w-[280px] lg:h-[280px] rounded-full border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.7),0_0_60px_var(--accent-dim)]"
+                className="album-3d-card pointer-gone now-playing-cover relative w-36 h-36 xs:w-44 xs:h-44 sm:w-52 sm:h-52 lg:w-[190px] lg:h-[190px] xl:w-[230px] xl:h-[230px] aspect-square shrink-0 rounded-full border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.7),0_0_60px_var(--accent-dim)]"
               >
                 {/* Progress Ring SVG (3D tilted with card, sitting flush around circular album cover) */}
                 <svg
