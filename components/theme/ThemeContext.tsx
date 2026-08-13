@@ -368,22 +368,22 @@ export const THEMES: Record<ThemeId, ThemeConfig> = {
   },
   aurora: {
     id: 'aurora',
-    name: 'Aurora Teal',
-    subtitle: 'Cực quang phương Bắc',
+    name: 'Aurora Glass',
+    subtitle: 'Kính xanh cực quang',
     icon: '🌌',
-    accentColor: '#14B8A6',
-    glowColor: '#2DD4BF',
-    secondaryColor: '#22D3EE',
-    bgSpace: '#051212',
-    baseH: '174',
-    baseS: '65%',
-    glowShadow: 'rgba(20, 184, 166, 0.35)',
-    gradient1: 'rgba(20, 184, 166, 0.25)',
-    gradient2: 'rgba(34, 211, 238, 0.15)',
-    gradient3: 'rgba(45, 212, 191, 0.10)',
-    neonFrom: '#CCFBF1',
-    neonTo: '#14B8A6',
-    dots: ['#14B8A6', '#22D3EE', '#051212'],
+    accentColor: '#22D3EE',
+    glowColor: '#22D3EE',
+    secondaryColor: '#6366F1',
+    bgSpace: '#0A0E1A',
+    baseH: '224',
+    baseS: '45%',
+    glowShadow: 'rgba(34, 211, 238, 0.28)',
+    gradient1: 'rgba(34, 211, 238, 0.18)',
+    gradient2: 'rgba(99, 102, 241, 0.16)',
+    gradient3: 'rgba(255, 255, 255, 0.05)',
+    neonFrom: '#CFFAFE',
+    neonTo: '#6366F1',
+    dots: ['#22D3EE', '#6366F1', '#0A0E1A'],
   },
 }
 
@@ -401,7 +401,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [themeId, setThemeId] = useState<ThemeId>('summer')
+  const [themeId, setThemeId] = useState<ThemeId>('aurora')
   const [cursorStyle, setCursorStyleState] = useState<CursorStyle>('default')
 
   useEffect(() => {
@@ -410,7 +410,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setThemeId(savedTheme)
       applyTheme(THEMES[savedTheme])
     } else {
-      applyTheme(THEMES.summer)
+      applyTheme(THEMES.aurora)
     }
 
     const savedCursor = localStorage.getItem('musicweb-cursor-style') as CursorStyle

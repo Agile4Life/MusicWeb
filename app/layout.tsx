@@ -41,7 +41,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#07080c',
+  themeColor: '#0A0E1A',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -60,7 +60,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
       </head>
-      <body className="min-h-full flex flex-col bg-[var(--bg-space,#07080c)] text-slate-100 selection:bg-[var(--primary-spotify,#06b6d4)] selection:text-black font-sans">
+      <body className="min-h-full flex flex-col bg-[var(--bg-space,#0A0E1A)] text-slate-100 selection:bg-[var(--primary-spotify,#22D3EE)] selection:text-black font-sans">
         <SessionProvider>
           <LanguageProvider>
             <ThemeProvider>
