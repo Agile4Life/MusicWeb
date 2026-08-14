@@ -407,7 +407,7 @@ export async function renderReceiptToCanvas(
   // Website & Signature URL
   ctx.font = monoFontRegular
   ctx.fillStyle = theme.subTextColor
-  ctx.fillText('phongtct.vercel.app', width / 2, y)
+  ctx.fillText('phongtctmusic.vercel.app', width / 2, y)
   ctx.restore()
 
   return canvas

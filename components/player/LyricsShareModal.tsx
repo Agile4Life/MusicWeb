@@ -456,12 +456,12 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
 
           {/* Right Column: Live Card Preview & Actions (Optimized for Desktop & Mobile) */}
           <div
-            className={`w-full md:w-[420px] lg:w-[460px] flex-col min-h-0 bg-black/30 backdrop-blur-xl border-l border-white/[0.08] p-3.5 sm:p-6 overflow-y-auto no-scrollbar justify-between relative z-10 ${
-              mobileTab === 'preview' ? 'flex flex-1' : 'hidden md:flex'
+            className={`w-full md:w-[400px] lg:w-[440px] flex-col min-h-0 bg-black/40 backdrop-blur-2xl border-t md:border-t-0 md:border-l border-white/[0.08] p-3 sm:p-5 overflow-y-auto no-scrollbar justify-between relative z-10 gap-3 ${
+              mobileTab === 'preview' ? 'flex flex-1 h-full' : 'hidden md:flex'
             }`}
           >
             {/* Background Style Selector */}
-            <div className="mb-2 sm:mb-3.5 shrink-0 space-y-2">
+            <div className="shrink-0 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Palette className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
@@ -469,13 +469,13 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
                     Tùy chọn nền Card
                   </span>
                 </div>
-                <span className="text-[11px] font-mono font-semibold text-[var(--spotify-glow,#22d3ee)]">
+                <span className="text-[11px] font-mono font-semibold text-[var(--spotify-glow,#22d3ee)] truncate max-w-[140px]">
                   {LYRIC_CARD_THEMES.find((t) => t.id === selectedThemeId)?.name}
                 </span>
               </div>
 
               {/* Category Filter Tabs */}
-              <div className="grid grid-cols-4 p-0.5 bg-white/[0.04] border border-white/10 rounded-xl text-[10px] font-bold">
+              <div className="grid grid-cols-4 p-0.5 bg-white/[0.04] border border-white/10 rounded-xl text-[10px] font-bold shrink-0">
                 <button
                   onClick={() => setThemeCategoryFilter('all')}
                   className={`py-1 rounded-lg transition-all ${
@@ -518,8 +518,8 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
                 </button>
               </div>
 
-              {/* Theme Swatches List */}
-              <div className="flex flex-wrap gap-2 pt-0.5">
+              {/* Theme Swatches Horizontal Scroll List */}
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 shrink-0 -mx-1 px-1">
                 {LYRIC_CARD_THEMES.filter(
                   (t) => themeCategoryFilter === 'all' || t.category === themeCategoryFilter
                 ).map((theme) => {
@@ -531,7 +531,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
                     <button
                       key={theme.id}
                       onClick={() => setSelectedThemeId(theme.id)}
-                      className={`h-9 px-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all duration-200 relative border active:scale-95 text-xs font-bold ${
+                      className={`h-8 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all duration-200 relative border active:scale-95 text-xs font-bold shrink-0 ${
                         isActive
                           ? 'border-white scale-105 shadow-[0_0_16px_rgba(255,255,255,0.35)] ring-2 ring-[var(--spotify-glow,#22d3ee)]/60'
                           : 'border-white/15 opacity-75 hover:opacity-100 hover:border-white/40'
@@ -548,7 +548,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
                       }}
                       title={theme.name}
                     >
-                      <span className="truncate max-w-[120px] drop-shadow">{theme.name}</span>
+                      <span className="truncate whitespace-nowrap drop-shadow">{theme.name}</span>
                       {isActive && <Check className="w-3.5 h-3.5 shrink-0 drop-shadow" />}
                     </button>
                   )
@@ -556,23 +556,24 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
               </div>
             </div>
 
-            {/* Lyric Card Preview Container (3D Floating Plaque with Dynamic Height) */}
-            <div className="flex-1 flex items-center justify-center min-h-[260px] sm:min-h-[340px] my-auto py-2 perspective-[1000px]">
-              <div className="relative max-h-[50vh] sm:max-h-[460px] w-full max-w-[340px] sm:max-w-[360px] rounded-2xl overflow-hidden shadow-[0_28px_60px_rgba(0,0,0,0.85),0_0_30px_var(--theme-glow-shadow,rgba(6,182,212,0.25))] border border-white/20 group hover:scale-[1.03] hover:-translate-y-1.5 transition-all duration-300 flex items-center justify-center bg-black/40">
+            {/* Lyric Card Preview Container (Aspect 9:16 Responsive Plaque) */}
+            <div className="flex-1 min-h-[220px] max-h-full flex items-center justify-center py-2 px-1 overflow-hidden shrink min-w-0">
+              <div className="relative h-full max-h-[38vh] sm:max-h-[420px] aspect-[9/16] rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.85),0_0_25px_var(--theme-glow-shadow,rgba(6,182,212,0.25))] border border-white/20 group hover:scale-[1.02] transition-all duration-300 flex items-center justify-center bg-black/60 shrink-0">
                 {previewUrl ? (
                   <img
                     src={previewUrl}
                     alt="Lyric Card Preview"
-                    className="w-full h-auto max-h-[50vh] sm:max-h-[460px] object-contain rounded-2xl transition-all duration-300 drop-shadow-2xl"
+                    className="w-full h-full object-contain rounded-2xl drop-shadow-2xl"
                   />
                 ) : (
-                  <div className="w-full h-64 bg-slate-900 flex items-center justify-center">
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-4 text-center">
                     <RefreshCw className="w-6 h-6 text-[var(--spotify-glow,#22d3ee)] animate-spin" />
+                    <span className="text-[10px] text-slate-400 font-bold">Đang tạo thẻ câu hát...</span>
                   </div>
                 )}
 
                 {isGenerating && (
-                  <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center">
+                  <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center">
                     <RefreshCw className="w-6 h-6 text-[var(--spotify-glow,#22d3ee)] animate-spin" />
                   </div>
                 )}
@@ -580,12 +581,12 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
             </div>
 
             {/* Actions Bar (Docked at bottom with safe-area padding on mobile) */}
-            <div className="flex flex-col gap-2.5 pt-3 border-t border-white/[0.08] shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:pb-0">
+            <div className="flex flex-col gap-2 pt-2.5 border-t border-white/[0.08] shrink-0 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] sm:pb-0">
               {/* Primary Native Share Button */}
               <button
                 onClick={handleShare}
                 disabled={isSharing || selectedIndices.length === 0}
-                className="w-full py-3.5 sm:py-3 px-4 rounded-2xl font-extrabold text-sm text-black flex items-center justify-center gap-2.5 transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.97] shadow-lg disabled:opacity-50 disabled:pointer-events-none"
+                className="w-full py-3 sm:py-2.5 px-4 rounded-xl font-extrabold text-xs sm:text-sm text-black flex items-center justify-center gap-2 transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.97] shadow-lg disabled:opacity-50 disabled:pointer-events-none"
                 style={{
                   background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
                   boxShadow: '0 8px 24px var(--theme-glow-shadow, rgba(6,182,212,0.3))',
