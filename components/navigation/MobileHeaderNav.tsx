@@ -469,7 +469,7 @@ export function MobileHeaderNav() {
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-1 max-h-60 overflow-y-auto custom-slim-scrollbar pr-1 touch-pan-y">
+                <div className="flex flex-col gap-1 max-h-60 overflow-y-auto no-scrollbar touch-pan-y">
                   {playlists.map((pl) => (
                     <Link
                       key={pl.id}
