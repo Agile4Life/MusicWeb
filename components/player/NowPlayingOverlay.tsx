@@ -645,7 +645,7 @@ export function NowPlayingOverlay() {
 
           </div>
 
-          {/* Right: Volume & Extra Controls (Matches Main Menu PlayerBar) */}
+          {/* Right: Volume & Favorite Controls (Clean Fullview) */}
           <div className="w-1/4 flex justify-end items-center gap-3 min-w-0">
             <button
               onClick={handleFavoriteClick}
@@ -660,43 +660,6 @@ export function NowPlayingOverlay() {
                   }`}
               />
             </button>
-
-            <button
-              onClick={() => setMobileTab(mobileTab === 'lyrics' ? 'cover' : 'lyrics')}
-              className={`p-2 rounded-xl transition-all ${mobileTab === 'lyrics'
-                ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md font-bold'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
-                }`}
-              title="Lời bài hát (Lyrics)"
-            >
-              <Mic2 className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={toggleQueue}
-              style={
-                isQueueOpen
-                  ? {
-                    color: 'var(--spotify-glow, #22d3ee)',
-                    backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
-                    borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
-                  }
-                  : undefined
-              }
-              className={`p-2 rounded-xl relative transition-all ${isQueueOpen ? 'border shadow-md font-bold' : 'text-slate-400 hover:text-white hover:bg-white/5'
-                }`}
-              title="Danh sách hàng đợi (Queue)"
-            >
-              <ListMusic className="w-4 h-4" />
-              {isQueueOpen && (
-                <span
-                  style={{ backgroundColor: 'var(--spotify-glow, #22d3ee)' }}
-                  className="w-1 h-1 rounded-full absolute -bottom-0.5 left-1/2 -translate-x-1/2"
-                />
-              )}
-            </button>
-
-            <div className="h-4 w-[1px] bg-white/10" />
 
             <div className="flex items-center gap-2.5 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1">
               <button
