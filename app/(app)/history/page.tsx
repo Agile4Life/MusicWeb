@@ -169,7 +169,8 @@ export default function HistoryPage() {
     }
   }
 
-  const handleRemoveSingleItem = async (historyId: string) => {
+  const handleRemoveSingleItem = async (e: React.MouseEvent, historyId: string) => {
+    e.stopPropagation()
     const { error } = await supabase.from('listening_history').delete().eq('id', historyId)
     if (!error) {
       setHistoryItems((prev) => prev.filter((item) => item.id !== historyId))
@@ -334,7 +335,7 @@ export default function HistoryPage() {
                     </div>
 
                     <button
-                      onClick={() => handleRemoveSingleItem(item.id)}
+                      onClick={(e) => handleRemoveSingleItem(e, item.id)}
                       className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 sm:p-2 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-xl transition-all"
                       title="Xóa mục này khỏi lịch sử"
                     >
