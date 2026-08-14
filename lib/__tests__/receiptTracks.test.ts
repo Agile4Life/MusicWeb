@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { fetchReceiptTracks } from '../receiptTracks'
 import { getAllValidUserIds, getValidUserId } from '../accessControl'
+import { fetchFavoriteTracks } from '../favoriteTracks'
 
 describe('getAllValidUserIds defense-in-depth', () => {
   it('handles email string passed as second parameter directly', () => {
@@ -116,5 +117,43 @@ describe('fetchReceiptTracks', () => {
     expect(result).toHaveLength(2)
     expect(result[0].title).toBe('DB Track 1')
     expect(result[1].title).toBe('DB Track 2')
+  })
+
+  it('fetches favorites from favorite_tracks junction table and returns receipt tracks', async () => {
+    const favData = [
+      { id: 'f-1', user_id: 'user-1', track_id: 't-fav-1', created_at: '2026-08-14T10:00:00Z' },
+    ]
+    const tracksData = [
+      { id: 't-fav-1', title: 'Fav Song 1', artist: 'Fav Artist', duration: 220 },
+    ]
+
+    const favQuery = {
+      select: vi.fn().mockReturnThis(),
+      in: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue({ data: favData, error: null }),
+    }
+    const tracksQuery = {
+      select: vi.fn().mockReturnThis(),
+      in: vi.fn().mockResolvedValue({ data: tracksData, error: null }),
+    }
+
+    const mockSupabase = {
+      from: vi.fn((table: string) => {
+        if (table === 'favorite_tracks') return favQuery
+        if (table === 'tracks') return tracksQuery
+        throw new Error(`Unexpected table: ${table}`)
+      }),
+    } as unknown as SupabaseClient
+
+    const result = await fetchReceiptTracks({
+      supabase: mockSupabase,
+      source: 'favorites',
+      currentUser: { id: 'user-1', email: 'user@test.com' },
+    })
+
+    expect(result).toHaveLength(1)
+    expect(result[0].title).toBe('Fav Song 1')
   })
 })

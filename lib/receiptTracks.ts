@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Track, Playlist } from '@/types'
 import { getAllValidUserIds } from '@/lib/accessControl'
 import { fetchListeningHistory, getRecentUniqueTracks } from '@/lib/listeningHistory'
+import { fetchFavoriteTracks } from '@/lib/favoriteTracks'
 import type { ReceiptTrackItem } from '@/lib/receiptCanvas'
 
 export type ReceiptDataSource = 'queue' | 'history' | 'favorites' | 'playlist'
@@ -94,49 +95,41 @@ export async function fetchReceiptTracks({
     let items: ReceiptTrackItem[] = []
     if (userIds.length > 0) {
       try {
-        const { data: favRows, error: favError } = await supabase
-          .from('favorite_tracks')
-          .select('track_id, created_at')
-          .in('user_id', userIds)
-          .order('created_at', { ascending: false })
-          .limit(limit)
-
-        if (!favError && favRows && favRows.length > 0) {
-          const trackIds = Array.from(
-            new Set(favRows.map((r: any) => r.track_id).filter(Boolean))
-          )
-          if (trackIds.length > 0) {
-            const { data: tracksData, error: trackError } = await supabase
-              .from('tracks')
-              .select('*')
-              .in('id', trackIds)
-
-            if (!trackError && tracksData) {
-              const trackMap = new Map<string, Track>()
-              tracksData.forEach((t: any) => {
-                if (t?.id) trackMap.set(t.id, t as Track)
-              })
-
-              const seen = new Set<string>()
-              favRows.forEach((r: any) => {
-                const t = trackMap.get(r.track_id)
-                if (t && !seen.has(t.id)) {
-                  seen.add(t.id)
-                  items.push({
-                    id: t.id,
-                    title: t.title,
-                    artist: t.artist,
-                    duration: t.duration,
-                  })
-                }
-              })
-            }
-          }
-        }
+        const favTracks = await fetchFavoriteTracks(supabase, userIds, limit)
+        items = favTracks.map((t) => ({
+          id: t.id,
+          title: t.title,
+          artist: t.artist,
+          duration: t.duration,
+        }))
       } catch (err) {
         console.warn('[ReceiptTracks] favorites fetch error:', err)
       }
     }
+
+    // Fallback: If DB favorites are empty or user is guest, check if currentTrack / queue has is_favorite = true
+    if (items.length === 0) {
+      const fallbackFavs: Track[] = []
+      if (currentTrack && currentTrack.is_favorite) {
+        fallbackFavs.push(currentTrack)
+      }
+      if (queue && queue.length > 0) {
+        queue.forEach((t) => {
+          if (t.is_favorite && !fallbackFavs.some((existing) => existing.id === t.id)) {
+            fallbackFavs.push(t)
+          }
+        })
+      }
+      if (fallbackFavs.length > 0) {
+        items = fallbackFavs.map((t) => ({
+          id: t.id,
+          title: t.title,
+          artist: t.artist,
+          duration: t.duration,
+        }))
+      }
+    }
+
     return items
   }
 

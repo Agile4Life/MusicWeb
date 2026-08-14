@@ -4,43 +4,15 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Track, Playlist } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
-import { getValidUserId } from '@/lib/accessControl'
+import { getValidUserId, getAllValidUserIds } from '@/lib/accessControl'
 import { resolveExternalTrackId, isExternalTrack, addTrackToPlaylist } from '@/lib/trackPersistence'
+import { fetchFavoriteTracks, inferTrackSource } from '@/lib/favoriteTracks'
 import { toast } from '@/components/ui/ToastContext'
 import { useSession } from 'next-auth/react'
 import { Heart, Play, Search, Music, Sparkles, Loader2, ChevronLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { TrackList } from '@/components/track/TrackList'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
-
-function inferTrackSource(track: Track): Track {
-  if (track.source && track.source !== 'local') return track
-
-  const fp = track.file_path || ''
-  if (fp.includes('youtube.com') || fp.includes('youtu.be') || track.youtube_id || track.id.startsWith('yt-')) {
-    let ytId = track.youtube_id
-    if (!ytId) {
-      const match = fp.match(/(?:v=|\/embed\/|\/1\/|\/v\/|https:\/\/youtu\.be\/|^yt-)([a-zA-Z0-9_-]{11})/)
-      if (match) ytId = match[1]
-      else if (track.id.startsWith('yt-')) ytId = track.id.replace('yt-', '')
-    }
-    return { ...track, source: 'youtube', youtube_id: ytId }
-  }
-
-  if (fp.includes('spotify.com') || track.spotify_id || track.id.startsWith('spotify-')) {
-    return { ...track, source: 'spotify' }
-  }
-
-  if (fp.includes('itunes.apple.com') || track.itunes_id || track.id.startsWith('itunes-')) {
-    return { ...track, source: 'itunes' }
-  }
-
-  if (fp.includes('audius.co') || track.audius_id || track.id.startsWith('audius-')) {
-    return { ...track, source: 'audius' }
-  }
-
-  return track
-}
 
 export default function FavoritesPage() {
   const router = useRouter()
@@ -63,18 +35,9 @@ export default function FavoritesPage() {
 
       setSupabaseUser(currentUser)
 
-      const activeUser =
-        currentUser ||
-        (nextAuthSession?.user
-          ? {
-              id: nextAuthSession.user.email,
-              email: nextAuthSession.user.email,
-            }
-          : null)
+      const userIds = getAllValidUserIds(currentUser, nextAuthSession)
 
-      const userId = activeUser ? getValidUserId(activeUser) : null
-
-      if (!userId) {
+      if (userIds.length === 0) {
         setTracks([])
         setPlaylists([])
         setLoading(false)
@@ -85,30 +48,13 @@ export default function FavoritesPage() {
       const { data: playlistData } = await supabase
         .from('playlists')
         .select('*')
-        .eq('user_id', userId)
+        .in('user_id', userIds)
         .order('created_at', { ascending: false })
 
       if (playlistData) setPlaylists(playlistData)
 
-      // Fetch User's Personal Favorite Tracks from favorite_tracks junction table
-      const { data: favData } = await supabase
-        .from('favorite_tracks')
-        .select('track_id, tracks:track_id(*)')
-        .eq('user_id', userId)
-
-      const favList: Track[] = []
-      const seenIds = new Set<string>()
-
-      if (favData) {
-        for (const item of favData) {
-          const tr = item.tracks as any
-          if (tr && tr.id && !seenIds.has(tr.id)) {
-            seenIds.add(tr.id)
-            favList.push(inferTrackSource({ ...tr, is_favorite: true }))
-          }
-        }
-      }
-
+      // Fetch User's Personal Favorite Tracks from favorite_tracks junction table reliably
+      const favList = await fetchFavoriteTracks(supabase, userIds, 100)
       setTracks(favList)
     } catch (err) {
       console.error('Fetch favorites error:', err)
@@ -119,7 +65,22 @@ export default function FavoritesPage() {
 
   useEffect(() => {
     fetchFavorites()
-  }, [fetchFavorites])
+
+    const channel = supabase
+      .channel('favorites-page-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'favorite_tracks' },
+        () => {
+          fetchFavorites()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [fetchFavorites, supabase])
 
   const handleAddToPlaylist = async (playlistId: string, track: Track) => {
     const activeUser =
