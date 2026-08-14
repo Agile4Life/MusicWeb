@@ -155,13 +155,11 @@ describe('SoundCloud Helper & Full Audio Filter Unit Tests', () => {
     }
   })
 
-  it('searchSoundCloudTracks should detect and resolve SoundCloud user profile URLs to their tracklist', async () => {
+  it('searchSoundCloudTracks should detect and resolve SoundCloud playlist URLs with more than 5 tracks', async () => {
     const { searchSoundCloudTracks } = await import('../soundcloudClient')
-    const results = await searchSoundCloudTracks('https://soundcloud.com/vanhung03042?ref=clipboard&p=a&c=1&si=5048099f1f6541759257139afae81440')
+    const results = await searchSoundCloudTracks('https://soundcloud.com/ph-m-duy-168788192/sets/nger')
     expect(Array.isArray(results)).toBe(true)
-    if (results.length > 0) {
-      expect(results[0].source).toBe('soundcloud')
-      expect(results.length).toBeGreaterThan(0)
-    }
+    expect(results.length).toBeGreaterThan(10)
+    expect(results[0].source).toBe('soundcloud')
   })
 })

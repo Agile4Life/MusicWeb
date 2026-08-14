@@ -123,8 +123,8 @@ export async function resolveSoundCloudUrl(inputUrl: string): Promise<Track[]> {
 
     // 1. If it resolved to a Playlist / Album
     if (data.kind === 'playlist' || Array.isArray(data.tracks)) {
-      const rawTracks: SoundCloudRawTrack[] = data.tracks || []
-      return rawTracks.filter(isSoundCloudFullAudio).map(soundCloudTrackToAppTrack)
+      const rawTracksList: any[] = data.tracks || []
+      return resolveAllPlaylistTracks(rawTracksList, clientId)
     }
 
     // 2. If it resolved to a User Profile Page (e.g. soundcloud.com/vanhung03042)
@@ -162,6 +162,64 @@ export async function resolveSoundCloudUrl(inputUrl: string): Promise<Track[]> {
     console.error('[SoundCloud] URL Resolve error:', err)
     return []
   }
+}
+
+/**
+ * Resolves all tracks from a SoundCloud playlist response, including batch-fetching
+ * any stub track items ({ id: ... }) that SoundCloud only partially returned.
+ */
+async function resolveAllPlaylistTracks(
+  rawTracksList: any[],
+  clientId: string
+): Promise<Track[]> {
+  if (!Array.isArray(rawTracksList) || rawTracksList.length === 0) return []
+
+  const initialFullTracks: SoundCloudRawTrack[] = rawTracksList.filter(
+    (t) => t && t.title && t.media
+  )
+  const stubTrackIds: (number | string)[] = rawTracksList
+    .filter((t) => t && !t.title && t.id)
+    .map((t) => t.id)
+
+  const fetchedTracks: SoundCloudRawTrack[] = []
+
+  // Batch fetch stub tracks in chunks of 50
+  if (stubTrackIds.length > 0) {
+    for (let i = 0; i < stubTrackIds.length; i += 50) {
+      const chunk = stubTrackIds.slice(i, i + 50)
+      const idsParam = chunk.join('%2C')
+      const tracksApi = `https://api-v2.soundcloud.com/tracks?ids=${idsParam}&client_id=${clientId}`
+      try {
+        const chunkRes = await fetch(tracksApi, {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            Accept: 'application/json',
+          },
+          next: { revalidate: 600 },
+        })
+        if (chunkRes.ok) {
+          const chunkData = await chunkRes.json()
+          if (Array.isArray(chunkData)) {
+            fetchedTracks.push(...chunkData)
+          }
+        }
+      } catch (err) {
+        console.warn('[SoundCloud] Failed to batch fetch stub tracks chunk:', err)
+      }
+    }
+  }
+
+  // Merge while strictly preserving the original playlist track order
+  const trackMap = new Map<string | number, SoundCloudRawTrack>()
+  initialFullTracks.forEach((t) => trackMap.set(t.id, t))
+  fetchedTracks.forEach((t) => trackMap.set(t.id, t))
+
+  const allOrderedTracks: SoundCloudRawTrack[] = rawTracksList
+    .map((t) => (t && t.id ? trackMap.get(t.id) : null))
+    .filter(Boolean) as SoundCloudRawTrack[]
+
+  return allOrderedTracks.filter(isSoundCloudFullAudio).map(soundCloudTrackToAppTrack)
 }
 
 /**
@@ -377,10 +435,9 @@ export async function getSoundCloudPlaylistTracks(
 
     if (!res.ok) return null
     const pl = await res.json()
-    const rawTracks: SoundCloudRawTrack[] = pl.tracks || []
-    const fullAudioTracks = rawTracks.filter(isSoundCloudFullAudio).map(soundCloudTrackToAppTrack)
+    const fullAudioTracks = await resolveAllPlaylistTracks(pl.tracks || [], clientId)
 
-    const rawArt = pl.artwork_url || rawTracks[0]?.artwork_url || pl.user?.avatar_url
+    const rawArt = pl.artwork_url || pl.tracks?.[0]?.artwork_url || pl.user?.avatar_url
     const highResArt = getSoundCloudHighResArtwork(rawArt)
 
     const playlist: SoundCloudPlaylist = {
