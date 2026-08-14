@@ -33,16 +33,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <PlayerProvider>
             <PlaylistProvider>
               <SearchProvider>
-                <div className="h-screen w-screen flex flex-col bg-[var(--bg-space,#07090e)] overflow-hidden font-sans p-1.5 xs:p-2 lg:p-3 relative">
+                <div className="h-screen w-screen flex flex-col bg-[var(--bg-space,#07090e)] overflow-hidden font-sans p-0 sm:p-2 lg:p-3 relative">
                   {/* Mobile Header (Smartphone view) */}
                   <MobileHeaderNav />
 
-                  <div className="flex-1 flex min-h-0 relative gap-1.5 lg:gap-3">
+                  <div className="flex-1 flex min-h-0 relative gap-0 sm:gap-1.5 lg:gap-3">
                     {/* Desktop Left Sidebar */}
                     <Sidebar isScrolled={isScrolled} />
 
                     {/* Main Content Area */}
-                    <main className="flex-1 bg-[#10131c]/90 rounded-2xl border border-white/[0.05] panel-theme-hover overflow-hidden flex flex-col relative">
+                    <main className="main-content-panel flex-1 rounded-none sm:rounded-2xl overflow-hidden flex flex-col relative">
                       <TopBar />
                       <div
                         onScroll={handleScroll}
@@ -57,7 +57,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   </div>
 
                   {/* Player Bar (Elevation 3 - Floating sheet on top) */}
-                  <div className="absolute bottom-[calc(var(--bottom-nav-height,64px)+env(safe-area-inset-bottom,0px)+8px)] lg:bottom-3 left-1.5 sm:left-2 lg:left-3 right-1.5 sm:right-2 lg:right-3 z-50 pointer-events-auto">
+                  <div className="absolute bottom-[calc(var(--bottom-nav-height,64px)+env(safe-area-inset-bottom,0px)+8px)] lg:bottom-3 left-2 sm:left-2 lg:left-3 right-2 sm:right-2 lg:right-3 z-50 pointer-events-auto">
                     <PlayerBar isScrolled={isScrolled} />
                   </div>
                   <NowPlayingOverlay />

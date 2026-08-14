@@ -198,19 +198,21 @@ body {
     0 8px 20px rgba(0, 0, 0, 0.28) !important;
 }
 
-/* === Elevation 2: Sidebar (Theme-Aware Medium Glass with Reduced Theme Flooding) === */
+/* === Elevation 2: Sidebar (Theme-Aware Medium Glass) === */
 .app-sidebar {
   position: relative;
   z-index: 20;
-  box-shadow: var(--elev-3);
-  border-right: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 12%, rgba(255, 255, 255, 0.08));
+  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 14%, rgba(255, 255, 255, 0.1)) !important;
   background: linear-gradient(
     145deg,
-    color-mix(in srgb, var(--spotify-glow, #22d3ee) 5%, rgba(8, 12, 16, 0.85)),
-    rgba(8, 12, 16, 0.7)
+    color-mix(in srgb, var(--spotify-glow, #22d3ee) 5%, rgba(10, 14, 22, 0.9)),
+    rgba(8, 12, 18, 0.85)
   ) !important;
   backdrop-filter: blur(22px) saturate(130%);
   -webkit-backdrop-filter: blur(22px) saturate(130%);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 4px 24px rgba(0, 0, 0, 0.4) !important;
 }
 
 .app-sidebar::before {
@@ -223,14 +225,49 @@ body {
   border-radius: inherit;
 }
 
-/* === Elevation 1.5: Header Bar (Theme-Aware Light-Medium Glass & Depth Separation) === */
+/* === Elevation 1: Main Panel (Synchronized with Sidebar for Unified Glass Elevation) === */
+.main-content-panel {
+  position: relative;
+  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 14%, rgba(255, 255, 255, 0.1)) !important;
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--spotify-glow, #22d3ee) 4%, rgba(16, 19, 28, 0.92)),
+    rgba(12, 15, 24, 0.88)
+  ) !important;
+  backdrop-filter: blur(22px) saturate(130%);
+  -webkit-backdrop-filter: blur(22px) saturate(130%);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 4px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+.main-content-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 70px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.06), transparent);
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 1;
+}
+
+/* === Elevation 1.5: Header Bar (Theme-Aware Elevated Glass & Depth Separation) === */
 .app-header {
   position: relative;
   z-index: 25;
-  background: color-mix(in srgb, var(--elevation-2-bg, rgba(15, 20, 32, 0.6)) 55%, transparent) !important;
-  backdrop-filter: blur(20px) saturate(135%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(135%) !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 10%, rgba(255, 255, 255, 0.07)) !important;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--spotify-glow, #22d3ee) 6%, rgba(20, 25, 38, 0.9)) 0%,
+    rgba(14, 18, 28, 0.84) 100%
+  ) !important;
+  backdrop-filter: blur(24px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(140%) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 15%, rgba(255, 255, 255, 0.1)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 8px 24px -4px rgba(0, 0, 0, 0.5),
+    0 2px 8px rgba(0, 0, 0, 0.3) !important;
 }
 
 /* === Elevation 3: Player Bar (Tier 1 Focal Glass Surface, Increased Opacity for Separation) === */
@@ -336,17 +373,41 @@ body {
 /* === Elevation 1: Main Content Scroll === */
 .main-content-scroll {
   scrollbar-gutter: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-.main-content-scroll::-webkit-scrollbar {
-  width: 5px;
+@media (max-width: 1023px) {
+  html,
+  body,
+  .main-content-scroll,
+  .overflow-y-auto,
+  .overflow-x-auto {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar,
+  .main-content-scroll::-webkit-scrollbar,
+  .overflow-y-auto::-webkit-scrollbar,
+  .overflow-x-auto::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
 }
-.main-content-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-.main-content-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 9999px;
+
+@media (min-width: 1024px) {
+  .main-content-scroll::-webkit-scrollbar {
+    width: 5px;
+  }
+  .main-content-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .main-content-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 9999px;
+  }
 }
 
 /* Font weight discipline: collapse to 400 / 500 / 700 */
@@ -1275,16 +1336,42 @@ input[type='range']:hover::-moz-range-thumb {
 }
 
 .search-input {
-  min-height: 40px;
-  background: var(--elevation-0-bg) !important;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4) !important;
-  border-radius: var(--radius-control);
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
+  min-height: 42px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--spotify-glow, #22d3ee) 8%, rgba(20, 24, 36, 0.75)),
+    rgba(14, 18, 28, 0.65)
+  ) !important;
+  backdrop-filter: blur(16px) saturate(135%);
+  -webkit-backdrop-filter: blur(16px) saturate(135%);
+  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 14%, rgba(255, 255, 255, 0.08)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.15),
+    0 6px 18px rgba(0, 0, 0, 0.22) !important;
+  border-radius: 9999px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.search-input:hover {
+  transform: translateY(-0.5px);
+  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 22%, rgba(255, 255, 255, 0.12)) !important;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.25),
+    0 8px 20px rgba(0, 0, 0, 0.28) !important;
 }
 
 .search-input:focus {
-  border-color: var(--accent) !important;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 0 2px var(--accent-dim) !important;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--spotify-glow, #22d3ee) 12%, rgba(24, 30, 46, 0.85)),
+    rgba(16, 22, 34, 0.75)
+  ) !important;
+  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 50%, rgba(255, 255, 255, 0.25)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 0 0 3px color-mix(in srgb, var(--spotify-glow, #22d3ee) 25%, transparent),
+    0 8px 24px rgba(0, 0, 0, 0.35) !important;
 }
 
 /* ================================================================

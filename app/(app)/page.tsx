@@ -671,9 +671,9 @@ export default function HomePage() {
         : 'tracklist'
 
   return (
-    <div className="p-3.5 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6 lg:gap-8 max-w-7xl mx-auto w-full pb-36 lg:pb-8 select-none">
+    <div className="px-2 py-3 xs:px-3 sm:p-6 lg:p-8 flex flex-col gap-3.5 sm:gap-6 lg:gap-8 max-w-7xl mx-auto w-full pb-36 lg:pb-8 select-none">
       {/* High-Impact Clean Hero Card */}
-      <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.06] p-4 sm:p-6 md:p-10">
+      <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.06] p-3.5 sm:p-6 md:p-10">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 lg:gap-6">
           <div className="flex flex-col gap-1.5 sm:gap-2 max-w-xl">
           <h1 className="text-xl sm:text-2xl lg:text-4xl font-extrabold text-white tracking-tight leading-tight">
@@ -720,9 +720,9 @@ export default function HomePage() {
           </div>
 
           {loadingAlbums ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-3">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse flex flex-col gap-2">
+                <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-2.5 rounded-2xl animate-pulse flex flex-col gap-2">
                   <div className="aspect-square w-full bg-slate-800 rounded-xl" />
                   <div className="h-3 bg-slate-700 rounded w-3/4" />
                   <div className="h-2 bg-slate-800 rounded w-1/2" />
@@ -730,11 +730,11 @@ export default function HomePage() {
               ))}
             </div>
           ) : trendingAlbums.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-3">
               {trendingAlbums.map((album, idx) => (
                 <TiltCard
                   key={album.id}
-                  className="media-card group p-3 flex flex-col gap-2 cursor-pointer outline-none w-full"
+                  className="media-card group p-2 xs:p-2.5 sm:p-3 flex flex-col gap-2 cursor-pointer outline-none w-full"
                   style={{ '--i': idx } as React.CSSProperties}
                 >
                   <Link href={`/album/${album.id}`} className="flex flex-col gap-2 h-full w-full outline-none">
@@ -803,9 +803,9 @@ export default function HomePage() {
           </div>
 
           {loadingTrending ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-3">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse flex flex-col gap-2">
+                <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-2.5 rounded-2xl animate-pulse flex flex-col gap-2">
                   <div className="aspect-square w-full bg-slate-800 rounded-xl" />
                   <div className="h-3 bg-slate-700 rounded w-3/4" />
                   <div className="h-2 bg-slate-800 rounded w-1/2" />
@@ -813,12 +813,12 @@ export default function HomePage() {
               ))}
             </div>
           ) : displayTrending.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-3">
               {displayTrending.map((t, idx) => (
                 <TiltCard
                   key={t.id}
                   style={{ '--i': idx } as React.CSSProperties}
-                  className="media-card group p-3 flex flex-col gap-2 cursor-pointer outline-none w-full"
+                  className="media-card group p-2 xs:p-2.5 sm:p-3 flex flex-col gap-2 cursor-pointer outline-none w-full"
                 >
                   <div className="flex flex-col gap-2 h-full w-full outline-none" onClick={() => playTrack(t, combinedTrendingTracks)}>
                     <div className="aspect-square w-full bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">

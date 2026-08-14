@@ -12,7 +12,6 @@ import {
   ListMusic,
   UserCheck,
   Cloud,
-  Headphones,
   Menu,
   X,
   Heart,
@@ -142,8 +141,8 @@ export function MobileHeaderNav() {
   return (
     <>
       {/* 📱 Mobile Top Header Bar (< 768px) */}
-      <div className="mobile-header lg:hidden h-14 px-3 xs:px-4 flex items-center justify-between select-none shrink-0">
-        <div className="flex items-center gap-2 shrink-0">
+      <div className="mobile-header relative lg:hidden h-14 px-3 xs:px-4 flex items-center justify-between select-none shrink-0">
+        <div className="flex items-center gap-2 shrink-0 z-10">
           {pathname !== '/' && (
             <button
               onClick={() => {
@@ -173,28 +172,29 @@ export function MobileHeaderNav() {
           </button>
         </div>
 
-        <Link
-          href="/"
-          onClick={() => {
-            clearSearch()
-            window.dispatchEvent(new Event('musicweb-tab-home'))
-          }}
-          className="absolute left-1/2 -translate-x-1/2 inline-flex items-center gap-2 xs:gap-2.5 px-2.5 xs:px-3 py-1.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-sm backdrop-blur-md hover:bg-white/[0.06] transition-all w-fit"
-        >
-          <div className="w-7 h-7 xs:w-8 xs:h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-pink-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
-            <Headphones className="w-3.5 h-3.5 xs:w-4 xs:h-4" />
-          </div>
-          <div className="flex items-center justify-center h-7 xs:h-8 shrink-0">
-            <img
-              src="/phong-signature.png"
-              alt="Phong's Music Signature"
-              className="h-6.5 xs:h-7.5 sm:h-8 w-auto object-contain signature-img-invert translate-y-[1.5px]"
-            />
-          </div>
-        </Link>
+        {/* Center Slot: Exact Center Logo Plaque */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <Link
+            href="/"
+            onClick={() => {
+              clearSearch()
+              window.dispatchEvent(new Event('musicweb-tab-home'))
+            }}
+            className="sidebar-logo-plaque pointer-events-auto flex items-center justify-center px-3.5 py-1.5 rounded-2xl group cursor-pointer"
+            title="MusicWeb"
+          >
+            <div className="flex items-center justify-center h-7.5 xs:h-8 shrink-0">
+              <img
+                src="/phong-signature.png"
+                alt="MusicWeb Logo"
+                className="h-7.5 xs:h-8 w-auto object-contain signature-img-invert group-hover:scale-[1.03] transition-transform"
+              />
+            </div>
+          </Link>
+        </div>
 
         {/* Right Slot: User Avatar / Login */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 z-10">
           {user ? (
             <button
               type="button"
@@ -313,15 +313,14 @@ export function MobileHeaderNav() {
         >
           <div className="flex flex-col gap-5">
             <div className="flex items-center justify-between border-b border-white/[0.05] pb-4">
-              <div className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.08]">
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-500/20 to-pink-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
-                  <Headphones className="w-3.5 h-3.5" />
+              <div className="sidebar-logo-plaque flex items-center justify-start px-3 py-1.5 rounded-2xl">
+                <div className="flex items-center justify-start h-7.5 shrink-0">
+                  <img
+                    src="/phong-signature.png"
+                    alt="MusicWeb Logo"
+                    className="h-7.5 w-auto object-contain signature-img-invert"
+                  />
                 </div>
-                <img
-                  src="/phong-signature.png"
-                  alt="Phong's Music Signature"
-                  className="h-6 w-auto object-contain signature-img-invert translate-y-[1px]"
-                />
               </div>
               <button
                 onClick={() => setIsDrawerOpen(false)}

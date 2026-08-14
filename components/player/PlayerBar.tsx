@@ -609,7 +609,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         role="presentation"
       >
         {/* Left: Track Metadata */}
-        <div className="flex items-center gap-3 flex-[0_0_200px] lg:flex-[0_0_230px] xl:flex-[0_0_260px] min-w-0">
+        <div className="flex items-center gap-3 w-1/4 min-w-[250px] lg:min-w-[300px] xl:min-w-[360px] max-w-[420px]">
           <div onClick={openNowPlayingOverlay} className="relative group shrink-0 cursor-pointer" title="Mở Now Playing">
             <div className={`player-cover w-14 h-14 bg-slate-800 flex items-center justify-center border border-white/10 shadow-md ${isPlaying ? 'is-playing' : ''}`}>
               <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
@@ -647,17 +647,17 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             <div className="flex items-center gap-2 mt-0.5 min-w-0">
               <p
                 data-playerbar-exclude-fullview
-                className={`${trackMetadataArtistInlineClass} text-[11px] text-slate-400 hover:text-slate-200 transition-colors cursor-pointer`}
+                className={`${trackMetadataArtistInlineClass} text-[11px] text-slate-400 hover:text-slate-200 transition-colors cursor-pointer shrink-0 max-w-[130px] truncate`}
                 onClick={(e) => e.stopPropagation()}
               >
                 {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
               </p>
 
-              {/* Album Link Pill */}
+              {/* Album Link Pill with Overflow Marquee Text */}
               <div
                 onClick={handleOpenAlbum}
                 data-playerbar-exclude-fullview
-                className="flex items-center gap-1 shrink-0 text-[10px] text-slate-300 bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 px-2 py-0.5 rounded-md max-w-[200px] hover:border-cyan-500/50 cursor-pointer transition-all group shadow-sm"
+                className="flex items-center gap-1 min-w-0 max-w-[180px] sm:max-w-[220px] xl:max-w-[280px] text-[10px] text-slate-300 bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 px-2 py-0.5 rounded-md hover:border-cyan-500/50 cursor-pointer transition-all group shadow-sm"
                 title={displayAlbumName ? `Vào album: ${displayAlbumName}` : 'Vào Album bài hát'}
               >
                 {isNavigatingAlbum ? (
@@ -665,9 +665,10 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                 ) : (
                   <DiscAlbum style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3 h-3 shrink-0" />
                 )}
-                <span className="truncate font-semibold text-slate-200 group-hover:text-[var(--spotify-glow)] transition-colors">
-                  {displayAlbumName || 'Album'}
-                </span>
+                <OverflowMarqueeText
+                  text={displayAlbumName || 'Album'}
+                  className="font-semibold text-slate-200 group-hover:text-[var(--spotify-glow)] transition-colors min-w-0"
+                />
               </div>
             </div>
 

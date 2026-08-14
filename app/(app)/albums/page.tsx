@@ -48,7 +48,7 @@ function AlbumCard({ album, index = 0 }: AlbumCardProps) {
 
   return (
     <TiltCard
-      className="media-card group p-3.5 flex flex-col gap-3 outline-none"
+      className="media-card group p-2 xs:p-2.5 sm:p-3.5 flex flex-col gap-2 sm:gap-3 outline-none"
       style={{ '--i': index } as React.CSSProperties}
     >
       <Link href={`/album/${album.id}`} className="flex flex-col gap-3 h-full outline-none">
@@ -239,9 +239,9 @@ export default function AlbumsPage() {
   }, [albumQuery])
 
   return (
-    <div className="p-3.5 sm:p-6 lg:p-8 flex flex-col gap-5 sm:gap-8 max-w-7xl mx-auto w-full pb-36 lg:pb-8 select-none">
+    <div className="px-2 py-3 xs:px-3 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-8 max-w-7xl mx-auto w-full pb-36 lg:pb-8 select-none">
       {/* Header Banner */}
-      <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.08] p-4 sm:p-6 md:p-8 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
+      <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.08] p-3.5 sm:p-6 md:p-8 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
         <div className="flex items-center gap-3.5 sm:gap-5">
           <div
             style={{
@@ -300,11 +300,13 @@ export default function AlbumsPage() {
         /* Search Results Mode */
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-2 h-5 bg-cyan-400 rounded-full" />
-              <h2 className="text-lg font-bold text-white tracking-wide">
-                Kết quả tìm kiếm cho &quot;{albumQuery}&quot;
-              </h2>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                Kết quả tìm kiếm cho:
+              </span>
+              <span className="text-xs font-bold text-cyan-400 font-mono">
+                &ldquo;{albumQuery}&rdquo;
+              </span>
             </div>
             <span className="text-xs font-mono text-slate-500">
               {searchResults.length} albums
@@ -316,7 +318,7 @@ export default function AlbumsPage() {
               <HeroCardSkeleton />
             </div>
           ) : searchResults.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-4 lg:gap-5">
               {searchResults.map((album, idx) => (
                 <AlbumCard key={album.id} album={album} index={idx} />
               ))}
@@ -330,14 +332,14 @@ export default function AlbumsPage() {
         </div>
       ) : (
         /* Normal Discovery Mode */
-        <div className="flex flex-col gap-10">
+        <div className="flex flex-col gap-8 sm:gap-10">
           {/* Section A: Listened Albums */}
           {listenedAlbums.length > 0 && (
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3.5 sm:gap-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-2 h-5 bg-cyan-400 rounded-full" />
-                  <h2 className="text-lg font-bold text-white tracking-wide">
+                  <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">
                     Album Đã Nghe
                   </h2>
                 </div>
@@ -346,7 +348,7 @@ export default function AlbumsPage() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-4 lg:gap-5">
                 {listenedAlbums.map((album, idx) => (
                   <AlbumCard key={album.id} album={album} index={idx} />
                 ))}
@@ -355,11 +357,11 @@ export default function AlbumsPage() {
           )}
 
           {/* Section B: New Releases & Top Discovery */}
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3.5 sm:gap-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-2 h-5 bg-pink-500 rounded-full" />
-                <h2 className="text-lg font-bold text-white tracking-wide">
+                <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">
                   Khám Phá Album Mới (Top Releases)
                 </h2>
               </div>
@@ -369,7 +371,7 @@ export default function AlbumsPage() {
             </div>
 
             {newReleases.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-4 lg:gap-5">
                 {newReleases.map((album, idx) => (
                   <AlbumCard key={album.id} album={album} index={idx} />
                 ))}

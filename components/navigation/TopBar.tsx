@@ -122,14 +122,14 @@ export function TopBar() {
   }
 
   return (
-    <header className="sticky top-0 z-20 h-14 sm:h-16 lg:h-18 px-3 sm:px-4 lg:px-8 py-2 lg:py-3 app-header flex items-center justify-between gap-2.5 sm:gap-4 select-none shadow-[0_4px_16px_rgba(0,0,0,0.3)]">
-      {/* Left Slot: Spacer balancing right side so search is centered */}
-      <div className="w-24 lg:w-36 xl:w-48 shrink-0 hidden sm:block" />
+    <header className="sticky top-0 z-20 h-14 sm:h-16 lg:h-18 px-4 sm:px-6 lg:px-8 py-2 lg:py-3 app-header grid grid-cols-[1fr_auto_1fr] items-center gap-3 sm:gap-4 select-none">
+      {/* Left Slot: Balanced 1fr space */}
+      <div className="flex items-center justify-start min-w-0" />
 
       {/* Center Slot: Perfectly Centered Search Input Container */}
-      <div className="relative flex-1 max-w-xl mx-auto my-auto" ref={dropdownRef}>
+      <div className="relative w-full min-w-[240px] xs:min-w-[280px] sm:min-w-[360px] md:min-w-[420px] lg:min-w-[480px] xl:min-w-[540px] max-w-xl mx-auto my-auto" ref={dropdownRef}>
         <div className="relative flex items-center">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none z-10" />
           <input
             type="text"
             value={inputQuery}
@@ -149,14 +149,14 @@ export function TopBar() {
               if (inputQuery.trim()) setShowDropdown(true)
             }}
             placeholder="Tìm bài hát, nghệ sĩ..."
-            className="search-input w-full border border-white/[0.07] rounded-full pl-9 sm:pl-10 pr-8 sm:pr-9 py-1.5 sm:py-2 text-xs text-white placeholder-slate-400 outline-none transition-all"
+            className="search-input w-full pl-9 sm:pl-10 pr-8 sm:pr-9 py-1.5 sm:py-2 text-xs text-white placeholder-slate-400 outline-none"
           />
           {searchingSuggestions ? (
-            <Loader2 className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)] animate-spin absolute right-3" />
+            <Loader2 className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)] animate-spin absolute right-3 z-10" />
           ) : searchQuery ? (
             <button
               onClick={handleClearSearch}
-              className="absolute right-3 p-0.5 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+              className="absolute right-3 p-0.5 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors z-10"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -211,8 +211,8 @@ export function TopBar() {
         )}
       </div>
 
-      {/* Right Slot: User Actions */}
-      <div className="hidden sm:flex shrink-0 items-center justify-end gap-2 my-auto relative">
+      {/* Right Slot: User Actions (Aligned to Right inside its 1fr column) */}
+      <div className="flex items-center justify-end gap-2 my-auto shrink-0 relative">
         {user ? (
           <div className="relative">
             <button
@@ -222,7 +222,7 @@ export function TopBar() {
               aria-expanded={isProfileMenuOpen}
               aria-controls="topbar-profile-menu"
               aria-label="Mở menu tài khoản"
-              className="flex items-center gap-2.5 min-h-11 px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/[0.1] hover:bg-white/[0.08] active:scale-[0.98] transition-all"
+              className="sidebar-logo-plaque flex items-center gap-2.5 min-h-11 px-2.5 py-1 rounded-full group active:scale-[0.98] transition-all cursor-pointer"
             >
               <div className="w-8 h-8 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black border border-white/20 flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden shadow-sm">
                 {user.user_metadata?.avatar_url ? (
@@ -239,7 +239,7 @@ export function TopBar() {
                 <span className="text-xs font-bold text-white truncate max-w-[140px]">
                   {user.user_metadata?.full_name || user.email?.split('@')[0]}
                 </span>
-                <span className="text-[10px] font-mono text-slate-400 leading-none mt-0.5">
+                <span className="text-[10px] font-mono text-cyan-300 leading-none mt-0.5">
                   {isAdmin(user?.email) ? 'Admin' : 'Listener'}
                 </span>
               </div>
@@ -275,7 +275,7 @@ export function TopBar() {
         ) : (
           <Link
             href="/login"
-            className="text-xs font-bold text-black bg-white hover:bg-slate-200 px-3.5 py-1.5 rounded-full transition-colors"
+            className="sidebar-logo-plaque text-xs font-bold text-white px-4 py-2 rounded-full transition-all cursor-pointer"
           >
             Đăng nhập
           </Link>
