@@ -137,29 +137,37 @@ export async function GET(req: NextRequest) {
     let plainLyrics: string | null = null
     let successfulVideoId = directVideoId
 
+    // Instrumental Guard: return 404 for beats and instrumentals
+    const isInstrumental =
+      title.toLowerCase().includes('instrumental') ||
+      title.toLowerCase().includes('beat') ||
+      title.toLowerCase().includes('karaoke') ||
+      title.toLowerCase().includes('nhạc không lời') ||
+      title.toLowerCase().includes('nhac khong loi') ||
+      title.toLowerCase().includes('nonstop')
+
+    if (isInstrumental) {
+      return NextResponse.json({ error: 'Instrumental tracks do not have lyrics' }, { status: 404 })
+    }
+
     // 1. Try direct videoId if provided
     if (directVideoId) {
       plainLyrics = await fetchLyricsFromYouTube(directVideoId)
     }
 
     // 2. If direct videoId failed or was missing, try searching YouTube Music audio tracks
-    if (!plainLyrics && (title || artist || directVideoId)) {
-      const searchQueries = [
-        `${title} ${artist} audio`.trim(),
-        `${title} ${artist}`.trim(),
-      ].filter(Boolean)
-
-      for (const query of searchQueries) {
-        const candidateIds = await searchYouTubeVideoIds(query)
-        for (const candidateId of candidateIds) {
-          if (candidateId === directVideoId) continue
-          plainLyrics = await fetchLyricsFromYouTube(candidateId)
+    if (!plainLyrics && (title || artist)) {
+      const searchQuery = `${title} ${artist} audio`.trim()
+      const candidateIds = await searchYouTubeVideoIds(searchQuery)
+      if (candidateIds.length > 0) {
+        // Only inspect the top 1 exact search candidate to prevent mismatching other songs
+        const topCandidate = candidateIds[0]
+        if (topCandidate !== directVideoId) {
+          plainLyrics = await fetchLyricsFromYouTube(topCandidate)
           if (plainLyrics) {
-            successfulVideoId = candidateId
-            break
+            successfulVideoId = topCandidate
           }
         }
-        if (plainLyrics) break
       }
     }
 

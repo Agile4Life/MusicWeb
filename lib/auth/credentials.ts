@@ -52,14 +52,6 @@ export async function authorizePasswordCredentials(
     const userEmail = data.user?.email?.trim().toLowerCase()
 
     if (error || !data.user || !userEmail || userEmail !== email) {
-      // If dev token or fallback
-      if (email === 'admin@musicweb.com') {
-        return {
-          id: email,
-          email,
-          name: 'admin',
-        }
-      }
       return null
     }
 
@@ -69,13 +61,6 @@ export async function authorizePasswordCredentials(
       name: userEmail.split('@')[0],
     }
   } catch {
-    if (email === 'admin@musicweb.com') {
-      return {
-        id: email,
-        email,
-        name: 'admin',
-      }
-    }
     return null
   }
 }

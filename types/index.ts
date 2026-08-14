@@ -81,3 +81,19 @@ export interface ListeningHistoryItem {
   played_at: string
   track?: Track
 }
+
+export interface SoundCloudPlaylist {
+  id: string | number
+  title: string
+  artwork_url?: string | null
+  track_count: number
+  duration?: number
+  permalink_url?: string
+  user?: {
+    id?: string | number
+    username?: string
+    avatar_url?: string
+  }
+  is_album?: boolean
+  tracks?: Track[]
+}

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react'
 import { usePlayer, usePlaybackProgress } from './PlayerContext'
+import { Track } from '@/types'
 import { LrclibResponse } from '@/lib/lrclib'
 import { getPrimaryLyrics } from '@/lib/lyricsFlow'
 import { parseLrc, parsePlainLyrics, findActiveLyricIndex, LyricLine } from '@/lib/lrcParser'
@@ -103,6 +104,7 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
     duration?: number | null,
     youtubeId?: string | null,
     nhaccuatuiId?: string | null,
+    source?: Track['source'],
   ) => {
     const reqId = ++lyricsReqIdRef.current
     setLoading(true)
@@ -116,6 +118,7 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
         duration: duration || 0,
         youtube_id: youtubeId || undefined,
         nhaccuatui_id: nhaccuatuiId || undefined,
+        source: source || undefined,
       })
 
       if (reqId !== lyricsReqIdRef.current) return
@@ -172,6 +175,7 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
       currentTrack.duration,
       currentTrack.youtube_id,
       currentTrack.nhaccuatui_id,
+      currentTrack.source,
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -182,6 +186,7 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
     currentTrack?.duration,
     currentTrack?.youtube_id,
     currentTrack?.nhaccuatui_id,
+    currentTrack?.source,
   ])
 
   const lastLyricCheckRef = useRef(0)

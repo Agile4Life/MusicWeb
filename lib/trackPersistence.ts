@@ -29,7 +29,8 @@ export function isExternalTrack(track: Track): boolean {
     track.id.startsWith('deezer-') ||
     track.id.startsWith('nct-') ||
     track.id.startsWith('itunes-') ||
-    track.id.startsWith('audius-')
+    track.id.startsWith('audius-') ||
+    track.id.startsWith('sc-')
 
   if (syntheticId) return true
   if (track.source && track.source !== 'local' && !UUID_REGEX.test(track.id)) return true
@@ -46,6 +47,7 @@ function inferTrackSource(track: Track): Track {
     else if (normalized.nhaccuatui_id || normalized.id?.startsWith('nct-')) normalized.source = 'nhaccuatui'
     else if (normalized.itunes_id || normalized.id?.startsWith('itunes-')) normalized.source = 'itunes'
     else if (normalized.audius_id || normalized.id?.startsWith('audius-')) normalized.source = 'audius'
+    else if (normalized.soundcloud_id || normalized.id?.startsWith('sc-')) normalized.source = 'soundcloud'
     else if (normalized.id?.startsWith('deezer-')) normalized.source = 'deezer'
     else {
       const fp = normalized.file_path || ''
@@ -53,6 +55,7 @@ function inferTrackSource(track: Track): Track {
       else if (fp.includes('spotify.com')) normalized.source = 'spotify'
       else if (fp.includes('itunes.apple.com')) normalized.source = 'itunes'
       else if (fp.includes('audius.co')) normalized.source = 'audius'
+      else if (fp.includes('soundcloud.com') || fp.startsWith('soundcloud:')) normalized.source = 'soundcloud'
       else if (fp.includes('deezer.com') || fp.startsWith('deezer:')) normalized.source = 'deezer'
     }
   }
@@ -71,6 +74,9 @@ function inferTrackSource(track: Track): Track {
   }
   if (!normalized.audius_id && (normalized.id?.startsWith('audius-') || normalized.source === 'audius')) {
     normalized.audius_id = normalized.id?.startsWith('audius-') ? normalized.id.slice(7) : normalized.id
+  }
+  if (!normalized.soundcloud_id && (normalized.id?.startsWith('sc-') || normalized.source === 'soundcloud')) {
+    normalized.soundcloud_id = normalized.id?.startsWith('sc-') ? normalized.id.slice(3) : normalized.id
   }
 
   return normalized
@@ -95,6 +101,8 @@ export async function resolveExternalTrackId(
   if (normalizedTrack.nhaccuatui_id) lookups.push({ column: 'nhaccuatui_id', value: normalizedTrack.nhaccuatui_id })
   if (normalizedTrack.spotify_id) lookups.push({ column: 'spotify_id', value: normalizedTrack.spotify_id })
   if (normalizedTrack.youtube_id) lookups.push({ column: 'youtube_id', value: normalizedTrack.youtube_id })
+  if (normalizedTrack.soundcloud_id) lookups.push({ column: 'file_path', value: `soundcloud:${normalizedTrack.soundcloud_id}` })
+  if (normalizedTrack.soundcloud_permalink_url) lookups.push({ column: 'file_path', value: normalizedTrack.soundcloud_permalink_url })
   if (normalizedTrack.file_path) lookups.push({ column: 'file_path', value: normalizedTrack.file_path })
 
   // Phase A: Search under current user_id first
@@ -161,11 +169,15 @@ export async function resolveExternalTrackId(
         ? `https://www.youtube.com/watch?v=${normalizedTrack.youtube_id}`
         : normalizedTrack.spotify_id
           ? `spotify:${normalizedTrack.spotify_id}`
-          : normalizedTrack.itunes_id
-            ? `itunes:${normalizedTrack.itunes_id}`
-            : normalizedTrack.audius_id
-              ? `audius:${normalizedTrack.audius_id}`
-              : `ext:${Date.now()}`)
+          : normalizedTrack.soundcloud_permalink_url
+            ? normalizedTrack.soundcloud_permalink_url
+            : normalizedTrack.soundcloud_id
+              ? `soundcloud:${normalizedTrack.soundcloud_id}`
+              : normalizedTrack.itunes_id
+                ? `itunes:${normalizedTrack.itunes_id}`
+                : normalizedTrack.audius_id
+                  ? `audius:${normalizedTrack.audius_id}`
+                  : `ext:${Date.now()}`)
 
   // Insert payload containing ONLY valid PostgreSQL table columns
   const insertPayload: Record<string, any> = {

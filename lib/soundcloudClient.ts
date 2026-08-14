@@ -3,8 +3,9 @@ import {
   isSoundCloudFullAudio,
   soundCloudTrackToAppTrack,
   getBestSoundCloudTranscoding,
+  getSoundCloudHighResArtwork,
 } from './soundcloud'
-import { Track } from '@/types'
+import { Track, SoundCloudPlaylist } from '@/types'
 
 // Cache client_id in memory with 2-hour TTL
 let cachedClientId: string | null = null
@@ -126,7 +127,32 @@ export async function resolveSoundCloudUrl(inputUrl: string): Promise<Track[]> {
       return rawTracks.filter(isSoundCloudFullAudio).map(soundCloudTrackToAppTrack)
     }
 
-    // 2. If it resolved to a single Track
+    // 2. If it resolved to a User Profile Page (e.g. soundcloud.com/vanhung03042)
+    if (data.kind === 'user' && data.id) {
+      try {
+        const userTracksUrl = `https://api-v2.soundcloud.com/users/${data.id}/tracks?client_id=${clientId}&limit=50&access=playable`
+        const userRes = await fetch(userTracksUrl, {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            Accept: 'application/json',
+          },
+          next: { revalidate: 600 },
+        })
+
+        if (userRes.ok) {
+          const userTracksData = await userRes.json()
+          const rawTracks: SoundCloudRawTrack[] = Array.isArray(userTracksData)
+            ? userTracksData
+            : userTracksData.collection || []
+          return rawTracks.filter(isSoundCloudFullAudio).map(soundCloudTrackToAppTrack)
+        }
+      } catch (userErr) {
+        console.error('[SoundCloud] Failed to fetch user profile tracks:', userErr)
+      }
+    }
+
+    // 3. If it resolved to a single Track
     if (isSoundCloudFullAudio(data)) {
       return [soundCloudTrackToAppTrack(data)]
     }
@@ -271,6 +297,111 @@ export async function resolveSoundCloudStreamUrl(
     return data.url || null
   } catch (err) {
     console.error(`[SoundCloud] Failed to resolve stream for ${trackId}:`, err)
+    return null
+  }
+}
+
+/**
+ * Search SoundCloud playlists / albums by query or genre
+ */
+export async function searchSoundCloudPlaylists(
+  query: string,
+  limit: number = 8
+): Promise<SoundCloudPlaylist[]> {
+  const trimmed = query?.trim()
+  if (!trimmed) return []
+
+  const clientId = await getSoundCloudClientId()
+  const url = `https://api-v2.soundcloud.com/search/playlists?q=${encodeURIComponent(
+    trimmed
+  )}&client_id=${clientId}&limit=${limit}&access=playable`
+
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        Accept: 'application/json',
+      },
+      next: { revalidate: 600 },
+    })
+
+    if (!res.ok) return []
+    const data = await res.json()
+    const rawList = data.collection || []
+
+    return rawList.map((pl: any): SoundCloudPlaylist => {
+      const rawArt = pl.artwork_url || pl.tracks?.[0]?.artwork_url || pl.user?.avatar_url
+      const highResArt = getSoundCloudHighResArtwork(rawArt)
+
+      return {
+        id: pl.id,
+        title: pl.title || 'SoundCloud Playlist',
+        artwork_url: highResArt,
+        track_count: pl.track_count || (Array.isArray(pl.tracks) ? pl.tracks.length : 0),
+        duration: pl.duration ? Math.round(pl.duration / 1000) : 0,
+        permalink_url: pl.permalink_url,
+        user: {
+          id: pl.user?.id,
+          username: pl.user?.username || 'SoundCloud Creator',
+          avatar_url: getSoundCloudHighResArtwork(pl.user?.avatar_url) || undefined,
+        },
+        is_album: !!pl.is_album,
+      }
+    })
+  } catch (err) {
+    console.error('[SoundCloud] Search playlists error:', err)
+    return []
+  }
+}
+
+/**
+ * Fetch full tracklist for a specific SoundCloud playlist ID
+ */
+export async function getSoundCloudPlaylistTracks(
+  playlistId: string | number
+): Promise<{ playlist: SoundCloudPlaylist; tracks: Track[] } | null> {
+  const rawId = String(playlistId).replace(/^sc-pl-/, '')
+  const clientId = await getSoundCloudClientId()
+  const url = `https://api-v2.soundcloud.com/playlists/${rawId}?client_id=${clientId}`
+
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        Accept: 'application/json',
+      },
+      next: { revalidate: 600 },
+    })
+
+    if (!res.ok) return null
+    const pl = await res.json()
+    const rawTracks: SoundCloudRawTrack[] = pl.tracks || []
+    const fullAudioTracks = rawTracks.filter(isSoundCloudFullAudio).map(soundCloudTrackToAppTrack)
+
+    const rawArt = pl.artwork_url || rawTracks[0]?.artwork_url || pl.user?.avatar_url
+    const highResArt = getSoundCloudHighResArtwork(rawArt)
+
+    const playlist: SoundCloudPlaylist = {
+      id: pl.id,
+      title: pl.title || 'SoundCloud Playlist',
+      artwork_url: highResArt,
+      track_count: fullAudioTracks.length,
+      duration: pl.duration ? Math.round(pl.duration / 1000) : 0,
+      permalink_url: pl.permalink_url,
+      user: {
+        id: pl.user?.id,
+        username: pl.user?.username || 'SoundCloud Creator',
+        avatar_url: getSoundCloudHighResArtwork(pl.user?.avatar_url) || undefined,
+      },
+      is_album: !!pl.is_album,
+      tracks: fullAudioTracks,
+    }
+
+    return { playlist, tracks: fullAudioTracks }
+  } catch (err) {
+    console.error(`[SoundCloud] Failed to get playlist ${playlistId}:`, err)
     return null
   }
 }

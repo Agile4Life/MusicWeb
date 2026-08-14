@@ -117,6 +117,61 @@ async function tryGetApi(
   return null
 }
 
+export function isInstrumentalOrBeatTrack(title: string): boolean {
+  const t = (title || '').toLowerCase()
+  return (
+    t.includes('instrumental') ||
+    t.includes('beat') ||
+    t.includes('karaoke') ||
+    t.includes('nhạc không lời') ||
+    t.includes('nhac khong loi') ||
+    t.includes('backing track') ||
+    t.includes('piano cover') ||
+    t.includes('guitar cover') ||
+    t.includes('lofi beat') ||
+    t.includes('slowed reverb instrumental') ||
+    t.includes('nonstop') ||
+    t.includes('vinahouse remix nonstop')
+  )
+}
+
+export function calculateTitleSimilarity(a: string, b: string): number {
+  const normA = (a || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  const normB = (b || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  if (normA === normB) return 1.0
+  if (!normA || !normB) return 0.0
+
+  const wordsA = new Set(normA.split(' ').filter((w) => w.length > 1))
+  const wordsB = new Set(normB.split(' ').filter((w) => w.length > 1))
+  if (wordsA.size === 0 || wordsB.size === 0) return 0.0
+
+  let intersection = 0
+  for (const w of wordsA) {
+    if (wordsB.has(w)) intersection++
+  }
+  const jaccard = intersection / (wordsA.size + wordsB.size - intersection)
+
+  const lenRatio = Math.min(normA.length, normB.length) / Math.max(normA.length, normB.length)
+  if ((normA.includes(normB) || normB.includes(normA)) && lenRatio >= 0.75) {
+    return Math.max(jaccard, 0.85)
+  }
+
+  return jaccard
+}
+
 async function trySearchApi(
   query: string,
   targetTitle?: string,
@@ -137,36 +192,40 @@ async function trySearchApi(
       if (Array.isArray(results) && results.length > 0) {
         const matchCandidates = (maxDurDiff: number, requireAlbum = false) =>
           results.filter((r) => {
-            // 1. Strict Title Validation: avoid matching "Chúng ta không thuộc về nhau" for "Không thuộc về"
+            // 1. Strict Title Similarity Validation (Prevent matching completely different songs)
             if (targetTitle && targetTitle.trim().length > 0) {
-              const candidateTitleNorm = (r.trackName || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, ' ').trim()
-              const targetTitleNorm = targetTitle.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, ' ').trim()
-
-              if (candidateTitleNorm !== targetTitleNorm) {
-                const lenRatio = Math.min(candidateTitleNorm.length, targetTitleNorm.length) / Math.max(candidateTitleNorm.length, targetTitleNorm.length)
-                if (lenRatio < 0.75) return false
-                if (!candidateTitleNorm.includes(targetTitleNorm) && !targetTitleNorm.includes(candidateTitleNorm)) return false
-              }
+              const sim = calculateTitleSimilarity(targetTitle, r.trackName)
+              if (sim < 0.70) return false
             }
 
             // 2. Strict Artist Validation
             if (targetArtist && targetArtist.trim().length > 0) {
-              const candidateArtistNorm = (r.artistName || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
-              const targetArtistNorm = targetArtist.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
-              if (targetArtistNorm.length <= 2) {
-                if (candidateArtistNorm !== targetArtistNorm) return false
-              } else {
-                const isArtistMatched =
-                  candidateArtistNorm.includes(targetArtistNorm) ||
-                  targetArtistNorm.includes(candidateArtistNorm)
-                if (!isArtistMatched) return false
-              }
-            } else {
-              // If targetArtist is NOT provided, require exact title match to avoid cross-artist mismatch
-              if (targetTitle) {
-                const candidateTitleNorm = (r.trackName || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, ' ').trim()
-                const targetTitleNorm = targetTitle.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, ' ').trim()
-                if (candidateTitleNorm !== targetTitleNorm) return false
+              const candidateArtistNorm = (r.artistName || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .trim()
+              const targetArtistNorm = targetArtist
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .trim()
+
+              const isGenericArtist =
+                targetArtistNorm === 'various artists' ||
+                targetArtistNorm === 'soundcloud' ||
+                targetArtistNorm === 'youtube artist' ||
+                targetArtistNorm === 'itunes artist'
+
+              if (!isGenericArtist) {
+                if (targetArtistNorm.length <= 3) {
+                  if (candidateArtistNorm !== targetArtistNorm) return false
+                } else {
+                  const isArtistMatched =
+                    candidateArtistNorm.includes(targetArtistNorm) ||
+                    targetArtistNorm.includes(candidateArtistNorm)
+                  if (!isArtistMatched) return false
+                }
               }
             }
 
@@ -226,16 +285,24 @@ export async function fetchLyricsFromLrclib({
   album,
   duration,
   youtubeId,
+  isSoundCloud = false,
 }: {
   title: string
   artist?: string | null
   album?: string | null
   duration?: number | null
   youtubeId?: string | null
+  isSoundCloud?: boolean
 }): Promise<LrclibResponse | null> {
   const { cleanTitle, cleanArtist, cleanAlbum } = extractCleanTitleAndArtist(title, artist, album)
+
+  // Instrumental / Beat tracks have no lyrics — prevent incorrect matching
+  if (isInstrumentalOrBeatTrack(title) || isInstrumentalOrBeatTrack(cleanTitle)) {
+    return null
+  }
+
   const durRound = duration && duration > 0 ? Math.round(duration) : 0
-  const cacheKey = `${cleanTitle.toLowerCase()}__${cleanArtist.toLowerCase()}__${(cleanAlbum || '').toLowerCase()}__${durRound}`
+  const cacheKey = `${cleanTitle.toLowerCase()}__${cleanArtist.toLowerCase()}__${(cleanAlbum || '').toLowerCase()}__${durRound}__${isSoundCloud ? 'sc' : 'std'}`
 
   // 1. Check in-memory LRU cache
   if (lyricsCache.has(cacheKey)) {
@@ -252,7 +319,7 @@ export async function fetchLyricsFromLrclib({
       let fallback: LrclibResponse | null = null
 
       // Step A: If cleanAlbum exists, try with album first
-      if (cleanAlbum) {
+      if (cleanAlbum && !isSoundCloud) {
         const data0 = await tryGetApi(cleanTitle, cleanArtist, cleanAlbum, durRound)
         if (data0?.syncedLyrics) {
           lyricsCache.set(cacheKey, data0)
@@ -278,7 +345,7 @@ export async function fetchLyricsFromLrclib({
       if (data2 && !fallback) fallback = data2
 
       // Step D: Try search API with title + artist (without album restriction)
-      if (cleanArtist) {
+      if (cleanArtist && !isSoundCloud) {
         const data3 = await trySearchApi(`${cleanTitle} ${cleanArtist}`, cleanTitle, cleanArtist, undefined, durRound)
         if (data3?.syncedLyrics) {
           lyricsCache.set(cacheKey, data3)
@@ -287,8 +354,8 @@ export async function fetchLyricsFromLrclib({
         if (data3 && !fallback) fallback = data3
       }
 
-      // Step F: YouTube Music Lyrics Fallback if LRCLIB returned no lyrics or no synced lyrics
-      if (!fallback || (!fallback.syncedLyrics && !fallback.plainLyrics)) {
+      // Step F: YouTube Music Lyrics Fallback if LRCLIB returned no lyrics (Do NOT run for SoundCloud tracks)
+      if (!isSoundCloud && (!fallback || (!fallback.syncedLyrics && !fallback.plainLyrics))) {
         try {
           const ytParams = new URLSearchParams()
           if (youtubeId) ytParams.append('videoId', youtubeId)

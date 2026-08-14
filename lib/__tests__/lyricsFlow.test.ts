@@ -134,4 +134,22 @@ describe('primary lyrics flow', () => {
     })).resolves.toMatchObject({ plainLyrics: 'fallback lyrics' })
     expect(lrclibMock).toHaveBeenCalledOnce()
   })
+
+  it('prevents lyrics lookup for SoundCloud UGC user uploads, remixes and beats', async () => {
+    const ugcResult1 = await getPrimaryLyrics({
+      title: 'Chung Ta Cua Tuong Lai (Vinahouse Remix 2024)',
+      artist: 'DJ Duy Remix',
+      source: 'soundcloud',
+    })
+    expect(ugcResult1).toBeNull()
+    expect(lrclibMock).not.toHaveBeenCalled()
+
+    const ugcResult2 = await getPrimaryLyrics({
+      title: 'Lo-Fi Chill Beat Instrumental',
+      artist: 'user-84920492',
+      source: 'soundcloud',
+    })
+    expect(ugcResult2).toBeNull()
+    expect(lrclibMock).not.toHaveBeenCalled()
+  })
 })
