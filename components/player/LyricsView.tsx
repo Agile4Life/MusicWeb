@@ -356,7 +356,7 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
             <p className="text-sm font-extrabold text-white tracking-wide">Đang tải lời bài hát từ thư viện...</p>
           </div>
         ) : parsedLyrics.length > 0 ? (
-          <div className="flex flex-col gap-4 md:gap-5 pt-12 pb-28 md:pt-16 md:pb-36 text-center sm:text-left max-w-3xl mx-auto">
+          <div className="flex flex-col gap-2 pt-12 pb-28 md:pt-16 md:pb-36 text-center sm:text-left max-w-3xl mx-auto">
             {parsedLyrics.map((line, index) => {
               const isActive = index === activeIndex
               const distance = activeIndex >= 0 ? Math.abs(index - activeIndex) : Infinity
@@ -367,15 +367,15 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
 
               if (isActive) {
                 opacity = 1.0
-                translateX = '6px'
+                translateX = '10px'
               } else if (distance === 1) {
-                opacity = isPast ? 0.55 : 0.65
+                opacity = isPast ? 0.5 : 0.72
                 translateX = '0px'
               } else if (distance === 2) {
-                opacity = isPast ? 0.35 : 0.45
+                opacity = isPast ? 0.32 : 0.5
                 translateX = '0px'
               } else {
-                opacity = activeIndex < 0 ? 0.75 : isPast ? 0.22 : 0.32
+                opacity = activeIndex < 0 ? 0.75 : isPast ? 0.18 : 0.3
                 translateX = '0px'
               }
 
@@ -384,35 +384,30 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
                   key={index}
                   ref={isActive ? activeLineRef : null}
                   onClick={() => handleLineClick(line)}
-                  className="cursor-pointer py-1 px-3 rounded-2xl select-none origin-left group/line"
+                  className={`cursor-pointer rounded-2xl select-none origin-left group/line relative transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                    isActive
+                      ? 'py-3.5 px-5 sm:px-6 bg-white/[0.05] border border-white/10 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.35),0_0_20px_color-mix(in_srgb,var(--spotify-glow,#22d3ee)_12%,transparent)]'
+                      : 'py-2 px-4 sm:px-5 bg-transparent border border-transparent hover:bg-white/[0.02] hover:border-white/[0.04]'
+                  }`}
                   style={{
                     opacity,
                     transform: `translateX(${translateX})`,
-                    transition: 'transform 450ms cubic-bezier(0.16, 1, 0.3, 1), opacity 400ms cubic-bezier(0.16, 1, 0.3, 1), margin 350ms ease',
-                    marginBlock: isActive ? '12px' : '3px',
+                    marginBlock: isActive ? '14px' : '2px',
                   }}
                 >
-                  <div className="flex items-center gap-2.5">
-                    {/* Active subtle accent beam */}
-                    {isActive && (
-                      <span
-                        className="w-1.5 h-6 rounded-full bg-[var(--spotify-glow,#22d3ee)] shadow-[0_0_12px_var(--theme-glow-shadow,#22d3ee)] shrink-0 animate-in fade-in zoom-in-75 duration-300"
-                      />
-                    )}
-                    <p
-                      className={`leading-snug transition-all duration-400 ${
-                        isActive
-                          ? 'text-2xl sm:text-3xl md:text-4xl lg:text-[2.6rem] font-black text-white bg-clip-text bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] via-white to-[var(--primary-spotify,#06b6d4)]'
-                          : distance === 1
-                            ? 'text-lg sm:text-xl md:text-2xl font-bold text-slate-200 group-hover/line:text-white'
-                            : distance === 2
-                              ? 'text-base sm:text-lg md:text-xl font-semibold text-slate-400 group-hover/line:text-slate-200'
-                              : 'text-base sm:text-lg md:text-xl font-medium text-slate-500 group-hover/line:text-slate-300'
-                      }`}
-                    >
-                      {line.text}
-                    </p>
-                  </div>
+                  <p
+                    className={`leading-snug transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                      isActive
+                        ? 'text-2xl sm:text-3xl md:text-4xl lg:text-[2.65rem] font-black text-white bg-clip-text bg-gradient-to-r from-white via-cyan-100 to-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]'
+                        : distance === 1
+                          ? 'text-lg sm:text-xl md:text-2xl font-bold text-slate-100 group-hover/line:text-white'
+                          : distance === 2
+                            ? 'text-base sm:text-lg md:text-xl font-semibold text-slate-300 group-hover/line:text-slate-100'
+                            : 'text-base sm:text-lg md:text-xl font-medium text-slate-400 group-hover/line:text-slate-200'
+                    }`}
+                  >
+                    {line.text}
+                  </p>
                 </div>
               )
             })}
