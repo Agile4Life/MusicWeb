@@ -10,7 +10,7 @@ import { CustomCursor } from '@/components/theme/CustomCursor'
 
 const spaceGrotesk = Space_Grotesk({
   variable: '--font-space-grotesk',
-  subsets: ['latin', 'vietnamese'],
+  subsets: ['latin', 'latin-ext'],
   weight: ['600', '700'],
   display: 'swap',
 })
@@ -24,7 +24,7 @@ const inter = Inter({
 
 const jetbrainsMono = JetBrains_Mono({
   variable: '--font-jetbrains-mono',
-  subsets: ['latin', 'vietnamese'],
+  subsets: ['latin'],
   weight: ['400', '500'],
   display: 'swap',
 })

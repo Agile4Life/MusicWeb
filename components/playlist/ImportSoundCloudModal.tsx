@@ -40,12 +40,14 @@ function formatSeconds(secs: number): string {
   return `${m}:${s < 10 ? '0' : ''}${s}`
 }
 
+const EMPTY_TRACKS: Track[] = []
+
 export function ImportSoundCloudModal({
   isOpen,
   onClose,
   initialUrl = '',
   initialPlaylist = null,
-  initialTracks = [],
+  initialTracks = EMPTY_TRACKS,
 }: ImportSoundCloudModalProps) {
   const router = useRouter()
   const supabase = createClient()
@@ -71,10 +73,11 @@ export function ImportSoundCloudModal({
   const [importingProgress, setImportingProgress] = useState({ done: 0, total: 0 })
   const [importedTrackCount, setImportedTrackCount] = useState(0)
   const [createdPlaylistId, setCreatedPlaylistId] = useState<string | null>(null)
+  const prevIsOpenRef = useRef(false)
 
-  // Reset / sync modal state on open/close
+  // Reset / sync modal state only on transition from closed to open
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevIsOpenRef.current) {
       if (initialPlaylist && initialTracks.length > 0) {
         setPlaylistMeta(initialPlaylist)
         setFetchedTracks(initialTracks)
@@ -96,19 +99,8 @@ export function ImportSoundCloudModal({
       setImportingProgress({ done: 0, total: 0 })
       setImportedTrackCount(0)
       setCreatedPlaylistId(null)
-    } else {
-      setStep('input')
-      setUrlInput('')
-      setInputError(null)
-      setLoadingMeta(false)
-      setPlaylistMeta(null)
-      setFetchedTracks([])
-      setSelectedTrackIds(new Set())
-      setPlaylistName('')
-      setImportingProgress({ done: 0, total: 0 })
-      setImportedTrackCount(0)
-      setCreatedPlaylistId(null)
     }
+    prevIsOpenRef.current = isOpen
   }, [isOpen, initialPlaylist, initialTracks, initialUrl])
 
   if (!isOpen) return null

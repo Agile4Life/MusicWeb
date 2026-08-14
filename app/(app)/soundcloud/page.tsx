@@ -319,12 +319,12 @@ export default function SoundCloudPage() {
           value={searchQuery}
           onChange={handleSearchChange}
           placeholder="Dán link SoundCloud (bài hát / playlist / cá nhân) hoặc nhập tên bài hát, playlist, nghệ sĩ..."
-          className="w-full bg-white/[0.04] hover:bg-white/[0.07] focus:bg-white/[0.09] border border-white/10 focus:border-[#ff5500]/50 rounded-2xl pl-11 pr-10 py-3 text-xs sm:text-sm text-white placeholder-slate-400 outline-none transition-all shadow-inner"
+          className="w-full bg-white/[0.04] hover:bg-white/[0.07] focus:bg-white/[0.09] border border-white/10 focus:border-[var(--spotify-glow,#22d3ee)] focus:ring-1 focus:ring-[var(--spotify-glow,#22d3ee)]/40 rounded-2xl pl-11 pr-10 py-3 text-xs sm:text-sm text-white placeholder-slate-400 outline-none transition-all shadow-inner"
         />
         {searchQuery && (
           <button
             onClick={handleClearSearch}
-            className="absolute right-3.5 top-3 text-slate-400 hover:text-white p-0.5 rounded-full hover:bg-white/10"
+            className="absolute right-3.5 top-3 text-slate-400 hover:text-white p-0.5 rounded-full hover:bg-white/10 cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -340,7 +340,7 @@ export default function SoundCloudPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-200 shrink-0 border flex items-center gap-1.5 ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-200 shrink-0 border flex items-center gap-1.5 cursor-pointer ${
                   isActive
                     ? 'bg-[#ff5500] text-white border-transparent shadow-[0_4px_14px_rgba(255,85,0,0.4)] scale-105'
                     : 'bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border-white/10 hover:border-white/20'
@@ -363,7 +363,7 @@ export default function SoundCloudPage() {
         <div className="flex flex-col gap-3.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-[#ff5500]/15 text-[#ff7700] border border-[#ff5500]/30">
+              <div className="p-1.5 rounded-lg bg-[var(--spotify-glow,#22d3ee)]/15 text-[var(--spotify-glow,#22d3ee)] border border-[var(--spotify-glow,#22d3ee)]/30">
                 <Disc className="w-4 h-4" />
               </div>
               <h2 className="text-base sm:text-lg font-black text-white tracking-tight">
@@ -393,7 +393,7 @@ export default function SoundCloudPage() {
                 <div
                   key={pl.id}
                   onClick={() => handleSelectPlaylist(pl)}
-                  className="glass-panel group relative rounded-2xl p-3 border border-white/10 hover:border-[#ff5500]/40 transition-all duration-300 hover:shadow-[0_10px_25px_rgba(255,85,0,0.15)] flex flex-col gap-2.5 cursor-pointer bg-white/[0.02] hover:bg-white/[0.05]"
+                  className="glass-panel group relative rounded-2xl p-3 border border-white/10 hover:border-[var(--spotify-glow,#22d3ee)]/40 transition-all duration-300 hover:shadow-[0_10px_25px_var(--theme-glow-shadow,rgba(34,211,238,0.15))] flex flex-col gap-2.5 cursor-pointer bg-white/[0.02] hover:bg-white/[0.05]"
                 >
                   {/* Artwork Box */}
                   <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-slate-900 border border-white/10">
@@ -417,7 +417,7 @@ export default function SoundCloudPage() {
                     {/* Quick Play Button on Hover */}
                     <button
                       onClick={(e) => handlePlayPlaylist(e, pl)}
-                      className="absolute bottom-2.5 right-2.5 w-10 h-10 rounded-full bg-gradient-to-r from-[#ff7700] to-[#ff3300] text-white flex items-center justify-center shadow-lg transition-all duration-300 opacity-0 group-hover:opacity-100 hover:scale-110 active:scale-95 border border-white/20"
+                      className="absolute bottom-2.5 right-2.5 w-10 h-10 rounded-full bg-gradient-to-r from-[#ff7700] to-[#ff3300] text-white flex items-center justify-center shadow-lg transition-all duration-300 opacity-0 group-hover:opacity-100 hover:scale-110 active:scale-95 border border-white/20 cursor-pointer"
                       title="Phát playlist này"
                     >
                       <Play className="w-4 h-4 fill-current ml-0.5" />
@@ -426,7 +426,7 @@ export default function SoundCloudPage() {
 
                   {/* Playlist Metadata */}
                   <div className="flex flex-col min-w-0">
-                    <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-[#ff7700] truncate transition-colors">
+                    <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-[var(--spotify-glow,#22d3ee)] truncate transition-colors">
                       {pl.title}
                     </h3>
                     <div className="flex items-center gap-1.5 mt-0.5">
@@ -515,7 +515,7 @@ export default function SoundCloudPage() {
       <div className="flex flex-col gap-3.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-[#ff5500]/15 text-[#ff7700] border border-[#ff5500]/30">
+            <div className="p-1.5 rounded-lg bg-[var(--spotify-glow,#22d3ee)]/15 text-[var(--spotify-glow,#22d3ee)] border border-[var(--spotify-glow,#22d3ee)]/30">
               <Flame className="w-4 h-4" />
             </div>
             <h2 className="text-base sm:text-lg font-black text-white tracking-tight">
@@ -561,16 +561,16 @@ export default function SoundCloudPage() {
                   <button
                     onClick={handleLoadMore}
                     disabled={loadingMore}
-                    className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-white/[0.06] hover:bg-[#ff5500]/20 border border-white/10 hover:border-[#ff5500]/40 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50 hover:text-[#ff7700]"
+                    className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-white/[0.06] hover:bg-[var(--spotify-glow,#22d3ee)]/15 border border-white/10 hover:border-[var(--spotify-glow,#22d3ee)]/40 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50 hover:text-[var(--spotify-glow,#22d3ee)] cursor-pointer"
                   >
                     {loadingMore ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin text-[#ff7700]" />
+                        <Loader2 className="w-4 h-4 animate-spin text-[var(--spotify-glow,#22d3ee)]" />
                         <span>Đang tải thêm...</span>
                       </>
                     ) : (
                       <>
-                        <ChevronDown className="w-4 h-4 text-[#ff7700]" />
+                        <ChevronDown className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
                         <span>Tải thêm 50 bài hát khác</span>
                       </>
                     )}

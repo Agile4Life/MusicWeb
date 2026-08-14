@@ -33,6 +33,7 @@ import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { ImportSpotifyModal } from '@/components/playlist/ImportSpotifyModal'
 import { ImportYouTubePlaylistModal } from '@/components/playlist/ImportYouTubePlaylistModal'
+import { ImportSoundCloudModal } from '@/components/playlist/ImportSoundCloudModal'
 import { YoutubeIcon } from '@/components/icons/YoutubeIcon'
 import { shouldCloseProfileMenu, shouldToggleProfileMenu } from './profileMenuInteraction'
 
@@ -47,6 +48,7 @@ export function MobileHeaderNav() {
   const { clearSearch } = useSearch()
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [isYtImportModalOpen, setIsYtImportModalOpen] = useState(false)
+  const [isScImportModalOpen, setIsScImportModalOpen] = useState(false)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [touchStartX, setTouchStartX] = useState<number | null>(null)
@@ -446,6 +448,16 @@ export function MobileHeaderNav() {
                     >
                       <YoutubeIcon className="w-3.5 h-3.5" />
                     </button>
+                    <button
+                      onClick={() => {
+                        setIsDrawerOpen(false)
+                        setIsScImportModalOpen(true)
+                      }}
+                      className="w-7 h-7 rounded-lg text-[#ff7700] hover:text-[#ff5500] hover:bg-[#ff5500]/20 flex items-center justify-center transition-all"
+                      title="Nhập Playlist từ SoundCloud"
+                    >
+                      <Cloud className="w-3.5 h-3.5" />
+                    </button>
                     <div className="w-[1px] h-3 bg-white/10 my-auto mx-0.5" />
                     <button
                       onClick={handleCreatePlaylist}
@@ -553,6 +565,10 @@ export function MobileHeaderNav() {
       <ImportYouTubePlaylistModal
         isOpen={isYtImportModalOpen}
         onClose={() => setIsYtImportModalOpen(false)}
+      />
+      <ImportSoundCloudModal
+        isOpen={isScImportModalOpen}
+        onClose={() => setIsScImportModalOpen(false)}
       />
     </>
   )
