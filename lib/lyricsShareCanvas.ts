@@ -291,29 +291,34 @@ export function calculateCompactCardHeight(
 }
 
 /**
- * Render compact high-res Story-width card to HTML5 Canvas (1080 x Dynamic Compact Height)
- * - Gentle smooth rounded corners (border radius)
- * - Sleek glassmorphic accent border
- * - Rich ambient album artwork glow
+ * Render Full 9:16 Instagram Story Canvas (1080 x 1920)
+ * - 100% Full-bleed ambient backdrop (fills Instagram Story screen seamlessly)
+ * - Floating 3D Rounded Acrylic Card in the center with realistic elevation drop shadow
+ * - Zero black corner triangles & Zero rectangular cropping
  */
 export async function renderLyricCardToCanvas(
   options: GenerateCardOptions
 ): Promise<HTMLCanvasElement> {
   const width = 1080
+  const height = 1920
   const theme = getThemeById(options.themeId)
   const lines = options.selectedLines.slice(0, 5) // max 5 contiguous lines
 
   const fontSize = calculateOptimalFontSize(lines)
   const lineHeight = Math.round(fontSize * 1.55)
 
-  // 1. Measure and wrap lyrics lines first to calculate exact tailored height
+  // 1. Measure and wrap lyrics lines inside the 920px floating card
+  const cardWidth = 920
+  const cardX = (width - cardWidth) / 2 // 80px horizontal margin
+  const cardRadius = 40
+
   const measureCanvas = document.createElement('canvas')
   const measureCtx = measureCanvas.getContext('2d')
   if (measureCtx) {
     measureCtx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`
   }
 
-  const maxTextWidth = 860 // 110px safe horizontal margins on 1080px width
+  const maxTextWidth = cardWidth - 120 // 60px padding on each side inside card
   const renderedLineList: string[] = []
 
   for (const rawLine of lines) {
@@ -325,15 +330,14 @@ export async function renderLyricCardToCanvas(
     }
   }
 
-  const lyricsStartY = 460
-  const height = calculateCompactCardHeight(
-    renderedLineList.length,
-    fontSize,
-    lyricsStartY,
-    110
-  )
+  // Calculate dynamic card height tailored to lyrics line count
+  const cardHeaderHeight = 410
+  const totalLyricsHeight = Math.max(1, renderedLineList.length) * lineHeight
+  const cardBottomPadding = 80
+  const cardHeight = Math.min(1380, Math.max(680, Math.round(cardHeaderHeight + totalLyricsHeight + cardBottomPadding)))
+  const cardY = Math.round((height - cardHeight) / 2) // Perfect vertical center
 
-  // 2. Initialize Canvas with 1080 width and perfectly fitted compact height
+  // 2. Initialize Canvas with standard 9:16 Story resolution (1080 x 1920)
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
@@ -351,70 +355,58 @@ export async function renderLyricCardToCanvas(
   coverImg = loadedCover
   logoImg = loadedLogo
 
-  // 5. 🎨 Render Background by Category (Cover Artwork, Gradient, or Solid)
+  // 4. 🎨 Render Full-Bleed 9:16 Story Ambient Background (Zero black corners anywhere)
   if (theme.category === 'solid') {
     // ⚫ Solid Minimalist Background (Pure Black OLED or Ruby Red)
     ctx.fillStyle = theme.solidColor || theme.background[0]
     ctx.fillRect(0, 0, width, height)
 
-    // Subtle soft ambient glow for depth
+    // Ambient radial glow in center
+    const solidGlow = ctx.createRadialGradient(
+      width * 0.5,
+      height * 0.5,
+      50,
+      width * 0.5,
+      height * 0.5,
+      width * 0.8
+    )
     if (theme.id === 'solid-red') {
-      const redGlow = ctx.createRadialGradient(
-        width * 0.5,
-        height * 0.35,
-        20,
-        width * 0.5,
-        height * 0.35,
-        width * 0.7
-      )
-      redGlow.addColorStop(0, 'rgba(239, 68, 68, 0.25)')
-      redGlow.addColorStop(1, 'transparent')
-      ctx.fillStyle = redGlow
-      ctx.fillRect(0, 0, width, height)
+      solidGlow.addColorStop(0, 'rgba(239, 68, 68, 0.30)')
+      solidGlow.addColorStop(1, 'transparent')
+    } else {
+      solidGlow.addColorStop(0, 'rgba(255, 255, 255, 0.04)')
+      solidGlow.addColorStop(1, 'transparent')
     }
-
-    // Top delicate specular shine
-    const topShine = ctx.createLinearGradient(0, 0, 0, 140)
-    topShine.addColorStop(0, 'rgba(255, 255, 255, 0.08)')
-    topShine.addColorStop(1, 'rgba(255, 255, 255, 0.0)')
-    ctx.fillStyle = topShine
-    ctx.fillRect(0, 0, width, 140)
+    ctx.fillStyle = solidGlow
+    ctx.fillRect(0, 0, width, height)
   } else if (theme.category === 'cover') {
-    // 🖼️ Cover Artwork Backdrop (Rich blurred album art with dynamic contrast)
+    // 🖼️ Full 9:16 Cover Artwork Backdrop (Rich blurred album art with dynamic contrast)
     ctx.fillStyle = '#06080d'
     ctx.fillRect(0, 0, width, height)
 
     if (coverImg) {
       ctx.save()
-      ctx.globalAlpha = 0.65
-      ctx.filter = 'blur(45px)'
-      ctx.drawImage(coverImg, -80, -60, width + 160, height + 120)
+      ctx.globalAlpha = 0.55
+      ctx.filter = 'blur(60px)'
+      ctx.drawImage(coverImg, -100, -100, width + 200, height + 200)
       ctx.restore()
 
       // High-contrast readable scrim gradient overlay
       const scrim = ctx.createLinearGradient(0, 0, 0, height)
-      scrim.addColorStop(0, 'rgba(0, 0, 0, 0.45)')
-      scrim.addColorStop(0.45, 'rgba(0, 0, 0, 0.68)')
-      scrim.addColorStop(1, 'rgba(0, 0, 0, 0.88)')
+      scrim.addColorStop(0, 'rgba(0, 0, 0, 0.50)')
+      scrim.addColorStop(0.5, 'rgba(0, 0, 0, 0.40)')
+      scrim.addColorStop(1, 'rgba(0, 0, 0, 0.80)')
       ctx.fillStyle = scrim
       ctx.fillRect(0, 0, width, height)
     } else {
-      // Fallback dark gradient if no cover image
       const fallbackGrad = ctx.createLinearGradient(0, 0, width, height)
       fallbackGrad.addColorStop(0, '#1e293b')
       fallbackGrad.addColorStop(1, '#07090e')
       ctx.fillStyle = fallbackGrad
       ctx.fillRect(0, 0, width, height)
     }
-
-    // Top soft shine
-    const topShine = ctx.createLinearGradient(0, 0, 0, 120)
-    topShine.addColorStop(0, 'rgba(255, 255, 255, 0.15)')
-    topShine.addColorStop(1, 'rgba(255, 255, 255, 0.0)')
-    ctx.fillStyle = topShine
-    ctx.fillRect(0, 0, width, 120)
   } else {
-    // 🌈 Multi-layer Vibrant Gradient
+    // 🌈 Multi-layer Vibrant 9:16 Gradient
     const bgGrad = ctx.createLinearGradient(0, 0, width, height)
     bgGrad.addColorStop(0, theme.background[0])
     bgGrad.addColorStop(0.45, theme.background[1])
@@ -425,57 +417,73 @@ export async function renderLyricCardToCanvas(
     if (coverImg) {
       ctx.save()
       ctx.globalAlpha = 0.32
-      ctx.filter = 'blur(60px)'
+      ctx.filter = 'blur(75px)'
       ctx.drawImage(coverImg, -120, -100, width + 240, height + 200)
       ctx.restore()
     }
 
-    // Radial ambient glow orbs centered on the card
+    // Radial ambient glow orbs centered on the screen
     const radialGlow = ctx.createRadialGradient(
       width * 0.5,
-      height * 0.32,
-      30,
+      height * 0.48,
+      40,
       width * 0.5,
-      height * 0.32,
-      width * 0.75
+      height * 0.48,
+      width * 0.85
     )
-    radialGlow.addColorStop(0, `${theme.accentColor}44`)
-    radialGlow.addColorStop(0.55, `${theme.background[1]}30`)
+    radialGlow.addColorStop(0, `${theme.accentColor}40`)
+    radialGlow.addColorStop(0.6, `${theme.background[1]}25`)
     radialGlow.addColorStop(1, 'transparent')
     ctx.fillStyle = radialGlow
     ctx.fillRect(0, 0, width, height)
-
-    // Secondary soft glow at bottom right
-    const secondaryGlow = ctx.createRadialGradient(
-      width * 0.8,
-      height * 0.75,
-      20,
-      width * 0.8,
-      height * 0.75,
-      width * 0.55
-    )
-    secondaryGlow.addColorStop(0, `${theme.accentColor}25`)
-    secondaryGlow.addColorStop(1, 'transparent')
-    ctx.fillStyle = secondaryGlow
-    ctx.fillRect(0, 0, width, height)
-
-    // Top subtle specular lighting
-    const topShine = ctx.createLinearGradient(0, 0, 0, 100)
-    topShine.addColorStop(0, 'rgba(255, 255, 255, 0.14)')
-    topShine.addColorStop(1, 'rgba(255, 255, 255, 0.0)')
-    ctx.fillStyle = topShine
-    ctx.fillRect(0, 0, width, 100)
   }
 
-  // 6. 🌟 Draw Brand Logo Mini Glass Plaque (Matching web header style)
-  const plaqueWidth = 320
-  const plaqueHeight = 72
-  const plaqueRadius = 22
-  const plaqueX = (width - plaqueWidth) / 2
-  const plaqueY = 65
+  // 5. 🌟 Draw Floating 3D Elevated Rounded Card (Center of Story)
+  // Drop Shadow for Fake 3D Elevation
+  ctx.save()
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.75)'
+  ctx.shadowBlur = 55
+  ctx.shadowOffsetY = 24
+  ctx.fillStyle = theme.category === 'solid'
+    ? (theme.id === 'solid-red' ? '#35060d' : '#08080a')
+    : 'rgba(8, 12, 20, 0.76)'
+  drawRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, cardRadius)
+  ctx.fill()
+  ctx.restore()
+
+  // Card Glass Surface (Clipped inside rounded card)
+  ctx.save()
+  drawRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, cardRadius)
+  ctx.clip()
+
+  // Inner Glass Gradient Surface
+  const cardSurfaceGrad = ctx.createLinearGradient(cardX, cardY, cardX, cardY + cardHeight)
+  if (theme.category === 'solid') {
+    cardSurfaceGrad.addColorStop(0, theme.id === 'solid-red' ? '#4a0812' : '#0d0f17')
+    cardSurfaceGrad.addColorStop(1, theme.id === 'solid-red' ? '#2b0409' : '#050608')
+  } else {
+    cardSurfaceGrad.addColorStop(0, 'rgba(255, 255, 255, 0.09)')
+    cardSurfaceGrad.addColorStop(0.35, 'rgba(255, 255, 255, 0.02)')
+    cardSurfaceGrad.addColorStop(1, 'rgba(0, 0, 0, 0.40)')
+  }
+  ctx.fillStyle = cardSurfaceGrad
+  ctx.fillRect(cardX, cardY, cardWidth, cardHeight)
+
+  // Card Top Specular Highlight
+  const topShine = ctx.createLinearGradient(cardX, cardY, cardX, cardY + 110)
+  topShine.addColorStop(0, 'rgba(255, 255, 255, 0.16)')
+  topShine.addColorStop(1, 'rgba(255, 255, 255, 0.0)')
+  ctx.fillStyle = topShine
+  ctx.fillRect(cardX, cardY, cardWidth, 110)
+
+  // 6. 🌟 Draw Brand Logo Mini Glass Plaque inside Card
+  const plaqueWidth = 280
+  const plaqueHeight = 64
+  const plaqueRadius = 18
+  const plaqueX = cardX + (cardWidth - plaqueWidth) / 2
+  const plaqueY = cardY + 42
 
   ctx.save()
-  // Outer Plaque Backdrop
   drawRoundedRect(ctx, plaqueX, plaqueY, plaqueWidth, plaqueHeight, plaqueRadius)
   const plaqueBgGrad = ctx.createLinearGradient(
     plaqueX,
@@ -488,34 +496,20 @@ export async function renderLyricCardToCanvas(
   ctx.fillStyle = plaqueBgGrad
   ctx.fill()
 
-  // Inner subtle top shine
-  const shineGrad = ctx.createLinearGradient(plaqueX, plaqueY, plaqueX, plaqueY + 32)
-  shineGrad.addColorStop(0, 'rgba(255, 255, 255, 0.18)')
-  shineGrad.addColorStop(1, 'rgba(255, 255, 255, 0.0)')
-  drawRoundedRect(ctx, plaqueX, plaqueY, plaqueWidth, 32, plaqueRadius)
-  ctx.fillStyle = shineGrad
-  ctx.fill()
-
   // Plaque Border with theme accent tone
   drawRoundedRect(ctx, plaqueX, plaqueY, plaqueWidth, plaqueHeight, plaqueRadius)
   ctx.strokeStyle = `${theme.accentColor}44`
   ctx.lineWidth = 1.5
   ctx.stroke()
 
-  // Secondary soft white outline
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'
-  ctx.lineWidth = 1
-  ctx.stroke()
-
   // Draw Logo inside Plaque (100% white compositing)
   if (logoImg && logoImg.width > 0 && logoImg.height > 0) {
-    const logoHeight = 48
+    const logoHeight = 40
     const aspect = logoImg.width / logoImg.height
     const logoWidth = Math.min(plaqueWidth - 40, logoHeight * aspect)
-    const logoX = (width - logoWidth) / 2
+    const logoX = cardX + (cardWidth - logoWidth) / 2
     const logoY = plaqueY + (plaqueHeight - logoHeight) / 2
 
-    // Create 100% reliable pure white tinted image canvas
     const whiteCanvas = document.createElement('canvas')
     whiteCanvas.width = Math.round(logoWidth)
     whiteCanvas.height = Math.round(logoHeight)
@@ -527,43 +521,37 @@ export async function renderLyricCardToCanvas(
       whiteCtx.fillRect(0, 0, whiteCanvas.width, whiteCanvas.height)
     }
 
-    // Pass 1: Luminous theme neon glow
     ctx.save()
     ctx.shadowColor = theme.accentColor
-    ctx.shadowBlur = 18
+    ctx.shadowBlur = 16
     ctx.drawImage(whiteCanvas, logoX, logoY)
     ctx.restore()
 
-    // Pass 2: High-contrast pure white crisp signature
     ctx.save()
     ctx.shadowColor = 'rgba(255, 255, 255, 0.9)'
-    ctx.shadowBlur = 6
+    ctx.shadowBlur = 5
     ctx.drawImage(whiteCanvas, logoX, logoY)
     ctx.restore()
   } else {
-    // Elegant fallback brand text
-    ctx.font = 'bold 26px system-ui, -apple-system, sans-serif'
+    ctx.font = 'bold 24px system-ui, -apple-system, sans-serif'
     ctx.fillStyle = '#ffffff'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.shadowColor = theme.accentColor
-    ctx.shadowBlur = 12
     ctx.fillText('MUSICWEB', width / 2, plaqueY + plaqueHeight / 2)
   }
   ctx.restore()
 
-  // 6. 🎵 Draw Centered Track Metadata (Cover Art + Title + Artist)
-  const coverSize = 145
-  const coverRadius = 24
-  const coverX = (width - coverSize) / 2
-  const coverY = 168
+  // 7. 🎵 Draw Centered Track Metadata (Cover Art + Title + Artist)
+  const coverSize = 135
+  const coverRadius = 22
+  const coverX = cardX + (cardWidth - coverSize) / 2
+  const coverY = cardY + 130
 
-  ctx.save()
   // Cover Shadow
+  ctx.save()
   ctx.shadowColor = 'rgba(0, 0, 0, 0.65)'
-  ctx.shadowBlur = 28
-  ctx.shadowOffsetY = 10
-
+  ctx.shadowBlur = 24
+  ctx.shadowOffsetY = 8
   drawRoundedRect(ctx, coverX, coverY, coverSize, coverSize, coverRadius)
   ctx.fillStyle = '#0f172a'
   ctx.fill()
@@ -573,26 +561,11 @@ export async function renderLyricCardToCanvas(
   ctx.save()
   drawRoundedRect(ctx, coverX, coverY, coverSize, coverSize, coverRadius)
   ctx.clip()
-
   if (coverImg) {
     ctx.drawImage(coverImg, coverX, coverY, coverSize, coverSize)
   } else {
-    const thumbGrad = ctx.createLinearGradient(
-      coverX,
-      coverY,
-      coverX + coverSize,
-      coverY + coverSize
-    )
-    thumbGrad.addColorStop(0, '#1e293b')
-    thumbGrad.addColorStop(1, '#0f172a')
-    ctx.fillStyle = thumbGrad
+    ctx.fillStyle = '#1e293b'
     ctx.fillRect(coverX, coverY, coverSize, coverSize)
-
-    ctx.fillStyle = theme.accentColor
-    ctx.font = 'bold 50px system-ui'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText('♪', coverX + coverSize / 2, coverY + coverSize / 2)
   }
   ctx.restore()
 
@@ -605,11 +578,11 @@ export async function renderLyricCardToCanvas(
   ctx.restore()
 
   // Centered Track Title
-  const maxTitleWidth = 880
+  const maxTitleWidth = cardWidth - 100
   ctx.save()
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.font = 'bold 40px system-ui, -apple-system, sans-serif'
+  ctx.font = 'bold 36px system-ui, -apple-system, sans-serif'
   ctx.fillStyle = '#ffffff'
   ctx.shadowColor = 'rgba(0, 0, 0, 0.6)'
   ctx.shadowBlur = 14
@@ -618,25 +591,25 @@ export async function renderLyricCardToCanvas(
   while (ctx.measureText(displayTitle).width > maxTitleWidth && displayTitle.length > 3) {
     displayTitle = displayTitle.slice(0, -2) + '…'
   }
-  ctx.fillText(displayTitle, width / 2, 352)
+  ctx.fillText(displayTitle, width / 2, cardY + 295)
 
   // Centered Artist
-  ctx.font = '600 27px system-ui, -apple-system, sans-serif'
+  ctx.font = '600 24px system-ui, -apple-system, sans-serif'
   ctx.fillStyle = 'rgba(255, 255, 255, 0.75)'
   let displayArtist = options.artist || 'Nghệ sĩ chưa xác định'
   while (ctx.measureText(displayArtist).width > maxTitleWidth && displayArtist.length > 3) {
     displayArtist = displayArtist.slice(0, -2) + '…'
   }
-  ctx.fillText(displayArtist, width / 2, 394)
+  ctx.fillText(displayArtist, width / 2, cardY + 335)
   ctx.restore()
 
-  // 7. 📜 Draw Lyrics: Centered Block with Left-Aligned Lines
+  // 8. 📜 Draw Lyrics: Centered Block with Left-Aligned Lines
   ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`
   ctx.fillStyle = theme.textColor
 
-  // Measure all rendered line widths
   const lineWidths = renderedLineList.map((l) => ctx.measureText(l).width)
-  const startX = calculateLyricsBlockStartX(lineWidths, width, 110)
+  const startX = calculateLyricsBlockStartX(lineWidths, width, cardX + 50)
+  const lyricsStartY = cardY + 395
   const startY = lyricsStartY + fontSize * 0.85
 
   ctx.save()
@@ -653,30 +626,30 @@ export async function renderLyricCardToCanvas(
   }
   ctx.restore()
 
-  // 8. 🏷️ Subtle Bottom Brand Watermark
-  const footerY = height - 42
+  // 9. 🏷️ Bottom Brand Watermark inside Card
+  const footerY = cardY + cardHeight - 32
   ctx.save()
   ctx.fillStyle = 'rgba(255, 255, 255, 0.45)'
-  ctx.font = '600 23px system-ui, -apple-system, sans-serif'
+  ctx.font = '600 21px system-ui, -apple-system, sans-serif'
   ctx.textAlign = 'center'
-  ctx.fillText('phongtctmusic.vercel.app', width / 2, footerY)
+  ctx.fillText('phongtct.vercel.app', width / 2, footerY)
   ctx.restore()
 
-  // 9. 🔲 Clean Inset Rounded Frame (Full-bleed continuous background, ZERO black corner artifacts)
-  const borderInset = 14
-  const cardRadius = 32
+  // Unclip Card Surface
+  ctx.restore()
+
+  // 10. 🔲 Smooth Glass Border along Card Perimeter
   ctx.save()
-  drawRoundedRect(ctx, borderInset, borderInset, width - borderInset * 2, height - borderInset * 2, cardRadius)
-  ctx.strokeStyle = `${theme.accentColor}60`
+  drawRoundedRect(ctx, cardX + 1.5, cardY + 1.5, cardWidth - 3, cardHeight - 3, cardRadius - 1)
+  ctx.strokeStyle = `${theme.accentColor}75`
   ctx.lineWidth = 2.5
   ctx.stroke()
 
-  drawRoundedRect(ctx, borderInset + 1.5, borderInset + 1.5, width - (borderInset + 1.5) * 2, height - (borderInset + 1.5) * 2, cardRadius - 1.5)
+  drawRoundedRect(ctx, cardX + 3.5, cardY + 3.5, cardWidth - 7, cardHeight - 7, cardRadius - 3)
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.20)'
   ctx.lineWidth = 1.2
   ctx.stroke()
   ctx.restore()
-
   return canvas
 }
 
