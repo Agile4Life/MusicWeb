@@ -318,7 +318,7 @@ export default function AlbumsPage() {
               <HeroCardSkeleton />
             </div>
           ) : searchResults.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-4 lg:gap-5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-4 lg:gap-5">
               {searchResults.map((album, idx) => (
                 <AlbumCard key={album.id} album={album} index={idx} />
               ))}
@@ -348,7 +348,7 @@ export default function AlbumsPage() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-4 lg:gap-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-4 lg:gap-5">
                 {listenedAlbums.map((album, idx) => (
                   <AlbumCard key={album.id} album={album} index={idx} />
                 ))}
@@ -371,7 +371,7 @@ export default function AlbumsPage() {
             </div>
 
             {newReleases.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-4 lg:gap-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-4 lg:gap-5">
                 {newReleases.map((album, idx) => (
                   <AlbumCard key={album.id} album={album} index={idx} />
                 ))}

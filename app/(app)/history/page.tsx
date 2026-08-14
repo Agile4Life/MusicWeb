@@ -9,7 +9,6 @@ import { useSession } from 'next-auth/react'
 import {
   History,
   Play,
-  Pause,
   Trash2,
   Search,
   Sparkles,
@@ -59,7 +58,7 @@ function formatRelativeTime(dateString: string): string {
 export default function HistoryPage() {
   const supabase = createClient()
   const { data: nextAuthSession } = useSession()
-  const { playTrack, togglePlay, currentTrack, isPlaying } = usePlayer()
+  const { playTrack, currentTrack, isPlaying } = usePlayer()
 
   const [historyItems, setHistoryItems] = useState<HistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -275,73 +274,26 @@ export default function HistoryPage() {
         </div>
       ) : filteredItems.length > 0 ? (
         <div className="glass-panel rounded-3xl p-2.5 sm:p-4 md:p-6 border border-white/10 overflow-hidden">
-          <div className="flex flex-col space-y-1">
+          <div className="flex flex-col divide-y divide-white/5">
             {filteredItems.map((item, idx) => {
               const track = item.track
-              const isCurrent = currentTrack?.id === track.id
-              const isPlayingThis = isCurrent && isPlaying
+              const isCurrentPlaying = currentTrack?.id === track.id && isPlaying
 
               return (
                 <div
                   key={item.id}
-                  onClick={() => {
-                    if (isCurrent) {
-                      togglePlay()
-                    } else {
-                      playTrack(track, filteredItems.map((i) => i.track))
-                    }
-                  }}
-                  className={`relative flex items-center justify-between p-2.5 sm:p-3.5 rounded-2xl transition-all duration-200 group gap-2.5 sm:gap-4 cursor-pointer border ${
-                    isCurrent
-                      ? 'bg-[var(--primary-spotify,#06b6d4)]/12 border-[var(--primary-spotify,#06b6d4)]/30 text-white shadow-[0_4px_16px_var(--theme-glow-shadow,rgba(6,182,212,0.18))]'
-                      : 'bg-transparent border-transparent hover:bg-white/[0.07] hover:border-white/10 hover:shadow-md'
-                  }`}
+                  onClick={() => playTrack(track, filteredItems.map((i) => i.track))}
+                  className="flex items-center justify-between p-2.5 sm:p-3 rounded-2xl hover:bg-white/5 transition-all group gap-2.5 sm:gap-4 cursor-pointer"
                 >
-                  {/* Active Left Indicator Bar */}
-                  {isCurrent && (
-                    <div className="absolute left-0 top-2.5 bottom-2.5 w-1 bg-[var(--spotify-glow,#22d3ee)] rounded-r-md shadow-[0_0_10px_var(--spotify-glow,#22d3ee)]" />
-                  )}
-
                   <div className="flex items-center gap-2.5 sm:gap-4 flex-1 min-w-0">
-                    {/* Index & Quick Play/Pause Button */}
-                    <div className="w-6 sm:w-8 shrink-0 flex items-center justify-center text-xs font-mono select-none">
-                      <span className="group-hover:hidden flex items-center justify-center">
-                        {isPlayingThis ? (
-                          <div className="flex items-end justify-center gap-0.5 h-3.5">
-                            <span className="w-0.5 bg-[var(--primary-spotify,#06b6d4)] rounded-full animate-bounce [animation-delay:0.1s]" style={{ height: '12px' }} />
-                            <span className="w-0.5 bg-[var(--primary-spotify,#06b6d4)] rounded-full animate-bounce [animation-delay:0.25s]" style={{ height: '8px' }} />
-                            <span className="w-0.5 bg-[var(--primary-spotify,#06b6d4)] rounded-full animate-bounce [animation-delay:0.15s]" style={{ height: '14px' }} />
-                          </div>
-                        ) : (
-                          <span className={isCurrent ? 'text-[var(--spotify-glow,#22d3ee)] font-bold' : 'text-slate-500'}>
-                            {idx + 1}
-                          </span>
-                        )}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (isCurrent) {
-                            togglePlay()
-                          } else {
-                            playTrack(track, filteredItems.map((i) => i.track))
-                          }
-                        }}
-                        aria-label={isPlayingThis ? 'Tạm dừng' : 'Phát'}
-                        className="hidden group-hover:flex items-center justify-center text-white hover:scale-110 active:scale-95 transition-transform"
-                      >
-                        {isPlayingThis ? (
-                          <Pause className="w-4 h-4 fill-current text-[var(--spotify-glow,#22d3ee)]" />
-                        ) : (
-                          <Play className="w-4 h-4 fill-current text-white" />
-                        )}
-                      </button>
-                    </div>
+                    <span className="text-xs font-mono text-slate-500 w-5 sm:w-6 text-right shrink-0">
+                      {idx + 1}
+                    </span>
 
-                    {/* Cover Thumbnail */}
+                    {/* Play / Cover Thumbnail */}
                     <div
-                      className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center shrink-0 relative overflow-hidden group-hover:shadow-md transition-all group-hover:scale-105"
+                      onClick={() => playTrack(track, filteredItems.map((i) => i.track))}
+                      className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center shrink-0 cursor-pointer relative overflow-hidden group/thumb"
                     >
                       {track.cover_url ? (
                         <img
@@ -353,58 +305,38 @@ export default function HistoryPage() {
                         <Music className="w-5 h-5 text-slate-400" />
                       )}
 
-                      <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-xl">
-                        {isPlayingThis ? (
-                          <Pause className="w-5 h-5 text-white fill-current drop-shadow" />
-                        ) : (
-                          <Play className="w-5 h-5 text-white fill-current drop-shadow" />
-                        )}
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity rounded-xl">
+                        <Play className="w-5 h-5 text-white fill-current" />
                       </div>
                     </div>
 
                     {/* Track Info */}
                     <div className="flex flex-col truncate flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <p
-                          style={isCurrent ? { color: 'var(--spotify-glow, #22d3ee)' } : undefined}
-                          className={`text-xs sm:text-sm font-bold truncate transition-colors group-hover:text-[var(--spotify-glow,#22d3ee)] ${
-                            isCurrent ? '' : 'text-white'
-                          }`}
-                        >
-                          {track.title}
-                        </p>
-                        {track.source === 'soundcloud' && (
-                          <span className="px-1.5 py-0.2 text-[9px] font-black uppercase rounded bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/40 shrink-0">
-                            SoundCloud
-                          </span>
-                        )}
-                        {track.source === 'youtube' && (
-                          <span className="px-1.5 py-0.2 text-[9px] font-black uppercase rounded bg-red-500/20 text-red-400 border border-red-500/40 shrink-0">
-                            YouTube
-                          </span>
-                        )}
-                        {track.source === 'nhaccuatui' && (
-                          <span className="px-1.5 py-0.2 text-[9px] font-black uppercase rounded bg-teal-500/20 text-teal-400 border border-teal-500/40 shrink-0">
-                            NCT
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] sm:text-xs text-slate-400 group-hover:text-slate-300 truncate transition-colors">
+                      <p
+                        onClick={() => playTrack(track, filteredItems.map((i) => i.track))}
+                        style={isCurrentPlaying ? { color: 'var(--spotify-glow, #22d3ee)' } : undefined}
+                        className={`text-xs sm:text-sm font-bold truncate cursor-pointer hover:underline ${
+                          isCurrentPlaying ? '' : 'text-white'
+                        }`}
+                      >
+                        {track.title}
+                      </p>
+                      <p className="text-[11px] sm:text-xs text-slate-400 truncate">
                         {track.artist || 'Nghệ sĩ chưa xác định'}
                       </p>
                     </div>
                   </div>
 
                   {/* Time Ago Badge & Delete Action */}
-                  <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                    <div className="hidden xs:flex items-center gap-1.5 text-[10px] sm:text-[11px] text-slate-400 group-hover:text-slate-200 font-mono bg-white/5 group-hover:bg-white/10 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full border border-white/5 group-hover:border-white/10 transition-all">
+                  <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+                    <div className="hidden xs:flex items-center gap-1.5 text-[10px] sm:text-[11px] text-slate-400 font-mono bg-white/5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full border border-white/5">
                       <Clock style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3 h-3" />
                       <span>{formatRelativeTime(item.played_at)}</span>
                     </div>
 
                     <button
                       onClick={(e) => handleRemoveSingleItem(e, item.id)}
-                      className="opacity-70 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 sm:p-2 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-xl transition-all hover:scale-110 active:scale-95"
+                      className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 sm:p-2 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-xl transition-all"
                       title="Xóa mục này khỏi lịch sử"
                     >
                       <Trash2 className="w-4 h-4" />

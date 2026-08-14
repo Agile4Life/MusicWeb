@@ -11,7 +11,6 @@ import {
   Loader2,
   ChevronDown,
   ArrowLeft,
-  Sparkles,
 } from 'lucide-react'
 import { Track, SoundCloudPlaylist } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
@@ -24,7 +23,6 @@ import { getValidUserId } from '@/lib/accessControl'
 import { addTrackToPlaylist } from '@/lib/trackPersistence'
 import { toast } from '@/components/ui/ToastContext'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
-import { ImportSoundCloudModal } from '@/components/playlist/ImportSoundCloudModal'
 
 const GENRE_TABS = [
   { id: 'all-music', label: 'Tất cả', query: 'vietnam hit' },
@@ -60,7 +58,6 @@ export default function SoundCloudPage() {
   const [loadingPlaylists, setLoadingPlaylists] = useState<boolean>(true)
   const [selectedPlaylist, setSelectedPlaylist] = useState<SoundCloudPlaylist | null>(null)
   const [loadingPlaylistTracks, setLoadingPlaylistTracks] = useState<boolean>(false)
-  const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false)
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -285,15 +282,15 @@ export default function SoundCloudPage() {
   return (
     <div className="p-3.5 sm:p-6 lg:p-8 flex flex-col gap-5 sm:gap-7 max-w-7xl mx-auto w-full pb-36 lg:pb-12 select-none">
       {/* 🌟 SoundCloud Hero Banner */}
-      <div className="relative overflow-hidden rounded-3xl border border-[var(--spotify-glow,#ff5500)]/25 p-5 sm:p-8 bg-gradient-to-br from-[var(--theme-gradient-1,rgba(255,85,0,0.18))] via-[var(--elevation-1-bg,#161113)] to-[var(--bg-space,#0a0d14)] shadow-[0_16px_40px_rgba(0,0,0,0.6),0_0_30px_var(--theme-glow-shadow,rgba(255,85,0,0.15))]">
+      <div className="relative overflow-hidden rounded-3xl border border-[#ff5500]/25 p-5 sm:p-8 bg-gradient-to-br from-[#ff5500]/20 via-[#161113] to-[#0a0d14] shadow-[0_16px_40px_rgba(0,0,0,0.6),0_0_30px_rgba(255,85,0,0.15)]">
         {/* Ambient Glow Orbs */}
-        <div className="absolute -top-24 -right-24 w-80 h-80 bg-[var(--theme-gradient-1,rgba(255,85,0,0.2))] rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-[var(--theme-gradient-2,rgba(255,119,0,0.15))] rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -right-24 w-80 h-80 bg-[#ff5500]/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-[#ff7700]/15 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
           <div className="flex items-center gap-4 sm:gap-5">
             {/* SoundCloud Flame Cloud Icon */}
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[var(--spotify-glow,#ff7700)] to-[var(--primary-spotify,#ff3300)] flex items-center justify-center text-white shadow-[0_8px_25px_var(--theme-glow-shadow,rgba(255,85,0,0.4))] shrink-0 border border-white/20">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#ff7700] to-[#ff3300] flex items-center justify-center text-white shadow-[0_8px_25px_rgba(255,85,0,0.4)] shrink-0 border border-white/20">
               <Cloud className="w-8 h-8 sm:w-9 sm:h-9 fill-current" />
             </div>
 
@@ -302,7 +299,7 @@ export default function SoundCloudPage() {
                 <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
                   SoundCloud
                 </h1>
-                <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-full bg-[var(--spotify-glow,#ff5500)]/20 text-[var(--spotify-glow,#ff7700)] border border-[var(--spotify-glow,#ff5500)]/40">
+                <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-full bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/40">
                   Full Audio
                 </span>
               </div>
@@ -310,16 +307,6 @@ export default function SoundCloudPage() {
                 Khám phá Top Playlists & Bài hát thịnh hành, bản remix độc quyền, EDM, Vinahouse từ SoundCloud với chất lượng âm thanh nguyên bản.
               </p>
             </div>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0 self-end md:self-center">
-            <button
-              onClick={() => setIsImportModalOpen(true)}
-              className="px-4 py-2.5 rounded-2xl font-bold text-xs text-white bg-white/10 hover:bg-[var(--primary-spotify)]/25 border border-white/15 hover:border-[var(--spotify-glow)]/50 flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-md"
-            >
-              <Sparkles className="w-4 h-4 text-[var(--spotify-glow,#ff7700)]" />
-              <span>Nhập Playlist từ Link</span>
-            </button>
           </div>
         </div>
       </div>
@@ -332,7 +319,7 @@ export default function SoundCloudPage() {
           value={searchQuery}
           onChange={handleSearchChange}
           placeholder="Dán link SoundCloud (bài hát / playlist / cá nhân) hoặc nhập tên bài hát, playlist, nghệ sĩ..."
-          className="w-full bg-white/[0.04] hover:bg-white/[0.07] focus:bg-white/[0.09] border border-white/10 focus:border-[var(--spotify-glow,#ff5500)]/60 rounded-2xl pl-11 pr-10 py-3 text-xs sm:text-sm text-white placeholder-slate-400 outline-none transition-all shadow-inner"
+          className="w-full bg-white/[0.04] hover:bg-white/[0.07] focus:bg-white/[0.09] border border-white/10 focus:border-[#ff5500]/50 rounded-2xl pl-11 pr-10 py-3 text-xs sm:text-sm text-white placeholder-slate-400 outline-none transition-all shadow-inner"
         />
         {searchQuery && (
           <button
@@ -355,7 +342,7 @@ export default function SoundCloudPage() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-200 shrink-0 border flex items-center gap-1.5 ${
                   isActive
-                    ? 'bg-gradient-to-r from-[var(--spotify-glow,#ff7700)] to-[var(--primary-spotify,#ff5500)] text-black border-transparent shadow-[0_4px_14px_var(--theme-glow-shadow,rgba(255,85,0,0.4))] scale-105 font-extrabold'
+                    ? 'bg-[#ff5500] text-white border-transparent shadow-[0_4px_14px_rgba(255,85,0,0.4)] scale-105'
                     : 'bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border-white/10 hover:border-white/20'
                 }`}
               >
@@ -376,7 +363,7 @@ export default function SoundCloudPage() {
         <div className="flex flex-col gap-3.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-[var(--spotify-glow,#ff5500)]/15 text-[var(--spotify-glow,#ff7700)] border border-[var(--spotify-glow,#ff5500)]/30">
+              <div className="p-1.5 rounded-lg bg-[#ff5500]/15 text-[#ff7700] border border-[#ff5500]/30">
                 <Disc className="w-4 h-4" />
               </div>
               <h2 className="text-base sm:text-lg font-black text-white tracking-tight">
@@ -391,8 +378,8 @@ export default function SoundCloudPage() {
           </div>
 
           {loadingPlaylists ? (
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4">
-              {[...Array(5)].map((_, i) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+              {[...Array(4)].map((_, i) => (
                 <div key={i} className="animate-pulse bg-white/5 rounded-2xl p-3 flex flex-col gap-3">
                   <div className="w-full aspect-square rounded-xl bg-white/10" />
                   <div className="h-4 bg-white/10 rounded w-3/4" />
@@ -401,12 +388,12 @@ export default function SoundCloudPage() {
               ))}
             </div>
           ) : playlists.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
               {playlists.map((pl) => (
                 <div
                   key={pl.id}
                   onClick={() => handleSelectPlaylist(pl)}
-                  className="glass-panel group relative rounded-2xl p-3 border border-white/10 hover:border-[var(--spotify-glow,#ff5500)]/40 transition-all duration-300 hover:shadow-[0_10px_25px_var(--theme-glow-shadow,rgba(255,85,0,0.15))] flex flex-col gap-2.5 cursor-pointer bg-white/[0.02] hover:bg-white/[0.05]"
+                  className="glass-panel group relative rounded-2xl p-3 border border-white/10 hover:border-[#ff5500]/40 transition-all duration-300 hover:shadow-[0_10px_25px_rgba(255,85,0,0.15)] flex flex-col gap-2.5 cursor-pointer bg-white/[0.02] hover:bg-white/[0.05]"
                 >
                   {/* Artwork Box */}
                   <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-slate-900 border border-white/10">
@@ -417,8 +404,8 @@ export default function SoundCloudPage() {
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[var(--spotify-glow,#ff5500)]/20 to-slate-900 text-slate-500">
-                        <Disc className="w-10 h-10 text-[var(--spotify-glow,#ff7700)]/50" />
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#ff5500]/20 to-slate-900 text-slate-500">
+                        <Disc className="w-10 h-10 text-[#ff7700]/50" />
                       </div>
                     )}
 
@@ -430,7 +417,7 @@ export default function SoundCloudPage() {
                     {/* Quick Play Button on Hover */}
                     <button
                       onClick={(e) => handlePlayPlaylist(e, pl)}
-                      className="absolute bottom-2.5 right-2.5 w-10 h-10 rounded-full bg-gradient-to-r from-[var(--spotify-glow,#ff7700)] to-[var(--primary-spotify,#ff3300)] text-black flex items-center justify-center shadow-lg transition-all duration-300 opacity-0 group-hover:opacity-100 hover:scale-110 active:scale-95 border border-white/20"
+                      className="absolute bottom-2.5 right-2.5 w-10 h-10 rounded-full bg-gradient-to-r from-[#ff7700] to-[#ff3300] text-white flex items-center justify-center shadow-lg transition-all duration-300 opacity-0 group-hover:opacity-100 hover:scale-110 active:scale-95 border border-white/20"
                       title="Phát playlist này"
                     >
                       <Play className="w-4 h-4 fill-current ml-0.5" />
@@ -439,7 +426,7 @@ export default function SoundCloudPage() {
 
                   {/* Playlist Metadata */}
                   <div className="flex flex-col min-w-0">
-                    <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-[var(--spotify-glow,#ff7700)] truncate transition-colors">
+                    <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-[#ff7700] truncate transition-colors">
                       {pl.title}
                     </h3>
                     <div className="flex items-center gap-1.5 mt-0.5">
@@ -480,7 +467,7 @@ export default function SoundCloudPage() {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-[var(--spotify-glow,#ff5500)]/20 text-[var(--spotify-glow,#ff7700)]">
+                <div className="w-full h-full flex items-center justify-center bg-[#ff5500]/20 text-[#ff7700]">
                   <Disc className="w-7 h-7" />
                 </div>
               )}
@@ -488,7 +475,7 @@ export default function SoundCloudPage() {
 
             <div className="flex flex-col gap-0.5">
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.2 text-[9px] font-black uppercase rounded bg-[var(--spotify-glow,#ff5500)]/20 text-[var(--spotify-glow,#ff7700)] border border-[var(--spotify-glow,#ff5500)]/40">
+                <span className="px-2 py-0.2 text-[9px] font-black uppercase rounded bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/40">
                   Playlist
                 </span>
                 <span className="text-xs text-slate-400">
@@ -506,23 +493,13 @@ export default function SoundCloudPage() {
 
           <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
             {tracks.length > 0 && (
-              <>
-                <button
-                  onClick={() => setIsImportModalOpen(true)}
-                  className="px-4 py-2 rounded-full font-bold text-xs text-white flex items-center gap-1.5 bg-white/10 hover:bg-[var(--primary-spotify)]/25 border border-white/15 hover:border-[var(--spotify-glow)]/50 shadow-sm hover:scale-105 active:scale-95 transition-all"
-                  title="Nhập toàn bộ bài hát trong playlist này vào thư viện của bạn"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-[var(--spotify-glow,#ff7700)]" />
-                  <span>Lưu vào Thư viện</span>
-                </button>
-                <button
-                  onClick={handlePlayAll}
-                  className="px-4 py-2 rounded-full font-bold text-xs text-black flex items-center gap-2 bg-gradient-to-r from-[var(--spotify-glow,#ff7700)] to-[var(--primary-spotify,#ff3300)] shadow-md hover:scale-105 active:scale-95 transition-all"
-                >
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>Phát Playlist</span>
-                </button>
-              </>
+              <button
+                onClick={handlePlayAll}
+                className="px-4 py-2 rounded-full font-bold text-xs text-white flex items-center gap-2 bg-gradient-to-r from-[#ff7700] to-[#ff3300] shadow-md hover:scale-105 active:scale-95 transition-all"
+              >
+                <Play className="w-3.5 h-3.5 fill-current" />
+                <span>Phát Playlist</span>
+              </button>
             )}
             <button
               onClick={handleBackToExplore}
@@ -538,7 +515,7 @@ export default function SoundCloudPage() {
       <div className="flex flex-col gap-3.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-[var(--spotify-glow,#ff5500)]/15 text-[var(--spotify-glow,#ff7700)] border border-[var(--spotify-glow,#ff5500)]/30">
+            <div className="p-1.5 rounded-lg bg-[#ff5500]/15 text-[#ff7700] border border-[#ff5500]/30">
               <Flame className="w-4 h-4" />
             </div>
             <h2 className="text-base sm:text-lg font-black text-white tracking-tight">
@@ -584,16 +561,16 @@ export default function SoundCloudPage() {
                   <button
                     onClick={handleLoadMore}
                     disabled={loadingMore}
-                    className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-white/[0.06] hover:bg-[var(--primary-spotify)]/20 border border-white/10 hover:border-[var(--spotify-glow)]/40 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50 hover:text-[var(--spotify-glow)]"
+                    className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-white/[0.06] hover:bg-[#ff5500]/20 border border-white/10 hover:border-[#ff5500]/40 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50 hover:text-[#ff7700]"
                   >
                     {loadingMore ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin text-[var(--spotify-glow,#ff7700)]" />
+                        <Loader2 className="w-4 h-4 animate-spin text-[#ff7700]" />
                         <span>Đang tải thêm...</span>
                       </>
                     ) : (
                       <>
-                        <ChevronDown className="w-4 h-4 text-[var(--spotify-glow,#ff7700)]" />
+                        <ChevronDown className="w-4 h-4 text-[#ff7700]" />
                         <span>Tải thêm 50 bài hát khác</span>
                       </>
                     )}
@@ -607,7 +584,7 @@ export default function SoundCloudPage() {
         ) : (
           /* Empty State */
           <div className="glass-panel p-12 rounded-3xl text-center border border-white/10 flex flex-col items-center gap-4 my-6">
-            <div className="w-16 h-16 rounded-2xl bg-[var(--spotify-glow,#ff5500)]/15 border border-[var(--spotify-glow,#ff5500)]/30 flex items-center justify-center text-[var(--spotify-glow,#ff7700)] shadow-[0_8px_20px_var(--theme-glow-shadow,rgba(255,85,0,0.2))]">
+            <div className="w-16 h-16 rounded-2xl bg-[#ff5500]/15 border border-[#ff5500]/30 flex items-center justify-center text-[#ff7700] shadow-[0_8px_20px_rgba(255,85,0,0.2)]">
               <Cloud className="w-8 h-8" />
             </div>
             <div>
@@ -623,13 +600,6 @@ export default function SoundCloudPage() {
           </div>
         )}
       </div>
-
-      <ImportSoundCloudModal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        initialPlaylist={selectedPlaylist}
-        initialTracks={tracks}
-      />
     </div>
   )
 }

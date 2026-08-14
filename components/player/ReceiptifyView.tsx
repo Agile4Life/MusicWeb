@@ -50,7 +50,7 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
   const { data: nextAuthSession } = useSession()
   const supabase = createClient()
 
-  const [dataSource, setDataSource] = useState<DataSourceType>('history')
+  const [dataSource, setDataSource] = useState<DataSourceType>('queue')
   const [mobileTab, setMobileTab] = useState<'custom' | 'preview'>('custom')
   const [trackLimit, setTrackLimit] = useState<number>(10)
   const [selectedThemeId, setSelectedThemeId] = useState<string>('classic')
@@ -361,38 +361,50 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
             <div>
               <div className="flex items-center justify-between mb-2.5">
                 <div className="flex items-center gap-2">
-                  <ListMusic className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
+                  <ListMusic className="w-4 h-4 text-amber-400" />
                   <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
                     Nguồn bài hát
                   </span>
                 </div>
-                <span className="text-[11px] font-semibold text-[var(--spotify-glow,#22d3ee)]">
-                  {dataSource === 'history' ? 'Lịch sử' : 'Yêu thích'}
+                <span className="text-[11px] font-semibold text-slate-400">
+                  {dataSource === 'queue' ? 'Hàng đợi' : dataSource === 'history' ? 'Lịch sử' : 'Yêu thích'}
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => setDataSource('queue')}
+                  className={`py-2.5 px-3 rounded-xl font-bold text-xs flex flex-col items-center gap-1.5 transition-all duration-200 border ${
+                    dataSource === 'queue'
+                      ? 'bg-amber-400/15 border-amber-400/50 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.25)] ring-1 ring-amber-400/40'
+                      : 'bg-white/[0.04] border-white/10 text-slate-400 hover:text-white hover:bg-white/[0.08]'
+                  }`}
+                >
+                  <Layers className="w-4 h-4" />
+                  <span>Hàng đợi</span>
+                </button>
+
                 <button
                   onClick={() => setDataSource('history')}
                   className={`py-2.5 px-3 rounded-xl font-bold text-xs flex flex-col items-center gap-1.5 transition-all duration-200 border ${
                     dataSource === 'history'
-                      ? 'bg-[var(--primary-spotify,#22d3ee)]/20 border-[var(--spotify-glow,#22d3ee)] text-[var(--spotify-glow,#22d3ee)] shadow-[0_0_15px_var(--theme-glow-shadow,rgba(34,211,238,0.25))] ring-1 ring-[var(--spotify-glow,#22d3ee)]/40 font-black'
+                      ? 'bg-amber-400/15 border-amber-400/50 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.25)] ring-1 ring-amber-400/40'
                       : 'bg-white/[0.04] border-white/10 text-slate-400 hover:text-white hover:bg-white/[0.08]'
                   }`}
                 >
                   <History className="w-4 h-4" />
-                  <span>Lịch sử nghe gần đây</span>
+                  <span>Lịch sử</span>
                 </button>
 
                 <button
                   onClick={() => setDataSource('favorites')}
                   className={`py-2.5 px-3 rounded-xl font-bold text-xs flex flex-col items-center gap-1.5 transition-all duration-200 border ${
                     dataSource === 'favorites'
-                      ? 'bg-[var(--primary-spotify,#22d3ee)]/20 border-[var(--spotify-glow,#22d3ee)] text-[var(--spotify-glow,#22d3ee)] shadow-[0_0_15px_var(--theme-glow-shadow,rgba(34,211,238,0.25))] ring-1 ring-[var(--spotify-glow,#22d3ee)]/40 font-black'
+                      ? 'bg-amber-400/15 border-amber-400/50 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.25)] ring-1 ring-amber-400/40'
                       : 'bg-white/[0.04] border-white/10 text-slate-400 hover:text-white hover:bg-white/[0.08]'
                   }`}
                 >
                   <Heart className="w-4 h-4" />
-                  <span>Bài hát yêu thích</span>
+                  <span>Yêu thích</span>
                 </button>
               </div>
             </div>
@@ -401,12 +413,12 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
             <div>
               <div className="flex items-center justify-between mb-2.5">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
+                  <Sparkles className="w-4 h-4 text-amber-400" />
                   <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
                     Số lượng bài in trên hóa đơn
                   </span>
                 </div>
-                <span className="text-xs font-mono font-bold text-[var(--spotify-glow,#22d3ee)]">
+                <span className="text-xs font-mono font-bold text-amber-300">
                   {sliceTracks.length} bài
                 </span>
               </div>
@@ -417,7 +429,7 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
                     onClick={() => setTrackLimit(num)}
                     className={`py-2.5 rounded-xl font-extrabold text-xs transition-all duration-200 border ${
                       trackLimit === num
-                        ? 'bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--primary-spotify,#06b6d4)] text-black border-transparent shadow-[0_0_15px_var(--theme-glow-shadow,rgba(34,211,238,0.35))] scale-105 font-black'
+                        ? 'bg-amber-400 text-black border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.35)] scale-105'
                         : 'bg-white/[0.04] border-white/10 text-slate-400 hover:text-white hover:bg-white/[0.08]'
                     }`}
                   >
@@ -431,12 +443,12 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
             <div>
               <div className="flex items-center justify-between mb-2.5">
                 <div className="flex items-center gap-2">
-                  <Palette className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
+                  <Palette className="w-4 h-4 text-amber-400" />
                   <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
                     Chủ đề giấy in
                   </span>
                 </div>
-                <span className="text-[11px] font-mono font-semibold text-[var(--spotify-glow,#22d3ee)]">
+                <span className="text-[11px] font-mono font-semibold text-amber-300">
                   {RECEIPT_THEMES.find((t) => t.id === selectedThemeId)?.name}
                 </span>
               </div>
@@ -449,7 +461,7 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
                       onClick={() => setSelectedThemeId(theme.id)}
                       className={`h-12 rounded-xl flex items-center justify-center p-2 transition-all duration-200 relative border font-bold text-xs ${
                         isActive
-                          ? 'border-white scale-105 shadow-[0_0_18px_rgba(255,255,255,0.4)] ring-2 ring-[var(--spotify-glow,#22d3ee)]/70'
+                          ? 'border-white scale-105 shadow-[0_0_18px_rgba(255,255,255,0.4)] ring-2 ring-amber-400/60'
                           : 'border-white/15 opacity-75 hover:opacity-100 hover:border-white/40'
                       }`}
                       style={{
@@ -468,7 +480,7 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
             {/* Customer Name Input */}
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <User className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
+                <User className="w-4 h-4 text-amber-400" />
                 <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
                   Tên người nghe trên hóa đơn
                 </span>
@@ -479,7 +491,7 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
                 onChange={(e) => setCustomerName(e.target.value)}
                 placeholder="Nhập tên của bạn..."
                 maxLength={28}
-                className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/10 text-white font-mono text-xs focus:outline-none focus:border-[var(--spotify-glow,#22d3ee)] focus:ring-1 focus:ring-[var(--spotify-glow,#22d3ee)] placeholder:text-slate-500 transition-all"
+                className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/10 text-white font-mono text-xs focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 placeholder:text-slate-500 transition-all"
               />
             </div>
           </div>
@@ -491,8 +503,8 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
               disabled={sliceTracks.length === 0}
               className="w-full py-3.5 px-4 rounded-xl font-extrabold text-sm text-black flex items-center justify-center gap-2 shadow-lg active:scale-98"
               style={{
-                background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                boxShadow: '0 8px 20px var(--theme-glow-shadow, rgba(34, 211, 238, 0.3))',
+                background: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
+                boxShadow: '0 8px 20px rgba(245, 158, 11, 0.3)',
               }}
             >
               <span>Xem trước Hóa đơn ({sliceTracks.length} bài)</span>
@@ -511,7 +523,7 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
           <div
             className="absolute inset-0 pointer-events-none rounded-2xl sm:rounded-3xl overflow-hidden"
             style={{
-              background: 'radial-gradient(circle at 50% 40%, var(--theme-gradient-1, rgba(34, 211, 238, 0.15)), transparent 70%)',
+              background: 'radial-gradient(circle at 50% 40%, rgba(251, 191, 36, 0.12), transparent 70%)',
             }}
           />
 
@@ -520,7 +532,7 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
             <div className="relative w-full max-w-[340px] sm:max-w-[380px] transition-all duration-300 flex items-center justify-center">
               {isLoadingTracks ? (
                 <div className="w-64 h-80 flex flex-col items-center justify-center gap-3 text-slate-400 bg-black/40 rounded-xl border border-white/10 p-6">
-                  <RefreshCw className="w-7 h-7 text-[var(--spotify-glow,#22d3ee)] animate-spin" />
+                  <RefreshCw className="w-7 h-7 text-amber-400 animate-spin" />
                   <span className="text-xs font-bold">Đang tải danh sách bài hát...</span>
                 </div>
               ) : previewUrl ? (
@@ -531,14 +543,14 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
                 />
               ) : (
                 <div className="w-64 h-80 flex flex-col items-center justify-center gap-3 text-slate-400 bg-black/40 rounded-xl border border-white/10 p-6">
-                  <Receipt className="w-8 h-8 text-[var(--spotify-glow,#22d3ee)]/50" />
+                  <Receipt className="w-8 h-8 text-amber-400/50" />
                   <span className="text-xs font-bold">Chưa có bài hát để tạo hóa đơn</span>
                 </div>
               )}
 
               {isGenerating && (
                 <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center rounded-xl">
-                  <RefreshCw className="w-6 h-6 text-[var(--spotify-glow,#22d3ee)] animate-spin" />
+                  <RefreshCw className="w-6 h-6 text-amber-400 animate-spin" />
                 </div>
               )}
             </div>
@@ -550,10 +562,9 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
             <button
               onClick={handleShare}
               disabled={isSharing || sliceTracks.length === 0}
-              className="w-full py-3.5 px-4 rounded-xl font-extrabold text-sm text-black flex items-center justify-center gap-2.5 shadow-lg hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full py-3.5 px-4 rounded-xl font-extrabold text-sm text-black flex items-center justify-center gap-2.5 shadow-[0_0_25px_rgba(245,158,11,0.35)] hover:shadow-[0_0_35px_rgba(245,158,11,0.55)] hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               style={{
-                background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                boxShadow: '0 0 25px var(--theme-glow-shadow, rgba(34, 211, 238, 0.35))',
+                background: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
               }}
             >
               {isSharing ? (
@@ -583,7 +594,7 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
                   </>
                 ) : (
                   <>
-                    <Copy className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
+                    <Copy className="w-4 h-4 text-amber-300" />
                     <span>Sao chép ảnh</span>
                   </>
                 )}
@@ -594,7 +605,7 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
                 disabled={sliceTracks.length === 0}
                 className="py-3 px-4 rounded-xl font-bold text-xs text-white bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 hover:border-white/20 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer shadow-sm"
               >
-                <Download className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
+                <Download className="w-4 h-4 text-amber-300" />
                 <span>Tải ảnh PNG</span>
               </button>
             </div>

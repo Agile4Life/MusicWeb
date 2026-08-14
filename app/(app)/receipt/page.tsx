@@ -21,14 +21,14 @@ export default function ReceiptPage() {
             <ChevronLeft className="w-5 h-5" />
           </button>
 
-          <div className="w-10 h-10 rounded-2xl bg-[var(--spotify-glow,#22d3ee)]/15 border border-[var(--spotify-glow,#22d3ee)]/30 flex items-center justify-center text-[var(--spotify-glow,#22d3ee)] shadow-[0_0_20px_var(--theme-glow-shadow,rgba(34,211,238,0.25))] shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-300 shadow-[0_0_20px_rgba(251,191,36,0.25)] shrink-0">
             <Receipt className="w-5 h-5" />
           </div>
 
           <div className="min-w-0 flex-1">
             <h1 className="text-base sm:text-lg font-extrabold text-white flex items-center gap-2 truncate">
               <span>Hóa đơn âm nhạc</span>
-              <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--spotify-glow,#22d3ee)]/20 text-[var(--spotify-glow,#22d3ee)] border border-[var(--spotify-glow,#22d3ee)]/40 shrink-0">
+              <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 shrink-0">
                 Receiptify
               </span>
             </h1>

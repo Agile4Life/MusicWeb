@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { Space_Grotesk, Inter, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 
 import { SessionProvider } from '@/components/auth/SessionProvider'
@@ -6,6 +7,27 @@ import { ThemeProvider } from '@/components/theme/ThemeContext'
 import { LanguageProvider } from '@/components/i18n/LanguageContext'
 import { CursorSpotlight } from '@/components/theme/CursorSpotlight'
 import { CustomCursor } from '@/components/theme/CustomCursor'
+
+const spaceGrotesk = Space_Grotesk({
+  variable: '--font-space-grotesk',
+  subsets: ['latin', 'vietnamese'],
+  weight: ['600', '700'],
+  display: 'swap',
+})
+
+const inter = Inter({
+  variable: '--font-inter',
+  subsets: ['latin', 'vietnamese'],
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+})
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: '--font-jetbrains-mono',
+  subsets: ['latin', 'vietnamese'],
+  weight: ['400', '500'],
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'MusicWeb • Trình Nghe Nhạc Cá Nhân Độc Bản',
@@ -31,7 +53,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="vi" className="font-sans h-full antialiased dark">
+    <html lang="vi" className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} font-sans h-full antialiased dark`}>
       <head>
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />

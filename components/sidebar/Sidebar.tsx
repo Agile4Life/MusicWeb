@@ -30,7 +30,6 @@ import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { useSearch } from '@/components/search/SearchContext'
 import { ImportSpotifyModal } from '@/components/playlist/ImportSpotifyModal'
 import { ImportYouTubePlaylistModal } from '@/components/playlist/ImportYouTubePlaylistModal'
-import { ImportSoundCloudModal } from '@/components/playlist/ImportSoundCloudModal'
 import { YoutubeIcon } from '@/components/icons/YoutubeIcon'
 
 export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
@@ -44,7 +43,62 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
   const { clearSearch } = useSearch()
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [isYtImportModalOpen, setIsYtImportModalOpen] = useState(false)
-  const [isScImportModalOpen, setIsScImportModalOpen] = useState(false)
+
+  const exploreNavRef = React.useRef<HTMLElement>(null)
+  const playlistNavRef = React.useRef<HTMLDivElement>(null)
+
+  const [exploreIndicator, setExploreIndicator] = useState<{ top: number; height: number; opacity: number }>({
+    top: 0,
+    height: 38,
+    opacity: 0,
+  })
+
+  const [playlistIndicator, setPlaylistIndicator] = useState<{ top: number; height: number; opacity: number }>({
+    top: 0,
+    height: 36,
+    opacity: 0,
+  })
+
+  const handleItemMouseEnter = (
+    e: React.MouseEvent<HTMLElement>,
+    setIndicator: React.Dispatch<React.SetStateAction<{ top: number; height: number; opacity: number }>>
+  ) => {
+    const el = e.currentTarget
+    if (el.classList.contains('active')) {
+      setIndicator((prev) => ({ ...prev, opacity: 0 }))
+      return
+    }
+    setIndicator({
+      top: el.offsetTop,
+      height: el.offsetHeight,
+      opacity: 1,
+    })
+  }
+
+  const handleSectionMouseLeave = (
+    containerRef: React.RefObject<HTMLElement | HTMLDivElement | null>,
+    setIndicator: React.Dispatch<React.SetStateAction<{ top: number; height: number; opacity: number }>>
+  ) => {
+    setIndicator((prev) => ({ ...prev, opacity: 0 }))
+  }
+
+  const handleItemClick = (e: React.MouseEvent<HTMLElement>) => {
+    const item = e.currentTarget
+    const rect = item.getBoundingClientRect()
+    const ripple = document.createElement('span')
+    ripple.className = 'ripple'
+    const size = Math.max(rect.width, rect.height)
+    ripple.style.width = ripple.style.height = `${size}px`
+    ripple.style.left = `${e.clientX - rect.left - size / 2}px`
+    ripple.style.top = `${e.clientY - rect.top - size / 2}px`
+    item.appendChild(ripple)
+    ripple.addEventListener('animationend', () => ripple.remove())
+  }
+
+  useEffect(() => {
+    setExploreIndicator((prev) => ({ ...prev, opacity: 0 }))
+    setPlaylistIndicator((prev) => ({ ...prev, opacity: 0 }))
+  }, [pathname, playlists])
 
   const user = userEmail
     ? {
@@ -85,7 +139,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
   }
 
   return (
-    <aside className={`app-sidebar hidden lg:flex w-60 lg:w-64 xl:w-72 flex-col justify-between p-3 lg:p-3.5 xl:p-4 h-full select-none text-slate-300 rounded-2xl panel-theme-hover shrink-0 relative z-30 ${isScrolled ? 'is-scrolled' : ''}`}>
+    <aside className={`app-sidebar hidden lg:flex w-60 lg:w-64 xl:w-72 flex-col justify-between p-3 lg:p-3.5 xl:p-4 h-full select-none text-slate-300 rounded-2xl panel-theme-hover shrink-0 z-10 ${isScrolled ? 'is-scrolled' : ''}`}>
       <div className="flex flex-col gap-3 lg:gap-4 xl:gap-5 min-h-0 flex-1 pb-24 xl:pb-28">
         {/* App Branding Header (Mini Glass Plaque) */}
         <div className="px-0.5 py-0.5">
@@ -109,18 +163,34 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
         </div>
 
         {/* Main Navigation List */}
-        <nav className="flex flex-col gap-0.5 lg:gap-1 relative shrink-0">
+        <nav
+          ref={exploreNavRef}
+          onMouseLeave={() => handleSectionMouseLeave(exploreNavRef, setExploreIndicator)}
+          className="flex flex-col gap-0.5 lg:gap-1 relative shrink-0"
+        >
+          <div
+            className="nav-indicator"
+            style={{
+              transform: `translateY(${exploreIndicator.top}px)`,
+              height: `${exploreIndicator.height}px`,
+              opacity: exploreIndicator.opacity,
+            }}
+          />
+
           <p className="text-[11px] font-mono tracking-wider text-slate-500 uppercase px-2.5 py-1 relative z-10">
             Khám phá
           </p>
 
           <Link
             href="/"
-            onClick={() => {
+            prefetch={false}
+            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onClick={(e) => {
               clearSearch()
               window.dispatchEvent(new Event('musicweb-tab-home'))
+              handleItemClick(e)
             }}
-            className={`sidebar-item text-xs font-semibold cursor-pointer ${pathname === '/' ? 'active' : ''}`}
+            className={`sidebar-item text-xs font-semibold ${pathname === '/' ? 'active' : ''}`}
           >
             <Home className="w-4 h-4 icon" />
             <span>{t('home')}</span>
@@ -128,7 +198,10 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <Link
             href="/albums"
-            className={`sidebar-item text-xs font-semibold cursor-pointer ${
+            prefetch={false}
+            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onClick={handleItemClick}
+            className={`sidebar-item text-xs font-semibold ${
               pathname === '/albums' || pathname.startsWith('/album/') ? 'active' : ''
             }`}
           >
@@ -138,7 +211,10 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <Link
             href="/soundcloud"
-            className={`sidebar-item text-xs font-semibold cursor-pointer ${
+            prefetch={false}
+            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onClick={handleItemClick}
+            className={`sidebar-item text-xs font-semibold ${
               pathname === '/soundcloud' ? 'active' : ''
             }`}
           >
@@ -153,7 +229,10 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <Link
             href="/drive"
-            className={`sidebar-item text-xs font-semibold cursor-pointer ${pathname === '/drive' ? 'active' : ''}`}
+            prefetch={false}
+            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onClick={handleItemClick}
+            className={`sidebar-item text-xs font-semibold ${pathname === '/drive' ? 'active' : ''}`}
           >
             <Cloud className="w-4 h-4 icon" />
             <span>{t('drive')}</span>
@@ -161,7 +240,10 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <Link
             href="/favorites"
-            className={`sidebar-item text-xs font-semibold cursor-pointer ${pathname === '/favorites' ? 'active' : ''}`}
+            prefetch={false}
+            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onClick={handleItemClick}
+            className={`sidebar-item text-xs font-semibold ${pathname === '/favorites' ? 'active' : ''}`}
           >
             <Heart className="w-4 h-4 icon" />
             <span>{t('favorites')}</span>
@@ -169,7 +251,10 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <Link
             href="/history"
-            className={`sidebar-item text-xs font-semibold cursor-pointer ${pathname === '/history' ? 'active' : ''}`}
+            prefetch={false}
+            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onClick={handleItemClick}
+            className={`sidebar-item text-xs font-semibold ${pathname === '/history' ? 'active' : ''}`}
           >
             <History className="w-4 h-4 icon" />
             <span>{t('history')}</span>
@@ -177,7 +262,10 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <Link
             href="/receipt"
-            className={`sidebar-item text-xs font-semibold cursor-pointer ${pathname === '/receipt' ? 'active' : ''}`}
+            prefetch={false}
+            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onClick={handleItemClick}
+            className={`sidebar-item text-xs font-semibold ${pathname === '/receipt' ? 'active' : ''}`}
           >
             <Receipt className="w-4 h-4 icon text-amber-400" />
             <div className="flex items-center justify-between flex-1">
@@ -191,7 +279,10 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
           {isAdmin(user?.email) && (
             <Link
               href="/upload"
-              className={`sidebar-item text-xs font-semibold cursor-pointer ${pathname === '/upload' ? 'active' : ''}`}
+              prefetch={false}
+              onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+              onClick={handleItemClick}
+              className={`sidebar-item text-xs font-semibold ${pathname === '/upload' ? 'active' : ''}`}
             >
               <Upload className="w-4 h-4 icon" />
               <span>{t('upload')}</span>
@@ -200,7 +291,10 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <Link
             href="/settings"
-            className={`sidebar-item text-xs font-semibold cursor-pointer ${pathname === '/settings' ? 'active' : ''}`}
+            prefetch={false}
+            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onClick={handleItemClick}
+            className={`sidebar-item text-xs font-semibold ${pathname === '/settings' ? 'active' : ''}`}
           >
             <Settings className="w-4 h-4 icon" />
             <span>{t('settings')}</span>
@@ -218,48 +312,53 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
             <div className="flex items-center gap-0.5 bg-white/[0.03] border border-white/[0.08] p-0.5 rounded-xl shadow-inner">
               <button
                 onClick={() => setIsImportModalOpen(true)}
-                className="w-6 h-6 rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/20 flex items-center justify-center transition-all cursor-pointer"
+                className="w-7 h-7 rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/20 flex items-center justify-center transition-all"
                 title="Nhập Playlist từ Spotify"
               >
-                <Sparkles className="w-3 h-3" />
+                <Sparkles className="w-3.5 h-3.5" />
               </button>
-
               <button
                 onClick={() => setIsYtImportModalOpen(true)}
-                className="w-6 h-6 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/20 flex items-center justify-center transition-all cursor-pointer"
-                title="Nhập Playlist từ YouTube"
+                className="w-7 h-7 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/20 flex items-center justify-center transition-all"
+                title="Nhập Playlist từ YouTube Music"
               >
-                <YoutubeIcon className="w-3 h-3" />
+                <YoutubeIcon className="w-3.5 h-3.5" />
               </button>
-
-              <button
-                onClick={() => setIsScImportModalOpen(true)}
-                className="w-6 h-6 rounded-lg text-[#ff7700] hover:text-[#ff9933] hover:bg-[#ff5500]/20 flex items-center justify-center transition-all cursor-pointer"
-                title="Nhập Playlist từ SoundCloud"
-              >
-                <Cloud className="w-3 h-3" />
-              </button>
-
+              <div className="w-[1px] h-3 bg-white/10 my-auto mx-0.5" />
               <button
                 onClick={handleCreatePlaylist}
                 disabled={creating}
-                className="w-6 h-6 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all cursor-pointer"
-                title="Tạo playlist mới"
+                className="w-7 h-7 rounded-lg text-[var(--spotify-glow,#22d3ee)] hover:text-white hover:bg-[var(--primary-spotify)]/20 flex items-center justify-center transition-all"
+                title="Tạo Playlist mới"
               >
                 <Plus className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
 
-          {/* Playlist List */}
-          <div className="flex-1 overflow-y-auto flex flex-col gap-0.5 pr-1 relative custom-slim-scrollbar min-h-0">
+          <div
+            ref={playlistNavRef}
+            onMouseLeave={() => handleSectionMouseLeave(playlistNavRef, setPlaylistIndicator)}
+            className="flex-1 overflow-y-auto flex flex-col gap-0.5 pr-1 relative custom-slim-scrollbar min-h-0"
+          >
+            <div
+              className="nav-indicator"
+              style={{
+                transform: `translateY(${playlistIndicator.top}px)`,
+                height: `${playlistIndicator.height}px`,
+                opacity: playlistIndicator.opacity,
+              }}
+            />
+
             {user || playlists.length > 0 ? (
               playlists.length > 0 ? (
                 playlists.map((pl) => (
                   <Link
                     key={pl.id}
                     href={`/playlist/${pl.id}`}
-                    className={`sidebar-item text-xs group cursor-pointer ${
+                    onMouseEnter={(e) => handleItemMouseEnter(e, setPlaylistIndicator)}
+                    onClick={handleItemClick}
+                    className={`sidebar-item text-xs group ${
                       pathname === `/playlist/${pl.id}` ? 'active font-semibold' : ''
                     }`}
                   >
@@ -269,7 +368,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
                     <span className="truncate flex-1 font-medium">{pl.name}</span>
                     <button
                       onClick={(e) => handleDeletePlaylistFromSidebar(e, pl.id, pl.name)}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-red-400 rounded transition-opacity relative z-10 cursor-pointer"
+                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-red-400 rounded transition-opacity relative z-10"
                       title="Xóa playlist"
                     >
                       <Trash2 className="w-3 h-3" />
@@ -281,7 +380,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
                   <p className="text-xs font-semibold text-slate-300 mb-1">Chưa có playlist</p>
                   <button
                     onClick={handleCreatePlaylist}
-                    className="text-[11px] font-bold text-[var(--spotify-glow,#22d3ee)] hover:underline mt-1 inline-block cursor-pointer"
+                    className="text-[11px] font-bold text-[var(--spotify-glow,#22d3ee)] hover:underline mt-1 inline-block"
                   >
                     + Tạo playlist đầu tiên
                   </button>
@@ -292,7 +391,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
                 <p className="text-[11px] text-slate-400 mb-2">Đăng nhập để tạo playlist</p>
                 <Link
                   href="/login"
-                  className="bg-white text-black font-bold text-[11px] px-3 py-1 rounded-full inline-block cursor-pointer"
+                  className="bg-white text-black font-bold text-[11px] px-3 py-1 rounded-full inline-block"
                 >
                   Đăng nhập
                 </Link>
@@ -309,10 +408,6 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
       <ImportYouTubePlaylistModal
         isOpen={isYtImportModalOpen}
         onClose={() => setIsYtImportModalOpen(false)}
-      />
-      <ImportSoundCloudModal
-        isOpen={isScImportModalOpen}
-        onClose={() => setIsScImportModalOpen(false)}
       />
     </aside>
   )

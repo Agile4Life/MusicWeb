@@ -720,7 +720,7 @@ export default function HomePage() {
           </div>
 
           {loadingAlbums ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-3">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-2.5 rounded-2xl animate-pulse flex flex-col gap-2">
                   <div className="aspect-square w-full bg-slate-800 rounded-xl" />
@@ -730,7 +730,7 @@ export default function HomePage() {
               ))}
             </div>
           ) : trendingAlbums.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-3">
               {trendingAlbums.map((album, idx) => (
                 <TiltCard
                   key={album.id}
@@ -803,7 +803,7 @@ export default function HomePage() {
           </div>
 
           {loadingTrending ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-3">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-2.5 rounded-2xl animate-pulse flex flex-col gap-2">
                   <div className="aspect-square w-full bg-slate-800 rounded-xl" />
@@ -813,7 +813,7 @@ export default function HomePage() {
               ))}
             </div>
           ) : displayTrending.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-3">
               {displayTrending.map((t, idx) => (
                 <TiltCard
                   key={t.id}
