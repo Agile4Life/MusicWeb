@@ -1,10 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Permanent+Marker&family=Rock+Salt&family=Sedgwick+Ave&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Permanent+Marker&family=Rock+Salt&family=Sedgwick+Ave&family=Space+Grotesk:wght@600;700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-display: var(--font-space-grotesk), 'Space Grotesk', system-ui, sans-serif;
-  --font-sans: var(--font-inter), 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: var(--font-jetbrains-mono), 'JetBrains Mono', monospace;
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
 }
 
 .font-graffiti {
