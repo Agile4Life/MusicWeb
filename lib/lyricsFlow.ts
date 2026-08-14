@@ -25,24 +25,47 @@ function nctLyricsToResponse(track: LyricsTrack, lyrics: string): LrclibResponse
   }
 }
 
+async function fetchNctLyrics(track: LyricsTrack): Promise<LrclibResponse | null> {
+  if (!track.nhaccuatui_id) return null
+  try {
+    const nctSong = await resolveNhacCuaTuiSong(track.nhaccuatui_id)
+    const lyric = normalizeNhacCuaTuiLyrics(nctSong?.lyric)
+    if (lyric) {
+      return nctLyricsToResponse(track, lyric)
+    }
+  } catch {
+    // Continue silently
+  }
+  return null
+}
+
 export async function getPrimaryLyrics(
   track: LyricsTrack,
 ): Promise<LrclibResponse | null> {
-  if (track.nhaccuatui_id) {
-    try {
-      const nctSong = await resolveNhacCuaTuiSong(track.nhaccuatui_id)
-      const lyric = normalizeNhacCuaTuiLyrics(nctSong?.lyric)
-      if (lyric) return nctLyricsToResponse(track, lyric)
-    } catch {
-      // Continue silently to LRCLIB and its YouTube Music fallback.
-    }
+  // Run both NCT and LRCLIB queries concurrently in parallel to eliminate sequential latency
+  const [nctResult, lrclibResult] = await Promise.all([
+    fetchNctLyrics(track),
+    fetchLyricsFromLrclib({
+      title: track.title,
+      artist: track.artist,
+      album: track.album,
+      duration: track.duration,
+      youtubeId: track.youtube_id,
+    }).catch(() => null),
+  ])
+
+  // 1. Ưu tiên lyrics synced từ NCT nếu có
+  if (nctResult?.syncedLyrics) {
+    return nctResult
   }
 
-  return fetchLyricsFromLrclib({
-    title: track.title,
-    artist: track.artist,
-    album: track.album,
-    duration: track.duration,
-    youtubeId: track.youtube_id,
-  })
+  // 2. Nếu NCT không có sync, ưu tiên lyrics synced từ LRCLIB
+  if (lrclibResult?.syncedLyrics) {
+    return lrclibResult
+  }
+
+  // 3. Nếu không bên nào có sync, fallback về text (plain lyrics)
+  return nctResult || lrclibResult || null
 }
+
+
