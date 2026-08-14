@@ -244,8 +244,9 @@ export function calculateCompactCardHeight(
 
 /**
  * Render compact high-res Story-width card to HTML5 Canvas (1080 x Dynamic Compact Height)
- * - Width: 1080px (Standard Story width)
- * - Height: Dynamically calculated to snugly fit up to 5 lyric lines + metadata without empty gaps
+ * - Gentle smooth rounded corners (border radius)
+ * - Sleek glassmorphic accent border
+ * - Rich ambient album artwork glow
  */
 export async function renderLyricCardToCanvas(
   options: GenerateCardOptions
@@ -291,7 +292,13 @@ export async function renderLyricCardToCanvas(
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Canvas 2D context not supported')
 
-  // 3. Draw Multi-Layer Ambient Background
+  // 3. 🌟 Clip Canvas to Gentle Smooth Rounded Corners (Border Radius)
+  const cardRadius = 32
+  ctx.save()
+  drawRoundedRect(ctx, 0, 0, width, height, cardRadius)
+  ctx.clip()
+
+  // 4. Draw Multi-Layer Ambient Background
   const bgGrad = ctx.createLinearGradient(0, 0, width, height)
   bgGrad.addColorStop(0, theme.background[0])
   bgGrad.addColorStop(0.45, theme.background[1])
@@ -299,22 +306,7 @@ export async function renderLyricCardToCanvas(
   ctx.fillStyle = bgGrad
   ctx.fillRect(0, 0, width, height)
 
-  // Radial ambient glow orbs centered on the card
-  const radialGlow = ctx.createRadialGradient(
-    width * 0.5,
-    height * 0.35,
-    40,
-    width * 0.5,
-    height * 0.35,
-    width * 0.7
-  )
-  radialGlow.addColorStop(0, `${theme.accentColor}38`)
-  radialGlow.addColorStop(0.6, `${theme.background[1]}25`)
-  radialGlow.addColorStop(1, 'transparent')
-  ctx.fillStyle = radialGlow
-  ctx.fillRect(0, 0, width, height)
-
-  // 4. Load cover image & brand logo
+  // 5. Load cover image & brand logo
   let coverImg: HTMLImageElement | null = null
   let logoImg: HTMLImageElement | null = null
 
@@ -327,13 +319,49 @@ export async function renderLyricCardToCanvas(
 
   if (coverImg) {
     ctx.save()
-    ctx.globalAlpha = 0.16
-    ctx.filter = 'blur(65px)'
-    ctx.drawImage(coverImg, -100, -80, width + 200, height + 160)
+    ctx.globalAlpha = 0.32
+    ctx.filter = 'blur(60px)'
+    ctx.drawImage(coverImg, -120, -100, width + 240, height + 200)
     ctx.restore()
   }
 
-  // 5. 🌟 Draw Brand Logo Mini Glass Plaque (Matching web header style)
+  // Radial ambient glow orbs centered on the card for rich, luminous lighting
+  const radialGlow = ctx.createRadialGradient(
+    width * 0.5,
+    height * 0.32,
+    30,
+    width * 0.5,
+    height * 0.32,
+    width * 0.75
+  )
+  radialGlow.addColorStop(0, `${theme.accentColor}44`)
+  radialGlow.addColorStop(0.55, `${theme.background[1]}30`)
+  radialGlow.addColorStop(1, 'transparent')
+  ctx.fillStyle = radialGlow
+  ctx.fillRect(0, 0, width, height)
+
+  // Secondary soft glow at bottom right
+  const secondaryGlow = ctx.createRadialGradient(
+    width * 0.8,
+    height * 0.75,
+    20,
+    width * 0.8,
+    height * 0.75,
+    width * 0.55
+  )
+  secondaryGlow.addColorStop(0, `${theme.accentColor}25`)
+  secondaryGlow.addColorStop(1, 'transparent')
+  ctx.fillStyle = secondaryGlow
+  ctx.fillRect(0, 0, width, height)
+
+  // Top subtle specular lighting
+  const topShine = ctx.createLinearGradient(0, 0, 0, 100)
+  topShine.addColorStop(0, 'rgba(255, 255, 255, 0.14)')
+  topShine.addColorStop(1, 'rgba(255, 255, 255, 0.0)')
+  ctx.fillStyle = topShine
+  ctx.fillRect(0, 0, width, 100)
+
+  // 6. 🌟 Draw Brand Logo Mini Glass Plaque (Matching web header style)
   const plaqueWidth = 320
   const plaqueHeight = 72
   const plaqueRadius = 22
@@ -526,6 +554,19 @@ export async function renderLyricCardToCanvas(
   ctx.font = '600 23px system-ui, -apple-system, sans-serif'
   ctx.textAlign = 'center'
   ctx.fillText('Nghe trên MusicWeb', width / 2, footerY)
+  ctx.restore()
+
+  // 9. 🔲 Sleek Gentle Rounded Border along the card perimeter
+  ctx.save()
+  drawRoundedRect(ctx, 1, 1, width - 2, height - 2, cardRadius)
+  ctx.strokeStyle = `${theme.accentColor}55`
+  ctx.lineWidth = 2.5
+  ctx.stroke()
+
+  drawRoundedRect(ctx, 2.5, 2.5, width - 5, height - 5, cardRadius - 1.5)
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)'
+  ctx.lineWidth = 1.5
+  ctx.stroke()
   ctx.restore()
 
   return canvas

@@ -11,6 +11,8 @@ import {
   Sparkles,
   Palette,
   RefreshCw,
+  Quote,
+  Receipt,
 } from 'lucide-react'
 import { Track } from '@/types'
 import { LyricLine } from '@/lib/lrcParser'
@@ -22,6 +24,7 @@ import {
   generateLyricCardDataUrl,
   toggleContiguousLyricLine,
 } from '@/lib/lyricsShareCanvas'
+import { ReceiptifyView } from './ReceiptifyView'
 
 export interface LyricsShareModalProps {
   isOpen: boolean
@@ -49,6 +52,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
 }) => {
   const [mounted, setMounted] = useState(false)
   const { currentTheme } = useTheme()
+  const [shareMode, setShareMode] = useState<'lyrics' | 'receipt'>('lyrics')
   const [selectedIndices, setSelectedIndices] = useState<number[]>([0])
   const [selectedThemeId, setSelectedThemeId] = useState<string>(() =>
     getInitialThemeForApp(currentTheme?.id)
@@ -277,16 +281,16 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
     >
       <div className="relative w-full max-w-5xl h-full sm:h-[86vh] max-h-none sm:max-h-[760px] bg-[#0b0f19] border-0 sm:border sm:border-white/10 rounded-none sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden text-slate-100 select-none">
         {/* Modal Top Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-white/[0.08] bg-black/50 backdrop-blur-2xl shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-white/[0.08] bg-black/50 backdrop-blur-2xl shrink-0">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[var(--primary-spotify,#06b6d4)]/15 border border-[var(--primary-spotify,#06b6d4)]/30 flex items-center justify-center text-[var(--spotify-glow,#22d3ee)] shadow-[0_0_15px_var(--theme-glow-shadow,rgba(6,182,212,0.25))] shrink-0">
               <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div className="min-w-0 flex-1">
               <h2 id="lyrics-share-modal-title" className="text-sm sm:text-base font-extrabold text-white flex items-center gap-2 truncate">
-                Chia sẻ câu hát
+                {shareMode === 'lyrics' ? 'Trích dẫn câu hát' : 'Hóa đơn âm nhạc (Receiptify)'}
                 <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--primary-spotify,#06b6d4)]/10 text-[var(--spotify-glow,#22d3ee)] border border-[var(--primary-spotify,#06b6d4)]/20 shrink-0">
-                  Story 9:16
+                  {shareMode === 'lyrics' ? 'Story Card' : 'Thermal Receipt'}
                 </span>
               </h2>
               <p className="text-[11px] sm:text-xs text-slate-400 truncate">
@@ -295,76 +299,110 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
             </div>
           </div>
 
+          {/* Mode Switcher Tabs */}
+          <div className="flex items-center p-1 bg-white/[0.06] rounded-xl border border-white/10 mx-2">
+            <button
+              onClick={() => setShareMode('lyrics')}
+              className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1.5 ${
+                shareMode === 'lyrics'
+                  ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md font-extrabold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Quote className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Câu hát</span>
+            </button>
+
+            <button
+              onClick={() => setShareMode('receipt')}
+              className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1.5 ${
+                shareMode === 'receipt'
+                  ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md font-extrabold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Receipt className="w-3.5 h-3.5" />
+              <span>Hóa đơn</span>
+              <span className="text-[8px] font-black uppercase px-1 py-0.2 rounded bg-amber-400 text-black">
+                MỚI
+              </span>
+            </button>
+          </div>
+
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/15 active:scale-95 text-slate-300 hover:text-white flex items-center justify-center transition-all border border-white/10 shrink-0 ml-2"
+            className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/15 active:scale-95 text-slate-300 hover:text-white flex items-center justify-center transition-all border border-white/10 shrink-0"
             title="Đóng"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Mobile Tab Segmented Switcher (Visible on mobile only < md) */}
-        <div className="flex md:hidden items-center p-2 bg-black/60 border-b border-white/[0.08] shrink-0">
-          <div className="grid grid-cols-2 w-full p-1 bg-white/[0.05] rounded-xl border border-white/10">
-            <button
-              onClick={() => setMobileTab('select')}
-              className={`py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                mobileTab === 'select'
-                  ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md shadow-[var(--theme-glow-shadow)] font-extrabold'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <span>1. Chọn câu hát</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${mobileTab === 'select' ? 'bg-black/20 text-black' : 'bg-white/10 text-[var(--spotify-glow,#22d3ee)]'}`}>
-                {selectedIndices.length}/5
-              </span>
-            </button>
+        {shareMode === 'receipt' ? (
+          <ReceiptifyView isOpen={isOpen} onClose={onClose} />
+        ) : (
+          <>
+            {/* Mobile Tab Segmented Switcher (Visible on mobile only < md) */}
+            <div className="flex md:hidden items-center p-2 bg-black/60 border-b border-white/[0.08] shrink-0">
+              <div className="grid grid-cols-2 w-full p-1 bg-white/[0.05] rounded-xl border border-white/10">
+                <button
+                  onClick={() => setMobileTab('select')}
+                  className={`py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                    mobileTab === 'select'
+                      ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md shadow-[var(--theme-glow-shadow)] font-extrabold'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span>1. Chọn câu hát</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${mobileTab === 'select' ? 'bg-black/20 text-black' : 'bg-white/10 text-[var(--spotify-glow,#22d3ee)]'}`}>
+                    {selectedIndices.length}/5
+                  </span>
+                </button>
 
-            <button
-              onClick={() => setMobileTab('preview')}
-              className={`py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                mobileTab === 'preview'
-                  ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md shadow-[var(--theme-glow-shadow)] font-extrabold'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Palette className="w-3.5 h-3.5" />
-              <span>2. Xem trước Card</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Modal Content 2-Column Studio (Responsive Desktop + Mobile Tabs) */}
-        <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative">
-          {/* Left Column: Line Selector */}
-          <div
-            className={`flex-1 flex-col min-h-0 border-b md:border-b-0 md:border-r border-white/[0.08] bg-[#07090e] relative overflow-hidden ${
-              mobileTab === 'select' ? 'flex' : 'hidden md:flex'
-            }`}
-          >
-            {/* 🌟 Rich Ambient Glassmorphic Background matching LyricsView */}
-            <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden select-none">
-              {track.cover_url ? (
-                <img
-                  src={track.cover_url}
-                  alt=""
-                  className="w-full h-full object-cover blur-3xl opacity-35 scale-125 transform-gpu transition-all duration-700"
-                />
-              ) : (
-                <div className="w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[var(--theme-gradient-1,rgba(6,182,212,0.25))] via-[#0a0d14] to-[#07090e]" />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-b from-[#07090e]/70 via-[#07090e]/85 to-[#07090e]" />
-              <div
-                className="absolute inset-0"
-                style={{
-                  background: 'radial-gradient(circle at 50% 35%, var(--theme-gradient-1, rgba(6,182,212,0.18)), transparent 70%)',
-                }}
-              />
+                <button
+                  onClick={() => setMobileTab('preview')}
+                  className={`py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                    mobileTab === 'preview'
+                      ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md shadow-[var(--theme-glow-shadow)] font-extrabold'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Palette className="w-3.5 h-3.5" />
+                  <span>2. Xem trước Card</span>
+                </button>
+              </div>
             </div>
 
-            {/* Selector Top Toolbar (Desktop) */}
-            <div className="relative z-20 px-5 py-3.5 border-b border-white/[0.08] hidden md:flex items-center justify-between bg-black/50 backdrop-blur-2xl shrink-0 shadow-lg">
+            {/* Modal Content 2-Column Studio (Responsive Desktop + Mobile Tabs) */}
+            <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative">
+              {/* 🌟 Unified Ambient Glassmorphic Background across entire Studio (Desktop & Mobile) */}
+              <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden select-none">
+                {track.cover_url ? (
+                  <img
+                    src={track.cover_url}
+                    alt=""
+                    className="w-full h-full object-cover blur-3xl opacity-45 scale-125 transform-gpu transition-all duration-700"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[var(--theme-gradient-1,rgba(6,182,212,0.25))] via-[#0a0d14] to-[#07090e]" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-b from-[#07090e]/65 via-[#07090e]/80 to-[#07090e]" />
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background: 'radial-gradient(circle at 75% 40%, var(--theme-gradient-1, rgba(6,182,212,0.25)), transparent 65%)',
+                  }}
+                />
+              </div>
+
+              {/* Left Column: Line Selector */}
+              <div
+                className={`flex-1 flex-col min-h-0 border-b md:border-b-0 md:border-r border-white/[0.08] bg-black/20 backdrop-blur-md relative overflow-hidden z-10 ${
+                  mobileTab === 'select' ? 'flex' : 'hidden md:flex'
+                }`}
+              >
+                {/* Selector Top Toolbar (Desktop) */}
+                <div className="relative z-20 px-5 py-3.5 border-b border-white/[0.08] hidden md:flex items-center justify-between bg-black/50 backdrop-blur-2xl shrink-0 shadow-lg">
               <div className="flex items-center gap-2.5">
                 <div className="w-2.5 h-2.5 rounded-full bg-[var(--spotify-glow,#22d3ee)] animate-pulse shadow-[0_0_10px_var(--spotify-glow,#22d3ee)]" />
                 <span className="text-xs font-extrabold uppercase tracking-wider text-slate-100">
@@ -455,7 +493,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
 
           {/* Right Column: Live Card Preview & Actions (Optimized for Desktop & Mobile) */}
           <div
-            className={`w-full md:w-[420px] lg:w-[460px] flex-col min-h-0 bg-[#07090e] p-3.5 sm:p-6 overflow-y-auto no-scrollbar justify-between ${
+            className={`w-full md:w-[420px] lg:w-[460px] flex-col min-h-0 bg-black/30 backdrop-blur-xl border-l border-white/[0.08] p-3.5 sm:p-6 overflow-y-auto no-scrollbar justify-between relative z-10 ${
               mobileTab === 'preview' ? 'flex flex-1' : 'hidden md:flex'
             }`}
           >
@@ -494,14 +532,14 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
               </div>
             </div>
 
-            {/* Lyric Card Preview Container (Story Width & Compact Dynamic Height) */}
-            <div className="flex-1 flex items-center justify-center min-h-[260px] sm:min-h-[340px] my-auto py-2">
-              <div className="relative max-h-[50vh] sm:max-h-[460px] w-full max-w-[340px] sm:max-w-[360px] rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-white/20 group hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 flex items-center justify-center bg-black/50">
+            {/* Lyric Card Preview Container (3D Floating Plaque with Dynamic Height) */}
+            <div className="flex-1 flex items-center justify-center min-h-[260px] sm:min-h-[340px] my-auto py-2 perspective-[1000px]">
+              <div className="relative max-h-[50vh] sm:max-h-[460px] w-full max-w-[340px] sm:max-w-[360px] rounded-2xl overflow-hidden shadow-[0_28px_60px_rgba(0,0,0,0.85),0_0_30px_var(--theme-glow-shadow,rgba(6,182,212,0.25))] border border-white/20 group hover:scale-[1.03] hover:-translate-y-1.5 transition-all duration-300 flex items-center justify-center bg-black/40">
                 {previewUrl ? (
                   <img
                     src={previewUrl}
                     alt="Lyric Card Preview"
-                    className="w-full h-auto max-h-[50vh] sm:max-h-[460px] object-contain rounded-2xl transition-all duration-300"
+                    className="w-full h-auto max-h-[50vh] sm:max-h-[460px] object-contain rounded-2xl transition-all duration-300 drop-shadow-2xl"
                   />
                 ) : (
                   <div className="w-full h-64 bg-slate-900 flex items-center justify-center">
@@ -564,6 +602,8 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
             </div>
           </div>
         </div>
+          </>
+        )}
       </div>
     </div>,
     document.body
