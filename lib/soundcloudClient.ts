@@ -165,6 +165,84 @@ export async function resolveSoundCloudUrl(inputUrl: string): Promise<Track[]> {
 }
 
 /**
+ * Resolves full SoundCloud playlist metadata and all tracks from any playlist URL or shortlink
+ */
+export async function resolveSoundCloudPlaylistUrl(
+  inputUrl: string
+): Promise<{ playlist: SoundCloudPlaylist; tracks: Track[] } | null> {
+  let targetUrl = inputUrl.trim()
+  if (!targetUrl) return null
+
+  // If short link on.soundcloud.com, follow redirect
+  if (targetUrl.includes('on.soundcloud.com')) {
+    try {
+      const headRes = await fetch(targetUrl, {
+        method: 'HEAD',
+        redirect: 'follow',
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        },
+      })
+      if (headRes.url && headRes.url.includes('soundcloud.com')) {
+        targetUrl = headRes.url
+      }
+    } catch (e) {
+      console.warn('[SoundCloud] Failed to expand shortlink:', e)
+    }
+  }
+
+  const clientId = await getSoundCloudClientId()
+  const resolveApi = `https://api-v2.soundcloud.com/resolve?url=${encodeURIComponent(
+    targetUrl
+  )}&client_id=${clientId}`
+
+  try {
+    const res = await fetch(resolveApi, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        Accept: 'application/json',
+      },
+      next: { revalidate: 3600 },
+    })
+
+    if (!res.ok) return null
+    const pl = await res.json()
+
+    // Must be a playlist or have a collection of tracks
+    if (pl.kind !== 'playlist' && !Array.isArray(pl.tracks)) {
+      return null
+    }
+
+    const fullAudioTracks = await resolveAllPlaylistTracks(pl.tracks || [], clientId)
+    const rawArt = pl.artwork_url || pl.tracks?.[0]?.artwork_url || pl.user?.avatar_url
+    const highResArt = getSoundCloudHighResArtwork(rawArt)
+
+    const playlist: SoundCloudPlaylist = {
+      id: pl.id,
+      title: pl.title || 'SoundCloud Playlist',
+      artwork_url: highResArt,
+      track_count: fullAudioTracks.length,
+      duration: pl.duration ? Math.round(pl.duration / 1000) : 0,
+      permalink_url: pl.permalink_url,
+      user: {
+        id: pl.user?.id,
+        username: pl.user?.username || 'SoundCloud Creator',
+        avatar_url: getSoundCloudHighResArtwork(pl.user?.avatar_url) || undefined,
+      },
+      is_album: !!pl.is_album,
+      tracks: fullAudioTracks,
+    }
+
+    return { playlist, tracks: fullAudioTracks }
+  } catch (err) {
+    console.error('[SoundCloud] Failed to resolve playlist URL:', err)
+    return null
+  }
+}
+
+/**
  * Resolves all tracks from a SoundCloud playlist response, including batch-fetching
  * any stub track items ({ id: ... }) that SoundCloud only partially returned.
  */

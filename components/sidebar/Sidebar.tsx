@@ -19,6 +19,7 @@ import {
   Trash2,
   DiscAlbum,
   Sparkles,
+  Cloud,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
@@ -30,6 +31,7 @@ import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { useSearch } from '@/components/search/SearchContext'
 import { ImportSpotifyModal } from '@/components/playlist/ImportSpotifyModal'
 import { ImportYouTubePlaylistModal } from '@/components/playlist/ImportYouTubePlaylistModal'
+import { ImportSoundCloudModal } from '@/components/playlist/ImportSoundCloudModal'
 import { YoutubeIcon } from '@/components/icons/YoutubeIcon'
 
 export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
@@ -43,6 +45,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
   const { clearSearch } = useSearch()
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [isYtImportModalOpen, setIsYtImportModalOpen] = useState(false)
+  const [isScImportModalOpen, setIsScImportModalOpen] = useState(false)
 
   const exploreNavRef = React.useRef<HTMLElement>(null)
   const playlistNavRef = React.useRef<HTMLDivElement>(null)
@@ -324,6 +327,13 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
               >
                 <YoutubeIcon className="w-3.5 h-3.5" />
               </button>
+              <button
+                onClick={() => setIsScImportModalOpen(true)}
+                className="w-7 h-7 rounded-lg text-[#ff7700] hover:text-[#ff5500] hover:bg-[#ff5500]/20 flex items-center justify-center transition-all"
+                title="Nhập Playlist từ SoundCloud"
+              >
+                <Cloud className="w-3.5 h-3.5" />
+              </button>
               <div className="w-[1px] h-3 bg-white/10 my-auto mx-0.5" />
               <button
                 onClick={handleCreatePlaylist}
@@ -408,6 +418,10 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
       <ImportYouTubePlaylistModal
         isOpen={isYtImportModalOpen}
         onClose={() => setIsYtImportModalOpen(false)}
+      />
+      <ImportSoundCloudModal
+        isOpen={isScImportModalOpen}
+        onClose={() => setIsScImportModalOpen(false)}
       />
     </aside>
   )

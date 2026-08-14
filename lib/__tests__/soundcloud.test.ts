@@ -162,4 +162,14 @@ describe('SoundCloud Helper & Full Audio Filter Unit Tests', () => {
     expect(results.length).toBeGreaterThan(10)
     expect(results[0].source).toBe('soundcloud')
   })
+
+  it('resolveSoundCloudPlaylistUrl should resolve full playlist metadata and all 38 tracks for sets/nger', async () => {
+    const { resolveSoundCloudPlaylistUrl } = await import('../soundcloudClient')
+    const result = await resolveSoundCloudPlaylistUrl('https://soundcloud.com/ph-m-duy-168788192/sets/nger')
+    expect(result).not.toBeNull()
+    expect(result?.playlist).toBeDefined()
+    expect(result?.playlist.title).toBe('Nger')
+    expect(result?.tracks.length).toBeGreaterThanOrEqual(30)
+    expect(result?.tracks[0].source).toBe('soundcloud')
+  })
 })
