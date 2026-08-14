@@ -12,6 +12,14 @@ let cachedClientId: string | null = null
 let clientIdExpiresAt: number = 0
 let inFlightClientIdPromise: Promise<string> | null = null
 
+// [FIX #2] Track a *separate* in-flight promise for forced refreshes so a
+// forceRefresh=true caller never receives a stale (non-forced) in-flight
+// result. Previously, if a normal (non-force) fetch was already in-flight,
+// a concurrent forceRefresh call would just `return inFlightClientIdPromise`
+// and silently get the OLD client_id back — defeating the whole point of
+// forcing a refresh after a 401/403.
+let inFlightForceRefreshPromise: Promise<string> | null = null
+
 // In-memory stream URL cache (15-minute TTL)
 const streamUrlCache = new Map<string, { url: string; expiresAt: number }>()
 
@@ -27,6 +35,25 @@ const FALLBACK_CLIENT_IDS = [
   'nXIZT4VQQYkgHs75vpIYbnINQciCkV5Y',
   'iZIs9mchVcX5lhVRyQGGAYlNPVldzAoX',
 ]
+
+// [FIX #3] Index into FALLBACK_CLIENT_IDS. Previously the code always used
+// FALLBACK_CLIENT_IDS[0] — the other two entries were dead code. Now we
+// rotate to the next candidate whenever the current one is invalidated
+// (see invalidateFallbackClientId()).
+let fallbackClientIdIndex = 0
+
+function getCurrentFallbackClientId(): string {
+  const id = FALLBACK_CLIENT_IDS[fallbackClientIdIndex % FALLBACK_CLIENT_IDS.length]
+  if (!id) {
+    throw new Error('[SoundCloud] No fallback client_id available')
+  }
+  return id
+}
+
+/** Advance to the next fallback client_id candidate (called after a 401/403). */
+function rotateFallbackClientId(): void {
+  fallbackClientIdIndex = (fallbackClientIdIndex + 1) % FALLBACK_CLIENT_IDS.length
+}
 
 /**
  * Fetch wrapper with AbortController timeout to prevent hanging connections
@@ -45,76 +72,104 @@ async function fetchWithTimeout(
   }
 }
 
+const SC_USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+
 /**
- * Dynamically retrieves or extracts a valid SoundCloud Client ID with in-flight deduplication
+ * Attempts to dynamically extract a fresh client_id from the soundcloud.com
+ * web bundle. Returns null on any failure (never throws).
+ */
+async function scrapeClientIdFromWeb(): Promise<string | null> {
+  try {
+    const htmlRes = await fetchWithTimeout(
+      'https://soundcloud.com',
+      {
+        headers: {
+          'User-Agent': SC_USER_AGENT,
+          Accept: 'text/html,application/xhtml+xml',
+        },
+        next: { revalidate: 3600 },
+      },
+      6000
+    )
+    if (!htmlRes.ok) return null
+    const html = await htmlRes.text()
+    const scriptUrls = [...html.matchAll(/<script[^>]+src="([^">]+\.js)"/g)].map((m) => m[1])
+    const targetScripts = scriptUrls.slice(-8).reverse()
+    const results = await Promise.allSettled(
+      targetScripts.map(async (sUrl) => {
+        const sRes = await fetchWithTimeout(sUrl, {}, 5000)
+        if (!sRes.ok) return null
+        const js = await sRes.text()
+        const match = js.match(/client_id[:=]\s*["']([a-zA-Z0-9]{32})["']/)
+        return match?.[1] || null
+      })
+    )
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value) return r.value
+    }
+    return null
+  } catch (err) {
+    console.warn('[SoundCloud] Failed dynamic client_id extraction:', err)
+    return null
+  }
+}
+
+/**
+ * Dynamically retrieves or extracts a valid SoundCloud Client ID with
+ * in-flight deduplication. Pass forceRefresh=true to bypass the TTL cache
+ * (e.g. after receiving a 401/403 from SoundCloud).
+ *
+ * [FIX #2] forceRefresh now ALWAYS performs (or awaits) a dedicated forced
+ * fetch instead of possibly returning a stale in-flight non-forced result.
  */
 export async function getSoundCloudClientId(forceRefresh = false): Promise<string> {
   const envId = process.env.SOUNDCLOUD_CLIENT_ID?.trim()
   if (envId) return envId
 
   const now = Date.now()
-  if (!forceRefresh && cachedClientId && now < clientIdExpiresAt) {
-    return cachedClientId
+  if (!forceRefresh) {
+    if (cachedClientId && now < clientIdExpiresAt) {
+      return cachedClientId
+    }
+    if (inFlightClientIdPromise) {
+      return inFlightClientIdPromise
+    }
+  } else if (inFlightForceRefreshPromise) {
+    // A forced refresh is already in progress — await that one instead of
+    // starting a duplicate scrape.
+    return inFlightForceRefreshPromise
   }
 
-  if (inFlightClientIdPromise) {
-    return inFlightClientIdPromise
-  }
-
-  inFlightClientIdPromise = (async () => {
-    // 1. Try to extract latest client_id dynamically from soundcloud.com web bundle
-    try {
-      const htmlRes = await fetchWithTimeout(
-        'https://soundcloud.com',
-        {
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-            Accept: 'text/html,application/xhtml+xml',
-          },
-          next: { revalidate: 3600 },
-        },
-        6000
-      )
-
-      if (htmlRes.ok) {
-        const html = await htmlRes.text()
-        const scriptUrls = [...html.matchAll(/<script[^>]+src="([^">]+\.js)"/g)].map((m) => m[1])
-
-        // Look into the last 8 bundle scripts in parallel
-        const targetScripts = scriptUrls.slice(-8).reverse()
-        const results = await Promise.allSettled(
-          targetScripts.map(async (sUrl) => {
-            const sRes = await fetchWithTimeout(sUrl, {}, 5000)
-            if (!sRes.ok) return null
-            const js = await sRes.text()
-            const match = js.match(/client_id[:=]\s*["']([a-zA-Z0-9]{32})["']/)
-            return match?.[1] || null
-          })
-        )
-
-        for (const r of results) {
-          if (r.status === 'fulfilled' && r.value) {
-            cachedClientId = r.value
-            clientIdExpiresAt = Date.now() + 15 * 60 * 1000 // 15 mins TTL
-            return cachedClientId
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('[SoundCloud] Failed dynamic client_id extraction:', err)
+  const runFetch = async (): Promise<string> => {
+    const scraped = await scrapeClientIdFromWeb()
+    if (scraped) {
+      cachedClientId = scraped
+      clientIdExpiresAt = Date.now() + 15 * 60 * 1000 // 15 mins TTL
+      fallbackClientIdIndex = 0 // reset fallback rotation once we have a real scraped id
+      return cachedClientId
     }
-
-    // 2. Fallback to candidate list
-    const fallback = FALLBACK_CLIENT_IDS[0]
-    if (!fallback) {
-      throw new Error('[SoundCloud] No fallback client_id available')
-    }
+    // [FIX #3] Use (and rotate through) the fallback candidate list instead
+    // of always using FALLBACK_CLIENT_IDS[0].
+    const fallback = getCurrentFallbackClientId()
     cachedClientId = fallback
-    clientIdExpiresAt = Date.now() + 15 * 60 * 1000 // 15 mins TTL
+    clientIdExpiresAt = Date.now() + 15 * 60 * 1000
     return cachedClientId
-  })()
+  }
 
+  if (forceRefresh) {
+    // On a forced refresh caused by a 401/403, also rotate the fallback
+    // candidate so a repeatedly-revoked hardcoded id isn't retried forever.
+    rotateFallbackClientId()
+    inFlightForceRefreshPromise = runFetch()
+    try {
+      return await inFlightForceRefreshPromise
+    } finally {
+      inFlightForceRefreshPromise = null
+    }
+  }
+
+  inFlightClientIdPromise = runFetch()
   try {
     return await inFlightClientIdPromise
   } finally {
@@ -325,7 +380,7 @@ async function resolveAllPlaylistTracks(
     (t) => t && t.title && t.media
   )
   const stubTrackIds: (number | string)[] = rawTracksList
-    .filter((t) => t && !t.title && t.id)
+    .filter((t) => t && t.id && !t.media) // [FIX #6] was: !t.title && t.id
     .map((t) => t.id)
 
   const fetchedTracks: SoundCloudRawTrack[] = []
