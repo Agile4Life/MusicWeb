@@ -374,9 +374,9 @@ export function NowPlayingOverlay() {
 
 
         {/* Mobile View (<1024px): 1 Column Tab Switcher */}
-        <div className="flex lg:hidden w-full h-full">
+        <div className="flex lg:hidden w-full h-full pb-[170px] overflow-hidden">
           {mobileTab === 'cover' ? (
-            <div className="w-full h-full relative">
+            <div className="w-full h-full relative overflow-y-auto no-scrollbar">
               <StageWithFrequencyData
                 coverUrl={currentTrack.cover_url}
                 title={currentTrack.title}
@@ -391,23 +391,23 @@ export function NowPlayingOverlay() {
           )}
         </div>
 
-        {/* 🎛️ MOBILE COMPACT FLOATING CONTROL BAR (< 768px) */}
-        <div className="player-bar lg:hidden absolute bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))] inset-x-3 z-30 p-3 flex flex-col gap-2 rounded-2xl transition-all duration-300 select-none shadow-2xl border border-white/10">
+        {/* 🎛️ MOBILE COMPACT FLOATING CONTROL BAR (< 1024px) */}
+        <div className="player-bar lg:hidden absolute bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))] inset-x-3 z-30 p-3 bg-[#080b12]/95 backdrop-blur-2xl flex flex-col gap-2 rounded-2xl transition-all duration-300 select-none shadow-2xl border border-white/10">
           {/* Top Row: Track Metadata + Album/Heart/Queue Actions */}
-          <div className="flex items-center justify-between gap-2 w-full">
+          <div className="flex items-center justify-between gap-2 w-full min-w-0">
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
-              <div className={`player-cover w-10 h-10 bg-slate-800 flex items-center justify-center border border-white/10 shadow-md shrink-0 ${isPlaying ? 'is-playing' : ''}`}>
+              <div className={`player-cover w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center border border-white/10 shadow-md shrink-0 ${isPlaying ? 'is-playing' : ''}`}>
                 <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
               </div>
-              <div className="flex flex-col min-w-0 flex-1 truncate">
-                <div className="flex items-center gap-1.5 truncate">
+              <div className="flex flex-col min-w-0 flex-1 justify-center">
+                <div className="flex items-center gap-1.5 min-w-0">
                   <OverflowMarqueeText
                     text={currentTrack.title}
-                    className="text-xs font-bold text-white min-w-0 truncate"
+                    className="text-xs font-bold text-white truncate"
                   />
                   {isPlaying && <MiniEqualizer isPlaying={isPlaying} className="shrink-0" />}
                 </div>
-                <span className="text-[10px] text-slate-400 truncate">
+                <span className="text-[10px] text-slate-400 truncate leading-tight">
                   {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
                 </span>
               </div>
@@ -417,7 +417,7 @@ export function NowPlayingOverlay() {
             <div className="flex items-center gap-1 shrink-0">
               <button
                 onClick={handleOpenAlbum}
-                className="p-1.5 rounded-lg text-slate-300 bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 text-[10px] font-semibold flex items-center gap-1"
+                className="w-8 h-8 rounded-lg text-slate-300 bg-white/[0.08] hover:bg-white/[0.14] active:scale-95 border border-white/10 flex items-center justify-center transition-all"
                 title={displayAlbumName ? `Vào album: ${displayAlbumName}` : 'Album'}
               >
                 <DiscAlbum style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3.5 h-3.5" />
@@ -425,7 +425,7 @@ export function NowPlayingOverlay() {
 
               <button
                 onClick={handleFavoriteClick}
-                className={`p-1.5 rounded-lg transition-all ${currentTrack.is_favorite ? 'text-rose-500 bg-rose-500/15 border border-rose-500/30' : 'text-slate-400 hover:text-white bg-white/5'}`}
+                className={`w-8 h-8 rounded-lg active:scale-95 transition-all flex items-center justify-center ${currentTrack.is_favorite ? 'text-rose-500 bg-rose-500/15 border border-rose-500/30' : 'text-slate-400 hover:text-white bg-white/5 border border-white/5'}`}
                 title={currentTrack.is_favorite ? 'Bỏ yêu thích' : 'Yêu thích'}
               >
                 <Heart className={`w-3.5 h-3.5 ${currentTrack.is_favorite ? 'fill-current' : ''}`} />
@@ -433,7 +433,7 @@ export function NowPlayingOverlay() {
 
               <button
                 onClick={toggleQueue}
-                className={`p-1.5 rounded-lg transition-all ${isQueueOpen ? 'text-[var(--spotify-glow,#22d3ee)] bg-[var(--spotify-glow)]/15 border border-[var(--spotify-glow)]/30' : 'text-slate-400 hover:text-white bg-white/5'}`}
+                className={`w-8 h-8 rounded-lg active:scale-95 transition-all flex items-center justify-center ${isQueueOpen ? 'text-[var(--spotify-glow,#22d3ee)] bg-[var(--spotify-glow)]/15 border border-[var(--spotify-glow)]/30' : 'text-slate-400 hover:text-white bg-white/5 border border-white/5'}`}
                 title="Hàng đợi"
               >
                 <ListMusic className="w-3.5 h-3.5" />
@@ -442,22 +442,22 @@ export function NowPlayingOverlay() {
           </div>
 
           {/* Middle Row: Waveform Scrubber */}
-          <div className="w-full px-1">
+          <div className="w-full px-0.5">
             <AudioWaveformScrubber
               currentTime={currentTime}
               duration={duration || currentTrack.duration || 0}
               isPlaying={isPlaying}
               trackId={currentTrack.id}
               onSeek={seek}
-              barCount={70}
+              barCount={60}
             />
           </div>
 
           {/* Bottom Row: Centered Playback Controls */}
-          <div className="flex items-center justify-center gap-5 w-full pt-0.5">
+          <div className="flex items-center justify-between px-2 w-full pt-0.5">
             <button
               onClick={toggleShuffle}
-              className={`p-1.5 rounded-lg transition-all ${isShuffle ? 'text-[var(--spotify-glow,#22d3ee)] bg-[var(--spotify-glow)]/15 border border-[var(--spotify-glow)]/30' : 'text-slate-400'}`}
+              className={`w-8 h-8 rounded-lg flex items-center justify-center active:scale-90 transition-all ${isShuffle ? 'text-[var(--spotify-glow,#22d3ee)] bg-[var(--spotify-glow)]/15 border border-[var(--spotify-glow)]/30' : 'text-slate-400'}`}
               title="Phát ngẫu nhiên"
             >
               <Shuffle className="w-4 h-4" />
@@ -465,7 +465,7 @@ export function NowPlayingOverlay() {
 
             <button
               onClick={prevTrack}
-              className="p-1.5 text-slate-300 hover:text-white active:scale-95 transition-transform"
+              className="w-9 h-9 flex items-center justify-center text-slate-300 hover:text-white active:scale-90 transition-transform rounded-full"
               title="Bài trước"
             >
               <SkipBack className="w-5 h-5" />
@@ -475,21 +475,21 @@ export function NowPlayingOverlay() {
               onClick={togglePlay}
               style={{
                 background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                boxShadow: '0 3px 12px var(--theme-glow-shadow, rgba(6,182,212,0.45))',
+                boxShadow: '0 3px 14px var(--theme-glow-shadow, rgba(6,182,212,0.45))',
               }}
-              className="w-10 h-10 rounded-full flex items-center justify-center text-black font-bold shrink-0 active:scale-95 transition-transform border border-white/20"
+              className="w-11 h-11 rounded-full flex items-center justify-center text-black font-bold shrink-0 active:scale-90 transition-transform border border-white/20"
               title={isPlaying ? 'Tạm dừng' : 'Phát'}
             >
               {isPlaying ? (
-                <Pause className="w-4.5 h-4.5 fill-current text-black" />
+                <Pause className="w-5 h-5 fill-current text-black" />
               ) : (
-                <Play className="w-4.5 h-4.5 fill-current text-black ml-0.5" />
+                <Play className="w-5 h-5 fill-current text-black ml-0.5" />
               )}
             </button>
 
             <button
               onClick={nextTrack}
-              className="p-1.5 text-slate-300 hover:text-white active:scale-95 transition-transform"
+              className="w-9 h-9 flex items-center justify-center text-slate-300 hover:text-white active:scale-90 transition-transform rounded-full"
               title="Bài kế tiếp"
             >
               <SkipForward className="w-5 h-5" />
@@ -497,7 +497,7 @@ export function NowPlayingOverlay() {
 
             <button
               onClick={toggleRepeat}
-              className={`p-1.5 rounded-lg transition-all ${repeatMode !== 'off' ? 'text-[var(--spotify-glow,#22d3ee)] bg-[var(--spotify-glow)]/15 border border-[var(--spotify-glow)]/30' : 'text-slate-400'}`}
+              className={`w-8 h-8 rounded-lg flex items-center justify-center active:scale-90 transition-all ${repeatMode !== 'off' ? 'text-[var(--spotify-glow,#22d3ee)] bg-[var(--spotify-glow)]/15 border border-[var(--spotify-glow)]/30' : 'text-slate-400'}`}
               title="Lặp lại"
             >
               {repeatMode === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}

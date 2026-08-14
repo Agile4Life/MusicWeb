@@ -60,34 +60,40 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
   const [mobileTab, setMobileTab] = useState<'select' | 'preview'>('select')
   const listRef = useRef<HTMLDivElement | null>(null)
   const activeLineRef = useRef<HTMLDivElement | null>(null)
+  const initializedRef = useRef(false)
 
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  // Initialize selected lines and sync theme when modal opens
+  // Initialize selected lines ONCE when modal opens (Static mode: do not reset on audio sync)
   useEffect(() => {
     if (isOpen) {
-      if (currentTheme?.id) {
-        setSelectedThemeId(getInitialThemeForApp(currentTheme.id))
-      }
-      if (lyrics.length > 0) {
-        let initIndex = 0
-        if (initialActiveIndex >= 0 && initialActiveIndex < lyrics.length) {
-          initIndex = initialActiveIndex
+      if (!initializedRef.current) {
+        initializedRef.current = true
+        if (currentTheme?.id) {
+          setSelectedThemeId(getInitialThemeForApp(currentTheme.id))
         }
-        setSelectedIndices([initIndex])
-        setMobileTab('select')
-
-        setTimeout(() => {
-          if (activeLineRef.current && listRef.current) {
-            const target = activeLineRef.current.offsetTop - listRef.current.clientHeight * 0.35
-            listRef.current.scrollTo({ top: Math.max(0, target), behavior: 'smooth' })
+        if (lyrics.length > 0) {
+          let initIndex = 0
+          if (initialActiveIndex >= 0 && initialActiveIndex < lyrics.length) {
+            initIndex = initialActiveIndex
           }
-        }, 100)
+          setSelectedIndices([initIndex])
+          setMobileTab('select')
+
+          setTimeout(() => {
+            if (activeLineRef.current && listRef.current) {
+              const target = activeLineRef.current.offsetTop - listRef.current.clientHeight * 0.35
+              listRef.current.scrollTo({ top: Math.max(0, target), behavior: 'smooth' })
+            }
+          }, 100)
+        }
       }
+    } else {
+      initializedRef.current = false
     }
-  }, [isOpen, lyrics, initialActiveIndex, currentTheme?.id])
+  }, [isOpen, lyrics])
 
   // Update card preview whenever selected lines or theme changes
   useEffect(() => {
@@ -280,7 +286,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
               <h2 id="lyrics-share-modal-title" className="text-sm sm:text-base font-extrabold text-white flex items-center gap-2 truncate">
                 Chia sẻ câu hát
                 <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--primary-spotify,#06b6d4)]/10 text-[var(--spotify-glow,#22d3ee)] border border-[var(--primary-spotify,#06b6d4)]/20 shrink-0">
-                  Lyric Card
+                  Story 9:16
                 </span>
               </h2>
               <p className="text-[11px] sm:text-xs text-slate-400 truncate">
@@ -488,14 +494,14 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
               </div>
             </div>
 
-            {/* Lyric Card Preview Container (Dynamic Compact Ratio & Full Mobile Scale) */}
+            {/* Lyric Card Preview Container (Fixed 9:16 Story Ratio) */}
             <div className="flex-1 flex items-center justify-center min-h-[260px] sm:min-h-[340px] my-auto py-2">
-              <div className="relative max-h-[52vh] sm:max-h-[460px] w-full max-w-[320px] xs:max-w-[340px] sm:max-w-[360px] rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-white/20 group hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 flex items-center justify-center bg-black/50">
+              <div className="relative aspect-[9/16] max-h-[52vh] sm:max-h-[460px] w-auto rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-white/20 group hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 flex items-center justify-center bg-black/50">
                 {previewUrl ? (
                   <img
                     src={previewUrl}
                     alt="Lyric Card Preview"
-                    className="w-full h-auto max-h-[52vh] sm:max-h-[460px] object-contain rounded-2xl transition-all duration-300"
+                    className="w-full h-full object-cover rounded-2xl transition-all duration-300"
                   />
                 ) : (
                   <div className="w-full h-64 bg-slate-900 flex items-center justify-center">

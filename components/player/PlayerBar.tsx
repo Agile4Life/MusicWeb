@@ -334,36 +334,36 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
       >
         <PlayerBarGlowBorder duration={duration || currentTrack.duration} rx={16} />
         {/* Main row */}
-        <div className="flex items-center gap-2 w-full h-[52px] relative z-10">
+        <div className="flex items-center gap-2.5 w-full h-[54px] px-2.5 relative z-10">
           {/* Cover Art */}
-          <div className={`player-cover w-10 h-10 bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 relative rounded-xl ${isPlaying ? 'is-playing' : ''}`}>
+          <div className={`player-cover w-10 h-10 bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 relative rounded-xl border border-white/10 shadow-md ${isPlaying ? 'is-playing' : ''}`}>
             <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
           </div>
 
           {/* Title + Artist — flex-1 takes remaining space */}
-          <div className="flex flex-col min-w-0 flex-1 overflow-hidden justify-center gap-0.5">
+          <div className="flex flex-col min-w-0 flex-1 overflow-hidden justify-center pr-1">
             <OverflowMarqueeText
               text={currentTrack.title}
               className={`text-xs font-bold text-white leading-tight ${trackMetadataTitleClass}`}
             />
-            <span className="text-[10px] text-slate-400 truncate leading-tight">
+            <span className="text-[10px] text-slate-400 truncate leading-tight mt-0.5">
               {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
             </span>
           </div>
 
           {/* Compact Controls: Prev + Play/Pause + Next + Heart */}
-          <div className="flex items-center shrink-0 gap-0.5">
+          <div className="flex items-center shrink-0 gap-1">
             <button
               onClick={(e) => { e.stopPropagation(); prevTrack() }}
-              className="w-9 h-9 flex items-center justify-center text-slate-400 active:text-white active:scale-90 transition-all rounded-full"
+              className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white active:scale-90 transition-all rounded-full"
               title="Bài trước"
             >
-              <SkipBack className="w-[17px] h-[17px]" />
+              <SkipBack className="w-4 h-4" />
             </button>
 
             <button
               onClick={(e) => { e.stopPropagation(); togglePlay() }}
-              className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 active:scale-90 transition-transform shadow-lg"
+              className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 active:scale-90 transition-transform shadow-lg border border-white/20"
               style={{
                 background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
                 boxShadow: '0 2px 10px var(--theme-glow-shadow, rgba(6,182,212,0.4))',
@@ -371,21 +371,21 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
               title={isPlaying ? 'Tạm dừng' : 'Phát'}
             >
               {isPlaying
-                ? <Pause className="w-[17px] h-[17px] fill-current text-black" />
-                : <Play className="w-[17px] h-[17px] fill-current text-black ml-0.5" />}
+                ? <Pause className="w-4 h-4 fill-current text-black" />
+                : <Play className="w-4 h-4 fill-current text-black ml-0.5" />}
             </button>
 
             <button
               onClick={(e) => { e.stopPropagation(); nextTrack() }}
-              className="w-9 h-9 flex items-center justify-center text-slate-400 active:text-white active:scale-90 transition-all rounded-full"
+              className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white active:scale-90 transition-all rounded-full"
               title="Bài kế tiếp"
             >
-              <SkipForward className="w-[17px] h-[17px]" />
+              <SkipForward className="w-4 h-4" />
             </button>
 
             <button
               onClick={(e) => { e.stopPropagation(); toggleFavoriteCurrentTrack() }}
-              className="w-9 h-9 flex items-center justify-center active:scale-90 transition-all rounded-full"
+              className="w-8 h-8 flex items-center justify-center active:scale-90 transition-all rounded-full"
               title={currentTrack.is_favorite ? 'Bỏ yêu thích' : 'Thêm yêu thích'}
             >
               <Heart

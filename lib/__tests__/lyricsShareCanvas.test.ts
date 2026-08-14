@@ -5,7 +5,6 @@ import {
   calculateOptimalFontSize,
   getThemeById,
   calculateLyricsBlockStartX,
-  calculateCompactCardHeight,
   toggleContiguousLyricLine,
 } from '../lyricsShareCanvas'
 
@@ -62,27 +61,15 @@ describe('lyricsShareCanvas Engine', () => {
     // Canvas is 1080px wide
     // Line widths: 400px, 600px, 500px -> max is 600px
     // Centered startX should be (1080 - 600) / 2 = 240px
-    const startX = calculateLyricsBlockStartX([400, 600, 500], 1080, 90)
+    const startX = calculateLyricsBlockStartX([400, 600, 500], 1080, 110)
     expect(startX).toBe(240)
 
-    // Very wide lines (e.g. 980px) -> capped at minMargin 90px
-    const wideStartX = calculateLyricsBlockStartX([980, 950], 1080, 90)
-    expect(wideStartX).toBe(90)
+    // Very wide lines (e.g. 980px) -> capped at minMargin 110px
+    const wideStartX = calculateLyricsBlockStartX([980, 950], 1080, 110)
+    expect(wideStartX).toBe(110)
 
     // Empty lines array fallback
-    expect(calculateLyricsBlockStartX([], 1080, 90)).toBe(90)
-  })
-
-  it('calculates compact card height dynamically without huge empty gaps', () => {
-    // 1 line: compact height around 750px
-    const h1 = calculateCompactCardHeight(1, 92, 470, 136)
-    expect(h1).toBeLessThan(850)
-    expect(h1).toBeGreaterThan(650)
-
-    // 5 lines: compact height around 1050px - 1200px (much more compact than 1920px fixed)
-    const h5 = calculateCompactCardHeight(5, 56, 470, 136)
-    expect(h5).toBeLessThan(1250)
-    expect(h5).toBeGreaterThan(h1)
+    expect(calculateLyricsBlockStartX([], 1080, 110)).toBe(110)
   })
 
   describe('toggleContiguousLyricLine', () => {
