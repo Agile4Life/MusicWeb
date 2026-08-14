@@ -360,6 +360,31 @@ body {
   }
 }
 
+/* === Custom Slim Rounded Scrollbar for Dropdowns & Overlays === */
+.custom-slim-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.custom-slim-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-slim-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 8px 0;
+}
+
+.custom-slim-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.custom-slim-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--spotify-glow, #22d3ee) 60%, rgba(255, 255, 255, 0.35));
+}
+
 /* Depth contrast on Progress Track & Fill inside Player Bar */
 .player-bar .progress-track {
   box-shadow: inset 0 1.5px 3px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -1206,35 +1231,59 @@ input[type='range']:hover::-moz-range-thumb {
   touch-action: none;
   transition: height 0.15s ease;
 }
+
 .scrubber-track:hover,
 .scrubber-track.is-dragging {
-  height: 6px;
+  height: 5px;
 }
+
 .scrubber-fill {
   position: absolute;
   top: 0;
   left: 0;
   bottom: 0;
   border-radius: 9999px;
-  background: var(--accent, #06b6d4);
+  background: linear-gradient(90deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4)) !important;
+  box-shadow:
+    0 0 8px var(--spotify-glow, #22d3ee),
+    0 0 16px var(--theme-glow-shadow, rgba(6, 182, 212, 0.95)),
+    0 0 28px rgba(34, 211, 238, 0.7) !important;
 }
+
+.scrubber-track:hover .scrubber-fill,
+.scrubber-track.is-dragging .scrubber-fill {
+  background: linear-gradient(90deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4)) !important;
+  box-shadow:
+    0 0 10px var(--spotify-glow, #22d3ee),
+    0 0 20px var(--theme-glow-shadow, rgba(6, 182, 212, 1)),
+    0 0 32px rgba(34, 211, 238, 0.85) !important;
+}
+
 .scrubber-thumb {
   position: absolute;
   top: 50%;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 0 0 3px var(--accent-dim, rgba(6, 182, 212, 0.35));
-  transform: translate(-50%, -50%) scale(0.7);
+  background: #ffffff;
+  box-shadow:
+    0 0 0 3px rgba(6, 182, 212, 0.45),
+    0 0 12px var(--spotify-glow, #22d3ee),
+    0 0 24px rgba(34, 211, 238, 0.8) !important;
+  transform: translate(-50%, -50%) scale(0.85);
   opacity: 0;
   transition: opacity 0.15s ease, transform 0.15s ease;
   pointer-events: none;
 }
+
 .scrubber-track:hover .scrubber-thumb,
 .scrubber-track.is-dragging .scrubber-thumb {
   opacity: 1;
-  transform: translate(-50%, -50%) scale(1);
+  transform: translate(-50%, -50%) scale(1.1);
+  box-shadow:
+    0 0 0 3px rgba(6, 182, 212, 0.55),
+    0 0 14px var(--spotify-glow, #22d3ee),
+    0 0 28px rgba(34, 211, 238, 0.95) !important;
 }
 
 /* ================================================================
@@ -1336,42 +1385,31 @@ input[type='range']:hover::-moz-range-thumb {
 }
 
 .search-input {
-  min-height: 42px;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--spotify-glow, #22d3ee) 8%, rgba(20, 24, 36, 0.75)),
-    rgba(14, 18, 28, 0.65)
-  ) !important;
-  backdrop-filter: blur(16px) saturate(135%);
-  -webkit-backdrop-filter: blur(16px) saturate(135%);
-  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 14%, rgba(255, 255, 255, 0.08)) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.15),
-    0 6px 18px rgba(0, 0, 0, 0.22) !important;
+  min-height: 40px;
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
   border-radius: 9999px;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+  transition: all 0.2s ease;
 }
 
 .search-input:hover {
-  transform: translateY(-0.5px);
-  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 22%, rgba(255, 255, 255, 0.12)) !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, rgba(255, 255, 255, 0.2)) !important;
   box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.25),
-    0 8px 20px rgba(0, 0, 0, 0.28) !important;
+    0 0 12px color-mix(in srgb, var(--spotify-glow, #22d3ee) 15%, transparent),
+    0 4px 12px rgba(0, 0, 0, 0.25) !important;
 }
 
 .search-input:focus {
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--spotify-glow, #22d3ee) 12%, rgba(24, 30, 46, 0.85)),
-    rgba(16, 22, 34, 0.75)
-  ) !important;
-  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 50%, rgba(255, 255, 255, 0.25)) !important;
+  background: rgba(255, 255, 255, 0.09) !important;
+  border-color: var(--spotify-glow, #22d3ee) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.3),
-    0 0 0 3px color-mix(in srgb, var(--spotify-glow, #22d3ee) 25%, transparent),
-    0 8px 24px rgba(0, 0, 0, 0.35) !important;
+    0 0 0 1px var(--spotify-glow, #22d3ee),
+    0 0 16px color-mix(in srgb, var(--spotify-glow, #22d3ee) 25%, transparent),
+    0 6px 16px rgba(0, 0, 0, 0.3) !important;
 }
 
 /* ================================================================

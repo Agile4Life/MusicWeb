@@ -11,6 +11,7 @@ import { OverflowMarqueeText } from '@/components/common/OverflowMarqueeText'
 import { setCachedResolvedAlbum, getCachedResolvedAlbum, isRealAlbumName } from '@/lib/albumCache'
 import { AudioWaveformScrubber } from './AudioWaveformScrubber'
 import { MiniEqualizer } from './MiniEqualizer'
+import { PlayerBarGlowBorder } from './PlayerBarGlowBorder'
 import {
   trackMetadataArtistInlineClass,
   trackMetadataLoadingClass,
@@ -294,10 +295,11 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
       {/* 📱 MOBILE FLOATING MINI PLAYER BAR (Visible on < 768px) */}
       <div
         onClick={openNowPlayingOverlay}
-        className={`${miniPlayerClassName} rounded-2xl border border-white/10 shadow-2xl backdrop-blur-2xl select-none cursor-pointer active:opacity-90 transition-opacity relative`}
+        className={`${miniPlayerClassName} rounded-2xl border border-white/10 shadow-2xl backdrop-blur-2xl select-none cursor-pointer active:opacity-90 transition-opacity relative overflow-hidden`}
       >
+        <PlayerBarGlowBorder duration={duration || currentTrack.duration} rx={16} />
         {/* Main row */}
-        <div className="flex items-center gap-2 w-full h-[52px]">
+        <div className="flex items-center gap-2 w-full h-[52px] relative z-10">
           {/* Cover Art */}
           <div className={`player-cover w-10 h-10 bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 relative rounded-xl ${isPlaying ? 'is-playing' : ''}`}>
             <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
@@ -359,17 +361,6 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
               />
             </button>
           </div>
-        </div>
-
-        {/* Progress bar at bottom edge */}
-        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-white/[0.08] progress-track">
-          <div
-            className="h-full transition-all duration-200 progress-fill"
-            style={{
-              width: `${progressPercent}%`,
-              background: 'linear-gradient(to right, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-            }}
-          />
         </div>
       </div>
 
@@ -600,7 +591,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
       {/* 💻 DESKTOP PLAYER BAR (Visible on >= 768px screens) */}
       <footer
-        className={`player-bar hidden lg:flex h-[84px] xl:h-[96px] py-2.5 xl:py-3.5 rounded-2xl px-4 lg:px-6 xl:px-8 items-center justify-between text-slate-300 select-none shrink-0 panel-theme-hover transition-all ${isScrolled ? 'is-scrolled' : ''}`}
+        className={`player-bar hidden lg:flex h-[84px] xl:h-[96px] py-2.5 xl:py-3.5 rounded-2xl px-4 lg:px-6 xl:px-8 items-center justify-between text-slate-300 select-none shrink-0 panel-theme-hover transition-all relative overflow-hidden ${isScrolled ? 'is-scrolled' : ''}`}
         onClick={(e) => {
           if (!isPlayerBarFeatureTarget(e.target as { closest?: (selector: string) => unknown })) {
             openNowPlayingOverlay()
@@ -608,6 +599,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         }}
         role="presentation"
       >
+        <PlayerBarGlowBorder duration={duration || currentTrack.duration} rx={16} />
         {/* Left: Track Metadata */}
         <div className="flex items-center gap-3 w-1/4 min-w-[250px] lg:min-w-[300px] xl:min-w-[360px] max-w-[420px]">
           <div onClick={openNowPlayingOverlay} className="relative group shrink-0 cursor-pointer" title="Mở Now Playing">

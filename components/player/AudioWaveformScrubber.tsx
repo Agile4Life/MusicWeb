@@ -124,8 +124,8 @@ export function AudioWaveformScrubber({
           <div
             className="scrubber-fill"
             style={{
-              background: 'var(--accent-gradient, var(--spotify-glow, #22d3ee))',
-              boxShadow: '0 0 8px var(--theme-glow-shadow, rgba(0,0,0,0.3))',
+              background: 'linear-gradient(90deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+              boxShadow: '0 0 8px var(--spotify-glow, #22d3ee), 0 0 16px var(--theme-glow-shadow, rgba(6, 182, 212, 0.95)), 0 0 28px rgba(34, 211, 238, 0.7)',
               width: `calc(${progressRatio * 100}%)`,
             }}
           />

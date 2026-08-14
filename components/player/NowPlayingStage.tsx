@@ -201,31 +201,39 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
               >
                 {/* Progress Ring SVG (3D tilted with card, sitting flush around circular album cover) */}
                 <svg
-                  className="absolute -inset-1.5 w-[calc(100%+12px)] h-[calc(100%+12px)] pointer-events-none -rotate-90 z-20"
+                  className="absolute -inset-2 w-[calc(100%+16px)] h-[calc(100%+16px)] pointer-events-none -rotate-90 z-20 overflow-visible"
                   viewBox="0 0 100 100"
                 >
+                  <defs>
+                    <linearGradient id="fullview-progress-glow-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="var(--spotify-glow, #22d3ee)" stopOpacity="1" />
+                      <stop offset="50%" stopColor="var(--primary-spotify, #06b6d4)" stopOpacity="1" />
+                      <stop offset="100%" stopColor="var(--spotify-glow, #22d3ee)" stopOpacity="1" />
+                    </linearGradient>
+                  </defs>
                   {/* Background Track Circle */}
                   <circle
                     cx="50"
                     cy="50"
                     r="48"
                     className="stroke-white/[0.08]"
-                    strokeWidth="0.8"
+                    strokeWidth="1"
                     fill="none"
                   />
-                  {/* Accent Fill Circle */}
+                  {/* Accent Fill Circle with intense multi-tier neon glow */}
                   <circle
                     cx="50"
                     cy="50"
                     r="48"
-                    className="stroke-[var(--spotify-glow,#22d3ee)] motion-reduce:transition-none transition-[stroke-dashoffset] duration-300 ease-linear"
-                    strokeWidth="1.2"
+                    stroke="url(#fullview-progress-glow-gradient)"
+                    className="motion-reduce:transition-none transition-[stroke-dashoffset] duration-300 ease-linear"
+                    strokeWidth="1.8"
                     fill="none"
                     strokeLinecap="round"
                     strokeDasharray={2 * Math.PI * 48}
                     strokeDashoffset={2 * Math.PI * 48 * (1 - progressRatio)}
                     style={{
-                      filter: 'drop-shadow(0 0 5px var(--theme-glow-shadow, rgba(34,211,238,0.7)))',
+                      filter: 'drop-shadow(0 0 4px var(--spotify-glow, #22d3ee)) drop-shadow(0 0 8px var(--theme-glow-shadow, rgba(6,182,212,0.95))) drop-shadow(0 0 16px rgba(34,211,238,0.7))',
                     }}
                   />
                 </svg>

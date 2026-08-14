@@ -165,48 +165,50 @@ export function TopBar() {
 
         {/* Suggestions Dropdown Popup — Elevation Level 3 */}
         {showDropdown && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--elevation-3-bg)] border border-white/10 rounded-2xl p-2 shadow-2xl z-40 flex flex-col gap-1 max-h-80 overflow-y-auto">
-            {searchingSuggestions && suggestions.length === 0 ? (
-              <div className="p-4 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin text-[var(--spotify-glow,#22d3ee)]" />
-                <span>Đang tìm kiếm...</span>
-              </div>
-            ) : suggestions.length > 0 ? (
-              <>
-                <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider px-3 py-1.5">
-                  Gợi ý nhanh
-                </p>
-                {suggestions.map((track) => (
-                  <div
-                    key={track.id}
-                    onClick={() => {
-                      playTrack(track, suggestions)
-                      setShowDropdown(false)
-                    }}
-                    className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-xl cursor-pointer transition-colors group"
-                  >
-                    <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 relative bg-slate-800 border border-white/10">
-                      <TrackCoverImage src={track.cover_url} alt={track.title} />
+          <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--elevation-3-bg,#0d111a)]/95 border border-white/10 rounded-2xl shadow-2xl z-40 overflow-hidden backdrop-blur-2xl">
+            <div className="p-2 max-h-80 overflow-y-auto flex flex-col gap-1 custom-slim-scrollbar">
+              {searchingSuggestions && suggestions.length === 0 ? (
+                <div className="p-4 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-[var(--spotify-glow,#22d3ee)]" />
+                  <span>Đang tìm kiếm...</span>
+                </div>
+              ) : suggestions.length > 0 ? (
+                <>
+                  <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider px-3 py-1.5">
+                    Gợi ý nhanh
+                  </p>
+                  {suggestions.map((track) => (
+                    <div
+                      key={track.id}
+                      onClick={() => {
+                        playTrack(track, suggestions)
+                        setShowDropdown(false)
+                      }}
+                      className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-xl cursor-pointer transition-colors group"
+                    >
+                      <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 relative bg-slate-800 border border-white/10">
+                        <TrackCoverImage src={track.cover_url} alt={track.title} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-white group-hover:text-[var(--spotify-glow)] truncate transition-colors">
+                          {track.title}
+                        </p>
+                        <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                          {track.artist}
+                        </p>
+                      </div>
+                      <div className="w-7 h-7 rounded-full bg-white/5 group-hover:bg-[var(--primary-spotify)] text-slate-400 group-hover:text-black flex items-center justify-center shrink-0 transition-colors">
+                        <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-white group-hover:text-[var(--spotify-glow)] truncate transition-colors">
-                        {track.title}
-                      </p>
-                      <p className="text-[11px] text-slate-400 truncate mt-0.5">
-                        {track.artist}
-                      </p>
-                    </div>
-                    <div className="w-7 h-7 rounded-full bg-white/5 group-hover:bg-[var(--primary-spotify)] text-slate-400 group-hover:text-black flex items-center justify-center shrink-0 transition-colors">
-                      <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
-                    </div>
-                  </div>
-                ))}
-              </>
-            ) : (
-              <div className="p-4 text-center text-xs text-slate-400">
-                Không tìm thấy kết quả phù hợp cho &quot;{searchQuery}&quot;
-              </div>
-            )}
+                  ))}
+                </>
+              ) : (
+                <div className="p-4 text-center text-xs text-slate-400">
+                  Không tìm thấy kết quả phù hợp cho &quot;{searchQuery}&quot;
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
