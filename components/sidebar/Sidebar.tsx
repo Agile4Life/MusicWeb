@@ -19,7 +19,6 @@ import {
   Trash2,
   DiscAlbum,
   Sparkles,
-  Cloud,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'

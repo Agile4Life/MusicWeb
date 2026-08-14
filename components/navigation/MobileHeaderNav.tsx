@@ -22,7 +22,6 @@ import {
   DiscAlbum,
   ChevronLeft,
   Sparkles,
-  Cloud,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
