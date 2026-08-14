@@ -122,12 +122,12 @@ export function TopBar() {
   }
 
   return (
-    <header className="sticky top-0 z-20 h-14 sm:h-16 lg:h-18 px-4 sm:px-6 lg:px-8 py-2 lg:py-3 app-header grid grid-cols-[1fr_auto_1fr] items-center gap-3 sm:gap-4 select-none">
-      {/* Left Slot: Balanced 1fr space */}
-      <div className="flex items-center justify-start min-w-0" />
+    <header className="sticky top-0 z-20 h-14 sm:h-16 lg:h-18 px-4 sm:px-6 lg:px-8 py-2 lg:py-3 app-header flex lg:grid lg:grid-cols-[1fr_auto_1fr] items-center justify-center gap-3 sm:gap-4 select-none">
+      {/* Left Slot: Balanced 1fr space on desktop */}
+      <div className="hidden lg:flex items-center justify-start min-w-0" />
 
       {/* Center Slot: Perfectly Centered Search Input Container */}
-      <div className="relative w-full min-w-[240px] xs:min-w-[280px] sm:min-w-[360px] md:min-w-[420px] lg:min-w-[480px] xl:min-w-[540px] max-w-xl mx-auto my-auto" ref={dropdownRef}>
+      <div className="relative w-full min-w-0 sm:min-w-[360px] md:min-w-[420px] lg:min-w-[480px] xl:min-w-[540px] max-w-xl mx-auto my-auto" ref={dropdownRef}>
         <div className="relative flex items-center">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none z-10" />
           <input
@@ -213,8 +213,8 @@ export function TopBar() {
         )}
       </div>
 
-      {/* Right Slot: User Actions (Aligned to Right inside its 1fr column) */}
-      <div className="flex items-center justify-end gap-2 my-auto shrink-0 relative">
+      {/* Right Slot: User Actions (Aligned to Right inside its 1fr column, hidden on mobile) */}
+      <div className="hidden lg:flex items-center justify-end gap-2 my-auto shrink-0 relative">
         {user ? (
           <div className="relative">
             <button

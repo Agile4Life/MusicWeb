@@ -1806,7 +1806,7 @@ input[type='range']:hover::-moz-range-thumb {
   box-shadow: 15px 0 40px rgba(0, 0, 0, 0.85);
   transform: translateX(-100%);
   transition: transform var(--transition-base);
-  z-index: 50;
+  z-index: 100 !important;
 }
 
 .mobile-drawer.open {
@@ -1822,7 +1822,7 @@ input[type='range']:hover::-moz-range-thumb {
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--transition-base);
-  z-index: 45;
+  z-index: 95 !important;
 }
 
 .mobile-drawer-backdrop.open {
