@@ -9,7 +9,7 @@ export default function ReceiptPage() {
   const router = useRouter()
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 h-full text-slate-100 select-none pb-28 lg:pb-36 p-3 sm:p-5 lg:p-6 max-w-7xl mx-auto w-full">
+    <div className="flex-1 flex flex-col min-h-0 text-slate-100 select-none pb-24 lg:pb-32 p-3 sm:p-5 lg:p-6 max-w-6xl mx-auto w-full">
       {/* Page Top Header Bar */}
       <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-xl mb-4 lg:mb-6 shrink-0 shadow-lg">
         <div className="flex items-center gap-3 min-w-0">

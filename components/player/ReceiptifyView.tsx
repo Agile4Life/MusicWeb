@@ -546,21 +546,21 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
 
         {/* 🖼️ RIGHT SHOWCASE PANEL: Thermal Paper Preview Pedestal & Action Buttons */}
         <div
-          className={`flex-1 flex-col bg-white/[0.02] border border-white/[0.08] rounded-2xl sm:rounded-3xl p-4 sm:p-5 lg:p-6 overflow-hidden relative shadow-2xl backdrop-blur-xl justify-between min-h-0 ${
+          className={`flex-1 flex-col bg-white/[0.02] border border-white/[0.08] rounded-2xl sm:rounded-3xl p-4 sm:p-5 lg:p-6 relative shadow-2xl backdrop-blur-xl justify-between min-h-0 ${
             mobileTab === 'preview' ? 'flex' : 'hidden md:flex'
           }`}
         >
           {/* Ambient Glow Pedestal in Background */}
           <div
-            className="absolute inset-0 pointer-events-none overflow-hidden"
+            className="absolute inset-0 pointer-events-none rounded-2xl sm:rounded-3xl overflow-hidden"
             style={{
               background: 'radial-gradient(circle at 50% 40%, rgba(251, 191, 36, 0.12), transparent 70%)',
             }}
           />
 
           {/* Scrollable Thermal Receipt Preview Pedestal */}
-          <div className="flex-1 overflow-y-auto flex flex-col items-center justify-start py-4 px-2 no-scrollbar relative z-10 min-h-[360px]">
-            <div className="relative w-auto max-w-full my-auto transition-all duration-300 flex items-center justify-center">
+          <div className="flex-1 overflow-y-auto max-h-[460px] lg:max-h-[500px] flex flex-col items-center justify-start py-2 px-1 no-scrollbar relative z-10 min-h-[300px]">
+            <div className="relative w-full max-w-[340px] sm:max-w-[380px] transition-all duration-300 flex items-center justify-center">
               {isLoadingTracks ? (
                 <div className="w-64 h-80 flex flex-col items-center justify-center gap-3 text-slate-400 bg-black/40 rounded-xl border border-white/10 p-6">
                   <RefreshCw className="w-7 h-7 text-amber-400 animate-spin" />
@@ -570,7 +570,7 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
                 <img
                   src={previewUrl}
                   alt="Music Receipt Preview"
-                  className="w-auto h-auto max-h-[56vh] xl:max-h-[62vh] max-w-[360px] sm:max-w-[420px] object-contain rounded-xl transition-all duration-300 drop-shadow-[0_25px_60px_rgba(0,0,0,0.9)] border border-white/20"
+                  className="w-full h-auto object-contain rounded-xl transition-all duration-300 drop-shadow-[0_25px_60px_rgba(0,0,0,0.9)] border border-white/20"
                 />
               ) : (
                 <div className="w-64 h-80 flex flex-col items-center justify-center gap-3 text-slate-400 bg-black/40 rounded-xl border border-white/10 p-6">
@@ -588,7 +588,7 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
           </div>
 
           {/* Bottom Action Buttons Bar */}
-          <div className="flex flex-col gap-2.5 pt-4 border-t border-white/[0.08] shrink-0 relative z-10 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:pb-0">
+          <div className="flex flex-col gap-2.5 pt-4 mt-2 border-t border-white/[0.08] shrink-0 relative z-10 pb-1 sm:pb-0">
             {/* Primary Share Action Button */}
             <button
               onClick={handleShare}
@@ -616,7 +616,7 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
               <button
                 onClick={handleCopy}
                 disabled={sliceTracks.length === 0}
-                className="py-2.5 px-4 rounded-xl font-bold text-xs text-white bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 hover:border-white/20 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                className="py-3 px-4 rounded-xl font-bold text-xs text-white bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 hover:border-white/20 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer shadow-sm"
               >
                 {copied ? (
                   <>
@@ -634,7 +634,7 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
               <button
                 onClick={handleDownload}
                 disabled={sliceTracks.length === 0}
-                className="py-2.5 px-4 rounded-xl font-bold text-xs text-white bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 hover:border-white/20 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                className="py-3 px-4 rounded-xl font-bold text-xs text-white bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 hover:border-white/20 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer shadow-sm"
               >
                 <Download className="w-4 h-4 text-amber-300" />
                 <span>Tải ảnh PNG</span>

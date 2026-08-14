@@ -665,7 +665,7 @@ export async function renderLyricCardToCanvas(
   ctx.fillStyle = 'rgba(255, 255, 255, 0.45)'
   ctx.font = '600 23px system-ui, -apple-system, sans-serif'
   ctx.textAlign = 'center'
-  ctx.fillText('Nghe trên MusicWeb', width / 2, footerY)
+  ctx.fillText('phongtct.vercel.app', width / 2, footerY)
   ctx.restore()
 
   // 9. 🔲 Smooth Rounded Border along card perimeter
