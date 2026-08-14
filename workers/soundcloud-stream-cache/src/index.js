@@ -261,27 +261,32 @@ export default {
         }
       }
 
-      const clientId = await getEdgeSoundCloudClientId(env)
-      let result = await resolveDirectlyFromEdge(cleanId, clientId)
-      let streamUrl = result.url
+      const isNumericId = /^\d+$/.test(cleanId)
+      let streamUrl = null
 
-      // Retry once with a rotated/forced-refresh client_id on auth failure.
-      if (!streamUrl && (result.status === 401 || result.status === 403) && result.reason !== 'not_full_audio') {
-        const freshClientId = await getEdgeSoundCloudClientId(env, true)
-        if (freshClientId && freshClientId !== clientId) {
-          result = await resolveDirectlyFromEdge(cleanId, freshClientId)
-          streamUrl = result.url
+      if (isNumericId) {
+        const clientId = await getEdgeSoundCloudClientId(env)
+        let result = await resolveDirectlyFromEdge(cleanId, clientId)
+        streamUrl = result.url
+
+        // Retry once with a rotated/forced-refresh client_id on auth failure.
+        if (!streamUrl && (result.status === 401 || result.status === 403) && result.reason !== 'not_full_audio') {
+          const freshClientId = await getEdgeSoundCloudClientId(env, true)
+          if (freshClientId && freshClientId !== clientId) {
+            result = await resolveDirectlyFromEdge(cleanId, freshClientId)
+            streamUrl = result.url
+          }
         }
-      }
 
-      // [FIX #1] If the track was explicitly rejected as non-full-audio,
-      // don't fall through to the Next.js app (which would reject it too) —
-      // fail fast with a clear 404 instead of an extra round trip.
-      if (!streamUrl && result.reason === 'not_full_audio') {
-        return corsResponse(
-          JSON.stringify({ error: 'Track is not full audio (blocked, snippet, or Go+ only)' }),
-          { status: 404, headers: { 'Content-Type': 'application/json' } }
-        )
+        // [FIX #1] If the track was explicitly rejected as non-full-audio,
+        // don't fall through to the Next.js app (which would reject it too) —
+        // fail fast with a clear 404 instead of an extra round trip.
+        if (!streamUrl && result.reason === 'not_full_audio') {
+          return corsResponse(
+            JSON.stringify({ error: 'Track is not full audio (blocked, snippet, or Go+ only)' }),
+            { status: 404, headers: { 'Content-Type': 'application/json' } }
+          )
+        }
       }
 
       if (!streamUrl) {

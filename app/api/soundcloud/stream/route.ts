@@ -12,21 +12,21 @@ export async function OPTIONS() {
 }
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url)
-  const id = searchParams.get('id')
+  const id = searchParams.get('id') || searchParams.get('url')
   const format = searchParams.get('format') // 'json' or redirect
   const refresh = searchParams.get('refresh') === '1'
 
   if (!id) {
     return NextResponse.json(
-      { error: 'Missing track id' },
+      { error: 'Missing track id or url' },
       { status: 400, headers: CORS_HEADERS }
     )
   }
 
-  // Check if Cloudflare Worker URL is configured
+  // Check if Cloudflare Worker URL is configured (for clean numeric track IDs only)
   const workerUrl = process.env.NEXT_PUBLIC_SOUNDCLOUD_WORKER_URL?.trim()
-  if (workerUrl && !format) {
+  const isNumericId = /^\d+$/.test(id.replace(/^sc-/, ''))
+  if (workerUrl && !format && isNumericId) {
     const refreshQuery = refresh ? '&refresh=1' : ''
     const target = `${workerUrl.replace(/\/+$/, '')}/stream?id=${encodeURIComponent(id)}${refreshQuery}`
     return NextResponse.redirect(target, 307)

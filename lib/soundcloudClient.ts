@@ -498,16 +498,57 @@ export async function getSoundCloudExploreTracks(
   return searchSoundCloudTracks(queryTag, limit)
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
 /**
- * Resolves full track metadata by SoundCloud ID
+ * Resolves full track metadata by SoundCloud ID, Permalink URL, or Supabase DB UUID
  */
 export async function resolveSoundCloudTrack(
   trackId: string | number
 ): Promise<{ track: Track; raw: SoundCloudRawTrack } | null> {
-  const rawId = String(trackId).replace(/^sc-/, '')
+  let rawId = String(trackId).trim()
+  if (!rawId) return null
+
+  if (rawId.startsWith('soundcloud:')) {
+    rawId = rawId.replace('soundcloud:', '')
+  }
+
+  // 1. If target is a SoundCloud permalink URL
+  if (rawId.includes('soundcloud.com')) {
+    const resolvedTracks = await resolveSoundCloudUrl(rawId)
+    if (resolvedTracks.length > 0 && resolvedTracks[0].soundcloud_id) {
+      return resolveSoundCloudTrack(resolvedTracks[0].soundcloud_id)
+    }
+    return null
+  }
+
+  // 2. If target is a Supabase DB UUID, look up file_path in database
+  if (UUID_REGEX.test(rawId)) {
+    try {
+      const { createClient } = await import('@supabase/supabase-js')
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mjpibwmproussfevtqbp.supabase.co'
+      const supabaseKey =
+        process.env.SUPABASE_SERVICE_ROLE_KEY ||
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+        'sb_publishable_mT97L0yZZOXReH-6ToCWGg_cpryfNgs'
+      if (supabaseUrl && supabaseKey) {
+        const supabase = createClient(supabaseUrl, supabaseKey)
+        const { data: dbTrack } = await supabase.from('tracks').select('file_path, source_url').eq('id', rawId).single()
+        const fp = dbTrack?.source_url || dbTrack?.file_path || ''
+        if (fp) {
+          return resolveSoundCloudTrack(fp)
+        }
+      }
+    } catch (dbErr) {
+      console.warn('[SoundCloud] DB lookup for UUID track failed:', dbErr)
+    }
+  }
+
+  rawId = rawId.replace(/^sc-/, '')
   const now = Date.now()
 
-  // 1. Check in-memory track cache
+  // 3. Check in-memory track cache
   const cached = trackMetadataCache.get(rawId)
   if (cached && now < cached.expiresAt) {
     return { track: cached.track, raw: cached.raw }
@@ -553,16 +594,55 @@ export async function resolveSoundCloudTrack(
 }
 
 /**
- * Resolves stream URL for a given track ID with 401/403 invalidation and retry
+ * Resolves stream URL for a given track ID, Permalink URL, or Supabase DB UUID with 401/403 retry
  */
 export async function resolveSoundCloudStreamUrl(
   trackId: string | number,
   bypassCache = false
 ): Promise<string | null> {
-  const rawId = String(trackId).replace(/^sc-/, '')
+  let rawId = String(trackId).trim()
+  if (!rawId) return null
+
+  if (rawId.startsWith('soundcloud:')) {
+    rawId = rawId.replace('soundcloud:', '')
+  }
+
+  // 1. If target is a SoundCloud permalink URL
+  if (rawId.includes('soundcloud.com')) {
+    const resolvedTracks = await resolveSoundCloudUrl(rawId)
+    if (resolvedTracks.length > 0 && resolvedTracks[0].soundcloud_id) {
+      return resolveSoundCloudStreamUrl(resolvedTracks[0].soundcloud_id, bypassCache)
+    }
+    return null
+  }
+
+  // 2. If target is a Supabase DB UUID, look up file_path in database
+  if (UUID_REGEX.test(rawId)) {
+    try {
+      const { createClient } = await import('@supabase/supabase-js')
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mjpibwmproussfevtqbp.supabase.co'
+      const supabaseKey =
+        process.env.SUPABASE_SERVICE_ROLE_KEY ||
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+        'sb_publishable_mT97L0yZZOXReH-6ToCWGg_cpryfNgs'
+      if (supabaseUrl && supabaseKey) {
+        const supabase = createClient(supabaseUrl, supabaseKey)
+        const { data: dbTrack } = await supabase.from('tracks').select('file_path, source_url').eq('id', rawId).single()
+        const fp = dbTrack?.source_url || dbTrack?.file_path || ''
+        if (fp) {
+          return resolveSoundCloudStreamUrl(fp, bypassCache)
+        }
+      }
+    } catch (dbErr) {
+      console.warn('[SoundCloud] DB lookup for UUID stream failed:', dbErr)
+    }
+  }
+
+  rawId = rawId.replace(/^sc-/, '')
   const now = Date.now()
 
-  // 1. Check in-memory stream cache
+  // 3. Check in-memory stream cache
   if (bypassCache) {
     streamUrlCache.delete(rawId)
   } else {

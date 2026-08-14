@@ -487,15 +487,37 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const nctStreamUrl = getNhacCuaTuiStreamUrl(track)
       if (nctStreamUrl) return nctStreamUrl
 
-      if (track.source === 'soundcloud' || track.soundcloud_id) {
-        const scId = track.soundcloud_id ?? track.id.replace(/^sc-/, '')
+      if (
+        track.source === 'soundcloud' ||
+        Boolean(track.soundcloud_id) ||
+        (track.file_path && (track.file_path.includes('soundcloud.com') || track.file_path.startsWith('soundcloud:'))) ||
+        (track.source_url && track.source_url.includes('soundcloud.com')) ||
+        (track.soundcloud_permalink_url && track.soundcloud_permalink_url.includes('soundcloud.com'))
+      ) {
+        let scTarget: string | number = track.soundcloud_id ?? ''
+        if (!scTarget) {
+          if (track.file_path && track.file_path.startsWith('soundcloud:')) {
+            scTarget = track.file_path.replace('soundcloud:', '')
+          } else if (track.file_path && track.file_path.includes('soundcloud.com')) {
+            scTarget = track.file_path
+          } else if (track.source_url && track.source_url.includes('soundcloud.com')) {
+            scTarget = track.source_url
+          } else if (track.soundcloud_permalink_url) {
+            scTarget = track.soundcloud_permalink_url
+          } else if (track.id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(track.id)) {
+            scTarget = track.id.replace(/^sc-/, '')
+          } else {
+            scTarget = track.id
+          }
+        }
+
         const workerUrl = process.env.NEXT_PUBLIC_SOUNDCLOUD_WORKER_URL?.trim()
         const refreshQuery = bypassCache ? '&refresh=1' : ''
 
         try {
           const endpoint = workerUrl
-            ? `${workerUrl.replace(/\/+$/, '')}/stream?id=${encodeURIComponent(scId)}&format=json${refreshQuery}`
-            : `/api/soundcloud/stream?id=${encodeURIComponent(scId)}&format=json${refreshQuery}`
+            ? `${workerUrl.replace(/\/+$/, '')}/stream?id=${encodeURIComponent(scTarget)}&format=json${refreshQuery}`
+            : `/api/soundcloud/stream?id=${encodeURIComponent(scTarget)}&format=json${refreshQuery}`
           const res = await fetch(endpoint)
           if (res.ok) {
             const data = await res.json()
@@ -506,9 +528,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (workerUrl) {
-          return `${workerUrl.replace(/\/+$/, '')}/stream?id=${encodeURIComponent(scId)}${refreshQuery}`
+          return `${workerUrl.replace(/\/+$/, '')}/stream?id=${encodeURIComponent(scTarget)}${refreshQuery}`
         }
-        return `/api/soundcloud/stream?id=${encodeURIComponent(scId)}${refreshQuery}`
+        return `/api/soundcloud/stream?id=${encodeURIComponent(scTarget)}${refreshQuery}`
       }
 
       // iOS (Safari & Chrome): play YouTube through the HTML5 stream proxy so audio
