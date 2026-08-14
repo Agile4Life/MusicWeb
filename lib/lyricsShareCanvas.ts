@@ -193,103 +193,78 @@ export async function renderLyricCardToCanvas(
   ctx.fillStyle = radialGlow
   ctx.fillRect(0, 0, width, height)
 
-  // 2. Cover image background blur & thumbnail loading
+  // 2. Load cover image & brand logo
   let coverImg: HTMLImageElement | null = null
-  if (options.coverUrl) {
-    try {
-      coverImg = await loadImageSafe(options.coverUrl)
-    } catch {
-      coverImg = null
-    }
-  }
+  let logoImg: HTMLImageElement | null = null
+
+  const [loadedCover, loadedLogo] = await Promise.all([
+    options.coverUrl ? loadImageSafe(options.coverUrl) : Promise.resolve(null),
+    loadImageSafe('/phong-signature.png'),
+  ])
+  coverImg = loadedCover
+  logoImg = loadedLogo
 
   if (coverImg) {
     ctx.save()
-    ctx.globalAlpha = 0.12
+    ctx.globalAlpha = 0.14
     ctx.filter = 'blur(60px)'
-    ctx.drawImage(coverImg, -100, -100, width + 200, height * 0.6)
+    ctx.drawImage(coverImg, -100, -100, width + 200, height * 0.5)
     ctx.restore()
   }
 
-  // 3. Draw Header Brand Mark (MusicWeb)
-  const headerY = 160
+  // 3. Draw Header Brand Logo (/phong-signature.png)
+  const headerY = 110
   ctx.save()
-  // Brand logo pill badge
-  drawRoundedRect(ctx, 90, headerY, 210, 60, 30)
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.12)'
-  ctx.fill()
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'
-  ctx.lineWidth = 1.5
-  ctx.stroke()
+  if (logoImg && logoImg.width > 0 && logoImg.height > 0) {
+    const logoHeight = 56
+    const aspect = logoImg.width / logoImg.height
+    const logoWidth = logoHeight * aspect
+    ctx.filter = `invert(1) brightness(1.7) drop-shadow(0 0 14px ${theme.accentColor}99)`
+    ctx.drawImage(logoImg, 90, headerY, logoWidth, logoHeight)
+  } else {
+    // Elegant fallback brand badge
+    drawRoundedRect(ctx, 90, headerY, 210, 56, 28)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.12)'
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'
+    ctx.lineWidth = 1.5
+    ctx.stroke()
 
-  // Music icon dot / glow
-  ctx.beginPath()
-  ctx.arc(122, headerY + 30, 8, 0, Math.PI * 2)
-  ctx.fillStyle = theme.accentColor
-  ctx.shadowColor = theme.accentColor
-  ctx.shadowBlur = 12
-  ctx.fill()
+    ctx.beginPath()
+    ctx.arc(122, headerY + 28, 8, 0, Math.PI * 2)
+    ctx.fillStyle = theme.accentColor
+    ctx.shadowColor = theme.accentColor
+    ctx.shadowBlur = 12
+    ctx.fill()
 
-  ctx.shadowBlur = 0
-  ctx.font = 'bold 22px system-ui, -apple-system, sans-serif'
-  ctx.fillStyle = '#ffffff'
-  ctx.fillText('MUSICWEB', 145, headerY + 38)
-  ctx.restore()
-
-  // 4. Draw Selected Lyrics Body
-  const fontSize = calculateOptimalFontSize(lines)
-  ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`
-  ctx.fillStyle = theme.textColor
-
-  const maxTextWidth = 900
-  const renderedLineList: string[] = []
-
-  for (const rawLine of lines) {
-    const wrapped = wrapCanvasText(ctx, rawLine, maxTextWidth)
-    renderedLineList.push(...wrapped)
-  }
-
-  const lineHeight = fontSize * 1.48
-  const totalBlockHeight = renderedLineList.length * lineHeight
-
-  // Center the lyrics block vertically in available space (between header y:280 and footer y:1600)
-  const availableSpaceCenter = (280 + 1600) / 2
-  let startY = availableSpaceCenter - totalBlockHeight / 2 + fontSize * 0.8
-  if (startY < 340) startY = 340
-
-  ctx.save()
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.45)'
-  ctx.shadowBlur = 18
-  ctx.shadowOffsetY = 4
-
-  for (let i = 0; i < renderedLineList.length; i++) {
-    const lineText = renderedLineList[i]
-    const curY = startY + i * lineHeight
-    ctx.fillText(lineText, 90, curY)
+    ctx.shadowBlur = 0
+    ctx.font = 'bold 22px system-ui, -apple-system, sans-serif'
+    ctx.fillStyle = '#ffffff'
+    ctx.fillText('MUSICWEB', 145, headerY + 36)
   }
   ctx.restore()
 
-  // 5. Draw Footer Track Metadata Card
-  const footerX = 90
-  const footerY = 1620
-  const footerWidth = 900
-  const footerHeight = 170
-  const footerRadius = 32
+  // 4. Draw Track Metadata Card AT THE TOP (Header area)
+  const metaCardX = 90
+  const metaCardY = 195
+  const metaCardWidth = 900
+  const metaCardHeight = 175
+  const metaCardRadius = 32
 
   ctx.save()
-  // Glassmorphic footer backdrop
-  drawRoundedRect(ctx, footerX, footerY, footerWidth, footerHeight, footerRadius)
+  // Glassmorphic top metadata backdrop
+  drawRoundedRect(ctx, metaCardX, metaCardY, metaCardWidth, metaCardHeight, metaCardRadius)
   ctx.fillStyle = 'rgba(0, 0, 0, 0.42)'
   ctx.fill()
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)'
   ctx.lineWidth = 2
   ctx.stroke()
 
-  // Draw Cover Art
-  const coverThumbX = footerX + 24
-  const coverThumbY = footerY + 24
-  const coverThumbSize = 122
-  const coverThumbRadius = 20
+  // Draw Cover Art Thumbnail inside Top Metadata Card
+  const coverThumbX = metaCardX + 22
+  const coverThumbY = metaCardY + 22
+  const coverThumbSize = 131
+  const coverThumbRadius = 22
 
   ctx.save()
   drawRoundedRect(ctx, coverThumbX, coverThumbY, coverThumbSize, coverThumbSize, coverThumbRadius)
@@ -312,7 +287,7 @@ export async function renderLyricCardToCanvas(
 
     // Musical note icon
     ctx.fillStyle = theme.accentColor
-    ctx.font = 'bold 44px system-ui'
+    ctx.font = 'bold 46px system-ui'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText('♪', coverThumbX + coverThumbSize / 2, coverThumbY + coverThumbSize / 2)
@@ -321,27 +296,69 @@ export async function renderLyricCardToCanvas(
 
   // Draw Track Title & Artist Text
   const textLeftX = coverThumbX + coverThumbSize + 28
-  const maxTitleWidth = footerWidth - (coverThumbSize + 80)
+  const maxTitleWidth = metaCardWidth - (coverThumbSize + 80)
 
-  // Title
-  ctx.font = 'bold 36px system-ui, -apple-system, sans-serif'
+  // Title (Bold & Prominent)
+  ctx.font = 'bold 38px system-ui, -apple-system, sans-serif'
   ctx.fillStyle = '#ffffff'
   let displayTitle = options.title || 'Bài hát chưa đặt tên'
   while (ctx.measureText(displayTitle).width > maxTitleWidth && displayTitle.length > 3) {
     displayTitle = displayTitle.slice(0, -2) + '…'
   }
-  ctx.fillText(displayTitle, textLeftX, footerY + 76)
+  ctx.fillText(displayTitle, textLeftX, metaCardY + 78)
 
   // Artist
   ctx.font = '600 28px system-ui, -apple-system, sans-serif'
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.68)'
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.72)'
   let displayArtist = options.artist || 'Nghệ sĩ chưa xác định'
   while (ctx.measureText(displayArtist).width > maxTitleWidth && displayArtist.length > 3) {
     displayArtist = displayArtist.slice(0, -2) + '…'
   }
-  ctx.fillText(displayArtist, textLeftX, footerY + 124)
-
+  ctx.fillText(displayArtist, textLeftX, metaCardY + 128)
   ctx.restore()
+
+  // 5. Draw Selected Lyrics Body (Takes center stage from y:430 to y:1760)
+  const fontSize = calculateOptimalFontSize(lines)
+  ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`
+  ctx.fillStyle = theme.textColor
+
+  const maxTextWidth = 900
+  const renderedLineList: string[] = []
+
+  for (const rawLine of lines) {
+    const wrapped = wrapCanvasText(ctx, rawLine, maxTextWidth)
+    renderedLineList.push(...wrapped)
+  }
+
+  const lineHeight = fontSize * 1.5
+  const totalBlockHeight = renderedLineList.length * lineHeight
+
+  // Center the lyrics block vertically in available space (between y:420 and y:1760)
+  const availableSpaceCenter = (420 + 1760) / 2
+  let startY = availableSpaceCenter - totalBlockHeight / 2 + fontSize * 0.8
+  if (startY < 450) startY = 450
+
+  ctx.save()
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.55)'
+  ctx.shadowBlur = 20
+  ctx.shadowOffsetY = 4
+
+  for (let i = 0; i < renderedLineList.length; i++) {
+    const lineText = renderedLineList[i]
+    const curY = startY + i * lineHeight
+    ctx.fillText(lineText, 90, curY)
+  }
+  ctx.restore()
+
+  // 6. Subtle Bottom Brand Watermark
+  const footerY = 1820
+  ctx.save()
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.45)'
+  ctx.font = '600 22px system-ui, -apple-system, sans-serif'
+  ctx.textAlign = 'center'
+  ctx.fillText('Nghe trên MusicWeb', width / 2, footerY)
+  ctx.restore()
+
 
   return canvas
 }
