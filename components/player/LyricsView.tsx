@@ -386,24 +386,24 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
                   onClick={() => handleLineClick(line)}
                   className={`cursor-pointer rounded-2xl select-none origin-left group/line relative transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                     isActive
-                      ? 'py-3.5 px-5 sm:px-6 bg-white/[0.05] border border-white/10 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.35),0_0_20px_color-mix(in_srgb,var(--spotify-glow,#22d3ee)_12%,transparent)]'
-                      : 'py-2 px-4 sm:px-5 bg-transparent border border-transparent hover:bg-white/[0.02] hover:border-white/[0.04]'
+                      ? 'py-2 sm:py-3 px-4 sm:px-6 bg-white/[0.05] border border-white/10 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.35),0_0_20px_color-mix(in_srgb,var(--spotify-glow,#22d3ee)_12%,transparent)]'
+                      : 'py-1 sm:py-1.5 px-3 sm:px-5 bg-transparent border border-transparent hover:bg-white/[0.02] hover:border-white/[0.04]'
                   }`}
                   style={{
                     opacity,
                     transform: `translateX(${translateX})`,
-                    marginBlock: isActive ? '14px' : '2px',
+                    marginBlock: isActive ? 'clamp(6px, 1.2vh, 12px)' : '2px',
                   }}
                 >
                   <p
                     className={`leading-snug transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                       isActive
-                        ? 'text-2xl sm:text-3xl md:text-4xl lg:text-[2.65rem] font-black text-white bg-clip-text bg-gradient-to-r from-white via-cyan-100 to-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]'
+                        ? 'text-[clamp(1.25rem,3.2vh,2.65rem)] font-black text-white bg-clip-text bg-gradient-to-r from-white via-cyan-100 to-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]'
                         : distance === 1
-                          ? 'text-lg sm:text-xl md:text-2xl font-bold text-slate-100 group-hover/line:text-white'
+                          ? 'text-[clamp(1rem,2.2vh,1.65rem)] font-bold text-slate-100 group-hover/line:text-white'
                           : distance === 2
-                            ? 'text-base sm:text-lg md:text-xl font-semibold text-slate-300 group-hover/line:text-slate-100'
-                            : 'text-base sm:text-lg md:text-xl font-medium text-slate-400 group-hover/line:text-slate-200'
+                            ? 'text-[clamp(0.85rem,1.8vh,1.3rem)] font-semibold text-slate-300 group-hover/line:text-slate-100'
+                            : 'text-[clamp(0.85rem,1.8vh,1.3rem)] font-medium text-slate-400 group-hover/line:text-slate-200'
                     }`}
                   >
                     {line.text}

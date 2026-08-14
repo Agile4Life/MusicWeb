@@ -1417,9 +1417,17 @@ input[type='range']:hover::-moz-range-thumb {
   padding: 8px 12px;
   border-radius: var(--radius-control, 12px);
   color: var(--text-secondary, #94a3b8);
-  transition: color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: color 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.2s ease, gap 0.2s ease;
   overflow: hidden;
   user-select: none;
+}
+
+/* Responsive compact mode ONLY on shorter laptop/window heights (< 780px) */
+@media (max-height: 780px) {
+  .sidebar-item {
+    gap: 10px;
+    padding: 5.5px 10px;
+  }
 }
 
 .sidebar-item .icon,

@@ -19,14 +19,14 @@ export function UpNextList() {
 
   return (
     <div
-      className="up-next-list w-full mt-2.5 bg-[#0d1020] border border-white/15 rounded-2xl shadow-2xl overflow-y-auto overscroll-contain max-h-[140px] sm:max-h-[170px] xl:max-h-[210px] min-h-0 select-none z-10 relative no-scrollbar shrink-0"
+      className="up-next-list w-full mt-2 sm:mt-2.5 bg-[#0d1020] border border-white/15 rounded-2xl shadow-2xl overflow-y-auto overscroll-contain min-h-[120px] max-h-[clamp(130px,22vh,200px)] xl:max-h-[clamp(150px,26vh,240px)] select-none z-10 relative no-scrollbar shrink-0"
       style={{
         WebkitMaskImage: 'linear-gradient(to bottom, black 86%, transparent 100%)',
         maskImage: 'linear-gradient(to bottom, black 86%, transparent 100%)',
       }}
     >
       {/* Sticky Header (100% Solid background, z-20, clean bottom border) */}
-      <div className="sticky top-0 bg-[#0d1020] border-b border-white/10 px-3.5 py-2.5 z-20 flex items-center justify-between shadow-md">
+      <div className="sticky top-0 bg-[#0d1020] border-b border-white/10 px-3.5 py-2 z-20 flex items-center justify-between shadow-md">
         <h3 className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-[var(--spotify-glow,#22d3ee)]" />
           Tiếp theo
@@ -47,7 +47,7 @@ export function UpNextList() {
               type="button"
               onClick={() => playTrack(track, queue, actualIndex)}
               aria-label={`Phát bài ${track.title} của ${track.artist || 'Nghệ sĩ'}`}
-              className={`w-full cv-auto flex items-center gap-3 p-2 rounded-xl text-left transition-all duration-200 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-glow,#22d3ee)] ${
+              className={`w-full cv-auto flex items-center gap-2.5 sm:gap-3 p-2 rounded-xl text-left transition-all duration-200 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-glow,#22d3ee)] ${
                 isCurrent
                   ? 'queue-track-current bg-[var(--accent,#06b6d4)]/15 border border-[var(--accent,#06b6d4)]/30 text-[var(--spotify-glow,#22d3ee)] shadow-sm'
                   : 'hover:bg-white/10 border border-transparent text-slate-300 hover:text-white'

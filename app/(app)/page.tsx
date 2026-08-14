@@ -671,15 +671,15 @@ export default function HomePage() {
         : 'tracklist'
 
   return (
-    <div className="px-2 py-3 xs:px-3 sm:p-6 lg:p-8 flex flex-col gap-3.5 sm:gap-6 lg:gap-8 max-w-7xl mx-auto w-full pb-36 lg:pb-8 select-none">
+    <div className="px-2 py-3 xs:px-3 sm:p-6 lg:p-8 flex flex-col gap-3.5 sm:gap-6 lg:gap-8 max-w-7xl mx-auto w-full pb-36 lg:pb-32 select-none">
       {/* High-Impact Clean Hero Card */}
-      <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.06] p-3.5 sm:p-6 md:p-10">
+      <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.06] p-3.5 sm:p-6 md:p-8 lg:p-10">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 lg:gap-6">
           <div className="flex flex-col gap-1.5 sm:gap-2 max-w-xl">
-          <h1 className="text-xl sm:text-2xl lg:text-4xl font-extrabold text-white tracking-tight leading-tight">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-extrabold text-white tracking-tight leading-tight">
               Xin chào{user ? `, ${user.user_metadata?.full_name || user.email?.split('@')[0]}` : ''}
             </h1>
-          <p className="text-xs lg:text-sm text-slate-400 leading-relaxed">
+            <p className="text-xs lg:text-sm text-slate-400 leading-relaxed">
               Khám phá và nghe những bài hát yêu thích từ một thư viện âm nhạc thống nhất.
             </p>
           </div>

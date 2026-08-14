@@ -166,7 +166,7 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
   return (
     <div
       ref={stageRef}
-      className="now-playing-stage relative w-full h-full flex flex-col items-center justify-center overflow-hidden p-4 sm:p-6 pb-28 lg:pb-36"
+      className="now-playing-stage relative w-full h-full flex flex-col items-center justify-center overflow-hidden p-2 sm:p-4 lg:p-6 pb-24 sm:pb-28 lg:pb-32"
       style={{ '--player-derived-accent': derivedAccent } as React.CSSProperties}
     >
 
@@ -189,15 +189,15 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
       )}
 
       {/* Layer 3: Album Cover + Title (3× parallax + 3D tilt) + Stationary Up Next List */}
-      <div className="relative z-20 w-full h-full max-w-[1360px] xl:max-w-[1440px] mx-auto px-6 lg:px-12 flex items-center justify-center lg:justify-start">
-        <div className="w-full max-w-sm sm:max-w-md lg:max-w-[400px] xl:max-w-[440px] flex flex-col items-center justify-center gap-2.5 sm:gap-3.5">
+      <div className="relative z-20 w-full h-full max-w-[1360px] xl:max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-center lg:justify-start">
+        <div className="w-full max-w-sm sm:max-w-md lg:max-w-[400px] xl:max-w-[440px] flex flex-col items-center justify-center gap-2 sm:gap-2.5 lg:gap-3 my-auto">
           {/* Parallax 3D moving wrapper for Album Cover */}
           <div ref={sceneLayerRef} className="scene-layer w-full flex items-center justify-center">
             {/* Perspective container with Album Art + Progress Ring */}
-            <div className="album-3d-container relative flex items-center justify-center p-1.5 sm:p-2 shrink-0">
+            <div className="album-3d-container relative flex items-center justify-center p-1 sm:p-1.5 shrink-0">
               <div
                 ref={cardRef}
-                className="album-3d-card pointer-gone now-playing-cover relative w-36 h-36 xs:w-44 xs:h-44 sm:w-52 sm:h-52 lg:w-[190px] lg:h-[190px] xl:w-[230px] xl:h-[230px] aspect-square shrink-0 rounded-full border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.7),0_0_60px_var(--accent-dim)]"
+                className="album-3d-card pointer-gone now-playing-cover relative w-[clamp(110px,20vh,220px)] h-[clamp(110px,20vh,220px)] xl:w-[clamp(130px,23vh,250px)] xl:h-[clamp(130px,23vh,250px)] aspect-square shrink-0 rounded-full border border-white/20 shadow-[0_16px_40px_rgba(0,0,0,0.7),0_0_50px_var(--accent-dim)]"
               >
                 {/* Progress Ring SVG (3D tilted with card, sitting flush around circular album cover) */}
                 <svg
@@ -250,26 +250,26 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
           </div>
 
           {/* Title & Artist — Stationary, 100% crisp vector text */}
-          <div className="text-center px-4 max-w-md w-full">
-            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white tracking-tight line-clamp-2">
+          <div className="text-center px-2 sm:px-4 max-w-md w-full shrink-0">
+            <h2 className="text-[clamp(1.05rem,2.1vh,1.65rem)] xl:text-[clamp(1.2rem,2.4vh,1.85rem)] font-bold text-white tracking-tight line-clamp-2 leading-tight">
               {title || 'Chưa chọn bài hát'}
             </h2>
-            <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1 line-clamp-1">
+            <p className="text-[clamp(10px,1.3vh,14px)] text-slate-400 font-medium mt-0.5 sm:mt-1 line-clamp-1">
               {artist || 'Nghệ sĩ'}
             </p>
 
             {/* Context Pill Badge (Bài n/total · Album · Year) */}
             {currentTrack && (
-              <div className="mt-2 flex items-center justify-center">
-                <span className="bg-white/10 border border-white/15 text-slate-200 px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-md shadow-sm truncate max-w-[280px]">
+              <div className="mt-1 sm:mt-1.5 flex items-center justify-center">
+                <span className="bg-white/10 border border-white/15 text-slate-200 px-3 py-0.5 rounded-full text-[clamp(10px,1.2vh,12px)] font-semibold backdrop-blur-md shadow-sm truncate max-w-[280px]">
                   Bài {trackNum}/{totalTracks} {contextAlbumName ? `· ${contextAlbumName}` : ''} {releaseYear ? `· ${releaseYear}` : ''}
                 </span>
               </div>
             )}
           </div>
 
-          {/* Stationary Up Next Queue List (Fixed, does NOT follow mouse cursor) */}
-          <div className="w-full">
+          {/* Stationary Up Next Queue List (Fixed, fluidly contained) */}
+          <div className="w-full shrink min-h-0">
             <UpNextList />
           </div>
         </div>

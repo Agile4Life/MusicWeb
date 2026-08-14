@@ -138,8 +138,8 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
   }
 
   return (
-    <aside className={`app-sidebar hidden lg:flex w-56 lg:w-60 xl:w-64 flex-col justify-between p-3 lg:p-3.5 h-full select-none text-slate-300 rounded-2xl panel-theme-hover shrink-0 z-10 ${isScrolled ? 'is-scrolled' : ''}`}>
-      <div className="flex flex-col gap-5 min-h-0 flex-1">
+    <aside className={`app-sidebar hidden lg:flex w-60 lg:w-64 xl:w-72 flex-col justify-between p-3 lg:p-3.5 xl:p-4 h-full select-none text-slate-300 rounded-2xl panel-theme-hover shrink-0 z-10 ${isScrolled ? 'is-scrolled' : ''}`}>
+      <div className="flex flex-col gap-3 lg:gap-4 xl:gap-5 min-h-0 flex-1 pb-24 xl:pb-28">
         {/* App Branding Header (Mini Glass Plaque) */}
         <div className="px-0.5 py-0.5">
           <Link
@@ -148,14 +148,14 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
               clearSearch()
               window.dispatchEvent(new Event('musicweb-tab-home'))
             }}
-            className="sidebar-logo-plaque w-full flex items-center justify-start px-3.5 py-2.5 rounded-2xl group cursor-pointer"
+            className="sidebar-logo-plaque w-full flex items-center justify-start px-3.5 py-2 lg:py-2.5 rounded-2xl group cursor-pointer"
             title="MusicWeb"
           >
-            <div className="flex items-center justify-start h-9 shrink-0">
+            <div className="flex items-center justify-start h-8 lg:h-9 shrink-0">
               <img
                 src="/phong-signature.png"
                 alt="MusicWeb Logo"
-                className="h-9 w-auto object-contain signature-img-invert group-hover:scale-[1.03] transition-transform"
+                className="h-8 lg:h-9 w-auto object-contain signature-img-invert group-hover:scale-[1.03] transition-transform"
               />
             </div>
           </Link>
@@ -165,7 +165,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
         <nav
           ref={exploreNavRef}
           onMouseLeave={() => handleSectionMouseLeave(exploreNavRef, setExploreIndicator)}
-          className="flex flex-col gap-1 relative"
+          className="flex flex-col gap-0.5 lg:gap-1 relative shrink-0"
         >
           <div
             className="nav-indicator"
@@ -267,9 +267,9 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
         </nav>
 
         {/* Playlists Container */}
-        <div className="flex-1 flex flex-col min-h-0 pt-2 border-t border-white/[0.05]">
-          <div className="flex items-center justify-between px-3 py-2 mb-1.5 border-b border-white/[0.04]">
-            <div className="flex items-center gap-2 text-slate-400 font-mono text-[11px] tracking-wider uppercase font-bold">
+        <div className="flex-1 flex flex-col min-h-0 pt-2 lg:pt-2.5 border-t border-white/[0.05]">
+          <div className="flex items-center justify-between px-2.5 py-1.5 mb-1.5 border-b border-white/[0.04] shrink-0">
+            <div className="flex items-center gap-1.5 text-slate-400 font-mono text-[11px] tracking-wider uppercase font-bold">
               <ListMusic style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3.5 h-3.5" />
               <span>Playlist</span>
             </div>
@@ -304,7 +304,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <div
             ref={playlistNavRef}
             onMouseLeave={() => handleSectionMouseLeave(playlistNavRef, setPlaylistIndicator)}
-            className="flex-1 overflow-y-auto flex flex-col gap-0.5 pr-1 relative"
+            className="flex-1 overflow-y-auto flex flex-col gap-0.5 pr-1 relative custom-slim-scrollbar min-h-0"
           >
             <div
               className="nav-indicator"

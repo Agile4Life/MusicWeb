@@ -333,8 +333,8 @@ export function NowPlayingOverlay() {
           </div>
 
           {/* Layer 3: Right Column Lyrics (Centered inside shared max-w-[1360px] stage) */}
-          <div className="absolute inset-0 z-10 w-full h-full max-w-[1360px] xl:max-w-[1440px] mx-auto px-6 lg:px-12 flex items-center justify-end pointer-events-none">
-            <div className="w-full max-w-[640px] lg:w-[50%] xl:w-[48%] h-full pointer-events-auto flex flex-col justify-center pb-28 lg:pb-36 pt-4">
+          <div className="absolute inset-0 z-10 w-full h-full max-w-[1360px] xl:max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-end pointer-events-none">
+            <div className="w-full max-w-[640px] lg:w-[50%] xl:w-[48%] h-full pointer-events-auto flex flex-col justify-center pb-24 sm:pb-28 lg:pb-32 pt-2 sm:pt-4">
               <LyricsView isModal={false} showControls={false} showHeader={false} />
             </div>
           </div>
@@ -474,7 +474,7 @@ export function NowPlayingOverlay() {
         </div>
 
         {/* 🎛️ DESKTOP FLOATING CONTROL BAR (>= 768px) */}
-        <div className="player-bar group/playerbar hidden lg:flex absolute bottom-3 sm:bottom-4 inset-x-3 sm:inset-x-6 z-30 px-4 lg:px-6 xl:px-8 py-2.5 xl:py-3.5 h-[84px] xl:h-[96px] items-center justify-between rounded-2xl transition-all duration-300 select-none">
+        <div className="player-bar group/playerbar hidden lg:flex absolute bottom-2 sm:bottom-3 lg:bottom-4 inset-x-3 sm:inset-x-6 z-30 px-4 lg:px-6 xl:px-8 py-2 xl:py-3.5 h-[76px] lg:h-[84px] xl:h-[96px] items-center justify-between rounded-2xl transition-all duration-300 select-none">
           {/* Top ambient highlight reflection line (fades in on hover) */}
           <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-[var(--spotify-glow,#22d3ee)]/35 to-transparent pointer-events-none rounded-t-2xl opacity-0 group-hover/playerbar:opacity-100 transition-opacity duration-300" />
 
