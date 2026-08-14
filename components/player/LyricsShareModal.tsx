@@ -54,6 +54,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
     getInitialThemeForApp(currentTheme?.id)
   )
   const [themeCategoryFilter, setThemeCategoryFilter] = useState<'all' | 'cover' | 'gradient' | 'solid'>('all')
+  const [cardOnly, setCardOnly] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string>('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [isSharing, setIsSharing] = useState(false)
@@ -96,7 +97,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
     }
   }, [isOpen, lyrics])
 
-  // Update card preview whenever selected lines or theme changes
+  // Update card preview whenever selected lines, theme, or cardOnly mode changes
   useEffect(() => {
     if (!isOpen || selectedIndices.length === 0 || lyrics.length === 0) return
 
@@ -118,6 +119,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
       coverUrl: track.cover_url,
       selectedLines,
       themeId: selectedThemeId,
+      cardOnly,
     })
       .then((dataUrl) => {
         if (!cancelled) {
@@ -133,7 +135,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
     return () => {
       cancelled = true
     }
-  }, [isOpen, selectedIndices, selectedThemeId, track, lyrics])
+  }, [isOpen, selectedIndices, selectedThemeId, cardOnly, track, lyrics])
 
   if (!isOpen) return null
 
@@ -158,9 +160,10 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
         coverUrl: track.cover_url,
         selectedLines,
         themeId: selectedThemeId,
+        cardOnly,
       })
 
-      const fileName = `musicweb-${(track.title || 'lyric')
+      const fileName = `musicweb-${cardOnly ? 'card' : 'story'}-${(track.title || 'lyric')
         .toLowerCase()
         .replace(/[^a-z0-9]/g, '-')
         .replace(/-+/g, '-')}.png`
@@ -190,7 +193,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
         toast(
           'Đã sao chép sẵn link bài hát! Bạn có thể dán vào Nhãn dán Liên kết (Link Sticker) trên Story.',
           'success',
-          'Chia sẻ Story'
+          'Chia sẻ'
         )
       } else {
         await handleDownload()
@@ -216,12 +219,13 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
         coverUrl: track.cover_url,
         selectedLines,
         themeId: selectedThemeId,
+        cardOnly,
       })
 
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `musicweb-${(track.title || 'lyric')
+      a.download = `musicweb-${cardOnly ? 'card' : 'story'}-${(track.title || 'lyric')
         .toLowerCase()
         .replace(/[^a-z0-9]/g, '-')
         .replace(/-+/g, '-')}.png`
@@ -230,7 +234,11 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
 
-      toast('Đã lưu ảnh Story 9:16 về máy!', 'success', 'Tải ảnh thành công')
+      toast(
+        cardOnly ? 'Đã lưu ảnh Card nổi (Nền trong suốt) về máy!' : 'Đã lưu ảnh Story 9:16 về máy!',
+        'success',
+        'Tải ảnh thành công'
+      )
     } catch (err) {
       console.error('Download error:', err)
       toast('Có lỗi xảy ra khi tải ảnh', 'error', 'Lỗi tải ảnh')
@@ -247,6 +255,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
         coverUrl: track.cover_url,
         selectedLines,
         themeId: selectedThemeId,
+        cardOnly,
       })
 
       if (navigator.clipboard && window.ClipboardItem) {
@@ -460,13 +469,37 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
               mobileTab === 'preview' ? 'flex flex-1 h-full' : 'hidden md:flex'
             }`}
           >
-            {/* Background Style Selector */}
+            {/* Format Switcher: Full Story 9:16 vs Standalone Card Only (Transparent PNG) */}
             <div className="shrink-0 space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="grid grid-cols-2 p-1 bg-white/[0.05] border border-white/10 rounded-2xl text-[11px] font-bold">
+                <button
+                  onClick={() => setCardOnly(false)}
+                  className={`py-1.5 px-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                    !cardOnly
+                      ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md font-extrabold'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span>🖼️ Nền Story 9:16</span>
+                </button>
+                <button
+                  onClick={() => setCardOnly(true)}
+                  className={`py-1.5 px-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                    cardOnly
+                      ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md font-extrabold'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span>🔲 Bỏ nền ngoài (Chỉ Card)</span>
+                </button>
+              </div>
+
+              {/* Background Style Selector */}
+              <div className="flex items-center justify-between pt-0.5">
                 <div className="flex items-center gap-2">
                   <Palette className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
                   <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-                    Tùy chọn nền Card
+                    {cardOnly ? 'Tông màu Card' : 'Tùy chọn nền Card'}
                   </span>
                 </div>
                 <span className="text-[11px] font-mono font-semibold text-[var(--spotify-glow,#22d3ee)] truncate max-w-[140px]">
@@ -556,9 +589,17 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
               </div>
             </div>
 
-            {/* Lyric Card Preview Container (Aspect 9:16 Responsive Plaque) */}
+            {/* Lyric Card Preview Container (Aspect Responsive Plaque) */}
             <div className="flex-1 min-h-[220px] max-h-full flex items-center justify-center py-2 px-1 overflow-hidden shrink min-w-0">
-              <div className="relative h-full max-h-[38vh] sm:max-h-[420px] aspect-[9/16] rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.85),0_0_25px_var(--theme-glow-shadow,rgba(6,182,212,0.25))] border border-white/20 group hover:scale-[1.02] transition-all duration-300 flex items-center justify-center bg-black/60 shrink-0">
+              <div
+                className={`relative h-full max-h-[38vh] sm:max-h-[420px] ${
+                  cardOnly ? 'aspect-[1010/1220] max-w-[340px]' : 'aspect-[9/16]'
+                } rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.85),0_0_25px_var(--theme-glow-shadow,rgba(6,182,212,0.25))] border border-white/20 group hover:scale-[1.02] transition-all duration-300 flex items-center justify-center ${
+                  cardOnly
+                    ? 'bg-[radial-gradient(#ffffff18_1px,transparent_1px)] [background-size:12px_12px] bg-slate-950/80'
+                    : 'bg-black/60'
+                } shrink-0`}
+              >
                 {previewUrl ? (
                   <img
                     src={previewUrl}

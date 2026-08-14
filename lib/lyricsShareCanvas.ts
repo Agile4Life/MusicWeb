@@ -162,6 +162,7 @@ export interface GenerateCardOptions {
   coverUrl?: string | null
   selectedLines: string[]
   themeId?: string
+  cardOnly?: boolean // When true: exports only the floating elevated card on a transparent background
 }
 
 /**
@@ -299,8 +300,7 @@ export function calculateCompactCardHeight(
 export async function renderLyricCardToCanvas(
   options: GenerateCardOptions
 ): Promise<HTMLCanvasElement> {
-  const width = 1080
-  const height = 1920
+  const isCardOnly = Boolean(options.cardOnly)
   const theme = getThemeById(options.themeId)
   const lines = options.selectedLines.slice(0, 5) // max 5 contiguous lines
 
@@ -309,7 +309,6 @@ export async function renderLyricCardToCanvas(
 
   // 1. Measure and wrap lyrics lines inside the 920px floating card
   const cardWidth = 920
-  const cardX = (width - cardWidth) / 2 // 80px horizontal margin
   const cardRadius = 40
 
   const measureCanvas = document.createElement('canvas')
@@ -335,9 +334,30 @@ export async function renderLyricCardToCanvas(
   const totalLyricsHeight = Math.max(1, renderedLineList.length) * lineHeight
   const cardBottomPadding = 80
   const cardHeight = Math.min(1380, Math.max(680, Math.round(cardHeaderHeight + totalLyricsHeight + cardBottomPadding)))
-  const cardY = Math.round((height - cardHeight) / 2) // Perfect vertical center
 
-  // 2. Initialize Canvas with standard 9:16 Story resolution (1080 x 1920)
+  let width: number
+  let height: number
+  let cardX: number
+  let cardY: number
+
+  if (isCardOnly) {
+    // Compact canvas strictly bounding the floating card with shadow bleed padding
+    const shadowPadding = 45
+    width = cardWidth + shadowPadding * 2 // 1010px
+    height = cardHeight + shadowPadding * 2
+    cardX = shadowPadding
+    cardY = shadowPadding
+  } else {
+    // Standard 9:16 Full-bleed Instagram Story resolution (1080 x 1920)
+    width = 1080
+    height = 1920
+    cardX = (width - cardWidth) / 2 // 80px horizontal margin
+    cardY = Math.round((height - cardHeight) / 2) // Perfect vertical center
+  }
+
+  const centerX = cardX + cardWidth / 2
+
+  // 2. Initialize Canvas
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
@@ -355,98 +375,100 @@ export async function renderLyricCardToCanvas(
   coverImg = loadedCover
   logoImg = loadedLogo
 
-  // 4. 🎨 Render Full-Bleed 9:16 Story Ambient Background (Zero black corners anywhere)
-  if (theme.category === 'solid') {
-    // ⚫ Solid Minimalist Background (Pure Black OLED or Ruby Red)
-    ctx.fillStyle = theme.solidColor || theme.background[0]
-    ctx.fillRect(0, 0, width, height)
-
-    // Ambient radial glow in center
-    const solidGlow = ctx.createRadialGradient(
-      width * 0.5,
-      height * 0.5,
-      50,
-      width * 0.5,
-      height * 0.5,
-      width * 0.8
-    )
-    if (theme.id === 'solid-red') {
-      solidGlow.addColorStop(0, 'rgba(239, 68, 68, 0.30)')
-      solidGlow.addColorStop(1, 'transparent')
-    } else {
-      solidGlow.addColorStop(0, 'rgba(255, 255, 255, 0.04)')
-      solidGlow.addColorStop(1, 'transparent')
-    }
-    ctx.fillStyle = solidGlow
-    ctx.fillRect(0, 0, width, height)
-  } else if (theme.category === 'cover') {
-    // 🖼️ Full 9:16 Cover Artwork Backdrop (Rich blurred album art with dynamic contrast)
-    ctx.fillStyle = '#06080d'
-    ctx.fillRect(0, 0, width, height)
-
-    if (coverImg) {
-      ctx.save()
-      ctx.globalAlpha = 0.55
-      ctx.filter = 'blur(60px)'
-      ctx.drawImage(coverImg, -100, -100, width + 200, height + 200)
-      ctx.restore()
-
-      // High-contrast readable scrim gradient overlay
-      const scrim = ctx.createLinearGradient(0, 0, 0, height)
-      scrim.addColorStop(0, 'rgba(0, 0, 0, 0.50)')
-      scrim.addColorStop(0.5, 'rgba(0, 0, 0, 0.40)')
-      scrim.addColorStop(1, 'rgba(0, 0, 0, 0.80)')
-      ctx.fillStyle = scrim
+  // 4. 🎨 Render Full-Bleed 9:16 Story Ambient Background ONLY when not in cardOnly mode
+  if (!isCardOnly) {
+    if (theme.category === 'solid') {
+      // ⚫ Solid Minimalist Background (Pure Black OLED or Ruby Red)
+      ctx.fillStyle = theme.solidColor || theme.background[0]
       ctx.fillRect(0, 0, width, height)
+
+      // Ambient radial glow in center
+      const solidGlow = ctx.createRadialGradient(
+        width * 0.5,
+        height * 0.5,
+        50,
+        width * 0.5,
+        height * 0.5,
+        width * 0.8
+      )
+      if (theme.id === 'solid-red') {
+        solidGlow.addColorStop(0, 'rgba(239, 68, 68, 0.30)')
+        solidGlow.addColorStop(1, 'transparent')
+      } else {
+        solidGlow.addColorStop(0, 'rgba(255, 255, 255, 0.04)')
+        solidGlow.addColorStop(1, 'transparent')
+      }
+      ctx.fillStyle = solidGlow
+      ctx.fillRect(0, 0, width, height)
+    } else if (theme.category === 'cover') {
+      // 🖼️ Full 9:16 Cover Artwork Backdrop (Rich blurred album art with dynamic contrast)
+      ctx.fillStyle = '#06080d'
+      ctx.fillRect(0, 0, width, height)
+
+      if (coverImg) {
+        ctx.save()
+        ctx.globalAlpha = 0.55
+        ctx.filter = 'blur(60px)'
+        ctx.drawImage(coverImg, -100, -100, width + 200, height + 200)
+        ctx.restore()
+
+        // High-contrast readable scrim gradient overlay
+        const scrim = ctx.createLinearGradient(0, 0, 0, height)
+        scrim.addColorStop(0, 'rgba(0, 0, 0, 0.50)')
+        scrim.addColorStop(0.5, 'rgba(0, 0, 0, 0.40)')
+        scrim.addColorStop(1, 'rgba(0, 0, 0, 0.80)')
+        ctx.fillStyle = scrim
+        ctx.fillRect(0, 0, width, height)
+      } else {
+        const fallbackGrad = ctx.createLinearGradient(0, 0, width, height)
+        fallbackGrad.addColorStop(0, '#1e293b')
+        fallbackGrad.addColorStop(1, '#07090e')
+        ctx.fillStyle = fallbackGrad
+        ctx.fillRect(0, 0, width, height)
+      }
     } else {
-      const fallbackGrad = ctx.createLinearGradient(0, 0, width, height)
-      fallbackGrad.addColorStop(0, '#1e293b')
-      fallbackGrad.addColorStop(1, '#07090e')
-      ctx.fillStyle = fallbackGrad
+      // 🌈 Multi-layer Vibrant 9:16 Gradient
+      const bgGrad = ctx.createLinearGradient(0, 0, width, height)
+      bgGrad.addColorStop(0, theme.background[0])
+      bgGrad.addColorStop(0.45, theme.background[1])
+      bgGrad.addColorStop(1, theme.background[2])
+      ctx.fillStyle = bgGrad
+      ctx.fillRect(0, 0, width, height)
+
+      if (coverImg) {
+        ctx.save()
+        ctx.globalAlpha = 0.32
+        ctx.filter = 'blur(75px)'
+        ctx.drawImage(coverImg, -120, -100, width + 240, height + 200)
+        ctx.restore()
+      }
+
+      // Radial ambient glow orbs centered on the screen
+      const radialGlow = ctx.createRadialGradient(
+        width * 0.5,
+        height * 0.48,
+        40,
+        width * 0.5,
+        height * 0.48,
+        width * 0.85
+      )
+      radialGlow.addColorStop(0, `${theme.accentColor}40`)
+      radialGlow.addColorStop(0.6, `${theme.background[1]}25`)
+      radialGlow.addColorStop(1, 'transparent')
+      ctx.fillStyle = radialGlow
       ctx.fillRect(0, 0, width, height)
     }
-  } else {
-    // 🌈 Multi-layer Vibrant 9:16 Gradient
-    const bgGrad = ctx.createLinearGradient(0, 0, width, height)
-    bgGrad.addColorStop(0, theme.background[0])
-    bgGrad.addColorStop(0.45, theme.background[1])
-    bgGrad.addColorStop(1, theme.background[2])
-    ctx.fillStyle = bgGrad
-    ctx.fillRect(0, 0, width, height)
-
-    if (coverImg) {
-      ctx.save()
-      ctx.globalAlpha = 0.32
-      ctx.filter = 'blur(75px)'
-      ctx.drawImage(coverImg, -120, -100, width + 240, height + 200)
-      ctx.restore()
-    }
-
-    // Radial ambient glow orbs centered on the screen
-    const radialGlow = ctx.createRadialGradient(
-      width * 0.5,
-      height * 0.48,
-      40,
-      width * 0.5,
-      height * 0.48,
-      width * 0.85
-    )
-    radialGlow.addColorStop(0, `${theme.accentColor}40`)
-    radialGlow.addColorStop(0.6, `${theme.background[1]}25`)
-    radialGlow.addColorStop(1, 'transparent')
-    ctx.fillStyle = radialGlow
-    ctx.fillRect(0, 0, width, height)
   }
 
-  // 5. 🌟 Draw Floating 3D Elevated Rounded Card (Center of Story)
-  // Drop Shadow for Fake 3D Elevation
+  // 5. 🌟 Draw Floating 3D Elevated Rounded Card (Center of Canvas)
+  // Drop Shadow for 3D Elevation
   ctx.save()
   ctx.shadowColor = 'rgba(0, 0, 0, 0.75)'
   ctx.shadowBlur = 55
   ctx.shadowOffsetY = 24
   ctx.fillStyle = theme.category === 'solid'
     ? (theme.id === 'solid-red' ? '#35060d' : '#08080a')
-    : 'rgba(8, 12, 20, 0.76)'
+    : (isCardOnly ? 'rgba(10, 15, 26, 0.94)' : 'rgba(8, 12, 20, 0.76)')
   drawRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, cardRadius)
   ctx.fill()
   ctx.restore()
@@ -461,6 +483,15 @@ export async function renderLyricCardToCanvas(
   if (theme.category === 'solid') {
     cardSurfaceGrad.addColorStop(0, theme.id === 'solid-red' ? '#4a0812' : '#0d0f17')
     cardSurfaceGrad.addColorStop(1, theme.id === 'solid-red' ? '#2b0409' : '#050608')
+  } else if (theme.category === 'cover' && isCardOnly && coverImg) {
+    // If card-only with album cover theme, draw soft blurred cover inside the card itself!
+    ctx.save()
+    ctx.globalAlpha = 0.35
+    ctx.filter = 'blur(40px)'
+    ctx.drawImage(coverImg, cardX - 50, cardY - 50, cardWidth + 100, cardHeight + 100)
+    ctx.restore()
+    cardSurfaceGrad.addColorStop(0, 'rgba(15, 23, 42, 0.75)')
+    cardSurfaceGrad.addColorStop(1, 'rgba(5, 7, 10, 0.90)')
   } else {
     cardSurfaceGrad.addColorStop(0, 'rgba(255, 255, 255, 0.09)')
     cardSurfaceGrad.addColorStop(0.35, 'rgba(255, 255, 255, 0.02)')
@@ -537,7 +568,7 @@ export async function renderLyricCardToCanvas(
     ctx.fillStyle = '#ffffff'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText('MUSICWEB', width / 2, plaqueY + plaqueHeight / 2)
+    ctx.fillText('MUSICWEB', centerX, plaqueY + plaqueHeight / 2)
   }
   ctx.restore()
 
@@ -591,7 +622,7 @@ export async function renderLyricCardToCanvas(
   while (ctx.measureText(displayTitle).width > maxTitleWidth && displayTitle.length > 3) {
     displayTitle = displayTitle.slice(0, -2) + '…'
   }
-  ctx.fillText(displayTitle, width / 2, cardY + 295)
+  ctx.fillText(displayTitle, centerX, cardY + 295)
 
   // Centered Artist
   ctx.font = '600 24px system-ui, -apple-system, sans-serif'
@@ -600,7 +631,7 @@ export async function renderLyricCardToCanvas(
   while (ctx.measureText(displayArtist).width > maxTitleWidth && displayArtist.length > 3) {
     displayArtist = displayArtist.slice(0, -2) + '…'
   }
-  ctx.fillText(displayArtist, width / 2, cardY + 335)
+  ctx.fillText(displayArtist, centerX, cardY + 335)
   ctx.restore()
 
   // 8. 📜 Draw Lyrics: Centered Block with Left-Aligned Lines
@@ -608,7 +639,7 @@ export async function renderLyricCardToCanvas(
   ctx.fillStyle = theme.textColor
 
   const lineWidths = renderedLineList.map((l) => ctx.measureText(l).width)
-  const startX = calculateLyricsBlockStartX(lineWidths, width, cardX + 50)
+  const startX = calculateLyricsBlockStartX(lineWidths, cardWidth, 50) + cardX
   const lyricsStartY = cardY + 395
   const startY = lyricsStartY + fontSize * 0.85
 
@@ -632,7 +663,7 @@ export async function renderLyricCardToCanvas(
   ctx.fillStyle = 'rgba(255, 255, 255, 0.45)'
   ctx.font = '600 21px system-ui, -apple-system, sans-serif'
   ctx.textAlign = 'center'
-  ctx.fillText('phongtctmusic.vercel.app', width / 2, footerY)
+  ctx.fillText('phongtctmusic.vercel.app', centerX, footerY)
   ctx.restore()
 
   // Unclip Card Surface
