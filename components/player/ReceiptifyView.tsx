@@ -33,13 +33,18 @@ import {
 } from 'lucide-react'
 
 interface ReceiptifyViewProps {
-  isOpen: boolean
-  onClose: () => void
+  isOpen?: boolean
+  onClose?: () => void
+  isPageMode?: boolean
 }
 
 type DataSourceType = 'queue' | 'history' | 'favorites' | 'playlist'
 
-export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({ isOpen, onClose }) => {
+export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
+  isOpen = true,
+  onClose,
+  isPageMode = false,
+}) => {
   const { currentTrack, queue } = usePlayer()
   const { playlists } = usePlaylists()
   const { username } = useCurrentUser()
@@ -334,7 +339,7 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({ isOpen, onClose 
   const sliceTracks = fetchedTracks.slice(0, trackLimit)
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+    <div className="flex-1 flex flex-col min-h-0 w-full">
       {/* Mobile Tab Segmented Switcher (Visible on mobile only < md) */}
       <div className="flex md:hidden items-center p-2 bg-black/60 border-b border-white/[0.08] shrink-0">
         <div className="grid grid-cols-2 w-full p-1 bg-white/[0.05] rounded-xl border border-white/10">
@@ -364,27 +369,34 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({ isOpen, onClose 
         </div>
       </div>
 
-      {/* Main Content Area (Responsive Desktop 2-Column + Mobile Tabs) */}
-      <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative">
-        {/* 🛠️ LEFT SIDEBAR: Controls & Customizations */}
+      {/* Main Content Studio (Balanced 2-Column Desktop + Mobile Tabs) */}
+      <div className="flex-1 flex flex-col md:flex-row gap-4 lg:gap-6 min-h-0 relative">
+        {/* 🛠️ LEFT STUDIO PANEL: Controls & Customizations */}
         <div
-          className={`w-full md:w-[360px] lg:w-[400px] border-b md:border-b-0 md:border-r border-white/[0.08] flex-col bg-black/30 backdrop-blur-md shrink-0 overflow-y-auto p-4 sm:p-5 space-y-5 no-scrollbar justify-between ${
+          className={`w-full md:w-[380px] lg:w-[420px] flex-col bg-white/[0.03] border border-white/[0.08] rounded-2xl sm:rounded-3xl p-4 sm:p-5 lg:p-6 space-y-5 lg:space-y-6 shadow-xl backdrop-blur-xl shrink-0 overflow-y-auto no-scrollbar justify-between ${
             mobileTab === 'custom' ? 'flex flex-1' : 'hidden md:flex'
           }`}
         >
-          <div className="space-y-5">
+          <div className="space-y-5 lg:space-y-6">
             {/* Data Source Selector */}
             <div>
-              <div className="flex items-center gap-2 mb-2.5">
-                <ListMusic className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
-                <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Nguồn bài hát</span>
+              <div className="flex items-center justify-between mb-2.5">
+                <div className="flex items-center gap-2">
+                  <ListMusic className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+                    Nguồn bài hát
+                  </span>
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400">
+                  {dataSource === 'queue' ? 'Hàng đợi' : dataSource === 'history' ? 'Lịch sử' : 'Yêu thích'}
+                </span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={() => setDataSource('queue')}
                   className={`py-2.5 px-3 rounded-xl font-bold text-xs flex flex-col items-center gap-1.5 transition-all duration-200 border ${
                     dataSource === 'queue'
-                      ? 'bg-[var(--primary-spotify,#06b6d4)]/20 border-[var(--primary-spotify,#06b6d4)]/50 text-[var(--spotify-glow,#22d3ee)] shadow-[0_0_15px_var(--theme-glow-shadow,rgba(6,182,212,0.25))]'
+                      ? 'bg-amber-400/15 border-amber-400/50 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.25)] ring-1 ring-amber-400/40'
                       : 'bg-white/[0.04] border-white/10 text-slate-400 hover:text-white hover:bg-white/[0.08]'
                   }`}
                 >
@@ -396,7 +408,7 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({ isOpen, onClose 
                   onClick={() => setDataSource('history')}
                   className={`py-2.5 px-3 rounded-xl font-bold text-xs flex flex-col items-center gap-1.5 transition-all duration-200 border ${
                     dataSource === 'history'
-                      ? 'bg-[var(--primary-spotify,#06b6d4)]/20 border-[var(--primary-spotify,#06b6d4)]/50 text-[var(--spotify-glow,#22d3ee)] shadow-[0_0_15px_var(--theme-glow-shadow,rgba(6,182,212,0.25))]'
+                      ? 'bg-amber-400/15 border-amber-400/50 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.25)] ring-1 ring-amber-400/40'
                       : 'bg-white/[0.04] border-white/10 text-slate-400 hover:text-white hover:bg-white/[0.08]'
                   }`}
                 >
@@ -408,7 +420,7 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({ isOpen, onClose 
                   onClick={() => setDataSource('favorites')}
                   className={`py-2.5 px-3 rounded-xl font-bold text-xs flex flex-col items-center gap-1.5 transition-all duration-200 border ${
                     dataSource === 'favorites'
-                      ? 'bg-[var(--primary-spotify,#06b6d4)]/20 border-[var(--primary-spotify,#06b6d4)]/50 text-[var(--spotify-glow,#22d3ee)] shadow-[0_0_15px_var(--theme-glow-shadow,rgba(6,182,212,0.25))]'
+                      ? 'bg-amber-400/15 border-amber-400/50 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.25)] ring-1 ring-amber-400/40'
                       : 'bg-white/[0.04] border-white/10 text-slate-400 hover:text-white hover:bg-white/[0.08]'
                   }`}
                 >
@@ -422,10 +434,12 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({ isOpen, onClose 
             <div>
               <div className="flex items-center justify-between mb-2.5">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
-                  <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Số lượng bài hát</span>
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+                    Số lượng bài in trên hóa đơn
+                  </span>
                 </div>
-                <span className="text-xs font-mono font-bold text-[var(--spotify-glow,#22d3ee)]">
+                <span className="text-xs font-mono font-bold text-amber-300">
                   {sliceTracks.length} bài
                 </span>
               </div>
@@ -434,9 +448,9 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({ isOpen, onClose 
                   <button
                     key={num}
                     onClick={() => setTrackLimit(num)}
-                    className={`py-2 rounded-xl font-extrabold text-xs transition-all duration-200 border ${
+                    className={`py-2.5 rounded-xl font-extrabold text-xs transition-all duration-200 border ${
                       trackLimit === num
-                        ? 'bg-white text-black border-white shadow-lg scale-105'
+                        ? 'bg-amber-400 text-black border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.35)] scale-105'
                         : 'bg-white/[0.04] border-white/10 text-slate-400 hover:text-white hover:bg-white/[0.08]'
                     }`}
                   >
@@ -450,31 +464,33 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({ isOpen, onClose 
             <div>
               <div className="flex items-center justify-between mb-2.5">
                 <div className="flex items-center gap-2">
-                  <Palette className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
-                  <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Chủ đề giấy in</span>
+                  <Palette className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+                    Chủ đề giấy in
+                  </span>
                 </div>
-                <span className="text-[11px] font-mono font-semibold text-[var(--spotify-glow,#22d3ee)]">
+                <span className="text-[11px] font-mono font-semibold text-amber-300">
                   {RECEIPT_THEMES.find((t) => t.id === selectedThemeId)?.name}
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2.5">
                 {RECEIPT_THEMES.map((theme) => {
                   const isActive = selectedThemeId === theme.id
                   return (
                     <button
                       key={theme.id}
                       onClick={() => setSelectedThemeId(theme.id)}
-                      className={`h-11 rounded-xl flex items-center justify-center p-2 transition-all duration-200 relative border font-bold text-xs ${
+                      className={`h-12 rounded-xl flex items-center justify-center p-2 transition-all duration-200 relative border font-bold text-xs ${
                         isActive
-                          ? 'border-white scale-105 shadow-[0_0_15px_rgba(255,255,255,0.35)] ring-2 ring-[var(--spotify-glow,#22d3ee)]/60'
-                          : 'border-white/15 opacity-70 hover:opacity-100 hover:border-white/40'
+                          ? 'border-white scale-105 shadow-[0_0_18px_rgba(255,255,255,0.4)] ring-2 ring-amber-400/60'
+                          : 'border-white/15 opacity-75 hover:opacity-100 hover:border-white/40'
                       }`}
                       style={{
                         background: `linear-gradient(135deg, ${theme.paperGrad[0]}, ${theme.paperGrad[1]})`,
                         color: theme.textColor,
                       }}
                     >
-                      <span className="truncate">{theme.name.split(' ')[0]}</span>
+                      <span className="truncate px-1">{theme.name}</span>
                       {isActive && <Check className="w-3.5 h-3.5 ml-1 shrink-0 drop-shadow" />}
                     </button>
                   )
@@ -485,8 +501,10 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({ isOpen, onClose 
             {/* Customer Name Input */}
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <User className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
-                <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Tên trên hóa đơn</span>
+                <User className="w-4 h-4 text-amber-400" />
+                <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+                  Tên người nghe trên hóa đơn
+                </span>
               </div>
               <input
                 type="text"
@@ -494,7 +512,7 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({ isOpen, onClose 
                 onChange={(e) => setCustomerName(e.target.value)}
                 placeholder="Nhập tên của bạn..."
                 maxLength={28}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-white font-mono text-xs focus:outline-none focus:border-[var(--spotify-glow,#22d3ee)] focus:ring-1 focus:ring-[var(--spotify-glow,#22d3ee)] placeholder:text-slate-500 transition-all"
+                className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/10 text-white font-mono text-xs focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 placeholder:text-slate-500 transition-all"
               />
             </div>
           </div>
@@ -506,8 +524,8 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({ isOpen, onClose 
               disabled={sliceTracks.length === 0}
               className="w-full py-3.5 px-4 rounded-xl font-extrabold text-sm text-black flex items-center justify-center gap-2 shadow-lg active:scale-98"
               style={{
-                background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                boxShadow: '0 8px 20px var(--theme-glow-shadow, rgba(6,182,212,0.25))',
+                background: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
+                boxShadow: '0 8px 20px rgba(245, 158, 11, 0.3)',
               }}
             >
               <span>Xem trước Hóa đơn ({sliceTracks.length} bài)</span>
@@ -516,50 +534,58 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({ isOpen, onClose 
           </div>
         </div>
 
-        {/* 🖼️ RIGHT PREVIEW AREA: Thermal Paper Preview & Action Buttons */}
+        {/* 🖼️ RIGHT SHOWCASE PANEL: Thermal Paper Preview Pedestal & Action Buttons */}
         <div
-          className={`flex-1 flex-col min-h-0 bg-[#07090e]/80 p-3.5 sm:p-6 overflow-hidden ${
+          className={`flex-1 flex-col bg-white/[0.02] border border-white/[0.08] rounded-2xl sm:rounded-3xl p-4 sm:p-5 lg:p-6 overflow-hidden relative shadow-2xl backdrop-blur-xl justify-between min-h-0 ${
             mobileTab === 'preview' ? 'flex' : 'hidden md:flex'
           }`}
         >
-          {/* Scrollable Receipt Preview Container */}
-          <div className="flex-1 overflow-y-auto flex items-center justify-center py-2 no-scrollbar">
-            <div className="relative max-h-[58vh] sm:max-h-[460px] w-auto max-w-[340px] sm:max-w-none rounded-xl overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.85)] border border-white/15 group hover:scale-[1.01] transition-all duration-300 flex items-center justify-center bg-black/40">
+          {/* Ambient Glow Pedestal in Background */}
+          <div
+            className="absolute inset-0 pointer-events-none overflow-hidden"
+            style={{
+              background: 'radial-gradient(circle at 50% 40%, rgba(251, 191, 36, 0.12), transparent 70%)',
+            }}
+          />
+
+          {/* Scrollable Thermal Receipt Preview Pedestal */}
+          <div className="flex-1 overflow-y-auto flex items-center justify-center py-4 no-scrollbar relative z-10">
+            <div className="relative max-h-[52vh] sm:max-h-[480px] w-auto max-w-[340px] sm:max-w-none rounded-xl overflow-hidden shadow-[0_30px_70px_rgba(0,0,0,0.9)] border border-white/20 group hover:scale-[1.01] transition-all duration-300 flex items-center justify-center bg-black/50">
               {isLoadingTracks ? (
                 <div className="w-64 h-80 flex flex-col items-center justify-center gap-3 text-slate-400">
-                  <RefreshCw className="w-7 h-7 text-[var(--spotify-glow,#22d3ee)] animate-spin" />
-                  <span className="text-xs font-bold">Đang tải bài hát...</span>
+                  <RefreshCw className="w-7 h-7 text-amber-400 animate-spin" />
+                  <span className="text-xs font-bold">Đang tải danh sách bài hát...</span>
                 </div>
               ) : previewUrl ? (
                 <img
                   src={previewUrl}
                   alt="Music Receipt Preview"
-                  className="w-full h-auto max-h-[58vh] sm:max-h-[460px] object-contain rounded-xl transition-all duration-300 drop-shadow-2xl"
+                  className="w-full h-auto max-h-[52vh] sm:max-h-[480px] object-contain rounded-xl transition-all duration-300 drop-shadow-2xl"
                 />
               ) : (
                 <div className="w-64 h-80 flex flex-col items-center justify-center gap-3 text-slate-400">
-                  <Receipt className="w-8 h-8 text-[var(--spotify-glow,#22d3ee)]/50" />
+                  <Receipt className="w-8 h-8 text-amber-400/50" />
                   <span className="text-xs font-bold">Chưa có bài hát để tạo hóa đơn</span>
                 </div>
               )}
 
               {isGenerating && (
                 <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center">
-                  <RefreshCw className="w-6 h-6 text-[var(--spotify-glow,#22d3ee)] animate-spin" />
+                  <RefreshCw className="w-6 h-6 text-amber-400 animate-spin" />
                 </div>
               )}
             </div>
           </div>
 
-          {/* Bottom Actions Bar */}
-          <div className="flex flex-col gap-2.5 pt-3 border-t border-white/[0.08] shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:pb-0">
-            {/* Primary Share Action */}
+          {/* Bottom Action Buttons Bar */}
+          <div className="flex flex-col gap-2.5 pt-4 border-t border-white/[0.08] shrink-0 relative z-10 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:pb-0">
+            {/* Primary Share Action Button */}
             <button
               onClick={handleShare}
               disabled={isSharing || sliceTracks.length === 0}
-              className="w-full py-3.5 px-4 rounded-xl font-extrabold text-sm text-black flex items-center justify-center gap-2.5 shadow-[0_0_25px_var(--theme-glow-shadow,rgba(6,182,212,0.4))] hover:shadow-[0_0_35px_var(--theme-glow-shadow,rgba(6,182,212,0.6))] hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full py-3.5 px-4 rounded-xl font-extrabold text-sm text-black flex items-center justify-center gap-2.5 shadow-[0_0_25px_rgba(245,158,11,0.35)] hover:shadow-[0_0_35px_rgba(245,158,11,0.55)] hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               style={{
-                background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                background: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
               }}
             >
               {isSharing ? (
@@ -575,21 +601,21 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({ isOpen, onClose 
               )}
             </button>
 
-            {/* Secondary Actions: Copy & Download */}
-            <div className="grid grid-cols-2 gap-2">
+            {/* Secondary Actions: Copy to Clipboard & Download PNG */}
+            <div className="grid grid-cols-2 gap-2.5">
               <button
                 onClick={handleCopy}
                 disabled={sliceTracks.length === 0}
-                className="py-2.5 px-3 rounded-xl font-bold text-xs text-white bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 hover:border-white/20 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                className="py-2.5 px-4 rounded-xl font-bold text-xs text-white bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 hover:border-white/20 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
               >
                 {copied ? (
                   <>
                     <Check className="w-4 h-4 text-emerald-400" />
-                    <span className="text-emerald-400">Đã sao chép</span>
+                    <span className="text-emerald-400 font-bold">Đã sao chép</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-4 h-4 text-slate-300" />
+                    <Copy className="w-4 h-4 text-amber-300" />
                     <span>Sao chép ảnh</span>
                   </>
                 )}
@@ -598,9 +624,9 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({ isOpen, onClose 
               <button
                 onClick={handleDownload}
                 disabled={sliceTracks.length === 0}
-                className="py-2.5 px-3 rounded-xl font-bold text-xs text-white bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 hover:border-white/20 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                className="py-2.5 px-4 rounded-xl font-bold text-xs text-white bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 hover:border-white/20 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
               >
-                <Download className="w-4 h-4 text-slate-300" />
+                <Download className="w-4 h-4 text-amber-300" />
                 <span>Tải ảnh PNG</span>
               </button>
             </div>

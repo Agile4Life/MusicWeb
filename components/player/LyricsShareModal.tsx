@@ -11,8 +11,6 @@ import {
   Sparkles,
   Palette,
   RefreshCw,
-  Quote,
-  Receipt,
 } from 'lucide-react'
 import { Track } from '@/types'
 import { LyricLine } from '@/lib/lrcParser'
@@ -24,7 +22,6 @@ import {
   generateLyricCardDataUrl,
   toggleContiguousLyricLine,
 } from '@/lib/lyricsShareCanvas'
-import { ReceiptifyView } from './ReceiptifyView'
 
 export interface LyricsShareModalProps {
   isOpen: boolean
@@ -52,7 +49,6 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
 }) => {
   const [mounted, setMounted] = useState(false)
   const { currentTheme } = useTheme()
-  const [shareMode, setShareMode] = useState<'lyrics' | 'receipt'>('lyrics')
   const [selectedIndices, setSelectedIndices] = useState<number[]>([0])
   const [selectedThemeId, setSelectedThemeId] = useState<string>(() =>
     getInitialThemeForApp(currentTheme?.id)
@@ -281,16 +277,16 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
     >
       <div className="relative w-full max-w-5xl h-full sm:h-[86vh] max-h-none sm:max-h-[760px] bg-[#0b0f19] border-0 sm:border sm:border-white/10 rounded-none sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden text-slate-100 select-none">
         {/* Modal Top Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-white/[0.08] bg-black/50 backdrop-blur-2xl shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-white/[0.08] bg-black/50 backdrop-blur-2xl shrink-0">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[var(--primary-spotify,#06b6d4)]/15 border border-[var(--primary-spotify,#06b6d4)]/30 flex items-center justify-center text-[var(--spotify-glow,#22d3ee)] shadow-[0_0_15px_var(--theme-glow-shadow,rgba(6,182,212,0.25))] shrink-0">
               <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div className="min-w-0 flex-1">
               <h2 id="lyrics-share-modal-title" className="text-sm sm:text-base font-extrabold text-white flex items-center gap-2 truncate">
-                {shareMode === 'lyrics' ? 'Trích dẫn câu hát' : 'Hóa đơn âm nhạc (Receiptify)'}
+                Chia sẻ câu hát
                 <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--primary-spotify,#06b6d4)]/10 text-[var(--spotify-glow,#22d3ee)] border border-[var(--primary-spotify,#06b6d4)]/20 shrink-0">
-                  {shareMode === 'lyrics' ? 'Story Card' : 'Thermal Receipt'}
+                  Story 9:16
                 </span>
               </h2>
               <p className="text-[11px] sm:text-xs text-slate-400 truncate">
@@ -299,79 +295,45 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
             </div>
           </div>
 
-          {/* Mode Switcher Tabs */}
-          <div className="flex items-center p-1 bg-white/[0.06] rounded-xl border border-white/10 mx-2">
-            <button
-              onClick={() => setShareMode('lyrics')}
-              className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1.5 ${
-                shareMode === 'lyrics'
-                  ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md font-extrabold'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Quote className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Câu hát</span>
-            </button>
-
-            <button
-              onClick={() => setShareMode('receipt')}
-              className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1.5 ${
-                shareMode === 'receipt'
-                  ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md font-extrabold'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Receipt className="w-3.5 h-3.5" />
-              <span>Hóa đơn</span>
-              <span className="text-[8px] font-black uppercase px-1 py-0.2 rounded bg-amber-400 text-black">
-                MỚI
-              </span>
-            </button>
-          </div>
-
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/15 active:scale-95 text-slate-300 hover:text-white flex items-center justify-center transition-all border border-white/10 shrink-0"
+            className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/15 active:scale-95 text-slate-300 hover:text-white flex items-center justify-center transition-all border border-white/10 shrink-0 ml-2"
             title="Đóng"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {shareMode === 'receipt' ? (
-          <ReceiptifyView isOpen={isOpen} onClose={onClose} />
-        ) : (
-          <>
-            {/* Mobile Tab Segmented Switcher (Visible on mobile only < md) */}
-            <div className="flex md:hidden items-center p-2 bg-black/60 border-b border-white/[0.08] shrink-0">
-              <div className="grid grid-cols-2 w-full p-1 bg-white/[0.05] rounded-xl border border-white/10">
-                <button
-                  onClick={() => setMobileTab('select')}
-                  className={`py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                    mobileTab === 'select'
-                      ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md shadow-[var(--theme-glow-shadow)] font-extrabold'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <span>1. Chọn câu hát</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${mobileTab === 'select' ? 'bg-black/20 text-black' : 'bg-white/10 text-[var(--spotify-glow,#22d3ee)]'}`}>
-                    {selectedIndices.length}/5
-                  </span>
-                </button>
+        {/* Mobile Tab Segmented Switcher (Visible on mobile only < md) */}
+        <div className="flex md:hidden items-center p-2 bg-black/60 border-b border-white/[0.08] shrink-0">
+          <div className="grid grid-cols-2 w-full p-1 bg-white/[0.05] rounded-xl border border-white/10">
+            <button
+              onClick={() => setMobileTab('select')}
+              className={`py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                mobileTab === 'select'
+                  ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md shadow-[var(--theme-glow-shadow)] font-extrabold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>1. Chọn câu hát</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${mobileTab === 'select' ? 'bg-black/20 text-black' : 'bg-white/10 text-[var(--spotify-glow,#22d3ee)]'}`}>
+                {selectedIndices.length}/5
+              </span>
+            </button>
 
-                <button
-                  onClick={() => setMobileTab('preview')}
-                  className={`py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                    mobileTab === 'preview'
-                      ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md shadow-[var(--theme-glow-shadow)] font-extrabold'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <Palette className="w-3.5 h-3.5" />
-                  <span>2. Xem trước Card</span>
-                </button>
-              </div>
-            </div>
+            <button
+              onClick={() => setMobileTab('preview')}
+              className={`py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                mobileTab === 'preview'
+                  ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md shadow-[var(--theme-glow-shadow)] font-extrabold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Palette className="w-3.5 h-3.5" />
+              <span>2. Xem trước Card</span>
+            </button>
+          </div>
+        </div>
 
             {/* Modal Content 2-Column Studio (Responsive Desktop + Mobile Tabs) */}
             <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative">
@@ -602,8 +564,6 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
             </div>
           </div>
         </div>
-          </>
-        )}
       </div>
     </div>,
     document.body

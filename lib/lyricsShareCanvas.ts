@@ -292,7 +292,13 @@ export async function renderLyricCardToCanvas(
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Canvas 2D context not supported')
 
-  // 3. Draw Multi-Layer Ambient Background (Full-bleed edge-to-edge, NO transparent corners)
+  // 3. 🌟 Clip Card with Smooth Rounded Corners (True Rounded Story Card)
+  const cardRadius = 42
+  ctx.save()
+  drawRoundedRect(ctx, 0, 0, width, height, cardRadius)
+  ctx.clip()
+
+  // 4. Draw Multi-Layer Ambient Background
   const bgGrad = ctx.createLinearGradient(0, 0, width, height)
   bgGrad.addColorStop(0, theme.background[0])
   bgGrad.addColorStop(0.45, theme.background[1])
@@ -550,18 +556,16 @@ export async function renderLyricCardToCanvas(
   ctx.fillText('Nghe trên MusicWeb', width / 2, footerY)
   ctx.restore()
 
-  // 9. 🔲 Sleek Gentle Rounded Border (Clean rounded frame with continuous filled background)
-  const borderInset = 18
-  const cardRadius = 32
+  // 9. 🔲 Smooth Rounded Border along card perimeter
   ctx.save()
-  drawRoundedRect(ctx, borderInset, borderInset, width - borderInset * 2, height - borderInset * 2, cardRadius)
-  ctx.strokeStyle = `${theme.accentColor}55`
-  ctx.lineWidth = 2.5
+  drawRoundedRect(ctx, 1.5, 1.5, width - 3, height - 3, cardRadius)
+  ctx.strokeStyle = `${theme.accentColor}66`
+  ctx.lineWidth = 3
   ctx.stroke()
 
-  drawRoundedRect(ctx, borderInset + 1.5, borderInset + 1.5, width - (borderInset + 1.5) * 2, height - (borderInset + 1.5) * 2, cardRadius - 1.5)
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'
-  ctx.lineWidth = 1.2
+  drawRoundedRect(ctx, 3.5, 3.5, width - 7, height - 7, cardRadius - 2)
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)'
+  ctx.lineWidth = 1.5
   ctx.stroke()
   ctx.restore()
 

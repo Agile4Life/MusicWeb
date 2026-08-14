@@ -16,6 +16,7 @@ import {
   X,
   Heart,
   History,
+  Receipt,
   Settings,
   Trash2,
   DiscAlbum,
@@ -361,6 +362,21 @@ export function MobileHeaderNav() {
               >
                 <History className="w-4 h-4" />
                 <span>Lịch sử nghe</span>
+              </Link>
+
+              <Link
+                href="/receipt"
+                prefetch={false}
+                onClick={() => setIsDrawerOpen(false)}
+                className={`sidebar-item text-xs font-semibold ${pathname === '/receipt' ? 'active' : ''}`}
+              >
+                <Receipt className="w-4 h-4 text-amber-400" />
+                <div className="flex items-center justify-between flex-1">
+                  <span>Hóa đơn âm nhạc</span>
+                  <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                    MỚI
+                  </span>
+                </div>
               </Link>
 
               {isAdmin(user?.email) && (

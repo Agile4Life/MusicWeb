@@ -15,6 +15,7 @@ import {
   Settings,
   Heart,
   History,
+  Receipt,
   Trash2,
   DiscAlbum,
   Sparkles,
@@ -239,6 +240,22 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
           >
             <History className="w-4 h-4 icon" />
             <span>{t('history')}</span>
+          </Link>
+
+          <Link
+            href="/receipt"
+            prefetch={false}
+            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onClick={handleItemClick}
+            className={`sidebar-item text-xs font-semibold ${pathname === '/receipt' ? 'active' : ''}`}
+          >
+            <Receipt className="w-4 h-4 icon text-amber-400" />
+            <div className="flex items-center justify-between flex-1">
+              <span>{t('receipt')}</span>
+              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                MỚI
+              </span>
+            </div>
           </Link>
 
           {isAdmin(user?.email) && (
