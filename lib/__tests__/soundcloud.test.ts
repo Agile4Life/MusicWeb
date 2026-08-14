@@ -122,7 +122,7 @@ describe('SoundCloud Helper & Full Audio Filter Unit Tests', () => {
     expect(appTrack.audio_url).toBe('/api/soundcloud/stream?id=777888')
   })
 
-  it('getBestSoundCloudTranscoding should prioritize full HLS transcoding over preview', () => {
+  it('getBestSoundCloudTranscoding should prioritize full progressive MP3 transcoding over preview', () => {
     const rawTrack: SoundCloudRawTrack = {
       id: 555666,
       title: 'Transcoding Preference Test',
@@ -130,19 +130,19 @@ describe('SoundCloud Helper & Full Audio Filter Unit Tests', () => {
       media: {
         transcodings: [
           {
-            url: 'https://api-v2.soundcloud.com/media/soundcloud:tracks:555666/preview/hls',
-            format: { protocol: 'hls', mime_type: 'audio/mpeg' },
+            url: 'https://api-v2.soundcloud.com/media/soundcloud:tracks:555666/preview/progressive',
+            format: { protocol: 'progressive', mime_type: 'audio/mpeg' },
           },
           {
-            url: 'https://api-v2.soundcloud.com/media/soundcloud:tracks:555666/stream/hls',
-            format: { protocol: 'hls', mime_type: 'audio/mpeg' },
+            url: 'https://api-v2.soundcloud.com/media/soundcloud:tracks:555666/stream/progressive',
+            format: { protocol: 'progressive', mime_type: 'audio/mpeg' },
           },
         ],
       },
     }
 
     const best = getBestSoundCloudTranscoding(rawTrack)
-    expect(best?.url).toBe('https://api-v2.soundcloud.com/media/soundcloud:tracks:555666/stream/hls')
+    expect(best?.url).toBe('https://api-v2.soundcloud.com/media/soundcloud:tracks:555666/stream/progressive')
   })
 
   it('searchSoundCloudTracks should detect and handle SoundCloud track URLs', async () => {

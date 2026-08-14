@@ -83,25 +83,29 @@ export function getSoundCloudHighResArtwork(url?: string | null): string | null 
 }
 
 /**
- * Picks the best playable transcoding for the audio player (prefer HLS or progressive MP3)
+ * Picks the best playable transcoding for the audio player (prefer progressive MP3 for universal HTML5 playback)
  */
 export function getBestSoundCloudTranscoding(track: SoundCloudRawTrack | any): SoundCloudTranscoding | null {
   const transcodings: SoundCloudTranscoding[] = track?.media?.transcodings || []
   if (transcodings.length === 0) return null
 
-  // 1. First choice: HLS stream (full audio)
-  const hlsStream = transcodings.find(
-    (t) => t.format?.protocol === 'hls' && t.url?.includes('/stream/')
-  )
-  if (hlsStream) return hlsStream
-
-  // 2. Second choice: Progressive stream (full audio)
+  // 1. First choice: Progressive MP3 stream (full audio, universally supported by HTML5 <audio> on all browsers)
   const progressiveStream = transcodings.find(
     (t) => t.format?.protocol === 'progressive' && t.url?.includes('/stream/')
   )
   if (progressiveStream) return progressiveStream
 
-  // 3. Fallback: Any transcoding with /stream/
+  // 2. Second choice: Any progressive stream (full audio)
+  const anyProgressive = transcodings.find((t) => t.format?.protocol === 'progressive')
+  if (anyProgressive) return anyProgressive
+
+  // 3. Third choice: HLS stream (full audio)
+  const hlsStream = transcodings.find(
+    (t) => t.format?.protocol === 'hls' && t.url?.includes('/stream/')
+  )
+  if (hlsStream) return hlsStream
+
+  // 4. Fallback: Any transcoding with /stream/
   const anyStream = transcodings.find((t) => t.url?.includes('/stream/'))
   if (anyStream) return anyStream
 
