@@ -391,8 +391,8 @@ export default function SoundCloudPage() {
           </div>
 
           {loadingPlaylists ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
-              {[...Array(4)].map((_, i) => (
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4">
+              {[...Array(5)].map((_, i) => (
                 <div key={i} className="animate-pulse bg-white/5 rounded-2xl p-3 flex flex-col gap-3">
                   <div className="w-full aspect-square rounded-xl bg-white/10" />
                   <div className="h-4 bg-white/10 rounded w-3/4" />
@@ -401,7 +401,7 @@ export default function SoundCloudPage() {
               ))}
             </div>
           ) : playlists.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4">
               {playlists.map((pl) => (
                 <div
                   key={pl.id}
