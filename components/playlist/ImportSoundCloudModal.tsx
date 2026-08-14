@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { getValidUserId } from '@/lib/accessControl'
+import { useSession } from 'next-auth/react'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { Track, SoundCloudPlaylist } from '@/types'
@@ -52,6 +53,7 @@ export function ImportSoundCloudModal({
   const router = useRouter()
   const supabase = createClient()
   const { userEmail } = useCurrentUser()
+  const { data: nextAuthSession } = useSession()
   const { refreshPlaylists } = usePlaylists()
   const importingRef = useRef(false)
 
@@ -195,8 +197,13 @@ export function ImportSoundCloudModal({
       setStep('importing')
       setImportingProgress({ done: 0, total: tracksToImport.length })
 
-      const userObj = userEmail ? { id: userEmail, email: userEmail } : null
-      const userId = userObj ? getValidUserId(userObj) : null
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser()
+
+      const activeEmail = currentUser?.email || userEmail || nextAuthSession?.user?.email
+      const activeUser = currentUser || (activeEmail ? { id: activeEmail, email: activeEmail } : null)
+      const userId = activeUser ? getValidUserId(activeUser) : null
 
       if (!userId) {
         alert('Vui lòng đăng nhập để tạo playlist cá nhân!')
@@ -217,7 +224,7 @@ export function ImportSoundCloudModal({
           cover_url: playlistMeta?.artwork_url || tracksToImport[0]?.cover_url || null,
           is_public: false,
         })
-        .select('id')
+        .select()
         .single()
 
       if (createErr || !newPl) {

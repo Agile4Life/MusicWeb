@@ -11,6 +11,7 @@ import {
   Loader2,
   ChevronDown,
   ArrowLeft,
+  Sparkles,
 } from 'lucide-react'
 import { Track, SoundCloudPlaylist } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
@@ -23,6 +24,7 @@ import { getValidUserId } from '@/lib/accessControl'
 import { addTrackToPlaylist } from '@/lib/trackPersistence'
 import { toast } from '@/components/ui/ToastContext'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
+import { ImportSoundCloudModal } from '@/components/playlist/ImportSoundCloudModal'
 
 const GENRE_TABS = [
   { id: 'all-music', label: 'Tất cả', query: 'vietnam hit' },
@@ -58,6 +60,11 @@ export default function SoundCloudPage() {
   const [loadingPlaylists, setLoadingPlaylists] = useState<boolean>(true)
   const [selectedPlaylist, setSelectedPlaylist] = useState<SoundCloudPlaylist | null>(null)
   const [loadingPlaylistTracks, setLoadingPlaylistTracks] = useState<boolean>(false)
+
+  // Import Modal State
+  const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false)
+  const [importInitialPlaylist, setImportInitialPlaylist] = useState<SoundCloudPlaylist | null>(null)
+  const [importInitialTracks, setImportInitialTracks] = useState<Track[]>([])
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -493,17 +500,31 @@ export default function SoundCloudPage() {
 
           <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
             {tracks.length > 0 && (
-              <button
-                onClick={handlePlayAll}
-                className="px-4 py-2 rounded-full font-bold text-xs text-white flex items-center gap-2 bg-gradient-to-r from-[#ff7700] to-[#ff3300] shadow-md hover:scale-105 active:scale-95 transition-all"
-              >
-                <Play className="w-3.5 h-3.5 fill-current" />
-                <span>Phát Playlist</span>
-              </button>
+              <>
+                <button
+                  onClick={handlePlayAll}
+                  className="px-4 py-2 rounded-full font-bold text-xs text-white flex items-center gap-2 bg-gradient-to-r from-[#ff7700] to-[#ff3300] shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                >
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  <span>Phát Playlist</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setImportInitialPlaylist(selectedPlaylist)
+                    setImportInitialTracks(tracks)
+                    setIsImportModalOpen(true)
+                  }}
+                  className="px-4 py-2 rounded-full font-bold text-xs text-black flex items-center gap-1.5 bg-gradient-to-r from-[var(--spotify-glow,#ff7700)] to-[var(--primary-spotify,#ff3300)] shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                  title="Tạo và lưu playlist này vào thư viện cá nhân của bạn"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Lưu vào Thư viện</span>
+                </button>
+              </>
             )}
             <button
               onClick={handleBackToExplore}
-              className="px-3.5 py-2 rounded-full font-bold text-xs text-slate-300 bg-white/10 hover:bg-white/20 transition-all"
+              className="px-3.5 py-2 rounded-full font-bold text-xs text-slate-300 bg-white/10 hover:bg-white/20 transition-all cursor-pointer"
             >
               Đóng Playlist
             </button>
@@ -600,6 +621,18 @@ export default function SoundCloudPage() {
           </div>
         )}
       </div>
+
+      {/* Import SoundCloud Modal */}
+      <ImportSoundCloudModal
+        isOpen={isImportModalOpen}
+        onClose={() => {
+          setIsImportModalOpen(false)
+          setImportInitialPlaylist(null)
+          setImportInitialTracks([])
+        }}
+        initialPlaylist={importInitialPlaylist}
+        initialTracks={importInitialTracks}
+      />
     </div>
   )
 }

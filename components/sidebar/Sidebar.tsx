@@ -19,6 +19,7 @@ import {
   Trash2,
   DiscAlbum,
   Sparkles,
+  FolderArchive,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
@@ -141,10 +142,10 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
   }
 
   return (
-    <aside className={`app-sidebar hidden lg:flex w-60 lg:w-64 xl:w-72 flex-col justify-between p-3 lg:p-3.5 xl:p-4 h-full select-none text-slate-300 rounded-2xl panel-theme-hover shrink-0 z-10 ${isScrolled ? 'is-scrolled' : ''}`}>
-      <div className="flex flex-col gap-3 lg:gap-4 xl:gap-5 min-h-0 flex-1 pb-24 xl:pb-28">
+    <aside className={`app-sidebar hidden lg:flex w-60 lg:w-64 xl:w-72 flex-col justify-between p-3 lg:p-3.5 xl:p-4 h-full select-none text-slate-300 rounded-2xl panel-theme-hover shrink-0 z-10 overflow-hidden ${isScrolled ? 'is-scrolled' : ''}`}>
+      <div className="flex flex-col gap-2.5 lg:gap-3 xl:gap-3.5 min-h-0 flex-1 h-full max-h-full pb-20 xl:pb-24 overflow-hidden">
         {/* App Branding Header (Mini Glass Plaque) */}
-        <div className="px-0.5 py-0.5">
+        <div className="px-0.5 py-0.5 shrink-0">
           <Link
             href="/"
             onClick={() => {
@@ -185,14 +186,13 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <Link
             href="/"
-            prefetch={false}
             onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
             onClick={(e) => {
+              handleItemClick(e)
               clearSearch()
               window.dispatchEvent(new Event('musicweb-tab-home'))
-              handleItemClick(e)
             }}
-            className={`sidebar-item text-xs font-semibold ${pathname === '/' ? 'active' : ''}`}
+            className={`sidebar-item text-xs ${pathname === '/' ? 'active font-semibold' : ''}`}
           >
             <Home className="w-4 h-4 icon" />
             <span>{t('home')}</span>
@@ -200,30 +200,26 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <Link
             href="/albums"
-            prefetch={false}
             onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
             onClick={handleItemClick}
-            className={`sidebar-item text-xs font-semibold ${
-              pathname === '/albums' || pathname.startsWith('/album/') ? 'active' : ''
+            className={`sidebar-item text-xs ${
+              pathname === '/albums' || pathname.startsWith('/album/') ? 'active font-semibold' : ''
             }`}
           >
             <DiscAlbum className="w-4 h-4 icon" />
-            <span>{t('albums')}</span>
+            <span>Albums</span>
           </Link>
 
           <Link
             href="/soundcloud"
-            prefetch={false}
             onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
             onClick={handleItemClick}
-            className={`sidebar-item text-xs font-semibold ${
-              pathname === '/soundcloud' ? 'active' : ''
-            }`}
+            className={`sidebar-item text-xs ${pathname === '/soundcloud' ? 'active font-semibold' : ''}`}
           >
-            <Cloud className="w-4 h-4 icon text-[#ff7700]" />
+            <Cloud className="w-4 h-4 text-[#ff7700] icon" />
             <div className="flex items-center justify-between flex-1">
               <span>SoundCloud</span>
-              <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/35">
+              <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/35 shadow-[0_0_8px_rgba(255,85,0,0.3)]">
                 HOT
               </span>
             </div>
@@ -231,21 +227,24 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <Link
             href="/drive"
-            prefetch={false}
             onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
             onClick={handleItemClick}
-            className={`sidebar-item text-xs font-semibold ${pathname === '/drive' ? 'active' : ''}`}
+            className={`sidebar-item text-xs ${pathname === '/drive' ? 'active font-semibold' : ''}`}
           >
-            <Cloud className="w-4 h-4 icon" />
-            <span>{t('drive')}</span>
+            <FolderArchive className="w-4 h-4 text-[#22c55e] icon" />
+            <div className="flex items-center justify-between flex-1">
+              <span>Google Drive</span>
+              <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-[#22c55e]/20 text-[#22c55e] border border-[#22c55e]/35">
+                CLOUD
+              </span>
+            </div>
           </Link>
 
           <Link
             href="/favorites"
-            prefetch={false}
             onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
             onClick={handleItemClick}
-            className={`sidebar-item text-xs font-semibold ${pathname === '/favorites' ? 'active' : ''}`}
+            className={`sidebar-item text-xs ${pathname === '/favorites' ? 'active font-semibold' : ''}`}
           >
             <Heart className="w-4 h-4 icon" />
             <span>{t('favorites')}</span>
@@ -253,10 +252,9 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <Link
             href="/history"
-            prefetch={false}
             onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
             onClick={handleItemClick}
-            className={`sidebar-item text-xs font-semibold ${pathname === '/history' ? 'active' : ''}`}
+            className={`sidebar-item text-xs ${pathname === '/history' ? 'active font-semibold' : ''}`}
           >
             <History className="w-4 h-4 icon" />
             <span>{t('history')}</span>
@@ -264,16 +262,15 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <Link
             href="/receipt"
-            prefetch={false}
             onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
             onClick={handleItemClick}
-            className={`sidebar-item text-xs font-semibold ${pathname === '/receipt' ? 'active' : ''}`}
+            className={`sidebar-item text-xs ${pathname === '/receipt' ? 'active font-semibold' : ''}`}
           >
-            <Receipt className="w-4 h-4 icon text-amber-400" />
+            <Receipt className="w-4 h-4 text-amber-400 icon" />
             <div className="flex items-center justify-between flex-1">
               <span>{t('receipt')}</span>
-              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                MỚI
+              <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                NEW
               </span>
             </div>
           </Link>
@@ -281,10 +278,9 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
           {isAdmin(user?.email) && (
             <Link
               href="/upload"
-              prefetch={false}
               onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
               onClick={handleItemClick}
-              className={`sidebar-item text-xs font-semibold ${pathname === '/upload' ? 'active' : ''}`}
+              className={`sidebar-item text-xs ${pathname === '/upload' ? 'active font-semibold' : ''}`}
             >
               <Upload className="w-4 h-4 icon" />
               <span>{t('upload')}</span>
@@ -293,54 +289,56 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <Link
             href="/settings"
-            prefetch={false}
             onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
             onClick={handleItemClick}
-            className={`sidebar-item text-xs font-semibold ${pathname === '/settings' ? 'active' : ''}`}
+            className={`sidebar-item text-xs ${pathname === '/settings' ? 'active font-semibold' : ''}`}
           >
             <Settings className="w-4 h-4 icon" />
             <span>{t('settings')}</span>
           </Link>
         </nav>
 
-        {/* Playlists Container */}
-        <div className="flex-1 flex flex-col min-h-0 pt-2 lg:pt-2.5 border-t border-white/[0.05]">
-          <div className="flex items-center justify-between px-2.5 py-1.5 mb-1.5 border-b border-white/[0.04] shrink-0">
-            <div className="flex items-center gap-1.5 text-slate-400 font-mono text-[11px] tracking-wider uppercase font-bold">
-              <ListMusic style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3.5 h-3.5" />
+        {/* Playlists Container with Dedicated Scrollable Track Area */}
+        <div className="flex-1 flex flex-col min-h-0 pt-2 lg:pt-2.5 border-t border-white/[0.05] overflow-hidden">
+          <div className="flex items-center justify-between px-2 py-1.5 mb-1.5 border-b border-white/[0.04] shrink-0 gap-1.5">
+            <div className="flex items-center gap-1.5 text-slate-400 font-mono text-[11px] tracking-wider uppercase font-bold whitespace-nowrap min-w-0">
+              <ListMusic style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3.5 h-3.5 shrink-0" />
               <span>Playlist</span>
+              {playlists.length > 0 && (
+                <span className="text-[10px] text-slate-500 font-normal">({playlists.length})</span>
+              )}
             </div>
 
-            <div className="flex items-center gap-0.5 bg-white/[0.03] border border-white/[0.08] p-0.5 rounded-xl shadow-inner">
+            <div className="flex items-center gap-0.5 bg-white/[0.03] border border-white/[0.08] p-0.5 rounded-lg shadow-inner shrink-0">
               <button
                 onClick={() => setIsImportModalOpen(true)}
-                className="w-7 h-7 rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/20 flex items-center justify-center transition-all"
+                className="w-6 h-6 rounded-md text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/20 flex items-center justify-center transition-all cursor-pointer"
                 title="Nhập Playlist từ Spotify"
               >
-                <Sparkles className="w-3.5 h-3.5" />
+                <Sparkles className="w-3 h-3" />
               </button>
               <button
                 onClick={() => setIsYtImportModalOpen(true)}
-                className="w-7 h-7 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/20 flex items-center justify-center transition-all"
+                className="w-6 h-6 rounded-md text-red-400 hover:text-red-300 hover:bg-red-500/20 flex items-center justify-center transition-all cursor-pointer"
                 title="Nhập Playlist từ YouTube Music"
               >
-                <YoutubeIcon className="w-3.5 h-3.5" />
+                <YoutubeIcon className="w-3 h-3" />
               </button>
               <button
                 onClick={() => setIsScImportModalOpen(true)}
-                className="w-7 h-7 rounded-lg text-[#ff7700] hover:text-[#ff5500] hover:bg-[#ff5500]/20 flex items-center justify-center transition-all"
+                className="w-6 h-6 rounded-md text-[#ff7700] hover:text-[#ff5500] hover:bg-[#ff5500]/20 flex items-center justify-center transition-all cursor-pointer"
                 title="Nhập Playlist từ SoundCloud"
               >
-                <Cloud className="w-3.5 h-3.5" />
+                <Cloud className="w-3 h-3" />
               </button>
-              <div className="w-[1px] h-3 bg-white/10 my-auto mx-0.5" />
+              <div className="w-[1px] h-2.5 bg-white/10 my-auto mx-0.5 shrink-0" />
               <button
                 onClick={handleCreatePlaylist}
                 disabled={creating}
-                className="w-7 h-7 rounded-lg text-[var(--spotify-glow,#22d3ee)] hover:text-white hover:bg-[var(--primary-spotify)]/20 flex items-center justify-center transition-all"
+                className="w-6 h-6 rounded-md text-[var(--spotify-glow,#22d3ee)] hover:text-white hover:bg-[var(--primary-spotify)]/20 flex items-center justify-center transition-all cursor-pointer"
                 title="Tạo Playlist mới"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-3 h-3" />
               </button>
             </div>
           </div>
@@ -348,7 +346,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <div
             ref={playlistNavRef}
             onMouseLeave={() => handleSectionMouseLeave(playlistNavRef, setPlaylistIndicator)}
-            className="flex-1 overflow-y-auto flex flex-col gap-0.5 pr-1 relative custom-slim-scrollbar min-h-0"
+            className="flex-1 overflow-y-auto flex flex-col gap-1 relative no-scrollbar min-h-0 touch-pan-y"
           >
             <div
               className="nav-indicator"
@@ -367,20 +365,20 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
                     href={`/playlist/${pl.id}`}
                     onMouseEnter={(e) => handleItemMouseEnter(e, setPlaylistIndicator)}
                     onClick={handleItemClick}
-                    className={`sidebar-item text-xs group ${
-                      pathname === `/playlist/${pl.id}` ? 'active font-semibold' : ''
+                    className={`sidebar-item h-12 min-h-[48px] max-h-[48px] shrink-0 group px-3 rounded-2xl flex items-center gap-3 transition-all ${
+                      pathname === `/playlist/${pl.id}` ? 'active font-semibold bg-white/[0.08] text-white shadow-sm' : 'hover:bg-white/[0.04] text-slate-300'
                     }`}
                   >
-                    <div className="w-7 h-7 rounded-lg bg-white/[0.04] border border-white/5 flex items-center justify-center text-slate-400 shrink-0 icon">
-                      <Music className="w-3.5 h-3.5" />
+                    <div className="w-8.5 h-8.5 rounded-full bg-white/[0.06] border border-white/10 flex items-center justify-center text-slate-300 shrink-0 icon group-hover:text-[var(--spotify-glow,#22d3ee)] group-hover:scale-105 transition-all shadow-inner">
+                      <Music className="w-4 h-4" />
                     </div>
-                    <span className="truncate flex-1 font-medium">{pl.name}</span>
+                    <span className="truncate flex-1 font-semibold text-sm text-slate-200 group-hover:text-white transition-colors">{pl.name}</span>
                     <button
                       onClick={(e) => handleDeletePlaylistFromSidebar(e, pl.id, pl.name)}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-red-400 rounded transition-opacity relative z-10"
+                      className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-500 hover:text-red-400 rounded-lg hover:bg-red-500/15 transition-all relative z-10 shrink-0 cursor-pointer"
                       title="Xóa playlist"
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </Link>
                 ))
@@ -389,7 +387,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
                   <p className="text-xs font-semibold text-slate-300 mb-1">Chưa có playlist</p>
                   <button
                     onClick={handleCreatePlaylist}
-                    className="text-[11px] font-bold text-[var(--spotify-glow,#22d3ee)] hover:underline mt-1 inline-block"
+                    className="text-[11px] font-bold text-[var(--spotify-glow,#22d3ee)] hover:underline mt-1 inline-block cursor-pointer"
                   >
                     + Tạo playlist đầu tiên
                   </button>
