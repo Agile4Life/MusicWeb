@@ -180,18 +180,41 @@ export function getAllValidUserIds(currentUser?: any, nextAuthSession?: any): st
   const ids = new Set<string>()
 
   if (currentUser) {
-    const cid = getValidUserId(currentUser)
-    if (cid) ids.add(cid)
-    if (currentUser.email) {
-      ids.add(getValidUserId({ email: currentUser.email }))
+    if (typeof currentUser === 'string') {
+      const email = currentUser.trim().toLowerCase()
+      if (email) {
+        ids.add(getValidUserId({ email }))
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentUser)) {
+          ids.add(currentUser)
+        }
+      }
+    } else {
+      const cid = getValidUserId(currentUser)
+      if (cid) ids.add(cid)
+      if (currentUser.email) {
+        ids.add(getValidUserId({ email: currentUser.email }))
+      }
     }
   }
 
-  if (nextAuthSession?.user) {
-    const nid = getValidUserId(nextAuthSession.user)
-    if (nid) ids.add(nid)
-    if (nextAuthSession.user.email) {
-      ids.add(getValidUserId({ email: nextAuthSession.user.email }))
+  if (nextAuthSession) {
+    if (typeof nextAuthSession === 'string') {
+      const email = nextAuthSession.trim().toLowerCase()
+      if (email) {
+        ids.add(getValidUserId({ email }))
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(nextAuthSession)) {
+          ids.add(nextAuthSession)
+        }
+      }
+    } else if (nextAuthSession.user) {
+      const nid = getValidUserId(nextAuthSession.user)
+      if (nid) ids.add(nid)
+      if (nextAuthSession.user.email) {
+        ids.add(getValidUserId({ email: nextAuthSession.user.email }))
+      }
+    } else if (nextAuthSession.email) {
+      const nid = getValidUserId({ email: nextAuthSession.email })
+      if (nid) ids.add(nid)
     }
   }
 

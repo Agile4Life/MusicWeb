@@ -7,8 +7,6 @@ import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { useSession } from 'next-auth/react'
 import { createClient } from '@/lib/supabase/client'
-import { getAllValidUserIds } from '@/lib/accessControl'
-import { fetchListeningHistory } from '@/lib/listeningHistory'
 import { toast } from '@/components/ui/ToastContext'
 import {
   RECEIPT_THEMES,
@@ -16,6 +14,7 @@ import {
   generateReceiptDataUrl,
   generateReceiptBlob,
 } from '@/lib/receiptCanvas'
+import { fetchReceiptTracks, ReceiptDataSource } from '@/lib/receiptTracks'
 import {
   Receipt,
   ListMusic,
@@ -66,90 +65,39 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
 
   // Initialize customer name
   useEffect(() => {
-    if (nextAuthSession?.user?.name) {
-      setCustomerName(nextAuthSession.user.name)
-    } else if (username) {
-      setCustomerName(username)
-    } else {
-      setCustomerName('PHONG TCT')
-    }
+    const defaultName = nextAuthSession?.user?.name || username || 'PHONG TCT'
+    setCustomerName((prev) => (prev ? prev : defaultName))
   }, [nextAuthSession?.user?.name, username])
 
   // Fetch / extract tracks based on data source
-  const loadTracksForSource = useCallback(async (source: DataSourceType) => {
-    setIsLoadingTracks(true)
-    try {
-      if (source === 'queue') {
-        const queueTracks: Track[] = []
-        if (currentTrack) queueTracks.push(currentTrack)
-        if (queue && queue.length > 0) {
-          queue.forEach((t) => {
-            if (!queueTracks.some((existing) => existing.id === t.id)) {
-              queueTracks.push(t)
-            }
-          })
-        }
-        const items: ReceiptTrackItem[] = queueTracks.map((t) => ({
-          id: t.id,
-          title: t.title,
-          artist: t.artist,
-          duration: t.duration,
-        }))
+  const loadTracksForSource = useCallback(
+    async (source: DataSourceType) => {
+      setIsLoadingTracks(true)
+      try {
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser()
+
+        const items = await fetchReceiptTracks({
+          supabase,
+          source,
+          currentUser,
+          nextAuthSession,
+          currentTrack,
+          queue,
+          playlists,
+          limit: 50,
+        })
         setFetchedTracks(items)
-      } else if (source === 'history') {
-        const userIds = getAllValidUserIds(null, nextAuthSession?.user?.email || null)
-        const entries = await fetchListeningHistory(supabase, userIds, 25)
-        const items: ReceiptTrackItem[] = entries
-          .filter((e) => Boolean(e.track))
-          .map((e) => {
-            const track = e.track as Track
-            return {
-              id: track.id,
-              title: track.title,
-              artist: track.artist,
-              duration: track.duration,
-            }
-          })
-        setFetchedTracks(items)
-      } else if (source === 'favorites') {
-        const userIds = getAllValidUserIds(null, nextAuthSession?.user?.email || null)
-        let query = supabase.from('favorites').select('track:tracks(*)').order('created_at', { ascending: false }).limit(25)
-        if (userIds.length > 0) {
-          query = query.in('user_id', userIds)
-        }
-        const { data, error } = await query
-        if (!error && data) {
-          const items: ReceiptTrackItem[] = data
-            .map((item: any) => item.track)
-            .filter(Boolean)
-            .map((t: Track) => ({
-              id: t.id,
-              title: t.title,
-              artist: t.artist,
-              duration: t.duration,
-            }))
-          setFetchedTracks(items)
-        } else {
-          setFetchedTracks([])
-        }
-      } else if (source === 'playlist') {
-        const firstPlaylist = playlists[0]
-        const playlistTracks: Track[] = (firstPlaylist as any)?.tracks || []
-        const items: ReceiptTrackItem[] = playlistTracks.map((t: Track) => ({
-          id: t.id,
-          title: t.title,
-          artist: t.artist,
-          duration: t.duration,
-        }))
-        setFetchedTracks(items)
+      } catch (err) {
+        console.error('Failed to load tracks for receipt:', err)
+        toast('Không thể tải danh sách bài hát cho hóa đơn', 'error')
+      } finally {
+        setIsLoadingTracks(false)
       }
-    } catch (err) {
-      console.error('Failed to load tracks for receipt:', err)
-      toast('Không thể tải danh sách bài hát cho hóa đơn', 'error')
-    } finally {
-      setIsLoadingTracks(false)
-    }
-  }, [currentTrack, queue, nextAuthSession?.user?.email, playlists, supabase])
+    },
+    [currentTrack, queue, nextAuthSession, playlists, supabase]
+  )
 
   // Load tracks whenever data source changes or modal opens
   useEffect(() => {
@@ -157,6 +105,27 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
       loadTracksForSource(dataSource)
     }
   }, [isOpen, dataSource, loadTracksForSource])
+
+  // Realtime update when listening_history or favorite_tracks change
+  useEffect(() => {
+    if (!isOpen || (dataSource !== 'history' && dataSource !== 'favorites')) return
+
+    const tableToListen = dataSource === 'history' ? 'listening_history' : 'favorite_tracks'
+    const channel = supabase
+      .channel(`receipt-realtime-${dataSource}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: tableToListen },
+        () => {
+          loadTracksForSource(dataSource)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [isOpen, dataSource, loadTracksForSource, supabase])
 
   // Generate Receipt preview image
   useEffect(() => {
