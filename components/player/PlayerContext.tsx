@@ -489,6 +489,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       if (track.source === 'soundcloud' || track.soundcloud_id) {
         const scId = track.soundcloud_id || track.id.replace(/^sc-/, '')
+        const workerUrl = process.env.NEXT_PUBLIC_SOUNDCLOUD_WORKER_URL?.trim()
+        if (workerUrl) {
+          return `${workerUrl.replace(/\/+$/, '')}/stream?id=${encodeURIComponent(scId)}`
+        }
         return `/api/soundcloud/stream?id=${encodeURIComponent(scId)}`
       }
 
@@ -565,8 +569,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const getAudioUrlCached = useCallback(
     async (track: Track): Promise<string | null> => {
       if (!track || !track.id) return null
-      // NCT and SoundCloud stream URLs are dynamic/signed; always resolve them fresh.
-      if (track.source === 'nhaccuatui' || track.source === 'soundcloud') return getAudioUrl(track)
+      // NCT stream URLs are dynamic/signed XML tokens; SoundCloud can now be cached safely in memory
+      if (track.source === 'nhaccuatui') return getAudioUrl(track)
       // Catalog/preview tracks should NOT cache preview URLs as playable full-length audio!
       if (
         (track.audio_url && isPreviewUrl(track.audio_url)) ||
@@ -627,6 +631,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           nextTr.drive_file_id ||
           extractDriveFileId(nextTr.file_path || '') ||
           nextTr.youtube_id ||
+          nextTr.source === 'soundcloud' ||
+          Boolean(nextTr.soundcloud_id) ||
           (nextTr.file_path && (
             nextTr.file_path.includes('.mp3') ||
             nextTr.file_path.includes('preview') ||
@@ -1319,6 +1325,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     const hasDirectPlayableAudio = !isPreviewAudio && Boolean(
       (track.audio_url && track.source !== 'nhaccuatui') ||
+      track.source === 'soundcloud' ||
+      Boolean(track.soundcloud_id) ||
       track.drive_file_id ||
       extractDriveFileId(track.file_path || '') ||
       (track.file_path && (

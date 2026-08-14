@@ -15,3 +15,5 @@ workers_dev = true
 
 [vars]
 NEXT_APP_URL = "https://phongtctmusic.vercel.app"
+# Optional static client_id override if you don't want worker to scrape it dynamically:
+# SOUNDCLOUD_CLIENT_ID = "UMY1dzQ68n2QbCuypNe8JOivmV2FO2Ep"

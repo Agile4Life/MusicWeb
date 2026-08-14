@@ -54,21 +54,23 @@ export async function getSoundCloudClientId(): Promise<string> {
       const html = await htmlRes.text()
       const scriptUrls = [...html.matchAll(/<script[^>]+src="([^">]+\.js)"/g)].map((m) => m[1])
 
-      // Look into the last 6 bundle scripts
-      for (const sUrl of scriptUrls.slice(-8).reverse()) {
-        try {
+      // Look into the last 8 bundle scripts in parallel
+      const targetScripts = scriptUrls.slice(-8).reverse()
+      const results = await Promise.allSettled(
+        targetScripts.map(async (sUrl) => {
           const sRes = await fetch(sUrl)
-          if (sRes.ok) {
-            const js = await sRes.text()
-            const match = js.match(/client_id[:=]\s*["']([a-zA-Z0-9]{32})["']/)
-            if (match && match[1]) {
-              cachedClientId = match[1]
-              clientIdExpiresAt = now + 2 * 60 * 60 * 1000 // 2 hours TTL
-              return cachedClientId
-            }
-          }
-        } catch {
-          // ignore individual script failure
+          if (!sRes.ok) return null
+          const js = await sRes.text()
+          const match = js.match(/client_id[:=]\s*["']([a-zA-Z0-9]{32})["']/)
+          return match?.[1] || null
+        })
+      )
+
+      for (const r of results) {
+        if (r.status === 'fulfilled' && r.value) {
+          cachedClientId = r.value
+          clientIdExpiresAt = now + 2 * 60 * 60 * 1000 // 2 hours TTL
+          return cachedClientId
         }
       }
     }
