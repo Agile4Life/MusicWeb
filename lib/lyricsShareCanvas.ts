@@ -331,22 +331,45 @@ export async function renderLyricCardToCanvas(
 
   // Draw Logo inside Plaque
   if (logoImg && logoImg.width > 0 && logoImg.height > 0) {
-    const logoHeight = 46
+    const logoHeight = 48
     const aspect = logoImg.width / logoImg.height
     const logoWidth = Math.min(plaqueWidth - 40, logoHeight * aspect)
     const logoX = (width - logoWidth) / 2
     const logoY = plaqueY + (plaqueHeight - logoHeight) / 2
 
-    ctx.filter = `invert(1) brightness(1.65) contrast(1.2) drop-shadow(0 0 12px ${theme.accentColor}cc)`
-    ctx.drawImage(logoImg, logoX, logoY, logoWidth, logoHeight)
+    // Create 100% reliable pure white tinted image canvas (guaranteed to be bright white on all browsers)
+    const whiteCanvas = document.createElement('canvas')
+    whiteCanvas.width = Math.round(logoWidth)
+    whiteCanvas.height = Math.round(logoHeight)
+    const whiteCtx = whiteCanvas.getContext('2d')
+    if (whiteCtx) {
+      whiteCtx.drawImage(logoImg, 0, 0, whiteCanvas.width, whiteCanvas.height)
+      whiteCtx.globalCompositeOperation = 'source-in'
+      whiteCtx.fillStyle = '#ffffff'
+      whiteCtx.fillRect(0, 0, whiteCanvas.width, whiteCanvas.height)
+    }
+
+    // Pass 1: Luminous theme neon glow
+    ctx.save()
+    ctx.shadowColor = theme.accentColor
+    ctx.shadowBlur = 18
+    ctx.drawImage(whiteCanvas, logoX, logoY)
+    ctx.restore()
+
+    // Pass 2: High-contrast pure white crisp signature
+    ctx.save()
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.9)'
+    ctx.shadowBlur = 6
+    ctx.drawImage(whiteCanvas, logoX, logoY)
+    ctx.restore()
   } else {
     // Elegant fallback brand text
-    ctx.font = 'bold 24px system-ui, -apple-system, sans-serif'
+    ctx.font = 'bold 26px system-ui, -apple-system, sans-serif'
     ctx.fillStyle = '#ffffff'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.shadowColor = theme.accentColor
-    ctx.shadowBlur = 10
+    ctx.shadowBlur = 12
     ctx.fillText('MUSICWEB', width / 2, plaqueY + plaqueHeight / 2)
   }
   ctx.restore()

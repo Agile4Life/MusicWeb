@@ -33,7 +33,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <PlayerProvider>
             <PlaylistProvider>
               <SearchProvider>
-                <div className="h-screen w-screen flex flex-col bg-[var(--bg-space,#07090e)] overflow-hidden font-sans p-0 sm:p-2 lg:p-3 relative">
+                <div className="h-[100dvh] w-screen flex flex-col bg-[var(--bg-space,#07090e)] overflow-hidden font-sans p-0 sm:p-2 lg:p-3 relative">
                   {/* Mobile Header (Smartphone view) */}
                   <MobileHeaderNav />
 
@@ -56,8 +56,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <QueueDrawer />
                   </div>
 
-                  {/* Player Bar (Elevation 3 - Floating sheet on top) */}
-                  <div className="absolute bottom-[calc(var(--bottom-nav-height,64px)+env(safe-area-inset-bottom,0px)+8px)] lg:bottom-3 left-2 sm:left-2 lg:left-3 right-2 sm:right-2 lg:right-3 z-50 pointer-events-auto">
+                  {/* Player Bar (Elevation 3 - Fixed above bottom navigation on mobile) */}
+                  <div className="fixed lg:absolute bottom-[calc(var(--bottom-nav-height,64px)+env(safe-area-inset-bottom,0px)+12px)] lg:bottom-3 left-2 sm:left-2 lg:left-3 right-2 sm:right-2 lg:right-3 z-50 pointer-events-auto">
                     <PlayerBar isScrolled={isScrolled} />
                   </div>
                   <NowPlayingOverlay />
