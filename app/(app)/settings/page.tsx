@@ -7,7 +7,7 @@ import { useLanguage } from '@/components/i18n/LanguageContext'
 import { createClient } from '@/lib/supabase/client'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { getValidUserId } from '@/lib/accessControl'
-import { Volume2, Globe, Bell, Mail } from 'lucide-react'
+import { Volume2, Globe, Bell, Mail, Sparkles } from 'lucide-react'
 
 function FacebookIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -162,6 +162,22 @@ export default function SettingsPage() {
               <Mail className="w-4 h-4 text-cyan-400" />
               <span>tranphong16012006@gmail.com</span>
             </a>
+          </div>
+
+          <div className="pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-white/[0.05] mt-1">
+            <span className="text-[11px] text-slate-400">Pop-up thông báo hiển thị ở giữa màn hình khi truy cập web</span>
+            <button
+              onClick={() => {
+                try {
+                  localStorage.removeItem('musicweb_hide_welcome_modal')
+                } catch {}
+                window.dispatchEvent(new CustomEvent('musicweb:open-welcome-modal'))
+              }}
+              className="px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-medium flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer w-fit"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Xem lại pop-up thông báo</span>
+            </button>
           </div>
         </div>
       </div>
