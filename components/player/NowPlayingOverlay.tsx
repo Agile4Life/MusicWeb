@@ -37,6 +37,7 @@ import {
   ListMusic,
   Loader2,
   Share2,
+  Cloud,
 } from 'lucide-react'
 
 const StageWithFrequencyData = React.memo(function StageWithFrequencyData({
@@ -343,10 +344,17 @@ export function NowPlayingOverlay() {
 
         {/* Right Header context badge */}
         <div className="hidden lg:flex items-center gap-2 shrink-0">
-          <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[var(--accent,#06b6d4)]/10 text-[var(--spotify-glow,#22d3ee)] border border-[var(--accent,#06b6d4)]/25 flex items-center gap-1.5 shadow-[0_0_12px_var(--theme-glow-shadow)]">
-            <Sparkles className="w-3 h-3 text-[var(--spotify-glow,#22d3ee)]" />
-            SYNCED LYRICS
-          </span>
+          {currentTrack.source === 'soundcloud' ? (
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/40 flex items-center gap-1.5 shadow-[0_0_12px_rgba(255,85,0,0.3)]">
+              <Cloud className="w-3 h-3 text-[#ff7700]" />
+              SOUNDCLOUD
+            </span>
+          ) : (
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[var(--accent,#06b6d4)]/10 text-[var(--spotify-glow,#22d3ee)] border border-[var(--accent,#06b6d4)]/25 flex items-center gap-1.5 shadow-[0_0_12px_var(--theme-glow-shadow)]">
+              <Sparkles className="w-3 h-3 text-[var(--spotify-glow,#22d3ee)]" />
+              SYNCED LYRICS
+            </span>
+          )}
         </div>
       </div>
 
@@ -407,9 +415,16 @@ export function NowPlayingOverlay() {
                   />
                   {isPlaying && <MiniEqualizer isPlaying={isPlaying} className="shrink-0" />}
                 </div>
-                <span className="text-[10px] text-slate-400 truncate leading-tight">
-                  {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
-                </span>
+                <div className="flex items-center gap-1.5 min-w-0 mt-0.5">
+                  {currentTrack.source === 'soundcloud' && (
+                    <span className="px-1 py-0.1 text-[8px] font-black uppercase rounded bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/40 shrink-0">
+                      SoundCloud
+                    </span>
+                  )}
+                  <span className="text-[10px] text-slate-400 truncate leading-tight">
+                    {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
+                  </span>
+                </div>
               </div>
             </div>
 

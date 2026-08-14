@@ -346,9 +346,16 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
               text={currentTrack.title}
               className={`text-xs font-bold text-white leading-tight ${trackMetadataTitleClass}`}
             />
-            <span className="text-[10px] text-slate-400 truncate leading-tight mt-0.5">
-              {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
-            </span>
+            <div className="flex items-center gap-1.5 min-w-0 mt-0.5">
+              {currentTrack.source === 'soundcloud' && (
+                <span className="px-1 py-0.1 text-[8px] font-black uppercase rounded bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/40 shrink-0">
+                  SoundCloud
+                </span>
+              )}
+              <span className="text-[10px] text-slate-400 truncate leading-tight">
+                {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
+              </span>
+            </div>
           </div>
 
           {/* Compact Controls: Prev + Play/Pause + Next + Heart */}
@@ -663,6 +670,11 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                   title="Mở Now Playing"
                   onClick={openNowPlayingOverlay}
                 />
+                {currentTrack.source === 'soundcloud' && (
+                  <span className="px-1.5 py-0.2 text-[9px] font-black uppercase rounded bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/40 shrink-0">
+                    SoundCloud
+                  </span>
+                )}
                 {isPlaying && (
                   <MiniEqualizer isPlaying={isPlaying} className="shrink-0" />
                 )}

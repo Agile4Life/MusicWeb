@@ -1,0 +1,17 @@
+# Cloudflare Worker — SoundCloud Stream Cache
+# Deploy: npx wrangler deploy  (from this folder)
+name = "soundcloud-stream-cache"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+
+# Serve on the default *.workers.dev subdomain
+workers_dev = true
+
+# Optional KV binding for caching resolved stream URLs (2-4h TTL)
+# Create with: npx wrangler kv namespace create SOUNDCLOUD_STREAM_KV
+# [[kv_namespaces]]
+# binding = "SOUNDCLOUD_STREAM_KV"
+# id = "<YOUR_KV_NAMESPACE_ID>"
+
+[vars]
+NEXT_APP_URL = "https://phongtctmusic.vercel.app"

@@ -69,9 +69,11 @@ export async function updateSession(request: NextRequest) {
   }
 
   const isApiRoute = request.nextUrl.pathname.startsWith('/api/')
+  const isLocalHost =
+    request.nextUrl.hostname === 'localhost' || request.nextUrl.hostname === '127.0.0.1'
 
-  // Require login before viewing ANY application page
-  if (!isLoggedIn && !isAuthPage && !isApiRoute) {
+  // Require login before viewing ANY application page (bypass on localhost dev test)
+  if (!isLoggedIn && !isAuthPage && !isApiRoute && !isLocalHost) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

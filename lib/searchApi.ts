@@ -8,6 +8,7 @@ export interface GlobalSearchTracks {
   itunes: Track[]
   spotify: Track[]
   deezer: Track[]
+  soundcloud?: Track[]
 }
 
 interface CacheItem {
@@ -28,7 +29,7 @@ export async function fetchUnifiedSearch(
   const cacheKey = isTrending ? `trending_${source}` : `${trimmed}_${source}`
 
   if (!isTrending && !trimmed) {
-    return { nhaccuatui: [], local: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: [] }
+    return { nhaccuatui: [], local: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: [], soundcloud: [] }
   }
 
   // 1. Check in-memory LRU cache first
@@ -63,6 +64,7 @@ export async function fetchUnifiedSearch(
         itunes: Array.isArray(data.itunes) ? data.itunes : [],
         spotify: Array.isArray(data.spotify) ? data.spotify : [],
         deezer: Array.isArray(data.deezer) ? data.deezer : [],
+        soundcloud: Array.isArray(data.soundcloud) ? data.soundcloud : [],
       }
 
       // Evict oldest if cache exceeds 150 items
@@ -75,7 +77,7 @@ export async function fetchUnifiedSearch(
       return result
     } catch (err) {
       console.warn('Unified Search Fetch Error:', err)
-      return { nhaccuatui: [], local: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: [] }
+      return { nhaccuatui: [], local: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: [], soundcloud: [] }
     } finally {
       inFlightRequests.delete(cacheKey)
     }

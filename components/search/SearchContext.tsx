@@ -83,21 +83,23 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
         return
       }
       try {
-        // Combine NhacCuaTui + Spotify + Deezer in parallel, dedupe duplicates
-        const [nctItems, spotifyData, deezerData] = await Promise.all([
+        // Combine NhacCuaTui + Spotify + Deezer + SoundCloud in parallel, dedupe duplicates
+        const [nctItems, spotifyData, deezerData, soundcloudData] = await Promise.all([
           searchNhacCuaTui(trimmed),
           fetchUnifiedSearch(trimmed, 'spotify', false),
           fetchUnifiedSearch(trimmed, 'deezer', false),
+          fetchUnifiedSearch(trimmed, 'soundcloud', false),
         ])
 
         const data = combineCombinedSearchResults(
           nctItems.map(nhacCuaTuiSearchItemToTrack),
           spotifyData.spotify,
           deezerData.deezer,
+          soundcloudData.soundcloud || [],
         )
 
-        if (data.nhaccuatui.length + data.spotify.length + data.deezer.length === 0) {
-          // All 3 sources empty -> final YouTube fallback
+        if (data.nhaccuatui.length + data.spotify.length + data.deezer.length + (data.soundcloud?.length || 0) === 0) {
+          // All primary sources empty -> final YouTube fallback
           const youtubeData = await fetchUnifiedSearch(trimmed, 'youtube', false)
           data.youtube = youtubeData.youtube
         }
@@ -133,15 +135,17 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
     setSearchingSuggestions(true)
     const timer = setTimeout(async () => {
       try {
-        const [nctItems, spotifyData, deezerData] = await Promise.all([
+        const [nctItems, spotifyData, deezerData, soundcloudData] = await Promise.all([
           searchNhacCuaTui(trimmed),
           fetchUnifiedSearch(trimmed, 'spotify', false),
           fetchUnifiedSearch(trimmed, 'deezer', false),
+          fetchUnifiedSearch(trimmed, 'soundcloud', false),
         ])
         const data = combineCombinedSearchResults(
           nctItems.map(nhacCuaTuiSearchItemToTrack),
           spotifyData.spotify,
           deezerData.deezer,
+          soundcloudData.soundcloud || [],
         )
         if (activeSuggestionRef.current === currentSearchId) {
           setSuggestionTracks(data)

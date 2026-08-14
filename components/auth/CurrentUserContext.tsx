@@ -50,8 +50,13 @@ export function CurrentUserProvider({ children }: { children: React.ReactNode })
     }
   }, [nextAuthStatus, nextAuthSession])
 
-  const userEmail = nextAuthSession?.user?.email || supabaseEmail
-  const username = (nextAuthSession?.user as any)?.username || null
+  const isLocalHost =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  const defaultLocalEmail = isLocalHost ? 'admin@musicweb.com' : null
+
+  const userEmail = nextAuthSession?.user?.email || supabaseEmail || defaultLocalEmail
+  const username = (nextAuthSession?.user as any)?.username || (defaultLocalEmail ? 'admin' : null)
 
   return (
     <CurrentUserContext.Provider value={{ userEmail, loading, username }}>

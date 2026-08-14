@@ -20,6 +20,7 @@ import { shouldCloseProfileMenu, shouldToggleProfileMenu } from './profileMenuIn
 export function TopBar() {
   const router = useRouter()
   const pathname = usePathname()
+  const isSoundCloudPage = pathname === '/soundcloud'
   const { playTrack } = usePlayer()
   const {
     searchQuery,
@@ -126,92 +127,96 @@ export function TopBar() {
       {/* Left Slot: Balanced 1fr space on desktop */}
       <div className="hidden lg:flex items-center justify-start min-w-0" />
 
-      {/* Center Slot: Perfectly Centered Search Input Container */}
-      <div className="relative w-full min-w-0 sm:min-w-[360px] md:min-w-[420px] lg:min-w-[480px] xl:min-w-[540px] max-w-xl mx-auto my-auto" ref={dropdownRef}>
-        <div className="relative flex items-center">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none z-10" />
-          <input
-            type="text"
-            value={inputQuery}
-            autoComplete="off"
-            spellCheck={false}
-            onChange={(e) => {
-              const nextValue = e.target.value
-              setInputQuery(nextValue)
-              setSuggestionQuery(nextValue)
-              setShowDropdown(Boolean(nextValue.trim()))
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') handleClearSearch()
-              if (shouldCommitGlobalSearch(inputQuery, e.key)) handleSubmitSearch()
-            }}
-            onFocus={() => {
-              if (inputQuery.trim()) setShowDropdown(true)
-            }}
-            placeholder="Tìm bài hát, nghệ sĩ..."
-            className="search-input w-full pl-9 sm:pl-10 pr-8 sm:pr-9 py-1.5 sm:py-2 text-xs text-white placeholder-slate-400 outline-none"
-          />
-          {searchingSuggestions ? (
-            <Loader2 className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)] animate-spin absolute right-3 z-10" />
-          ) : searchQuery ? (
-            <button
-              onClick={handleClearSearch}
-              className="absolute right-3 p-0.5 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors z-10"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          ) : null}
-        </div>
-
-        {/* Suggestions Dropdown Popup — Elevation Level 3 */}
-        {showDropdown && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--elevation-3-bg,#0d111a)]/95 border border-white/10 rounded-2xl shadow-2xl z-40 overflow-hidden backdrop-blur-2xl">
-            <div className="p-2 max-h-80 overflow-y-auto flex flex-col gap-1 custom-slim-scrollbar">
-              {searchingSuggestions && suggestions.length === 0 ? (
-                <div className="p-4 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-[var(--spotify-glow,#22d3ee)]" />
-                  <span>Đang tìm kiếm...</span>
-                </div>
-              ) : suggestions.length > 0 ? (
-                <>
-                  <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider px-3 py-1.5">
-                    Gợi ý nhanh
-                  </p>
-                  {suggestions.map((track) => (
-                    <div
-                      key={track.id}
-                      onClick={() => {
-                        playTrack(track, suggestions)
-                        setShowDropdown(false)
-                      }}
-                      className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-xl cursor-pointer transition-colors group"
-                    >
-                      <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 relative bg-slate-800 border border-white/10">
-                        <TrackCoverImage src={track.cover_url} alt={track.title} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-white group-hover:text-[var(--spotify-glow)] truncate transition-colors">
-                          {track.title}
-                        </p>
-                        <p className="text-[11px] text-slate-400 truncate mt-0.5">
-                          {track.artist}
-                        </p>
-                      </div>
-                      <div className="w-7 h-7 rounded-full bg-white/5 group-hover:bg-[var(--primary-spotify)] text-slate-400 group-hover:text-black flex items-center justify-center shrink-0 transition-colors">
-                        <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
-                      </div>
-                    </div>
-                  ))}
-                </>
-              ) : (
-                <div className="p-4 text-center text-xs text-slate-400">
-                  Không tìm thấy kết quả phù hợp cho &quot;{searchQuery}&quot;
-                </div>
-              )}
-            </div>
+      {/* Center Slot: Perfectly Centered Search Input Container (Hidden on /soundcloud) */}
+      {!isSoundCloudPage ? (
+        <div className="relative w-full min-w-0 sm:min-w-[360px] md:min-w-[420px] lg:min-w-[480px] xl:min-w-[540px] max-w-xl mx-auto my-auto" ref={dropdownRef}>
+          <div className="relative flex items-center">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none z-10" />
+            <input
+              type="text"
+              value={inputQuery}
+              autoComplete="off"
+              spellCheck={false}
+              onChange={(e) => {
+                const nextValue = e.target.value
+                setInputQuery(nextValue)
+                setSuggestionQuery(nextValue)
+                setShowDropdown(Boolean(nextValue.trim()))
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') handleClearSearch()
+                if (shouldCommitGlobalSearch(inputQuery, e.key)) handleSubmitSearch()
+              }}
+              onFocus={() => {
+                if (inputQuery.trim()) setShowDropdown(true)
+              }}
+              placeholder="Tìm bài hát, nghệ sĩ..."
+              className="search-input w-full pl-9 sm:pl-10 pr-8 sm:pr-9 py-1.5 sm:py-2 text-xs text-white placeholder-slate-400 outline-none"
+            />
+            {searchingSuggestions ? (
+              <Loader2 className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)] animate-spin absolute right-3 z-10" />
+            ) : searchQuery ? (
+              <button
+                onClick={handleClearSearch}
+                className="absolute right-3 p-0.5 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors z-10"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            ) : null}
           </div>
-        )}
-      </div>
+
+          {/* Suggestions Dropdown Popup — Elevation Level 3 */}
+          {showDropdown && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--elevation-3-bg,#0d111a)]/95 border border-white/10 rounded-2xl shadow-2xl z-40 overflow-hidden backdrop-blur-2xl">
+              <div className="p-2 max-h-80 overflow-y-auto flex flex-col gap-1 custom-slim-scrollbar">
+                {searchingSuggestions && suggestions.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-[var(--spotify-glow,#22d3ee)]" />
+                    <span>Đang tìm kiếm...</span>
+                  </div>
+                ) : suggestions.length > 0 ? (
+                  <>
+                    <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider px-3 py-1.5">
+                      Gợi ý nhanh
+                    </p>
+                    {suggestions.map((track) => (
+                      <div
+                        key={track.id}
+                        onClick={() => {
+                          playTrack(track, suggestions)
+                          setShowDropdown(false)
+                        }}
+                        className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-xl cursor-pointer transition-colors group"
+                      >
+                        <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 relative bg-slate-800 border border-white/10">
+                          <TrackCoverImage src={track.cover_url} alt={track.title} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-white group-hover:text-[var(--spotify-glow)] truncate transition-colors">
+                            {track.title}
+                          </p>
+                          <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                            {track.artist}
+                          </p>
+                        </div>
+                        <div className="w-7 h-7 rounded-full bg-white/5 group-hover:bg-[var(--primary-spotify)] text-slate-400 group-hover:text-black flex items-center justify-center shrink-0 transition-colors">
+                          <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  <div className="p-4 text-center text-xs text-slate-400">
+                    Không tìm thấy kết quả phù hợp cho &quot;{searchQuery}&quot;
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="w-full flex-1 max-w-xl min-h-[36px]" />
+      )}
 
       {/* Right Slot: User Actions (Aligned to Right inside its 1fr column, hidden on mobile) */}
       <div className="hidden lg:flex items-center justify-end gap-2 my-auto shrink-0 relative">

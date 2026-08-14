@@ -335,6 +335,23 @@ export function MobileHeaderNav() {
               </Link>
 
               <Link
+                href="/soundcloud"
+                prefetch={false}
+                onClick={() => setIsDrawerOpen(false)}
+                className={`sidebar-item text-xs font-semibold ${
+                  pathname === '/soundcloud' ? 'active' : ''
+                }`}
+              >
+                <Cloud className="w-4 h-4 text-[#ff7700]" />
+                <div className="flex items-center justify-between flex-1">
+                  <span>SoundCloud</span>
+                  <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/35">
+                    HOT
+                  </span>
+                </div>
+              </Link>
+
+              <Link
                 href="/drive"
                 prefetch={false}
                 onClick={() => setIsDrawerOpen(false)}

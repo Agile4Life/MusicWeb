@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { searchYouTubeTracks, findBestYouTubeMatch, isOriginalTrackOnly } from '@/lib/youtube'
 import { searchSpotifyTracks, getTrendingSpotifyTracks } from '@/lib/spotify'
 import { getTrendingDeezerTracks, searchDeezerTracks } from '@/lib/deezer'
+import { searchSoundCloudTracks } from '@/lib/soundcloudClient'
 import { normalizeNhacCuaTuiChartResponse, nhacCuaTuiSearchItemToTrack } from '@/lib/nhaccuatui'
 import { Track } from '@/types'
 
@@ -169,7 +170,14 @@ export async function GET(request: Request) {
       primaryPromises.push(Promise.resolve([]))
     }
 
-    const [localTracks, spotifyTracks, deezerTracks, youtubeTracks] = await Promise.all(primaryPromises)
+    // 4. Search SoundCloud tracks
+    if (source === 'all' || source === 'soundcloud') {
+      primaryPromises.push(searchSoundCloudTracks(q.trim(), 10).catch(() => []))
+    } else {
+      primaryPromises.push(Promise.resolve([]))
+    }
+
+    const [localTracks, spotifyTracks, deezerTracks, youtubeTracks, soundCloudTracks] = await Promise.all(primaryPromises)
 
     const itunesTracks: Track[] = []
     const audiusTracks: Track[] = []
@@ -212,17 +220,21 @@ export async function GET(request: Request) {
       itunes: enhancedITunes.filter(isValidTrackFilter),
       spotify: enhancedSpotify.filter(isValidTrackFilter),
       deezer: deezerTracks.filter(isValidTrackFilter),
+      soundcloud: (soundCloudTracks || []).filter(isValidTrackFilter),
     }
 
     // Single-source mode: only return the requested source so the UI shows one source at a time
     if (source === 'spotify') {
-      return { local: [], youtube: [], audius: [], itunes: [], spotify: allResults.spotify, deezer: [] }
+      return { local: [], youtube: [], audius: [], itunes: [], spotify: allResults.spotify, deezer: [], soundcloud: [] }
     }
     if (source === 'deezer') {
-      return { local: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: allResults.deezer }
+      return { local: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: allResults.deezer, soundcloud: [] }
     }
     if (source === 'youtube') {
-      return { local: [], youtube: allResults.youtube, audius: [], itunes: [], spotify: [], deezer: [] }
+      return { local: [], youtube: allResults.youtube, audius: [], itunes: [], spotify: [], deezer: [], soundcloud: [] }
+    }
+    if (source === 'soundcloud') {
+      return { local: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: [], soundcloud: allResults.soundcloud }
     }
     return allResults
   })()

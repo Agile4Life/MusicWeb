@@ -392,13 +392,20 @@ function TrackRowComponent({
                 className="text-xs bg-white/10 border border-[var(--primary-spotify)]/50 rounded px-1.5 py-0.5 text-white font-bold outline-none w-full max-w-[200px]"
               />
             ) : (
-              <p
-                className={`text-xs font-bold truncate ${
-                  isCurrent ? 'text-[var(--primary-spotify)]' : 'text-white'
-                }`}
-              >
-                {track.title}
-              </p>
+              <div className="flex items-center gap-1.5 min-w-0 truncate">
+                <p
+                  className={`text-xs font-bold truncate ${
+                    isCurrent ? 'text-[var(--primary-spotify)]' : 'text-white'
+                  }`}
+                >
+                  {track.title}
+                </p>
+                {track.source === 'soundcloud' && (
+                  <span className="px-1.5 py-0.2 text-[9px] font-black uppercase rounded bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/40 shrink-0">
+                    SoundCloud
+                  </span>
+                )}
+              </div>
             )}
           </div>
 

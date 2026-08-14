@@ -27,6 +27,7 @@ function isBackgroundPlayableTrack(t: Track | null | undefined): boolean {
   if (!t) return false
   if (t.youtube_id || t.source === 'youtube') return true
   if (t.nhaccuatui_id || t.source === 'nhaccuatui') return true
+  if (t.soundcloud_id || t.source === 'soundcloud') return true
   if (t.drive_file_id || extractDriveFileId(t.file_path || '')) return true
   if (t.source === 'local') return true
   if (t.audio_url && t.audio_url.startsWith('http') && !isPreviewUrl(t.audio_url)) return true
@@ -486,13 +487,18 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const nctStreamUrl = getNhacCuaTuiStreamUrl(track)
       if (nctStreamUrl) return nctStreamUrl
 
+      if (track.source === 'soundcloud' || track.soundcloud_id) {
+        const scId = track.soundcloud_id || track.id.replace(/^sc-/, '')
+        return `/api/soundcloud/stream?id=${encodeURIComponent(scId)}`
+      }
+
       // iOS (Safari & Chrome): play YouTube through the HTML5 stream proxy so audio
       // keeps playing in the background — iOS pauses the iframe engine on lock/background.
       if (isIOSDevice() && track.youtube_id) {
         return `/api/youtube/stream?id=${encodeURIComponent(track.youtube_id)}`
       }
 
-      if (track.source === 'audius' || (track.audio_url && !isPreviewUrl(track.audio_url) && !track.youtube_id && !track.nhaccuatui_id)) {
+      if (track.source === 'audius' || (track.audio_url && !isPreviewUrl(track.audio_url) && !track.youtube_id && !track.nhaccuatui_id && !track.soundcloud_id)) {
         return track.audio_url || track.file_path
       }
 
@@ -559,8 +565,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const getAudioUrlCached = useCallback(
     async (track: Track): Promise<string | null> => {
       if (!track || !track.id) return null
-      // NCT URLs are signed and short-lived; always resolve them fresh.
-      if (track.source === 'nhaccuatui') return getAudioUrl(track)
+      // NCT and SoundCloud stream URLs are dynamic/signed; always resolve them fresh.
+      if (track.source === 'nhaccuatui' || track.source === 'soundcloud') return getAudioUrl(track)
       // Catalog/preview tracks should NOT cache preview URLs as playable full-length audio!
       if (
         (track.audio_url && isPreviewUrl(track.audio_url)) ||
