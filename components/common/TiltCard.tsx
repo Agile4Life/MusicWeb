@@ -18,6 +18,7 @@ export function TiltCard({
 }: TiltCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const rafRef = useRef<number | null>(null)
+  const [isHovering, setIsHovering] = useState(false)
   const [isHoverCapable, setIsHoverCapable] = useState(() =>
     typeof window === 'undefined' ? true : window.matchMedia('(hover: hover)').matches,
   )
@@ -51,6 +52,8 @@ export function TiltCard({
       const clientX = e.clientX
       const clientY = e.clientY
 
+      if (!isHovering) setIsHovering(true)
+
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current)
       }
@@ -70,10 +73,11 @@ export function TiltCard({
         card.style.setProperty('--mouse-y', `${(((clientY - rect.top) / rect.height) * 100).toFixed(1)}%`)
       })
     },
-    [isHoverCapable, isReducedMotion, maxTilt]
+    [isHoverCapable, isReducedMotion, isHovering, maxTilt]
   )
 
   const handleMouseLeave = useCallback(() => {
+    setIsHovering(false)
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current)
     }
@@ -97,15 +101,12 @@ export function TiltCard({
       ref={cardRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className={`group perspective-1000 relative rounded-2xl bg-slate-900/40 border border-white/10 shadow-2xl overflow-hidden [transform-style:preserve-3d] transition-transform duration-200 ease-out transform-gpu motion-reduce:!transform-none ${className}`}
+      className={`group relative rounded-2xl bg-slate-900/40 border border-white/10 shadow-2xl overflow-hidden transition-transform duration-200 ease-out motion-reduce:!transform-none ${className}`}
       style={{
         transform:
-          isHoverCapable && !isReducedMotion
+          isHovering && isHoverCapable && !isReducedMotion
             ? 'perspective(1000px) rotateX(var(--rotate-x, 0deg)) rotateY(var(--rotate-y, 0deg))'
             : 'none',
-        willChange: 'transform',
-        backfaceVisibility: 'hidden',
-        WebkitBackfaceVisibility: 'hidden',
         ...style,
       }}
     >

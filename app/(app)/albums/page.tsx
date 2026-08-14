@@ -51,11 +51,10 @@ function AlbumCard({ album, index = 0 }: AlbumCardProps) {
       className="media-card group p-3.5 flex flex-col gap-3 outline-none"
       style={{ '--i': index } as React.CSSProperties}
     >
-      <Link href={`/album/${album.id}`} className="flex flex-col gap-3 h-full outline-none [transform-style:preserve-3d]">
-        {/* Cover Image Container — Depth Layer 20px */}
+      <Link href={`/album/${album.id}`} className="flex flex-col gap-3 h-full outline-none">
+        {/* Cover Image Container */}
         <div
-          className="relative aspect-square w-full rounded-xl overflow-hidden bg-slate-900 border border-white/10 shadow-inner flex items-center justify-center [transform-style:preserve-3d] transition-transform duration-200"
-          style={{ transform: 'translateZ(20px)' }}
+          className="relative aspect-square w-full rounded-xl overflow-hidden bg-slate-900 border border-white/10 shadow-inner flex items-center justify-center transition-transform duration-200"
         >
           {album.cover_url ? (
             <img
@@ -72,15 +71,14 @@ function AlbumCard({ album, index = 0 }: AlbumCardProps) {
           )}
           <div className="cover-overlay" />
 
-          {/* Floating Album Type Badge — Depth Layer 35px */}
+          {/* Floating Album Type Badge */}
           <div
-            className="badge-glass absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-mono text-[var(--accent)] uppercase tracking-wider z-10 [transform-style:preserve-3d]"
-            style={{ transform: 'translateZ(35px)' }}
+            className="badge-glass absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-mono text-[var(--accent)] uppercase tracking-wider z-10"
           >
             {album.album_type === 'single' ? 'Single / EP' : 'Album'}
           </div>
 
-          {/* Hover Overlay Play Button — Depth Layer 50px */}
+          {/* Hover Overlay Play Button */}
           <div
             role="button"
             tabIndex={0}
@@ -89,16 +87,15 @@ function AlbumCard({ album, index = 0 }: AlbumCardProps) {
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') void handlePlayAlbum(e, album)
             }}
-            className="play-btn z-10 btn-3d-tactile [transform-style:preserve-3d]"
-            style={{ transform: 'translateZ(50px)' }}
+            className="play-btn z-10 btn-3d-tactile"
           >
             <Play className="w-4.5 h-4.5 ml-0.5 fill-current" />
           </div>
         </div>
 
-        {/* Info — Depth Layer 30px */}
-        <div className="flex flex-col gap-1 min-w-0 [transform-style:preserve-3d]" style={{ transform: 'translateZ(30px)' }}>
-          <h3 className="card-title text-xs font-bold text-white truncate">
+        {/* Info */}
+        <div className="flex flex-col gap-1 min-w-0">
+          <h3 className="card-title text-xs sm:text-sm font-bold text-white truncate">
             {album.name}
           </h3>
           <p className="text-[11px] text-slate-400 truncate font-medium">

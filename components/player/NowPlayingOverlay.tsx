@@ -487,14 +487,16 @@ export function NowPlayingOverlay() {
             </div>
 
             <div className="truncate flex flex-col flex-1 min-w-0">
-              <div className="inline-flex items-center gap-2 min-w-0 max-w-full">
-                <OverflowMarqueeText
-                  text={currentTrack.title}
-                  className={`text-xs lg:text-sm font-bold text-white hover:text-[var(--spotify-glow)] transition-colors cursor-pointer ${trackMetadataTitleClass}`}
-                />
-                {isPlaying && (
-                  <MiniEqualizer isPlaying={isPlaying} className="shrink-0" />
-                )}
+              <div className="flex items-center gap-2 min-w-0 max-w-full">
+                <div className={`inline-flex items-center gap-1.5 min-w-0 max-w-full ${trackMetadataTitleClass}`}>
+                  <OverflowMarqueeText
+                    text={currentTrack.title}
+                    className="text-xs lg:text-sm font-bold text-white hover:text-[var(--spotify-glow)] transition-colors cursor-pointer truncate"
+                  />
+                  {isPlaying && (
+                    <MiniEqualizer isPlaying={isPlaying} className="shrink-0" />
+                  )}
+                </div>
                 {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && (
                   <span
                     style={{

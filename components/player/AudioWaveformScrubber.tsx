@@ -107,15 +107,14 @@ export function AudioWaveformScrubber({
             setHoverTime(null)
           }
         }}
-        className={`relative flex-1 h-10 sm:h-9 flex items-center cursor-pointer group px-0.5 touch-none ${isDragging ? 'is-dragging' : ''}`}
+        className={`relative flex-1 h-8 flex items-center cursor-pointer group px-0.5 touch-none ${isDragging ? 'is-dragging' : ''}`}
       >
         {/* Floating Time Preview Tooltip */}
         {hoverTime !== null && (
           <div
-            className="absolute -top-8 transform -translate-x-1/2 bg-slate-900/95 text-white text-[10px] sm:text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full border border-white/20 shadow-2xl backdrop-blur-md pointer-events-none transition-transform z-40"
+            className="absolute -top-7 transform -translate-x-1/2 bg-slate-900/95 text-white text-[10px] sm:text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full border border-white/20 shadow-2xl backdrop-blur-md pointer-events-none transition-transform z-40"
             style={{ left: `${hoverX}px` }}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary-spotify,#06b6d4)] animate-ping" />
             <span>{formatTime(hoverTime)}</span>
           </div>
         )}
@@ -125,7 +124,7 @@ export function AudioWaveformScrubber({
           <div
             className="scrubber-fill"
             style={{
-              background: 'var(--accent-gradient)',
+              background: 'var(--accent-gradient, var(--spotify-glow, #22d3ee))',
               boxShadow: '0 0 8px var(--theme-glow-shadow, rgba(0,0,0,0.3))',
               width: `calc(${progressRatio * 100}%)`,
             }}

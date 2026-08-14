@@ -733,11 +733,8 @@ export default function HomePage() {
                   className="media-card group p-3 flex flex-col gap-2 cursor-pointer outline-none w-full"
                   style={{ '--i': idx } as React.CSSProperties}
                 >
-                  <Link href={`/album/${album.id}`} className="flex flex-col gap-2 h-full w-full outline-none [transform-style:preserve-3d]">
-                    <div
-                      className="aspect-square w-full bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center [transform-style:preserve-3d]"
-                      style={{ transform: 'translateZ(20px)' }}
-                    >
+                  <Link href={`/album/${album.id}`} className="flex flex-col gap-2 h-full w-full outline-none">
+                    <div className="aspect-square w-full bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
                       {album.cover_url ? (
                         <img
                           src={album.cover_url}
@@ -753,8 +750,7 @@ export default function HomePage() {
                       )}
                       <div className="cover-overlay" />
                       <div
-                        className="badge-glass absolute top-2 left-2 px-1.5 py-0.5 rounded-full text-[8px] font-mono text-[var(--accent)] uppercase tracking-wider z-10 [transform-style:preserve-3d]"
-                        style={{ transform: 'translateZ(35px)' }}
+                        className="badge-glass absolute top-2 left-2 px-1.5 py-0.5 rounded-full text-[8px] font-mono text-[var(--accent)] uppercase tracking-wider z-10"
                       >
                         {album.album_type === 'single' ? 'Single' : 'Album'}
                       </div>
@@ -766,17 +762,16 @@ export default function HomePage() {
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') void handlePlayAlbum(e, album)
                         }}
-                        className="play-btn z-10 btn-3d-tactile [transform-style:preserve-3d]"
-                        style={{ transform: 'translateZ(50px)' }}
+                        className="play-btn z-10 btn-3d-tactile"
                       >
                         <Play className="w-4 h-4 ml-0.5 fill-current" />
                       </div>
                     </div>
-                    <div className="truncate [transform-style:preserve-3d]" style={{ transform: 'translateZ(30px)' }}>
-                      <p className="card-title text-xs font-bold text-white truncate">
+                    <div className="truncate">
+                      <p className="card-title text-xs sm:text-sm font-bold text-white truncate">
                         {album.name}
                       </p>
-                      <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                      <p className="text-[11px] text-slate-400 truncate mt-0.5">
                         {album.artist}
                       </p>
                     </div>
@@ -817,11 +812,8 @@ export default function HomePage() {
                   style={{ '--i': idx } as React.CSSProperties}
                   className="media-card group p-3 flex flex-col gap-2 cursor-pointer outline-none w-full"
                 >
-                  <div className="flex flex-col gap-2 h-full w-full outline-none [transform-style:preserve-3d]" onClick={() => playTrack(t, combinedTrendingTracks)}>
-                    <div
-                      className="aspect-square w-full bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center [transform-style:preserve-3d]"
-                      style={{ transform: 'translateZ(20px)' }}
-                    >
+                  <div className="flex flex-col gap-2 h-full w-full outline-none" onClick={() => playTrack(t, combinedTrendingTracks)}>
+                    <div className="aspect-square w-full bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
                       {t.cover_url ? (
                         <img
                           src={t.cover_url}
@@ -836,16 +828,16 @@ export default function HomePage() {
                         <Music className="cover-img w-7 h-7 text-slate-500" />
                       )}
                       <div className="cover-overlay" />
-                      <div className="play-btn z-10 btn-3d-tactile [transform-style:preserve-3d]" style={{ transform: 'translateZ(50px)' }}>
+                      <div className="play-btn z-10 btn-3d-tactile">
                         <Play className="w-4 h-4 ml-0.5 fill-current" />
                       </div>
                     </div>
 
-                    <div className="truncate [transform-style:preserve-3d]" style={{ transform: 'translateZ(30px)' }}>
-                      <p className="card-title text-xs font-bold text-white truncate">
+                    <div className="truncate">
+                      <p className="card-title text-xs sm:text-sm font-bold text-white truncate">
                         {t.title}
                       </p>
-                      <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                      <p className="text-[11px] text-slate-400 truncate mt-0.5">
                         {t.artist || 'Nghệ sĩ chưa xác định'}
                       </p>
                     </div>

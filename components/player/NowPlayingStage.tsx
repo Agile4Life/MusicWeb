@@ -191,8 +191,8 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
       {/* Layer 3: Album Cover + Title (3× parallax + 3D tilt) + Stationary Up Next List */}
       <div className="relative z-20 w-full h-full max-w-[1360px] xl:max-w-[1440px] mx-auto px-6 lg:px-12 flex items-center justify-center lg:justify-start">
         <div className="w-full max-w-sm sm:max-w-md lg:max-w-[400px] xl:max-w-[440px] flex flex-col items-center justify-center gap-2.5 sm:gap-3.5">
-          {/* Parallax 3D moving wrapper for Album Cover & Track Details */}
-          <div ref={sceneLayerRef} className="scene-layer w-full flex flex-col items-center justify-center gap-2 sm:gap-3">
+          {/* Parallax 3D moving wrapper for Album Cover */}
+          <div ref={sceneLayerRef} className="scene-layer w-full flex items-center justify-center">
             {/* Perspective container with Album Art + Progress Ring */}
             <div className="album-3d-container relative flex items-center justify-center p-1.5 sm:p-2 shrink-0">
               <div
@@ -236,25 +236,25 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Title & Artist — GPU accelerated, subpixel smooth */}
-            <div className="text-center px-4 max-w-md w-full">
-              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white tracking-tight line-clamp-2">
-                {title || 'Chưa chọn bài hát'}
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1 line-clamp-1">
-                {artist || 'Nghệ sĩ'}
-              </p>
+          {/* Title & Artist — Stationary, 100% crisp vector text */}
+          <div className="text-center px-4 max-w-md w-full">
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white tracking-tight line-clamp-2">
+              {title || 'Chưa chọn bài hát'}
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1 line-clamp-1">
+              {artist || 'Nghệ sĩ'}
+            </p>
 
-              {/* Context Pill Badge (Bài n/total · Album · Year) */}
-              {currentTrack && (
-                <div className="mt-2 flex items-center justify-center">
-                  <span className="bg-white/10 border border-white/15 text-slate-200 px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-md shadow-sm truncate max-w-[280px]">
-                    Bài {trackNum}/{totalTracks} {contextAlbumName ? `· ${contextAlbumName}` : ''} {releaseYear ? `· ${releaseYear}` : ''}
-                  </span>
-                </div>
-              )}
-            </div>
+            {/* Context Pill Badge (Bài n/total · Album · Year) */}
+            {currentTrack && (
+              <div className="mt-2 flex items-center justify-center">
+                <span className="bg-white/10 border border-white/15 text-slate-200 px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-md shadow-sm truncate max-w-[280px]">
+                  Bài {trackNum}/{totalTracks} {contextAlbumName ? `· ${contextAlbumName}` : ''} {releaseYear ? `· ${releaseYear}` : ''}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Stationary Up Next Queue List (Fixed, does NOT follow mouse cursor) */}

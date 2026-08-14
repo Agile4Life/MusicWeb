@@ -46,7 +46,6 @@
 .animate-marquee-text {
   display: inline-block;
   white-space: nowrap;
-  will-change: transform;
   animation: marquee-slow 10s ease-in-out infinite;
 }
 
@@ -334,19 +333,9 @@ body {
   box-shadow: 0 0 12px var(--spotify-glow, #22d3ee), 0 0 6px var(--primary-spotify, #06b6d4);
 }
 
-/* === Elevation 1: Main Content Bottom Fade Mask === */
+/* === Elevation 1: Main Content Scroll === */
 .main-content-scroll {
   scrollbar-gutter: auto;
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    black calc(100% - 48px),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    black calc(100% - 48px),
-    transparent 100%
-  );
 }
 
 .main-content-scroll::-webkit-scrollbar {
@@ -371,6 +360,9 @@ html, body {
   touch-action: manipulation;
   font-family: var(--font-sans);
   scrollbar-gutter: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 body {
@@ -1332,8 +1324,7 @@ input[type='range']:hover::-moz-range-thumb {
 }
 
 .media-card:hover {
-  transform: translateY(-4px) scale(1.015);
-  will-change: transform;
+  transform: translateY(-4px);
   border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 40%, transparent);
   box-shadow: var(--elev-2);
   z-index: 1;

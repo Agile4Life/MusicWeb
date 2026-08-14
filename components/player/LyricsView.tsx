@@ -203,7 +203,7 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
     const activeLine = activeLineRef.current
 
     if (container && activeLine) {
-      const targetScroll = activeLine.offsetTop - container.clientHeight / 2 + activeLine.clientHeight / 2
+      const targetScroll = activeLine.offsetTop - container.clientHeight * 0.38 + activeLine.clientHeight / 2
       container.scrollTo({
         top: Math.max(0, targetScroll),
         behavior: 'smooth',
@@ -346,8 +346,6 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
         className="relative z-10 flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 pt-6 pb-8 no-scrollbar"
         style={{
           WebkitOverflowScrolling: 'touch',
-          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 3%, black 94%, transparent 100%)',
-          maskImage: 'linear-gradient(to bottom, transparent 0%, black 3%, black 94%, transparent 100%)',
         }}
       >
         {loading ? (
@@ -358,63 +356,63 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
             <p className="text-sm font-extrabold text-white tracking-wide">Đang tải lời bài hát từ thư viện...</p>
           </div>
         ) : parsedLyrics.length > 0 ? (
-          <div className="flex flex-col gap-6 md:gap-8 pt-12 pb-28 md:pt-16 md:pb-36 text-center sm:text-left max-w-3xl mx-auto">
+          <div className="flex flex-col gap-4 md:gap-5 pt-12 pb-28 md:pt-16 md:pb-36 text-center sm:text-left max-w-3xl mx-auto">
             {parsedLyrics.map((line, index) => {
               const isActive = index === activeIndex
               const distance = activeIndex >= 0 ? Math.abs(index - activeIndex) : Infinity
-              const isEven = index % 2 === 0
+              const isPast = activeIndex >= 0 && index < activeIndex
 
-              // Preserve motion hierarchy without shrinking text into a blurry layer.
-              let scale: number
-              let opacity: number
+              let opacity = 1.0
+              let translateX = '0px'
+
               if (isActive) {
-                scale = 1.02
                 opacity = 1.0
+                translateX = '6px'
               } else if (distance === 1) {
-                scale = 0.99
-                opacity = 0.9
+                opacity = isPast ? 0.55 : 0.65
+                translateX = '0px'
               } else if (distance === 2) {
-                scale = 0.97
-                opacity = 0.76
+                opacity = isPast ? 0.35 : 0.45
+                translateX = '0px'
               } else {
-                scale = 0.95
-                opacity = activeIndex < 0 ? 0.78 : 0.62
+                opacity = activeIndex < 0 ? 0.75 : isPast ? 0.22 : 0.32
+                translateX = '0px'
               }
-
-              const floatClass = isActive
-                ? ''
-                : isEven
-                  ? 'lyric-float-even'
-                  : 'lyric-float-odd'
-
-              const willChangeClass = isActive || distance <= 1 ? 'will-change-[transform,opacity]' : ''
 
               return (
                 <div
                   key={index}
                   ref={isActive ? activeLineRef : null}
                   onClick={() => handleLineClick(line)}
-                  className={`lyric-line-item cursor-pointer py-1.5 px-3 rounded-2xl select-none origin-center sm:origin-left active:scale-95 ${willChangeClass} ${floatClass}`}
+                  className="cursor-pointer py-1 px-3 rounded-2xl select-none origin-left group/line"
                   style={{
-                    '--l-scale': scale,
-                    transform: `scale(${scale})`,
                     opacity,
-                    transition: 'transform 400ms var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1)), opacity 400ms ease-out',
-                    marginBlock: isActive ? '8px' : undefined,
-                  } as React.CSSProperties}
+                    transform: `translateX(${translateX})`,
+                    transition: 'transform 450ms cubic-bezier(0.16, 1, 0.3, 1), opacity 400ms cubic-bezier(0.16, 1, 0.3, 1), margin 350ms ease',
+                    marginBlock: isActive ? '12px' : '3px',
+                  }}
                 >
-                  <p
-                    className={`leading-relaxed font-extrabold transition-colors duration-300 ${isActive
-                        ? 'text-xl sm:text-2xl md:text-3xl lg:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] via-white to-[var(--primary-spotify,#06b6d4)] drop-shadow-[0_2px_8px_rgba(6,182,212,0.4)]'
-                        : distance === 1
-                          ? 'text-white text-base sm:text-xl md:text-2xl font-extrabold'
-                          : distance === 2
-                            ? 'text-slate-200 text-base sm:text-xl md:text-2xl font-bold'
-                            : 'text-slate-300 text-base sm:text-xl md:text-2xl font-bold'
+                  <div className="flex items-center gap-2.5">
+                    {/* Active subtle accent beam */}
+                    {isActive && (
+                      <span
+                        className="w-1.5 h-6 rounded-full bg-[var(--spotify-glow,#22d3ee)] shadow-[0_0_12px_var(--theme-glow-shadow,#22d3ee)] shrink-0 animate-in fade-in zoom-in-75 duration-300"
+                      />
+                    )}
+                    <p
+                      className={`leading-snug transition-all duration-400 ${
+                        isActive
+                          ? 'text-2xl sm:text-3xl md:text-4xl lg:text-[2.6rem] font-black text-white bg-clip-text bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] via-white to-[var(--primary-spotify,#06b6d4)]'
+                          : distance === 1
+                            ? 'text-lg sm:text-xl md:text-2xl font-bold text-slate-200 group-hover/line:text-white'
+                            : distance === 2
+                              ? 'text-base sm:text-lg md:text-xl font-semibold text-slate-400 group-hover/line:text-slate-200'
+                              : 'text-base sm:text-lg md:text-xl font-medium text-slate-500 group-hover/line:text-slate-300'
                       }`}
-                  >
-                    {line.text}
-                  </p>
+                    >
+                      {line.text}
+                    </p>
+                  </div>
                 </div>
               )
             })}
