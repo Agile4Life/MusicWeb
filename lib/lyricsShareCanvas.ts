@@ -229,40 +229,84 @@ export function calculateLyricsBlockStartX(
 }
 
 /**
- * Render complete 9:16 high-res Story card to HTML5 Canvas (1080 x 1920)
- * Fixed Story aspect ratio with automatic line wrapping for long lyrics
+ * Helper to calculate compact canvas height based on rendered line count and font size
+ */
+export function calculateCompactCardHeight(
+  renderedLineCount: number,
+  fontSize: number,
+  lyricsStartY: number = 460,
+  bottomPadding: number = 100
+): number {
+  const lineHeight = Math.round(fontSize * 1.55)
+  const totalLyricsHeight = Math.max(1, renderedLineCount) * lineHeight
+  return Math.round(lyricsStartY + totalLyricsHeight + bottomPadding)
+}
+
+/**
+ * Render compact high-res Story-width card to HTML5 Canvas (1080 x Dynamic Compact Height)
+ * - Width: 1080px (Standard Story width)
+ * - Height: Dynamically calculated to snugly fit up to 5 lyric lines + metadata without empty gaps
  */
 export async function renderLyricCardToCanvas(
   options: GenerateCardOptions
 ): Promise<HTMLCanvasElement> {
   const width = 1080
-  const height = 1920
+  const theme = getThemeById(options.themeId)
+  const lines = options.selectedLines.slice(0, 5) // max 5 contiguous lines
 
+  const fontSize = calculateOptimalFontSize(lines)
+  const lineHeight = Math.round(fontSize * 1.55)
+
+  // 1. Measure and wrap lyrics lines first to calculate exact tailored height
+  const measureCanvas = document.createElement('canvas')
+  const measureCtx = measureCanvas.getContext('2d')
+  if (measureCtx) {
+    measureCtx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`
+  }
+
+  const maxTextWidth = 860 // 110px safe horizontal margins on 1080px width
+  const renderedLineList: string[] = []
+
+  for (const rawLine of lines) {
+    if (measureCtx) {
+      const wrapped = wrapCanvasText(measureCtx, rawLine, maxTextWidth)
+      renderedLineList.push(...wrapped)
+    } else {
+      renderedLineList.push(rawLine)
+    }
+  }
+
+  const lyricsStartY = 460
+  const height = calculateCompactCardHeight(
+    renderedLineList.length,
+    fontSize,
+    lyricsStartY,
+    110
+  )
+
+  // 2. Initialize Canvas with 1080 width and perfectly fitted compact height
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Canvas 2D context not supported')
 
-  const theme = getThemeById(options.themeId)
-  const lines = options.selectedLines.slice(0, 5) // max 5 contiguous lines
-
-  // 1. Draw Multi-Layer Ambient Background
+  // 3. Draw Multi-Layer Ambient Background
   const bgGrad = ctx.createLinearGradient(0, 0, width, height)
   bgGrad.addColorStop(0, theme.background[0])
-  bgGrad.addColorStop(0.4, theme.background[1])
+  bgGrad.addColorStop(0.45, theme.background[1])
   bgGrad.addColorStop(1, theme.background[2])
   ctx.fillStyle = bgGrad
   ctx.fillRect(0, 0, width, height)
 
-  // Radial ambient glow orbs
+  // Radial ambient glow orbs centered on the card
   const radialGlow = ctx.createRadialGradient(
     width * 0.5,
-    height * 0.28,
-    50,
+    height * 0.35,
+    40,
     width * 0.5,
-    height * 0.28,
-    width * 0.75
+    height * 0.35,
+    width * 0.7
   )
   radialGlow.addColorStop(0, `${theme.accentColor}38`)
   radialGlow.addColorStop(0.6, `${theme.background[1]}25`)
@@ -270,7 +314,7 @@ export async function renderLyricCardToCanvas(
   ctx.fillStyle = radialGlow
   ctx.fillRect(0, 0, width, height)
 
-  // 2. Load cover image & brand logo
+  // 4. Load cover image & brand logo
   let coverImg: HTMLImageElement | null = null
   let logoImg: HTMLImageElement | null = null
 
@@ -285,16 +329,16 @@ export async function renderLyricCardToCanvas(
     ctx.save()
     ctx.globalAlpha = 0.16
     ctx.filter = 'blur(65px)'
-    ctx.drawImage(coverImg, -120, -100, width + 240, height * 0.55)
+    ctx.drawImage(coverImg, -100, -80, width + 200, height + 160)
     ctx.restore()
   }
 
-  // 3. 🌟 Draw Brand Logo Mini Glass Plaque (Matching web header style)
-  const plaqueWidth = 340
-  const plaqueHeight = 78
-  const plaqueRadius = 24
+  // 5. 🌟 Draw Brand Logo Mini Glass Plaque (Matching web header style)
+  const plaqueWidth = 320
+  const plaqueHeight = 72
+  const plaqueRadius = 22
   const plaqueX = (width - plaqueWidth) / 2
-  const plaqueY = 90
+  const plaqueY = 65
 
   ctx.save()
   // Outer Plaque Backdrop
@@ -311,10 +355,10 @@ export async function renderLyricCardToCanvas(
   ctx.fill()
 
   // Inner subtle top shine
-  const shineGrad = ctx.createLinearGradient(plaqueX, plaqueY, plaqueX, plaqueY + 35)
+  const shineGrad = ctx.createLinearGradient(plaqueX, plaqueY, plaqueX, plaqueY + 32)
   shineGrad.addColorStop(0, 'rgba(255, 255, 255, 0.18)')
   shineGrad.addColorStop(1, 'rgba(255, 255, 255, 0.0)')
-  drawRoundedRect(ctx, plaqueX, plaqueY, plaqueWidth, 35, plaqueRadius)
+  drawRoundedRect(ctx, plaqueX, plaqueY, plaqueWidth, 32, plaqueRadius)
   ctx.fillStyle = shineGrad
   ctx.fill()
 
@@ -329,7 +373,7 @@ export async function renderLyricCardToCanvas(
   ctx.lineWidth = 1
   ctx.stroke()
 
-  // Draw Logo inside Plaque
+  // Draw Logo inside Plaque (100% white compositing)
   if (logoImg && logoImg.width > 0 && logoImg.height > 0) {
     const logoHeight = 48
     const aspect = logoImg.width / logoImg.height
@@ -337,7 +381,7 @@ export async function renderLyricCardToCanvas(
     const logoX = (width - logoWidth) / 2
     const logoY = plaqueY + (plaqueHeight - logoHeight) / 2
 
-    // Create 100% reliable pure white tinted image canvas (guaranteed to be bright white on all browsers)
+    // Create 100% reliable pure white tinted image canvas
     const whiteCanvas = document.createElement('canvas')
     whiteCanvas.width = Math.round(logoWidth)
     whiteCanvas.height = Math.round(logoHeight)
@@ -374,17 +418,17 @@ export async function renderLyricCardToCanvas(
   }
   ctx.restore()
 
-  // 4. 🎵 Draw Centered Track Metadata (Cover Art + Title + Artist)
-  const coverSize = 160
-  const coverRadius = 26
+  // 6. 🎵 Draw Centered Track Metadata (Cover Art + Title + Artist)
+  const coverSize = 145
+  const coverRadius = 24
   const coverX = (width - coverSize) / 2
-  const coverY = 195
+  const coverY = 168
 
   ctx.save()
   // Cover Shadow
   ctx.shadowColor = 'rgba(0, 0, 0, 0.65)'
-  ctx.shadowBlur = 32
-  ctx.shadowOffsetY = 12
+  ctx.shadowBlur = 28
+  ctx.shadowOffsetY = 10
 
   drawRoundedRect(ctx, coverX, coverY, coverSize, coverSize, coverRadius)
   ctx.fillStyle = '#0f172a'
@@ -411,7 +455,7 @@ export async function renderLyricCardToCanvas(
     ctx.fillRect(coverX, coverY, coverSize, coverSize)
 
     ctx.fillStyle = theme.accentColor
-    ctx.font = 'bold 54px system-ui'
+    ctx.font = 'bold 50px system-ui'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText('♪', coverX + coverSize / 2, coverY + coverSize / 2)
@@ -431,52 +475,35 @@ export async function renderLyricCardToCanvas(
   ctx.save()
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.font = 'bold 42px system-ui, -apple-system, sans-serif'
+  ctx.font = 'bold 40px system-ui, -apple-system, sans-serif'
   ctx.fillStyle = '#ffffff'
   ctx.shadowColor = 'rgba(0, 0, 0, 0.6)'
-  ctx.shadowBlur = 16
+  ctx.shadowBlur = 14
 
   let displayTitle = options.title || 'Bài hát chưa đặt tên'
   while (ctx.measureText(displayTitle).width > maxTitleWidth && displayTitle.length > 3) {
     displayTitle = displayTitle.slice(0, -2) + '…'
   }
-  ctx.fillText(displayTitle, width / 2, 396)
+  ctx.fillText(displayTitle, width / 2, 352)
 
   // Centered Artist
-  ctx.font = '600 29px system-ui, -apple-system, sans-serif'
+  ctx.font = '600 27px system-ui, -apple-system, sans-serif'
   ctx.fillStyle = 'rgba(255, 255, 255, 0.75)'
   let displayArtist = options.artist || 'Nghệ sĩ chưa xác định'
   while (ctx.measureText(displayArtist).width > maxTitleWidth && displayArtist.length > 3) {
     displayArtist = displayArtist.slice(0, -2) + '…'
   }
-  ctx.fillText(displayArtist, width / 2, 442)
+  ctx.fillText(displayArtist, width / 2, 394)
   ctx.restore()
 
-  // 5. 📜 Draw Lyrics: Automatic Line Wrapping + Centered Block with Left-Aligned Lines
-  const fontSize = calculateOptimalFontSize(lines)
+  // 7. 📜 Draw Lyrics: Centered Block with Left-Aligned Lines
   ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`
   ctx.fillStyle = theme.textColor
-
-  // Safe horizontal width: 860px (110px safe margin on both sides)
-  const maxTextWidth = 860
-  const renderedLineList: string[] = []
-
-  for (const rawLine of lines) {
-    const wrapped = wrapCanvasText(ctx, rawLine, maxTextWidth)
-    renderedLineList.push(...wrapped)
-  }
 
   // Measure all rendered line widths
   const lineWidths = renderedLineList.map((l) => ctx.measureText(l).width)
   const startX = calculateLyricsBlockStartX(lineWidths, width, 110)
-
-  const lineHeight = Math.round(fontSize * 1.55)
-  const totalBlockHeight = renderedLineList.length * lineHeight
-
-  // Vertically center the lyrics block in available vertical span (from y:500 to y:1760)
-  const verticalCenter = (500 + 1760) / 2
-  let startY = Math.round(verticalCenter - totalBlockHeight / 2 + fontSize * 0.85)
-  if (startY < 515) startY = 515
+  const startY = lyricsStartY + fontSize * 0.85
 
   ctx.save()
   ctx.textAlign = 'left'
@@ -492,11 +519,11 @@ export async function renderLyricCardToCanvas(
   }
   ctx.restore()
 
-  // 6. 🏷️ Subtle Bottom Brand Watermark
-  const footerY = 1835
+  // 8. 🏷️ Subtle Bottom Brand Watermark
+  const footerY = height - 42
   ctx.save()
   ctx.fillStyle = 'rgba(255, 255, 255, 0.45)'
-  ctx.font = '600 24px system-ui, -apple-system, sans-serif'
+  ctx.font = '600 23px system-ui, -apple-system, sans-serif'
   ctx.textAlign = 'center'
   ctx.fillText('Nghe trên MusicWeb', width / 2, footerY)
   ctx.restore()

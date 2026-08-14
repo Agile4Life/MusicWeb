@@ -5,6 +5,7 @@ import {
   calculateOptimalFontSize,
   getThemeById,
   calculateLyricsBlockStartX,
+  calculateCompactCardHeight,
   toggleContiguousLyricLine,
 } from '../lyricsShareCanvas'
 
@@ -70,6 +71,18 @@ describe('lyricsShareCanvas Engine', () => {
 
     // Empty lines array fallback
     expect(calculateLyricsBlockStartX([], 1080, 110)).toBe(110)
+  })
+
+  it('calculates compact card height tailored to 1-5 lines on 1080px Story width without empty gaps', () => {
+    // 1 line with 92px font
+    const h1 = calculateCompactCardHeight(1, 92, 460, 110)
+    expect(h1).toBeLessThan(800)
+    expect(h1).toBeGreaterThan(650)
+
+    // 5 lines with 56px font
+    const h5 = calculateCompactCardHeight(5, 56, 460, 110)
+    expect(h5).toBeLessThan(1100)
+    expect(h5).toBeGreaterThan(h1)
   })
 
   describe('toggleContiguousLyricLine', () => {

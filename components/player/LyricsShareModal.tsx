@@ -494,14 +494,14 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
               </div>
             </div>
 
-            {/* Lyric Card Preview Container (Fixed 9:16 Story Ratio) */}
+            {/* Lyric Card Preview Container (Story Width & Compact Dynamic Height) */}
             <div className="flex-1 flex items-center justify-center min-h-[260px] sm:min-h-[340px] my-auto py-2">
-              <div className="relative aspect-[9/16] max-h-[52vh] sm:max-h-[460px] w-auto rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-white/20 group hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 flex items-center justify-center bg-black/50">
+              <div className="relative max-h-[50vh] sm:max-h-[460px] w-full max-w-[340px] sm:max-w-[360px] rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-white/20 group hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 flex items-center justify-center bg-black/50">
                 {previewUrl ? (
                   <img
                     src={previewUrl}
                     alt="Lyric Card Preview"
-                    className="w-full h-full object-cover rounded-2xl transition-all duration-300"
+                    className="w-full h-auto max-h-[50vh] sm:max-h-[460px] object-contain rounded-2xl transition-all duration-300"
                   />
                 ) : (
                   <div className="w-full h-64 bg-slate-900 flex items-center justify-center">
