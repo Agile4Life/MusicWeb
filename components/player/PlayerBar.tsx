@@ -408,7 +408,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
       {/* 📱 FULL-SCREEN MOBILE PLAYER OVERLAY MODAL */}
       {showMobileFullPlayer && (
-        <div className="lg:hidden fixed inset-0 z-50 bg-[#07090e] flex flex-col justify-between p-6 select-none overflow-y-auto">
+        <div className="lg:hidden fixed inset-0 z-50 bg-[#07090e] flex flex-col justify-between p-6 select-none overflow-y-auto pointer-events-auto">
           {/* Header handle */}
           <div className="flex items-center justify-between pb-4 border-b border-white/[0.05]">
             <button
@@ -644,7 +644,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
       {/* 💻 DESKTOP PLAYER BAR (Visible on >= 768px screens) */}
       <footer
-        className={`player-bar hidden lg:flex h-[84px] xl:h-[96px] py-2.5 xl:py-3.5 rounded-2xl px-4 lg:px-6 xl:px-8 items-center justify-between text-slate-300 select-none shrink-0 panel-theme-hover transition-all relative overflow-hidden ${isScrolled ? 'is-scrolled' : ''}`}
+        className={`player-bar hidden lg:flex h-[84px] xl:h-[96px] py-2.5 xl:py-3.5 rounded-2xl px-4 lg:px-6 xl:px-8 items-center justify-between text-slate-300 select-none shrink-0 panel-theme-hover transition-all relative overflow-hidden pointer-events-auto ${isScrolled ? 'is-scrolled' : ''}`}
         onClick={(e) => {
           if (!isPlayerBarFeatureTarget(e.target as { closest?: (selector: string) => unknown })) {
             openNowPlayingOverlay()
