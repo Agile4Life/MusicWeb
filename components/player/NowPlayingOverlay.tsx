@@ -16,6 +16,9 @@ import {
   trackMetadataTitleClass,
 } from './trackMetadataLayout'
 import { setCachedResolvedAlbum, getCachedResolvedAlbum, isRealAlbumName } from '@/lib/albumCache'
+import { LyricsShareModal } from './LyricsShareModal'
+import { getPrimaryLyrics } from '@/lib/lyricsFlow'
+import { parseLrc, parsePlainLyrics, LyricLine } from '@/lib/lrcParser'
 import {
   ChevronDown,
   Play,
@@ -33,6 +36,7 @@ import {
   Sparkles,
   ListMusic,
   Loader2,
+  Share2,
 } from 'lucide-react'
 
 const StageWithFrequencyData = React.memo(function StageWithFrequencyData({
@@ -91,6 +95,34 @@ export function NowPlayingOverlay() {
   const [mobileTab, setMobileTab] = useState<'cover' | 'lyrics'>('cover')
   const [isNavigatingAlbum, setIsNavigatingAlbum] = useState(false)
   const [resolvedAlbumInfo, setResolvedAlbumInfo] = useState<{ id?: string; name?: string } | null>(null)
+  const [showShareModal, setShowShareModal] = useState(false)
+  const [shareLyrics, setShareLyrics] = useState<LyricLine[]>([])
+
+  const handleOpenShare = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    if (!currentTrack) return
+    try {
+      const res = await getPrimaryLyrics({
+        title: currentTrack.title,
+        artist: currentTrack.artist,
+        album: currentTrack.album,
+        duration: currentTrack.duration,
+        youtube_id: currentTrack.youtube_id,
+        nhaccuatui_id: currentTrack.nhaccuatui_id,
+      })
+      if (res?.syncedLyrics) {
+        setShareLyrics(parseLrc(res.syncedLyrics))
+      } else if (res?.plainLyrics) {
+        setShareLyrics(parsePlainLyrics(res.plainLyrics))
+      } else {
+        setShareLyrics([])
+      }
+    } catch {
+      setShareLyrics([])
+    } finally {
+      setShowShareModal(true)
+    }
+  }
 
   useEffect(() => {
     setResolvedAlbumInfo(null)
@@ -649,6 +681,14 @@ export function NowPlayingOverlay() {
           {/* Right: Volume & Favorite Controls (Clean Fullview) */}
           <div className="w-1/4 flex justify-end items-center gap-3 min-w-0">
             <button
+              onClick={handleOpenShare}
+              className="p-2 rounded-xl transition-all text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/5"
+              title="Chia sẻ câu hát (Lyrics Story)"
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
+
+            <button
               onClick={handleFavoriteClick}
               className={`p-2 rounded-xl transition-all ${currentTrack.is_favorite
                 ? 'text-rose-500 bg-rose-500/15 border border-rose-500/30'
@@ -689,6 +729,16 @@ export function NowPlayingOverlay() {
           </div>
         </div>
       </div>
+
+      {/* 🚀 Lyrics Share Modal */}
+      {showShareModal && currentTrack && (
+        <LyricsShareModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          track={currentTrack}
+          lyrics={shareLyrics}
+        />
+      )}
     </div>
   )
 }

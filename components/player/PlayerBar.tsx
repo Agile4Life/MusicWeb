@@ -20,6 +20,9 @@ import {
 } from './trackMetadataLayout'
 import { isPlayerBarFeatureTarget } from './playerBarInteraction'
 import { miniPlayerClassName } from './mobileLayout'
+import { LyricsShareModal } from './LyricsShareModal'
+import { getPrimaryLyrics } from '@/lib/lyricsFlow'
+import { parseLrc, parsePlainLyrics, LyricLine } from '@/lib/lrcParser'
 import {
   Play,
   Pause,
@@ -38,6 +41,7 @@ import {
   ListMusic,
   Loader2,
   DiscAlbum,
+  Share2,
 } from 'lucide-react'
 
 function formatTime(seconds: number) {
@@ -226,6 +230,37 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
   const [prevVol, setPrevVol] = useState(0.8)
   const [showMobileFullPlayer, setShowMobileFullPlayer] = useState(false)
   const [showLyricsModal, setShowLyricsModal] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
+  const [shareLyrics, setShareLyrics] = useState<LyricLine[]>([])
+  const [isFetchingLyricsForShare, setIsFetchingLyricsForShare] = useState(false)
+
+  const handleOpenShare = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    if (!currentTrack) return
+    setIsFetchingLyricsForShare(true)
+    try {
+      const res = await getPrimaryLyrics({
+        title: currentTrack.title,
+        artist: currentTrack.artist,
+        album: currentTrack.album,
+        duration: currentTrack.duration,
+        youtube_id: currentTrack.youtube_id,
+        nhaccuatui_id: currentTrack.nhaccuatui_id,
+      })
+      if (res?.syncedLyrics) {
+        setShareLyrics(parseLrc(res.syncedLyrics))
+      } else if (res?.plainLyrics) {
+        setShareLyrics(parsePlainLyrics(res.plainLyrics))
+      } else {
+        setShareLyrics([])
+      }
+    } catch {
+      setShareLyrics([])
+    } finally {
+      setIsFetchingLyricsForShare(false)
+      setShowShareModal(true)
+    }
+  }
 
   const handleVolumeToggle = () => {
     if (volume > 0) {
@@ -550,8 +585,8 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             />
           </div>
 
-          {/* Extra Mobile Actions: Lyrics & Queue */}
-          <div className="flex items-center justify-around px-4 mb-4">
+          {/* Extra Mobile Actions: Lyrics, Share & Queue */}
+          <div className="flex items-center justify-around px-4 mb-4 gap-2">
             <button
               onClick={() => {
                 setShowMobileFullPlayer(false)
@@ -561,6 +596,17 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             >
               <Mic2 style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
               <span>Lời bài hát</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setShowMobileFullPlayer(false)
+                handleOpenShare()
+              }}
+              className="p-3 text-slate-300 hover:text-white rounded-full bg-white/5 border border-white/10 flex items-center gap-2 text-xs font-semibold"
+            >
+              <Share2 style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
+              <span>Chia sẻ</span>
             </button>
 
             <button
@@ -814,6 +860,15 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
           </button>
 
           <button
+            onClick={handleOpenShare}
+            aria-label="Chia sẻ câu hát"
+            className="p-2 rounded-xl transition-all btn-3d-tactile text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/5"
+            title="Chia sẻ câu hát (Lyrics Story)"
+          >
+            <Share2 className="w-4 h-4" />
+          </button>
+
+          <button
             onClick={(e) => { e.stopPropagation(); toggleQueue() }}
             aria-label={isQueueOpen ? 'Đóng danh sách hàng đợi' : 'Xem danh sách hàng đợi'}
             style={
@@ -879,6 +934,16 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <LyricsView onClose={() => setShowLyricsModal(false)} isModal={true} />
         </div>
       </div>
+
+      {/* 🚀 Lyrics Share Modal */}
+      {showShareModal && currentTrack && (
+        <LyricsShareModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          track={currentTrack}
+          lyrics={shareLyrics}
+        />
+      )}
     </>
   )
 }

@@ -6,6 +6,7 @@ import { LrclibResponse } from '@/lib/lrclib'
 import { getPrimaryLyrics } from '@/lib/lyricsFlow'
 import { parseLrc, parsePlainLyrics, findActiveLyricIndex, LyricLine } from '@/lib/lrcParser'
 import { OverflowMarqueeText } from '@/components/common/OverflowMarqueeText'
+import { LyricsShareModal } from './LyricsShareModal'
 import {
   Headphones,
   RefreshCw,
@@ -25,6 +26,7 @@ import {
   Heart,
   Minus,
   Plus,
+  Share2,
 } from 'lucide-react'
 
 interface LyricsViewProps {
@@ -77,6 +79,7 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
   const [activeIndex, setActiveIndex] = useState(-1)
   const [lyricOffset, setLyricOffset] = useState(0) // Default 0.0s
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [showShareModal, setShowShareModal] = useState(false)
 
   const activeLineRef = useRef<HTMLDivElement | null>(null)
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
@@ -316,6 +319,15 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
                 </button>
               </div>
             )}
+
+            <button
+              onClick={() => setShowShareModal(true)}
+              disabled={parsedLyrics.length === 0}
+              className="w-9 h-9 flex items-center justify-center bg-white/[0.06] hover:bg-white/15 active:scale-95 text-slate-200 hover:text-cyan-300 rounded-full border border-white/10 transition-all shrink-0 shadow-md disabled:opacity-40 disabled:pointer-events-none"
+              title="Chia sẻ câu hát (Lyrics Story)"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+            </button>
 
             <button
               onClick={() => loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.album, currentTrack.duration, currentTrack.youtube_id, currentTrack.nhaccuatui_id)}
@@ -590,6 +602,30 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
             </div>
           </div>
         </div>
+      )}
+      {/* Floating Share Button when header is hidden (e.g. NowPlayingOverlay right column) */}
+      {!showHeader && parsedLyrics.length > 0 && (
+        <div className="absolute top-4 right-4 z-30">
+          <button
+            onClick={() => setShowShareModal(true)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 hover:bg-white/15 active:scale-95 text-slate-300 hover:text-white border border-white/15 backdrop-blur-xl shadow-lg transition-all text-xs font-bold"
+            title="Chia sẻ câu hát"
+          >
+            <Share2 className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden sm:inline">Chia sẻ</span>
+          </button>
+        </div>
+      )}
+
+      {/* 🚀 Lyrics Share Modal */}
+      {showShareModal && currentTrack && (
+        <LyricsShareModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          track={currentTrack}
+          lyrics={parsedLyrics}
+          initialActiveIndex={activeIndex}
+        />
       )}
     </div>
   )
