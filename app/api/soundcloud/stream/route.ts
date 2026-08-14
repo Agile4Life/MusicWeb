@@ -12,6 +12,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url)
   const id = searchParams.get('id') || searchParams.get('url')
   const format = searchParams.get('format') // 'json' or redirect
   const refresh = searchParams.get('refresh') === '1'
