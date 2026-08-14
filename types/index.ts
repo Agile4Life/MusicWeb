@@ -27,6 +27,7 @@ export interface Track {
   nhaccuatui_id?: string
   soundcloud_id?: string | number
   soundcloud_permalink_url?: string
+  source_url?: string
   file_ext?: string
   drive_file_id?: string
   disc_number?: number

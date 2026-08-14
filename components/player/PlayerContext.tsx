@@ -483,17 +483,18 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   // Resolve audio URL for local and external tracks
   const getAudioUrl = useCallback(
-    async (track: Track): Promise<string | null> => {
+    async (track: Track, bypassCache = false): Promise<string | null> => {
       const nctStreamUrl = getNhacCuaTuiStreamUrl(track)
       if (nctStreamUrl) return nctStreamUrl
 
       if (track.source === 'soundcloud' || track.soundcloud_id) {
-        const scId = track.soundcloud_id || track.id.replace(/^sc-/, '')
+        const scId = track.soundcloud_id ?? track.id.replace(/^sc-/, '')
         const workerUrl = process.env.NEXT_PUBLIC_SOUNDCLOUD_WORKER_URL?.trim()
+        const refreshQuery = bypassCache ? '&refresh=1' : ''
         if (workerUrl) {
-          return `${workerUrl.replace(/\/+$/, '')}/stream?id=${encodeURIComponent(scId)}`
+          return `${workerUrl.replace(/\/+$/, '')}/stream?id=${encodeURIComponent(scId)}${refreshQuery}`
         }
-        return `/api/soundcloud/stream?id=${encodeURIComponent(scId)}`
+        return `/api/soundcloud/stream?id=${encodeURIComponent(scId)}${refreshQuery}`
       }
 
       // iOS (Safari & Chrome): play YouTube through the HTML5 stream proxy so audio
@@ -2083,6 +2084,45 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (!isYtIframeEngine()) {
         const current = currentTrackRef.current
         const erroredTrack = current
+
+        // Self-healing for SoundCloud: If signed stream token expired (403), auto re-resolve with bypass cache
+        const isSoundCloud = Boolean(
+          current?.source === 'soundcloud' ||
+          current?.soundcloud_id ||
+          current?.id?.startsWith('sc-')
+        )
+        if (isSoundCloud && current && !(current as any)._scRetried) {
+          console.log('[SoundCloud Auto-Retry] Audio playback error, requesting fresh stream URL with bypass cache...')
+          ;(current as any)._scRetried = true
+          audioUrlCacheRef.current.delete(current.id)
+          try {
+            const freshUrl = await getAudioUrl(current, true)
+            if (
+              freshUrl &&
+              audioRef.current &&
+              isCurrentPlayback({
+                requestId,
+                currentRequestId: playRequestRef.current,
+                trackId: current.id,
+                currentTrackId: currentTrackRef.current?.id,
+              })
+            ) {
+              audioRef.current.src = freshUrl
+              audioRef.current.load()
+              audioRef.current.play().then(() => {
+                setIsPlaying(true)
+                setIsBuffering(false)
+                setPlaybackError(null)
+              }).catch((err) => {
+                console.warn('[SoundCloud Auto-Retry] play failed:', err)
+              })
+              return
+            }
+          } catch (retryErr) {
+            console.warn('[SoundCloud Auto-Retry] Error fetching fresh audio URL:', retryErr)
+          }
+        }
+
         if (audioRetryCountRef.current < 2) {
           audioRetryCountRef.current++
           setTimeout(() => {

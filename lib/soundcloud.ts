@@ -58,6 +58,7 @@ export function isSoundCloudFullAudio(track: SoundCloudRawTrack | any): boolean 
   if (track.policy === 'SNIPPET' || track.policy === 'BLOCK') return false
   if (track.monetization_model === 'SUB_HIGH_TIER') return false
   if (track.access === 'blocked') return false
+  if (track.streamable === false) return false
 
   const transcodings = track.media?.transcodings
   if (!Array.isArray(transcodings) || transcodings.length === 0) return false
@@ -75,11 +76,7 @@ export function isSoundCloudFullAudio(track: SoundCloudRawTrack | any): boolean 
  */
 export function getSoundCloudHighResArtwork(url?: string | null): string | null {
   if (!url) return null
-  return url
-    .replace('-large.', '-t500x500.')
-    .replace('-badge.', '-t500x500.')
-    .replace('-small.', '-t500x500.')
-    .replace('-tiny.', '-t500x500.')
+  return url.replace(/-(large|badge|small|tiny|t\d+x\d+)\./, '-t500x500.')
 }
 
 /**
@@ -134,7 +131,8 @@ export function soundCloudTrackToAppTrack(scTrack: SoundCloudRawTrack): Track {
     album_title: 'SoundCloud Single',
     genre: scTrack.genre || 'SoundCloud',
     duration: durationSec,
-    file_path: scTrack.permalink_url || '',
+    file_path: '',
+    source_url: scTrack.permalink_url || '',
     cover_url: coverUrl,
     play_count: scTrack.playback_count || 0,
     created_at: scTrack.created_at || new Date().toISOString(),

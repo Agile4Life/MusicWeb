@@ -19,7 +19,7 @@ const FALLBACK_CLIENT_IDS = [
   'iZIs9mchVcX5lhVRyQGGAYlNPVldzAoX',
 ]
 
-// In-worker isolate memory cache for dynamic client ID
+// In-worker isolate memory cache for dynamic client ID (15-minute TTL)
 let cachedEdgeClientId = null
 let edgeClientIdExpiresAt = 0
 
@@ -31,10 +31,10 @@ function corsResponse(body, init = {}) {
   return new Response(body, { ...init, headers })
 }
 
-function redirectResponse(targetUrl, maxAge = 7200) {
+function redirectResponse(targetUrl, maxAge = 900) {
   const headers = new Headers({
     Location: targetUrl,
-    'Cache-Control': `public, max-age=${maxAge}, s-maxage=${maxAge}, stale-while-revalidate=3600`,
+    'Cache-Control': `public, max-age=${maxAge}, s-maxage=${maxAge}, stale-while-revalidate=300`,
     ...CORS_HEADERS,
   })
   return new Response(null, { status: 307, headers })
@@ -76,7 +76,7 @@ async function getEdgeSoundCloudClientId(env) {
             const match = js.match(/client_id[:=]\s*["']([a-zA-Z0-9]{32})["']/)
             if (match && match[1]) {
               cachedEdgeClientId = match[1]
-              edgeClientIdExpiresAt = now + 2 * 60 * 60 * 1000 // 2 hours TTL
+              edgeClientIdExpiresAt = now + 15 * 60 * 1000 // 15 mins TTL
               return cachedEdgeClientId
             }
           }
@@ -90,7 +90,11 @@ async function getEdgeSoundCloudClientId(env) {
   }
 
   // 2. Fallback to candidate list
-  cachedEdgeClientId = FALLBACK_CLIENT_IDS[0]
+  const fallback = FALLBACK_CLIENT_IDS[0]
+  if (!fallback) {
+    throw new Error('[SoundCloud Worker] No fallback client_id available')
+  }
+  cachedEdgeClientId = fallback
   edgeClientIdExpiresAt = now + 15 * 60 * 1000
   return cachedEdgeClientId
 }
@@ -157,7 +161,7 @@ export default {
     // 1. Health check
     if (url.pathname === '/' || url.pathname === '/health') {
       return corsResponse(
-        JSON.stringify({ status: 'ok', service: 'soundcloud-stream-cache', version: '2.1.0' }),
+        JSON.stringify({ status: 'ok', service: 'soundcloud-stream-cache', version: '2.2.0' }),
         {
           headers: { 'Content-Type': 'application/json' },
         }
@@ -167,6 +171,8 @@ export default {
     // 2. Stream endpoint: /stream?id=<trackId>
     if (url.pathname === '/stream') {
       const id = url.searchParams.get('id')
+      const refresh = url.searchParams.get('refresh') === '1'
+
       if (!id) {
         return corsResponse(JSON.stringify({ error: 'Missing track id' }), {
           status: 400,
@@ -176,34 +182,36 @@ export default {
 
       const cleanId = id.replace(/^sc-/, '')
       const kvKey = `sc_stream_${cleanId}`
-
-      // A. Check Cloudflare Cache API (L1 Edge RAM/SSD Cache — Sub-5ms worldwide)
       const edgeCache = caches.default
       const cacheKey = new Request(url.toString(), {
         method: 'GET',
         headers: request.headers,
       })
 
-      try {
-        const cachedEdgeResponse = await edgeCache.match(cacheKey)
-        if (cachedEdgeResponse) {
-          return cachedEdgeResponse
-        }
-      } catch (cacheReadErr) {
-        console.warn('L1 Edge Cache read error:', cacheReadErr)
-      }
-
-      // B. Check Cloudflare KV cache (L2 Persistent Cache)
-      if (env.SOUNDCLOUD_STREAM_KV) {
+      // If not refresh, check caches
+      if (!refresh) {
+        // A. Check Cloudflare Cache API (L1 Edge RAM/SSD Cache — Sub-5ms worldwide)
         try {
-          const cachedUrl = await env.SOUNDCLOUD_STREAM_KV.get(kvKey)
-          if (cachedUrl) {
-            const res = redirectResponse(cachedUrl, 7200)
-            ctx.waitUntil(edgeCache.put(cacheKey, res.clone()))
-            return res
+          const cachedEdgeResponse = await edgeCache.match(cacheKey)
+          if (cachedEdgeResponse) {
+            return cachedEdgeResponse
           }
-        } catch (e) {
-          console.warn('L2 KV read error:', e)
+        } catch (cacheReadErr) {
+          console.warn('L1 Edge Cache read error:', cacheReadErr)
+        }
+
+        // B. Check Cloudflare KV cache (L2 Persistent Cache)
+        if (env.SOUNDCLOUD_STREAM_KV) {
+          try {
+            const cachedUrl = await env.SOUNDCLOUD_STREAM_KV.get(kvKey)
+            if (cachedUrl) {
+              const res = redirectResponse(cachedUrl, 900)
+              ctx.waitUntil(edgeCache.put(cacheKey, res.clone()))
+              return res
+            }
+          } catch (e) {
+            console.warn('L2 KV read error:', e)
+          }
         }
       }
 
@@ -225,7 +233,8 @@ export default {
       if (!streamUrl) {
         try {
           const appUrl = (env.NEXT_APP_URL || 'https://phongtctmusic.vercel.app').replace(/\/+$/, '')
-          const resolveApi = `${appUrl}/api/soundcloud/stream?id=${encodeURIComponent(cleanId)}&format=json`
+          const refreshQuery = refresh ? '&refresh=1' : ''
+          const resolveApi = `${appUrl}/api/soundcloud/stream?id=${encodeURIComponent(cleanId)}&format=json${refreshQuery}`
 
           const res = await fetch(resolveApi, {
             headers: { Accept: 'application/json' },
@@ -247,7 +256,7 @@ export default {
         })
       }
 
-      const redirectRes = redirectResponse(streamUrl, 7200)
+      const redirectRes = redirectResponse(streamUrl, 900)
 
       // Save to L1 Edge Cache (caches.default)
       ctx.waitUntil(edgeCache.put(cacheKey, redirectRes.clone()))
@@ -256,7 +265,7 @@ export default {
       if (env.SOUNDCLOUD_STREAM_KV) {
         ctx.waitUntil(
           env.SOUNDCLOUD_STREAM_KV.put(kvKey, streamUrl, {
-            expirationTtl: 7200,
+            expirationTtl: 900,
           })
         )
       }

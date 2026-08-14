@@ -1,49 +1,68 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveSoundCloudStreamUrl } from '@/lib/soundcloudClient'
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Range, Authorization',
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { headers: CORS_HEADERS })
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const id = searchParams.get('id')
   const format = searchParams.get('format') // 'json' or redirect
+  const refresh = searchParams.get('refresh') === '1'
 
   if (!id) {
-    return NextResponse.json({ error: 'Missing track id' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'Missing track id' },
+      { status: 400, headers: CORS_HEADERS }
+    )
   }
 
   // Check if Cloudflare Worker URL is configured
   const workerUrl = process.env.NEXT_PUBLIC_SOUNDCLOUD_WORKER_URL?.trim()
   if (workerUrl && !format) {
-    const target = `${workerUrl.replace(/\/+$/, '')}/stream?id=${encodeURIComponent(id)}`
+    const refreshQuery = refresh ? '&refresh=1' : ''
+    const target = `${workerUrl.replace(/\/+$/, '')}/stream?id=${encodeURIComponent(id)}${refreshQuery}`
     return NextResponse.redirect(target, 307)
   }
 
   try {
-    const streamUrl = await resolveSoundCloudStreamUrl(id)
+    const streamUrl = await resolveSoundCloudStreamUrl(id, refresh)
     if (!streamUrl) {
       return NextResponse.json(
         { error: 'Stream not found or track is not full audio' },
-        { status: 404 }
+        { status: 404, headers: CORS_HEADERS }
       )
     }
 
+    const cacheControl = refresh
+      ? 'no-cache, no-store, must-revalidate'
+      : 'public, max-age=900, s-maxage=900, stale-while-revalidate=300'
+
     if (format === 'json') {
-      const res = NextResponse.json({ url: streamUrl })
-      res.headers.set(
-        'Cache-Control',
-        'public, max-age=7200, s-maxage=7200, stale-while-revalidate=3600'
-      )
+      const res = NextResponse.json({ url: streamUrl }, { headers: CORS_HEADERS })
+      res.headers.set('Cache-Control', cacheControl)
       return res
     }
 
     // Default: Redirect browser/audio element directly to the resolved stream CDN
     const res = NextResponse.redirect(streamUrl, 307)
-    res.headers.set(
-      'Cache-Control',
-      'public, max-age=7200, s-maxage=7200, stale-while-revalidate=3600'
-    )
+    for (const [k, v] of Object.entries(CORS_HEADERS)) {
+      res.headers.set(k, v)
+    }
+    res.headers.set('Cache-Control', cacheControl)
     return res
   } catch (err) {
     console.error('[API /api/soundcloud/stream] Error:', err)
-    return NextResponse.json({ error: 'Failed to resolve stream' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Failed to resolve stream' },
+      { status: 500, headers: CORS_HEADERS }
+    )
   }
 }

@@ -7,11 +7,12 @@ import {
 } from './soundcloud'
 import { Track, SoundCloudPlaylist } from '@/types'
 
-// Cache client_id in memory with 2-hour TTL
+// Cache client_id in memory with 15-minute TTL
 let cachedClientId: string | null = null
 let clientIdExpiresAt: number = 0
+let inFlightClientIdPromise: Promise<string> | null = null
 
-// In-memory stream URL cache (2-hour TTL)
+// In-memory stream URL cache (15-minute TTL)
 const streamUrlCache = new Map<string, { url: string; expiresAt: number }>()
 
 // In-memory track metadata cache (1-hour TTL)
@@ -28,60 +29,97 @@ const FALLBACK_CLIENT_IDS = [
 ]
 
 /**
- * Dynamically retrieves or extracts a valid SoundCloud Client ID
+ * Fetch wrapper with AbortController timeout to prevent hanging connections
  */
-export async function getSoundCloudClientId(): Promise<string> {
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit & { next?: { revalidate?: number } } = {},
+  ms = 8000
+): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), ms)
+  try {
+    return await fetch(url, { ...options, signal: controller.signal })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
+ * Dynamically retrieves or extracts a valid SoundCloud Client ID with in-flight deduplication
+ */
+export async function getSoundCloudClientId(forceRefresh = false): Promise<string> {
   const envId = process.env.SOUNDCLOUD_CLIENT_ID?.trim()
   if (envId) return envId
 
   const now = Date.now()
-  if (cachedClientId && now < clientIdExpiresAt) {
+  if (!forceRefresh && cachedClientId && now < clientIdExpiresAt) {
     return cachedClientId
   }
 
-  // 1. Try to extract latest client_id dynamically from soundcloud.com web bundle
-  try {
-    const htmlRes = await fetch('https://soundcloud.com', {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        Accept: 'text/html,application/xhtml+xml',
-      },
-      next: { revalidate: 3600 },
-    })
-
-    if (htmlRes.ok) {
-      const html = await htmlRes.text()
-      const scriptUrls = [...html.matchAll(/<script[^>]+src="([^">]+\.js)"/g)].map((m) => m[1])
-
-      // Look into the last 8 bundle scripts in parallel
-      const targetScripts = scriptUrls.slice(-8).reverse()
-      const results = await Promise.allSettled(
-        targetScripts.map(async (sUrl) => {
-          const sRes = await fetch(sUrl)
-          if (!sRes.ok) return null
-          const js = await sRes.text()
-          const match = js.match(/client_id[:=]\s*["']([a-zA-Z0-9]{32})["']/)
-          return match?.[1] || null
-        })
-      )
-
-      for (const r of results) {
-        if (r.status === 'fulfilled' && r.value) {
-          cachedClientId = r.value
-          clientIdExpiresAt = now + 2 * 60 * 60 * 1000 // 2 hours TTL
-          return cachedClientId
-        }
-      }
-    }
-  } catch (err) {
-    console.warn('[SoundCloud] Failed dynamic client_id extraction:', err)
+  if (inFlightClientIdPromise) {
+    return inFlightClientIdPromise
   }
 
-  // 2. Fallback to candidate list
-  cachedClientId = FALLBACK_CLIENT_IDS[0]
-  clientIdExpiresAt = now + 15 * 60 * 1000 // 15 mins TTL
-  return cachedClientId
+  inFlightClientIdPromise = (async () => {
+    // 1. Try to extract latest client_id dynamically from soundcloud.com web bundle
+    try {
+      const htmlRes = await fetchWithTimeout(
+        'https://soundcloud.com',
+        {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            Accept: 'text/html,application/xhtml+xml',
+          },
+          next: { revalidate: 3600 },
+        },
+        6000
+      )
+
+      if (htmlRes.ok) {
+        const html = await htmlRes.text()
+        const scriptUrls = [...html.matchAll(/<script[^>]+src="([^">]+\.js)"/g)].map((m) => m[1])
+
+        // Look into the last 8 bundle scripts in parallel
+        const targetScripts = scriptUrls.slice(-8).reverse()
+        const results = await Promise.allSettled(
+          targetScripts.map(async (sUrl) => {
+            const sRes = await fetchWithTimeout(sUrl, {}, 5000)
+            if (!sRes.ok) return null
+            const js = await sRes.text()
+            const match = js.match(/client_id[:=]\s*["']([a-zA-Z0-9]{32})["']/)
+            return match?.[1] || null
+          })
+        )
+
+        for (const r of results) {
+          if (r.status === 'fulfilled' && r.value) {
+            cachedClientId = r.value
+            clientIdExpiresAt = Date.now() + 15 * 60 * 1000 // 15 mins TTL
+            return cachedClientId
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[SoundCloud] Failed dynamic client_id extraction:', err)
+    }
+
+    // 2. Fallback to candidate list
+    const fallback = FALLBACK_CLIENT_IDS[0]
+    if (!fallback) {
+      throw new Error('[SoundCloud] No fallback client_id available')
+    }
+    cachedClientId = fallback
+    clientIdExpiresAt = Date.now() + 15 * 60 * 1000 // 15 mins TTL
+    return cachedClientId
+  })()
+
+  try {
+    return await inFlightClientIdPromise
+  } finally {
+    inFlightClientIdPromise = null
+  }
 }
 
 /**
@@ -94,14 +132,18 @@ export async function resolveSoundCloudUrl(inputUrl: string): Promise<Track[]> {
   // If short link on.soundcloud.com, follow redirect to extract canonical permalink
   if (targetUrl.includes('on.soundcloud.com')) {
     try {
-      const headRes = await fetch(targetUrl, {
-        method: 'HEAD',
-        redirect: 'follow',
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      const headRes = await fetchWithTimeout(
+        targetUrl,
+        {
+          method: 'HEAD',
+          redirect: 'follow',
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          },
         },
-      })
+        5000
+      )
       if (headRes.url && headRes.url.includes('soundcloud.com')) {
         targetUrl = headRes.url
       }
@@ -116,14 +158,18 @@ export async function resolveSoundCloudUrl(inputUrl: string): Promise<Track[]> {
   )}&client_id=${clientId}`
 
   try {
-    const res = await fetch(resolveApi, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        Accept: 'application/json',
+    const res = await fetchWithTimeout(
+      resolveApi,
+      {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          Accept: 'application/json',
+        },
+        next: { revalidate: 3600 },
       },
-      next: { revalidate: 3600 },
-    })
+      8000
+    )
 
     if (!res.ok) {
       console.warn(`[SoundCloud] URL Resolve returned ${res.status}`)
@@ -142,14 +188,18 @@ export async function resolveSoundCloudUrl(inputUrl: string): Promise<Track[]> {
     if (data.kind === 'user' && data.id) {
       try {
         const userTracksUrl = `https://api-v2.soundcloud.com/users/${data.id}/tracks?client_id=${clientId}&limit=50&access=playable`
-        const userRes = await fetch(userTracksUrl, {
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-            Accept: 'application/json',
+        const userRes = await fetchWithTimeout(
+          userTracksUrl,
+          {
+            headers: {
+              'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+              Accept: 'application/json',
+            },
+            next: { revalidate: 600 },
           },
-          next: { revalidate: 600 },
-        })
+          8000
+        )
 
         if (userRes.ok) {
           const userTracksData = await userRes.json()
@@ -187,14 +237,18 @@ export async function resolveSoundCloudPlaylistUrl(
   // If short link on.soundcloud.com, follow redirect
   if (targetUrl.includes('on.soundcloud.com')) {
     try {
-      const headRes = await fetch(targetUrl, {
-        method: 'HEAD',
-        redirect: 'follow',
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      const headRes = await fetchWithTimeout(
+        targetUrl,
+        {
+          method: 'HEAD',
+          redirect: 'follow',
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          },
         },
-      })
+        5000
+      )
       if (headRes.url && headRes.url.includes('soundcloud.com')) {
         targetUrl = headRes.url
       }
@@ -209,14 +263,18 @@ export async function resolveSoundCloudPlaylistUrl(
   )}&client_id=${clientId}`
 
   try {
-    const res = await fetch(resolveApi, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        Accept: 'application/json',
+    const res = await fetchWithTimeout(
+      resolveApi,
+      {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          Accept: 'application/json',
+        },
+        next: { revalidate: 3600 },
       },
-      next: { revalidate: 3600 },
-    })
+      8000
+    )
 
     if (!res.ok) return null
     const pl = await res.json()
@@ -279,14 +337,18 @@ async function resolveAllPlaylistTracks(
       const idsParam = chunk.join('%2C')
       const tracksApi = `https://api-v2.soundcloud.com/tracks?ids=${idsParam}&client_id=${clientId}`
       try {
-        const chunkRes = await fetch(tracksApi, {
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-            Accept: 'application/json',
+        const chunkRes = await fetchWithTimeout(
+          tracksApi,
+          {
+            headers: {
+              'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+              Accept: 'application/json',
+            },
+            next: { revalidate: 600 },
           },
-          next: { revalidate: 600 },
-        })
+          8000
+        )
         if (chunkRes.ok) {
           const chunkData = await chunkRes.json()
           if (Array.isArray(chunkData)) {
@@ -339,14 +401,18 @@ export async function searchSoundCloudTracks(
   )}&client_id=${clientId}&limit=${fetchLimit}&offset=${offset}&access=playable`
 
   try {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        Accept: 'application/json',
+    const res = await fetchWithTimeout(
+      url,
+      {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          Accept: 'application/json',
+        },
+        next: { revalidate: 300 }, // Cache search queries for 5 mins
       },
-      next: { revalidate: 300 }, // Cache search queries for 5 mins
-    })
+      8000
+    )
 
     if (!res.ok) {
       console.warn(`[SoundCloud] Search failed with status ${res.status}`)
@@ -396,14 +462,18 @@ export async function resolveSoundCloudTrack(
   const url = `https://api-v2.soundcloud.com/tracks/${rawId}?client_id=${clientId}`
 
   try {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        Accept: 'application/json',
+    const res = await fetchWithTimeout(
+      url,
+      {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          Accept: 'application/json',
+        },
+        next: { revalidate: 3600 },
       },
-      next: { revalidate: 3600 },
-    })
+      8000
+    )
 
     if (!res.ok) return null
 
@@ -414,7 +484,7 @@ export async function resolveSoundCloudTrack(
     trackMetadataCache.set(rawId, {
       track: appTrack,
       raw,
-      expiresAt: now + 60 * 60 * 1000, // 1 hour TTL
+      expiresAt: Date.now() + 60 * 60 * 1000, // 1 hour TTL
     })
 
     return {
@@ -428,18 +498,23 @@ export async function resolveSoundCloudTrack(
 }
 
 /**
- * Resolves stream URL for a given track ID
+ * Resolves stream URL for a given track ID with 401/403 invalidation and retry
  */
 export async function resolveSoundCloudStreamUrl(
-  trackId: string | number
+  trackId: string | number,
+  bypassCache = false
 ): Promise<string | null> {
   const rawId = String(trackId).replace(/^sc-/, '')
   const now = Date.now()
 
-  // 1. Check in-memory stream cache (instant hit <1ms)
-  const cachedStream = streamUrlCache.get(rawId)
-  if (cachedStream && now < cachedStream.expiresAt) {
-    return cachedStream.url
+  // 1. Check in-memory stream cache
+  if (bypassCache) {
+    streamUrlCache.delete(rawId)
+  } else {
+    const cachedStream = streamUrlCache.get(rawId)
+    if (cachedStream && now < cachedStream.expiresAt) {
+      return cachedStream.url
+    }
   }
 
   const resolved = await resolveSoundCloudTrack(rawId)
@@ -448,17 +523,41 @@ export async function resolveSoundCloudStreamUrl(
   const transcoding = getBestSoundCloudTranscoding(resolved.raw)
   if (!transcoding?.url) return null
 
-  const clientId = await getSoundCloudClientId()
-  const resolveUrl = `${transcoding.url}?client_id=${clientId}`
+  let clientId = await getSoundCloudClientId()
+  let resolveUrl = `${transcoding.url}?client_id=${clientId}`
 
   try {
-    const res = await fetch(resolveUrl, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        Accept: 'application/json',
+    let res = await fetchWithTimeout(
+      resolveUrl,
+      {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          Accept: 'application/json',
+        },
       },
-    })
+      6000
+    )
+
+    // Invalidate client_id and retry once if SoundCloud revoked it (401 or 403)
+    if (!res.ok && (res.status === 401 || res.status === 403)) {
+      console.warn(`[SoundCloud] resolve stream returned ${res.status}, refreshing client_id...`)
+      cachedClientId = null
+      clientIdExpiresAt = 0
+      clientId = await getSoundCloudClientId(true)
+      resolveUrl = `${transcoding.url}?client_id=${clientId}`
+      res = await fetchWithTimeout(
+        resolveUrl,
+        {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            Accept: 'application/json',
+          },
+        },
+        6000
+      )
+    }
 
     if (!res.ok) return null
 
@@ -466,10 +565,10 @@ export async function resolveSoundCloudStreamUrl(
     const streamUrl = data.url || null
 
     if (streamUrl) {
-      // Cache stream URL in memory for 2 hours (SoundCloud signed media tokens last ~4 hours)
+      // Cache stream URL in memory for 15 minutes (900s)
       streamUrlCache.set(rawId, {
         url: streamUrl,
-        expiresAt: now + 2 * 60 * 60 * 1000,
+        expiresAt: Date.now() + 15 * 60 * 1000,
       })
     }
 
@@ -496,14 +595,18 @@ export async function searchSoundCloudPlaylists(
   )}&client_id=${clientId}&limit=${limit}&access=playable`
 
   try {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        Accept: 'application/json',
+    const res = await fetchWithTimeout(
+      url,
+      {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          Accept: 'application/json',
+        },
+        next: { revalidate: 600 },
       },
-      next: { revalidate: 600 },
-    })
+      8000
+    )
 
     if (!res.ok) return []
     const data = await res.json()
@@ -545,14 +648,18 @@ export async function getSoundCloudPlaylistTracks(
   const url = `https://api-v2.soundcloud.com/playlists/${rawId}?client_id=${clientId}`
 
   try {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        Accept: 'application/json',
+    const res = await fetchWithTimeout(
+      url,
+      {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          Accept: 'application/json',
+        },
+        next: { revalidate: 600 },
       },
-      next: { revalidate: 600 },
-    })
+      8000
+    )
 
     if (!res.ok) return null
     const pl = await res.json()

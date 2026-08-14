@@ -83,9 +83,31 @@ describe('SoundCloud Helper & Full Audio Filter Unit Tests', () => {
     expect(isSoundCloudFullAudio(snippetTrack3)).toBe(false)
   })
 
-  it('getSoundCloudHighResArtwork should convert low-res artwork URLs to -t500x500.jpg', () => {
+  it('isSoundCloudFullAudio should return false when streamable is false', () => {
+    const unstreamableTrack: SoundCloudRawTrack = {
+      id: 888111,
+      title: 'Disabled Streaming Track',
+      duration: 200000,
+      streamable: false,
+      policy: 'ALLOW',
+      media: {
+        transcodings: [
+          {
+            url: 'https://api-v2.soundcloud.com/media/soundcloud:tracks:888111/stream/progressive',
+            format: { protocol: 'progressive', mime_type: 'audio/mpeg' },
+          },
+        ],
+      },
+    }
+
+    expect(isSoundCloudFullAudio(unstreamableTrack)).toBe(false)
+  })
+
+  it('getSoundCloudHighResArtwork should convert low-res artwork URLs to -t500x500.jpg for various size suffixes', () => {
     const largeUrl = 'https://i1.sndcdn.com/artworks-000123456789-abcdef-large.jpg'
     const badgeUrl = 'https://i1.sndcdn.com/avatars-000123456789-xyz-badge.jpg'
+    const customSizeUrl = 'https://i1.sndcdn.com/artworks-000123456789-abcdef-t300x300.jpg'
+    const tinyUrl = 'https://i1.sndcdn.com/artworks-000123456789-abcdef-tiny.png'
 
     expect(getSoundCloudHighResArtwork(largeUrl)).toBe(
       'https://i1.sndcdn.com/artworks-000123456789-abcdef-t500x500.jpg'
@@ -93,10 +115,16 @@ describe('SoundCloud Helper & Full Audio Filter Unit Tests', () => {
     expect(getSoundCloudHighResArtwork(badgeUrl)).toBe(
       'https://i1.sndcdn.com/avatars-000123456789-xyz-t500x500.jpg'
     )
+    expect(getSoundCloudHighResArtwork(customSizeUrl)).toBe(
+      'https://i1.sndcdn.com/artworks-000123456789-abcdef-t500x500.jpg'
+    )
+    expect(getSoundCloudHighResArtwork(tinyUrl)).toBe(
+      'https://i1.sndcdn.com/artworks-000123456789-abcdef-t500x500.png'
+    )
     expect(getSoundCloudHighResArtwork(null)).toBe(null)
   })
 
-  it('soundCloudTrackToAppTrack should correctly map raw SoundCloud track to MusicWeb Track entity', () => {
+  it('soundCloudTrackToAppTrack should correctly map raw SoundCloud track to MusicWeb Track entity with source_url and empty file_path', () => {
     const rawTrack: SoundCloudRawTrack = {
       id: 777888,
       title: 'Making My Way',
@@ -118,6 +146,9 @@ describe('SoundCloud Helper & Full Audio Filter Unit Tests', () => {
     expect(appTrack.duration).toBe(258)
     expect(appTrack.source).toBe('soundcloud')
     expect(appTrack.soundcloud_id).toBe(777888)
+    expect(appTrack.soundcloud_permalink_url).toBe('https://soundcloud.com/sontungmtp/making-my-way')
+    expect(appTrack.source_url).toBe('https://soundcloud.com/sontungmtp/making-my-way')
+    expect(appTrack.file_path).toBe('')
     expect(appTrack.cover_url).toBe('https://i1.sndcdn.com/artworks-123-t500x500.jpg')
     expect(appTrack.audio_url).toBe('/api/soundcloud/stream?id=777888')
   })
