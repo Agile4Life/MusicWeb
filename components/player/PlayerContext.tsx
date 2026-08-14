@@ -491,6 +491,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         const scId = track.soundcloud_id ?? track.id.replace(/^sc-/, '')
         const workerUrl = process.env.NEXT_PUBLIC_SOUNDCLOUD_WORKER_URL?.trim()
         const refreshQuery = bypassCache ? '&refresh=1' : ''
+
+        try {
+          const endpoint = workerUrl
+            ? `${workerUrl.replace(/\/+$/, '')}/stream?id=${encodeURIComponent(scId)}&format=json${refreshQuery}`
+            : `/api/soundcloud/stream?id=${encodeURIComponent(scId)}&format=json${refreshQuery}`
+          const res = await fetch(endpoint)
+          if (res.ok) {
+            const data = await res.json()
+            if (data.url) return data.url
+          }
+        } catch (e) {
+          console.warn('[SoundCloud getAudioUrl] direct resolve error:', e)
+        }
+
         if (workerUrl) {
           return `${workerUrl.replace(/\/+$/, '')}/stream?id=${encodeURIComponent(scId)}${refreshQuery}`
         }

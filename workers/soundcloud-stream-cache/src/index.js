@@ -256,6 +256,26 @@ export default {
         })
       }
 
+      const format = url.searchParams.get('format')
+      if (format === 'json') {
+        const jsonRes = corsResponse(JSON.stringify({ url: streamUrl }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'public, max-age=900, s-maxage=900, stale-while-revalidate=300',
+          },
+        })
+        ctx.waitUntil(edgeCache.put(cacheKey, jsonRes.clone()))
+        if (env.SOUNDCLOUD_STREAM_KV) {
+          ctx.waitUntil(
+            env.SOUNDCLOUD_STREAM_KV.put(kvKey, streamUrl, {
+              expirationTtl: 900,
+            })
+          )
+        }
+        return jsonRes
+      }
+
       const redirectRes = redirectResponse(streamUrl, 900)
 
       // Save to L1 Edge Cache (caches.default)
