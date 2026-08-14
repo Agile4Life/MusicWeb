@@ -14,7 +14,7 @@ export function TiltCard({
   children,
   className = '',
   style = {},
-  maxTilt = 8,
+  maxTilt = 7,
 }: TiltCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const rafRef = useRef<number | null>(null)
@@ -67,8 +67,13 @@ export function TiltCard({
           maxTilt,
         )
 
+        const normX = Number((((clientX - rect.left) / rect.width - 0.5) * 2).toFixed(2))
+        const normY = Number((((clientY - rect.top) / rect.height - 0.5) * 2).toFixed(2))
+
         card.style.setProperty('--rotate-x', `${rotateX}deg`)
         card.style.setProperty('--rotate-y', `${rotateY}deg`)
+        card.style.setProperty('--tilt-x', `${normX}`)
+        card.style.setProperty('--tilt-y', `${normY}`)
         card.style.setProperty('--mouse-x', `${(((clientX - rect.left) / rect.width) * 100).toFixed(1)}%`)
         card.style.setProperty('--mouse-y', `${(((clientY - rect.top) / rect.height) * 100).toFixed(1)}%`)
       })
@@ -86,6 +91,8 @@ export function TiltCard({
 
     card.style.setProperty('--rotate-x', '0deg')
     card.style.setProperty('--rotate-y', '0deg')
+    card.style.setProperty('--tilt-x', '0')
+    card.style.setProperty('--tilt-y', '0')
   }, [])
 
   useEffect(() => {
@@ -101,25 +108,21 @@ export function TiltCard({
       ref={cardRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className={`group relative rounded-2xl bg-slate-900/40 border border-white/10 shadow-2xl overflow-hidden transition-transform duration-200 ease-out motion-reduce:!transform-none ${className}`}
+      className={`group relative rounded-2xl overflow-hidden transition-all duration-300 ease-out motion-reduce:!transform-none ${className}`}
       style={{
-        transform:
-          isHovering && isHoverCapable && !isReducedMotion
-            ? 'perspective(1000px) rotateX(var(--rotate-x, 0deg)) rotateY(var(--rotate-y, 0deg))'
-            : 'none',
         ...style,
       }}
     >
-      {/* 3D Depth Layer Children */}
+      {/* 2.5D Isolated Layers (Cover has 3D tilt, Text stays in crisp 2D) */}
       {children}
 
-      {/* Specular Highlight & Holographic Shine Overlay */}
+      {/* Specular Highlight & Holographic Light Glare */}
       {isHoverCapable && !isReducedMotion && (
         <div
           className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300 mix-blend-overlay motion-reduce:hidden z-20"
           style={{
             background:
-              'radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255,255,255,0.35) 0%, transparent 55%, rgba(255,255,255,0.05) 100%)',
+              'radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255,255,255,0.3) 0%, transparent 60%)',
           }}
         />
       )}

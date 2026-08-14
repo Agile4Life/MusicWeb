@@ -98,7 +98,7 @@ function AlbumCard({ album, index = 0 }: AlbumCardProps) {
           <h3 className="card-title text-xs sm:text-sm font-bold text-white truncate">
             {album.name}
           </h3>
-          <p className="text-[11px] text-slate-400 truncate font-medium">
+          <p className="card-artist text-[11px] text-slate-400 truncate font-medium">
             {album.artist}
           </p>
 
