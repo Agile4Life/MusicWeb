@@ -202,38 +202,51 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
     }
   }, [isOpen, fetchedTracks, trackLimit, selectedThemeId, customerName, dataSource, playlists])
 
-  // Handle Download PNG
+  // Handle Download PNG (Fast, bulletproof download using live preview Data URL)
   const handleDownload = async () => {
     try {
       const sliceTracks = fetchedTracks.slice(0, trackLimit)
-      if (sliceTracks.length === 0) return
-
-      const playlistName = (playlists[0]?.name || 'PLAYLIST').toUpperCase()
-      const labelMap: Record<DataSourceType, string> = {
-        queue: 'NOW PLAYING QUEUE',
-        history: 'RECENT LISTENING HISTORY',
-        favorites: 'TOP FAVORITES RECEIPT',
-        playlist: `${playlistName} RECEIPT`,
+      if (sliceTracks.length === 0) {
+        toast('Chưa có bài hát để tải hóa đơn', 'warning')
+        return
       }
 
-      const blob = await generateReceiptBlob({
-        title: 'MUSICWEB STORE',
-        periodLabel: labelMap[dataSource] || 'TOP TRACKS RECEIPT',
-        userName: customerName || 'CUSTOMER',
-        tracks: sliceTracks,
-        themeId: selectedThemeId,
-      })
+      let downloadUrl = previewUrl
+      let isBlobUrl = false
 
-      const url = URL.createObjectURL(blob)
+      if (!downloadUrl) {
+        const playlistName = (playlists[0]?.name || 'PLAYLIST').toUpperCase()
+        const labelMap: Record<DataSourceType, string> = {
+          queue: 'NOW PLAYING QUEUE',
+          history: 'RECENT LISTENING HISTORY',
+          favorites: 'TOP FAVORITES RECEIPT',
+          playlist: `${playlistName} RECEIPT`,
+        }
+
+        const blob = await generateReceiptBlob({
+          title: 'MUSICWEB STORE',
+          periodLabel: labelMap[dataSource] || 'TOP TRACKS RECEIPT',
+          userName: customerName || 'CUSTOMER',
+          tracks: sliceTracks,
+          themeId: selectedThemeId,
+        })
+        downloadUrl = URL.createObjectURL(blob)
+        isBlobUrl = true
+      }
+
+      const safeName = (customerName || 'receipt').toLowerCase().replace(/[^a-z0-9]/gi, '_')
       const a = document.createElement('a')
-      a.href = url
-      a.download = `musicweb-receipt-${dataSource}-${Date.now()}.png`
+      a.href = downloadUrl
+      a.download = `musicweb-receipt-${safeName}-${Date.now()}.png`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
-      URL.revokeObjectURL(url)
 
-      toast('Đã tải hóa đơn về máy!', 'success', 'Thành công')
+      if (isBlobUrl) {
+        URL.revokeObjectURL(downloadUrl)
+      }
+
+      toast('Đã tải ảnh hóa đơn về máy thành công!', 'success', 'Tải về')
     } catch (err) {
       console.error('Download receipt error:', err)
       toast('Lỗi khi tải ảnh hóa đơn', 'error')
@@ -244,7 +257,10 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
   const handleCopy = async () => {
     try {
       const sliceTracks = fetchedTracks.slice(0, trackLimit)
-      if (sliceTracks.length === 0) return
+      if (sliceTracks.length === 0) {
+        toast('Chưa có bài hát để sao chép', 'warning')
+        return
+      }
 
       const playlistName = (playlists[0]?.name || 'PLAYLIST').toUpperCase()
       const labelMap: Record<DataSourceType, string> = {
@@ -262,7 +278,7 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
         themeId: selectedThemeId,
       })
 
-      if (navigator.clipboard && window.ClipboardItem) {
+      if (typeof navigator !== 'undefined' && navigator.clipboard && typeof window.ClipboardItem !== 'undefined') {
         await navigator.clipboard.write([
           new ClipboardItem({
             'image/png': blob,
@@ -270,7 +286,7 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
         ])
         setCopied(true)
         setTimeout(() => setCopied(false), 2500)
-        toast('Đã sao chép hóa đơn vào bộ nhớ tạm!', 'success', 'Sao chép')
+        toast('Đã sao chép ảnh hóa đơn vào bộ nhớ tạm!', 'success', 'Sao chép')
       } else {
         await handleDownload()
       }
@@ -285,7 +301,10 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
     setIsSharing(true)
     try {
       const sliceTracks = fetchedTracks.slice(0, trackLimit)
-      if (sliceTracks.length === 0) return
+      if (sliceTracks.length === 0) {
+        toast('Chưa có bài hát để chia sẻ', 'warning')
+        return
+      }
 
       const playlistName = (playlists[0]?.name || 'PLAYLIST').toUpperCase()
       const labelMap: Record<DataSourceType, string> = {
@@ -306,25 +325,16 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
       const file = new File([blob], 'musicweb-receipt.png', { type: 'image/png' })
       const shareUrl = typeof window !== 'undefined' ? window.location.origin : 'https://phongtctmusic.vercel.app'
 
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(shareUrl).catch(() => {})
-      }
-
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           title: `Hóa đơn âm nhạc - ${customerName}`,
           text: `Xem hóa đơn âm nhạc của ${customerName} trên MusicWeb! 🧾🎵`,
           files: [file],
         })
-        toast('Đã sao chép link web & mở chia sẻ Story!', 'success')
-      } else if (navigator.share) {
-        await navigator.share({
-          title: `Hóa đơn âm nhạc - ${customerName}`,
-          text: `Xem hóa đơn âm nhạc của ${customerName} trên MusicWeb! 🧾🎵`,
-          url: shareUrl,
-        })
+        toast('Đã mở chia sẻ hóa đơn lên Story!', 'success')
       } else {
-        await handleCopy()
+        // Desktop or browsers without Web Share API: Download PNG and copy
+        await handleDownload()
       }
     } catch (err: any) {
       if (err?.name !== 'AbortError') {
@@ -549,8 +559,8 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
           />
 
           {/* Scrollable Thermal Receipt Preview Pedestal */}
-          <div className="flex-1 overflow-y-auto flex items-start sm:items-center justify-center py-4 px-2 no-scrollbar relative z-10 min-h-[360px]">
-            <div className="relative w-full max-w-[340px] sm:max-w-[420px] transition-all duration-300 flex items-center justify-center">
+          <div className="flex-1 overflow-y-auto flex flex-col items-center justify-start py-4 px-2 no-scrollbar relative z-10 min-h-[360px]">
+            <div className="relative w-auto max-w-full my-auto transition-all duration-300 flex items-center justify-center">
               {isLoadingTracks ? (
                 <div className="w-64 h-80 flex flex-col items-center justify-center gap-3 text-slate-400 bg-black/40 rounded-xl border border-white/10 p-6">
                   <RefreshCw className="w-7 h-7 text-amber-400 animate-spin" />
@@ -560,7 +570,7 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
                 <img
                   src={previewUrl}
                   alt="Music Receipt Preview"
-                  className="w-full h-auto object-contain rounded-xl transition-all duration-300 drop-shadow-[0_25px_60px_rgba(0,0,0,0.9)] border border-white/20"
+                  className="w-auto h-auto max-h-[56vh] xl:max-h-[62vh] max-w-[360px] sm:max-w-[420px] object-contain rounded-xl transition-all duration-300 drop-shadow-[0_25px_60px_rgba(0,0,0,0.9)] border border-white/20"
                 />
               ) : (
                 <div className="w-64 h-80 flex flex-col items-center justify-center gap-3 text-slate-400 bg-black/40 rounded-xl border border-white/10 p-6">
