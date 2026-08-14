@@ -236,7 +236,7 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
   if (!currentTrack) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center text-slate-400 p-8 text-center select-none bg-[#07080c]">
-        <Headphones className="w-16 h-16 text-cyan-400/60 mb-4 animate-pulse" />
+        <Headphones className="w-16 h-16 text-[var(--spotify-glow,#22d3ee)]/60 mb-4 animate-pulse" />
         <h3 className="text-lg font-bold text-slate-200">Chưa có bài hát đang phát</h3>
         <p className="text-xs text-slate-500 mt-1">Hãy chọn một bài hát từ thư viện để xem lời bài hát</p>
       </div>
@@ -255,7 +255,7 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
               className="w-full h-full object-cover blur-3xl opacity-30 scale-125 transform-gpu transition-all duration-700"
             />
           ) : (
-            <div className="w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-900/30 via-[#0a0d14] to-[#07090e]" />
+            <div className="w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[var(--theme-gradient-1,rgba(6,182,212,0.25))] via-[#0a0d14] to-[#07090e]" />
           )}
           <div className="absolute inset-0 bg-gradient-to-b from-[#07090e]/70 via-[#07090e]/85 to-[#07090e]" />
           <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 50% 30%, var(--accent-dim), transparent 70%)' }} />
@@ -307,7 +307,7 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
                 >
                   <Minus className="w-3 h-3" />
                 </button>
-                <span className="text-[10px] font-mono font-bold text-cyan-300 min-w-[36px] text-center" title="Bù lệch thời gian (giây)">
+                <span className="text-[10px] font-mono font-bold text-[var(--spotify-glow,#22d3ee)] min-w-[36px] text-center" title="Bù lệch thời gian (giây)">
                   {lyricOffset >= 0 ? '+' : ''}{lyricOffset.toFixed(1)}s
                 </span>
                 <button
@@ -323,7 +323,7 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
             <button
               onClick={() => setShowShareModal(true)}
               disabled={parsedLyrics.length === 0}
-              className="w-9 h-9 flex items-center justify-center bg-white/[0.06] hover:bg-white/15 active:scale-95 text-slate-200 hover:text-cyan-300 rounded-full border border-white/10 transition-all shrink-0 shadow-md disabled:opacity-40 disabled:pointer-events-none"
+              className="w-9 h-9 flex items-center justify-center bg-white/[0.06] hover:bg-white/15 active:scale-95 text-slate-200 hover:text-[var(--spotify-glow,#22d3ee)] rounded-full border border-white/10 transition-all shrink-0 shadow-md disabled:opacity-40 disabled:pointer-events-none"
               title="Chia sẻ câu hát (Lyrics Story)"
             >
               <Share2 className="w-3.5 h-3.5" />
@@ -335,7 +335,7 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
               className="w-9 h-9 flex items-center justify-center bg-white/[0.06] hover:bg-white/15 active:scale-95 text-slate-200 rounded-full border border-white/10 transition-all shrink-0 shadow-md"
               title="Tải lại lời bài hát"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-cyan-400' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[var(--spotify-glow,#22d3ee)]' : ''}`} />
             </button>
 
             {onClose && (
@@ -362,8 +362,8 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
       >
         {loading ? (
           <div className="h-full flex flex-col items-center justify-center text-slate-400 py-20">
-            <div className="w-12 h-12 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center mb-4 shadow-xl shadow-cyan-950/40">
-              <RefreshCw className="w-6 h-6 text-cyan-400 animate-spin" />
+            <div className="w-12 h-12 rounded-full bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/30 flex items-center justify-center mb-4 shadow-xl shadow-black/40">
+              <RefreshCw className="w-6 h-6 text-[var(--spotify-glow,#22d3ee)] animate-spin" />
             </div>
             <p className="text-sm font-extrabold text-white tracking-wide">Đang tải lời bài hát từ thư viện...</p>
           </div>
@@ -450,12 +450,12 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <Headphones className="w-5 h-5 text-cyan-400" />
+                <Headphones className="w-5 h-5 text-[var(--spotify-glow,#22d3ee)]" />
               )}
             </div>
 
             <div className="truncate flex flex-col min-w-0">
-              <p className="text-xs sm:text-sm font-extrabold text-white truncate hover:text-cyan-300 transition-colors cursor-pointer">
+              <p className="text-xs sm:text-sm font-extrabold text-white truncate hover:text-[var(--spotify-glow,#22d3ee)] transition-colors cursor-pointer">
                 {currentTrack.title}
               </p>
               <p className="text-[11px] font-semibold text-slate-400 truncate hover:text-slate-200 transition-colors cursor-pointer">
@@ -537,8 +537,8 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
                   repeatMode !== 'off'
                     ? {
                       color: 'var(--spotify-glow, #22d3ee)',
-                      backgroundColor: 'rgba(6,182,212,0.15)',
-                      borderColor: 'rgba(6,182,212,0.4)',
+                      backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                      borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.4))',
                     }
                     : undefined
                 }
@@ -611,7 +611,7 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
             className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 hover:bg-white/15 active:scale-95 text-slate-300 hover:text-white border border-white/15 backdrop-blur-xl shadow-lg transition-all text-xs font-bold"
             title="Chia sẻ câu hát"
           >
-            <Share2 className="w-3.5 h-3.5 text-cyan-400" />
+            <Share2 className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)]" />
             <span className="hidden sm:inline">Chia sẻ</span>
           </button>
         </div>

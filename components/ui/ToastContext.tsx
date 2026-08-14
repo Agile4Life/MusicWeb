@@ -109,7 +109,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                   : isError
                   ? 'bg-[#1c0d12]/95 border-rose-500/40 text-white shadow-rose-950/40'
                   : isInfo
-                  ? 'bg-[#0b1626]/95 border-cyan-500/40 text-white shadow-cyan-950/40'
+                  ? 'bg-[#0b1626]/95 border-[var(--spotify-glow,#22d3ee)]/40 text-white shadow-[var(--theme-glow-shadow)]'
                   : 'bg-[#181308]/95 border-amber-500/40 text-white shadow-amber-950/40'
               }`}
             >
@@ -122,7 +122,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                       : isError
                       ? 'bg-rose-500/20 border-rose-500/40 text-rose-400'
                       : isInfo
-                      ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-400'
+                      ? 'bg-[var(--primary-spotify,#06b6d4)]/20 border-[var(--primary-spotify,#06b6d4)]/40 text-[var(--spotify-glow,#22d3ee)]'
                       : 'bg-amber-500/20 border-amber-500/40 text-amber-400'
                   }`}
                 >

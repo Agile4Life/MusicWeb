@@ -278,15 +278,15 @@ export function TrackList({
 
       {/* 🚀 FLOATING BULK ACTION BAR (ADMIN ONLY) */}
       {isAdmin && selectedIds.size > 0 && (
-        <div className="fixed bottom-24 lg:bottom-8 left-1/2 -translate-x-1/2 z-[9990] bg-[#090d16]/95 backdrop-blur-2xl border border-cyan-500/40 text-white px-4 sm:px-5 py-2.5 sm:py-3 rounded-full shadow-2xl shadow-black flex items-center gap-2.5 sm:gap-3 animate-in fade-in slide-in-from-bottom-4 duration-200 select-none max-w-[92vw]">
-          <div className="flex items-center gap-2 pr-2 border-r border-white/10 text-xs font-bold text-cyan-300">
-            <CheckSquare className="w-4 h-4 text-cyan-400" />
+        <div className="fixed bottom-24 lg:bottom-8 left-1/2 -translate-x-1/2 z-[9990] bg-[#090d16]/95 backdrop-blur-2xl border border-[var(--spotify-glow,#22d3ee)]/40 text-white px-4 sm:px-5 py-2.5 sm:py-3 rounded-full shadow-2xl shadow-black flex items-center gap-2.5 sm:gap-3 animate-in fade-in slide-in-from-bottom-4 duration-200 select-none max-w-[92vw]">
+          <div className="flex items-center gap-2 pr-2 border-r border-white/10 text-xs font-bold text-[var(--spotify-glow,#22d3ee)]">
+            <CheckSquare className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
             <span>Đã chọn {selectedIds.size} bài</span>
           </div>
 
           <button
             onClick={() => setShowBulkModal(true)}
-            className="bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-black font-extrabold text-xs px-4 py-2 rounded-full flex items-center gap-1.5 shadow-lg transition-transform hover:scale-105"
+            className="bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--theme-secondary,#3b82f6)] hover:brightness-110 text-black font-extrabold text-xs px-4 py-2 rounded-full flex items-center gap-1.5 shadow-lg transition-transform hover:scale-105"
           >
             <Pencil className="w-3.5 h-3.5" />
             Sửa Nghệ Sĩ & Album
@@ -328,7 +328,7 @@ export function TrackList({
       {/* 🚀 BULK EDIT MODAL */}
       {showBulkModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="glass-panel w-full max-w-md p-6 rounded-3xl border border-cyan-500/30 bg-[#0b1019] shadow-2xl relative flex flex-col gap-5 my-auto animate-in zoom-in-95 duration-200">
+          <div className="glass-panel w-full max-w-md p-6 rounded-3xl border border-[var(--spotify-glow,#22d3ee)]/30 bg-[#0b1019] shadow-2xl relative flex flex-col gap-5 my-auto animate-in zoom-in-95 duration-200">
             <button
               onClick={() => setShowBulkModal(false)}
               className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-xl hover:bg-white/10 transition-colors"
@@ -338,7 +338,7 @@ export function TrackList({
 
             <div>
               <h3 className="text-xl font-black text-white flex items-center gap-2.5">
-                <Pencil className="w-5 h-5 text-cyan-400" />
+                <Pencil className="w-5 h-5 text-[var(--spotify-glow,#22d3ee)]" />
                 Sửa Hàng Loạt ({selectedIds.size} bài hát)
               </h3>
               <p className="text-xs text-slate-400 mt-1">
@@ -354,9 +354,9 @@ export function TrackList({
                     type="checkbox"
                     checked={updateArtist}
                     onChange={(e) => setUpdateArtist(e.target.checked)}
-                    className="rounded accent-cyan-400 w-3.5 h-3.5 cursor-pointer"
+                    className="rounded accent-[var(--spotify-glow,#22d3ee)] w-3.5 h-3.5 cursor-pointer"
                   />
-                  <User className="w-4 h-4 text-cyan-400" />
+                  <User className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
                   <span>Cập nhật Tên Nghệ Sĩ</span>
                 </label>
 
@@ -366,7 +366,7 @@ export function TrackList({
                     value={bulkArtist}
                     onChange={(e) => setBulkArtist(e.target.value)}
                     placeholder="Ví dụ: RPT MCK"
-                    className="w-full glass-input text-white text-xs rounded-xl px-3.5 py-2.5 outline-none font-medium mt-1 focus:border-cyan-400/50"
+                    className="w-full glass-input text-white text-xs rounded-xl px-3.5 py-2.5 outline-none font-medium mt-1 focus:border-[var(--spotify-glow,#22d3ee)]/50"
                   />
                 )}
               </div>
@@ -378,9 +378,9 @@ export function TrackList({
                     type="checkbox"
                     checked={updateAlbum}
                     onChange={(e) => setUpdateAlbum(e.target.checked)}
-                    className="rounded accent-cyan-400 w-3.5 h-3.5 cursor-pointer"
+                    className="rounded accent-[var(--spotify-glow,#22d3ee)] w-3.5 h-3.5 cursor-pointer"
                   />
-                  <Disc className="w-4 h-4 text-cyan-400" />
+                  <Disc className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
                   <span>Cập nhật Tên Album</span>
                 </label>
 
@@ -390,7 +390,7 @@ export function TrackList({
                     value={bulkAlbum}
                     onChange={(e) => setBulkAlbum(e.target.value)}
                     placeholder="Ví dụ: 99%"
-                    className="w-full glass-input text-white text-xs rounded-xl px-3.5 py-2.5 outline-none font-medium mt-1 focus:border-cyan-400/50"
+                    className="w-full glass-input text-white text-xs rounded-xl px-3.5 py-2.5 outline-none font-medium mt-1 focus:border-[var(--spotify-glow,#22d3ee)]/50"
                   />
                 )}
               </div>

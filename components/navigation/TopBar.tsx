@@ -241,7 +241,7 @@ export function TopBar() {
                 <span className="text-xs font-bold text-white truncate max-w-[140px]">
                   {user.user_metadata?.full_name || user.email?.split('@')[0]}
                 </span>
-                <span className="text-[10px] font-mono text-cyan-300 leading-none mt-0.5">
+                <span className="text-[10px] font-mono text-[var(--spotify-glow,#22d3ee)] leading-none mt-0.5">
                   {isAdmin(user?.email) ? 'Admin' : 'Listener'}
                 </span>
               </div>

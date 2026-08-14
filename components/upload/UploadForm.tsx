@@ -1069,7 +1069,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
         <form onSubmit={handleSyncFolder} className="flex flex-col gap-4 p-5 bg-black/40 border border-white/10 rounded-2xl overflow-y-auto">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-bold text-white flex items-center gap-2">
-              <Folder className="w-4 h-4 text-cyan-400" />
+              <Folder className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
               <span>Link Thư Mục (Folder) Hoặc Danh Sách Link / ID Google Drive *</span>
             </label>
             <textarea
@@ -1086,7 +1086,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
           </div>
 
           {syncStatus && (
-            <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-xl text-cyan-300 text-xs flex items-center gap-2">
+            <div className="p-3 bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/30 rounded-xl text-[var(--spotify-glow,#22d3ee)] text-xs flex items-center gap-2">
               <RefreshCw className="w-4 h-4 animate-spin shrink-0" />
               <span>{syncStatus}</span>
             </div>
@@ -1167,7 +1167,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
                 </>
               )}
               <span>•</span>
-              <span className="text-cyan-400">Đang chạy: <strong>{inProgressCount}</strong></span>
+              <span className="text-[var(--spotify-glow,#22d3ee)]">Đang chạy: <strong>{inProgressCount}</strong></span>
               <span>•</span>
               <span className="text-red-400">Lỗi: <strong>{errorCount}</strong></span>
             </div>
@@ -1353,7 +1353,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
                         </span>
                       )}
                       {item.status === 'saving_db' && (
-                        <span className="text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-full border border-cyan-500/20 font-semibold flex items-center gap-1">
+                        <span className="text-[var(--spotify-glow,#22d3ee)] bg-[var(--primary-spotify,#06b6d4)]/10 px-2.5 py-1 rounded-full border border-[var(--primary-spotify,#06b6d4)]/20 font-semibold flex items-center gap-1">
                           <Loader2 className="w-3 h-3 animate-spin" /> Lưu DB
                         </span>
                       )}

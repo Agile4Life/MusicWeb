@@ -556,11 +556,11 @@ export function NowPlayingOverlay() {
                 {/* Album Link Pill with Overflow Marquee Text */}
                 <div
                   onClick={handleOpenAlbum}
-                  className="flex items-center gap-1 min-w-0 max-w-[180px] sm:max-w-[220px] xl:max-w-[280px] text-[10px] text-slate-300 bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 px-2 py-0.5 rounded-md hover:border-cyan-500/50 cursor-pointer transition-all group shadow-sm"
+                  className="flex items-center gap-1 min-w-0 max-w-[180px] sm:max-w-[220px] xl:max-w-[280px] text-[10px] text-slate-300 bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 px-2 py-0.5 rounded-md hover:border-[var(--spotify-glow,#22d3ee)]/50 cursor-pointer transition-all group shadow-sm"
                   title={displayAlbumName ? `Vào album: ${displayAlbumName}` : 'Vào Album bài hát'}
                 >
                   {isNavigatingAlbum ? (
-                    <Loader2 className="w-3 h-3 animate-spin text-cyan-400 shrink-0" />
+                    <Loader2 className="w-3 h-3 animate-spin text-[var(--spotify-glow,#22d3ee)] shrink-0" />
                   ) : (
                     <DiscAlbum style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3 h-3 shrink-0" />
                   )}

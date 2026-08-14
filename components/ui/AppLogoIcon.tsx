@@ -1,6 +1,6 @@
 import React from 'react'
 
-export function AppLogoIcon({ className = 'w-5 h-5 text-cyan-400' }: { className?: string }) {
+export function AppLogoIcon({ className = 'w-5 h-5 text-[var(--spotify-glow,#22d3ee)]' }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 24 24"

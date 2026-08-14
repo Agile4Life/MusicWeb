@@ -319,9 +319,9 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         return null
       })()}
       {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && !showMobileFullPlayer && (
-        <div className="lg:hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-[#0a0d14]/95 backdrop-blur-2xl border border-cyan-500/40 px-6 py-4 rounded-2xl shadow-2xl flex flex-col items-center justify-center gap-2.5 text-center pointer-events-none">
-          <div className="w-11 h-11 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shadow-lg">
-            <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
+        <div className="lg:hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-[#0a0d14]/95 backdrop-blur-2xl border border-[var(--spotify-glow,#22d3ee)]/40 px-6 py-4 rounded-2xl shadow-2xl flex flex-col items-center justify-center gap-2.5 text-center pointer-events-none">
+          <div className="w-11 h-11 rounded-full bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/30 flex items-center justify-center shadow-lg">
+            <Loader2 className="w-6 h-6 animate-spin text-[var(--spotify-glow,#22d3ee)]" />
           </div>
           <span className="text-xs font-extrabold text-white tracking-wide">Đang tải bản Lossless...</span>
         </div>
@@ -412,7 +412,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             </button>
 
             <div className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-white/[0.03] border border-white/[0.08]">
-              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-cyan-500/20 to-pink-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[var(--primary-spotify,#06b6d4)]/20 to-[var(--theme-secondary,#ec4899)]/20 border border-[var(--primary-spotify,#06b6d4)]/30 flex items-center justify-center text-[var(--spotify-glow,#22d3ee)] shrink-0">
                 <Headphones className="w-3 h-3" />
               </div>
               <img
@@ -427,7 +427,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                 setShowMobileFullPlayer(false)
                 setShowLyricsModal(true)
               }}
-              className="p-2 bg-cyan-500/10 rounded-xl text-cyan-400 border border-cyan-500/20"
+              className="p-2 bg-[var(--primary-spotify,#06b6d4)]/10 rounded-xl text-[var(--spotify-glow,#22d3ee)] border border-[var(--primary-spotify,#06b6d4)]/20"
               title="Xem lời bài hát"
             >
               <Mic2 className="w-4 h-4" />
@@ -446,7 +446,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
               {/* Centered Lossless Loading Overlay on Artwork */}
               {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && (
                 <div className="absolute inset-0 bg-black/75 backdrop-blur-md flex flex-col items-center justify-center gap-2 p-4 text-center z-10">
-                  <Loader2 className="w-9 h-9 animate-spin text-cyan-400" />
+                  <Loader2 className="w-9 h-9 animate-spin text-[var(--spotify-glow,#22d3ee)]" />
                   <span className="text-xs font-extrabold text-white tracking-wide">Đang tải bản Lossless...</span>
                 </div>
               )}
@@ -695,11 +695,11 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
               <div
                 onClick={handleOpenAlbum}
                 data-playerbar-exclude-fullview
-                className="flex items-center gap-1 min-w-0 max-w-[180px] sm:max-w-[220px] xl:max-w-[280px] text-[10px] text-slate-300 bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 px-2 py-0.5 rounded-md hover:border-cyan-500/50 cursor-pointer transition-all group shadow-sm"
+                className="flex items-center gap-1 min-w-0 max-w-[180px] sm:max-w-[220px] xl:max-w-[280px] text-[10px] text-slate-300 bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 px-2 py-0.5 rounded-md hover:border-[var(--spotify-glow,#22d3ee)]/50 cursor-pointer transition-all group shadow-sm"
                 title={displayAlbumName ? `Vào album: ${displayAlbumName}` : 'Vào Album bài hát'}
               >
                 {isNavigatingAlbum ? (
-                  <Loader2 className="w-3 h-3 animate-spin text-cyan-400 shrink-0" />
+                  <Loader2 className="w-3 h-3 animate-spin text-[var(--spotify-glow,#22d3ee)] shrink-0" />
                 ) : (
                   <DiscAlbum style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3 h-3 shrink-0" />
                 )}

@@ -525,9 +525,9 @@ function TrackRowComponent({
                     setShowMenu(false)
                     onAddToQueue?.()
                   }}
-                  className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors text-cyan-400"
+                  className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors text-[var(--spotify-glow,#22d3ee)]"
                 >
-                  <ListMusic className="w-3.5 h-3.5 text-cyan-400" />
+                  <ListMusic className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)]" />
                   Thêm vào hàng đợi
                 </button>
 

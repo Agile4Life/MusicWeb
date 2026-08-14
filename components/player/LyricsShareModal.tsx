@@ -1,14 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Track } from '@/types'
-import { LyricLine } from '@/lib/lrcParser'
-import {
-  LYRIC_CARD_THEMES,
-  generateLyricCardBlob,
-  generateLyricCardDataUrl,
-} from '@/lib/lyricsShareCanvas'
-import { toast } from '@/components/ui/ToastContext'
+import { createPortal } from 'react-dom'
 import {
   X,
   Share2,
@@ -17,11 +10,18 @@ import {
   Check,
   Sparkles,
   Palette,
-  CheckCircle2,
-  Circle,
   RefreshCw,
-  Sliders,
 } from 'lucide-react'
+import { Track } from '@/types'
+import { LyricLine } from '@/lib/lrcParser'
+import { toast } from '@/components/ui/ToastContext'
+import { useTheme } from '@/components/theme/ThemeContext'
+import {
+  LYRIC_CARD_THEMES,
+  generateLyricCardBlob,
+  generateLyricCardDataUrl,
+  toggleContiguousLyricLine,
+} from '@/lib/lyricsShareCanvas'
 
 export interface LyricsShareModalProps {
   isOpen: boolean
@@ -31,16 +31,29 @@ export interface LyricsShareModalProps {
   initialActiveIndex?: number
 }
 
+function getInitialThemeForApp(themeId?: string): string {
+  if (!themeId) return 'dominant'
+  if (['slate', 'forest', 'mint', 'lime'].includes(themeId)) return 'emerald'
+  if (['gold', 'autumn', 'solar', 'retro'].includes(themeId)) return 'sunset'
+  if (['sakura', 'ruby', 'cherry', 'wine'].includes(themeId)) return 'cyberpunk'
+  if (['winter', 'violet'].includes(themeId)) return 'midnight'
+  return 'dominant'
+}
+
 export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
   isOpen,
   onClose,
   track,
   lyrics,
-  initialActiveIndex = -1,
+  initialActiveIndex = 0,
 }) => {
-  const [selectedIndices, setSelectedIndices] = useState<number[]>([])
-  const [selectedThemeId, setSelectedThemeId] = useState<string>('dominant')
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
+  const { currentTheme } = useTheme()
+  const [selectedIndices, setSelectedIndices] = useState<number[]>([0])
+  const [selectedThemeId, setSelectedThemeId] = useState<string>(() =>
+    getInitialThemeForApp(currentTheme?.id)
+  )
+  const [previewUrl, setPreviewUrl] = useState<string>('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [isSharing, setIsSharing] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -48,24 +61,33 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
   const listRef = useRef<HTMLDivElement | null>(null)
   const activeLineRef = useRef<HTMLDivElement | null>(null)
 
-  // Initialize selected lines when modal opens
   useEffect(() => {
-    if (isOpen && lyrics.length > 0) {
-      let initIndex = 0
-      if (initialActiveIndex >= 0 && initialActiveIndex < lyrics.length) {
-        initIndex = initialActiveIndex
-      }
-      setSelectedIndices([initIndex])
-      setMobileTab('select')
+    setMounted(true)
+  }, [])
 
-      setTimeout(() => {
-        if (activeLineRef.current && listRef.current) {
-          const target = activeLineRef.current.offsetTop - listRef.current.clientHeight * 0.35
-          listRef.current.scrollTo({ top: Math.max(0, target), behavior: 'smooth' })
+  // Initialize selected lines and sync theme when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      if (currentTheme?.id) {
+        setSelectedThemeId(getInitialThemeForApp(currentTheme.id))
+      }
+      if (lyrics.length > 0) {
+        let initIndex = 0
+        if (initialActiveIndex >= 0 && initialActiveIndex < lyrics.length) {
+          initIndex = initialActiveIndex
         }
-      }, 100)
+        setSelectedIndices([initIndex])
+        setMobileTab('select')
+
+        setTimeout(() => {
+          if (activeLineRef.current && listRef.current) {
+            const target = activeLineRef.current.offsetTop - listRef.current.clientHeight * 0.35
+            listRef.current.scrollTo({ top: Math.max(0, target), behavior: 'smooth' })
+          }
+        }, 100)
+      }
     }
-  }, [isOpen, lyrics, initialActiveIndex])
+  }, [isOpen, lyrics, initialActiveIndex, currentTheme?.id])
 
   // Update card preview whenever selected lines or theme changes
   useEffect(() => {
@@ -109,19 +131,12 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
   if (!isOpen) return null
 
   const toggleLine = (index: number) => {
-    if (selectedIndices.includes(index)) {
-      if (selectedIndices.length <= 1) {
-        toast('Vui lòng chọn ít nhất 1 câu hát', 'warning', 'Chia sẻ lời bài hát')
-        return
-      }
-      setSelectedIndices((prev) => prev.filter((i) => i !== index))
-    } else {
-      if (selectedIndices.length >= 5) {
-        toast('Tối đa được chọn 5 câu hát', 'warning', 'Giới hạn chia sẻ')
-        return
-      }
-      setSelectedIndices((prev) => [...prev, index].sort((a, b) => a - b))
+    const result = toggleContiguousLyricLine(selectedIndices, index, 5)
+    if (result.reason === 'min_required') {
+      toast('Vui lòng chọn ít nhất 1 câu hát', 'warning', 'Chia sẻ lời bài hát')
+      return
     }
+    setSelectedIndices(result.nextIndices)
   }
 
   const handleShare = async () => {
@@ -144,16 +159,35 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
         .replace(/-+/g, '-')}.png`
       const file = new File([blob], fileName, { type: 'image/png' })
 
+      const shareUrl =
+        typeof window !== 'undefined'
+          ? `${window.location.origin}${track?.id ? `/?track=${encodeURIComponent(track.id)}` : ''}`
+          : ''
+
+      // Auto-copy track link to clipboard so user can immediately paste it as a Link Sticker on Instagram Story
+      if (navigator.clipboard && shareUrl) {
+        try {
+          await navigator.clipboard.writeText(shareUrl)
+        } catch {
+          // Ignore clipboard permission errors during share
+        }
+      }
+
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
           title: `${track.title} - ${track.artist || 'MusicWeb'}`,
-          text: `"${selectedLines.join(' / ')}" - Nghe trên MusicWeb`,
+          text: `"${selectedLines.join(' / ')}" - Nghe trên MusicWeb: ${shareUrl}`,
+          url: shareUrl,
         })
-        toast('Đã mở bảng chia sẻ!', 'success', 'Chia sẻ')
+        toast(
+          'Đã sao chép sẵn link bài hát! Bạn có thể dán vào Nhãn dán Liên kết (Link Sticker) trên Story.',
+          'success',
+          'Chia sẻ Story'
+        )
       } else {
         await handleDownload()
-        toast('Đã tự động tải ảnh 9:16 về thiết bị của bạn', 'info', 'Tải ảnh')
+        toast('Đã tải ảnh về thiết bị và sao chép sẵn link bài hát!', 'info', 'Tải ảnh')
       }
     } catch (err: any) {
       if (err?.name !== 'AbortError') {
@@ -224,25 +258,29 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
     }
   }
 
-  return (
+  if (!isOpen || !mounted || typeof window === 'undefined' || !document?.body) {
+    return null
+  }
+
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="lyrics-share-modal-title"
-      className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-xl flex items-center justify-center p-0 sm:p-4 md:p-6 animate-in fade-in duration-200"
+      className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-xl flex items-center justify-center p-0 sm:p-4 md:p-6 pb-4 sm:pb-6 animate-in fade-in duration-200"
     >
-      <div className="relative w-full max-w-5xl h-full sm:h-[92vh] max-h-none sm:max-h-[860px] bg-[#0b0f19] border-0 sm:border sm:border-white/10 rounded-none sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden text-slate-100 select-none">
+      <div className="relative w-full max-w-5xl h-full sm:h-[86vh] max-h-none sm:max-h-[760px] bg-[#0b0f19] border-0 sm:border sm:border-white/10 rounded-none sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden text-slate-100 select-none">
         {/* Modal Top Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-white/[0.08] bg-black/50 backdrop-blur-2xl shrink-0">
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.25)] shrink-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[var(--primary-spotify,#06b6d4)]/15 border border-[var(--primary-spotify,#06b6d4)]/30 flex items-center justify-center text-[var(--spotify-glow,#22d3ee)] shadow-[0_0_15px_var(--theme-glow-shadow,rgba(6,182,212,0.25))] shrink-0">
               <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div className="min-w-0 flex-1">
               <h2 id="lyrics-share-modal-title" className="text-sm sm:text-base font-extrabold text-white flex items-center gap-2 truncate">
                 Chia sẻ câu hát
-                <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 shrink-0">
-                  Story 9:16
+                <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--primary-spotify,#06b6d4)]/10 text-[var(--spotify-glow,#22d3ee)] border border-[var(--primary-spotify,#06b6d4)]/20 shrink-0">
+                  Lyric Card
                 </span>
               </h2>
               <p className="text-[11px] sm:text-xs text-slate-400 truncate">
@@ -267,12 +305,12 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
               onClick={() => setMobileTab('select')}
               className={`py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                 mobileTab === 'select'
-                  ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30 font-extrabold'
+                  ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md shadow-[var(--theme-glow-shadow)] font-extrabold'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
               <span>1. Chọn câu hát</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${mobileTab === 'select' ? 'bg-black/20 text-black' : 'bg-white/10 text-cyan-300'}`}>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${mobileTab === 'select' ? 'bg-black/20 text-black' : 'bg-white/10 text-[var(--spotify-glow,#22d3ee)]'}`}>
                 {selectedIndices.length}/5
               </span>
             </button>
@@ -281,7 +319,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
               onClick={() => setMobileTab('preview')}
               className={`py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                 mobileTab === 'preview'
-                  ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30 font-extrabold'
+                  ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md shadow-[var(--theme-glow-shadow)] font-extrabold'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -308,13 +346,13 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
                   className="w-full h-full object-cover blur-3xl opacity-35 scale-125 transform-gpu transition-all duration-700"
                 />
               ) : (
-                <div className="w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-900/35 via-[#0a0d14] to-[#07090e]" />
+                <div className="w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[var(--theme-gradient-1,rgba(6,182,212,0.25))] via-[#0a0d14] to-[#07090e]" />
               )}
               <div className="absolute inset-0 bg-gradient-to-b from-[#07090e]/70 via-[#07090e]/85 to-[#07090e]" />
               <div
                 className="absolute inset-0"
                 style={{
-                  background: 'radial-gradient(circle at 50% 35%, var(--accent-dim, rgba(6,182,212,0.18)), transparent 70%)',
+                  background: 'radial-gradient(circle at 50% 35%, var(--theme-gradient-1, rgba(6,182,212,0.18)), transparent 70%)',
                 }}
               />
             </div>
@@ -322,20 +360,20 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
             {/* Selector Top Toolbar (Desktop) */}
             <div className="relative z-20 px-5 py-3.5 border-b border-white/[0.08] hidden md:flex items-center justify-between bg-black/50 backdrop-blur-2xl shrink-0 shadow-lg">
               <div className="flex items-center gap-2.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_#22d3ee]" />
+                <div className="w-2.5 h-2.5 rounded-full bg-[var(--spotify-glow,#22d3ee)] animate-pulse shadow-[0_0_10px_var(--spotify-glow,#22d3ee)]" />
                 <span className="text-xs font-extrabold uppercase tracking-wider text-slate-100">
                   Chọn câu hát chia sẻ
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-slate-400 font-semibold">
-                  (1 - 5 câu)
+                  (1 - 5 câu liên tiếp)
                 </span>
                 <span
                   className={`text-xs font-mono font-bold px-3 py-1 rounded-full border shadow-md transition-all ${
                     selectedIndices.length >= 5
                       ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.25)]'
-                      : 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.25)]'
+                      : 'bg-[var(--primary-spotify,#06b6d4)]/20 border-[var(--primary-spotify,#06b6d4)]/40 text-[var(--spotify-glow,#22d3ee)] shadow-[0_0_15px_var(--theme-glow-shadow,rgba(6,182,212,0.25))]'
                   }`}
                 >
                   {selectedIndices.length}/5 câu
@@ -358,7 +396,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
             >
               {lyrics.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center p-8 text-slate-400">
-                  <Sparkles className="w-12 h-12 text-cyan-400/60 mb-3 animate-pulse" />
+                  <Sparkles className="w-12 h-12 text-[var(--spotify-glow,#22d3ee)]/60 mb-3 animate-pulse" />
                   <p className="text-base font-bold text-slate-200">Không có dữ liệu lời bài hát</p>
                   <p className="text-xs text-slate-500 mt-1">Bài hát này chưa có lời để chia sẻ</p>
                 </div>
@@ -372,7 +410,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
                       onClick={() => toggleLine(index)}
                       className={`cursor-pointer rounded-2xl select-none group/line relative transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-[0.98] ${
                         isSelected
-                          ? 'py-3 sm:py-4 px-4 sm:px-6 bg-white/[0.1] border border-cyan-400/45 backdrop-blur-2xl shadow-[0_14px_40px_rgba(0,0,0,0.5),0_0_28px_rgba(6,182,212,0.3)] scale-[1.01] sm:scale-[1.02] sm:-translate-y-0.5'
+                          ? 'py-3 sm:py-4 px-4 sm:px-6 bg-white/[0.1] border border-[var(--spotify-glow,#22d3ee)]/45 backdrop-blur-2xl shadow-[0_14px_40px_rgba(0,0,0,0.5),0_0_28px_var(--theme-glow-shadow,rgba(6,182,212,0.3))] scale-[1.01] sm:scale-[1.02] sm:-translate-y-0.5'
                           : 'py-2 sm:py-2.5 px-3 sm:px-5 bg-transparent border border-transparent hover:bg-white/[0.05] hover:border-white/15 hover:shadow-[0_8px_25px_rgba(0,0,0,0.3)] hover:-translate-y-0.5 hover:scale-[1.01] opacity-60 hover:opacity-100'
                       }`}
                     >
@@ -380,7 +418,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
                       <p
                         className={`leading-snug transition-all duration-300 ${
                           isSelected
-                            ? 'text-base sm:text-lg md:text-xl font-black text-white bg-clip-text bg-gradient-to-r from-white via-cyan-100 to-cyan-300 drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]'
+                            ? 'text-base sm:text-lg md:text-xl font-black text-white bg-clip-text bg-gradient-to-r from-white via-[var(--theme-neon-from,#cffafe)] to-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]'
                             : 'text-sm sm:text-base md:text-lg font-semibold text-slate-300 group-hover/line:text-white'
                         }`}
                       >
@@ -393,13 +431,14 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
             </div>
 
             {/* Mobile Bottom Floating Action: Proceed to Preview */}
-            <div className="md:hidden p-3 bg-black/60 backdrop-blur-xl border-t border-white/10 z-20 shrink-0">
+            <div className="md:hidden p-3 bg-black/60 backdrop-blur-xl border-t border-white/10 z-20 shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
               <button
                 onClick={() => setMobileTab('preview')}
                 disabled={selectedIndices.length === 0}
-                className="w-full py-3 px-4 rounded-xl font-extrabold text-sm text-black flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25 active:scale-98"
+                className="w-full py-3.5 px-4 rounded-xl font-extrabold text-sm text-black flex items-center justify-center gap-2 shadow-lg active:scale-98"
                 style={{
-                  background: 'linear-gradient(135deg, #22d3ee, #06b6d4)',
+                  background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                  boxShadow: '0 8px 20px var(--theme-glow-shadow, rgba(6,182,212,0.25))',
                 }}
               >
                 <span>Xem trước Card ({selectedIndices.length} câu)</span>
@@ -408,20 +447,20 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
             </div>
           </div>
 
-          {/* Right Column: Live 9:16 Card Preview & Actions */}
+          {/* Right Column: Live Card Preview & Actions (Optimized for Desktop & Mobile) */}
           <div
-            className={`w-full md:w-[420px] lg:w-[460px] flex-col min-h-0 bg-[#07090e] p-4 sm:p-6 overflow-y-auto no-scrollbar ${
-              mobileTab === 'preview' ? 'flex' : 'hidden md:flex'
+            className={`w-full md:w-[420px] lg:w-[460px] flex-col min-h-0 bg-[#07090e] p-3.5 sm:p-6 overflow-y-auto no-scrollbar justify-between ${
+              mobileTab === 'preview' ? 'flex flex-1' : 'hidden md:flex'
             }`}
           >
             {/* Theme Selector */}
-            <div className="mb-3 sm:mb-4">
+            <div className="mb-2 sm:mb-4 shrink-0">
               <div className="flex items-center justify-between mb-2 sm:mb-2.5">
                 <div className="flex items-center gap-2">
-                  <Palette className="w-4 h-4 text-cyan-400" />
+                  <Palette className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
                   <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Chủ đề màu</span>
                 </div>
-                <span className="text-[11px] font-mono font-semibold text-cyan-300">
+                <span className="text-[11px] font-mono font-semibold text-[var(--spotify-glow,#22d3ee)]">
                   {LYRIC_CARD_THEMES.find((t) => t.id === selectedThemeId)?.name}
                 </span>
               </div>
@@ -434,7 +473,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
                       onClick={() => setSelectedThemeId(theme.id)}
                       className={`h-9 rounded-xl flex items-center justify-center p-1 transition-all duration-300 relative border active:scale-90 hover:-translate-y-0.5 ${
                         isActive
-                          ? 'border-white scale-105 sm:scale-110 shadow-[0_0_18px_rgba(255,255,255,0.4)] ring-2 ring-cyan-400/60'
+                          ? 'border-white scale-105 sm:scale-110 shadow-[0_0_18px_rgba(255,255,255,0.4)] ring-2 ring-[var(--spotify-glow,#22d3ee)]/60'
                           : 'border-white/15 opacity-70 hover:opacity-100 hover:border-white/40 hover:shadow-[0_4px_15px_rgba(0,0,0,0.4)]'
                       }`}
                       style={{
@@ -449,38 +488,39 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
               </div>
             </div>
 
-            {/* 9:16 Story Card Preview Container */}
-            <div className="flex-1 flex items-center justify-center min-h-[300px] sm:min-h-[340px] my-2">
-              <div className="relative aspect-[9/16] w-full max-w-[220px] sm:max-w-[260px] rounded-2xl overflow-hidden shadow-[0_18px_45px_rgba(0,0,0,0.65)] border border-white/20 group hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300">
+            {/* Lyric Card Preview Container (Dynamic Compact Ratio & Full Mobile Scale) */}
+            <div className="flex-1 flex items-center justify-center min-h-[260px] sm:min-h-[340px] my-auto py-2">
+              <div className="relative max-h-[52vh] sm:max-h-[460px] w-full max-w-[320px] xs:max-w-[340px] sm:max-w-[360px] rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-white/20 group hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 flex items-center justify-center bg-black/50">
                 {previewUrl ? (
                   <img
                     src={previewUrl}
                     alt="Lyric Card Preview"
-                    className="w-full h-full object-cover transition-all duration-300"
+                    className="w-full h-auto max-h-[52vh] sm:max-h-[460px] object-contain rounded-2xl transition-all duration-300"
                   />
                 ) : (
-                  <div className="w-full h-full bg-slate-900 flex items-center justify-center">
-                    <RefreshCw className="w-6 h-6 text-cyan-400 animate-spin" />
+                  <div className="w-full h-64 bg-slate-900 flex items-center justify-center">
+                    <RefreshCw className="w-6 h-6 text-[var(--spotify-glow,#22d3ee)] animate-spin" />
                   </div>
                 )}
 
                 {isGenerating && (
                   <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center">
-                    <RefreshCw className="w-6 h-6 text-cyan-400 animate-spin" />
+                    <RefreshCw className="w-6 h-6 text-[var(--spotify-glow,#22d3ee)] animate-spin" />
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Actions Bar */}
-            <div className="flex flex-col gap-2.5 pt-3 border-t border-white/[0.08]">
+            {/* Actions Bar (Docked at bottom with safe-area padding on mobile) */}
+            <div className="flex flex-col gap-2.5 pt-3 border-t border-white/[0.08] shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:pb-0">
               {/* Primary Native Share Button */}
               <button
                 onClick={handleShare}
                 disabled={isSharing || selectedIndices.length === 0}
-                className="w-full py-3 px-4 rounded-2xl font-extrabold text-sm text-black flex items-center justify-center gap-2.5 transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.97] shadow-lg shadow-cyan-500/25 hover:shadow-cyan-400/45 disabled:opacity-50 disabled:pointer-events-none"
+                className="w-full py-3.5 sm:py-3 px-4 rounded-2xl font-extrabold text-sm text-black flex items-center justify-center gap-2.5 transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.97] shadow-lg disabled:opacity-50 disabled:pointer-events-none"
                 style={{
-                  background: 'linear-gradient(135deg, #22d3ee, #06b6d4)',
+                  background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                  boxShadow: '0 8px 24px var(--theme-glow-shadow, rgba(6,182,212,0.3))',
                 }}
               >
                 {isSharing ? (
@@ -498,7 +538,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
                   disabled={selectedIndices.length === 0}
                   className="py-2.5 px-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] hover:-translate-y-0.5 active:scale-[0.96] text-xs font-bold text-white border border-white/10 flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md disabled:opacity-40 disabled:pointer-events-none"
                 >
-                  <Download className="w-3.5 h-3.5 text-cyan-400" />
+                  <Download className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)]" />
                   <span>Tải ảnh PNG</span>
                 </button>
 
@@ -510,7 +550,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
                   {copied ? (
                     <Check className="w-3.5 h-3.5 text-emerald-400 animate-in zoom-in-75" />
                   ) : (
-                    <Copy className="w-3.5 h-3.5 text-cyan-400" />
+                    <Copy className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)]" />
                   )}
                   <span>{copied ? 'Đã chép' : 'Sao chép ảnh'}</span>
                 </button>
@@ -519,6 +559,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

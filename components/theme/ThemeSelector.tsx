@@ -104,7 +104,7 @@ export function ThemeSelector() {
                 <div className="mb-2.5">
                   {item.id === 'lottie' ? (
                     <div className={`w-8 h-8 rounded-xl ${item.bgClass} border ${item.borderClass} flex items-center justify-center ${item.shadowClass}`}>
-                      <MousePointer className="w-4 h-4 text-cyan-400 fill-cyan-400/20" />
+                      <MousePointer className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)] fill-[var(--spotify-glow,#22d3ee)]/20" />
                     </div>
                   ) : item.id === 'default' ? (
                     <div className={`w-8 h-8 rounded-xl ${item.bgClass} border ${item.borderClass} flex items-center justify-center`}>

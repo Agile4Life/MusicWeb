@@ -66,9 +66,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   if (checking) {
     return (
       <div className="h-screen w-screen bg-[#07080c] flex flex-col items-center justify-center gap-4 text-slate-300">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-400 via-teal-400 to-blue-600 p-0.5 shadow-2xl shadow-cyan-500/20">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[var(--spotify-glow,#22d3ee)] via-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#3b82f6)] p-0.5 shadow-2xl shadow-black/40">
           <div className="w-full h-full bg-[#080c14] rounded-[14px] flex items-center justify-center">
-            <Headphones className="w-8 h-8 text-cyan-400 animate-pulse drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]" />
+            <Headphones className="w-8 h-8 text-[var(--spotify-glow,#22d3ee)] animate-pulse drop-shadow-[0_0_10px_var(--theme-glow-shadow,rgba(6,182,212,0.8))]" />
           </div>
         </div>
         <p className="text-xs font-bold text-slate-400 tracking-wider uppercase animate-pulse">

@@ -4,6 +4,9 @@ import {
   wrapCanvasText,
   calculateOptimalFontSize,
   getThemeById,
+  calculateLyricsBlockStartX,
+  calculateCompactCardHeight,
+  toggleContiguousLyricLine,
 } from '../lyricsShareCanvas'
 
 describe('lyricsShareCanvas Engine', () => {
@@ -36,8 +39,8 @@ describe('lyricsShareCanvas Engine', () => {
     ])
 
     expect(size1).toBeGreaterThanOrEqual(size5)
-    expect(size5).toBeGreaterThanOrEqual(38) // Minimum readable font size on 1080x1920
-    expect(size1).toBeLessThanOrEqual(84) // Maximum hero font size
+    expect(size5).toBeGreaterThanOrEqual(46) // Minimum readable font size on 1080x1920
+    expect(size1).toBeLessThanOrEqual(98) // Maximum hero font size
   })
 
   it('wraps text into multiple lines when exceeding maxWidth using a mock measureText', () => {
@@ -53,5 +56,80 @@ describe('lyricsShareCanvas Engine', () => {
     const wrapped = wrapCanvasText(mockCtx, singleLongLine, maxWidth)
     expect(wrapped.length).toBeGreaterThan(1)
     expect(wrapped.join(' ')).toBe(singleLongLine)
+  })
+
+  it('calculates block startX correctly to center the lyrics bounding box while maintaining left-alignment', () => {
+    // Canvas is 1080px wide
+    // Line widths: 400px, 600px, 500px -> max is 600px
+    // Centered startX should be (1080 - 600) / 2 = 240px
+    const startX = calculateLyricsBlockStartX([400, 600, 500], 1080, 90)
+    expect(startX).toBe(240)
+
+    // Very wide lines (e.g. 980px) -> capped at minMargin 90px
+    const wideStartX = calculateLyricsBlockStartX([980, 950], 1080, 90)
+    expect(wideStartX).toBe(90)
+
+    // Empty lines array fallback
+    expect(calculateLyricsBlockStartX([], 1080, 90)).toBe(90)
+  })
+
+  it('calculates compact card height dynamically without huge empty gaps', () => {
+    // 1 line: compact height around 750px
+    const h1 = calculateCompactCardHeight(1, 92, 470, 136)
+    expect(h1).toBeLessThan(850)
+    expect(h1).toBeGreaterThan(650)
+
+    // 5 lines: compact height around 1050px - 1200px (much more compact than 1920px fixed)
+    const h5 = calculateCompactCardHeight(5, 56, 470, 136)
+    expect(h5).toBeLessThan(1250)
+    expect(h5).toBeGreaterThan(h1)
+  })
+
+  describe('toggleContiguousLyricLine', () => {
+    it('initializes single line when empty', () => {
+      const res = toggleContiguousLyricLine([], 3, 5)
+      expect(res.nextIndices).toEqual([3])
+    })
+
+    it('expands contiguous range upwards and downwards within 5 lines limit', () => {
+      // Expand downwards
+      const res1 = toggleContiguousLyricLine([3], 4, 5)
+      expect(res1.nextIndices).toEqual([3, 4])
+
+      // Expand to range [3..6] (4 lines)
+      const res2 = toggleContiguousLyricLine([3, 4], 6, 5)
+      expect(res2.nextIndices).toEqual([3, 4, 5, 6])
+
+      // Expand upwards: [3, 4, 5, 6] -> click 2 -> [2, 3, 4, 5, 6] (5 lines)
+      const res3 = toggleContiguousLyricLine([3, 4, 5, 6], 2, 5)
+      expect(res3.nextIndices).toEqual([2, 3, 4, 5, 6])
+    })
+
+    it('shrinks contiguous range when clicking edges or inside', () => {
+      // Unselecting top edge
+      const res1 = toggleContiguousLyricLine([2, 3, 4, 5, 6], 2, 5)
+      expect(res1.nextIndices).toEqual([3, 4, 5, 6])
+
+      // Unselecting bottom edge
+      const res2 = toggleContiguousLyricLine([3, 4, 5, 6], 6, 5)
+      expect(res2.nextIndices).toEqual([3, 4, 5])
+
+      // Clicking middle line 4 -> shrinks range to [3, 4]
+      const res3 = toggleContiguousLyricLine([3, 4, 5], 4, 5)
+      expect(res3.nextIndices).toEqual([3, 4])
+    })
+
+    it('prevents deselecting the only remaining line', () => {
+      const res = toggleContiguousLyricLine([3], 3, 5)
+      expect(res.nextIndices).toEqual([3])
+      expect(res.reason).toBe('min_required')
+    })
+
+    it('resets selection to clicked line when clicked line is not contiguous or exceeds 5 lines', () => {
+      // Range is [2, 3, 4, 5, 6], user clicks far away at 15
+      const res = toggleContiguousLyricLine([2, 3, 4, 5, 6], 15, 5)
+      expect(res.nextIndices).toEqual([15])
+      expect(res.reason).toBe('reset')
+    })
   })
 })

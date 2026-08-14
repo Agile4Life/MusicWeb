@@ -49,6 +49,65 @@ export function getThemeById(themeId?: string): LyricCardTheme {
   return found || LYRIC_CARD_THEMES[0]
 }
 
+/**
+ * Toggle or extend contiguous selection range (1 to 5 consecutive lines).
+ * Enforces Spotify/Apple Music style contiguous lyric selection.
+ */
+export function toggleContiguousLyricLine(
+  currentIndices: number[],
+  clickedIndex: number,
+  maxCount: number = 5
+): { nextIndices: number[]; reason?: 'min_required' | 'max_reached' | 'reset' } {
+  if (currentIndices.length === 0) {
+    return { nextIndices: [clickedIndex] }
+  }
+
+  const sorted = [...currentIndices].sort((a, b) => a - b)
+  const min = sorted[0]
+  const max = sorted[sorted.length - 1]
+
+  // Case 1: Clicking an already selected line
+  if (sorted.includes(clickedIndex)) {
+    if (sorted.length === 1) {
+      // Trying to unselect the only line
+      return { nextIndices: sorted, reason: 'min_required' }
+    }
+    // If clicking the top edge (min), shrink by removing min
+    if (clickedIndex === min) {
+      return { nextIndices: sorted.slice(1) }
+    }
+    // If clicking the bottom edge (max), shrink by removing max
+    if (clickedIndex === max) {
+      return { nextIndices: sorted.slice(0, -1) }
+    }
+    // If clicking in the middle: shrink range to [min, clickedIndex]
+    const subRange: number[] = []
+    for (let i = min; i <= clickedIndex; i++) {
+      subRange.push(i)
+    }
+    return { nextIndices: subRange }
+  }
+
+  // Case 2: Clicking an unselected line
+  // Check if we can form a contiguous range from min to clickedIndex (or clickedIndex to max)
+  const newMin = Math.min(min, clickedIndex)
+  const newMax = Math.max(max, clickedIndex)
+  const proposedCount = newMax - newMin + 1
+
+  if (proposedCount <= maxCount) {
+    // Fill all integers between newMin and newMax to guarantee contiguity
+    const range: number[] = []
+    for (let i = newMin; i <= newMax; i++) {
+      range.push(i)
+    }
+    return { nextIndices: range }
+  }
+
+  // If distance exceeds maxCount (clicked line is far away, > 5 lines apart):
+  // Start a fresh contiguous selection at the clicked line
+  return { nextIndices: [clickedIndex], reason: 'reset' }
+}
+
 export interface GenerateCardOptions {
   title: string
   artist?: string | null
@@ -94,21 +153,21 @@ export function calculateOptimalFontSize(lines: string[]): number {
   const maxLineLen = Math.max(...lines.map((l) => l.length), 0)
   const totalChars = lines.reduce((acc, l) => acc + l.length, 0)
 
-  let baseSize = 68
+  let baseSize = 78
 
   if (count === 1) {
-    baseSize = maxLineLen > 40 ? 60 : 76
+    baseSize = maxLineLen > 40 ? 76 : 92
   } else if (count === 2) {
-    baseSize = maxLineLen > 40 ? 54 : 66
+    baseSize = maxLineLen > 40 ? 68 : 82
   } else if (count === 3) {
-    baseSize = maxLineLen > 45 ? 48 : 58
+    baseSize = maxLineLen > 45 ? 60 : 72
   } else if (count === 4) {
-    baseSize = maxLineLen > 45 ? 44 : 52
+    baseSize = maxLineLen > 45 ? 54 : 64
   } else {
-    baseSize = maxLineLen > 45 || totalChars > 160 ? 40 : 46
+    baseSize = maxLineLen > 45 || totalChars > 160 ? 48 : 56
   }
 
-  return Math.min(84, Math.max(38, baseSize))
+  return Math.min(98, Math.max(46, baseSize))
 }
 
 /**
@@ -155,45 +214,105 @@ function loadImageSafe(url: string): Promise<HTMLImageElement | null> {
 /**
  * Render complete 9:16 high-res Story card to HTML5 Canvas (1080 x 1920)
  */
+/**
+ * Helper to calculate lyrics block width and startX for block-centered left-aligned text
+ */
+export function calculateLyricsBlockStartX(
+  lineWidths: number[],
+  canvasWidth: number = 1080,
+  minMargin: number = 90
+): number {
+  if (lineWidths.length === 0) return minMargin
+  const maxLineWidth = Math.max(...lineWidths, 0)
+  const centeredLeft = Math.round((canvasWidth - maxLineWidth) / 2)
+  return Math.max(minMargin, centeredLeft)
+}
+
+/**
+ * Helper to calculate compact canvas height based on rendered line count and font size
+ */
+export function calculateCompactCardHeight(
+  renderedLineCount: number,
+  fontSize: number,
+  lyricsStartY: number = 470,
+  bottomPadding: number = 136
+): number {
+  const lineHeight = Math.round(fontSize * 1.55)
+  const totalLyricsHeight = Math.max(1, renderedLineCount) * lineHeight
+  return Math.round(lyricsStartY + totalLyricsHeight + bottomPadding)
+}
+
+/**
+ * Render compact high-res Story card to HTML5 Canvas (1080 x Dynamic Height)
+ */
 export async function renderLyricCardToCanvas(
   options: GenerateCardOptions
 ): Promise<HTMLCanvasElement> {
   const width = 1080
-  const height = 1920
+  const theme = getThemeById(options.themeId)
+  const lines = options.selectedLines.slice(0, 5) // max 5 lines
 
+  const fontSize = calculateOptimalFontSize(lines)
+  const lineHeight = Math.round(fontSize * 1.55)
+
+  // 1. Measure and wrap lyrics lines first to calculate exact dynamic height
+  const measureCanvas = document.createElement('canvas')
+  const measureCtx = measureCanvas.getContext('2d')
+  if (measureCtx) {
+    measureCtx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`
+  }
+
+  const maxTextWidth = 900
+  const renderedLineList: string[] = []
+
+  for (const rawLine of lines) {
+    if (measureCtx) {
+      const wrapped = wrapCanvasText(measureCtx, rawLine, maxTextWidth)
+      renderedLineList.push(...wrapped)
+    } else {
+      renderedLineList.push(rawLine)
+    }
+  }
+
+  const lyricsStartY = 470
+  const height = calculateCompactCardHeight(
+    renderedLineList.length,
+    fontSize,
+    lyricsStartY,
+    136
+  )
+
+  // 2. Initialize Canvas with the compact, perfectly fitted dimensions
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Canvas 2D context not supported')
 
-  const theme = getThemeById(options.themeId)
-  const lines = options.selectedLines.slice(0, 5) // max 5 lines
-
-  // 1. Draw Multi-Layer Ambient Background
+  // 3. Draw Multi-Layer Ambient Background
   const bgGrad = ctx.createLinearGradient(0, 0, width, height)
   bgGrad.addColorStop(0, theme.background[0])
-  bgGrad.addColorStop(0.4, theme.background[1])
+  bgGrad.addColorStop(0.45, theme.background[1])
   bgGrad.addColorStop(1, theme.background[2])
   ctx.fillStyle = bgGrad
   ctx.fillRect(0, 0, width, height)
 
-  // Radial ambient glow orbs
+  // Radial ambient glow orbs centered on the card
   const radialGlow = ctx.createRadialGradient(
     width * 0.5,
-    height * 0.28,
-    50,
+    height * 0.35,
+    40,
     width * 0.5,
-    height * 0.28,
-    width * 0.75
+    height * 0.35,
+    width * 0.7
   )
-  radialGlow.addColorStop(0, `${theme.accentColor}33`)
-  radialGlow.addColorStop(0.6, `${theme.background[1]}22`)
+  radialGlow.addColorStop(0, `${theme.accentColor}38`)
+  radialGlow.addColorStop(0.6, `${theme.background[1]}25`)
   radialGlow.addColorStop(1, 'transparent')
   ctx.fillStyle = radialGlow
   ctx.fillRect(0, 0, width, height)
 
-  // 2. Load cover image & brand logo
+  // 4. Load cover image & brand logo
   let coverImg: HTMLImageElement | null = null
   let logoImg: HTMLImageElement | null = null
 
@@ -206,159 +325,184 @@ export async function renderLyricCardToCanvas(
 
   if (coverImg) {
     ctx.save()
-    ctx.globalAlpha = 0.14
-    ctx.filter = 'blur(60px)'
-    ctx.drawImage(coverImg, -100, -100, width + 200, height * 0.5)
+    ctx.globalAlpha = 0.16
+    ctx.filter = 'blur(65px)'
+    ctx.drawImage(coverImg, -100, -80, width + 200, height + 160)
     ctx.restore()
   }
 
-  // 3. Draw Header Brand Logo (/phong-signature.png)
-  const headerY = 110
+  // 5. 🌟 Draw Brand Logo Mini Glass Plaque (Matching web header style)
+  const plaqueWidth = 320
+  const plaqueHeight = 72
+  const plaqueRadius = 22
+  const plaqueX = (width - plaqueWidth) / 2
+  const plaqueY = 65
+
   ctx.save()
+  // Outer Plaque Backdrop
+  drawRoundedRect(ctx, plaqueX, plaqueY, plaqueWidth, plaqueHeight, plaqueRadius)
+  const plaqueBgGrad = ctx.createLinearGradient(
+    plaqueX,
+    plaqueY,
+    plaqueX + plaqueWidth,
+    plaqueY + plaqueHeight
+  )
+  plaqueBgGrad.addColorStop(0, 'rgba(24, 30, 44, 0.85)')
+  plaqueBgGrad.addColorStop(1, 'rgba(10, 14, 22, 0.92)')
+  ctx.fillStyle = plaqueBgGrad
+  ctx.fill()
+
+  // Inner subtle top shine
+  const shineGrad = ctx.createLinearGradient(plaqueX, plaqueY, plaqueX, plaqueY + 32)
+  shineGrad.addColorStop(0, 'rgba(255, 255, 255, 0.18)')
+  shineGrad.addColorStop(1, 'rgba(255, 255, 255, 0.0)')
+  drawRoundedRect(ctx, plaqueX, plaqueY, plaqueWidth, 32, plaqueRadius)
+  ctx.fillStyle = shineGrad
+  ctx.fill()
+
+  // Plaque Border with theme accent tone
+  drawRoundedRect(ctx, plaqueX, plaqueY, plaqueWidth, plaqueHeight, plaqueRadius)
+  ctx.strokeStyle = `${theme.accentColor}44`
+  ctx.lineWidth = 1.5
+  ctx.stroke()
+
+  // Secondary soft white outline
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'
+  ctx.lineWidth = 1
+  ctx.stroke()
+
+  // Draw Logo inside Plaque
   if (logoImg && logoImg.width > 0 && logoImg.height > 0) {
-    const logoHeight = 56
+    const logoHeight = 44
     const aspect = logoImg.width / logoImg.height
-    const logoWidth = logoHeight * aspect
-    ctx.filter = `invert(1) brightness(1.7) drop-shadow(0 0 14px ${theme.accentColor}99)`
-    ctx.drawImage(logoImg, 90, headerY, logoWidth, logoHeight)
+    const logoWidth = Math.min(plaqueWidth - 40, logoHeight * aspect)
+    const logoX = (width - logoWidth) / 2
+    const logoY = plaqueY + (plaqueHeight - logoHeight) / 2
+
+    ctx.filter = `invert(1) brightness(1.65) contrast(1.2) drop-shadow(0 0 12px ${theme.accentColor}cc)`
+    ctx.drawImage(logoImg, logoX, logoY, logoWidth, logoHeight)
   } else {
-    // Elegant fallback brand badge
-    drawRoundedRect(ctx, 90, headerY, 210, 56, 28)
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.12)'
-    ctx.fill()
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'
-    ctx.lineWidth = 1.5
-    ctx.stroke()
-
-    ctx.beginPath()
-    ctx.arc(122, headerY + 28, 8, 0, Math.PI * 2)
-    ctx.fillStyle = theme.accentColor
-    ctx.shadowColor = theme.accentColor
-    ctx.shadowBlur = 12
-    ctx.fill()
-
-    ctx.shadowBlur = 0
-    ctx.font = 'bold 22px system-ui, -apple-system, sans-serif'
+    // Elegant fallback brand text
+    ctx.font = 'bold 24px system-ui, -apple-system, sans-serif'
     ctx.fillStyle = '#ffffff'
-    ctx.fillText('MUSICWEB', 145, headerY + 36)
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.shadowColor = theme.accentColor
+    ctx.shadowBlur = 10
+    ctx.fillText('MUSICWEB', width / 2, plaqueY + plaqueHeight / 2)
   }
   ctx.restore()
 
-  // 4. Draw Track Metadata Card AT THE TOP (Header area)
-  const metaCardX = 90
-  const metaCardY = 195
-  const metaCardWidth = 900
-  const metaCardHeight = 175
-  const metaCardRadius = 32
+  // 6. 🎵 Draw Centered Track Metadata (Cover Art + Title + Artist)
+  const coverSize = 145
+  const coverRadius = 24
+  const coverX = (width - coverSize) / 2
+  const coverY = 168
 
   ctx.save()
-  // Glassmorphic top metadata backdrop
-  drawRoundedRect(ctx, metaCardX, metaCardY, metaCardWidth, metaCardHeight, metaCardRadius)
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.42)'
+  // Cover Shadow
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.65)'
+  ctx.shadowBlur = 28
+  ctx.shadowOffsetY = 10
+
+  drawRoundedRect(ctx, coverX, coverY, coverSize, coverSize, coverRadius)
+  ctx.fillStyle = '#0f172a'
   ctx.fill()
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)'
-  ctx.lineWidth = 2
-  ctx.stroke()
+  ctx.restore()
 
-  // Draw Cover Art Thumbnail inside Top Metadata Card
-  const coverThumbX = metaCardX + 22
-  const coverThumbY = metaCardY + 22
-  const coverThumbSize = 131
-  const coverThumbRadius = 22
-
+  // Draw Cover Image
   ctx.save()
-  drawRoundedRect(ctx, coverThumbX, coverThumbY, coverThumbSize, coverThumbSize, coverThumbRadius)
+  drawRoundedRect(ctx, coverX, coverY, coverSize, coverSize, coverRadius)
   ctx.clip()
 
   if (coverImg) {
-    ctx.drawImage(coverImg, coverThumbX, coverThumbY, coverThumbSize, coverThumbSize)
+    ctx.drawImage(coverImg, coverX, coverY, coverSize, coverSize)
   } else {
-    // Fallback gradient cover
     const thumbGrad = ctx.createLinearGradient(
-      coverThumbX,
-      coverThumbY,
-      coverThumbX + coverThumbSize,
-      coverThumbY + coverThumbSize
+      coverX,
+      coverY,
+      coverX + coverSize,
+      coverY + coverSize
     )
     thumbGrad.addColorStop(0, '#1e293b')
     thumbGrad.addColorStop(1, '#0f172a')
     ctx.fillStyle = thumbGrad
-    ctx.fillRect(coverThumbX, coverThumbY, coverThumbSize, coverThumbSize)
+    ctx.fillRect(coverX, coverY, coverSize, coverSize)
 
-    // Musical note icon
     ctx.fillStyle = theme.accentColor
-    ctx.font = 'bold 46px system-ui'
+    ctx.font = 'bold 50px system-ui'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText('♪', coverThumbX + coverThumbSize / 2, coverThumbY + coverThumbSize / 2)
+    ctx.fillText('♪', coverX + coverSize / 2, coverY + coverSize / 2)
   }
   ctx.restore()
 
-  // Draw Track Title & Artist Text
-  const textLeftX = coverThumbX + coverThumbSize + 28
-  const maxTitleWidth = metaCardWidth - (coverThumbSize + 80)
+  // Cover Border
+  ctx.save()
+  drawRoundedRect(ctx, coverX, coverY, coverSize, coverSize, coverRadius)
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)'
+  ctx.lineWidth = 2
+  ctx.stroke()
+  ctx.restore()
 
-  // Title (Bold & Prominent)
-  ctx.font = 'bold 38px system-ui, -apple-system, sans-serif'
+  // Centered Track Title
+  const maxTitleWidth = 880
+  ctx.save()
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.font = 'bold 40px system-ui, -apple-system, sans-serif'
   ctx.fillStyle = '#ffffff'
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.6)'
+  ctx.shadowBlur = 14
+
   let displayTitle = options.title || 'Bài hát chưa đặt tên'
   while (ctx.measureText(displayTitle).width > maxTitleWidth && displayTitle.length > 3) {
     displayTitle = displayTitle.slice(0, -2) + '…'
   }
-  ctx.fillText(displayTitle, textLeftX, metaCardY + 78)
+  ctx.fillText(displayTitle, width / 2, 352)
 
-  // Artist
-  ctx.font = '600 28px system-ui, -apple-system, sans-serif'
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.72)'
+  // Centered Artist
+  ctx.font = '600 27px system-ui, -apple-system, sans-serif'
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.75)'
   let displayArtist = options.artist || 'Nghệ sĩ chưa xác định'
   while (ctx.measureText(displayArtist).width > maxTitleWidth && displayArtist.length > 3) {
     displayArtist = displayArtist.slice(0, -2) + '…'
   }
-  ctx.fillText(displayArtist, textLeftX, metaCardY + 128)
+  ctx.fillText(displayArtist, width / 2, 394)
   ctx.restore()
 
-  // 5. Draw Selected Lyrics Body (Takes center stage from y:430 to y:1760)
-  const fontSize = calculateOptimalFontSize(lines)
+  // 7. 📜 Draw Lyrics: Centered Block with Left-Aligned Lines
   ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`
   ctx.fillStyle = theme.textColor
 
-  const maxTextWidth = 900
-  const renderedLineList: string[] = []
+  // Measure all rendered line widths
+  const lineWidths = renderedLineList.map((l) => ctx.measureText(l).width)
+  const startX = calculateLyricsBlockStartX(lineWidths, width, 90)
 
-  for (const rawLine of lines) {
-    const wrapped = wrapCanvasText(ctx, rawLine, maxTextWidth)
-    renderedLineList.push(...wrapped)
-  }
-
-  const lineHeight = fontSize * 1.5
-  const totalBlockHeight = renderedLineList.length * lineHeight
-
-  // Center the lyrics block vertically in available space (between y:420 and y:1760)
-  const availableSpaceCenter = (420 + 1760) / 2
-  let startY = availableSpaceCenter - totalBlockHeight / 2 + fontSize * 0.8
-  if (startY < 450) startY = 450
+  const startY = lyricsStartY + fontSize * 0.85
 
   ctx.save()
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.55)'
-  ctx.shadowBlur = 20
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'alphabetic'
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.65)'
+  ctx.shadowBlur = 24
   ctx.shadowOffsetY = 4
 
   for (let i = 0; i < renderedLineList.length; i++) {
     const lineText = renderedLineList[i]
     const curY = startY + i * lineHeight
-    ctx.fillText(lineText, 90, curY)
+    ctx.fillText(lineText, startX, curY)
   }
   ctx.restore()
 
-  // 6. Subtle Bottom Brand Watermark
-  const footerY = 1820
+  // 8. 🏷️ Subtle Bottom Brand Watermark
+  const footerY = height - 50
   ctx.save()
   ctx.fillStyle = 'rgba(255, 255, 255, 0.45)'
-  ctx.font = '600 22px system-ui, -apple-system, sans-serif'
+  ctx.font = '600 23px system-ui, -apple-system, sans-serif'
   ctx.textAlign = 'center'
   ctx.fillText('Nghe trên MusicWeb', width / 2, footerY)
   ctx.restore()
-
 
   return canvas
 }
