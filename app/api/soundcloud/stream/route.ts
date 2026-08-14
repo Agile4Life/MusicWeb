@@ -27,11 +27,21 @@ export async function GET(req: NextRequest) {
     }
 
     if (format === 'json') {
-      return NextResponse.json({ url: streamUrl })
+      const res = NextResponse.json({ url: streamUrl })
+      res.headers.set(
+        'Cache-Control',
+        'public, max-age=7200, s-maxage=7200, stale-while-revalidate=3600'
+      )
+      return res
     }
 
     // Default: Redirect browser/audio element directly to the resolved stream CDN
-    return NextResponse.redirect(streamUrl, 307)
+    const res = NextResponse.redirect(streamUrl, 307)
+    res.headers.set(
+      'Cache-Control',
+      'public, max-age=7200, s-maxage=7200, stale-while-revalidate=3600'
+    )
+    return res
   } catch (err) {
     console.error('[API /api/soundcloud/stream] Error:', err)
     return NextResponse.json({ error: 'Failed to resolve stream' }, { status: 500 })

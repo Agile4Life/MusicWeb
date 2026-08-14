@@ -326,17 +326,17 @@ export function ImportSoundCloudModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-gradient-to-b from-[#1c1512] to-[#0f0e0d] border border-[#ff5500]/30 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-2xl bg-gradient-to-b from-[var(--elevation-2-bg,#1c1512)] to-[var(--bg-space,#0f0e0d)] border border-[var(--spotify-glow,#ff5500)]/30 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Modal Top Header */}
         <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-white/[0.08] bg-white/[0.02]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#ff5500] to-[#ff7700] text-white flex items-center justify-center shadow-[0_0_15px_rgba(255,85,0,0.4)]">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[var(--spotify-glow,#ff7700)] to-[var(--primary-spotify,#ff5500)] text-black flex items-center justify-center shadow-[0_0_15px_var(--theme-glow-shadow,rgba(255,85,0,0.4))]">
               <Cloud className="w-4 h-4" />
             </div>
             <div>
               <h2 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
                 Nhập Playlist từ SoundCloud
-                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/40">
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--spotify-glow,#ff5500)]/20 text-[var(--spotify-glow,#ff7700)] border border-[var(--spotify-glow,#ff5500)]/40">
                   Full Audio
                 </span>
               </h2>
@@ -370,7 +370,7 @@ export function ImportSoundCloudModal({
                     value={urlInput}
                     onChange={(e) => setUrlInput(e.target.value)}
                     placeholder="https://soundcloud.com/.../sets/... hoặc link on.soundcloud.com/..."
-                    className="w-full bg-white/[0.04] border border-white/10 focus:border-[#ff5500]/60 rounded-2xl px-4 py-3.5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none transition-all shadow-inner"
+                    className="w-full bg-white/[0.04] border border-white/10 focus:border-[var(--spotify-glow,#ff5500)]/60 rounded-2xl px-4 py-3.5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none transition-all shadow-inner"
                     autoFocus
                   />
                   {urlInput && (
@@ -391,8 +391,8 @@ export function ImportSoundCloudModal({
                 )}
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-[#ff5500]/10 border border-[#ff5500]/20 flex items-start gap-2.5 text-xs text-slate-300">
-                <Sparkles className="w-4 h-4 text-[#ff7700] shrink-0 mt-0.5" />
+              <div className="p-3.5 rounded-2xl bg-[var(--spotify-glow,#ff5500)]/10 border border-[var(--spotify-glow,#ff5500)]/20 flex items-start gap-2.5 text-xs text-slate-300">
+                <Sparkles className="w-4 h-4 text-[var(--spotify-glow,#ff7700)] shrink-0 mt-0.5" />
                 <div className="flex flex-col gap-1">
                   <strong className="text-white font-bold">Hỗ trợ đầy đủ các định dạng link:</strong>
                   <ul className="list-disc list-inside text-slate-400 space-y-0.5 text-[11px]">
@@ -414,7 +414,7 @@ export function ImportSoundCloudModal({
                 <button
                   type="submit"
                   disabled={!urlInput.trim() || loadingMeta}
-                  className="px-6 py-2.5 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-[#ff7700] to-[#ff3300] shadow-[0_4px_15px_rgba(255,85,0,0.3)] hover:scale-105 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+                  className="px-6 py-2.5 rounded-xl font-bold text-xs text-black bg-gradient-to-r from-[var(--spotify-glow,#ff7700)] to-[var(--primary-spotify,#ff3300)] shadow-[0_4px_15px_var(--theme-glow-shadow,rgba(255,85,0,0.3))] hover:scale-105 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
                 >
                   {loadingMeta ? (
                     <>
@@ -436,8 +436,8 @@ export function ImportSoundCloudModal({
           {step === 'fetching' && (
             <div className="py-12 flex flex-col items-center justify-center gap-4 text-center">
               <div className="relative">
-                <div className="w-16 h-16 rounded-full border-4 border-[#ff5500]/20 border-t-[#ff5500] animate-spin flex items-center justify-center" />
-                <Cloud className="w-6 h-6 text-[#ff7700] absolute inset-0 m-auto animate-pulse" />
+                <div className="w-16 h-16 rounded-full border-4 border-[var(--spotify-glow,#ff5500)]/20 border-t-[var(--spotify-glow,#ff5500)] animate-spin flex items-center justify-center" />
+                <Cloud className="w-6 h-6 text-[var(--spotify-glow,#ff7700)] absolute inset-0 m-auto animate-pulse" />
               </div>
               <div>
                 <h3 className="text-base font-bold text-white mb-1">
@@ -463,7 +463,7 @@ export function ImportSoundCloudModal({
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-[#ff5500]/20 text-[#ff7700]">
+                    <div className="w-full h-full flex items-center justify-center bg-[var(--spotify-glow,#ff5500)]/20 text-[var(--spotify-glow,#ff7700)]">
                       <Cloud className="w-8 h-8" />
                     </div>
                   )}
@@ -480,12 +480,12 @@ export function ImportSoundCloudModal({
                     value={playlistName}
                     onChange={(e) => setPlaylistName(e.target.value)}
                     placeholder="Tên playlist trong thư viện..."
-                    className="w-full bg-black/40 border border-white/10 focus:border-[#ff5500]/60 rounded-lg px-2.5 py-1 text-xs sm:text-sm font-bold text-white outline-none"
+                    className="w-full bg-black/40 border border-white/10 focus:border-[var(--spotify-glow,#ff5500)]/60 rounded-lg px-2.5 py-1 text-xs sm:text-sm font-bold text-white outline-none"
                   />
 
                   <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-0.5">
                     <span>Tổng số: <strong className="text-white">{fetchedTracks.length}</strong> bài</span>
-                    <span>Đã chọn: <strong className="text-[#ff7700]">{selectedTrackIds.size}</strong> bài</span>
+                    <span>Đã chọn: <strong className="text-[var(--spotify-glow,#ff7700)]">{selectedTrackIds.size}</strong> bài</span>
                   </div>
                 </div>
               </div>
@@ -495,7 +495,7 @@ export function ImportSoundCloudModal({
                 <button
                   type="button"
                   onClick={toggleSelectAll}
-                  className="font-bold text-[#ff7700] hover:underline"
+                  className="font-bold text-[var(--spotify-glow,#ff7700)] hover:underline"
                 >
                   {selectedTrackIds.size === fetchedTracks.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả bài hát'}
                 </button>
@@ -514,7 +514,7 @@ export function ImportSoundCloudModal({
                       onClick={() => toggleSelectTrack(tr.id)}
                       className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all ${
                         isSelected
-                          ? 'bg-[#ff5500]/15 border border-[#ff5500]/30 text-white'
+                          ? 'bg-[var(--primary-spotify)]/15 border border-[var(--primary-spotify)]/30 text-white'
                           : 'hover:bg-white/[0.04] text-slate-400 border border-transparent'
                       }`}
                     >
@@ -522,7 +522,7 @@ export function ImportSoundCloudModal({
                         <div
                           className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all ${
                             isSelected
-                              ? 'bg-[#ff5500] border-[#ff5500] text-white'
+                              ? 'bg-[var(--primary-spotify)] border-[var(--primary-spotify)] text-black'
                               : 'border-slate-500 bg-black/40'
                           }`}
                         >
@@ -575,7 +575,7 @@ export function ImportSoundCloudModal({
                   type="button"
                   onClick={handleConfirmImport}
                   disabled={selectedTrackIds.size === 0}
-                  className="px-6 py-2.5 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-[#ff7700] to-[#ff3300] shadow-[0_4px_15px_rgba(255,85,0,0.3)] hover:scale-105 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+                  className="px-6 py-2.5 rounded-xl font-bold text-xs text-black bg-gradient-to-r from-[var(--spotify-glow,#ff7700)] to-[var(--primary-spotify,#ff3300)] shadow-[0_4px_15px_var(--theme-glow-shadow,rgba(255,85,0,0.3))] hover:scale-105 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
                 >
                   <Sparkles className="w-4 h-4" />
                   <span>Tạo Playlist ({selectedTrackIds.size} bài)</span>
@@ -588,8 +588,8 @@ export function ImportSoundCloudModal({
           {step === 'importing' && (
             <div className="py-10 flex flex-col items-center justify-center gap-5 text-center">
               <div className="relative">
-                <div className="w-16 h-16 rounded-full border-4 border-[#ff5500]/20 border-t-[#ff5500] animate-spin flex items-center justify-center" />
-                <Cloud className="w-6 h-6 text-[#ff7700] absolute inset-0 m-auto animate-pulse" />
+                <div className="w-16 h-16 rounded-full border-4 border-[var(--spotify-glow,#ff5500)]/20 border-t-[var(--spotify-glow,#ff5500)] animate-spin flex items-center justify-center" />
+                <Cloud className="w-6 h-6 text-[var(--spotify-glow,#ff7700)] absolute inset-0 m-auto animate-pulse" />
               </div>
 
               <div className="flex flex-col gap-1">
@@ -604,7 +604,7 @@ export function ImportSoundCloudModal({
               {/* Progress Bar */}
               <div className="w-full max-w-md bg-white/10 rounded-full h-2.5 overflow-hidden">
                 <div
-                  className="bg-gradient-to-r from-[#ff7700] to-[#ff3300] h-full transition-all duration-300"
+                  className="bg-gradient-to-r from-[var(--spotify-glow,#ff7700)] to-[var(--primary-spotify,#ff3300)] h-full transition-all duration-300"
                   style={{
                     width: `${Math.round((importingProgress.done / (importingProgress.total || 1)) * 100)}%`,
                   }}

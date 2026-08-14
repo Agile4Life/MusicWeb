@@ -11,6 +11,15 @@ import { Track, SoundCloudPlaylist } from '@/types'
 let cachedClientId: string | null = null
 let clientIdExpiresAt: number = 0
 
+// In-memory stream URL cache (2-hour TTL)
+const streamUrlCache = new Map<string, { url: string; expiresAt: number }>()
+
+// In-memory track metadata cache (1-hour TTL)
+const trackMetadataCache = new Map<
+  string,
+  { track: Track; raw: SoundCloudRawTrack; expiresAt: number }
+>()
+
 // Fallback known public client IDs
 const FALLBACK_CLIENT_IDS = [
   'UMY1dzQ68n2QbCuypNe8JOivmV2FO2Ep',
@@ -373,8 +382,15 @@ export async function resolveSoundCloudTrack(
   trackId: string | number
 ): Promise<{ track: Track; raw: SoundCloudRawTrack } | null> {
   const rawId = String(trackId).replace(/^sc-/, '')
-  const clientId = await getSoundCloudClientId()
+  const now = Date.now()
 
+  // 1. Check in-memory track cache
+  const cached = trackMetadataCache.get(rawId)
+  if (cached && now < cached.expiresAt) {
+    return { track: cached.track, raw: cached.raw }
+  }
+
+  const clientId = await getSoundCloudClientId()
   const url = `https://api-v2.soundcloud.com/tracks/${rawId}?client_id=${clientId}`
 
   try {
@@ -392,8 +408,15 @@ export async function resolveSoundCloudTrack(
     const raw: SoundCloudRawTrack = await res.json()
     if (!isSoundCloudFullAudio(raw)) return null
 
+    const appTrack = soundCloudTrackToAppTrack(raw)
+    trackMetadataCache.set(rawId, {
+      track: appTrack,
+      raw,
+      expiresAt: now + 60 * 60 * 1000, // 1 hour TTL
+    })
+
     return {
-      track: soundCloudTrackToAppTrack(raw),
+      track: appTrack,
       raw,
     }
   } catch (err) {
@@ -409,6 +432,14 @@ export async function resolveSoundCloudStreamUrl(
   trackId: string | number
 ): Promise<string | null> {
   const rawId = String(trackId).replace(/^sc-/, '')
+  const now = Date.now()
+
+  // 1. Check in-memory stream cache (instant hit <1ms)
+  const cachedStream = streamUrlCache.get(rawId)
+  if (cachedStream && now < cachedStream.expiresAt) {
+    return cachedStream.url
+  }
+
   const resolved = await resolveSoundCloudTrack(rawId)
   if (!resolved || !resolved.raw) return null
 
@@ -430,7 +461,17 @@ export async function resolveSoundCloudStreamUrl(
     if (!res.ok) return null
 
     const data = await res.json()
-    return data.url || null
+    const streamUrl = data.url || null
+
+    if (streamUrl) {
+      // Cache stream URL in memory for 2 hours (SoundCloud signed media tokens last ~4 hours)
+      streamUrlCache.set(rawId, {
+        url: streamUrl,
+        expiresAt: now + 2 * 60 * 60 * 1000,
+      })
+    }
+
+    return streamUrl
   } catch (err) {
     console.error(`[SoundCloud] Failed to resolve stream for ${trackId}:`, err)
     return null
