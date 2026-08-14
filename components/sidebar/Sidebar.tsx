@@ -85,16 +85,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
   }
 
   const handleItemClick = (e: React.MouseEvent<HTMLElement>) => {
-    const item = e.currentTarget
-    const rect = item.getBoundingClientRect()
-    const ripple = document.createElement('span')
-    ripple.className = 'ripple'
-    const size = Math.max(rect.width, rect.height)
-    ripple.style.width = ripple.style.height = `${size}px`
-    ripple.style.left = `${e.clientX - rect.left - size / 2}px`
-    ripple.style.top = `${e.clientY - rect.top - size / 2}px`
-    item.appendChild(ripple)
-    ripple.addEventListener('animationend', () => ripple.remove())
+    // Smooth navigation handled purely by Next.js Link without DOM mutation
   }
 
   useEffect(() => {
@@ -141,7 +132,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
   }
 
   return (
-    <aside className={`app-sidebar hidden lg:flex w-60 lg:w-64 xl:w-72 flex-col justify-between p-3 lg:p-3.5 xl:p-4 h-full select-none text-slate-300 rounded-2xl panel-theme-hover shrink-0 z-10 ${isScrolled ? 'is-scrolled' : ''}`}>
+    <aside className={`app-sidebar hidden lg:flex w-60 lg:w-64 xl:w-72 flex-col justify-between p-3 lg:p-3.5 xl:p-4 h-full select-none text-slate-300 rounded-2xl panel-theme-hover shrink-0 relative z-30 ${isScrolled ? 'is-scrolled' : ''}`}>
       <div className="flex flex-col gap-3 lg:gap-4 xl:gap-5 min-h-0 flex-1 pb-24 xl:pb-28">
         {/* App Branding Header (Mini Glass Plaque) */}
         <div className="px-0.5 py-0.5">

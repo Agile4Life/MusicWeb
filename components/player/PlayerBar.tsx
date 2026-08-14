@@ -276,7 +276,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
   if (!currentTrack) {
     return (
-      <footer className={`player-bar hidden lg:flex h-20 rounded-2xl px-6 items-center justify-between text-slate-400 select-none shrink-0 ${isScrolled ? 'is-scrolled' : ''}`}>
+      <footer className={`player-bar hidden lg:flex h-20 rounded-2xl px-6 items-center justify-between text-slate-400 select-none shrink-0 pointer-events-auto ${isScrolled ? 'is-scrolled' : ''}`}>
         <div className="flex items-center gap-3 w-1/4 min-w-[200px]">
           <div className="w-11 h-11 bg-white/5 rounded-xl flex items-center justify-center text-slate-600 border border-white/5">
             <Music className="w-5 h-5" />
@@ -330,7 +330,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
       {/* 📱 MOBILE FLOATING MINI PLAYER BAR (Visible on < 768px) */}
       <div
         onClick={openNowPlayingOverlay}
-        className={`${miniPlayerClassName} rounded-2xl border border-white/10 shadow-2xl backdrop-blur-2xl select-none cursor-pointer active:opacity-90 transition-opacity relative overflow-hidden`}
+        className={`${miniPlayerClassName} rounded-2xl border border-white/10 shadow-2xl backdrop-blur-2xl select-none cursor-pointer active:opacity-90 transition-opacity relative overflow-hidden pointer-events-auto`}
       >
         <PlayerBarGlowBorder duration={duration || currentTrack.duration} rx={16} />
         {/* Main row */}
@@ -644,7 +644,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
       {/* 💻 DESKTOP PLAYER BAR (Visible on >= 768px screens) */}
       <footer
-        className={`player-bar hidden lg:flex h-[84px] xl:h-[96px] py-2.5 xl:py-3.5 rounded-2xl px-4 lg:px-6 xl:px-8 items-center justify-between text-slate-300 select-none shrink-0 panel-theme-hover transition-all relative overflow-hidden ${isScrolled ? 'is-scrolled' : ''}`}
+        className={`player-bar hidden lg:flex h-[84px] xl:h-[96px] py-2.5 xl:py-3.5 rounded-2xl px-4 lg:px-6 xl:px-8 items-center justify-between text-slate-300 select-none shrink-0 panel-theme-hover transition-all relative overflow-hidden pointer-events-auto ${isScrolled ? 'is-scrolled' : ''}`}
         onClick={(e) => {
           if (!isPlayerBarFeatureTarget(e.target as { closest?: (selector: string) => unknown })) {
             openNowPlayingOverlay()
