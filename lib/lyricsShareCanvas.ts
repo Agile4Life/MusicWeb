@@ -1,52 +1,100 @@
+export type ThemeCategory = 'cover' | 'gradient' | 'solid'
+
 export interface LyricCardTheme {
   id: string
   name: string
+  category: ThemeCategory
   background: string[]
   textColor: string
   accentColor: string
+  solidColor?: string
 }
 
 export const LYRIC_CARD_THEMES: LyricCardTheme[] = [
+  // 🖼️ 1. Nền Ảnh Bìa (Cover Image Backdrop)
+  {
+    id: 'cover',
+    name: 'Ảnh bìa Album',
+    category: 'cover',
+    background: ['#0f172a', '#0b0f19', '#05070a'],
+    textColor: '#ffffff',
+    accentColor: '#38bdf8',
+  },
+
+  // 🎨 2. Gradient Đa Sắc (Color Gradients)
   {
     id: 'dominant',
-    name: 'Dominant Glow',
+    name: 'Xanh Cyan',
+    category: 'gradient',
     background: ['#06b6d4', '#0e2338', '#07090e'],
     textColor: '#ffffff',
     accentColor: '#22d3ee',
   },
   {
-    id: 'midnight',
-    name: 'Midnight Obsidian',
-    background: ['#6366f1', '#1e1b4b', '#030712'],
+    id: 'emerald',
+    name: 'Xanh Emerald',
+    category: 'gradient',
+    background: ['#10b981', '#064e3b', '#051611'],
     textColor: '#ffffff',
-    accentColor: '#a5b4fc',
-  },
-  {
-    id: 'cyberpunk',
-    name: 'Cyberpunk Neon',
-    background: ['#ec4899', '#083344', '#090d16'],
-    textColor: '#ffffff',
-    accentColor: '#f472b6',
+    accentColor: '#34d399',
   },
   {
     id: 'sunset',
-    name: 'Sunset Horizon',
+    name: 'Hoàng Hôn Sunset',
+    category: 'gradient',
     background: ['#f59e0b', '#881337', '#180914'],
     textColor: '#ffffff',
     accentColor: '#fbbf24',
   },
   {
-    id: 'emerald',
-    name: 'Emerald Beats',
-    background: ['#10b981', '#064e3b', '#051611'],
+    id: 'cyberpunk',
+    name: 'Hồng Cyberpunk',
+    category: 'gradient',
+    background: ['#ec4899', '#083344', '#090d16'],
     textColor: '#ffffff',
-    accentColor: '#34d399',
+    accentColor: '#f472b6',
+  },
+  {
+    id: 'midnight',
+    name: 'Tím Midnight',
+    category: 'gradient',
+    background: ['#6366f1', '#1e1b4b', '#030712'],
+    textColor: '#ffffff',
+    accentColor: '#a5b4fc',
+  },
+  {
+    id: 'ocean',
+    name: 'Đại Dương Ocean',
+    category: 'gradient',
+    background: ['#0284c7', '#0f172a', '#020617'],
+    textColor: '#ffffff',
+    accentColor: '#38bdf8',
+  },
+
+  // ⚫ 3. Màu Đơn Sắc (Solid Colors)
+  {
+    id: 'solid-black',
+    name: 'Đen tuyền (OLED Black)',
+    category: 'solid',
+    background: ['#09090b', '#09090b', '#09090b'],
+    solidColor: '#09090b',
+    textColor: '#ffffff',
+    accentColor: '#e2e8f0',
+  },
+  {
+    id: 'solid-red',
+    name: 'Đỏ Ruby (Deep Red)',
+    category: 'solid',
+    background: ['#7f1d1d', '#500713', '#2a030a'],
+    solidColor: '#450a0a',
+    textColor: '#ffffff',
+    accentColor: '#ef4444',
   },
 ]
 
 export function getThemeById(themeId?: string): LyricCardTheme {
   const found = LYRIC_CARD_THEMES.find((t) => t.id === themeId)
-  return found || LYRIC_CARD_THEMES[0]
+  return found || LYRIC_CARD_THEMES.find((t) => t.id === 'dominant') || LYRIC_CARD_THEMES[0]
 }
 
 /**
@@ -298,15 +346,7 @@ export async function renderLyricCardToCanvas(
   drawRoundedRect(ctx, 0, 0, width, height, cardRadius)
   ctx.clip()
 
-  // 4. Draw Multi-Layer Ambient Background
-  const bgGrad = ctx.createLinearGradient(0, 0, width, height)
-  bgGrad.addColorStop(0, theme.background[0])
-  bgGrad.addColorStop(0.45, theme.background[1])
-  bgGrad.addColorStop(1, theme.background[2])
-  ctx.fillStyle = bgGrad
-  ctx.fillRect(0, 0, width, height)
-
-  // 5. Load cover image & brand logo
+  // 4. 🖼️ Load cover image & brand logo
   let coverImg: HTMLImageElement | null = null
   let logoImg: HTMLImageElement | null = null
 
@@ -317,49 +357,121 @@ export async function renderLyricCardToCanvas(
   coverImg = loadedCover
   logoImg = loadedLogo
 
-  if (coverImg) {
-    ctx.save()
-    ctx.globalAlpha = 0.32
-    ctx.filter = 'blur(60px)'
-    ctx.drawImage(coverImg, -120, -100, width + 240, height + 200)
-    ctx.restore()
+  // 5. 🎨 Render Background by Category (Cover Artwork, Gradient, or Solid)
+  if (theme.category === 'solid') {
+    // ⚫ Solid Minimalist Background (Pure Black OLED or Ruby Red)
+    ctx.fillStyle = theme.solidColor || theme.background[0]
+    ctx.fillRect(0, 0, width, height)
+
+    // Subtle soft ambient glow for depth
+    if (theme.id === 'solid-red') {
+      const redGlow = ctx.createRadialGradient(
+        width * 0.5,
+        height * 0.35,
+        20,
+        width * 0.5,
+        height * 0.35,
+        width * 0.7
+      )
+      redGlow.addColorStop(0, 'rgba(239, 68, 68, 0.25)')
+      redGlow.addColorStop(1, 'transparent')
+      ctx.fillStyle = redGlow
+      ctx.fillRect(0, 0, width, height)
+    }
+
+    // Top delicate specular shine
+    const topShine = ctx.createLinearGradient(0, 0, 0, 140)
+    topShine.addColorStop(0, 'rgba(255, 255, 255, 0.08)')
+    topShine.addColorStop(1, 'rgba(255, 255, 255, 0.0)')
+    ctx.fillStyle = topShine
+    ctx.fillRect(0, 0, width, 140)
+  } else if (theme.category === 'cover') {
+    // 🖼️ Cover Artwork Backdrop (Rich blurred album art with dynamic contrast)
+    ctx.fillStyle = '#06080d'
+    ctx.fillRect(0, 0, width, height)
+
+    if (coverImg) {
+      ctx.save()
+      ctx.globalAlpha = 0.65
+      ctx.filter = 'blur(45px)'
+      ctx.drawImage(coverImg, -80, -60, width + 160, height + 120)
+      ctx.restore()
+
+      // High-contrast readable scrim gradient overlay
+      const scrim = ctx.createLinearGradient(0, 0, 0, height)
+      scrim.addColorStop(0, 'rgba(0, 0, 0, 0.45)')
+      scrim.addColorStop(0.45, 'rgba(0, 0, 0, 0.68)')
+      scrim.addColorStop(1, 'rgba(0, 0, 0, 0.88)')
+      ctx.fillStyle = scrim
+      ctx.fillRect(0, 0, width, height)
+    } else {
+      // Fallback dark gradient if no cover image
+      const fallbackGrad = ctx.createLinearGradient(0, 0, width, height)
+      fallbackGrad.addColorStop(0, '#1e293b')
+      fallbackGrad.addColorStop(1, '#07090e')
+      ctx.fillStyle = fallbackGrad
+      ctx.fillRect(0, 0, width, height)
+    }
+
+    // Top soft shine
+    const topShine = ctx.createLinearGradient(0, 0, 0, 120)
+    topShine.addColorStop(0, 'rgba(255, 255, 255, 0.15)')
+    topShine.addColorStop(1, 'rgba(255, 255, 255, 0.0)')
+    ctx.fillStyle = topShine
+    ctx.fillRect(0, 0, width, 120)
+  } else {
+    // 🌈 Multi-layer Vibrant Gradient
+    const bgGrad = ctx.createLinearGradient(0, 0, width, height)
+    bgGrad.addColorStop(0, theme.background[0])
+    bgGrad.addColorStop(0.45, theme.background[1])
+    bgGrad.addColorStop(1, theme.background[2])
+    ctx.fillStyle = bgGrad
+    ctx.fillRect(0, 0, width, height)
+
+    if (coverImg) {
+      ctx.save()
+      ctx.globalAlpha = 0.32
+      ctx.filter = 'blur(60px)'
+      ctx.drawImage(coverImg, -120, -100, width + 240, height + 200)
+      ctx.restore()
+    }
+
+    // Radial ambient glow orbs centered on the card
+    const radialGlow = ctx.createRadialGradient(
+      width * 0.5,
+      height * 0.32,
+      30,
+      width * 0.5,
+      height * 0.32,
+      width * 0.75
+    )
+    radialGlow.addColorStop(0, `${theme.accentColor}44`)
+    radialGlow.addColorStop(0.55, `${theme.background[1]}30`)
+    radialGlow.addColorStop(1, 'transparent')
+    ctx.fillStyle = radialGlow
+    ctx.fillRect(0, 0, width, height)
+
+    // Secondary soft glow at bottom right
+    const secondaryGlow = ctx.createRadialGradient(
+      width * 0.8,
+      height * 0.75,
+      20,
+      width * 0.8,
+      height * 0.75,
+      width * 0.55
+    )
+    secondaryGlow.addColorStop(0, `${theme.accentColor}25`)
+    secondaryGlow.addColorStop(1, 'transparent')
+    ctx.fillStyle = secondaryGlow
+    ctx.fillRect(0, 0, width, height)
+
+    // Top subtle specular lighting
+    const topShine = ctx.createLinearGradient(0, 0, 0, 100)
+    topShine.addColorStop(0, 'rgba(255, 255, 255, 0.14)')
+    topShine.addColorStop(1, 'rgba(255, 255, 255, 0.0)')
+    ctx.fillStyle = topShine
+    ctx.fillRect(0, 0, width, 100)
   }
-
-  // Radial ambient glow orbs centered on the card for rich, luminous lighting
-  const radialGlow = ctx.createRadialGradient(
-    width * 0.5,
-    height * 0.32,
-    30,
-    width * 0.5,
-    height * 0.32,
-    width * 0.75
-  )
-  radialGlow.addColorStop(0, `${theme.accentColor}44`)
-  radialGlow.addColorStop(0.55, `${theme.background[1]}30`)
-  radialGlow.addColorStop(1, 'transparent')
-  ctx.fillStyle = radialGlow
-  ctx.fillRect(0, 0, width, height)
-
-  // Secondary soft glow at bottom right
-  const secondaryGlow = ctx.createRadialGradient(
-    width * 0.8,
-    height * 0.75,
-    20,
-    width * 0.8,
-    height * 0.75,
-    width * 0.55
-  )
-  secondaryGlow.addColorStop(0, `${theme.accentColor}25`)
-  secondaryGlow.addColorStop(1, 'transparent')
-  ctx.fillStyle = secondaryGlow
-  ctx.fillRect(0, 0, width, height)
-
-  // Top subtle specular lighting
-  const topShine = ctx.createLinearGradient(0, 0, 0, 100)
-  topShine.addColorStop(0, 'rgba(255, 255, 255, 0.14)')
-  topShine.addColorStop(1, 'rgba(255, 255, 255, 0.0)')
-  ctx.fillStyle = topShine
-  ctx.fillRect(0, 0, width, 100)
 
   // 6. 🌟 Draw Brand Logo Mini Glass Plaque (Matching web header style)
   const plaqueWidth = 320

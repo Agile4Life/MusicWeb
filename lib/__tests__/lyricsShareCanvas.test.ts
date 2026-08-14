@@ -10,14 +10,18 @@ import {
 } from '../lyricsShareCanvas'
 
 describe('lyricsShareCanvas Engine', () => {
-  it('defines 5 distinct lyric card themes', () => {
-    expect(LYRIC_CARD_THEMES.length).toBe(5)
+  it('defines distinct lyric card themes across cover, gradient, and solid categories', () => {
+    expect(LYRIC_CARD_THEMES.length).toBeGreaterThanOrEqual(8)
     const themeIds = LYRIC_CARD_THEMES.map((t) => t.id)
+    expect(themeIds).toContain('cover')
     expect(themeIds).toContain('dominant')
     expect(themeIds).toContain('midnight')
     expect(themeIds).toContain('cyberpunk')
     expect(themeIds).toContain('sunset')
     expect(themeIds).toContain('emerald')
+    expect(themeIds).toContain('ocean')
+    expect(themeIds).toContain('solid-black')
+    expect(themeIds).toContain('solid-red')
   })
 
   it('retrieves fallback theme when invalid theme id is provided', () => {

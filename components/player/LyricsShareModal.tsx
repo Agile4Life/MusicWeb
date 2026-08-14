@@ -53,6 +53,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
   const [selectedThemeId, setSelectedThemeId] = useState<string>(() =>
     getInitialThemeForApp(currentTheme?.id)
   )
+  const [themeCategoryFilter, setThemeCategoryFilter] = useState<'all' | 'cover' | 'gradient' | 'solid'>('all')
   const [previewUrl, setPreviewUrl] = useState<string>('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [isSharing, setIsSharing] = useState(false)
@@ -459,35 +460,96 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
               mobileTab === 'preview' ? 'flex flex-1' : 'hidden md:flex'
             }`}
           >
-            {/* Theme Selector */}
-            <div className="mb-2 sm:mb-4 shrink-0">
-              <div className="flex items-center justify-between mb-2 sm:mb-2.5">
+            {/* Background Style Selector */}
+            <div className="mb-2 sm:mb-3.5 shrink-0 space-y-2">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Palette className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
-                  <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Chủ đề màu</span>
+                  <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+                    Tùy chọn nền Card
+                  </span>
                 </div>
                 <span className="text-[11px] font-mono font-semibold text-[var(--spotify-glow,#22d3ee)]">
                   {LYRIC_CARD_THEMES.find((t) => t.id === selectedThemeId)?.name}
                 </span>
               </div>
-              <div className="grid grid-cols-5 gap-2">
-                {LYRIC_CARD_THEMES.map((theme) => {
+
+              {/* Category Filter Tabs */}
+              <div className="grid grid-cols-4 p-0.5 bg-white/[0.04] border border-white/10 rounded-xl text-[10px] font-bold">
+                <button
+                  onClick={() => setThemeCategoryFilter('all')}
+                  className={`py-1 rounded-lg transition-all ${
+                    themeCategoryFilter === 'all'
+                      ? 'bg-white/15 text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Tất cả
+                </button>
+                <button
+                  onClick={() => setThemeCategoryFilter('cover')}
+                  className={`py-1 rounded-lg transition-all ${
+                    themeCategoryFilter === 'cover'
+                      ? 'bg-white/15 text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Ảnh bìa
+                </button>
+                <button
+                  onClick={() => setThemeCategoryFilter('gradient')}
+                  className={`py-1 rounded-lg transition-all ${
+                    themeCategoryFilter === 'gradient'
+                      ? 'bg-white/15 text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Gradient
+                </button>
+                <button
+                  onClick={() => setThemeCategoryFilter('solid')}
+                  className={`py-1 rounded-lg transition-all ${
+                    themeCategoryFilter === 'solid'
+                      ? 'bg-white/15 text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Đơn sắc
+                </button>
+              </div>
+
+              {/* Theme Swatches List */}
+              <div className="flex flex-wrap gap-2 pt-0.5">
+                {LYRIC_CARD_THEMES.filter(
+                  (t) => themeCategoryFilter === 'all' || t.category === themeCategoryFilter
+                ).map((theme) => {
                   const isActive = selectedThemeId === theme.id
+                  const isSolid = theme.category === 'solid'
+                  const isCover = theme.category === 'cover'
+
                   return (
                     <button
                       key={theme.id}
                       onClick={() => setSelectedThemeId(theme.id)}
-                      className={`h-9 rounded-xl flex items-center justify-center p-1 transition-all duration-300 relative border active:scale-90 hover:-translate-y-0.5 ${
+                      className={`h-9 px-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all duration-200 relative border active:scale-95 text-xs font-bold ${
                         isActive
-                          ? 'border-white scale-105 sm:scale-110 shadow-[0_0_18px_rgba(255,255,255,0.4)] ring-2 ring-[var(--spotify-glow,#22d3ee)]/60'
-                          : 'border-white/15 opacity-70 hover:opacity-100 hover:border-white/40 hover:shadow-[0_4px_15px_rgba(0,0,0,0.4)]'
+                          ? 'border-white scale-105 shadow-[0_0_16px_rgba(255,255,255,0.35)] ring-2 ring-[var(--spotify-glow,#22d3ee)]/60'
+                          : 'border-white/15 opacity-75 hover:opacity-100 hover:border-white/40'
                       }`}
                       style={{
-                        background: `linear-gradient(135deg, ${theme.background[0]}, ${theme.background[1]})`,
+                        background: isSolid
+                          ? theme.solidColor || theme.background[0]
+                          : isCover
+                          ? track.cover_url
+                            ? `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.7)), url(${track.cover_url}) center/cover`
+                            : 'linear-gradient(135deg, #1e293b, #0f172a)'
+                          : `linear-gradient(135deg, ${theme.background[0]}, ${theme.background[1]})`,
+                        color: theme.textColor,
                       }}
                       title={theme.name}
                     >
-                      {isActive && <Check className="w-4 h-4 text-white drop-shadow-md animate-in zoom-in-75" />}
+                      <span className="truncate max-w-[120px] drop-shadow">{theme.name}</span>
+                      {isActive && <Check className="w-3.5 h-3.5 shrink-0 drop-shadow" />}
                     </button>
                   )
                 })}

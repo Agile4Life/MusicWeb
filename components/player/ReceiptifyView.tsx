@@ -549,10 +549,10 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
           />
 
           {/* Scrollable Thermal Receipt Preview Pedestal */}
-          <div className="flex-1 overflow-y-auto flex items-center justify-center py-4 no-scrollbar relative z-10">
-            <div className="relative max-h-[52vh] sm:max-h-[480px] w-auto max-w-[340px] sm:max-w-none rounded-xl overflow-hidden shadow-[0_30px_70px_rgba(0,0,0,0.9)] border border-white/20 group hover:scale-[1.01] transition-all duration-300 flex items-center justify-center bg-black/50">
+          <div className="flex-1 overflow-y-auto flex items-start sm:items-center justify-center py-4 px-2 no-scrollbar relative z-10 min-h-[360px]">
+            <div className="relative w-full max-w-[340px] sm:max-w-[420px] transition-all duration-300 flex items-center justify-center">
               {isLoadingTracks ? (
-                <div className="w-64 h-80 flex flex-col items-center justify-center gap-3 text-slate-400">
+                <div className="w-64 h-80 flex flex-col items-center justify-center gap-3 text-slate-400 bg-black/40 rounded-xl border border-white/10 p-6">
                   <RefreshCw className="w-7 h-7 text-amber-400 animate-spin" />
                   <span className="text-xs font-bold">Đang tải danh sách bài hát...</span>
                 </div>
@@ -560,17 +560,17 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
                 <img
                   src={previewUrl}
                   alt="Music Receipt Preview"
-                  className="w-full h-auto max-h-[52vh] sm:max-h-[480px] object-contain rounded-xl transition-all duration-300 drop-shadow-2xl"
+                  className="w-full h-auto object-contain rounded-xl transition-all duration-300 drop-shadow-[0_25px_60px_rgba(0,0,0,0.9)] border border-white/20"
                 />
               ) : (
-                <div className="w-64 h-80 flex flex-col items-center justify-center gap-3 text-slate-400">
+                <div className="w-64 h-80 flex flex-col items-center justify-center gap-3 text-slate-400 bg-black/40 rounded-xl border border-white/10 p-6">
                   <Receipt className="w-8 h-8 text-amber-400/50" />
                   <span className="text-xs font-bold">Chưa có bài hát để tạo hóa đơn</span>
                 </div>
               )}
 
               {isGenerating && (
-                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center rounded-xl">
                   <RefreshCw className="w-6 h-6 text-amber-400 animate-spin" />
                 </div>
               )}
