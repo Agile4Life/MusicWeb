@@ -340,13 +340,7 @@ export async function renderLyricCardToCanvas(
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Canvas 2D context not supported')
 
-  // 3. 🌟 Clip Card with Smooth Rounded Corners (True Rounded Story Card)
-  const cardRadius = 42
-  ctx.save()
-  drawRoundedRect(ctx, 0, 0, width, height, cardRadius)
-  ctx.clip()
-
-  // 4. 🖼️ Load cover image & brand logo
+  // 3. 🖼️ Load cover image & brand logo
   let coverImg: HTMLImageElement | null = null
   let logoImg: HTMLImageElement | null = null
 
@@ -668,16 +662,18 @@ export async function renderLyricCardToCanvas(
   ctx.fillText('phongtct.vercel.app', width / 2, footerY)
   ctx.restore()
 
-  // 9. 🔲 Smooth Rounded Border along card perimeter
+  // 9. 🔲 Clean Inset Rounded Frame (Full-bleed continuous background, ZERO black corner artifacts)
+  const borderInset = 14
+  const cardRadius = 32
   ctx.save()
-  drawRoundedRect(ctx, 1.5, 1.5, width - 3, height - 3, cardRadius)
-  ctx.strokeStyle = `${theme.accentColor}66`
-  ctx.lineWidth = 3
+  drawRoundedRect(ctx, borderInset, borderInset, width - borderInset * 2, height - borderInset * 2, cardRadius)
+  ctx.strokeStyle = `${theme.accentColor}60`
+  ctx.lineWidth = 2.5
   ctx.stroke()
 
-  drawRoundedRect(ctx, 3.5, 3.5, width - 7, height - 7, cardRadius - 2)
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)'
-  ctx.lineWidth = 1.5
+  drawRoundedRect(ctx, borderInset + 1.5, borderInset + 1.5, width - (borderInset + 1.5) * 2, height - (borderInset + 1.5) * 2, cardRadius - 1.5)
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.20)'
+  ctx.lineWidth = 1.2
   ctx.stroke()
   ctx.restore()
 
