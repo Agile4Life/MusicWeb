@@ -4,7 +4,28 @@ import React, { useRef, useMemo, useEffect, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
-const PARTICLE_COUNT = 520 // Rich 3D background particle density
+const PARTICLE_COUNT = 160 // Tinh giản mật độ ~70%, gợi bụi trong ánh đèn sân khấu
+
+function createCircleTexture() {
+  if (typeof document === 'undefined') return undefined
+  const canvas = document.createElement('canvas')
+  canvas.width = 64
+  canvas.height = 64
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return undefined
+
+  const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 30)
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 1)')
+  gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.6)')
+  gradient.addColorStop(1, 'rgba(255, 255, 255, 0)')
+
+  ctx.fillStyle = gradient
+  ctx.fillRect(0, 0, 64, 64)
+
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.needsUpdate = true
+  return texture
+}
 
 interface ParticlesProps {
   analyserData?: Uint8Array
@@ -17,7 +38,9 @@ function Particles({ analyserData, isPlaying }: ParticlesProps) {
   const pointsRef3 = useRef<THREE.Points>(null)
   const targetMouseRef = useRef({ x: 0, y: 0 })
   const currentMouseRef = useRef({ x: 0, y: 0 })
-  const [accentColor, setAccentColor] = useState('#06b6d4')
+  const [accentColor, setAccentColor] = useState('#C98A3D')
+
+  const circleMap = useMemo(() => createCircleTexture(), [])
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -36,8 +59,8 @@ function Particles({ analyserData, isPlaying }: ParticlesProps) {
   }, [])
 
   // Three restrained depth layers: far, middle, and near.
-  const bgCount = Math.floor(PARTICLE_COUNT * 0.55)
-  const midCount = Math.floor(PARTICLE_COUNT * 0.3)
+  const bgCount = Math.floor(PARTICLE_COUNT * 0.6)
+  const midCount = Math.floor(PARTICLE_COUNT * 0.25)
   const fgCount = PARTICLE_COUNT - bgCount - midCount
 
   const bgPositions = useMemo(() => {
@@ -80,7 +103,6 @@ function Particles({ analyserData, isPlaying }: ParticlesProps) {
   }, [midCount])
 
   useFrame((state) => {
-    // When paused and mouse is stationary, throttle frame updates to conserve CPU/GPU
     const dx = Math.abs(targetMouseRef.current.x - currentMouseRef.current.x)
     const dy = Math.abs(targetMouseRef.current.y - currentMouseRef.current.y)
     if (!isPlaying && dx < 0.001 && dy < 0.001) {
@@ -89,9 +111,8 @@ function Particles({ analyserData, isPlaying }: ParticlesProps) {
 
     const t = state.clock.getElapsedTime()
 
-    // Smooth lerp mouse coordinates for fluid physics feel
-    currentMouseRef.current.x += (targetMouseRef.current.x - currentMouseRef.current.x) * 0.06
-    currentMouseRef.current.y += (targetMouseRef.current.y - currentMouseRef.current.y) * 0.06
+    currentMouseRef.current.x += (targetMouseRef.current.x - currentMouseRef.current.x) * 0.04
+    currentMouseRef.current.y += (targetMouseRef.current.y - currentMouseRef.current.y) * 0.04
 
     const mx = currentMouseRef.current.x
     const my = currentMouseRef.current.y
@@ -104,66 +125,72 @@ function Particles({ analyserData, isPlaying }: ParticlesProps) {
         sum += analyserData[i]
       }
       const avg = sum / analyserData.length
-      scale = 1 + (avg / 255) * 0.15
+      scale = 1 + (avg / 255) * 0.1
     }
 
     if (pointsRef1.current) {
-      pointsRef1.current.rotation.y = t * 0.03 + mx * 0.4
-      pointsRef1.current.rotation.x = my * 0.4
+      pointsRef1.current.rotation.y = t * 0.015 + mx * 0.25
+      pointsRef1.current.rotation.x = my * 0.25
       pointsRef1.current.scale.setScalar(scale)
     }
     if (pointsRef2.current) {
-      pointsRef2.current.rotation.y = -t * 0.05 + mx * 0.75
-      pointsRef2.current.rotation.x = my * 0.75
-      pointsRef2.current.scale.setScalar(scale * 1.05)
+      pointsRef2.current.rotation.y = -t * 0.025 + mx * 0.4
+      pointsRef2.current.rotation.x = my * 0.4
+      pointsRef2.current.scale.setScalar(scale * 1.03)
     }
     if (pointsRef3.current) {
-      pointsRef3.current.rotation.y = t * 0.08 - mx * 0.9
-      pointsRef3.current.rotation.x = -my * 0.9
-      pointsRef3.current.scale.setScalar(scale * 1.1)
+      pointsRef3.current.rotation.y = t * 0.04 - mx * 0.5
+      pointsRef3.current.rotation.x = -my * 0.5
+      pointsRef3.current.scale.setScalar(scale * 1.06)
     }
   })
 
   return (
     <group>
-      {/* 70% Faint Background Particles */}
+      {/* 60% Faint Background Circular Dust */}
       <points ref={pointsRef1}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[bgPositions, 3]} />
         </bufferGeometry>
         <pointsMaterial
-          size={0.025}
+          size={0.035}
+          map={circleMap}
           color={accentColor}
           transparent
-          opacity={0.45}
+          opacity={0.18}
+          depthWrite={false}
           sizeAttenuation
         />
       </points>
 
-      {/* 30% Middle-depth particles */}
+      {/* 25% Middle-depth Circular Dust */}
       <points ref={pointsRef3}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[midPositions, 3]} />
         </bufferGeometry>
         <pointsMaterial
-          size={0.035}
+          size={0.045}
+          map={circleMap}
           color={accentColor}
           transparent
-          opacity={0.58}
+          opacity={0.25}
+          depthWrite={false}
           sizeAttenuation
         />
       </points>
 
-      {/* 15% Brighter Foreground Particles */}
+      {/* 15% Foreground Circular Dust */}
       <points ref={pointsRef2}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[fgPositions, 3]} />
         </bufferGeometry>
         <pointsMaterial
-          size={0.05}
+          size={0.06}
+          map={circleMap}
           color={accentColor}
           transparent
-          opacity={0.75}
+          opacity={0.32}
+          depthWrite={false}
           sizeAttenuation
         />
       </points>

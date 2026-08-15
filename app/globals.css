@@ -3374,7 +3374,7 @@ html[data-theme-style="minimal-flat"] body {
   color: #8B8090 !important;
 }
 
-/* Lyrics View in Fullview (Zero Tooltip Pill / Elegant Left Accent Cursor) */
+/* Lyrics View in Fullview (Unified Fraunces Serif Typography System) */
 [data-theme-style="minimal-flat"] .active-lyric-pill {
   background: transparent !important;
   border: none !important;
@@ -3387,9 +3387,9 @@ html[data-theme-style="minimal-flat"] body {
 }
 
 [data-theme-style="minimal-flat"] .active-lyric-pill p {
-  font-family: var(--font-fraunces), serif !important;
+  font-family: var(--font-fraunces), Georgia, serif !important;
   font-style: italic !important;
-  font-size: clamp(1.35rem, 3.4vh, 2.4rem) !important;
+  font-size: clamp(1.4rem, 3.4vh, 2.5rem) !important;
   font-weight: 500 !important;
   color: #F4ECE1 !important;
   -webkit-text-fill-color: #F4ECE1 !important;
@@ -3399,12 +3399,16 @@ html[data-theme-style="minimal-flat"] body {
   line-height: 1.35 !important;
 }
 
-[data-theme-style="minimal-flat"] .group\/line:not(.active-lyric-pill) p {
-  font-family: var(--font-inter), sans-serif !important;
+[data-theme-style="minimal-flat"] .group\/line p {
+  font-family: var(--font-fraunces), Georgia, serif !important;
+  font-style: normal !important;
+  font-size: clamp(1.05rem, 2.3vh, 1.7rem) !important;
   font-weight: 400 !important;
   color: #B9AC9C !important;
   background: none !important;
   text-shadow: none !important;
+  line-height: 1.4 !important;
+  letter-spacing: -0.01em !important;
 }
 
 [data-theme-style="minimal-flat"] .now-playing-overlay .player-bar {
