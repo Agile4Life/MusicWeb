@@ -19,5 +19,8 @@ export function getDisplacementMapUri(mode: RefractionMode, customShaderUri?: st
   if (mode === 'shader' && customShaderUri) {
     return customShaderUri
   }
-  return DISPLACEMENT_MAPS[mode] || DISPLACEMENT_MAPS.standard
+  if (mode in DISPLACEMENT_MAPS) {
+    return DISPLACEMENT_MAPS[mode as keyof typeof DISPLACEMENT_MAPS]
+  }
+  return DISPLACEMENT_MAPS.standard
 }
