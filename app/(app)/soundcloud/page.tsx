@@ -303,11 +303,11 @@ export default function SoundCloudPage() {
             </div>
 
             <div className="flex flex-col gap-1">
-              <span className="eyebrow text-[11px] font-mono tracking-widest uppercase font-semibold text-[#E8A94F] hidden sm:block">
+              <span className="eyebrow text-[11px] font-mono tracking-widest uppercase font-semibold text-[var(--spotify-glow,#22d3ee)] hidden sm:block">
                 Stream & Audio Explorer
               </span>
               <div className="flex items-center gap-2.5">
-                <h1 className="text-2xl sm:text-3xl font-serif font-medium text-white tracking-tight">
+                <h1 className="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight">
                   SoundCloud
                 </h1>
                 <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-full bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/40">

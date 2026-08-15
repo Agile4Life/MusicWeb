@@ -677,10 +677,10 @@ export default function HomePage() {
       <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.06] p-4 sm:p-6 md:p-8">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 lg:gap-6 relative z-10">
           <div className="hero-copy flex flex-col gap-1.5 sm:gap-2 max-w-xl">
-            <span className="eyebrow text-[11px] font-mono tracking-widest uppercase font-semibold text-[var(--accent-strong,#E8A94F)]">
+            <span className="eyebrow text-[11px] font-mono tracking-widest uppercase font-semibold text-[var(--spotify-glow,#22d3ee)]">
               Thư viện âm nhạc của bạn
             </span>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-serif font-medium text-white tracking-tight leading-tight">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-display font-bold text-white tracking-tight leading-tight">
               Xin chào{user ? `, ${user.user_metadata?.full_name || user.email?.split('@')[0]}` : ''}
             </h1>
             <p className="text-xs lg:text-sm text-slate-400 leading-relaxed max-w-md">
@@ -714,7 +714,7 @@ export default function HomePage() {
                     <div className="absolute inset-[38%] rounded-full bg-[#100C13] border border-white/20 shadow-inner" />
                   </>
                 ) : (
-                  <span className="font-serif italic text-[11px] font-semibold text-center leading-tight text-[#2A1704]">
+                  <span className="font-display italic text-[11px] font-semibold text-center leading-tight text-[#2A1704]">
                     Now<br />Spinning
                   </span>
                 )}

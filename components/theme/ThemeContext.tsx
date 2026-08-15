@@ -439,7 +439,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [themeId, setThemeId] = useState<ThemeId>('aurora')
+  const [themeId, setThemeId] = useState<ThemeId>('slate')
   const [cursorStyle, setCursorStyleState] = useState<CursorStyle>('default')
   const [themeStyle, setThemeStyleState] = useState<ThemeStyle>('classic')
   const [liquidGlassConfig, setLiquidGlassConfigState] = useState<LiquidGlassConfig>(DEFAULT_LIQUID_GLASS_CONFIG)
@@ -450,7 +450,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setThemeId(savedTheme)
       applyTheme(THEMES[savedTheme])
     } else {
-      applyTheme(THEMES.aurora)
+      applyTheme(THEMES.slate)
     }
 
     const savedCursor = localStorage.getItem('musicweb-cursor-style') as CursorStyle
@@ -461,31 +461,40 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
 
     const savedStyle = localStorage.getItem('musicweb-theme-style') as ThemeStyle
-    if (savedStyle === 'classic' || savedStyle === 'liquid-glass' || savedStyle === 'minimal-flat') {
-      setThemeStyleState(savedStyle)
-      applyThemeStyle(savedStyle)
-    } else {
-      applyThemeStyle('classic')
-    }
+    const initialStyle: ThemeStyle =
+      savedStyle === 'classic' || savedStyle === 'liquid-glass' || savedStyle === 'minimal-flat'
+        ? savedStyle
+        : 'classic'
+    setThemeStyleState(initialStyle)
 
     const savedGlassConfig = localStorage.getItem('musicweb-liquid-config')
+    let currentGlassConfig = DEFAULT_LIQUID_GLASS_CONFIG
     if (savedGlassConfig) {
       try {
         const parsed = JSON.parse(savedGlassConfig)
-        const merged = { ...DEFAULT_LIQUID_GLASS_CONFIG, ...parsed }
-        setLiquidGlassConfigState(merged)
-        applyLiquidGlassConfig(merged)
+        currentGlassConfig = {
+          ...DEFAULT_LIQUID_GLASS_CONFIG,
+          ...parsed,
+          aberrationTargets: {
+            ...DEFAULT_LIQUID_GLASS_CONFIG.aberrationTargets,
+            ...(parsed.aberrationTargets || {}),
+          },
+        }
       } catch {
-        applyLiquidGlassConfig(DEFAULT_LIQUID_GLASS_CONFIG)
+        currentGlassConfig = DEFAULT_LIQUID_GLASS_CONFIG
       }
-    } else {
-      applyLiquidGlassConfig(DEFAULT_LIQUID_GLASS_CONFIG)
     }
+    setLiquidGlassConfigState(currentGlassConfig)
+
+    applyThemeStyle(initialStyle, currentGlassConfig)
   }, [])
 
   const applyLiquidGlassConfig = (cfg: LiquidGlassConfig, currentStyle?: ThemeStyle) => {
     const root = document.documentElement
-    const activeStyle = currentStyle ?? themeStyle
+    const activeStyle =
+      currentStyle ??
+      (root.getAttribute('data-theme-style') as ThemeStyle) ??
+      themeStyle
 
     if (activeStyle !== 'liquid-glass') {
       root.removeAttribute('data-refraction-mode')
@@ -505,15 +514,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
 
     const master = cfg.chromaticAberration !== false
-    const targets = cfg.aberrationTargets || {
+    const targets = {
       playerBar: true,
       searchBar: true,
       logoPlaque: true,
       heroBanner: true,
       tiltCards: true,
+      ...(cfg.aberrationTargets || {}),
     }
 
-    root.setAttribute('data-refraction-mode', cfg.refractionMode)
+    root.setAttribute('data-refraction-mode', cfg.refractionMode || 'standard')
     root.setAttribute('data-chromatic-aberration', master ? 'true' : 'false')
     root.setAttribute('data-aberration-playerbar', master && targets.playerBar !== false ? 'true' : 'false')
     root.setAttribute('data-aberration-search', master && targets.searchBar !== false ? 'true' : 'false')
@@ -523,8 +533,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.removeAttribute('data-aberration-sidebar')
     root.removeAttribute('data-aberration-main')
     root.setAttribute('data-elastic-interaction', cfg.elasticInteraction !== false ? 'true' : 'false')
-    root.style.setProperty('--liquid-filter', `url(#liquid-glass-${cfg.refractionMode})`)
-    root.style.setProperty('--liquid-scale', `${cfg.refractionIntensity}px`)
+    root.style.setProperty('--liquid-filter', `url(#liquid-glass-${cfg.refractionMode || 'standard'})`)
+    root.style.setProperty('--liquid-scale', `${cfg.refractionIntensity ?? 24}px`)
     root.style.setProperty('--liquid-aberration', master ? '1' : '0')
   }
 
@@ -552,11 +562,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     applyCursorStyle(style)
   }
 
-  const applyThemeStyle = (style: ThemeStyle) => {
+  const applyThemeStyle = (style: ThemeStyle, configOverride?: LiquidGlassConfig) => {
     setThemeStyleState(style)
     const root = document.documentElement
     root.setAttribute('data-theme-style', style)
-    applyLiquidGlassConfig(liquidGlassConfig, style)
+    applyLiquidGlassConfig(configOverride ?? liquidGlassConfig, style)
   }
 
   const setThemeStyle = (style: ThemeStyle) => {
@@ -566,7 +576,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setLiquidGlassConfig = (config: Partial<LiquidGlassConfig>) => {
     setLiquidGlassConfigState((prev) => {
-      const updated = { ...prev, ...config }
+      const updated: LiquidGlassConfig = {
+        ...prev,
+        ...config,
+        aberrationTargets: {
+          ...(prev.aberrationTargets || DEFAULT_LIQUID_GLASS_CONFIG.aberrationTargets!),
+          ...(config.aberrationTargets || {}),
+        },
+      }
       localStorage.setItem('musicweb-liquid-config', JSON.stringify(updated))
       applyLiquidGlassConfig(updated)
       return updated
