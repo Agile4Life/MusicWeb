@@ -132,7 +132,8 @@ export function ThemeSelector() {
             style={
               themeStyle === 'minimal-flat'
                 ? {
-                    boxShadow: '0 0 0 2px #D85A30',
+                    outline: '2px solid #D85A30',
+                    outlineOffset: '-1px',
                     transform: 'scale(1.02)',
                   }
                 : undefined

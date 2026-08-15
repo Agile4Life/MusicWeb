@@ -2539,7 +2539,13 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] .text-slate-100,
 [data-theme-style="minimal-flat"] .text-slate-200,
 [data-theme-style="minimal-flat"] .text-zinc-100,
-[data-theme-style="minimal-flat"] .text-zinc-200 {
+[data-theme-style="minimal-flat"] .text-zinc-200,
+[data-theme-style="minimal-flat"] .text-gray-100,
+[data-theme-style="minimal-flat"] .text-gray-200,
+[data-theme-style="minimal-flat"] .text-neutral-100,
+[data-theme-style="minimal-flat"] .text-neutral-200,
+[data-theme-style="minimal-flat"] .text-stone-100,
+[data-theme-style="minimal-flat"] .text-stone-200 {
   color: #1F1F1D !important;
   font-weight: 500 !important;
 }
@@ -2547,8 +2553,23 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] .text-slate-300,
 [data-theme-style="minimal-flat"] .text-slate-400,
 [data-theme-style="minimal-flat"] .text-slate-500,
+[data-theme-style="minimal-flat"] .text-slate-600,
+[data-theme-style="minimal-flat"] .text-gray-300,
+[data-theme-style="minimal-flat"] .text-gray-400,
+[data-theme-style="minimal-flat"] .text-gray-500,
+[data-theme-style="minimal-flat"] .text-gray-600,
+[data-theme-style="minimal-flat"] .text-zinc-300,
 [data-theme-style="minimal-flat"] .text-zinc-400,
 [data-theme-style="minimal-flat"] .text-zinc-500,
+[data-theme-style="minimal-flat"] .text-zinc-600,
+[data-theme-style="minimal-flat"] .text-neutral-300,
+[data-theme-style="minimal-flat"] .text-neutral-400,
+[data-theme-style="minimal-flat"] .text-neutral-500,
+[data-theme-style="minimal-flat"] .text-neutral-600,
+[data-theme-style="minimal-flat"] .text-stone-300,
+[data-theme-style="minimal-flat"] .text-stone-400,
+[data-theme-style="minimal-flat"] .text-stone-500,
+[data-theme-style="minimal-flat"] .text-stone-600,
 [data-theme-style="minimal-flat"] .text-muted {
   color: #8A8677 !important;
   font-weight: 400 !important;
@@ -2811,10 +2832,14 @@ html[data-theme-style="minimal-flat"] body {
   background-color: #F1EFE8 !important;
 }
 
-/* Search Input */
+/* Text Inputs & Form Controls (Toàn cục: Search, Text Inputs, Passwords, Emails, Textareas, Selects) */
 [data-theme-style="minimal-flat"] .search-input,
 [data-theme-style="minimal-flat"] input[type="search"],
-[data-theme-style="minimal-flat"] input[type="text"] {
+[data-theme-style="minimal-flat"] input[type="text"],
+[data-theme-style="minimal-flat"] input[type="password"],
+[data-theme-style="minimal-flat"] input[type="email"],
+[data-theme-style="minimal-flat"] textarea,
+[data-theme-style="minimal-flat"] select {
   background-color: #FAFAF7 !important;
   border: 1px solid #E5E3DA !important;
   border-radius: 8px !important;
@@ -2822,13 +2847,18 @@ html[data-theme-style="minimal-flat"] body {
 }
 
 [data-theme-style="minimal-flat"] .search-input::placeholder,
-[data-theme-style="minimal-flat"] input::placeholder {
+[data-theme-style="minimal-flat"] input::placeholder,
+[data-theme-style="minimal-flat"] textarea::placeholder {
   color: #8A8677 !important;
 }
 
 [data-theme-style="minimal-flat"] .search-input:focus,
 [data-theme-style="minimal-flat"] input[type="search"]:focus,
-[data-theme-style="minimal-flat"] input[type="text"]:focus {
+[data-theme-style="minimal-flat"] input[type="text"]:focus,
+[data-theme-style="minimal-flat"] input[type="password"]:focus,
+[data-theme-style="minimal-flat"] input[type="email"]:focus,
+[data-theme-style="minimal-flat"] textarea:focus,
+[data-theme-style="minimal-flat"] select:focus {
   border-color: #D85A30 !important;
 }
 
