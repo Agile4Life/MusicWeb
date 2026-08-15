@@ -121,9 +121,16 @@ export default function SettingsPage() {
 
       {/* 🔔 Notifications / Thông báo từ Tác giả */}
       <div className="bg-[var(--elevation-1-bg)] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-4 relative overflow-hidden">
-        <div className="flex items-center gap-2 text-sm font-bold text-white border-b border-white/[0.05] pb-3">
-          <Bell className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
-          <span>Notifications / Thông báo</span>
+        <div className="flex items-center justify-between border-b border-white/[0.05] pb-3">
+          <div className="flex items-center gap-2 text-sm font-bold text-white">
+            <Bell className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
+            <span>Notifications / Thông báo</span>
+          </div>
+          {checkIsAdmin(userEmail) && (
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-400/40">
+              Admin Mode
+            </span>
+          )}
         </div>
 
         <div className="flex flex-col gap-3 pt-1">
@@ -165,19 +172,39 @@ export default function SettingsPage() {
           </div>
 
           <div className="pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-white/[0.05] mt-1">
-            <span className="text-[11px] text-slate-400">Pop-up thông báo hiển thị ở giữa màn hình khi truy cập web</span>
-            <button
-              onClick={() => {
-                try {
-                  localStorage.removeItem('musicweb_hide_welcome_modal')
-                } catch {}
-                window.dispatchEvent(new CustomEvent('musicweb:open-welcome-modal'))
-              }}
-              className="px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-medium flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer w-fit"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Xem lại pop-up thông báo</span>
-            </button>
+            <span className="text-[11px] text-slate-400">
+              {checkIsAdmin(userEmail)
+                ? 'Bạn có quyền Admin: Có thể chỉnh sửa nội dung và xuất bản thông báo cho toàn bộ người dùng'
+                : 'Pop-up thông báo hiển thị ở giữa màn hình khi truy cập web'}
+            </span>
+            <div className="flex items-center gap-2">
+              {checkIsAdmin(userEmail) && (
+                <button
+                  onClick={() => {
+                    window.dispatchEvent(
+                      new CustomEvent('musicweb:open-welcome-modal', { detail: { editMode: true } })
+                    )
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-md shadow-cyan-500/20"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>✏️ Chỉnh sửa thông báo</span>
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  try {
+                    localStorage.removeItem('musicweb_announcement_dismissed_v')
+                    localStorage.removeItem('musicweb_hide_welcome_modal')
+                  } catch {}
+                  window.dispatchEvent(new CustomEvent('musicweb:open-welcome-modal'))
+                }}
+                className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 border border-white/15 text-xs font-medium flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+              >
+                <span>Xem lại pop-up</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
