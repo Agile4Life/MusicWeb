@@ -776,6 +776,7 @@ export default function HomePage() {
                 id={pl.id}
                 title={pl.name}
                 subtitle="Playlist cá nhân"
+                coverUrl={pl.cover_url || undefined}
                 type="playlist"
                 badgeLabel="Playlist"
                 href={`/playlist/${pl.id}`}
