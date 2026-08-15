@@ -2636,14 +2636,15 @@ html[data-theme-style="minimal-flat"] body {
 }
 
 [data-theme-style="minimal-flat"] .sidebar-logo-plaque {
-  background: #1D1720 !important;
-  border: 1px solid rgba(244, 236, 230, 0.08) !important;
-  border-radius: 10px !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 4px 8px !important;
 }
 
 [data-theme-style="minimal-flat"] .signature-img-invert {
-  filter: none !important;
-  mix-blend-mode: normal !important;
+  filter: invert(1) brightness(1.9) sepia(0.2) saturate(0.8) drop-shadow(0 0 10px rgba(232, 169, 79, 0.4)) !important;
+  mix-blend-mode: screen !important;
+  opacity: 0.95 !important;
 }
 
 [data-theme-style="minimal-flat"] .nav-indicator {
