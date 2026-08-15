@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Space_Grotesk, Inter, JetBrains_Mono } from 'next/font/google'
+import { Space_Grotesk, Inter, JetBrains_Mono, Fraunces, IBM_Plex_Mono } from 'next/font/google'
 import './globals.css'
 
 import { SessionProvider } from '@/components/auth/SessionProvider'
@@ -30,6 +30,21 @@ const jetbrainsMono = JetBrains_Mono({
   display: 'swap',
 })
 
+const fraunces = Fraunces({
+  variable: '--font-fraunces',
+  subsets: ['latin', 'vietnamese'],
+  weight: ['300', '500', '600', '700'],
+  style: ['normal', 'italic'],
+  display: 'swap',
+})
+
+const ibmPlexMono = IBM_Plex_Mono({
+  variable: '--font-ibm-plex-mono',
+  subsets: ['latin', 'vietnamese'],
+  weight: ['400', '500', '600'],
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
   title: 'MusicWeb • Trình Nghe Nhạc Cá Nhân Độc Bản',
   description: 'Trải nghiệm nghe nhạc high-quality cá nhân với giao diện hiện đại, mượt mà.',
@@ -56,7 +71,7 @@ export default function RootLayout({
   return (
     <html
       lang="vi"
-      className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} font-sans h-full antialiased dark`}
+      className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} ${fraunces.variable} ${ibmPlexMono.variable} font-sans h-full antialiased dark`}
     >
       <head>
         <meta name="mobile-web-app-capable" content="yes" />

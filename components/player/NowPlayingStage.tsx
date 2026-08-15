@@ -197,11 +197,11 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
             <div className="album-3d-container relative flex items-center justify-center p-1 sm:p-1.5 shrink-0">
               <div
                 ref={cardRef}
-                className="album-3d-card pointer-gone now-playing-cover relative w-[clamp(90px,16vh,165px)] h-[clamp(90px,16vh,165px)] xl:w-[clamp(110px,18vh,185px)] xl:h-[clamp(110px,18vh,185px)] aspect-square shrink-0 rounded-full flex items-center justify-center"
+                className={`album-3d-card pointer-gone now-playing-cover ${isPlaying ? 'is-spinning' : 'is-paused'} relative w-[clamp(110px,20vh,220px)] h-[clamp(110px,20vh,220px)] xl:w-[clamp(130px,23vh,250px)] xl:h-[clamp(130px,23vh,250px)] aspect-square shrink-0 rounded-full border border-white/20 shadow-[0_16px_40px_rgba(0,0,0,0.7),0_0_50px_var(--accent-dim)]`}
               >
                 {/* Progress Ring SVG (3D tilted with card, sitting flush around circular album cover) */}
                 <svg
-                  className="fullview-progress-ring absolute -inset-2.5 w-[calc(100%+20px)] h-[calc(100%+20px)] pointer-events-none -rotate-90 z-20 overflow-visible"
+                  className="fullview-progress-ring absolute -inset-2 w-[calc(100%+16px)] h-[calc(100%+16px)] pointer-events-none -rotate-90 z-20 overflow-visible"
                   viewBox="0 0 100 100"
                 >
                   <defs>
@@ -238,18 +238,12 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
                   />
                 </svg>
 
-                {/* Rotating Vinyl Disc with Center Artwork */}
-                <div className={`fullview-vinyl-disc w-full h-full rounded-full relative flex items-center justify-center overflow-hidden shadow-2xl ${isPlaying ? 'is-spinning' : 'is-paused'}`}>
-                  {/* Centered Circular Album Thumbnail */}
-                  <div className="w-[62%] h-[62%] rounded-full overflow-hidden relative shadow-inner z-10">
-                    <TrackCoverImage src={coverUrl} alt={title || 'Now Playing'} />
+                {/* Circular overflow-hidden inner wrapper for image + reflection */}
+                <div className="w-full h-full rounded-full overflow-hidden relative shadow-inner">
+                  <TrackCoverImage src={coverUrl} alt={title || 'Now Playing'} />
 
-                    {/* Spindle hole in center */}
-                    <div className="absolute inset-[38%] rounded-full bg-[#100C13] border border-white/30 shadow-inner z-20" />
-
-                    {/* Specular light reflection */}
-                    <div ref={reflectionRef} className="album-3d-reflection rounded-full z-30" />
-                  </div>
+                  {/* Specular light reflection */}
+                  <div ref={reflectionRef} className="album-3d-reflection rounded-full" />
                 </div>
               </div>
             </div>

@@ -1,17 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Permanent+Marker&family=Rock+Salt&family=Sedgwick+Ave&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Permanent+Marker&family=Rock+Salt&family=Sedgwick+Ave&display=swap');
 @import "tailwindcss";
-
-:root {
-  --font-fraunces: 'Fraunces', Georgia, serif;
-  --font-ibm-plex-mono: 'IBM Plex Mono', monospace;
-}
 
 @theme {
   --font-display: var(--font-space-grotesk), 'Space Grotesk', system-ui, sans-serif;
   --font-sans: var(--font-inter), 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-jetbrains-mono), 'JetBrains Mono', monospace;
-  --font-fraunces: 'Fraunces', Georgia, serif;
-  --font-ibm-plex-mono: 'IBM Plex Mono', monospace;
 }
 
 .font-graffiti {
@@ -393,12 +386,15 @@ body {
 
 /* === Hide scrollbar completely while maintaining full touch/wheel scroll === */
 .no-scrollbar {
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
 }
 
 .no-scrollbar::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
+  display: none;
+  /* Chrome, Safari, Opera */
   width: 0;
   height: 0;
 }
@@ -2094,7 +2090,7 @@ html[data-cursor="default"][data-buffering="true"] * {
   backdrop-filter: blur(24px) saturate(160%);
   -webkit-backdrop-filter: blur(24px) saturate(160%);
   border: 1px solid rgba(255, 255, 255, 0.16) !important;
-  box-shadow: 
+  box-shadow:
     0 12px 36px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.25),
     0 0 20px color-mix(in srgb, var(--primary-spotify, #22d3ee) 8%, transparent) !important;
@@ -2106,7 +2102,7 @@ html[data-cursor="default"][data-buffering="true"] * {
   backdrop-filter: blur(32px) saturate(190%);
   -webkit-backdrop-filter: blur(32px) saturate(190%);
   border: 1px solid rgba(255, 255, 255, 0.24) !important;
-  box-shadow: 
+  box-shadow:
     0 24px 64px rgba(0, 0, 0, 0.55),
     inset 0 1.5px 0.5px rgba(255, 255, 255, 0.35),
     inset 0 -1px 0.5px rgba(255, 255, 255, 0.08),
@@ -2119,7 +2115,7 @@ html[data-cursor="default"][data-buffering="true"] * {
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
   border: 1px solid rgba(255, 255, 255, 0.18) !important;
-  box-shadow: 
+  box-shadow:
     0 4px 16px rgba(0, 0, 0, 0.25),
     inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -2128,7 +2124,7 @@ html[data-cursor="default"][data-buffering="true"] * {
 .liquid-glass-pill:hover {
   background: rgba(255, 255, 255, 0.14) !important;
   border-color: rgba(255, 255, 255, 0.3) !important;
-  box-shadow: 
+  box-shadow:
     0 8px 24px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.4),
     0 0 16px color-mix(in srgb, var(--primary-spotify, #22d3ee) 20%, transparent) !important;
@@ -2140,7 +2136,7 @@ html[data-cursor="default"][data-buffering="true"] * {
   backdrop-filter: blur(18px) saturate(150%);
   -webkit-backdrop-filter: blur(18px) saturate(150%);
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  box-shadow: 
+  box-shadow:
     0 8px 24px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
@@ -2150,7 +2146,7 @@ html[data-cursor="default"][data-buffering="true"] * {
   transform: translateY(-4px) scale(1.01);
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%) !important;
   border-color: rgba(255, 255, 255, 0.28) !important;
-  box-shadow: 
+  box-shadow:
     0 16px 40px rgba(0, 0, 0, 0.45),
     inset 0 1px 0 rgba(255, 255, 255, 0.35),
     0 0 24px color-mix(in srgb, var(--primary-spotify, #22d3ee) 22%, transparent) !important;
@@ -2170,7 +2166,7 @@ html[data-cursor="default"][data-buffering="true"] * {
   backdrop-filter: blur(32px) saturate(200%);
   -webkit-backdrop-filter: blur(32px) saturate(200%);
   border: 1px solid rgba(255, 255, 255, 0.24) !important;
-  box-shadow: 
+  box-shadow:
     0 24px 64px rgba(0, 0, 0, 0.55),
     inset 0 1.5px 0.5px rgba(255, 255, 255, 0.35),
     inset 0 -1px 0.5px rgba(255, 255, 255, 0.08),
@@ -2227,7 +2223,7 @@ html[data-cursor="default"][data-buffering="true"] * {
   backdrop-filter: blur(24px) saturate(170%);
   -webkit-backdrop-filter: blur(24px) saturate(170%);
   border: 1px solid rgba(255, 255, 255, 0.18) !important;
-  box-shadow: 
+  box-shadow:
     0 16px 40px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
 }
@@ -2241,7 +2237,7 @@ html[data-cursor="default"][data-buffering="true"] * {
   backdrop-filter: blur(28px) saturate(190%);
   -webkit-backdrop-filter: blur(28px) saturate(190%);
   border: 1.5px solid rgba(34, 211, 238, 0.4) !important;
-  box-shadow: 
+  box-shadow:
     0 24px 64px rgba(0, 0, 0, 0.6),
     inset 0 2px 1px rgba(255, 255, 255, 0.5),
     inset 0 -2px 1px rgba(34, 211, 238, 0.3),
@@ -2258,9 +2254,11 @@ html[data-cursor="default"][data-buffering="true"] * {
   -webkit-backdrop-filter: blur(32px) saturate(230%) contrast(110%);
   border-top: 1.5px solid rgba(255, 255, 255, 0.7) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
-  border-left: 1.5px solid rgba(244, 63, 94, 0.55) !important; /* Chromatic Red edge */
-  border-right: 1.5px solid rgba(6, 182, 212, 0.55) !important; /* Chromatic Cyan edge */
-  box-shadow: 
+  border-left: 1.5px solid rgba(244, 63, 94, 0.55) !important;
+  /* Chromatic Red edge */
+  border-right: 1.5px solid rgba(6, 182, 212, 0.55) !important;
+  /* Chromatic Cyan edge */
+  box-shadow:
     0 32px 80px rgba(0, 0, 0, 0.75),
     inset 0 2.5px 0.5px rgba(255, 255, 255, 0.8),
     inset 2.5px 0 0.5px rgba(244, 63, 94, 0.4),
@@ -2278,7 +2276,7 @@ html[data-cursor="default"][data-buffering="true"] * {
   backdrop-filter: blur(28px) saturate(200%);
   -webkit-backdrop-filter: blur(28px) saturate(200%);
   border: 1.5px solid rgba(168, 85, 247, 0.4) !important;
-  box-shadow: 
+  box-shadow:
     0 24px 64px rgba(0, 0, 0, 0.6),
     inset 0 2px 0.5px rgba(255, 255, 255, 0.6),
     inset 0 -1px 0.5px rgba(168, 85, 247, 0.3),
@@ -2294,7 +2292,7 @@ html[data-cursor="default"][data-buffering="true"] * {
   border-right: 2px solid rgba(6, 182, 212, 0.85) !important;
   border-top: 1.5px solid rgba(255, 255, 255, 0.85) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
-  box-shadow: 
+  box-shadow:
     0 24px 64px rgba(0, 0, 0, 0.75),
     inset 3.5px 0 1px rgba(244, 63, 94, 0.65),
     inset -3.5px 0 1px rgba(6, 182, 212, 0.65),
@@ -2315,7 +2313,7 @@ html[data-cursor="default"][data-buffering="true"] * {
   border-right: 1.5px solid rgba(6, 182, 212, 0.65) !important;
   border-top: 1.5px solid rgba(255, 255, 255, 0.8) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
-  box-shadow: 
+  box-shadow:
     0 16px 40px rgba(0, 0, 0, 0.5),
     inset 2px 0 0.5px rgba(244, 63, 94, 0.45),
     inset -2px 0 0.5px rgba(6, 182, 212, 0.45),
@@ -2334,7 +2332,7 @@ html[data-cursor="default"][data-buffering="true"] * {
   border-right: 2px solid rgba(6, 182, 212, 0.85) !important;
   border-top: 1.5px solid rgba(255, 255, 255, 0.8) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
-  box-shadow: 
+  box-shadow:
     0 4px 16px rgba(0, 0, 0, 0.35),
     inset 2.5px 0 0.5px rgba(244, 63, 94, 0.55),
     inset -2.5px 0 0.5px rgba(6, 182, 212, 0.55),
@@ -2352,7 +2350,7 @@ html[data-cursor="default"][data-buffering="true"] * {
   border-right: 2px solid rgba(6, 182, 212, 0.85) !important;
   border-top: 1.5px solid rgba(255, 255, 255, 0.8) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
-  box-shadow: 
+  box-shadow:
     0 8px 24px rgba(0, 0, 0, 0.4),
     inset 2.5px 0 0.5px rgba(244, 63, 94, 0.55),
     inset -2.5px 0 0.5px rgba(6, 182, 212, 0.55),
@@ -2373,7 +2371,7 @@ html[data-cursor="default"][data-buffering="true"] * {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
-  box-shadow: 
+  box-shadow:
     0 20px 48px rgba(0, 0, 0, 0.6),
     inset 3px 0 1px rgba(244, 63, 94, 0.55),
     inset -3px 0 1px rgba(6, 182, 212, 0.55),
@@ -2397,13 +2395,13 @@ html[data-cursor="default"][data-buffering="true"] * {
   backdrop-filter: blur(32px) saturate(200%);
   -webkit-backdrop-filter: blur(32px) saturate(200%);
   border: 1px solid rgba(255, 255, 255, 0.22) !important;
-  box-shadow: 
+  box-shadow:
     0 24px 64px rgba(0, 0, 0, 0.75),
     inset 0 1.5px 0.5px rgba(255, 255, 255, 0.5),
     0 0 35px color-mix(in srgb, var(--primary-spotify, #22d3ee) 18%, transparent) !important;
 }
 
-[data-theme-style="liquid-glass"] .now-playing-overlay .up-next-list > div:first-child {
+[data-theme-style="liquid-glass"] .now-playing-overlay .up-next-list>div:first-child {
   background: rgba(255, 255, 255, 0.06) !important;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -2421,7 +2419,7 @@ html[data-cursor="default"][data-buffering="true"] * {
   backdrop-filter: blur(32px) saturate(220%);
   -webkit-backdrop-filter: blur(32px) saturate(220%);
   border: 1.5px solid rgba(255, 255, 255, 0.4) !important;
-  box-shadow: 
+  box-shadow:
     0 20px 48px rgba(0, 0, 0, 0.6),
     inset 0 2px 0 rgba(255, 255, 255, 0.8),
     0 0 35px color-mix(in srgb, var(--primary-spotify, #22d3ee) 35%, transparent) !important;
@@ -2451,7 +2449,7 @@ html[data-cursor="default"][data-buffering="true"] * {
 
 [data-theme-style="liquid-glass"] .album-3d-card {
   border: 2px solid rgba(255, 255, 255, 0.45) !important;
-  box-shadow: 
+  box-shadow:
     0 24px 70px rgba(0, 0, 0, 0.85),
     inset 0 2px 4px rgba(255, 255, 255, 0.6),
     0 0 60px color-mix(in srgb, var(--primary-spotify, #22d3ee) 40%, transparent) !important;
@@ -2750,26 +2748,14 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] .hero-banner {
   border-radius: 20px !important;
   background:
-    radial-gradient(500px 220px at 85% 50%, rgba(201, 138, 61, 0.3), transparent 70%),
+    radial-gradient(600px 260px at 88% 30%, rgba(201, 138, 61, 0.35), transparent 65%),
     linear-gradient(120deg, #241A2A, #1A1420 60%) !important;
   border: 1px solid rgba(244, 236, 230, 0.14) !important;
-  padding: 24px 32px !important;
-  height: 180px !important;
-  max-height: 180px !important;
-  min-height: 180px !important;
+  padding: 32px 36px !important;
+  min-height: 190px !important;
   position: relative !important;
   overflow: hidden !important;
   box-shadow: none !important;
-  display: flex !important;
-  align-items: center !important;
-}
-
-[data-theme-style="minimal-flat"] .hero-banner > div {
-  width: 100% !important;
-  height: 100% !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
 }
 
 [data-theme-style="minimal-flat"] .hero-banner::before {
@@ -2777,40 +2763,40 @@ html[data-theme-style="minimal-flat"] body {
   position: absolute !important;
   right: -40px !important;
   top: -40px !important;
-  width: 240px !important;
-  height: 240px !important;
+  width: 280px !important;
+  height: 280px !important;
   border-radius: 50% !important;
-  background: radial-gradient(circle at 40% 40%, rgba(232, 169, 79, 0.4), transparent 70%) !important;
-  filter: blur(8px) !important;
+  background: radial-gradient(circle at 40% 40%, rgba(232, 169, 79, 0.5), transparent 70%) !important;
+  filter: blur(6px) !important;
   pointer-events: none !important;
 }
 
 [data-theme-style="minimal-flat"] .hero-banner h1 {
   font-family: var(--font-fraunces), serif !important;
   font-weight: 500 !important;
-  font-size: 26px !important;
+  font-size: 32px !important;
   line-height: 1.15 !important;
   color: #F4ECE1 !important;
-  margin-bottom: 6px !important;
+  margin-bottom: 10px !important;
 }
 
 [data-theme-style="minimal-flat"] .hero-banner p {
   color: #B9AC9C !important;
-  font-size: 13px !important;
-  line-height: 1.5 !important;
+  font-size: 13.5px !important;
+  line-height: 1.6 !important;
 }
 
 [data-theme-style="minimal-flat"] .hero-banner .btn-outline-accent {
-  margin-top: 10px !important;
+  margin-top: 14px !important;
   display: inline-flex !important;
   align-items: center !important;
   gap: 8px !important;
   background: #E8A94F !important;
   color: #2A1704 !important;
-  padding: 8px 16px !important;
+  padding: 10px 18px !important;
   border-radius: 11px !important;
   font-weight: 600 !important;
-  font-size: 12px !important;
+  font-size: 13px !important;
   border: none !important;
   box-shadow: 0 4px 12px rgba(232, 169, 79, 0.3) !important;
 }
@@ -2820,18 +2806,24 @@ html[data-theme-style="minimal-flat"] body {
   color: #2A1704 !important;
 }
 
-/* Hero Decorative Vinyl */
-[data-theme-style="minimal-flat"] .hero-vinyl {
-  width: 130px !important;
-  height: 130px !important;
-  min-width: 130px !important;
-  max-width: 130px !important;
-  min-height: 130px !important;
-  max-height: 130px !important;
-  flex-shrink: 0 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+/* Hero Decorative Vinyl: Ẩn ở chế độ Classic / Dark và Liquid Glass, chỉ hiện ở Minimal Editorial */
+.hero-vinyl {
+  display: none !important;
+}
+
+@media (min-width: 768px) {
+  [data-theme-style="minimal-flat"] .hero-vinyl {
+    display: flex !important;
+    width: 130px !important;
+    height: 130px !important;
+    min-width: 130px !important;
+    max-width: 130px !important;
+    min-height: 130px !important;
+    max-height: 130px !important;
+    flex-shrink: 0 !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
 }
 
 [data-theme-style="minimal-flat"] .hero-vinyl-disc {
@@ -2896,6 +2888,7 @@ html[data-theme-style="minimal-flat"] body {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -3275,7 +3268,7 @@ html[data-theme-style="minimal-flat"] body {
   color: #F4ECE1 !important;
 }
 
-[data-theme-style="minimal-flat"] .now-playing-overlay > div.bg-gradient-to-r {
+[data-theme-style="minimal-flat"] .now-playing-overlay>div.bg-gradient-to-r {
   background: radial-gradient(800px 500px at 20% 40%, rgba(201, 138, 61, 0.18), transparent 70%), #141017 !important;
 }
 
@@ -3319,25 +3312,18 @@ html[data-theme-style="minimal-flat"] body {
 /* Left Column Vinyl Disc */
 [data-theme-style="minimal-flat"] .album-3d-card.now-playing-cover {
   border-radius: 50% !important;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-}
-
-.fullview-vinyl-disc {
-  border-radius: 50% !important;
   background: repeating-radial-gradient(circle, #100C13 0 2px, #1C1620 2px 4px) !important;
   border: 1px solid rgba(244, 236, 230, 0.14) !important;
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.85), 0 0 35px rgba(201, 138, 61, 0.25) !important;
+  box-shadow: 0 24px 50px -12px rgba(0, 0, 0, 0.85), 0 0 45px rgba(201, 138, 61, 0.2) !important;
+  padding: 10px !important;
 }
 
-.fullview-vinyl-disc.is-spinning {
-  animation: spin-vinyl 14s linear infinite !important;
+[data-theme-style="minimal-flat"] .album-3d-card.now-playing-cover.is-spinning {
+  animation: spin 40s linear infinite !important;
 }
 
-.fullview-vinyl-disc.is-paused {
-  animation: spin-vinyl 14s linear infinite !important;
+[data-theme-style="minimal-flat"] .album-3d-card.now-playing-cover.is-paused {
+  animation: spin 40s linear infinite !important;
   animation-play-state: paused !important;
 }
 
@@ -3379,7 +3365,7 @@ html[data-theme-style="minimal-flat"] body {
   box-shadow: none !important;
 }
 
-[data-theme-style="minimal-flat"] .up-next-list > .sticky {
+[data-theme-style="minimal-flat"] .up-next-list>.sticky {
   background: #1D1720 !important;
   border-bottom: 1px solid rgba(244, 236, 230, 0.08) !important;
 }
@@ -3471,10 +3457,3 @@ html[data-theme-style="minimal-flat"] body {
   -webkit-backdrop-filter: blur(16px) !important;
   border-top: 1px solid rgba(244, 236, 230, 0.1) !important;
 }
-
-
-
-
-
-
-
