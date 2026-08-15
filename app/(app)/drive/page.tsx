@@ -47,14 +47,18 @@ export default function DrivePage() {
       const userId = activeUser ? getValidUserId(activeUser) : null
 
       let userFavSet = new Set<string>()
-      if (userId) {
-        const { data: userFavs } = await supabase
-          .from('favorite_tracks')
-          .select('track_id')
-          .eq('user_id', userId)
-        if (userFavs) {
-          userFavSet = new Set(userFavs.map((f: any) => f.track_id))
+      try {
+        const favRes = await fetch('/api/favorites/status')
+        if (favRes.ok) {
+          const favData = await favRes.json()
+          if (Array.isArray(favData.trackIds)) {
+            userFavSet = new Set(favData.trackIds)
+          }
         }
+      } catch {}
+      setUserFavTrackIds(userFavSet)
+
+      if (userId) {
 
         const { data: playlistData } = await supabase
           .from('playlists')

@@ -52,15 +52,15 @@ describe('fetchReceiptTracks', () => {
   })
 
   it('fetches history tracks and falls back to in-memory queue if DB history is empty', async () => {
-    const listeningHistoryQuery = {
-      select: vi.fn().mockReturnThis(),
-      in: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      order: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockResolvedValue({ data: [], error: null }),
-    }
+    const originalFetch = global.fetch
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ items: [] }),
+    }) as any
+
     const mockSupabase = {
-      from: vi.fn().mockReturnValue(listeningHistoryQuery),
+      from: vi.fn(),
     } as unknown as SupabaseClient
 
     const currentTrack = { id: 'fallback-1', title: 'Fallback Song', artist: 'Artist', duration: 200 } as any
@@ -76,36 +76,33 @@ describe('fetchReceiptTracks', () => {
     expect(result).toHaveLength(1)
     expect(result[0].id).toBe('fallback-1')
     expect(result[0].title).toBe('Fallback Song')
+
+    global.fetch = originalFetch
   })
 
   it('fetches history from database with correct track metadata', async () => {
-    const historyData = [
-      { id: 'h-1', user_id: 'user-1', track_id: 't-1', played_at: '2026-08-14T10:00:00Z' },
-      { id: 'h-2', user_id: 'user-1', track_id: 't-2', played_at: '2026-08-14T09:00:00Z' },
-    ]
-    const tracksData = [
-      { id: 't-1', title: 'DB Track 1', artist: 'Artist 1', duration: 210 },
-      { id: 't-2', title: 'DB Track 2', artist: 'Artist 2', duration: 195 },
-    ]
-
-    const historyQuery = {
-      select: vi.fn().mockReturnThis(),
-      in: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      order: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockResolvedValue({ data: historyData, error: null }),
-    }
-    const tracksQuery = {
-      select: vi.fn().mockReturnThis(),
-      in: vi.fn().mockResolvedValue({ data: tracksData, error: null }),
-    }
+    const originalFetch = global.fetch
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        items: [
+          {
+            id: 'h-1',
+            played_at: '2026-08-14T10:00:00Z',
+            track: { id: 't-1', title: 'DB Track 1', artist: 'Artist 1', duration: 210 },
+          },
+          {
+            id: 'h-2',
+            played_at: '2026-08-14T09:00:00Z',
+            track: { id: 't-2', title: 'DB Track 2', artist: 'Artist 2', duration: 195 },
+          },
+        ],
+      }),
+    }) as any
 
     const mockSupabase = {
-      from: vi.fn((table: string) => {
-        if (table === 'listening_history') return historyQuery
-        if (table === 'tracks') return tracksQuery
-        throw new Error(`Unexpected table: ${table}`)
-      }),
+      from: vi.fn(),
     } as unknown as SupabaseClient
 
     const result = await fetchReceiptTracks({
@@ -117,6 +114,8 @@ describe('fetchReceiptTracks', () => {
     expect(result).toHaveLength(2)
     expect(result[0].title).toBe('DB Track 1')
     expect(result[1].title).toBe('DB Track 2')
+
+    global.fetch = originalFetch
   })
 
   it('fetches favorites from favorite_tracks junction table and returns receipt tracks', async () => {

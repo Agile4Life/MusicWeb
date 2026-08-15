@@ -54,19 +54,20 @@ export async function fetchReceiptTracks({
 
   if (source === 'history') {
     let items: ReceiptTrackItem[] = []
-    if (userIds.length > 0) {
-      try {
-        const entries = await fetchListeningHistory(supabase, userIds, limit)
-        const unique = getRecentUniqueTracks(entries)
+    try {
+      const res = await fetch(`/api/history/list?limit=${limit}`)
+      if (res.ok) {
+        const { items: historyItems } = await res.json()
+        const unique = getRecentUniqueTracks(historyItems ?? [])
         items = unique.map((t) => ({
           id: t.id,
           title: t.title,
           artist: t.artist,
           duration: t.duration,
         }))
-      } catch (err) {
-        console.warn('[ReceiptTracks] fetchListeningHistory error:', err)
       }
+    } catch (err) {
+      console.warn('[ReceiptTracks] history fetch error:', err)
     }
 
     // Fallback: If DB history is empty or user is guest, use in-memory played / active queue tracks

@@ -288,24 +288,31 @@ function TrackRowComponent({
     onTrackUpdated?.(track.id, { is_favorite: nextValue })
 
     try {
-      const userId = userEmail ? getValidUserId({ email: userEmail }) : null
-
       let dbTrackId = track.id
 
-      if (isExternalTrack(track) && userId) {
-        const resolvedId = await resolveExternalTrackId(supabase, track, userId)
-        if (resolvedId) dbTrackId = resolvedId
+      if (isExternalTrack(track)) {
+        const userId = userEmail ? getValidUserId({ email: userEmail }) : null
+        if (userId) {
+          const resolvedId = await resolveExternalTrackId(supabase, track, userId)
+          if (resolvedId) dbTrackId = resolvedId
+        }
       }
 
-      if (userId && dbTrackId) {
-        if (nextValue) {
-          await supabase.from('favorite_tracks').upsert({ user_id: userId, track_id: dbTrackId })
-        } else {
-          await supabase.from('favorite_tracks').delete().eq('user_id', userId).eq('track_id', dbTrackId)
-        }
+      const res = await fetch('/api/favorites/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trackId: dbTrackId, nextValue }),
+      })
+
+      if (!res.ok) {
+        console.warn('[Favorite] toggle failed', await res.json().catch(() => null))
+        setIsFavorite(!nextValue)
+        onTrackUpdated?.(track.id, { is_favorite: !nextValue })
       }
     } catch (e) {
       console.warn('Favorite toggle sync error:', e)
+      setIsFavorite(!nextValue)
+      onTrackUpdated?.(track.id, { is_favorite: !nextValue })
     } finally {
       favBusyRef.current = false
     }

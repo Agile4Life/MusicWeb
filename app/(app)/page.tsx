@@ -193,15 +193,15 @@ export default function HomePage() {
       const userId = activeUser ? getValidUserId(activeUser) : null
 
       let userFavSet = new Set<string>()
-      if (userId) {
-        const { data: userFavs } = await supabase
-          .from('favorite_tracks')
-          .select('track_id')
-          .eq('user_id', userId)
-        if (userFavs) {
-          userFavSet = new Set(userFavs.map((f: any) => f.track_id))
+      try {
+        const favRes = await fetch('/api/favorites/status')
+        if (favRes.ok) {
+          const favData = await favRes.json()
+          if (Array.isArray(favData.trackIds)) {
+            userFavSet = new Set(favData.trackIds)
+          }
         }
-      }
+      } catch {}
       if (mySeq !== fetchSeqRef.current) return
       setUserFavTrackIds(userFavSet)
 
@@ -253,23 +253,22 @@ export default function HomePage() {
         )
       }
 
-      const userIds = getAllValidUserIds(currentUser, nextAuthSession)
-
-      if (userIds.length > 0) {
-        try {
-          const historyItems = await fetchListeningHistory(supabase, userIds, 100)
-          const recent = getRecentUniqueTracks(historyItems).map((tr) => ({
+      try {
+        const historyRes = await fetch('/api/history/list?limit=100')
+        if (historyRes.ok) {
+          const { items: historyItems } = await historyRes.json()
+          const recent = getRecentUniqueTracks(historyItems ?? []).map((tr) => ({
             ...tr,
             source: tr.source || 'local',
           }))
           if (mySeq !== fetchSeqRef.current) return
           setRecentTracks(recent)
-        } catch (hErr) {
-          console.error('Failed to fetch recent listening history:', hErr)
+        } else {
           if (mySeq !== fetchSeqRef.current) return
           setRecentTracks([])
         }
-      } else {
+      } catch (hErr) {
+        console.error('Failed to fetch recent listening history:', hErr)
         if (mySeq !== fetchSeqRef.current) return
         setRecentTracks([])
       }

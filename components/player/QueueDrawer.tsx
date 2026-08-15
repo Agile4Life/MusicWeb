@@ -25,20 +25,15 @@ export function QueueDrawer() {
     let cancelled = false
     async function loadRecentHistory() {
       try {
-        const {
-          data: { user: currentUser },
-        } = await supabase.auth.getUser()
-
-        const userIds = getAllValidUserIds(currentUser, nextAuthSession)
-        if (userIds.length === 0) {
+        const res = await fetch('/api/history/list?limit=50')
+        if (res.ok) {
+          const { items } = await res.json()
+          const unique = getRecentUniqueTracks(items ?? [])
+          if (!cancelled) {
+            setPersistedRecentTracks(unique)
+          }
+        } else {
           if (!cancelled) setPersistedRecentTracks([])
-          return
-        }
-
-        const items = await fetchListeningHistory(supabase, userIds, 50)
-        const unique = getRecentUniqueTracks(items)
-        if (!cancelled) {
-          setPersistedRecentTracks(unique)
         }
       } catch (err) {
         console.error('QueueDrawer history load error:', err)

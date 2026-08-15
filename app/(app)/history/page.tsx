@@ -68,65 +68,57 @@ export default function HistoryPage() {
   const fetchHistory = useCallback(async () => {
     setLoading(true)
     try {
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser()
+      const res = await fetch('/api/history/list?limit=100')
+      if (res.ok) {
+        const { items } = await res.json()
+        const validEntries: HistoryEntry[] = (items ?? []).flatMap((item: any) => {
+          const tr = item.track
+          if (!tr) return []
+          let source: Track['source'] = tr.source || 'local'
+          let youtube_id = tr.youtube_id
+          const fp = tr.file_path || ''
 
-      const userIds = getAllValidUserIds(currentUser, nextAuthSession)
-
-      if (userIds.length === 0) {
-        setHistoryItems([])
-        setLoading(false)
-        return
-      }
-
-      const rawItems = await fetchListeningHistory(supabase, userIds, 100)
-
-      const validEntries: HistoryEntry[] = rawItems.flatMap((item) => {
-        const tr = item.track
-        if (!tr) return []
-        let source: Track['source'] = tr.source || 'local'
-        let youtube_id = tr.youtube_id
-        const fp = tr.file_path || ''
-
-        if (fp.includes('youtube.com') || fp.includes('youtu.be') || tr.id?.startsWith?.('yt-')) {
-          source = 'youtube'
-          if (!youtube_id) {
-            const match = fp.match(/(?:v=|\/embed\/|\/1\/|\/v\/|https:\/\/youtu\.be\/|^yt-)([a-zA-Z0-9_-]{11})/)
-            if (match) youtube_id = match[1]
-            else if (tr.id?.startsWith?.('yt-')) youtube_id = tr.id.replace('yt-', '')
+          if (fp.includes('youtube.com') || fp.includes('youtu.be') || tr.id?.startsWith?.('yt-')) {
+            source = 'youtube'
+            if (!youtube_id) {
+              const match = fp.match(/(?:v=|\/embed\/|\/1\/|\/v\/|https:\/\/youtu\.be\/|^yt-)([a-zA-Z0-9_-]{11})/)
+              if (match) youtube_id = match[1]
+              else if (tr.id?.startsWith?.('yt-')) youtube_id = tr.id.replace('yt-', '')
+            }
+          } else if (fp.includes('spotify.com') || tr.id?.startsWith?.('spotify-')) {
+            source = 'spotify'
+          } else if (fp.includes('itunes.apple.com') || tr.id?.startsWith?.('itunes-')) {
+            source = 'itunes'
+          } else if (fp.includes('audius.co') || tr.id?.startsWith?.('audius-')) {
+            source = 'audius'
           }
-        } else if (fp.includes('spotify.com') || tr.id?.startsWith?.('spotify-')) {
-          source = 'spotify'
-        } else if (fp.includes('itunes.apple.com') || tr.id?.startsWith?.('itunes-')) {
-          source = 'itunes'
-        } else if (fp.includes('audius.co') || tr.id?.startsWith?.('audius-')) {
-          source = 'audius'
-        }
 
-        return [
-          {
-            id: item.id,
-            played_at: item.played_at,
-            track: {
-              ...tr,
-              source,
-              youtube_id,
-              artist: tr.artist || null,
-              album: tr.album || null,
+          return [
+            {
+              id: item.id,
+              played_at: item.played_at,
+              track: {
+                ...tr,
+                source,
+                youtube_id,
+                artist: tr.artist || null,
+                album: tr.album || null,
+              },
             },
-          },
-        ]
-      })
+          ]
+        })
 
-      setHistoryItems(validEntries)
+        setHistoryItems(validEntries)
+      } else {
+        setHistoryItems([])
+      }
     } catch (err) {
       console.error('Fetch history error:', err)
       setHistoryItems([])
     } finally {
       setLoading(false)
     }
-  }, [nextAuthSession, supabase])
+  }, [])
 
   useEffect(() => {
     fetchHistory()
@@ -153,14 +145,15 @@ export default function HistoryPage() {
 
     setClearing(true)
     try {
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser()
-
-      const userIds = getAllValidUserIds(currentUser, nextAuthSession)
-      if (userIds.length > 0) {
-        await supabase.from('listening_history').delete().in('user_id', userIds)
+      const res = await fetch('/api/history/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clearAll: true }),
+      })
+      if (res.ok) {
         setHistoryItems([])
+      } else {
+        alert('Lỗi xóa lịch sử nghe!')
       }
     } catch (err) {
       alert('Lỗi xóa lịch sử nghe!')
@@ -171,9 +164,17 @@ export default function HistoryPage() {
 
   const handleRemoveSingleItem = async (e: React.MouseEvent, historyId: string) => {
     e.stopPropagation()
-    const { error } = await supabase.from('listening_history').delete().eq('id', historyId)
-    if (!error) {
-      setHistoryItems((prev) => prev.filter((item) => item.id !== historyId))
+    try {
+      const res = await fetch('/api/history/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ historyId }),
+      })
+      if (res.ok) {
+        setHistoryItems((prev) => prev.filter((item) => item.id !== historyId))
+      }
+    } catch (err) {
+      console.warn('Remove single history item error:', err)
     }
   }
 

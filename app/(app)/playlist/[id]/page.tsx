@@ -418,16 +418,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
   const handleAddTrackToThisPlaylist = async (track: Track) => {
     setAddingTrackId(track.id)
     try {
-      const activeUser =
-        userEmail || session?.user?.email
-          ? {
-              id: userEmail || session?.user?.email,
-              email: userEmail || session?.user?.email,
-            }
-          : null
-
-      const userId = activeUser ? getValidUserId(activeUser) : ''
-      const result = await addTrackToPlaylist(supabase, playlistId, track, userId)
+      const result = await addTrackToPlaylist(playlistId, track)
 
       if (result.success) {
         toast(result.message, 'success', track.title)

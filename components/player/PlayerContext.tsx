@@ -742,18 +742,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const toggleFavoriteCurrentTrack = async () => {
     if (!currentTrack) return
-    const { data: { user: currentUser } } = await supabase.auth.getUser()
-    const activeUser =
-      currentUser ||
-      (nextAuthSession?.user
-        ? { id: nextAuthSession.user.email, email: nextAuthSession.user.email }
-        : null)
-    const userId = activeUser ? getValidUserId(activeUser) : null
-    if (!userId) {
-      alert('Vui lòng đăng nhập để lưu bài hát yêu thích!')
-      return
-    }
-
     const nextValue = !currentTrack.is_favorite
     setCurrentTrack((prev) => (prev ? { ...prev, is_favorite: nextValue } : null))
 
@@ -762,14 +750,28 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       // If track is from external source (YouTube, iTunes, Audius), ensure it exists in tracks table
       if (currentTrack.source && currentTrack.source !== 'local') {
-        const resolvedId = await resolveExternalTrackId(supabase, currentTrack, userId)
-        if (resolvedId) dbTrackId = resolvedId
+        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        const activeUser =
+          currentUser ||
+          (nextAuthSession?.user
+            ? { id: nextAuthSession.user.email, email: nextAuthSession.user.email }
+            : null)
+        const userId = activeUser ? getValidUserId(activeUser) : null
+        if (userId) {
+          const resolvedId = await resolveExternalTrackId(supabase, currentTrack, userId)
+          if (resolvedId) dbTrackId = resolvedId
+        }
       }
 
-      if (nextValue) {
-        await supabase.from('favorite_tracks').upsert({ user_id: userId, track_id: dbTrackId })
-      } else {
-        await supabase.from('favorite_tracks').delete().eq('user_id', userId).eq('track_id', dbTrackId)
+      const res = await fetch('/api/favorites/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trackId: dbTrackId, nextValue }),
+      })
+
+      if (!res.ok) {
+        console.warn('[Favorite] toggle failed', await res.json().catch(() => null))
+        setCurrentTrack((prev) => (prev ? { ...prev, is_favorite: !nextValue } : null))
       }
     } catch (err) {
       console.warn('Toggle favorite error:', err)
