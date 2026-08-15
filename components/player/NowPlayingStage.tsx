@@ -197,11 +197,11 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
             <div className="album-3d-container relative flex items-center justify-center p-1 sm:p-1.5 shrink-0">
               <div
                 ref={cardRef}
-                className="album-3d-card pointer-gone now-playing-cover relative w-[clamp(110px,20vh,220px)] h-[clamp(110px,20vh,220px)] xl:w-[clamp(130px,23vh,250px)] xl:h-[clamp(130px,23vh,250px)] aspect-square shrink-0 rounded-full border border-white/20 shadow-[0_16px_40px_rgba(0,0,0,0.7),0_0_50px_var(--accent-dim)]"
+                className={`album-3d-card pointer-gone now-playing-cover ${isPlaying ? 'is-spinning' : 'is-paused'} relative w-[clamp(110px,20vh,220px)] h-[clamp(110px,20vh,220px)] xl:w-[clamp(130px,23vh,250px)] xl:h-[clamp(130px,23vh,250px)] aspect-square shrink-0 rounded-full border border-white/20 shadow-[0_16px_40px_rgba(0,0,0,0.7),0_0_50px_var(--accent-dim)]`}
               >
                 {/* Progress Ring SVG (3D tilted with card, sitting flush around circular album cover) */}
                 <svg
-                  className="absolute -inset-2 w-[calc(100%+16px)] h-[calc(100%+16px)] pointer-events-none -rotate-90 z-20 overflow-visible"
+                  className="fullview-progress-ring absolute -inset-2 w-[calc(100%+16px)] h-[calc(100%+16px)] pointer-events-none -rotate-90 z-20 overflow-visible"
                   viewBox="0 0 100 100"
                 >
                   <defs>
@@ -251,17 +251,17 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
 
           {/* Title & Artist — Stationary, 100% crisp vector text */}
           <div className="text-center px-2 sm:px-4 max-w-md w-full shrink-0">
-            <h2 className="text-[clamp(1.05rem,2.1vh,1.65rem)] xl:text-[clamp(1.2rem,2.4vh,1.85rem)] font-bold text-white tracking-tight line-clamp-2 leading-tight">
+            <h2 className="fullview-track-title text-[clamp(1.05rem,2.1vh,1.65rem)] xl:text-[clamp(1.2rem,2.4vh,1.85rem)] font-bold text-white tracking-tight line-clamp-2 leading-tight">
               {title || 'Chưa chọn bài hát'}
             </h2>
-            <p className="text-[clamp(10px,1.3vh,14px)] text-slate-400 font-medium mt-0.5 sm:mt-1 line-clamp-1">
+            <p className="fullview-track-artist text-[clamp(10px,1.3vh,14px)] text-slate-400 font-medium mt-0.5 sm:mt-1 line-clamp-1">
               {artist || 'Nghệ sĩ'}
             </p>
 
-            {/* Context Pill Badge (Bài n/total · Album · Year) */}
+            {/* Context Metadata (Bài n/total · Album · Year) */}
             {currentTrack && (
               <div className="mt-1 sm:mt-1.5 flex items-center justify-center">
-                <span className="bg-white/10 border border-white/15 text-slate-200 px-3 py-0.5 rounded-full text-[clamp(10px,1.2vh,12px)] font-semibold backdrop-blur-md shadow-sm truncate max-w-[280px]">
+                <span className="fullview-track-meta bg-white/10 border border-white/15 text-slate-200 px-3 py-0.5 rounded-full text-[clamp(10px,1.2vh,12px)] font-semibold backdrop-blur-md shadow-sm truncate max-w-[280px]">
                   Bài {trackNum}/{totalTracks} {contextAlbumName ? `· ${contextAlbumName}` : ''} {releaseYear ? `· ${releaseYear}` : ''}
                 </span>
               </div>

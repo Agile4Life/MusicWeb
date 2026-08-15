@@ -3208,6 +3208,201 @@ html[data-theme-style="minimal-flat"] body {
   fill: #2A1704 !important;
 }
 
+/* ================================================================
+   Fullview & Synced Lyrics - Minimal Editorial / Vinyl Studio
+   ================================================================ */
+/* Fullview Background & Atmosphere */
+[data-theme-style="minimal-flat"] .now-playing-overlay {
+  background-color: #141017 !important;
+  color: #F4ECE1 !important;
+}
+
+[data-theme-style="minimal-flat"] .now-playing-overlay > div.bg-gradient-to-r {
+  background: radial-gradient(800px 500px at 20% 40%, rgba(201, 138, 61, 0.18), transparent 70%), #141017 !important;
+}
+
+/* Fullview Top Header Bar */
+[data-theme-style="minimal-flat"] .now-playing-overlay .border-b {
+  background: rgba(20, 16, 23, 0.85) !important;
+  border-bottom: 1px solid rgba(244, 236, 230, 0.08) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+[data-theme-style="minimal-flat"] .fullview-header-btn {
+  background: #1D1720 !important;
+  border: 1px solid rgba(244, 236, 230, 0.08) !important;
+  border-radius: 99px !important;
+  color: #F4ECE1 !important;
+  backdrop-filter: blur(12px) !important;
+  box-shadow: none !important;
+}
+
+[data-theme-style="minimal-flat"] .fullview-header-btn:hover {
+  background: rgba(244, 236, 230, 0.08) !important;
+  border-color: rgba(244, 236, 230, 0.14) !important;
+}
+
+[data-theme-style="minimal-flat"] .fullview-header-badge {
+  background: transparent !important;
+  border: none !important;
+  color: #E8A94F !important;
+  font-family: var(--font-ibm-plex-mono), monospace !important;
+  font-size: 11px !important;
+  letter-spacing: 0.1em !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+[data-theme-style="minimal-flat"] .fullview-header-badge svg {
+  color: #E8A94F !important;
+}
+
+/* Left Column Vinyl Disc */
+[data-theme-style="minimal-flat"] .album-3d-card.now-playing-cover {
+  border-radius: 50% !important;
+  background: repeating-radial-gradient(circle, #100C13 0 2px, #1C1620 2px 4px) !important;
+  border: 1px solid rgba(244, 236, 230, 0.14) !important;
+  box-shadow: 0 24px 50px -12px rgba(0, 0, 0, 0.85), 0 0 45px rgba(201, 138, 61, 0.2) !important;
+  padding: 10px !important;
+}
+
+[data-theme-style="minimal-flat"] .album-3d-card.now-playing-cover.is-spinning {
+  animation: spin 40s linear infinite !important;
+}
+
+[data-theme-style="minimal-flat"] .album-3d-card.now-playing-cover.is-paused {
+  animation: spin 40s linear infinite !important;
+  animation-play-state: paused !important;
+}
+
+[data-theme-style="minimal-flat"] .fullview-progress-ring circle:last-child {
+  stroke: #E8A94F !important;
+  filter: drop-shadow(0 0 6px rgba(232, 169, 79, 0.5)) !important;
+}
+
+/* Fullview Song Title, Artist & Meta */
+[data-theme-style="minimal-flat"] .fullview-track-title {
+  font-family: var(--font-fraunces), serif !important;
+  font-size: 26px !important;
+  font-weight: 500 !important;
+  color: #F4ECE1 !important;
+}
+
+[data-theme-style="minimal-flat"] .fullview-track-artist {
+  font-family: var(--font-inter), sans-serif !important;
+  font-size: 14px !important;
+  color: #B9AC9C !important;
+}
+
+[data-theme-style="minimal-flat"] .fullview-track-meta {
+  background: transparent !important;
+  border: none !important;
+  color: #8B8090 !important;
+  font-family: var(--font-ibm-plex-mono), monospace !important;
+  font-size: 11px !important;
+  letter-spacing: 0.08em !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+/* Up Next List */
+[data-theme-style="minimal-flat"] .up-next-list {
+  background: #1D1720 !important;
+  border: 1px solid rgba(244, 236, 230, 0.08) !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
+}
+
+[data-theme-style="minimal-flat"] .up-next-list > .sticky {
+  background: #1D1720 !important;
+  border-bottom: 1px solid rgba(244, 236, 230, 0.08) !important;
+}
+
+[data-theme-style="minimal-flat"] .up-next-list h3 {
+  font-family: var(--font-ibm-plex-mono), monospace !important;
+  color: #8B8090 !important;
+  font-size: 10.5px !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase !important;
+}
+
+[data-theme-style="minimal-flat"] .up-next-list h3 span.rounded-full {
+  background: #E8A94F !important;
+}
+
+[data-theme-style="minimal-flat"] .up-next-list button.cv-auto {
+  border-radius: 8px !important;
+  border: none !important;
+  color: #B9AC9C !important;
+}
+
+[data-theme-style="minimal-flat"] .up-next-list button.cv-auto:hover {
+  background: rgba(244, 236, 230, 0.04) !important;
+  color: #F4ECE1 !important;
+}
+
+[data-theme-style="minimal-flat"] .up-next-list button.cv-auto.queue-track-current {
+  background: linear-gradient(90deg, rgba(201, 138, 61, 0.16), transparent) !important;
+  border-left: 2px solid #E8A94F !important;
+  border-radius: 0 8px 8px 0 !important;
+  color: #F4ECE1 !important;
+}
+
+[data-theme-style="minimal-flat"] .up-next-list button.cv-auto.queue-track-current p {
+  color: #F4ECE1 !important;
+  font-weight: 600 !important;
+}
+
+[data-theme-style="minimal-flat"] .up-next-list button.cv-auto.queue-track-current span.bg-\[var\(--spotify-glow\,\#22d3ee\)\] {
+  background: #E8A94F !important;
+}
+
+[data-theme-style="minimal-flat"] .up-next-list button.cv-auto span.font-mono {
+  font-family: var(--font-ibm-plex-mono), monospace !important;
+  color: #8B8090 !important;
+}
+
+/* Lyrics View in Fullview (Zero Tooltip Pill / Elegant Left Accent Cursor) */
+[data-theme-style="minimal-flat"] .active-lyric-pill {
+  background: transparent !important;
+  border: none !important;
+  border-left: 3px solid #E8A94F !important;
+  border-radius: 2px !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding-left: 16px !important;
+}
+
+[data-theme-style="minimal-flat"] .active-lyric-pill p {
+  font-family: var(--font-fraunces), serif !important;
+  font-style: italic !important;
+  font-size: clamp(1.35rem, 3.4vh, 2.4rem) !important;
+  font-weight: 500 !important;
+  color: #F4ECE1 !important;
+  -webkit-text-fill-color: #F4ECE1 !important;
+  background: none !important;
+  text-shadow: none !important;
+  filter: none !important;
+  line-height: 1.35 !important;
+}
+
+[data-theme-style="minimal-flat"] .group\/line:not(.active-lyric-pill) p {
+  font-family: var(--font-inter), sans-serif !important;
+  font-weight: 400 !important;
+  color: #B9AC9C !important;
+  background: none !important;
+  text-shadow: none !important;
+}
+
+[data-theme-style="minimal-flat"] .now-playing-overlay .player-bar {
+  background: rgba(20, 16, 23, 0.6) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-top: 1px solid rgba(244, 236, 230, 0.1) !important;
+}
+
 
 
 
