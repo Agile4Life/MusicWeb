@@ -388,14 +388,36 @@ export const THEMES: Record<ThemeId, ThemeConfig> = {
 }
 
 import { CURSOR_CONFIGS } from '@/lib/cursors'
+import { RefractionMode } from '@/lib/theme/liquidGlassFilters'
 
 export type CursorStyle = string
+export type ThemeStyle = 'classic' | 'liquid-glass'
+
+export interface LiquidGlassConfig {
+  refractionMode: RefractionMode
+  refractionIntensity: number
+  chromaticAberration: boolean
+  elasticInteraction: boolean
+  ambientCanvas: boolean
+}
+
+export const DEFAULT_LIQUID_GLASS_CONFIG: LiquidGlassConfig = {
+  refractionMode: 'standard',
+  refractionIntensity: 24,
+  chromaticAberration: true,
+  elasticInteraction: true,
+  ambientCanvas: true,
+}
 
 interface ThemeContextType {
   currentTheme: ThemeConfig
   setTheme: (id: ThemeId) => void
   cursorStyle: CursorStyle
   setCursorStyle: (style: CursorStyle) => void
+  themeStyle: ThemeStyle
+  setThemeStyle: (style: ThemeStyle) => void
+  liquidGlassConfig: LiquidGlassConfig
+  setLiquidGlassConfig: (config: Partial<LiquidGlassConfig>) => void
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
@@ -403,6 +425,8 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [themeId, setThemeId] = useState<ThemeId>('aurora')
   const [cursorStyle, setCursorStyleState] = useState<CursorStyle>('default')
+  const [themeStyle, setThemeStyleState] = useState<ThemeStyle>('liquid-glass')
+  const [liquidGlassConfig, setLiquidGlassConfigState] = useState<LiquidGlassConfig>(DEFAULT_LIQUID_GLASS_CONFIG)
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('musicweb-theme') as ThemeId
@@ -418,6 +442,22 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       applyCursorStyle(savedCursor)
     } else {
       applyCursorStyle('default')
+    }
+
+    const savedStyle = localStorage.getItem('musicweb-theme-style') as ThemeStyle
+    if (savedStyle === 'classic' || savedStyle === 'liquid-glass') {
+      setThemeStyleState(savedStyle)
+      applyThemeStyle(savedStyle)
+    } else {
+      applyThemeStyle('liquid-glass')
+    }
+
+    const savedGlassConfig = localStorage.getItem('musicweb-liquid-config')
+    if (savedGlassConfig) {
+      try {
+        const parsed = JSON.parse(savedGlassConfig)
+        setLiquidGlassConfigState((prev) => ({ ...prev, ...parsed }))
+      } catch {}
     }
   }, [])
 
@@ -443,6 +483,25 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setCursorStyle = (style: CursorStyle) => {
     localStorage.setItem('musicweb-cursor-style', style)
     applyCursorStyle(style)
+  }
+
+  const applyThemeStyle = (style: ThemeStyle) => {
+    setThemeStyleState(style)
+    const root = document.documentElement
+    root.setAttribute('data-theme-style', style)
+  }
+
+  const setThemeStyle = (style: ThemeStyle) => {
+    localStorage.setItem('musicweb-theme-style', style)
+    applyThemeStyle(style)
+  }
+
+  const setLiquidGlassConfig = (config: Partial<LiquidGlassConfig>) => {
+    setLiquidGlassConfigState((prev) => {
+      const updated = { ...prev, ...config }
+      localStorage.setItem('musicweb-liquid-config', JSON.stringify(updated))
+      return updated
+    })
   }
 
   const applyTheme = (theme: ThemeConfig) => {
@@ -472,7 +531,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <ThemeContext.Provider value={{ currentTheme: THEMES[themeId], setTheme, cursorStyle, setCursorStyle }}>
+    <ThemeContext.Provider
+      value={{
+        currentTheme: THEMES[themeId],
+        setTheme,
+        cursorStyle,
+        setCursorStyle,
+        themeStyle,
+        setThemeStyle,
+        liquidGlassConfig,
+        setLiquidGlassConfig,
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   )
@@ -485,3 +555,4 @@ export function useTheme() {
   }
   return context
 }
+
