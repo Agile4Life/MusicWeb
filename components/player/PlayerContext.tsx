@@ -678,7 +678,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               }
               if (!updatedTrack) return
 
-              // Cache resolution outside state update function
+              // Cache resolution in trackResolutionCacheRef for instant playback
               const mergedTrack = { ...nextTr, ...updatedTrack }
               setBounded(
                 trackResolutionCacheRef.current,
@@ -689,14 +689,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 },
                 TRACK_RESOLUTION_MAX_ENTRIES
               )
-
-              setQueue((prevQ) => {
-                const idx = prevQ.findIndex((t) => t.id === targetTrackId)
-                if (idx === -1) return prevQ
-                const next = [...prevQ]
-                next[idx] = { ...prevQ[idx], ...updatedTrack }
-                return next
-              })
             })
             .catch(() => {})
             .finally(() => {
@@ -2085,6 +2077,37 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         const current = currentTrackRef.current
         const erroredTrack = current
 
+        // Self-healing for NhacCuaTui: If external worker returned 503 / failed, fallback to native Next.js stream proxy
+        const isNct = Boolean(
+          current?.source === 'nhaccuatui' ||
+          current?.nhaccuatui_id
+        )
+        if (isNct && current && current.nhaccuatui_id && !(current as any)._nctRetried) {
+          ;(current as any)._nctRetried = true
+          const fallbackUrl = `/api/nhaccuatui/stream?id=${encodeURIComponent(current.nhaccuatui_id)}`
+          if (
+            audioRef.current &&
+            isCurrentPlayback({
+              requestId,
+              currentRequestId: playRequestRef.current,
+              trackId: current.id,
+              currentTrackId: currentTrackRef.current?.id,
+            })
+          ) {
+            console.log('[NCT Auto-Retry] Worker stream failed (503), switching to native Next.js stream proxy:', fallbackUrl)
+            audioRef.current.src = fallbackUrl
+            audioRef.current.load()
+            audioRef.current.play().then(() => {
+              setIsPlaying(true)
+              setIsBuffering(false)
+              setPlaybackError(null)
+            }).catch((err) => {
+              console.warn('[NCT Auto-Retry] Native stream playback failed:', err)
+            })
+            return
+          }
+        }
+
         // Self-healing for SoundCloud: If signed stream token expired (403), auto re-resolve with bypass cache
         const isSoundCloud = Boolean(
           current?.source === 'soundcloud' ||
@@ -2231,7 +2254,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audio.removeEventListener('playing', handlePlaying)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [currentIndex, queue, autoPlayNext, repeatMode])
+  }, [])
 
   // On-demand fetch view_count for current track if youtube_id exists and view_count is null
   useEffect(() => {
