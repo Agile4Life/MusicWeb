@@ -15,7 +15,14 @@ const eslintConfig = defineConfig([
     "scratch/**",
     "test_*.js",
     "clean_*.js",
-    "public/sw.js",
+    "public/**",
+    ".agents/**",
+    "scripts/**",
+    "worker/**",
+    "workers/**",
+    "sc-api-auth.mjs",
+    "test_smtp.js",
+    "graphify-out/**",
   ]),
 ]);
 

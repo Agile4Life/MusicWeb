@@ -441,7 +441,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [themeId, setThemeId] = useState<ThemeId>('aurora')
   const [cursorStyle, setCursorStyleState] = useState<CursorStyle>('default')
-  const [themeStyle, setThemeStyleState] = useState<ThemeStyle>('liquid-glass')
+  const [themeStyle, setThemeStyleState] = useState<ThemeStyle>('classic')
   const [liquidGlassConfig, setLiquidGlassConfigState] = useState<LiquidGlassConfig>(DEFAULT_LIQUID_GLASS_CONFIG)
 
   useEffect(() => {
@@ -465,7 +465,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setThemeStyleState(savedStyle)
       applyThemeStyle(savedStyle)
     } else {
-      applyThemeStyle('liquid-glass')
+      applyThemeStyle('classic')
     }
 
     const savedGlassConfig = localStorage.getItem('musicweb-liquid-config')
