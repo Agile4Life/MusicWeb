@@ -357,21 +357,16 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
             }
           }
 
-          for (const t of tracksToDelete) {
-            // Delete dependent records first to prevent foreign key constraint failures
-            await supabase.from('playlist_tracks').delete().eq('track_id', t.id)
-            await supabase.from('favorite_tracks').delete().eq('track_id', t.id)
-            await supabase.from('listening_history').delete().eq('track_id', t.id)
-
-            // Delete track record from DB
-            const { error: delError } = await supabase.from('tracks').delete().eq('id', t.id)
-            if (delError) {
-              console.error('Failed to delete track from DB:', delError.message)
-            }
-
-            // Remove file from Supabase Storage (skip if it's a Google Drive URL)
-            if (t.file_path && !t.file_path.startsWith('http')) {
-              await supabase.storage.from('music-files').remove([t.file_path])
+          const targetIds = tracksToDelete.map((t: any) => t.id)
+          if (targetIds.length > 0) {
+            const res = await fetch('/api/tracks/delete', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ trackIds: targetIds }),
+            })
+            const result = await res.json()
+            if (!res.ok) {
+              console.error('Failed to delete track:', result.error)
             }
           }
 

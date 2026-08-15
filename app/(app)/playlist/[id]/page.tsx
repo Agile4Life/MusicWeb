@@ -260,23 +260,21 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
   const handleDeleteTrackPermanently = async (trackId: string) => {
     if (!confirm('Bạn có chắc chắn muốn xóa vĩnh viễn bài hát này khỏi Thư viện? (Bài hát sẽ bị xóa ở Trang chủ và tất cả Playlist)')) return
 
-    const trackToDelete = tracks.find((t) => t.id === trackId)
-
-    // Delete dependent records first to prevent foreign key constraint failures
-    await supabase.from('playlist_tracks').delete().eq('track_id', trackId)
-    await supabase.from('favorite_tracks').delete().eq('track_id', trackId)
-    await supabase.from('listening_history').delete().eq('track_id', trackId)
-
-    const { error } = await supabase.from('tracks').delete().eq('id', trackId)
-
-    if (!error) {
-      if (trackToDelete?.file_path && !trackToDelete.file_path.startsWith('http')) {
-        await supabase.storage.from('music-files').remove([trackToDelete.file_path])
+    try {
+      const res = await fetch('/api/tracks/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trackIds: [trackId] }),
+      })
+      const result = await res.json()
+      if (!res.ok) {
+        alert('Lỗi xóa: ' + (result.error || 'Không xác định'))
+        return
       }
       setTracks((prev) => prev.filter((t) => t.id !== trackId))
       router.refresh()
-    } else {
-      alert('Lỗi xóa bài hát: ' + error.message)
+    } catch (err) {
+      alert('Lỗi xóa bài hát: ' + (err as Error).message)
     }
   }
 

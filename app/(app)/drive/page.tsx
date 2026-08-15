@@ -56,7 +56,6 @@ export default function DrivePage() {
           }
         }
       } catch {}
-      setUserFavTrackIds(userFavSet)
 
       if (userId) {
 

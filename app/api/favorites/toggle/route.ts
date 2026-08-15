@@ -16,10 +16,19 @@ export async function POST(req: Request) {
 
   try {
     if (nextValue) {
-      const { error } = await adminClient
+      const { data: existing } = await adminClient
         .from('favorite_tracks')
-        .upsert({ user_id: userId, track_id: trackId }, { onConflict: 'user_id,track_id' })
-      if (error) throw error
+        .select('id')
+        .eq('user_id', userId)
+        .eq('track_id', trackId)
+        .maybeSingle()
+
+      if (!existing) {
+        const { error } = await adminClient
+          .from('favorite_tracks')
+          .insert({ user_id: userId, track_id: trackId })
+        if (error && error.code !== '23505') throw error
+      }
     } else {
       const { error } = await adminClient
         .from('favorite_tracks')

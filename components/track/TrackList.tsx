@@ -182,35 +182,30 @@ export function TrackList({
 
     setDeleting(true)
     try {
-      // Find track file paths for storage deletion
-      const tracksToDelete = tracks.filter((t) => selectedIds.has(t.id))
-
-      for (const id of targetIds) {
-        await supabase.from('playlist_tracks').delete().eq('track_id', id)
-        await supabase.from('favorite_tracks').delete().eq('track_id', id)
-        await supabase.from('listening_history').delete().eq('track_id', id)
-      }
-
-      const { error } = await supabase.from('tracks').delete().in('id', targetIds)
-
-      if (error) {
-        alert('Lỗi xóa DB: ' + error.message)
+      const res = await fetch('/api/tracks/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trackIds: targetIds }),
+      })
+      const result = await res.json()
+      if (!res.ok) {
+        alert('Lỗi xóa: ' + (result.error || 'Không xác định'))
         return
       }
 
-      // Delete storage files (skip Google Drive URLs that start with http)
-      const storagePaths = tracksToDelete.map((t) => t.file_path).filter((p) => p && !p.startsWith('http')) as string[]
-      if (storagePaths.length > 0) {
-        await supabase.storage.from('music-files').remove(storagePaths)
+      if (result.deniedIds?.length) {
+        console.warn('Không có quyền xóa các track:', result.deniedIds)
       }
+
+      const deletedIds: string[] = result.deletedIds ?? targetIds
 
       if (onBulkDeleted) {
-        onBulkDeleted(targetIds)
+        onBulkDeleted(deletedIds)
       } else if (onDeleteTrackPermanently) {
-        targetIds.forEach((id) => onDeleteTrackPermanently(id))
+        deletedIds.forEach((id) => onDeleteTrackPermanently(id))
       }
 
-      alert(`✅ Đã xóa ${targetIds.length} bài hát khỏi thư viện!`)
+      alert(`✅ Đã xóa ${deletedIds.length} bài hát khỏi thư viện!`)
       setSelectedIds(new Set())
     } finally {
       setDeleting(false)

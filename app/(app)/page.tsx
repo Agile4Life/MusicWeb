@@ -381,26 +381,22 @@ export default function HomePage() {
   const handleDeleteTrack = async (trackId: string) => {
     if (!confirm('Bạn có chắc chắn muốn xóa bài hát này khỏi thư viện?')) return
 
-    const trackToDelete = tracks.find((t) => t.id === trackId)
-    if (!trackToDelete) return
-
-    await supabase.from('playlist_tracks').delete().eq('track_id', trackId)
-    await supabase.from('favorite_tracks').delete().eq('track_id', trackId)
-    await supabase.from('listening_history').delete().eq('track_id', trackId)
-
-    const { error: dbError } = await supabase.from('tracks').delete().eq('id', trackId)
-
-    if (dbError) {
-      alert('Lỗi xóa record DB: ' + dbError.message)
-      return
+    try {
+      const res = await fetch('/api/tracks/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trackIds: [trackId] }),
+      })
+      const result = await res.json()
+      if (!res.ok) {
+        alert('Lỗi xóa record DB: ' + (result.error || 'Không xác định'))
+        return
+      }
+      setTracks(tracks.filter((t) => t.id !== trackId))
+      setRecentTracks(recentTracks.filter((t) => t.id !== trackId))
+    } catch (err) {
+      alert('Lỗi xóa track: ' + (err as Error).message)
     }
-
-    if (trackToDelete.file_path && !trackToDelete.file_path.startsWith('http')) {
-      await supabase.storage.from('music-files').remove([trackToDelete.file_path])
-    }
-
-    setTracks(tracks.filter((t) => t.id !== trackId))
-    setRecentTracks(recentTracks.filter((t) => t.id !== trackId))
   }
 
   const handleCleanDuplicates = async () => {
@@ -446,18 +442,19 @@ export default function HomePage() {
         return
       }
 
-      let deletedCount = 0
-      for (const track of toDelete) {
-        const { error } = await supabase.from('tracks').delete().eq('id', track.id)
-        if (!error) {
-          if (track.file_path && !track.file_path.startsWith('http')) {
-            await supabase.storage.from('music-files').remove([track.file_path])
-          }
-          deletedCount++
-        }
+      const toDeleteIds = toDelete.map((t) => t.id)
+      const res = await fetch('/api/tracks/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trackIds: toDeleteIds }),
+      })
+      const result = await res.json()
+      if (!res.ok) {
+        alert('Lỗi xóa: ' + (result.error || 'Không xác định'))
+        return
       }
 
-      alert(`✅ Đã xóa ${deletedCount} bài trùng khỏi thư viện!`)
+      alert(`✅ Đã xóa ${result.deletedIds?.length ?? 0} bài trùng khỏi thư viện!`)
       await fetchData()
     } finally {
       setCleaningDuplicates(false)
