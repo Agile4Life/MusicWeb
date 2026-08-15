@@ -393,17 +393,11 @@ import { RefractionMode } from '@/lib/theme/liquidGlassFilters'
 export type CursorStyle = string
 export type ThemeStyle = 'classic' | 'liquid-glass'
 
-export interface LiquidGlassAberrationTargets {
-  sidebar: boolean
-  playerBar: boolean
-  mainContent: boolean
-}
-
 export interface LiquidGlassConfig {
   refractionMode: RefractionMode
   refractionIntensity: number
   chromaticAberration: boolean
-  aberrationTargets?: LiquidGlassAberrationTargets
+  playerBarAberration?: boolean
   elasticInteraction: boolean
   ambientCanvas: boolean
 }
@@ -412,11 +406,7 @@ export const DEFAULT_LIQUID_GLASS_CONFIG: LiquidGlassConfig = {
   refractionMode: 'standard',
   refractionIntensity: 24,
   chromaticAberration: true,
-  aberrationTargets: {
-    sidebar: true,
-    playerBar: true,
-    mainContent: true,
-  },
+  playerBarAberration: true,
   elasticInteraction: true,
   ambientCanvas: true,
 }
@@ -481,14 +471,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const applyLiquidGlassConfig = (cfg: LiquidGlassConfig) => {
     const root = document.documentElement
-    const targets = cfg.aberrationTargets || { sidebar: true, playerBar: true, mainContent: true }
     const masterAberration = cfg.chromaticAberration !== false
+    const playerBarAberration = masterAberration && cfg.playerBarAberration !== false
 
     root.setAttribute('data-refraction-mode', cfg.refractionMode)
     root.setAttribute('data-chromatic-aberration', masterAberration ? 'true' : 'false')
-    root.setAttribute('data-aberration-sidebar', masterAberration && targets.sidebar !== false ? 'true' : 'false')
-    root.setAttribute('data-aberration-playerbar', masterAberration && targets.playerBar !== false ? 'true' : 'false')
-    root.setAttribute('data-aberration-main', masterAberration && targets.mainContent !== false ? 'true' : 'false')
+    root.setAttribute('data-aberration-playerbar', playerBarAberration ? 'true' : 'false')
+    root.removeAttribute('data-aberration-sidebar')
+    root.removeAttribute('data-aberration-main')
     root.setAttribute('data-elastic-interaction', cfg.elasticInteraction !== false ? 'true' : 'false')
     root.style.setProperty('--liquid-filter', `url(#liquid-glass-${cfg.refractionMode})`)
     root.style.setProperty('--liquid-scale', `${cfg.refractionIntensity}px`)

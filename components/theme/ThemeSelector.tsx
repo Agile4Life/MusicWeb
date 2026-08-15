@@ -293,67 +293,22 @@ export function ThemeSelector() {
                 </label>
               </div>
 
-              {/* Granular Area Selection for Chromatic Aberration */}
+              {/* PlayerBar Aberration Toggle */}
               {liquidGlassConfig?.chromaticAberration !== false && (
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs mt-1">
-                  <span className="text-[11px] font-semibold text-cyan-300 shrink-0">
-                    Vị trí áp dụng sắc sai:
-                  </span>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white select-none">
-                      <input
-                        type="checkbox"
-                        checked={liquidGlassConfig?.aberrationTargets?.sidebar !== false}
-                        onChange={(e) =>
-                          setLiquidGlassConfig({
-                            aberrationTargets: {
-                              sidebar: e.target.checked,
-                              playerBar: liquidGlassConfig?.aberrationTargets?.playerBar !== false,
-                              mainContent: liquidGlassConfig?.aberrationTargets?.mainContent !== false,
-                            },
-                          })
-                        }
-                        className="rounded accent-cyan-400"
-                      />
-                      <span>📌 Sidebar</span>
-                    </label>
-
-                    <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white select-none">
-                      <input
-                        type="checkbox"
-                        checked={liquidGlassConfig?.aberrationTargets?.playerBar !== false}
-                        onChange={(e) =>
-                          setLiquidGlassConfig({
-                            aberrationTargets: {
-                              sidebar: liquidGlassConfig?.aberrationTargets?.sidebar !== false,
-                              playerBar: e.target.checked,
-                              mainContent: liquidGlassConfig?.aberrationTargets?.mainContent !== false,
-                            },
-                          })
-                        }
-                        className="rounded accent-cyan-400"
-                      />
-                      <span>🎛️ Player Bar</span>
-                    </label>
-
-                    <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white select-none">
-                      <input
-                        type="checkbox"
-                        checked={liquidGlassConfig?.aberrationTargets?.mainContent !== false}
-                        onChange={(e) =>
-                          setLiquidGlassConfig({
-                            aberrationTargets: {
-                              sidebar: liquidGlassConfig?.aberrationTargets?.sidebar !== false,
-                              playerBar: liquidGlassConfig?.aberrationTargets?.playerBar !== false,
-                              mainContent: e.target.checked,
-                            },
-                          })
-                        }
-                        className="rounded accent-cyan-400"
-                      />
-                      <span>💻 Giao diện chính (Main)</span>
-                    </label>
-                  </div>
+                <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs mt-1">
+                  <label className="flex items-center gap-2 cursor-pointer text-slate-200 hover:text-white select-none">
+                    <input
+                      type="checkbox"
+                      checked={liquidGlassConfig?.playerBarAberration !== false}
+                      onChange={(e) =>
+                        setLiquidGlassConfig({
+                          playerBarAberration: e.target.checked,
+                        })
+                      }
+                      className="rounded accent-cyan-400"
+                    />
+                    <span className="font-medium">🎛️ Áp dụng sắc sai viền quang phổ cho <strong>Thanh phát nhạc (Player Bar)</strong></span>
+                  </label>
                 </div>
               )}
             </div>
