@@ -44,75 +44,19 @@ export function PlaylistProvider({ children }: { children: React.ReactNode }) {
     const seq = ++refreshSeqRef.current
 
     try {
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser()
-
-      const email = currentUser?.email || userEmail || nextAuthSession?.user?.email
-
-      const validIds = new Set<string>()
-      if (currentUser?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentUser.id)) {
-        validIds.add(currentUser.id)
-      }
-      if (activeUserId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeUserId)) {
-        validIds.add(activeUserId)
-      }
-
-      if (email) {
-        const cleanEmail = email.trim().toLowerCase()
-        const computedUuid = getValidUserId({ email: cleanEmail })
-        if (computedUuid) validIds.add(computedUuid)
-
-        // Legacy pre-BUG-01 hex calculation (skipping index 12 & 16) to recover old playlists
-        const hex = cleanEmail.split('').map((c: string) => c.charCodeAt(0).toString(16)).join('')
-        const padded = (hex + '0123456789abcdef0123456789abcdef').slice(0, 32)
-        const legacyUuid = `${padded.slice(0, 8)}-${padded.slice(8, 12)}-4${padded.slice(13, 16)}-a${padded.slice(17, 20)}-${padded.slice(20, 32)}`
-        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(legacyUuid)) {
-          validIds.add(legacyUuid)
+      const res = await fetch('/api/playlists')
+      if (res.ok) {
+        const data = await res.json()
+        if (seq === refreshSeqRef.current) {
+          setPlaylists(data.playlists || [])
         }
-      }
-
-      const idList = Array.from(validIds).filter((id) =>
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
-      )
-
-      const [userRes, publicRes] = await Promise.all([
-        idList.length > 0
-          ? supabase.from('playlists').select('*').in('user_id', idList).order('created_at', { ascending: false })
-          : Promise.resolve({ data: [], error: null }),
-        supabase.from('playlists').select('*').eq('is_public', true).order('created_at', { ascending: false }),
-      ])
-
-      if (userRes.error) {
-        console.error('[PlaylistContext] Fetch user playlists error:', userRes.error)
-      }
-
-      const combined: Playlist[] = [
-        ...(userRes.data || []),
-        ...(publicRes.data || []),
-      ]
-
-      const seen = new Set<string>()
-      const uniquePlaylists: Playlist[] = []
-
-      for (const pl of combined) {
-        if (pl && pl.id && !seen.has(pl.id)) {
-          seen.add(pl.id)
-          uniquePlaylists.push(pl)
-        }
-      }
-
-      if (seq !== refreshSeqRef.current) return
-      // Only update if we successfully got data or at least don't blank out on error
-      if (!userRes.error) {
-        setPlaylists(uniquePlaylists)
       }
     } catch (err) {
       console.warn('PlaylistContext fetch error:', err)
     } finally {
       if (seq === refreshSeqRef.current) setLoading(false)
     }
-  }, [activeUserId, userEmail, nextAuthSession, supabase])
+  }, [])
 
   // Single centralized fetch & single Realtime WebSocket channel for playlists
   useEffect(() => {

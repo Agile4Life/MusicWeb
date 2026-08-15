@@ -1,5 +1,29 @@
 // app/api/playlists/route.ts
-import { requireUser, adminClient } from '@/lib/serverUser'
+import { requireUser, adminClient, getAuthenticatedUserId } from '@/lib/serverUser'
+
+export async function GET(req: Request) {
+  const userId = await getAuthenticatedUserId()
+
+  try {
+    let query = adminClient.from('playlists').select('*').order('created_at', { ascending: false })
+
+    if (userId) {
+      // User's own playlists + public playlists
+      query = query.or(`user_id.eq.${userId},is_public.eq.true`)
+    } else {
+      // Public playlists only for non-logged in users
+      query = query.eq('is_public', true)
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+
+    return Response.json({ playlists: data || [] })
+  } catch (err: any) {
+    console.error('[playlists/GET] Failed:', err.message)
+    return Response.json({ error: err.message }, { status: 500 })
+  }
+}
 
 export async function POST(req: Request) {
   const auth = await requireUser()
@@ -24,8 +48,9 @@ export async function POST(req: Request) {
     .insert({
       user_id: userId,
       name: finalName,
-      description: 'Playlist cá nhân',
-      is_public: false,
+      description: body?.description || 'Playlist cá nhân',
+      cover_url: body?.coverUrl || null,
+      is_public: Boolean(body?.isPublic) || false,
     })
     .select()
     .single()

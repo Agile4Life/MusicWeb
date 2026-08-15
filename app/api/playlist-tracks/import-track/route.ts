@@ -83,15 +83,25 @@ export async function POST(req: Request) {
       dbTrackId = inserted.id
     }
 
-    // 3. Link vào playlist_tracks (upsert để chống trùng)
-    const { error: linkErr } = await adminClient
+    // 3. Link vào playlist_tracks (check-then-insert an toàn chống lỗi ON CONFLICT)
+    const { data: existingLink } = await adminClient
       .from('playlist_tracks')
-      .upsert(
-        { playlist_id: playlistId, track_id: dbTrackId, position: position || 0 },
-        { onConflict: 'playlist_id,track_id' }
-      )
+      .select('id')
+      .eq('playlist_id', playlistId)
+      .eq('track_id', dbTrackId)
+      .limit(1)
 
-    if (linkErr) throw linkErr
+    if (!existingLink || existingLink.length === 0) {
+      const { error: linkErr } = await adminClient
+        .from('playlist_tracks')
+        .insert({
+          playlist_id: playlistId,
+          track_id: dbTrackId,
+          position: position || 0,
+        })
+
+      if (linkErr && linkErr.code !== '23505') throw linkErr
+    }
 
     return Response.json({ success: true, trackId: dbTrackId })
   } catch (err: any) {

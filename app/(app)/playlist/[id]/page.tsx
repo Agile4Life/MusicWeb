@@ -129,43 +129,28 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
   }, [librarySearch, searchResults, libraryTracks])
 
   const fetchPlaylistData = async (showSkeleton = true) => {
+    if (!playlistId) return
     if (showSkeleton) setLoading(true)
-    const { data: plData, error: plError } = await supabase
-      .from('playlists')
-      .select('*')
-      .eq('id', playlistId)
-      .single()
 
-    if (plError || !plData) {
+    try {
+      const res = await fetch(`/api/playlists/${playlistId}`)
+      if (!res.ok) {
+        if (showSkeleton) setLoading(false)
+        return
+      }
+
+      const data = await res.json()
+      if (data.playlist) {
+        setPlaylist(data.playlist)
+        setEditName(data.playlist.name)
+        setEditDesc(data.playlist.description || '')
+        setTracks(data.tracks || [])
+      }
+    } catch (err) {
+      console.error('fetchPlaylistData error:', err)
+    } finally {
       if (showSkeleton) setLoading(false)
-      return
     }
-
-    setPlaylist(plData)
-    setEditName(plData.name)
-    setEditDesc(plData.description || '')
-
-    const { data: ptData } = await supabase
-      .from('playlist_tracks')
-      .select('position, tracks:track_id(*)')
-      .eq('playlist_id', playlistId)
-      .order('position', { ascending: true })
-
-    if (ptData) {
-      const fetchedTracks = ptData
-        .map((item: any) => {
-          if (!item.tracks) return null
-          return {
-            ...item.tracks,
-            artist: item.tracks.artist || null,
-            album: item.tracks.album || null,
-          }
-        })
-        .filter(Boolean) as Track[]
-      setTracks(fetchedTracks)
-    }
-
-    if (showSkeleton) setLoading(false)
   }
 
   useEffect(() => {
@@ -232,15 +217,18 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
   const handleDeletePlaylist = async () => {
     if (!playlist || !confirm('Bạn có chắc chắn muốn xóa playlist này?')) return
 
-    await supabase.from('playlist_tracks').delete().eq('playlist_id', playlist.id)
-    const { error } = await supabase.from('playlists').delete().eq('id', playlist.id)
-
-    if (!error) {
-      window.dispatchEvent(new Event('playlist-updated'))
-      router.push('/')
-      router.refresh()
-    } else {
-      alert('Lỗi xóa playlist: ' + error.message)
+    try {
+      const res = await fetch(`/api/playlists/${playlist.id}`, { method: 'DELETE' })
+      if (res.ok) {
+        window.dispatchEvent(new Event('playlist-updated'))
+        router.push('/')
+        router.refresh()
+      } else {
+        const errData = await res.json().catch(() => null)
+        alert('Lỗi xóa playlist: ' + (errData?.error || res.statusText))
+      }
+    } catch (err: any) {
+      alert('Lỗi xóa playlist: ' + err?.message)
     }
   }
 
