@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef, useCallback, memo } from 'react'
 import { usePlayer, usePlaybackProgress } from './PlayerContext'
 import { Track } from '@/types'
 import { LrclibResponse } from '@/lib/lrclib'
@@ -37,14 +37,6 @@ interface LyricsViewProps {
   showHeader?: boolean
 }
 
-/**
- * ARCHITECTURE DECISION (v3 Spec):
- * LyricsView is used in 2 contexts:
- * 1) Standalone modal (opened via Mic2 button on PlayerBar): Intentionally lightweight & minimal
- *    without heavy 3D particle Canvas layers to maximize reading speed & save CPU/GPU resources.
- * 2) Right column in NowPlayingOverlay: Embedded inside the full 3D cinematic stage (NowPlayingStage).
- */
-
 function formatTime(seconds: number) {
   if (isNaN(seconds) || seconds < 0) return '0:00'
   const mins = Math.floor(seconds / 60)
@@ -52,13 +44,87 @@ function formatTime(seconds: number) {
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`
 }
 
-export const LyricsView = React.memo(function LyricsView({ onClose, isModal = false, showControls = true, showHeader = true }: LyricsViewProps) {
+/* =========================================================================
+   ⚡ MEMOIZED LYRIC LINE ITEM (Zero re-render when other lines change)
+   ========================================================================= */
+interface LyricLineItemProps {
+  line: LyricLine
+  index: number
+  isActive: boolean
+  distance: number
+  isPast: boolean
+  onClick: (line: LyricLine) => void
+  activeLineRefSetter?: (el: HTMLDivElement | null) => void
+}
+
+const LyricLineItem = memo(function LyricLineItem({
+  line,
+  isActive,
+  distance,
+  isPast,
+  onClick,
+  activeLineRefSetter,
+}: LyricLineItemProps) {
+  let opacity = 1.0
+  if (isActive) {
+    opacity = 1.0
+  } else if (distance === 1) {
+    opacity = isPast ? 0.5 : 0.72
+  } else if (distance === 2) {
+    opacity = isPast ? 0.32 : 0.5
+  } else {
+    opacity = distance < 0 ? 0.75 : isPast ? 0.18 : 0.3
+  }
+
+  return (
+    <div
+      ref={isActive ? activeLineRefSetter : undefined}
+      onClick={() => onClick(line)}
+      className={`cursor-pointer rounded-2xl select-none origin-left group/line relative transform-gpu will-change-transform will-change-opacity transition-all duration-300 ease-out ${
+        isActive
+          ? 'active-lyric-pill py-2.5 sm:py-3.5 px-4 sm:px-6 bg-white/[0.05] border border-white/10 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.35),0_0_20px_color-mix(in_srgb,var(--spotify-glow,#22d3ee)_12%,transparent)]'
+          : 'py-1 sm:py-1.5 px-3 sm:px-5 bg-transparent border border-transparent hover:bg-white/[0.02] hover:border-white/[0.04]'
+      }`}
+      style={{
+        opacity,
+        transform: isActive ? 'translate3d(10px, 0, 0)' : 'translate3d(0, 0, 0)',
+        contentVisibility: distance > 8 ? 'auto' : 'visible',
+        containIntrinsicSize: distance > 8 ? '0 44px' : undefined,
+      }}
+    >
+      <p
+        className={`leading-snug transition-all duration-300 ease-out ${
+          isActive
+            ? 'text-[clamp(1.25rem,3.2vh,2.65rem)] font-black text-white bg-clip-text bg-gradient-to-r from-white via-cyan-100 to-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]'
+            : distance === 1
+              ? 'text-[clamp(1rem,2.2vh,1.65rem)] font-bold text-slate-100 group-hover/line:text-white'
+              : distance === 2
+                ? 'text-[clamp(0.85rem,1.8vh,1.3rem)] font-semibold text-slate-300 group-hover/line:text-slate-100'
+                : 'text-[clamp(0.85rem,1.8vh,1.3rem)] font-medium text-slate-400 group-hover/line:text-slate-200'
+        }`}
+      >
+        {line.text}
+      </p>
+    </div>
+  )
+}, (prev, next) => {
+  return (
+    prev.isActive === next.isActive &&
+    prev.distance === next.distance &&
+    prev.isPast === next.isPast &&
+    prev.line.text === next.line.text
+  )
+})
+
+/* =========================================================================
+   ⚡ ISOLATED SEEKBAR & CONTROLS (Only this re-renders on audio tick)
+   ========================================================================= */
+const LyricsBottomControls = memo(function LyricsBottomControls() {
   const { currentTime, duration } = usePlaybackProgress()
   const {
     currentTrack,
     seek,
     isPlaying,
-    isBuffering,
     togglePlay,
     nextTrack,
     prevTrack,
@@ -69,24 +135,9 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
     volume,
     setVolume,
     toggleFavoriteCurrentTrack,
-    mvIntroOffset,
   } = usePlayer()
 
   const [prevVol, setPrevVol] = useState(0.8)
-  const [loading, setLoading] = useState(false)
-  const [lyricsData, setLyricsData] = useState<LrclibResponse | null>(null)
-  const [parsedLyrics, setParsedLyrics] = useState<LyricLine[]>([])
-  const [isSynced, setIsSynced] = useState(false)
-  const [activeIndex, setActiveIndex] = useState(-1)
-  const [lyricOffset, setLyricOffset] = useState(0) // Default 0.0s
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [showShareModal, setShowShareModal] = useState(false)
-
-  const activeLineRef = useRef<HTMLDivElement | null>(null)
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null)
-  const isUserScrollingRef = useRef(false)
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const lyricsReqIdRef = useRef(0)
 
   const handleVolumeToggle = () => {
     if (volume > 0) {
@@ -97,7 +148,208 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
     }
   }
 
-  const loadLyricsForTrack = React.useCallback(async (
+  if (!currentTrack) return null
+
+  return (
+    <div className="relative z-20 bg-black/50 backdrop-blur-2xl border-t border-white/10 px-4 sm:px-8 py-3.5 flex flex-col sm:flex-row items-center justify-between text-slate-300 select-none shrink-0 gap-3">
+      {/* Left: Track Metadata (Desktop) */}
+      <div className="hidden sm:flex items-center gap-3 w-1/4 min-w-[200px]">
+        <div className="w-11 h-11 bg-slate-900 rounded-xl overflow-hidden relative flex items-center justify-center border border-white/15 shadow-md shrink-0">
+          {currentTrack.cover_url ? (
+            <img
+              src={currentTrack.cover_url}
+              alt={currentTrack.title}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <Headphones className="w-5 h-5 text-[var(--spotify-glow,#22d3ee)]" />
+          )}
+        </div>
+
+        <div className="truncate flex flex-col min-w-0">
+          <p className="text-xs sm:text-sm font-extrabold text-white truncate hover:text-[var(--spotify-glow,#22d3ee)] transition-colors cursor-pointer">
+            {currentTrack.title}
+          </p>
+          <p className="text-[11px] font-semibold text-slate-400 truncate hover:text-slate-200 transition-colors cursor-pointer">
+            {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
+          </p>
+        </div>
+
+        <button
+          onClick={toggleFavoriteCurrentTrack}
+          className={`p-2 rounded-xl transition-all ml-1 shrink-0 ${
+            currentTrack.is_favorite
+              ? 'text-rose-400 bg-rose-500/20 border border-rose-500/40 shadow-lg'
+              : 'text-slate-400 hover:text-rose-400 hover:bg-white/10'
+          }`}
+          title={currentTrack.is_favorite ? 'Bỏ khỏi bài hát yêu thích' : 'Thêm vào bài hát yêu thích'}
+        >
+          <Heart
+            className={`w-4 h-4 transition-all ${
+              currentTrack.is_favorite ? 'fill-current drop-shadow-[0_0_10px_rgba(244,63,94,0.7)]' : ''
+            }`}
+          />
+        </button>
+      </div>
+
+      {/* Center: Playback Controls & Seekbar */}
+      <div className="flex flex-col items-center gap-2 w-full sm:w-2/4 max-w-xl">
+        <div className="flex items-center gap-5">
+          <button
+            onClick={toggleShuffle}
+            style={
+              isShuffle
+                ? {
+                    color: 'var(--spotify-glow, #22d3ee)',
+                    backgroundColor: 'rgba(6,182,212,0.15)',
+                    borderColor: 'rgba(6,182,212,0.4)',
+                  }
+                : undefined
+            }
+            className={`p-2 rounded-xl relative transition-all active:scale-90 ${
+              isShuffle ? 'border shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/10'
+            }`}
+            title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
+          >
+            <Shuffle className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={prevTrack}
+            className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
+            title="Bài trước"
+          >
+            <SkipBack className="w-5 h-5" />
+          </button>
+
+          <button
+            onClick={togglePlay}
+            style={{
+              background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+              boxShadow: '0 4px 18px rgba(6,182,212,0.45)',
+            }}
+            className="w-11 h-11 rounded-full hover:scale-[1.08] hover:shadow-[0_0_30px_rgba(6,182,212,0.45)] active:scale-95 transition-all flex items-center justify-center text-black font-extrabold shrink-0 border border-white/30"
+            title={isPlaying ? 'Tạm dừng' : 'Phát'}
+          >
+            {isPlaying ? (
+              <Pause className="w-5 h-5 fill-current text-black" />
+            ) : (
+              <Play className="w-5 h-5 fill-current text-black ml-0.5" />
+            )}
+          </button>
+
+          <button
+            onClick={nextTrack}
+            className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
+            title="Bài tiếp theo"
+          >
+            <SkipForward className="w-5 h-5" />
+          </button>
+
+          <button
+            onClick={toggleRepeat}
+            style={
+              repeatMode !== 'off'
+                ? {
+                    color: 'var(--spotify-glow, #22d3ee)',
+                    backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                    borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.4))',
+                  }
+                : undefined
+            }
+            className={`p-2 rounded-xl relative transition-all active:scale-90 ${
+              repeatMode !== 'off' ? 'border shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/10'
+            }`}
+            title={
+              repeatMode === 'one'
+                ? 'Lặp lại 1 bài'
+                : repeatMode === 'all'
+                  ? 'Lặp lại toàn bộ danh sách'
+                  : 'Bật lặp lại bài hát'
+            }
+          >
+            {repeatMode === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
+          </button>
+        </div>
+
+        {/* Seekbar Progress */}
+        <div className="w-full flex items-center gap-3 text-[11px] text-slate-400 font-mono">
+          <span className="w-9 text-right shrink-0 font-bold">{formatTime(currentTime)}</span>
+          <input
+            type="range"
+            min={0}
+            max={duration || 100}
+            value={currentTime}
+            onChange={(e) => seek(Number(e.target.value))}
+            style={{
+              background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${(currentTime / (duration || 1)) * 100}%, rgba(255,255,255,0.15) ${(currentTime / (duration || 1)) * 100}%)`,
+            }}
+            className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-all hover:h-2"
+          />
+          <span className="w-9 shrink-0 font-bold">{formatTime(duration)}</span>
+        </div>
+      </div>
+
+      {/* Right: Volume Control (Desktop) */}
+      <div className="hidden sm:flex w-1/4 justify-end items-center">
+        <div className="flex items-center gap-2.5 bg-white/[0.06] border border-white/10 rounded-full px-3.5 py-1 shadow-md">
+          <button
+            onClick={handleVolumeToggle}
+            className="text-slate-300 hover:text-white transition-colors p-0.5"
+            title={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}
+          >
+            {volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          </button>
+          <div className="volume-track-wrapper w-16 md:w-24">
+            <div className="volume-track">
+              <div className="volume-fill" style={{ width: `${volume * 100}%` }} />
+              <div className="volume-thumb" style={{ left: `${volume * 100}%` }} />
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={volume}
+              onChange={(e) => setVolume(Number(e.target.value))}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+})
+
+/* =========================================================================
+   ⚡ MAIN LYRICS VIEW COMPONENT
+   ========================================================================= */
+export const LyricsView = memo(function LyricsView({
+  onClose,
+  isModal = false,
+  showControls = true,
+  showHeader = true,
+}: LyricsViewProps) {
+  const { currentTime } = usePlaybackProgress()
+  const { currentTrack, seek, mvIntroOffset } = usePlayer()
+
+  const [loading, setLoading] = useState(false)
+  const [, setLyricsData] = useState<LrclibResponse | null>(null)
+  const [parsedLyrics, setParsedLyrics] = useState<LyricLine[]>([])
+  const [isSynced, setIsSynced] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(-1)
+  const [lyricOffset, setLyricOffset] = useState(0) // Default 0.0s
+  const [, setErrorMessage] = useState<string | null>(null)
+  const [showShareModal, setShowShareModal] = useState(false)
+
+  const activeLineRef = useRef<HTMLDivElement | null>(null)
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null)
+  const isUserScrollingRef = useRef(false)
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lyricsReqIdRef = useRef(0)
+  const lastLyricCheckRef = useRef(0)
+
+  const loadLyricsForTrack = useCallback(async (
     title: string,
     artist?: string | null,
     album?: string | null,
@@ -152,9 +404,7 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
     }
   }, [])
 
-  // 1. Fetch lyrics when currentTrack's lyrics-relevant fields change.
-  // Key on fields (not the object reference): UI-only updates like toggling
-  // favorite recreate the track object and must NOT reload lyrics.
+  // 1. Fetch lyrics when currentTrack changes
   useEffect(() => {
     if (!currentTrack) {
       setLyricsData(null)
@@ -177,7 +427,6 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
       currentTrack.nhaccuatui_id,
       currentTrack.source,
     )
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     currentTrack?.id,
     currentTrack?.title,
@@ -187,40 +436,43 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
     currentTrack?.youtube_id,
     currentTrack?.nhaccuatui_id,
     currentTrack?.source,
+    loadLyricsForTrack,
   ])
 
-  const lastLyricCheckRef = useRef(0)
-
-  // 2. Track playback time & update active lyric line (throttled to ~12 FPS per Section 7 spec)
+  // 2. High-Performance Active Lyric Finder (Throttled calculation, zero state churn)
   useEffect(() => {
     if (!isSynced || parsedLyrics.length === 0) return
 
     const now = performance.now()
-    if (now - lastLyricCheckRef.current < 80) return
+    if (now - lastLyricCheckRef.current < 60) return
     lastLyricCheckRef.current = now
 
     const index = findActiveLyricIndex(parsedLyrics, currentTime, lyricOffset - (mvIntroOffset || 0))
     setActiveIndex((prev) => (prev !== index ? index : prev))
   }, [currentTime, parsedLyrics, isSynced, lyricOffset, mvIntroOffset])
 
-  // 3. Smooth scroll active lyric into view
+  // 3. Ultra-Smooth Hardware Accelerated Scroll
   useEffect(() => {
     if (activeIndex < 0 || !isSynced || isUserScrollingRef.current) return
 
-    const container = scrollContainerRef.current
-    const activeLine = activeLineRef.current
+    const rafId = requestAnimationFrame(() => {
+      const container = scrollContainerRef.current
+      const activeLine = activeLineRef.current
 
-    if (container && activeLine) {
-      const targetScroll = activeLine.offsetTop - container.clientHeight * 0.38 + activeLine.clientHeight / 2
-      container.scrollTo({
-        top: Math.max(0, targetScroll),
-        behavior: 'smooth',
-      })
-    }
+      if (container && activeLine) {
+        const targetScroll = activeLine.offsetTop - container.clientHeight * 0.38 + activeLine.clientHeight / 2
+        container.scrollTo({
+          top: Math.max(0, targetScroll),
+          behavior: 'smooth',
+        })
+      }
+    })
+
+    return () => cancelAnimationFrame(rafId)
   }, [activeIndex, isSynced])
 
   // Handle user scroll detection
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     isUserScrollingRef.current = true
     if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current)
 
@@ -228,15 +480,19 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
     scrollTimeoutRef.current = setTimeout(() => {
       isUserScrollingRef.current = false
     }, 3000)
-  }
+  }, [])
 
-  const handleLineClick = (line: LyricLine) => {
+  const handleLineClick = useCallback((line: LyricLine) => {
     if (line.time >= 0) {
       const targetTime = Math.max(0, line.time - lyricOffset + (mvIntroOffset || 0))
       seek(targetTime)
       isUserScrollingRef.current = false
     }
-  }
+  }, [lyricOffset, mvIntroOffset, seek])
+
+  const activeLineRefSetter = useCallback((el: HTMLDivElement | null) => {
+    activeLineRef.current = el
+  }, [])
 
   if (!currentTrack) {
     return (
@@ -249,7 +505,7 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
   }
 
   return (
-    <div className={`relative w-full h-full flex flex-col overflow-hidden select-none touch-manipulation ${isModal ? 'bg-[#07090e] now-playing-bg' : 'bg-transparent'}`}>
+    <div className={`relative w-full h-full flex flex-col overflow-hidden select-none touch-manipulation transform-gpu ${isModal ? 'bg-[#07090e] now-playing-bg' : 'bg-transparent'}`}>
       {/* 🌟 Rich Ambient Glassmorphic Background (only when standalone modal) */}
       {isModal && (
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
@@ -335,7 +591,7 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
             </button>
 
             <button
-              onClick={() => loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.album, currentTrack.duration, currentTrack.youtube_id, currentTrack.nhaccuatui_id)}
+              onClick={() => loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.album, currentTrack.duration, currentTrack.youtube_id, currentTrack.nhaccuatui_id, currentTrack.source)}
               disabled={loading}
               className="w-9 h-9 flex items-center justify-center bg-white/[0.06] hover:bg-white/15 active:scale-95 text-slate-200 rounded-full border border-white/10 transition-all shrink-0 shadow-md"
               title="Tải lại lời bài hát"
@@ -356,11 +612,11 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
         </div>
       )}
 
-      {/* 📜 Main Lyrics Scroll Area */}
+      {/* 📜 Main Lyrics Scroll Area (GPU Composited Layer) */}
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="relative z-10 flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 pt-6 pb-8 no-scrollbar"
+        className="relative z-10 flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 pt-6 pb-8 no-scrollbar transform-gpu will-change-scroll"
         style={{
           WebkitOverflowScrolling: 'touch',
         }}
@@ -373,59 +629,23 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
             <p className="text-sm font-extrabold text-white tracking-wide">Đang tải lời bài hát từ thư viện...</p>
           </div>
         ) : parsedLyrics.length > 0 ? (
-          <div className="flex flex-col gap-2 pt-12 pb-28 md:pt-16 md:pb-36 text-center sm:text-left max-w-3xl mx-auto">
+          <div className="flex flex-col gap-2 pt-12 pb-28 md:pt-16 md:pb-36 text-center sm:text-left max-w-3xl mx-auto transform-gpu">
             {parsedLyrics.map((line, index) => {
               const isActive = index === activeIndex
-              const distance = activeIndex >= 0 ? Math.abs(index - activeIndex) : Infinity
+              const distance = activeIndex >= 0 ? Math.abs(index - activeIndex) : -1
               const isPast = activeIndex >= 0 && index < activeIndex
 
-              let opacity = 1.0
-              let translateX = '0px'
-
-              if (isActive) {
-                opacity = 1.0
-                translateX = '10px'
-              } else if (distance === 1) {
-                opacity = isPast ? 0.5 : 0.72
-                translateX = '0px'
-              } else if (distance === 2) {
-                opacity = isPast ? 0.32 : 0.5
-                translateX = '0px'
-              } else {
-                opacity = activeIndex < 0 ? 0.75 : isPast ? 0.18 : 0.3
-                translateX = '0px'
-              }
-
               return (
-                <div
-                  key={index}
-                  ref={isActive ? activeLineRef : null}
-                  onClick={() => handleLineClick(line)}
-                  className={`cursor-pointer rounded-2xl select-none origin-left group/line relative transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                    isActive
-                      ? 'active-lyric-pill py-2 sm:py-3 px-4 sm:px-6 bg-white/[0.05] border border-white/10 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.35),0_0_20px_color-mix(in_srgb,var(--spotify-glow,#22d3ee)_12%,transparent)]'
-                      : 'py-1 sm:py-1.5 px-3 sm:px-5 bg-transparent border border-transparent hover:bg-white/[0.02] hover:border-white/[0.04]'
-                  }`}
-                  style={{
-                    opacity,
-                    transform: `translateX(${translateX})`,
-                    marginBlock: isActive ? 'clamp(6px, 1.2vh, 12px)' : '2px',
-                  }}
-                >
-                  <p
-                    className={`leading-snug transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                      isActive
-                        ? 'text-[clamp(1.25rem,3.2vh,2.65rem)] font-black text-white bg-clip-text bg-gradient-to-r from-white via-cyan-100 to-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]'
-                        : distance === 1
-                          ? 'text-[clamp(1rem,2.2vh,1.65rem)] font-bold text-slate-100 group-hover/line:text-white'
-                          : distance === 2
-                            ? 'text-[clamp(0.85rem,1.8vh,1.3rem)] font-semibold text-slate-300 group-hover/line:text-slate-100'
-                            : 'text-[clamp(0.85rem,1.8vh,1.3rem)] font-medium text-slate-400 group-hover/line:text-slate-200'
-                    }`}
-                  >
-                    {line.text}
-                  </p>
-                </div>
+                <LyricLineItem
+                  key={`${index}-${line.time}`}
+                  line={line}
+                  index={index}
+                  isActive={isActive}
+                  distance={distance}
+                  isPast={isPast}
+                  onClick={handleLineClick}
+                  activeLineRefSetter={activeLineRefSetter}
+                />
               )
             })}
           </div>
@@ -442,173 +662,10 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
         )}
       </div>
 
-      {/* 🎵 Bottom Glassmorphic Player Controls & Seekbar */}
-      {showControls && (
-        <div className="relative z-20 bg-black/50 backdrop-blur-2xl border-t border-white/10 px-4 sm:px-8 py-3.5 flex flex-col sm:flex-row items-center justify-between text-slate-300 select-none shrink-0 gap-3">
-          {/* Left: Track Metadata (Desktop) */}
-          <div className="hidden sm:flex items-center gap-3 w-1/4 min-w-[200px]">
-            <div className="w-11 h-11 bg-slate-900 rounded-xl overflow-hidden relative flex items-center justify-center border border-white/15 shadow-md shrink-0">
-              {currentTrack.cover_url ? (
-                <img
-                  src={currentTrack.cover_url}
-                  alt={currentTrack.title}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <Headphones className="w-5 h-5 text-[var(--spotify-glow,#22d3ee)]" />
-              )}
-            </div>
+      {/* 🎵 Bottom Glassmorphic Player Controls & Seekbar (Isolated 60FPS re-render) */}
+      {showControls && <LyricsBottomControls />}
 
-            <div className="truncate flex flex-col min-w-0">
-              <p className="text-xs sm:text-sm font-extrabold text-white truncate hover:text-[var(--spotify-glow,#22d3ee)] transition-colors cursor-pointer">
-                {currentTrack.title}
-              </p>
-              <p className="text-[11px] font-semibold text-slate-400 truncate hover:text-slate-200 transition-colors cursor-pointer">
-                {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
-              </p>
-            </div>
-
-            <button
-              onClick={toggleFavoriteCurrentTrack}
-              className={`p-2 rounded-xl transition-all ml-1 shrink-0 ${currentTrack.is_favorite
-                  ? 'text-rose-400 bg-rose-500/20 border border-rose-500/40 shadow-lg'
-                  : 'text-slate-400 hover:text-rose-400 hover:bg-white/10'
-                }`}
-              title={currentTrack.is_favorite ? 'Bỏ khỏi bài hát yêu thích' : 'Thêm vào bài hát yêu thích'}
-            >
-              <Heart
-                className={`w-4 h-4 transition-all ${currentTrack.is_favorite ? 'fill-current drop-shadow-[0_0_10px_rgba(244,63,94,0.7)]' : ''
-                  }`}
-              />
-            </button>
-          </div>
-
-          {/* Center: Playback Controls & Seekbar */}
-          <div className="flex flex-col items-center gap-2 w-full sm:w-2/4 max-w-xl">
-            <div className="flex items-center gap-5">
-              <button
-                onClick={toggleShuffle}
-                style={
-                  isShuffle
-                    ? {
-                      color: 'var(--spotify-glow, #22d3ee)',
-                      backgroundColor: 'rgba(6,182,212,0.15)',
-                      borderColor: 'rgba(6,182,212,0.4)',
-                    }
-                    : undefined
-                }
-                className={`p-2 rounded-xl relative transition-all active:scale-90 ${isShuffle ? 'border shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/10'
-                  }`}
-                title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
-              >
-                <Shuffle className="w-4 h-4" />
-              </button>
-
-              <button
-                onClick={prevTrack}
-                className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
-                title="Bài trước"
-              >
-                <SkipBack className="w-5 h-5" />
-              </button>
-
-              <button
-                onClick={togglePlay}
-                style={{
-                  background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                  boxShadow: '0 4px 18px rgba(6,182,212,0.45)',
-                }}
-                className="w-11 h-11 rounded-full hover:scale-[1.08] hover:shadow-[0_0_30px_rgba(6,182,212,0.45)] active:scale-95 transition-all flex items-center justify-center text-black font-extrabold shrink-0 border border-white/30"
-                title={isPlaying ? 'Tạm dừng' : 'Phát'}
-              >
-                {isPlaying ? (
-                  <Pause className="w-5 h-5 fill-current text-black" />
-                ) : (
-                  <Play className="w-5 h-5 fill-current text-black ml-0.5" />
-                )}
-              </button>
-
-              <button
-                onClick={nextTrack}
-                className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
-                title="Bài tiếp theo"
-              >
-                <SkipForward className="w-5 h-5" />
-              </button>
-
-              <button
-                onClick={toggleRepeat}
-                style={
-                  repeatMode !== 'off'
-                    ? {
-                      color: 'var(--spotify-glow, #22d3ee)',
-                      backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
-                      borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.4))',
-                    }
-                    : undefined
-                }
-                className={`p-2 rounded-xl relative transition-all active:scale-90 ${repeatMode !== 'off' ? 'border shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/10'
-                  }`}
-                title={
-                  repeatMode === 'one'
-                    ? 'Lặp lại 1 bài'
-                    : repeatMode === 'all'
-                      ? 'Lặp lại toàn bộ danh sách'
-                      : 'Bật lặp lại bài hát'
-                }
-              >
-                {repeatMode === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
-              </button>
-            </div>
-
-            {/* Seekbar Progress */}
-            <div className="w-full flex items-center gap-3 text-[11px] text-slate-400 font-mono">
-              <span className="w-9 text-right shrink-0 font-bold">{formatTime(currentTime)}</span>
-              <input
-                type="range"
-                min={0}
-                max={duration || 100}
-                value={currentTime}
-                onChange={(e) => seek(Number(e.target.value))}
-                style={{
-                  background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${(currentTime / (duration || 1)) * 100}%, rgba(255,255,255,0.15) ${(currentTime / (duration || 1)) * 100}%)`,
-                }}
-                className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-all hover:h-2"
-              />
-              <span className="w-9 shrink-0 font-bold">{formatTime(duration)}</span>
-            </div>
-          </div>
-
-          {/* Right: Volume Control (Desktop) */}
-          <div className="hidden sm:flex w-1/4 justify-end items-center">
-            <div className="flex items-center gap-2.5 bg-white/[0.06] border border-white/10 rounded-full px-3.5 py-1 shadow-md">
-              <button
-                onClick={handleVolumeToggle}
-                className="text-slate-300 hover:text-white transition-colors p-0.5"
-                title={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}
-              >
-                {volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-              </button>
-              <div className="volume-track-wrapper w-16 md:w-24">
-                <div className="volume-track">
-                  <div className="volume-fill" style={{ width: `${volume * 100}%` }} />
-                  <div className="volume-thumb" style={{ left: `${volume * 100}%` }} />
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={volume}
-                  onChange={(e) => setVolume(Number(e.target.value))}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Floating Share Button when header is hidden (e.g. NowPlayingOverlay right column) */}
+      {/* Floating Share Button when header is hidden */}
       {!showHeader && parsedLyrics.length > 0 && (
         <div className="absolute top-4 right-4 z-30">
           <button
