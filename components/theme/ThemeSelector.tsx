@@ -293,22 +293,113 @@ export function ThemeSelector() {
                 </label>
               </div>
 
-              {/* PlayerBar Aberration Toggle */}
+              {/* Granular Aberration Component Targets */}
               {liquidGlassConfig?.chromaticAberration !== false && (
-                <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs mt-1">
-                  <label className="flex items-center gap-2 cursor-pointer text-slate-200 hover:text-white select-none">
-                    <input
-                      type="checkbox"
-                      checked={liquidGlassConfig?.playerBarAberration !== false}
-                      onChange={(e) =>
-                        setLiquidGlassConfig({
-                          playerBarAberration: e.target.checked,
-                        })
-                      }
-                      className="rounded accent-cyan-400"
-                    />
-                    <span className="font-medium">🎛️ Áp dụng sắc sai viền quang phổ cho <strong>Thanh phát nhạc (Player Bar)</strong></span>
-                  </label>
+                <div className="flex flex-col gap-2 p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs mt-1">
+                  <span className="text-[11px] font-semibold text-cyan-300">
+                    Vị trí áp dụng sắc sai viền kính:
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-slate-200">
+                    <label className="flex items-center gap-1.5 cursor-pointer hover:text-white select-none">
+                      <input
+                        type="checkbox"
+                        checked={liquidGlassConfig?.aberrationTargets?.playerBar !== false}
+                        onChange={(e) =>
+                          setLiquidGlassConfig({
+                            aberrationTargets: {
+                              playerBar: e.target.checked,
+                              searchBar: liquidGlassConfig?.aberrationTargets?.searchBar !== false,
+                              logoPlaque: liquidGlassConfig?.aberrationTargets?.logoPlaque !== false,
+                              heroBanner: liquidGlassConfig?.aberrationTargets?.heroBanner !== false,
+                              tiltCards: liquidGlassConfig?.aberrationTargets?.tiltCards !== false,
+                            },
+                          })
+                        }
+                        className="rounded accent-cyan-400"
+                      />
+                      <span>🎛️ Player Bar</span>
+                    </label>
+
+                    <label className="flex items-center gap-1.5 cursor-pointer hover:text-white select-none">
+                      <input
+                        type="checkbox"
+                        checked={liquidGlassConfig?.aberrationTargets?.searchBar !== false}
+                        onChange={(e) =>
+                          setLiquidGlassConfig({
+                            aberrationTargets: {
+                              playerBar: liquidGlassConfig?.aberrationTargets?.playerBar !== false,
+                              searchBar: e.target.checked,
+                              logoPlaque: liquidGlassConfig?.aberrationTargets?.logoPlaque !== false,
+                              heroBanner: liquidGlassConfig?.aberrationTargets?.heroBanner !== false,
+                              tiltCards: liquidGlassConfig?.aberrationTargets?.tiltCards !== false,
+                            },
+                          })
+                        }
+                        className="rounded accent-cyan-400"
+                      />
+                      <span>🔍 Tìm kiếm</span>
+                    </label>
+
+                    <label className="flex items-center gap-1.5 cursor-pointer hover:text-white select-none">
+                      <input
+                        type="checkbox"
+                        checked={liquidGlassConfig?.aberrationTargets?.logoPlaque !== false}
+                        onChange={(e) =>
+                          setLiquidGlassConfig({
+                            aberrationTargets: {
+                              playerBar: liquidGlassConfig?.aberrationTargets?.playerBar !== false,
+                              searchBar: liquidGlassConfig?.aberrationTargets?.searchBar !== false,
+                              logoPlaque: e.target.checked,
+                              heroBanner: liquidGlassConfig?.aberrationTargets?.heroBanner !== false,
+                              tiltCards: liquidGlassConfig?.aberrationTargets?.tiltCards !== false,
+                            },
+                          })
+                        }
+                        className="rounded accent-cyan-400"
+                      />
+                      <span>🏷️ Logo Plaque</span>
+                    </label>
+
+                    <label className="flex items-center gap-1.5 cursor-pointer hover:text-white select-none">
+                      <input
+                        type="checkbox"
+                        checked={liquidGlassConfig?.aberrationTargets?.heroBanner !== false}
+                        onChange={(e) =>
+                          setLiquidGlassConfig({
+                            aberrationTargets: {
+                              playerBar: liquidGlassConfig?.aberrationTargets?.playerBar !== false,
+                              searchBar: liquidGlassConfig?.aberrationTargets?.searchBar !== false,
+                              logoPlaque: liquidGlassConfig?.aberrationTargets?.logoPlaque !== false,
+                              heroBanner: e.target.checked,
+                              tiltCards: liquidGlassConfig?.aberrationTargets?.tiltCards !== false,
+                            },
+                          })
+                        }
+                        className="rounded accent-cyan-400"
+                      />
+                      <span>🌟 Hero Banner</span>
+                    </label>
+
+                    <label className="flex items-center gap-1.5 cursor-pointer hover:text-white select-none">
+                      <input
+                        type="checkbox"
+                        checked={liquidGlassConfig?.aberrationTargets?.tiltCards !== false}
+                        onChange={(e) =>
+                          setLiquidGlassConfig({
+                            aberrationTargets: {
+                              playerBar: liquidGlassConfig?.aberrationTargets?.playerBar !== false,
+                              searchBar: liquidGlassConfig?.aberrationTargets?.searchBar !== false,
+                              logoPlaque: liquidGlassConfig?.aberrationTargets?.logoPlaque !== false,
+                              heroBanner: liquidGlassConfig?.aberrationTargets?.heroBanner !== false,
+                              tiltCards: e.target.checked,
+                            },
+                          })
+                        }
+                        className="rounded accent-cyan-400"
+                      />
+                      <span>🃏 Thẻ Album/Playlist</span>
+                    </label>
+                  </div>
                 </div>
               )}
             </div>
