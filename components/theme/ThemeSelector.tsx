@@ -140,6 +140,55 @@ export function ThemeSelector() {
               })}
             </div>
 
+            {/* Live Interactive Glass Refraction Preview */}
+            <div className="relative overflow-hidden rounded-2xl p-4 border border-white/20 bg-black/40 min-h-[90px] flex items-center justify-between shadow-inner">
+              {/* Colorful backdrop orbs so refraction is instantly visible */}
+              <div className="absolute -left-4 -top-4 w-28 h-28 rounded-full bg-cyan-400/50 blur-xl animate-pulse pointer-events-none" />
+              <div className="absolute right-8 -bottom-4 w-32 h-32 rounded-full bg-pink-500/40 blur-xl pointer-events-none" />
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full bg-indigo-500/40 blur-lg pointer-events-none" />
+
+              {/* Refractive Glass Lens on top */}
+              <div
+                className="relative z-10 w-full flex items-center justify-between p-3 rounded-xl border border-white/30 transition-all duration-300"
+                style={{
+                  backdropFilter: `url(#liquid-glass-${liquidGlassConfig?.refractionMode || 'standard'}) blur(16px) saturate(190%)`,
+                  WebkitBackdropFilter: `url(#liquid-glass-${liquidGlassConfig?.refractionMode || 'standard'}) blur(16px) saturate(190%)`,
+                  boxShadow:
+                    liquidGlassConfig?.refractionMode === 'prominent'
+                      ? '0 12px 32px rgba(0,0,0,0.6), inset 0 1.5px 0 rgba(255,255,255,0.7), inset 0 -1px 0 rgba(34,211,238,0.4)'
+                      : liquidGlassConfig?.refractionMode === 'polar'
+                      ? '0 10px 28px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.5), 0 0 20px rgba(34,211,238,0.3)'
+                      : liquidGlassConfig?.refractionMode === 'shader'
+                      ? '0 10px 28px rgba(0,0,0,0.5), inset 0 1.5px 0 rgba(168,85,247,0.5)'
+                      : '0 8px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.4)',
+                }}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center border border-white/30 text-white shadow">
+                    <Sparkles className="w-4 h-4 text-cyan-300" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-xs text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]">
+                      Xem trước khúc xạ kính: <span className="text-cyan-300 uppercase">{liquidGlassConfig?.refractionMode || 'standard'}</span>
+                    </p>
+                    <p className="text-[10px] text-slate-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                      {liquidGlassConfig?.refractionMode === 'prominent'
+                        ? 'Khúc xạ vát cạnh sắc nét cao & phân tán sắc sai viền mạnh'
+                        : liquidGlassConfig?.refractionMode === 'polar'
+                        ? 'Khúc xạ thấu kính cong tròn đa chiều'
+                        : liquidGlassConfig?.refractionMode === 'shader'
+                        ? 'Khúc xạ sóng lỏng hữu cơ biến thiên mượt'
+                        : 'Khúc xạ tiêu chuẩn trong trẻo mềm mại'}
+                    </p>
+                  </div>
+                </div>
+
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider bg-white/20 text-white border border-white/40 shadow-sm shrink-0">
+                  LIVE FX
+                </span>
+              </div>
+            </div>
+
             <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-white/[0.06] text-xs text-slate-300">
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input

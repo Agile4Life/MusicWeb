@@ -1,27 +1,132 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { SVG_DISPLACEMENT_MAPS, generateProceduralDisplacementMap } from '@/lib/theme/liquidGlassFilters'
+import { DISPLACEMENT_MAPS, RefractionMode } from '@/lib/theme/liquidGlassFilters'
 import { useTheme } from './ThemeContext'
+
+function createFilterNodes(
+  id: string,
+  mapHref: string,
+  displacementScale: number,
+  aberrationIntensity: number
+) {
+  return (
+    <filter id={id} x="-35%" y="-35%" width="170%" height="170%" colorInterpolationFilters="sRGB">
+      <feImage
+        x="0"
+        y="0"
+        width="100%"
+        height="100%"
+        result="DISPLACEMENT_MAP"
+        href={mapHref}
+        preserveAspectRatio="xMidYMid slice"
+      />
+
+      {/* Create edge mask using the displacement map itself */}
+      <feColorMatrix
+        in="DISPLACEMENT_MAP"
+        type="matrix"
+        values="0.3 0.3 0.3 0 0
+                0.3 0.3 0.3 0 0
+                0.3 0.3 0.3 0 0
+                0 0 0 1 0"
+        result="EDGE_INTENSITY"
+      />
+      <feComponentTransfer in="EDGE_INTENSITY" result="EDGE_MASK">
+        <feFuncA type="discrete" tableValues={`0 ${aberrationIntensity * 0.05} 1`} />
+      </feComponentTransfer>
+
+      {/* Center original clean graphic */}
+      <feOffset in="SourceGraphic" dx="0" dy="0" result="CENTER_ORIGINAL" />
+
+      {/* Red channel displacement */}
+      <feDisplacementMap
+        in="SourceGraphic"
+        in2="DISPLACEMENT_MAP"
+        scale={displacementScale}
+        xChannelSelector="R"
+        yChannelSelector="B"
+        result="RED_DISPLACED"
+      />
+      <feColorMatrix
+        in="RED_DISPLACED"
+        type="matrix"
+        values="1 0 0 0 0
+                0 0 0 0 0
+                0 0 0 0 0
+                0 0 0 1 0"
+        result="RED_CHANNEL"
+      />
+
+      {/* Green channel displacement with slight offset */}
+      <feDisplacementMap
+        in="SourceGraphic"
+        in2="DISPLACEMENT_MAP"
+        scale={displacementScale * (1 - aberrationIntensity * 0.05)}
+        xChannelSelector="R"
+        yChannelSelector="B"
+        result="GREEN_DISPLACED"
+      />
+      <feColorMatrix
+        in="GREEN_DISPLACED"
+        type="matrix"
+        values="0 0 0 0 0
+                0 1 0 0 0
+                0 0 0 0 0
+                0 0 0 1 0"
+        result="GREEN_CHANNEL"
+      />
+
+      {/* Blue channel displacement with slight offset */}
+      <feDisplacementMap
+        in="SourceGraphic"
+        in2="DISPLACEMENT_MAP"
+        scale={displacementScale * (1 - aberrationIntensity * 0.1)}
+        xChannelSelector="R"
+        yChannelSelector="B"
+        result="BLUE_DISPLACED"
+      />
+      <feColorMatrix
+        in="BLUE_DISPLACED"
+        type="matrix"
+        values="0 0 0 0 0
+                0 0 0 0 0
+                0 0 1 0 0
+                0 0 0 1 0"
+        result="BLUE_CHANNEL"
+      />
+
+      {/* Combine RGB channels via screen blend mode */}
+      <feBlend in="GREEN_CHANNEL" in2="BLUE_CHANNEL" mode="screen" result="GB_COMBINED" />
+      <feBlend in="RED_CHANNEL" in2="GB_COMBINED" mode="screen" result="RGB_COMBINED" />
+
+      {/* Subtle blur to smooth the aberration */}
+      <feGaussianBlur in="RGB_COMBINED" stdDeviation="0.3" result="ABERRATED_BLURRED" />
+
+      {/* Composite with edge mask */}
+      <feComposite in="ABERRATED_BLURRED" in2="EDGE_MASK" operator="in" result="EDGE_ABERRATION" />
+
+      {/* Invert mask for crystal clean center */}
+      <feComponentTransfer in="EDGE_MASK" result="INVERTED_MASK">
+        <feFuncA type="table" tableValues="1 0" />
+      </feComponentTransfer>
+      <feComposite in="CENTER_ORIGINAL" in2="INVERTED_MASK" operator="in" result="CENTER_CLEAN" />
+
+      {/* Blend edge aberration over clean center */}
+      <feComposite in="EDGE_ABERRATION" in2="CENTER_CLEAN" operator="over" />
+    </filter>
+  )
+}
 
 export function LiquidGlassFilterDefs() {
   const { themeStyle, liquidGlassConfig } = useTheme()
-  const [shaderMap, setShaderMap] = useState<string>('')
 
-  useEffect(() => {
-    if (themeStyle === 'liquid-glass' && liquidGlassConfig?.refractionMode === 'shader') {
-      const generated = generateProceduralDisplacementMap(256, 256, 0.4)
-      setShaderMap(generated)
-    }
-  }, [themeStyle, liquidGlassConfig?.refractionMode])
-
-  // If classic mode is active, render lightweight empty container
   if (themeStyle !== 'liquid-glass') {
     return null
   }
 
-  const scale = liquidGlassConfig?.refractionIntensity ?? 24
-  const aberration = liquidGlassConfig?.chromaticAberration ? 2.2 : 0
+  const baseScale = liquidGlassConfig?.refractionIntensity ?? 45
+  const aberration = liquidGlassConfig?.chromaticAberration ? 2.5 : 0
 
   return (
     <svg
@@ -30,99 +135,20 @@ export function LiquidGlassFilterDefs() {
       aria-hidden="true"
     >
       <defs>
-        {/* === Filter Standard === */}
-        <filter id="liquid-glass-standard" x="-20%" y="-20%" width="140%" height="140%" colorInterpolationFilters="sRGB">
-          <feImage
-            href={SVG_DISPLACEMENT_MAPS.standard}
-            x="0"
-            y="0"
-            width="100%"
-            height="100%"
-            result="DISP_MAP"
-            preserveAspectRatio="none"
-          />
-          {aberration > 0 ? (
-            <>
-              {/* Red Displaced */}
-              <feDisplacementMap in="SourceGraphic" in2="DISP_MAP" scale={scale * 1.1} xChannelSelector="R" yChannelSelector="B" result="RED_RAW" />
-              <feColorMatrix in="RED_RAW" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="RED_CH" />
+        {/* Standard Mode: Smooth Refraction (Scale 45) */}
+        {createFilterNodes('liquid-glass-standard', DISPLACEMENT_MAPS.standard, baseScale, aberration)}
 
-              {/* Green Displaced */}
-              <feDisplacementMap in="SourceGraphic" in2="DISP_MAP" scale={scale * (1.1 - aberration * 0.05)} xChannelSelector="R" yChannelSelector="B" result="GREEN_RAW" />
-              <feColorMatrix in="GREEN_RAW" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="GREEN_CH" />
+        {/* Polar Mode: Spherical Lens Refraction (Scale 65) */}
+        {createFilterNodes('liquid-glass-polar', DISPLACEMENT_MAPS.polar, baseScale * 1.4, aberration * 1.2)}
 
-              {/* Blue Displaced */}
-              <feDisplacementMap in="SourceGraphic" in2="DISP_MAP" scale={scale * (1.1 - aberration * 0.1)} xChannelSelector="R" yChannelSelector="B" result="BLUE_RAW" />
-              <feColorMatrix in="BLUE_RAW" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="BLUE_CH" />
+        {/* Prominent Mode: High-Contrast Crystal Bevel Refraction (Scale 90) */}
+        {createFilterNodes('liquid-glass-prominent', DISPLACEMENT_MAPS.prominent, baseScale * 1.9, aberration * 1.5)}
 
-              {/* Blend RGB channels */}
-              <feBlend in="GREEN_CH" in2="BLUE_CH" mode="screen" result="GB" />
-              <feBlend in="RED_CH" in2="GB" mode="screen" result="DISPLACED_BLEND" />
-              <feGaussianBlur in="DISPLACED_BLEND" stdDeviation="0.4" result="FINAL_SMOOTH" />
-              <feMerge>
-                <feMergeNode in="FINAL_SMOOTH" />
-              </feMerge>
-            </>
-          ) : (
-            <feDisplacementMap in="SourceGraphic" in2="DISP_MAP" scale={scale} xChannelSelector="R" yChannelSelector="B" />
-          )}
-        </filter>
+        {/* Shader Mode: Liquid Dynamic Wave (Scale 55) */}
+        {createFilterNodes('liquid-glass-shader', DISPLACEMENT_MAPS.prominent, baseScale * 1.2, aberration)}
 
-        {/* === Filter Polar === */}
-        <filter id="liquid-glass-polar" x="-20%" y="-20%" width="140%" height="140%" colorInterpolationFilters="sRGB">
-          <feImage
-            href={SVG_DISPLACEMENT_MAPS.polar}
-            x="0"
-            y="0"
-            width="100%"
-            height="100%"
-            result="DISP_MAP_POLAR"
-            preserveAspectRatio="none"
-          />
-          <feDisplacementMap in="SourceGraphic" in2="DISP_MAP_POLAR" scale={scale * 1.25} xChannelSelector="R" yChannelSelector="B" />
-        </filter>
-
-        {/* === Filter Prominent === */}
-        <filter id="liquid-glass-prominent" x="-20%" y="-20%" width="140%" height="140%" colorInterpolationFilters="sRGB">
-          <feImage
-            href={SVG_DISPLACEMENT_MAPS.prominent}
-            x="0"
-            y="0"
-            width="100%"
-            height="100%"
-            result="DISP_MAP_PROMINENT"
-            preserveAspectRatio="none"
-          />
-          <feDisplacementMap in="SourceGraphic" in2="DISP_MAP_PROMINENT" scale={scale * 1.5} xChannelSelector="R" yChannelSelector="B" />
-        </filter>
-
-        {/* === Filter Procedural Shader === */}
-        <filter id="liquid-glass-shader" x="-20%" y="-20%" width="140%" height="140%" colorInterpolationFilters="sRGB">
-          <feImage
-            href={shaderMap || SVG_DISPLACEMENT_MAPS.standard}
-            x="0"
-            y="0"
-            width="100%"
-            height="100%"
-            result="DISP_MAP_SHADER"
-            preserveAspectRatio="none"
-          />
-          <feDisplacementMap in="SourceGraphic" in2="DISP_MAP_SHADER" scale={scale} xChannelSelector="R" yChannelSelector="B" />
-        </filter>
-
-        {/* === Subtle Card Glass === */}
-        <filter id="liquid-glass-subtle" x="-10%" y="-10%" width="120%" height="120%" colorInterpolationFilters="sRGB">
-          <feImage
-            href={SVG_DISPLACEMENT_MAPS.standard}
-            x="0"
-            y="0"
-            width="100%"
-            height="100%"
-            result="DISP_SUBTLE"
-            preserveAspectRatio="none"
-          />
-          <feDisplacementMap in="SourceGraphic" in2="DISP_SUBTLE" scale={scale * 0.4} xChannelSelector="R" yChannelSelector="B" />
-        </filter>
+        {/* Subtle Card Glass */}
+        {createFilterNodes('liquid-glass-subtle', DISPLACEMENT_MAPS.standard, baseScale * 0.4, 0)}
       </defs>
     </svg>
   )

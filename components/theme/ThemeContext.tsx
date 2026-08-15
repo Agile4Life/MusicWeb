@@ -456,10 +456,24 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (savedGlassConfig) {
       try {
         const parsed = JSON.parse(savedGlassConfig)
-        setLiquidGlassConfigState((prev) => ({ ...prev, ...parsed }))
-      } catch {}
+        const merged = { ...DEFAULT_LIQUID_GLASS_CONFIG, ...parsed }
+        setLiquidGlassConfigState(merged)
+        applyLiquidGlassConfig(merged)
+      } catch {
+        applyLiquidGlassConfig(DEFAULT_LIQUID_GLASS_CONFIG)
+      }
+    } else {
+      applyLiquidGlassConfig(DEFAULT_LIQUID_GLASS_CONFIG)
     }
   }, [])
+
+  const applyLiquidGlassConfig = (cfg: LiquidGlassConfig) => {
+    const root = document.documentElement
+    root.setAttribute('data-refraction-mode', cfg.refractionMode)
+    root.style.setProperty('--liquid-filter', `url(#liquid-glass-${cfg.refractionMode})`)
+    root.style.setProperty('--liquid-scale', `${cfg.refractionIntensity}px`)
+    root.style.setProperty('--liquid-aberration', cfg.chromaticAberration ? '1' : '0')
+  }
 
   const applyCursorStyle = (style: CursorStyle) => {
     setCursorStyleState(style)
@@ -500,6 +514,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setLiquidGlassConfigState((prev) => {
       const updated = { ...prev, ...config }
       localStorage.setItem('musicweb-liquid-config', JSON.stringify(updated))
+      applyLiquidGlassConfig(updated)
       return updated
     })
   }
