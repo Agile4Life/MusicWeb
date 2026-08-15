@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { useTheme, THEMES, ThemeId, ThemeStyle } from './ThemeContext'
 import { Palette, Check, MousePointer, Sparkles, Sliders, Eye, Waves } from 'lucide-react'
 import { useLanguage } from '@/components/i18n/LanguageContext'
