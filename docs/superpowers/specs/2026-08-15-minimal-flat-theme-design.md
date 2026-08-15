@@ -66,14 +66,14 @@ Bổ sung phong cách **Minimal Flat** trở thành một Theme Style Mode chín
 
 ```css
 [data-theme-style="minimal-flat"] {
-  --bg-space: #FAFAF7 !important;
-  --bg-page: #FAFAF7 !important;
+  --bg-space: #F1EFE8 !important;
+  --bg-page: #F1EFE8 !important;
   --bg-surface-1: #FAFAF7 !important;
-  --bg-surface-2: #F1EFE8 !important;
-  --elevation-0-bg: #FAFAF7 !important;
+  --bg-surface-2: #FAFAF7 !important;
+  --elevation-0-bg: #F1EFE8 !important;
   --elevation-1-bg: #FAFAF7 !important;
-  --elevation-2-bg: #F1EFE8 !important;
-  --elevation-3-bg: #F1EFE8 !important;
+  --elevation-2-bg: #FAFAF7 !important;
+  --elevation-3-bg: #FAFAF7 !important;
   --text-primary: #1F1F1D !important;
   --text-secondary: #8A8677 !important;
   --text-muted: #8A8677 !important;

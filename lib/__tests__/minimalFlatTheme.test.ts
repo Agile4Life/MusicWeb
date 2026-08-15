@@ -87,8 +87,8 @@ describe('Minimal Flat Theme Behavioral & DOM Tests', () => {
 
   it('verifies minimal flat token values match design spec', () => {
     const TOKENS = {
-      bgSpace: '#FAFAF7',
-      bgSurface2: '#F1EFE8',
+      bgSpace: '#F1EFE8',
+      bgSurface1: '#FAFAF7',
       borderSubtle: '#E5E3DA',
       textPrimary: '#1F1F1D',
       textSecondary: '#8A8677',
@@ -98,8 +98,8 @@ describe('Minimal Flat Theme Behavioral & DOM Tests', () => {
       radiusLg: '12px',
     }
 
-    expect(TOKENS.bgSpace).toBe('#FAFAF7')
-    expect(TOKENS.bgSurface2).toBe('#F1EFE8')
+    expect(TOKENS.bgSpace).toBe('#F1EFE8')
+    expect(TOKENS.bgSurface1).toBe('#FAFAF7')
     expect(TOKENS.borderSubtle).toBe('#E5E3DA')
     expect(TOKENS.textPrimary).toBe('#1F1F1D')
     expect(TOKENS.textSecondary).toBe('#8A8677')

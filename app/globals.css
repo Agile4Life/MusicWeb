@@ -2454,15 +2454,15 @@ html[data-cursor="default"][data-buffering="true"] * {
    Minimal Flat Theme Engine (Warm Studio / Zero Glass & Shadow)
    ================================================================ */
 [data-theme-style="minimal-flat"] {
-  --bg-space: #FAFAF7 !important;
-  --bg-space-end: #FAFAF7 !important;
-  --bg-page: #FAFAF7 !important;
+  --bg-space: #F1EFE8 !important;
+  --bg-space-end: #F1EFE8 !important;
+  --bg-page: #F1EFE8 !important;
   --bg-surface-1: #FAFAF7 !important;
-  --bg-surface-2: #F1EFE8 !important;
-  --elevation-0-bg: #FAFAF7 !important;
+  --bg-surface-2: #FAFAF7 !important;
+  --elevation-0-bg: #F1EFE8 !important;
   --elevation-1-bg: #FAFAF7 !important;
-  --elevation-2-bg: #F1EFE8 !important;
-  --elevation-3-bg: #F1EFE8 !important;
+  --elevation-2-bg: #FAFAF7 !important;
+  --elevation-3-bg: #FAFAF7 !important;
   --text-primary: #1F1F1D !important;
   --text-secondary: #8A8677 !important;
   --text-muted: #8A8677 !important;
@@ -2472,7 +2472,7 @@ html[data-cursor="default"][data-buffering="true"] * {
   --spotify-green: #D85A30 !important;
   --accent: #D85A30 !important;
   --accent-secondary: #D85A30 !important;
-  --accent-dim: #F1EFE8 !important;
+  --accent-dim: #FAFAF7 !important;
   --accent-dim-strong: #E5E3DA !important;
   --accent-gradient: #D85A30 !important;
   --spotify-glow: transparent !important;
@@ -2482,7 +2482,7 @@ html[data-cursor="default"][data-buffering="true"] * {
   --theme-gradient-3: transparent !important;
   --glass-blur: 0px !important;
   --glass-surface: #FAFAF7 !important;
-  --glass-surface-strong: #F1EFE8 !important;
+  --glass-surface-strong: #FAFAF7 !important;
   --radius-sm: 6px !important;
   --radius-control: 8px !important;
   --radius-card: 8px !important;
@@ -2503,7 +2503,7 @@ html[data-cursor="default"][data-buffering="true"] * {
 /* Reset Body & Selection in Minimal Flat mode */
 [data-theme-style="minimal-flat"] body,
 html[data-theme-style="minimal-flat"] body {
-  background-color: #FAFAF7 !important;
+  background-color: #F1EFE8 !important;
   color: #1F1F1D !important;
 }
 
@@ -2584,7 +2584,7 @@ html[data-theme-style="minimal-flat"] body {
 
 /* App Header */
 [data-theme-style="minimal-flat"] .app-header {
-  background: #FAFAF7 !important;
+  background: #F1EFE8 !important;
   border-bottom: 1px solid #E5E3DA !important;
   box-shadow: none !important;
   backdrop-filter: none !important;
@@ -2593,14 +2593,14 @@ html[data-theme-style="minimal-flat"] body {
 
 /* Main Content Panel */
 [data-theme-style="minimal-flat"] .main-content-panel {
-  background: #FAFAF7 !important;
+  background: #F1EFE8 !important;
   border: 1px solid #E5E3DA !important;
   border-radius: 12px !important;
 }
 
 /* App Sidebar */
 [data-theme-style="minimal-flat"] .app-sidebar {
-  background: #FAFAF7 !important;
+  background: #F1EFE8 !important;
   border-right: 1px solid #E5E3DA !important;
   border-radius: 12px !important;
 }
@@ -2616,7 +2616,7 @@ html[data-theme-style="minimal-flat"] body {
   mix-blend-mode: normal !important;
 }
 
-/* Tắt floating nav-indicator để active item chiếm full 100% container không bị lệch */
+/* Tắt floating nav-indicator để active item chiếm full 100% container */
 [data-theme-style="minimal-flat"] .nav-indicator {
   display: none !important;
 }
@@ -2625,12 +2625,17 @@ html[data-theme-style="minimal-flat"] body {
   color: #8A8677 !important;
   border-radius: 8px !important;
   width: 100% !important;
+  border-left: 3px solid transparent !important;
+  padding: 8px 10px !important;
 }
 
+/* Active Nav Item: Nền #FAFAF7 nổi trên nền sidebar #F1EFE8 + Left-Border Accent #D85A30 */
 [data-theme-style="minimal-flat"] .sidebar-item.active {
-  background: #F1EFE8 !important;
+  background: #FAFAF7 !important;
   color: #1F1F1D !important;
   font-weight: 500 !important;
+  border-left: 3px solid #D85A30 !important;
+  border-radius: 0 8px 8px 0 !important;
   width: 100% !important;
 }
 
@@ -2646,6 +2651,7 @@ html[data-theme-style="minimal-flat"] body {
 
 [data-theme-style="minimal-flat"] .sidebar-item:hover {
   color: #1F1F1D !important;
+  background: #FAFAF7 !important;
 }
 
 [data-theme-style="minimal-flat"] .sidebar-item:hover .icon,
@@ -2660,7 +2666,7 @@ html[data-theme-style="minimal-flat"] body {
 
 /* Chuẩn hóa các Badge thương hiệu (HOT, CLOUD, NEW) về đơn sắc trung tính */
 [data-theme-style="minimal-flat"] .app-sidebar span[class*="rounded"] {
-  background: #F1EFE8 !important;
+  background: #FAFAF7 !important;
   border: 1px solid #E5E3DA !important;
   color: #8A8677 !important;
   box-shadow: none !important;
@@ -2684,48 +2690,49 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] .app-sidebar button[title*="Playlist"]:hover,
 [data-theme-style="minimal-flat"] .app-sidebar button[title*="nhập"]:hover {
   color: #1F1F1D !important;
-  background: #F1EFE8 !important;
+  background: #FAFAF7 !important;
   border-radius: 6px !important;
 }
 
-/* Hero Banner (Tỷ lệ cân đối, nhỏ gọn & Nền #F1EFE8 phân tách rõ ràng) */
+/* Hero Banner (Nền cam accent #D85A30 đặc sắc & Chữ #FAFAF7) */
 [data-theme-style="minimal-flat"] .hero-banner {
-  background: #F1EFE8 !important;
-  border: 1px solid #E5E3DA !important;
+  background: #D85A30 !important;
+  border: none !important;
   border-radius: 12px !important;
-  padding: 1rem 1.25rem !important;
+  padding: 1.25rem 1.5rem !important;
   box-shadow: none !important;
 }
 
 [data-theme-style="minimal-flat"] .hero-banner h1 {
-  font-size: 1.25rem !important;
+  font-size: 1.35rem !important;
   line-height: 1.3 !important;
-  color: #1F1F1D !important;
+  color: #FAFAF7 !important;
   font-weight: 500 !important;
-  margin-bottom: 0.15rem !important;
+  margin-bottom: 0.2rem !important;
 }
 
 [data-theme-style="minimal-flat"] .hero-banner p {
   font-size: 0.8125rem !important;
-  color: #8A8677 !important;
+  color: rgba(250, 250, 247, 0.9) !important;
   font-weight: 400 !important;
 }
 
+/* Nút Upload Fill đặc màu trắng ngà #FAFAF7 chữ cam #D85A30 */
 [data-theme-style="minimal-flat"] .hero-banner .btn-outline-accent {
   background: #FAFAF7 !important;
-  border: 1px solid #E5E3DA !important;
-  color: #1F1F1D !important;
+  border: none !important;
+  color: #D85A30 !important;
   border-radius: 8px !important;
-  padding: 0.4rem 0.9rem !important;
+  font-weight: 600 !important;
+  padding: 0.45rem 1rem !important;
 }
 
 [data-theme-style="minimal-flat"] .hero-banner .btn-outline-accent:hover {
-  background: #FAFAF7 !important;
-  border-color: #D85A30 !important;
+  background: #F1EFE8 !important;
   color: #D85A30 !important;
 }
 
-/* Media Cards & Showcase */
+/* Media Cards & Showcase (Nền #FAFAF7 nổi bật trên nền trang #F1EFE8) */
 [data-theme-style="minimal-flat"] .media-card,
 [data-theme-style="minimal-flat"] .tilt-card {
   background: #FAFAF7 !important;
@@ -2737,7 +2744,7 @@ html[data-theme-style="minimal-flat"] body {
 
 [data-theme-style="minimal-flat"] .media-card:hover,
 [data-theme-style="minimal-flat"] .tilt-card:hover {
-  background: #F1EFE8 !important;
+  background: #FAFAF7 !important;
   border-color: #D85A30 !important;
   transform: none !important;
 }
@@ -2803,14 +2810,14 @@ html[data-theme-style="minimal-flat"] body {
 /* Section Header Links & Icons */
 [data-theme-style="minimal-flat"] a[href="/albums"],
 [data-theme-style="minimal-flat"] a[href="/albums"]:hover {
-  background: #F1EFE8 !important;
+  background: #FAFAF7 !important;
   border: 1px solid #E5E3DA !important;
   color: #D85A30 !important;
   border-radius: 6px !important;
 }
 
 [data-theme-style="minimal-flat"] .w-7.h-7.rounded-lg {
-  background: #F1EFE8 !important;
+  background: #FAFAF7 !important;
   border: 1px solid #E5E3DA !important;
   border-radius: 6px !important;
   box-shadow: none !important;
