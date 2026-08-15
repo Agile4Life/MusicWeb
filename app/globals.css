@@ -2278,11 +2278,11 @@ html[data-cursor="default"][data-buffering="true"] * {
     0 0 35px rgba(168, 85, 247, 0.28) !important;
 }
 
-/* === Chromatic Aberration Config (PlayerBar & Tilt Cards Only) === */
+/* === Chromatic Aberration Config (Liquid Glass Theme Only) === */
 
 /* PlayerBar Aberration */
-[data-aberration-playerbar="true"] .player-bar,
-[data-aberration-playerbar="true"] .mini-player-bar {
+[data-theme-style="liquid-glass"][data-aberration-playerbar="true"] .player-bar,
+[data-theme-style="liquid-glass"][data-aberration-playerbar="true"] .mini-player-bar {
   border-left: 2px solid rgba(244, 63, 94, 0.85) !important;
   border-right: 2px solid rgba(6, 182, 212, 0.85) !important;
   border-top: 1.5px solid rgba(255, 255, 255, 0.85) !important;
@@ -2295,15 +2295,15 @@ html[data-cursor="default"][data-buffering="true"] * {
     0 0 35px rgba(6, 182, 212, 0.3) !important;
 }
 
-[data-aberration-playerbar="false"] .player-bar,
-[data-aberration-playerbar="false"] .mini-player-bar {
+[data-theme-style="liquid-glass"][data-aberration-playerbar="false"] .player-bar,
+[data-theme-style="liquid-glass"][data-aberration-playerbar="false"] .mini-player-bar {
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45), inset 0 1.5px 0 rgba(255, 255, 255, 0.4) !important;
 }
 
 /* TiltCards & Liquid Glass Album/Playlist Cards Aberration */
-[data-aberration-cards="true"] .liquid-glass-card,
-[data-aberration-cards="true"] .tilt-card {
+[data-theme-style="liquid-glass"][data-aberration-cards="true"] .liquid-glass-card,
+[data-theme-style="liquid-glass"][data-aberration-cards="true"] .tilt-card {
   border-left: 1.5px solid rgba(244, 63, 94, 0.65) !important;
   border-right: 1.5px solid rgba(6, 182, 212, 0.65) !important;
   border-top: 1.5px solid rgba(255, 255, 255, 0.8) !important;
@@ -2315,14 +2315,14 @@ html[data-cursor="default"][data-buffering="true"] * {
     inset 0 1.5px 0 rgba(255, 255, 255, 0.8) !important;
 }
 
-[data-aberration-cards="false"] .liquid-glass-card,
-[data-aberration-cards="false"] .tilt-card {
+[data-theme-style="liquid-glass"][data-aberration-cards="false"] .liquid-glass-card,
+[data-theme-style="liquid-glass"][data-aberration-cards="false"] .tilt-card {
   border: 1px solid rgba(255, 255, 255, 0.16) !important;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
 }
 
 /* 1. Global Search Bar Aberration */
-[data-aberration-search="true"] .search-input {
+[data-theme-style="liquid-glass"][data-aberration-search="true"] .search-input {
   border-left: 2px solid rgba(244, 63, 94, 0.85) !important;
   border-right: 2px solid rgba(6, 182, 212, 0.85) !important;
   border-top: 1.5px solid rgba(255, 255, 255, 0.8) !important;
@@ -2334,13 +2334,13 @@ html[data-cursor="default"][data-buffering="true"] * {
     inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
 }
 
-[data-aberration-search="false"] .search-input {
+[data-theme-style="liquid-glass"][data-aberration-search="false"] .search-input {
   border: 1px solid rgba(255, 255, 255, 0.18) !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
 }
 
 /* 2. Sidebar Logo Plaque Aberration */
-[data-aberration-logo="true"] .sidebar-logo-plaque {
+[data-theme-style="liquid-glass"][data-aberration-logo="true"] .sidebar-logo-plaque {
   border-left: 2px solid rgba(244, 63, 94, 0.85) !important;
   border-right: 2px solid rgba(6, 182, 212, 0.85) !important;
   border-top: 1.5px solid rgba(255, 255, 255, 0.8) !important;
@@ -2352,13 +2352,13 @@ html[data-cursor="default"][data-buffering="true"] * {
     inset 0 1.5px 0 rgba(255, 255, 255, 0.7) !important;
 }
 
-[data-aberration-logo="false"] .sidebar-logo-plaque {
+[data-theme-style="liquid-glass"][data-aberration-logo="false"] .sidebar-logo-plaque {
   border: 1px solid rgba(255, 255, 255, 0.14) !important;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
 }
 
 /* 3. Welcome Hero Banner Aberration */
-[data-aberration-banner="true"] .hero-banner {
+[data-theme-style="liquid-glass"][data-aberration-banner="true"] .hero-banner {
   border-left: 2px solid rgba(244, 63, 94, 0.85) !important;
   border-right: 2px solid rgba(6, 182, 212, 0.85) !important;
   border-top: 1.5px solid rgba(255, 255, 255, 0.85) !important;
@@ -2374,7 +2374,7 @@ html[data-cursor="default"][data-buffering="true"] * {
     0 0 32px rgba(6, 182, 212, 0.2) !important;
 }
 
-[data-aberration-banner="false"] .hero-banner {
+[data-theme-style="liquid-glass"][data-aberration-banner="false"] .hero-banner {
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
 }

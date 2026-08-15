@@ -483,8 +483,27 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const applyLiquidGlassConfig = (cfg: LiquidGlassConfig) => {
+  const applyLiquidGlassConfig = (cfg: LiquidGlassConfig, currentStyle?: ThemeStyle) => {
     const root = document.documentElement
+    const activeStyle = currentStyle ?? themeStyle
+
+    if (activeStyle !== 'liquid-glass') {
+      root.removeAttribute('data-refraction-mode')
+      root.removeAttribute('data-chromatic-aberration')
+      root.removeAttribute('data-aberration-playerbar')
+      root.removeAttribute('data-aberration-search')
+      root.removeAttribute('data-aberration-logo')
+      root.removeAttribute('data-aberration-banner')
+      root.removeAttribute('data-aberration-cards')
+      root.removeAttribute('data-aberration-sidebar')
+      root.removeAttribute('data-aberration-main')
+      root.removeAttribute('data-elastic-interaction')
+      root.style.removeProperty('--liquid-filter')
+      root.style.removeProperty('--liquid-scale')
+      root.style.removeProperty('--liquid-aberration')
+      return
+    }
+
     const master = cfg.chromaticAberration !== false
     const targets = cfg.aberrationTargets || {
       playerBar: true,
@@ -537,6 +556,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setThemeStyleState(style)
     const root = document.documentElement
     root.setAttribute('data-theme-style', style)
+    applyLiquidGlassConfig(liquidGlassConfig, style)
   }
 
   const setThemeStyle = (style: ThemeStyle) => {
