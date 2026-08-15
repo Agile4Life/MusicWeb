@@ -291,14 +291,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const artist = seedTrack.artist || ''
       const title = seedTrack.title || ''
       const isrc = (seedTrack as any).isrc || ''
-
+      // Giới hạn 50 id gần nhất để tránh URL quá dài
+      const historyIds = currentQ.slice(-50).map((t) => t.id).join(',')
       let url = `/api/queue/next?current_track_id=${encodeURIComponent(seedId)}&artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}&limit=12`
       if (isrc) url += `&isrc=${encodeURIComponent(isrc)}`
-
+      if (historyIds) url += `&history_ids=${encodeURIComponent(historyIds)}`
       const res = await fetch(url)
       if (requestId !== activeQueueRequestIdRef.current) return
       if (currentTrackRef.current?.id !== seedId) return
-
       if (res.ok) {
         const data: NextQueueResponse = await res.json()
         if (requestId !== activeQueueRequestIdRef.current) return
@@ -308,7 +308,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           return
         }
       }
-      // Fallback if API returned empty
       const recs = await getSmartRecommendedTracks(seedTrack, currentQ, 8)
       if (requestId !== activeQueueRequestIdRef.current) return
       if (recs && recs.length > 0) {
@@ -316,12 +315,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (err) {
       console.warn('Smart queue auto-fill error:', err)
-      if (requestId !== activeQueueRequestIdRef.current) return
-      const recs = await getSmartRecommendedTracks(seedTrack, currentQ, 8).catch(() => [])
-      if (requestId !== activeQueueRequestIdRef.current) return
-      if (recs && recs.length > 0) {
-        setQueue((prev) => deduplicateQueueTracks([...prev, ...recs]))
-      }
     } finally {
       autoFetchSmartQueueRef.current = false
     }
@@ -1844,6 +1837,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         const q = queueRef.current.length > 0 ? queueRef.current : queue
         const forwardIndex = q.findIndex((t) => t.id === forwardSong.id)
         playResolvedTrack(forwardSong, forwardIndex)
+        // FIX: trước đây thiếu kiểm tra auto-fill ở nhánh này, khiến queue
+        // có thể cạn kiệt khi user đi qua forward stack tới gần cuối danh sách
+        if (forwardIndex >= 0 && forwardIndex >= q.length - 2) {
+          triggerSmartQueueFill(forwardSong, q)
+        }
         return
       }
     }

@@ -54,19 +54,17 @@ export async function getInternalCollaborativeCandidates(
 ): Promise<QueueTrack[]> {
   try {
     const supabase = await createClient()
-
-    // 1. Try RPC fn_get_collaborative_candidates
     const { data, error } = await supabase.rpc('fn_get_collaborative_candidates', {
       p_track_id: seedTrackId,
       p_user_id: userId || null,
       p_limit: 15,
     })
-
-    let candidateTrackIds: string[] = []
+    let candidateRows: { track_id: string; play_count?: number }[] = []
     if (!error && data && data.length > 0) {
-      candidateTrackIds = data.map((item: any) => item.track_id).filter(Boolean)
+      candidateRows = data
+        .filter((item: any) => item.track_id)
+        .map((item: any) => ({ track_id: item.track_id, play_count: item.play_count || 1 }))
     } else if (userId) {
-      // 2. Fallback query: top played tracks by current user
       const { data: userEvents } = await supabase
         .from('listen_events')
         .select('track_id')
@@ -74,48 +72,53 @@ export async function getInternalCollaborativeCandidates(
         .eq('completed', true)
         .order('played_at', { ascending: false })
         .limit(20)
-
       if (userEvents && userEvents.length > 0) {
-        candidateTrackIds = Array.from(new Set(userEvents.map((e) => e.track_id))).filter(
-          (id) => id !== seedTrackId
-        )
+        const seen = new Set<string>()
+        for (const e of userEvents) {
+          if (e.track_id !== seedTrackId && !seen.has(e.track_id)) {
+            seen.add(e.track_id)
+            candidateRows.push({ track_id: e.track_id, play_count: 1 })
+          }
+        }
       }
     }
+    if (candidateRows.length === 0) return []
 
-    if (candidateTrackIds.length === 0) return []
-
-    // 3. Resolve real track metadata from database if available
+    const candidateTrackIds = candidateRows.map((r) => r.track_id)
     const { data: dbTracks } = await supabase
       .from('tracks')
       .select('id, title, artist, album, cover_url, duration, spotify_id')
       .in('id', candidateTrackIds)
-
     const metaMap = new Map<string, any>()
     if (dbTracks) {
-      for (const t of dbTracks) {
-        metaMap.set(t.id, t)
-      }
+      for (const t of dbTracks) metaMap.set(t.id, t)
     }
 
-    return candidateTrackIds.slice(0, 10).map((tId) => {
+    const maxCount = Math.max(...candidateRows.map((r) => r.play_count || 1), 1)
+
+    return candidateRows.slice(0, 10).map(({ track_id: tId, play_count }) => {
       const realMeta = metaMap.get(tId)
       const title = realMeta?.title || undefined
-      const artist = realMeta?.artist || seedArtist
+      const knownArtist = realMeta?.artist || undefined // KHÔNG fallback về seedArtist
       const cover_url = realMeta?.cover_url || null
       const duration = realMeta?.duration || 200
-
+      const reasons = ['internal_collaborative_filtering']
+      if (!knownArtist) reasons.push('artist_unknown')
       return {
         id: tId,
         title: title || `Track ${tId}`,
-        artist: artist || 'Nghệ sĩ chưa xác định',
+        artist: knownArtist || 'Nghệ sĩ chưa xác định',
         album: realMeta?.album || undefined,
         cover_url,
         duration,
         source: 'internal_history' as const,
         source_id: realMeta?.spotify_id || tId,
-        score: 1.2, // High priority for internal personalized CF
-        score_reasons: ['internal_collaborative_filtering'],
-      }
+        // Điểm CF giờ tỉ lệ theo play_count thay vì cố định 1.2
+        score: 1.0 + 0.5 * ((play_count || 1) / maxCount),
+        score_reasons: reasons,
+        // Đánh dấu để bước scoring biết không nên cộng same_artist_bonus khi artist không xác định
+        ...(knownArtist ? {} : { _artistUnknown: true }),
+      } as QueueTrack
     })
   } catch (err) {
     console.warn('getInternalCollaborativeCandidates error:', err)
@@ -349,19 +352,28 @@ export async function buildNextQueue(
   // 2. Deduplication (ISRC primary, title+artist secondary)
   candidates = dedupCandidates(candidates)
 
-  // 3. Filter out seedTrack & recent session history
+  // Khai báo sớm để dùng chung cho filter + scoring
+  const normSeedArtist = normalizeString(seedTrack.artist)
   const seedNormTitle = normalizeString(seedTrack.title)
+
+  // Dedup theo session: gồm seed track + TOÀN BỘ lịch sử được truyền vào
   const sessionDedupKeys = new Set<string>()
   sessionDedupKeys.add(getDedupKey(seedTrack))
+  const sessionRawIds = new Set<string>()
+  sessionRawIds.add(seedTrack.id)
   for (const track of sessionHistory) {
     sessionDedupKeys.add(getDedupKey(track))
+    sessionRawIds.add(track.id)
   }
 
   const filterCandidate = (c: QueueTrack) => {
     if (!isOriginalTrackOnly(c.title)) return false
+    if (sessionRawIds.has(c.id)) return false // Chặn trùng theo ID thô
     if (sessionDedupKeys.has(getDedupKey(c))) return false
     const candidateNormTitle = normalizeString(c.title)
-    if (seedNormTitle && candidateNormTitle && seedNormTitle.length > 2) {
+    const candidateNormArtist = normalizeString(c.artist)
+    const isSameArtist = candidateNormArtist && candidateNormArtist === normSeedArtist
+    if (isSameArtist && seedNormTitle && candidateNormTitle && seedNormTitle.length > 2) {
       if (candidateNormTitle.includes(seedNormTitle) || seedNormTitle.includes(candidateNormTitle)) {
         return false
       }
@@ -401,8 +413,6 @@ export async function buildNextQueue(
   }
 
   // 6. Multi-factor Scoring
-  const normSeedArtist = normalizeString(seedTrack.artist)
-
   for (const c of candidates) {
     // Base weight by source
     let score = c.score || 1.0
@@ -412,7 +422,9 @@ export async function buildNextQueue(
 
     // Same Artist bonus (+0.3)
     const normCandidateArtist = normalizeString(c.artist)
-    if (normCandidateArtist && normCandidateArtist === normSeedArtist) {
+    const artistUnknown = Boolean((c as any)._artistUnknown)
+    // Không cộng same_artist_bonus khi artist thực sự không xác định (tránh false positive)
+    if (!artistUnknown && normCandidateArtist && normCandidateArtist === normSeedArtist) {
       score += 0.3
       if (!c.score_reasons.includes('same_artist_bonus')) {
         c.score_reasons.push('same_artist_bonus')
@@ -421,6 +433,7 @@ export async function buildNextQueue(
 
     const numericScore = Number.isFinite(score) ? score : 1.0
     c.score = parseFloat(numericScore.toFixed(3))
+    delete (c as any)._artistUnknown
   }
 
   // Sort descending by score

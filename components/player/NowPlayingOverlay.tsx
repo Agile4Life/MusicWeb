@@ -405,7 +405,7 @@ export function NowPlayingOverlay() {
           {/* Top Row: Track Metadata + Album/Heart/Queue Actions */}
           <div className="flex items-center justify-between gap-2 w-full min-w-0">
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
-              <div className={`player-cover w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center border border-white/10 shadow-md shrink-0 ${isPlaying ? 'is-playing' : ''}`}>
+              <div className={`player-cover w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 shadow-md shrink-0 ${isPlaying ? 'is-playing' : ''}`}>
                 <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
               </div>
               <div className="flex flex-col min-w-0 flex-1 justify-center">
@@ -529,7 +529,7 @@ export function NowPlayingOverlay() {
           {/* Left: Track Metadata (Matches Main Menu PlayerBar) */}
           <div className="flex items-center gap-3.5 w-1/4 min-w-[220px]">
             <div className="relative group shrink-0 cursor-pointer" title="Thông tin bài hát">
-              <div className={`player-cover w-14 h-14 bg-slate-800 flex items-center justify-center border border-white/10 shadow-md ${isPlaying ? 'is-playing' : ''}`}>
+              <div className={`player-cover w-14 h-14 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 shadow-md ${isPlaying ? 'is-playing' : ''}`}>
                 <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
               </div>
             </div>

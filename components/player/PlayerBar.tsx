@@ -336,7 +336,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         {/* Main row */}
         <div className="flex items-center gap-2.5 w-full h-[54px] px-2.5 relative z-10">
           {/* Cover Art */}
-          <div className={`player-cover w-10 h-10 bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 relative rounded-xl border border-white/10 shadow-md ${isPlaying ? 'is-playing' : ''}`}>
+          <div className={`player-cover w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 relative border border-white/10 shadow-md ${isPlaying ? 'is-playing' : ''}`}>
             <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
           </div>
 
@@ -656,7 +656,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         {/* Left: Track Metadata */}
         <div className="flex items-center gap-3 w-1/4 min-w-[250px] lg:min-w-[300px] xl:min-w-[360px] max-w-[420px]">
           <div onClick={openNowPlayingOverlay} className="relative group shrink-0 cursor-pointer" title="Mở Now Playing">
-            <div className={`player-cover w-14 h-14 bg-slate-800 flex items-center justify-center border border-white/10 shadow-md ${isPlaying ? 'is-playing' : ''}`}>
+            <div className={`player-cover w-14 h-14 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 shadow-md ${isPlaying ? 'is-playing' : ''}`}>
               <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
             </div>
           </div>

@@ -18,8 +18,9 @@ export async function GET(req: NextRequest) {
     const title = searchParams.get('title') || ''
     const isrc = searchParams.get('isrc') || undefined
     const limitRaw = searchParams.get('limit')
-    let userId = searchParams.get('user_id') || undefined
-
+    // 'history_ids': danh sách id các bài đã có trong queue / đã nghe trong phiên hiện tại,
+    // ngăn cách nhau bởi dấu phẩy — dùng để loại trùng khi auto-fill nhiều lần
+    const historyIdsRaw = searchParams.get('history_ids') || ''
     let limit = DEFAULT_LIMIT
     if (limitRaw !== null) {
       const parsed = parseInt(limitRaw, 10)
@@ -31,7 +32,6 @@ export async function GET(req: NextRequest) {
       }
       limit = Math.min(parsed, MAX_LIMIT)
     }
-
     if (!artist && !title && !currentTrackId) {
       return NextResponse.json(
         { error: 'Missing current_track_id, artist, or title query parameter' },
@@ -39,16 +39,21 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    if (!userId) {
-      try {
-        const session = await getServerSession()
-        if (session?.user && (session.user as any).id) {
-          userId = (session.user as any).id
-        }
-      } catch {}
+    // BẢO MẬT: ưu tiên tuyệt đối user_id từ session đã xác thực.
+    // Query param `user_id` chỉ được chấp nhận khi KHÔNG có session
+    // (ẩn danh gợi ý theo id tự sinh phía client) — không cho phép mạo danh user khác.
+    let userId: string | undefined
+    let session: any = null
+    try {
+      session = await getServerSession()
+    } catch {}
+    if (session?.user && (session.user as any).id) {
+      userId = (session.user as any).id
+    } else {
+      userId = searchParams.get('user_id') || undefined
     }
+    const isAuth = Boolean(session?.user && (session.user as any).id)
 
-    // Generate structured cache key including all parameters that affect recommendation output
     const cacheKey = JSON.stringify({
       currentTrackId: currentTrackId || null,
       artist: artist || null,
@@ -58,20 +63,21 @@ export async function GET(req: NextRequest) {
       limit,
     })
 
-    const isAuth = Boolean(userId)
     const cacheControlHeader = isAuth
       ? 'private, no-cache, no-store, must-revalidate'
       : 'public, s-maxage=900, stale-while-revalidate=60'
 
-    const cached = queueCache.get(cacheKey)
-
-    if (cached && Date.now() < cached.expiresAt) {
-      return NextResponse.json(cached.data, {
-        headers: { 'X-Cache': 'HIT', 'Cache-Control': cacheControlHeader },
-      })
+    // CHỈ dùng cache server-side cho user ẩn danh.
+    // User đã đăng nhập luôn cần dữ liệu mới nhất (vd sau khi vừa skip 1 bài).
+    if (!isAuth) {
+      const cached = queueCache.get(cacheKey)
+      if (cached && Date.now() < cached.expiresAt) {
+        return NextResponse.json(cached.data, {
+          headers: { 'X-Cache': 'HIT', 'Cache-Control': cacheControlHeader },
+        })
+      }
     }
 
-    // Construct seed track
     let source: QueueTrack['source'] = 'spotify'
     if (currentTrackId.startsWith('deezer-')) source = 'deezer'
     else if (!currentTrackId.startsWith('spotify-')) source = 'internal_history'
@@ -89,19 +95,35 @@ export async function GET(req: NextRequest) {
       score_reasons: ['seed_track'],
     }
 
-    const result = await buildNextQueue(seedTrack, [], userId, limit)
+    // Chuyển history_ids thành QueueTrack tối giản (chỉ cần đủ field để getDedupKey hoạt động)
+    const sessionHistory: QueueTrack[] = historyIdsRaw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((id) => ({
+        id,
+        title: '',
+        artist: '',
+        cover_url: null,
+        duration: 0,
+        source: 'internal_history',
+        source_id: id,
+        score: 0,
+        score_reasons: [],
+      }))
 
-    // Store in cache for 15 minutes (900,000 ms)
-    queueCache.set(cacheKey, {
-      data: result,
-      expiresAt: Date.now() + 15 * 60 * 1000,
-    })
+    const result = await buildNextQueue(seedTrack, sessionHistory, userId, limit)
 
-    // Clean up expired cache items if cache grows too large
-    if (queueCache.size > 200) {
-      const now = Date.now()
-      for (const [k, v] of queueCache.entries()) {
-        if (now >= v.expiresAt) queueCache.delete(k)
+    if (!isAuth) {
+      queueCache.set(cacheKey, {
+        data: result,
+        expiresAt: Date.now() + 15 * 60 * 1000,
+      })
+      if (queueCache.size > 200) {
+        const now = Date.now()
+        for (const [k, v] of queueCache.entries()) {
+          if (now >= v.expiresAt) queueCache.delete(k)
+        }
       }
     }
 

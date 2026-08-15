@@ -72,7 +72,7 @@ export function QueueDrawer() {
   const nextUpTracks = currentIndex >= 0 ? queue.slice(currentIndex + 1) : queue
 
   // Fallback to memory queue history if persisted history is empty
-  const fallbackQueueHistory = queue.slice(0, currentIndex).reverse()
+  const fallbackQueueHistory = currentIndex > 0 ? queue.slice(0, currentIndex).reverse() : []
   const displayHistoryTracks = persistedRecentTracks.length > 0 ? persistedRecentTracks : fallbackQueueHistory
 
   return (

@@ -3028,15 +3028,19 @@ html[data-theme-style="minimal-flat"] body {
   font-size: 11.5px !important;
 }
 
-[data-theme-style="minimal-flat"] .player-bar .player-cover {
-  border-radius: 9px !important;
+[data-theme-style="minimal-flat"] .player-bar .player-cover,
+[data-theme-style="minimal-flat"] .mini-player-bar .player-cover,
+[data-theme-style="minimal-flat"] .player-cover {
+  border-radius: 50% !important;
   overflow: hidden !important;
   border: 1px solid rgba(244, 236, 230, 0.14) !important;
   box-shadow: 0 10px 20px -10px rgba(0, 0, 0, 0.6) !important;
 }
 
-[data-theme-style="minimal-flat"] .player-bar .player-cover img {
-  border-radius: 9px !important;
+[data-theme-style="minimal-flat"] .player-bar .player-cover img,
+[data-theme-style="minimal-flat"] .mini-player-bar .player-cover img,
+[data-theme-style="minimal-flat"] .player-cover img {
+  border-radius: 50% !important;
 }
 
 /* Central Play Button (Cream Paper Circle, High Tactility) */
