@@ -2750,14 +2750,26 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] .hero-banner {
   border-radius: 20px !important;
   background:
-    radial-gradient(600px 260px at 88% 30%, rgba(201, 138, 61, 0.35), transparent 65%),
+    radial-gradient(500px 220px at 85% 50%, rgba(201, 138, 61, 0.3), transparent 70%),
     linear-gradient(120deg, #241A2A, #1A1420 60%) !important;
   border: 1px solid rgba(244, 236, 230, 0.14) !important;
-  padding: 32px 36px !important;
-  min-height: 190px !important;
+  padding: 24px 32px !important;
+  height: 180px !important;
+  max-height: 180px !important;
+  min-height: 180px !important;
   position: relative !important;
   overflow: hidden !important;
   box-shadow: none !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+[data-theme-style="minimal-flat"] .hero-banner > div {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
 }
 
 [data-theme-style="minimal-flat"] .hero-banner::before {
@@ -2765,40 +2777,40 @@ html[data-theme-style="minimal-flat"] body {
   position: absolute !important;
   right: -40px !important;
   top: -40px !important;
-  width: 280px !important;
-  height: 280px !important;
+  width: 240px !important;
+  height: 240px !important;
   border-radius: 50% !important;
-  background: radial-gradient(circle at 40% 40%, rgba(232, 169, 79, 0.5), transparent 70%) !important;
-  filter: blur(6px) !important;
+  background: radial-gradient(circle at 40% 40%, rgba(232, 169, 79, 0.4), transparent 70%) !important;
+  filter: blur(8px) !important;
   pointer-events: none !important;
 }
 
 [data-theme-style="minimal-flat"] .hero-banner h1 {
   font-family: var(--font-fraunces), serif !important;
   font-weight: 500 !important;
-  font-size: 32px !important;
+  font-size: 26px !important;
   line-height: 1.15 !important;
   color: #F4ECE1 !important;
-  margin-bottom: 10px !important;
+  margin-bottom: 6px !important;
 }
 
 [data-theme-style="minimal-flat"] .hero-banner p {
   color: #B9AC9C !important;
-  font-size: 13.5px !important;
-  line-height: 1.6 !important;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
 }
 
 [data-theme-style="minimal-flat"] .hero-banner .btn-outline-accent {
-  margin-top: 14px !important;
+  margin-top: 10px !important;
   display: inline-flex !important;
   align-items: center !important;
   gap: 8px !important;
   background: #E8A94F !important;
   color: #2A1704 !important;
-  padding: 10px 18px !important;
+  padding: 8px 16px !important;
   border-radius: 11px !important;
   font-weight: 600 !important;
-  font-size: 13px !important;
+  font-size: 12px !important;
   border: none !important;
   box-shadow: 0 4px 12px rgba(232, 169, 79, 0.3) !important;
 }
@@ -2809,11 +2821,28 @@ html[data-theme-style="minimal-flat"] body {
 }
 
 /* Hero Decorative Vinyl */
+[data-theme-style="minimal-flat"] .hero-vinyl {
+  width: 130px !important;
+  height: 130px !important;
+  min-width: 130px !important;
+  max-width: 130px !important;
+  min-height: 130px !important;
+  max-height: 130px !important;
+  flex-shrink: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
 [data-theme-style="minimal-flat"] .hero-vinyl-disc {
   position: relative !important;
   z-index: 1 !important;
-  width: 150px !important;
-  height: 150px !important;
+  width: 130px !important;
+  height: 130px !important;
+  min-width: 130px !important;
+  min-height: 130px !important;
+  max-width: 130px !important;
+  max-height: 130px !important;
   flex: none !important;
   border-radius: 50% !important;
   background: repeating-radial-gradient(circle, #100C13 0 2px, #1C1620 2px 4px) !important;
@@ -2821,21 +2850,25 @@ html[data-theme-style="minimal-flat"] body {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7), 0 0 0 6px rgba(20, 16, 23, 0.4) !important;
+  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.85), 0 0 0 4px rgba(20, 16, 23, 0.4) !important;
 }
 
 [data-theme-style="minimal-flat"] .hero-vinyl-disc.is-spinning {
-  animation: spin-vinyl 12s linear infinite !important;
+  animation: spin-vinyl 10s linear infinite !important;
 }
 
 [data-theme-style="minimal-flat"] .hero-vinyl-disc.is-paused {
-  animation: spin-vinyl 12s linear infinite !important;
+  animation: spin-vinyl 10s linear infinite !important;
   animation-play-state: paused !important;
 }
 
 [data-theme-style="minimal-flat"] .hero-vinyl-label {
-  width: 60px !important;
-  height: 60px !important;
+  width: 58px !important;
+  height: 58px !important;
+  min-width: 58px !important;
+  min-height: 58px !important;
+  max-width: 58px !important;
+  max-height: 58px !important;
   border-radius: 50% !important;
   background: linear-gradient(150deg, #E8A94F, #A24B3D) !important;
   display: flex !important;
@@ -2850,6 +2883,13 @@ html[data-theme-style="minimal-flat"] body {
   color: #2A1704 !important;
   text-align: center !important;
   line-height: 1.2 !important;
+}
+
+[data-theme-style="minimal-flat"] .hero-vinyl-label img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 50% !important;
 }
 
 @keyframes spin-vinyl {
@@ -3279,18 +3319,25 @@ html[data-theme-style="minimal-flat"] body {
 /* Left Column Vinyl Disc */
 [data-theme-style="minimal-flat"] .album-3d-card.now-playing-cover {
   border-radius: 50% !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.fullview-vinyl-disc {
+  border-radius: 50% !important;
   background: repeating-radial-gradient(circle, #100C13 0 2px, #1C1620 2px 4px) !important;
   border: 1px solid rgba(244, 236, 230, 0.14) !important;
-  box-shadow: 0 24px 50px -12px rgba(0, 0, 0, 0.85), 0 0 45px rgba(201, 138, 61, 0.2) !important;
-  padding: 10px !important;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.85), 0 0 35px rgba(201, 138, 61, 0.25) !important;
 }
 
-[data-theme-style="minimal-flat"] .album-3d-card.now-playing-cover.is-spinning {
-  animation: spin 40s linear infinite !important;
+.fullview-vinyl-disc.is-spinning {
+  animation: spin-vinyl 14s linear infinite !important;
 }
 
-[data-theme-style="minimal-flat"] .album-3d-card.now-playing-cover.is-paused {
-  animation: spin 40s linear infinite !important;
+.fullview-vinyl-disc.is-paused {
+  animation: spin-vinyl 14s linear infinite !important;
   animation-play-state: paused !important;
 }
 
