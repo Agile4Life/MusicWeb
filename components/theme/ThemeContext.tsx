@@ -391,7 +391,7 @@ import { CURSOR_CONFIGS } from '@/lib/cursors'
 import { RefractionMode } from '@/lib/theme/liquidGlassFilters'
 
 export type CursorStyle = string
-export type ThemeStyle = 'classic' | 'liquid-glass'
+export type ThemeStyle = 'classic' | 'liquid-glass' | 'minimal-flat'
 
 export interface LiquidGlassAberrationTargets {
   playerBar: boolean
@@ -461,7 +461,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
 
     const savedStyle = localStorage.getItem('musicweb-theme-style') as ThemeStyle
-    if (savedStyle === 'classic' || savedStyle === 'liquid-glass') {
+    if (savedStyle === 'classic' || savedStyle === 'liquid-glass' || savedStyle === 'minimal-flat') {
       setThemeStyleState(savedStyle)
       applyThemeStyle(savedStyle)
     } else {
