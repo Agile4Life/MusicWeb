@@ -447,63 +447,77 @@ export function ThemeSelector() {
       </div>
 
       {/* Color Themes Section */}
-      <div className="flex flex-col gap-4 pt-4 border-t border-white/[0.08]">
-        <div className="flex items-center gap-2 text-sm font-bold text-white">
-          <Palette className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
-          <span>{t('color_theme')}</span>
-        </div>
+      {themeStyle !== 'minimal-flat' ? (
+        <div className="flex flex-col gap-4 pt-4 border-t border-white/[0.08]">
+          <div className="flex items-center gap-2 text-sm font-bold text-white">
+            <Palette className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
+            <span>{t('color_theme')}</span>
+          </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {Object.values(THEMES).map((theme) => {
-            const isSelected = currentTheme.id === theme.id
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {Object.values(THEMES).map((theme) => {
+              const isSelected = currentTheme.id === theme.id
 
-            return (
-              <button
-                key={theme.id}
-                onClick={() => setTheme(theme.id as ThemeId)}
-                style={
-                  isSelected
-                    ? {
-                        boxShadow: 'var(--shadow-2), 0 0 0 2px var(--primary-spotify, #06b6d4)',
-                        transform: 'scale(1.02)',
-                      }
-                    : undefined
-                }
-                className={`relative flex flex-col items-start p-3.5 rounded-2xl transition-all cursor-pointer text-left border bg-[var(--elevation-2-bg)] ${
-                  isSelected
-                    ? 'border-transparent shadow-lg z-10 font-semibold'
-                    : 'border-white/[0.06] shadow-[var(--shadow-1)] hover:bg-white/[0.06] hover:border-white/15 hover:-translate-y-0.5'
-                }`}
-              >
-                {/* Color dots preview */}
-                <div className="flex items-center gap-1.5 mb-2.5">
-                  {theme.dots.map((color, idx) => (
-                    <span
-                      key={idx}
-                      className="w-3.5 h-3.5 rounded-full border border-black/20"
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                </div>
-
-                {/* Title */}
-                <p className="font-bold text-xs text-white mb-0.5">{theme.name}</p>
-                <p className="text-[11px] text-slate-400">{t(`theme_${theme.id}_sub`, theme.subtitle)}</p>
-
-                {/* Active checkmark */}
-                {isSelected && (
-                  <div
-                    className="absolute top-3 right-3 w-4 h-4 rounded-full flex items-center justify-center text-black"
-                    style={{ backgroundColor: theme.accentColor }}
-                  >
-                    <Check className="w-2.5 h-2.5 stroke-[3]" />
+              return (
+                <button
+                  key={theme.id}
+                  onClick={() => setTheme(theme.id as ThemeId)}
+                  style={
+                    isSelected
+                      ? {
+                          boxShadow: 'var(--shadow-2), 0 0 0 2px var(--primary-spotify, #06b6d4)',
+                          transform: 'scale(1.02)',
+                        }
+                      : undefined
+                  }
+                  className={`relative flex flex-col items-start p-3.5 rounded-2xl transition-all cursor-pointer text-left border bg-[var(--elevation-2-bg)] ${
+                    isSelected
+                      ? 'border-transparent shadow-lg z-10 font-semibold'
+                      : 'border-white/[0.06] shadow-[var(--shadow-1)] hover:bg-white/[0.06] hover:border-white/15 hover:-translate-y-0.5'
+                  }`}
+                >
+                  {/* Color dots preview */}
+                  <div className="flex items-center gap-1.5 mb-2.5">
+                    {theme.dots.map((color, idx) => (
+                      <span
+                        key={idx}
+                        className="w-3.5 h-3.5 rounded-full border border-black/20"
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
                   </div>
-                )}
-              </button>
-            )
-          })}
+
+                  {/* Title */}
+                  <p className="font-bold text-xs text-white mb-0.5">{theme.name}</p>
+                  <p className="text-[11px] text-slate-400">{t(`theme_${theme.id}_sub`, theme.subtitle)}</p>
+
+                  {/* Active checkmark */}
+                  {isSelected && (
+                    <div
+                      className="absolute top-3 right-3 w-4 h-4 rounded-full flex items-center justify-center text-black"
+                      style={{ backgroundColor: theme.accentColor }}
+                    >
+                      <Check className="w-2.5 h-2.5 stroke-[3]" />
+                    </div>
+                  )}
+                </button>
+              )
+            })}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[#E8A94F]/10 border border-[#E8A94F]/25 text-xs text-slate-300">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#E8A94F]/20 flex items-center justify-center text-[#E8A94F] shrink-0">
+              <Palette className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="font-bold text-[#F4ECE1]">Bảng màu Độc bản (Fixed Vinyl Palette)</p>
+              <p className="text-[11px] text-[#B9AC9C]">Chế độ Minimal Editorial sử dụng bảng màu Hổ Phách & Tím Mận cổ điển cố định</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Cursor Style Section */}
       <div className="flex flex-col gap-4 pt-4 border-t border-white/[0.08]">
