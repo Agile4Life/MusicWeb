@@ -162,11 +162,17 @@ export function TrackList({
         if (track.title && leadingNumRegex.test(track.title)) {
           const cleanedTitle = track.title.replace(leadingNumRegex, '').trim()
           if (cleanedTitle && cleanedTitle !== track.title) {
-            await supabase.from('tracks').update({ title: cleanedTitle }).eq('id', track.id)
-            if (onTrackUpdated) {
-              onTrackUpdated(track.id, { title: cleanedTitle })
+            const res = await fetch(`/api/tracks/${track.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ title: cleanedTitle }),
+            })
+            if (res.ok) {
+              if (onTrackUpdated) {
+                onTrackUpdated(track.id, { title: cleanedTitle })
+              }
+              cleanedCount++
             }
-            cleanedCount++
           }
         }
       }

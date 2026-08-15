@@ -57,15 +57,13 @@ export default function DrivePage() {
         }
       } catch {}
 
-      if (userId) {
-
-        const { data: playlistData } = await supabase
-          .from('playlists')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false })
-        if (playlistData) setPlaylists(playlistData)
-      }
+      try {
+        const plRes = await fetch('/api/playlists')
+        if (plRes.ok) {
+          const plData = await plRes.json()
+          if (plData.playlists) setPlaylists(plData.playlists)
+        }
+      } catch {}
 
       // Fetch all tracks from DB and filter Drive tracks
       const { data: rawTracks, error } = await supabase
