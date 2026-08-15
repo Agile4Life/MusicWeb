@@ -208,13 +208,9 @@ export function ThemeSelector() {
 
               {/* Refractive Glass Lens on top with Spring Elastic Physics */}
               <div
-                className={`relative z-10 w-full flex items-center justify-between p-3.5 rounded-xl border ${
-                  liquidGlassConfig?.refractionMode === 'prominent'
-                    ? 'border-t-white/90 border-l-rose-500/70 border-r-cyan-400/70 border-b-white/20 bg-white/[0.14] shadow-[0_16px_40px_rgba(0,0,0,0.8),inset_0_2px_0_rgba(255,255,255,0.9),inset_2px_0_0_rgba(244,63,94,0.5),inset_-2px_0_0_rgba(6,182,212,0.5)]'
-                    : liquidGlassConfig?.refractionMode === 'polar'
-                    ? 'border-cyan-400/60 bg-radial-gradient bg-white/[0.12] shadow-[0_14px_36px_rgba(0,0,0,0.7),inset_0_2px_1px_rgba(255,255,255,0.7),0_0_25px_rgba(34,211,238,0.35)]'
-                    : liquidGlassConfig?.refractionMode === 'shader'
-                    ? 'border-purple-400/60 bg-gradient-to-r from-purple-500/20 via-cyan-500/20 to-pink-500/20 shadow-[0_14px_36px_rgba(0,0,0,0.7),inset_0_2px_0.5px_rgba(255,255,255,0.8),0_0_25px_rgba(168,85,247,0.35)]'
+                className={`relative z-10 w-full flex items-center justify-between p-3.5 rounded-xl border transition-all duration-300 ${
+                  liquidGlassConfig?.chromaticAberration !== false
+                    ? 'border-t-white/90 border-l-rose-500/80 border-r-cyan-400/80 border-b-white/20 bg-white/[0.14] shadow-[0_16px_40px_rgba(0,0,0,0.8),inset_0_2px_0_rgba(255,255,255,0.9),inset_3px_0_0_rgba(244,63,94,0.6),inset_-3px_0_0_rgba(6,182,212,0.6)]'
                     : 'border-white/30 bg-white/[0.08] shadow-[0_10px_28px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.5)]'
                 }`}
                 style={{
@@ -232,12 +228,8 @@ export function ThemeSelector() {
                 <div className="flex items-center gap-3">
                   <div
                     className={`w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-md border transition-all duration-300 ${
-                      liquidGlassConfig?.refractionMode === 'prominent'
+                      liquidGlassConfig?.chromaticAberration !== false
                         ? 'bg-gradient-to-br from-rose-500 to-cyan-500 border-white/40 shadow-rose-500/30'
-                        : liquidGlassConfig?.refractionMode === 'polar'
-                        ? 'bg-cyan-500 border-cyan-300 shadow-cyan-500/40'
-                        : liquidGlassConfig?.refractionMode === 'shader'
-                        ? 'bg-gradient-to-br from-purple-500 to-pink-500 border-purple-300 shadow-purple-500/40'
                         : 'bg-white/20 border-white/30'
                     }`}
                   >
@@ -248,18 +240,20 @@ export function ThemeSelector() {
                       <p className="font-black text-xs text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] tracking-wide">
                         KIỂU KHÚC XẠ: <span className="text-cyan-300 uppercase">{liquidGlassConfig?.refractionMode || 'standard'}</span>
                       </p>
-                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-cyan-400/20 text-cyan-300 border border-cyan-400/40">
-                        Đang áp dụng
-                      </span>
+                      {liquidGlassConfig?.chromaticAberration !== false ? (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-500/25 text-rose-300 border border-rose-400/50 shadow-sm animate-pulse">
+                          Sắc sai RGB: BẬT
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-white/10 text-slate-300 border border-white/20">
+                          Sắc sai: TẮT (Kính thuần)
+                        </span>
+                      )}
                     </div>
                     <p className="text-[11px] text-slate-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] mt-0.5">
-                      {liquidGlassConfig?.refractionMode === 'prominent'
-                        ? '💎 Vát cạnh tinh thể 3D + Sắc sai quang phổ RGB (Đỏ/Lam)'
-                        : liquidGlassConfig?.refractionMode === 'polar'
-                        ? '🎯 Thấu kính cong tròn đa chiều + Quầng sáng hội tụ'
-                        : liquidGlassConfig?.refractionMode === 'shader'
-                        ? '🌊 Sóng lỏng hữu cơ biến thiên + Ánh sáng cực quang di chuyển'
-                        : '✨ Khúc xạ tiêu chuẩn trong trẻo mềm mại (VisionOS Glass)'}
+                      {liquidGlassConfig?.chromaticAberration !== false
+                        ? '🌈 Viền kính phản quang quang phổ RGB (Đỏ góc trái, Lam góc phải)'
+                        : '⚪ Kính tinh thể đơn sắc trắng tinh khiết không phân tán màu'}
                     </p>
                   </div>
                 </div>

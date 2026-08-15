@@ -470,9 +470,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const applyLiquidGlassConfig = (cfg: LiquidGlassConfig) => {
     const root = document.documentElement
     root.setAttribute('data-refraction-mode', cfg.refractionMode)
+    root.setAttribute('data-chromatic-aberration', cfg.chromaticAberration !== false ? 'true' : 'false')
+    root.setAttribute('data-elastic-interaction', cfg.elasticInteraction !== false ? 'true' : 'false')
     root.style.setProperty('--liquid-filter', `url(#liquid-glass-${cfg.refractionMode})`)
     root.style.setProperty('--liquid-scale', `${cfg.refractionIntensity}px`)
-    root.style.setProperty('--liquid-aberration', cfg.chromaticAberration ? '1' : '0')
+    root.style.setProperty('--liquid-aberration', cfg.chromaticAberration !== false ? '1' : '0')
   }
 
   const applyCursorStyle = (style: CursorStyle) => {
