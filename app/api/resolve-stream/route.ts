@@ -5,7 +5,7 @@ import { normalizeTitle } from '@/lib/youtube'
 import { searchYouTubeTracks, findBestYouTubeMatch } from '@/lib/youtube'
 import {
   normalizeNhacCuaTuiSearchResponse,
-  normalizeNhacCuaTuiSongMetadata,
+  normalizeNhacCuaTuiSongResponse,
   findBestNhacCuaTuiMatch,
 } from '@/lib/nhaccuatui'
 
@@ -83,7 +83,7 @@ async function fetchNctSong(id: string) {
       signal: AbortSignal.timeout(5000),
     })
     if (!res.ok) return null
-    return normalizeNhacCuaTuiSongMetadata(await res.json())
+    return normalizeNhacCuaTuiSongResponse(await res.json())
   } catch {
     return null
   }
@@ -188,6 +188,7 @@ async function resolveStream(
         title: song.title,
         artist: song.artist,
         duration: song.duration ?? undefined,
+        coverUrl: song.coverUrl,
         isMiss: false,
         expiresAt: Date.now() + L1_HIT_TTL,
       }

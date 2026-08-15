@@ -498,6 +498,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           if (res.ok) {
             const data = await res.json()
             if (data.url) return data.url
+          } else if (res.status === 404 || res.status === 403 || res.status === 502) {
+            return null
           }
         } catch (e) {
           console.warn('[SoundCloud getAudioUrl] direct resolve error:', e)
@@ -2029,32 +2031,83 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           currentTrackId: currentTrackRef.current?.id,
         })) return
         const ytList: Track[] = data.youtube || []
-          const bestMatch = findBestYouTubeMatch(ytList, track.title, track.artist, track.duration, track.album)
-          if (bestMatch && bestMatch.youtube_id) {
-            const candidateDuration = bestMatch.duration || 0
-            const isTargetShort = !track.duration || track.duration < 900
-            if (!isTargetShort || candidateDuration <= 1200) {
-              const activeTrack: Track = {
-                ...track,
-                youtube_id: bestMatch.youtube_id,
-                source: 'youtube',
+        const bestMatch = findBestYouTubeMatch(ytList, track.title, track.artist, track.duration, track.album)
+        if (bestMatch && bestMatch.youtube_id) {
+          const candidateDuration = bestMatch.duration || 0
+          const isTargetShort = !track.duration || track.duration < 900
+          if (!isTargetShort || candidateDuration <= 1200) {
+            const activeTrack: Track = {
+              ...track,
+              youtube_id: bestMatch.youtube_id,
+              source: 'youtube',
+            }
+
+            // Invalidate the broken stream resolution so subsequent plays don't re-fetch the dead stream
+            invalidateStreamResolution(track)
+            trackResolutionCacheRef.current.delete(track.id)
+            audioUrlCacheRef.current.delete(track.id)
+
+            // Cache the new working youtube resolution
+            setBounded(
+              trackResolutionCacheRef.current,
+              track.id,
+              { activeTrack, expiresAt: Date.now() + TRACK_RESOLUTION_TTL },
+              TRACK_RESOLUTION_MAX_ENTRIES
+            )
+
+            setCurrentTrack(activeTrack)
+            currentTrackRef.current = activeTrack
+            setPlaybackError(null)
+
+            if (isIOSDevice()) {
+              // iOS: Play YouTube through HTML5 stream proxy so it continues in background / lock screen
+              ytHtml5ModeRef.current = true
+              const streamUrl = `/api/youtube/stream?id=${encodeURIComponent(bestMatch.youtube_id)}`
+              if (audioRef.current) {
+                setAudioSourceForPlayback(audioRef.current, streamUrl, volumeRef.current, 0)
+                try {
+                  await playAudioElement(audioRef.current)
+                  if (requestId !== playRequestRef.current) {
+                    audioRef.current.pause()
+                    return
+                  }
+                  setIsPlaying(true)
+                  setIsBuffering(false)
+                  return
+                } catch (iosPlayErr) {
+                  console.warn('iOS YouTube fallback stream playback error:', iosPlayErr)
+                }
               }
-              setCurrentTrack(activeTrack)
-              setPlaybackError(null)
+            } else {
+              // Desktop / Android: Play through YouTube iframe engine
+              ytHtml5ModeRef.current = false
+              if (audioRef.current) {
+                try {
+                  audioRef.current.pause()
+                  audioRef.current.removeAttribute('src')
+                } catch {}
+              }
               if (ytPlayerRef.current?.loadVideoById) {
+                ytLoadedIdRef.current = bestMatch.youtube_id
                 ytPlayerRef.current.setVolume(volume * 100)
                 ytPlayerRef.current.loadVideoById(bestMatch.youtube_id)
+                if (ytPlayerRef.current.playVideo) {
+                  try { ytPlayerRef.current.playVideo() } catch {}
+                }
                 setIsPlaying(true)
+                setIsBuffering(false)
                 return
               }
             }
           }
+        }
       } catch (e) {
         console.warn('YouTube fallback failed:', e)
       }
       if (requestId !== playRequestRef.current) return
       setIsPlaying(false)
-      setPlaybackError('Không thể phát file nhạc này từ Google Drive hoặc YouTube.')
+      setIsBuffering(false)
+      setPlaybackError('Không thể phát bài hát này. Vui lòng chọn bài khác.')
     }
 
     const handleLoadedMetadata = () => {
@@ -2075,9 +2128,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const requestId = playRequestRef.current
       if (!isYtIframeEngine()) {
         const current = currentTrackRef.current
-        const erroredTrack = current
+        if (!current) return
 
-        // Self-healing for NhacCuaTui: If external worker returned 503 / failed, fallback to native Next.js stream proxy
+        // Invalidate broken stream resolution from caches immediately
+        invalidateStreamResolution(current)
+        trackResolutionCacheRef.current.delete(current.id)
+        audioUrlCacheRef.current.delete(current.id)
+
+        // Self-healing for NhacCuaTui: If external worker returned 503 / 502 / failed, fallback to native Next.js stream proxy ONCE
         const isNct = Boolean(
           current?.source === 'nhaccuatui' ||
           current?.nhaccuatui_id
@@ -2094,7 +2152,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               currentTrackId: currentTrackRef.current?.id,
             })
           ) {
-            console.log('[NCT Auto-Retry] Worker stream failed (503), switching to native Next.js stream proxy:', fallbackUrl)
+            console.log('[NCT Auto-Retry] Worker stream failed, switching to native Next.js stream proxy:', fallbackUrl)
             audioRef.current.src = fallbackUrl
             audioRef.current.load()
             audioRef.current.play().then(() => {
@@ -2103,12 +2161,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               setPlaybackError(null)
             }).catch((err) => {
               console.warn('[NCT Auto-Retry] Native stream playback failed:', err)
+              void fallbackToYouTube(current, requestId)
             })
             return
           }
         }
 
-        // Self-healing for SoundCloud: If signed stream token expired (403), auto re-resolve with bypass cache
+        // Self-healing for SoundCloud: If signed stream token expired (403), auto re-resolve with bypass cache ONCE
         const isSoundCloud = Boolean(
           current?.source === 'soundcloud' ||
           current?.soundcloud_id ||
@@ -2117,7 +2176,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (isSoundCloud && current && !(current as any)._scRetried) {
           console.log('[SoundCloud Auto-Retry] Audio playback error, requesting fresh stream URL with bypass cache...')
           ;(current as any)._scRetried = true
-          audioUrlCacheRef.current.delete(current.id)
           try {
             const freshUrl = await getAudioUrl(current, true)
             if (
@@ -2138,6 +2196,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 setPlaybackError(null)
               }).catch((err) => {
                 console.warn('[SoundCloud Auto-Retry] play failed:', err)
+                void fallbackToYouTube(current, requestId)
               })
               return
             }
@@ -2146,29 +2205,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        if (audioRetryCountRef.current < 2) {
-          audioRetryCountRef.current++
-          setTimeout(() => {
-            if (!erroredTrack || !isCurrentPlayback({
-              requestId,
-              currentRequestId: playRequestRef.current,
-              trackId: erroredTrack.id,
-              currentTrackId: currentTrackRef.current?.id,
-            })) return
-            if (audioRef.current) {
-              audioRef.current.load()
-              audioRef.current.play().catch(() => {})
-            }
-          }, 500 * audioRetryCountRef.current)
-          return
-        }
-        if (current && current.file_path) {
+        // Fallback to YouTube for ANY failed audio track (NCT, SoundCloud, Drive, Local, Catalog)
+        if (!(current as any)._ytFallbackAttempted) {
+          ;(current as any)._ytFallbackAttempted = true
           await fallbackToYouTube(current, requestId)
           return
         }
+
         if (requestId !== playRequestRef.current) return
         consecutiveSkipRef.current += 1
         setIsPlaying(false)
+        setIsBuffering(false)
         setDuration(0)
         const mediaError = audio.error
         setPlaybackError(
