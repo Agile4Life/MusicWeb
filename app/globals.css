@@ -3096,6 +3096,118 @@ html[data-theme-style="minimal-flat"] body {
   color: #F4ECE1 !important;
 }
 
+/* ================================================================
+   SoundCloud Page - Minimal Editorial Synchronizations
+   ================================================================ */
+[data-theme-style="minimal-flat"] .soundcloud-hero,
+[data-theme-style="minimal-flat"] .relative.overflow-hidden.rounded-3xl.border[class*="ff5500"] {
+  border-radius: 20px !important;
+  background:
+    radial-gradient(600px 260px at 88% 30%, rgba(201, 138, 61, 0.35), transparent 65%),
+    linear-gradient(120deg, #241A2A, #1A1420 60%) !important;
+  border: 1px solid rgba(244, 236, 230, 0.14) !important;
+  box-shadow: none !important;
+}
+
+[data-theme-style="minimal-flat"] .soundcloud-hero h1,
+[data-theme-style="minimal-flat"] .relative.overflow-hidden.rounded-3xl.border[class*="ff5500"] h1 {
+  font-family: var(--font-fraunces), serif !important;
+  font-weight: 500 !important;
+  color: #F4ECE1 !important;
+}
+
+[data-theme-style="minimal-flat"] .soundcloud-hero p,
+[data-theme-style="minimal-flat"] .relative.overflow-hidden.rounded-3xl.border[class*="ff5500"] p {
+  color: #B9AC9C !important;
+  font-size: 13.5px !important;
+}
+
+[data-theme-style="minimal-flat"] .soundcloud-cloud-icon,
+[data-theme-style="minimal-flat"] .relative.overflow-hidden.rounded-3xl.border[class*="ff5500"] .w-14.h-14,
+[data-theme-style="minimal-flat"] .relative.overflow-hidden.rounded-3xl.border[class*="ff5500"] .sm\:w-16.sm\:h-16 {
+  background: #E8A94F !important;
+  color: #2A1704 !important;
+  border: none !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 18px -6px rgba(232, 169, 79, 0.7) !important;
+}
+
+[data-theme-style="minimal-flat"] .soundcloud-cloud-icon svg,
+[data-theme-style="minimal-flat"] .relative.overflow-hidden.rounded-3xl.border[class*="ff5500"] .w-14.h-14 svg,
+[data-theme-style="minimal-flat"] .relative.overflow-hidden.rounded-3xl.border[class*="ff5500"] .sm\:w-16.sm\:h-16 svg {
+  color: #2A1704 !important;
+  fill: #2A1704 !important;
+}
+
+[data-theme-style="minimal-flat"] .soundcloud-hero span[class*="rounded-full"],
+[data-theme-style="minimal-flat"] .relative.overflow-hidden.rounded-3xl.border[class*="ff5500"] span[class*="rounded-full"] {
+  background: rgba(201, 138, 61, 0.22) !important;
+  color: #E8A94F !important;
+  border: none !important;
+}
+
+/* SoundCloud Genre Filter Buttons */
+[data-theme-style="minimal-flat"] .overflow-x-auto button.whitespace-nowrap {
+  background: #1D1720 !important;
+  border: 1px solid rgba(244, 236, 230, 0.08) !important;
+  color: #B9AC9C !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+
+[data-theme-style="minimal-flat"] .overflow-x-auto button.whitespace-nowrap:hover {
+  background: rgba(244, 236, 230, 0.06) !important;
+  color: #F4ECE1 !important;
+}
+
+[data-theme-style="minimal-flat"] .overflow-x-auto button.whitespace-nowrap.bg-gradient-to-r,
+[data-theme-style="minimal-flat"] .overflow-x-auto button.whitespace-nowrap[class*="from-[#ff5500]"] {
+  background: #E8A94F !important;
+  color: #2A1704 !important;
+  border-color: #E8A94F !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 12px rgba(232, 169, 79, 0.3) !important;
+}
+
+[data-theme-style="minimal-flat"] .overflow-x-auto button.whitespace-nowrap.bg-gradient-to-r span,
+[data-theme-style="minimal-flat"] .overflow-x-auto button.whitespace-nowrap[class*="from-[#ff5500]"] span {
+  color: #2A1704 !important;
+}
+
+[data-theme-style="minimal-flat"] .overflow-x-auto button.whitespace-nowrap span.animate-pulse {
+  background: rgba(162, 75, 61, 0.25) !important;
+  color: #E8998A !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Selected Playlist Banner */
+[data-theme-style="minimal-flat"] .glass-panel.rounded-3xl {
+  background: linear-gradient(120deg, #241A2A, #1A1420 60%) !important;
+  border: 1px solid rgba(244, 236, 230, 0.14) !important;
+  border-radius: 20px !important;
+  box-shadow: none !important;
+}
+
+[data-theme-style="minimal-flat"] .glass-panel.rounded-3xl h2 {
+  font-family: var(--font-fraunces), serif !important;
+  color: #F4ECE1 !important;
+}
+
+[data-theme-style="minimal-flat"] .glass-panel.rounded-3xl button.bg-gradient-to-r {
+  background: #E8A94F !important;
+  color: #2A1704 !important;
+  border: none !important;
+  border-radius: 11px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 12px rgba(232, 169, 79, 0.3) !important;
+}
+
+[data-theme-style="minimal-flat"] .glass-panel.rounded-3xl button.bg-gradient-to-r svg {
+  color: #2A1704 !important;
+  fill: #2A1704 !important;
+}
+
 
 
 

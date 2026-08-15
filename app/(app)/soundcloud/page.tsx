@@ -290,7 +290,7 @@ export default function SoundCloudPage() {
   return (
     <div className="p-3.5 sm:p-6 lg:p-8 flex flex-col gap-5 sm:gap-7 max-w-7xl mx-auto w-full pb-36 lg:pb-12 select-none">
       {/* 🌟 SoundCloud Hero Banner */}
-      <div className="relative overflow-hidden rounded-3xl border border-[#ff5500]/25 p-5 sm:p-8 bg-gradient-to-br from-[#ff5500]/20 via-[#161113] to-[#0a0d14] shadow-[0_16px_40px_rgba(0,0,0,0.6),0_0_30px_rgba(255,85,0,0.15)]">
+      <div className="soundcloud-hero relative overflow-hidden rounded-3xl border border-[#ff5500]/25 p-5 sm:p-8 bg-gradient-to-br from-[#ff5500]/20 via-[#161113] to-[#0a0d14] shadow-[0_16px_40px_rgba(0,0,0,0.6),0_0_30px_rgba(255,85,0,0.15)]">
         {/* Ambient Glow Orbs */}
         <div className="absolute -top-24 -right-24 w-80 h-80 bg-[#ff5500]/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-[#ff7700]/15 rounded-full blur-3xl pointer-events-none" />
@@ -298,13 +298,16 @@ export default function SoundCloudPage() {
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
           <div className="flex items-center gap-4 sm:gap-5">
             {/* SoundCloud Flame Cloud Icon */}
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#ff7700] to-[#ff3300] flex items-center justify-center text-white shadow-[0_8px_25px_rgba(255,85,0,0.4)] shrink-0 border border-white/20">
+            <div className="soundcloud-cloud-icon w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#ff7700] to-[#ff3300] flex items-center justify-center text-white shadow-[0_8px_25px_rgba(255,85,0,0.4)] shrink-0 border border-white/20">
               <Cloud className="w-8 h-8 sm:w-9 sm:h-9 fill-current" />
             </div>
 
             <div className="flex flex-col gap-1">
+              <span className="eyebrow text-[11px] font-mono tracking-widest uppercase font-semibold text-[#E8A94F] hidden sm:block">
+                Stream & Audio Explorer
+              </span>
               <div className="flex items-center gap-2.5">
-                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                <h1 className="text-2xl sm:text-3xl font-serif font-medium text-white tracking-tight">
                   SoundCloud
                 </h1>
                 <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-full bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/40">
