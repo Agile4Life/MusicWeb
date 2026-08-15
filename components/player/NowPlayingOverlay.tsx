@@ -294,8 +294,9 @@ export function NowPlayingOverlay() {
 
   return (
     <div
-      className={`now-playing-overlay fixed inset-0 z-50 bg-[var(--elevation-0-bg,#07090e)] text-white flex flex-col transition-transform duration-350 ease-[cubic-bezier(0.22,1,0.36,1)] select-none ${isNowPlayingOpen ? 'open translate-y-0' : 'translate-y-full pointer-events-none'
-        }`}
+      className={`now-playing-overlay fixed inset-0 z-50 bg-[#07090e] text-white flex flex-col transition-transform duration-350 ease-[cubic-bezier(0.22,1,0.36,1)] select-none ${
+        isNowPlayingOpen ? 'open translate-y-0' : 'translate-y-full pointer-events-none'
+      }`}
     >
       {/* 🌟 Single Shared Ambient Glow Layer (Behind Top Bar, Stage & PlayerBar) */}
       <div
@@ -307,11 +308,11 @@ export function NowPlayingOverlay() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[55vw] h-[55vw] rounded-full bg-[radial-gradient(circle,var(--theme-gradient-2,rgba(6,182,212,0.15))_0%,transparent_70%)] blur-3xl" />
       </div>
 
-      {/* 🔝 Unified Top Header (Transparent, Seamless Background) */}
-      <div className="relative z-30 flex items-center justify-between h-16 px-6 border-b border-white/[0.06] shrink-0 bg-transparent">
+      {/* 🔝 Unified Top Header (Opaque Backdrop to completely cover app layout behind) */}
+      <div className="relative z-30 flex items-center justify-between h-16 px-6 border-b border-white/[0.08] shrink-0 bg-[#07090e]/90 backdrop-blur-xl">
         <button
           onClick={closeNowPlayingOverlay}
-          className="p-2 text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-all active:scale-95 flex items-center gap-1.5 text-xs font-semibold shrink-0"
+          className="p-2 text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-all active:scale-95 flex items-center gap-1.5 text-xs font-semibold shrink-0 border border-white/10"
           title="Thu nhỏ player (Esc)"
         >
           <ChevronDown className="w-5 h-5" />
