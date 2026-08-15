@@ -38,20 +38,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(true)
 
   const handleAddToPlaylist = async (playlistId: string, track: Track) => {
-    if (!session?.user) {
-      toast('Bạn cần đăng nhập để thực hiện chức năng này', 'error')
-      return
-    }
-    const activeUser = {
-      id: (session.user as any).id || session.user.email,
-      email: session.user.email,
-    }
-    const userId = getValidUserId(activeUser)
-    if (!userId) {
-      toast('Không xác định được tài khoản', 'error')
-      return
-    }
-    const result = await addTrackToPlaylist(supabase, playlistId, track, userId)
+    const result = await addTrackToPlaylist(playlistId, track)
     toast(result.message, result.success ? 'success' : 'error', track.title)
   }
 

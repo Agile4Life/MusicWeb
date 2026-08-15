@@ -120,31 +120,19 @@ describe('fetchReceiptTracks', () => {
   })
 
   it('fetches favorites from favorite_tracks junction table and returns receipt tracks', async () => {
-    const favData = [
-      { id: 'f-1', user_id: 'user-1', track_id: 't-fav-1', created_at: '2026-08-14T10:00:00Z' },
-    ]
-    const tracksData = [
-      { id: 't-fav-1', title: 'Fav Song 1', artist: 'Fav Artist', duration: 220 },
-    ]
-
-    const favQuery = {
-      select: vi.fn().mockReturnThis(),
-      in: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      order: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockResolvedValue({ data: favData, error: null }),
-    }
-    const tracksQuery = {
-      select: vi.fn().mockReturnThis(),
-      in: vi.fn().mockResolvedValue({ data: tracksData, error: null }),
-    }
+    const originalFetch = global.fetch
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        tracks: [
+          { id: 't-fav-1', title: 'Fav Song 1', artist: 'Fav Artist', duration: 220 },
+        ],
+      }),
+    }) as any
 
     const mockSupabase = {
-      from: vi.fn((table: string) => {
-        if (table === 'favorite_tracks') return favQuery
-        if (table === 'tracks') return tracksQuery
-        throw new Error(`Unexpected table: ${table}`)
-      }),
+      from: vi.fn(),
     } as unknown as SupabaseClient
 
     const result = await fetchReceiptTracks({
@@ -155,5 +143,7 @@ describe('fetchReceiptTracks', () => {
 
     expect(result).toHaveLength(1)
     expect(result[0].title).toBe('Fav Song 1')
+
+    global.fetch = originalFetch
   })
 })

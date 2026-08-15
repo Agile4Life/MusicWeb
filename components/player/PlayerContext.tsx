@@ -328,6 +328,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const recordHistory = useCallback((track: Track) => {
     if (!track || !track.id) return
     const now = Date.now()
+    // Debounce 3s tránh ghi lặp
     if (
       lastRecordedTrackRef.current &&
       lastRecordedTrackRef.current.trackId === track.id &&
@@ -339,39 +340,21 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     setTimeout(async () => {
       try {
-        const {
-          data: { user: currentUser },
-        } = await supabase.auth.getUser()
-        const activeUser = currentUser || (nextAuthSession?.user ? {
-          id: nextAuthSession.user.email,
-          email: nextAuthSession.user.email,
-        } : null)
-
-        const userId = activeUser ? getValidUserId(activeUser) : null
-        if (!userId) return
-
-        let dbTrackId = track.id
-
-        if (isExternalTrack(track)) {
-          const resolvedId = await resolveExternalTrackId(supabase, track, userId)
-          if (!resolvedId) return
-          dbTrackId = resolvedId
-        }
-
-        const { error: insertErr } = await supabase.from('listening_history').insert({
-          user_id: userId,
-          track_id: dbTrackId,
-          played_at: new Date().toISOString(),
+        const res = await fetch('/api/history/record', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ track }),
         })
-
-        if (insertErr) {
-          console.error('[PlayerContext] History insert FAILED:', insertErr.code, insertErr.message)
+        if (!res.ok) {
+          // Chưa đăng nhập (401) hoặc lỗi khác — không cần báo user, chỉ log để debug
+          const data = await res.json().catch(() => null)
+          console.warn('[PlayerContext] History record failed:', res.status, data?.error)
         }
       } catch (historyErr) {
         console.warn('History tracking error:', historyErr)
       }
     }, 100)
-  }, [nextAuthSession, supabase])
+  }, [])
 
   // Synchronous state committer to avoid out-of-sync states
   const commitNavigation = useCallback((track: Track, index: number, targetQueue: Track[], time = 0) => {

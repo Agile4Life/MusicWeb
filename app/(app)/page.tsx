@@ -375,9 +375,7 @@ export default function HomePage() {
   }, [userFavTrackIds])
 
   const handleAddToPlaylist = async (playlistId: string, track: Track) => {
-    const activeUser = user ? { id: user.id, email: user.email } : null
-    const userId = activeUser ? getValidUserId(activeUser) : ''
-    const result = await addTrackToPlaylist(supabase, playlistId, track, userId)
+    const result = await addTrackToPlaylist(playlistId, track)
     toast(result.message, result.success ? 'success' : 'error', track.title)
   }
 

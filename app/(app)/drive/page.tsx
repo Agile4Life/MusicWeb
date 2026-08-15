@@ -133,17 +133,7 @@ export default function DrivePage() {
     : driveTracks
 
   const handleAddToPlaylist = async (playlistId: string, track: Track) => {
-    const activeUser =
-      supabaseUser ||
-      (nextAuthSession?.user
-        ? {
-            id: nextAuthSession.user.email,
-            email: nextAuthSession.user.email,
-          }
-        : null)
-
-    const userId = activeUser ? getValidUserId(activeUser) : ''
-    const result = await addTrackToPlaylist(supabase, playlistId, track, userId)
+    const result = await addTrackToPlaylist(playlistId, track)
     toast(result.message, result.success ? 'success' : 'error', track.title)
   }
 

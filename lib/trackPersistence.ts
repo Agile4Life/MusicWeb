@@ -241,71 +241,31 @@ export async function resolveExternalTrackId(
 }
 
 export async function addTrackToPlaylist(
-  supabase: SupabaseClient,
   playlistId: string,
   track: Track,
-  userId: string,
 ): Promise<{ success: boolean; message: string }> {
-  if (!userId) {
-    return { success: false, message: 'Vui lòng đăng nhập để thêm bài hát vào playlist!' }
-  }
-
-  let targetTrackId = track.id
-
-  if (
-    isExternalTrack(track) ||
-    !track.id ||
-    !UUID_REGEX.test(track.id)
-  ) {
-    const resolvedId = await resolveExternalTrackId(supabase, track, userId)
-    if (!resolvedId) {
-      return { success: false, message: 'Lỗi lưu bài hát vào CSDL. Vui lòng thử lại!' }
-    }
-    targetTrackId = resolvedId
-  }
-
-  // 1. Direct insert to playlist_tracks table
-  const { error: directInsertError } = await supabase.from('playlist_tracks').insert({
-    playlist_id: playlistId,
-    track_id: targetTrackId,
-  })
-
-  if (!directInsertError) {
-    return { success: true, message: 'Đã thêm bài hát vào playlist!' }
-  }
-
-  // Handle duplicate / unique constraint
-  if (
-    directInsertError.code === '23505' ||
-    directInsertError.message?.includes('unique') ||
-    directInsertError.message?.includes('duplicate')
-  ) {
-    return { success: true, message: 'Bài hát này đã có trong playlist!' }
-  }
-
-  // 2. Fallback to RPC function
-  const { error: rpcError } = await Promise.resolve(
-    supabase.rpc('fn_add_track_to_playlist', {
-      p_playlist_id: playlistId,
-      p_track_id: targetTrackId,
+  try {
+    const res = await fetch(`/api/playlists/${playlistId}/tracks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ track }),
     })
-  )
 
-  if (!rpcError) {
-    return { success: true, message: 'Đã thêm bài hát vào playlist!' }
-  }
+    const data = await res.json().catch(() => null)
 
-  if (
-    rpcError.code === '23505' ||
-    rpcError.message?.includes('unique') ||
-    rpcError.message?.includes('duplicate')
-  ) {
-    return { success: true, message: 'Bài hát này đã có trong playlist!' }
-  }
+    if (res.status === 401) {
+      return { success: false, message: 'Vui lòng đăng nhập để thêm bài hát vào playlist!' }
+    }
+    if (res.status === 403) {
+      return { success: false, message: 'Bạn không có quyền với playlist này.' }
+    }
+    if (!res.ok) {
+      return { success: false, message: data?.message ?? data?.error ?? 'Lỗi lưu bài hát vào CSDL' }
+    }
 
-  return {
-    success: false,
-    message: directInsertError.message || rpcError.message || 'Lỗi thêm bài hát vào playlist',
+    return { success: true, message: data?.message ?? 'Đã thêm bài hát vào playlist!' }
+  } catch (err: any) {
+    return { success: false, message: err?.message ?? 'Lỗi kết nối' }
   }
 }
 

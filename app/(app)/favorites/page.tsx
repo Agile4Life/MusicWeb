@@ -29,39 +29,19 @@ export default function FavoritesPage() {
   const fetchFavorites = useCallback(async () => {
     setLoading(true)
     try {
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser()
-
-      setSupabaseUser(currentUser)
-
-      const userIds = getAllValidUserIds(currentUser, nextAuthSession)
-
-      if (userIds.length === 0) {
+      const res = await fetch('/api/favorites/list?limit=100')
+      if (res.ok) {
+        const { tracks } = await res.json()
+        setTracks(tracks || [])
+      } else if (res.status === 401) {
         setTracks([])
-        setPlaylists([])
-        setLoading(false)
-        return
       }
-
-      // Fetch User Playlists
-      const { data: playlistData } = await supabase
-        .from('playlists')
-        .select('*')
-        .in('user_id', userIds)
-        .order('created_at', { ascending: false })
-
-      if (playlistData) setPlaylists(playlistData)
-
-      // Fetch User's Personal Favorite Tracks from favorite_tracks junction table reliably
-      const favList = await fetchFavoriteTracks(supabase, userIds, 100)
-      setTracks(favList)
     } catch (err) {
       console.error('Fetch favorites error:', err)
     } finally {
       setLoading(false)
     }
-  }, [nextAuthSession, supabase])
+  }, [])
 
   useEffect(() => {
     fetchFavorites()
@@ -83,17 +63,7 @@ export default function FavoritesPage() {
   }, [fetchFavorites, supabase])
 
   const handleAddToPlaylist = async (playlistId: string, track: Track) => {
-    const activeUser =
-      supabaseUser ||
-      (nextAuthSession?.user
-        ? {
-            id: nextAuthSession.user.email,
-            email: nextAuthSession.user.email,
-          }
-        : null)
-
-    const userId = activeUser ? getValidUserId(activeUser) : ''
-    const result = await addTrackToPlaylist(supabase, playlistId, track, userId)
+    const result = await addTrackToPlaylist(playlistId, track)
     toast(result.message, result.success ? 'success' : 'error', track.title)
   }
 

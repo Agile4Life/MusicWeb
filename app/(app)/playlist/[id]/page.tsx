@@ -211,23 +211,21 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
     }
   }, [showUploadModal, showLibraryModal])
 
+  // 👉 SỬA PLAYLIST
   const handleUpdatePlaylist = async () => {
     if (!playlist) return
-    const { error } = await supabase
-      .from('playlists')
-      .update({
-        name: editName,
-        description: editDesc,
-      })
-      .eq('id', playlist.id)
-
-    if (!error) {
+    const res = await fetch(`/api/playlists/${playlist.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: editName, description: editDesc }),
+    })
+    if (res.ok) {
       setPlaylist({ ...playlist, name: editName, description: editDesc })
       setIsEditing(false)
       window.dispatchEvent(new Event('playlist-updated'))
       router.refresh()
-    } else {
-      alert('Lỗi cập nhật: ' + error.message)
+    } else if (res.status === 403) {
+      alert('Bạn không có quyền sửa playlist này.')
     }
   }
 
@@ -246,17 +244,16 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
     }
   }
 
+  // 👉 XÓA BÀI KHỎI PLAYLIST
   const handleRemoveTrackFromPlaylist = async (trackId: string) => {
-    const { error } = await supabase
-      .from('playlist_tracks')
-      .delete()
-      .eq('playlist_id', playlistId)
-      .eq('track_id', trackId)
-
-    if (!error) {
+    const res = await fetch(
+      `/api/playlists/${playlistId}/tracks?trackId=${encodeURIComponent(trackId)}`,
+      { method: 'DELETE' }
+    )
+    if (res.ok) {
       setTracks(tracks.filter((t) => t.id !== trackId))
-    } else {
-      alert('Lỗi xóa bài khỏi playlist: ' + error.message)
+    } else if (res.status === 403) {
+      alert('Bạn không có quyền sửa playlist này.')
     }
   }
 

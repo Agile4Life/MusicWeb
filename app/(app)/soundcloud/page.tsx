@@ -265,14 +265,7 @@ export default function SoundCloudPage() {
   }
 
   const handleAddToPlaylist = async (playlistId: string, track: Track) => {
-    const activeEmail = userEmail || nextAuthSession?.user?.email
-    const userId = activeEmail ? getValidUserId({ email: activeEmail }) : null
-    if (!userId) {
-      toast('Vui lòng đăng nhập để thêm bài hát vào playlist!', 'error')
-      return
-    }
-
-    const result = await addTrackToPlaylist(supabase, playlistId, track, userId)
+    const result = await addTrackToPlaylist(playlistId, track)
     if (result.success) {
       toast(result.message || 'Đã thêm bài hát vào playlist!', 'success')
       refreshPlaylists()

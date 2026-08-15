@@ -142,63 +142,49 @@ export function PlaylistProvider({ children }: { children: React.ReactNode }) {
     }
   }, [activeUserId, refreshPlaylists, supabase])
 
+  // 👉 TẠO PLAYLIST
   const createPlaylist = async (customName?: string): Promise<Playlist | null> => {
     if (createBusyRef.current) return null
     createBusyRef.current = true
     try {
-      if (!user || !activeUserId) {
+      const res = await fetch('/api/playlists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: customName }),
+      })
+
+      if (res.status === 401) {
         alert('Vui lòng đăng nhập để tạo Playlist cá nhân!')
         return null
       }
+      if (!res.ok) return null
 
-      const newName = customName || `Playlist #${playlists.length + 1}`
-
-      try {
-        const { data, error } = await supabase
-          .from('playlists')
-          .insert({
-            user_id: activeUserId,
-            name: newName,
-            description: 'Playlist cá nhân',
-            is_public: false,
-          })
-          .select()
-          .single()
-
-        if (data && !error) {
-          setPlaylists((prev) => [data, ...prev])
-          window.dispatchEvent(new Event('playlist-updated'))
-          return data
-        } else if (error) {
-          alert('Lỗi tạo playlist: ' + error.message)
-        }
-      } catch (err: any) {
-        alert('Lỗi tạo playlist: ' + err?.message)
-      }
-      return null
+      const { playlist } = await res.json()
+      setPlaylists((prev) => [playlist, ...prev])
+      window.dispatchEvent(new Event('playlist-updated'))
+      return playlist
     } finally {
       createBusyRef.current = false
     }
   }
 
+  // 👉 XÓA PLAYLIST
   const deletePlaylist = async (playlistId: string, playlistName: string): Promise<boolean> => {
     if (!confirm(`Bạn có chắc chắn muốn xóa playlist "${playlistName}"?`)) return false
-
     try {
-      await supabase.from('playlist_tracks').delete().eq('playlist_id', playlistId)
-      const { error } = await supabase.from('playlists').delete().eq('id', playlistId)
-
-      if (!error) {
-        setPlaylists((prev) => prev.filter((p) => p.id !== playlistId))
-        window.dispatchEvent(new Event('playlist-updated'))
-        return true
-      } else {
-        alert('Lỗi xóa playlist: ' + error.message)
+      const res = await fetch(`/api/playlists/${playlistId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        alert('Lỗi xóa playlist: ' + (data?.error ?? res.statusText))
+        return false
       }
+      setPlaylists((prev) => prev.filter((p) => p.id !== playlistId))
+      window.dispatchEvent(new Event('playlist-updated'))
+      return true
     } catch (err: any) {
       alert('Lỗi xóa playlist: ' + err?.message)
+      return false
     }
-    return false
   }
 
   return (

@@ -93,18 +93,21 @@ export async function fetchReceiptTracks({
 
   if (source === 'favorites') {
     let items: ReceiptTrackItem[] = []
-    if (userIds.length > 0) {
-      try {
-        const favTracks = await fetchFavoriteTracks(supabase, userIds, limit)
-        items = favTracks.map((t) => ({
-          id: t.id,
-          title: t.title,
-          artist: t.artist,
-          duration: t.duration,
-        }))
-      } catch (err) {
-        console.warn('[ReceiptTracks] favorites fetch error:', err)
+    try {
+      const res = await fetch(`/api/favorites/list?limit=${limit}`)
+      if (res.ok) {
+        const { tracks: favTracks } = await res.json()
+        if (Array.isArray(favTracks)) {
+          items = favTracks.map((t: any) => ({
+            id: t.id,
+            title: t.title,
+            artist: t.artist,
+            duration: t.duration,
+          }))
+        }
       }
+    } catch (err) {
+      console.warn('[ReceiptTracks] favorites fetch error:', err)
     }
 
     // Fallback: If DB favorites are empty or user is guest, check if currentTrack / queue has is_favorite = true

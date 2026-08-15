@@ -187,8 +187,14 @@ describe('resolveExternalTrackId', () => {
 })
 
 describe('addTrackToPlaylist', () => {
-  it('fails with login prompt if userId is empty', async () => {
-    const supabase = createMockSupabase()
+  it('handles 401 unauthenticated response with login prompt', async () => {
+    const originalFetch = global.fetch
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: 'Vui lòng đăng nhập' }),
+    }) as any
+
     const track: Track = {
       id: '00000000-0000-4000-a000-000000000005',
       user_id: 'user-1',
@@ -198,13 +204,21 @@ describe('addTrackToPlaylist', () => {
       cover_url: null,
       created_at: new Date().toISOString(),
     }
-    const result = await addTrackToPlaylist(supabase, 'pl-1', track, '')
+    const result = await addTrackToPlaylist('pl-1', track)
     expect(result.success).toBe(false)
     expect(result.message).toContain('Vui lòng đăng nhập')
+
+    global.fetch = originalFetch
   })
 
   it('successfully adds valid track to playlist', async () => {
-    const supabase = createMockSupabase()
+    const originalFetch = global.fetch
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, message: 'Đã thêm bài hát vào playlist!' }),
+    }) as any
+
     const track: Track = {
       id: '00000000-0000-4000-a000-000000000005',
       user_id: 'user-1',
@@ -214,9 +228,11 @@ describe('addTrackToPlaylist', () => {
       cover_url: null,
       created_at: new Date().toISOString(),
     }
-    const result = await addTrackToPlaylist(supabase, 'pl-1', track, 'user-1')
+    const result = await addTrackToPlaylist('pl-1', track)
     expect(result.success).toBe(true)
     expect(result.message).toContain('Đã thêm bài hát vào playlist!')
+
+    global.fetch = originalFetch
   })
 })
 
