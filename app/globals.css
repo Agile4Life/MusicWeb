@@ -2528,12 +2528,30 @@ html[data-theme-style="minimal-flat"] body {
   box-shadow: 0 0 0 2px #D85A30 !important;
 }
 
-/* Typography Weight Clamp (400 Regular / 500 Medium) */
-[data-theme-style="minimal-flat"] .font-bold,
-[data-theme-style="minimal-flat"] .font-semibold,
-[data-theme-style="minimal-flat"] .font-extrabold,
-[data-theme-style="minimal-flat"] .font-black {
+/* Typography Weight Clamp & Color Normalization */
+[data-theme-style="minimal-flat"] h1,
+[data-theme-style="minimal-flat"] h2,
+[data-theme-style="minimal-flat"] h3,
+[data-theme-style="minimal-flat"] h4,
+[data-theme-style="minimal-flat"] h5,
+[data-theme-style="minimal-flat"] h6,
+[data-theme-style="minimal-flat"] .text-white,
+[data-theme-style="minimal-flat"] .text-slate-100,
+[data-theme-style="minimal-flat"] .text-slate-200,
+[data-theme-style="minimal-flat"] .text-zinc-100,
+[data-theme-style="minimal-flat"] .text-zinc-200 {
+  color: #1F1F1D !important;
   font-weight: 500 !important;
+}
+
+[data-theme-style="minimal-flat"] .text-slate-300,
+[data-theme-style="minimal-flat"] .text-slate-400,
+[data-theme-style="minimal-flat"] .text-slate-500,
+[data-theme-style="minimal-flat"] .text-zinc-400,
+[data-theme-style="minimal-flat"] .text-zinc-500,
+[data-theme-style="minimal-flat"] .text-muted {
+  color: #8A8677 !important;
+  font-weight: 400 !important;
 }
 
 /* Hide Glow & Spotlight effects */
@@ -2541,6 +2559,15 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] .ambient-glow-orb,
 [data-theme-style="minimal-flat"] [data-spotlight] {
   display: none !important;
+}
+
+/* App Header */
+[data-theme-style="minimal-flat"] .app-header {
+  background: #FAFAF7 !important;
+  border-bottom: 1px solid #E5E3DA !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 /* Main Content Panel */
@@ -2557,9 +2584,139 @@ html[data-theme-style="minimal-flat"] body {
   border-radius: 12px !important;
 }
 
-[data-theme-style="minimal-flat"] .app-sidebar a,
-[data-theme-style="minimal-flat"] .app-sidebar button {
+[data-theme-style="minimal-flat"] .sidebar-logo-plaque {
+  background: #FAFAF7 !important;
+  border: 1px solid #E5E3DA !important;
   border-radius: 8px !important;
+}
+
+[data-theme-style="minimal-flat"] .signature-img-invert {
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+[data-theme-style="minimal-flat"] .nav-indicator {
+  background: #F1EFE8 !important;
+  border: 1px solid #E5E3DA !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+[data-theme-style="minimal-flat"] .sidebar-item {
+  color: #8A8677 !important;
+  border-radius: 8px !important;
+}
+
+[data-theme-style="minimal-flat"] .sidebar-item.active {
+  background: #F1EFE8 !important;
+  color: #1F1F1D !important;
+  font-weight: 500 !important;
+}
+
+[data-theme-style="minimal-flat"] .sidebar-item.active .icon,
+[data-theme-style="minimal-flat"] .sidebar-item.active svg {
+  color: #D85A30 !important;
+}
+
+[data-theme-style="minimal-flat"] .sidebar-item:hover {
+  color: #1F1F1D !important;
+}
+
+[data-theme-style="minimal-flat"] .app-sidebar p.font-mono {
+  color: #8A8677 !important;
+  font-weight: 500 !important;
+}
+
+/* Hero Banner */
+[data-theme-style="minimal-flat"] .hero-banner {
+  background: #FAFAF7 !important;
+  border: 1px solid #E5E3DA !important;
+  border-radius: 12px !important;
+}
+
+[data-theme-style="minimal-flat"] .hero-banner h1 {
+  color: #1F1F1D !important;
+  font-weight: 500 !important;
+}
+
+[data-theme-style="minimal-flat"] .hero-banner p {
+  color: #8A8677 !important;
+}
+
+[data-theme-style="minimal-flat"] .hero-banner .btn-outline-accent {
+  background: #FAFAF7 !important;
+  border: 1px solid #E5E3DA !important;
+  color: #1F1F1D !important;
+  border-radius: 8px !important;
+}
+
+[data-theme-style="minimal-flat"] .hero-banner .btn-outline-accent:hover {
+  background: #F1EFE8 !important;
+  border-color: #D85A30 !important;
+  color: #D85A30 !important;
+}
+
+/* Media Cards & Showcase */
+[data-theme-style="minimal-flat"] .media-card,
+[data-theme-style="minimal-flat"] .tilt-card {
+  background: #FAFAF7 !important;
+  border: 1px solid #E5E3DA !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+[data-theme-style="minimal-flat"] .media-card:hover,
+[data-theme-style="minimal-flat"] .tilt-card:hover {
+  background: #F1EFE8 !important;
+  transform: none !important;
+}
+
+[data-theme-style="minimal-flat"] .media-card .aspect-square {
+  background: #F1EFE8 !important;
+  border: 1px solid #E5E3DA !important;
+  border-radius: 6px !important;
+}
+
+[data-theme-style="minimal-flat"] .media-card img.cover-img {
+  border-radius: 6px !important;
+}
+
+[data-theme-style="minimal-flat"] .media-card .card-title {
+  color: #1F1F1D !important;
+  font-weight: 500 !important;
+}
+
+[data-theme-style="minimal-flat"] .media-card .card-artist {
+  color: #8A8677 !important;
+  font-weight: 400 !important;
+}
+
+[data-theme-style="minimal-flat"] .badge-glass {
+  background: #F1EFE8 !important;
+  border: 1px solid #E5E3DA !important;
+  color: #1F1F1D !important;
+  border-radius: 6px !important;
+}
+
+/* Section Header Links & Icons */
+[data-theme-style="minimal-flat"] a[href="/albums"],
+[data-theme-style="minimal-flat"] a[href="/albums"]:hover {
+  background: #F1EFE8 !important;
+  border: 1px solid #E5E3DA !important;
+  color: #D85A30 !important;
+  border-radius: 6px !important;
+}
+
+[data-theme-style="minimal-flat"] .w-7.h-7.rounded-lg {
+  background: #F1EFE8 !important;
+  border: 1px solid #E5E3DA !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+}
+
+[data-theme-style="minimal-flat"] .w-7.h-7.rounded-lg svg {
+  color: #D85A30 !important;
 }
 
 /* Player Bar & Mini Player Bar */
@@ -2570,22 +2727,67 @@ html[data-theme-style="minimal-flat"] body {
   border-left: 1px solid #E5E3DA !important;
   border-right: 1px solid #E5E3DA !important;
   border-radius: 12px 12px 0 0 !important;
+  color: #1F1F1D !important;
 }
 
-/* Central Play Button */
+[data-theme-style="minimal-flat"] .player-bar .text-white,
+[data-theme-style="minimal-flat"] .player-bar .overflow-marquee-text {
+  color: #1F1F1D !important;
+  font-weight: 500 !important;
+}
+
+[data-theme-style="minimal-flat"] .player-bar .text-slate-400,
+[data-theme-style="minimal-flat"] .player-bar .text-slate-300,
+[data-theme-style="minimal-flat"] .player-bar .text-slate-500 {
+  color: #8A8677 !important;
+  font-weight: 400 !important;
+}
+
+[data-theme-style="minimal-flat"] .player-bar .player-cover {
+  background: #F1EFE8 !important;
+  border: 1px solid #E5E3DA !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+}
+
+[data-theme-style="minimal-flat"] .player-bar .player-cover img {
+  border-radius: 6px !important;
+}
+
+/* Central Play Button (Black Circle, High Contrast) */
 [data-theme-style="minimal-flat"] .player-play-btn,
-[data-theme-style="minimal-flat"] button[aria-label="Play"],
-[data-theme-style="minimal-flat"] button[aria-label="Pause"],
-[data-theme-style="minimal-flat"] button[aria-label="Phát"],
-[data-theme-style="minimal-flat"] button[aria-label="Tạm dừng"] {
-  background-color: #1F1F1D !important;
+[data-theme-style="minimal-flat"] .player-bar button[aria-label*="Phát"],
+[data-theme-style="minimal-flat"] .player-bar button[aria-label*="Tạm dừng"],
+[data-theme-style="minimal-flat"] .player-bar button[title*="Phát"],
+[data-theme-style="minimal-flat"] .player-bar button[title*="Tạm dừng"],
+[data-theme-style="minimal-flat"] .player-bar .w-10.h-10.rounded-full {
+  background: #1F1F1D !important;
   color: #FAFAF7 !important;
+  border-radius: 999px !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+[data-theme-style="minimal-flat"] .player-bar button[aria-label*="Phát"] svg,
+[data-theme-style="minimal-flat"] .player-bar button[aria-label*="Tạm dừng"] svg,
+[data-theme-style="minimal-flat"] .player-bar button[title*="Phát"] svg,
+[data-theme-style="minimal-flat"] .player-bar button[title*="Tạm dừng"] svg,
+[data-theme-style="minimal-flat"] .player-bar .w-10.h-10.rounded-full svg {
+  color: #FAFAF7 !important;
+  fill: #FAFAF7 !important;
 }
 
 /* Player Controls & Volume */
 [data-theme-style="minimal-flat"] .player-bar button,
 [data-theme-style="minimal-flat"] .mini-player-bar button {
+  color: #1F1F1D !important;
+  background: transparent !important;
   border-radius: 8px !important;
+}
+
+[data-theme-style="minimal-flat"] .player-bar button:hover,
+[data-theme-style="minimal-flat"] .mini-player-bar button:hover {
+  background: #F1EFE8 !important;
 }
 
 /* Track Row & Song Table */
@@ -2609,15 +2811,6 @@ html[data-theme-style="minimal-flat"] body {
   background-color: #F1EFE8 !important;
 }
 
-/* Thumbnail & Album Cover */
-[data-theme-style="minimal-flat"] .album-art,
-[data-theme-style="minimal-flat"] .track-thumbnail,
-[data-theme-style="minimal-flat"] img.album-cover,
-[data-theme-style="minimal-flat"] .album-card-img {
-  border-radius: 6px !important;
-  border: none !important;
-}
-
 /* Search Input */
 [data-theme-style="minimal-flat"] .search-input,
 [data-theme-style="minimal-flat"] input[type="search"],
@@ -2637,23 +2830,6 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] input[type="search"]:focus,
 [data-theme-style="minimal-flat"] input[type="text"]:focus {
   border-color: #D85A30 !important;
-}
-
-/* Cards (TiltCard, LiquidGlassCard, General Cards) */
-[data-theme-style="minimal-flat"] .liquid-glass-card,
-[data-theme-style="minimal-flat"] .liquid-glass-panel,
-[data-theme-style="minimal-flat"] .liquid-glass-dock,
-[data-theme-style="minimal-flat"] .tilt-card,
-[data-theme-style="minimal-flat"] .hero-banner {
-  background: #FAFAF7 !important;
-  border: 1px solid #E5E3DA !important;
-  border-radius: 8px !important;
-}
-
-[data-theme-style="minimal-flat"] .liquid-glass-card:hover,
-[data-theme-style="minimal-flat"] .tilt-card:hover {
-  background: #F1EFE8 !important;
-  transform: none !important;
 }
 
 /* Modals & Dialogs */
