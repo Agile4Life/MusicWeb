@@ -6,7 +6,7 @@ import { LanguageSelector } from '@/components/i18n/LanguageSelector'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { createClient } from '@/lib/supabase/client'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
-import { getValidUserId } from '@/lib/accessControl'
+import { getValidUserId, isAdmin as checkIsAdmin } from '@/lib/accessControl'
 import { Volume2, Globe, Bell, Mail, Sparkles } from 'lucide-react'
 
 function FacebookIcon(props: React.SVGProps<SVGSVGElement>) {
