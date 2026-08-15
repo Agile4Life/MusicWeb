@@ -2616,22 +2616,27 @@ html[data-theme-style="minimal-flat"] body {
   mix-blend-mode: normal !important;
 }
 
+/* Tắt floating nav-indicator để active item chiếm full 100% container không bị lệch */
 [data-theme-style="minimal-flat"] .nav-indicator {
-  background: #F1EFE8 !important;
-  border: 1px solid #E5E3DA !important;
-  border-radius: 8px !important;
-  box-shadow: none !important;
+  display: none !important;
 }
 
 [data-theme-style="minimal-flat"] .sidebar-item {
   color: #8A8677 !important;
   border-radius: 8px !important;
+  width: 100% !important;
 }
 
 [data-theme-style="minimal-flat"] .sidebar-item.active {
   background: #F1EFE8 !important;
   color: #1F1F1D !important;
   font-weight: 500 !important;
+  width: 100% !important;
+}
+
+[data-theme-style="minimal-flat"] .sidebar-item .icon,
+[data-theme-style="minimal-flat"] .sidebar-item svg {
+  color: #8A8677 !important;
 }
 
 [data-theme-style="minimal-flat"] .sidebar-item.active .icon,
@@ -2643,25 +2648,67 @@ html[data-theme-style="minimal-flat"] body {
   color: #1F1F1D !important;
 }
 
+[data-theme-style="minimal-flat"] .sidebar-item:hover .icon,
+[data-theme-style="minimal-flat"] .sidebar-item:hover svg {
+  color: #1F1F1D !important;
+}
+
 [data-theme-style="minimal-flat"] .app-sidebar p.font-mono {
   color: #8A8677 !important;
   font-weight: 500 !important;
 }
 
-/* Hero Banner */
-[data-theme-style="minimal-flat"] .hero-banner {
-  background: #FAFAF7 !important;
+/* Chuẩn hóa các Badge thương hiệu (HOT, CLOUD, NEW) về đơn sắc trung tính */
+[data-theme-style="minimal-flat"] .app-sidebar span[class*="rounded"] {
+  background: #F1EFE8 !important;
   border: 1px solid #E5E3DA !important;
-  border-radius: 12px !important;
-}
-
-[data-theme-style="minimal-flat"] .hero-banner h1 {
-  color: #1F1F1D !important;
+  color: #8A8677 !important;
+  box-shadow: none !important;
   font-weight: 500 !important;
 }
 
-[data-theme-style="minimal-flat"] .hero-banner p {
+[data-theme-style="minimal-flat"] .sidebar-item.active span[class*="rounded"] {
+  background: #FAFAF7 !important;
+  color: #D85A30 !important;
+  border-color: #E5E3DA !important;
+}
+
+/* Các nút Import Playlist trong sidebar */
+[data-theme-style="minimal-flat"] .app-sidebar button[title*="Playlist"],
+[data-theme-style="minimal-flat"] .app-sidebar button[title*="nhập"] {
   color: #8A8677 !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+[data-theme-style="minimal-flat"] .app-sidebar button[title*="Playlist"]:hover,
+[data-theme-style="minimal-flat"] .app-sidebar button[title*="nhập"]:hover {
+  color: #1F1F1D !important;
+  background: #F1EFE8 !important;
+  border-radius: 6px !important;
+}
+
+/* Hero Banner (Tỷ lệ cân đối & Nền #F1EFE8 phân tách rõ ràng) */
+[data-theme-style="minimal-flat"] .hero-banner {
+  background: #F1EFE8 !important;
+  border: 1px solid #E5E3DA !important;
+  border-radius: 12px !important;
+  padding: 1.25rem 1.5rem !important;
+  box-shadow: none !important;
+}
+
+[data-theme-style="minimal-flat"] .hero-banner h1 {
+  font-size: 1.35rem !important;
+  line-height: 1.3 !important;
+  color: #1F1F1D !important;
+  font-weight: 500 !important;
+  margin-bottom: 0.25rem !important;
+}
+
+[data-theme-style="minimal-flat"] .hero-banner p {
+  font-size: 0.8125rem !important;
+  color: #8A8677 !important;
+  font-weight: 400 !important;
 }
 
 [data-theme-style="minimal-flat"] .hero-banner .btn-outline-accent {
@@ -2669,10 +2716,11 @@ html[data-theme-style="minimal-flat"] body {
   border: 1px solid #E5E3DA !important;
   color: #1F1F1D !important;
   border-radius: 8px !important;
+  padding: 0.45rem 1rem !important;
 }
 
 [data-theme-style="minimal-flat"] .hero-banner .btn-outline-accent:hover {
-  background: #F1EFE8 !important;
+  background: #FAFAF7 !important;
   border-color: #D85A30 !important;
   color: #D85A30 !important;
 }
@@ -2690,6 +2738,7 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] .media-card:hover,
 [data-theme-style="minimal-flat"] .tilt-card:hover {
   background: #F1EFE8 !important;
+  border-color: #D85A30 !important;
   transform: none !important;
 }
 
@@ -2703,6 +2752,10 @@ html[data-theme-style="minimal-flat"] body {
   border-radius: 6px !important;
 }
 
+[data-theme-style="minimal-flat"] .media-card .cover-overlay {
+  display: none !important;
+}
+
 [data-theme-style="minimal-flat"] .media-card .card-title {
   color: #1F1F1D !important;
   font-weight: 500 !important;
@@ -2713,11 +2766,34 @@ html[data-theme-style="minimal-flat"] body {
   font-weight: 400 !important;
 }
 
-[data-theme-style="minimal-flat"] .badge-glass {
-  background: #F1EFE8 !important;
+/* Badge ALBUM / Single trên ảnh bìa */
+[data-theme-style="minimal-flat"] .badge-glass,
+[data-theme-style="minimal-flat"] .media-card [class*="badge"],
+[data-theme-style="minimal-flat"] [data-media-card] [class*="badge"] {
+  background: #FAFAF7 !important;
   border: 1px solid #E5E3DA !important;
   color: #1F1F1D !important;
   border-radius: 6px !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.05em !important;
+}
+
+/* Floating Play button trên Media Card */
+[data-theme-style="minimal-flat"] .media-card .play-btn {
+  background: #1F1F1D !important;
+  color: #FAFAF7 !important;
+  border-radius: 999px !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+[data-theme-style="minimal-flat"] .media-card .play-btn svg {
+  color: #FAFAF7 !important;
+  fill: #FAFAF7 !important;
 }
 
 /* Section Header Links & Icons */
