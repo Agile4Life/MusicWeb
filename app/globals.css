@@ -2379,6 +2379,78 @@ html[data-cursor="default"][data-buffering="true"] * {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
 }
 
+/* === Fullview (NowPlayingOverlay) Liquid Glass Engine === */
+
+[data-theme-style="liquid-glass"] .now-playing-overlay {
+  background: radial-gradient(ellipse at 50% 25%, rgba(15, 20, 36, 0.96) 0%, rgba(7, 9, 14, 0.98) 70%, #07090e 100%) !important;
+}
+
+[data-theme-style="liquid-glass"] .now-playing-overlay .up-next-list {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 60%, rgba(6, 182, 212, 0.06) 100%) !important;
+  backdrop-filter: blur(32px) saturate(200%);
+  -webkit-backdrop-filter: blur(32px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  box-shadow: 
+    0 24px 64px rgba(0, 0, 0, 0.75),
+    inset 0 1.5px 0.5px rgba(255, 255, 255, 0.5),
+    0 0 35px color-mix(in srgb, var(--primary-spotify, #22d3ee) 18%, transparent) !important;
+}
+
+[data-theme-style="liquid-glass"] .now-playing-overlay .up-next-list > div:first-child {
+  background: rgba(255, 255, 255, 0.06) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme-style="liquid-glass"] .now-playing-overlay .up-next-list .queue-track-current {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.25) 0%, rgba(255, 255, 255, 0.1) 100%) !important;
+  border: 1px solid rgba(34, 211, 238, 0.45) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 15px rgba(34, 211, 238, 0.25) !important;
+}
+
+[data-theme-style="liquid-glass"] .active-lyric-pill {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(6, 182, 212, 0.12) 100%) !important;
+  backdrop-filter: blur(32px) saturate(220%);
+  -webkit-backdrop-filter: blur(32px) saturate(220%);
+  border: 1.5px solid rgba(255, 255, 255, 0.4) !important;
+  box-shadow: 
+    0 20px 48px rgba(0, 0, 0, 0.6),
+    inset 0 2px 0 rgba(255, 255, 255, 0.8),
+    0 0 35px color-mix(in srgb, var(--primary-spotify, #22d3ee) 35%, transparent) !important;
+}
+
+[data-theme-style="liquid-glass"] .fullview-header-btn {
+  background: rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+}
+
+[data-theme-style="liquid-glass"] .fullview-header-btn:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  border-color: rgba(255, 255, 255, 0.45) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 16px rgba(255, 255, 255, 0.25) !important;
+}
+
+[data-theme-style="liquid-glass"] .fullview-header-badge {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.25) 0%, rgba(255, 255, 255, 0.08) 100%) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(34, 211, 238, 0.45) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3), 0 0 18px rgba(34, 211, 238, 0.35) !important;
+}
+
+[data-theme-style="liquid-glass"] .album-3d-card {
+  border: 2px solid rgba(255, 255, 255, 0.45) !important;
+  box-shadow: 
+    0 24px 70px rgba(0, 0, 0, 0.85),
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    0 0 60px color-mix(in srgb, var(--primary-spotify, #22d3ee) 40%, transparent) !important;
+}
+
+
 
 
 

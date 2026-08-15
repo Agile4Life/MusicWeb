@@ -403,7 +403,7 @@ export const LyricsView = React.memo(function LyricsView({ onClose, isModal = fa
                   onClick={() => handleLineClick(line)}
                   className={`cursor-pointer rounded-2xl select-none origin-left group/line relative transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                     isActive
-                      ? 'py-2 sm:py-3 px-4 sm:px-6 bg-white/[0.05] border border-white/10 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.35),0_0_20px_color-mix(in_srgb,var(--spotify-glow,#22d3ee)_12%,transparent)]'
+                      ? 'active-lyric-pill py-2 sm:py-3 px-4 sm:px-6 bg-white/[0.05] border border-white/10 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.35),0_0_20px_color-mix(in_srgb,var(--spotify-glow,#22d3ee)_12%,transparent)]'
                       : 'py-1 sm:py-1.5 px-3 sm:px-5 bg-transparent border border-transparent hover:bg-white/[0.02] hover:border-white/[0.04]'
                   }`}
                   style={{
