@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { useTheme, THEMES, ThemeId, ThemeStyle } from './ThemeContext'
-import { Palette, Check, MousePointer, Sparkles, Sliders, Eye, Waves } from 'lucide-react'
+import { Palette, Check, MousePointer, Sparkles, Sliders, Eye, Waves, Square } from 'lucide-react'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { CURSOR_CONFIGS } from '@/lib/cursors'
 import { RefractionMode } from '@/lib/theme/liquidGlassFilters'
@@ -45,14 +45,14 @@ export function ThemeSelector() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Interface Style Engine (Liquid Glass vs Classic Dark) */}
+      {/* Interface Style Engine (Liquid Glass vs Classic Dark vs Minimal Flat) */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2 text-sm font-bold text-white">
           <Sparkles className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
           <span>Phong Cách Giao Diện (Interface Style Engine)</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* Liquid Glass Option */}
           <button
             onClick={() => setThemeStyle('liquid-glass')}
@@ -70,21 +70,21 @@ export function ThemeSelector() {
                 : 'border-white/[0.06] bg-[var(--elevation-2-bg)] hover:bg-white/[0.06] hover:border-white/15'
             }`}
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400/30 via-indigo-500/20 to-pink-500/30 border border-white/30 flex items-center justify-center shadow-[0_0_15px_rgba(34,211,238,0.3)]">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400/30 via-indigo-500/20 to-pink-500/30 border border-white/30 flex items-center justify-center shadow-[0_0_15px_rgba(34,211,238,0.3)] shrink-0">
               <Waves className="w-5 h-5 text-cyan-300 animate-pulse" />
             </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-1.5">
-                <p className="font-bold text-xs text-white">Liquid Glass (Apple VisionOS)</p>
-                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">
-                  NEW
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <p className="font-bold text-xs text-white truncate">Liquid Glass</p>
+                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-cyan-400/20 text-cyan-300 border border-cyan-400/30 shrink-0">
+                  VISION
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">Khúc xạ quang học, sắc sai viền & nền cực quang sống động</p>
+              <p className="text-[11px] text-slate-400 line-clamp-2 mt-0.5">Khúc xạ quang học, sắc sai viền & cực quang</p>
             </div>
             {themeStyle === 'liquid-glass' && (
               <div
-                className="w-4 h-4 rounded-full flex items-center justify-center text-black"
+                className="w-4 h-4 rounded-full flex items-center justify-center text-black shrink-0"
                 style={{ backgroundColor: currentTheme.accentColor }}
               >
                 <Check className="w-2.5 h-2.5 stroke-[3]" />
@@ -109,17 +109,55 @@ export function ThemeSelector() {
                 : 'border-white/[0.06] bg-[var(--elevation-2-bg)] hover:bg-white/[0.06] hover:border-white/15'
             }`}
           >
-            <div className="w-10 h-10 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center shrink-0">
               <Sliders className="w-5 h-5 text-slate-300" />
             </div>
-            <div className="flex-1">
-              <p className="font-bold text-xs text-white">Classic Dark (Nguyên Bản)</p>
-              <p className="text-[11px] text-slate-400">Giao diện tối phẳng chuẩn Spotify & độ tương phản cao</p>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-xs text-white truncate">Classic Dark</p>
+              <p className="text-[11px] text-slate-400 line-clamp-2 mt-0.5">Giao diện tối phẳng chuẩn Spotify nguyên bản</p>
             </div>
             {themeStyle === 'classic' && (
               <div
-                className="w-4 h-4 rounded-full flex items-center justify-center text-black"
+                className="w-4 h-4 rounded-full flex items-center justify-center text-black shrink-0"
                 style={{ backgroundColor: currentTheme.accentColor }}
+              >
+                <Check className="w-2.5 h-2.5 stroke-[3]" />
+              </div>
+            )}
+          </button>
+
+          {/* Minimal Flat Option */}
+          <button
+            onClick={() => setThemeStyle('minimal-flat')}
+            style={
+              themeStyle === 'minimal-flat'
+                ? {
+                    boxShadow: '0 0 0 2px #D85A30',
+                    transform: 'scale(1.02)',
+                  }
+                : undefined
+            }
+            className={`relative flex items-center gap-3.5 p-4 rounded-2xl transition-all cursor-pointer text-left border ${
+              themeStyle === 'minimal-flat'
+                ? 'border-[#D85A30] bg-[#FAFAF7] text-[#1F1F1D]'
+                : 'border-white/[0.06] bg-[var(--elevation-2-bg)] hover:bg-white/[0.06] hover:border-white/15'
+            }`}
+          >
+            <div className="w-10 h-10 rounded-xl bg-[#D85A30]/15 border border-[#D85A30]/30 flex items-center justify-center shrink-0">
+              <Square className="w-5 h-5 text-[#D85A30]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <p className={`font-bold text-xs truncate ${themeStyle === 'minimal-flat' ? 'text-[#1F1F1D]' : 'text-white'}`}>Minimal Flat</p>
+                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-[#D85A30]/20 text-[#D85A30] border border-[#D85A30]/30 shrink-0">
+                  LIGHT
+                </span>
+              </div>
+              <p className={`text-[11px] line-clamp-2 mt-0.5 ${themeStyle === 'minimal-flat' ? 'text-[#8A8677]' : 'text-slate-400'}`}>Tối giản mộc mạc, không bóng đổ, viền 1px</p>
+            </div>
+            {themeStyle === 'minimal-flat' && (
+              <div
+                className="w-4 h-4 rounded-full flex items-center justify-center text-[#FAFAF7] bg-[#D85A30] shrink-0"
               >
                 <Check className="w-2.5 h-2.5 stroke-[3]" />
               </div>

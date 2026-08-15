@@ -1,11 +1,15 @@
 'use client'
 
 import React, { useEffect, useRef } from 'react'
+import { useTheme } from './ThemeContext'
 
 export function CursorSpotlight() {
+  const { themeStyle } = useTheme()
   const spotlightRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    if (themeStyle === 'minimal-flat') return
+
     let animationFrameId: number | null = null
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -33,12 +37,14 @@ export function CursorSpotlight() {
       document.removeEventListener('mouseleave', handleMouseLeave)
       if (animationFrameId !== null) cancelAnimationFrame(animationFrameId)
     }
-  }, [])
+  }, [themeStyle])
+
+  if (themeStyle === 'minimal-flat') return null
 
   return (
     <div
       ref={spotlightRef}
-      className="pointer-events-none fixed inset-0 z-30 transition-opacity duration-300 opacity-0"
+      className="cursor-spotlight pointer-events-none fixed inset-0 z-30 transition-opacity duration-300 opacity-0"
     />
   )
 }
