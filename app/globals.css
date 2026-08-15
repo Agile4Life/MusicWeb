@@ -2815,7 +2815,15 @@ html[data-theme-style="minimal-flat"] body {
   align-items: center !important;
   justify-content: center !important;
   box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7), 0 0 0 6px rgba(20, 16, 23, 0.4) !important;
+}
+
+[data-theme-style="minimal-flat"] .hero-vinyl-disc.is-spinning {
   animation: spin-vinyl 12s linear infinite !important;
+}
+
+[data-theme-style="minimal-flat"] .hero-vinyl-disc.is-paused {
+  animation: spin-vinyl 12s linear infinite !important;
+  animation-play-state: paused !important;
 }
 
 [data-theme-style="minimal-flat"] .hero-vinyl-label {
@@ -2826,6 +2834,9 @@ html[data-theme-style="minimal-flat"] body {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  position: relative !important;
+  overflow: hidden !important;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25) !important;
   font-family: var(--font-fraunces), serif !important;
   font-style: italic !important;
   font-size: 10px !important;

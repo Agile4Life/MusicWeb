@@ -699,11 +699,25 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Editorial Decorative Vinyl Disc */}
+          {/* Editorial Decorative Vinyl Disc with Track Cover Center */}
           <div className="hero-vinyl hidden md:flex items-center justify-center shrink-0">
-            <div className="hero-vinyl-disc">
-              <div className="hero-vinyl-label font-serif italic text-[11px] font-semibold text-center leading-tight">
-                Now<br />Spinning
+            <div className={`hero-vinyl-disc ${isPlaying ? 'is-spinning' : 'is-paused'}`}>
+              <div className="hero-vinyl-label overflow-hidden rounded-full relative flex items-center justify-center">
+                {currentTrack?.cover_url ? (
+                  <>
+                    <img
+                      src={currentTrack.cover_url}
+                      alt={currentTrack.title || 'Now Playing'}
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                    {/* Vinyl Center Spindle Hole */}
+                    <div className="absolute inset-[38%] rounded-full bg-[#100C13] border border-white/20 shadow-inner" />
+                  </>
+                ) : (
+                  <span className="font-serif italic text-[11px] font-semibold text-center leading-tight text-[#2A1704]">
+                    Now<br />Spinning
+                  </span>
+                )}
               </div>
             </div>
           </div>
