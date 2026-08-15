@@ -357,9 +357,6 @@ export default function HomePage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'playlists' }, () => {
         if (!searchQueryRef.current.trim()) debouncedFetch()
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'listening_history' }, () => {
-        if (!searchQueryRef.current.trim()) debouncedFetch()
-      })
       .subscribe()
 
     return () => {
