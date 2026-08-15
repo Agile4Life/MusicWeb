@@ -25,6 +25,7 @@ import { addTrackToPlaylist } from '@/lib/trackPersistence'
 import { toast } from '@/components/ui/ToastContext'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 import { ImportSoundCloudModal } from '@/components/playlist/ImportSoundCloudModal'
+import { MediaCard } from '@/components/common/MediaCard'
 
 const GENRE_TABS = [
   { id: 'all-music', label: 'Tất cả', query: 'vietnam hit' },
@@ -176,8 +177,8 @@ export default function SoundCloudPage() {
   }
 
   // Quick Play a Playlist
-  const handlePlayPlaylist = async (e: React.MouseEvent, pl: SoundCloudPlaylist) => {
-    e.stopPropagation()
+  const handlePlayPlaylist = async (e: React.MouseEvent | React.KeyboardEvent | undefined, pl: SoundCloudPlaylist) => {
+    e?.stopPropagation()
     try {
       const res = await fetch(`/api/soundcloud/playlists?id=${pl.id}`)
       if (res.ok) {
@@ -385,64 +386,32 @@ export default function SoundCloudPage() {
           </div>
 
           {loadingPlaylists ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="animate-pulse bg-white/5 rounded-2xl p-3 flex flex-col gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="animate-pulse bg-white/5 rounded-2xl p-3 flex flex-col gap-2.5">
                   <div className="w-full aspect-square rounded-xl bg-white/10" />
-                  <div className="h-4 bg-white/10 rounded w-3/4" />
+                  <div className="h-3.5 bg-white/10 rounded w-3/4" />
                   <div className="h-3 bg-white/5 rounded w-1/2" />
                 </div>
               ))}
             </div>
           ) : playlists.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
-              {playlists.map((pl) => (
-                <div
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
+              {playlists.map((pl, idx) => (
+                <MediaCard
                   key={pl.id}
+                  id={String(pl.id)}
+                  title={pl.title}
+                  subtitle={pl.user?.username || 'SoundCloud Creator'}
+                  coverUrl={pl.artwork_url}
+                  type="playlist"
+                  badgeLabel="SoundCloud"
+                  metaText={`${pl.track_count} bài`}
                   onClick={() => handleSelectPlaylist(pl)}
-                  className="glass-panel group relative rounded-2xl p-3 border border-white/10 hover:border-[var(--spotify-glow,#22d3ee)]/40 transition-all duration-300 hover:shadow-[0_10px_25px_var(--theme-glow-shadow,rgba(34,211,238,0.15))] flex flex-col gap-2.5 cursor-pointer bg-white/[0.02] hover:bg-white/[0.05]"
-                >
-                  {/* Artwork Box */}
-                  <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-slate-900 border border-white/10">
-                    {pl.artwork_url ? (
-                      <img
-                        src={pl.artwork_url}
-                        alt={pl.title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#ff5500]/20 to-slate-900 text-slate-500">
-                        <Disc className="w-10 h-10 text-[#ff7700]/50" />
-                      </div>
-                    )}
-
-                    {/* Track count badge */}
-                    <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-black bg-black/70 backdrop-blur-md text-white border border-white/20">
-                      {pl.track_count} bài
-                    </div>
-
-                    {/* Quick Play Button on Hover */}
-                    <button
-                      onClick={(e) => handlePlayPlaylist(e, pl)}
-                      className="absolute bottom-2.5 right-2.5 w-10 h-10 rounded-full bg-gradient-to-r from-[#ff7700] to-[#ff3300] text-white flex items-center justify-center shadow-lg transition-all duration-300 opacity-0 group-hover:opacity-100 hover:scale-110 active:scale-95 border border-white/20 cursor-pointer"
-                      title="Phát playlist này"
-                    >
-                      <Play className="w-4 h-4 fill-current ml-0.5" />
-                    </button>
-                  </div>
-
-                  {/* Playlist Metadata */}
-                  <div className="flex flex-col min-w-0">
-                    <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-[var(--spotify-glow,#22d3ee)] truncate transition-colors">
-                      {pl.title}
-                    </h3>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="text-[11px] text-slate-400 truncate">
-                        {pl.user?.username || 'SoundCloud Creator'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                  onPlay={(e) => handlePlayPlaylist(e, pl)}
+                  index={idx}
+                  fallbackIcon="playlist"
+                />
               ))}
             </div>
           ) : (

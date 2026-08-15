@@ -13,7 +13,7 @@ import { resolveExternalTrackId, isExternalTrack, addTrackToPlaylist } from '@/l
 import { getValidUserId, getAllValidUserIds } from '@/lib/accessControl'
 import { toast } from '@/components/ui/ToastContext'
 import { fetchListeningHistory, getRecentUniqueTracks } from '@/lib/listeningHistory'
-import { TiltCard } from '@/components/common/TiltCard'
+import { MediaCard } from '@/components/common/MediaCard'
 import {
   Play,
   Upload,
@@ -33,6 +33,7 @@ import {
   Shuffle,
   DiscAlbum,
   ChevronRight,
+  ListMusic,
 } from 'lucide-react'
 import { SpotifyAlbumItem } from '@/lib/spotify'
 import { useSession } from 'next-auth/react'
@@ -45,7 +46,7 @@ import { LONG_COMPILATION_KEYWORDS } from '@/lib/youtube'
 
 export default function HomePage() {
   const supabase = createClient()
-  const { playTrack, isShuffle, toggleShuffle } = usePlayer()
+  const { playTrack, currentTrack, isPlaying, isShuffle, toggleShuffle } = usePlayer()
   const { playlists } = usePlaylists()
   const {
     searchQuery,
@@ -720,70 +721,69 @@ export default function HomePage() {
           </div>
 
           {loadingAlbums ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-2.5 rounded-2xl animate-pulse flex flex-col gap-2">
-                  <div className="aspect-square w-full bg-slate-800 rounded-xl" />
-                  <div className="h-3 bg-slate-700 rounded w-3/4" />
-                  <div className="h-2 bg-slate-800 rounded w-1/2" />
+                <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse flex flex-col gap-2.5">
+                  <div className="aspect-square w-full bg-slate-800/80 rounded-xl" />
+                  <div className="h-3 bg-slate-700/80 rounded w-3/4" />
+                  <div className="h-2 bg-slate-800/80 rounded w-1/2" />
                 </div>
               ))}
             </div>
           ) : trendingAlbums.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
               {trendingAlbums.map((album, idx) => (
-                <TiltCard
+                <MediaCard
                   key={album.id}
-                  className="media-card group p-2 xs:p-2.5 sm:p-3 flex flex-col gap-2 cursor-pointer outline-none w-full"
-                  style={{ '--i': idx } as React.CSSProperties}
-                >
-                  <Link href={`/album/${album.id}`} className="flex flex-col gap-2 h-full w-full outline-none">
-                    <div className="aspect-square w-full bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
-                      {album.cover_url ? (
-                        <img
-                          src={album.cover_url}
-                          alt={album.name}
-                          width={300}
-                          height={300}
-                          decoding="async"
-                          className="cover-img w-full h-full object-cover"
-                          style={{ aspectRatio: '1 / 1' }}
-                        />
-                      ) : (
-                        <DiscAlbum className="cover-img w-8 h-8 text-slate-500" />
-                      )}
-                      <div className="cover-overlay" />
-                      <div
-                        className="badge-glass absolute top-2 left-2 px-1.5 py-0.5 rounded-full text-[8px] font-mono text-[var(--accent)] uppercase tracking-wider z-10"
-                      >
-                        {album.album_type === 'single' ? 'Single' : 'Album'}
-                      </div>
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`Phát album ${album.name}`}
-                        onClick={(e) => void handlePlayAlbum(e, album)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') void handlePlayAlbum(e, album)
-                        }}
-                        className="play-btn z-10 btn-3d-tactile"
-                      >
-                        <Play className="w-4 h-4 ml-0.5 fill-current" />
-                      </div>
-                    </div>
-                    <div className="truncate">
-                      <p className="card-title text-xs sm:text-sm font-bold text-white truncate">
-                        {album.name}
-                      </p>
-                      <p className="card-artist text-[11px] text-slate-400 truncate mt-0.5">
-                        {album.artist}
-                      </p>
-                    </div>
-                  </Link>
-                </TiltCard>
+                  id={album.id}
+                  title={album.name}
+                  subtitle={album.artist}
+                  coverUrl={album.cover_url}
+                  type={album.album_type === 'single' ? 'single' : 'album'}
+                  badgeLabel={album.album_type === 'single' ? 'Single' : 'Album'}
+                  href={`/album/${album.id}`}
+                  onPlay={(e) => void handlePlayAlbum(e, album)}
+                  index={idx}
+                  fallbackIcon="album"
+                />
               ))}
             </div>
           ) : null}
+        </div>
+      )}
+
+      {/* User Playlists Showcase Section */}
+      {!isSearching && playlists && playlists.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between pb-1">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-[var(--spotify-glow,#22d3ee)]/10 border border-[var(--spotify-glow,#22d3ee)]/25 flex items-center justify-center shadow-[0_0_12px_var(--theme-glow-shadow,#22d3ee)]">
+                <ListMusic style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
+              </div>
+              <h2 className="text-base font-bold font-display text-white tracking-tight">
+                Playlist Của Bạn
+              </h2>
+            </div>
+            <span className="text-xs font-mono text-slate-500">
+              {playlists.length} playlists
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
+            {playlists.slice(0, 6).map((pl, idx) => (
+              <MediaCard
+                key={pl.id}
+                id={pl.id}
+                title={pl.name}
+                subtitle="Playlist cá nhân"
+                type="playlist"
+                badgeLabel="Playlist"
+                href={`/playlist/${pl.id}`}
+                index={idx}
+                fallbackIcon="playlist"
+              />
+            ))}
+          </div>
         </div>
       )}
 
@@ -803,54 +803,32 @@ export default function HomePage() {
           </div>
 
           {loadingTrending ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-2.5 rounded-2xl animate-pulse flex flex-col gap-2">
-                  <div className="aspect-square w-full bg-slate-800 rounded-xl" />
-                  <div className="h-3 bg-slate-700 rounded w-3/4" />
-                  <div className="h-2 bg-slate-800 rounded w-1/2" />
+                <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse flex flex-col gap-2.5">
+                  <div className="aspect-square w-full bg-slate-800/80 rounded-xl" />
+                  <div className="h-3 bg-slate-700/80 rounded w-3/4" />
+                  <div className="h-2 bg-slate-800/80 rounded w-1/2" />
                 </div>
               ))}
             </div>
           ) : displayTrending.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
               {displayTrending.map((t, idx) => (
-                <TiltCard
+                <MediaCard
                   key={t.id}
-                  style={{ '--i': idx } as React.CSSProperties}
-                  className="media-card group p-2 xs:p-2.5 sm:p-3 flex flex-col gap-2 cursor-pointer outline-none w-full"
-                >
-                  <div className="flex flex-col gap-2 h-full w-full outline-none" onClick={() => playTrack(t, combinedTrendingTracks)}>
-                    <div className="aspect-square w-full bg-slate-800 rounded-xl overflow-hidden relative border border-white/10 flex items-center justify-center">
-                      {t.cover_url ? (
-                        <img
-                          src={t.cover_url}
-                          alt={t.title}
-                          width={300}
-                          height={300}
-                          decoding="async"
-                          className="cover-img w-full h-full object-cover"
-                          style={{ aspectRatio: '1 / 1' }}
-                        />
-                      ) : (
-                        <Music className="cover-img w-7 h-7 text-slate-500" />
-                      )}
-                      <div className="cover-overlay" />
-                      <div className="play-btn z-10 btn-3d-tactile">
-                        <Play className="w-4 h-4 ml-0.5 fill-current" />
-                      </div>
-                    </div>
-
-                    <div className="truncate">
-                      <p className="card-title text-xs sm:text-sm font-bold text-white truncate">
-                        {t.title}
-                      </p>
-                      <p className="card-artist text-[11px] text-slate-400 truncate mt-0.5">
-                        {t.artist || 'Nghệ sĩ chưa xác định'}
-                      </p>
-                    </div>
-                  </div>
-                </TiltCard>
+                  id={t.id}
+                  title={t.title}
+                  subtitle={t.artist || 'Nghệ sĩ chưa xác định'}
+                  coverUrl={t.cover_url}
+                  type="track"
+                  badgeLabel="Hot"
+                  href="#"
+                  onPlay={() => playTrack(t, combinedTrendingTracks)}
+                  isPlaying={currentTrack?.id === t.id && isPlaying}
+                  index={idx}
+                  fallbackIcon="track"
+                />
               ))}
             </div>
           ) : (

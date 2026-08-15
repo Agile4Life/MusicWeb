@@ -844,34 +844,8 @@ input[type='range']:hover::-moz-range-thumb {
 }
 
 /* ================================================================
-   Media Cards & Album Cards: 3-Stage Hierarchy & Metadata Neutralization
+   Media Cards & Action Utilities
    ================================================================ */
-.media-card {
-  background: rgba(18, 22, 34, 0.6) !important;
-  border: 1px solid rgba(255, 255, 255, 0.07) !important;
-  border-radius: var(--radius-card);
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-    border-color 0.2s ease,
-    background-color 0.2s ease;
-}
-
-.media-card:hover {
-  transform: translateY(-2px) !important;
-  background: rgba(22, 28, 42, 0.8) !important;
-  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 25%, rgba(255, 255, 255, 0.12)) !important;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35) !important;
-}
-
-.media-card:hover .card-title {
-  color: var(--spotify-glow, #22d3ee) !important;
-}
-
-.media-card.is-playing,
-.media-card.is-selected {
-  border-color: var(--spotify-glow, #22d3ee) !important;
-  box-shadow: 0 0 12px var(--theme-glow-shadow, rgba(34, 211, 238, 0.25)) !important;
-}
 
 .btn-outline-accent {
   background: transparent;
@@ -1571,33 +1545,56 @@ input[type='range']:hover::-moz-range-thumb {
   }
 }
 
-/* 3-Layer GPU-Optimized High-Contrast Media Card */
+/* ================================================================
+   3-Layer GPU-Optimized Fake 3D Media Card System
+   ================================================================ */
 .media-card {
   position: relative;
-  border-radius: var(--radius-md, 16px);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%), #111522;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-card, 18px);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 100%), #0d121f;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
-    0 8px 24px -4px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.16),
+    0 8px 20px -4px rgba(0, 0, 0, 0.55),
     0 2px 6px rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  transition: transform var(--dur-base) var(--ease-standard),
-    border-color var(--dur-base) var(--ease-standard),
-    background var(--dur-base) var(--ease-standard),
-    box-shadow var(--dur-base) var(--ease-standard);
+  transition:
+    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.3s ease,
+    box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-style: preserve-3d;
+  perspective: 1000px;
 }
 
 .media-card:hover {
-  transform: translateY(-5px);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0.05) 100%), #151b2c;
-  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 65%, rgba(255, 255, 255, 0.3));
+  transform: translateY(-8px) scale(1.025);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%), #121828;
+  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 75%, rgba(255, 255, 255, 0.35));
   box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
-    0 20px 40px -8px rgba(0, 0, 0, 0.75),
-    0 0 24px -2px color-mix(in srgb, var(--spotify-glow, #22d3ee) 30%, transparent);
-  z-index: 2;
+    inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.4),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 24px 48px -10px rgba(0, 0, 0, 0.85),
+    0 12px 32px -4px color-mix(in srgb, var(--spotify-glow, #22d3ee) 45%, transparent);
+  z-index: 10;
+}
+
+.media-card:active {
+  transform: translateY(-3px) scale(0.99);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
+    0 12px 24px -6px rgba(0, 0, 0, 0.7),
+    0 6px 18px -2px color-mix(in srgb, var(--spotify-glow, #22d3ee) 30%, transparent);
+}
+
+.media-card.is-playing,
+.media-card.is-selected {
+  border-color: var(--spotify-glow, #22d3ee) !important;
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.3),
+    0 0 24px var(--theme-glow-shadow, rgba(34, 211, 238, 0.45)),
+    0 12px 28px -4px rgba(0, 0, 0, 0.7) !important;
 }
 
 /* Layer A: GPU Shadow Glow Layer via ::after */
@@ -1607,10 +1604,10 @@ input[type='range']:hover::-moz-range-thumb {
   inset: 0;
   border-radius: inherit;
   box-shadow:
-    0 14px 28px -8px color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, transparent),
-    0 4px 10px -4px rgba(0, 0, 0, 0.4);
+    0 20px 40px -10px color-mix(in srgb, var(--spotify-glow, #22d3ee) 48%, transparent),
+    0 6px 14px -4px rgba(0, 0, 0, 0.5);
   opacity: 0;
-  transition: opacity var(--motion-base) var(--ease-out-smooth);
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: none;
   z-index: -1;
 }
@@ -1628,13 +1625,13 @@ input[type='range']:hover::-moz-range-thumb {
   border-radius: inherit;
   padding: 1px;
   background: linear-gradient(135deg,
-      color-mix(in srgb, var(--spotify-glow, #22d3ee) 60%, transparent),
-      transparent 60%);
+      color-mix(in srgb, var(--spotify-glow, #22d3ee) 70%, transparent),
+      transparent 65%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   opacity: 0;
-  transition: opacity var(--motion-base) var(--ease-out-smooth);
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: none;
   z-index: 2;
 }
@@ -1646,30 +1643,30 @@ input[type='range']:hover::-moz-range-thumb {
 
 /* Layer C: 2.5D Cover Tilt, Zoom, Overlay & Spring Play Button */
 .media-card .aspect-square {
-  transform: perspective(700px) rotateX(var(--rotate-x, 0deg)) rotateY(var(--rotate-y, 0deg)) scale3d(1, 1, 1);
-  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transform: perspective(800px) rotateX(var(--rotate-x, 0deg)) rotateY(var(--rotate-y, 0deg)) scale3d(1, 1, 1);
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 
 .media-card:hover .aspect-square {
-  transform: perspective(700px) rotateX(var(--rotate-x, 0deg)) rotateY(var(--rotate-y, 0deg)) scale3d(1.025, 1.025, 1.025);
-  box-shadow: calc(var(--tilt-x, 0) * -5px) calc(var(--tilt-y, 0) * 5px + 8px) 18px rgba(0, 0, 0, 0.45);
+  transform: perspective(800px) rotateX(var(--rotate-x, 0deg)) rotateY(var(--rotate-y, 0deg)) scale3d(1.035, 1.035, 1.035);
+  box-shadow: calc(var(--tilt-x, 0) * -6px) calc(var(--tilt-y, 0) * 6px + 10px) 24px rgba(0, 0, 0, 0.6);
 }
 
 .media-card .cover-img {
-  transition: transform var(--motion-slow) var(--ease-out-smooth);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .media-card:hover .cover-img {
-  transform: scale(1.04);
+  transform: scale(1.06);
 }
 
 .media-card .cover-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 60%);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.72) 0%, rgba(0, 0, 0, 0.15) 50%, transparent 100%);
   opacity: 0;
-  transition: opacity var(--motion-base) var(--ease-out-smooth);
+  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: none;
 }
 
@@ -1681,20 +1678,25 @@ input[type='range']:hover::-moz-range-thumb {
   position: absolute;
   inset: 0;
   margin: auto;
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 9999px;
-  background: var(--primary-spotify, #06b6d4);
+  background: linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4));
   color: #000000;
   opacity: 0;
-  transform: scale(0.8) translateY(6px);
+  transform: scale(0.75) translateY(8px);
   transition:
-    opacity var(--motion-fast) var(--ease-out-smooth),
-    transform var(--motion-fast) var(--ease-spring);
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--spotify-glow, #22d3ee) 50%, transparent);
+    opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.22s ease;
+  box-shadow:
+    0 8px 24px color-mix(in srgb, var(--spotify-glow, #22d3ee) 60%, rgba(0, 0, 0, 0.5)),
+    inset 0 1px 1px rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  cursor: pointer;
 }
 
 .media-card:hover .play-btn,
@@ -1703,23 +1705,44 @@ input[type='range']:hover::-moz-range-thumb {
   transform: scale(1) translateY(0);
 }
 
-/* 2D Vector Parallax for Title & Artist (100% Vector Sharpness, Zero Texture Blur) */
+.media-card .play-btn:hover {
+  transform: scale(1.12) translateY(0) !important;
+  box-shadow:
+    0 12px 30px color-mix(in srgb, var(--spotify-glow, #22d3ee) 85%, rgba(0, 0, 0, 0.6)),
+    inset 0 1px 2px rgba(255, 255, 255, 0.9);
+}
+
+.media-card .play-btn:active {
+  transform: scale(0.94) translateY(0) !important;
+}
+
+/* 2D Vector Parallax & Theme Glow for Title & Artist */
 .media-card .card-title {
   transform: translate(calc(var(--tilt-x, 0) * 1.5px), calc(var(--tilt-y, 0) * 1px));
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), color var(--motion-base) var(--ease-out-smooth);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease, text-shadow 0.2s ease;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
 
 .media-card .card-artist {
   transform: translate(calc(var(--tilt-x, 0) * 1px), calc(var(--tilt-y, 0) * 0.75px));
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), color var(--motion-base) var(--ease-out-smooth);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
 
 .media-card:hover .card-title {
   color: var(--spotify-glow, #22d3ee);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--spotify-glow, #22d3ee) 40%, transparent);
+}
+
+/* Glass Badge */
+.badge-glass {
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 /* Track Row / List Hover Effects */

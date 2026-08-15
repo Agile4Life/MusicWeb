@@ -9,7 +9,7 @@ import { Track } from '@/types'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { DiscAlbum, Sparkles, Music, Play, Search, X, Loader2 } from 'lucide-react'
 import { HeroCardSkeleton } from '@/components/common/SkeletonLoader'
-import { TiltCard } from '@/components/common/TiltCard'
+import { MediaCard } from '@/components/common/MediaCard'
 
 interface AlbumCardProps {
   album: SpotifyAlbumItem
@@ -25,91 +25,45 @@ function AlbumCard({ album, index = 0 }: AlbumCardProps) {
   }
 
   const releaseYear = album.release_date ? album.release_date.split('-')[0] : ''
+  const metaParts: string[] = []
+  if (releaseYear) metaParts.push(releaseYear)
+  if (album.total_tracks > 0) metaParts.push(`${album.total_tracks} bài`)
+  const metaText = metaParts.join(' • ')
 
-  const handlePlayAlbum = async (e: React.MouseEvent | React.KeyboardEvent, albumToPlay: SpotifyAlbumItem) => {
+  const handlePlayAlbum = async (e: React.MouseEvent | React.KeyboardEvent) => {
     e.preventDefault()
     e.stopPropagation()
     try {
-      const cached = albumDetailCacheRef.current!.get(albumToPlay.id)
+      const cached = albumDetailCacheRef.current!.get(album.id)
       const detail =
         cached && Date.now() - cached.at < 10 * 60 * 1000
           ? cached.detail
-          : await fetch(`/api/albums/${albumToPlay.id}`).then((r) => (r.ok ? r.json() : null))
+          : await fetch(`/api/albums/${album.id}`).then((r) => (r.ok ? r.json() : null))
       if (detail && Array.isArray(detail.tracks) && detail.tracks.length > 0) {
-        albumDetailCacheRef.current!.set(albumToPlay.id, { detail, at: Date.now() })
+        albumDetailCacheRef.current!.set(album.id, { detail, at: Date.now() })
         playTrack(detail.tracks[0], detail.tracks)
       } else {
-        router.push(`/album/${albumToPlay.id}`)
+        router.push(`/album/${album.id}`)
       }
     } catch {
-      router.push(`/album/${albumToPlay.id}`)
+      router.push(`/album/${album.id}`)
     }
   }
 
   return (
-    <TiltCard
-      className="media-card group p-2 xs:p-2.5 sm:p-3.5 flex flex-col gap-2 sm:gap-3 outline-none"
-      style={{ '--i': index } as React.CSSProperties}
-    >
-      <Link href={`/album/${album.id}`} className="flex flex-col gap-3 h-full outline-none">
-        {/* Cover Image Container */}
-        <div
-          className="relative aspect-square w-full rounded-xl overflow-hidden bg-slate-900 border border-white/10 shadow-inner flex items-center justify-center transition-transform duration-200"
-        >
-          {album.cover_url ? (
-            <img
-              src={album.cover_url}
-              alt={album.name}
-              width={300}
-              height={300}
-              decoding="async"
-              className="cover-img w-full h-full object-cover"
-              style={{ aspectRatio: '1 / 1' }}
-            />
-          ) : (
-            <DiscAlbum className="cover-img w-12 h-12 text-slate-500" />
-          )}
-          <div className="cover-overlay" />
-
-          {/* Floating Album Type Badge */}
-          <div
-            className="badge-glass absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-mono text-[var(--accent)] uppercase tracking-wider z-10"
-          >
-            {album.album_type === 'single' ? 'Single / EP' : 'Album'}
-          </div>
-
-          {/* Hover Overlay Play Button */}
-          <div
-            role="button"
-            tabIndex={0}
-            aria-label={`Phát album ${album.name}`}
-            onClick={(e) => void handlePlayAlbum(e, album)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') void handlePlayAlbum(e, album)
-            }}
-            className="play-btn z-10 btn-3d-tactile"
-          >
-            <Play className="w-4.5 h-4.5 ml-0.5 fill-current" />
-          </div>
-        </div>
-
-        {/* Info */}
-        <div className="flex flex-col gap-1 min-w-0">
-          <h3 className="card-title text-xs sm:text-sm font-bold text-white truncate">
-            {album.name}
-          </h3>
-          <p className="card-artist text-[11px] text-slate-400 truncate font-medium">
-            {album.artist}
-          </p>
-
-          <div className="flex items-center gap-2 text-[10px] font-mono text-slate-500 mt-1">
-            {releaseYear && <span>{releaseYear}</span>}
-            {releaseYear && album.total_tracks > 0 && <span>•</span>}
-            {album.total_tracks > 0 && <span>{album.total_tracks} bài</span>}
-          </div>
-        </div>
-      </Link>
-    </TiltCard>
+    <MediaCard
+      id={album.id}
+      title={album.name}
+      subtitle={album.artist}
+      coverUrl={album.cover_url}
+      type={album.album_type === 'single' ? 'single' : 'album'}
+      badgeLabel={album.album_type === 'single' ? 'Single / EP' : 'Album'}
+      metaText={metaText}
+      href={`/album/${album.id}`}
+      onPlay={handlePlayAlbum}
+      index={index}
+      fallbackIcon="album"
+    />
   )
 }
 
@@ -318,7 +272,7 @@ export default function AlbumsPage() {
               <HeroCardSkeleton />
             </div>
           ) : searchResults.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-4 lg:gap-5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-5">
               {searchResults.map((album, idx) => (
                 <AlbumCard key={album.id} album={album} index={idx} />
               ))}
@@ -348,7 +302,7 @@ export default function AlbumsPage() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-4 lg:gap-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-5">
                 {listenedAlbums.map((album, idx) => (
                   <AlbumCard key={album.id} album={album} index={idx} />
                 ))}
@@ -371,7 +325,7 @@ export default function AlbumsPage() {
             </div>
 
             {newReleases.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 xs:gap-2.5 sm:gap-4 lg:gap-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-5">
                 {newReleases.map((album, idx) => (
                   <AlbumCard key={album.id} album={album} index={idx} />
                 ))}
