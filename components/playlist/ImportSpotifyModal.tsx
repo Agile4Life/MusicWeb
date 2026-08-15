@@ -663,7 +663,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
             <div className="space-y-3 sm:space-y-4">
               {/* Filter Tabs Header - Horizontal scroll on mobile */}
               <div className="space-y-2 pb-2 border-b border-white/[0.08]">
-                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1.5">
                   <button
                     onClick={() => setActiveTab('all')}
                     className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${

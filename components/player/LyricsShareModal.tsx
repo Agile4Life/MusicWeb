@@ -552,7 +552,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
               </div>
 
               {/* Theme Swatches Horizontal Scroll List */}
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 shrink-0 -mx-1 px-1">
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2.5 shrink-0 -mx-1 px-1">
                 {LYRIC_CARD_THEMES.filter(
                   (t) => themeCategoryFilter === 'all' || t.category === themeCategoryFilter
                 ).map((theme) => {
@@ -566,7 +566,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
                       onClick={() => setSelectedThemeId(theme.id)}
                       className={`h-8 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all duration-200 relative border active:scale-95 text-xs font-bold shrink-0 ${
                         isActive
-                          ? 'border-white scale-105 shadow-[0_0_16px_rgba(255,255,255,0.35)] ring-2 ring-[var(--spotify-glow,#22d3ee)]/60'
+                          ? 'border-white shadow-[0_0_16px_rgba(255,255,255,0.35)] ring-2 ring-[var(--spotify-glow,#22d3ee)]/60'
                           : 'border-white/15 opacity-75 hover:opacity-100 hover:border-white/40'
                       }`}
                       style={{

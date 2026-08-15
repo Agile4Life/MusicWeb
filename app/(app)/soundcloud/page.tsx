@@ -341,22 +341,22 @@ export default function SoundCloudPage() {
 
       {/* 🏷️ Genre / Tag Filter Chips */}
       {!debouncedQuery && !selectedPlaylist && (
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 shrink-0 -mx-1 px-1">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2.5 shrink-0 -mx-1 px-1">
           {GENRE_TABS.map((tab) => {
             const isActive = activeTab === tab.id
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-200 shrink-0 border flex items-center gap-1.5 cursor-pointer ${
+                className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 shrink-0 border flex items-center gap-1.5 cursor-pointer ${
                   isActive
-                    ? 'bg-[#ff5500] text-white border-transparent shadow-[0_4px_14px_rgba(255,85,0,0.4)] scale-105'
+                    ? 'bg-gradient-to-r from-[#ff5500] to-[#ff3300] text-white border-transparent shadow-[0_4px_14px_rgba(255,85,0,0.45)]'
                     : 'bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border-white/10 hover:border-white/20'
                 }`}
               >
                 <span>{tab.label}</span>
                 {tab.isHot && (
-                  <span className="px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider rounded bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-sm animate-pulse leading-none">
+                  <span className="px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider rounded-full bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-sm animate-pulse leading-none">
                     HOT
                   </span>
                 )}
