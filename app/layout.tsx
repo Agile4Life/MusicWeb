@@ -12,29 +12,24 @@ import { LiquidGlassFilterDefs } from '@/components/theme/LiquidGlassFilterDefs'
 const spaceGrotesk = Space_Grotesk({
   variable: '--font-space-grotesk',
   subsets: ['latin', 'latin-ext'],
-  weight: ['600', '700'],
   display: 'swap',
 })
 
 const inter = Inter({
   variable: '--font-inter',
   subsets: ['latin', 'vietnamese'],
-  weight: ['400', '500', '600', '700'],
   display: 'swap',
 })
 
 const jetbrainsMono = JetBrains_Mono({
   variable: '--font-jetbrains-mono',
   subsets: ['latin'],
-  weight: ['400', '500'],
   display: 'swap',
 })
 
 const fraunces = Fraunces({
   variable: '--font-fraunces',
   subsets: ['latin', 'vietnamese'],
-  weight: ['300', '500', '600', '700'],
-  style: ['normal', 'italic'],
   display: 'swap',
 })
 
