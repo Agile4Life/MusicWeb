@@ -15,6 +15,7 @@ import { QueueDrawer } from '@/components/player/QueueDrawer'
 import { NowPlayingOverlay } from '@/components/player/NowPlayingOverlay'
 import { mobileContentPaddingClassName } from '@/components/player/mobileLayout'
 import { WelcomeAnnouncementModal } from '@/components/modals/WelcomeAnnouncementModal'
+import { LiquidAmbientCanvas } from '@/components/theme/LiquidAmbientCanvas'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isScrolled, setIsScrolled] = useState(false)
@@ -35,6 +36,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <PlaylistProvider>
               <SearchProvider>
                 <div className="h-[100dvh] w-screen flex flex-col bg-[var(--bg-space,#07090e)] overflow-hidden font-sans p-0 sm:p-2 lg:p-3 relative">
+                  {/* Dynamic Liquid Ambient Canvas */}
+                  <LiquidAmbientCanvas />
+
                   {/* Mobile Header (Smartphone view) */}
                   <MobileHeaderNav />
 

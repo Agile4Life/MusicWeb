@@ -7,6 +7,7 @@ import { ThemeProvider } from '@/components/theme/ThemeContext'
 import { LanguageProvider } from '@/components/i18n/LanguageContext'
 import { CursorSpotlight } from '@/components/theme/CursorSpotlight'
 import { CustomCursor } from '@/components/theme/CustomCursor'
+import { LiquidGlassFilterDefs } from '@/components/theme/LiquidGlassFilterDefs'
 
 const spaceGrotesk = Space_Grotesk({
   variable: '--font-space-grotesk',
@@ -64,6 +65,7 @@ export default function RootLayout({
         <SessionProvider>
           <LanguageProvider>
             <ThemeProvider>
+              <LiquidGlassFilterDefs />
               <CursorSpotlight />
               <CustomCursor />
               {children}
