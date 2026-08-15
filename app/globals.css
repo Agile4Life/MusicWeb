@@ -2450,6 +2450,230 @@ html[data-cursor="default"][data-buffering="true"] * {
     0 0 60px color-mix(in srgb, var(--primary-spotify, #22d3ee) 40%, transparent) !important;
 }
 
+/* ================================================================
+   Minimal Flat Theme Engine (Warm Studio / Zero Glass & Shadow)
+   ================================================================ */
+[data-theme-style="minimal-flat"] {
+  --bg-space: #FAFAF7 !important;
+  --bg-space-end: #FAFAF7 !important;
+  --bg-page: #FAFAF7 !important;
+  --bg-surface-1: #FAFAF7 !important;
+  --bg-surface-2: #F1EFE8 !important;
+  --elevation-0-bg: #FAFAF7 !important;
+  --elevation-1-bg: #FAFAF7 !important;
+  --elevation-2-bg: #F1EFE8 !important;
+  --elevation-3-bg: #F1EFE8 !important;
+  --text-primary: #1F1F1D !important;
+  --text-secondary: #8A8677 !important;
+  --text-muted: #8A8677 !important;
+  --border-subtle: #E5E3DA !important;
+  --glass-border: #E5E3DA !important;
+  --primary-spotify: #D85A30 !important;
+  --spotify-green: #D85A30 !important;
+  --accent: #D85A30 !important;
+  --accent-secondary: #D85A30 !important;
+  --accent-dim: #F1EFE8 !important;
+  --accent-dim-strong: #E5E3DA !important;
+  --accent-gradient: #D85A30 !important;
+  --spotify-glow: transparent !important;
+  --theme-glow-shadow: none !important;
+  --theme-gradient-1: transparent !important;
+  --theme-gradient-2: transparent !important;
+  --theme-gradient-3: transparent !important;
+  --glass-blur: 0px !important;
+  --glass-surface: #FAFAF7 !important;
+  --glass-surface-strong: #F1EFE8 !important;
+  --radius-sm: 6px !important;
+  --radius-control: 8px !important;
+  --radius-card: 8px !important;
+  --radius-md: 8px !important;
+  --radius-lg: 12px !important;
+  --radius-xl: 12px !important;
+  --shadow-3d: none !important;
+  --highlight-3d: transparent !important;
+  --shadow-elevated: none !important;
+  --elev-1: none !important;
+  --elev-2: none !important;
+  --elev-3: none !important;
+  --elev-4: none !important;
+  --glow-accent: none !important;
+  color-scheme: light;
+}
+
+/* Reset Body & Selection in Minimal Flat mode */
+[data-theme-style="minimal-flat"] body,
+html[data-theme-style="minimal-flat"] body {
+  background-color: #FAFAF7 !important;
+  color: #1F1F1D !important;
+}
+
+[data-theme-style="minimal-flat"] ::selection {
+  background-color: #D85A30 !important;
+  color: #FAFAF7 !important;
+}
+
+/* Universal Shadow, Glass & Text-shadow Reset */
+[data-theme-style="minimal-flat"] *,
+[data-theme-style="minimal-flat"] *::before,
+[data-theme-style="minimal-flat"] *::after {
+  box-shadow: none !important;
+  text-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Accessibility Focus Visible Ring */
+[data-theme-style="minimal-flat"] :focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 2px #D85A30 !important;
+}
+
+/* Typography Weight Clamp (400 Regular / 500 Medium) */
+[data-theme-style="minimal-flat"] .font-bold,
+[data-theme-style="minimal-flat"] .font-semibold,
+[data-theme-style="minimal-flat"] .font-extrabold,
+[data-theme-style="minimal-flat"] .font-black {
+  font-weight: 500 !important;
+}
+
+/* Hide Glow & Spotlight effects */
+[data-theme-style="minimal-flat"] .cursor-spotlight,
+[data-theme-style="minimal-flat"] .ambient-glow-orb,
+[data-theme-style="minimal-flat"] [data-spotlight] {
+  display: none !important;
+}
+
+/* Main Content Panel */
+[data-theme-style="minimal-flat"] .main-content-panel {
+  background: #FAFAF7 !important;
+  border: 1px solid #E5E3DA !important;
+  border-radius: 12px !important;
+}
+
+/* App Sidebar */
+[data-theme-style="minimal-flat"] .app-sidebar {
+  background: #FAFAF7 !important;
+  border-right: 1px solid #E5E3DA !important;
+  border-radius: 12px !important;
+}
+
+[data-theme-style="minimal-flat"] .app-sidebar a,
+[data-theme-style="minimal-flat"] .app-sidebar button {
+  border-radius: 8px !important;
+}
+
+/* Player Bar & Mini Player Bar */
+[data-theme-style="minimal-flat"] .player-bar,
+[data-theme-style="minimal-flat"] .mini-player-bar {
+  background: #FAFAF7 !important;
+  border-top: 1px solid #E5E3DA !important;
+  border-left: 1px solid #E5E3DA !important;
+  border-right: 1px solid #E5E3DA !important;
+  border-radius: 12px 12px 0 0 !important;
+}
+
+/* Central Play Button */
+[data-theme-style="minimal-flat"] .player-play-btn,
+[data-theme-style="minimal-flat"] button[aria-label="Play"],
+[data-theme-style="minimal-flat"] button[aria-label="Pause"],
+[data-theme-style="minimal-flat"] button[aria-label="Phát"],
+[data-theme-style="minimal-flat"] button[aria-label="Tạm dừng"] {
+  background-color: #1F1F1D !important;
+  color: #FAFAF7 !important;
+}
+
+/* Player Controls & Volume */
+[data-theme-style="minimal-flat"] .player-bar button,
+[data-theme-style="minimal-flat"] .mini-player-bar button {
+  border-radius: 8px !important;
+}
+
+/* Track Row & Song Table */
+[data-theme-style="minimal-flat"] .song-row,
+[data-theme-style="minimal-flat"] tr.track-row,
+[data-theme-style="minimal-flat"] .queue-track-row {
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: #1F1F1D !important;
+}
+
+[data-theme-style="minimal-flat"] .song-row:hover,
+[data-theme-style="minimal-flat"] tr.track-row:hover,
+[data-theme-style="minimal-flat"] .queue-track-row:hover {
+  background-color: #F1EFE8 !important;
+}
+
+[data-theme-style="minimal-flat"] .song-row.is-active,
+[data-theme-style="minimal-flat"] tr.track-row.is-active,
+[data-theme-style="minimal-flat"] .queue-track-current {
+  background-color: #F1EFE8 !important;
+}
+
+/* Thumbnail & Album Cover */
+[data-theme-style="minimal-flat"] .album-art,
+[data-theme-style="minimal-flat"] .track-thumbnail,
+[data-theme-style="minimal-flat"] img.album-cover,
+[data-theme-style="minimal-flat"] .album-card-img {
+  border-radius: 6px !important;
+  border: none !important;
+}
+
+/* Search Input */
+[data-theme-style="minimal-flat"] .search-input,
+[data-theme-style="minimal-flat"] input[type="search"],
+[data-theme-style="minimal-flat"] input[type="text"] {
+  background-color: #FAFAF7 !important;
+  border: 1px solid #E5E3DA !important;
+  border-radius: 8px !important;
+  color: #1F1F1D !important;
+}
+
+[data-theme-style="minimal-flat"] .search-input::placeholder,
+[data-theme-style="minimal-flat"] input::placeholder {
+  color: #8A8677 !important;
+}
+
+[data-theme-style="minimal-flat"] .search-input:focus,
+[data-theme-style="minimal-flat"] input[type="search"]:focus,
+[data-theme-style="minimal-flat"] input[type="text"]:focus {
+  border-color: #D85A30 !important;
+}
+
+/* Cards (TiltCard, LiquidGlassCard, General Cards) */
+[data-theme-style="minimal-flat"] .liquid-glass-card,
+[data-theme-style="minimal-flat"] .liquid-glass-panel,
+[data-theme-style="minimal-flat"] .liquid-glass-dock,
+[data-theme-style="minimal-flat"] .tilt-card,
+[data-theme-style="minimal-flat"] .hero-banner {
+  background: #FAFAF7 !important;
+  border: 1px solid #E5E3DA !important;
+  border-radius: 8px !important;
+}
+
+[data-theme-style="minimal-flat"] .liquid-glass-card:hover,
+[data-theme-style="minimal-flat"] .tilt-card:hover {
+  background: #F1EFE8 !important;
+  transform: none !important;
+}
+
+/* Modals & Dialogs */
+[data-theme-style="minimal-flat"] .modal-overlay,
+[data-theme-style="minimal-flat"] [data-dialog-overlay] {
+  background-color: rgba(0, 0, 0, 0.45) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[data-theme-style="minimal-flat"] .modal-content,
+[data-theme-style="minimal-flat"] [data-dialog-content],
+[data-theme-style="minimal-flat"] .dialog-panel {
+  background-color: #FAFAF7 !important;
+  border: 1px solid #E5E3DA !important;
+  border-radius: 12px !important;
+  color: #1F1F1D !important;
+}
+
+
 
 
 
