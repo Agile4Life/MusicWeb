@@ -2210,41 +2210,73 @@ html[data-cursor="default"][data-buffering="true"] * {
 }
 
 /* === Refraction Mode Distinct Visual Signatures === */
+
+/* 1. STANDARD: Smooth pure crystal glass */
+[data-refraction-mode="standard"] [data-theme-style="liquid-glass"] .player-bar,
+[data-refraction-mode="standard"] [data-theme-style="liquid-glass"] .app-sidebar,
+[data-refraction-mode="standard"] .liquid-glass-dock,
+[data-refraction-mode="standard"] .liquid-glass-panel {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.03) 100%) !important;
+  backdrop-filter: blur(24px) saturate(170%);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 
+    0 16px 40px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+}
+
+/* 2. POLAR: Spherical optical lens with circular radial illumination */
 [data-refraction-mode="polar"] [data-theme-style="liquid-glass"] .player-bar,
 [data-refraction-mode="polar"] [data-theme-style="liquid-glass"] .app-sidebar,
 [data-refraction-mode="polar"] .liquid-glass-dock,
 [data-refraction-mode="polar"] .liquid-glass-panel {
-  border-color: rgba(34, 211, 238, 0.35) !important;
+  background: radial-gradient(ellipse at 50% 0%, rgba(34, 211, 238, 0.15) 0%, rgba(255, 255, 255, 0.08) 50%, rgba(10, 14, 26, 0.5) 100%) !important;
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1.5px solid rgba(34, 211, 238, 0.4) !important;
   box-shadow: 
     0 24px 64px rgba(0, 0, 0, 0.6),
-    inset 0 1.5px 1px rgba(255, 255, 255, 0.45),
-    inset 0 -1.5px 1px rgba(34, 211, 238, 0.25),
-    0 0 36px rgba(34, 211, 238, 0.22) !important;
+    inset 0 2px 1px rgba(255, 255, 255, 0.5),
+    inset 0 -2px 1px rgba(34, 211, 238, 0.3),
+    0 0 35px rgba(34, 211, 238, 0.25) !important;
 }
 
+/* 3. PROMINENT: High-contrast 3D Beveled Crystal with Chromatic Aberration RGB split */
 [data-refraction-mode="prominent"] [data-theme-style="liquid-glass"] .player-bar,
 [data-refraction-mode="prominent"] [data-theme-style="liquid-glass"] .app-sidebar,
 [data-refraction-mode="prominent"] .liquid-glass-dock,
 [data-refraction-mode="prominent"] .liquid-glass-panel {
-  border: 1.5px solid rgba(255, 255, 255, 0.38) !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.04) 50%, rgba(0, 0, 0, 0.6) 100%) !important;
+  backdrop-filter: blur(32px) saturate(230%) contrast(110%);
+  -webkit-backdrop-filter: blur(32px) saturate(230%) contrast(110%);
+  border-top: 1.5px solid rgba(255, 255, 255, 0.7) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-left: 1.5px solid rgba(244, 63, 94, 0.55) !important; /* Chromatic Red edge */
+  border-right: 1.5px solid rgba(6, 182, 212, 0.55) !important; /* Chromatic Cyan edge */
   box-shadow: 
-    0 28px 72px rgba(0, 0, 0, 0.65),
-    inset 0 2px 0 rgba(255, 255, 255, 0.6),
-    inset 2px 0 0 rgba(34, 211, 238, 0.35),
-    inset -2px 0 0 rgba(236, 72, 153, 0.35),
-    0 0 40px color-mix(in srgb, var(--primary-spotify, #22d3ee) 30%, transparent) !important;
+    0 32px 80px rgba(0, 0, 0, 0.75),
+    inset 0 2.5px 0.5px rgba(255, 255, 255, 0.8),
+    inset 2.5px 0 0.5px rgba(244, 63, 94, 0.4),
+    inset -2.5px 0 0.5px rgba(6, 182, 212, 0.4),
+    inset 0 -1.5px 0.5px rgba(0, 0, 0, 0.5),
+    0 0 45px color-mix(in srgb, var(--primary-spotify, #22d3ee) 35%, transparent) !important;
 }
 
+/* 4. SHADER: Dynamic fluid wave with animated iridescent shimmer */
 [data-refraction-mode="shader"] [data-theme-style="liquid-glass"] .player-bar,
 [data-refraction-mode="shader"] [data-theme-style="liquid-glass"] .app-sidebar,
 [data-refraction-mode="shader"] .liquid-glass-dock,
 [data-refraction-mode="shader"] .liquid-glass-panel {
-  border-color: rgba(168, 85, 247, 0.35) !important;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(168, 85, 247, 0.08) 50%, rgba(34, 211, 238, 0.1) 100%) !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(168, 85, 247, 0.12) 35%, rgba(6, 182, 212, 0.12) 70%, rgba(236, 72, 153, 0.10) 100%) !important;
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border: 1.5px solid rgba(168, 85, 247, 0.4) !important;
   box-shadow: 
-    0 24px 64px rgba(0, 0, 0, 0.55),
-    inset 0 1.5px 0.5px rgba(255, 255, 255, 0.5),
-    0 0 32px rgba(168, 85, 247, 0.25) !important;
+    0 24px 64px rgba(0, 0, 0, 0.6),
+    inset 0 2px 0.5px rgba(255, 255, 255, 0.6),
+    inset 0 -1px 0.5px rgba(168, 85, 247, 0.3),
+    0 0 35px rgba(168, 85, 247, 0.28) !important;
 }
+
 
 

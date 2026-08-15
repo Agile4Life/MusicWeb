@@ -128,64 +128,110 @@ export function ThemeSelector() {
                   <button
                     key={m.id}
                     onClick={() => setLiquidGlassConfig({ refractionMode: m.id })}
-                    className={`px-3 py-2 rounded-xl text-left transition-all border text-xs cursor-pointer ${
+                    className={`relative p-2.5 rounded-xl text-left transition-all border text-xs cursor-pointer flex flex-col gap-1 select-none ${
                       isSelected
-                        ? 'bg-cyan-500/20 border-cyan-400/50 text-white font-bold'
-                        : 'bg-white/[0.04] border-white/[0.06] text-slate-400 hover:bg-white/[0.08] hover:text-white'
+                        ? 'bg-cyan-500/25 border-cyan-400 text-white font-bold shadow-[0_0_16px_rgba(6,182,212,0.35)] scale-[1.02]'
+                        : 'bg-white/[0.04] border-white/[0.08] text-slate-400 hover:bg-white/[0.08] hover:text-white'
                     }`}
                   >
-                    <p className="text-[11px]">{m.name}</p>
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-[11px] font-semibold">{m.name}</span>
+                      {isSelected && (
+                        <div className="w-3.5 h-3.5 rounded-full bg-cyan-400 text-black flex items-center justify-center">
+                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-[9px] text-slate-400 font-normal">
+                      {m.id === 'prominent'
+                        ? 'Vát cạnh & Tách màu'
+                        : m.id === 'polar'
+                        ? 'Thấu kính cong'
+                        : m.id === 'shader'
+                        ? 'Sóng lỏng biến thiên'
+                        : 'Thủy tinh trong trẻo'}
+                    </span>
                   </button>
                 )
               })}
             </div>
 
             {/* Live Interactive Glass Refraction Preview */}
-            <div className="relative overflow-hidden rounded-2xl p-4 border border-white/20 bg-black/40 min-h-[90px] flex items-center justify-between shadow-inner">
+            <div className="relative overflow-hidden rounded-2xl p-4 border border-white/20 bg-black/60 min-h-[96px] flex items-center justify-between shadow-inner">
               {/* Colorful backdrop orbs so refraction is instantly visible */}
-              <div className="absolute -left-4 -top-4 w-28 h-28 rounded-full bg-cyan-400/50 blur-xl animate-pulse pointer-events-none" />
-              <div className="absolute right-8 -bottom-4 w-32 h-32 rounded-full bg-pink-500/40 blur-xl pointer-events-none" />
-              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full bg-indigo-500/40 blur-lg pointer-events-none" />
+              <div
+                className={`absolute -left-4 -top-4 w-32 h-32 rounded-full blur-xl pointer-events-none transition-all duration-500 ${
+                  liquidGlassConfig?.refractionMode === 'prominent'
+                    ? 'bg-rose-500/70 scale-125'
+                    : liquidGlassConfig?.refractionMode === 'shader'
+                    ? 'bg-purple-500/70 scale-120 animate-pulse'
+                    : liquidGlassConfig?.refractionMode === 'polar'
+                    ? 'bg-cyan-400/70 scale-110'
+                    : 'bg-cyan-400/40'
+                }`}
+              />
+              <div
+                className={`absolute right-6 -bottom-4 w-36 h-36 rounded-full blur-xl pointer-events-none transition-all duration-500 ${
+                  liquidGlassConfig?.refractionMode === 'prominent'
+                    ? 'bg-cyan-400/70 scale-125'
+                    : liquidGlassConfig?.refractionMode === 'shader'
+                    ? 'bg-pink-500/70 scale-120'
+                    : liquidGlassConfig?.refractionMode === 'polar'
+                    ? 'bg-indigo-500/70'
+                    : 'bg-purple-500/40'
+                }`}
+              />
 
               {/* Refractive Glass Lens on top */}
               <div
-                className="relative z-10 w-full flex items-center justify-between p-3 rounded-xl border border-white/30 transition-all duration-300"
+                className={`relative z-10 w-full flex items-center justify-between p-3.5 rounded-xl border transition-all duration-300 ${
+                  liquidGlassConfig?.refractionMode === 'prominent'
+                    ? 'border-t-white/90 border-l-rose-500/70 border-r-cyan-400/70 border-b-white/20 bg-white/[0.14] shadow-[0_16px_40px_rgba(0,0,0,0.8),inset_0_2px_0_rgba(255,255,255,0.9),inset_2px_0_0_rgba(244,63,94,0.5),inset_-2px_0_0_rgba(6,182,212,0.5)]'
+                    : liquidGlassConfig?.refractionMode === 'polar'
+                    ? 'border-cyan-400/60 bg-radial-gradient bg-white/[0.12] shadow-[0_14px_36px_rgba(0,0,0,0.7),inset_0_2px_1px_rgba(255,255,255,0.7),0_0_25px_rgba(34,211,238,0.35)]'
+                    : liquidGlassConfig?.refractionMode === 'shader'
+                    ? 'border-purple-400/60 bg-gradient-to-r from-purple-500/20 via-cyan-500/20 to-pink-500/20 shadow-[0_14px_36px_rgba(0,0,0,0.7),inset_0_2px_0.5px_rgba(255,255,255,0.8),0_0_25px_rgba(168,85,247,0.35)]'
+                    : 'border-white/30 bg-white/[0.08] shadow-[0_10px_28px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.5)]'
+                }`}
                 style={{
-                  backdropFilter: `url(#liquid-glass-${liquidGlassConfig?.refractionMode || 'standard'}) blur(16px) saturate(190%)`,
-                  WebkitBackdropFilter: `url(#liquid-glass-${liquidGlassConfig?.refractionMode || 'standard'}) blur(16px) saturate(190%)`,
-                  boxShadow:
-                    liquidGlassConfig?.refractionMode === 'prominent'
-                      ? '0 12px 32px rgba(0,0,0,0.6), inset 0 1.5px 0 rgba(255,255,255,0.7), inset 0 -1px 0 rgba(34,211,238,0.4)'
-                      : liquidGlassConfig?.refractionMode === 'polar'
-                      ? '0 10px 28px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.5), 0 0 20px rgba(34,211,238,0.3)'
-                      : liquidGlassConfig?.refractionMode === 'shader'
-                      ? '0 10px 28px rgba(0,0,0,0.5), inset 0 1.5px 0 rgba(168,85,247,0.5)'
-                      : '0 8px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.4)',
+                  backdropFilter: 'blur(24px) saturate(200%)',
+                  WebkitBackdropFilter: 'blur(24px) saturate(200%)',
                 }}
               >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center border border-white/30 text-white shadow">
-                    <Sparkles className="w-4 h-4 text-cyan-300" />
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-md border transition-all duration-300 ${
+                      liquidGlassConfig?.refractionMode === 'prominent'
+                        ? 'bg-gradient-to-br from-rose-500 to-cyan-500 border-white/40 shadow-rose-500/30'
+                        : liquidGlassConfig?.refractionMode === 'polar'
+                        ? 'bg-cyan-500 border-cyan-300 shadow-cyan-500/40'
+                        : liquidGlassConfig?.refractionMode === 'shader'
+                        ? 'bg-gradient-to-br from-purple-500 to-pink-500 border-purple-300 shadow-purple-500/40'
+                        : 'bg-white/20 border-white/30'
+                    }`}
+                  >
+                    <Sparkles className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="font-bold text-xs text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]">
-                      Xem trước khúc xạ kính: <span className="text-cyan-300 uppercase">{liquidGlassConfig?.refractionMode || 'standard'}</span>
-                    </p>
-                    <p className="text-[10px] text-slate-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                    <div className="flex items-center gap-2">
+                      <p className="font-black text-xs text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] tracking-wide">
+                        KIỂU KHÚC XẠ: <span className="text-cyan-300 uppercase">{liquidGlassConfig?.refractionMode || 'standard'}</span>
+                      </p>
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-cyan-400/20 text-cyan-300 border border-cyan-400/40">
+                        Đang áp dụng
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] mt-0.5">
                       {liquidGlassConfig?.refractionMode === 'prominent'
-                        ? 'Khúc xạ vát cạnh sắc nét cao & phân tán sắc sai viền mạnh'
+                        ? '💎 Vát cạnh tinh thể 3D + Sắc sai quang phổ RGB (Đỏ/Lam)'
                         : liquidGlassConfig?.refractionMode === 'polar'
-                        ? 'Khúc xạ thấu kính cong tròn đa chiều'
+                        ? '🎯 Thấu kính cong tròn đa chiều + Quầng sáng hội tụ'
                         : liquidGlassConfig?.refractionMode === 'shader'
-                        ? 'Khúc xạ sóng lỏng hữu cơ biến thiên mượt'
-                        : 'Khúc xạ tiêu chuẩn trong trẻo mềm mại'}
+                        ? '🌊 Sóng lỏng hữu cơ biến thiên + Ánh sáng cực quang di chuyển'
+                        : '✨ Khúc xạ tiêu chuẩn trong trẻo mềm mại (VisionOS Glass)'}
                     </p>
                   </div>
                 </div>
-
-                <span className="px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider bg-white/20 text-white border border-white/40 shadow-sm shrink-0">
-                  LIVE FX
-                </span>
               </div>
             </div>
 
