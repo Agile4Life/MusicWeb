@@ -10,7 +10,11 @@ export function setAudioSourceForPlayback(
   volume: number,
   startTime = 0,
 ) {
-  audio.src = url
+  if (audio.src !== url) {
+    audio.src = url
+  }
   audio.volume = volume
-  audio.currentTime = startTime
+  try {
+    audio.currentTime = startTime
+  } catch {}
 }

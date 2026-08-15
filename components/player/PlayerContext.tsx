@@ -1467,14 +1467,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           }
           rawTrack.youtube_id = resolved.id
           track.youtube_id = resolved.id
-          const isValidUUID = (id?: string) => Boolean(id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))
-          if (isValidUUID(track.id)) {
-            fetch(`/api/tracks/${track.id}/cache-meta`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ youtube_id: resolved.id }),
-            }).catch(() => {})
-          }
         }
 
         setBounded(trackResolutionCacheRef.current, track.id, { activeTrack, expiresAt: Date.now() + TRACK_RESOLUTION_TTL }, TRACK_RESOLUTION_MAX_ENTRIES)
@@ -2077,32 +2069,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (audioRequestRef.current !== playRequestRef.current) return
       if (!isYtIframeEngine()) {
         const loadedDuration = audio.duration || 0
-        setDuration(loadedDuration)
-
-        // Automatically skip invalid sound snippets under 3 seconds
-        if (loadedDuration > 0 && loadedDuration < 3) {
-          console.warn('Track audio duration invalid (< 3s), skipping automatically:', currentTrackRef.current?.title)
-          consecutiveSkipRef.current += 1
-          if (consecutiveSkipRef.current > 3) {
-            setIsPlaying(false)
-            setPlaybackError('Nhiều bài hát bị lỗi liên tiếp (>= 3 bài), đã tạm dừng phát.')
-            return
-          }
-          nextTrackRef.current()
-          return
+        if (loadedDuration > 0 && !isNaN(loadedDuration) && loadedDuration !== Infinity) {
+          setDuration(loadedDuration)
         }
 
-        if (currentTrackRef.current && loadedDuration > 0 && (!currentTrackRef.current.duration || currentTrackRef.current.duration === 0)) {
-          const trackId = currentTrackRef.current.id
+        if (currentTrackRef.current && loadedDuration > 3 && (!currentTrackRef.current.duration || currentTrackRef.current.duration === 0)) {
           currentTrackRef.current.duration = Math.round(loadedDuration)
-          const isValidUUID = (id?: string) => Boolean(id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))
-          if (isValidUUID(trackId)) {
-            fetch(`/api/tracks/${trackId}/cache-meta`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ duration: Math.round(loadedDuration) }),
-            }).catch(() => {})
-          }
         }
       }
     }

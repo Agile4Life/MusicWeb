@@ -60,7 +60,7 @@ export async function OPTIONS() {
 
 export async function HEAD(request: Request): Promise<Response> {
   const url = new URL(request.url)
-  const id = url.searchParams.get('id')
+  const id = url.searchParams.get('id') || url.searchParams.get('key')
   if (!id?.trim()) {
     return new Response(null, { status: 400 })
   }
@@ -105,7 +105,7 @@ export async function HEAD(request: Request): Promise<Response> {
 
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url)
-  const id = url.searchParams.get('id')
+  const id = url.searchParams.get('id') || url.searchParams.get('key')
   if (!id?.trim()) {
     return NextResponse.json({ error: 'Missing song id' }, { status: 400 })
   }
