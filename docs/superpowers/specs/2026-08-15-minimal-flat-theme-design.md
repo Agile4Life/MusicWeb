@@ -1,7 +1,7 @@
 # Design Spec: Minimal Flat Theme Engine cho MusicWeb
 
 **Ngày tạo:** 2026-08-15  
-**Trạng thái:** Chờ duyệt  
+**Trạng thái:** Đã tinh chỉnh & Chờ duyệt triển khai  
 **Phương án đã chọn:** Phương án 1 — Full Theme Engine Mode (`minimal-flat`) trong `ThemeContext` & CSS Token Switcher
 
 ---
@@ -20,7 +20,8 @@ Bổ sung phong cách **Minimal Flat** trở thành một Theme Style Mode chín
    - `8px`: Hàng bài hát (track row), card bài hát, button, input.
    - `12px`: Khung container chính, panel sidebar, modal.
    - Tránh dùng bo góc pill `999px` ngoại trừ nút tròn Play/Pause trung tâm và avatar.
-6. **Màu Accent Đơn Nhất:** Cam đất (`#D85A30`) dùng làm điểm nhấn duy nhất cho trạng thái đang phát (now-playing), thanh tiến trình nhạc (progress bar) và avatar/CTA chính.
+6. **Màu Accent Đơn Nhất:** Cam đất (`#D85A30`) dùng làm điểm nhấn duy nhất cho trạng thái đang phát (now-playing), thanh tiến trình nhạc (progress bar), avatar/CTA chính và focus-ring.
+7. **Định hướng Theme (Color Scheme Intent):** `minimal-flat` được chủ đích thiết kế độc quyền dưới dạng **Light Mode** (`color-scheme: light`) để truyền tải trọn vẹn tinh thần "mộc mạc, ấm áp như giấy in và đĩa than cổ điển", không tạo biến thể dark mode làm loãng cá tính phong cách.
 
 ---
 
@@ -33,7 +34,7 @@ Bổ sung phong cách **Minimal Flat** trở thành một Theme Style Mode chín
 | `--border-subtle` / Viền | `#E5E3DA` | Đường kẻ chia tách sidebar/header/player bar/danh sách |
 | `--text-primary` / Chữ chính | `#1F1F1D` | Tiêu đề bài hát, tên album, text quan trọng, nút Play trung tâm |
 | `--text-secondary` / Chữ phụ | `#8A8677` | Tên nghệ sĩ, thời lượng bài hát, label phụ |
-| `--primary-spotify` / Accent | `#D85A30` | Trạng thái bài đang phát, fill thanh tiến trình, dot active |
+| `--primary-spotify` / Accent | `#D85A30` | Trạng thái bài đang phát, fill thanh tiến trình, dot active, focus ring |
 | Nút Play trung tâm | `#1F1F1D` (nền) + `#FAFAF7` (icon) | Nút play/pause chính giữa player bar với độ tương phản cao nhất |
 
 ---
@@ -61,7 +62,8 @@ Bổ sung phong cách **Minimal Flat** trở thành một Theme Style Mode chín
   - Ghi nhớ lựa chọn vào `localStorage.getItem('musicweb-theme-style')`.
 
 ### 4.2 Bộ quy tắc CSS trong `app/globals.css`
-Định nghĩa block `[data-theme-style="minimal-flat"]`:
+> **Lưu ý về Kỹ thuật & `!important`:** Việc sử dụng `!important` trong khối `[data-theme-style="minimal-flat"]` là giải pháp an toàn (retrofit overlay) giúp ghi đè triệt để các tiện ích Tailwind utility và hiệu ứng kính Liquid Glass sẵn có mà không làm hỏng logic của 2 mode kia. Về lâu dài, toàn bộ hệ thống style sẽ được tái cấu trúc thành token layer đồng nhất.
+
 ```css
 [data-theme-style="minimal-flat"] {
   --bg-space: #FAFAF7 !important;
@@ -92,7 +94,7 @@ Bổ sung phong cách **Minimal Flat** trở thành một Theme Style Mode chín
   color-scheme: light;
 }
 
-/* Triệt tiêu Shadow & Glass */
+/* Triệt tiêu Shadow & Glass toàn cục */
 [data-theme-style="minimal-flat"] *,
 [data-theme-style="minimal-flat"] *::before,
 [data-theme-style="minimal-flat"] *::after {
@@ -102,6 +104,12 @@ Bổ sung phong cách **Minimal Flat** trở thành một Theme Style Mode chín
   -webkit-backdrop-filter: none !important;
 }
 
+/* Bảo toàn Accessibility: Focus Ring bằng viền Accent */
+[data-theme-style="minimal-flat"] :focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 2px #D85A30 !important;
+}
+
 /* Ẩn Spotlight cursor & Ambient Glow Orbs */
 [data-theme-style="minimal-flat"] .cursor-spotlight,
 [data-theme-style="minimal-flat"] .ambient-glow-orb {
@@ -109,7 +117,7 @@ Bổ sung phong cách **Minimal Flat** trở thành một Theme Style Mode chín
 }
 ```
 
-### 4.3 Component Specs
+### 4.3 Component Specs Chi Tiết
 1. **Sidebar Navigation (`.app-sidebar`):**
    - Nền: `#FAFAF7`, viền phải: `1px solid #E5E3DA`.
    - Nav Item: Chữ `#1F1F1D` (hoặc `#8A8677` khi unselected), hover/active: nền `#F1EFE8`, bo góc `8px`.
@@ -124,17 +132,25 @@ Bổ sung phong cách **Minimal Flat** trở thành một Theme Style Mode chín
    - Thanh tiến trình (Seek bar): Track nền `#E5E3DA`, phần đã phát `#D85A30`, chiều cao `3–4px`, bo góc `2px`.
    - Nút Play/Pause trung tâm: Hình tròn nền `#1F1F1D`, icon `#FAFAF7`.
    - Nút Previous/Next/Shuffle/Repeat: Icon `#1F1F1D` hoặc `#8A8677`, hover đổi nền nhẹ `#F1EFE8` bo góc `8px`.
-5. **Theme Selector (`ThemeSelector.tsx`):**
-   - Thêm nút thứ 3: **Minimal Flat (Tối Giản Phẳng)** với icon mộc mạc và mô tả rõ ràng.
+5. **Search Input (`.search-input`, `input[type="search"]`):**
+   - Nền: `#FAFAF7` hoặc `#F1EFE8`, viền `1px solid #E5E3DA`, bo góc `8px`.
+   - Chữ gõ: `#1F1F1D` (Weight 400), Placeholder: `#8A8677`.
+   - Trạng thái Focus: Đổi màu viền sang `#D85A30`, không phát sáng glow, không làm mờ nền xung quanh.
+6. **Modal & Dialogs (`.modal`, `.dialog-content`):**
+   - Container modal: Nền đặc `#FAFAF7`, viền `1px solid #E5E3DA`, bo góc `12px`, không shadow.
+   - Overlay nền mờ (Backdrop): Sử dụng nền tối đơn sắc `rgba(0, 0, 0, 0.45)`, **tuyệt đối không dùng `backdrop-filter: blur(...)`**.
+   - Nút hành động trong modal: Nút phụ nền `#F1EFE8`, nút chính nền `#1F1F1D` chữ `#FAFAF7` hoặc nền cam `#D85A30`.
+7. **Theme Selector (`ThemeSelector.tsx`):**
+   - Thêm nút thứ 3: **Minimal Flat (Tối Giản Phẳng)** với icon mộc mạc và mô tả rõ ràng. Ẩn khối tinh chỉnh khúc xạ thủy tinh khi đang chọn mode này.
 
 ---
 
 ## 5. Checklist Tự Kiểm Tra (Pre-Delivery Verification)
 
-- [ ] Không còn `box-shadow` nào xuất hiện khi ở mode `minimal-flat`.
-- [ ] Không còn `backdrop-filter`, `blur`, hoặc `rgba` làm mờ kiểu kính.
-- [ ] Mỗi màn hình chỉ sử dụng 1 màu accent `#D85A30` cho playing state và progress.
-- [ ] Mọi bo góc đều thuộc bộ giá trị chuẩn: `6px` (ảnh/thumb), `8px` (hàng/nút/card), `12px` (container).
+- [ ] Không còn `box-shadow` nào xuất hiện khi ở mode `minimal-flat` (ngoại trừ focus-visible ring `0 0 0 2px #D85A30`).
+- [ ] Không còn `backdrop-filter`, `blur`, hoặc `rgba` làm mờ kiểu kính trên cả modal overlay.
+- [ ] Mỗi màn hình chỉ sử dụng 1 màu accent `#D85A30` cho playing state, progress và focus-ring.
+- [ ] Mọi bo góc đều thuộc bộ giá trị chuẩn: `6px` (ảnh/thumb), `8px` (hàng/nút/card/search), `12px` (container/modal).
 - [ ] Text weight chỉ 400 hoặc 500, font chữ hiển thị sắc nét với tiếng Việt.
 - [ ] Ranh giới phân chia rõ ràng bằng viền `1px solid #E5E3DA`.
 - [ ] Chuyển đổi qua lại giữa `minimal-flat`, `liquid-glass`, và `classic` mượt mà, không bị sót style.
@@ -145,5 +161,5 @@ Bổ sung phong cách **Minimal Flat** trở thành một Theme Style Mode chín
 
 1. `components/theme/ThemeContext.tsx`: Mở rộng type `ThemeStyle`, bổ sung xử lý dọn dẹp thuộc tính kính khi kích hoạt `minimal-flat`.
 2. `components/theme/ThemeSelector.tsx`: Bổ sung Option card Minimal Flat vào danh sách Style Engine.
-3. `app/globals.css`: Định nghĩa đầy đủ bộ token, overrides cho sidebar, player bar, track list, search, modal khi `[data-theme-style="minimal-flat"]`.
+3. `app/globals.css`: Định nghĩa đầy đủ bộ token, overrides cho sidebar, player bar, track list, search, modal, focus-visible khi `[data-theme-style="minimal-flat"]`.
 4. `components/theme/CursorSpotlight.tsx`: Bỏ qua render spotlight khi đang ở `minimal-flat`.
