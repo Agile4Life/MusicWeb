@@ -25,30 +25,28 @@ Bổ sung phong cách **Minimal Flat** trở thành một Theme Style Mode chín
 
 ---
 
-## 2. Bảng Màu Tiêu Chuẩn (Minimal Flat Palette)
+## 2. Bảng Màu Tiêu Chuẩn (Minimal Editorial / Vinyl Studio Palette)
 
 | Vai trò Token | Mã màu | Ý nghĩa sử dụng |
 |---|---|---|
-| `--bg-space` / Nền trang | `#FAFAF7` | Nền tổng thể trang, nền player bar, nền sidebar |
-| `--bg-surface-2` / Nền phụ & hover | `#F1EFE8` | Hàng đang chọn, trạng thái hover hàng track, card nhẹ |
-| `--border-subtle` / Viền | `#E5E3DA` | Đường kẻ chia tách sidebar/header/player bar/danh sách |
-| `--text-primary` / Chữ chính | `#1F1F1D` | Tiêu đề bài hát, tên album, text quan trọng, nút Play trung tâm |
-| `--text-secondary` / Chữ phụ | `#8A8677` | Tên nghệ sĩ, thời lượng bài hát, label phụ |
-| `--primary-spotify` / Accent | `#D85A30` | Trạng thái bài đang phát, fill thanh tiến trình, dot active, focus ring |
-| Nút Play trung tâm | `#1F1F1D` (nền) + `#FAFAF7` (icon) | Nút play/pause chính giữa player bar với độ tương phản cao nhất |
+| `--void` / Nền không gian | `#141017` | Nền plum obsidian sâu lắng, kết hợp radial glow hổ phách ấm |
+| `--surface` / Bề mặt cấp 1 | `#1D1720` | Bề mặt card, ô tìm kiếm, dialog modal |
+| `--surface-2` / Bề mặt cấp 2 | `#251E29` | Gradient card, header đĩa |
+| `--hair` / Đường phân cách | `rgba(244,236,230,0.08)` | Viền nhẹ, divider |
+| `--paper` / Chữ chính | `#F4ECE1` | Tiêu đề Fraunces serif, tên bài hát, nút Play trung tâm |
+| `--paper-dim` / Chữ phụ | `#B9AC9C` | Tên nghệ sĩ, mô tả hero, icon sidebar |
+| `--muted` / Text mờ | `#8B8090` | Nhãn nhóm, timecode, meta tag |
+| `--accent-strong` / Hổ phách | `#E8A94F` | Điểm nhấn active nav, progress bar, play button card |
+| `--wine` / Đỏ rượu | `#A24B3D` | Tag Hot, icon Yêu thích |
+| `--sage` / Xanh xô thơm | `#7C9070` | Tag Cloud |
 
 ---
 
 ## 3. Typography Rules
 
-- **Font Family:** Sử dụng `Inter` (`--font-sans`) làm font chính cho toàn bộ giao diện minimal flat.
-- **Font Weight Giới hạn:** Chỉ dùng 2 độ đậm `400` (Regular) và `500` (Medium). Triệt tiêu `600`, `700`, `800` khi ở mode Minimal Flat để giữ cảm giác nhẹ nhàng, phẳng mộc.
-- **Cỡ chữ theo cấp:**
-  - Brand/Logo: `16px` (Weight 500)
-  - Nav item: `13px` (Active: Weight 500, Thường: Weight 400)
-  - Tên bài hát: `13–14px` (Weight 500)
-  - Nghệ sĩ / Meta / Thời lượng: `12px` (Weight 400, Màu `#8A8677`)
-  - Label nhóm: `13px` (Weight 500, Màu `#8A8677`)
+- **Display & Headings:** `Fraunces` (`--font-fraunces`, Serif) cho Tiêu đề trang, Hero banner, logo mark `MuSic.` và nhãn đĩa than.
+- **UI & Nội dung:** `Inter` (`--font-inter`, Sans) cho toàn bộ danh sách, điều hướng và form input.
+- **Timecode & Data:** `IBM Plex Mono` / `JetBrains Mono` (`--font-ibm-plex-mono`, Mono) cho thời lượng phát và eyebrow tag.
 
 ---
 
@@ -62,36 +60,41 @@ Bổ sung phong cách **Minimal Flat** trở thành một Theme Style Mode chín
   - Ghi nhớ lựa chọn vào `localStorage.getItem('musicweb-theme-style')`.
 
 ### 4.2 Bộ quy tắc CSS trong `app/globals.css`
-> **Lưu ý về Kỹ thuật & `!important`:** Việc sử dụng `!important` trong khối `[data-theme-style="minimal-flat"]` là giải pháp an toàn (retrofit overlay) giúp ghi đè triệt để các tiện ích Tailwind utility và hiệu ứng kính Liquid Glass sẵn có mà không làm hỏng logic của 2 mode kia. Về lâu dài, toàn bộ hệ thống style sẽ được tái cấu trúc thành token layer đồng nhất.
 
 ```css
 [data-theme-style="minimal-flat"] {
-  --bg-space: #F1EFE8 !important;
-  --bg-page: #F1EFE8 !important;
-  --bg-surface-1: #FAFAF7 !important;
-  --bg-surface-2: #FAFAF7 !important;
-  --elevation-0-bg: #F1EFE8 !important;
-  --elevation-1-bg: #FAFAF7 !important;
-  --elevation-2-bg: #FAFAF7 !important;
-  --elevation-3-bg: #FAFAF7 !important;
-  --text-primary: #1F1F1D !important;
-  --text-secondary: #8A8677 !important;
-  --text-muted: #8A8677 !important;
-  --border-subtle: #E5E3DA !important;
-  --glass-border: #E5E3DA !important;
-  --primary-spotify: #D85A30 !important;
-  --spotify-green: #D85A30 !important;
-  --accent: #D85A30 !important;
-  --spotify-glow: transparent !important;
-  --theme-glow-shadow: none !important;
-  --glass-blur: 0px !important;
-  --radius-sm: 6px !important;
-  --radius-control: 8px !important;
-  --radius-card: 8px !important;
-  --radius-md: 8px !important;
-  --radius-lg: 12px !important;
-  --radius-xl: 12px !important;
-  color-scheme: light;
+  --void: #141017;
+  --surface: #1D1720;
+  --surface-2: #251E29;
+  --surface-3: #2E2632;
+  --hair: rgba(244, 236, 230, 0.08);
+  --hair-strong: rgba(244, 236, 230, 0.14);
+  --paper: #F4ECE1;
+  --paper-dim: #B9AC9C;
+  --muted: #8B8090;
+  --accent: #C98A3D;
+  --accent-strong: #E8A94F;
+  --accent-ink: #2A1704;
+  --wine: #A24B3D;
+  --sage: #7C9070;
+
+  --bg-space: #141017 !important;
+  --bg-page: #141017 !important;
+  --bg-surface-1: #1D1720 !important;
+  --bg-surface-2: #251E29 !important;
+  --bg-surface-3: #2E2632 !important;
+  --text-primary: #F4ECE1 !important;
+  --text-secondary: #B9AC9C !important;
+  --text-muted: #8B8090 !important;
+  --border-subtle: rgba(244, 236, 230, 0.08) !important;
+  --glass-border: rgba(244, 236, 230, 0.14) !important;
+  --primary-spotify: #E8A94F !important;
+  --spotify-green: #E8A94F !important;
+  --accent: #C98A3D !important;
+  --radius-sm: 9px !important;
+  --radius-md: 14px !important;
+  --radius-lg: 20px !important;
+  color-scheme: dark;
 }
 
 /* Triệt tiêu Shadow & Glass toàn cục */

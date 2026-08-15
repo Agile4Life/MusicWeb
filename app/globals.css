@@ -2451,44 +2451,66 @@ html[data-cursor="default"][data-buffering="true"] * {
 }
 
 /* ================================================================
-   Minimal Flat Theme Engine (Warm Studio / Zero Glass & Shadow)
+   Minimal Editorial / Vinyl Studio Theme Engine
    ================================================================ */
 [data-theme-style="minimal-flat"] {
-  --bg-space: #F1EFE8 !important;
-  --bg-space-end: #F1EFE8 !important;
-  --bg-page: #F1EFE8 !important;
-  --bg-surface-1: #FAFAF7 !important;
-  --bg-surface-2: #FAFAF7 !important;
-  --elevation-0-bg: #F1EFE8 !important;
-  --elevation-1-bg: #FAFAF7 !important;
-  --elevation-2-bg: #FAFAF7 !important;
-  --elevation-3-bg: #FAFAF7 !important;
-  --text-primary: #1F1F1D !important;
-  --text-secondary: #8A8677 !important;
-  --text-muted: #8A8677 !important;
-  --border-subtle: #E5E3DA !important;
-  --glass-border: #E5E3DA !important;
-  --primary-spotify: #D85A30 !important;
-  --spotify-green: #D85A30 !important;
-  --accent: #D85A30 !important;
-  --accent-secondary: #D85A30 !important;
-  --accent-dim: #FAFAF7 !important;
-  --accent-dim-strong: #E5E3DA !important;
-  --accent-gradient: #D85A30 !important;
-  --spotify-glow: transparent !important;
-  --theme-glow-shadow: none !important;
+  --void: #141017;
+  --surface: #1D1720;
+  --surface-2: #251E29;
+  --surface-3: #2E2632;
+  --hair: rgba(244, 236, 230, 0.08);
+  --hair-strong: rgba(244, 236, 230, 0.14);
+  --paper: #F4ECE1;
+  --paper-dim: #B9AC9C;
+  --muted: #8B8090;
+  --accent: #C98A3D;
+  --accent-strong: #E8A94F;
+  --accent-ink: #2A1704;
+  --wine: #A24B3D;
+  --sage: #7C9070;
+
+  --bg-space: #141017 !important;
+  --bg-space-end: #141017 !important;
+  --bg-page: #141017 !important;
+  --bg-surface-1: #1D1720 !important;
+  --bg-surface-2: #251E29 !important;
+  --bg-surface-3: #2E2632 !important;
+  --elevation-0-bg: #141017 !important;
+  --elevation-1-bg: #1D1720 !important;
+  --elevation-2-bg: #251E29 !important;
+  --elevation-3-bg: #2E2632 !important;
+
+  --text-primary: #F4ECE1 !important;
+  --text-secondary: #B9AC9C !important;
+  --text-muted: #8B8090 !important;
+
+  --border-subtle: rgba(244, 236, 230, 0.08) !important;
+  --glass-border: rgba(244, 236, 230, 0.14) !important;
+
+  --primary-spotify: #E8A94F !important;
+  --spotify-green: #E8A94F !important;
+  --accent: #C98A3D !important;
+  --accent-secondary: #E8A94F !important;
+  --accent-dim: rgba(201, 138, 61, 0.16) !important;
+  --accent-dim-strong: #E8A94F !important;
+  --accent-gradient: #E8A94F !important;
+
+  --spotify-glow: rgba(232, 169, 79, 0.3) !important;
+  --theme-glow-shadow: rgba(232, 169, 79, 0.25) !important;
   --theme-gradient-1: transparent !important;
   --theme-gradient-2: transparent !important;
   --theme-gradient-3: transparent !important;
   --glass-blur: 0px !important;
-  --glass-surface: #FAFAF7 !important;
-  --glass-surface-strong: #FAFAF7 !important;
-  --radius-sm: 6px !important;
-  --radius-control: 8px !important;
-  --radius-card: 8px !important;
-  --radius-md: 8px !important;
-  --radius-lg: 12px !important;
-  --radius-xl: 12px !important;
+  --glass-surface: #1D1720 !important;
+  --glass-surface-strong: #251E29 !important;
+
+  --radius-sm: 9px !important;
+  --radius-control: 10px !important;
+  --radius-card: 14px !important;
+  --radius-md: 14px !important;
+  --radius-lg: 20px !important;
+  --radius-xl: 20px !important;
+
   --shadow-3d: none !important;
   --highlight-3d: transparent !important;
   --shadow-elevated: none !important;
@@ -2497,35 +2519,40 @@ html[data-cursor="default"][data-buffering="true"] * {
   --elev-3: none !important;
   --elev-4: none !important;
   --glow-accent: none !important;
-  color-scheme: light;
+  color-scheme: dark;
 }
 
-/* Reset Body & Selection in Minimal Flat mode */
+/* Reset Body & Background in Minimal Editorial mode */
 [data-theme-style="minimal-flat"] body,
 html[data-theme-style="minimal-flat"] body {
-  background-color: #F1EFE8 !important;
-  color: #1F1F1D !important;
+  background:
+    radial-gradient(1200px 500px at 78% -10%, rgba(201, 138, 61, 0.14), transparent 60%),
+    #141017 !important;
+  color: #F4ECE1 !important;
 }
 
 [data-theme-style="minimal-flat"] ::selection {
-  background-color: #D85A30 !important;
-  color: #FAFAF7 !important;
-}
-
-/* Universal Shadow, Glass & Text-shadow Reset */
-[data-theme-style="minimal-flat"] *,
-[data-theme-style="minimal-flat"] *::before,
-[data-theme-style="minimal-flat"] *::after {
-  box-shadow: none !important;
-  text-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  background-color: #E8A94F !important;
+  color: #2A1704 !important;
 }
 
 /* Accessibility Focus Visible Ring */
 [data-theme-style="minimal-flat"] :focus-visible {
   outline: none !important;
-  box-shadow: 0 0 0 2px #D85A30 !important;
+  box-shadow: 0 0 0 2px #E8A94F !important;
+}
+
+/* Typography Font Mapping */
+[data-theme-style="minimal-flat"] .font-serif,
+[data-theme-style="minimal-flat"] h1,
+[data-theme-style="minimal-flat"] h2,
+[data-theme-style="minimal-flat"] .mark-logo {
+  font-family: var(--font-fraunces), Georgia, serif !important;
+}
+
+[data-theme-style="minimal-flat"] .font-mono,
+[data-theme-style="minimal-flat"] .mono {
+  font-family: var(--font-ibm-plex-mono), var(--font-jetbrains-mono), monospace !important;
 }
 
 /* Typography Weight Clamp & Color Normalization */
@@ -2537,41 +2564,45 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] h6,
 [data-theme-style="minimal-flat"] .text-white,
 [data-theme-style="minimal-flat"] .text-slate-100,
-[data-theme-style="minimal-flat"] .text-slate-200,
 [data-theme-style="minimal-flat"] .text-zinc-100,
-[data-theme-style="minimal-flat"] .text-zinc-200,
 [data-theme-style="minimal-flat"] .text-gray-100,
-[data-theme-style="minimal-flat"] .text-gray-200,
 [data-theme-style="minimal-flat"] .text-neutral-100,
-[data-theme-style="minimal-flat"] .text-neutral-200,
-[data-theme-style="minimal-flat"] .text-stone-100,
-[data-theme-style="minimal-flat"] .text-stone-200 {
-  color: #1F1F1D !important;
+[data-theme-style="minimal-flat"] .text-stone-100 {
+  color: #F4ECE1 !important;
   font-weight: 500 !important;
 }
 
+[data-theme-style="minimal-flat"] .text-slate-200,
 [data-theme-style="minimal-flat"] .text-slate-300,
+[data-theme-style="minimal-flat"] .text-zinc-200,
+[data-theme-style="minimal-flat"] .text-zinc-300,
+[data-theme-style="minimal-flat"] .text-gray-200,
+[data-theme-style="minimal-flat"] .text-gray-300,
+[data-theme-style="minimal-flat"] .text-neutral-200,
+[data-theme-style="minimal-flat"] .text-neutral-300,
+[data-theme-style="minimal-flat"] .text-stone-200,
+[data-theme-style="minimal-flat"] .text-stone-300 {
+  color: #B9AC9C !important;
+  font-weight: 400 !important;
+}
+
 [data-theme-style="minimal-flat"] .text-slate-400,
 [data-theme-style="minimal-flat"] .text-slate-500,
 [data-theme-style="minimal-flat"] .text-slate-600,
-[data-theme-style="minimal-flat"] .text-gray-300,
 [data-theme-style="minimal-flat"] .text-gray-400,
 [data-theme-style="minimal-flat"] .text-gray-500,
 [data-theme-style="minimal-flat"] .text-gray-600,
-[data-theme-style="minimal-flat"] .text-zinc-300,
 [data-theme-style="minimal-flat"] .text-zinc-400,
 [data-theme-style="minimal-flat"] .text-zinc-500,
 [data-theme-style="minimal-flat"] .text-zinc-600,
-[data-theme-style="minimal-flat"] .text-neutral-300,
 [data-theme-style="minimal-flat"] .text-neutral-400,
 [data-theme-style="minimal-flat"] .text-neutral-500,
 [data-theme-style="minimal-flat"] .text-neutral-600,
-[data-theme-style="minimal-flat"] .text-stone-300,
 [data-theme-style="minimal-flat"] .text-stone-400,
 [data-theme-style="minimal-flat"] .text-stone-500,
 [data-theme-style="minimal-flat"] .text-stone-600,
 [data-theme-style="minimal-flat"] .text-muted {
-  color: #8A8677 !important;
+  color: #8B8090 !important;
   font-weight: 400 !important;
 }
 
@@ -2584,31 +2615,30 @@ html[data-theme-style="minimal-flat"] body {
 
 /* App Header */
 [data-theme-style="minimal-flat"] .app-header {
-  background: #F1EFE8 !important;
-  border-bottom: 1px solid #E5E3DA !important;
+  background: rgba(20, 16, 23, 0.85) !important;
+  border-bottom: 1px solid rgba(244, 236, 230, 0.08) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
   box-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
 }
 
 /* Main Content Panel */
 [data-theme-style="minimal-flat"] .main-content-panel {
-  background: #F1EFE8 !important;
-  border: 1px solid #E5E3DA !important;
-  border-radius: 12px !important;
+  background: transparent !important;
+  border: none !important;
 }
 
 /* App Sidebar */
 [data-theme-style="minimal-flat"] .app-sidebar {
-  background: #F1EFE8 !important;
-  border-right: 1px solid #E5E3DA !important;
-  border-radius: 12px !important;
+  background: linear-gradient(180deg, #1A1420, #150F18 70%) !important;
+  border-right: 1px solid rgba(244, 236, 230, 0.08) !important;
+  border-radius: 0 !important;
 }
 
 [data-theme-style="minimal-flat"] .sidebar-logo-plaque {
-  background: #FAFAF7 !important;
-  border: 1px solid #E5E3DA !important;
-  border-radius: 8px !important;
+  background: #1D1720 !important;
+  border: 1px solid rgba(244, 236, 230, 0.08) !important;
+  border-radius: 10px !important;
 }
 
 [data-theme-style="minimal-flat"] .signature-img-invert {
@@ -2616,264 +2646,361 @@ html[data-theme-style="minimal-flat"] body {
   mix-blend-mode: normal !important;
 }
 
-/* Tắt floating nav-indicator để active item chiếm full 100% container */
 [data-theme-style="minimal-flat"] .nav-indicator {
   display: none !important;
 }
 
 [data-theme-style="minimal-flat"] .sidebar-item {
-  color: #8A8677 !important;
-  border-radius: 8px !important;
+  color: #B9AC9C !important;
+  border-radius: 10px !important;
   width: 100% !important;
-  border-left: 3px solid transparent !important;
-  padding: 8px 10px !important;
+  border-left: 2px solid transparent !important;
+  padding: 10px 12px 10px 14px !important;
 }
 
-/* Active Nav Item: Nền #FAFAF7 nổi trên nền sidebar #F1EFE8 + Left-Border Accent #D85A30 */
 [data-theme-style="minimal-flat"] .sidebar-item.active {
-  background: #FAFAF7 !important;
-  color: #1F1F1D !important;
+  color: #F4ECE1 !important;
+  background: linear-gradient(90deg, rgba(201, 138, 61, 0.16), rgba(201, 138, 61, 0.02)) !important;
+  border-left: 2px solid #E8A94F !important;
   font-weight: 500 !important;
-  border-left: 3px solid #D85A30 !important;
-  border-radius: 0 8px 8px 0 !important;
   width: 100% !important;
 }
 
 [data-theme-style="minimal-flat"] .sidebar-item .icon,
 [data-theme-style="minimal-flat"] .sidebar-item svg {
-  color: #8A8677 !important;
+  color: #B9AC9C !important;
+  opacity: 0.85 !important;
 }
 
 [data-theme-style="minimal-flat"] .sidebar-item.active .icon,
 [data-theme-style="minimal-flat"] .sidebar-item.active svg {
-  color: #D85A30 !important;
+  color: #E8A94F !important;
+  opacity: 1 !important;
 }
 
 [data-theme-style="minimal-flat"] .sidebar-item:hover {
-  color: #1F1F1D !important;
-  background: #FAFAF7 !important;
+  color: #F4ECE1 !important;
+  background: rgba(244, 236, 230, 0.04) !important;
 }
 
 [data-theme-style="minimal-flat"] .sidebar-item:hover .icon,
 [data-theme-style="minimal-flat"] .sidebar-item:hover svg {
-  color: #1F1F1D !important;
+  color: #F4ECE1 !important;
+  opacity: 1 !important;
 }
 
 [data-theme-style="minimal-flat"] .app-sidebar p.font-mono {
-  color: #8A8677 !important;
-  font-weight: 500 !important;
+  color: #8B8090 !important;
+  font-size: 10.5px !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase !important;
+  font-weight: 600 !important;
 }
 
-/* Chuẩn hóa các Badge thương hiệu (HOT, CLOUD, NEW) về đơn sắc trung tính */
-[data-theme-style="minimal-flat"] .app-sidebar span[class*="rounded"] {
-  background: #FAFAF7 !important;
-  border: 1px solid #E5E3DA !important;
-  color: #8A8677 !important;
+/* Sidebar Tags (Hot, Cloud, New) */
+[data-theme-style="minimal-flat"] .app-sidebar span[class*="rounded"],
+[data-theme-style="minimal-flat"] .app-sidebar span.tag {
+  border-radius: 99px !important;
+  font-size: 9.5px !important;
+  letter-spacing: 0.05em !important;
+  font-weight: 600 !important;
+  border: none !important;
   box-shadow: none !important;
-  font-weight: 500 !important;
 }
 
-[data-theme-style="minimal-flat"] .sidebar-item.active span[class*="rounded"] {
-  background: #FAFAF7 !important;
-  color: #D85A30 !important;
-  border-color: #E5E3DA !important;
+[data-theme-style="minimal-flat"] .app-sidebar a[href="/soundcloud"] span[class*="rounded"] {
+  background: rgba(162, 75, 61, 0.25) !important;
+  color: #E8998A !important;
+}
+
+[data-theme-style="minimal-flat"] .app-sidebar a[href="/drive"] span[class*="rounded"] {
+  background: rgba(124, 144, 112, 0.22) !important;
+  color: #AEC29F !important;
+}
+
+[data-theme-style="minimal-flat"] .app-sidebar a[href="/receipt"] span[class*="rounded"] {
+  background: rgba(201, 138, 61, 0.22) !important;
+  color: #E8A94F !important;
 }
 
 /* Các nút Import Playlist trong sidebar */
 [data-theme-style="minimal-flat"] .app-sidebar button[title*="Playlist"],
 [data-theme-style="minimal-flat"] .app-sidebar button[title*="nhập"] {
-  color: #8A8677 !important;
+  color: #B9AC9C !important;
   background: transparent !important;
   border: none !important;
 }
 
 [data-theme-style="minimal-flat"] .app-sidebar button[title*="Playlist"]:hover,
 [data-theme-style="minimal-flat"] .app-sidebar button[title*="nhập"]:hover {
-  color: #1F1F1D !important;
-  background: #FAFAF7 !important;
+  color: #F4ECE1 !important;
+  background: rgba(244, 236, 230, 0.06) !important;
   border-radius: 6px !important;
 }
 
-/* Hero Banner (Nền cam accent #D85A30 đặc sắc & Chữ #FAFAF7) */
+/* Hero Banner (Warm Editorial Gradient & Vinyl Graphic) */
 [data-theme-style="minimal-flat"] .hero-banner {
-  background: #D85A30 !important;
-  border: none !important;
-  border-radius: 12px !important;
-  padding: 1.25rem 1.5rem !important;
+  border-radius: 20px !important;
+  background:
+    radial-gradient(600px 260px at 88% 30%, rgba(201, 138, 61, 0.35), transparent 65%),
+    linear-gradient(120deg, #241A2A, #1A1420 60%) !important;
+  border: 1px solid rgba(244, 236, 230, 0.14) !important;
+  padding: 32px 36px !important;
+  min-height: 190px !important;
+  position: relative !important;
+  overflow: hidden !important;
   box-shadow: none !important;
+}
+
+[data-theme-style="minimal-flat"] .hero-banner::before {
+  content: "" !important;
+  position: absolute !important;
+  right: -40px !important;
+  top: -40px !important;
+  width: 280px !important;
+  height: 280px !important;
+  border-radius: 50% !important;
+  background: radial-gradient(circle at 40% 40%, rgba(232, 169, 79, 0.5), transparent 70%) !important;
+  filter: blur(6px) !important;
+  pointer-events: none !important;
 }
 
 [data-theme-style="minimal-flat"] .hero-banner h1 {
-  font-size: 1.35rem !important;
-  line-height: 1.3 !important;
-  color: #FAFAF7 !important;
+  font-family: var(--font-fraunces), serif !important;
   font-weight: 500 !important;
-  margin-bottom: 0.2rem !important;
+  font-size: 32px !important;
+  line-height: 1.15 !important;
+  color: #F4ECE1 !important;
+  margin-bottom: 10px !important;
 }
 
 [data-theme-style="minimal-flat"] .hero-banner p {
-  font-size: 0.8125rem !important;
-  color: rgba(250, 250, 247, 0.9) !important;
-  font-weight: 400 !important;
+  color: #B9AC9C !important;
+  font-size: 13.5px !important;
+  line-height: 1.6 !important;
 }
 
-/* Nút Upload Fill đặc màu trắng ngà #FAFAF7 chữ cam #D85A30 */
 [data-theme-style="minimal-flat"] .hero-banner .btn-outline-accent {
-  background: #FAFAF7 !important;
-  border: none !important;
-  color: #D85A30 !important;
-  border-radius: 8px !important;
+  margin-top: 14px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  background: #E8A94F !important;
+  color: #2A1704 !important;
+  padding: 10px 18px !important;
+  border-radius: 11px !important;
   font-weight: 600 !important;
-  padding: 0.45rem 1rem !important;
+  font-size: 13px !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(232, 169, 79, 0.3) !important;
 }
 
 [data-theme-style="minimal-flat"] .hero-banner .btn-outline-accent:hover {
-  background: #F1EFE8 !important;
-  color: #D85A30 !important;
+  background: #F4ECE1 !important;
+  color: #2A1704 !important;
 }
 
-/* Media Cards & Showcase (Nền #FAFAF7 nổi bật trên nền trang #F1EFE8) */
+/* Hero Decorative Vinyl */
+[data-theme-style="minimal-flat"] .hero-vinyl-disc {
+  position: relative !important;
+  z-index: 1 !important;
+  width: 150px !important;
+  height: 150px !important;
+  flex: none !important;
+  border-radius: 50% !important;
+  background: repeating-radial-gradient(circle, #100C13 0 2px, #1C1620 2px 4px) !important;
+  border: 1px solid rgba(244, 236, 230, 0.14) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7), 0 0 0 6px rgba(20, 16, 23, 0.4) !important;
+  animation: spin-vinyl 12s linear infinite !important;
+}
+
+[data-theme-style="minimal-flat"] .hero-vinyl-label {
+  width: 60px !important;
+  height: 60px !important;
+  border-radius: 50% !important;
+  background: linear-gradient(150deg, #E8A94F, #A24B3D) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-family: var(--font-fraunces), serif !important;
+  font-style: italic !important;
+  font-size: 10px !important;
+  color: #2A1704 !important;
+  text-align: center !important;
+  line-height: 1.2 !important;
+}
+
+@keyframes spin-vinyl {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Section Heads */
+[data-theme-style="minimal-flat"] h2 {
+  font-family: var(--font-fraunces), serif !important;
+  font-weight: 500 !important;
+  font-size: 21px !important;
+  color: #F4ECE1 !important;
+}
+
+[data-theme-style="minimal-flat"] a[href="/albums"],
+[data-theme-style="minimal-flat"] a[href="/albums"]:hover {
+  color: #E8A94F !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+[data-theme-style="minimal-flat"] .w-7.h-7.rounded-lg {
+  background: rgba(201, 138, 61, 0.15) !important;
+  border: 1px solid rgba(244, 236, 230, 0.1) !important;
+  border-radius: 8px !important;
+}
+
+[data-theme-style="minimal-flat"] .w-7.h-7.rounded-lg svg {
+  color: #E8A94F !important;
+}
+
+/* Media Cards & Grid */
 [data-theme-style="minimal-flat"] .media-card,
 [data-theme-style="minimal-flat"] .tilt-card {
-  background: #FAFAF7 !important;
-  border: 1px solid #E5E3DA !important;
-  border-radius: 8px !important;
-  box-shadow: none !important;
-  transform: none !important;
+  position: relative !important;
+  border-radius: 14px !important;
+  padding: 10px !important;
+  background: linear-gradient(180deg, #251E29, #1D1720) !important;
+  border: 1px solid rgba(244, 236, 230, 0.08) !important;
+  transition: transform 0.2s ease, border-color 0.2s ease !important;
 }
 
 [data-theme-style="minimal-flat"] .media-card:hover,
 [data-theme-style="minimal-flat"] .tilt-card:hover {
-  background: #FAFAF7 !important;
-  border-color: #D85A30 !important;
-  transform: none !important;
+  transform: translateY(-4px) !important;
+  border-color: rgba(244, 236, 230, 0.18) !important;
 }
 
 [data-theme-style="minimal-flat"] .media-card .aspect-square {
-  background: #F1EFE8 !important;
-  border: 1px solid #E5E3DA !important;
-  border-radius: 6px !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  margin-bottom: 10px !important;
+  box-shadow: 0 14px 26px -14px rgba(0, 0, 0, 0.65) !important;
+  background: #1D1720 !important;
+  border: 1px solid rgba(244, 236, 230, 0.08) !important;
 }
 
 [data-theme-style="minimal-flat"] .media-card .aspect-square svg {
-  color: #8A8677 !important;
+  color: #8B8090 !important;
 }
 
 [data-theme-style="minimal-flat"] .media-card img.cover-img {
-  border-radius: 6px !important;
+  border-radius: 10px !important;
 }
 
 [data-theme-style="minimal-flat"] .media-card .cover-overlay {
   display: none !important;
 }
 
-[data-theme-style="minimal-flat"] .media-card .card-title {
-  color: #1F1F1D !important;
-  font-weight: 500 !important;
-}
-
-[data-theme-style="minimal-flat"] .media-card .card-artist {
-  color: #8A8677 !important;
-  font-weight: 400 !important;
-}
-
-/* Badge ALBUM / Single trên ảnh bìa */
 [data-theme-style="minimal-flat"] .badge-glass,
 [data-theme-style="minimal-flat"] .media-card [class*="badge"],
 [data-theme-style="minimal-flat"] [data-media-card] [class*="badge"] {
-  background: #FAFAF7 !important;
-  border: 1px solid #E5E3DA !important;
-  color: #1F1F1D !important;
+  position: absolute !important;
+  top: 8px !important;
+  left: 8px !important;
+  background: rgba(20, 16, 23, 0.72) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  border: 1px solid rgba(244, 236, 230, 0.15) !important;
+  padding: 3px 8px !important;
   border-radius: 6px !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  font-size: 10px !important;
-  font-weight: 500 !important;
-  letter-spacing: 0.05em !important;
+  font-size: 9px !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  font-weight: 600 !important;
+  color: #B9AC9C !important;
 }
 
-/* Floating Play button trên Media Card */
 [data-theme-style="minimal-flat"] .media-card .play-btn {
-  background: #1F1F1D !important;
-  color: #FAFAF7 !important;
-  border-radius: 999px !important;
+  background: #E8A94F !important;
+  color: #2A1704 !important;
+  border-radius: 50% !important;
+  box-shadow: 0 8px 18px -6px rgba(232, 169, 79, 0.7) !important;
   border: none !important;
-  box-shadow: none !important;
 }
 
 [data-theme-style="minimal-flat"] .media-card .play-btn svg {
-  color: #FAFAF7 !important;
-  fill: #FAFAF7 !important;
+  color: #2A1704 !important;
+  fill: #2A1704 !important;
 }
 
-/* Section Header Links & Icons */
-[data-theme-style="minimal-flat"] a[href="/albums"],
-[data-theme-style="minimal-flat"] a[href="/albums"]:hover {
-  background: #FAFAF7 !important;
-  border: 1px solid #E5E3DA !important;
-  color: #D85A30 !important;
-  border-radius: 6px !important;
+[data-theme-style="minimal-flat"] .media-card .card-title {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #F4ECE1 !important;
+  margin-bottom: 2px !important;
+  line-height: 1.3 !important;
 }
 
-[data-theme-style="minimal-flat"] .w-7.h-7.rounded-lg {
-  background: #FAFAF7 !important;
-  border: 1px solid #E5E3DA !important;
-  border-radius: 6px !important;
-  box-shadow: none !important;
+[data-theme-style="minimal-flat"] .media-card .card-artist {
+  font-size: 11.5px !important;
+  color: #8B8090 !important;
 }
 
-[data-theme-style="minimal-flat"] .w-7.h-7.rounded-lg svg {
-  color: #D85A30 !important;
-}
-
-/* Player Bar & Mini Player Bar */
+/* Player Bar */
 [data-theme-style="minimal-flat"] .player-bar,
 [data-theme-style="minimal-flat"] .mini-player-bar {
-  background: #FAFAF7 !important;
-  border-top: 1px solid #E5E3DA !important;
-  border-left: 1px solid #E5E3DA !important;
-  border-right: 1px solid #E5E3DA !important;
-  border-radius: 12px 12px 0 0 !important;
-  color: #1F1F1D !important;
+  background: linear-gradient(180deg, rgba(29, 23, 32, 0.4), #171018 30%) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border-top: 1px solid rgba(244, 236, 230, 0.14) !important;
+  color: #F4ECE1 !important;
 }
 
 [data-theme-style="minimal-flat"] .player-bar .text-white,
 [data-theme-style="minimal-flat"] .player-bar .overflow-marquee-text {
-  color: #1F1F1D !important;
-  font-weight: 500 !important;
+  color: #F4ECE1 !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
 }
 
 [data-theme-style="minimal-flat"] .player-bar .text-slate-400,
 [data-theme-style="minimal-flat"] .player-bar .text-slate-300,
 [data-theme-style="minimal-flat"] .player-bar .text-slate-500 {
-  color: #8A8677 !important;
-  font-weight: 400 !important;
+  color: #8B8090 !important;
+  font-size: 11.5px !important;
 }
 
 [data-theme-style="minimal-flat"] .player-bar .player-cover {
-  background: #F1EFE8 !important;
-  border: 1px solid #E5E3DA !important;
-  border-radius: 6px !important;
-  box-shadow: none !important;
+  border-radius: 9px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(244, 236, 230, 0.14) !important;
+  box-shadow: 0 10px 20px -10px rgba(0, 0, 0, 0.6) !important;
 }
 
 [data-theme-style="minimal-flat"] .player-bar .player-cover img {
-  border-radius: 6px !important;
+  border-radius: 9px !important;
 }
 
-/* Central Play Button (Black Circle, High Contrast) */
+/* Central Play Button (Cream Paper Circle, High Tactility) */
 [data-theme-style="minimal-flat"] .player-play-btn,
 [data-theme-style="minimal-flat"] .player-bar button[aria-label*="Phát"],
 [data-theme-style="minimal-flat"] .player-bar button[aria-label*="Tạm dừng"],
 [data-theme-style="minimal-flat"] .player-bar button[title*="Phát"],
 [data-theme-style="minimal-flat"] .player-bar button[title*="Tạm dừng"],
 [data-theme-style="minimal-flat"] .player-bar .w-10.h-10.rounded-full {
-  background: #1F1F1D !important;
-  color: #FAFAF7 !important;
-  border-radius: 999px !important;
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 50% !important;
+  background: #F4ECE1 !important;
+  color: #141017 !important;
+  box-shadow: 0 10px 20px -8px rgba(244, 236, 230, 0.35) !important;
   border: none !important;
-  box-shadow: none !important;
 }
 
 [data-theme-style="minimal-flat"] .player-bar button[aria-label*="Phát"] svg,
@@ -2881,45 +3008,47 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] .player-bar button[title*="Phát"] svg,
 [data-theme-style="minimal-flat"] .player-bar button[title*="Tạm dừng"] svg,
 [data-theme-style="minimal-flat"] .player-bar .w-10.h-10.rounded-full svg {
-  color: #FAFAF7 !important;
-  fill: #FAFAF7 !important;
+  color: #141017 !important;
+  fill: #141017 !important;
 }
 
 /* Player Controls & Volume */
 [data-theme-style="minimal-flat"] .player-bar button,
 [data-theme-style="minimal-flat"] .mini-player-bar button {
-  color: #1F1F1D !important;
+  color: #B9AC9C !important;
   background: transparent !important;
   border-radius: 8px !important;
 }
 
 [data-theme-style="minimal-flat"] .player-bar button:hover,
 [data-theme-style="minimal-flat"] .mini-player-bar button:hover {
-  background: #F1EFE8 !important;
+  color: #F4ECE1 !important;
+  background: rgba(244, 236, 230, 0.06) !important;
 }
 
 /* Track Row & Song Table */
 [data-theme-style="minimal-flat"] .song-row,
 [data-theme-style="minimal-flat"] tr.track-row,
 [data-theme-style="minimal-flat"] .queue-track-row {
-  border-radius: 8px !important;
+  border-radius: 9px !important;
   background: transparent !important;
-  color: #1F1F1D !important;
+  color: #F4ECE1 !important;
 }
 
 [data-theme-style="minimal-flat"] .song-row:hover,
 [data-theme-style="minimal-flat"] tr.track-row:hover,
 [data-theme-style="minimal-flat"] .queue-track-row:hover {
-  background-color: #F1EFE8 !important;
+  background-color: rgba(244, 236, 230, 0.04) !important;
 }
 
 [data-theme-style="minimal-flat"] .song-row.is-active,
 [data-theme-style="minimal-flat"] tr.track-row.is-active,
 [data-theme-style="minimal-flat"] .queue-track-current {
-  background-color: #F1EFE8 !important;
+  background-color: rgba(201, 138, 61, 0.12) !important;
+  color: #F4ECE1 !important;
 }
 
-/* Text Inputs & Form Controls (Toàn cục: Search, Text Inputs, Passwords, Emails, Textareas, Selects) */
+/* Text Inputs & Form Controls */
 [data-theme-style="minimal-flat"] .search-input,
 [data-theme-style="minimal-flat"] input[type="search"],
 [data-theme-style="minimal-flat"] input[type="text"],
@@ -2927,16 +3056,16 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] input[type="email"],
 [data-theme-style="minimal-flat"] textarea,
 [data-theme-style="minimal-flat"] select {
-  background-color: #FAFAF7 !important;
-  border: 1px solid #E5E3DA !important;
-  border-radius: 8px !important;
-  color: #1F1F1D !important;
+  background-color: #1D1720 !important;
+  border: 1px solid rgba(244, 236, 230, 0.08) !important;
+  border-radius: 12px !important;
+  color: #F4ECE1 !important;
 }
 
 [data-theme-style="minimal-flat"] .search-input::placeholder,
 [data-theme-style="minimal-flat"] input::placeholder,
 [data-theme-style="minimal-flat"] textarea::placeholder {
-  color: #8A8677 !important;
+  color: #8B8090 !important;
 }
 
 [data-theme-style="minimal-flat"] .search-input:focus,
@@ -2946,24 +3075,24 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] input[type="email"]:focus,
 [data-theme-style="minimal-flat"] textarea:focus,
 [data-theme-style="minimal-flat"] select:focus {
-  border-color: #D85A30 !important;
+  border-color: #E8A94F !important;
 }
 
 /* Modals & Dialogs */
 [data-theme-style="minimal-flat"] .modal-overlay,
 [data-theme-style="minimal-flat"] [data-dialog-overlay] {
-  background-color: rgba(0, 0, 0, 0.45) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  background-color: rgba(20, 16, 23, 0.75) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
 }
 
 [data-theme-style="minimal-flat"] .modal-content,
 [data-theme-style="minimal-flat"] [data-dialog-content],
 [data-theme-style="minimal-flat"] .dialog-panel {
-  background-color: #FAFAF7 !important;
-  border: 1px solid #E5E3DA !important;
-  border-radius: 12px !important;
-  color: #1F1F1D !important;
+  background-color: #1D1720 !important;
+  border: 1px solid rgba(244, 236, 230, 0.14) !important;
+  border-radius: 20px !important;
+  color: #F4ECE1 !important;
 }
 
 

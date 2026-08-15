@@ -85,27 +85,29 @@ describe('Minimal Flat Theme Behavioral & DOM Tests', () => {
     expect(THEMES).toBeDefined()
   })
 
-  it('verifies minimal flat token values match design spec', () => {
+  it('verifies minimal editorial token values match design spec', () => {
     const TOKENS = {
-      bgSpace: '#F1EFE8',
-      bgSurface1: '#FAFAF7',
-      borderSubtle: '#E5E3DA',
-      textPrimary: '#1F1F1D',
-      textSecondary: '#8A8677',
-      accent: '#D85A30',
-      radiusSm: '6px',
-      radiusMd: '8px',
-      radiusLg: '12px',
+      bgSpace: '#141017',
+      bgSurface1: '#1D1720',
+      textPrimary: '#F4ECE1',
+      textSecondary: '#B9AC9C',
+      textMuted: '#8B8090',
+      accent: '#C98A3D',
+      accentStrong: '#E8A94F',
+      radiusSm: '9px',
+      radiusMd: '14px',
+      radiusLg: '20px',
     }
 
-    expect(TOKENS.bgSpace).toBe('#F1EFE8')
-    expect(TOKENS.bgSurface1).toBe('#FAFAF7')
-    expect(TOKENS.borderSubtle).toBe('#E5E3DA')
-    expect(TOKENS.textPrimary).toBe('#1F1F1D')
-    expect(TOKENS.textSecondary).toBe('#8A8677')
-    expect(TOKENS.accent).toBe('#D85A30')
-    expect(TOKENS.radiusSm).toBe('6px')
-    expect(TOKENS.radiusMd).toBe('8px')
-    expect(TOKENS.radiusLg).toBe('12px')
+    expect(TOKENS.bgSpace).toBe('#141017')
+    expect(TOKENS.bgSurface1).toBe('#1D1720')
+    expect(TOKENS.textPrimary).toBe('#F4ECE1')
+    expect(TOKENS.textSecondary).toBe('#B9AC9C')
+    expect(TOKENS.textMuted).toBe('#8B8090')
+    expect(TOKENS.accent).toBe('#C98A3D')
+    expect(TOKENS.accentStrong).toBe('#E8A94F')
+    expect(TOKENS.radiusSm).toBe('9px')
+    expect(TOKENS.radiusMd).toBe('14px')
+    expect(TOKENS.radiusLg).toBe('20px')
   })
 })

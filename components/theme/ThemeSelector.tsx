@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { useTheme, THEMES, ThemeId, ThemeStyle } from './ThemeContext'
-import { Palette, Check, MousePointer, Sparkles, Sliders, Eye, Waves, Square } from 'lucide-react'
+import { Palette, Check, MousePointer, Sparkles, Sliders, Eye, Waves, Square, Disc } from 'lucide-react'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { CURSOR_CONFIGS } from '@/lib/cursors'
 import { RefractionMode } from '@/lib/theme/liquidGlassFilters'
@@ -126,13 +126,13 @@ export function ThemeSelector() {
             )}
           </button>
 
-          {/* Minimal Flat Option */}
+          {/* Minimal Editorial Option */}
           <button
             onClick={() => setThemeStyle('minimal-flat')}
             style={
               themeStyle === 'minimal-flat'
                 ? {
-                    outline: '2px solid #D85A30',
+                    outline: '2px solid #E8A94F',
                     outlineOffset: '-1px',
                     transform: 'scale(1.02)',
                   }
@@ -140,25 +140,25 @@ export function ThemeSelector() {
             }
             className={`relative flex items-center gap-3.5 p-4 rounded-2xl transition-all cursor-pointer text-left border ${
               themeStyle === 'minimal-flat'
-                ? 'border-[#D85A30] bg-[#FAFAF7] text-[#1F1F1D]'
+                ? 'border-[#E8A94F] bg-[#1D1720] text-[#F4ECE1]'
                 : 'border-white/[0.06] bg-[var(--elevation-2-bg)] hover:bg-white/[0.06] hover:border-white/15'
             }`}
           >
-            <div className="w-10 h-10 rounded-xl bg-[#D85A30]/15 border border-[#D85A30]/30 flex items-center justify-center shrink-0">
-              <Square className="w-5 h-5 text-[#D85A30]" />
+            <div className="w-10 h-10 rounded-xl bg-[#E8A94F]/15 border border-[#E8A94F]/30 flex items-center justify-center shrink-0">
+              <Disc className="w-5 h-5 text-[#E8A94F]" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <p className={`font-bold text-xs truncate ${themeStyle === 'minimal-flat' ? 'text-[#1F1F1D]' : 'text-white'}`}>Minimal Flat</p>
-                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-[#D85A30]/20 text-[#D85A30] border border-[#D85A30]/30 shrink-0">
-                  LIGHT
+                <p className={`font-bold text-xs truncate ${themeStyle === 'minimal-flat' ? 'text-[#F4ECE1]' : 'text-white'}`}>Minimal Editorial</p>
+                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-[#E8A94F]/20 text-[#E8A94F] border border-[#E8A94F]/30 shrink-0">
+                  VINYL
                 </span>
               </div>
-              <p className={`text-[11px] line-clamp-2 mt-0.5 ${themeStyle === 'minimal-flat' ? 'text-[#8A8677]' : 'text-slate-400'}`}>Tối giản mộc mạc, không bóng đổ, viền 1px</p>
+              <p className={`text-[11px] line-clamp-2 mt-0.5 ${themeStyle === 'minimal-flat' ? 'text-[#B9AC9C]' : 'text-slate-400'}`}>Đĩa than cổ điển, font Fraunces, hổ phách ấm</p>
             </div>
             {themeStyle === 'minimal-flat' && (
               <div
-                className="w-4 h-4 rounded-full flex items-center justify-center text-[#FAFAF7] bg-[#D85A30] shrink-0"
+                className="w-4 h-4 rounded-full flex items-center justify-center text-[#141017] bg-[#E8A94F] shrink-0"
               >
                 <Check className="w-2.5 h-2.5 stroke-[3]" />
               </div>

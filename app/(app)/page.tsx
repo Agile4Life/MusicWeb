@@ -673,28 +673,39 @@ export default function HomePage() {
 
   return (
     <div className="px-2 py-3 xs:px-3 sm:p-6 lg:p-8 flex flex-col gap-3.5 sm:gap-6 lg:gap-8 max-w-7xl mx-auto w-full pb-36 lg:pb-32 select-none">
-      {/* High-Impact Clean Hero Card */}
-      <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.06] p-3.5 sm:p-6 md:p-8 lg:p-10">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 lg:gap-6">
-          <div className="flex flex-col gap-1.5 sm:gap-2 max-w-xl">
-            <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-extrabold text-white tracking-tight leading-tight">
+      {/* High-Impact Clean Hero Card with Editorial Vinyl Element */}
+      <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.06] p-4 sm:p-6 md:p-8">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 lg:gap-6 relative z-10">
+          <div className="hero-copy flex flex-col gap-1.5 sm:gap-2 max-w-xl">
+            <span className="eyebrow text-[11px] font-mono tracking-widest uppercase font-semibold text-[var(--accent-strong,#E8A94F)]">
+              Thư viện âm nhạc của bạn
+            </span>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-serif font-medium text-white tracking-tight leading-tight">
               Xin chào{user ? `, ${user.user_metadata?.full_name || user.email?.split('@')[0]}` : ''}
             </h1>
-            <p className="text-xs lg:text-sm text-slate-400 leading-relaxed">
-              Khám phá và nghe những bài hát yêu thích từ một thư viện âm nhạc thống nhất.
+            <p className="text-xs lg:text-sm text-slate-400 leading-relaxed max-w-md">
+              Khám phá và nghe những bài hát yêu thích, được gom về từ một thư viện âm nhạc thống nhất.
             </p>
+            <div className="flex items-center gap-3 mt-2">
+              {isAdmin && (
+                <Link
+                  href="/upload"
+                  className="btn-outline-accent font-bold px-4 py-2 rounded-xl flex items-center gap-2 text-xs"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Upload bài hát</span>
+                </Link>
+              )}
+            </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
-            {isAdmin && (
-              <Link
-                href="/upload"
-                className="btn-outline-accent font-bold px-4 py-2.5 rounded-full flex items-center gap-2 text-xs"
-              >
-                <Upload className="w-3.5 h-3.5" />
-                <span>Upload</span>
-              </Link>
-            )}
+          {/* Editorial Decorative Vinyl Disc */}
+          <div className="hero-vinyl hidden md:flex items-center justify-center shrink-0">
+            <div className="hero-vinyl-disc">
+              <div className="hero-vinyl-label font-serif italic text-[11px] font-semibold text-center leading-tight">
+                Now<br />Spinning
+              </div>
+            </div>
           </div>
         </div>
       </div>
