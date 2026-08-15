@@ -280,17 +280,6 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
     if (importingRef.current) return
     importingRef.current = true
     try {
-      if (!userEmail) {
-        alert('Vui lòng đăng nhập để lưu playlist vào tài khoản cá nhân!')
-        return
-      }
-
-      const activeUserId = getValidUserId({ id: userEmail, email: userEmail })
-      if (!activeUserId) {
-        alert('Không tìm thấy thông tin người dùng hợp lệ!')
-        return
-      }
-
       const tracksToImport = importResults.filter(
         (r) => selectedIds.has(r.spotify_id) && r.matchedTrack !== null
       )
@@ -303,29 +292,27 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
       setStep('importing')
       setImportingProgress({ done: 0, total: tracksToImport.length })
 
-      try {
       // 1. Create Playlist row
-      const { data: newPlaylist, error: plError } = await supabase
-        .from('playlists')
-        .insert({
-          user_id: activeUserId,
-          name: playlistName.trim() || meta?.name || 'Spotify Playlist Import',
+      const finalPlName = playlistName.trim() || meta?.name || 'Spotify Playlist Import'
+      const createRes = await fetch('/api/playlists/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: finalPlName,
           description: meta?.description
             ? `${meta.description} (Imported from Spotify)`
             : 'Imported from Spotify',
-          cover_url: meta?.cover_url || null,
-          is_public: false,
-        })
-        .select()
-        .single()
-
-      if (plError || !newPlaylist) {
-        alert('Lỗi tạo playlist trong CSDL: ' + (plError?.message || ''))
-        setStep('review')
-        return
+          coverUrl: meta?.cover_url || null,
+          isPublic: false,
+        }),
+      })
+      const createResult = await createRes.json()
+      if (!createRes.ok || !createResult.playlist) {
+        throw new Error(createResult.error || 'Không thể tạo playlist mới trong CSDL.')
       }
 
-      setCreatedPlaylistId(newPlaylist.id)
+      const targetPlaylistId = createResult.playlist.id
+      setCreatedPlaylistId(targetPlaylistId)
 
       // 2. Insert tracks and link in playlist_tracks
       let successCount = 0
@@ -338,63 +325,28 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
           album: item.spotifyTrack.album || matched.album,
         }
         const resolvedTrack = await resolvePlaylistTrackWithNct(candidate)
-        let dbTrackId: string | null = null
 
-        // NCT identity is stable; fallback tracks use their original file path.
-        if (resolvedTrack.nhaccuatui_id) {
-          const { data: existingNctTrack } = await supabase
-            .from('tracks')
-            .select('id')
-            .eq('nhaccuatui_id', resolvedTrack.nhaccuatui_id)
-            .limit(1)
-          if (existingNctTrack && existingNctTrack.length > 0) dbTrackId = existingNctTrack[0].id
-        }
-
-        if (!dbTrackId && resolvedTrack.file_path) {
-          const { data: existingTrack } = await supabase
-            .from('tracks')
-            .select('id')
-            .eq('file_path', resolvedTrack.file_path)
-            .limit(1)
-          if (existingTrack && existingTrack.length > 0) dbTrackId = existingTrack[0].id
-        }
-
-        if (!dbTrackId) {
-          // Insert new track
-          const { data: inserted, error: trackInsertErr } = await supabase
-            .from('tracks')
-            .insert({
-              user_id: activeUserId,
+        const res = await fetch('/api/playlist-tracks/import-track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            playlistId: targetPlaylistId,
+            position: i,
+            track: {
               title: resolvedTrack.title,
               artist: resolvedTrack.artist || item.spotifyTrack.artist,
               album: resolvedTrack.album || item.spotifyTrack.album || 'Spotify Import',
               duration: resolvedTrack.duration || item.spotifyTrack.duration || 0,
-              file_path: resolvedTrack.file_path,
-              cover_url: resolvedTrack.cover_url || item.spotifyTrack.cover_url,
+              filePath: resolvedTrack.file_path,
+              coverUrl: resolvedTrack.cover_url || item.spotifyTrack.cover_url,
               source: resolvedTrack.source || null,
-              youtube_id: resolvedTrack.youtube_id || null,
-              spotify_id: resolvedTrack.nhaccuatui_id ? null : resolvedTrack.spotify_id || item.spotify_id,
-              nhaccuatui_id: resolvedTrack.nhaccuatui_id || null,
-              created_at: new Date().toISOString(),
-            })
-            .select('id')
-            .single()
-
-          if (inserted && !trackInsertErr) {
-            dbTrackId = inserted.id
-          }
-        }
-
-        if (dbTrackId) {
-          // Link track to playlist
-          await supabase.from('playlist_tracks').insert({
-            playlist_id: newPlaylist.id,
-            track_id: dbTrackId,
-            position: i,
-          })
-          successCount++
-        }
-
+              youtubeId: resolvedTrack.youtube_id || null,
+              spotifyId: resolvedTrack.nhaccuatui_id ? null : resolvedTrack.spotify_id || item.spotify_id,
+              nhaccuatuiId: resolvedTrack.nhaccuatui_id || null,
+            },
+          }),
+        })
+        if (res.ok) successCount++
         setImportingProgress({ done: i + 1, total: tracksToImport.length })
       }
 
@@ -406,7 +358,6 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
       console.error('Import DB error:', err)
       alert('Có lỗi xảy ra trong quá trình lưu dữ liệu: ' + err?.message)
       setStep('review')
-    }
     } finally {
       importingRef.current = false
     }

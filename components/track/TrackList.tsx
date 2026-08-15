@@ -105,24 +105,28 @@ export function TrackList({
 
       const targetIds = Array.from(selectedIds)
 
-      const { error } = await supabase
-        .from('tracks')
-        .update(updates)
-        .in('id', targetIds)
+      const res = await fetch('/api/tracks/bulk-update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetIds, updates }),
+      })
+      const result = await res.json()
 
-      if (error) {
-        alert('Lỗi cập nhật DB: ' + error.message)
+      if (!res.ok) {
+        alert('Lỗi sửa hàng loạt: ' + (result.error || 'Không xác định'))
         return
       }
 
+      const updatedIds: string[] = result.updatedIds || targetIds
+
       // Notify parent or update local state
       if (onBulkUpdated) {
-        onBulkUpdated(targetIds, {
+        onBulkUpdated(updatedIds, {
           ...(updateArtist ? { artist: bulkArtist.trim() || undefined } : {}),
           ...(updateAlbum ? { album: bulkAlbum.trim() || undefined } : {}),
         })
       } else if (onTrackUpdated) {
-        targetIds.forEach((id) => {
+        updatedIds.forEach((id) => {
           onTrackUpdated(id, {
             ...(updateArtist ? { artist: bulkArtist.trim() || undefined } : {}),
             ...(updateAlbum ? { album: bulkAlbum.trim() || undefined } : {}),
@@ -130,7 +134,11 @@ export function TrackList({
         })
       }
 
-      alert(`✅ Đã cập nhật ${targetIds.length} bài hát thành công!`)
+      if (result.deniedIds && result.deniedIds.length > 0) {
+        alert(`✅ Đã cập nhật ${updatedIds.length} bài hát của bạn. (${result.deniedIds.length} bài hát không thuộc quyền sở hữu đã được bỏ qua).`)
+      } else {
+        alert(`✅ Đã cập nhật ${updatedIds.length} bài hát thành công!`)
+      }
       setShowBulkModal(false)
       setSelectedIds(new Set())
       setBulkArtist('')

@@ -170,139 +170,64 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
       setStep('importing')
       setImportingProgress({ done: 0, total: tracksToImport.length })
 
-      try {
-        const userObj = userEmail ? { id: userEmail, email: userEmail } : null
-        const userId = userObj ? getValidUserId(userObj) : null
-
-        if (!userId) {
-          alert('Vui lòng đăng nhập để tạo playlist.')
-          setStep('review')
-          return
-        }
-
-        // Create new playlist in DB
-        const { data: playlistData, error: playlistErr } = await supabase
-          .from('playlists')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('name', playlistName.trim() || meta?.title || 'YouTube Playlist Import')
-          .maybeSingle()
-
-        let targetPlaylistId = playlistData?.id
-
-        if (!targetPlaylistId) {
-          const { data: newPl, error: createErr } = await supabase
-            .from('playlists')
-            .insert({
-              user_id: userId,
-              name: playlistName.trim() || meta?.title || 'YouTube Playlist Import',
-              description: meta?.description
-                ? `${meta.description} (Imported from YouTube Music)`
-                : 'Imported from YouTube Music',
-              cover_url: meta?.cover_url || null,
-            })
-            .select('id')
-            .single()
-
-          if (createErr || !newPl) {
-            throw new Error(createErr?.message || 'Không thể tạo playlist mới trong CSDL.')
-          }
-          targetPlaylistId = newPl.id
-        }
-
-        setCreatedPlaylistId(targetPlaylistId)
-
-        // Insert tracks into DB and playlist_tracks (kept sourced from YouTube Music)
-        let successCount = 0
-        for (let i = 0; i < tracksToImport.length; i++) {
-          const track = tracksToImport[i]
-          let dbTrackId: string | null = null
-
-          // 1. Look up existing track in DB by YouTube identity.
-          if (track.youtube_id) {
-            const { data } = await supabase
-              .from('tracks')
-              .select('id')
-              .eq('youtube_id', track.youtube_id)
-              .limit(1)
-            if (data && data.length > 0) dbTrackId = data[0].id
-          }
-
-          if (!dbTrackId && track.file_path) {
-            const { data } = await supabase
-              .from('tracks')
-              .select('id')
-              .eq('file_path', track.file_path)
-              .limit(1)
-            if (data && data.length > 0) dbTrackId = data[0].id
-          }
-
-          // 2. If track does not exist in DB yet, insert the YouTube record.
-          if (!dbTrackId) {
-            const { data: insertedTrack, error: insertErr } = await supabase
-              .from('tracks')
-              .insert({
-                user_id: userId,
-                title: track.title,
-                artist: track.artist,
-                album: track.album || 'YouTube Music',
-                duration: track.duration || 0,
-                file_path: track.file_path,
-                cover_url: track.cover_url,
-                source: 'youtube',
-                youtube_id: track.youtube_id || null,
-              })
-              .select('id')
-              .single()
-
-            if (insertedTrack?.id) {
-              dbTrackId = insertedTrack.id
-            } else if (insertErr) {
-              console.warn('Track insert warning, attempting re-fetch:', insertErr)
-              if (track.youtube_id) {
-                const { data: refetched } = await supabase
-                  .from('tracks')
-                  .select('id')
-                  .eq('youtube_id', track.youtube_id)
-                  .limit(1)
-                if (refetched && refetched.length > 0) dbTrackId = refetched[0].id
-              }
-            }
-          }
-
-          // 3. Link track to playlist_tracks using valid DB track UUID
-          if (dbTrackId) {
-            const { error: plLinkErr } = await supabase
-              .from('playlist_tracks')
-              .insert({
-                playlist_id: targetPlaylistId,
-                track_id: dbTrackId,
-                position: i,
-              })
-
-            if (!plLinkErr) {
-              successCount++
-            } else {
-              console.warn('playlist_tracks link warning:', plLinkErr)
-              // If link failed (e.g. duplicate link), still count as success if link exists
-              successCount++
-            }
-          }
-
-          setImportingProgress({ done: i + 1, total: tracksToImport.length })
-        }
-
-        setImportedTrackCount(successCount)
-        await refreshPlaylists()
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new Event('playlist-updated'))
-        }
-        setStep('complete')
-      } catch (err: any) {
-        console.error('Import YouTube playlist error:', err)
-        alert(`Có lỗi xảy ra khi nhập playlist: ${err?.message || err}`)
-        setStep('review')
+      // 1. Create new playlist in DB
+      const finalPlName = playlistName.trim() || meta?.title || 'YouTube Playlist Import'
+      const createRes = await fetch('/api/playlists/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: finalPlName,
+          description: meta?.description
+            ? `${meta.description} (Imported from YouTube Music)`
+            : 'Imported from YouTube Music',
+          coverUrl: meta?.cover_url || null,
+          isPublic: false,
+        }),
+      })
+      const createResult = await createRes.json()
+      if (!createRes.ok || !createResult.playlist) {
+        throw new Error(createResult.error || 'Không thể tạo playlist mới trong CSDL.')
       }
+
+      const targetPlaylistId = createResult.playlist.id
+      setCreatedPlaylistId(targetPlaylistId)
+
+      // 2. Insert tracks and link in playlist_tracks
+      let successCount = 0
+      for (let i = 0; i < tracksToImport.length; i++) {
+        const track = tracksToImport[i]
+        const res = await fetch('/api/playlist-tracks/import-track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            playlistId: targetPlaylistId,
+            position: i,
+            track: {
+              title: track.title,
+              artist: track.artist,
+              album: track.album || 'YouTube Music',
+              duration: track.duration || 0,
+              filePath: track.file_path,
+              coverUrl: track.cover_url,
+              source: 'youtube',
+              youtubeId: track.youtube_id || null,
+            },
+          }),
+        })
+        if (res.ok) successCount++
+        setImportingProgress({ done: i + 1, total: tracksToImport.length })
+      }
+
+      setImportedTrackCount(successCount)
+      await refreshPlaylists()
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('playlist-updated'))
+      }
+      setStep('complete')
+    } catch (err: any) {
+      console.error('Import YouTube playlist error:', err)
+      alert(`Có lỗi xảy ra khi nhập playlist: ${err?.message || err}`)
+      setStep('review')
     } finally {
       importingRef.current = false
     }

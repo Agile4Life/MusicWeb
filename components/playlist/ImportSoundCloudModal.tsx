@@ -186,119 +186,62 @@ export function ImportSoundCloudModal({
   const handleConfirmImport = async () => {
     if (importingRef.current) return
     importingRef.current = true
-
     try {
       const tracksToImport = fetchedTracks.filter((t) => selectedTrackIds.has(t.id))
       if (tracksToImport.length === 0) {
         alert('Vui lòng chọn ít nhất 1 bài hát để nhập vào playlist.')
         return
       }
-
       setStep('importing')
       setImportingProgress({ done: 0, total: tracksToImport.length })
 
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser()
-
-      const activeEmail = currentUser?.email || userEmail || nextAuthSession?.user?.email
-      const activeUser = currentUser || (activeEmail ? { id: activeEmail, email: activeEmail } : null)
-      const userId = activeUser ? getValidUserId(activeUser) : null
-
-      if (!userId) {
-        alert('Vui lòng đăng nhập để tạo playlist cá nhân!')
-        setStep('review')
-        return
-      }
-
-      // 1. Create new playlist in DB
+      // 👉 1. TẠO PLAYLIST MỚI (qua API route)
       const finalPlName = playlistName.trim() || playlistMeta?.title || 'SoundCloud Playlist'
-      const { data: newPl, error: createErr } = await supabase
-        .from('playlists')
-        .insert({
-          user_id: userId,
+      const createRes = await fetch('/api/playlists/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           name: finalPlName,
           description: playlistMeta?.user?.username
             ? `Playlist từ ${playlistMeta.user.username} (SoundCloud)`
             : 'Imported from SoundCloud',
-          cover_url: playlistMeta?.artwork_url || tracksToImport[0]?.cover_url || null,
-          is_public: false,
-        })
-        .select()
-        .single()
-
-      if (createErr || !newPl) {
-        throw new Error(createErr?.message || 'Không thể tạo playlist mới trong CSDL.')
+          coverUrl: playlistMeta?.artwork_url || tracksToImport[0]?.cover_url || null,
+          isPublic: false,
+        }),
+      })
+      const createResult = await createRes.json()
+      if (!createRes.ok || !createResult.playlist) {
+        throw new Error(createResult.error || 'Không thể tạo playlist mới trong CSDL.')
       }
-
-      const targetPlaylistId = newPl.id
+      const targetPlaylistId = createResult.playlist.id
       setCreatedPlaylistId(targetPlaylistId)
 
-      // 2. Insert tracks and link to playlist_tracks in order
+      // 👉 2. IMPORT TỪNG TRACK (qua API route, giữ nguyên logic tính filePath cũ)
       let successCount = 0
-
       for (let i = 0; i < tracksToImport.length; i++) {
         const track = tracksToImport[i]
-        let dbTrackId: string | null = null
-
         const rawScId = track.soundcloud_id || (track.id?.startsWith('sc-') ? track.id.slice(3) : null)
         const permalink = track.soundcloud_permalink_url || track.file_path || ''
+        const filePath = permalink || (rawScId ? `soundcloud:${rawScId}` : `sc:${Date.now()}-${i}`)
 
-        // Check if track exists in tracks table
-        if (permalink) {
-          const { data } = await supabase
-            .from('tracks')
-            .select('id')
-            .eq('file_path', permalink)
-            .limit(1)
-          if (data && data.length > 0 && data[0].id) dbTrackId = data[0].id
-        }
-
-        if (!dbTrackId && rawScId) {
-          const { data } = await supabase
-            .from('tracks')
-            .select('id')
-            .eq('file_path', `soundcloud:${rawScId}`)
-            .limit(1)
-          if (data && data.length > 0 && data[0].id) dbTrackId = data[0].id
-        }
-
-        // Insert track if not exists
-        if (!dbTrackId) {
-          const fallbackPath = permalink || (rawScId ? `soundcloud:${rawScId}` : `sc:${Date.now()}`)
-          const { data: insertedTrack } = await supabase
-            .from('tracks')
-            .insert({
-              user_id: userId,
+        const res = await fetch('/api/playlist-tracks/import-track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            playlistId: targetPlaylistId,
+            position: i + 1,
+            track: {
               title: track.title || 'SoundCloud Track',
               artist: track.artist || 'SoundCloud Artist',
               album: track.album || playlistMeta?.title || 'SoundCloud Single',
               duration: track.duration || 0,
-              file_path: fallbackPath,
-              cover_url: track.cover_url || null,
+              coverUrl: track.cover_url || null,
               source: 'soundcloud',
-              created_at: new Date().toISOString(),
-            })
-            .select('id')
-            .single()
-
-          if (insertedTrack && insertedTrack.id) {
-            dbTrackId = insertedTrack.id
-          }
-        }
-
-        // Add to playlist_tracks
-        if (dbTrackId) {
-          const { error: linkErr } = await supabase.from('playlist_tracks').insert({
-            playlist_id: targetPlaylistId,
-            track_id: dbTrackId,
-            position: i + 1,
-          })
-
-          if (!linkErr) {
-            successCount++
-          }
-        }
+              filePath,
+            },
+          }),
+        })
+        if (res.ok) successCount++
 
         setImportingProgress({ done: i + 1, total: tracksToImport.length })
       }

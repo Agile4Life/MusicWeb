@@ -2,7 +2,7 @@ import { QueueTrack, NextQueueResponse } from '@/types/queue'
 import { getDeezerArtistRadio, getDeezerRelatedArtistsTopTracks, getDeezerArtistTopTracks } from './deezer'
 import { searchSpotifyTracks } from './spotify'
 import { removeDiacritics } from './smartRecommend'
-import { createClient } from './supabase/server'
+import { adminClient } from '@/lib/serverUser'
 import { isOriginalTrackOnly } from './youtube'
 
 /**
@@ -53,7 +53,7 @@ export async function getInternalCollaborativeCandidates(
   userId?: string
 ): Promise<QueueTrack[]> {
   try {
-    const supabase = await createClient()
+    const supabase = adminClient
     const { data, error } = await supabase.rpc('fn_get_collaborative_candidates', {
       p_track_id: seedTrackId,
       p_user_id: userId || null,
@@ -134,7 +134,7 @@ export async function getFrequentlySkippedTrackIds(userId?: string): Promise<Set
   if (!userId) return skippedSet
 
   try {
-    const supabase = await createClient()
+    const supabase = adminClient
     const { data, error } = await supabase.rpc('fn_get_frequently_skipped_tracks', {
       p_user_id: userId,
       p_days: 30,

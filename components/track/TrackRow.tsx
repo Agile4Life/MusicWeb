@@ -251,26 +251,36 @@ function TrackRowComponent({
   const handleSaveEdit = async () => {
     setSaving(true)
     const newTitle = editTitle.trim() || track.title
-    const { error } = await supabase
-      .from('tracks')
-      .update({
-        title: newTitle,
-        artist: editArtist.trim() || null,
-        album: editAlbum.trim() || null,
-      })
-      .eq('id', track.id)
+    const newArtist = editArtist.trim() || null
+    const newAlbum = editAlbum.trim() || null
 
-    if (!error) {
-      onTrackUpdated?.(track.id, {
-        title: newTitle,
-        artist: editArtist.trim() || undefined,
-        album: editAlbum.trim() || undefined,
+    try {
+      const res = await fetch(`/api/tracks/${track.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newTitle,
+          artist: newArtist,
+          album: newAlbum,
+        }),
       })
-      setEditMode(false)
-    } else {
-      alert('Lỗi cập nhật: ' + error.message)
+
+      if (res.ok) {
+        onTrackUpdated?.(track.id, {
+          title: newTitle,
+          artist: newArtist || undefined,
+          album: newAlbum || undefined,
+        })
+        setEditMode(false)
+      } else {
+        const errData = await res.json().catch(() => ({}))
+        alert('Lỗi sửa track: ' + (errData.error || 'Không xác định'))
+      }
+    } catch (err: any) {
+      alert('Lỗi sửa track: ' + (err?.message || 'Lỗi mạng'))
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   const handleCancelEdit = () => {

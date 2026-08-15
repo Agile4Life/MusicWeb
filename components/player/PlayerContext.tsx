@@ -1469,9 +1469,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           track.youtube_id = resolved.id
           const isValidUUID = (id?: string) => Boolean(id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))
           if (isValidUUID(track.id)) {
-            supabase.from('tracks').update({ youtube_id: resolved.id }).eq('id', track.id).then((res: any) => {
-              if (res?.error) console.warn('Failed to persist youtube_id:', res.error.message)
-            })
+            fetch(`/api/tracks/${track.id}/cache-meta`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ youtube_id: resolved.id }),
+            }).catch(() => {})
           }
         }
 
@@ -2093,7 +2095,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (currentTrackRef.current && loadedDuration > 0 && (!currentTrackRef.current.duration || currentTrackRef.current.duration === 0)) {
           const trackId = currentTrackRef.current.id
           currentTrackRef.current.duration = Math.round(loadedDuration)
-          supabase.from('tracks').update({ duration: Math.round(loadedDuration) }).eq('id', trackId).then(() => {})
+          const isValidUUID = (id?: string) => Boolean(id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))
+          if (isValidUUID(trackId)) {
+            fetch(`/api/tracks/${trackId}/cache-meta`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ duration: Math.round(loadedDuration) }),
+            }).catch(() => {})
+          }
         }
       }
     }

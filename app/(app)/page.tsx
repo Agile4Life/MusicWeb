@@ -496,10 +496,11 @@ export default function HomePage() {
         }
 
         if (isInvalid) {
-          await supabase.from('playlist_tracks').delete().eq('track_id', track.id)
-          await supabase.from('favorite_tracks').delete().eq('track_id', track.id)
-          await supabase.from('listening_history').delete().eq('track_id', track.id)
-          await supabase.from('tracks').delete().eq('id', track.id)
+          await fetch('/api/tracks/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ trackIds: [track.id] }),
+          }).catch(() => {})
           deletedCount++
           processedCount++
           setCleanStatusText(`Đang dọn (${processedCount}/${total})...`)
@@ -518,30 +519,27 @@ export default function HomePage() {
             const controller = new AbortController()
             const timeoutId = setTimeout(() => controller.abort(), 3000)
             const viewRes = await fetch(`https://drive.google.com/file/d/${driveFileId}/view`, {
-              headers: {
-                'User-Agent':
-                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-              },
-              cache: 'no-store',
               signal: controller.signal,
             })
             clearTimeout(timeoutId)
 
             if (viewRes.ok) {
               const html = await viewRes.text()
-              const ogMatch =
-                html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
-                html.match(/<title>([^<]+?)(?:\s*-\s*Google Drive)?<\/title>/i)
+              const ogTitleMatch = html.match(/<meta property="og:title" content="([^"]+)"/i)
+              if (ogTitleMatch && ogTitleMatch[1]) {
+                let filename = ogTitleMatch[1].trim()
+                filename = filename.replace(/\.(mp3|m4a|wav|flac|aac|ogg|opus|webm)$/i, '').trim()
 
-              if (ogMatch && ogMatch[1]) {
-                const rawName = ogMatch[1].replace(/\s*-\s*Google Drive$/i, '').trim()
-                if (rawName && rawName !== 'Google Drive' && !rawName.toLowerCase().includes('google drive')) {
-                  const { title: newTitle, artist: newArtist } = parseFilenameToTitleArtist(rawName)
-                  const updates: Partial<Track> = {}
+                let newTitle = filename
+                let newArtist = ''
+                if (filename.includes(' - ')) {
+                  const parts = filename.split(' - ')
+                  newArtist = parts[0].trim()
+                  newTitle = parts.slice(1).join(' - ').trim()
+                }
 
-                  if (newTitle && (/^Bài hát \d+$/i.test(track.title.trim()) || !track.title)) {
-                    updates.title = newTitle
-                  }
+                if (newTitle) {
+                  const updates: Record<string, any> = { title: newTitle }
                   if (newArtist && newArtist !== 'Chưa rõ nghệ sĩ' && (track.artist === 'Chưa rõ nghệ sĩ' || !track.artist)) {
                     updates.artist = newArtist
                   }
@@ -550,7 +548,11 @@ export default function HomePage() {
                   }
 
                   if (Object.keys(updates).length > 0) {
-                    await supabase.from('tracks').update(updates).eq('id', track.id)
+                    await fetch(`/api/tracks/${track.id}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(updates),
+                    }).catch(() => {})
                     repairedCount++
                   }
                 }
@@ -565,7 +567,11 @@ export default function HomePage() {
         if (track.title && leadingNumRegex.test(track.title)) {
           const cleanTitle = track.title.replace(leadingNumRegex, '').trim()
           if (cleanTitle && cleanTitle !== track.title) {
-            await supabase.from('tracks').update({ title: cleanTitle }).eq('id', track.id)
+            await fetch(`/api/tracks/${track.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ title: cleanTitle }),
+            }).catch(() => {})
             repairedCount++
           }
         }
