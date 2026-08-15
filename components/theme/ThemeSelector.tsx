@@ -27,6 +27,22 @@ export function ThemeSelector() {
     { id: 'shader', name: 'Shader SDF (Chất lỏng)', desc: 'Hiệu ứng sóng lỏng procedural' },
   ]
 
+  const [previewOffset, setPreviewOffset] = useState({ x: 0, y: 0, rotateX: 0, rotateY: 0 })
+  const [isPreviewHovered, setIsPreviewHovered] = useState(false)
+
+  const handlePreviewMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (liquidGlassConfig?.elasticInteraction === false) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = (e.clientX - rect.left) / rect.width - 0.5
+    const y = (e.clientY - rect.top) / rect.height - 0.5
+    setPreviewOffset({
+      x: x * 18,
+      y: y * 18,
+      rotateX: -y * 16,
+      rotateY: x * 16,
+    })
+  }
+
   return (
     <div className="flex flex-col gap-6">
       {/* Interface Style Engine (Liquid Glass vs Classic Dark) */}
@@ -157,7 +173,15 @@ export function ThemeSelector() {
             </div>
 
             {/* Live Interactive Glass Refraction Preview */}
-            <div className="relative overflow-hidden rounded-2xl p-4 border border-white/20 bg-black/60 min-h-[96px] flex items-center justify-between shadow-inner">
+            <div
+              onMouseMove={handlePreviewMouseMove}
+              onMouseEnter={() => setIsPreviewHovered(true)}
+              onMouseLeave={() => {
+                setIsPreviewHovered(false)
+                setPreviewOffset({ x: 0, y: 0, rotateX: 0, rotateY: 0 })
+              }}
+              className="relative overflow-hidden rounded-2xl p-4 border border-white/20 bg-black/60 min-h-[96px] flex items-center justify-between shadow-inner cursor-pointer"
+            >
               {/* Colorful backdrop orbs so refraction is instantly visible */}
               <div
                 className={`absolute -left-4 -top-4 w-32 h-32 rounded-full blur-xl pointer-events-none transition-all duration-500 ${
@@ -182,9 +206,9 @@ export function ThemeSelector() {
                 }`}
               />
 
-              {/* Refractive Glass Lens on top */}
+              {/* Refractive Glass Lens on top with Spring Elastic Physics */}
               <div
-                className={`relative z-10 w-full flex items-center justify-between p-3.5 rounded-xl border transition-all duration-300 ${
+                className={`relative z-10 w-full flex items-center justify-between p-3.5 rounded-xl border ${
                   liquidGlassConfig?.refractionMode === 'prominent'
                     ? 'border-t-white/90 border-l-rose-500/70 border-r-cyan-400/70 border-b-white/20 bg-white/[0.14] shadow-[0_16px_40px_rgba(0,0,0,0.8),inset_0_2px_0_rgba(255,255,255,0.9),inset_2px_0_0_rgba(244,63,94,0.5),inset_-2px_0_0_rgba(6,182,212,0.5)]'
                     : liquidGlassConfig?.refractionMode === 'polar'
@@ -196,6 +220,13 @@ export function ThemeSelector() {
                 style={{
                   backdropFilter: 'blur(24px) saturate(200%)',
                   WebkitBackdropFilter: 'blur(24px) saturate(200%)',
+                  transform:
+                    isPreviewHovered && liquidGlassConfig?.elasticInteraction !== false
+                      ? `perspective(700px) rotateX(${previewOffset.rotateX}deg) rotateY(${previewOffset.rotateY}deg) translate3d(${previewOffset.x}px, ${previewOffset.y}px, 0) scale3d(1.02, 1.02, 1.02)`
+                      : 'perspective(700px) rotateX(0deg) rotateY(0deg) translate3d(0,0,0) scale3d(1, 1, 1)',
+                  transition: isPreviewHovered
+                    ? 'transform 0.08s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease'
+                    : 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease',
                 }}
               >
                 <div className="flex items-center gap-3">

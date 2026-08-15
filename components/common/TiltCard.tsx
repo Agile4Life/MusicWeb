@@ -108,8 +108,12 @@ export function TiltCard({
       ref={cardRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className={`group relative rounded-2xl overflow-hidden transition-all duration-300 ease-out motion-reduce:!transform-none ${className}`}
+      className={`group relative rounded-2xl overflow-hidden transition-all duration-300 ease-out motion-reduce:!transform-none tilt-card ${className}`}
       style={{
+        transform: isHovering && isHoverCapable && !isReducedMotion
+          ? 'perspective(1000px) rotateX(var(--rotate-x, 0deg)) rotateY(var(--rotate-y, 0deg)) translate3d(calc(var(--tilt-x, 0) * 4px), calc(var(--tilt-y, 0) * 4px), 0) scale3d(1.02, 1.02, 1.02)'
+          : 'perspective(1000px) rotateX(0deg) rotateY(0deg) translate3d(0,0,0) scale3d(1, 1, 1)',
+        transition: isHovering ? 'transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease' : 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease',
         ...style,
       }}
     >
