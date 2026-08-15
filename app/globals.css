@@ -2278,17 +2278,52 @@ html[data-cursor="default"][data-buffering="true"] * {
     0 0 35px rgba(168, 85, 247, 0.28) !important;
 }
 
-/* === Chromatic Aberration Toggle (Sắc sai viền kính quang phổ RGB) === */
-[data-chromatic-aberration="true"] .player-bar,
-[data-chromatic-aberration="true"] .mini-player-bar,
-[data-chromatic-aberration="true"] .app-sidebar,
-[data-chromatic-aberration="true"] .liquid-glass-dock,
-[data-chromatic-aberration="true"] .liquid-glass-panel,
-[data-chromatic-aberration="true"] .liquid-glass-card,
-[data-chromatic-aberration="true"] .tilt-card {
-  border-left: 2px solid rgba(244, 63, 94, 0.85) !important; /* Vivid Red-Magenta prism edge */
-  border-right: 2px solid rgba(6, 182, 212, 0.85) !important; /* Vivid Electric Cyan prism edge */
-  border-top: 1.5px solid rgba(255, 255, 255, 0.85) !important; /* Brilliant Crystal Sheen */
+/* === Granular Chromatic Aberration Targets (Sidebar / PlayerBar / Main Content) === */
+
+/* Main Content Panel Aberration */
+[data-aberration-main="true"] .main-content-panel {
+  border-left: 2px solid rgba(244, 63, 94, 0.85) !important; /* Vivid Red-Magenta */
+  border-right: 2px solid rgba(6, 182, 212, 0.85) !important; /* Vivid Electric Cyan */
+  border-top: 1.5px solid rgba(255, 255, 255, 0.85) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 
+    0 24px 64px rgba(0, 0, 0, 0.75),
+    inset 3.5px 0 1px rgba(244, 63, 94, 0.6),
+    inset -3.5px 0 1px rgba(6, 182, 212, 0.6),
+    inset 0 2px 0.5px rgba(255, 255, 255, 0.9),
+    0 0 35px rgba(6, 182, 212, 0.25) !important;
+}
+
+[data-aberration-main="false"] .main-content-panel {
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Sidebar Aberration */
+[data-aberration-sidebar="true"] .app-sidebar {
+  border-left: 2px solid rgba(244, 63, 94, 0.85) !important;
+  border-right: 2px solid rgba(6, 182, 212, 0.85) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, 0.85) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 
+    0 24px 64px rgba(0, 0, 0, 0.75),
+    inset 3.5px 0 1px rgba(244, 63, 94, 0.6),
+    inset -3.5px 0 1px rgba(6, 182, 212, 0.6),
+    inset 0 2px 0.5px rgba(255, 255, 255, 0.9),
+    0 0 35px rgba(6, 182, 212, 0.25) !important;
+}
+
+[data-aberration-sidebar="false"] .app-sidebar {
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+}
+
+/* PlayerBar Aberration */
+[data-aberration-playerbar="true"] .player-bar,
+[data-aberration-playerbar="true"] .mini-player-bar {
+  border-left: 2px solid rgba(244, 63, 94, 0.85) !important;
+  border-right: 2px solid rgba(6, 182, 212, 0.85) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, 0.85) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
   box-shadow: 
     0 24px 64px rgba(0, 0, 0, 0.75),
@@ -2298,6 +2333,13 @@ html[data-cursor="default"][data-buffering="true"] * {
     0 0 35px rgba(6, 182, 212, 0.3) !important;
 }
 
+[data-aberration-playerbar="false"] .player-bar,
+[data-aberration-playerbar="false"] .mini-player-bar {
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45), inset 0 1.5px 0 rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Search bar & Cards Aberration */
 [data-chromatic-aberration="true"] .search-input {
   border-left: 2px solid rgba(244, 63, 94, 0.75) !important;
   border-right: 2px solid rgba(6, 182, 212, 0.75) !important;
@@ -2310,18 +2352,16 @@ html[data-cursor="default"][data-buffering="true"] * {
     inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
 }
 
-[data-chromatic-aberration="false"] .player-bar,
-[data-chromatic-aberration="false"] .mini-player-bar,
-[data-chromatic-aberration="false"] .app-sidebar,
-[data-chromatic-aberration="false"] .liquid-glass-dock,
-[data-chromatic-aberration="false"] .liquid-glass-panel,
-[data-chromatic-aberration="false"] .liquid-glass-card,
-[data-chromatic-aberration="false"] .tilt-card {
-  border-left: 1px solid rgba(255, 255, 255, 0.2) !important;
-  border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.3) !important;
+[data-chromatic-aberration="true"] .liquid-glass-card,
+[data-chromatic-aberration="true"] .tilt-card {
+  border-left: 1.5px solid rgba(244, 63, 94, 0.65) !important;
+  border-right: 1.5px solid rgba(6, 182, 212, 0.65) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, 0.8) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
   box-shadow: 
-    0 20px 48px rgba(0, 0, 0, 0.45),
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.4) !important;
-}
+    0 16px 40px rgba(0, 0, 0, 0.5),
+    inset 2px 0 0.5px rgba(244, 63, 94, 0.45),
+    inset -2px 0 0.5px rgba(6, 182, 212, 0.45),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.8) !important;
+}
+

@@ -260,36 +260,102 @@ export function ThemeSelector() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-white/[0.06] text-xs text-slate-300">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={liquidGlassConfig?.chromaticAberration !== false}
-                  onChange={(e) => setLiquidGlassConfig({ chromaticAberration: e.target.checked })}
-                  className="rounded accent-cyan-400"
-                />
-                <span>Sắc sai viền kính (Aberration)</span>
-              </label>
+            <div className="flex flex-col gap-2.5 pt-2 border-t border-white/[0.06] text-xs text-slate-300">
+              <div className="flex flex-wrap items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={liquidGlassConfig?.chromaticAberration !== false}
+                    onChange={(e) => setLiquidGlassConfig({ chromaticAberration: e.target.checked })}
+                    className="rounded accent-cyan-400"
+                  />
+                  <span className="font-semibold text-white">Sắc sai viền kính (Aberration)</span>
+                </label>
 
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={liquidGlassConfig?.elasticInteraction !== false}
-                  onChange={(e) => setLiquidGlassConfig({ elasticInteraction: e.target.checked })}
-                  className="rounded accent-cyan-400"
-                />
-                <span>Tương tác đàn hồi (Elastic Motion)</span>
-              </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={liquidGlassConfig?.elasticInteraction !== false}
+                    onChange={(e) => setLiquidGlassConfig({ elasticInteraction: e.target.checked })}
+                    className="rounded accent-cyan-400"
+                  />
+                  <span>Tương tác đàn hồi (Elastic Motion)</span>
+                </label>
 
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={liquidGlassConfig?.ambientCanvas !== false}
-                  onChange={(e) => setLiquidGlassConfig({ ambientCanvas: e.target.checked })}
-                  className="rounded accent-cyan-400"
-                />
-                <span>Nền cực quang động (Ambient Mesh)</span>
-              </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={liquidGlassConfig?.ambientCanvas !== false}
+                    onChange={(e) => setLiquidGlassConfig({ ambientCanvas: e.target.checked })}
+                    className="rounded accent-cyan-400"
+                  />
+                  <span>Nền cực quang động (Ambient Mesh)</span>
+                </label>
+              </div>
+
+              {/* Granular Area Selection for Chromatic Aberration */}
+              {liquidGlassConfig?.chromaticAberration !== false && (
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs mt-1">
+                  <span className="text-[11px] font-semibold text-cyan-300 shrink-0">
+                    Vị trí áp dụng sắc sai:
+                  </span>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white select-none">
+                      <input
+                        type="checkbox"
+                        checked={liquidGlassConfig?.aberrationTargets?.sidebar !== false}
+                        onChange={(e) =>
+                          setLiquidGlassConfig({
+                            aberrationTargets: {
+                              sidebar: e.target.checked,
+                              playerBar: liquidGlassConfig?.aberrationTargets?.playerBar !== false,
+                              mainContent: liquidGlassConfig?.aberrationTargets?.mainContent !== false,
+                            },
+                          })
+                        }
+                        className="rounded accent-cyan-400"
+                      />
+                      <span>📌 Sidebar</span>
+                    </label>
+
+                    <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white select-none">
+                      <input
+                        type="checkbox"
+                        checked={liquidGlassConfig?.aberrationTargets?.playerBar !== false}
+                        onChange={(e) =>
+                          setLiquidGlassConfig({
+                            aberrationTargets: {
+                              sidebar: liquidGlassConfig?.aberrationTargets?.sidebar !== false,
+                              playerBar: e.target.checked,
+                              mainContent: liquidGlassConfig?.aberrationTargets?.mainContent !== false,
+                            },
+                          })
+                        }
+                        className="rounded accent-cyan-400"
+                      />
+                      <span>🎛️ Player Bar</span>
+                    </label>
+
+                    <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white select-none">
+                      <input
+                        type="checkbox"
+                        checked={liquidGlassConfig?.aberrationTargets?.mainContent !== false}
+                        onChange={(e) =>
+                          setLiquidGlassConfig({
+                            aberrationTargets: {
+                              sidebar: liquidGlassConfig?.aberrationTargets?.sidebar !== false,
+                              playerBar: liquidGlassConfig?.aberrationTargets?.playerBar !== false,
+                              mainContent: e.target.checked,
+                            },
+                          })
+                        }
+                        className="rounded accent-cyan-400"
+                      />
+                      <span>💻 Giao diện chính (Main)</span>
+                    </label>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
