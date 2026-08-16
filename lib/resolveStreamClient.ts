@@ -1,7 +1,7 @@
 import { findMemoryDriveTrack } from './driveTracksMap'
 
 export interface ResolvedStreamResult {
-  source: 'youtube' | 'nhaccuatui' | 'drive'
+  source: 'youtube' | 'nhaccuatui' | 'drive' | 'soundcloud'
   id: string
   title?: string
   artist?: string
