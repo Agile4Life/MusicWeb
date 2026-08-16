@@ -2937,8 +2937,8 @@ html[data-theme-style="minimal-flat"] body {
     radial-gradient(600px 260px at 88% 30%, rgba(201, 138, 61, 0.35), transparent 65%),
     linear-gradient(120deg, #241A2A, #1A1420 60%) !important;
   border: 1px solid rgba(244, 236, 230, 0.14) !important;
-  padding: 32px 36px !important;
-  min-height: 190px !important;
+  padding: 20px 24px !important;
+  min-height: auto !important;
   position: relative !important;
   overflow: hidden !important;
   box-shadow: none !important;
@@ -3190,13 +3190,16 @@ html[data-theme-style="minimal-flat"] body {
   color: #8B8090 !important;
 }
 
-/* Player Bar */
+/* Player Bar (Solid High-Fidelity Minimal Surface, No Bleed Through) */
 [data-theme-style="minimal-flat"] .player-bar,
 [data-theme-style="minimal-flat"] .mini-player-bar {
-  background: linear-gradient(180deg, rgba(29, 23, 32, 0.4), #171018 30%) !important;
-  backdrop-filter: blur(14px) !important;
-  -webkit-backdrop-filter: blur(14px) !important;
-  border-top: 1px solid rgba(244, 236, 230, 0.14) !important;
+  background: linear-gradient(180deg, rgba(29, 23, 32, 0.97) 0%, rgba(20, 16, 23, 0.98) 100%) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(244, 236, 230, 0.14) !important;
+  border-top: 1px solid rgba(244, 236, 230, 0.22) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.9), 0 0 20px -4px rgba(232, 169, 79, 0.12) !important;
   color: #F4ECE1 !important;
 }
 
@@ -4438,18 +4441,10 @@ html[data-theme-style="minimal-flat"] body {
 
 /* Smooth Image Loading */
 [data-theme-style="minimal-flat"] img {
+  opacity: 1 !important;
   transition:
     opacity 0.4s ease,
     filter 0.4s ease;
-}
-
-[data-theme-style="minimal-flat"] img[loading="lazy"] {
-  opacity: 0;
-}
-
-[data-theme-style="minimal-flat"] img.loaded,
-[data-theme-style="minimal-flat"] img:not([loading="lazy"]) {
-  opacity: 1;
 }
 
 /* Tooltip Styling */
@@ -5609,13 +5604,11 @@ html[data-theme-style="minimal-flat"] body {
    Lyrics Scroll Area - Hide Scrollbar Completely
    ================================================================ */
 
-[data-theme-style="minimal-flat"] .overflow-y-auto,
 [data-theme-style="minimal-flat"] .lyrics-scroll-area {
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
 }
 
-[data-theme-style="minimal-flat"] .overflow-y-auto::-webkit-scrollbar,
 [data-theme-style="minimal-flat"] .lyrics-scroll-area::-webkit-scrollbar {
   display: none !important;
   width: 0 !important;

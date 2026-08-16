@@ -94,30 +94,30 @@ export const LYRIC_CARD_THEMES: LyricCardTheme[] = [
   // ✨ 4. Minimal - Clean Flat Design
   {
     id: 'minimal-white',
-    name: 'Trắng Sạch',
+    name: 'Trắng Tinh Tế',
     category: 'minimal',
-    background: ['#ffffff', '#ffffff', '#ffffff'],
+    background: ['#f8fafc', '#f1f5f9', '#e2e8f0'],
     solidColor: '#ffffff',
-    textColor: '#0a0a0a',
-    accentColor: '#0a0a0a',
+    textColor: '#0f172a',
+    accentColor: '#0f172a',
   },
   {
     id: 'minimal-black',
     name: 'Đen Tối Giản',
     category: 'minimal',
-    background: ['#0a0a0a', '#0a0a0a', '#0a0a0a'],
-    solidColor: '#0a0a0a',
+    background: ['#09090b', '#121215', '#18181b'],
+    solidColor: '#121215',
     textColor: '#ffffff',
     accentColor: '#ffffff',
   },
   {
     id: 'minimal-cream',
-    name: 'Kem Nhạt',
+    name: 'Kem Vintage',
     category: 'minimal',
-    background: ['#faf8f5', '#faf8f5', '#faf8f5'],
-    solidColor: '#faf8f5',
-    textColor: '#1a1a1a',
-    accentColor: '#3a3a3a',
+    background: ['#faf6ee', '#f2ece0', '#e7dfd0'],
+    solidColor: '#fcfaf6',
+    textColor: '#292524',
+    accentColor: '#44403c',
   },
 ]
 
@@ -188,6 +188,7 @@ export function toggleContiguousLyricLine(
 export interface GenerateCardOptions {
   title: string
   artist?: string | null
+  album?: string | null
   coverUrl?: string | null
   selectedLines: string[]
   themeId?: string
@@ -321,7 +322,8 @@ export function calculateCompactCardHeight(
 }
 
 /**
- * Render Minimal Clean Card - Simple flat design without glassmorphism effects
+ * Render Minimal Clean Card - Authentic flat card with left-aligned lyrics,
+ * full album / track metadata row, and crisp high-contrast typography.
  */
 export async function renderMinimalCardToCanvas(
   options: GenerateCardOptions
@@ -331,11 +333,12 @@ export async function renderMinimalCardToCanvas(
   const lines = options.selectedLines.slice(0, 5)
 
   const fontSize = calculateOptimalFontSize(lines)
-  const lineHeight = Math.round(fontSize * 1.5)
+  const lineHeight = Math.round(fontSize * 1.55)
 
-  // Measure and wrap lyrics
-  const cardWidth = 880
-  const cardRadius = 16
+  // 1. Setup Card Dimensions
+  const cardWidth = 920
+  const cardRadius = 28
+  const margin = 60 // Left and right inner padding
 
   const measureCanvas = document.createElement('canvas')
   const measureCtx = measureCanvas.getContext('2d')
@@ -343,23 +346,31 @@ export async function renderMinimalCardToCanvas(
     measureCtx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`
   }
 
-  const maxTextWidth = cardWidth - 80
+  const maxLyricWidth = cardWidth - margin * 2
   const renderedLineList: string[] = []
 
   for (const rawLine of lines) {
     if (measureCtx) {
-      const wrapped = wrapCanvasText(measureCtx, rawLine, maxTextWidth)
+      const wrapped = wrapCanvasText(measureCtx, rawLine, maxLyricWidth)
       renderedLineList.push(...wrapped)
     } else {
       renderedLineList.push(rawLine)
     }
   }
 
-  // Calculate card dimensions
-  const cardHeaderHeight = 320
+  // Calculate dynamic card dimensions
+  const hasAlbum = Boolean(options.album && options.album.trim())
+  const headerTopPadding = 50
+  const coverSize = 114
+  const headerBottomMargin = 32
+  const headerTotalHeight = headerTopPadding + coverSize + headerBottomMargin
+
   const totalLyricsHeight = Math.max(1, renderedLineList.length) * lineHeight
-  const cardBottomPadding = 60
-  const cardHeight = Math.min(1200, Math.max(580, Math.round(cardHeaderHeight + totalLyricsHeight + cardBottomPadding)))
+  const cardBottomPadding = 65
+  const cardHeight = Math.min(
+    1380,
+    Math.max(620, Math.round(headerTotalHeight + 40 + totalLyricsHeight + cardBottomPadding))
+  )
 
   let width: number
   let height: number
@@ -367,7 +378,7 @@ export async function renderMinimalCardToCanvas(
   let cardY: number
 
   if (isCardOnly) {
-    const shadowPadding = 30
+    const shadowPadding = 45
     width = cardWidth + shadowPadding * 2
     height = cardHeight + shadowPadding * 2
     cardX = shadowPadding
@@ -381,7 +392,7 @@ export async function renderMinimalCardToCanvas(
 
   const centerX = cardX + cardWidth / 2
 
-  // Initialize Canvas
+  // 2. Initialize Canvas
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
@@ -394,139 +405,189 @@ export async function renderMinimalCardToCanvas(
     coverImg = await loadImageSafe(options.coverUrl)
   }
 
-  // Fill background
-  ctx.fillStyle = theme.solidColor || theme.background[0]
-  ctx.fillRect(0, 0, width, height)
+  const isLightTheme = theme.id === 'minimal-white' || theme.id === 'minimal-cream'
 
-  // Subtle gradient overlay for depth
+  // 3. Fill Story Background (Only when not in card-only mode)
   if (!isCardOnly) {
     const bgGrad = ctx.createLinearGradient(0, 0, 0, height)
-    if (theme.id === 'minimal-white' || theme.id === 'minimal-cream') {
-      bgGrad.addColorStop(0, 'rgba(0,0,0,0.03)')
-      bgGrad.addColorStop(1, 'rgba(0,0,0,0.08)')
-    } else {
-      bgGrad.addColorStop(0, 'rgba(255,255,255,0.02)')
-      bgGrad.addColorStop(1, 'rgba(255,255,255,0.05)')
-    }
+    bgGrad.addColorStop(0, theme.background[0])
+    bgGrad.addColorStop(0.5, theme.background[1])
+    bgGrad.addColorStop(1, theme.background[2])
     ctx.fillStyle = bgGrad
+    ctx.fillRect(0, 0, width, height)
+
+    // Ambient radial glow
+    const radialGlow = ctx.createRadialGradient(
+      width * 0.5,
+      height * 0.5,
+      60,
+      width * 0.5,
+      height * 0.5,
+      width * 0.75
+    )
+    if (isLightTheme) {
+      radialGlow.addColorStop(0, 'rgba(0, 0, 0, 0.03)')
+      radialGlow.addColorStop(1, 'transparent')
+    } else {
+      radialGlow.addColorStop(0, 'rgba(255, 255, 255, 0.05)')
+      radialGlow.addColorStop(1, 'transparent')
+    }
+    ctx.fillStyle = radialGlow
     ctx.fillRect(0, 0, width, height)
   }
 
-  // Simple flat card with subtle shadow
+  // 4. Simple flat card with subtle shadow
   ctx.save()
-  ctx.shadowColor = theme.id === 'minimal-white' || theme.id === 'minimal-cream'
-    ? 'rgba(0,0,0,0.12)'
-    : 'rgba(0,0,0,0.5)'
-  ctx.shadowBlur = 20
-  ctx.shadowOffsetY = 8
+  ctx.shadowColor = isLightTheme
+    ? 'rgba(0, 0, 0, 0.14)'
+    : 'rgba(0, 0, 0, 0.65)'
+  ctx.shadowBlur = isLightTheme ? 35 : 45
+  ctx.shadowOffsetY = isLightTheme ? 14 : 18
 
   ctx.fillStyle = theme.solidColor || theme.background[0]
   drawRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, cardRadius)
   ctx.fill()
   ctx.restore()
 
-  // Simple card border
+  // 5. Simple card border
   ctx.save()
   drawRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, cardRadius)
-  ctx.strokeStyle = theme.id === 'minimal-white' || theme.id === 'minimal-cream'
-    ? 'rgba(0,0,0,0.08)'
-    : 'rgba(255,255,255,0.1)'
-  ctx.lineWidth = 1
+  ctx.strokeStyle = isLightTheme
+    ? 'rgba(0, 0, 0, 0.08)'
+    : 'rgba(255, 255, 255, 0.12)'
+  ctx.lineWidth = 1.5
   ctx.stroke()
   ctx.restore()
 
-  // Cover art (top section)
-  const coverSize = 100
-  const coverRadius = 8
-  const coverX = cardX + (cardWidth - coverSize) / 2
-  const coverY = cardY + 40
+  // 6. Header Row: Cover Art + Track Metadata (Left-to-Right layout)
+  const coverRadius = 16
+  const coverX = cardX + margin
+  const coverY = cardY + headerTopPadding
 
   // Cover shadow
   ctx.save()
-  ctx.shadowColor = 'rgba(0,0,0,0.2)'
-  ctx.shadowBlur = 12
-  ctx.shadowOffsetY = 4
+  ctx.shadowColor = isLightTheme ? 'rgba(0, 0, 0, 0.16)' : 'rgba(0, 0, 0, 0.5)'
+  ctx.shadowBlur = 16
+  ctx.shadowOffsetY = 6
   drawRoundedRect(ctx, coverX, coverY, coverSize, coverSize, coverRadius)
-  ctx.fillStyle = theme.id === 'minimal-white' || theme.id === 'minimal-cream' ? '#e8e8e8' : '#1a1a1a'
+  ctx.fillStyle = isLightTheme ? '#e2e8f0' : '#1e1e24'
   ctx.fill()
   ctx.restore()
 
-  // Draw cover image
+  // Draw cover image (or stylized fallback)
   ctx.save()
   drawRoundedRect(ctx, coverX, coverY, coverSize, coverSize, coverRadius)
   ctx.clip()
   if (coverImg) {
     ctx.drawImage(coverImg, coverX, coverY, coverSize, coverSize)
+  } else {
+    ctx.fillStyle = isLightTheme ? '#e2e8f0' : '#27272a'
+    ctx.fillRect(coverX, coverY, coverSize, coverSize)
+
+    // Music note fallback
+    ctx.fillStyle = isLightTheme ? '#94a3b8' : '#71717a'
+    ctx.font = 'bold 44px system-ui, -apple-system, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('♪', coverX + coverSize / 2, coverY + coverSize / 2)
   }
   ctx.restore()
 
-  // Track title
-  const maxTitleWidth = cardWidth - 60
+  // Draw cover border
   ctx.save()
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.font = `bold ${Math.min(32, 28)}px system-ui, -apple-system, sans-serif`
-  ctx.fillStyle = theme.textColor
-
-  let displayTitle = options.title || 'Unknown Track'
-  while (ctx.measureText(displayTitle).width > maxTitleWidth && displayTitle.length > 3) {
-    displayTitle = displayTitle.slice(0, -2) + '…'
-  }
-  ctx.fillText(displayTitle, centerX, cardY + 170)
-
-  // Artist
-  ctx.font = `${Math.min(22, 20)}px system-ui, -apple-system, sans-serif`
-  ctx.fillStyle = theme.id === 'minimal-white' || theme.id === 'minimal-cream'
-    ? 'rgba(0,0,0,0.55)'
-    : 'rgba(255,255,255,0.6)'
-  let displayArtist = options.artist || 'Unknown Artist'
-  while (ctx.measureText(displayArtist).width > maxTitleWidth && displayArtist.length > 3) {
-    displayArtist = displayArtist.slice(0, -2) + '…'
-  }
-  ctx.fillText(displayArtist, centerX, cardY + 205)
-  ctx.restore()
-
-  // Simple divider line
-  const dividerY = cardY + 240
-  ctx.save()
-  ctx.strokeStyle = theme.id === 'minimal-white' || theme.id === 'minimal-cream'
-    ? 'rgba(0,0,0,0.1)'
-    : 'rgba(255,255,255,0.15)'
+  drawRoundedRect(ctx, coverX, coverY, coverSize, coverSize, coverRadius)
+  ctx.strokeStyle = isLightTheme ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.12)'
   ctx.lineWidth = 1
-  ctx.beginPath()
-  ctx.moveTo(cardX + 60, dividerY)
-  ctx.lineTo(cardX + cardWidth - 60, dividerY)
   ctx.stroke()
   ctx.restore()
 
-  // Lyrics text
+  // 7. Header Track Metadata (Title, Artist, Album) - Left-Aligned next to Cover
+  const textLeftX = coverX + coverSize + 24
+  const maxHeaderWidth = cardWidth - margin - (textLeftX - cardX)
+
+  ctx.save()
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'top'
+
+  // Track title
+  ctx.font = 'bold 30px system-ui, -apple-system, sans-serif'
+  ctx.fillStyle = theme.textColor
+
+  let displayTitle = options.title || 'Bài hát chưa đặt tên'
+  while (ctx.measureText(displayTitle).width > maxHeaderWidth && displayTitle.length > 3) {
+    displayTitle = displayTitle.slice(0, -2) + '…'
+  }
+  const titleY = coverY + (hasAlbum ? 4 : 14)
+  ctx.fillText(displayTitle, textLeftX, titleY)
+
+  // Artist name
+  ctx.font = '600 22px system-ui, -apple-system, sans-serif'
+  ctx.fillStyle = isLightTheme
+    ? 'rgba(15, 23, 42, 0.70)'
+    : 'rgba(255, 255, 255, 0.70)'
+
+  let displayArtist = options.artist || 'Nghệ sĩ chưa xác định'
+  while (ctx.measureText(displayArtist).width > maxHeaderWidth && displayArtist.length > 3) {
+    displayArtist = displayArtist.slice(0, -2) + '…'
+  }
+  const artistY = titleY + 38
+  ctx.fillText(displayArtist, textLeftX, artistY)
+
+  // Album name (if available)
+  if (hasAlbum && options.album) {
+    ctx.font = '500 18px system-ui, -apple-system, sans-serif'
+    ctx.fillStyle = isLightTheme
+      ? 'rgba(15, 23, 42, 0.50)'
+      : 'rgba(255, 255, 255, 0.50)'
+
+    let displayAlbum = `Album: ${options.album}`
+    while (ctx.measureText(displayAlbum).width > maxHeaderWidth && displayAlbum.length > 3) {
+      displayAlbum = displayAlbum.slice(0, -2) + '…'
+    }
+    const albumY = artistY + 30
+    ctx.fillText(displayAlbum, textLeftX, albumY)
+  }
+  ctx.restore()
+
+  // 8. Divider Line
+  const dividerY = coverY + coverSize + headerBottomMargin
+  ctx.save()
+  ctx.strokeStyle = isLightTheme
+    ? 'rgba(0, 0, 0, 0.08)'
+    : 'rgba(255, 255, 255, 0.12)'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(cardX + margin, dividerY)
+  ctx.lineTo(cardX + cardWidth - margin, dividerY)
+  ctx.stroke()
+  ctx.restore()
+
+  // 9. 📜 Lyrics Text - CĂN TRÁI (LEFT-ALIGNED)
+  const lyricsStartX = cardX + margin
+  const lyricsStartY = dividerY + 38
+
   ctx.save()
   ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`
   ctx.fillStyle = theme.textColor
-  ctx.textAlign = 'center'
+  ctx.textAlign = 'left' // Căn trái rõ ràng
   ctx.textBaseline = 'top'
-
-  const lyricsStartY = cardY + 260
-  const lineWidthsCentered = renderedLineList.map((l) => ctx.measureText(l).width)
-  const maxLineWidth = Math.max(...lineWidthsCentered, 0)
-  const lyricsX = centerX - maxLineWidth / 2
 
   for (let i = 0; i < renderedLineList.length; i++) {
     const lineText = renderedLineList[i]
     const curY = lyricsStartY + i * lineHeight
-    ctx.fillText(lineText, centerX, curY)
+    ctx.fillText(lineText, lyricsStartX, curY)
   }
   ctx.restore()
 
-  // Bottom brand text
+  // 10. Bottom Brand Watermark
   const footerY = cardY + cardHeight - 28
   ctx.save()
-  ctx.fillStyle = theme.id === 'minimal-white' || theme.id === 'minimal-cream'
-    ? 'rgba(0,0,0,0.35)'
-    : 'rgba(255,255,255,0.35)'
-  ctx.font = '500 18px system-ui, -apple-system, sans-serif'
+  ctx.fillStyle = isLightTheme
+    ? 'rgba(15, 23, 42, 0.40)'
+    : 'rgba(255, 255, 255, 0.40)'
+  ctx.font = '600 18px system-ui, -apple-system, sans-serif'
   ctx.textAlign = 'center'
-  ctx.fillText('musicweb.phongtct.com', centerX, footerY)
+  ctx.fillText('phongtctmusic.vercel.app', centerX, footerY)
   ctx.restore()
 
   return canvas
@@ -541,8 +602,12 @@ export async function renderMinimalCardToCanvas(
 export async function renderLyricCardToCanvas(
   options: GenerateCardOptions
 ): Promise<HTMLCanvasElement> {
-  const isCardOnly = Boolean(options.cardOnly)
   const theme = getThemeById(options.themeId)
+  if (theme.category === 'minimal') {
+    return renderMinimalCardToCanvas(options)
+  }
+
+  const isCardOnly = Boolean(options.cardOnly)
   const lines = options.selectedLines.slice(0, 5) // max 5 contiguous lines
 
   const fontSize = calculateOptimalFontSize(lines)
@@ -865,10 +930,11 @@ export async function renderLyricCardToCanvas(
   }
   ctx.fillText(displayTitle, centerX, cardY + 295)
 
-  // Centered Artist
-  ctx.font = '600 24px system-ui, -apple-system, sans-serif'
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.75)'
+  // Centered Artist & Album
   let displayArtist = options.artist || 'Nghệ sĩ chưa xác định'
+  if (options.album && options.album.trim() && options.album.trim() !== displayArtist && options.album.trim() !== displayTitle) {
+    displayArtist = `${displayArtist} • ${options.album.trim()}`
+  }
   while (ctx.measureText(displayArtist).width > maxTitleWidth && displayArtist.length > 3) {
     displayArtist = displayArtist.slice(0, -2) + '…'
   }

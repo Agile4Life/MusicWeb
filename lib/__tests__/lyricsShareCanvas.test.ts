@@ -10,8 +10,8 @@ import {
 } from '../lyricsShareCanvas'
 
 describe('lyricsShareCanvas Engine', () => {
-  it('defines distinct lyric card themes across cover, gradient, and solid categories', () => {
-    expect(LYRIC_CARD_THEMES.length).toBeGreaterThanOrEqual(8)
+  it('defines distinct lyric card themes across cover, gradient, solid, and minimal categories', () => {
+    expect(LYRIC_CARD_THEMES.length).toBeGreaterThanOrEqual(11)
     const themeIds = LYRIC_CARD_THEMES.map((t) => t.id)
     expect(themeIds).toContain('cover')
     expect(themeIds).toContain('dominant')
@@ -22,6 +22,12 @@ describe('lyricsShareCanvas Engine', () => {
     expect(themeIds).toContain('ocean')
     expect(themeIds).toContain('solid-black')
     expect(themeIds).toContain('solid-red')
+    expect(themeIds).toContain('minimal-white')
+    expect(themeIds).toContain('minimal-black')
+    expect(themeIds).toContain('minimal-cream')
+
+    const minimalThemes = LYRIC_CARD_THEMES.filter((t) => t.category === 'minimal')
+    expect(minimalThemes.length).toBe(3)
   })
 
   it('retrieves fallback theme when invalid theme id is provided', () => {
