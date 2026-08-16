@@ -4,7 +4,7 @@ import { searchYouTubeTracks, findBestYouTubeMatch, isOriginalTrackOnly } from '
 import { searchSpotifyTracks, getTrendingSpotifyTracks } from '@/lib/spotify'
 import { getTrendingDeezerTracks, searchDeezerTracks } from '@/lib/deezer'
 import { searchSoundCloudTracks } from '@/lib/soundcloudClient'
-import { normalizeNhacCuaTuiChartResponse, nhacCuaTuiSearchItemToTrack } from '@/lib/nhaccuatui'
+import { normalizeNhacCuaTuiChartResponse, nhacCuaTuiSearchItemToTrack, searchNhacCuaTuiDirect } from '@/lib/nhaccuatui'
 import { Track } from '@/types'
 
 // In-memory LRU search cache & in-flight request deduplication map
@@ -126,6 +126,13 @@ export async function GET(request: Request) {
     // Phase 1: Search Primary Sources (Local Supabase + Spotify + YouTube) in parallel
     const primaryPromises: Array<Promise<any>> = []
 
+    // 0. Search NhacCuaTui tracks (Lossless Vietnamese Catalog - Top Priority)
+    if (source === 'all' || source === 'nhaccuatui') {
+      primaryPromises.push(searchNhacCuaTuiDirect(q.trim(), 12).catch(() => []))
+    } else {
+      primaryPromises.push(Promise.resolve([]))
+    }
+
     // 1. Search local Supabase tracks
     if (source === 'all' || source === 'local') {
       const supabase = await createClient()
@@ -177,7 +184,7 @@ export async function GET(request: Request) {
       primaryPromises.push(Promise.resolve([]))
     }
 
-    const [localTracks, spotifyTracks, deezerTracks, youtubeTracks, soundCloudTracks] = await Promise.all(primaryPromises)
+    const [nctTracks, localTracks, spotifyTracks, deezerTracks, youtubeTracks, soundCloudTracks] = await Promise.all(primaryPromises)
 
     const itunesTracks: Track[] = []
     const audiusTracks: Track[] = []
@@ -215,6 +222,7 @@ export async function GET(request: Request) {
 
     const allResults = {
       local: localTracks.filter(isValidTrackFilter),
+      nhaccuatui: (nctTracks || []).filter(isValidTrackFilter),
       youtube: enhancedYouTube.filter(isValidTrackFilter),
       audius: audiusTracks.filter(isValidTrackFilter),
       itunes: enhancedITunes.filter(isValidTrackFilter),
@@ -224,17 +232,20 @@ export async function GET(request: Request) {
     }
 
     // Single-source mode: only return the requested source so the UI shows one source at a time
+    if (source === 'nhaccuatui') {
+      return { local: [], nhaccuatui: allResults.nhaccuatui, youtube: [], audius: [], itunes: [], spotify: [], deezer: [], soundcloud: [] }
+    }
     if (source === 'spotify') {
-      return { local: [], youtube: [], audius: [], itunes: [], spotify: allResults.spotify, deezer: [], soundcloud: [] }
+      return { local: [], nhaccuatui: [], youtube: [], audius: [], itunes: [], spotify: allResults.spotify, deezer: [], soundcloud: [] }
     }
     if (source === 'deezer') {
-      return { local: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: allResults.deezer, soundcloud: [] }
+      return { local: [], nhaccuatui: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: allResults.deezer, soundcloud: [] }
     }
     if (source === 'youtube') {
-      return { local: [], youtube: allResults.youtube, audius: [], itunes: [], spotify: [], deezer: [], soundcloud: [] }
+      return { local: [], nhaccuatui: [], youtube: allResults.youtube, audius: [], itunes: [], spotify: [], deezer: [], soundcloud: [] }
     }
     if (source === 'soundcloud') {
-      return { local: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: [], soundcloud: allResults.soundcloud }
+      return { local: [], nhaccuatui: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: [], soundcloud: allResults.soundcloud }
     }
     return allResults
   })()

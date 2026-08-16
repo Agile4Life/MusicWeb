@@ -13,6 +13,7 @@ import { resolveExternalTrackId, isExternalTrack } from '@/lib/trackPersistence'
 import { useSession } from 'next-auth/react'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
+import { ArtistLinks } from '@/components/common/ArtistLinks'
 import { getCachedResolvedAlbum, setCachedResolvedAlbum, isRealAlbumName } from '@/lib/albumCache'
 import { triggerDrivePrewarm } from '@/lib/googleDriveUpload'
 
@@ -199,7 +200,7 @@ function TrackRowComponent({
   const [loadingViews, setLoadingViews] = useState(false)
 
   useEffect(() => {
-    if (track.view_count != null || track.play_count != null) return
+    if (track.view_count != null && track.view_count > 0) return
 
     const cacheKey = track.youtube_id || `${(track.title || '').trim().toLowerCase()}_${(track.artist || '').trim().toLowerCase()}`
     if (!cacheKey || cacheKey === '_') return
@@ -236,9 +237,9 @@ function TrackRowComponent({
     return () => {
       isMounted = false
     }
-  }, [track.youtube_id, track.title, track.artist, track.view_count, track.play_count])
+  }, [track.youtube_id, track.title, track.artist, track.view_count])
 
-  const displayViews = track.view_count ?? track.play_count ?? fetchedViews
+  const displayViews = (track.view_count != null && track.view_count > 0 ? track.view_count : null) ?? fetchedViews
 
   const [editMode, setEditMode] = useState(false)
   const [editTitle, setEditTitle] = useState(track.title || '')
@@ -429,39 +430,55 @@ function TrackRowComponent({
             )}
           </div>
 
-          {/* Artist — editable inline */}
-          {editMode ? (
-            <input
-              autoFocus
-              value={editArtist}
-              onChange={(e) => setEditArtist(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-              placeholder="Tên nghệ sĩ..."
-              className="text-xs bg-white/10 border border-[var(--primary-spotify)]/50 rounded px-1.5 py-0.5 text-white outline-none mt-0.5 w-full max-w-[160px]"
-            />
-          ) : (
-            <p className="text-xs text-slate-400 truncate">
-              {track.artist || 'Nghệ sĩ chưa xác định'}
-            </p>
-          )}
+          {/* Artist & Mobile View Count */}
+          <div className="flex items-center gap-1.5 truncate mt-0.5">
+            {editMode ? (
+              <input
+                autoFocus
+                value={editArtist}
+                onChange={(e) => setEditArtist(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                placeholder="Tên nghệ sĩ..."
+                className="text-xs bg-white/10 border border-[var(--primary-spotify)]/50 rounded px-1.5 py-0.5 text-white outline-none w-full max-w-[160px]"
+              />
+            ) : (
+              <>
+                <ArtistLinks
+                  artist={track.artist}
+                  className="text-xs text-slate-400 truncate block"
+                  linkClassName="hover:underline hover:text-[var(--spotify-glow,#22d3ee)] transition-colors cursor-pointer"
+                />
+                {displayViews != null && displayViews > 0 && (
+                  <span
+                    className="sm:hidden inline-flex items-center gap-1 text-[10px] font-mono text-slate-500 shrink-0"
+                    title={`${displayViews.toLocaleString('vi-VN')} lượt xem trên YouTube`}
+                  >
+                    <span>•</span>
+                    <Eye className="w-3 h-3 text-slate-500 shrink-0" />
+                    <span>{formatViewCount(displayViews).replace(' lượt xem', '')}</span>
+                  </span>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Album — editable inline */}
-      <div className="hidden lg:block w-1/4 truncate text-xs text-slate-400">
+      <div className="hidden md:block w-40 lg:w-52 xl:w-64 shrink-0 truncate text-xs text-slate-400 px-2">
         {editMode ? (
           <input
             value={editAlbum}
             onChange={(e) => setEditAlbum(e.target.value)}
             onClick={(e) => e.stopPropagation()}
             placeholder="Tên album..."
-            className="text-xs bg-white/10 border border-[var(--primary-spotify)]/50 rounded px-1.5 py-0.5 text-white outline-none w-full max-w-[160px]"
+            className="text-xs bg-white/10 border border-[var(--primary-spotify)]/50 rounded px-1.5 py-0.5 text-white outline-none w-full"
           />
         ) : (
           <button
             onClick={handleOpenTrackAlbum}
             disabled={isResolvingAlbum}
-            className="hover:text-[var(--spotify-glow,#22d3ee)] hover:underline transition-colors text-left inline-flex items-center gap-1.5 max-w-[180px] truncate text-xs cursor-pointer group"
+            className="hover:text-[var(--spotify-glow,#22d3ee)] hover:underline transition-colors text-left inline-flex items-center gap-1.5 max-w-full truncate text-xs cursor-pointer group"
             title={hasRealAlbumDisplay ? `Vào album: ${currentAlbumDisplay}` : 'Vào Album bài hát'}
           >
             {isResolvingAlbum ? (
@@ -476,14 +493,31 @@ function TrackRowComponent({
         )}
       </div>
 
-      {/* Duration & Options */}
-      <div className="shrink-0 flex items-center justify-end lg:w-1/4 text-xs text-slate-400 gap-3">
-        <span className={`w-12 text-center font-mono shrink-0 ${track.duration ? 'text-slate-300' : 'text-slate-600'}`}>
-          {formatDuration(track.duration)}
-        </span>
+      {/* Views */}
+      <div
+        className="hidden sm:flex items-center justify-end gap-1.5 w-24 md:w-28 shrink-0 text-[11px] font-mono text-slate-400 hover:text-cyan-400 transition-colors px-2"
+        title={displayViews ? `${displayViews.toLocaleString('vi-VN')} lượt xem trên YouTube` : undefined}
+      >
+        {displayViews != null && displayViews > 0 ? (
+          <>
+            <Eye className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+            <span className="font-mono text-right truncate">{formatViewCount(displayViews).replace(' lượt xem', '')}</span>
+          </>
+        ) : loadingViews ? (
+          <>
+            <Eye className="w-3.5 h-3.5 opacity-30 shrink-0" />
+            <span className="w-10 h-2.5 bg-white/5 rounded animate-pulse" />
+          </>
+        ) : null}
+      </div>
 
-        {/* Options container */}
-        <div className="min-w-[32px] flex items-center justify-end shrink-0 gap-0.5">
+      {/* Duration */}
+      <div className={`w-14 sm:w-16 flex items-center justify-end shrink-0 font-mono text-xs ${track.duration ? 'text-slate-300' : 'text-slate-600'}`}>
+        {formatDuration(track.duration)}
+      </div>
+
+      {/* Options container */}
+      <div className="w-10 flex items-center justify-end shrink-0">
           {/* Edit mode save/cancel */}
           {editMode ? (
             <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -641,7 +675,6 @@ function TrackRowComponent({
           </div>
         )}
       </div>
-    </div>
     </div>
   )
 }

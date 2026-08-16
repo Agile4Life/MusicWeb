@@ -8,6 +8,7 @@ import { LyricsView } from './LyricsView'
 import { QueueDrawer } from './QueueDrawer'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import { OverflowMarqueeText } from '@/components/common/OverflowMarqueeText'
+import { ArtistLinks } from '@/components/common/ArtistLinks'
 import { setCachedResolvedAlbum, getCachedResolvedAlbum, isRealAlbumName } from '@/lib/albumCache'
 import { AudioWaveformScrubber } from './AudioWaveformScrubber'
 import { MiniEqualizer } from './MiniEqualizer'
@@ -227,10 +228,12 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
     router.push(targetQuery ? `/albums?q=${encodeURIComponent(targetQuery)}` : '/albums')
   }
 
-  const handleOpenArtist = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    const name = currentTrack?.artist
+  const handleOpenArtist = (artistName?: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    const name = artistName || currentTrack?.artist
     if (!name) return
     setShowMobileFullPlayer(false)
     router.push(`/artist?name=${encodeURIComponent(name)}`)
@@ -361,12 +364,15 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                   SoundCloud
                 </span>
               )}
-              <span
-                className="text-[10px] text-slate-400 truncate leading-tight hover:text-slate-200 transition-colors cursor-pointer"
-                onClick={(e) => { e.stopPropagation(); handleOpenArtist(e) }}
-              >
-                {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
-              </span>
+              <ArtistLinks
+                artist={currentTrack.artist}
+                className="text-[10px] text-slate-400 truncate leading-tight block"
+                linkClassName="hover:underline hover:text-slate-200 transition-colors cursor-pointer"
+                onArtistClick={(name, e) => {
+                  e.stopPropagation()
+                  handleOpenArtist(name, e)
+                }}
+              />
             </div>
           </div>
 
@@ -476,12 +482,12 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <div className="flex items-center justify-between gap-3 mb-6">
             <div className="flex flex-col items-start gap-1 min-w-0 flex-1">
               <h2 className="text-lg font-bold text-white truncate w-full">{currentTrack.title}</h2>
-              <p
-                className="text-xs text-slate-400 truncate w-full hover:text-slate-200 transition-colors cursor-pointer"
-                onClick={handleOpenArtist}
-              >
-                {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
-              </p>
+              <ArtistLinks
+                artist={currentTrack.artist}
+                className="text-xs text-slate-400 truncate w-full block"
+                linkClassName="hover:underline hover:text-slate-200 transition-colors cursor-pointer"
+                onArtistClick={(name, e) => handleOpenArtist(name, e)}
+              />
               <div
                 onClick={handleOpenAlbum}
                 className="flex items-center gap-1.5 mt-1.5 text-xs truncate max-w-full cursor-pointer group bg-[var(--primary-spotify)]/10 border border-[var(--primary-spotify)]/20 px-2.5 py-1 rounded-lg hover:bg-[var(--primary-spotify)]/20 transition-all"
@@ -710,14 +716,13 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
               )}
             </div>
             <div className="flex items-center gap-2 mt-0.5 min-w-0">
-              <p
+              <ArtistLinks
+                artist={currentTrack.artist}
+                className={`${trackMetadataArtistInlineClass} text-[11px] text-slate-400 shrink-0 max-w-[130px] truncate block`}
+                linkClassName="hover:underline hover:text-[var(--spotify-glow,#22d3ee)] transition-colors cursor-pointer"
+                onArtistClick={(name, e) => handleOpenArtist(name, e)}
                 data-playerbar-exclude-fullview
-                className={`${trackMetadataArtistInlineClass} text-[11px] text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] transition-colors cursor-pointer shrink-0 max-w-[130px] truncate`}
-                onClick={handleOpenArtist}
-                title={currentTrack.artist ? `Xem nghệ sĩ: ${currentTrack.artist}` : undefined}
-              >
-                {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
-              </p>
+              />
 
               {/* Album Link Pill with Overflow Marquee Text */}
               <div

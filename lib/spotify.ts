@@ -640,4 +640,147 @@ export async function fetchSpotifyPlaylistTracks(playlistId: string): Promise<Sp
   }
 }
 
+export interface SpotifyArtistResult {
+  id: string
+  name: string
+  picture_xl: string | null
+  picture_big: string | null
+  genres?: string[]
+}
+
+function normalizeArtistForMatch(name: string): string {
+  if (!name) return ''
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '')
+    .trim()
+}
+
+/**
+ * Strict exact artist search on Spotify:
+ * Returns official artist name and high-res square avatar (640x640).
+ */
+export async function searchSpotifyArtistExact(artistName: string): Promise<SpotifyArtistResult | null> {
+  if (!artistName || !artistName.trim()) return null
+  const cleanTarget = artistName.replace(/[\(\[\{].*?[\)\]\}]/g, '').trim()
+  const targetNorm = normalizeArtistForMatch(cleanTarget)
+  if (!targetNorm) return null
+
+  try {
+    const token = await getSpotifyAccessToken()
+    if (!token) return null
+
+    const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(cleanTarget)}&type=artist&limit=10`, {
+      headers: { Authorization: `Bearer ${token}` },
+      next: { revalidate: 86400 },
+    })
+
+    if (!res.ok) return null
+    const data = await res.json()
+    const items = data.artists?.items || []
+
+    const matched = items.filter((i: any) => {
+      if (!i || !i.name) return false
+      const cleanItem = i.name.trim()
+      const isExact = cleanItem.toLowerCase() === cleanTarget.toLowerCase()
+      const isNorm = normalizeArtistForMatch(cleanItem) === targetNorm
+      return isExact || isNorm
+    })
+
+    if (matched.length > 0) {
+      const top = matched[0]
+      return {
+        id: top.id,
+        name: top.name,
+        picture_xl: top.images?.[0]?.url || null,
+        picture_big: top.images?.[1]?.url || top.images?.[0]?.url || null,
+        genres: top.genres || [],
+      }
+    }
+  } catch (err) {
+    console.warn('Spotify artist search warning:', err)
+  }
+
+  return null
+}
+
+/**
+ * Fetch Top Tracks for a Spotify Artist ID
+ * Tries market=VN, then market=US, and enriches with search if needed.
+ */
+export async function getSpotifyArtistTopTracks(artistId: string, artistName?: string, limit = 20): Promise<Track[]> {
+  if (!artistId) return []
+
+  try {
+    const token = await getSpotifyAccessToken()
+    if (!token) return []
+
+    // 1. Fetch official top tracks
+    let res = await fetch(`https://api.spotify.com/v1/artists/${artistId}/top-tracks?market=VN`, {
+      headers: { Authorization: `Bearer ${token}` },
+      next: { revalidate: 3600 },
+    })
+
+    if (!res.ok || res.status === 404) {
+      res = await fetch(`https://api.spotify.com/v1/artists/${artistId}/top-tracks?market=US`, {
+        headers: { Authorization: `Bearer ${token}` },
+        next: { revalidate: 3600 },
+      })
+    }
+
+    let items: any[] = []
+    if (res.ok) {
+      const data = await res.json()
+      items = data.tracks || []
+    }
+
+    // 2. If fewer than 5 tracks found and artistName provided, search by artist name
+    if (items.length < 5 && artistName) {
+      const searchRes = await fetch(
+        `https://api.spotify.com/v1/search?q=artist:${encodeURIComponent(artistName)}&type=track&limit=${limit}&market=VN`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          next: { revalidate: 3600 },
+        }
+      )
+      if (searchRes.ok) {
+        const searchData = await searchRes.json()
+        const searchItems = searchData.tracks?.items || []
+        const seenIds = new Set(items.map((i: any) => i.id))
+        for (const item of searchItems) {
+          if (!seenIds.has(item.id)) {
+            seenIds.add(item.id)
+            items.push(item)
+          }
+        }
+      }
+    }
+
+    if (items.length > 0) {
+      return items.slice(0, limit).map((item: any) => ({
+        id: `spotify-${item.id}`,
+        user_id: '00000000-0000-4000-a000-000000000001',
+        title: item.name || 'Untitled Track',
+        artist: item.artists?.map((a: any) => a.name).join(', ') || artistName || 'Unknown Artist',
+        album: item.album?.name || '',
+        spotify_album_id: item.album?.id || undefined,
+        duration: Math.round((item.duration_ms || 0) / 1000),
+        file_path: item.external_urls?.spotify || item.preview_url || '',
+        audio_url: item.preview_url || undefined,
+        cover_url: item.album?.images?.[0]?.url || item.album?.images?.[1]?.url || null,
+        created_at: new Date().toISOString(),
+        source: 'spotify' as const,
+        spotify_id: item.id,
+      }))
+    }
+  } catch (err) {
+    console.warn('Spotify artist top tracks warning:', err)
+  }
+
+  return []
+}
+
+
 

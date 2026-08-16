@@ -158,6 +158,34 @@ export function nhacCuaTuiSearchItemToTrack(item: NhacCuaTuiSearchItem): Track {
   }
 }
 
+/**
+ * Direct server-side search on NhacCuaTui API
+ */
+export async function searchNhacCuaTuiDirect(query: string, limit = 20): Promise<Track[]> {
+  const trimmed = query.trim()
+  if (!trimmed) return []
+
+  try {
+    const nctUrl = new URL(process.env.NCT_API_BASE_URL || 'https://music-api.vanhuy2004h.io.vn')
+    nctUrl.pathname = '/api/search'
+    nctUrl.searchParams.set('q', trimmed)
+
+    const res = await fetch(nctUrl, {
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(6000),
+    })
+
+    if (!res.ok) return []
+    const payload: unknown = await res.json()
+    const items = normalizeNhacCuaTuiSearchResponse(payload)
+    return items.slice(0, limit).map(nhacCuaTuiSearchItemToTrack)
+  } catch (err) {
+    console.warn('Direct NCT search error:', err)
+    return []
+  }
+}
+
 export function isValidNhacCuaTuiAudioUrl(value: unknown): value is string {
   if (typeof value !== 'string' || !value.trim()) return false
 

@@ -13,7 +13,8 @@ import { addTrackToPlaylist } from '@/lib/trackPersistence'
 import { getValidUserId } from '@/lib/accessControl'
 import { stripAlbumIdPrefix } from '@/lib/albumId'
 import { toast } from '@/components/ui/ToastContext'
-import { Play, DiscAlbum, Calendar, Music, Shuffle, Disc } from 'lucide-react'
+import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
+import { Play, DiscAlbum, Calendar, Music, Shuffle, Disc, Eye, Clock } from 'lucide-react'
 
 interface AlbumDetail {
   id: string
@@ -33,6 +34,12 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
   const { playTrack, currentTrack, isPlaying, isShuffle, toggleShuffle } = usePlayer()
   const { playlists } = usePlaylists()
   const { data: session } = useSession()
+  const {
+    containerRef: listContainerRef,
+    indicator: trackIndicator,
+    handleItemMouseEnter: handleRowMouseEnter,
+    handleContainerMouseLeave: handleListMouseLeave,
+  } = useListGlideIndicator(52)
 
   const [album, setAlbum] = useState<AlbumDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -230,6 +237,29 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
 
       {/* Track List (Supports Multi-Disc Headers) */}
       <div className="flex flex-col gap-6">
+        {/* Table Column Headers */}
+        <div className="flex items-center justify-between px-3 md:px-4 py-2 text-xs font-semibold text-gray-400 border-b border-white/[0.08] mb-1 select-none">
+          <div className="flex items-center gap-2.5 sm:gap-3 flex-1 min-w-0 pr-4">
+            <span className="w-7 sm:w-8 text-center shrink-0 font-mono text-slate-400">#</span>
+            <span className="text-[11px] font-mono tracking-wider font-semibold text-slate-400">TIÊU ĐỀ</span>
+          </div>
+
+          <div className="hidden md:block w-40 lg:w-52 xl:w-64 shrink-0 text-left text-[11px] font-mono tracking-wider font-semibold text-slate-400 px-2">
+            ALBUM
+          </div>
+
+          <div className="hidden sm:flex items-center justify-end gap-1.5 w-24 md:w-28 shrink-0 text-[10px] font-mono uppercase text-slate-500 px-2" title="Lượt xem trên YouTube">
+            <Eye className="w-3.5 h-3.5 text-slate-500" />
+            <span>LƯỢT XEM</span>
+          </div>
+
+          <div className="w-14 sm:w-16 flex items-center justify-end shrink-0" title="Thời lượng">
+            <Clock className="w-4 h-4 text-slate-400" />
+          </div>
+
+          <div className="w-10 shrink-0" />
+        </div>
+
         {sortedDiscs.map(([discNum, discTracks]) => (
           <div key={discNum} className="flex flex-col gap-2">
             {hasMultipleDiscs && (
@@ -239,7 +269,19 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
               </div>
             )}
 
-            <div className="flex flex-col gap-1">
+            <div
+              ref={listContainerRef}
+              onMouseLeave={handleListMouseLeave}
+              className="flex flex-col gap-1 relative"
+            >
+              <div
+                className="track-glide-indicator"
+                style={{
+                  transform: `translateY(${trackIndicator.top}px) scaleY(${trackIndicator.scaleY})`,
+                  height: `${trackIndicator.height}px`,
+                  opacity: trackIndicator.opacity,
+                }}
+              />
               {discTracks.map((track, idx) => {
                 const isCurrent = currentTrack?.id === track.id
                 const isPlayingThis = isCurrent && isPlaying
@@ -250,6 +292,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
                     index={idx}
                     isCurrent={isCurrent}
                     isPlayingThis={isPlayingThis}
+                    onMouseEnterRow={handleRowMouseEnter}
                     playlistTracks={album.tracks}
                     userPlaylists={playlists}
                     onAddToPlaylist={handleAddToPlaylist}

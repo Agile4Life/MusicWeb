@@ -9,6 +9,7 @@ import { MiniEqualizer } from './MiniEqualizer'
 import { AudioWaveformScrubber } from './AudioWaveformScrubber'
 import { TrackCoverImage } from '../common/TrackCoverImage'
 import { OverflowMarqueeText } from '../common/OverflowMarqueeText'
+import { ArtistLinks } from '../common/ArtistLinks'
 import {
   trackMetadataArtistInlineClass,
   trackMetadataLoadingClass,
@@ -45,12 +46,14 @@ const StageWithFrequencyData = React.memo(function StageWithFrequencyData({
   title,
   artist,
   isPlaying,
+  onArtistClick,
   children,
 }: {
   coverUrl?: string | null
   title?: string | null
   artist?: string | null
   isPlaying: boolean
+  onArtistClick?: (artistName: string, e: React.MouseEvent) => void
   children?: React.ReactNode
 }) {
   const { frequencyData } = usePlayer()
@@ -61,6 +64,7 @@ const StageWithFrequencyData = React.memo(function StageWithFrequencyData({
       title={title}
       artist={artist}
       isPlaying={isPlaying}
+      onArtistClick={onArtistClick}
     >
       {children}
     </NowPlayingStage>
@@ -268,6 +272,17 @@ export function NowPlayingOverlay() {
     router.push(targetQuery ? `/albums?q=${encodeURIComponent(targetQuery)}` : '/albums')
   }
 
+  const handleOpenArtist = (artistName?: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    const name = artistName || currentTrack?.artist
+    if (!name) return
+    closeNowPlayingOverlay()
+    router.push(`/artist?name=${encodeURIComponent(name)}`)
+  }
+
   // Listen to Esc key to close overlay
   useEffect(() => {
     if (!isNowPlayingOpen) return
@@ -370,6 +385,7 @@ export function NowPlayingOverlay() {
               title={currentTrack.title}
               artist={currentTrack.artist}
               isPlaying={isPlaying}
+              onArtistClick={(name, e) => handleOpenArtist(name, e)}
             />
           </div>
 
@@ -391,6 +407,7 @@ export function NowPlayingOverlay() {
                 title={currentTrack.title}
                 artist={currentTrack.artist}
                 isPlaying={isPlaying}
+                onArtistClick={(name, e) => handleOpenArtist(name, e)}
               />
             </div>
           ) : (
@@ -422,9 +439,15 @@ export function NowPlayingOverlay() {
                       SoundCloud
                     </span>
                   )}
-                  <span className="text-[10px] text-slate-400 truncate leading-tight">
-                    {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
-                  </span>
+                  <ArtistLinks
+                    artist={currentTrack.artist}
+                    className="text-[10px] text-slate-400 truncate leading-tight block"
+                    linkClassName="hover:underline hover:text-slate-200 transition-colors cursor-pointer"
+                    onArtistClick={(name, e) => {
+                      e.stopPropagation()
+                      handleOpenArtist(name, e)
+                    }}
+                  />
                 </div>
               </div>
             </div>
@@ -561,13 +584,13 @@ export function NowPlayingOverlay() {
                 )}
               </div>
               <div className="flex items-center gap-2 mt-0.5 min-w-0">
-                <p
-                  data-playerbar-exclude-fullview
-                  className={`${trackMetadataArtistInlineClass} text-[11px] text-slate-400 hover:text-slate-200 transition-colors cursor-pointer`}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
-                </p>
+              <ArtistLinks
+                artist={currentTrack.artist}
+                className={`${trackMetadataArtistInlineClass} text-[11px] text-slate-400 shrink-0 max-w-[130px] truncate block`}
+                linkClassName="hover:underline hover:text-[var(--spotify-glow,#22d3ee)] transition-colors cursor-pointer"
+                onArtistClick={(name, e) => handleOpenArtist(name, e)}
+                data-playerbar-exclude-fullview
+              />
 
                 {/* Album Link Pill with Overflow Marquee Text */}
                 <div

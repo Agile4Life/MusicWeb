@@ -282,7 +282,7 @@ export async function searchDeezerTracks(query: string, limit = 15): Promise<Tra
         id: `deezer-${item.id}`,
         user_id: systemUserId,
         title: item.title || item.title_short || 'Untitled Track',
-        artist: item.artist?.name || 'Nghệ sĩ chưa xác định',
+        artist: extractDeezerArtistName(item),
         album: item.album?.title || undefined,
         duration: Math.round(item.duration || 0),
         file_path: item.preview || item.link || `deezer:${item.id}`,
@@ -297,6 +297,21 @@ export async function searchDeezerTracks(query: string, limit = 15): Promise<Tra
     return []
   }
 }
+
+/**
+ * Extracts full artist name with all featured/collaborating contributors from Deezer track item.
+ */
+export function extractDeezerArtistName(item: any, fallbackName?: string): string {
+  if (!item) return fallbackName || 'Nghệ sĩ chưa xác định'
+  if (Array.isArray(item.contributors) && item.contributors.length > 0) {
+    const names = item.contributors.map((c: any) => c.name).filter(Boolean)
+    if (names.length > 0) {
+      return names.join(', ')
+    }
+  }
+  return item.artist?.name || fallbackName || 'Nghệ sĩ chưa xác định'
+}
+
 
 function mapDeezerAlbums(items: any[]): DeezerAlbumItem[] {
   return items
@@ -313,23 +328,56 @@ function mapDeezerAlbums(items: any[]): DeezerAlbumItem[] {
 }
 
 /**
- * Find Deezer Artist ID by Name
+ * Normalizes artist name for strict exact comparison (removes diacritics, punctuation, spaces, casing).
  */
-export async function searchDeezerArtist(artistName: string): Promise<{ id: number; name: string } | null> {
+export function normalizeArtistForComparison(name: string): string {
+  if (!name) return ''
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // remove diacritics
+    .replace(/[^a-z0-9]/g, '') // remove non-alphanumeric (spaces, hyphens, dots, etc.)
+    .trim()
+}
+
+/**
+ * Find Deezer Artist ID by Name — STRICT EXACT MATCHING ONLY
+ * Fetches top 15 candidates and verifies exact or strict normalized name match.
+ * Rejects fuzzy / unrelated artists to guarantee accuracy.
+ */
+export async function searchDeezerArtist(artistName: string): Promise<{ id: number; name: string; nb_fan?: number } | null> {
   if (!artistName || !artistName.trim()) return null
   try {
-    const cleanName = artistName.replace(/[\(\[\{].*?[\)\]\}]/g, '').trim()
-    const res = await fetch(`https://api.deezer.com/search/artist?q=${encodeURIComponent(cleanName)}&limit=1`, {
+    const cleanTarget = artistName.replace(/[\(\[\{].*?[\)\]\}]/g, '').trim()
+    const targetNorm = normalizeArtistForComparison(cleanTarget)
+    if (!targetNorm) return null
+
+    const res = await fetch(`https://api.deezer.com/search/artist?q=${encodeURIComponent(cleanTarget)}&limit=15`, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
       next: { revalidate: 86400 },
     })
 
     if (res.ok) {
       const data = await res.json()
-      if (data.data && data.data.length > 0) {
+      const items: any[] = data.data || []
+      if (items.length === 0) return null
+
+      // 1. Filter candidates that STRICTLY match either exact string or normalized string
+      const matched = items.filter((item) => {
+        if (!item || !item.name) return false
+        const cleanCandidate = item.name.trim()
+        const isExact = cleanCandidate.toLowerCase() === cleanTarget.toLowerCase()
+        const isNorm = normalizeArtistForComparison(cleanCandidate) === targetNorm
+        return isExact || isNorm
+      })
+
+      if (matched.length > 0) {
+        // Sort strictly by fan count descending to pick the official profile with most followers
+        matched.sort((a, b) => (b.nb_fan || 0) - (a.nb_fan || 0))
         return {
-          id: data.data[0].id,
-          name: data.data[0].name,
+          id: matched[0].id,
+          name: matched[0].name,
+          nb_fan: matched[0].nb_fan || 0,
         }
       }
     }
@@ -443,7 +491,7 @@ function mapDeezerTracksToQueue(rawTracks: any[], reason: string, initialScore: 
       return {
         id: `deezer-${sourceId}`,
         title: item.title || item.title_short || 'Untitled Track',
-        artist: item.artist?.name || 'Nghệ sĩ chưa xác định',
+        artist: extractDeezerArtistName(item),
         album: item.album?.title || undefined,
         cover_url: item.album?.cover_xl || item.album?.cover_big || item.album?.cover_medium || item.album?.cover || null,
         duration: Math.round(item.duration || 0),

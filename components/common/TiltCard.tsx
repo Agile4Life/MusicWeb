@@ -118,15 +118,17 @@ export function TiltCard({
       }}
     >
       {/* 2.5D Isolated Layers (Cover has 3D tilt, Text stays in crisp 2D) */}
-      {children}
+      <div className="relative z-10 h-full w-full flex flex-col">
+        {children}
+      </div>
 
-      {/* Specular Highlight & Holographic Light Glare */}
+      {/* Subtle Specular Highlight behind text for glassy shine without blurring letters */}
       {isHoverCapable && !isReducedMotion && (
         <div
-          className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300 mix-blend-overlay motion-reduce:hidden z-20"
+          className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300 motion-reduce:hidden z-0"
           style={{
             background:
-              'radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255,255,255,0.3) 0%, transparent 60%)',
+              'radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255,255,255,0.06) 0%, transparent 60%)',
           }}
         />
       )}

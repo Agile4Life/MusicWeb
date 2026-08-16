@@ -31,37 +31,20 @@ export function useGridGlideIndicator() {
     const width = el.offsetWidth
     const height = el.offsetHeight
 
-    setIndicator((prev) => {
-      const isFirstEnter = prev.opacity === 0
-      const distX = Math.abs(newLeft - prev.left)
-      const distY = Math.abs(newTop - prev.top)
-      const stretchX = isFirstEnter ? 1 : Math.min(1 + (distX / (width || 1)) * 0.09, 1.2)
-      const stretchY = isFirstEnter ? 1 : Math.min(1 + (distY / (height || 1)) * 0.09, 1.2)
-
-      return {
-        left: newLeft,
-        top: newTop,
-        width,
-        height,
-        opacity: 1,
-        scaleX: stretchX,
-        scaleY: stretchY,
-      }
+    setIndicator({
+      left: newLeft,
+      top: newTop,
+      width,
+      height,
+      opacity: 1,
+      scaleX: 1,
+      scaleY: 1,
     })
   }, [])
 
   const handleContainerMouseLeave = useCallback(() => {
-    setIndicator((prev) => ({ ...prev, opacity: 0, scaleX: 1, scaleY: 1 }))
+    setIndicator((prev) => ({ ...prev, opacity: 0 }))
   }, [])
-
-  useEffect(() => {
-    if (indicator.scaleX !== 1 || indicator.scaleY !== 1) {
-      const t = setTimeout(() => {
-        setIndicator((prev) => ({ ...prev, scaleX: 1, scaleY: 1 }))
-      }, 40)
-      return () => clearTimeout(t)
-    }
-  }, [indicator.left, indicator.top, indicator.scaleX, indicator.scaleY])
 
   return {
     containerRef,
@@ -92,32 +75,17 @@ export function useListGlideIndicator(defaultHeight = 52) {
     const newTop = el.offsetTop
     const height = el.offsetHeight || defaultHeight
 
-    setIndicator((prev) => {
-      const isFirstEnter = prev.opacity === 0
-      const distance = Math.abs(newTop - prev.top)
-      const stretchFactor = isFirstEnter ? 1 : Math.min(1 + (distance / height) * 0.14, 1.38)
-
-      return {
-        top: newTop,
-        height,
-        opacity: 1,
-        scaleY: stretchFactor,
-      }
+    setIndicator({
+      top: newTop,
+      height,
+      opacity: 1,
+      scaleY: 1,
     })
   }, [defaultHeight])
 
   const handleContainerMouseLeave = useCallback(() => {
-    setIndicator((prev) => ({ ...prev, opacity: 0, scaleY: 1 }))
+    setIndicator((prev) => ({ ...prev, opacity: 0 }))
   }, [])
-
-  useEffect(() => {
-    if (indicator.scaleY !== 1) {
-      const t = setTimeout(() => {
-        setIndicator((prev) => ({ ...prev, scaleY: 1 }))
-      }, 40)
-      return () => clearTimeout(t)
-    }
-  }, [indicator.top, indicator.scaleY])
 
   return {
     containerRef,

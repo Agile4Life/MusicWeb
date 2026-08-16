@@ -133,12 +133,12 @@ export function MediaCard({
         </div>
 
         {/* Card Typography & Metadata */}
-        <div className="flex flex-col gap-0.5 sm:gap-1 min-w-0 px-0.5">
+        <div className="flex flex-col gap-0.5 sm:gap-1 min-w-0 px-0.5 relative z-10">
           <h3 className="card-title text-xs sm:text-sm font-bold text-white truncate tracking-tight">
             {title}
           </h3>
           {subtitle && (
-            <p className="card-artist text-[11px] sm:text-xs text-slate-400 truncate font-medium">
+            <p className="card-artist text-[11px] sm:text-xs text-slate-400 group-hover:text-slate-300 truncate font-medium transition-colors">
               {subtitle}
             </p>
           )}

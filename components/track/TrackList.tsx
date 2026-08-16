@@ -236,8 +236,8 @@ export function TrackList({
   return (
     <div className="flex flex-col gap-1 relative">
       {/* Table Header */}
-      <div className="flex items-center justify-between px-3 sm:px-4 py-2 text-xs font-semibold text-gray-400 border-b border-[#282828] mb-2 select-none">
-        <div className="flex items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
+      <div className="flex items-center justify-between px-3 md:px-4 py-2 text-xs font-semibold text-gray-400 border-b border-white/[0.08] mb-2 select-none">
+        <div className="flex items-center gap-2.5 sm:gap-3 flex-1 min-w-0 pr-4">
           {isAdmin && (
             <div className="w-5 shrink-0 flex items-center justify-center" title="Chọn tất cả">
               <input
@@ -248,16 +248,24 @@ export function TrackList({
               />
             </div>
           )}
-          <span className="w-7 sm:w-8 text-center shrink-0">#</span>
-          <span>TIÊU ĐỀ</span>
+          <span className="w-7 sm:w-8 text-center shrink-0 font-mono text-slate-400">#</span>
+          <span className="text-[11px] font-mono tracking-wider font-semibold text-slate-400">TIÊU ĐỀ</span>
         </div>
-        <div className="hidden lg:block w-1/4">ALBUM</div>
-        <div className="flex items-center justify-end shrink-0 lg:w-1/4 text-xs font-semibold text-slate-400 select-none gap-3">
-          <span className="w-12 flex justify-center shrink-0" title="Thời lượng">
-            <Clock className="w-4 h-4 text-slate-400" />
-          </span>
-          <div className="min-w-[32px] shrink-0" />
+
+        <div className="hidden md:block w-40 lg:w-52 xl:w-64 shrink-0 text-left text-[11px] font-mono tracking-wider font-semibold text-slate-400 px-2">
+          ALBUM
         </div>
+
+        <div className="hidden sm:flex items-center justify-end gap-1.5 w-24 md:w-28 shrink-0 text-[10px] font-mono uppercase text-slate-500 px-2" title="Lượt xem trên YouTube">
+          <Eye className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+          <span>LƯỢT XEM</span>
+        </div>
+
+        <div className="w-14 sm:w-16 flex items-center justify-end shrink-0" title="Thời lượng">
+          <Clock className="w-4 h-4 text-slate-400" />
+        </div>
+
+        <div className="w-10 shrink-0" />
       </div>
 
       {/* Track Rows with Liquid Glide Indicator */}

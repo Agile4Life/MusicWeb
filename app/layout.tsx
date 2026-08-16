@@ -5,7 +5,6 @@ import './globals.css'
 import { SessionProvider } from '@/components/auth/SessionProvider'
 import { ThemeProvider } from '@/components/theme/ThemeContext'
 import { LanguageProvider } from '@/components/i18n/LanguageContext'
-import { CursorSpotlight } from '@/components/theme/CursorSpotlight'
 import { CustomCursor } from '@/components/theme/CustomCursor'
 import { LiquidGlassFilterDefs } from '@/components/theme/LiquidGlassFilterDefs'
 
@@ -79,7 +78,6 @@ export default function RootLayout({
           <LanguageProvider>
             <ThemeProvider>
               <LiquidGlassFilterDefs />
-              <CursorSpotlight />
               <CustomCursor />
               {children}
             </ThemeProvider>

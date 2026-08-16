@@ -3,6 +3,7 @@
 import React, { lazy, Suspense, useRef, useEffect, useState } from 'react'
 import { useCanUse3D } from '@/hooks/useCanUse3D'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
+import { ArtistLinks } from '@/components/common/ArtistLinks'
 import { usePlayer, usePlaybackProgress } from './PlayerContext'
 import { UpNextList } from './UpNextList'
 import { extractCoverAccent } from '@/lib/coverColor'
@@ -16,6 +17,7 @@ interface NowPlayingStageProps {
   title?: string | null
   artist?: string | null
   isPlaying: boolean
+  onArtistClick?: (artistName: string, e: React.MouseEvent) => void
   children?: React.ReactNode
 }
 
@@ -30,6 +32,7 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
   title,
   artist,
   isPlaying,
+  onArtistClick,
   children,
 }: NowPlayingStageProps) {
   const canUse3D = useCanUse3D()
@@ -253,7 +256,13 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
               {title || 'Chưa chọn bài hát'}
             </h2>
             <p className="fullview-track-artist text-[clamp(10px,1.3vh,14px)] text-slate-400 font-medium mt-0.5 sm:mt-1 line-clamp-1">
-              {artist || 'Nghệ sĩ'}
+              <ArtistLinks
+                artist={artist}
+                fallbackText="Nghệ sĩ"
+                className="text-[clamp(10px,1.3vh,14px)] text-slate-400 font-medium line-clamp-1"
+                linkClassName="hover:underline hover:text-[var(--spotify-glow,#22d3ee)] transition-colors cursor-pointer"
+                onArtistClick={onArtistClick}
+              />
             </p>
 
             {/* Context Metadata (Bài n/total · Album · Year) */}

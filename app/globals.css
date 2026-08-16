@@ -270,30 +270,29 @@ body {
     0 2px 8px rgba(0, 0, 0, 0.3) !important;
 }
 
-/* === Elevation 3: Player Bar (Tier 1 Focal Glass Surface, Increased Opacity for Separation) === */
+/* === Elevation 3: Player Bar (Solid High-Fidelity Glass Surface, Full Content Separation) === */
 .player-bar {
-  z-index: 30;
-  background: linear-gradient(135deg,
-      color-mix(in srgb, var(--spotify-glow, #22d3ee) 5%, rgba(20, 24, 36, 0.75)) 0%,
-      hsla(var(--base-h, 213) var(--base-s, 74%) 10% / 0.72) 40%,
-      hsla(var(--base-h, 213) var(--base-s, 74%) 6% / 0.82) 100%) !important;
-  backdrop-filter: blur(28px) saturate(170%) contrast(105%);
-  -webkit-backdrop-filter: blur(28px) saturate(170%) contrast(105%);
-  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 12%, rgba(255, 255, 255, 0.08)) !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.16) !important;
+  z-index: 40;
+  background: linear-gradient(180deg,
+      rgba(17, 23, 38, 0.97) 0%,
+      rgba(10, 14, 24, 0.98) 100%) !important;
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 15%, rgba(255, 255, 255, 0.1)) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.18) !important;
   box-shadow:
-    0 16px 40px -10px rgba(0, 0, 0, 0.82),
-    0 0 16px -6px var(--theme-glow-shadow, rgba(34, 211, 238, 0.2)),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+    0 20px 50px -10px rgba(0, 0, 0, 0.9),
+    0 0 24px -4px var(--theme-glow-shadow, rgba(34, 211, 238, 0.25)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .player-bar:hover {
   border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, rgba(255, 255, 255, 0.2)) !important;
   box-shadow:
-    0 20px 50px -10px rgba(0, 0, 0, 0.8),
+    0 24px 60px -10px rgba(0, 0, 0, 0.92),
     0 0 30px -4px var(--theme-glow-shadow, rgba(34, 211, 238, 0.35)),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
 }
 
 .player-bar,
@@ -1412,27 +1411,28 @@ input[type='range']:hover::-moz-range-thumb {
   position: absolute;
   top: 0;
   left: 0;
+  box-sizing: border-box;
   border-radius: var(--radius-card, 18px);
   background: radial-gradient(
     ellipse at center,
-    color-mix(in srgb, var(--spotify-glow, #22d3ee) 32%, transparent) 0%,
-    color-mix(in srgb, var(--spotify-glow, #22d3ee) 15%, transparent) 55%,
+    color-mix(in srgb, var(--spotify-glow, #22d3ee) 25%, transparent) 0%,
+    color-mix(in srgb, var(--spotify-glow, #22d3ee) 10%, transparent) 55%,
     transparent 85%
   );
+  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 40%, rgba(255, 255, 255, 0.15));
   box-shadow:
-    0 0 50px color-mix(in srgb, var(--spotify-glow, #22d3ee) 50%, transparent),
-    0 16px 40px -6px rgba(0, 0, 0, 0.7);
+    0 0 24px color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, transparent),
+    0 8px 24px -4px rgba(0, 0, 0, 0.6);
   opacity: 0;
   pointer-events: none;
   z-index: 0;
-  transform-origin: center center;
   will-change: transform, opacity;
-  filter: blur(4px);
   transition:
-    transform 320ms var(--ease-out-quint),
-    width 220ms ease,
-    height 220ms ease,
-    opacity 180ms ease;
+    transform 260ms cubic-bezier(0.16, 1, 0.3, 1),
+    width 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    height 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 180ms ease,
+    border-color 200ms ease;
 }
 
 .track-glide-indicator {
@@ -1677,10 +1677,10 @@ input[type='range']:hover::-moz-range-thumb {
 .media-card {
   position: relative;
   border-radius: var(--radius-card, 18px);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.01) 100%), rgba(13, 18, 31, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%), rgba(13, 18, 31, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.09);
   box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.16),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
     0 8px 20px -4px rgba(0, 0, 0, 0.55),
     0 2px 6px rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(16px);
@@ -1693,21 +1693,21 @@ input[type='range']:hover::-moz-range-thumb {
   perspective: 1000px;
 }
 
-/* Dynamic Cursor Spotlight Following Mouse Movement Across Card */
+/* Subtle Dynamic Cursor Spotlight Following Mouse Movement Across Card */
 .media-card::before {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   background: radial-gradient(
-    circle 220px at var(--mouse-x, 50%) var(--mouse-y, 50%),
-    color-mix(in srgb, var(--spotify-glow, #22d3ee) 30%, transparent) 0%,
-    transparent 75%
+    circle 180px at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    color-mix(in srgb, var(--spotify-glow, #22d3ee) 10%, transparent) 0%,
+    transparent 65%
   );
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s ease;
-  z-index: 1;
+  z-index: 0;
 }
 
 .media-card:hover::before {
@@ -1715,12 +1715,12 @@ input[type='range']:hover::-moz-range-thumb {
 }
 
 .media-card:hover {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 100%), rgba(18, 24, 40, 0.55);
-  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 70%, rgba(255, 255, 255, 0.4));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.01) 100%), rgba(14, 19, 32, 0.88);
+  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 45%, rgba(255, 255, 255, 0.25));
   box-shadow:
-    inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.4),
-    0 20px 40px -8px rgba(0, 0, 0, 0.85),
-    0 0 28px -2px color-mix(in srgb, var(--spotify-glow, #22d3ee) 40%, transparent);
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.25),
+    0 16px 36px -6px rgba(0, 0, 0, 0.75),
+    0 0 18px -2px color-mix(in srgb, var(--spotify-glow, #22d3ee) 22%, transparent);
   z-index: 2;
 }
 
@@ -1814,10 +1814,10 @@ input[type='range']:hover::-moz-range-thumb {
   transform: scale(0.94) translateY(0) !important;
 }
 
-/* 2D Vector Parallax & Theme Glow for Title & Artist */
+/* 2D Vector Parallax & Crisp Typography for Title & Artist */
 .media-card .card-title {
   transform: translate(calc(var(--tilt-x, 0) * 1.5px), calc(var(--tilt-y, 0) * 1px));
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease, text-shadow 0.2s ease;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
@@ -1830,8 +1830,8 @@ input[type='range']:hover::-moz-range-thumb {
 }
 
 .media-card:hover .card-title {
-  color: var(--spotify-glow, #22d3ee);
-  text-shadow: 0 0 12px color-mix(in srgb, var(--spotify-glow, #22d3ee) 40%, transparent);
+  color: #ffffff;
+  text-shadow: none;
 }
 
 /* Glass Badge */
@@ -2707,7 +2707,6 @@ html[data-theme-style="minimal-flat"] body {
 }
 
 /* Hide Glow & Spotlight effects */
-[data-theme-style="minimal-flat"] .cursor-spotlight,
 [data-theme-style="minimal-flat"] .ambient-glow-orb,
 [data-theme-style="minimal-flat"] [data-spotlight] {
   display: none !important;
@@ -3648,3 +3647,33 @@ html[data-theme-style="minimal-flat"] body {
   -webkit-backdrop-filter: blur(16px) !important;
   border-top: 1px solid rgba(244, 236, 230, 0.1) !important;
 }
+
+/* ── Artist Page ───────────────────────────────────── */
+
+.artist-hero {
+  position: relative;
+  background: linear-gradient(135deg, rgba(var(--primary-spotify-rgb, 6,182,212), 0.10) 0%, transparent 60%);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.artist-avatar {
+  box-shadow:
+    0 0 24px rgba(var(--primary-spotify-rgb, 6,182,212), 0.25),
+    0 8px 32px rgba(0,0,0,0.5);
+  transition: transform 0.35s cubic-bezier(.4,0,.2,1), box-shadow 0.35s ease;
+}
+
+.artist-avatar:hover {
+  transform: scale(1.04);
+  box-shadow:
+    0 0 36px rgba(var(--primary-spotify-rgb, 6,182,212), 0.35),
+    0 12px 40px rgba(0,0,0,0.6);
+}
+
+/* Responsive: smaller avatar on very small screens */
+@media (max-width: 400px) {
+  .artist-avatar {
+    width: 100px !important;
+    height: 100px !important;
+  }
+}
