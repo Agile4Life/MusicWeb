@@ -253,29 +253,12 @@ async function resolveStream(
   const driveResult = await tryDrive()
   if (driveResult) return driveResult
 
-  // 2. Parallel Fast Resolution: Race NCT & YouTube (Safely bounded to prevent unhandled rejection crashes)
-  const nctPromise = tryNct()
-  const ytPromise = tryYoutube()
-
-  const safeNct = nctPromise
-    .then((res) => ({ type: 'nct' as const, res }))
-    .catch(() => ({ type: 'nct' as const, res: null }))
-
-  const safeYt = ytPromise
-    .then((res) => ({ type: 'yt' as const, res }))
-    .catch(() => ({ type: 'yt' as const, res: null }))
-
-  const firstResult = await Promise.race([safeNct, safeYt])
-
-  if (firstResult.res) {
-    return firstResult.res
-  }
-
-  // If the first finished without finding a stream, await the other safe promise
-  const fallback = await (firstResult.type === 'nct' ? safeYt : safeNct)
-  if (fallback.res) {
-    return fallback.res
-  }
+  // 2. Run NCT and YouTube searches in parallel, but choose by stable priority.
+  // NCT is preferred because it uses a direct audio stream path in our player;
+  // YouTube remains the deterministic fallback when NCT has no valid match.
+  const [nctResult, ytResult] = await Promise.all([tryNct(), tryYoutube()])
+  if (nctResult) return nctResult
+  if (ytResult) return ytResult
 
   // === Miss — cả 3 nguồn đều không tìm được ===
   return {
@@ -341,8 +324,8 @@ export async function GET(request: NextRequest): Promise<Response> {
       resolvedId: memDrive.file_path,
       title: memDrive.title,
       artist: memDrive.artist,
-      duration: memDrive.duration,
-      coverUrl: memDrive.cover_url || undefined,
+      duration: memTrack.duration,
+      coverUrl: memTrack.cover_url || undefined,
       isMiss: false,
       expiresAt: Date.now() + L1_HIT_TTL,
     }
