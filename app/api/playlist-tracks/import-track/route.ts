@@ -9,9 +9,24 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null)
   const { playlistId, position, track } = body || {}
 
-  if (!playlistId || !track?.filePath) {
-    return Response.json({ error: 'Thiếu playlistId hoặc track.filePath' }, { status: 400 })
+  if (!playlistId || !track || !track.title) {
+    return Response.json({ error: 'Thiếu playlistId hoặc thông tin bài hát' }, { status: 400 })
   }
+
+  const rawFilePath = typeof track.filePath === 'string' ? track.filePath.trim() : ''
+  const effectiveFilePath =
+    rawFilePath ||
+    (track.nhaccuatuiId
+      ? `nct:${track.nhaccuatuiId}`
+      : track.youtubeId
+        ? `https://www.youtube.com/watch?v=${track.youtubeId}`
+        : track.spotifyId
+          ? `spotify:${track.spotifyId}`
+          : track.soundcloudId
+            ? `soundcloud:${track.soundcloudId}`
+            : track.soundcloudPermalinkUrl
+              ? track.soundcloudPermalinkUrl
+              : `ext:${Date.now()}-${position || 0}`)
 
   try {
     // 0. Xác nhận playlist thuộc quyền sở hữu user hiện tại
@@ -26,7 +41,7 @@ export async function POST(req: Request) {
       return Response.json({ error: 'Không tìm thấy playlist hoặc không có quyền' }, { status: 403 })
     }
 
-    // 1. Kiểm tra track đã tồn tại (dedupe theo nhaccuatui_id, youtube_id, file_path) chưa
+    // 1. Kiểm tra track đã tồn tại (dedupe theo nhaccuatui_id, youtube_id, spotify_id, file_path) chưa
     let dbTrackId: string | null = null
 
     if (track.nhaccuatuiId) {
@@ -47,11 +62,20 @@ export async function POST(req: Request) {
       if (existingYt && existingYt.length > 0) dbTrackId = existingYt[0].id
     }
 
-    if (!dbTrackId && track.filePath) {
+    if (!dbTrackId && track.spotifyId) {
+      const { data: existingSp } = await adminClient
+        .from('tracks')
+        .select('id')
+        .eq('spotify_id', track.spotifyId)
+        .limit(1)
+      if (existingSp && existingSp.length > 0) dbTrackId = existingSp[0].id
+    }
+
+    if (!dbTrackId && effectiveFilePath) {
       const { data: existing } = await adminClient
         .from('tracks')
         .select('id')
-        .eq('file_path', track.filePath)
+        .eq('file_path', effectiveFilePath)
         .limit(1)
       if (existing && existing.length > 0) {
         dbTrackId = existing[0].id
@@ -68,7 +92,7 @@ export async function POST(req: Request) {
           artist: track.artist || 'Unknown Artist',
           album: track.album || null,
           duration: track.duration || 0,
-          file_path: track.filePath,
+          file_path: effectiveFilePath,
           cover_url: track.coverUrl || null,
           source: track.source || null,
           youtube_id: track.youtubeId || null,

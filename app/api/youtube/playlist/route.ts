@@ -21,20 +21,38 @@ function cleanHtmlEntities(str?: string | null): string {
     .replace(/&gt;/g, '>')
 }
 
+function parseDurationText(str?: string | null): number {
+  if (!str) return 0
+  const trimmed = str.trim()
+  if (trimmed.includes(':')) {
+    const parts = trimmed.split(':').map(Number)
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      return parts[0] * 60 + parts[1]
+    }
+    if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+      return parts[0] * 3600 + parts[1] * 60 + parts[2]
+    }
+  }
+  const parsed = parseInt(trimmed, 10)
+  return isNaN(parsed) ? 0 : parsed
+}
+
 async function fetchViaInnerTube(playlistId: string): Promise<{ meta: YouTubePlaylistMeta; tracks: Track[] } | null> {
   try {
     const browseId = playlistId.startsWith('VL') ? playlistId : `VL${playlistId}`
-    const res = await fetch('https://www.youtube.com/youtubei/v1/browse', {
+    const res = await fetch('https://music.youtube.com/youtubei/v1/browse', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Origin': 'https://music.youtube.com',
+        'Referer': 'https://music.youtube.com/',
       },
       body: JSON.stringify({
         context: {
           client: {
             clientName: 'WEB_REMIX',
-            clientVersion: '1.20240101.01.00',
+            clientVersion: '1.20240401.01.00',
             hl: 'vi',
             gl: 'VN',
           },
@@ -71,6 +89,9 @@ async function fetchViaInnerTube(playlistId: string): Promise<{ meta: YouTubePla
         const artistRuns = flexColumns[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || []
         const artist = artistRuns.map((x: any) => x.text).join('').replace(/ • .*/, '').trim() || channelTitle
 
+        const fixedDuration = r.fixedColumns?.[0]?.musicResponsiveListItemFixedColumnRenderer?.text?.runs?.[0]?.text
+        const durationSeconds = parseDurationText(fixedDuration)
+
         const playlistItemData = r.playlistItemData || {}
         const videoId = playlistItemData.videoId || r.doubleTapCommand?.watchEndpoint?.videoId
 
@@ -85,7 +106,7 @@ async function fetchViaInnerTube(playlistId: string): Promise<{ meta: YouTubePla
             title: cleanHtmlEntities(titleRun),
             artist: cleanHtmlEntities(artist),
             album: 'YouTube Music',
-            duration: 0,
+            duration: durationSeconds,
             file_path: `https://www.youtube.com/watch?v=${videoId}`,
             cover_url: itemCover,
             created_at: new Date().toISOString(),
@@ -99,6 +120,9 @@ async function fetchViaInnerTube(playlistId: string): Promise<{ meta: YouTubePla
         const title = r.title?.runs?.[0]?.text || r.title?.simpleText
         const artist = r.shortBylineText?.runs?.[0]?.text || channelTitle
 
+        const durationStr = r.lengthText?.runs?.[0]?.text || r.lengthText?.simpleText || r.lengthSeconds
+        const durationSeconds = parseDurationText(durationStr)
+
         const thumbs = r.thumbnail?.thumbnails || []
         const itemCover = getBestYouTubeThumbnailUrl(videoId, thumbs[thumbs.length - 1]?.url || coverUrl)
 
@@ -110,7 +134,7 @@ async function fetchViaInnerTube(playlistId: string): Promise<{ meta: YouTubePla
             title: cleanHtmlEntities(title),
             artist: cleanHtmlEntities(artist),
             album: 'YouTube Music',
-            duration: 0,
+            duration: durationSeconds,
             file_path: `https://www.youtube.com/watch?v=${videoId}`,
             cover_url: itemCover,
             created_at: new Date().toISOString(),

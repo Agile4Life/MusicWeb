@@ -49,7 +49,7 @@ export async function matchSingleTrack(spotifyTrack: SpotifyPlaylistTrack): Prom
         title: nctSong.title || spotifyTrack.title,
         artist: nctSong.artist || spotifyTrack.artist,
         duration: nctSong.duration || spotifyTrack.duration || 0,
-        file_path: '',
+        file_path: `nct:${nctSong.id}`,
         cover_url: nctSong.coverUrl || null,
         created_at: new Date().toISOString(),
         source: 'nhaccuatui',

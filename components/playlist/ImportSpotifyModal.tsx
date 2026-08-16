@@ -92,13 +92,11 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
   const [importingProgress, setImportingProgress] = useState({ done: 0, total: 0 })
   const [createdPlaylistId, setCreatedPlaylistId] = useState<string | null>(null)
   const [importedTrackCount, setImportedTrackCount] = useState(0)
+  const prevIsOpenRef = useRef(false)
 
-  // Reset state on close or open
+  // Reset / sync state only on transition from closed to open
   useEffect(() => {
-    if (!isOpen) {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-      }
+    if (isOpen && !prevIsOpenRef.current) {
       setStep('input')
       setUrlInput('')
       setInputError(null)
@@ -108,7 +106,14 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
       setSelectedIds(new Set())
       setManualMatchTrack(null)
       setCreatedPlaylistId(null)
+      setImportedTrackCount(0)
+      setImportingProgress({ done: 0, total: 0 })
+    } else if (!isOpen && prevIsOpenRef.current) {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
     }
+    prevIsOpenRef.current = isOpen
   }, [isOpen])
 
   if (!isOpen) return null
@@ -326,20 +331,30 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
         }
         const resolvedTrack = await resolvePlaylistTrackWithNct(candidate)
 
+        const filePath =
+          resolvedTrack.file_path ||
+          (resolvedTrack.nhaccuatui_id
+            ? `nct:${resolvedTrack.nhaccuatui_id}`
+            : resolvedTrack.youtube_id
+              ? `https://www.youtube.com/watch?v=${resolvedTrack.youtube_id}`
+              : item.spotify_id
+                ? `spotify:${item.spotify_id}`
+                : `ext:${Date.now()}-${i}`)
+
         const res = await fetch('/api/playlist-tracks/import-track', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             playlistId: targetPlaylistId,
-            position: i,
+            position: i + 1,
             track: {
-              title: resolvedTrack.title,
+              title: resolvedTrack.title || item.spotifyTrack.title,
               artist: resolvedTrack.artist || item.spotifyTrack.artist,
               album: resolvedTrack.album || item.spotifyTrack.album || 'Spotify Import',
               duration: resolvedTrack.duration || item.spotifyTrack.duration || 0,
-              filePath: resolvedTrack.file_path,
+              filePath,
               coverUrl: resolvedTrack.cover_url || item.spotifyTrack.cover_url,
-              source: resolvedTrack.source || null,
+              source: resolvedTrack.source || (resolvedTrack.nhaccuatui_id ? 'nhaccuatui' : resolvedTrack.youtube_id ? 'youtube' : 'spotify'),
               youtubeId: resolvedTrack.youtube_id || null,
               spotifyId: resolvedTrack.nhaccuatui_id ? null : resolvedTrack.spotify_id || item.spotify_id,
               nhaccuatuiId: resolvedTrack.nhaccuatui_id || null,

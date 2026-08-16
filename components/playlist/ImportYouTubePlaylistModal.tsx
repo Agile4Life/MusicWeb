@@ -68,10 +68,11 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
   const [importingProgress, setImportingProgress] = useState({ done: 0, total: 0 })
   const [importedTrackCount, setImportedTrackCount] = useState(0)
   const [createdPlaylistId, setCreatedPlaylistId] = useState<string | null>(null)
+  const prevIsOpenRef = useRef(false)
 
-  // Reset modal state on open/close
+  // Reset modal state only on transition from closed to open
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen && !prevIsOpenRef.current) {
       setStep('input')
       setUrlInput('')
       setInputError(null)
@@ -85,6 +86,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
       setImportedTrackCount(0)
       setCreatedPlaylistId(null)
     }
+    prevIsOpenRef.current = isOpen
   }, [isOpen])
 
   if (!isOpen) return null
@@ -196,21 +198,26 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
       let successCount = 0
       for (let i = 0; i < tracksToImport.length; i++) {
         const track = tracksToImport[i]
+        const rawYtId = track.youtube_id || (track.id?.startsWith('yt-') ? track.id.slice(3) : '')
+        const filePath =
+          track.file_path ||
+          (rawYtId ? `https://www.youtube.com/watch?v=${rawYtId}` : `yt:${Date.now()}-${i}`)
+
         const res = await fetch('/api/playlist-tracks/import-track', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             playlistId: targetPlaylistId,
-            position: i,
+            position: i + 1,
             track: {
-              title: track.title,
-              artist: track.artist,
+              title: track.title || 'YouTube Track',
+              artist: track.artist || 'YouTube Artist',
               album: track.album || 'YouTube Music',
               duration: track.duration || 0,
-              filePath: track.file_path,
-              coverUrl: track.cover_url,
+              filePath,
+              coverUrl: track.cover_url || null,
               source: 'youtube',
-              youtubeId: track.youtube_id || null,
+              youtubeId: rawYtId || null,
             },
           }),
         })
