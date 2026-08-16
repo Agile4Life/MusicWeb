@@ -109,16 +109,18 @@ async function handleStream(fileId, filenameHint, request, env, ctx) {
 
   // ---- T3: Origin — resolve real Drive URL via the app, fetch FULL file (stream-tee into R2) ----
   const resolved = await resolveViaApp(fileId, filenameHint, env)
-  if (!resolved) return json({ error: 'Google Drive: could not resolve a playable stream URL' }, 502)
+  if (!resolved) return json({ error: 'Google Drive: could not resolve stream URL' }, 502)
 
   const controller = new AbortController()
   const originTimeout = setTimeout(() => controller.abort(), ORIGIN_TIMEOUT_MS)
 
   let originRes
   try {
+    const originHeaders = { 'User-Agent': USER_AGENT }
+    if (rangeHeader) originHeaders['Range'] = rangeHeader // ✅ Forward Range thật sang origin
     originRes = await fetch(resolved.url, {
       method: 'GET',
-      headers: { 'User-Agent': USER_AGENT },
+      headers: originHeaders,
       cache: 'no-store',
       signal: controller.signal,
     })
@@ -136,12 +138,24 @@ async function handleStream(fileId, filenameHint, request, env, ctx) {
   if (contentType.includes('text/html') || contentType.includes('octet-stream')) {
     contentType = detectAudioContentType(filenameHint)
   }
-  const contentLengthHeader = originRes.headers.get('content-length')
 
-  // Large audio files (FLAC/WAV can be 40-80MB) — DO NOT buffer the whole body into
-  // memory. Tee the stream: one branch goes to the client immediately, the other is
-  // persisted to R2 in the background. Do NOT call originRes.clone() after tee() —
-  // originRes.body is already locked and clone() will throw a synchronous TypeError.
+  const headers = new Headers(CORS)
+  headers.set('Content-Type', contentType)
+  headers.set('Accept-Ranges', 'bytes')
+  headers.set('Cache-Control', `public, max-age=${FULL_CACHE_TTL_SECONDS}, immutable`)
+
+  const originContentRange = originRes.headers.get('content-range')
+  const originContentLength = originRes.headers.get('content-length')
+  if (originContentLength) headers.set('Content-Length', originContentLength)
+
+  const isPartial = originRes.status === 206 || !!originContentRange
+  if (isPartial) {
+    // ✅ Dùng đúng header thật từ origin và KHÔNG ghi dở dang vào R2
+    if (originContentRange) headers.set('Content-Range', originContentRange)
+    return new Response(originRes.body, { status: originRes.status || 206, headers })
+  }
+
+  // Full body -> Stream-tee ghi ngầm vào R2
   const [clientBody, r2Body] = originRes.body.tee()
 
   ctx.waitUntil(
@@ -152,31 +166,10 @@ async function handleStream(fileId, filenameHint, request, env, ctx) {
         })
       } catch (e) {
         console.warn('R2 put failed for', fileId, e?.message || e)
-        // If background write was aborted (e.g. client disconnect/skip), delete partial R2 object
         await env.AUDIO_BUCKET.delete(r2Key).catch(() => {})
       }
     })()
   )
-
-  const headers = new Headers(CORS)
-  headers.set('Content-Type', contentType)
-  headers.set('Accept-Ranges', 'bytes')
-  headers.set('Cache-Control', `public, max-age=${FULL_CACHE_TTL_SECONDS}, immutable`)
-
-  if (contentLengthHeader) {
-    const total = Number(contentLengthHeader)
-    if (Number.isFinite(total) && total > 0) {
-      if (rangeHeader) {
-        const range = parseRange(rangeHeader, total)
-        if (range && !range.invalid) {
-          headers.set('Content-Range', `bytes ${range.start}-${range.end}/${total}`)
-          headers.set('Content-Length', String(range.end - range.start + 1))
-          return new Response(clientBody, { status: 206, headers })
-        }
-      }
-      headers.set('Content-Length', String(total))
-    }
-  }
 
   return new Response(clientBody, { status: 200, headers })
 }
@@ -184,24 +177,20 @@ async function handleStream(fileId, filenameHint, request, env, ctx) {
 // ---------------------------------------------------------------- HEAD flow
 
 async function handleHead(fileId, env) {
-  const cacheKey = `https://cache.internal/drive-audio/${encodeURIComponent(fileId)}`
   const r2Key = `drive-songs/${fileId}`
 
   try {
-    const cached = await caches.default.match(cacheKey)
-    if (cached && cached.ok) {
-      return headerOnly(parseInt(cached.headers.get('content-length') || '0', 10), cached.headers.get('content-type'))
-    }
-  } catch { }
-
-  try {
     const meta = await env.AUDIO_BUCKET.head(r2Key)
-    if (meta) return headerOnly(meta.size, meta.httpMetadata?.contentType)
-  } catch { }
+    if (meta && meta.size > 0) {
+      const headers = baseHeaders(meta.httpMetadata?.contentType, meta.size, meta.httpEtag)
+      return new Response(null, { status: 200, headers })
+    }
+  } catch {}
 
-  // Not cached anywhere yet — HEAD should not trigger a full origin fetch+R2 populate.
-  // Return 404 so the caller falls back to a GET (which will populate the cache).
-  return new Response(null, { status: 404, headers: CORS })
+  return new Response(null, {
+    status: 200,
+    headers: { ...CORS, 'Accept-Ranges': 'bytes', 'Content-Type': 'audio/mpeg' },
+  })
 }
 
 // ---------------------------------------------------------------- origin resolution via app
