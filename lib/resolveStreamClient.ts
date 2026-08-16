@@ -149,7 +149,7 @@ export async function resolveStreamCached(
       return null
     } finally {
       const current = inFlight.get(key)
-      if (current?.promise === promise) {
+      if (current?.generation === generation) {
         inFlight.delete(key)
       }
     }
