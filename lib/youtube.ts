@@ -378,10 +378,11 @@ export function findBestYouTubeMatch(
       continue
     }
 
-    // 1b. HARD FILTER: Reject candidate if duration differs by more than 25 seconds from target single track
+    // 1b. HARD FILTER: Reject candidate if duration differs by more than 60 seconds from target single track
+    // (Relaxed from 25s to allow Official MVs and Audio uploads that include studio intro/outro skits)
     if (targetDur > 0 && candidateDuration > 0 && !isQueryAskingForLong) {
       const diff = Math.abs(candidateDuration - targetDur)
-      if (diff > 25) {
+      if (diff > 60) {
         continue
       }
     }

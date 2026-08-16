@@ -1352,38 +1352,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       (!track.youtube_id && !track.nhaccuatui_id && (track.spotify_id || track.itunes_id))
     ) && !track.youtube_id && !(track.source === 'nhaccuatui' && Boolean(track.nhaccuatui_id))
 
-    // ⚡ FAST-START: for catalog tracks with an immediate preview/direct URL, start audio
-    // NOW (same call stack as the user gesture) and let the full-length resolution below
-    // upgrade the source to the real stream when it's ready.
-    let firedPreviewFastStart = false
-    if (isPreviewAudio && audioRef.current && requestId === playRequestRef.current) {
-      const immediateUrl = (track.audio_url && track.audio_url.startsWith('http'))
-        ? track.audio_url
-        : (track.file_path && track.file_path.startsWith('http') ? track.file_path : null)
-      if (immediateUrl) {
-        firedPreviewFastStart = true
-        try {
-          // The element may still contain the previous track. Assign the preview
-          // source before play() so a fast track switch cannot replay stale audio.
-          setAudioSourceForPlayback(audioRef.current, immediateUrl, volumeRef.current, 0)
-          // Fast-start: play immediate preview audibly so user hears sound instantly (<50ms)
-          // while the full-length stream is being resolved in the background.
-          audioRef.current.play()
-            .then(() => {
-              if (requestId === playRequestRef.current) {
-                setIsBuffering(false)
-                setIsPlaying(true)
-              }
-            })
-            .catch(() => {
-              // Play rejected (e.g. iOS background autoplay block) — never leave the
-              // element stuck muted, unless a newer play request owns the element now.
-              if (requestId === playRequestRef.current && audioRef.current) {
-                audioRef.current.volume = volumeRef.current
-              }
-            })
-        } catch {}
-      }
+    // For catalog tracks (Spotify / Deezer / iTunes) that need external stream resolution:
+    // Ensure previous audio is stopped and show buffering while resolving full stream
+    if (shouldResolveExternalCatalog && audioRef.current) {
+      try {
+        audioRef.current.pause()
+        audioRef.current.removeAttribute('src')
+      } catch {}
+      setIsBuffering(true)
     }
 
     // ⚡ Fast path: reuse a previously resolved catalog match for this track.id
@@ -1413,54 +1389,79 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       if (requestId !== playRequestRef.current) return
 
-      if (resolved) {
+      let streamResult = resolved
+      if (!streamResult) {
+        try {
+          const cleanQ = `${track.title} ${track.artist}`.replace(/[\(\[\{].*?[\)\]\}]/g, '').trim()
+          const fbRes = await fetch(`/api/search?q=${encodeURIComponent(cleanQ)}&source=all`)
+          if (fbRes.ok) {
+            const fbData = await fbRes.json()
+            const nctMatch = fbData.nhaccuatui?.[0]
+            const ytMatch = fbData.youtube?.[0] || fbData.spotify?.find((s: any) => s.youtube_id)
+            if (nctMatch?.nhaccuatui_id) {
+              streamResult = {
+                source: 'nhaccuatui',
+                id: nctMatch.nhaccuatui_id,
+                title: nctMatch.title,
+                artist: nctMatch.artist,
+                duration: nctMatch.duration,
+                coverUrl: nctMatch.cover_url,
+              }
+            } else if (ytMatch?.youtube_id) {
+              streamResult = {
+                source: 'youtube',
+                id: ytMatch.youtube_id,
+                title: ytMatch.title,
+                artist: ytMatch.artist,
+                duration: ytMatch.duration,
+                coverUrl: ytMatch.cover_url,
+              }
+            }
+          }
+        } catch (fbErr) {
+          console.warn('Emergency search fallback error:', fbErr)
+        }
+      }
+
+      if (streamResult) {
         // Evict any stale audio URL cache entry for this catalog track ID so the player fetches the new stream!
         audioUrlCacheRef.current.delete(track.id)
 
-        if (resolved.source === 'nhaccuatui') {
+        if (streamResult.source === 'nhaccuatui') {
           activeTrack = {
             ...track,
             source: 'nhaccuatui',
-            nhaccuatui_id: resolved.id,
+            nhaccuatui_id: streamResult.id,
             audio_url: undefined,
             file_path: '',
-            title: resolved.title || track.title,
-            artist: resolved.artist || track.artist,
-            duration: resolved.duration || track.duration,
-            cover_url: resolved.coverUrl || track.cover_url || null,
+            title: streamResult.title || track.title,
+            artist: streamResult.artist || track.artist,
+            duration: streamResult.duration || track.duration,
+            cover_url: streamResult.coverUrl || track.cover_url || null,
           }
-        } else if (resolved.source === 'drive') {
+        } else if (streamResult.source === 'drive') {
           activeTrack = {
             ...track,
             source: 'local' as const,
-            file_path: resolved.id,
+            file_path: streamResult.id,
             audio_url: undefined,
-            title: resolved.title || track.title,
-            artist: resolved.artist || track.artist,
-            duration: resolved.duration || track.duration,
-            cover_url: resolved.coverUrl || track.cover_url || null,
+            title: streamResult.title || track.title,
+            artist: streamResult.artist || track.artist,
+            duration: streamResult.duration || track.duration,
+            cover_url: streamResult.coverUrl || track.cover_url || null,
             album: track.album || null,
             spotify_album_id: track.spotify_album_id || null,
           }
-        } else if (resolved.source === 'youtube') {
-          // ⚠️ Nếu fast-start preview (Spotify/iTunes) đang phát, phải dừng NGAY tại đây,
-          // trước khi rơi xuống nhánh loadVideoById() phía dưới — nếu không, trong lúc
-          // loadVideoById() autoplay video mới, preview vẫn còn kêu → nghe chồng 2 nguồn.
-          if (firedPreviewFastStart && audioRef.current) {
-            try {
-              audioRef.current.pause()
-              audioRef.current.removeAttribute('src')
-            } catch {}
-          }
+        } else if (streamResult.source === 'youtube') {
           activeTrack = {
             ...track,
-            youtube_id: resolved.id,
+            youtube_id: streamResult.id,
             source: 'youtube',
             audio_url: undefined,
             file_path: '',
           }
-          rawTrack.youtube_id = resolved.id
-          track.youtube_id = resolved.id
+          rawTrack.youtube_id = streamResult.id
+          track.youtube_id = streamResult.id
         }
 
         setBounded(trackResolutionCacheRef.current, track.id, { activeTrack, expiresAt: Date.now() + TRACK_RESOLUTION_TTL }, TRACK_RESOLUTION_MAX_ENTRIES)
@@ -1472,14 +1473,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         // Resolution returned NULL (Miss or Resolution Failure for catalog track)
-        // Never leave a muted fast-start preview playing silently in the background.
         audioUrlCacheRef.current.delete(track.id)
-        if (firedPreviewFastStart && audioRef.current && requestId === playRequestRef.current) {
-          try {
-            audioRef.current.pause()
-            audioRef.current.removeAttribute('src')
-          } catch {}
-        }
         activeTrack = {
           ...track,
           audio_url: undefined,

@@ -8,6 +8,7 @@ import {
   normalizeNhacCuaTuiSongResponse,
   findBestNhacCuaTuiMatch,
 } from '@/lib/nhaccuatui'
+import { getPrimaryArtistName } from '@/lib/artistParser'
 
 export const dynamic = 'force-dynamic'
 
@@ -124,11 +125,13 @@ async function resolveStream(
   duration: number | undefined,
   supabase: any,
 ): Promise<L1Entry> {
+  const primaryArtist = getPrimaryArtistName(artist) || artist
   const cleanTitle = normalizeTitle(title)
+  const cleanPrimaryArtist = normalizeTitle(primaryArtist)
   const cleanArtist = normalizeTitle(artist)
-  const queryStr = `${title.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').trim()} ${artist}`.trim()
+  const queryStr = `${title.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').trim()} ${primaryArtist}`.trim()
 
-  // === Drive: tách logic cũ thành hàm riêng, không đổi nội dung xử lý ===
+  // === Drive: lookup in local Supabase DB ===
   async function tryDrive(): Promise<L1Entry | null> {
     if (!supabase || !cleanTitle) return null
     try {
@@ -144,7 +147,7 @@ async function resolveStream(
         const ltTitle = normalizeTitle(lt.title)
         const ltArtist = normalizeTitle(lt.artist || '')
         const titleMatches = ltTitle.includes(cleanTitle) || cleanTitle.includes(ltTitle)
-        const artistMatches = !cleanArtist || ltArtist.includes(cleanArtist) || cleanArtist.includes(ltArtist)
+        const artistMatches = !cleanArtist || ltArtist.includes(cleanArtist) || cleanArtist.includes(ltArtist) || ltArtist.includes(cleanPrimaryArtist)
         if (!titleMatches || !artistMatches) continue
 
         const driveId = lt.drive_file_id || extractDriveFileId(lt.file_path)
@@ -173,12 +176,22 @@ async function resolveStream(
     }
   }
 
-  // === NCT: tách logic cũ thành hàm riêng, không đổi nội dung xử lý ===
+  // === NCT: Search NhacCuaTui (Priority 1 for lossless streaming) ===
   async function tryNct(): Promise<L1Entry | null> {
     try {
-      const nctCandidates = await searchNctServer(queryStr)
+      let nctCandidates = await searchNctServer(queryStr)
+      if (nctCandidates.length === 0 && artist !== primaryArtist) {
+        nctCandidates = await searchNctServer(`${title} ${artist}`)
+      }
+      if (nctCandidates.length === 0 && cleanTitle) {
+        nctCandidates = await searchNctServer(`${cleanTitle} ${cleanPrimaryArtist}`)
+      }
       if (nctCandidates.length === 0) return null
-      const match = findBestNhacCuaTuiMatch(nctCandidates, { title, artist, duration })
+
+      const match = findBestNhacCuaTuiMatch(nctCandidates, { title, artist: primaryArtist || artist, duration })
+        || findBestNhacCuaTuiMatch(nctCandidates, { title, artist, duration })
+        || nctCandidates[0]
+
       if (!match) return null
       const song = await fetchNctSong(match.id)
       if (!song) return null
@@ -198,20 +211,24 @@ async function resolveStream(
     }
   }
 
-  // === YouTube: gộp 3 lượt query fallback thành SONG SONG thay vì tuần tự ===
+  // === YouTube: Search multiple high-precision queries in parallel ===
   async function tryYoutube(): Promise<L1Entry | null> {
     try {
       const queries = [queryStr]
+      if (artist !== primaryArtist) {
+        queries.push(`${title} ${artist}`.trim())
+      }
       if (cleanTitle) {
-        queries.push(`${cleanTitle} ${cleanArtist} audio`.trim())
-        queries.push(`${cleanTitle} ${cleanArtist}`.trim())
+        queries.push(`${cleanTitle} ${cleanPrimaryArtist} audio`.trim())
+        queries.push(`${cleanTitle} ${cleanPrimaryArtist}`.trim())
+        queries.push(`${title} official audio`.trim())
       }
 
       const results = await Promise.allSettled(
         queries.map((q) => searchYouTubeTracks(q, 10))
       )
 
-      // Gộp candidate từ mọi query thành công, loại trùng theo youtube_id
+      // Collect unique candidates from all query results
       const seen = new Set<string>()
       const allCandidates: any[] = []
       for (const r of results) {
@@ -225,7 +242,7 @@ async function resolveStream(
         }
       }
 
-      let best = findBestYouTubeMatch(allCandidates, title, artist, duration)
+      let best = findBestYouTubeMatch(allCandidates, title, primaryArtist || artist, duration)
       if (!best && allCandidates.length > 0) {
         best = allCandidates[0]
       }
