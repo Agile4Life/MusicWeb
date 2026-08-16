@@ -227,6 +227,15 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
     router.push(targetQuery ? `/albums?q=${encodeURIComponent(targetQuery)}` : '/albums')
   }
 
+  const handleOpenArtist = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const name = currentTrack?.artist
+    if (!name) return
+    setShowMobileFullPlayer(false)
+    router.push(`/artist?name=${encodeURIComponent(name)}`)
+  }
+
   const [prevVol, setPrevVol] = useState(0.8)
   const [showMobileFullPlayer, setShowMobileFullPlayer] = useState(false)
   const [showLyricsModal, setShowLyricsModal] = useState(false)
@@ -352,7 +361,10 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                   SoundCloud
                 </span>
               )}
-              <span className="text-[10px] text-slate-400 truncate leading-tight">
+              <span
+                className="text-[10px] text-slate-400 truncate leading-tight hover:text-slate-200 transition-colors cursor-pointer"
+                onClick={(e) => { e.stopPropagation(); handleOpenArtist(e) }}
+              >
                 {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
               </span>
             </div>
@@ -464,7 +476,10 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <div className="flex items-center justify-between gap-3 mb-6">
             <div className="flex flex-col items-start gap-1 min-w-0 flex-1">
               <h2 className="text-lg font-bold text-white truncate w-full">{currentTrack.title}</h2>
-              <p className="text-xs text-slate-400 truncate w-full">
+              <p
+                className="text-xs text-slate-400 truncate w-full hover:text-slate-200 transition-colors cursor-pointer"
+                onClick={handleOpenArtist}
+              >
                 {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
               </p>
               <div
@@ -697,8 +712,9 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             <div className="flex items-center gap-2 mt-0.5 min-w-0">
               <p
                 data-playerbar-exclude-fullview
-                className={`${trackMetadataArtistInlineClass} text-[11px] text-slate-400 hover:text-slate-200 transition-colors cursor-pointer shrink-0 max-w-[130px] truncate`}
-                onClick={(e) => e.stopPropagation()}
+                className={`${trackMetadataArtistInlineClass} text-[11px] text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] transition-colors cursor-pointer shrink-0 max-w-[130px] truncate`}
+                onClick={handleOpenArtist}
+                title={currentTrack.artist ? `Xem nghệ sĩ: ${currentTrack.artist}` : undefined}
               >
                 {currentTrack.artist || 'Nghệ sĩ chưa xác định'}
               </p>
