@@ -393,8 +393,10 @@ export async function buildNextQueue(
   }
 
   // 5. Check UNIQUE filtered candidate count before triggering Spotify fallback
+  // Snapshot count BEFORE async call to prevent race condition
   const MIN_CANDIDATES_BEFORE_SPOTIFY = 5
-  if (candidates.length < MIN_CANDIDATES_BEFORE_SPOTIFY) {
+  const candidateCountBeforeSpotify = candidates.length
+  if (candidateCountBeforeSpotify < MIN_CANDIDATES_BEFORE_SPOTIFY) {
     const spotifyFallbackTracks = await maybeSpotifySearchFallback(seedTrack, 15)
     if (spotifyFallbackTracks.length > 0) {
       sourcesUsed.push('spotify_fallback')

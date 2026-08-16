@@ -1,6 +1,18 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
+function getRequiredEnv(name: string): string {
+  const value = process.env[name]
+  if (!value) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(`${name} environment variable is required`)
+    }
+    console.warn(`[Supabase] ${name} not set, using placeholder (development only)`)
+    return `placeholder-${name.toLowerCase()}`
+  }
+  return value
+}
+
 export async function createClient() {
   const cookieStore = await cookies()
 
@@ -10,11 +22,12 @@ export async function createClient() {
     sameSite: 'lax' as const,
   }
 
+  const supabaseUrl = getRequiredEnv('NEXT_PUBLIC_SUPABASE_URL')
+  const supabaseKey = getRequiredEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-      'placeholder-anon-key',
+    supabaseUrl,
+    supabaseKey,
     {
       cookieOptions,
       cookies: {

@@ -1913,7 +1913,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     audio.src = cached
     audio.volume = volumeRef.current || volume
-    audio.currentTime = 0
+
+    // Apply SponsorBlock MV intro offset for YouTube tracks if available
+    const isYouTubeTrack = track.source === 'youtube' || Boolean(track.youtube_id)
+    const introOffset = isYouTubeTrack ? mvIntroOffset : 0
+    audio.currentTime = introOffset
 
     audio.play()
       .then(() => {
@@ -2530,10 +2534,31 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         ],
       })
 
+      // Helper to determine if YouTube iframe engine is active (vs iOS HTML5 proxy mode)
+      const isYouTubeIframeActive = () =>
+        (currentTrackRef.current?.source === 'youtube' || Boolean(currentTrackRef.current?.youtube_id)) && !ytHtml5ModeRef.current
+
+      // Helper to determine if iOS HTML5 YouTube mode is active
+      const isIOSYouTubeHtml5Mode = () =>
+        (currentTrackRef.current?.source === 'youtube' || Boolean(currentTrackRef.current?.youtube_id)) && ytHtml5ModeRef.current
+
       navigator.mediaSession.setActionHandler('play', () => {
         void (async () => {
-          const isYouTube = (currentTrackRef.current?.source === 'youtube' || Boolean(currentTrackRef.current?.youtube_id)) && !ytHtml5ModeRef.current
-          if (isYouTube && ytPlayerRef.current?.playVideo) {
+          // iOS HTML5 YouTube mode: audio element handles playback, no iframe needed
+          if (isIOSYouTubeHtml5Mode()) {
+            if (!audioRef.current) return
+            try {
+              await playAudioElement(audioRef.current)
+              setIsPlaying(true)
+            } catch (err) {
+              setIsPlaying(false)
+              console.warn('Media Session iOS YouTube audio play failed:', err)
+            }
+            return
+          }
+
+          // Standard YouTube iframe engine
+          if (isYouTubeIframeActive() && ytPlayerRef.current?.playVideo) {
             try {
               ytPlayerRef.current.playVideo()
               setIsPlaying(true)
@@ -2544,8 +2569,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             return
           }
 
+          // All other audio sources (NCT, SoundCloud, Drive, local, etc.)
           if (!audioRef.current) return
-
           try {
             await playAudioElement(audioRef.current)
             setIsPlaying(true)
@@ -2557,8 +2582,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       })
 
       navigator.mediaSession.setActionHandler('pause', () => {
-        const isYouTube = (currentTrackRef.current?.source === 'youtube' || Boolean(currentTrackRef.current?.youtube_id)) && !ytHtml5ModeRef.current
-        if (isYouTube && ytPlayerRef.current?.pauseVideo) {
+        // iOS HTML5 YouTube mode: use audio element
+        if (isIOSYouTubeHtml5Mode()) {
+          if (audioRef.current) audioRef.current.pause()
+          setIsPlaying(false)
+          return
+        }
+
+        // Standard YouTube iframe engine
+        if (isYouTubeIframeActive() && ytPlayerRef.current?.pauseVideo) {
           try { ytPlayerRef.current.pauseVideo() } catch {}
         } else if (audioRef.current) {
           audioRef.current.pause()
@@ -2588,8 +2620,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       try {
         navigator.mediaSession.setActionHandler('stop', () => {
-          const isYouTube = (currentTrackRef.current?.source === 'youtube' || Boolean(currentTrackRef.current?.youtube_id)) && !ytHtml5ModeRef.current
-          if (isYouTube && ytPlayerRef.current?.pauseVideo) {
+          // iOS HTML5 YouTube mode: use audio element
+          if (isIOSYouTubeHtml5Mode()) {
+            if (audioRef.current) audioRef.current.pause()
+            setIsPlaying(false)
+            return
+          }
+
+          // Standard YouTube iframe engine
+          if (isYouTubeIframeActive() && ytPlayerRef.current?.pauseVideo) {
             try { ytPlayerRef.current.pauseVideo() } catch {}
           }
           if (audioRef.current) {

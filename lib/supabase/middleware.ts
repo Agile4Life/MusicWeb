@@ -22,9 +22,19 @@ export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
   try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+
+    if (!supabaseUrl || !supabaseKey) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are required in production')
+      }
+      console.warn('[Middleware] Supabase credentials not configured, authentication may fail')
+    }
+
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mjpibwmproussfevtqbp.supabase.co',
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_mT97L0yZZOXReH-6ToCWGg_cpryfNgs',
+      supabaseUrl || 'https://placeholder.supabase.co',
+      supabaseKey || 'placeholder-anon-key',
       {
         cookieOptions: {
           maxAge: 60 * 60 * 24 * 365,
@@ -54,9 +64,13 @@ export async function updateSession(request: NextRequest) {
 
     let nextAuthToken = null
     try {
+      const authSecret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET
+      if (!authSecret && process.env.NODE_ENV === 'production') {
+        console.error('[Middleware] NEXTAUTH_SECRET or AUTH_SECRET is required in production')
+      }
       nextAuthToken = await getToken({
         req: request,
-        secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || 'musicweb_nextauth_secret_key_84920482910_phongtct',
+        secret: authSecret || 'musicweb_nextauth_secret_key_84920482910_phongtct_dev_only',
       })
     } catch (e) {
       console.warn('NextAuth getToken failed in middleware:', e)

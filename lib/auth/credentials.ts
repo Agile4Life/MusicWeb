@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 type PasswordCredentials = {
   email?: string
@@ -16,15 +16,26 @@ type SupabasePasswordClient = {
 
 type SupabasePasswordClientFactory = () => SupabasePasswordClient
 
+// Cache the Supabase client instance to avoid creating new clients on every request
+let cachedSupabaseClient: SupabaseClient | null = null
+let cachedClientError: string | null = null
+
 function createSupabasePasswordClient(): SupabasePasswordClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
   if (!url || !key) {
-    throw new Error('Supabase auth is not configured')
+    cachedClientError = 'Supabase auth is not configured'
+    throw new Error(cachedClientError)
   }
 
-  return createClient(url, key, { auth: { persistSession: false } })
+  // Reuse cached client if already created
+  if (cachedSupabaseClient && !cachedClientError) {
+    return cachedSupabaseClient as unknown as SupabasePasswordClient
+  }
+
+  cachedSupabaseClient = createClient(url, key, { auth: { persistSession: false } })
+  return cachedSupabaseClient as unknown as SupabasePasswordClient
 }
 
 export async function authorizePasswordCredentials(

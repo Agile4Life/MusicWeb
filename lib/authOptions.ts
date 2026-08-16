@@ -6,6 +6,22 @@ import nodemailer from 'nodemailer'
 
 const ADMIN_PERSONAL_EMAIL = process.env.ADMIN_PERSONAL_EMAIL || 'tranphong16012006@gmail.com'
 
+// Validate required environment variables in production
+function validateRequiredEnv(): void {
+  if (process.env.NODE_ENV === 'production') {
+    const missing: string[] = []
+    if (!process.env.GOOGLE_CLIENT_ID) missing.push('GOOGLE_CLIENT_ID')
+    if (!process.env.GOOGLE_CLIENT_SECRET) missing.push('GOOGLE_CLIENT_SECRET')
+    if (!process.env.NEXTAUTH_SECRET && !process.env.AUTH_SECRET) missing.push('NEXTAUTH_SECRET or AUTH_SECRET')
+    if (missing.length > 0) {
+      throw new Error(`Missing required environment variables in production: ${missing.join(', ')}`)
+    }
+  }
+}
+
+// Validate env on module load (only once per server instance)
+validateRequiredEnv()
+
 async function sendNewGoogleLoginNotification(email: string, name?: string | null) {
   try {
     const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com'
@@ -82,8 +98,18 @@ export const authOptions: NextAuthOptions = {
   },
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || '992317284123-u7l6n1ur1fcvl8v86t9sjkpoupal5nqk.apps.googleusercontent.com',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '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',
+      clientId: process.env.GOOGLE_CLIENT_ID ?? (() => {
+        if (process.env.NODE_ENV === 'production') {
+          throw new Error('GOOGLE_CLIENT_ID environment variable is required in production')
+        }
+        return 'YOUR_GOOGLE_CLIENT_ID_HERE'
+      })(),
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? (() => {
+        if (process.env.NODE_ENV === 'production') {
+          throw new Error('GOOGLE_CLIENT_SECRET environment variable is required in production')
+        }
+        return 'YOUR_GOOGLE_CLIENT_SECRET_HERE'
+      })(),
       authorization: {
         params: {
           prompt: 'select_account',
@@ -236,5 +262,12 @@ export const authOptions: NextAuthOptions = {
       return session
     },
   },
-  secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || 'musicweb_nextauth_secret_key_84920482910_phongtct',
+  secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || (() => {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('NEXTAUTH_SECRET or AUTH_SECRET environment variable is required in production')
+    }
+    // Only use default in development to avoid breaking local dev
+    console.warn('[AUTH] Using default NEXTAUTH_SECRET in development mode. Set NEXTAUTH_SECRET in production!')
+    return 'musicweb_nextauth_secret_key_84920482910_phongtct_dev_only'
+  })(),
 }

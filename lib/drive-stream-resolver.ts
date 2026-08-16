@@ -7,6 +7,33 @@ export const CDN_CACHE_TTL_MS = 45 * 60 * 1000
 // the Supabase queries AND the HEAD validation entirely (both live on the critical path).
 const memoryCdnCache = new Map<string, { url: string; contentType: string; expiresAt: number }>()
 
+// Track in-flight validation promises for cleanup
+const inFlightValidations = new Map<string, { controller: AbortController; timeout: ReturnType<typeof setTimeout> }>()
+const MAX_CONCURRENT_VALIDATIONS = 10
+
+// Cleanup old validation entries periodically
+setInterval(() => {
+  const now = Date.now()
+  for (const [key, entry] of inFlightValidations.entries()) {
+    // Cleanup entries older than 5 seconds
+    if (now - (entry.timeout as any)._createdAt > 5000) {
+      entry.controller.abort()
+      clearTimeout(entry.timeout)
+      inFlightValidations.delete(key)
+    }
+  }
+  // Cleanup excess entries if too many
+  if (inFlightValidations.size > MAX_CONCURRENT_VALIDATIONS * 2) {
+    const entries = Array.from(inFlightValidations.entries())
+    const toRemove = entries.slice(0, entries.length - MAX_CONCURRENT_VALIDATIONS)
+    for (const [key, entry] of toRemove) {
+      entry.controller.abort()
+      clearTimeout(entry.timeout)
+      inFlightValidations.delete(key)
+    }
+  }
+}, 10000)
+
 export function getMemoryCachedCdnUrl(fileId: string): { url: string; contentType: string } | null {
   const entry = memoryCdnCache.get(fileId)
   if (entry && Date.now() < entry.expiresAt) {
@@ -70,14 +97,39 @@ export async function getCachedCdnUrl(
 
     // ⚡ Validate cached URL in the background (non-blocking): the play path must not
     // wait for a HEAD round-trip. If the URL turns out dead, the stream route re-resolves.
+    // Track validation promise to prevent memory leak
     try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 2000) as ReturnType<typeof setTimeout>
+      ;(timeout as any)._createdAt = Date.now()
+
+      // Cleanup old entry for this fileId if exists
+      const existingEntry = inFlightValidations.get(fileId)
+      if (existingEntry) {
+        existingEntry.controller.abort()
+        clearTimeout(existingEntry.timeout)
+      }
+
+      // Limit concurrent validations
+      if (inFlightValidations.size < MAX_CONCURRENT_VALIDATIONS) {
+        inFlightValidations.set(fileId, { controller, timeout })
+      } else {
+        // Skip this validation if too many are running
+        controller.abort()
+        clearTimeout(timeout)
+        return {
+          url: data.drive_stream_url,
+          contentType: data.drive_stream_content_type || 'audio/mpeg',
+        }
+      }
+
       fetch(data.drive_stream_url, {
         method: 'HEAD',
         headers: {
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         },
-        signal: AbortSignal.timeout(1500),
+        signal: controller.signal,
       })
         .then((checkRes) => {
           const ct = checkRes.headers.get('content-type') || ''
@@ -87,6 +139,13 @@ export async function getCachedCdnUrl(
         })
         .catch(() => {
           memoryCdnCache.delete(fileId)
+        })
+        .finally(() => {
+          const entry = inFlightValidations.get(fileId)
+          if (entry && entry.controller === controller) {
+            clearTimeout(entry.timeout)
+            inFlightValidations.delete(fileId)
+          }
         })
     } catch {}
 

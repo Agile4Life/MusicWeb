@@ -28,6 +28,18 @@ const CLIENT_CACHE_TTL = 5 * 60 * 1000 // 5 min client-side
 const MISS_CACHE_TTL = 60 * 1000 // 1 min for misses
 const MAX_CLIENT_CACHE = 300
 
+// Cleanup orphaned in-flight entries periodically
+setInterval(() => {
+  const now = Date.now()
+  for (const [key, entry] of inFlight.entries()) {
+    const currentGen = invalidationGeneration.get(key) || 0
+    // Clean up entries from OLD generations (orphaned by invalidation)
+    if (entry.generation < currentGen) {
+      inFlight.delete(key)
+    }
+  }
+}, 30000) // Run every 30 seconds
+
 function makeClientKey(title: string, artist: string, duration?: number, album?: string | null): string {
   return `${title.trim().toLowerCase()}___${(artist || '').trim().toLowerCase()}___${duration || 0}___${(album || '').trim().toLowerCase()}`
 }
@@ -148,6 +160,8 @@ export async function resolveStreamCached(
     } catch {
       return null
     } finally {
+      // Always clean up the in-flight entry, even if generation changed during execution.
+      // This prevents orphaned entries when invalidation happens mid-resolution.
       const current = inFlight.get(key)
       if (current?.generation === generation) {
         inFlight.delete(key)
