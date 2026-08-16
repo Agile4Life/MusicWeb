@@ -101,6 +101,7 @@
   --transition-base: 0.25s ease;
   --bottom-nav-height: 64px;
   --border-subtle: rgba(255, 255, 255, 0.08);
+  --ease-glide: cubic-bezier(0.22, 1, 0.36, 1);
 
   /* === Shared depth and motion contract === */
   --radius-full: 999px;
@@ -1384,11 +1385,12 @@ input[type='range']:hover::-moz-range-thumb {
 /* ================================================================
    Redesign: Sidebar
    ================================================================ */
+.sidebar-glide,
 .nav-indicator {
   position: absolute;
   left: 0;
+  right: 0;
   width: 100%;
-  height: 44px;
   border-radius: 12px;
   background: color-mix(in srgb, var(--spotify-glow, #22d3ee) 14%, transparent);
   border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 25%, transparent);
@@ -1399,7 +1401,7 @@ input[type='range']:hover::-moz-range-thumb {
   transform-origin: center center;
   will-change: transform, opacity;
   transition:
-    transform 320ms var(--ease-out-quint),
+    transform 300ms var(--ease-out-quint),
     opacity 180ms ease,
     background 220ms ease,
     border-color 220ms ease;
@@ -1523,6 +1525,7 @@ input[type='range']:hover::-moz-range-thumb {
   box-shadow: 0 0 16px color-mix(in srgb, var(--spotify-glow, #22d3ee) 15%, transparent), inset 0 1px 1px rgba(255, 255, 255, 0.08) !important;
 }
 
+/* Item cơ bản */
 .sidebar-item {
   position: relative;
   z-index: 1;
@@ -1540,7 +1543,6 @@ input[type='range']:hover::-moz-range-thumb {
   user-select: none;
 }
 
-/* Keep comfortable fixed size and let container scroll with custom-slim-scrollbar */
 @media (max-height: 780px) {
   .sidebar-item {
     gap: 12px;
@@ -1550,8 +1552,6 @@ input[type='range']:hover::-moz-range-thumb {
     flex-shrink: 0;
   }
 }
-
-
 
 .sidebar-item .icon,
 .sidebar-item svg,
@@ -1572,7 +1572,8 @@ input[type='range']:hover::-moz-range-thumb {
   transform: translateX(3px);
 }
 
-.sidebar-item.active {
+.sidebar-item.active,
+.sidebar-item--active {
   color: var(--spotify-glow, #22d3ee);
   font-weight: 600;
   background: color-mix(in srgb, var(--primary-spotify, #06b6d4) 15%, transparent);
@@ -1581,7 +1582,9 @@ input[type='range']:hover::-moz-range-thumb {
 }
 
 .sidebar-item.active .icon,
-.sidebar-item.active svg {
+.sidebar-item--active .icon,
+.sidebar-item.active svg,
+.sidebar-item--active svg {
   color: var(--spotify-glow, #22d3ee);
 }
 
@@ -2744,47 +2747,141 @@ html[data-theme-style="minimal-flat"] body {
   opacity: 0.95 !important;
 }
 
+/* ================================================================
+   Minimal Flat Theme: Dedicated Sidebar Liquid Glide & Warm Gold Styling
+   ================================================================ */
+[data-theme-style="minimal-flat"] {
+  --sidebar-accent: #f0a860 !important;
+  --sidebar-accent-soft: rgba(240, 168, 96, 0.12) !important;
+  --sidebar-accent-border: rgba(240, 168, 96, 0.35) !important;
+  --sidebar-text: #e4e4e7 !important;
+  --sidebar-text-muted: #8b8b93 !important;
+  --ease-glide: cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+[data-theme-style="minimal-flat"] .sidebar-glide,
 [data-theme-style="minimal-flat"] .nav-indicator {
-  display: none !important;
+  position: absolute;
+  left: 0;
+  right: 0;
+  width: 100%;
+  border-radius: 12px;
+  background: var(--sidebar-accent-soft, rgba(240, 168, 96, 0.12)) !important;
+  border: 1px solid var(--sidebar-accent-border, rgba(240, 168, 96, 0.35)) !important;
+  box-shadow: 0 0 14px rgba(240, 168, 96, 0.12) !important;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+  transform-origin: center;
+  will-change: transform, opacity;
+  transition:
+    transform 300ms var(--ease-glide),
+    opacity 180ms ease !important;
 }
 
 [data-theme-style="minimal-flat"] .sidebar-item {
-  color: #B9AC9C !important;
-  border-radius: 10px !important;
-  width: 100% !important;
-  border-left: 2px solid transparent !important;
-  padding: 10px 12px 10px 14px !important;
-}
-
-[data-theme-style="minimal-flat"] .sidebar-item.active {
-  color: #F4ECE1 !important;
-  background: linear-gradient(90deg, rgba(201, 138, 61, 0.16), rgba(201, 138, 61, 0.02)) !important;
-  border-left: 2px solid #E8A94F !important;
-  font-weight: 500 !important;
-  width: 100% !important;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+  padding: 0 14px;
+  border-radius: 12px;
+  color: var(--sidebar-text-muted, #8b8b93) !important;
+  transition: color 220ms ease, background 220ms ease, border-color 220ms ease !important;
+  user-select: none;
+  text-decoration: none;
+  overflow: hidden;
+  background: transparent !important;
+  border: 1px solid transparent !important;
 }
 
 [data-theme-style="minimal-flat"] .sidebar-item .icon,
 [data-theme-style="minimal-flat"] .sidebar-item svg {
-  color: #B9AC9C !important;
-  opacity: 0.85 !important;
+  transition: transform 300ms var(--ease-glide), color 220ms ease !important;
+  color: var(--sidebar-text-muted, #8b8b93) !important;
+  opacity: 0.9 !important;
 }
 
+/* Hover: chữ + icon sáng lên, dịch nhẹ sang phải */
+[data-theme-style="minimal-flat"] .sidebar-item:hover:not(.sidebar-item--active):not(.active) {
+  color: var(--sidebar-text, #e4e4e7) !important;
+  background: transparent !important;
+}
+
+[data-theme-style="minimal-flat"] .sidebar-item:hover:not(.sidebar-item--active):not(.active) .icon,
+[data-theme-style="minimal-flat"] .sidebar-item:hover:not(.sidebar-item--active):not(.active) svg {
+  transform: translateX(2px) !important;
+  color: var(--sidebar-accent, #f0a860) !important;
+  opacity: 1 !important;
+}
+
+/* Active: viền vàng cố định, không phụ thuộc thanh glide */
+[data-theme-style="minimal-flat"] .sidebar-item--active,
+[data-theme-style="minimal-flat"] .sidebar-item.active {
+  color: var(--sidebar-accent, #f0a860) !important;
+  font-weight: 600 !important;
+  background: var(--sidebar-accent-soft, rgba(240, 168, 96, 0.12)) !important;
+  border: 1px solid var(--sidebar-accent-border, rgba(240, 168, 96, 0.35)) !important;
+  box-shadow: 0 0 14px rgba(240, 168, 96, 0.1) !important;
+}
+
+[data-theme-style="minimal-flat"] .sidebar-item--active .icon,
 [data-theme-style="minimal-flat"] .sidebar-item.active .icon,
+[data-theme-style="minimal-flat"] .sidebar-item--active svg,
 [data-theme-style="minimal-flat"] .sidebar-item.active svg {
-  color: #E8A94F !important;
+  color: var(--sidebar-accent, #f0a860) !important;
   opacity: 1 !important;
 }
 
-[data-theme-style="minimal-flat"] .sidebar-item:hover {
-  color: #F4ECE1 !important;
-  background: rgba(244, 236, 230, 0.04) !important;
+/* Minimal Flat Sidebar Action Bar Glide Indicator */
+[data-theme-style="minimal-flat"] .action-glide-indicator {
+  background: rgba(244, 236, 230, 0.08) !important;
+  border: 1px solid rgba(244, 236, 230, 0.16) !important;
+  box-shadow: none !important;
+  border-radius: 9999px !important;
 }
 
-[data-theme-style="minimal-flat"] .sidebar-item:hover .icon,
-[data-theme-style="minimal-flat"] .sidebar-item:hover svg {
-  color: #F4ECE1 !important;
-  opacity: 1 !important;
+[data-theme-style="minimal-flat"] .action-glide-indicator.variant-emerald {
+  background: rgba(124, 144, 112, 0.22) !important;
+  border-color: rgba(124, 144, 112, 0.4) !important;
+}
+
+[data-theme-style="minimal-flat"] .action-glide-indicator.variant-rose {
+  background: rgba(162, 75, 61, 0.22) !important;
+  border-color: rgba(162, 75, 61, 0.4) !important;
+}
+
+[data-theme-style="minimal-flat"] .action-glide-indicator.variant-orange {
+  background: rgba(201, 138, 61, 0.22) !important;
+  border-color: rgba(201, 138, 61, 0.4) !important;
+}
+
+[data-theme-style="minimal-flat"] .action-glide-indicator.variant-cyan {
+  background: rgba(232, 169, 79, 0.22) !important;
+  border-color: rgba(232, 169, 79, 0.4) !important;
+}
+
+/* Minimal Flat Tracklist & Grid Glide Indicators */
+[data-theme-style="minimal-flat"] .track-glide-indicator {
+  background: rgba(244, 236, 230, 0.05) !important;
+  border: 1px solid rgba(244, 236, 230, 0.1) !important;
+  box-shadow: none !important;
+  border-radius: 9px !important;
+}
+
+[data-theme-style="minimal-flat"] .grid-glide-indicator {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(232, 169, 79, 0.22) 0%,
+    rgba(201, 138, 61, 0.08) 55%,
+    transparent 85%
+  ) !important;
+  box-shadow: none !important;
+  filter: blur(6px) !important;
 }
 
 [data-theme-style="minimal-flat"] .app-sidebar p.font-mono {
@@ -2832,8 +2929,6 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] .app-sidebar button[title*="Playlist"]:hover,
 [data-theme-style="minimal-flat"] .app-sidebar button[title*="nhập"]:hover {
   color: #F4ECE1 !important;
-  background: rgba(244, 236, 230, 0.06) !important;
-  border-radius: 6px !important;
 }
 
 /* Hero Banner (Warm Editorial Gradient & Vinyl Graphic) */

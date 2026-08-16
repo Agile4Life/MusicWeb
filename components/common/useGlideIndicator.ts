@@ -126,3 +126,6 @@ export function useListGlideIndicator(defaultHeight = 52) {
     handleContainerMouseLeave,
   }
 }
+
+export { useGlideIndicator } from '@/hooks/useGlideIndicator'
+export type { IndicatorState } from '@/hooks/useGlideIndicator'

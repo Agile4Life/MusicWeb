@@ -33,6 +33,8 @@ import { ImportYouTubePlaylistModal } from '@/components/playlist/ImportYouTubeP
 import { ImportSoundCloudModal } from '@/components/playlist/ImportSoundCloudModal'
 import { YoutubeIcon } from '@/components/icons/YoutubeIcon'
 
+import { useGlideIndicator } from '@/hooks/useGlideIndicator'
+
 export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
   const { t } = useLanguage()
   const pathname = usePathname()
@@ -49,17 +51,8 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
   const exploreNavRef = React.useRef<HTMLElement>(null)
   const playlistNavRef = React.useRef<HTMLDivElement>(null)
 
-  const [exploreIndicator, setExploreIndicator] = useState<{ top: number; opacity: number; scaleY: number }>({
-    top: 0,
-    opacity: 0,
-    scaleY: 1,
-  })
-
-  const [playlistIndicator, setPlaylistIndicator] = useState<{ top: number; opacity: number; scaleY: number }>({
-    top: 0,
-    opacity: 0,
-    scaleY: 1,
-  })
+  const exploreGlide = useGlideIndicator(44)
+  const playlistGlide = useGlideIndicator(44)
 
   // Action Cluster Glide Indicator State (Horizontal Liquid Stretch)
   const [actionIndicator, setActionIndicator] = useState<{
@@ -110,41 +103,6 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
     setActionIndicator((prev) => ({ ...prev, opacity: 0, scaleX: 1 }))
   }
 
-  const handleItemMouseEnter = (
-    e: React.MouseEvent<HTMLElement>,
-    setIndicator: React.Dispatch<React.SetStateAction<{ top: number; opacity: number; scaleY: number }>>
-  ) => {
-    const el = e.currentTarget
-    if (el.classList.contains('active')) {
-      setIndicator((prev) => ({ ...prev, opacity: 0, scaleY: 1 }))
-      return
-    }
-
-    const newTop = el.offsetTop
-    const itemHeight = el.offsetHeight || 44
-
-    setIndicator((prev) => {
-      const isFirstEnter = prev.opacity === 0
-      const distance = Math.abs(newTop - prev.top)
-      const stretchFactor = isFirstEnter
-        ? 1
-        : Math.min(1 + (distance / itemHeight) * 0.14, 1.45)
-
-      return {
-        top: newTop,
-        opacity: 1,
-        scaleY: stretchFactor,
-      }
-    })
-  }
-
-  const handleSectionMouseLeave = (
-    containerRef: React.RefObject<HTMLElement | HTMLDivElement | null>,
-    setIndicator: React.Dispatch<React.SetStateAction<{ top: number; opacity: number; scaleY: number }>>
-  ) => {
-    setIndicator((prev) => ({ ...prev, opacity: 0, scaleY: 1 }))
-  }
-
   const handleItemClick = (e: React.MouseEvent<HTMLElement>) => {
     const item = e.currentTarget
     const rect = item.getBoundingClientRect()
@@ -158,28 +116,9 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
     ripple.addEventListener('animationend', () => ripple.remove())
   }
 
-  // Liquid Stretch snap-back: Co scaleY về 1 ngay sau khi bắt đầu di chuyển
   useEffect(() => {
-    if (exploreIndicator.scaleY !== 1) {
-      const t = setTimeout(() => {
-        setExploreIndicator((prev) => ({ ...prev, scaleY: 1 }))
-      }, 40)
-      return () => clearTimeout(t)
-    }
-  }, [exploreIndicator.top, exploreIndicator.scaleY])
-
-  useEffect(() => {
-    if (playlistIndicator.scaleY !== 1) {
-      const t = setTimeout(() => {
-        setPlaylistIndicator((prev) => ({ ...prev, scaleY: 1 }))
-      }, 40)
-      return () => clearTimeout(t)
-    }
-  }, [playlistIndicator.top, playlistIndicator.scaleY])
-
-  useEffect(() => {
-    setExploreIndicator((prev) => ({ ...prev, opacity: 0, scaleY: 1 }))
-    setPlaylistIndicator((prev) => ({ ...prev, opacity: 0, scaleY: 1 }))
+    exploreGlide.hide()
+    playlistGlide.hide()
   }, [pathname, playlists])
 
   const user = userEmail
@@ -247,14 +186,15 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
         {/* Main Navigation List */}
         <nav
           ref={exploreNavRef}
-          onMouseLeave={() => handleSectionMouseLeave(exploreNavRef, setExploreIndicator)}
+          onMouseLeave={exploreGlide.hide}
           className="flex flex-col gap-0.5 lg:gap-1 relative shrink-0"
         >
           <div
-            className="nav-indicator"
+            className="sidebar-glide nav-indicator"
             style={{
-              transform: `translateY(${exploreIndicator.top}px) scaleY(${exploreIndicator.scaleY})`,
-              opacity: exploreIndicator.opacity,
+              transform: `translateY(${exploreGlide.state.top}px) scaleY(${exploreGlide.state.scaleY})`,
+              height: `${exploreGlide.state.height}px`,
+              opacity: exploreGlide.state.opacity,
             }}
           />
 
@@ -264,13 +204,16 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <Link
             href="/"
-            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onMouseEnter={(e) => {
+              if (pathname === '/') return
+              exploreGlide.moveTo(e.currentTarget)
+            }}
             onClick={(e) => {
               handleItemClick(e)
               clearSearch()
               window.dispatchEvent(new Event('musicweb-tab-home'))
             }}
-            className={`sidebar-item text-xs ${pathname === '/' ? 'active font-semibold' : ''}`}
+            className={`sidebar-item text-xs ${pathname === '/' ? 'sidebar-item--active active font-semibold' : ''}`}
           >
             <Home className="w-4 h-4 icon" />
             <span>{t('home')}</span>
@@ -278,10 +221,14 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <Link
             href="/albums"
-            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onMouseEnter={(e) => {
+              if (pathname === '/albums' || pathname.startsWith('/album/')) return
+              exploreGlide.moveTo(e.currentTarget)
+            }}
             onClick={handleItemClick}
-            className={`sidebar-item text-xs ${pathname === '/albums' || pathname.startsWith('/album/') ? 'active font-semibold' : ''
-              }`}
+            className={`sidebar-item text-xs ${
+              pathname === '/albums' || pathname.startsWith('/album/') ? 'sidebar-item--active active font-semibold' : ''
+            }`}
           >
             <DiscAlbum className="w-4 h-4 icon" />
             <span>Albums</span>
@@ -289,9 +236,12 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <Link
             href="/soundcloud"
-            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onMouseEnter={(e) => {
+              if (pathname === '/soundcloud') return
+              exploreGlide.moveTo(e.currentTarget)
+            }}
             onClick={handleItemClick}
-            className={`sidebar-item text-xs ${pathname === '/soundcloud' ? 'active font-semibold' : ''}`}
+            className={`sidebar-item text-xs ${pathname === '/soundcloud' ? 'sidebar-item--active active font-semibold' : ''}`}
           >
             <Cloud className="w-4 h-4 text-[#ff7700] icon" />
             <div className="flex items-center justify-between flex-1">
@@ -304,9 +254,12 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <Link
             href="/drive"
-            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onMouseEnter={(e) => {
+              if (pathname === '/drive') return
+              exploreGlide.moveTo(e.currentTarget)
+            }}
             onClick={handleItemClick}
-            className={`sidebar-item text-xs ${pathname === '/drive' ? 'active font-semibold' : ''}`}
+            className={`sidebar-item text-xs ${pathname === '/drive' ? 'sidebar-item--active active font-semibold' : ''}`}
           >
             <FolderArchive className="w-4 h-4 text-[#22c55e] icon" />
             <div className="flex items-center justify-between flex-1">
@@ -319,9 +272,12 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <Link
             href="/favorites"
-            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onMouseEnter={(e) => {
+              if (pathname === '/favorites') return
+              exploreGlide.moveTo(e.currentTarget)
+            }}
             onClick={handleItemClick}
-            className={`sidebar-item text-xs ${pathname === '/favorites' ? 'active font-semibold' : ''}`}
+            className={`sidebar-item text-xs ${pathname === '/favorites' ? 'sidebar-item--active active font-semibold' : ''}`}
           >
             <Heart className="w-4 h-4 icon" />
             <span>{t('favorites')}</span>
@@ -329,9 +285,12 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <Link
             href="/history"
-            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onMouseEnter={(e) => {
+              if (pathname === '/history') return
+              exploreGlide.moveTo(e.currentTarget)
+            }}
             onClick={handleItemClick}
-            className={`sidebar-item text-xs ${pathname === '/history' ? 'active font-semibold' : ''}`}
+            className={`sidebar-item text-xs ${pathname === '/history' ? 'sidebar-item--active active font-semibold' : ''}`}
           >
             <History className="w-4 h-4 icon" />
             <span>{t('history')}</span>
@@ -339,9 +298,12 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <Link
             href="/receipt"
-            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onMouseEnter={(e) => {
+              if (pathname === '/receipt') return
+              exploreGlide.moveTo(e.currentTarget)
+            }}
             onClick={handleItemClick}
-            className={`sidebar-item text-xs ${pathname === '/receipt' ? 'active font-semibold' : ''}`}
+            className={`sidebar-item text-xs ${pathname === '/receipt' ? 'sidebar-item--active active font-semibold' : ''}`}
           >
             <Receipt className="w-4 h-4 text-amber-400 icon" />
             <div className="flex items-center justify-between flex-1">
@@ -355,9 +317,12 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
           {isAdmin(user?.email) && (
             <Link
               href="/upload"
-              onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+              onMouseEnter={(e) => {
+                if (pathname === '/upload') return
+                exploreGlide.moveTo(e.currentTarget)
+              }}
               onClick={handleItemClick}
-              className={`sidebar-item text-xs ${pathname === '/upload' ? 'active font-semibold' : ''}`}
+              className={`sidebar-item text-xs ${pathname === '/upload' ? 'sidebar-item--active active font-semibold' : ''}`}
             >
               <Upload className="w-4 h-4 icon" />
               <span>{t('upload')}</span>
@@ -366,9 +331,12 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <Link
             href="/settings"
-            onMouseEnter={(e) => handleItemMouseEnter(e, setExploreIndicator)}
+            onMouseEnter={(e) => {
+              if (pathname === '/settings') return
+              exploreGlide.moveTo(e.currentTarget)
+            }}
             onClick={handleItemClick}
-            className={`sidebar-item text-xs ${pathname === '/settings' ? 'active font-semibold' : ''}`}
+            className={`sidebar-item text-xs ${pathname === '/settings' ? 'sidebar-item--active active font-semibold' : ''}`}
           >
             <Settings className="w-4 h-4 icon" />
             <span>{t('settings')}</span>
@@ -435,14 +403,15 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <div
             ref={playlistNavRef}
-            onMouseLeave={() => handleSectionMouseLeave(playlistNavRef, setPlaylistIndicator)}
+            onMouseLeave={playlistGlide.hide}
             className="flex-1 overflow-y-auto flex flex-col gap-0.5 lg:gap-1 relative no-scrollbar min-h-0 touch-pan-y"
           >
             <div
-              className="nav-indicator"
+              className="sidebar-glide nav-indicator"
               style={{
-                transform: `translateY(${playlistIndicator.top}px) scaleY(${playlistIndicator.scaleY})`,
-                opacity: playlistIndicator.opacity,
+                transform: `translateY(${playlistGlide.state.top}px) scaleY(${playlistGlide.state.scaleY})`,
+                height: `${playlistGlide.state.height}px`,
+                opacity: playlistGlide.state.opacity,
               }}
             />
 
@@ -452,12 +421,16 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
                   <Link
                     key={pl.id}
                     href={`/playlist/${pl.id}`}
-                    onMouseEnter={(e) => handleItemMouseEnter(e, setPlaylistIndicator)}
+                    onMouseEnter={(e) => {
+                      if (pathname === `/playlist/${pl.id}`) return
+                      playlistGlide.moveTo(e.currentTarget)
+                    }}
                     onClick={handleItemClick}
-                    className={`sidebar-item text-xs group ${pathname === `/playlist/${pl.id}` ? 'active font-semibold' : ''
-                      }`}
+                    className={`sidebar-item text-xs group ${
+                      pathname === `/playlist/${pl.id}` ? 'sidebar-item--active active font-semibold' : ''
+                    }`}
                   >
-                    <div className="w-7 h-7 rounded-full bg-white/[0.06] border border-white/10 flex items-center justify-center text-slate-300 shrink-0 icon group-hover:text-[var(--spotify-glow,#22d3ee)] group-hover:scale-105 transition-all shadow-inner">
+                    <div className="w-7 h-7 rounded-full bg-white/[0.06] border border-white/10 flex items-center justify-center text-slate-300 shrink-0 icon group-hover:text-[var(--sidebar-accent)] group-hover:scale-105 transition-all shadow-inner">
                       <Music className="w-3.5 h-3.5" />
                     </div>
                     <span className="truncate flex-1 font-medium group-hover:text-white transition-colors">{pl.name}</span>
