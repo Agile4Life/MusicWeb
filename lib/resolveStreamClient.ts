@@ -28,8 +28,8 @@ const CLIENT_CACHE_TTL = 5 * 60 * 1000 // 5 min client-side
 const MISS_CACHE_TTL = 60 * 1000 // 1 min for misses
 const MAX_CLIENT_CACHE = 300
 
-function makeClientKey(title: string, artist: string, duration?: number): string {
-  return `${title.trim().toLowerCase()}___${(artist || '').trim().toLowerCase()}___${duration || 0}`
+function makeClientKey(title: string, artist: string, duration?: number, album?: string | null): string {
+  return `${title.trim().toLowerCase()}___${(artist || '').trim().toLowerCase()}___${duration || 0}___${(album || '').trim().toLowerCase()}`
 }
 
 function getGeneration(key: string): number {
@@ -74,7 +74,8 @@ export async function resolveStreamCached(
 
   const artist = track.artist || ''
   const duration = track.duration || undefined
-  const key = makeClientKey(title, artist, duration)
+  const album = track.album || undefined
+  const key = makeClientKey(title, artist, duration, album)
   const generation = getGeneration(key)
   const forceRefresh = forceRefreshGeneration.get(key) === generation
 
@@ -163,13 +164,14 @@ export async function resolveStreamCached(
  * The next resolve for this key is forced to refresh on the server.
  */
 export async function invalidateStreamResolution(
-  track: { title: string; artist?: string | null; duration?: number | null },
+  track: { title: string; artist?: string | null; duration?: number | null; album?: string | null },
 ): Promise<void> {
   const title = track.title?.trim()
   if (!title) return
   const artist = track.artist || ''
   const duration = track.duration || undefined
-  const key = makeClientKey(title, artist, duration)
+  const album = track.album || undefined
+  const key = makeClientKey(title, artist, duration, album)
 
   const generation = advanceGeneration(key)
   clientCache.delete(key)
