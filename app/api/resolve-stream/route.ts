@@ -346,7 +346,8 @@ export async function GET(request: NextRequest): Promise<Response> {
       isMiss: false,
       expiresAt: Date.now() + L1_HIT_TTL,
     }
-    setL1(cacheKey, driveEntry)
+    evictL1IfFull()
+    l1Cache.set(cacheKey, driveEntry)
     return respondWith(driveEntry)
   }
 
