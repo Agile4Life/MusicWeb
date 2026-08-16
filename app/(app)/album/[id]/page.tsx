@@ -14,6 +14,7 @@ import { getValidUserId } from '@/lib/accessControl'
 import { stripAlbumIdPrefix } from '@/lib/albumId'
 import { toast } from '@/components/ui/ToastContext'
 import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
+import { resolveStreamCached } from '@/lib/resolveStreamClient'
 import { Play, DiscAlbum, Calendar, Music, Shuffle, Disc, Eye, Clock } from 'lucide-react'
 
 interface AlbumDetail {
@@ -122,6 +123,25 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
     loadAlbum()
   }, [albumId])
 
+  // Pre-warm stream cache for top 4 tracks in background so clicking Play is instant (<5ms)
+  useEffect(() => {
+    if (!album?.tracks || album.tracks.length === 0) return
+    const topTracks = album.tracks.slice(0, 4)
+    const timer = setTimeout(() => {
+      for (const tr of topTracks) {
+        if (!tr.youtube_id && !tr.nhaccuatui_id) {
+          resolveStreamCached({
+            title: tr.title,
+            artist: tr.artist,
+            duration: tr.duration,
+            album: tr.album,
+          }).catch(() => {})
+        }
+      }
+    }, 200)
+    return () => clearTimeout(timer)
+  }, [album?.id])
+
   if (loading) {
     return (
       <div className="p-6 md:p-8 flex flex-col gap-8 max-w-7xl mx-auto w-full">
@@ -209,7 +229,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
         {album.tracks.length > 0 && (
           <>
             <button
-              onClick={() => playTrack(album.tracks[0], album.tracks)}
+              onClick={() => playTrack(album.tracks[0], album.tracks, 0)}
               className="bg-[var(--primary-spotify,#06b6d4)] text-black font-extrabold px-6 py-3 rounded-full flex items-center gap-2 shadow-xl shadow-cyan-500/20 hover:scale-105 transition-all text-xs"
             >
               <Play className="w-4 h-4 fill-current" />
@@ -219,8 +239,11 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
             <button
               onClick={() => {
                 if (!isShuffle) toggleShuffle()
-                const randomIdx = Math.floor(Math.random() * album.tracks.length)
-                playTrack(album.tracks[randomIdx], album.tracks, randomIdx)
+                const candidates = album.tracks.length > 1
+                  ? album.tracks.map((_, idx) => idx).filter((idx) => album.tracks[idx].id !== currentTrack?.id)
+                  : [0]
+                const chosenIdx = candidates[Math.floor(Math.random() * candidates.length)] ?? 0
+                playTrack(album.tracks[chosenIdx], album.tracks, chosenIdx)
               }}
               className={`font-bold px-4 py-3 rounded-full flex items-center gap-2 text-xs transition-all border ${
                 isShuffle

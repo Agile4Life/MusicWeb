@@ -1423,6 +1423,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
+      // ⚠️ Critical guard: if a newer track was clicked while awaiting resolution, drop this stale resolution immediately!
+      if (requestId !== playRequestRef.current) return
+
       if (streamResult) {
         // Evict any stale audio URL cache entry for this catalog track ID so the player fetches the new stream!
         audioUrlCacheRef.current.delete(track.id)
@@ -1451,6 +1454,18 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             cover_url: streamResult.coverUrl || track.cover_url || null,
             album: track.album || null,
             spotify_album_id: track.spotify_album_id || null,
+          }
+        } else if (streamResult.source === 'soundcloud') {
+          activeTrack = {
+            ...track,
+            source: 'soundcloud' as const,
+            soundcloud_id: streamResult.id,
+            audio_url: undefined,
+            file_path: '',
+            title: streamResult.title || track.title,
+            artist: streamResult.artist || track.artist,
+            duration: streamResult.duration || track.duration,
+            cover_url: streamResult.coverUrl || track.cover_url || null,
           }
         } else if (streamResult.source === 'youtube') {
           activeTrack = {
@@ -1482,6 +1497,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    // ⚠️ Critical guard: ensure no newer play request has taken ownership
     if (requestId !== playRequestRef.current) return
 
     // 🎵 1. Try SYNCHRONOUS URL cache hit first (Zero-await gap for unbroken iOS Safari background playback gesture chain)
@@ -1491,6 +1507,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         url = await getAudioUrlCached(activeTrack)
       } catch (error: any) {}
     }
+
+    // ⚠️ Critical guard: if a newer track was clicked while resolving audio URL, drop this stale request immediately!
+    if (requestId !== playRequestRef.current) return
 
     const audio = audioRef.current
 
@@ -1579,9 +1598,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             recordHistory(track)
           } catch (e) {
             console.warn('YT loadVideoById error:', e)
+            if (requestId === playRequestRef.current) {
+              setIsPlaying(false)
+              setIsBuffering(false)
+            }
           }
         } else if (retries > 0) {
           setTimeout(() => tryLoadYt(retries - 1), 100)
+        } else {
+          if (requestId === playRequestRef.current) {
+            setIsPlaying(false)
+            setIsBuffering(false)
+            setPlaybackError(`Không thể kết nối đến trình phát YouTube cho bài hát "${activeTrack.title}".`)
+          }
         }
       }
       tryLoadYt()

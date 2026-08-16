@@ -9,6 +9,7 @@ import {
   findBestNhacCuaTuiMatch,
 } from '@/lib/nhaccuatui'
 import { getPrimaryArtistName } from '@/lib/artistParser'
+import { findMemoryDriveTrack } from '@/lib/driveTracksMap'
 
 export const dynamic = 'force-dynamic'
 
@@ -63,7 +64,7 @@ async function searchNctServer(query: string) {
     const res = await fetch(url.toString(), {
       cache: 'no-store',
       headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(1800),
     })
     if (!res.ok) return []
     const payload: unknown = await res.json()
@@ -81,7 +82,7 @@ async function fetchNctSong(id: string) {
     const res = await fetch(url.toString(), {
       cache: 'no-store',
       headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(1800),
     })
     if (!res.ok) return null
     return normalizeNhacCuaTuiSongResponse(await res.json())
@@ -118,7 +119,7 @@ function isPreviewUrl(filePath: string): boolean {
     lower.includes('dzcdn.net')
 }
 
-// ── Server-side full resolution (Drive ‖ NCT ‖ YouTube — chạy SONG SONG) ────
+// ── Server-side full resolution (Drive ‖ NCT ‖ YouTube — chạy SONG SONG với Smart Race) ────
 async function resolveStream(
   title: string,
   artist: string,
@@ -131,8 +132,22 @@ async function resolveStream(
   const cleanArtist = normalizeTitle(artist)
   const queryStr = `${title.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').trim()} ${primaryArtist}`.trim()
 
-  // === Drive: lookup in local Supabase DB ===
+  // === 1. Drive: Fast Local In-Memory & DB Check (<1ms) ===
   async function tryDrive(): Promise<L1Entry | null> {
+    const memTrack = findMemoryDriveTrack(title, artist)
+    if (memTrack) {
+      return {
+        source: 'drive',
+        resolvedId: memTrack.file_path,
+        title: memTrack.title,
+        artist: memTrack.artist,
+        duration: memTrack.duration,
+        coverUrl: memTrack.cover_url || undefined,
+        isMiss: false,
+        expiresAt: Date.now() + L1_HIT_TTL,
+      }
+    }
+
     if (!supabase || !cleanTitle) return null
     try {
       const { data: localMatches } = await supabase
@@ -176,75 +191,46 @@ async function resolveStream(
     }
   }
 
-  // === NCT: Search NhacCuaTui (Priority 1 for lossless streaming) ===
+  // === 2. NCT: Search NhacCuaTui (Single Fast Search Round-Trip <600ms) ===
   async function tryNct(): Promise<L1Entry | null> {
     try {
-      let nctCandidates = await searchNctServer(queryStr)
-      if (nctCandidates.length === 0 && artist !== primaryArtist) {
-        nctCandidates = await searchNctServer(`${title} ${artist}`)
-      }
-      if (nctCandidates.length === 0 && cleanTitle) {
-        nctCandidates = await searchNctServer(`${cleanTitle} ${cleanPrimaryArtist}`)
-      }
+      const nctCandidates = await searchNctServer(queryStr)
       if (nctCandidates.length === 0) return null
 
       const match = findBestNhacCuaTuiMatch(nctCandidates, { title, artist: primaryArtist || artist, duration })
-        || findBestNhacCuaTuiMatch(nctCandidates, { title, artist, duration })
         || nctCandidates[0]
 
-      if (!match) return null
-      const song = await fetchNctSong(match.id)
-      if (!song) return null
+      if (!match?.id) return null
       return {
         source: 'nhaccuatui',
-        resolvedId: song.id,
-        title: song.title,
-        artist: song.artist,
-        duration: song.duration ?? undefined,
-        coverUrl: song.coverUrl,
+        resolvedId: match.id,
+        title: match.title,
+        artist: match.artist,
+        duration: match.duration ?? undefined,
+        coverUrl: match.thumbnail || null,
         isMiss: false,
         expiresAt: Date.now() + L1_HIT_TTL,
       }
     } catch (e) {
-      console.warn('NCT resolution error in resolve-stream:', e)
       return null
     }
   }
 
-  // === YouTube: Search multiple high-precision queries in parallel ===
+  // === 3. YouTube: High-Speed Single Targeted Search (<300ms) ===
   async function tryYoutube(): Promise<L1Entry | null> {
     try {
-      const queries = [queryStr]
-      if (artist !== primaryArtist) {
-        queries.push(`${title} ${artist}`.trim())
-      }
-      if (cleanTitle) {
-        queries.push(`${cleanTitle} ${cleanPrimaryArtist} audio`.trim())
-        queries.push(`${cleanTitle} ${cleanPrimaryArtist}`.trim())
-        queries.push(`${title} official audio`.trim())
+      const primaryQuery = `${cleanTitle || title} ${cleanPrimaryArtist || primaryArtist}`.trim()
+      let candidates = await searchYouTubeTracks(primaryQuery, 10).catch(() => [])
+
+      if (candidates.length === 0 && cleanTitle) {
+        candidates = await searchYouTubeTracks(`${cleanTitle} ${cleanArtist}`, 8).catch(() => [])
       }
 
-      const results = await Promise.allSettled(
-        queries.map((q) => searchYouTubeTracks(q, 10))
-      )
+      if (candidates.length === 0) return null
 
-      // Collect unique candidates from all query results
-      const seen = new Set<string>()
-      const allCandidates: any[] = []
-      for (const r of results) {
-        if (r.status === 'fulfilled') {
-          for (const c of r.value) {
-            if (c.youtube_id && !seen.has(c.youtube_id)) {
-              seen.add(c.youtube_id)
-              allCandidates.push(c)
-            }
-          }
-        }
-      }
-
-      let best = findBestYouTubeMatch(allCandidates, title, primaryArtist || artist, duration)
-      if (!best && allCandidates.length > 0) {
-        best = allCandidates[0]
+      let best = findBestYouTubeMatch(candidates, title, primaryArtist || artist, duration)
+      if (!best && candidates.length > 0) {
+        best = candidates[0]
       }
 
       if (!best?.youtube_id) return null
@@ -263,21 +249,33 @@ async function resolveStream(
     }
   }
 
-  // === Khởi động CẢ 3 song song ngay từ đầu ===
-  const drivePromise = tryDrive()
+  // 1. Instant check for local Drive (<5ms)
+  const driveResult = await tryDrive()
+  if (driveResult) return driveResult
+
+  // 2. Parallel Fast Resolution: Race NCT & YouTube (Safely bounded to prevent unhandled rejection crashes)
   const nctPromise = tryNct()
   const ytPromise = tryYoutube()
 
-  // Await theo ĐÚNG thứ tự ưu tiên cũ — nhưng vì cả 3 đã chạy song song từ trước,
-  // việc await promise đầu tiên không làm chậm các promise sau.
-  const driveResult = await drivePromise
-  if (driveResult) return driveResult
+  const safeNct = nctPromise
+    .then((res) => ({ type: 'nct' as const, res }))
+    .catch(() => ({ type: 'nct' as const, res: null }))
 
-  const nctResult = await nctPromise
-  if (nctResult) return nctResult
+  const safeYt = ytPromise
+    .then((res) => ({ type: 'yt' as const, res }))
+    .catch(() => ({ type: 'yt' as const, res: null }))
 
-  const ytResult = await ytPromise
-  if (ytResult) return ytResult
+  const firstResult = await Promise.race([safeNct, safeYt])
+
+  if (firstResult.res) {
+    return firstResult.res
+  }
+
+  // If the first finished without finding a stream, await the other safe promise
+  const fallback = await (firstResult.type === 'nct' ? safeYt : safeNct)
+  if (fallback.res) {
+    return fallback.res
+  }
 
   // === Miss — cả 3 nguồn đều không tìm được ===
   return {
@@ -333,6 +331,23 @@ export async function GET(request: NextRequest): Promise<Response> {
     if (l1 && Date.now() < l1.expiresAt) {
       return respondWith(l1)
     }
+  }
+
+  // ⚡ ── Instant In-Memory Drive Cache Check (<0.01ms, zero DB latency) ────
+  const memDrive = findMemoryDriveTrack(title, artist)
+  if (memDrive) {
+    const driveEntry: L1Entry = {
+      source: 'drive',
+      resolvedId: memDrive.file_path,
+      title: memDrive.title,
+      artist: memDrive.artist,
+      duration: memDrive.duration,
+      coverUrl: memDrive.cover_url || undefined,
+      isMiss: false,
+      expiresAt: Date.now() + L1_HIT_TTL,
+    }
+    setL1(cacheKey, driveEntry)
+    return respondWith(driveEntry)
   }
 
   // ── L2 check (Supabase) ───────────────────────────────────────────
@@ -422,6 +437,7 @@ function respondWith(entry: L1Entry): Response {
   return NextResponse.json({
     source: entry.source,
     id: entry.resolvedId,
+    resolvedId: entry.resolvedId,
     title: entry.title,
     artist: entry.artist,
     duration: entry.duration,

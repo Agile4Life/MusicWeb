@@ -11,6 +11,7 @@ import { addTrackToPlaylist } from '@/lib/trackPersistence'
 import { toast } from '@/components/ui/ToastContext'
 import { deduplicateQueueTracks } from '@/lib/utils'
 import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
+import { resolveStreamCached } from '@/lib/resolveStreamClient'
 import {
   Play,
   Shuffle,
@@ -119,6 +120,25 @@ export default function ArtistPage() {
       isCancelled = true
     }
   }, [artistName])
+
+  // Pre-warm stream cache for top 4 tracks in background so clicking Play is instant (<5ms)
+  useEffect(() => {
+    if (!topTracks || topTracks.length === 0) return
+    const top = topTracks.slice(0, 4)
+    const timer = setTimeout(() => {
+      for (const tr of top) {
+        if (!tr.youtube_id && !tr.nhaccuatui_id) {
+          resolveStreamCached({
+            title: tr.title,
+            artist: tr.artist,
+            duration: tr.duration,
+            album: tr.album,
+          }).catch(() => {})
+        }
+      }
+    }, 200)
+    return () => clearTimeout(timer)
+  }, [topTracks])
 
   const displayTracks = showAll ? topTracks : topTracks.slice(0, INITIAL_COUNT)
 

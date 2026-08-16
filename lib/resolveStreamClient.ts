@@ -1,3 +1,5 @@
+import { findMemoryDriveTrack } from './driveTracksMap'
+
 export interface ResolvedStreamResult {
   source: 'youtube' | 'nhaccuatui' | 'drive'
   id: string
@@ -36,6 +38,21 @@ export async function resolveStreamCached(
   const duration = track.duration || undefined
   const key = makeClientKey(title, artist, duration)
 
+  // ⚡ Instant Client-side Static Drive Check (0ms, zero network fetch)
+  const memDrive = findMemoryDriveTrack(title, artist)
+  if (memDrive) {
+    const directResult: ResolvedStreamResult = {
+      source: 'drive',
+      id: memDrive.file_path,
+      title: memDrive.title,
+      artist: memDrive.artist,
+      duration: memDrive.duration,
+      coverUrl: memDrive.cover_url || null,
+    }
+    clientCache.set(key, { result: directResult, expiresAt: Date.now() + CLIENT_CACHE_TTL })
+    return directResult
+  }
+
   // Client-side cache check
   const cached = clientCache.get(key)
   if (cached && Date.now() < cached.expiresAt) {
@@ -69,7 +86,7 @@ export async function resolveStreamCached(
 
       const result: ResolvedStreamResult = {
         source: data.source,
-        id: data.id,
+        id: data.id || data.resolvedId || data.resolved_id,
         title: data.title,
         artist: data.artist,
         duration: data.duration,
