@@ -324,8 +324,8 @@ export async function GET(request: NextRequest): Promise<Response> {
       resolvedId: memDrive.file_path,
       title: memDrive.title,
       artist: memDrive.artist,
-      duration: memTrack.duration,
-      coverUrl: memTrack.cover_url || undefined,
+      duration: memDrive.duration,
+      coverUrl: memDrive.cover_url || undefined,
       isMiss: false,
       expiresAt: Date.now() + L1_HIT_TTL,
     }
