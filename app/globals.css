@@ -3676,4 +3676,1988 @@ html[data-theme-style="minimal-flat"] body {
     width: 100px !important;
     height: 100px !important;
   }
+}
+
+/* ================================================================
+   MINIMAL EDITORIAL THEME - ENHANCED VERSION
+   Premium Smooth Animations & Micro-interactions
+   ================================================================ */
+
+/* Smooth Scroll Behavior */
+[data-theme-style="minimal-flat"] html {
+  scroll-behavior: smooth;
+}
+
+/* Custom Scrollbar - Warm Editorial Style */
+[data-theme-style="minimal-flat"] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+[data-theme-style="minimal-flat"] ::-webkit-scrollbar-track {
+  background: rgba(244, 236, 230, 0.03);
+  border-radius: 4px;
+}
+
+[data-theme-style="minimal-flat"] ::-webkit-scrollbar-thumb {
+  background: rgba(244, 236, 230, 0.15);
+  border-radius: 4px;
+  transition: background 0.25s ease;
+}
+
+[data-theme-style="minimal-flat"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(232, 169, 79, 0.35);
+}
+
+/* Subtle Glow on Active Scrollbar */
+[data-theme-style="minimal-flat"] ::-webkit-scrollbar-thumb:active {
+  background: rgba(232, 169, 79, 0.5);
+  box-shadow: 0 0 8px rgba(232, 169, 79, 0.3);
+}
+
+/* Firefox Scrollbar */
+[data-theme-style="minimal-flat"] * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(244, 236, 230, 0.15) rgba(244, 236, 230, 0.03);
+}
+
+/* ================================================================
+   Typography Enhancement - Fraunces for Editorial Feel
+   ================================================================ */
+
+/* Hero Typography - Large Display */
+[data-theme-style="minimal-flat"] .hero-banner h1,
+[data-theme-style="minimal-flat"] .hero-title {
+  font-family: var(--font-fraunces), Georgia, 'Times New Roman', serif !important;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: #F4ECE1;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: letter-spacing 0.4s ease, text-shadow 0.4s ease;
+}
+
+[data-theme-style="minimal-flat"] .hero-banner h1:hover {
+  letter-spacing: -0.01em;
+  text-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Section Headers - Fraunces Medium */
+[data-theme-style="minimal-flat"] h2,
+[data-theme-style="minimal-flat"] .section-title,
+[data-theme-style="minimal-flat"] .section-heading {
+  font-family: var(--font-fraunces), Georgia, serif !important;
+  font-weight: 500;
+  font-size: 21px;
+  color: #F4ECE1;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  position: relative;
+  display: inline-block;
+}
+
+[data-theme-style="minimal-flat"] h2::after,
+[data-theme-style="minimal-flat"] .section-title::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #E8A94F, transparent);
+  transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-theme-style="minimal-flat"] h2:hover::after,
+[data-theme-style="minimal-flat"] .section-title:hover::after {
+  width: 100%;
+}
+
+/* Subtitle & Meta Text */
+[data-theme-style="minimal-flat"] h3,
+[data-theme-style="minimal-flat"] h4,
+[data-theme-style="minimal-flat"] .subtitle {
+  font-family: var(--font-fraunces), Georgia, serif !important;
+  font-weight: 400;
+  color: #B9AC9C;
+  letter-spacing: 0.01em;
+}
+
+/* Monospace - Timecodes & Data */
+[data-theme-style="minimal-flat"] .mono,
+[data-theme-style="minimal-flat"] .timecode,
+[data-theme-style="minimal-flat"] .meta-data {
+  font-family: var(--font-ibm-plex-mono), 'JetBrains Mono', monospace !important;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: #8B8090;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ================================================================
+   Smooth Hover & Active States - Micro-interactions
+   ================================================================ */
+
+/* Card Hover with Subtle Lift */
+[data-theme-style="minimal-flat"] .media-card,
+[data-theme-style="minimal-flat"] .tilt-card,
+[data-theme-style="minimal-flat"] .album-card {
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.25s ease,
+    box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+[data-theme-style="minimal-flat"] .media-card:hover,
+[data-theme-style="minimal-flat"] .tilt-card:hover,
+[data-theme-style="minimal-flat"] .album-card:hover {
+  transform: translateY(-6px) scale(1.015);
+}
+
+[data-theme-style="minimal-flat"] .media-card:active,
+[data-theme-style="minimal-flat"] .tilt-card:active {
+  transform: translateY(-2px) scale(0.995);
+  transition-duration: 0.12s;
+}
+
+/* Image Scale on Hover */
+[data-theme-style="minimal-flat"] .media-card .aspect-square img,
+[data-theme-style="minimal-flat"] .media-card .cover-img,
+[data-theme-style="minimal-flat"] .album-card img {
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-theme-style="minimal-flat"] .media-card:hover .aspect-square img,
+[data-theme-style="minimal-flat"] .media-card:hover .cover-img,
+[data-theme-style="minimal-flat"] .album-card:hover img {
+  transform: scale(1.08);
+}
+
+/* Play Button - Smooth Entrance */
+[data-theme-style="minimal-flat"] .media-card .play-btn {
+  opacity: 0;
+  transform: scale(0.7) translateY(12px);
+  transition:
+    opacity 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background 0.2s ease,
+    box-shadow 0.25s ease;
+}
+
+[data-theme-style="minimal-flat"] .media-card:hover .play-btn,
+[data-theme-style="minimal-flat"] .media-card:focus-within .play-btn {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+[data-theme-style="minimal-flat"] .media-card .play-btn:hover {
+  transform: scale(1.12) translateY(0) !important;
+  background: #F4ECE1 !important;
+  box-shadow: 0 12px 28px -8px rgba(232, 169, 79, 0.8) !important;
+}
+
+[data-theme-style="minimal-flat"] .media-card .play-btn:active {
+  transform: scale(0.94) translateY(0) !important;
+  transition-duration: 0.08s;
+}
+
+/* ================================================================
+   Vinyl Disc Animation - Premium Smooth Spinning
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .hero-vinyl-disc {
+  transform-origin: center center;
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-theme-style="minimal-flat"] .hero-vinyl-disc.is-spinning {
+  animation: spin-vinyl-premium 12s linear infinite !important;
+}
+
+[data-theme-style="minimal-flat"] .hero-vinyl-disc.is-paused {
+  animation-play-state: paused !important;
+}
+
+@keyframes spin-vinyl-premium {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Vinyl Reflection Highlight */
+[data-theme-style="minimal-flat"] .hero-vinyl-disc::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    transparent 0%,
+    transparent 40%,
+    rgba(244, 236, 230, 0.08) 45%,
+    rgba(244, 236, 230, 0.12) 50%,
+    rgba(244, 236, 230, 0.08) 55%,
+    transparent 60%,
+    transparent 100%
+  );
+  pointer-events: none;
+  animation: vinyl-reflection 8s ease-in-out infinite;
+}
+
+@keyframes vinyl-reflection {
+  0%, 100% {
+    opacity: 0.5;
+    transform: rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: rotate(180deg);
+  }
+}
+
+/* Fullview Vinyl Spin */
+[data-theme-style="minimal-flat"] .album-3d-card.now-playing-cover {
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-theme-style="minimal-flat"] .album-3d-card.now-playing-cover.is-spinning {
+  animation: spin-fullview 20s linear infinite !important;
+}
+
+[data-theme-style="minimal-flat"] .album-3d-card.now-playing-cover.is-paused {
+  animation-play-state: paused !important;
+}
+
+@keyframes spin-fullview {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ================================================================
+   Player Bar - Smooth Controls
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .player-bar {
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease,
+    backdrop-filter 0.3s ease;
+}
+
+/* Progress Bar - Smooth Fill Animation */
+[data-theme-style="minimal-flat"] .progress-fill,
+[data-theme-style="minimal-flat"] .scrubber-fill {
+  transition: width 0.1s linear, box-shadow 0.2s ease;
+}
+
+[data-theme-style="minimal-flat"] .progress-track:hover .progress-fill,
+[data-theme-style="minimal-flat"] .scrubber-track:hover .scrubber-fill {
+  box-shadow: 0 0 12px rgba(232, 169, 79, 0.6) !important;
+}
+
+/* Progress Thumb - Smooth Scale */
+[data-theme-style="minimal-flat"] .progress-thumb,
+[data-theme-style="minimal-flat"] .scrubber-thumb {
+  transition:
+    opacity 0.2s ease,
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease;
+}
+
+[data-theme-style="minimal-flat"] .progress-track-wrapper:hover .progress-thumb,
+[data-theme-style="minimal-flat"] .scrubber-track:hover .scrubber-thumb {
+  transform: translate(-50%, -50%) scale(1.2);
+  box-shadow: 0 0 16px rgba(232, 169, 79, 0.7) !important;
+}
+
+/* Player Control Buttons */
+[data-theme-style="minimal-flat"] .player-bar button,
+[data-theme-style="minimal-flat"] .mini-player-bar button {
+  transition:
+    color 0.2s ease,
+    background 0.2s ease,
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+[data-theme-style="minimal-flat"] .player-bar button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(232, 169, 79, 0.15), transparent 70%);
+  opacity: 0;
+  transform: scale(0);
+  transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+[data-theme-style="minimal-flat"] .player-bar button:hover::before {
+  opacity: 1;
+  transform: scale(1.5);
+}
+
+[data-theme-style="minimal-flat"] .player-bar button:active {
+  transform: scale(0.92);
+}
+
+/* Central Play Button - Premium Tactile */
+[data-theme-style="minimal-flat"] .player-play-btn,
+[data-theme-style="minimal-flat"] .player-bar button[aria-label*="Phát"],
+[data-theme-style="minimal-flat"] .player-bar button[aria-label*="Tạm dừng"] {
+  transition:
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.25s ease,
+    background 0.2s ease;
+}
+
+[data-theme-style="minimal-flat"] .player-play-btn:hover,
+[data-theme-style="minimal-flat"] .player-bar button[aria-label*="Phát"]:hover,
+[data-theme-style="minimal-flat"] .player-bar button[aria-label*="Tạm dừng"]:hover {
+  transform: scale(1.08);
+  box-shadow: 0 14px 28px -10px rgba(244, 236, 230, 0.5) !important;
+  background: #F4ECE1 !important;
+}
+
+[data-theme-style="minimal-flat"] .player-play-btn:active {
+  transform: scale(0.95);
+  transition-duration: 0.1s;
+}
+
+/* ================================================================
+   Sidebar Navigation - Smooth Glide
+   ================================================================ */
+
+/* Sidebar Item - Smooth Hover & Active */
+[data-theme-style="minimal-flat"] .sidebar-item {
+  transition:
+    color 0.25s ease,
+    background 0.25s ease,
+    border-color 0.25s ease,
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.25s ease;
+  position: relative;
+}
+
+[data-theme-style="minimal-flat"] .sidebar-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%) scaleY(0);
+  width: 3px;
+  height: 60%;
+  background: linear-gradient(180deg, #E8A94F, #C98A3D);
+  border-radius: 0 2px 2px 0;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+[data-theme-style="minimal-flat"] .sidebar-item:hover::before {
+  transform: translateY(-50%) scaleY(0.6);
+}
+
+[data-theme-style="minimal-flat"] .sidebar-item--active::before,
+[data-theme-style="minimal-flat"] .sidebar-item.active::before {
+  transform: translateY(-50%) scaleY(1);
+}
+
+/* Sidebar Icon Animation */
+[data-theme-style="minimal-flat"] .sidebar-item svg {
+  transition:
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    color 0.25s ease;
+}
+
+[data-theme-style="minimal-flat"] .sidebar-item:hover svg {
+  transform: translateX(3px);
+  color: #E8A94F;
+}
+
+/* Sidebar Active Indicator */
+[data-theme-style="minimal-flat"] .sidebar-item--active,
+[data-theme-style="minimal-flat"] .sidebar-item.active {
+  transition:
+    color 0.25s ease,
+    background 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+/* ================================================================
+   Track Row - Smooth Interactions
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .song-row,
+[data-theme-style="minimal-flat"] tr.track-row,
+[data-theme-style="minimal-flat"] .queue-track-row {
+  transition:
+    background-color 0.25s ease,
+    transform 0.2s ease,
+    border-color 0.25s ease;
+  position: relative;
+}
+
+/* Playing Indicator Bar */
+[data-theme-style="minimal-flat"] .song-row::before,
+[data-theme-style="minimal-flat"] tr.track-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  background: linear-gradient(90deg, #E8A94F, transparent);
+  opacity: 0;
+  transition: width 0.3s ease, opacity 0.3s ease;
+}
+
+[data-theme-style="minimal-flat"] .song-row:hover::before {
+  width: 3px;
+  opacity: 0.8;
+}
+
+[data-theme-style="minimal-flat"] .song-row.is-active::before,
+[data-theme-style="minimal-flat"] tr.track-row.is-active::before {
+  width: 3px;
+  opacity: 1;
+}
+
+/* Hover Scale Effect */
+[data-theme-style="minimal-flat"] .song-row:hover,
+[data-theme-style="minimal-flat"] tr.track-row:hover {
+  transform: translateX(2px);
+}
+
+/* ================================================================
+   Equalizer Animation - Smooth & Subtle
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .eq-bar-1,
+[data-theme-style="minimal-flat"] .eq-bar-2,
+[data-theme-style="minimal-flat"] .eq-bar-3,
+[data-theme-style="minimal-flat"] .eq-bar-4 {
+  background-color: #E8A94F !important;
+  transition: background-color 0.3s ease;
+}
+
+/* ================================================================
+   Modal & Dialog - Smooth Overlay
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .modal-overlay,
+[data-theme-style="minimal-flat"] [data-dialog-overlay] {
+  transition:
+    opacity 0.35s ease,
+    backdrop-filter 0.35s ease;
+}
+
+[data-theme-style="minimal-flat"] .modal-content,
+[data-theme-style="minimal-flat"] [data-dialog-content],
+[data-theme-style="minimal-flat"] .dialog-panel {
+  transition:
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.35s ease,
+    box-shadow 0.35s ease;
+  animation: modal-enter 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes modal-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ================================================================
+   Input Fields - Smooth Focus
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .search-input,
+[data-theme-style="minimal-flat"] input[type="search"],
+[data-theme-style="minimal-flat"] input[type="text"],
+[data-theme-style="minimal-flat"] input[type="password"],
+[data-theme-style="minimal-flat"] input[type="email"],
+[data-theme-style="minimal-flat"] textarea,
+[data-theme-style="minimal-flat"] select {
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    background-color 0.25s ease,
+    transform 0.2s ease;
+}
+
+[data-theme-style="minimal-flat"] .search-input:hover,
+[data-theme-style="minimal-flat"] input[type="search"]:hover {
+  border-color: rgba(244, 236, 230, 0.14) !important;
+}
+
+[data-theme-style="minimal-flat"] .search-input:focus,
+[data-theme-style="minimal-flat"] input:focus {
+  border-color: #E8A94F !important;
+  box-shadow: 0 0 0 3px rgba(232, 169, 79, 0.2) !important;
+  transform: translateY(-1px);
+}
+
+/* ================================================================
+   Hero Banner - Premium Enhancements
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .hero-banner {
+  transition:
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.4s ease,
+    border-color 0.4s ease;
+}
+
+[data-theme-style="minimal-flat"] .hero-banner:hover {
+  transform: translateY(-2px);
+}
+
+/* Hero Button Animation */
+[data-theme-style="minimal-flat"] .hero-banner .btn-outline-accent {
+  transition:
+    background 0.25s ease,
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+[data-theme-style="minimal-flat"] .hero-banner .btn-outline-accent::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent 50%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+[data-theme-style="minimal-flat"] .hero-banner .btn-outline-accent:hover::before {
+  opacity: 1;
+}
+
+[data-theme-style="minimal-flat"] .hero-banner .btn-outline-accent:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 20px -6px rgba(232, 169, 79, 0.5) !important;
+}
+
+[data-theme-style="minimal-flat"] .hero-banner .btn-outline-accent:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* ================================================================
+   Fullview & Lyrics - Premium Enhancements
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .now-playing-overlay {
+  transition: background-color 0.5s ease;
+}
+
+/* Lyrics - Smooth Line Transitions */
+[data-theme-style="minimal-flat"] .lyric-line-item {
+  transition:
+    color 0.4s ease,
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.4s ease;
+}
+
+[data-theme-style="minimal-flat"] .active-lyric-pill {
+  transition:
+    border-color 0.4s ease,
+    background-color 0.4s ease,
+    box-shadow 0.4s ease;
+}
+
+/* Fullview Header Buttons */
+[data-theme-style="minimal-flat"] .fullview-header-btn {
+  transition:
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+[data-theme-style="minimal-flat"] .fullview-header-btn:hover {
+  transform: scale(1.05);
+  background: rgba(244, 236, 230, 0.1) !important;
+}
+
+/* ================================================================
+   Up Next List - Smooth Interactions
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .up-next-list button {
+  transition:
+    background-color 0.25s ease,
+    transform 0.2s ease,
+    border-color 0.25s ease;
+}
+
+[data-theme-style="minimal-flat"] .up-next-list button:hover {
+  transform: translateX(4px);
+}
+
+[data-theme-style="minimal-flat"] .up-next-list button:active {
+  transform: translateX(2px) scale(0.99);
+}
+
+/* ================================================================
+   Like Button - Satisfying Animation
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .like-btn {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+[data-theme-style="minimal-flat"] .like-btn:hover {
+  transform: scale(1.15);
+}
+
+[data-theme-style="minimal-flat"] .like-btn.liked {
+  animation: like-pop-satisfying 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  color: #A24B3D;
+}
+
+@keyframes like-pop-satisfying {
+  0% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.35) rotate(-5deg);
+  }
+  50% {
+    transform: scale(0.9) rotate(5deg);
+  }
+  75% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* ================================================================
+   Floating Elements - Subtle Ambient Animation
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .floating {
+  animation: float-subtle 6s ease-in-out infinite;
+}
+
+@keyframes float-subtle {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+/* ================================================================
+   Badge & Tag - Smooth Hover
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .badge-glass,
+[data-theme-style="minimal-flat"] [class*="badge"],
+[data-theme-style="minimal-flat"] .tag {
+  transition:
+    background-color 0.25s ease,
+    transform 0.2s ease,
+    box-shadow 0.25s ease;
+}
+
+[data-theme-style="minimal-flat"] .badge-glass:hover {
+  transform: scale(1.05);
+  background-color: rgba(20, 16, 23, 0.85) !important;
+}
+
+/* ================================================================
+   Responsive Adjustments - Smooth
+   ================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  [data-theme-style="minimal-flat"] *,
+  [data-theme-style="minimal-flat"] *::before,
+  [data-theme-style="minimal-flat"] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ================================================================
+   Additional Polish - Premium Details
+   ================================================================ */
+
+/* Selection Color */
+[data-theme-style="minimal-flat"] ::selection {
+  background-color: rgba(232, 169, 79, 0.35);
+  color: #F4ECE1;
+}
+
+[data-theme-style="minimal-flat"] ::-moz-selection {
+  background-color: rgba(232, 169, 79, 0.35);
+  color: #F4ECE1;
+}
+
+/* Smooth Page Transitions */
+[data-theme-style="minimal-flat"] .page-content {
+  animation: page-enter 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Subtle Glow on Focus */
+[data-theme-style="minimal-flat"] :focus-visible {
+  outline: none !important;
+  box-shadow:
+    0 0 0 2px #141017,
+    0 0 0 4px #E8A94F !important;
+}
+
+/* Smooth Image Loading */
+[data-theme-style="minimal-flat"] img {
+  transition:
+    opacity 0.4s ease,
+    filter 0.4s ease;
+}
+
+[data-theme-style="minimal-flat"] img[loading="lazy"] {
+  opacity: 0;
+}
+
+[data-theme-style="minimal-flat"] img.loaded,
+[data-theme-style="minimal-flat"] img:not([loading="lazy"]) {
+  opacity: 1;
+}
+
+/* Tooltip Styling */
+[data-theme-style="minimal-flat"] [data-tooltip],
+[data-theme-style="minimal-flat"] [title] {
+  position: relative;
+}
+
+/* Smooth Toast Notifications */
+[data-theme-style="minimal-flat"] .toast {
+  animation: toast-enter 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.35s ease;
+}
+
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Queue Drawer */
+[data-theme-style="minimal-flat"] .queue-drawer {
+  transition:
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+/* Mini Player */
+[data-theme-style="minimal-flat"] .mini-player {
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    transform 0.3s ease;
+}
+
+[data-theme-style="minimal-flat"] .mini-player:hover {
+  transform: translateY(-1px);
+}
+
+/* Bottom Nav */
+[data-theme-style="minimal-flat"] .bottom-nav {
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease;
+}
+
+[data-theme-style="minimal-flat"] .bottom-nav-item {
+  transition:
+    color 0.25s ease,
+    transform 0.2s ease;
+}
+
+[data-theme-style="minimal-flat"] .bottom-nav-item:active {
+  transform: scale(0.95);
+}
+
+/* Mobile Drawer */
+[data-theme-style="minimal-flat"] .mobile-drawer {
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-theme-style="minimal-flat"] .mobile-drawer-backdrop {
+  transition:
+    opacity 0.35s ease,
+    backdrop-filter 0.35s ease;
+}
+
+/* Marquee Text - Smooth */
+[data-theme-style="minimal-flat"] .overflow-marquee-text {
+  animation: marquee-smooth 20s linear infinite;
+  transition: color 0.3s ease;
+}
+
+@keyframes marquee-smooth {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* ================================================================
+   SoundCloud Page Enhancements
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .soundcloud-hero {
+  transition:
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.4s ease;
+}
+
+[data-theme-style="minimal-flat"] .soundcloud-hero:hover {
+  transform: translateY(-2px);
+}
+
+/* Genre Filter Buttons */
+[data-theme-style="minimal-flat"] .overflow-x-auto button.whitespace-nowrap {
+  transition:
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    color 0.25s ease,
+    transform 0.2s ease;
+}
+
+[data-theme-style="minimal-flat"] .overflow-x-auto button.whitespace-nowrap:hover {
+  transform: translateY(-1px);
+}
+
+[data-theme-style="minimal-flat"] .overflow-x-auto button.whitespace-nowrap:active {
+  transform: scale(0.97);
+}
+
+/* ================================================================
+   Artist Page - Premium Enhancements
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .artist-hero {
+  transition:
+    background 0.4s ease,
+    border-color 0.4s ease;
+}
+
+[data-theme-style="minimal-flat"] .artist-avatar {
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s ease;
+}
+
+[data-theme-style="minimal-flat"] .artist-avatar:hover {
+  transform: scale(1.06);
+  box-shadow:
+    0 0 40px rgba(232, 169, 79, 0.25),
+    0 16px 48px rgba(0, 0, 0, 0.7) !important;
+}
+
+/* ================================================================
+   Accessibility - Respect User Preferences
+   ================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  [data-theme-style="minimal-flat"] .hero-vinyl-disc.is-spinning,
+  [data-theme-style="minimal-flat"] .album-3d-card.now-playing-cover.is-spinning {
+    animation: none !important;
+  }
+
+  [data-theme-style="minimal-flat"] .overflow-marquee-text {
+    animation: none !important;
+  }
+
+  [data-theme-style="minimal-flat"] .vinyl-reflection::before {
+    animation: none !important;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  [data-theme-style="minimal-flat"] {
+    --text-primary: #FFFFFF !important;
+    --text-secondary: #E0DCD3 !important;
+    --text-muted: #C0B8AC !important;
+  }
+}
+
+/* ================================================================
+   Search Input - Premium Smooth Focus & Hover
+   ================================================================ */
+
+/* Search Icon Animation */
+[data-theme-style="minimal-flat"] .search-input-container svg {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.25s ease;
+}
+
+[data-theme-style="minimal-flat"] .search-input-container:hover svg {
+  transform: scale(1.1);
+  color: #E8A94F;
+}
+
+[data-theme-style="minimal-flat"] .search-input:focus + svg,
+[data-theme-style="minimal-flat"] .search-input-container:focus-within svg {
+  color: #E8A94F;
+  transform: scale(1.15);
+}
+
+/* Search Results Dropdown */
+[data-theme-style="minimal-flat"] .search-dropdown,
+[data-theme-style="minimal-flat"] [data-search-results] {
+  background: #1D1720 !important;
+  border: 1px solid rgba(244, 236, 230, 0.12) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(16px) !important;
+}
+
+[data-theme-style="minimal-flat"] .search-result-item {
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+[data-theme-style="minimal-flat"] .search-result-item:hover {
+  background-color: rgba(244, 236, 230, 0.06) !important;
+  transform: translateX(4px);
+}
+
+/* ================================================================
+   Overlay & Modal - Premium Smooth
+   ================================================================ */
+
+/* Backdrop Blur */
+[data-theme-style="minimal-flat"] .overlay-backdrop {
+  background-color: rgba(20, 16, 23, 0.8) !important;
+  backdrop-filter: blur(12px) saturate(120%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(120%) !important;
+  transition: opacity 0.4s ease, backdrop-filter 0.4s ease;
+}
+
+/* Modal Enter Animation */
+[data-theme-style="minimal-flat"] .modal,
+[data-theme-style="minimal-flat"] .dialog {
+  animation: modal-fade-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes modal-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Modal Exit Animation */
+[data-theme-style="minimal-flat"] .modal.closing,
+[data-theme-style="minimal-flat"] .dialog.closing {
+  animation: modal-fade-out 0.3s ease forwards;
+}
+
+@keyframes modal-fade-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+/* ================================================================
+   Buttons - Premium Tactile Feel
+   ================================================================ */
+
+/* Primary Button */
+[data-theme-style="minimal-flat"] .btn-primary,
+[data-theme-style="minimal-flat"] button.bg-\[\\#E8A94F\] {
+  transition:
+    background 0.25s ease,
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.25s ease;
+}
+
+[data-theme-style="minimal-flat"] .btn-primary:hover,
+[data-theme-style="minimal-flat"] button.bg-\[\\#E8A94F\]:hover {
+  background: #F4ECE1 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -4px rgba(232, 169, 79, 0.4) !important;
+}
+
+[data-theme-style="minimal-flat"] .btn-primary:active,
+[data-theme-style="minimal-flat"] button.bg-\[\\#E8A94F\]:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* Secondary Button */
+[data-theme-style="minimal-flat"] .btn-secondary,
+[data-theme-style="minimal-flat"] button[class*="bg-\\[var"] {
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease,
+    color 0.25s ease,
+    transform 0.2s ease;
+}
+
+[data-theme-style="minimal-flat"] .btn-secondary:hover,
+[data-theme-style="minimal-flat"] button[class*="bg-\\[var"]:hover {
+  background: rgba(244, 236, 230, 0.08) !important;
+  transform: translateY(-1px);
+}
+
+/* Ghost Button */
+[data-theme-style="minimal-flat"] .btn-ghost,
+[data-theme-style="minimal-flat"] button[class*="bg-transparent"] {
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+[data-theme-style="minimal-flat"] .btn-ghost:hover,
+[data-theme-style="minimal-flat"] button[class*="bg-transparent"]:hover {
+  background: rgba(244, 236, 230, 0.06) !important;
+  color: #F4ECE1 !important;
+}
+
+/* Icon Button */
+[data-theme-style="minimal-flat"] .btn-icon {
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+[data-theme-style="minimal-flat"] .btn-icon:hover {
+  background: rgba(244, 236, 230, 0.08) !important;
+  color: #F4ECE1 !important;
+  transform: scale(1.1);
+}
+
+[data-theme-style="minimal-flat"] .btn-icon:active {
+  transform: scale(0.95);
+}
+
+/* ================================================================
+   Avatar - Smooth Hover Effects
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .avatar {
+  transition:
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.3s ease;
+}
+
+[data-theme-style="minimal-flat"] .avatar:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Avatar Border Glow on Active */
+[data-theme-style="minimal-flat"] .avatar.is-active {
+  border: 2px solid #E8A94F !important;
+  box-shadow: 0 0 16px rgba(232, 169, 79, 0.4) !important;
+}
+
+/* ================================================================
+   Progress Ring - Premium Smooth
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .progress-ring-circle {
+  transition: stroke-dashoffset 0.3s ease, stroke 0.3s ease;
+  transform: rotate(-90deg);
+  transform-origin: center;
+}
+
+/* ================================================================
+   Toast Notifications - Smooth & Appealing
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .toast-container {
+  animation: toast-slide-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+[data-theme-style="minimal-flat"] .toast {
+  background: #1D1720 !important;
+  border: 1px solid rgba(244, 236, 230, 0.14) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4) !important;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+[data-theme-style="minimal-flat"] .toast:hover {
+  transform: translateX(-4px);
+}
+
+/* ================================================================
+   Tabs & Pills - Smooth Selection
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .tab,
+[data-theme-style="minimal-flat"] .pill {
+  transition:
+    background 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease,
+    transform 0.2s ease;
+}
+
+[data-theme-style="minimal-flat"] .tab:hover,
+[data-theme-style="minimal-flat"] .pill:hover {
+  background: rgba(244, 236, 230, 0.06) !important;
+}
+
+[data-theme-style="minimal-flat"] .tab.active,
+[data-theme-style="minimal-flat"] .pill.active {
+  background: #E8A94F !important;
+  color: #2A1704 !important;
+  font-weight: 600 !important;
+}
+
+/* ================================================================
+   Dropdown Menu - Premium Smooth
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .dropdown-menu {
+  background: #1D1720 !important;
+  border: 1px solid rgba(244, 236, 230, 0.12) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5) !important;
+  animation: dropdown-appear 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes dropdown-appear {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+[data-theme-style="minimal-flat"] .dropdown-item {
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    padding-left 0.2s ease;
+}
+
+[data-theme-style="minimal-flat"] .dropdown-item:hover {
+  background: rgba(244, 236, 230, 0.06) !important;
+  color: #F4ECE1 !important;
+  padding-left: 16px;
+}
+
+/* ================================================================
+   Skeleton Loading - Smooth Pulse
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(244, 236, 230, 0.04) 0%,
+    rgba(244, 236, 230, 0.08) 50%,
+    rgba(244, 236, 230, 0.04) 100%
+  ) !important;
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ================================================================
+   Toggle Switch - Premium Smooth
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .toggle-track {
+  background: rgba(244, 236, 230, 0.12) !important;
+  transition: background 0.3s ease;
+}
+
+[data-theme-style="minimal-flat"] .toggle-track.checked {
+  background: #E8A94F !important;
+}
+
+[data-theme-style="minimal-flat"] .toggle-thumb {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+}
+
+[data-theme-style="minimal-flat"] .toggle-thumb.checked {
+  transform: translateX(20px);
+  box-shadow: 0 4px 12px rgba(232, 169, 79, 0.4) !important;
+}
+
+/* ================================================================
+   Slider & Range - Premium Touch Feel
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] input[type="range"] {
+  transition: transform 0.2s ease;
+}
+
+[data-theme-style="minimal-flat"] input[type="range"]:hover {
+  transform: scaleY(1.2);
+}
+
+[data-theme-style="minimal-flat"] input[type="range"]::-webkit-slider-thumb {
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease;
+}
+
+[data-theme-style="minimal-flat"] input[type="range"]:hover::-webkit-slider-thumb {
+  transform: scale(1.3);
+  box-shadow: 0 0 16px rgba(232, 169, 79, 0.5) !important;
+}
+
+/* ================================================================
+   Checkbox & Radio - Premium Custom Style
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] input[type="checkbox"],
+[data-theme-style="minimal-flat"] input[type="radio"] {
+  accent-color: #E8A94F;
+  transition: transform 0.2s ease;
+}
+
+[data-theme-style="minimal-flat"] input[type="checkbox"]:hover,
+[data-theme-style="minimal-flat"] input[type="radio"]:hover {
+  transform: scale(1.1);
+}
+
+/* ================================================================
+   Image Gallery - Smooth Hover Zoom
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .image-gallery img {
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), filter 0.4s ease;
+}
+
+[data-theme-style="minimal-flat"] .image-gallery img:hover {
+  transform: scale(1.05);
+  filter: brightness(1.1);
+}
+
+/* ================================================================
+   Divider - Subtle Editorial Lines
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] hr,
+[data-theme-style="minimal-flat"] .divider {
+  border: none !important;
+  height: 1px !important;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(244, 236, 230, 0.08) 20%,
+    rgba(244, 236, 230, 0.08) 80%,
+    transparent
+  ) !important;
+  margin: 16px 0 !important;
+}
+
+/* ================================================================
+   Empty State - Friendly & Warm
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  animation: empty-state-fade-in 0.5s ease forwards;
+}
+
+@keyframes empty-state-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+[data-theme-style="minimal-flat"] .empty-state svg {
+  color: #8B8090;
+  transition: color 0.3s ease, transform 0.3s ease;
+}
+
+[data-theme-style="minimal-flat"] .empty-state:hover svg {
+  color: #E8A94F;
+  transform: scale(1.1);
+}
+
+/* ================================================================
+   Loading Spinner - Premium Animation
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .spinner {
+  border: 2px solid rgba(244, 236, 230, 0.08) !important;
+  border-top-color: #E8A94F !important;
+  border-radius: 50%;
+  animation: spin-smooth 0.8s linear infinite;
+}
+
+@keyframes spin-smooth {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ================================================================
+   Custom Cursor - Hide for Minimal Flat
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] #custom-cursor,
+[data-theme-style="minimal-flat"] .cursor-spotlight {
+  display: none !important;
+}
+
+/* ================================================================
+   Progress Bar - Smooth Fill Animation
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .progress-fill-animated {
+  transition: width 0.15s linear;
+}
+
+/* ================================================================
+   Waveform Visualizer - Smooth Bars
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .waveform-bar {
+  background: linear-gradient(180deg, #E8A94F 0%, #C98A3D 100%) !important;
+  transition: height 0.1s ease, opacity 0.2s ease;
+  border-radius: 2px;
+}
+
+[data-theme-style="minimal-flat"] .waveform-bar:hover {
+  opacity: 0.8;
+}
+
+/* ================================================================
+   Receipt View - Premium Vinyl Style
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .receipt-container {
+  background: #1D1720 !important;
+  border: 1px solid rgba(244, 236, 230, 0.12) !important;
+  border-radius: 16px !important;
+  font-family: var(--font-ibm-plex-mono), monospace !important;
+  box-shadow: none !important;
+}
+
+[data-theme-style="minimal-flat"] .receipt-header {
+  border-bottom: 1px dashed rgba(244, 236, 230, 0.12) !important;
+  color: #E8A94F !important;
+}
+
+[data-theme-style="minimal-flat"] .receipt-item {
+  color: #B9AC9C !important;
+  font-size: 12px !important;
+}
+
+[data-theme-style="minimal-flat"] .receipt-total {
+  border-top: 1px dashed rgba(244, 236, 230, 0.12) !important;
+  color: #F4ECE1 !important;
+  font-weight: 600 !important;
+}
+
+/* ================================================================
+   Receipt Visualizer - Minimal Flat Edition
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .receipt-visualizer {
+  background: #1D1720 !important;
+  border: 1px solid rgba(244, 236, 230, 0.12) !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
+}
+
+[data-theme-style="minimal-flat"] .receipt-visualizer .visualizer-bar {
+  background: #E8A94F !important;
+  border-radius: 1px !important;
+  transition: height 0.08s ease;
+}
+
+/* ================================================================
+   Lyrics Share Modal - Premium Style
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .lyrics-share-btn {
+  background: #E8A94F !important;
+  color: #2A1704 !important;
+  border: none !important;
+  border-radius: 10px !important;
+  transition:
+    background 0.25s ease,
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.25s ease;
+}
+
+[data-theme-style="minimal-flat"] .lyrics-share-btn:hover {
+  background: #F4ECE1 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -4px rgba(232, 169, 79, 0.4) !important;
+}
+
+/* ================================================================
+   Welcome Modal - Warm & Inviting
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .welcome-modal {
+  background: linear-gradient(180deg, #251E29, #1D1720) !important;
+  border: 1px solid rgba(244, 236, 230, 0.14) !important;
+  border-radius: 24px !important;
+}
+
+[data-theme-style="minimal-flat"] .welcome-modal h2 {
+  font-family: var(--font-fraunces), serif !important;
+  font-size: 24px !important;
+  color: #F4ECE1 !important;
+}
+
+/* ================================================================
+   Import Modals - Premium Consistent Style
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .import-modal {
+  background: #1D1720 !important;
+  border: 1px solid rgba(244, 236, 230, 0.14) !important;
+  border-radius: 20px !important;
+}
+
+[data-theme-style="minimal-flat"] .import-btn {
+  background: #E8A94F !important;
+  color: #2A1704 !important;
+  border-radius: 10px !important;
+  transition:
+    background 0.25s ease,
+    transform 0.2s ease,
+    box-shadow 0.25s ease;
+}
+
+[data-theme-style="minimal-flat"] .import-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -4px rgba(232, 169, 79, 0.4) !important;
+}
+
+[data-theme-style="minimal-flat"] .import-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* ================================================================
+   Upload Form - Clean & Editorial
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .upload-zone {
+  background: rgba(244, 236, 230, 0.02) !important;
+  border: 2px dashed rgba(244, 236, 230, 0.12) !important;
+  border-radius: 16px !important;
+  transition:
+    border-color 0.3s ease,
+    background 0.3s ease,
+    transform 0.2s ease;
+}
+
+[data-theme-style="minimal-flat"] .upload-zone:hover,
+[data-theme-style="minimal-flat"] .upload-zone.drag-over {
+  border-color: #E8A94F !important;
+  background: rgba(232, 169, 79, 0.05) !important;
+  transform: scale(1.01);
+}
+
+/* ================================================================
+   Auth Form - Premium Glass Style
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .auth-form {
+  background: #1D1720 !important;
+  border: 1px solid rgba(244, 236, 230, 0.12) !important;
+  border-radius: 24px !important;
+}
+
+[data-theme-style="minimal-flat"] .auth-form input {
+  background: rgba(244, 236, 230, 0.04) !important;
+  border: 1px solid rgba(244, 236, 230, 0.1) !important;
+  border-radius: 10px !important;
+  color: #F4ECE1 !important;
+  transition:
+    border-color 0.25s ease,
+    background 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+[data-theme-style="minimal-flat"] .auth-form input:focus {
+  border-color: #E8A94F !important;
+  background: rgba(244, 236, 230, 0.06) !important;
+  box-shadow: 0 0 0 3px rgba(232, 169, 79, 0.15) !important;
+}
+
+[data-theme-style="minimal-flat"] .auth-form input::placeholder {
+  color: #8B8090 !important;
+}
+
+[data-theme-style="minimal-flat"] .auth-submit-btn {
+  background: #E8A94F !important;
+  color: #2A1704 !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  transition:
+    background 0.25s ease,
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.25s ease;
+}
+
+[data-theme-style="minimal-flat"] .auth-submit-btn:hover {
+  background: #F4ECE1 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px -4px rgba(232, 169, 79, 0.5) !important;
+}
+
+/* ================================================================
+   Page Transitions - Smooth Navigation Feel
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] main,
+[data-theme-style="minimal-flat"] .main-content {
+  animation: main-content-enter 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes main-content-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Staggered List Items - Smooth Cascade */
+[data-theme-style="minimal-flat"] .stagger-item {
+  opacity: 0;
+  transform: translateY(16px);
+  animation: stagger-fade-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes stagger-fade-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Stagger delays for items 1-10 */
+[data-theme-style="minimal-flat"] .stagger-item:nth-child(1) { animation-delay: 0.05s; }
+[data-theme-style="minimal-flat"] .stagger-item:nth-child(2) { animation-delay: 0.1s; }
+[data-theme-style="minimal-flat"] .stagger-item:nth-child(3) { animation-delay: 0.15s; }
+[data-theme-style="minimal-flat"] .stagger-item:nth-child(4) { animation-delay: 0.2s; }
+[data-theme-style="minimal-flat"] .stagger-item:nth-child(5) { animation-delay: 0.25s; }
+[data-theme-style="minimal-flat"] .stagger-item:nth-child(6) { animation-delay: 0.3s; }
+[data-theme-style="minimal-flat"] .stagger-item:nth-child(7) { animation-delay: 0.35s; }
+[data-theme-style="minimal-flat"] .stagger-item:nth-child(8) { animation-delay: 0.4s; }
+[data-theme-style="minimal-flat"] .stagger-item:nth-child(9) { animation-delay: 0.45s; }
+[data-theme-style="minimal-flat"] .stagger-item:nth-child(10) { animation-delay: 0.5s; }
+
+/* ================================================================
+   Scroll Reveal - Elements Appear as You Scroll
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-theme-style="minimal-flat"] .reveal-on-scroll.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ================================================================
+   Volume Slider - Smooth Interaction
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .volume-track {
+  transition: height 0.2s ease;
+}
+
+[data-theme-style="minimal-flat"] .volume-track:hover {
+  height: 6px !important;
+}
+
+[data-theme-style="minimal-flat"] .volume-fill {
+  transition: width 0.1s linear, box-shadow 0.2s ease;
+}
+
+[data-theme-style="minimal-flat"] .volume-track:hover .volume-fill {
+  box-shadow: 0 0 10px rgba(232, 169, 79, 0.5) !important;
+}
+
+/* ================================================================
+   Repeat & Shuffle Buttons - Active State
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .player-bar button[aria-label*="Repeat"],
+[data-theme-style="minimal-flat"] .player-bar button[title*="Lặp"] {
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+[data-theme-style="minimal-flat"] .player-bar button[aria-label*="Repeat"]:hover,
+[data-theme-style="minimal-flat"] .player-bar button[title*="Lặp"]:hover {
+  color: #E8A94F !important;
+}
+
+[data-theme-style="minimal-flat"] .player-bar button[aria-label*="Shuffle"],
+[data-theme-style="minimal-flat"] .player-bar button[title*="Xáo"] {
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+[data-theme-style="minimal-flat"] .player-bar button[aria-label*="Shuffle"]:hover,
+[data-theme-style="minimal-flat"] .player-bar button[title*="Xáo"]:hover {
+  color: #E8A94F !important;
+}
+
+/* ================================================================
+   Now Playing Overlay - Smooth Transition
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .now-playing-overlay {
+  animation: overlay-enter 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes overlay-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ================================================================
+   Lyrics Line - Smooth Active Transition
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .lyric-line {
+  transition:
+    color 0.4s ease,
+    font-size 0.4s ease,
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.4s ease;
+}
+
+[data-theme-style="minimal-flat"] .lyric-line.active {
+  color: #F4ECE1 !important;
+  font-size: 1.2em;
+  transform: scale(1.02);
+}
+
+[data-theme-style="minimal-flat"] .lyric-line:not(.active) {
+  color: #8B8090 !important;
+  opacity: 0.6;
+}
+
+/* ================================================================
+   Queue Drawer - Smooth Slide Animation
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .queue-drawer {
+  animation: drawer-slide-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes drawer-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ================================================================
+   Mini Equalizer - Smooth Bars Animation
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .mini-eq-bar {
+  background: #E8A94F !important;
+  transition: transform 0.08s ease, height 0.08s ease;
+}
+
+/* ================================================================
+   Track Cover - Smooth Hover Glow
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .track-cover {
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s ease;
+}
+
+[data-theme-style="minimal-flat"] .track-cover:hover {
+  transform: scale(1.05);
+  box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.7) !important;
+}
+
+/* ================================================================
+   Floating Music Notes - Ambient Animation
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .floating-note {
+  animation: note-float 4s ease-in-out infinite;
+}
+
+@keyframes note-float {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0.6;
+  }
+  25% {
+    transform: translateY(-12px) rotate(10deg);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translateY(-8px) rotate(-5deg);
+    opacity: 0.7;
+  }
+  75% {
+    transform: translateY(-16px) rotate(15deg);
+    opacity: 0.8;
+  }
+}
+
+[data-theme-style="minimal-flat"] .floating-note:nth-child(2) {
+  animation-delay: 0.5s;
+}
+
+[data-theme-style="minimal-flat"] .floating-note:nth-child(3) {
+  animation-delay: 1s;
+}
+
+/* ================================================================
+   Progress Ring Fullview - Smooth Animation
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .fullview-progress-ring {
+  transition: stroke-dashoffset 0.3s ease;
+}
+
+/* ================================================================
+   Profile Menu - Smooth Dropdown
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .profile-menu {
+  animation: profile-menu-appear 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes profile-menu-appear {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ================================================================
+   Language Selector - Smooth Transition
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .lang-selector {
+  background: #1D1720 !important;
+  border: 1px solid rgba(244, 236, 230, 0.12) !important;
+  border-radius: 12px !important;
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+[data-theme-style="minimal-flat"] .lang-selector:hover {
+  border-color: rgba(244, 236, 230, 0.18) !important;
+}
+
+/* ================================================================
+   Tooltip - Smooth Fade In
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] [data-tooltip]::after {
+  background: #1D1720 !important;
+  color: #F4ECE1 !important;
+  border: 1px solid rgba(244, 236, 230, 0.12) !important;
+  border-radius: 8px !important;
+  font-size: 11px !important;
+  font-family: var(--font-inter), sans-serif !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4) !important;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+[data-theme-style="minimal-flat"] [data-tooltip]:hover::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ================================================================
+   Final Performance Optimizations
+   ================================================================ */
+
+/* GPU Acceleration for Animations */
+[data-theme-style="minimal-flat"] .media-card,
+[data-theme-style="minimal-flat"] .play-btn,
+[data-theme-style="minimal-flat"] .sidebar-item,
+[data-theme-style="minimal-flat"] .hero-vinyl-disc,
+[data-theme-style="minimal-flat"] .album-3d-card,
+[data-theme-style="minimal-flat"] .btn-primary,
+[data-theme-style="minimal-flat"] .btn-icon {
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+/* Optimize repaints */
+[data-theme-style="minimal-flat"] .progress-fill,
+[data-theme-style="minimal-flat"] .eq-bar,
+[data-theme-style="minimal-flat"] .mini-eq-bar {
+  will-change: transform, height;
+}
+
+/* Use compositor-only properties where possible */
+[data-theme-style="minimal-flat"] .opacity-transition {
+  transition: opacity 0.25s ease;
+}
+
+[data-theme-style="minimal-flat"] .transform-transition {
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ================================================================
+   Lyrics Scroll Area - Hide Scrollbar Completely
+   ================================================================ */
+
+[data-theme-style="minimal-flat"] .overflow-y-auto,
+[data-theme-style="minimal-flat"] .lyrics-scroll-area {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+[data-theme-style="minimal-flat"] .overflow-y-auto::-webkit-scrollbar,
+[data-theme-style="minimal-flat"] .lyrics-scroll-area::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Ensure no-scrollbar class works properly in minimal-flat */
+[data-theme-style="minimal-flat"] .no-scrollbar {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+[data-theme-style="minimal-flat"] .no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Lyrics panel specific styling */
+[data-theme-style="minimal-flat"] [class*="lyrics"] .overflow-y-auto,
+[data-theme-style="minimal-flat"] [class*="lyrics"] .flex-1.overflow-y-auto {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+[data-theme-style="minimal-flat"] [class*="lyrics"] .overflow-y-auto::-webkit-scrollbar,
+[data-theme-style="minimal-flat"] [class*="lyrics"] .flex-1.overflow-y-auto::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Fullview lyrics area */
+[data-theme-style="minimal-flat"] .now-playing-overlay .overflow-y-auto,
+[data-theme-style="minimal-flat"] .now-playing-overlay .lyrics-container {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+[data-theme-style="minimal-flat"] .now-playing-overlay .overflow-y-auto::-webkit-scrollbar,
+[data-theme-style="minimal-flat"] .now-playing-overlay .lyrics-container::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }

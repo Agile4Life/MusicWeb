@@ -1,4 +1,4 @@
-export type ThemeCategory = 'cover' | 'gradient' | 'solid'
+export type ThemeCategory = 'cover' | 'gradient' | 'solid' | 'minimal'
 
 export interface LyricCardTheme {
   id: string
@@ -89,6 +89,35 @@ export const LYRIC_CARD_THEMES: LyricCardTheme[] = [
     solidColor: '#450a0a',
     textColor: '#ffffff',
     accentColor: '#ef4444',
+  },
+
+  // ✨ 4. Minimal - Clean Flat Design
+  {
+    id: 'minimal-white',
+    name: 'Trắng Sạch',
+    category: 'minimal',
+    background: ['#ffffff', '#ffffff', '#ffffff'],
+    solidColor: '#ffffff',
+    textColor: '#0a0a0a',
+    accentColor: '#0a0a0a',
+  },
+  {
+    id: 'minimal-black',
+    name: 'Đen Tối Giản',
+    category: 'minimal',
+    background: ['#0a0a0a', '#0a0a0a', '#0a0a0a'],
+    solidColor: '#0a0a0a',
+    textColor: '#ffffff',
+    accentColor: '#ffffff',
+  },
+  {
+    id: 'minimal-cream',
+    name: 'Kem Nhạt',
+    category: 'minimal',
+    background: ['#faf8f5', '#faf8f5', '#faf8f5'],
+    solidColor: '#faf8f5',
+    textColor: '#1a1a1a',
+    accentColor: '#3a3a3a',
   },
 ]
 
@@ -289,6 +318,218 @@ export function calculateCompactCardHeight(
   const lineHeight = Math.round(fontSize * 1.55)
   const totalLyricsHeight = Math.max(1, renderedLineCount) * lineHeight
   return Math.round(lyricsStartY + totalLyricsHeight + bottomPadding)
+}
+
+/**
+ * Render Minimal Clean Card - Simple flat design without glassmorphism effects
+ */
+export async function renderMinimalCardToCanvas(
+  options: GenerateCardOptions
+): Promise<HTMLCanvasElement> {
+  const isCardOnly = Boolean(options.cardOnly)
+  const theme = getThemeById(options.themeId)
+  const lines = options.selectedLines.slice(0, 5)
+
+  const fontSize = calculateOptimalFontSize(lines)
+  const lineHeight = Math.round(fontSize * 1.5)
+
+  // Measure and wrap lyrics
+  const cardWidth = 880
+  const cardRadius = 16
+
+  const measureCanvas = document.createElement('canvas')
+  const measureCtx = measureCanvas.getContext('2d')
+  if (measureCtx) {
+    measureCtx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`
+  }
+
+  const maxTextWidth = cardWidth - 80
+  const renderedLineList: string[] = []
+
+  for (const rawLine of lines) {
+    if (measureCtx) {
+      const wrapped = wrapCanvasText(measureCtx, rawLine, maxTextWidth)
+      renderedLineList.push(...wrapped)
+    } else {
+      renderedLineList.push(rawLine)
+    }
+  }
+
+  // Calculate card dimensions
+  const cardHeaderHeight = 320
+  const totalLyricsHeight = Math.max(1, renderedLineList.length) * lineHeight
+  const cardBottomPadding = 60
+  const cardHeight = Math.min(1200, Math.max(580, Math.round(cardHeaderHeight + totalLyricsHeight + cardBottomPadding)))
+
+  let width: number
+  let height: number
+  let cardX: number
+  let cardY: number
+
+  if (isCardOnly) {
+    const shadowPadding = 30
+    width = cardWidth + shadowPadding * 2
+    height = cardHeight + shadowPadding * 2
+    cardX = shadowPadding
+    cardY = shadowPadding
+  } else {
+    width = 1080
+    height = 1920
+    cardX = (width - cardWidth) / 2
+    cardY = Math.round((height - cardHeight) / 2)
+  }
+
+  const centerX = cardX + cardWidth / 2
+
+  // Initialize Canvas
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Canvas 2D context not supported')
+
+  // Load cover image
+  let coverImg: HTMLImageElement | null = null
+  if (options.coverUrl) {
+    coverImg = await loadImageSafe(options.coverUrl)
+  }
+
+  // Fill background
+  ctx.fillStyle = theme.solidColor || theme.background[0]
+  ctx.fillRect(0, 0, width, height)
+
+  // Subtle gradient overlay for depth
+  if (!isCardOnly) {
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, height)
+    if (theme.id === 'minimal-white' || theme.id === 'minimal-cream') {
+      bgGrad.addColorStop(0, 'rgba(0,0,0,0.03)')
+      bgGrad.addColorStop(1, 'rgba(0,0,0,0.08)')
+    } else {
+      bgGrad.addColorStop(0, 'rgba(255,255,255,0.02)')
+      bgGrad.addColorStop(1, 'rgba(255,255,255,0.05)')
+    }
+    ctx.fillStyle = bgGrad
+    ctx.fillRect(0, 0, width, height)
+  }
+
+  // Simple flat card with subtle shadow
+  ctx.save()
+  ctx.shadowColor = theme.id === 'minimal-white' || theme.id === 'minimal-cream'
+    ? 'rgba(0,0,0,0.12)'
+    : 'rgba(0,0,0,0.5)'
+  ctx.shadowBlur = 20
+  ctx.shadowOffsetY = 8
+
+  ctx.fillStyle = theme.solidColor || theme.background[0]
+  drawRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, cardRadius)
+  ctx.fill()
+  ctx.restore()
+
+  // Simple card border
+  ctx.save()
+  drawRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, cardRadius)
+  ctx.strokeStyle = theme.id === 'minimal-white' || theme.id === 'minimal-cream'
+    ? 'rgba(0,0,0,0.08)'
+    : 'rgba(255,255,255,0.1)'
+  ctx.lineWidth = 1
+  ctx.stroke()
+  ctx.restore()
+
+  // Cover art (top section)
+  const coverSize = 100
+  const coverRadius = 8
+  const coverX = cardX + (cardWidth - coverSize) / 2
+  const coverY = cardY + 40
+
+  // Cover shadow
+  ctx.save()
+  ctx.shadowColor = 'rgba(0,0,0,0.2)'
+  ctx.shadowBlur = 12
+  ctx.shadowOffsetY = 4
+  drawRoundedRect(ctx, coverX, coverY, coverSize, coverSize, coverRadius)
+  ctx.fillStyle = theme.id === 'minimal-white' || theme.id === 'minimal-cream' ? '#e8e8e8' : '#1a1a1a'
+  ctx.fill()
+  ctx.restore()
+
+  // Draw cover image
+  ctx.save()
+  drawRoundedRect(ctx, coverX, coverY, coverSize, coverSize, coverRadius)
+  ctx.clip()
+  if (coverImg) {
+    ctx.drawImage(coverImg, coverX, coverY, coverSize, coverSize)
+  }
+  ctx.restore()
+
+  // Track title
+  const maxTitleWidth = cardWidth - 60
+  ctx.save()
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.font = `bold ${Math.min(32, 28)}px system-ui, -apple-system, sans-serif`
+  ctx.fillStyle = theme.textColor
+
+  let displayTitle = options.title || 'Unknown Track'
+  while (ctx.measureText(displayTitle).width > maxTitleWidth && displayTitle.length > 3) {
+    displayTitle = displayTitle.slice(0, -2) + '…'
+  }
+  ctx.fillText(displayTitle, centerX, cardY + 170)
+
+  // Artist
+  ctx.font = `${Math.min(22, 20)}px system-ui, -apple-system, sans-serif`
+  ctx.fillStyle = theme.id === 'minimal-white' || theme.id === 'minimal-cream'
+    ? 'rgba(0,0,0,0.55)'
+    : 'rgba(255,255,255,0.6)'
+  let displayArtist = options.artist || 'Unknown Artist'
+  while (ctx.measureText(displayArtist).width > maxTitleWidth && displayArtist.length > 3) {
+    displayArtist = displayArtist.slice(0, -2) + '…'
+  }
+  ctx.fillText(displayArtist, centerX, cardY + 205)
+  ctx.restore()
+
+  // Simple divider line
+  const dividerY = cardY + 240
+  ctx.save()
+  ctx.strokeStyle = theme.id === 'minimal-white' || theme.id === 'minimal-cream'
+    ? 'rgba(0,0,0,0.1)'
+    : 'rgba(255,255,255,0.15)'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(cardX + 60, dividerY)
+  ctx.lineTo(cardX + cardWidth - 60, dividerY)
+  ctx.stroke()
+  ctx.restore()
+
+  // Lyrics text
+  ctx.save()
+  ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`
+  ctx.fillStyle = theme.textColor
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'top'
+
+  const lyricsStartY = cardY + 260
+  const lineWidthsCentered = renderedLineList.map((l) => ctx.measureText(l).width)
+  const maxLineWidth = Math.max(...lineWidthsCentered, 0)
+  const lyricsX = centerX - maxLineWidth / 2
+
+  for (let i = 0; i < renderedLineList.length; i++) {
+    const lineText = renderedLineList[i]
+    const curY = lyricsStartY + i * lineHeight
+    ctx.fillText(lineText, centerX, curY)
+  }
+  ctx.restore()
+
+  // Bottom brand text
+  const footerY = cardY + cardHeight - 28
+  ctx.save()
+  ctx.fillStyle = theme.id === 'minimal-white' || theme.id === 'minimal-cream'
+    ? 'rgba(0,0,0,0.35)'
+    : 'rgba(255,255,255,0.35)'
+  ctx.font = '500 18px system-ui, -apple-system, sans-serif'
+  ctx.textAlign = 'center'
+  ctx.fillText('musicweb.phongtct.com', centerX, footerY)
+  ctx.restore()
+
+  return canvas
 }
 
 /**
