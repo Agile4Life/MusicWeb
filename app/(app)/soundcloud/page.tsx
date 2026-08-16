@@ -26,6 +26,7 @@ import { toast } from '@/components/ui/ToastContext'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 import { ImportSoundCloudModal } from '@/components/playlist/ImportSoundCloudModal'
 import { MediaCard } from '@/components/common/MediaCard'
+import { useGridGlideIndicator } from '@/components/common/useGlideIndicator'
 
 const GENRE_TABS = [
   { id: 'all-music', label: 'Tất cả', query: 'vietnam hit' },
@@ -44,6 +45,7 @@ export default function SoundCloudPage() {
   const { userEmail } = useCurrentUser()
   const { data: nextAuthSession } = useSession()
   const supabase = useMemo(() => createClient(), [])
+  const soundcloudPlaylistGrid = useGridGlideIndicator()
 
   const [activeTab, setActiveTab] = useState<string>('all-music')
   const [searchQuery, setSearchQuery] = useState<string>('')
@@ -392,22 +394,40 @@ export default function SoundCloudPage() {
               ))}
             </div>
           ) : playlists.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
+            <div
+              ref={soundcloudPlaylistGrid.containerRef}
+              onMouseLeave={soundcloudPlaylistGrid.handleContainerMouseLeave}
+              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative"
+            >
+              <div
+                className="grid-glide-indicator"
+                style={{
+                  transform: `translate3d(${soundcloudPlaylistGrid.indicator.left}px, ${soundcloudPlaylistGrid.indicator.top}px, 0) scale(${soundcloudPlaylistGrid.indicator.scaleX}, ${soundcloudPlaylistGrid.indicator.scaleY})`,
+                  width: `${soundcloudPlaylistGrid.indicator.width}px`,
+                  height: `${soundcloudPlaylistGrid.indicator.height}px`,
+                  opacity: soundcloudPlaylistGrid.indicator.opacity,
+                }}
+              />
               {playlists.map((pl, idx) => (
-                <MediaCard
+                <div
                   key={pl.id}
-                  id={String(pl.id)}
-                  title={pl.title}
-                  subtitle={pl.user?.username || 'SoundCloud Creator'}
-                  coverUrl={pl.artwork_url}
-                  type="playlist"
-                  badgeLabel="SoundCloud"
-                  metaText={`${pl.track_count} bài`}
-                  onClick={() => handleSelectPlaylist(pl)}
-                  onPlay={(e) => handlePlayPlaylist(e, pl)}
-                  index={idx}
-                  fallbackIcon="playlist"
-                />
+                  onMouseEnter={soundcloudPlaylistGrid.handleItemMouseEnter}
+                  className="relative z-[1] h-full"
+                >
+                  <MediaCard
+                    id={String(pl.id)}
+                    title={pl.title}
+                    subtitle={pl.user?.username || 'SoundCloud Creator'}
+                    coverUrl={pl.artwork_url}
+                    type="playlist"
+                    badgeLabel="SoundCloud"
+                    metaText={`${pl.track_count} bài`}
+                    onClick={() => handleSelectPlaylist(pl)}
+                    onPlay={(e) => handlePlayPlaylist(e, pl)}
+                    index={idx}
+                    fallbackIcon="playlist"
+                  />
+                </div>
               ))}
             </div>
           ) : (

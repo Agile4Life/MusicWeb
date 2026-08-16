@@ -10,6 +10,7 @@ import { usePlayer } from '@/components/player/PlayerContext'
 import { DiscAlbum, Sparkles, Music, Play, Search, X, Loader2 } from 'lucide-react'
 import { HeroCardSkeleton } from '@/components/common/SkeletonLoader'
 import { MediaCard } from '@/components/common/MediaCard'
+import { useGridGlideIndicator } from '@/components/common/useGlideIndicator'
 
 interface AlbumCardProps {
   album: SpotifyAlbumItem
@@ -79,6 +80,10 @@ export default function AlbumsPage() {
   const [listenedAlbums, setListenedAlbums] = useState<SpotifyAlbumItem[]>(cachedListenedAlbums)
   const [newReleases, setNewReleases] = useState<SpotifyAlbumItem[]>(cachedNewReleases)
   const [loading, setLoading] = useState<boolean>(cachedListenedAlbums.length === 0 && cachedNewReleases.length === 0)
+
+  const searchGrid = useGridGlideIndicator()
+  const listenedGrid = useGridGlideIndicator()
+  const newReleasesGrid = useGridGlideIndicator()
 
   // Search state
   const [albumQuery, setAlbumQuery] = useState('')
@@ -272,9 +277,28 @@ export default function AlbumsPage() {
               <HeroCardSkeleton />
             </div>
           ) : searchResults.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-5">
+            <div
+              ref={searchGrid.containerRef}
+              onMouseLeave={searchGrid.handleContainerMouseLeave}
+              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-5 relative"
+            >
+              <div
+                className="grid-glide-indicator"
+                style={{
+                  transform: `translate3d(${searchGrid.indicator.left}px, ${searchGrid.indicator.top}px, 0) scale(${searchGrid.indicator.scaleX}, ${searchGrid.indicator.scaleY})`,
+                  width: `${searchGrid.indicator.width}px`,
+                  height: `${searchGrid.indicator.height}px`,
+                  opacity: searchGrid.indicator.opacity,
+                }}
+              />
               {searchResults.map((album, idx) => (
-                <AlbumCard key={album.id} album={album} index={idx} />
+                <div
+                  key={album.id}
+                  onMouseEnter={searchGrid.handleItemMouseEnter}
+                  className="relative z-[1] h-full"
+                >
+                  <AlbumCard album={album} index={idx} />
+                </div>
               ))}
             </div>
           ) : (
@@ -302,9 +326,28 @@ export default function AlbumsPage() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-5">
+              <div
+                ref={listenedGrid.containerRef}
+                onMouseLeave={listenedGrid.handleContainerMouseLeave}
+                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-5 relative"
+              >
+                <div
+                  className="grid-glide-indicator"
+                  style={{
+                    transform: `translate3d(${listenedGrid.indicator.left}px, ${listenedGrid.indicator.top}px, 0) scale(${listenedGrid.indicator.scaleX}, ${listenedGrid.indicator.scaleY})`,
+                    width: `${listenedGrid.indicator.width}px`,
+                    height: `${listenedGrid.indicator.height}px`,
+                    opacity: listenedGrid.indicator.opacity,
+                  }}
+                />
                 {listenedAlbums.map((album, idx) => (
-                  <AlbumCard key={album.id} album={album} index={idx} />
+                  <div
+                    key={album.id}
+                    onMouseEnter={listenedGrid.handleItemMouseEnter}
+                    className="relative z-[1] h-full"
+                  >
+                    <AlbumCard album={album} index={idx} />
+                  </div>
                 ))}
               </div>
             </div>
@@ -325,9 +368,28 @@ export default function AlbumsPage() {
             </div>
 
             {newReleases.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-5">
+              <div
+                ref={newReleasesGrid.containerRef}
+                onMouseLeave={newReleasesGrid.handleContainerMouseLeave}
+                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-5 relative"
+              >
+                <div
+                  className="grid-glide-indicator"
+                  style={{
+                    transform: `translate3d(${newReleasesGrid.indicator.left}px, ${newReleasesGrid.indicator.top}px, 0) scale(${newReleasesGrid.indicator.scaleX}, ${newReleasesGrid.indicator.scaleY})`,
+                    width: `${newReleasesGrid.indicator.width}px`,
+                    height: `${newReleasesGrid.indicator.height}px`,
+                    opacity: newReleasesGrid.indicator.opacity,
+                  }}
+                />
                 {newReleases.map((album, idx) => (
-                  <AlbumCard key={album.id} album={album} index={idx} />
+                  <div
+                    key={album.id}
+                    onMouseEnter={newReleasesGrid.handleItemMouseEnter}
+                    className="relative z-[1] h-full"
+                  >
+                    <AlbumCard album={album} index={idx} />
+                  </div>
                 ))}
               </div>
             ) : (

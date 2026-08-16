@@ -14,6 +14,7 @@ import { getValidUserId, getAllValidUserIds } from '@/lib/accessControl'
 import { toast } from '@/components/ui/ToastContext'
 import { fetchListeningHistory, getRecentUniqueTracks } from '@/lib/listeningHistory'
 import { MediaCard } from '@/components/common/MediaCard'
+import { useGridGlideIndicator } from '@/components/common/useGlideIndicator'
 import {
   Play,
   Upload,
@@ -48,6 +49,9 @@ export default function HomePage() {
   const supabase = createClient()
   const { playTrack, currentTrack, isPlaying, isShuffle, toggleShuffle } = usePlayer()
   const { playlists } = usePlaylists()
+  const albumGrid = useGridGlideIndicator()
+  const playlistGrid = useGridGlideIndicator()
+  const trendingGrid = useGridGlideIndicator()
   const {
     searchQuery,
     setSearchQuery,
@@ -753,21 +757,39 @@ export default function HomePage() {
               ))}
             </div>
           ) : trendingAlbums.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
+            <div
+              ref={albumGrid.containerRef}
+              onMouseLeave={albumGrid.handleContainerMouseLeave}
+              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative"
+            >
+              <div
+                className="grid-glide-indicator"
+                style={{
+                  transform: `translate3d(${albumGrid.indicator.left}px, ${albumGrid.indicator.top}px, 0) scale(${albumGrid.indicator.scaleX}, ${albumGrid.indicator.scaleY})`,
+                  width: `${albumGrid.indicator.width}px`,
+                  height: `${albumGrid.indicator.height}px`,
+                  opacity: albumGrid.indicator.opacity,
+                }}
+              />
               {trendingAlbums.map((album, idx) => (
-                <MediaCard
+                <div
                   key={album.id}
-                  id={album.id}
-                  title={album.name}
-                  subtitle={album.artist}
-                  coverUrl={album.cover_url}
-                  type={album.album_type === 'single' ? 'single' : 'album'}
-                  badgeLabel={album.album_type === 'single' ? 'Single' : 'Album'}
-                  href={`/album/${album.id}`}
-                  onPlay={(e) => void handlePlayAlbum(e, album)}
-                  index={idx}
-                  fallbackIcon="album"
-                />
+                  onMouseEnter={albumGrid.handleItemMouseEnter}
+                  className="relative z-[1] h-full"
+                >
+                  <MediaCard
+                    id={album.id}
+                    title={album.name}
+                    subtitle={album.artist}
+                    coverUrl={album.cover_url}
+                    type={album.album_type === 'single' ? 'single' : 'album'}
+                    badgeLabel={album.album_type === 'single' ? 'Single' : 'Album'}
+                    href={`/album/${album.id}`}
+                    onPlay={(e) => void handlePlayAlbum(e, album)}
+                    index={idx}
+                    fallbackIcon="album"
+                  />
+                </div>
               ))}
             </div>
           ) : null}
@@ -791,20 +813,38 @@ export default function HomePage() {
             </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
+          <div
+            ref={playlistGrid.containerRef}
+            onMouseLeave={playlistGrid.handleContainerMouseLeave}
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative"
+          >
+            <div
+              className="grid-glide-indicator"
+              style={{
+                transform: `translate3d(${playlistGrid.indicator.left}px, ${playlistGrid.indicator.top}px, 0) scale(${playlistGrid.indicator.scaleX}, ${playlistGrid.indicator.scaleY})`,
+                width: `${playlistGrid.indicator.width}px`,
+                height: `${playlistGrid.indicator.height}px`,
+                opacity: playlistGrid.indicator.opacity,
+              }}
+            />
             {playlists.slice(0, 6).map((pl, idx) => (
-              <MediaCard
+              <div
                 key={pl.id}
-                id={pl.id}
-                title={pl.name}
-                subtitle="Playlist cá nhân"
-                coverUrl={pl.cover_url || undefined}
-                type="playlist"
-                badgeLabel="Playlist"
-                href={`/playlist/${pl.id}`}
-                index={idx}
-                fallbackIcon="playlist"
-              />
+                onMouseEnter={playlistGrid.handleItemMouseEnter}
+                className="relative z-[1] h-full"
+              >
+                <MediaCard
+                  id={pl.id}
+                  title={pl.name}
+                  subtitle="Playlist cá nhân"
+                  coverUrl={pl.cover_url || undefined}
+                  type="playlist"
+                  badgeLabel="Playlist"
+                  href={`/playlist/${pl.id}`}
+                  index={idx}
+                  fallbackIcon="playlist"
+                />
+              </div>
             ))}
           </div>
         </div>
@@ -836,22 +876,40 @@ export default function HomePage() {
               ))}
             </div>
           ) : displayTrending.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
+            <div
+              ref={trendingGrid.containerRef}
+              onMouseLeave={trendingGrid.handleContainerMouseLeave}
+              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative"
+            >
+              <div
+                className="grid-glide-indicator"
+                style={{
+                  transform: `translate3d(${trendingGrid.indicator.left}px, ${trendingGrid.indicator.top}px, 0) scale(${trendingGrid.indicator.scaleX}, ${trendingGrid.indicator.scaleY})`,
+                  width: `${trendingGrid.indicator.width}px`,
+                  height: `${trendingGrid.indicator.height}px`,
+                  opacity: trendingGrid.indicator.opacity,
+                }}
+              />
               {displayTrending.map((t, idx) => (
-                <MediaCard
+                <div
                   key={t.id}
-                  id={t.id}
-                  title={t.title}
-                  subtitle={t.artist || 'Nghệ sĩ chưa xác định'}
-                  coverUrl={t.cover_url}
-                  type="track"
-                  badgeLabel="Hot"
-                  href="#"
-                  onPlay={() => playTrack(t, combinedTrendingTracks)}
-                  isPlaying={currentTrack?.id === t.id && isPlaying}
-                  index={idx}
-                  fallbackIcon="track"
-                />
+                  onMouseEnter={trendingGrid.handleItemMouseEnter}
+                  className="relative z-[1] h-full"
+                >
+                  <MediaCard
+                    id={t.id}
+                    title={t.title}
+                    subtitle={t.artist || 'Nghệ sĩ chưa xác định'}
+                    coverUrl={t.cover_url}
+                    type="track"
+                    badgeLabel="Hot"
+                    href="#"
+                    onPlay={() => playTrack(t, combinedTrendingTracks)}
+                    isPlaying={currentTrack?.id === t.id && isPlaying}
+                    index={idx}
+                    fallbackIcon="track"
+                  />
+                </div>
               ))}
             </div>
           ) : (

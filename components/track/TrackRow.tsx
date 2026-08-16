@@ -34,6 +34,7 @@ interface TrackRowProps {
   selectable?: boolean
   isSelected?: boolean
   onToggleSelect?: () => void
+  onMouseEnterRow?: (e: React.MouseEvent<HTMLDivElement>) => void
 }
 
 function formatDuration(seconds: number) {
@@ -60,6 +61,7 @@ function TrackRowComponent({
   selectable = false,
   isSelected = false,
   onToggleSelect,
+  onMouseEnterRow,
 }: TrackRowProps) {
   const router = useRouter()
   const [isResolvingAlbum, setIsResolvingAlbum] = useState(false)
@@ -108,7 +110,8 @@ function TrackRowComponent({
   const hoverTimeoutRef = useRef<any>(null)
   const favBusyRef = useRef(false)
 
-  const handleMouseEnter = () => {
+  const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
+    onMouseEnterRow?.(e)
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
     hoverTimeoutRef.current = setTimeout(() => {
       triggerDrivePrewarm([track])
@@ -340,7 +343,7 @@ function TrackRowComponent({
           ? 'bg-[var(--primary-spotify,#06b6d4)]/20 border-[var(--primary-spotify,#06b6d4)]/50 text-white font-bold shadow-md hover:bg-[var(--primary-spotify,#06b6d4)]/25'
           : isCurrent
           ? 'is-playing bg-[var(--primary-spotify,#06b6d4)]/10 border-[var(--primary-spotify,#06b6d4)]/30 text-white hover:bg-[var(--primary-spotify,#06b6d4)]/18 shadow-[0_2px_12px_color-mix(in_srgb,var(--primary-spotify,#06b6d4)_15%,transparent)]'
-          : 'bg-transparent border-transparent hover:bg-white/[0.06] hover:border-white/10 hover:shadow-sm'
+          : 'bg-transparent border-transparent'
       }`}
     >
       {/* Active Left Accent Indicator Bar */}

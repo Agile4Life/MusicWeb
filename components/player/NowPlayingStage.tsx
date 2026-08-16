@@ -6,7 +6,6 @@ import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import { usePlayer, usePlaybackProgress } from './PlayerContext'
 import { UpNextList } from './UpNextList'
 import { extractCoverAccent } from '@/lib/coverColor'
-import { useTheme } from '@/components/theme/ThemeContext'
 
 const ParticleScene = lazy(() => import('./ParticleScene'))
 
@@ -46,10 +45,6 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
       cancelled = true
     }
   }, [coverUrl])
-
-  const { currentTheme } = useTheme()
-  const effectiveAccent = (derivedAccent && derivedAccent !== 'var(--accent)') ? derivedAccent : currentTheme.accentColor
-  const effectiveGlow = currentTheme.glowColor || effectiveAccent
 
   const trackNum = (currentIndex >= 0 ? currentIndex : 0) + 1
   const totalTracks = queue?.length || 1
@@ -121,7 +116,13 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
           reflectionRef.current.style.setProperty('--reflect-opacity', '1')
         }
 
-        // --- Parallax layers: Only album scene has subtle parallax, background & canvas container remain completely stationary ---
+        // --- Parallax layers ---
+        if (bgLayerRef.current) {
+          bgLayerRef.current.style.transform = `translate3d(${(nx * PARALLAX_1).toFixed(1)}px, ${(ny * PARALLAX_1).toFixed(1)}px, 0)`
+        }
+        if (particleLayerRef.current) {
+          particleLayerRef.current.style.transform = `translate3d(${(nx * PARALLAX_2).toFixed(1)}px, ${(ny * PARALLAX_2).toFixed(1)}px, 0)`
+        }
         if (sceneLayerRef.current) {
           sceneLayerRef.current.style.transform = `translate3d(${(nx * PARALLAX_3).toFixed(1)}px, ${(ny * PARALLAX_3).toFixed(1)}px, 0)`
         }
@@ -135,6 +136,8 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
 
       rafRef.current = requestAnimationFrame(() => {
         cardRef.current?.classList.add('pointer-gone')
+        bgLayerRef.current?.classList.add('reset')
+        particleLayerRef.current?.classList.add('reset')
         sceneLayerRef.current?.classList.add('reset')
 
         if (cardRef.current) {
@@ -144,6 +147,8 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
         if (reflectionRef.current) {
           reflectionRef.current.style.setProperty('--reflect-opacity', '0')
         }
+        if (bgLayerRef.current) bgLayerRef.current.style.transform = 'translate3d(0, 0, 0)'
+        if (particleLayerRef.current) particleLayerRef.current.style.transform = 'translate3d(0, 0, 0)'
         if (sceneLayerRef.current) sceneLayerRef.current.style.transform = 'translate3d(0, 0, 0)'
       })
     }
@@ -162,28 +167,23 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
     <div
       ref={stageRef}
       className="now-playing-stage relative w-full h-full flex flex-col items-center justify-center overflow-hidden p-2 sm:p-4 lg:p-6 pb-24 sm:pb-28 lg:pb-32"
-      style={{ '--player-derived-accent': effectiveAccent } as React.CSSProperties}
+      style={{ '--player-derived-accent': derivedAccent } as React.CSSProperties}
     >
 
-      {/* Layer 1: Ambient gradient background (Stationary) */}
+      {/* Layer 1: Ambient gradient background (1× parallax) */}
       <div
         ref={bgLayerRef}
-        className="absolute inset-0 z-0 now-playing-bg opacity-80 pointer-events-none"
+        className="parallax-layer z-0 now-playing-bg opacity-80"
       />
 
-      {/* Layer 2: 3D Particle Scene (Stationary Canvas Container - Particles move inside) */}
+      {/* Layer 2: 3D Particle Scene (2× parallax, lazy-loaded) */}
       {canUse3D && (
         <div
           ref={particleLayerRef}
-          className="absolute inset-0 z-10 pointer-events-none"
+          className="parallax-layer z-10 pointer-events-none"
         >
           <Suspense fallback={null}>
-            <ParticleScene
-              analyserData={analyserData}
-              isPlaying={isPlaying}
-              accentColor={effectiveAccent}
-              glowColor={effectiveGlow}
-            />
+            <ParticleScene analyserData={analyserData} isPlaying={isPlaying} />
           </Suspense>
         </div>
       )}

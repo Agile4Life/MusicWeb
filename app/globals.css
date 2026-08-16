@@ -1388,6 +1388,7 @@ input[type='range']:hover::-moz-range-thumb {
   position: absolute;
   left: 0;
   width: 100%;
+  height: 44px;
   border-radius: 12px;
   background: color-mix(in srgb, var(--spotify-glow, #22d3ee) 14%, transparent);
   border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 25%, transparent);
@@ -1395,12 +1396,131 @@ input[type='range']:hover::-moz-range-thumb {
   opacity: 0;
   pointer-events: none;
   z-index: 0;
+  transform-origin: center center;
+  will-change: transform, opacity;
   transition:
-    transform 280ms var(--ease-out-quint),
-    height 220ms var(--ease-out-quint),
+    transform 320ms var(--ease-out-quint),
     opacity 180ms ease,
     background 220ms ease,
     border-color 220ms ease;
+}
+
+/* === Grid & Tracklist Glide Highlight Backdrop Indicators === */
+.grid-glide-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: var(--radius-card, 18px);
+  background: radial-gradient(
+    ellipse at center,
+    color-mix(in srgb, var(--spotify-glow, #22d3ee) 32%, transparent) 0%,
+    color-mix(in srgb, var(--spotify-glow, #22d3ee) 15%, transparent) 55%,
+    transparent 85%
+  );
+  box-shadow:
+    0 0 50px color-mix(in srgb, var(--spotify-glow, #22d3ee) 50%, transparent),
+    0 16px 40px -6px rgba(0, 0, 0, 0.7);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+  transform-origin: center center;
+  will-change: transform, opacity;
+  filter: blur(4px);
+  transition:
+    transform 320ms var(--ease-out-quint),
+    width 220ms ease,
+    height 220ms ease,
+    opacity 180ms ease;
+}
+
+.track-glide-indicator {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  border-radius: 12px;
+  background: linear-gradient(90deg,
+      color-mix(in srgb, var(--spotify-glow, #22d3ee) 22%, rgba(255, 255, 255, 0.05)) 0%,
+      color-mix(in srgb, var(--spotify-glow, #22d3ee) 8%, transparent) 100%);
+  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 60%, rgba(255, 255, 255, 0.2));
+  box-shadow:
+    0 0 24px -2px color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, transparent),
+    inset 0 1px 1px rgba(255, 255, 255, 0.3);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+  transform-origin: center center;
+  will-change: transform, opacity;
+  transition:
+    transform 300ms var(--ease-out-quint),
+    height 200ms ease,
+    opacity 180ms ease,
+    background 220ms ease,
+    border-color 220ms ease;
+}
+
+/* === Sidebar Action Bar Horizontal Liquid Glide Indicator === */
+.action-glide-indicator {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  height: 32px;
+  border-radius: 9999px;
+  pointer-events: none;
+  z-index: 0;
+  transform-origin: center center;
+  will-change: transform, opacity;
+  transition:
+    transform 280ms var(--ease-out-quint),
+    width 200ms ease,
+    opacity 160ms ease,
+    background 200ms ease,
+    border-color 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.action-glide-indicator.variant-emerald {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+}
+
+.action-glide-indicator.variant-rose {
+  background: rgba(244, 63, 94, 0.2);
+  border: 1px solid rgba(244, 63, 94, 0.5);
+  box-shadow: 0 0 16px rgba(244, 63, 94, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+}
+
+.action-glide-indicator.variant-orange {
+  background: rgba(255, 119, 0, 0.2);
+  border: 1px solid rgba(255, 119, 0, 0.5);
+  box-shadow: 0 0 16px rgba(255, 119, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+}
+
+.action-glide-indicator.variant-cyan {
+  background: color-mix(in srgb, var(--spotify-glow, #22d3ee) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 50%, transparent);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, transparent), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+}
+
+/* Action Bar Outer Frame Glow Synchronization */
+.action-bar-emerald {
+  border: 1px solid rgba(16, 185, 129, 0.4) !important;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.08) !important;
+}
+
+.action-bar-rose {
+  border: 1px solid rgba(244, 63, 94, 0.4) !important;
+  box-shadow: 0 0 16px rgba(244, 63, 94, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.08) !important;
+}
+
+.action-bar-orange {
+  border: 1px solid rgba(255, 119, 0, 0.4) !important;
+  box-shadow: 0 0 16px rgba(255, 119, 0, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.08) !important;
+}
+
+.action-bar-cyan {
+  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 40%, transparent) !important;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--spotify-glow, #22d3ee) 15%, transparent), inset 0 1px 1px rgba(255, 255, 255, 0.08) !important;
 }
 
 .sidebar-item {
@@ -1554,7 +1674,7 @@ input[type='range']:hover::-moz-range-thumb {
 .media-card {
   position: relative;
   border-radius: var(--radius-card, 18px);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 100%), #0d121f;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.01) 100%), rgba(13, 18, 31, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow:
     inset 0 1px 0 0 rgba(255, 255, 255, 0.16),
@@ -1563,7 +1683,6 @@ input[type='range']:hover::-moz-range-thumb {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   transition:
-    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
     border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
     background 0.3s ease,
     box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -1571,24 +1690,41 @@ input[type='range']:hover::-moz-range-thumb {
   perspective: 1000px;
 }
 
+/* Dynamic Cursor Spotlight Following Mouse Movement Across Card */
+.media-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle 220px at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    color-mix(in srgb, var(--spotify-glow, #22d3ee) 30%, transparent) 0%,
+    transparent 75%
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  z-index: 1;
+}
+
+.media-card:hover::before {
+  opacity: 1;
+}
+
 .media-card:hover {
-  transform: translateY(-8px) scale(1.025);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%), #121828;
-  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 75%, rgba(255, 255, 255, 0.35));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 100%), rgba(18, 24, 40, 0.55);
+  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 70%, rgba(255, 255, 255, 0.4));
   box-shadow:
     inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.4),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
-    0 24px 48px -10px rgba(0, 0, 0, 0.85),
-    0 12px 32px -4px color-mix(in srgb, var(--spotify-glow, #22d3ee) 45%, transparent);
-  z-index: 10;
+    0 20px 40px -8px rgba(0, 0, 0, 0.85),
+    0 0 28px -2px color-mix(in srgb, var(--spotify-glow, #22d3ee) 40%, transparent);
+  z-index: 2;
 }
 
 .media-card:active {
-  transform: translateY(-3px) scale(0.99);
   box-shadow:
     inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
-    0 12px 24px -6px rgba(0, 0, 0, 0.7),
-    0 6px 18px -2px color-mix(in srgb, var(--spotify-glow, #22d3ee) 30%, transparent);
+    0 12px 24px -6px rgba(0, 0, 0, 0.7);
 }
 
 .media-card.is-playing,
@@ -1598,50 +1734,6 @@ input[type='range']:hover::-moz-range-thumb {
     inset 0 1px 1px 0 rgba(255, 255, 255, 0.3),
     0 0 24px var(--theme-glow-shadow, rgba(34, 211, 238, 0.45)),
     0 12px 28px -4px rgba(0, 0, 0, 0.7) !important;
-}
-
-/* Layer A: GPU Shadow Glow Layer via ::after */
-.media-card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow:
-    0 20px 40px -10px color-mix(in srgb, var(--spotify-glow, #22d3ee) 48%, transparent),
-    0 6px 14px -4px rgba(0, 0, 0, 0.5);
-  opacity: 0;
-  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  pointer-events: none;
-  z-index: -1;
-}
-
-.media-card:hover::after,
-.media-card:focus-visible::after {
-  opacity: 1;
-}
-
-/* Layer B: Border Glow Gradient via ::before */
-.media-card::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(135deg,
-      color-mix(in srgb, var(--spotify-glow, #22d3ee) 70%, transparent),
-      transparent 65%);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0;
-  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  pointer-events: none;
-  z-index: 2;
-}
-
-.media-card:hover::before,
-.media-card:focus-visible::before {
-  opacity: 1;
 }
 
 /* Layer C: 2.5D Cover Tilt, Zoom, Overlay & Spring Play Button */

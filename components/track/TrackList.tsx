@@ -7,6 +7,7 @@ import { Clock, CheckSquare, Pencil, Trash2, X, Loader2, User, Disc, Scissors, E
 import { createClient } from '@/lib/supabase/client'
 import { triggerDrivePrewarm } from '@/lib/googleDriveUpload'
 import { usePlayer } from '@/components/player/PlayerContext'
+import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
 
 interface TrackListProps {
   tracks: Track[]
@@ -33,6 +34,12 @@ export function TrackList({
 }: TrackListProps) {
   const { currentTrack, isPlaying, playTrack, togglePlay, addToQueue } = usePlayer()
   const supabase = createClient()
+  const {
+    containerRef: listContainerRef,
+    indicator: trackIndicator,
+    handleItemMouseEnter: handleRowMouseEnter,
+    handleContainerMouseLeave: handleListMouseLeave,
+  } = useListGlideIndicator(52)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [bulkArtist, setBulkArtist] = useState('')
@@ -253,37 +260,52 @@ export function TrackList({
         </div>
       </div>
 
-      {/* Track Rows */}
-      {tracks.map((track, idx) => {
-        const isCurrent = currentTrack?.id === track.id
-        const isPlayingThis = isCurrent && isPlaying
-        return (
-          <TrackRow
-            key={`${track.source || 'local'}_${track.id}`}
-            track={track}
-            index={idx}
-            isCurrent={isCurrent}
-            isPlayingThis={isPlayingThis}
-            onPlayClick={() => {
-              if (isCurrent) {
-                togglePlay()
-              } else {
-                playTrack(track, tracks)
-              }
-            }}
-            onAddToQueue={() => addToQueue(track)}
-            playlistTracks={tracks}
-            userPlaylists={userPlaylists}
-            onAddToPlaylist={onAddToPlaylist}
-            onDeleteTrack={onDeleteTrack}
-            onDeleteTrackPermanently={onDeleteTrackPermanently}
-            onTrackUpdated={onTrackUpdated}
-            selectable={isAdmin}
-            isSelected={selectedIds.has(track.id)}
-            onToggleSelect={() => toggleSelect(track.id)}
-          />
-        )
-      })}
+      {/* Track Rows with Liquid Glide Indicator */}
+      <div
+        ref={listContainerRef}
+        onMouseLeave={handleListMouseLeave}
+        className="flex flex-col gap-1 relative"
+      >
+        <div
+          className="track-glide-indicator"
+          style={{
+            transform: `translateY(${trackIndicator.top}px) scaleY(${trackIndicator.scaleY})`,
+            height: `${trackIndicator.height}px`,
+            opacity: trackIndicator.opacity,
+          }}
+        />
+        {tracks.map((track, idx) => {
+          const isCurrent = currentTrack?.id === track.id
+          const isPlayingThis = isCurrent && isPlaying
+          return (
+            <TrackRow
+              key={`${track.source || 'local'}_${track.id}`}
+              track={track}
+              index={idx}
+              isCurrent={isCurrent}
+              isPlayingThis={isPlayingThis}
+              onMouseEnterRow={handleRowMouseEnter}
+              onPlayClick={() => {
+                if (isCurrent) {
+                  togglePlay()
+                } else {
+                  playTrack(track, tracks)
+                }
+              }}
+              onAddToQueue={() => addToQueue(track)}
+              playlistTracks={tracks}
+              userPlaylists={userPlaylists}
+              onAddToPlaylist={onAddToPlaylist}
+              onDeleteTrack={onDeleteTrack}
+              onDeleteTrackPermanently={onDeleteTrackPermanently}
+              onTrackUpdated={onTrackUpdated}
+              selectable={isAdmin}
+              isSelected={selectedIds.has(track.id)}
+              onToggleSelect={() => toggleSelect(track.id)}
+            />
+          )
+        })}
+      </div>
 
       {/* 🚀 FLOATING BULK ACTION BAR (ADMIN ONLY) */}
       {isAdmin && selectedIds.size > 0 && (
