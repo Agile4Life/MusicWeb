@@ -390,12 +390,43 @@ export function LiquidNavBar({
     setBlobWidth(newWidth)
   }, [blobLeft, blobWidth])
 
+  const isNavigatingRef = useRef(false)
+
+  const handleTabClick = useCallback((index: number) => {
+    const tabEl = tabRefs.current[index]
+    if (tabEl) {
+      setBlobLeft(tabEl.offsetLeft)
+      setBlobWidth(tabEl.offsetWidth)
+    }
+    setActiveIndex(index)
+    onTabChange?.(index)
+    const targetTabData = tabs[index]
+    if (targetTabData) {
+      targetTabData.onClick?.()
+      if (targetTabData.href && pathname !== targetTabData.href) {
+        if (!isNavigatingRef.current) {
+          isNavigatingRef.current = true
+          router.push(targetTabData.href)
+          setTimeout(() => {
+            isNavigatingRef.current = false
+          }, 300)
+        }
+      }
+    }
+  }, [onTabChange, pathname, router, tabs])
+
   const onPointerUp = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current.active) return
+    const didMove = dragRef.current.didMove
     dragRef.current.active = false
     dragRef.current.didMove = false
     setIsDragging(false)
     setIsNavExpanded(false)
+
+    if (!didMove) {
+      // For simple taps, let handleTabClick execute from onClick
+      return
+    }
 
     if (!navRef.current) return
     const px = getPointerX(e)
@@ -424,7 +455,13 @@ export function LiquidNavBar({
     if (targetTabData) {
       targetTabData.onClick?.()
       if (targetTabData.href && pathname !== targetTabData.href) {
-        router.push(targetTabData.href)
+        if (!isNavigatingRef.current) {
+          isNavigatingRef.current = true
+          router.push(targetTabData.href)
+          setTimeout(() => {
+            isNavigatingRef.current = false
+          }, 300)
+        }
       }
     }
   }, [getTabMetrics, onTabChange, pathname, router, tabs])
@@ -452,23 +489,6 @@ export function LiquidNavBar({
       setBlobScaleY(1)
     }
   }, [])
-
-  const handleTabClick = useCallback((index: number) => {
-    const tabEl = tabRefs.current[index]
-    if (tabEl) {
-      setBlobLeft(tabEl.offsetLeft)
-      setBlobWidth(tabEl.offsetWidth)
-    }
-    setActiveIndex(index)
-    onTabChange?.(index)
-    const targetTabData = tabs[index]
-    if (targetTabData) {
-      targetTabData.onClick?.()
-      if (targetTabData.href && pathname !== targetTabData.href) {
-        router.push(targetTabData.href)
-      }
-    }
-  }, [onTabChange, pathname, router, tabs])
 
   // ─── Render ───
 
@@ -661,28 +681,10 @@ export function LiquidNavBar({
                 </button>
               )
 
-              if (tab.href) {
-                return (
-                  <Link
-                    key={tab.id}
-                    href={tab.href}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      if (!dragRef.current.active) {
-                        handleTabClick(i)
-                      }
-                    }}
-                    className="contents"
-                  >
-                    {content}
-                  </Link>
-                )
-              }
-
               return (
-                <div key={tab.id} className="contents">
+                <React.Fragment key={tab.id}>
                   {content}
-                </div>
+                </React.Fragment>
               )
             })}
           </div>

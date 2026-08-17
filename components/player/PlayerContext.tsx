@@ -225,6 +225,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const autoPlayNextRef = useRef(true)
   const isShuffleRef = useRef(false)
   const repeatModeRef = useRef<RepeatMode>('off')
+  const currentTimeRef = useRef<number>(0)
 
   const toggleQueue = useCallback(() => setIsQueueOpen((prev) => !prev), [])
   const closeQueue = useCallback(() => setIsQueueOpen(false), [])
@@ -1162,11 +1163,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (ytPlayerRef.current && ytPlayerRef.current.getCurrentTime) {
           const time = ytPlayerRef.current.getCurrentTime() || 0
           setCurrentTime(time)
+          currentTimeRef.current = time
           if (ytPlayerRef.current.getDuration) {
-            setDuration(ytPlayerRef.current.getDuration() || 0)
+            const dur = ytPlayerRef.current.getDuration() || 0
+            setDuration((prev) => (Math.abs(prev - dur) > 1 ? dur : prev))
           }
 
-          if (Math.abs(time - lastSavedTimeRef.current) > 2) {
+          if (Math.abs(time - lastSavedTimeRef.current) > 5) {
             lastSavedTimeRef.current = time
             savePlayerStateToStorage(
               currentTrackRef.current,
@@ -1177,33 +1180,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             )
           }
         }
-      }, 150) // 150ms for ultra-responsive lyric scrolling & highlighting
+      }, 250) // 250ms cadence for responsive lyric highlighting & smooth scrubber
     }
     return () => {
       if (interval) clearInterval(interval)
     }
-  }, [currentTrack?.id, currentTrack?.source, currentTrack?.youtube_id, isPlaying])
-
-  // ⚡ 60FPS High-Precision Timer for HTML5 audio (NhacCuaTui, Local, Drive, SoundCloud, Deezer)
-  // Guarantees zero-lag progress bar animation and real-time lyric scrolling without waiting for 250ms timeupdate events!
-  useEffect(() => {
-    const isYouTubeEngine = (currentTrack?.source === 'youtube' || Boolean(currentTrack?.youtube_id)) && !ytHtml5ModeRef.current
-    if (isYouTubeEngine || !isPlaying) return
-
-    let animId: number
-    const tick = () => {
-      const audio = audioRef.current
-      if (audio && !audio.paused && typeof audio.currentTime === 'number' && !isNaN(audio.currentTime)) {
-        setCurrentTime(audio.currentTime)
-        if (audio.duration && !isNaN(audio.duration) && audio.duration > 0) {
-          setDuration(audio.duration)
-        }
-      }
-      animId = requestAnimationFrame(tick)
-    }
-
-    animId = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(animId)
   }, [currentTrack?.id, currentTrack?.source, currentTrack?.youtube_id, isPlaying])
 
   useEffect(() => {
@@ -1315,11 +1296,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const handleUnload = () => {
       if (currentTrackRef.current) {
-        let finalTime = currentTime
+        let finalTime = currentTimeRef.current
         if (currentTrackRef.current.source === 'youtube' && !ytHtml5ModeRef.current && ytPlayerRef.current?.getCurrentTime) {
-          finalTime = ytPlayerRef.current.getCurrentTime() || currentTime
+          finalTime = ytPlayerRef.current.getCurrentTime() || finalTime
         } else if (audioRef.current) {
-          finalTime = audioRef.current.currentTime || currentTime
+          finalTime = audioRef.current.currentTime || finalTime
         }
         savePlayerStateToStorage(
           currentTrackRef.current,
@@ -1337,7 +1318,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('beforeunload', handleUnload)
       window.removeEventListener('pagehide', handleUnload)
     }
-  }, [currentTime])
+  }, [])
 
   // Keep the service worker alive during playback (iOS Safari background audio)
   useEffect(() => {
@@ -2236,12 +2217,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const handleTimeUpdate = () => {
       if (!isCurrentAudioOwnership()) return
       if (!isYtIframeEngine()) {
-        setCurrentTime(audio.currentTime)
-        if (Math.abs(audio.currentTime - lastSavedTimeRef.current) > 2 && currentTrackRef.current) {
-          lastSavedTimeRef.current = audio.currentTime
+        const time = audio.currentTime
+        setCurrentTime(time)
+        currentTimeRef.current = time
+        if (Math.abs(time - lastSavedTimeRef.current) > 5 && currentTrackRef.current) {
+          lastSavedTimeRef.current = time
           savePlayerStateToStorage(
             currentTrackRef.current,
-            audio.currentTime,
+            time,
             queueRef.current,
             currentIndexRef.current,
             volumeRef.current

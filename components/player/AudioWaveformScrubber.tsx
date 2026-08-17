@@ -127,9 +127,16 @@ export function AudioWaveformScrubber({
               background: 'linear-gradient(90deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
               boxShadow: '0 0 8px var(--spotify-glow, #22d3ee), 0 0 16px var(--theme-glow-shadow, rgba(6, 182, 212, 0.95)), 0 0 28px rgba(34, 211, 238, 0.7)',
               width: `calc(${progressRatio * 100}%)`,
+              transition: isDragging ? 'none' : 'width 0.25s linear',
             }}
           />
-          <div className="scrubber-thumb" style={{ left: `calc(${progressRatio * 100}%)` }} />
+          <div
+            className="scrubber-thumb"
+            style={{
+              left: `calc(${progressRatio * 100}%)`,
+              transition: isDragging ? 'none' : 'left 0.25s linear',
+            }}
+          />
         </div>
       </div>
 
