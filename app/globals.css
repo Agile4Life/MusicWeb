@@ -1927,6 +1927,12 @@ input[type='range']:hover::-moz-range-thumb {
   overflow: hidden;
 }
 
+/* Hide Next.js dev overlay badge on mobile preview */
+nextjs-portal,
+[data-nextjs-dev-overlay] {
+  display: none !important;
+}
+
 .bottom-nav {
   padding-bottom: env(safe-area-inset-bottom);
   background: #090d16;

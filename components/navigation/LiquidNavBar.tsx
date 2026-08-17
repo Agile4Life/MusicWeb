@@ -531,55 +531,6 @@ export function LiquidNavBar({
         />
       )}
 
-      {/* Dynamic Per-Stroke Vector Optical Refraction Filters for each Tab */}
-      {sphericalLensUrl && (
-        <svg style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }} aria-hidden="true">
-          <defs>
-            {tabs.map((_, i) => {
-              const blobCenter = blobLeft + blobWidth / 2
-              const tabEl = tabRefs.current[i]
-              const tabCenter = tabEl ? (tabEl.offsetLeft + tabEl.offsetWidth / 2) : (i * 64 + 32)
-              const dx = tabCenter - blobCenter
-              const lensRadius = Math.max(blobWidth * 0.95, 52)
-              const u = Math.min(Math.abs(dx) / lensRadius, 1)
-              const strokeDisplacementScale = isDragging && u < 1
-                ? Math.round((1 - u * u) * 24)
-                : (i === activeIndex ? 6 : 0)
-
-              return (
-                <filter
-                  key={`stroke-filter-${i}`}
-                  id={`tabStrokeFilter-${i}`}
-                  x="-60%"
-                  y="-60%"
-                  width="220%"
-                  height="220%"
-                  colorInterpolationFilters="sRGB"
-                >
-                  <feImage
-                    x="0"
-                    y="0"
-                    width="100%"
-                    height="100%"
-                    result="LENS_MAP"
-                    href={sphericalLensUrl}
-                    preserveAspectRatio="xMidYMid slice"
-                  />
-                  <feDisplacementMap
-                    in="SourceGraphic"
-                    in2="LENS_MAP"
-                    scale={strokeDisplacementScale}
-                    xChannelSelector="R"
-                    yChannelSelector="G"
-                    result="WARPED_STROKES"
-                  />
-                </filter>
-              )
-            })}
-          </defs>
-        </svg>
-      )}
-
       <div
         className={`liquid-nav-container lg:hidden fixed bottom-0 left-0 right-0 z-40 px-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] select-none ${className}`}
         style={style}
@@ -630,7 +581,7 @@ export function LiquidNavBar({
               zIndex: 1,
               transformOrigin: 'center center',
               transform: isDragging
-                ? `scaleX(${blobScaleX * 1.30}) scaleY(${blobScaleY * 1.45})`
+                ? `scaleX(${blobScaleX * 1.20}) scaleY(${blobScaleY * 1.36})`
                 : `scaleX(${blobScaleX}) scaleY(${blobScaleY})`,
               transition: isDragging
                 ? 'transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, background 0.2s ease'
@@ -645,65 +596,21 @@ export function LiquidNavBar({
                 : '0 0 0 0.5px rgba(255,255,255,0.2), 0 4px 12px rgba(0,0,0,0.2), inset 0 0.5px 0 rgba(255,255,255,0.12)',
             }}
           >
-            {/* 3D Convex Mirror Glass Surface Reflection */}
-            <div
+            {/* Top dome glass specular sheen */}
+            <span
               aria-hidden="true"
               style={{
                 position: 'absolute',
-                inset: 0,
-                borderRadius: 28,
+                top: 1,
+                left: 6,
+                right: 6,
+                height: '42%',
+                borderRadius: '24px 24px 50% 50%',
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.01) 100%)',
                 pointerEvents: 'none',
-                overflow: 'hidden',
                 zIndex: 2,
-                maskImage: 'linear-gradient(180deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.1) 45%, transparent 75%)',
-                WebkitMaskImage: 'linear-gradient(180deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.1) 45%, transparent 75%)',
               }}
-            >
-              {/* Top dome glass specular sheen */}
-              <span
-                style={{
-                  position: 'absolute',
-                  top: 1,
-                  left: 6,
-                  right: 6,
-                  height: '42%',
-                  borderRadius: '24px 24px 50% 50%',
-                  background: 'linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.01) 100%)',
-                  pointerEvents: 'none',
-                }}
-              />
-
-              {/* Reflected ghost icon on glass mirror */}
-              {(() => {
-                const bCenter = blobLeft + blobWidth / 2
-                let nIdx = 0
-                let mDist = Infinity
-                tabs.forEach((_, idx) => {
-                  const tEl = tabRefs.current[idx]
-                  const c = tEl ? tEl.offsetLeft + tEl.offsetWidth / 2 : (idx * 64 + 32)
-                  const d = Math.abs(c - bCenter)
-                  if (d < mDist) {
-                    mDist = d
-                    nIdx = idx
-                  }
-                })
-                const MirrorIcon = icons[tabs[nIdx]?.icon]
-                return MirrorIcon ? (
-                  <div
-                    className="flex items-center justify-center w-full h-full"
-                    style={{
-                      transform: 'translateY(-6px) scale(0.9) scaleY(-0.42)',
-                      opacity: isDragging ? 0.35 : 0.22,
-                      filter: 'blur(0.4px)',
-                      color: 'rgba(255,255,255,0.9)',
-                      transition: 'opacity 0.2s ease',
-                    }}
-                  >
-                    <MirrorIcon className="w-5 h-5" strokeWidth={2.2} />
-                  </div>
-                ) : null
-              })()}
-            </div>
+            />
 
             {/* Chromatic aberration rainbow rim on holding */}
             <span
@@ -740,23 +647,17 @@ export function LiquidNavBar({
               const lensRadius = Math.max(blobWidth * 0.95, 52)
               const u = Math.min(Math.abs(dx) / lensRadius, 1)
 
-              // Optical magnification (highest at peak of convex droplet)
+              // Pure centered magnification without drift or horizontal displacement
               const opticalZoom = isDragging
-                ? (u < 1 ? (1 + (1 - u * u) * 0.36).toFixed(3) : '1.000')
+                ? (u < 1 ? (1 + (1 - u * u) * 0.28).toFixed(3) : '1.000')
                 : (isActive ? '1.120' : '1.000')
 
-              // Optical refraction shift (Snell's law pinch towards optical center)
-              const opticalShiftX = isDragging && u < 1
-                ? (-Math.sign(dx) * (u * (1 - u)) * 14).toFixed(2)
-                : '0.00'
+              const textZoom = isDragging
+                ? (u < 1 ? (1 + (1 - u * u) * 0.12).toFixed(3) : '1.000')
+                : '1.000'
 
-              // Fluid velocity shear (viscous drag warp)
-              const velocityShear = isDragging && u < 1
-                ? Math.max(-6, Math.min(6, (dragRef.current.smoothVelocity || 0) * 0.015 * (1 - u))).toFixed(2)
-                : '0.00'
-
-              const iconTransform = `translateX(${opticalShiftX}px) scale(${opticalZoom}) skewX(${velocityShear}deg)`
-              const textTransform = `translateX(${opticalShiftX}px) scale(${isDragging ? (u < 1 ? (1 + (1 - u * u) * 0.16).toFixed(3) : '1.000') : (isActive ? '1.040' : '1.000')}) skewX(${velocityShear}deg)`
+              const iconTransform = `scale(${opticalZoom})`
+              const textTransform = `scale(${textZoom})`
 
               const iconColor = isDragging
                 ? (u < 0.6
@@ -806,11 +707,6 @@ export function LiquidNavBar({
                       <IconComp
                         className={`w-5 h-5 transition-all duration-250 ${iconColor}`}
                         strokeWidth={isActive ? (isDragging ? 2.85 : 2.5) : 2}
-                        style={{
-                          filter: isDragging
-                            ? (u < 1 ? `url(#tabStrokeFilter-${i})` : 'none')
-                            : (isActive ? `url(#tabStrokeFilter-${i})` : 'none'),
-                        }}
                       />
                     )}
                   </span>
