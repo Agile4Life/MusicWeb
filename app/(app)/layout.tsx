@@ -62,7 +62,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   </div>
 
                   {/* Player Bar (Elevation 3 - Fixed above bottom navigation on mobile) */}
-                  <div className="fixed lg:absolute bottom-[calc(var(--bottom-nav-height,64px)+env(safe-area-inset-bottom,0px)+12px)] lg:bottom-3 left-2 sm:left-2 lg:left-3 right-2 sm:right-2 lg:right-3 z-40 pointer-events-none">
+                  <div className="fixed lg:absolute bottom-[calc(var(--bottom-nav-height,84px)+env(safe-area-inset-bottom,0px)+12px)] lg:bottom-3 left-2 sm:left-2 lg:left-3 right-2 sm:right-2 lg:right-3 z-40 pointer-events-none">
                     <PlayerBar isScrolled={isScrolled} />
                   </div>
                   <NowPlayingOverlay />

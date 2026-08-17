@@ -36,6 +36,7 @@ import { ImportYouTubePlaylistModal } from '@/components/playlist/ImportYouTubeP
 import { ImportSoundCloudModal } from '@/components/playlist/ImportSoundCloudModal'
 import { YoutubeIcon } from '@/components/icons/YoutubeIcon'
 import { shouldCloseProfileMenu, shouldToggleProfileMenu } from './profileMenuInteraction'
+import { LiquidNavBar } from './LiquidNavBar'
 
 export function MobileHeaderNav() {
   const { t } = useLanguage()
@@ -200,45 +201,13 @@ export function MobileHeaderNav() {
         <div className="w-9 h-9 shrink-0 z-10 pointer-events-none" />
       </div>
 
-      {/* 📱 Mobile Bottom Navigation Bar (< 768px) */}
-      <div className="bottom-nav lg:hidden fixed bottom-0 left-0 right-0 z-40 h-16 grid grid-cols-5 items-center select-none px-1">
-        <Link
-          href="/"
-          prefetch={false}
-          onClick={() => {
-            clearSearch()
-            window.dispatchEvent(new Event('musicweb-tab-home'))
-          }}
-          className={`bottom-nav-item flex flex-col items-center justify-center gap-1 ${pathname === '/' ? 'active' : ''}`}
-        >
-          <Home className="w-5 h-5" />
-          <span className="text-[10px] truncate max-w-full">Trang chủ</span>
-        </Link>
-
-        <Link
-          href="/albums"
-          prefetch={false}
-          className={`bottom-nav-item flex flex-col items-center justify-center gap-1 ${
-            pathname === '/albums' || pathname.startsWith('/album/') ? 'active' : ''
-          }`}
-        >
-          <DiscAlbum className="w-5 h-5" />
-          <span className="text-[10px] truncate max-w-full">Albums</span>
-        </Link>
-
-        <Link
-          href="/favorites"
-          prefetch={false}
-          className={`bottom-nav-item flex flex-col items-center justify-center gap-1 ${
-            pathname === '/favorites' ? 'active' : ''
-          }`}
-        >
-          <Heart className="w-5 h-5" />
-          <span className="text-[10px] truncate max-w-full">Yêu thích</span>
-        </Link>
-
-        <button
-          onClick={() => {
+      {/* 📱 Mobile Bottom Navigation Bar (< 768px) — Liquid Glass */}
+      <LiquidNavBar
+        tabs={[
+          { id: 'home', label: 'Trang chủ', icon: 'Home', href: '/' },
+          { id: 'albums', label: 'Albums', icon: 'DiscAlbum', href: '/albums' },
+          { id: 'favorites', label: 'Yêu thích', icon: 'Heart', href: '/favorites' },
+          { id: 'playlist', label: 'Playlist', icon: 'ListMusic', href: undefined, onClick: () => {
             if (playlists.length > 0) {
               if (pathname.startsWith('/playlist/')) {
                 const currentId = pathname.replace('/playlist/', '')
@@ -251,26 +220,21 @@ export function MobileHeaderNav() {
             } else {
               setIsDrawerOpen(true)
             }
-          }}
-          className={`bottom-nav-item flex flex-col items-center justify-center gap-1 ${
-            pathname.startsWith('/playlist/') ? 'active' : ''
-          }`}
-        >
-          <ListMusic className="w-5 h-5" />
-          <span className="text-[10px] truncate max-w-full">Playlist</span>
-        </button>
-
-        <Link
-          href="/history"
-          prefetch={false}
-          className={`bottom-nav-item flex flex-col items-center justify-center gap-1 ${
-            pathname === '/history' ? 'active' : ''
-          }`}
-        >
-          <History className="w-5 h-5" />
-          <span className="text-[10px] truncate max-w-full">Lịch sử</span>
-        </Link>
-      </div>
+          }},
+          { id: 'history', label: 'Lịch sử', icon: 'History', href: '/history' },
+        ]}
+        displacementScale={35}
+        blurAmount={0.0625}
+        saturation={160}
+        aberrationIntensity={1.5}
+        elasticity={0.15}
+        onTabChange={(index) => {
+          if (index === 0) {
+            clearSearch()
+            window.dispatchEvent(new Event('musicweb-tab-home'))
+          }
+        }}
+      />
 
       {/* 📱 Mobile Slide Drawer Navigation (from left, with backdrop) */}
       <div
