@@ -1171,7 +1171,29 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     return () => {
       if (interval) clearInterval(interval)
     }
-  }, [currentTrack, isPlaying])
+  }, [currentTrack?.id, currentTrack?.source, currentTrack?.youtube_id, isPlaying])
+
+  // ⚡ 60FPS High-Precision Timer for HTML5 audio (NhacCuaTui, Local, Drive, SoundCloud, Deezer)
+  // Guarantees zero-lag progress bar animation and real-time lyric scrolling without waiting for 250ms timeupdate events!
+  useEffect(() => {
+    const isYouTubeEngine = (currentTrack?.source === 'youtube' || Boolean(currentTrack?.youtube_id)) && !ytHtml5ModeRef.current
+    if (isYouTubeEngine || !isPlaying) return
+
+    let animId: number
+    const tick = () => {
+      const audio = audioRef.current
+      if (audio && !audio.paused && typeof audio.currentTime === 'number' && !isNaN(audio.currentTime)) {
+        setCurrentTime(audio.currentTime)
+        if (audio.duration && !isNaN(audio.duration) && audio.duration > 0) {
+          setDuration(audio.duration)
+        }
+      }
+      animId = requestAnimationFrame(tick)
+    }
+
+    animId = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(animId)
+  }, [currentTrack?.id, currentTrack?.source, currentTrack?.youtube_id, isPlaying])
 
   useEffect(() => {
     let active = true

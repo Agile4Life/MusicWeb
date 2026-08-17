@@ -310,9 +310,9 @@ export function NowPlayingOverlay() {
 
   return (
     <>
-      {/* 📱 Mobile Fullview Player (<1024px screens) */}
+      {/* 📱 Mobile Fullview Player (<1024px screens) - Persistent mount for zero-lag and non-freezing sync */}
       <div className="lg:hidden">
-        {isNowPlayingOpen && <MobileFullviewPlayer />}
+        <MobileFullviewPlayer />
       </div>
 
       {/* 💻 Desktop Now Playing Overlay (>=1024px screens) */}
