@@ -101,3 +101,64 @@ export async function resolveNhacCuaTuiTrack(
     duration: track.duration,
   })
 }
+
+// ── Module-level NCT stream URL cache ────────────────────────────────────────
+// Mirrors the server-side /api/nhaccuatui/resolve-stream cache.
+// Pre-populated by prewarmNctStreamUrl() so getAudioUrlCached() gets a
+// synchronous cache hit (0ms network) when the user clicks play.
+const nctStreamUrlCache = new Map<string, { url: string; ts: number }>()
+const NCT_STREAM_URL_CACHE_TTL = 8 * 60 * 1000 // 8 min — must match server TTL
+const nctResolveInFlight = new Map<string, Promise<string | null>>()
+
+/** Fire-and-forget pre-warm: fetches stream URL + metadata and caches the proxy URL.
+ *  Call this for all upcoming NCT tracks so play is instant on click. */
+export async function prewarmNctStreamUrl(nhaccuatuiId: string): Promise<void> {
+  if (!nhaccuatuiId?.trim()) return
+
+  // Deduplicate concurrent pre-warm calls for the same ID
+  const inFlight = nctResolveInFlight.get(nhaccuatuiId)
+  if (inFlight) {
+    await inFlight.catch(() => {})
+    return
+  }
+
+  const promise = (async (): Promise<string | null> => {
+    try {
+      const res = await fetch(
+        `/api/nhaccuatui/resolve-stream?id=${encodeURIComponent(nhaccuatuiId)}`,
+        { cache: 'no-store' }
+      )
+      if (!res.ok) return null
+      const data = await res.json() as { url?: string }
+      if (!data?.url) return null
+
+      // Store the proxy URL (not the raw signed URL) keyed by nhaccuatui_id
+      nctStreamUrlCache.set(nhaccuatuiId, { url: data.url, ts: Date.now() })
+      return data.url
+    } catch {
+      return null
+    } finally {
+      nctResolveInFlight.delete(nhaccuatuiId)
+    }
+  })()
+
+  nctResolveInFlight.set(nhaccuatuiId, promise)
+}
+
+/** Synchronous cache lookup for getAudioUrlCached. Returns null on miss — caller
+ *  should fall back to the full fetch path. */
+export function getCachedNctStreamUrl(nhaccuatuiId: string): string | null {
+  const entry = nctStreamUrlCache.get(nhaccuatuiId)
+  if (!entry) return null
+  if (Date.now() - entry.ts >= NCT_STREAM_URL_CACHE_TTL) {
+    nctStreamUrlCache.delete(nhaccuatuiId)
+    return null
+  }
+  return entry.url
+}
+
+/** Clear a cached NCT stream URL — call when a stream becomes invalid so the next
+ *  play attempt re-resolves from the server instead of returning the stale URL. */
+export function clearCachedNctStreamUrl(nhaccuatuiId: string): void {
+  nctStreamUrlCache.delete(nhaccuatuiId)
+}

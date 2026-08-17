@@ -1962,9 +1962,11 @@ nextjs-portal,
   bottom: 0;
   width: 85%;
   max-width: 320px;
-  background: #090d16;
-  border-right: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 15px 0 40px rgba(0, 0, 0, 0.85);
+  background: rgba(9, 13, 22, 0.82);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 20px 0 50px rgba(0, 0, 0, 0.7), inset -1px 0 0 rgba(255, 255, 255, 0.05);
   transform: translateX(-100%);
   transition: transform var(--transition-base);
   z-index: 100 !important;
@@ -1977,9 +1979,9 @@ nextjs-portal,
 .mobile-drawer-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--transition-base);
@@ -5659,4 +5661,123 @@ html[data-theme-style="minimal-flat"] body {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
+}
+
+/* ================================================================
+   📱 MOBILE-ONLY LIQUID GLASS DESIGN SYSTEM
+   Mirrors the optical physics, surface depth, specular sheen and
+   translucent glass borders of LiquidNavBar across all mobile elements
+   ================================================================ */
+
+@media (max-width: 1023px) {
+  /* 1. Hero Banner Liquid Glass */
+  .hero-banner {
+    background: rgba(255, 255, 255, 0.025) !important;
+    backdrop-filter: blur(16px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+    border-radius: 20px !important;
+  }
+
+  .hero-banner::before {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 40%) !important;
+  }
+
+  /* 2. Search Inputs Liquid Glass */
+  .search-input-liquid,
+  input[type="text"][placeholder*="Tìm kiếm"],
+  input[type="text"][placeholder*="Search"],
+  input[type="search"] {
+    background: rgba(255, 255, 255, 0.03) !important;
+    backdrop-filter: blur(14px) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(140%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+    color: #ffffff !important;
+  }
+
+  .search-input-liquid:focus,
+  input[type="text"][placeholder*="Tìm kiếm"]:focus,
+  input[type="text"][placeholder*="Search"]:focus,
+  input[type="search"]:focus {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 50%, rgba(255, 255, 255, 0.2)) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 0 20px var(--theme-glow-shadow, rgba(6, 182, 212, 0.25)) !important;
+  }
+
+  /* 3. Media & Album Cards Liquid Glass */
+  .media-card,
+  .tilt-card {
+    background: rgba(255, 255, 255, 0.02) !important;
+    backdrop-filter: blur(14px) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(140%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.07) !important;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+    border-radius: 18px !important;
+  }
+
+  .media-card:hover,
+  .media-card:active,
+  .tilt-card:active {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+  }
+
+  /* 4. Logo Plaque Liquid Glass */
+  .sidebar-logo-plaque {
+    background: rgba(255, 255, 255, 0.025) !important;
+    backdrop-filter: blur(16px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+  }
+
+  .sidebar-logo-plaque::before {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 40%) !important;
+  }
+
+  /* 5. Playlist Items & Sheets on Mobile */
+  .playlist-card-liquid,
+  .playlist-item-mobile {
+    background: rgba(255, 255, 255, 0.025) !important;
+    backdrop-filter: blur(14px) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(140%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-radius: 16px !important;
+  }
+}
+
+/* ================================================================
+   📱 MOBILE FULLVIEW PLAYER THEME INTEGRATION
+   ================================================================ */
+
+.mobile-fullview-overlay {
+  animation: mobileFullviewSlideUp 0.35s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+@keyframes mobileFullviewSlideUp {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 100%, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Minimal-flat overrides for Mobile Fullview */
+[data-theme-style="minimal-flat"] .mobile-fullview-overlay {
+  background-color: #141017 !important;
+  color: #F4ECE1 !important;
+}
+
+[data-theme-style="minimal-flat"] .mobile-fullview-overlay p {
+  font-family: var(--font-fraunces, Georgia, serif);
+}
+
+/* Classic Cyber Dark overrides for Mobile Fullview */
+[data-theme-style="classic"] .mobile-fullview-overlay {
+  background-color: var(--bg-space, #07090e) !important;
 }

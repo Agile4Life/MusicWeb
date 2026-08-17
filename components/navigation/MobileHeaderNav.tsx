@@ -161,7 +161,7 @@ export function MobileHeaderNav() {
                   navBackBusyRef.current = false
                 }, 500)
               }}
-              className="p-2 text-slate-300 hover:text-white rounded-xl bg-white/[0.04] border border-white/[0.06] active:scale-95 transition-transform shrink-0"
+              className="p-2 text-slate-300 hover:text-white rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] active:scale-95 transition-all shrink-0 backdrop-blur-md"
               title="Quay lại"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -169,7 +169,7 @@ export function MobileHeaderNav() {
           )}
           <button
             onClick={() => setIsDrawerOpen(true)}
-            className="p-2 text-slate-300 hover:text-white rounded-xl bg-white/[0.04] border border-white/[0.06] active:scale-95 transition-transform shrink-0"
+            className="p-2 text-slate-300 hover:text-white rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] active:scale-95 transition-all shrink-0 backdrop-blur-md"
             title="Menu"
           >
             <Menu className="w-5 h-5" />
@@ -184,7 +184,7 @@ export function MobileHeaderNav() {
               clearSearch()
               window.dispatchEvent(new Event('musicweb-tab-home'))
             }}
-            className="sidebar-logo-plaque pointer-events-auto flex items-center justify-center px-3.5 py-1.5 rounded-2xl group cursor-pointer"
+            className="sidebar-logo-plaque pointer-events-auto flex items-center justify-center px-3.5 py-1.5 rounded-2xl group cursor-pointer bg-white/[0.025] border border-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md"
             title="MusicWeb"
           >
             <div className="flex items-center justify-center h-7.5 xs:h-8 shrink-0">
@@ -254,7 +254,7 @@ export function MobileHeaderNav() {
         >
           <div className="flex flex-col gap-5">
             <div className="flex items-center justify-between border-b border-white/[0.05] pb-4">
-              <div className="sidebar-logo-plaque flex items-center justify-start px-3 py-1.5 rounded-2xl">
+              <div className="sidebar-logo-plaque flex items-center justify-start px-3 py-1.5 rounded-2xl bg-white/[0.025] border border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
                 <div className="flex items-center justify-start h-7.5 shrink-0">
                   <img
                     src="/phong-signature.png"
@@ -265,7 +265,7 @@ export function MobileHeaderNav() {
               </div>
               <button
                 onClick={() => setIsDrawerOpen(false)}
-                className="w-11 h-11 flex items-center justify-center text-slate-400 hover:text-white rounded-xl bg-white/[0.04] active:scale-95 transition-all"
+                className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] active:scale-95 transition-all"
                 title="Đóng menu"
               >
                 <X className="w-5 h-5" />

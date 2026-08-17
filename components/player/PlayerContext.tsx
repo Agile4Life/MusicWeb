@@ -15,7 +15,7 @@ import { NextQueueResponse, queueTrackToTrack } from '@/types/queue'
 import { getMusicOfftopicSegments, calculateIntroOffset } from '@/lib/sponsorblock'
 import { isIOSDevice, playAudioElement, redactAudioSource, shouldUseHtml5Audio, toPersistedTrack } from '@/lib/audioPlayback'
 import { isCurrentPlayback } from '@/lib/playbackRaceGuards'
-import { getNhacCuaTuiStreamUrl, resolveNhacCuaTuiSong, resolveNhacCuaTuiTrack } from '@/lib/nhaccuatuiClient'
+import { getNhacCuaTuiStreamUrl, resolveNhacCuaTuiSong, resolveNhacCuaTuiTrack, prewarmNctStreamUrl, getCachedNctStreamUrl, clearCachedNctStreamUrl } from '@/lib/nhaccuatuiClient'
 import { resolveStreamCached, invalidateStreamResolution } from '@/lib/resolveStreamClient'
 import { setAudioSourceForPlayback } from './audioSourceSwitch'
 
@@ -504,6 +504,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   // Theo dõi track đang được pre-resolve bằng ID — thay cho mutation `_preResolving` trên object.
   const resolvingTrackIdsRef = useRef<Set<string>>(new Set())
+  // Chỉ pre-warm khi currentIndex thay đổi — tránh gọi lại cho cùng queue.
+  const lastPrewarmIndexRef = useRef<number>(-1)
 
   // Track consecutive auto skips to prevent infinite skip loops when multiple tracks fail
   const consecutiveSkipRef = useRef(0)
@@ -644,7 +646,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     [supabase]
   )
 
-  // TTL for NCT stream URL cache (mirrors server-side NCT_CACHE_TTL = 8 min)
+  // TTL for NCT stream URL cache (mirrors server-side NCT_RESOLVE_CACHE_TTL = 8 min)
   const NCT_URL_CACHE_TTL = 8 * 60 * 1000
 
   const getAudioUrlCached = useCallback(
@@ -660,9 +662,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         return null
       }
 
-      // Check cache for all sources (including NCT) before fetching.
-      // NCT URLs are cached with NCT_URL_CACHE_TTL = 8 min to match server-side TTL.
       const isNct = track.source === 'nhaccuatui'
+
+      // NCT fast-path: check module-level nctStreamUrlCache (warmed by pre-warm effect).
+      // Returns cached proxy URL with zero network latency.
+      if (isNct && track.nhaccuatui_id) {
+        const cachedNctUrl = getCachedNctStreamUrl(track.nhaccuatui_id)
+        if (cachedNctUrl) return cachedNctUrl
+      }
+
+      // Check audioUrlCacheRef for all other sources / cold NCT
       const cacheTtl = isNct ? NCT_URL_CACHE_TTL : URL_CACHE_TTL
       const cached = getBoundedRefreshed(
         audioUrlCacheRef.current,
@@ -673,7 +682,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         return cached.url
       }
 
-      // NCT tracks skip the fetch if they have no nhaccuatui_id
+      // NCT with no nhaccuatui_id — can't resolve without an ID
       if (isNct && !track.nhaccuatui_id) return null
 
       const url = await getAudioUrl(track)
@@ -687,92 +696,106 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   // Fire-and-forget prewarm & audio URL prefetch for upcoming tracks (prevents iOS background autoplay blocks)
   useEffect(() => {
-    if (queue && queue.length > 0) {
-      const upcoming = queue.slice(currentIndex, currentIndex + 6)
-      triggerDrivePrewarm(upcoming)
+    // Only pre-warm when currentIndex changes — not on every queue render.
+    // Skip if we already pre-warmed for this index.
+    if (currentIndex === lastPrewarmIndexRef.current) return
+    lastPrewarmIndexRef.current = currentIndex
 
-      // Prefetch audio URLs for next 4 tracks into synchronous cache
-      const nextTracks = queue.slice(currentIndex + 1, currentIndex + 5)
-      for (const nextTr of nextTracks) {
-        if (nextTr && nextTr.id && !audioUrlCacheRef.current.has(nextTr.id)) {
-          getAudioUrlCached(nextTr).catch(() => {})
-        }
-      }
+    if (!queue || queue.length === 0) return
 
-      // Also warm the CURRENT track's URL (e.g. YouTube stream on iOS runs yt-dlp server-side
-      // in the background so the very first play doesn't wait for extraction).
-      const currentTr = queue[currentIndex]
-      if (currentTr && currentTr.id && !audioUrlCacheRef.current.has(currentTr.id)) {
-        getAudioUrlCached(currentTr).catch(() => {})
+    // ── Drive pre-warm ──────────────────────────────────────────────────────────
+    const upcoming = queue.slice(currentIndex, currentIndex + 6)
+    triggerDrivePrewarm(upcoming)
+
+    // ── NCT stream URL pre-warm (next 4 tracks + current) ───────────────────────
+    const nctTargets = queue
+      .slice(currentIndex, currentIndex + 5)
+      .filter((t) => t?.source === 'nhaccuatui' && t.nhaccuatui_id && !getCachedNctStreamUrl(t.nhaccuatui_id))
+
+    for (const tr of nctTargets) {
+      prewarmNctStreamUrl(tr.nhaccuatui_id!).catch(() => {})
+    }
+
+    // ── Non-NCT URL pre-warm ───────────────────────────────────────────────────
+    const nonNctTracks = queue.slice(currentIndex + 1, currentIndex + 5)
+    for (const nextTr of nonNctTracks) {
+      if (!nextTr || !nextTr.id) continue
+      if (nextTr.source === 'nhaccuatui') continue
+      if (!audioUrlCacheRef.current.has(nextTr.id)) {
+        getAudioUrlCached(nextTr).catch(() => {})
       }
     }
 
-    // Pre-resolve metadata/stream for next tracks to guarantee smooth background playback on mobile
-    if (queue && queue.length > 0 && currentIndex >= 0) {
-      for (let offset = 1; offset <= 3; offset++) {
-        const nextIdx = currentIndex + offset
-        if (nextIdx >= queue.length) break
-        const nextTr = queue[nextIdx]
-        const targetTrackId = nextTr.id
-        const hasDirectPlayable = Boolean(
-          nextTr.audio_url ||
-          nextTr.drive_file_id ||
-          extractDriveFileId(nextTr.file_path || '') ||
-          nextTr.youtube_id ||
-          nextTr.source === 'soundcloud' ||
-          Boolean(nextTr.soundcloud_id) ||
-          (nextTr.file_path && (
-            nextTr.file_path.includes('.mp3') ||
-            nextTr.file_path.includes('preview') ||
-            nextTr.file_path.includes('dzcdn.net') ||
-            nextTr.file_path.includes('apple.com') ||
-            nextTr.file_path.includes('drive-stream') ||
-            nextTr.file_path.includes('audius')
-          ))
-        )
+    // ── Pre-resolve catalog tracks (Spotify/iTunes/preview → NCT/YouTube) ───────
+    if (currentIndex < 0) return
+    for (let offset = 1; offset <= 3; offset++) {
+      const nextIdx = currentIndex + offset
+      if (nextIdx >= queue.length) break
+      const nextTr = queue[nextIdx]
+      if (!nextTr) break
+      const targetTrackId = nextTr.id
+      const hasDirectPlayable = Boolean(
+        nextTr.audio_url ||
+        nextTr.drive_file_id ||
+        extractDriveFileId(nextTr.file_path || '') ||
+        nextTr.youtube_id ||
+        nextTr.source === 'soundcloud' ||
+        Boolean(nextTr.soundcloud_id) ||
+        (nextTr.file_path && (
+          nextTr.file_path.includes('.mp3') ||
+          nextTr.file_path.includes('preview') ||
+          nextTr.file_path.includes('dzcdn.net') ||
+          nextTr.file_path.includes('apple.com') ||
+          nextTr.file_path.includes('drive-stream') ||
+          nextTr.file_path.includes('audius')
+        ))
+      )
 
-        if (!hasDirectPlayable && !resolvingTrackIdsRef.current.has(targetTrackId)) {
-          resolvingTrackIdsRef.current.add(targetTrackId)
+      if (!hasDirectPlayable && !resolvingTrackIdsRef.current.has(targetTrackId)) {
+        resolvingTrackIdsRef.current.add(targetTrackId)
 
-          resolveStreamCached({
-            title: nextTr.title,
-            artist: nextTr.artist,
-            duration: nextTr.duration,
-            album: nextTr.album,
-          })
-            .then((resolved) => {
-              if (!resolved) return
+        resolveStreamCached({
+          title: nextTr.title,
+          artist: nextTr.artist,
+          duration: nextTr.duration,
+          album: nextTr.album,
+        })
+          .then((resolved) => {
+            if (!resolved) return
 
-              let updatedTrack: Track | null = null
-              if (resolved.source === 'nhaccuatui') {
-                updatedTrack = { source: 'nhaccuatui', nhaccuatui_id: resolved.id } as Partial<Track> as Track
-              } else if (resolved.source === 'drive') {
-                updatedTrack = { source: 'local' as const, file_path: resolved.id } as Partial<Track> as Track
-              } else if (resolved.source === 'youtube') {
-                updatedTrack = { source: 'youtube' as const, youtube_id: resolved.id } as Partial<Track> as Track
+            let updatedTrack: Track | null = null
+            if (resolved.source === 'nhaccuatui') {
+              updatedTrack = { source: 'nhaccuatui', nhaccuatui_id: resolved.id } as Partial<Track> as Track
+              // After resolving a catalog track to NCT, immediately pre-warm the stream URL
+              // so play is instant when the user reaches this track.
+              if (!getCachedNctStreamUrl(resolved.id)) {
+                prewarmNctStreamUrl(resolved.id).catch(() => {})
               }
-              if (!updatedTrack) return
+            } else if (resolved.source === 'drive') {
+              updatedTrack = { source: 'local' as const, file_path: resolved.id } as Partial<Track> as Track
+            } else if (resolved.source === 'youtube') {
+              updatedTrack = { source: 'youtube' as const, youtube_id: resolved.id } as Partial<Track> as Track
+            }
+            if (!updatedTrack) return
 
-              // Cache resolution in trackResolutionCacheRef for instant playback
-              const mergedTrack = { ...nextTr, ...updatedTrack }
-              setBounded(
-                trackResolutionCacheRef.current,
-                targetTrackId,
-                {
-                  activeTrack: mergedTrack,
-                  expiresAt: Date.now() + TRACK_RESOLUTION_TTL,
-                },
-                TRACK_RESOLUTION_MAX_ENTRIES
-              )
-            })
-            .catch(() => {})
-            .finally(() => {
-              resolvingTrackIdsRef.current.delete(targetTrackId)
-            })
-        }
+            const mergedTrack = { ...nextTr, ...updatedTrack }
+            setBounded(
+              trackResolutionCacheRef.current,
+              targetTrackId,
+              {
+                activeTrack: mergedTrack,
+                expiresAt: Date.now() + TRACK_RESOLUTION_TTL,
+              },
+              TRACK_RESOLUTION_MAX_ENTRIES
+            )
+          })
+          .catch(() => {})
+          .finally(() => {
+            resolvingTrackIdsRef.current.delete(targetTrackId)
+          })
       }
     }
-  }, [currentIndex, queue.map((t) => t.id).join(','), getAudioUrlCached]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentIndex]) // eslint-disable-line react-hooks/exhaustive-deps
 
 
 
@@ -1679,6 +1702,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             await invalidateCurrentResolution()
             trackResolutionCacheRef.current.delete(activeTrack.id)
             audioUrlCacheRef.current.delete(activeTrack.id)
+            if (activeTrack.nhaccuatui_id) {
+              clearCachedNctStreamUrl(activeTrack.nhaccuatui_id)
+            }
             audioRef.current.pause()
             audioRef.current.removeAttribute('src')
           } catch {}
@@ -2211,6 +2237,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             await invalidateCurrentResolution()
             trackResolutionCacheRef.current.delete(track.id)
             audioUrlCacheRef.current.delete(track.id)
+            if (track.nhaccuatui_id) {
+              clearCachedNctStreamUrl(track.nhaccuatui_id)
+            }
 
             // Cache the new working youtube resolution
             setBounded(

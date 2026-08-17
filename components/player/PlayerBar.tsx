@@ -342,9 +342,27 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
       {/* 📱 MOBILE FLOATING MINI PLAYER BAR (Visible on < 768px) */}
       <div
         onClick={openNowPlayingOverlay}
-        className={`${miniPlayerClassName} !rounded-[37px] rounded-[37px] border border-white/10 shadow-2xl backdrop-blur-2xl select-none cursor-pointer active:opacity-90 transition-opacity relative overflow-hidden pointer-events-auto`}
-        style={{ borderRadius: 37 }}
+        className={`${miniPlayerClassName} !rounded-[37px] rounded-[37px] select-none cursor-pointer active:opacity-90 transition-opacity relative overflow-hidden pointer-events-auto`}
+        style={{
+          borderRadius: 37,
+          background: 'rgba(255, 255, 255, 0.025)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.12)',
+          backdropFilter: 'blur(16px) saturate(150%)',
+          WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+        }}
       >
+        {/* Inner glass specular gradient */}
+        <span
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            borderRadius: 37,
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 40%)',
+            pointerEvents: 'none',
+          }}
+        />
         <PlayerBarGlowBorder duration={duration || currentTrack.duration} rx={34} />
         {/* Main row */}
         <div className="flex items-center gap-2.5 w-full h-[54px] px-3 sm:px-3.5 relative z-10">

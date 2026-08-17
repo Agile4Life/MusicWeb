@@ -20,6 +20,7 @@ import { setCachedResolvedAlbum, getCachedResolvedAlbum, isRealAlbumName } from 
 import { LyricsShareModal } from './LyricsShareModal'
 import { getPrimaryLyrics } from '@/lib/lyricsFlow'
 import { parseLrc, parsePlainLyrics, LyricLine } from '@/lib/lrcParser'
+import { MobileFullviewPlayer } from './MobileFullviewPlayer'
 import {
   ChevronDown,
   Play,
@@ -308,71 +309,54 @@ export function NowPlayingOverlay() {
   }
 
   return (
-    <div
-      className={`now-playing-overlay fixed inset-0 z-50 bg-[#07090e] text-white flex flex-col transition-transform duration-350 ease-[cubic-bezier(0.22,1,0.36,1)] select-none ${
-        isNowPlayingOpen ? 'open translate-y-0' : 'translate-y-full pointer-events-none'
-      }`}
-    >
-      {/* 🌟 Single Shared Ambient Glow Layer (Behind Top Bar, Stage & PlayerBar) */}
+    <>
+      {/* 📱 Mobile Fullview Player (<1024px screens) */}
+      <div className="lg:hidden">
+        {isNowPlayingOpen && <MobileFullviewPlayer />}
+      </div>
+
+      {/* 💻 Desktop Now Playing Overlay (>=1024px screens) */}
       <div
-        className="absolute inset-0 z-0 pointer-events-none overflow-hidden opacity-60"
-        aria-hidden="true"
+        className={`now-playing-overlay hidden lg:flex fixed inset-0 z-50 bg-[#07090e] text-white flex-col transition-transform duration-350 ease-[cubic-bezier(0.22,1,0.36,1)] select-none ${
+          isNowPlayingOpen ? 'open translate-y-0' : 'translate-y-full pointer-events-none'
+        }`}
       >
-        <div className="absolute -top-1/4 -left-1/4 w-[75vw] h-[75vw] rounded-full bg-[radial-gradient(circle,var(--spotify-glow,rgba(34,211,238,0.25))_0%,transparent_65%)] blur-3xl" />
-        <div className="absolute -bottom-1/4 -right-1/4 w-[75vw] h-[75vw] rounded-full bg-[radial-gradient(circle,var(--theme-gradient-1,rgba(168,85,247,0.2))_0%,transparent_65%)] blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[55vw] h-[55vw] rounded-full bg-[radial-gradient(circle,var(--theme-gradient-2,rgba(6,182,212,0.15))_0%,transparent_70%)] blur-3xl" />
-      </div>
-
-      {/* 🔝 Unified Top Header (Opaque Backdrop to completely cover app layout behind) */}
-      <div className="relative z-30 flex items-center justify-between h-16 px-6 border-b border-white/[0.08] shrink-0 bg-[#07090e]/90 backdrop-blur-xl">
-        <button
-          onClick={closeNowPlayingOverlay}
-          className="fullview-header-btn p-2 text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-all active:scale-95 flex items-center gap-1.5 text-xs font-semibold shrink-0 border border-white/10"
-          title="Thu nhỏ player (Esc)"
+        {/* 🌟 Single Shared Ambient Glow Layer (Behind Top Bar, Stage & PlayerBar) */}
+        <div
+          className="absolute inset-0 z-0 pointer-events-none overflow-hidden opacity-60"
+          aria-hidden="true"
         >
-          <ChevronDown className="w-5 h-5" />
-          <span className="hidden sm:inline">Thu nhỏ</span>
-        </button>
-
-        {/* Mobile Tab Switcher (<1024px screens) */}
-        <div className="flex lg:hidden items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-xl shrink-0">
-          <button
-            onClick={() => setMobileTab('cover')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${mobileTab === 'cover'
-              ? 'bg-[var(--accent,#06b6d4)] text-black shadow-md'
-              : 'text-slate-400 hover:text-white'
-              }`}
-          >
-            <DiscAlbum className="w-3.5 h-3.5" />
-            <span>Ảnh bìa</span>
-          </button>
-          <button
-            onClick={() => setMobileTab('lyrics')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${mobileTab === 'lyrics'
-              ? 'bg-[var(--accent,#06b6d4)] text-black shadow-md'
-              : 'text-slate-400 hover:text-white'
-              }`}
-          >
-            <Mic2 className="w-3.5 h-3.5" />
-            <span>Lời bài hát</span>
-          </button>
+          <div className="absolute -top-1/4 -left-1/4 w-[75vw] h-[75vw] rounded-full bg-[radial-gradient(circle,var(--spotify-glow,rgba(34,211,238,0.25))_0%,transparent_65%)] blur-3xl" />
+          <div className="absolute -bottom-1/4 -right-1/4 w-[75vw] h-[75vw] rounded-full bg-[radial-gradient(circle,var(--theme-gradient-1,rgba(168,85,247,0.2))_0%,transparent_65%)] blur-3xl" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[55vw] h-[55vw] rounded-full bg-[radial-gradient(circle,var(--theme-gradient-2,rgba(6,182,212,0.15))_0%,transparent_70%)] blur-3xl" />
         </div>
 
-        {/* Right Header context badge */}
-        <div className="hidden lg:flex items-center gap-2 shrink-0">
-          {currentTrack.source === 'soundcloud' ? (
-            <span className="fullview-header-badge text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/40 flex items-center gap-1.5 shadow-[0_0_12px_rgba(255,85,0,0.3)]">
-              <Cloud className="w-3 h-3 text-[#ff7700]" />
-              SOUNDCLOUD
-            </span>
-          ) : (
-            <span className="fullview-header-badge text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[var(--accent,#06b6d4)]/10 text-[var(--spotify-glow,#22d3ee)] border border-[var(--accent,#06b6d4)]/25 flex items-center gap-1.5 shadow-[0_0_12px_var(--theme-glow-shadow)]">
-              <Sparkles className="w-3 h-3 text-[var(--spotify-glow,#22d3ee)]" />
-              SYNCED LYRICS
-            </span>
-          )}
+        {/* 🔝 Unified Top Header (Desktop) */}
+        <div className="relative z-30 flex items-center justify-between h-16 px-6 border-b border-white/[0.08] shrink-0 bg-[#07090e]/90 backdrop-blur-xl">
+          <button
+            onClick={closeNowPlayingOverlay}
+            className="fullview-header-btn p-2 text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-all active:scale-95 flex items-center gap-1.5 text-xs font-semibold shrink-0 border border-white/10"
+            title="Thu nhỏ player (Esc)"
+          >
+            <ChevronDown className="w-5 h-5" />
+            <span className="hidden sm:inline">Thu nhỏ</span>
+          </button>
+
+          {/* Right Header context badge */}
+          <div className="flex items-center gap-2 shrink-0">
+            {currentTrack.source === 'soundcloud' ? (
+              <span className="fullview-header-badge text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/40 flex items-center gap-1.5 shadow-[0_0_12px_rgba(255,85,0,0.3)]">
+                <Cloud className="w-3 h-3 text-[#ff7700]" />
+                SOUNDCLOUD
+              </span>
+            ) : (
+              <span className="fullview-header-badge text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[var(--accent,#06b6d4)]/10 text-[var(--spotify-glow,#22d3ee)] border border-[var(--accent,#06b6d4)]/25 flex items-center gap-1.5 shadow-[0_0_12px_var(--theme-glow-shadow)]">
+                <Sparkles className="w-3 h-3 text-[var(--spotify-glow,#22d3ee)]" />
+                SYNCED LYRICS
+              </span>
+            )}
+          </div>
         </div>
-      </div>
 
       {/* 🎭 Main Stage Area (Full Height underneath header so Lyrics & Particles scroll under the glass PlayerBar) */}
       <div className="flex-1 min-h-0 relative flex overflow-hidden bg-gradient-to-r from-[#07090e] via-[#07090e] to-[#0f0b16]">
@@ -397,154 +381,7 @@ export function NowPlayingOverlay() {
           </div>
         </div>
 
-
-        {/* Mobile View (<1024px): 1 Column Tab Switcher */}
-        <div className="flex lg:hidden w-full h-full pb-[170px] overflow-hidden">
-          {mobileTab === 'cover' ? (
-            <div className="w-full h-full relative overflow-y-auto no-scrollbar">
-              <StageWithFrequencyData
-                coverUrl={currentTrack.cover_url}
-                title={currentTrack.title}
-                artist={currentTrack.artist}
-                isPlaying={isPlaying}
-                onArtistClick={(name, e) => handleOpenArtist(name, e)}
-              />
-            </div>
-          ) : (
-            <div className="w-full h-full relative">
-              <LyricsView isModal={false} showControls={false} showHeader={true} />
-            </div>
-          )}
-        </div>
-
-        {/* 🎛️ MOBILE COMPACT FLOATING CONTROL BAR (< 1024px) */}
-        <div className="player-bar lg:hidden absolute bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))] inset-x-3 z-30 p-3 bg-[#080b12]/95 backdrop-blur-2xl flex flex-col gap-2 rounded-2xl transition-all duration-300 select-none shadow-2xl border border-white/10">
-          {/* Top Row: Track Metadata + Album/Heart/Queue Actions */}
-          <div className="flex items-center justify-between gap-2 w-full min-w-0">
-            <div className="flex items-center gap-2.5 min-w-0 flex-1">
-              <div className={`player-cover w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 shadow-md shrink-0 ${isPlaying ? 'is-playing' : ''}`}>
-                <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
-              </div>
-              <div className="flex flex-col min-w-0 flex-1 justify-center">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <OverflowMarqueeText
-                    text={currentTrack.title}
-                    className="text-xs font-bold text-white truncate"
-                  />
-                  {isPlaying && <MiniEqualizer isPlaying={isPlaying} className="shrink-0" />}
-                </div>
-                <div className="flex items-center gap-1.5 min-w-0 mt-0.5">
-                  {currentTrack.source === 'soundcloud' && (
-                    <span className="px-1 py-0.1 text-[8px] font-black uppercase rounded bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/40 shrink-0">
-                      SoundCloud
-                    </span>
-                  )}
-                  <ArtistLinks
-                    artist={currentTrack.artist}
-                    className="text-[10px] text-slate-400 truncate leading-tight block"
-                    linkClassName="hover:underline hover:text-slate-200 transition-colors cursor-pointer"
-                    onArtistClick={(name, e) => {
-                      e.stopPropagation()
-                      handleOpenArtist(name, e)
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Actions: Album Link + Heart + Queue */}
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                onClick={handleOpenAlbum}
-                className="w-8 h-8 rounded-lg text-slate-300 bg-white/[0.08] hover:bg-white/[0.14] active:scale-95 border border-white/10 flex items-center justify-center transition-all"
-                title={displayAlbumName ? `Vào album: ${displayAlbumName}` : 'Album'}
-              >
-                <DiscAlbum style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3.5 h-3.5" />
-              </button>
-
-              <button
-                onClick={handleFavoriteClick}
-                className={`w-8 h-8 rounded-lg active:scale-95 transition-all flex items-center justify-center ${currentTrack.is_favorite ? 'text-rose-500 bg-rose-500/15 border border-rose-500/30' : 'text-slate-400 hover:text-white bg-white/5 border border-white/5'}`}
-                title={currentTrack.is_favorite ? 'Bỏ yêu thích' : 'Yêu thích'}
-              >
-                <Heart className={`w-3.5 h-3.5 ${currentTrack.is_favorite ? 'fill-current' : ''}`} />
-              </button>
-
-              <button
-                onClick={toggleQueue}
-                className={`w-8 h-8 rounded-lg active:scale-95 transition-all flex items-center justify-center ${isQueueOpen ? 'text-[var(--spotify-glow,#22d3ee)] bg-[var(--spotify-glow)]/15 border border-[var(--spotify-glow)]/30' : 'text-slate-400 hover:text-white bg-white/5 border border-white/5'}`}
-                title="Hàng đợi"
-              >
-                <ListMusic className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Middle Row: Waveform Scrubber */}
-          <div className="w-full px-0.5">
-            <AudioWaveformScrubber
-              currentTime={currentTime}
-              duration={duration || currentTrack.duration || 0}
-              isPlaying={isPlaying}
-              trackId={currentTrack.id}
-              onSeek={seek}
-              barCount={60}
-            />
-          </div>
-
-          {/* Bottom Row: Centered Playback Controls */}
-          <div className="flex items-center justify-between px-2 w-full pt-0.5">
-            <button
-              onClick={toggleShuffle}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center active:scale-90 transition-all ${isShuffle ? 'text-[var(--spotify-glow,#22d3ee)] bg-[var(--spotify-glow)]/15 border border-[var(--spotify-glow)]/30' : 'text-slate-400'}`}
-              title="Phát ngẫu nhiên"
-            >
-              <Shuffle className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={prevTrack}
-              className="w-9 h-9 flex items-center justify-center text-slate-300 hover:text-white active:scale-90 transition-transform rounded-full"
-              title="Bài trước"
-            >
-              <SkipBack className="w-5 h-5" />
-            </button>
-
-            <button
-              onClick={togglePlay}
-              style={{
-                background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                boxShadow: '0 3px 14px var(--theme-glow-shadow, rgba(6,182,212,0.45))',
-              }}
-              className="w-11 h-11 rounded-full flex items-center justify-center text-black font-bold shrink-0 active:scale-90 transition-transform border border-white/20"
-              title={isPlaying ? 'Tạm dừng' : 'Phát'}
-            >
-              {isPlaying ? (
-                <Pause className="w-5 h-5 fill-current text-black" />
-              ) : (
-                <Play className="w-5 h-5 fill-current text-black ml-0.5" />
-              )}
-            </button>
-
-            <button
-              onClick={nextTrack}
-              className="w-9 h-9 flex items-center justify-center text-slate-300 hover:text-white active:scale-90 transition-transform rounded-full"
-              title="Bài kế tiếp"
-            >
-              <SkipForward className="w-5 h-5" />
-            </button>
-
-            <button
-              onClick={toggleRepeat}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center active:scale-90 transition-all ${repeatMode !== 'off' ? 'text-[var(--spotify-glow,#22d3ee)] bg-[var(--spotify-glow)]/15 border border-[var(--spotify-glow)]/30' : 'text-slate-400'}`}
-              title="Lặp lại"
-            >
-              {repeatMode === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-
-        {/* 🎛️ DESKTOP FLOATING CONTROL BAR (>= 768px) */}
+        {/* 🎛️ DESKTOP FLOATING CONTROL BAR (>= 1024px) */}
         <div className="player-bar group/playerbar hidden lg:flex absolute bottom-2 sm:bottom-3 lg:bottom-4 inset-x-3 sm:inset-x-6 z-30 px-4 lg:px-6 xl:px-8 py-2 xl:py-3.5 h-[76px] lg:h-[84px] xl:h-[96px] items-center justify-between rounded-2xl transition-all duration-300 select-none">
           {/* Top ambient highlight reflection line (fades in on hover) */}
           <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-[var(--spotify-glow,#22d3ee)]/35 to-transparent pointer-events-none rounded-t-2xl opacity-0 group-hover/playerbar:opacity-100 transition-opacity duration-300" />
@@ -768,6 +605,7 @@ export function NowPlayingOverlay() {
           </div>
         </div>
       </div>
+    </div>
 
       {/* 🚀 Lyrics Share Modal */}
       {showShareModal && currentTrack && (
@@ -778,6 +616,6 @@ export function NowPlayingOverlay() {
           lyrics={shareLyrics}
         />
       )}
-    </div>
+    </>
   )
 }
