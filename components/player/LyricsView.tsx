@@ -6,6 +6,7 @@ import { Track } from '@/types'
 import { LrclibResponse } from '@/lib/lrclib'
 import { getPrimaryLyrics } from '@/lib/lyricsFlow'
 import { parseLrc, parsePlainLyrics, findActiveLyricIndex, LyricLine } from '@/lib/lrcParser'
+import { fetchLyricsRomaji } from '@/lib/romajiTransliteration'
 import { OverflowMarqueeText } from '@/components/common/OverflowMarqueeText'
 import { LyricsShareModal } from './LyricsShareModal'
 import {
@@ -28,7 +29,12 @@ import {
   Minus,
   Plus,
   Share2,
+  Languages,
 } from 'lucide-react'
+
+interface ExtendedLyricLine extends LyricLine {
+  romaji?: string
+}
 
 interface LyricsViewProps {
   onClose?: () => void
@@ -48,12 +54,13 @@ function formatTime(seconds: number) {
    ⚡ MEMOIZED LYRIC LINE ITEM (Zero re-render when other lines change)
    ========================================================================= */
 interface LyricLineItemProps {
-  line: LyricLine
+  line: ExtendedLyricLine
   index: number
   isActive: boolean
   distance: number
   isPast: boolean
-  onClick: (line: LyricLine) => void
+  showRomaji?: boolean
+  onClick: (line: ExtendedLyricLine) => void
   activeLineRefSetter?: (el: HTMLDivElement | null) => void
 }
 
@@ -62,6 +69,7 @@ const LyricLineItem = memo(function LyricLineItem({
   isActive,
   distance,
   isPast,
+  showRomaji = true,
   onClick,
   activeLineRefSetter,
 }: LyricLineItemProps) {
@@ -76,11 +84,13 @@ const LyricLineItem = memo(function LyricLineItem({
     opacity = distance < 0 ? 0.75 : isPast ? 0.18 : 0.3
   }
 
+  const hasRomaji = showRomaji && Boolean(line.romaji) && line.romaji !== line.text
+
   return (
     <div
       ref={isActive ? activeLineRefSetter : undefined}
       onClick={() => onClick(line)}
-      className={`cursor-pointer rounded-2xl select-none origin-left group/line relative transform-gpu will-change-transform will-change-opacity transition-all duration-300 ease-out ${
+      className={`cursor-pointer rounded-2xl select-none origin-left group/line relative transform-gpu will-change-transform will-change-opacity transition-all duration-300 ease-out flex flex-col ${
         isActive
           ? 'active-lyric-pill py-2.5 sm:py-3.5 px-4 sm:px-6 bg-white/[0.05] border border-white/10 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.35),0_0_20px_color-mix(in_srgb,var(--spotify-glow,#22d3ee)_12%,transparent)]'
           : 'py-1 sm:py-1.5 px-3 sm:px-5 bg-transparent border border-transparent hover:bg-white/[0.02] hover:border-white/[0.04]'
@@ -105,6 +115,15 @@ const LyricLineItem = memo(function LyricLineItem({
       >
         {line.text}
       </p>
+      {hasRomaji && (
+        <p
+          className={`text-xs sm:text-sm font-semibold mt-0.5 tracking-wide transition-all duration-300 ${
+            isActive ? 'text-[var(--spotify-glow,#22d3ee)]' : 'text-slate-400/80'
+          }`}
+        >
+          {line.romaji}
+        </p>
+      )}
     </div>
   )
 }, (prev, next) => {
@@ -112,7 +131,9 @@ const LyricLineItem = memo(function LyricLineItem({
     prev.isActive === next.isActive &&
     prev.distance === next.distance &&
     prev.isPast === next.isPast &&
-    prev.line.text === next.line.text
+    prev.showRomaji === next.showRomaji &&
+    prev.line.text === next.line.text &&
+    prev.line.romaji === next.line.romaji
   )
 })
 
@@ -335,7 +356,8 @@ export const LyricsView = memo(function LyricsView({
 
   const [loading, setLoading] = useState(false)
   const [, setLyricsData] = useState<LrclibResponse | null>(null)
-  const [parsedLyrics, setParsedLyrics] = useState<LyricLine[]>([])
+  const [parsedLyrics, setParsedLyrics] = useState<ExtendedLyricLine[]>([])
+  const [showRomaji, setShowRomaji] = useState(true)
   const [isSynced, setIsSynced] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const [lyricOffset, setLyricOffset] = useState(0) // Default 0.0s
@@ -377,17 +399,32 @@ export const LyricsView = memo(function LyricsView({
 
       if (data) {
         setLyricsData(data)
+        let parsed: ExtendedLyricLine[] = []
         if (data.syncedLyrics && data.syncedLyrics.trim().length > 0) {
-          const parsed = parseLrc(data.syncedLyrics)
+          parsed = parseLrc(data.syncedLyrics)
           setParsedLyrics(parsed)
           setIsSynced(true)
         } else if (data.plainLyrics && data.plainLyrics.trim().length > 0) {
-          const parsed = parsePlainLyrics(data.plainLyrics)
+          parsed = parsePlainLyrics(data.plainLyrics)
           setParsedLyrics(parsed)
           setIsSynced(false)
         } else {
           setParsedLyrics([])
           setIsSynced(false)
+        }
+
+        // Asynchronously fetch Romaji
+        if (parsed.length > 0) {
+          fetchLyricsRomaji(parsed.map((p) => p.text)).then((romajiResults) => {
+            if (reqId === lyricsReqIdRef.current && romajiResults.length === parsed.length) {
+              setParsedLyrics(
+                parsed.map((line, idx) => ({
+                  ...line,
+                  romaji: romajiResults[idx] || '',
+                }))
+              )
+            }
+          }).catch(() => {})
         }
       } else {
         setLyricsData(null)
@@ -582,6 +619,19 @@ export const LyricsView = memo(function LyricsView({
             )}
 
             <button
+              onClick={() => setShowRomaji((prev) => !prev)}
+              className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-all flex items-center gap-1 shrink-0 ${
+                showRomaji
+                  ? 'bg-white/15 text-white border-white/25 shadow-sm'
+                  : 'text-slate-400 hover:text-white bg-white/5 border-white/10'
+              }`}
+              title="Bật/Tắt phiên âm Romaji"
+            >
+              <Languages className="w-3.5 h-3.5" />
+              <span className="text-[10px]">Romaji</span>
+            </button>
+
+            <button
               onClick={() => setShowShareModal(true)}
               disabled={parsedLyrics.length === 0}
               className="w-9 h-9 flex items-center justify-center bg-white/[0.06] hover:bg-white/15 active:scale-95 text-slate-200 hover:text-[var(--spotify-glow,#22d3ee)] rounded-full border border-white/10 transition-all shrink-0 shadow-md disabled:opacity-40 disabled:pointer-events-none"
@@ -643,6 +693,7 @@ export const LyricsView = memo(function LyricsView({
                   isActive={isActive}
                   distance={distance}
                   isPast={isPast}
+                  showRomaji={showRomaji}
                   onClick={handleLineClick}
                   activeLineRefSetter={activeLineRefSetter}
                 />

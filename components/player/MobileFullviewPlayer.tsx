@@ -10,26 +10,31 @@ import { ArtistLinks } from '../common/ArtistLinks'
 import { LyricsShareModal } from './LyricsShareModal'
 import { getPrimaryLyrics } from '@/lib/lyricsFlow'
 import { parseLrc, parsePlainLyrics, findActiveLyricIndex, LyricLine } from '@/lib/lrcParser'
+import { fetchLyricsRomaji } from '@/lib/romajiTransliteration'
 import {
   ChevronDown,
   Play,
   Pause,
   SkipBack,
   SkipForward,
-  Heart,
   Star,
+  Heart,
+  Shuffle,
   MoreHorizontal,
   Volume2,
   VolumeX,
   Languages,
-  Mic2,
   Sparkles,
-  DiscAlbum,
   ListMusic,
   Share2,
   Loader2,
   X,
+  DiscAlbum,
 } from 'lucide-react'
+
+interface ExtendedLyricLine extends LyricLine {
+  romaji?: string
+}
 
 function formatTime(seconds: number) {
   if (isNaN(seconds) || seconds < 0) return '0:00'
@@ -58,6 +63,8 @@ export function MobileFullviewPlayer() {
     seek,
     volume,
     setVolume,
+    isShuffle,
+    toggleShuffle,
     toggleFavoriteCurrentTrack,
     closeNowPlayingOverlay,
     toggleQueue,
@@ -73,23 +80,24 @@ export function MobileFullviewPlayer() {
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Lyrics state
-  const [lyrics, setLyrics] = useState<LyricLine[]>([])
+  const [lyrics, setLyrics] = useState<ExtendedLyricLine[]>([])
+  const [isSynced, setIsSynced] = useState(false)
   const [lyricsLoading, setLyricsLoading] = useState(false)
   const [showTranslation, setShowTranslation] = useState(true)
   const [showMenuSheet, setShowMenuSheet] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
-  const [shareLyrics, setShareLyrics] = useState<LyricLine[]>([])
 
   // Auto-scroll management
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const activeLineRef = useRef<HTMLDivElement | null>(null)
+  const lineRefs = useRef<(HTMLDivElement | null)[]>([])
   const userScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const isUserScrollingRef = useRef(false)
+  const isUserInteractingRef = useRef(false)
 
   // Fetch lyrics whenever currentTrack changes
   useEffect(() => {
     if (!currentTrack) {
       setLyrics([])
+      setIsSynced(false)
       return
     }
 
@@ -104,19 +112,41 @@ export function MobileFullviewPlayer() {
       youtube_id: currentTrack.youtube_id,
       nhaccuatui_id: currentTrack.nhaccuatui_id,
     })
-      .then((res) => {
+      .then(async (res) => {
         if (!isMounted) return
+        let parsed: ExtendedLyricLine[] = []
+
         if (res?.syncedLyrics) {
-          const parsed = parseLrc(res.syncedLyrics)
-          setLyrics(parsed)
-          setShareLyrics(parsed)
+          parsed = parseLrc(res.syncedLyrics)
+          setIsSynced(true)
         } else if (res?.plainLyrics) {
-          const parsed = parsePlainLyrics(res.plainLyrics)
+          parsed = parsePlainLyrics(res.plainLyrics)
+          setIsSynced(false)
+        } else {
+          setIsSynced(false)
+        }
+
+        if (parsed.length > 0) {
           setLyrics(parsed)
-          setShareLyrics(parsed)
+
+          // Asynchronously fetch Romaji transliteration for all lines
+          const rawLines = parsed.map((p) => p.text)
+          try {
+            const romajiResults = await fetchLyricsRomaji(rawLines)
+            if (isMounted && romajiResults.length === parsed.length) {
+              setLyrics(
+                parsed.map((line, idx) => ({
+                  ...line,
+                  romaji: romajiResults[idx] || '',
+                }))
+              )
+            }
+          } catch (err) {
+            console.warn('Romaji transliteration error:', err)
+          }
         } else {
           setLyrics([])
-          setShareLyrics([])
+          setIsSynced(false)
         }
       })
       .catch((err) => {
@@ -138,35 +168,48 @@ export function MobileFullviewPlayer() {
     return findActiveLyricIndex(lyrics, currentTime)
   }, [lyrics, currentTime])
 
-  // Smooth Spring Auto-scroll to active line
+  // Ultra-Smooth Spring Auto-scroll to active line
   useEffect(() => {
-    if (isUserScrollingRef.current || activeIndex < 0 || !activeLineRef.current || !scrollContainerRef.current) {
+    if (isUserInteractingRef.current || activeIndex < 0) {
       return
     }
 
-    activeLineRef.current.scrollIntoView({
-      behavior: 'smooth',
-      block: 'center',
-    })
+    const container = scrollContainerRef.current
+    const activeEl = lineRefs.current[activeIndex]
+
+    if (container && activeEl) {
+      const targetScroll = activeEl.offsetTop - container.clientHeight * 0.38 + activeEl.clientHeight / 2
+      container.scrollTo({
+        top: Math.max(0, targetScroll),
+        behavior: 'smooth',
+      })
+    }
   }, [activeIndex])
 
-  const handleUserScroll = useCallback(() => {
-    isUserScrollingRef.current = true
+  // User touch detection (Only user finger drag pauses auto-scroll)
+  const handleUserTouchStart = useCallback(() => {
+    isUserInteractingRef.current = true
+    if (userScrollTimeoutRef.current) {
+      clearTimeout(userScrollTimeoutRef.current)
+    }
+  }, [])
+
+  const handleUserTouchEnd = useCallback(() => {
     if (userScrollTimeoutRef.current) {
       clearTimeout(userScrollTimeoutRef.current)
     }
     userScrollTimeoutRef.current = setTimeout(() => {
-      isUserScrollingRef.current = false
-    }, 3500)
+      isUserInteractingRef.current = false
+    }, 3000)
   }, [])
 
-  // Touch Drag to Dismiss Handlers
-  const handleTouchStart = (e: React.TouchEvent) => {
+  // Header Dismiss Gestures
+  const handleHeaderTouchStart = (e: React.TouchEvent) => {
     touchStartYRef.current = e.touches[0].clientY
     setIsDragging(true)
   }
 
-  const handleTouchMove = (e: React.TouchEvent) => {
+  const handleHeaderTouchMove = (e: React.TouchEvent) => {
     if (!isDragging) return
     const currentY = e.touches[0].clientY
     const deltaY = currentY - touchStartYRef.current
@@ -175,7 +218,7 @@ export function MobileFullviewPlayer() {
     }
   }
 
-  const handleTouchEnd = () => {
+  const handleHeaderTouchEnd = () => {
     setIsDragging(false)
     if (dragY > 120) {
       closeNowPlayingOverlay()
@@ -183,9 +226,10 @@ export function MobileFullviewPlayer() {
     setDragY(0)
   }
 
-  const handleLineClick = (line: LyricLine) => {
-    if (typeof line.time === 'number') {
+  const handleLineClick = (line: ExtendedLyricLine) => {
+    if (typeof line.time === 'number' && line.time >= 0) {
       seek(line.time)
+      isUserInteractingRef.current = false
     }
   }
 
@@ -198,11 +242,15 @@ export function MobileFullviewPlayer() {
   const remainingTime = (duration || currentTrack.duration || 0) - currentTime
   const progressPercent = duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0
 
+  const isLiquid = themeStyle === 'liquid-glass'
+  const isMinimal = themeStyle === 'minimal-flat'
+  const isClassic = themeStyle === 'classic'
+
   return (
     <div
       ref={containerRef}
       className={`mobile-fullview-overlay fixed inset-0 z-[100] flex flex-col select-none overflow-hidden touch-pan-y ${
-        themeStyle === 'minimal-flat' ? 'bg-[#141017] text-[#F4ECE1]' : 'bg-[#07090e] text-white'
+        isMinimal ? 'bg-[#141017] text-[#F4ECE1]' : 'bg-[#07090e] text-white'
       }`}
       style={{
         transform: `translate3d(0, ${dragY}px, 0)`,
@@ -210,7 +258,7 @@ export function MobileFullviewPlayer() {
       }}
     >
       {/* 🌟 1. Theme-Aware Ambient Fluid Background */}
-      {themeStyle === 'liquid-glass' && (
+      {isLiquid && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
           {currentTrack.cover_url ? (
             <div
@@ -227,15 +275,15 @@ export function MobileFullviewPlayer() {
               }}
             />
           )}
-          {/* Subtle noise grain and dark vignette */}
+          {/* Subtle dark vignette */}
           <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/80" />
         </div>
       )}
 
-      {themeStyle === 'classic' && (
+      {isClassic && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 bg-[#07090e]">
           <div
-            className="absolute top-0 inset-x-0 h-96 opacity-25 blur-3xl"
+            className="absolute top-0 inset-x-0 h-96 opacity-30 blur-3xl"
             style={{
               background: `radial-gradient(circle at 50% 0%, ${currentTheme.accentColor}, transparent 70%)`,
             }}
@@ -243,96 +291,185 @@ export function MobileFullviewPlayer() {
         </div>
       )}
 
-      {themeStyle === 'minimal-flat' && (
+      {isMinimal && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 bg-[#141017]">
           <div className="absolute inset-0 bg-radial from-[#1D1720] to-[#141017] opacity-90" />
         </div>
       )}
 
-      {/* 📱 2. Header: Drag Handle & Mini Track Identity */}
+      {/* 📱 2. Header: Drag Handle & Floating Liquid Glass Track Plaque */}
       <header
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        className="relative z-20 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] px-4 pb-2 flex flex-col gap-2 shrink-0 cursor-grab active:cursor-grabbing"
+        onTouchStart={handleHeaderTouchStart}
+        onTouchMove={handleHeaderTouchMove}
+        onTouchEnd={handleHeaderTouchEnd}
+        className="relative z-20 pt-[calc(0.6rem+env(safe-area-inset-top,0px))] px-4 flex flex-col gap-2 shrink-0 cursor-grab active:cursor-grabbing"
       >
-        {/* Grabber Bar */}
+        {/* Top Grabber Bar */}
         <div
           onClick={closeNowPlayingOverlay}
-          className="w-10 h-1.5 rounded-full bg-white/30 hover:bg-white/50 active:scale-95 transition-all mx-auto cursor-pointer"
+          className={`w-11 h-1.5 rounded-full transition-all mx-auto cursor-pointer active:scale-95 ${
+            isMinimal
+              ? 'bg-[#E8A94F]/40 hover:bg-[#E8A94F]'
+              : isClassic
+                ? 'bg-[var(--spotify-glow,#22d3ee)]/40 hover:bg-[var(--spotify-glow,#22d3ee)] shadow-[0_0_8px_var(--theme-glow-shadow)]'
+                : 'bg-white/30 hover:bg-white/50 backdrop-blur-md'
+          }`}
           title="Thu nhỏ"
         />
 
-        {/* Mini Identity Row */}
-        <div className="flex items-center justify-between gap-3 mt-1">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            {/* Mini Cover Art */}
-            <div className="w-11 h-11 rounded-xl bg-slate-900 border border-white/15 overflow-hidden shrink-0 shadow-lg relative">
-              <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
+        {/* 🌊 Floating Liquid Glass Plaque (Positioned between top grabber and lyrics) */}
+        <div
+          className="relative mx-1 mt-2.5 mb-1.5 rounded-[28px] overflow-hidden select-none transition-all duration-300 shadow-xl"
+          style={
+            isMinimal
+              ? {
+                  backgroundColor: '#1D1720',
+                  border: '1px solid rgba(232, 169, 79, 0.45)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+                }
+              : isClassic
+                ? {
+                    backgroundColor: 'var(--elevation-2-bg, #111622)',
+                    border: '1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 45%, rgba(255,255,255,0.15))',
+                    boxShadow: '0 0 20px var(--theme-glow-shadow), 0 8px 24px rgba(0,0,0,0.45)',
+                  }
+                : {
+                    backgroundColor: 'rgba(255, 255, 255, 0.035)',
+                    border: '1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, rgba(255, 255, 255, 0.15))',
+                    boxShadow: '0 10px 32px rgba(0, 0, 0, 0.28), 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 0 14px var(--theme-glow-shadow)',
+                    backdropFilter: 'blur(20px) saturate(160%)',
+                    WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+                  }
+          }
+        >
+          {/* Inner specular highlight reflection line */}
+          <span
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: 28,
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 40%)',
+              pointerEvents: 'none',
+            }}
+          />
+
+          <div className="flex items-center justify-between gap-3 px-3 py-2 sm:px-3.5 sm:py-2.5 relative z-10">
+            {/* Track Info (Cover + Title + Artist) */}
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              {/* Mini Cover Art */}
+              <div
+                className={`w-10 h-10 rounded-full overflow-hidden shrink-0 shadow-md relative ${
+                  isPlaying ? 'is-playing' : ''
+                }`}
+                style={{
+                  border: isMinimal
+                    ? '1.5px solid rgba(232, 169, 79, 0.6)'
+                    : isClassic || isLiquid
+                      ? '1.5px solid var(--spotify-glow, #22d3ee)'
+                      : '1.5px solid rgba(255,255,255,0.2)',
+                  boxShadow: isMinimal ? 'none' : '0 0 10px var(--theme-glow-shadow)',
+                }}
+              >
+                <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
+              </div>
+
+              {/* Title & Artist */}
+              <div className="flex flex-col min-w-0 flex-1 pr-1">
+                <span
+                  className={`text-xs sm:text-sm font-bold truncate leading-tight ${
+                    isMinimal
+                      ? 'font-serif text-[#F4ECE1]'
+                      : isClassic
+                        ? 'text-white font-extrabold'
+                        : 'text-white'
+                  }`}
+                >
+                  {currentTrack.title}
+                </span>
+                <span
+                  className={`text-[11px] truncate leading-tight mt-0.5 ${
+                    isMinimal
+                      ? 'text-[#B9AC9C]'
+                      : isClassic
+                        ? 'text-[var(--spotify-glow,#22d3ee)]/75'
+                        : 'text-white/60'
+                  }`}
+                >
+                  {currentTrack.artist || 'Nghệ sĩ chưa rõ'}
+                </span>
+              </div>
             </div>
 
-            {/* Title & Artist */}
-            <div className="flex flex-col min-w-0 flex-1 pr-1">
-              <span
-                className={`text-sm font-bold truncate leading-tight ${
-                  themeStyle === 'minimal-flat' ? 'font-serif text-[#F4ECE1]' : 'text-white'
-                }`}
+            {/* Action Buttons: Star + More Options */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={toggleFavoriteCurrentTrack}
+                style={
+                  isMinimal
+                    ? { backgroundColor: '#141017', border: '1px solid rgba(232, 169, 79, 0.35)', color: '#E8A94F' }
+                    : isClassic
+                      ? { backgroundColor: 'rgba(255, 255, 255, 0.05)', border: '1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, rgba(255,255,255,0.1))' }
+                      : { backgroundColor: 'rgba(255, 255, 255, 0.04)', border: '1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 30%, rgba(255,255,255,0.1))', backdropFilter: 'blur(12px)' }
+                }
+                className="w-8 h-8 rounded-full flex items-center justify-center active:scale-90 transition-all cursor-pointer"
+                title={currentTrack.is_favorite ? 'Bỏ yêu thích' : 'Yêu thích'}
               >
-                {currentTrack.title}
-              </span>
-              <span
-                className={`text-xs truncate leading-tight mt-0.5 ${
-                  themeStyle === 'minimal-flat' ? 'text-[#B9AC9C]' : 'text-slate-400'
-                }`}
+                <Star
+                  className={`w-4 h-4 transition-all ${
+                    currentTrack.is_favorite
+                      ? isMinimal
+                        ? 'text-[#E8A94F] fill-[#E8A94F]'
+                        : isClassic
+                          ? 'text-[var(--spotify-glow,#22d3ee)] fill-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_0_10px_var(--theme-glow-shadow)]'
+                          : 'text-amber-400 fill-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.6)]'
+                      : isMinimal
+                        ? 'text-[#B9AC9C] hover:text-[#E8A94F]'
+                        : isClassic
+                          ? 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)]'
+                          : 'text-white/60 hover:text-white'
+                  }`}
+                />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowMenuSheet(true)}
+                style={
+                  isMinimal
+                    ? { backgroundColor: '#141017', border: '1px solid rgba(232, 169, 79, 0.35)', color: '#E8A94F' }
+                    : isClassic
+                      ? { backgroundColor: 'rgba(255, 255, 255, 0.05)', border: '1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, rgba(255,255,255,0.1))' }
+                      : { backgroundColor: 'rgba(255, 255, 255, 0.04)', border: '1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 30%, rgba(255,255,255,0.1))', backdropFilter: 'blur(12px)' }
+                }
+                className="w-8 h-8 rounded-full flex items-center justify-center text-white/70 hover:text-white active:scale-90 transition-all cursor-pointer"
+                title="Tùy chọn khác"
               >
-                {currentTrack.artist || 'Nghệ sĩ chưa rõ'}
-              </span>
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
             </div>
-          </div>
-
-          {/* Action Cluster: Star / Favorite + More Options */}
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              type="button"
-              onClick={toggleFavoriteCurrentTrack}
-              className="w-9 h-9 rounded-full flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
-              title={currentTrack.is_favorite ? 'Bỏ yêu thích' : 'Yêu thích'}
-            >
-              <Star
-                className={`w-5 h-5 transition-all ${
-                  currentTrack.is_favorite
-                    ? themeStyle === 'minimal-flat'
-                      ? 'text-[#E8A94F] fill-[#E8A94F]'
-                      : 'text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]'
-                    : 'text-white/60 hover:text-white'
-                }`}
-              />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowMenuSheet(true)}
-              className="w-9 h-9 rounded-full flex items-center justify-center text-white/60 hover:text-white active:scale-90 transition-transform cursor-pointer"
-              title="Tùy chọn khác"
-            >
-              <MoreHorizontal className="w-5 h-5" />
-            </button>
           </div>
         </div>
       </header>
 
-      {/* 📜 3. Central Stage: Apple Music Kinetic Time-Synced Lyrics */}
+      {/* 📜 3. Central Stage: Kinetic Time-Synced Lyrics with Theme Typography */}
       <main className="relative z-10 flex-1 min-h-0 flex flex-col justify-center overflow-hidden px-5 sm:px-6">
         {lyricsLoading ? (
           <div className="flex flex-col items-center justify-center gap-3 my-auto text-slate-400">
-            <Loader2 className="w-7 h-7 animate-spin text-[var(--spotify-glow,#22d3ee)]" />
+            <Loader2
+              className="w-7 h-7 animate-spin"
+              style={{ color: isMinimal ? '#E8A94F' : 'var(--spotify-glow, #22d3ee)' }}
+            />
             <span className="text-xs font-semibold">Đang tải lời bài hát...</span>
           </div>
         ) : lyrics.length > 0 ? (
           <div
             ref={scrollContainerRef}
-            onScroll={handleUserScroll}
-            className="w-full h-full overflow-y-auto no-scrollbar flex flex-col gap-5 sm:gap-6 py-28 touch-pan-y"
+            onTouchStart={handleUserTouchStart}
+            onTouchEnd={handleUserTouchEnd}
+            onWheel={handleUserTouchStart}
+            className="w-full h-full overflow-y-auto no-scrollbar flex flex-col gap-6 py-28 touch-pan-y"
             style={{
               maskImage: 'linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%)',
               WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%)',
@@ -340,35 +477,46 @@ export function MobileFullviewPlayer() {
           >
             {lyrics.map((line, idx) => {
               const isActive = idx === activeIndex
-              const distance = activeIndex >= 0 ? Math.abs(idx - activeIndex) : 99
-
-              // Focus blur & opacity calculation based on theme style
-              const isLiquid = themeStyle === 'liquid-glass'
-              const isMinimal = themeStyle === 'minimal-flat'
+              const isSyncedMode = isSynced && activeIndex >= 0
 
               let blurPx = 0
               let opacity = 1.0
 
-              if (isActive) {
+              if (!isSyncedMode) {
+                // Không sync được lời bài hát: đừng blur gì hết!
+                blurPx = 0
+                opacity = 0.95
+              } else if (isActive) {
+                // Đang hát: Tiêu điểm sắc nét 100%, không blur
                 blurPx = 0
                 opacity = 1.0
-              } else if (distance === 1) {
-                blurPx = isLiquid ? 1.0 : 0
-                opacity = 0.55
-              } else if (distance === 2) {
-                blurPx = isLiquid ? 1.8 : 0
-                opacity = 0.38
               } else {
-                blurPx = isLiquid ? 2.5 : 0
-                opacity = 0.22
+                // Cả lời phía trên và phía dưới đều được blur quang học nhẹ theo tiêu cự
+                const distance = Math.abs(idx - activeIndex)
+                const isPast = idx < activeIndex
+
+                if (distance === 1) {
+                  blurPx = isLiquid ? 1.2 : 0.8
+                  opacity = isPast ? 0.55 : 0.45
+                } else if (distance === 2) {
+                  blurPx = isLiquid ? 2.0 : 1.4
+                  opacity = isPast ? 0.38 : 0.3
+                } else {
+                  blurPx = isLiquid ? 2.8 : 2.0
+                  opacity = isPast ? 0.22 : 0.18
+                }
               }
+
+              const hasRomaji = showTranslation && Boolean(line.romaji) && line.romaji !== line.text
 
               return (
                 <div
                   key={`${line.time}-${idx}`}
-                  ref={isActive ? activeLineRef : undefined}
+                  ref={(el) => {
+                    lineRefs.current[idx] = el
+                  }}
                   onClick={() => handleLineClick(line)}
-                  className={`cursor-pointer select-none origin-left transition-all duration-300 ease-out py-1 px-1 rounded-2xl ${
+                  className={`cursor-pointer select-none origin-left transition-all duration-300 ease-out py-1 px-1 rounded-2xl flex flex-col ${
                     isActive ? 'scale-[1.02]' : 'hover:opacity-80 active:scale-98'
                   }`}
                   style={{
@@ -377,159 +525,446 @@ export function MobileFullviewPlayer() {
                     transform: isActive ? 'scale(1.02)' : 'scale(1)',
                   }}
                 >
+                  {/* Main Lyric Line */}
                   <p
-                    className={`leading-snug transition-all duration-300 ${
+                    className={`leading-tight transition-all duration-300 ${
                       isMinimal ? 'font-serif' : 'font-sans'
                     } ${
                       isActive
                         ? isMinimal
                           ? 'text-2xl sm:text-3xl font-black text-[#F4ECE1] drop-shadow-sm'
-                          : 'text-2xl sm:text-3xl font-black text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]'
+                          : isClassic
+                            ? 'text-2xl sm:text-3xl font-black text-white drop-shadow-[0_0_15px_var(--theme-glow-shadow)]'
+                            : 'text-2xl sm:text-3xl font-black text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]'
                         : isMinimal
                           ? 'text-xl sm:text-2xl font-bold text-[#B9AC9C]'
-                          : 'text-xl sm:text-2xl font-bold text-white'
+                          : isClassic
+                            ? 'text-xl sm:text-2xl font-bold text-slate-300'
+                            : 'text-xl sm:text-2xl font-bold text-white'
                     }`}
                   >
                     {line.text}
                   </p>
+
+                  {/* Phonetic Romaji / Pronunciation Subtitle (Themed) */}
+                  {hasRomaji && (
+                    <p
+                      className={`text-sm sm:text-base font-semibold mt-1 tracking-wide transition-all duration-300 ${
+                        isActive
+                          ? isMinimal
+                            ? 'text-[#E8A94F]'
+                            : isClassic
+                              ? 'text-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_0_8px_var(--theme-glow-shadow)] font-bold'
+                              : 'text-white/85 drop-shadow-sm'
+                          : isMinimal
+                            ? 'text-[#8A7E70]'
+                            : isClassic
+                              ? 'text-[var(--spotify-glow,#22d3ee)]/50'
+                              : 'text-white/50'
+                      }`}
+                    >
+                      {line.romaji}
+                    </p>
+                  )}
                 </div>
               )
             })}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center gap-3 my-auto text-slate-400 text-center px-4">
-            <Mic2 className="w-8 h-8 text-slate-500 stroke-[1.5]" />
+            <Sparkles
+              className="w-8 h-8 stroke-[1.5]"
+              style={{ color: isMinimal ? '#E8A94F' : 'var(--spotify-glow, #22d3ee)' }}
+            />
             <p className="text-sm font-semibold text-white">Chưa có lời đồng bộ cho bài hát này</p>
             <p className="text-xs text-slate-400">Bạn có thể tự tìm kiếm hoặc thưởng thức giai điệu tuyệt vời</p>
           </div>
         )}
       </main>
 
-      {/* 🎛️ 4. Bottom Control Island: Scrubber & Tactile Buttons */}
-      <footer className="relative z-20 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] px-5 sm:px-6 pt-2 flex flex-col gap-3 shrink-0">
-        {/* Utility Buttons Row */}
-        <div className="flex items-center justify-between px-1">
-          <button
-            type="button"
-            onClick={() => setShowTranslation((prev) => !prev)}
-            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-              showTranslation
-                ? themeStyle === 'minimal-flat'
-                  ? 'bg-[#E8A94F]/20 text-[#E8A94F] border border-[#E8A94F]/40'
-                  : 'bg-white/15 text-white border border-white/20'
-                : 'text-white/40 hover:text-white/70'
-            }`}
-            title="Bật/Tắt chế độ phiên âm/dịch"
-          >
-            <Languages className="w-4 h-4" />
-          </button>
+      {/* 🎛️ 4. Floating Liquid Glass Bottom Control Block (Unified & Refined) */}
+      <footer
+        className="relative z-20 mx-3 sm:mx-4 mb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] mt-auto rounded-2xl overflow-hidden select-none transition-all duration-300 shadow-2xl p-3.5 sm:p-4 flex flex-col gap-2.5"
+        style={
+          isMinimal
+            ? {
+                backgroundColor: '#1D1720',
+                border: '1px solid rgba(232, 169, 79, 0.45)',
+                boxShadow: '0 8px 28px rgba(0,0,0,0.35)',
+              }
+            : isClassic
+              ? {
+                  backgroundColor: 'var(--elevation-2-bg, #111622)',
+                  border: '1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 45%, rgba(255,255,255,0.15))',
+                  boxShadow: '0 0 20px var(--theme-glow-shadow), 0 8px 28px rgba(0,0,0,0.45)',
+                }
+              : {
+                  backgroundColor: 'rgba(255, 255, 255, 0.035)',
+                  border: '1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, rgba(255, 255, 255, 0.15))',
+                  boxShadow: '0 12px 36px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 0 16px var(--theme-glow-shadow)',
+                  backdropFilter: 'blur(20px) saturate(160%)',
+                  WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+                }
+        }
+      >
+        {/* Inner specular highlight line */}
+        <span
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            borderRadius: '1rem',
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 40%)',
+            pointerEvents: 'none',
+          }}
+        />
 
-          <button
-            type="button"
-            onClick={() => setShowShareModal(true)}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-white/60 hover:text-white bg-white/5 border border-white/10 active:scale-95 transition-all cursor-pointer"
-            title="Chia sẻ câu hát"
-          >
-            <Sparkles className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
-          </button>
-        </div>
+          {/* Row 1: Utility Bar (Romaji + Shuffle + Favorite + Share) */}
+          <div className="flex items-center justify-between px-0.5 relative z-10">
+            {/* Romaji Toggle */}
+            <button
+              type="button"
+              onClick={() => setShowTranslation((prev) => !prev)}
+              style={
+                showTranslation
+                  ? isMinimal
+                    ? { backgroundColor: 'rgba(232, 169, 79, 0.18)', borderColor: '#E8A94F', color: '#E8A94F' }
+                    : isClassic
+                      ? {
+                          backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.25))',
+                          borderColor: 'var(--spotify-glow, #22d3ee)',
+                          color: 'var(--spotify-glow, #22d3ee)',
+                          boxShadow: '0 0 12px var(--theme-glow-shadow)',
+                        }
+                      : {
+                          backgroundColor: 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 18%, rgba(255,255,255,0.06))',
+                          borderColor: 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 60%, rgba(255,255,255,0.25))',
+                          color: 'var(--spotify-glow, #22d3ee)',
+                          boxShadow: '0 4px 14px var(--theme-glow-shadow)',
+                          backdropFilter: 'blur(14px)',
+                        }
+                  : isMinimal
+                    ? { backgroundColor: '#141017', borderColor: 'rgba(232, 169, 79, 0.25)', color: '#B9AC9C' }
+                    : { backgroundColor: 'rgba(255, 255, 255, 0.04)', borderColor: 'rgba(255, 255, 255, 0.08)', color: 'rgba(255, 255, 255, 0.5)' }
+              }
+              className="px-2.5 py-1 rounded-full flex items-center gap-1 text-[11px] font-bold border transition-all cursor-pointer active:scale-95"
+              title="Bật/Tắt phiên âm Romaji"
+            >
+              <Languages className="w-3.5 h-3.5" />
+              <span>Romaji</span>
+            </button>
 
-        {/* Timeline Precision Scrubber */}
-        <div className="flex flex-col gap-1.5 w-full">
-          <div
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect()
-              const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-              seek(pct * (duration || currentTrack.duration || 0))
-            }}
-            className="relative w-full h-4 flex items-center cursor-pointer group"
-          >
-            <div className="w-full h-1.5 rounded-full bg-white/15 overflow-hidden relative">
+            {/* Right Action Icons: Shuffle + Favorite + Share */}
+            <div className="flex items-center gap-2">
+              {/* Shuffle Toggle Button */}
+              <button
+                type="button"
+                onClick={toggleShuffle}
+                style={
+                  isShuffle
+                    ? isMinimal
+                      ? { backgroundColor: 'rgba(232, 169, 79, 0.2)', borderColor: '#E8A94F', color: '#E8A94F' }
+                      : isClassic
+                        ? {
+                            backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                            borderColor: 'var(--spotify-glow, #22d3ee)',
+                            color: 'var(--spotify-glow, #22d3ee)',
+                            boxShadow: '0 0 10px var(--theme-glow-shadow)',
+                          }
+                        : {
+                            backgroundColor: 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 20%, rgba(255,255,255,0.06))',
+                            borderColor: 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 50%, rgba(255,255,255,0.2))',
+                            color: 'var(--spotify-glow, #22d3ee)',
+                            boxShadow: '0 0 12px var(--theme-glow-shadow)',
+                            backdropFilter: 'blur(12px)',
+                          }
+                    : isMinimal
+                      ? { backgroundColor: '#141017', borderColor: 'rgba(232, 169, 79, 0.2)', color: '#B9AC9C' }
+                      : { backgroundColor: 'rgba(255, 255, 255, 0.04)', borderColor: 'rgba(255, 255, 255, 0.08)', color: 'rgba(255, 255, 255, 0.5)' }
+                }
+                className="w-8 h-8 rounded-full flex items-center justify-center border active:scale-90 transition-all cursor-pointer relative"
+                title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
+              >
+                <Shuffle className="w-3.5 h-3.5" />
+                {isShuffle && (
+                  <span
+                    className="absolute -bottom-0.5 w-1 h-1 rounded-full"
+                    style={{ backgroundColor: isMinimal ? '#E8A94F' : 'var(--spotify-glow, #22d3ee)' }}
+                  />
+                )}
+              </button>
+
+              {/* Favorite Toggle Button */}
+              <button
+                type="button"
+                onClick={toggleFavoriteCurrentTrack}
+                style={
+                  currentTrack.is_favorite
+                    ? isMinimal
+                      ? { backgroundColor: 'rgba(232, 169, 79, 0.2)', borderColor: '#E8A94F', color: '#E8A94F' }
+                      : isClassic
+                        ? {
+                            backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                            borderColor: 'var(--spotify-glow, #22d3ee)',
+                            color: 'var(--spotify-glow, #22d3ee)',
+                            boxShadow: '0 0 10px var(--theme-glow-shadow)',
+                          }
+                        : {
+                            backgroundColor: 'rgba(244, 63, 94, 0.15)',
+                            borderColor: 'rgba(244, 63, 94, 0.35)',
+                            color: '#f43f5e',
+                            boxShadow: '0 0 12px rgba(244, 63, 94, 0.3)',
+                            backdropFilter: 'blur(12px)',
+                          }
+                    : isMinimal
+                      ? { backgroundColor: '#141017', borderColor: 'rgba(232, 169, 79, 0.2)', color: '#B9AC9C' }
+                      : { backgroundColor: 'rgba(255, 255, 255, 0.04)', borderColor: 'rgba(255, 255, 255, 0.08)', color: 'rgba(255, 255, 255, 0.5)' }
+                }
+                className="w-8 h-8 rounded-full flex items-center justify-center border active:scale-90 transition-all cursor-pointer"
+                title={currentTrack.is_favorite ? 'Bỏ yêu thích' : 'Yêu thích'}
+              >
+                <Heart
+                  className={`w-3.5 h-3.5 transition-all ${
+                    currentTrack.is_favorite
+                      ? isMinimal
+                        ? 'fill-[#E8A94F]'
+                        : isClassic
+                          ? 'fill-[var(--spotify-glow,#22d3ee)]'
+                          : 'fill-[#f43f5e]'
+                      : ''
+                  }`}
+                />
+              </button>
+
+              {/* Share Lyrics Story Button */}
+              <button
+                type="button"
+                onClick={() => setShowShareModal(true)}
+                style={
+                  isMinimal
+                    ? { backgroundColor: '#141017', borderColor: 'rgba(232, 169, 79, 0.2)', color: '#E8A94F' }
+                    : isClassic
+                      ? {
+                          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                          borderColor: 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 40%, rgba(255,255,255,0.1))',
+                          color: 'var(--spotify-glow, #22d3ee)',
+                          boxShadow: '0 0 10px var(--theme-glow-shadow)',
+                        }
+                      : {
+                          backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                          borderColor: 'rgba(255, 255, 255, 0.1)',
+                          color: 'var(--spotify-glow, #22d3ee)',
+                          backdropFilter: 'blur(14px)',
+                        }
+                }
+                className="w-8 h-8 rounded-full flex items-center justify-center border active:scale-95 transition-all cursor-pointer"
+                title="Chia sẻ câu hát"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Row 2: Timeline Precision Scrubber */}
+          <div className="flex flex-col gap-1 w-full relative z-10">
+            <div
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect()
+                const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+                seek(pct * (duration || currentTrack.duration || 0))
+              }}
+              className="relative w-full h-3.5 flex items-center cursor-pointer group"
+            >
+              {/* Background Track */}
               <div
-                className={`h-full rounded-full transition-[width] duration-100 ${
-                  themeStyle === 'minimal-flat' ? 'bg-[#E8A94F]' : 'bg-white'
+                className={`w-full h-1.5 rounded-full overflow-hidden relative ${
+                  isMinimal ? 'bg-[#2A222F]' : 'bg-white/15'
                 }`}
-                style={{ width: `${progressPercent}%` }}
+              >
+                {/* Progress Fill */}
+                <div
+                  className="h-full rounded-full transition-[width] duration-100"
+                  style={{
+                    width: `${progressPercent}%`,
+                    background: isMinimal
+                      ? '#E8A94F'
+                      : isClassic
+                        ? 'linear-gradient(90deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))'
+                        : 'linear-gradient(90deg, color-mix(in srgb, var(--spotify-glow, #22d3ee) 70%, white), var(--spotify-glow, #22d3ee))',
+                    boxShadow: isClassic || isLiquid ? '0 0 10px var(--theme-glow-shadow)' : 'none',
+                  }}
+                />
+              </div>
+              {/* Grabber thumb */}
+              <div
+                className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full shadow-md transition-transform scale-0 group-hover:scale-100 group-active:scale-100"
+                style={{
+                  left: `calc(${progressPercent}% - 6px)`,
+                  backgroundColor: isMinimal ? '#E8A94F' : 'var(--spotify-glow, #ffffff)',
+                  boxShadow: isMinimal ? 'none' : '0 0 10px var(--theme-glow-shadow)',
+                }}
               />
             </div>
-            {/* Grabber thumb */}
+
             <div
-              className={`absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full shadow-md transition-transform scale-0 group-hover:scale-100 group-active:scale-100 ${
-                themeStyle === 'minimal-flat' ? 'bg-[#E8A94F]' : 'bg-white'
-              }`}
-              style={{ left: `calc(${progressPercent}% - 7px)` }}
+              className="flex items-center justify-between text-[11px] font-mono tracking-tight font-semibold px-0.5"
+              style={{
+                color: isMinimal
+                  ? '#B9AC9C'
+                  : isClassic
+                    ? 'var(--spotify-glow, #22d3ee)'
+                    : 'rgba(255, 255, 255, 0.65)',
+              }}
+            >
+              <span>{formatTime(currentTime)}</span>
+              <span>{formatNegativeTime(remainingTime)}</span>
+            </div>
+          </div>
+
+          {/* Row 3: Main Playback Controls Trio (Prev / Play-Pause / Next) */}
+          <div className="flex items-center justify-center gap-9 sm:gap-11 py-0.5 relative z-10">
+            {/* Previous Track Button */}
+            <button
+              type="button"
+              onClick={prevTrack}
+              style={
+                isMinimal
+                  ? { backgroundColor: '#141017', borderColor: 'rgba(232, 169, 79, 0.3)', color: '#E8A94F' }
+                  : isClassic
+                    ? {
+                        backgroundColor: 'var(--elevation-2-bg, #111622)',
+                        borderColor: 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, rgba(255,255,255,0.1))',
+                        color: 'var(--spotify-glow, #22d3ee)',
+                        boxShadow: '0 0 12px var(--theme-glow-shadow)',
+                      }
+                    : {
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        borderColor: 'rgba(255, 255, 255, 0.12)',
+                        color: 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 75%, white)',
+                        backdropFilter: 'blur(16px)',
+                      }
+              }
+              className="w-10 h-10 rounded-full flex items-center justify-center border active:scale-85 transition-all cursor-pointer shadow-md"
+              title="Bài trước"
+            >
+              <SkipBack className="w-4.5 h-4.5 fill-current" />
+            </button>
+
+            {/* Main Play / Pause Button (Themed Hero Vessel) */}
+            <button
+              type="button"
+              onClick={togglePlay}
+              style={
+                isMinimal
+                  ? {
+                      backgroundColor: '#E8A94F',
+                      borderColor: '#E8A94F',
+                      color: '#141017',
+                      boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                    }
+                  : isClassic
+                    ? {
+                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                        borderColor: 'rgba(255, 255, 255, 0.4)',
+                        color: '#07090e',
+                        boxShadow: '0 0 25px var(--theme-glow-shadow), 0 4px 16px rgba(0,0,0,0.5)',
+                      }
+                    : {
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        borderColor: 'rgba(255, 255, 255, 0.22)',
+                        color: 'var(--spotify-glow, #22d3ee)',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3), 0 0 20px var(--theme-glow-shadow)',
+                        backdropFilter: 'blur(20px) saturate(160%)',
+                        WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+                      }
+              }
+              className="w-13 h-13 sm:w-14 sm:h-14 rounded-full flex items-center justify-center border active:scale-85 transition-all cursor-pointer"
+              title={isPlaying ? 'Tạm dừng' : 'Phát'}
+            >
+              {isBuffering ? (
+                <Loader2 className="w-6 h-6 animate-spin text-current" />
+              ) : isPlaying ? (
+                <Pause className="w-6 h-6 fill-current" />
+              ) : (
+                <Play className="w-6 h-6 fill-current ml-0.5" />
+              )}
+            </button>
+
+            {/* Next Track Button */}
+            <button
+              type="button"
+              onClick={nextTrack}
+              style={
+                isMinimal
+                  ? { backgroundColor: '#141017', borderColor: 'rgba(232, 169, 79, 0.3)', color: '#E8A94F' }
+                  : isClassic
+                    ? {
+                        backgroundColor: 'var(--elevation-2-bg, #111622)',
+                        borderColor: 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, rgba(255,255,255,0.1))',
+                        color: 'var(--spotify-glow, #22d3ee)',
+                        boxShadow: '0 0 12px var(--theme-glow-shadow)',
+                      }
+                    : {
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        borderColor: 'rgba(255, 255, 255, 0.12)',
+                        color: 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 75%, white)',
+                        backdropFilter: 'blur(16px)',
+                      }
+              }
+              className="w-10 h-10 rounded-full flex items-center justify-center border active:scale-85 transition-all cursor-pointer shadow-md"
+              title="Bài kế tiếp"
+            >
+              <SkipForward className="w-4.5 h-4.5 fill-current" />
+            </button>
+          </div>
+
+          {/* Row 4: Volume Slider Row */}
+          <div className="flex items-center gap-3 px-1 pt-0.5 relative z-10">
+            <button
+              type="button"
+              onClick={handleVolumeToggle}
+              style={{
+                color: isMinimal
+                  ? '#E8A94F'
+                  : isClassic
+                    ? 'var(--spotify-glow, #22d3ee)'
+                    : 'rgba(255, 255, 255, 0.6)',
+              }}
+              className="active:scale-90 transition-all cursor-pointer"
+            >
+              {volume === 0 ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={volume}
+              onChange={(e) => setVolume(Number(e.target.value))}
+              style={{
+                background: `linear-gradient(to right, ${
+                  isMinimal
+                    ? '#E8A94F'
+                    : isClassic
+                      ? 'var(--spotify-glow, #22d3ee)'
+                      : 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 80%, white)'
+                } ${volume * 100}%, ${
+                  isMinimal ? '#2A222F' : 'rgba(255,255,255,0.15)'
+                } ${volume * 100}%)`,
+              }}
+              className="w-full h-1 rounded-lg appearance-none cursor-pointer outline-none"
+            />
+            <Volume2
+              className="w-3.5 h-3.5"
+              style={{
+                color: isMinimal
+                  ? '#E8A94F'
+                  : isClassic
+                    ? 'var(--spotify-glow, #22d3ee)'
+                    : 'rgba(255, 255, 255, 0.6)',
+              }}
             />
           </div>
-
-          <div className="flex items-center justify-between text-[11px] font-mono tracking-tight font-semibold text-white/50 px-0.5">
-            <span>{formatTime(currentTime)}</span>
-            <span>{formatNegativeTime(remainingTime)}</span>
-          </div>
-        </div>
-
-        {/* Main Playback Controls Trio */}
-        <div className="flex items-center justify-center gap-9 sm:gap-12 py-1">
-          <button
-            type="button"
-            onClick={prevTrack}
-            className="w-12 h-12 flex items-center justify-center text-white/90 active:scale-85 transition-transform cursor-pointer"
-            title="Bài trước"
-          >
-            <SkipBack className="w-7 h-7 sm:w-8 sm:h-8 fill-current" />
-          </button>
-
-          <button
-            type="button"
-            onClick={togglePlay}
-            className={`w-16 h-16 rounded-full flex items-center justify-center text-black active:scale-90 transition-transform shadow-2xl cursor-pointer ${
-              themeStyle === 'minimal-flat' ? 'bg-[#E8A94F]' : 'bg-white'
-            }`}
-            title={isPlaying ? 'Tạm dừng' : 'Phát'}
-          >
-            {isBuffering ? (
-              <Loader2 className="w-8 h-8 animate-spin text-black" />
-            ) : isPlaying ? (
-              <Pause className="w-8 h-8 fill-current" />
-            ) : (
-              <Play className="w-8 h-8 fill-current ml-1" />
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={nextTrack}
-            className="w-12 h-12 flex items-center justify-center text-white/90 active:scale-85 transition-transform cursor-pointer"
-            title="Bài kế tiếp"
-          >
-            <SkipForward className="w-7 h-7 sm:w-8 sm:h-8 fill-current" />
-          </button>
-        </div>
-
-        {/* Volume Slider Row */}
-        <div className="flex items-center gap-3 px-2 pt-1">
-          <button
-            type="button"
-            onClick={handleVolumeToggle}
-            className="text-white/40 hover:text-white active:scale-90 transition-all cursor-pointer"
-          >
-            {volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-          </button>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={volume}
-            onChange={(e) => setVolume(Number(e.target.value))}
-            style={{
-              background: `linear-gradient(to right, ${
-                themeStyle === 'minimal-flat' ? '#E8A94F' : 'rgba(255,255,255,0.9)'
-              } ${volume * 100}%, rgba(255,255,255,0.15) ${volume * 100}%)`,
-            }}
-            className="w-full h-1 rounded-lg appearance-none cursor-pointer outline-none"
-          />
-          <Volume2 className="w-4 h-4 text-white/40" />
-        </div>
       </footer>
 
       {/* 📱 5. Context Menu Bottom Sheet */}
@@ -540,10 +975,16 @@ export function MobileFullviewPlayer() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full bg-[#10141e] border-t border-white/15 rounded-t-3xl p-5 shadow-2xl flex flex-col gap-3 max-h-[70vh] animate-in slide-in-from-bottom-5 duration-200 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]"
+            className={`w-full border-t rounded-t-3xl p-5 shadow-2xl flex flex-col gap-3 max-h-[70vh] animate-in slide-in-from-bottom-5 duration-200 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] ${
+              isMinimal
+                ? 'bg-[#141017] border-[#E8A94F]/30 text-[#F4ECE1]'
+                : isClassic
+                  ? 'bg-[#0a0e17] border-white/15 text-white'
+                  : 'bg-[#10141e]/95 backdrop-blur-2xl border-white/15 text-white'
+            }`}
           >
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
-              <span className="text-sm font-bold text-white">Tùy chọn bài hát</span>
+              <span className="text-sm font-bold">Tùy chọn bài hát</span>
               <button
                 type="button"
                 onClick={() => setShowMenuSheet(false)}
@@ -559,9 +1000,19 @@ export function MobileFullviewPlayer() {
                 setShowMenuSheet(false)
                 setShowShareModal(true)
               }}
-              className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.04] hover:bg-white/10 text-white text-xs font-semibold transition-all"
+              style={
+                isMinimal
+                  ? { backgroundColor: 'rgba(232, 169, 79, 0.1)', borderColor: 'rgba(232, 169, 79, 0.25)' }
+                  : isClassic
+                    ? { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderColor: 'rgba(255, 255, 255, 0.1)' }
+                    : { backgroundColor: 'rgba(255, 255, 255, 0.04)', borderColor: 'rgba(255, 255, 255, 0.08)' }
+              }
+              className="flex items-center gap-3 p-3.5 rounded-2xl border text-xs font-semibold transition-all"
             >
-              <Share2 className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
+              <Share2
+                className="w-4 h-4"
+                style={{ color: isMinimal ? '#E8A94F' : 'var(--spotify-glow, #22d3ee)' }}
+              />
               <span>Chia sẻ trích dẫn lời bài hát</span>
             </button>
 
@@ -572,9 +1023,19 @@ export function MobileFullviewPlayer() {
                 closeNowPlayingOverlay()
                 toggleQueue()
               }}
-              className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.04] hover:bg-white/10 text-white text-xs font-semibold transition-all"
+              style={
+                isMinimal
+                  ? { backgroundColor: 'rgba(232, 169, 79, 0.1)', borderColor: 'rgba(232, 169, 79, 0.25)' }
+                  : isClassic
+                    ? { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderColor: 'rgba(255, 255, 255, 0.1)' }
+                    : { backgroundColor: 'rgba(255, 255, 255, 0.04)', borderColor: 'rgba(255, 255, 255, 0.08)' }
+              }
+              className="flex items-center gap-3 p-3.5 rounded-2xl border text-xs font-semibold transition-all"
             >
-              <ListMusic className="w-4 h-4 text-emerald-400" />
+              <ListMusic
+                className="w-4 h-4"
+                style={{ color: isMinimal ? '#E8A94F' : '#34d399' }}
+              />
               <span>Xem danh sách hàng đợi phát</span>
             </button>
           </div>
@@ -587,7 +1048,7 @@ export function MobileFullviewPlayer() {
           isOpen={showShareModal}
           onClose={() => setShowShareModal(false)}
           track={currentTrack}
-          lyrics={shareLyrics}
+          lyrics={lyrics}
         />
       )}
     </div>
