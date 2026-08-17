@@ -342,11 +342,12 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
       {/* 📱 MOBILE FLOATING MINI PLAYER BAR (Visible on < 768px) */}
       <div
         onClick={openNowPlayingOverlay}
-        className={`${miniPlayerClassName} rounded-2xl border border-white/10 shadow-2xl backdrop-blur-2xl select-none cursor-pointer active:opacity-90 transition-opacity relative overflow-hidden pointer-events-auto`}
+        className={`${miniPlayerClassName} !rounded-[37px] rounded-[37px] border border-white/10 shadow-2xl backdrop-blur-2xl select-none cursor-pointer active:opacity-90 transition-opacity relative overflow-hidden pointer-events-auto`}
+        style={{ borderRadius: 37 }}
       >
-        <PlayerBarGlowBorder duration={duration || currentTrack.duration} rx={16} />
+        <PlayerBarGlowBorder duration={duration || currentTrack.duration} rx={34} />
         {/* Main row */}
-        <div className="flex items-center gap-2.5 w-full h-[54px] px-2.5 relative z-10">
+        <div className="flex items-center gap-2.5 w-full h-[54px] px-3 sm:px-3.5 relative z-10">
           {/* Cover Art */}
           <div className={`player-cover w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 relative border border-white/10 shadow-md ${isPlaying ? 'is-playing' : ''}`}>
             <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />

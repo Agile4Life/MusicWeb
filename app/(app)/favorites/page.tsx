@@ -14,25 +14,33 @@ import { useRouter } from 'next/navigation'
 import { TrackList } from '@/components/track/TrackList'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 
+let cachedFavorites: Track[] = []
+let favoritesFetchedAt = 0
+
 export default function FavoritesPage() {
   const router = useRouter()
   const supabase = createClient()
   const { data: nextAuthSession } = useSession()
   const { playTrack } = usePlayer()
 
-  const [tracks, setTracks] = useState<Track[]>([])
+  const [tracks, setTracks] = useState<Track[]>(cachedFavorites)
   const [playlists, setPlaylists] = useState<Playlist[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(cachedFavorites.length === 0)
   const [searchQuery, setSearchQuery] = useState('')
   const [supabaseUser, setSupabaseUser] = useState<any>(null)
 
-  const fetchFavorites = useCallback(async () => {
-    setLoading(true)
+  const fetchFavorites = useCallback(async (silent = false) => {
+    if (!silent && cachedFavorites.length === 0) {
+      setLoading(true)
+    }
     try {
       const res = await fetch('/api/favorites/list?limit=100')
       if (res.ok) {
-        const { tracks } = await res.json()
-        setTracks(tracks || [])
+        const { tracks: incomingTracks } = await res.json()
+        const resolved = incomingTracks || []
+        cachedFavorites = resolved
+        favoritesFetchedAt = Date.now()
+        setTracks(resolved)
       } else if (res.status === 401) {
         setTracks([])
       }

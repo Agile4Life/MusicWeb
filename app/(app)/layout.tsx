@@ -16,6 +16,7 @@ import { NowPlayingOverlay } from '@/components/player/NowPlayingOverlay'
 import { mobileContentPaddingClassName } from '@/components/player/mobileLayout'
 import { WelcomeAnnouncementModal } from '@/components/modals/WelcomeAnnouncementModal'
 import { LiquidAmbientCanvas } from '@/components/theme/LiquidAmbientCanvas'
+import { NavPreloader } from '@/components/navigation/NavPreloader'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isScrolled, setIsScrolled] = useState(false)
@@ -36,6 +37,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <PlaylistProvider>
               <SearchProvider>
                 <div className="h-[100dvh] w-screen flex flex-col bg-[var(--bg-space,#07090e)] overflow-hidden font-sans p-0 sm:p-2 lg:p-3 relative">
+                  {/* Automatic Background Route & Data Preloader */}
+                  <NavPreloader />
+
                   {/* Dynamic Liquid Ambient Canvas */}
                   <LiquidAmbientCanvas />
 
@@ -62,7 +66,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   </div>
 
                   {/* Player Bar (Elevation 3 - Fixed above bottom navigation on mobile) */}
-                  <div className="fixed lg:absolute bottom-[calc(var(--bottom-nav-height,84px)+env(safe-area-inset-bottom,0px)+12px)] lg:bottom-3 left-2 sm:left-2 lg:left-3 right-2 sm:right-2 lg:right-3 z-40 pointer-events-none">
+                  <div className="fixed lg:absolute bottom-[calc(var(--bottom-nav-height,84px)+env(safe-area-inset-bottom,0px)+12px)] lg:bottom-3 left-4 sm:left-4 lg:left-3 right-4 sm:right-4 lg:right-3 z-40 pointer-events-none">
                     <PlayerBar isScrolled={isScrolled} />
                   </div>
                   <NowPlayingOverlay />

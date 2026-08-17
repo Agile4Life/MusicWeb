@@ -216,6 +216,7 @@ export function LiquidNavBar({
   className = '',
   style,
 }: LiquidNavBarProps) {
+  const router = useRouter()
   const pathname = usePathname()
   const filterId = useId()
 
@@ -233,11 +234,24 @@ export function LiquidNavBar({
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
   const dragRef = useRef({
     active: false,
+    didMove: false,
+    startX: 0,
     lastX: 0,
     lastTime: 0,
     smoothVelocity: 0,
     baseWidth: 0,
   })
+
+  // Prefetch all tab routes immediately on mount for zero-delay navigation
+  useEffect(() => {
+    tabs.forEach((tab) => {
+      if (tab.href) {
+        try {
+          router.prefetch(tab.href)
+        } catch {}
+      }
+    })
+  }, [router, tabs])
 
   // Determine default active tab from pathname
   useEffect(() => {
@@ -319,9 +333,12 @@ export function LiquidNavBar({
   const getPointerX = (e: PointerEvent | React.PointerEvent) => e.clientX
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
+    const px = getPointerX(e)
     dragRef.current = {
       active: true,
-      lastX: getPointerX(e),
+      didMove: false,
+      startX: px,
+      lastX: px,
       lastTime: performance.now(),
       smoothVelocity: 0,
       baseWidth: blobWidth,
@@ -336,6 +353,9 @@ export function LiquidNavBar({
 
     const now = performance.now()
     const px = getPointerX(e)
+    if (Math.abs(px - dragRef.current.startX) > 4) {
+      dragRef.current.didMove = true
+    }
     const dt = now - dragRef.current.lastTime
     if (dt > 0) {
       const vel = (px - dragRef.current.lastX) / dt * 1000
@@ -373,6 +393,7 @@ export function LiquidNavBar({
   const onPointerUp = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current.active) return
     dragRef.current.active = false
+    dragRef.current.didMove = false
     setIsDragging(false)
     setIsNavExpanded(false)
 
@@ -389,15 +410,24 @@ export function LiquidNavBar({
       if (d < minDist) { minDist = d; nearest = i }
     })
 
-    const target = metrics[nearest]
-    const overshoot = dragRef.current.smoothVelocity * 0.015
-    const finalLeft = Math.max(6, Math.min(navRect.width - target.width - 6, target.left + overshoot))
-
-    setBlobLeft(finalLeft)
-    setBlobWidth(target.width)
+    // Auto-position blob directly to nearest destination tab
+    const targetEl = tabRefs.current[nearest]
+    if (targetEl) {
+      setBlobLeft(targetEl.offsetLeft)
+      setBlobWidth(targetEl.offsetWidth)
+    }
     setActiveIndex(nearest)
     onTabChange?.(nearest)
-  }, [getTabMetrics, onTabChange])
+
+    // Trigger destination tab action & route change
+    const targetTabData = tabs[nearest]
+    if (targetTabData) {
+      targetTabData.onClick?.()
+      if (targetTabData.href && pathname !== targetTabData.href) {
+        router.push(targetTabData.href)
+      }
+    }
+  }, [getTabMetrics, onTabChange, pathname, router, tabs])
 
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     const nav = navRef.current
@@ -424,14 +454,21 @@ export function LiquidNavBar({
   }, [])
 
   const handleTabClick = useCallback((index: number) => {
-    if (index === activeIndex) return
-    const tab = tabRefs.current[index]
-    if (!tab || !navRef.current) return
-    setBlobLeft(tab.offsetLeft)
-    setBlobWidth(tab.offsetWidth)
+    const tabEl = tabRefs.current[index]
+    if (tabEl) {
+      setBlobLeft(tabEl.offsetLeft)
+      setBlobWidth(tabEl.offsetWidth)
+    }
     setActiveIndex(index)
     onTabChange?.(index)
-  }, [activeIndex, onTabChange])
+    const targetTabData = tabs[index]
+    if (targetTabData) {
+      targetTabData.onClick?.()
+      if (targetTabData.href && pathname !== targetTabData.href) {
+        router.push(targetTabData.href)
+      }
+    }
+  }, [onTabChange, pathname, router, tabs])
 
   // ─── Render ───
 
@@ -456,11 +493,11 @@ export function LiquidNavBar({
           ref={navRef}
           className={`liquid-nav relative h-[68px] rounded-[37px] ${isNavExpanded ? 'scale-[1.01]' : ''}`}
           style={{
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.18)',
-            backdropFilter: 'blur(22px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(22px) saturate(160%)',
+            background: 'rgba(255,255,255,0.025)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.12)',
+            backdropFilter: 'blur(16px) saturate(150%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(150%)',
             transformOrigin: 'center bottom',
             transition: isDragging ? 'transform 0.08s ease-out' : 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
           }}
@@ -478,7 +515,7 @@ export function LiquidNavBar({
               position: 'absolute',
               inset: 0,
               borderRadius: 37,
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 40%)',
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 40%)',
               pointerEvents: 'none',
             }}
           />
@@ -508,8 +545,8 @@ export function LiquidNavBar({
                 ? 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 18%, rgba(255,255,255,0.12))'
                 : 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 12%, rgba(255,255,255,0.06))',
               boxShadow: isDragging
-                ? '0 0 0 1.5px color-mix(in srgb, var(--spotify-glow, #22d3ee) 65%, rgba(255,255,255,0.7)), 0 18px 44px rgba(0,0,0,0.7), 0 6px 18px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -2px 4px rgba(0,0,0,0.3), 0 0 28px color-mix(in srgb, var(--spotify-glow, #22d3ee) 45%, transparent)'
-                : '0 0 0 1px color-mix(in srgb, var(--spotify-glow, #22d3ee) 30%, transparent), 0 4px 16px color-mix(in srgb, var(--spotify-glow, #22d3ee) 20%, transparent), inset 0 1px 0 rgba(255,255,255,0.2)',
+                ? '0 0 0 0.75px color-mix(in srgb, var(--spotify-glow, #22d3ee) 40%, rgba(255,255,255,0.45)), 0 18px 44px rgba(0,0,0,0.65), 0 6px 18px rgba(0,0,0,0.35), inset 0 1px 2px rgba(255,255,255,0.35), inset 0 -1px 2px rgba(0,0,0,0.2), 0 0 18px color-mix(in srgb, var(--spotify-glow, #22d3ee) 28%, transparent)'
+                : '0 0 0 0.5px color-mix(in srgb, var(--spotify-glow, #22d3ee) 20%, transparent), 0 4px 12px color-mix(in srgb, var(--spotify-glow, #22d3ee) 12%, transparent), inset 0 0.5px 0 rgba(255,255,255,0.12)',
             }}
           >
             {/* Chromatic aberration rainbow rim on holding */}
@@ -517,16 +554,16 @@ export function LiquidNavBar({
               aria-hidden="true"
               style={{
                 position: 'absolute',
-                inset: -1,
+                inset: 0,
                 borderRadius: 28,
                 pointerEvents: 'none',
-                background: 'linear-gradient(135deg, rgba(34,211,238,0.7) 0%, rgba(255,255,255,0.9) 30%, rgba(236,72,153,0.7) 70%, rgba(59,130,246,0.7) 100%)',
+                background: 'linear-gradient(135deg, rgba(34,211,238,0.5) 0%, rgba(255,255,255,0.7) 30%, rgba(236,72,153,0.5) 70%, rgba(59,130,246,0.5) 100%)',
                 mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
                 WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
                 maskComposite: 'exclude',
                 WebkitMaskComposite: 'xor',
-                padding: '1.5px',
-                opacity: isDragging ? 1 : 0,
+                padding: '0.75px',
+                opacity: isDragging ? 0.7 : 0,
                 transition: 'opacity 0.2s ease',
                 zIndex: 3,
               }}
@@ -539,23 +576,39 @@ export function LiquidNavBar({
               const isActive = i === activeIndex
               const IconComp = icons[tab.icon]
 
+              const iconColor = isDragging
+                ? isActive
+                  ? 'text-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_0_9px_var(--spotify-glow,#22d3ee)]'
+                  : 'text-[var(--spotify-glow,#22d3ee)]/65'
+                : isActive
+                  ? 'text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.45)]'
+                  : 'text-slate-400 hover:text-slate-200'
+
+              const textColor = isDragging
+                ? isActive
+                  ? 'text-[var(--spotify-glow,#22d3ee)] font-bold drop-shadow-[0_0_6px_var(--spotify-glow,#22d3ee)]'
+                  : 'text-[var(--spotify-glow,#22d3ee)]/80 font-semibold'
+                : isActive
+                  ? 'text-white font-bold drop-shadow-[0_0_4px_rgba(255,255,255,0.35)]'
+                  : 'text-slate-300 font-medium'
+
               const content = (
                 <button
                   key={tab.id}
                   ref={(el) => { tabRefs.current[i] = el }}
                   type="button"
                   onPointerDown={(e) => onPointerDown(e)}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault()
                     if (!dragRef.current.active) {
                       handleTabClick(i)
-                      tab.onClick?.()
                     }
                   }}
                   className={[
                     'h-full w-full flex flex-col items-center justify-center gap-[2px] cursor-pointer',
-                    'transition-colors duration-200 select-none',
+                    'transition-colors duration-250 select-none',
                     'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-glow,#22d3ee)]/50 focus-visible:ring-offset-1',
-                    isActive ? 'text-[var(--spotify-glow,#22d3ee)]' : 'text-slate-400 hover:text-slate-200',
+                    textColor,
                   ].join(' ')}
                   style={{ position: 'relative', zIndex: 3 }}
                 >
@@ -571,11 +624,7 @@ export function LiquidNavBar({
                   >
                     {IconComp && (
                       <IconComp
-                        className={`w-5 h-5 transition-all duration-200 ${
-                          isActive
-                            ? 'text-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_0_12px_var(--spotify-glow,#22d3ee)]'
-                            : 'text-slate-400'
-                        }`}
+                        className={`w-5 h-5 transition-all duration-250 ${iconColor}`}
                         strokeWidth={isActive ? (isDragging ? 2.85 : 2.5) : 2}
                       />
                     )}
@@ -585,11 +634,7 @@ export function LiquidNavBar({
                       transform: isActive && isDragging ? 'scale(1.16)' : 'scale(1)',
                       transition: 'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
                     }}
-                    className={`text-[10px] leading-none transition-all duration-200 ${
-                      isActive
-                        ? 'text-[var(--spotify-glow,#22d3ee)] font-bold drop-shadow-[0_0_8px_var(--spotify-glow,#22d3ee)]'
-                        : 'text-slate-400 font-medium'
-                    }`}
+                    className={`text-[10px] leading-none transition-all duration-250 ${textColor}`}
                   >
                     {tab.label}
                   </span>
@@ -601,10 +646,11 @@ export function LiquidNavBar({
                   <Link
                     key={tab.id}
                     href={tab.href}
-                    onClick={() => {
-                      // Don't navigate if dragging — use the click to set active
-                      if (dragRef.current.active) return
-                      handleTabClick(i)
+                    onClick={(e) => {
+                      e.preventDefault()
+                      if (!dragRef.current.active) {
+                        handleTabClick(i)
+                      }
                     }}
                     className="contents"
                   >

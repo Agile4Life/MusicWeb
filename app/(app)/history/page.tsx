@@ -55,18 +55,23 @@ function formatRelativeTime(dateString: string): string {
   }
 }
 
+let cachedHistory: HistoryEntry[] = []
+let historyFetchedAt = 0
+
 export default function HistoryPage() {
   const supabase = createClient()
   const { data: nextAuthSession } = useSession()
   const { playTrack, currentTrack, isPlaying } = usePlayer()
 
-  const [historyItems, setHistoryItems] = useState<HistoryEntry[]>([])
-  const [loading, setLoading] = useState(true)
+  const [historyItems, setHistoryItems] = useState<HistoryEntry[]>(cachedHistory)
+  const [loading, setLoading] = useState(cachedHistory.length === 0)
   const [searchQuery, setSearchQuery] = useState('')
   const [clearing, setClearing] = useState(false)
 
-  const fetchHistory = useCallback(async () => {
-    setLoading(true)
+  const fetchHistory = useCallback(async (silent = false) => {
+    if (!silent && cachedHistory.length === 0) {
+      setLoading(true)
+    }
     try {
       const res = await fetch('/api/history/list?limit=100')
       if (res.ok) {
@@ -108,6 +113,8 @@ export default function HistoryPage() {
           ]
         })
 
+        cachedHistory = validEntries
+        historyFetchedAt = Date.now()
         setHistoryItems(validEntries)
       } else {
         setHistoryItems([])
