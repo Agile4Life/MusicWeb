@@ -321,9 +321,11 @@ export function normalizeTitle(text: string): string {
   if (!text) return ''
   return text
     .normalize('NFC')
-    .replace(/[\(\[\{].*?[\)\]\}]/g, ' ')
+    .replace(/\s*[\(\[\{]\s*(?:official\s*(?:video|music\s*video|audio|mv|lyric\s*video|visualizer|clip)?|lyric\s*video|lyrics?|visualizer|audio|mv|hd|4k|m\/v|mv\s*hd|video|full\s*hd|karaoke|vietsub|engsub|kara|explicit)\s*[\)\]\}]/gi, ' ')
+    .replace(/\s*[\(\[\{]\s*(?:feat\.?|ft\.?)\s+[^)\]\}]+[\)\]\}]/gi, ' ')
     .replace(/\b(?:feat|ft)\.?\b/gi, ' ')
     .replace(/[\-\_\,\.\:\;]/g, ' ')
+    .replace(/[\(\[\{\)\]\}]/g, ' ')
     .toLowerCase()
     .trim()
     .replace(/\s+/g, ' ')
