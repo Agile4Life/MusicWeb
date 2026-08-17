@@ -146,7 +146,9 @@ export async function GET(req: NextRequest) {
 
       const isBadDefianceCache = cachedId.includes('299152445') || cachedId.includes('296970753')
       const isSingleCache = cleanTitle && cachedNameNorm === cleanTitle
-      const isNameMatching = targetNorm && (cachedNameNorm.includes(targetNorm) || targetNorm.includes(cachedNameNorm))
+
+      // STRICT name matching: exact equality OR target starts with album name (album is a prefix)
+      const isNameMatching = !targetNorm || cachedNameNorm === targetNorm || targetNorm.startsWith(cachedNameNorm + ' ') || targetNorm.startsWith(cachedNameNorm + '(')
 
       if (!isBadDefianceCache && !isSingleCache && isNameMatching) {
         if (memCached.data?.albumId && memCached.data?.albumName) {
@@ -175,7 +177,11 @@ export async function GET(req: NextRequest) {
               if (!t.spotify_album_id || normalizeText(t.album) === cleanTitle) return false
               if (cleanArtist && t.artist) {
                 const dbArtistNorm = normalizeText(t.artist)
-                if (!dbArtistNorm.includes(cleanArtist) && !cleanArtist.includes(dbArtistNorm)) return false
+                // STRICT artist match: exact equality or proper prefix
+                const exactMatch = dbArtistNorm === cleanArtist
+                const albStartsWithArtist = dbArtistNorm.startsWith(cleanArtist + ' ')
+                const artistStartsWithAlb = cleanArtist.startsWith(dbArtistNorm + ' ')
+                if (!exactMatch && !albStartsWithArtist && !artistStartsWithAlb) return false
               }
               return true
             })
