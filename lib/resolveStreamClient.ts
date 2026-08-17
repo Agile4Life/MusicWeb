@@ -1,4 +1,5 @@
 import { findMemoryDriveTrack } from './driveTracksMap'
+import { saveTrackResolution, getTrackResolution } from './playbackPersistence'
 
 export interface ResolvedStreamResult {
   source: 'youtube' | 'nhaccuatui' | 'drive' | 'soundcloud'
@@ -106,6 +107,14 @@ export async function resolveStreamCached(
     return directResult
   }
 
+  // Check localStorage persistence (cross-session)
+  const persisted = getTrackResolution(key)
+  if (persisted && !forceRefresh) {
+    const cachedResult: ResolvedStreamResult = { source: persisted.source as ResolvedStreamResult['source'], id: persisted.resolvedId }
+    cacheResult(key, cachedResult, Date.now() + CLIENT_CACHE_TTL, generation)
+    return cachedResult
+  }
+
   // Client-side cache check
   const cached = clientCache.get(key)
   if (
@@ -136,6 +145,8 @@ export async function resolveStreamCached(
       const data = await res.json()
       if (data.miss) {
         cacheResult(key, null, Date.now() + MISS_CACHE_TTL, generation)
+        // Persist miss too (short TTL) so we don't re-resolve failed tracks repeatedly
+        saveTrackResolution(key, { source: 'none', resolvedId: '', ttl: MISS_CACHE_TTL })
         if (forceRefreshGeneration.get(key) === generation) {
           forceRefreshGeneration.delete(key)
         }
@@ -152,6 +163,8 @@ export async function resolveStreamCached(
       }
 
       cacheResult(key, result, Date.now() + CLIENT_CACHE_TTL, generation)
+      // Persist to localStorage for cross-session restore
+      saveTrackResolution(key, { source: result.source, resolvedId: result.id, ttl: 30 * 60 * 1000 })
       if (forceRefreshGeneration.get(key) === generation) {
         forceRefreshGeneration.delete(key)
       }

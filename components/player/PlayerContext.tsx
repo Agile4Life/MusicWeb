@@ -18,6 +18,7 @@ import { isCurrentPlayback } from '@/lib/playbackRaceGuards'
 import { getNhacCuaTuiStreamUrl, resolveNhacCuaTuiSong, resolveNhacCuaTuiTrack, prewarmNctStreamUrl, getCachedNctStreamUrl, clearCachedNctStreamUrl } from '@/lib/nhaccuatuiClient'
 import { prewarmTrackBatch } from '@/lib/prewarmTrackBatch'
 import { resolveStreamCached, invalidateStreamResolution } from '@/lib/resolveStreamClient'
+import { saveStreamUrl, getStreamUrl, saveTrackResolution, getTrackResolution, savePlaybackState, loadPlaybackState } from '@/lib/playbackPersistence'
 import { setAudioSourceForPlayback } from './audioSourceSwitch'
 
 export type RepeatMode = 'off' | 'all' | 'one'
@@ -665,14 +666,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       const isNct = track.source === 'nhaccuatui'
 
-      // NCT fast-path: check module-level nctStreamUrlCache (warmed by pre-warm effect).
+      // 1. Check localStorage persistence (cross-session, survives app restart)
+      const persisted = getStreamUrl(track.id)
+      if (persisted?.url) {
+        return persisted.url
+      }
+
+      // 2. NCT fast-path: check module-level nctStreamUrlCache (warmed by pre-warm effect).
       // Returns cached proxy URL with zero network latency.
       if (isNct && track.nhaccuatui_id) {
         const cachedNctUrl = getCachedNctStreamUrl(track.nhaccuatui_id)
         if (cachedNctUrl) return cachedNctUrl
       }
 
-      // Check audioUrlCacheRef for all other sources / cold NCT
+      // 3. Check audioUrlCacheRef for all other sources / cold NCT
       const cacheTtl = isNct ? NCT_URL_CACHE_TTL : URL_CACHE_TTL
       const cached = getBoundedRefreshed(
         audioUrlCacheRef.current,
@@ -688,6 +695,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       const url = await getAudioUrl(track)
       if (url && !isPreviewUrl(url)) {
+        // Persist to localStorage for cross-session restore
+        saveStreamUrl(track.id, url, {
+          nhaccuatui_id: isNct ? track.nhaccuatui_id : undefined,
+          youtube_id: track.youtube_id,
+        })
         setBounded(audioUrlCacheRef.current, track.id, { url, ts: Date.now() }, AUDIO_URL_MAX_ENTRIES)
       }
       return url
