@@ -16,6 +16,7 @@ import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import { ArtistLinks } from '@/components/common/ArtistLinks'
 import { getCachedResolvedAlbum, setCachedResolvedAlbum, isRealAlbumName } from '@/lib/albumCache'
 import { triggerDrivePrewarm } from '@/lib/googleDriveUpload'
+import { prewarmNctStreamUrl } from '@/lib/nhaccuatuiClient'
 
 const viewCountCache = new Map<string, number>()
 
@@ -110,11 +111,24 @@ function TrackRowComponent({
   const menuRef = useRef<HTMLDivElement>(null)
   const hoverTimeoutRef = useRef<any>(null)
   const favBusyRef = useRef(false)
+  // Track recently pre-warmed NCT IDs to avoid re-triggering
+  const recentlyPrewarmedRef = useRef<Set<string>>(new Set())
 
   const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
     onMouseEnterRow?.(e)
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
     hoverTimeoutRef.current = setTimeout(() => {
+      // Pre-warm NCT stream URL so play is instant when user clicks
+      if (track.source === 'nhaccuatui' && track.nhaccuatui_id) {
+        const id = track.nhaccuatui_id
+        if (!recentlyPrewarmedRef.current.has(id)) {
+          recentlyPrewarmedRef.current.add(id)
+          prewarmNctStreamUrl(id).catch(() => {})
+          // Clear from recently-prewarmed set after TTL so re-hovering works later
+          setTimeout(() => recentlyPrewarmedRef.current.delete(id), 8 * 60 * 1000)
+        }
+      }
+      // Also pre-warm Drive for local tracks
       triggerDrivePrewarm([track])
     }, 150)
   }

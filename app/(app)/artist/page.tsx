@@ -12,6 +12,7 @@ import { toast } from '@/components/ui/ToastContext'
 import { deduplicateQueueTracks } from '@/lib/utils'
 import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
 import { resolveStreamCached } from '@/lib/resolveStreamClient'
+import { prewarmNctStreamUrl } from '@/lib/nhaccuatuiClient'
 import {
   Play,
   Shuffle,
@@ -127,6 +128,11 @@ export default function ArtistPage() {
     const top = topTracks.slice(0, 4)
     const timer = setTimeout(() => {
       for (const tr of top) {
+        // Pre-warm NCT stream URLs so play is instant
+        if (tr.source === 'nhaccuatui' && tr.nhaccuatui_id) {
+          prewarmNctStreamUrl(tr.nhaccuatui_id).catch(() => {})
+        }
+        // Also pre-warm other catalog tracks
         if (!tr.youtube_id && !tr.nhaccuatui_id) {
           resolveStreamCached({
             title: tr.title,

@@ -15,6 +15,7 @@ import { stripAlbumIdPrefix } from '@/lib/albumId'
 import { toast } from '@/components/ui/ToastContext'
 import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
 import { resolveStreamCached } from '@/lib/resolveStreamClient'
+import { prewarmNctStreamUrl } from '@/lib/nhaccuatuiClient'
 import { Play, DiscAlbum, Calendar, Music, Shuffle, Disc, Eye, Clock } from 'lucide-react'
 
 interface AlbumDetail {
@@ -129,6 +130,11 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
     const topTracks = album.tracks.slice(0, 4)
     const timer = setTimeout(() => {
       for (const tr of topTracks) {
+        // Pre-warm NCT stream URLs so play is instant
+        if (tr.source === 'nhaccuatui' && tr.nhaccuatui_id) {
+          prewarmNctStreamUrl(tr.nhaccuatui_id).catch(() => {})
+        }
+        // Also pre-warm other catalog tracks
         if (!tr.youtube_id && !tr.nhaccuatui_id) {
           resolveStreamCached({
             title: tr.title,
