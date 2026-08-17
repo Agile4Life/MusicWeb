@@ -125,6 +125,11 @@ export function extractDriveFileId(filePath: string): string | null {
     return null
   }
 
+  // Raw Google Drive file ID (18-45 alphanumeric / _ / - characters)
+  if (/^[a-zA-Z0-9_-]{18,45}$/.test(trimmed)) {
+    return trimmed
+  }
+
   const regexMatch =
     trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]{18,45})/) ||
     trimmed.match(/\/d\/([a-zA-Z0-9_-]{18,45})/) ||
