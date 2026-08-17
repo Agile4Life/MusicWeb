@@ -1640,7 +1640,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (audioRef.current) {
       try {
         audioRef.current.pause()
-        audioRef.current.currentTime = 0
+        // Remove the old source entirely and call load() to reset the audio
+        // element's internal network/error state.  Previously we only set
+        // currentTime = 0 which could trigger a seek on an expired SoundCloud
+        // CDN URL — that seek fires a network request for the dead URL and
+        // can leave the element in an error state that poisons the next play().
+        audioRef.current.removeAttribute('src')
+        audioRef.current.load()
       } catch {}
     }
 
@@ -1904,12 +1910,23 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       ytHtml5ModeRef.current = isIOSDevice() && (activeTrack.source === 'youtube' || Boolean(activeTrack.youtube_id))
       // Note: intentionally NO audio.pause() here — pausing first can revoke the active
       // iOS audio session and make the following play() require a fresh user gesture.
+      const targetStartTime = consumePendingSeek(initialTime > 0 ? initialTime : 0)
       setAudioSourceForPlayback(
         audio,
         url,
         volumeRef.current ?? 0.8,
-        consumePendingSeek(initialTime > 0 ? initialTime : 0),
+        targetStartTime,
       )
+      // If setAudioSourceForPlayback deferred the seek (because source changed
+      // and startTime > 0), apply it once metadata is available.
+      if (targetStartTime > 0 && audio.currentTime === 0) {
+        const onMeta = () => {
+          audio.removeEventListener('loadedmetadata', onMeta)
+          if (requestId !== playRequestRef.current) return
+          try { audio.currentTime = targetStartTime } catch {}
+        }
+        audio.addEventListener('loadedmetadata', onMeta)
+      }
 
       try {
         await playAudioElement(audio)
@@ -2503,6 +2520,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     const handleError = async () => {
+      // Ignore error events from cleared audio sources (fired after
+      // removeAttribute('src') + load() during track switching).
+      if (!audio.src || audio.src === window.location.href) return
       if (!isCurrentAudioOwnership()) return
       const requestId = playRequestRef.current
       if (!isYtIframeEngine()) {
