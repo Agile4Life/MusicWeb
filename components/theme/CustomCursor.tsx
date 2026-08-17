@@ -50,15 +50,29 @@ export function CustomCursor() {
       frameId = requestAnimationFrame(renderLoop)
     }
 
+    const handleVisibility = () => {
+      if (document.hidden) {
+        cancelAnimationFrame(frameId)
+        if (anim) anim.pause()
+      } else {
+        cancelAnimationFrame(frameId)
+        frameId = requestAnimationFrame(renderLoop)
+      }
+    }
+
     window.addEventListener('mousemove', onMouseMove, { passive: true })
     window.addEventListener('mousedown', onMouseDown, { passive: true })
     document.addEventListener('mouseleave', onMouseLeave)
-    frameId = requestAnimationFrame(renderLoop)
+    document.addEventListener('visibilitychange', handleVisibility)
+    if (!document.hidden) {
+      frameId = requestAnimationFrame(renderLoop)
+    }
 
     return () => {
       window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('mousedown', onMouseDown)
       document.removeEventListener('mouseleave', onMouseLeave)
+      document.removeEventListener('visibilitychange', handleVisibility)
       cancelAnimationFrame(frameId)
       anim.removeEventListener('complete', onComplete)
       anim.destroy()

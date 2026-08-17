@@ -395,8 +395,8 @@
     "semantic_hash": ""
   },
   "components/player/LyricsView.tsx": {
-    "mtime": 1786948305.637082,
-    "ast_hash": "30c9480c07d86ca5dfe673858ad350a0",
+    "mtime": 1786975222.0275426,
+    "ast_hash": "38598e5a7eaced3a76c924eb467b767f",
     "semantic_hash": ""
   },
   "components/player/MiniEqualizer.tsx": {
@@ -415,8 +415,8 @@
     "semantic_hash": ""
   },
   "components/player/ParticleScene.tsx": {
-    "mtime": 1786877044.1372998,
-    "ast_hash": "f6e643577f708d7d465163ae22dc6eed",
+    "mtime": 1786975201.8401852,
+    "ast_hash": "1886257a4a0782cb98f719adaa249b3f",
     "semantic_hash": ""
   },
   "components/player/PlayerBar.tsx": {
@@ -425,8 +425,8 @@
     "semantic_hash": ""
   },
   "components/player/PlayerContext.tsx": {
-    "mtime": 1786973972.2109642,
-    "ast_hash": "0e9c7c91efdb1f1f7d1494326d62de1c",
+    "mtime": 1786975820.9087186,
+    "ast_hash": "5224d73c2989b05035837f6adde8ec33",
     "semantic_hash": ""
   },
   "components/player/QueueDrawer.tsx": {
@@ -465,9 +465,9 @@
     "semantic_hash": ""
   },
   "components/theme/CustomCursor.tsx": {
-    "mtime": 1786436322.6994603,
-    "ast_hash": "94ad02bd9195e2aac2deac73abcaa898",
-    "semantic_hash": "94ad02bd9195e2aac2deac73abcaa898"
+    "mtime": 1786975209.205514,
+    "ast_hash": "8b8c653da0559176ae084f73919d07c8",
+    "semantic_hash": ""
   },
   "components/theme/ThemeContext.tsx": {
     "mtime": 1786877044.18221,
@@ -1385,8 +1385,8 @@
     "semantic_hash": ""
   },
   "components/player/__tests__/playerSafetyGuards.test.ts": {
-    "mtime": 1786973513.2327235,
-    "ast_hash": "364f78aa0e622c58b4d3cdc9855219ae",
+    "mtime": 1786975836.4393303,
+    "ast_hash": "6f425b93e5788fcdbca70fd35db2b959",
     "semantic_hash": ""
   },
   "components/player/__tests__/trackMetadataLayout.test.ts": {
@@ -2857,6 +2857,11 @@
   "scratch/login-page.png": {
     "mtime": 1786439171.859171,
     "ast_hash": "cbc7d0a20964fc702c7b6f0b52845568",
+    "semantic_hash": ""
+  },
+  "components/player/__tests__/backgroundTabOptimization.test.ts": {
+    "mtime": 1786975271.0039046,
+    "ast_hash": "28b2a5cf551d8645bd7bf1a79352d3ca",
     "semantic_hash": ""
   }
 }

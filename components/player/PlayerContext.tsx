@@ -319,10 +319,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const isCurrentAudioOwnership = useCallback(() => {
     const token = audioOwnershipRef.current
+    const activeId = currentTrackRef.current?.id
+    if (!activeId || !token.trackId) return false
     return (
       token.generation === audioGenerationRef.current &&
       token.requestId === playRequestRef.current &&
-      token.trackId === currentTrackRef.current?.id
+      token.trackId === activeId
     )
   }, [])
 
@@ -994,28 +996,36 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 audioRef.current.removeAttribute('src')
               } catch {}
             }
-            if (ytPlayerRef.current?.loadVideoById) {
-              ytLoadedIdRef.current = bestMatch.youtube_id
-              const currentVol = volumeRef.current ?? DEFAULT_VOLUME
-              if (currentVol > 0) {
-                if (ytPlayerRef.current.unMute) ytPlayerRef.current.unMute()
-                if (ytPlayerRef.current.isMuted && ytPlayerRef.current.isMuted()) {
-                  ytPlayerRef.current.unMute()
+            const tryLoadYt = (retries = 5) => {
+              if (requestId !== playRequestRef.current) return
+              if (ytPlayerRef.current?.loadVideoById) {
+                ytLoadedIdRef.current = bestMatch.youtube_id
+                const currentVol = volumeRef.current ?? DEFAULT_VOLUME
+                if (currentVol > 0) {
+                  if (ytPlayerRef.current.unMute) ytPlayerRef.current.unMute()
+                  if (ytPlayerRef.current.isMuted && ytPlayerRef.current.isMuted()) {
+                    ytPlayerRef.current.unMute()
+                  }
+                } else {
+                  if (ytPlayerRef.current.mute) ytPlayerRef.current.mute()
                 }
-              } else {
-                if (ytPlayerRef.current.mute) ytPlayerRef.current.mute()
+                if (ytPlayerRef.current.setVolume) {
+                  ytPlayerRef.current.setVolume(currentVol * 100)
+                }
+                ytPlayerRef.current.loadVideoById({
+                  videoId: bestMatch.youtube_id,
+                })
+                if (ytPlayerRef.current.playVideo) {
+                  try { ytPlayerRef.current.playVideo() } catch {}
+                }
+                setIsPlaying(true)
+                setIsBuffering(false)
+              } else if (retries > 0) {
+                setTimeout(() => tryLoadYt(retries - 1), 150)
               }
-              if (ytPlayerRef.current.setVolume) {
-                ytPlayerRef.current.setVolume(currentVol * 100)
-              }
-              ytPlayerRef.current.loadVideoById(bestMatch.youtube_id)
-              if (ytPlayerRef.current.playVideo) {
-                try { ytPlayerRef.current.playVideo() } catch {}
-              }
-              setIsPlaying(true)
-              setIsBuffering(false)
-              return
             }
+            tryLoadYt()
+            return
           }
         }
       }
@@ -1463,8 +1473,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           const restoredIndex = typeof saved.currentIndex === 'number' ? saved.currentIndex : 0
           const restoredVol = typeof saved.volume === 'number' ? saved.volume : 0.8
 
+          const dedupedQueue = deduplicateQueueTracks(restoredQueue)
+          currentTrackRef.current = restoredTrack
+          queueRef.current = dedupedQueue
+          currentIndexRef.current = restoredIndex
+          currentTimeRef.current = restoredTime
+          volumeRef.current = restoredVol
+          audioOwnershipRef.current = {
+            generation: audioGenerationRef.current,
+            requestId: restoreRequestId,
+            trackId: restoredTrack.id,
+          }
+
           setCurrentTrack(restoredTrack)
-          setQueue(deduplicateQueueTracks(restoredQueue))
+          setQueue(dedupedQueue)
           setCurrentIndex(restoredIndex)
           setCurrentTime(restoredTime)
           setDuration(restoredTrack.duration || 0)
@@ -1494,7 +1516,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
             restoreTrack.then((playableTrack) => {
                 if (playRequestRef.current !== restoreRequestId) return
-                if (playableTrack !== restoredTrack) setCurrentTrack(playableTrack)
+                if (playableTrack !== restoredTrack) {
+                  setCurrentTrack(playableTrack)
+                  currentTrackRef.current = playableTrack
+                  audioOwnershipRef.current = {
+                    generation: audioGenerationRef.current,
+                    requestId: restoreRequestId,
+                    trackId: playableTrack.id,
+                  }
+                }
                 return getAudioUrl(playableTrack)
               })
               .then((url) => {
@@ -2062,6 +2092,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
+      // Ensure audio ownership token and volume are synchronized with current track
+      audioOwnershipRef.current = {
+        generation: audioGenerationRef.current,
+        requestId: playRequestRef.current,
+        trackId: track.id,
+      }
+      const safeVolume = volumeRef.current ?? DEFAULT_VOLUME
+      audio.volume = safeVolume
+      audio.muted = safeVolume === 0
+
       try {
         await audio.play()
         setIsPlaying(true)
@@ -2189,6 +2229,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           pendingResumeRef.current = true
         } else {
           console.warn('Quick-play audio failed, falling back to full resolve:', err?.message || err)
+          audioUrlCacheRef.current.delete(track.id)
           playTrack(track, undefined, targetIdx >= 0 ? targetIdx : undefined)
         }
       })
@@ -2404,18 +2445,35 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  const isTabHiddenRef = useRef<boolean>(false)
+
   // HTML5 Audio Event Listeners
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
     html5EngineRef.current.setAudioElement(audio)
 
+    if (typeof document !== 'undefined') {
+      isTabHiddenRef.current = document.hidden
+      if (document.hidden) {
+        document.documentElement.setAttribute('data-tab-hidden', 'true')
+      } else {
+        document.documentElement.removeAttribute('data-tab-hidden')
+      }
+    }
+
     const handleTimeUpdate = () => {
       if (!isCurrentAudioOwnership()) return
       if (!isYtIframeEngine()) {
         const time = audio.currentTime
-        setCurrentTime(time)
         currentTimeRef.current = time
+
+        // When tab is hidden (gaming / background mode), skip updating React state
+        // to prevent dozens of components from re-rendering on every timeupdate.
+        if (!isTabHiddenRef.current) {
+          setCurrentTime(time)
+        }
+
         if (Math.abs(time - lastSavedTimeRef.current) > 5 && currentTrackRef.current) {
           lastSavedTimeRef.current = time
           savePlayerStateToStorage(
@@ -2685,11 +2743,31 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audioRetryCountRef.current = 0
     }
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && pendingResumeRef.current && audioRef.current && audioRef.current.paused) {
-        pendingResumeRef.current = false
-        audioRef.current.play().catch(() => {
-          pendingResumeRef.current = true
-        })
+      const isHidden = typeof document !== 'undefined' && document.hidden
+      isTabHiddenRef.current = isHidden
+
+      if (typeof document !== 'undefined') {
+        if (isHidden) {
+          document.documentElement.setAttribute('data-tab-hidden', 'true')
+        } else {
+          document.documentElement.removeAttribute('data-tab-hidden')
+        }
+      }
+
+      if (!isHidden) {
+        // Tab restored: immediately sync UI currentTime to real audio position
+        if (audioRef.current && !isYtIframeEngine()) {
+          const actualTime = audioRef.current.currentTime || 0
+          currentTimeRef.current = actualTime
+          setCurrentTime(actualTime)
+        }
+
+        if (pendingResumeRef.current && audioRef.current && audioRef.current.paused) {
+          pendingResumeRef.current = false
+          audioRef.current.play().catch(() => {
+            pendingResumeRef.current = true
+          })
+        }
       }
     }
 
@@ -2716,6 +2794,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audio.removeEventListener('canplay', handleCanPlay)
       audio.removeEventListener('playing', handlePlaying)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
+      if (typeof document !== 'undefined') {
+        document.documentElement.removeAttribute('data-tab-hidden')
+      }
     }
   }, [])
 

@@ -33,7 +33,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
   const { id: albumId } = use(params)
   const router = useRouter()
   const supabase = createClient()
-  const { playTrack, currentTrack, isPlaying, isShuffle, toggleShuffle } = usePlayer()
+  const { playTrack, currentTrack, isPlaying, isShuffle, toggleShuffle, addToQueue } = usePlayer()
   const { playlists } = usePlaylists()
   const { data: session } = useSession()
   const {
@@ -282,11 +282,11 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
             <span>LƯỢT XEM</span>
           </div>
 
-          <div className="w-14 sm:w-16 flex items-center justify-end shrink-0" title="Thời lượng">
+          <div className="w-14 sm:w-16 flex items-center justify-end shrink-0 pr-1" title="Thời lượng">
             <Clock className="w-4 h-4 text-slate-400" />
           </div>
 
-          <div className="w-10 shrink-0" />
+          <div className="w-8 sm:w-16 shrink-0" />
         </div>
 
         {sortedDiscs.map(([discNum, discTracks]) => (
@@ -325,6 +325,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
                     playlistTracks={album.tracks}
                     userPlaylists={playlists}
                     onAddToPlaylist={handleAddToPlaylist}
+                    onAddToQueue={() => addToQueue(track)}
                     onPlayClick={() => playTrack(track, album.tracks)}
                   />
                 )

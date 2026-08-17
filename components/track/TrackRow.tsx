@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Track, Playlist } from '@/types'
@@ -191,6 +192,12 @@ function TrackRowComponent({
     !['Google Drive', 'Google Drive Sync', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album', 'YouTube Music', 'Unknown Album'].includes(currentAlbumDisplay.trim())
   )
 
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   useEffect(() => {
     if (!showMenu) return
 
@@ -200,6 +207,11 @@ function TrackRowComponent({
       }
     }
 
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+    if (isMobile) {
+      document.body.style.overflow = 'hidden'
+    }
+
     const timer = setTimeout(() => {
       window.addEventListener('pointerdown', handlePointerDownOutside)
     }, 0)
@@ -207,6 +219,9 @@ function TrackRowComponent({
     return () => {
       clearTimeout(timer)
       window.removeEventListener('pointerdown', handlePointerDownOutside)
+      if (isMobile) {
+        document.body.style.overflow = ''
+      }
     }
   }, [showMenu])
 
@@ -526,12 +541,12 @@ function TrackRowComponent({
       </div>
 
       {/* Duration */}
-      <div className={`w-14 sm:w-16 flex items-center justify-end shrink-0 font-mono text-xs ${track.duration ? 'text-slate-300' : 'text-slate-600'}`}>
+      <div className={`w-14 sm:w-16 flex items-center justify-end shrink-0 font-mono text-xs pr-1 ${track.duration ? 'text-slate-300' : 'text-slate-600'}`}>
         {formatDuration(track.duration)}
       </div>
 
       {/* Options container */}
-      <div className="w-10 flex items-center justify-end shrink-0">
+      <div className="w-8 sm:w-16 flex items-center justify-end shrink-0">
           {/* Edit mode save/cancel */}
           {editMode ? (
             <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -552,19 +567,21 @@ function TrackRowComponent({
               </button>
             </div>
           ) : (
-            <div className="relative flex items-center gap-0.5">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onAddToQueue?.()
-                }}
-                className={`p-1.5 text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10 rounded-lg transition-all hidden sm:block ${
-                  showMenu ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                }`}
-                title="Thêm vào hàng đợi"
-              >
-                <ListMusic className="w-4 h-4" />
-              </button>
+            <div className="relative flex items-center gap-0.5 sm:gap-1">
+              {onAddToQueue && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onAddToQueue()
+                  }}
+                  className={`p-1.5 text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10 rounded-lg transition-all hidden sm:block ${
+                    showMenu ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                  }`}
+                  title="Thêm vào hàng đợi"
+                >
+                  <ListMusic className="w-4 h-4" />
+                </button>
+              )}
 
               <button
                 onClick={(e) => {
@@ -582,7 +599,7 @@ function TrackRowComponent({
             {showMenu && (
               <div
                 ref={menuRef}
-                className="absolute right-0 top-9 bg-[var(--elevation-3-bg)] shadow-2xl rounded-2xl py-2 w-56 z-50 text-xs text-slate-200 border border-white/15 animate-in fade-in zoom-in-95 duration-150"
+                className="hidden md:block absolute right-0 top-9 bg-[#0c121e]/98 backdrop-blur-2xl shadow-2xl rounded-2xl py-1.5 w-56 z-50 text-xs text-slate-200 border border-white/15 animate-in fade-in zoom-in-95 duration-150"
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Edit artist/album */}
@@ -594,17 +611,19 @@ function TrackRowComponent({
                   {isFavorite ? 'Bỏ khỏi yêu thích' : 'Thêm vào yêu thích'}
                 </button>
 
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setShowMenu(false)
-                    onAddToQueue?.()
-                  }}
-                  className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors text-[var(--spotify-glow,#22d3ee)]"
-                >
-                  <ListMusic className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)]" />
-                  Thêm vào hàng đợi
-                </button>
+                {onAddToQueue && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowMenu(false)
+                      onAddToQueue()
+                    }}
+                    className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors text-[var(--spotify-glow,#22d3ee)]"
+                  >
+                    <ListMusic className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)]" />
+                    Thêm vào hàng đợi
+                  </button>
+                )}
 
                 <button
                   onClick={(e) => {
@@ -685,6 +704,177 @@ function TrackRowComponent({
                   </button>
                 )}
               </div>
+            )}
+
+            {/* Mobile Action Sheet Modal via Portal */}
+            {showMenu && mounted && createPortal(
+              <div className="fixed inset-0 z-[99999] md:hidden select-none" onClick={(e) => e.stopPropagation()}>
+                {/* Dark Backdrop */}
+                <div
+                  className="fixed inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+                  onClick={() => setShowMenu(false)}
+                />
+
+                {/* Bottom Sheet Drawer */}
+                <div
+                  className="fixed inset-x-0 bottom-0 bg-[#0c121e] border-t border-white/15 rounded-t-3xl shadow-2xl z-10 flex flex-col max-h-[85vh] animate-in slide-in-from-bottom duration-250 overflow-hidden"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Drag handle */}
+                  <div className="w-10 h-1 bg-white/25 rounded-full mx-auto mt-3 mb-1 shrink-0" />
+
+                  {/* Track Info Header */}
+                  <div className="px-4 py-3 flex items-center gap-3 border-b border-white/10 shrink-0">
+                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-800 shrink-0 border border-white/10 shadow-md flex items-center justify-center">
+                      <TrackCoverImage src={track.cover_url} alt={track.title} />
+                    </div>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <p className="text-sm font-bold text-white truncate">{track.title}</p>
+                      <p className="text-xs text-slate-400 truncate mt-0.5">{track.artist || 'Không rõ nghệ sĩ'}</p>
+                      {currentAlbumDisplay && hasRealAlbumDisplay && (
+                        <p className="text-[10px] text-slate-500 truncate mt-0.5">{currentAlbumDisplay}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => setShowMenu(false)}
+                      className="p-2 text-slate-400 hover:text-white rounded-full bg-white/5 active:bg-white/15 transition-colors shrink-0"
+                      title="Đóng"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Action Buttons Scrollable List */}
+                  <div className="p-3 overflow-y-auto flex flex-col gap-1 text-sm text-slate-200">
+                    {/* Toggle Favorite */}
+                    <button
+                      onClick={(e) => {
+                        handleToggleFavorite(e)
+                        setShowMenu(false)
+                      }}
+                      className="w-full text-left px-3.5 py-3 rounded-xl hover:bg-white/10 active:bg-white/15 flex items-center gap-3 transition-colors"
+                    >
+                      <Heart className={`w-4 h-4 ${isFavorite ? 'fill-rose-400 text-rose-400' : 'text-rose-400'}`} />
+                      <span className={isFavorite ? 'text-rose-300 font-semibold' : ''}>
+                        {isFavorite ? 'Bỏ khỏi yêu thích' : 'Thêm vào yêu thích'}
+                      </span>
+                    </button>
+
+                    {/* Add to Queue */}
+                    {onAddToQueue && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setShowMenu(false)
+                          onAddToQueue()
+                        }}
+                        className="w-full text-left px-3.5 py-3 rounded-xl hover:bg-white/10 active:bg-white/15 flex items-center gap-3 transition-colors text-[var(--spotify-glow,#22d3ee)] font-semibold"
+                      >
+                        <ListMusic className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
+                        <span>Thêm vào hàng đợi</span>
+                      </button>
+                    )}
+
+                    {/* Go to Album */}
+                    <button
+                      onClick={(e) => {
+                        setShowMenu(false)
+                        handleOpenTrackAlbum(e)
+                      }}
+                      disabled={isResolvingAlbum}
+                      className="w-full text-left px-3.5 py-3 rounded-xl hover:bg-white/10 active:bg-white/15 flex items-center gap-3 transition-colors text-purple-300"
+                    >
+                      {isResolvingAlbum ? (
+                        <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
+                      ) : (
+                        <DiscAlbum className="w-4 h-4 text-purple-400" />
+                      )}
+                      <span>Vào Album bài hát</span>
+                    </button>
+
+                    {/* Admin Inline Edit */}
+                    {userIsAdmin && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setEditMode(true)
+                          setShowMenu(false)
+                        }}
+                        className="w-full text-left px-3.5 py-3 rounded-xl hover:bg-white/10 active:bg-white/15 flex items-center gap-3 transition-colors text-blue-300"
+                      >
+                        <Pencil className="w-4 h-4 text-blue-400" />
+                        <span>Sửa Tên / Nghệ sĩ / Album</span>
+                      </button>
+                    )}
+
+                    {/* Add to Playlist */}
+                    {onAddToPlaylist && userPlaylists.length > 0 && (
+                      <div className="pt-2 border-t border-white/10">
+                        <div className="px-3.5 py-1 text-slate-400 font-semibold text-[11px] uppercase tracking-wider">
+                          Thêm vào Playlist
+                        </div>
+                        <div className="max-h-40 overflow-y-auto flex flex-col gap-0.5 mt-1">
+                          {userPlaylists.map((pl) => (
+                            <button
+                              key={pl.id}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onAddToPlaylist(pl.id, track)
+                                setShowMenu(false)
+                              }}
+                              className="w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-white/10 active:bg-white/15 flex items-center gap-3 truncate transition-colors text-slate-200"
+                            >
+                              <Plus className="w-4 h-4 text-emerald-400 shrink-0" />
+                              <span className="truncate">{pl.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Remove from Playlist */}
+                    {onDeleteTrack && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onDeleteTrack(track.id)
+                          setShowMenu(false)
+                        }}
+                        className="w-full text-left px-3.5 py-3 rounded-xl hover:bg-red-500/15 active:bg-red-500/25 text-red-300 flex items-center gap-3 border-t border-white/10 transition-colors mt-1"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-400" />
+                        <span>Bỏ khỏi Playlist này</span>
+                      </button>
+                    )}
+
+                    {/* Delete Permanently */}
+                    {userIsAdmin && onDeleteTrackPermanently && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onDeleteTrackPermanently(track.id)
+                          setShowMenu(false)
+                        }}
+                        className="w-full text-left px-3.5 py-3 rounded-xl hover:bg-red-500/25 active:bg-red-500/35 text-red-400 flex items-center gap-3 border-t border-white/10 transition-colors font-semibold mt-1"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-400" />
+                        <span>Xóa vĩnh viễn khỏi Thư viện</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Bottom Safe Area Dismiss */}
+                  <div className="p-3 border-t border-white/10 bg-black/30 pb-safe">
+                    <button
+                      onClick={() => setShowMenu(false)}
+                      className="w-full py-3 rounded-2xl bg-white/10 active:bg-white/20 text-white font-semibold text-center text-sm transition-colors"
+                    >
+                      Đóng
+                    </button>
+                  </div>
+                </div>
+              </div>,
+              document.body
             )}
           </div>
         )}

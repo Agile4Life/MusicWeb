@@ -181,7 +181,17 @@ function Particles({ analyserData, isPlaying, accentColor: propAccent, glowColor
   const cometMap = useMemo(() => createCometTexture(), [])
 
   const whiteColor = useMemo(() => new THREE.Color('#ffffff'), [])
-  const fgColor = useMemo(() => new THREE.Color(themeColorHex), [themeColorHex])
+  const fgColor = useMemo(() => {
+    try {
+      let c = (themeColorHex || '#22d3ee').trim()
+      if (/^#[0-9a-fA-F]{8}$/.test(c)) {
+        c = c.slice(0, 7)
+      }
+      return new THREE.Color(c)
+    } catch {
+      return new THREE.Color('#22d3ee')
+    }
+  }, [themeColorHex])
 
   useEffect(() => {
     if (propGlow || propAccent) {
@@ -339,6 +349,28 @@ function Particles({ analyserData, isPlaying, accentColor: propAccent, glowColor
 }
 
 export default function ParticleScene({ analyserData, isPlaying, accentColor, glowColor }: ParticlesProps) {
+  const [isHidden, setIsHidden] = useState(false)
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      setIsHidden(typeof document !== 'undefined' && document.hidden)
+    }
+    if (typeof document !== 'undefined') {
+      setIsHidden(document.hidden)
+      document.addEventListener('visibilitychange', handleVisibility)
+    }
+    return () => {
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibility)
+      }
+    }
+  }, [])
+
+  // When tab is hidden / gaming, stop rendering WebGL canvas completely to drop GPU to 0%
+  if (isHidden) {
+    return null
+  }
+
   return (
     <Canvas
       className="particle-canvas w-full h-full"
@@ -355,3 +387,4 @@ export default function ParticleScene({ analyserData, isPlaying, accentColor, gl
     </Canvas>
   )
 }
+

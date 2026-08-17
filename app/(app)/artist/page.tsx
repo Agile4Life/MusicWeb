@@ -47,7 +47,7 @@ export default function ArtistPage() {
   const searchParams = useSearchParams()
   const artistName = searchParams.get('name') || ''
 
-  const { playTrack, currentTrack, isPlaying, isShuffle, toggleShuffle } = usePlayer()
+  const { playTrack, currentTrack, isPlaying, isShuffle, toggleShuffle, addToQueue } = usePlayer()
   const { playlists } = usePlaylists()
   const {
     containerRef: listContainerRef,
@@ -306,11 +306,11 @@ export default function ArtistPage() {
               <span>LƯỢT XEM</span>
             </div>
 
-            <div className="w-14 sm:w-16 flex items-center justify-end shrink-0" title="Thời lượng">
+            <div className="w-14 sm:w-16 flex items-center justify-end shrink-0 pr-1" title="Thời lượng">
               <Clock className="w-4 h-4 text-slate-400" />
             </div>
 
-            <div className="w-10 shrink-0" />
+            <div className="w-8 sm:w-16 shrink-0" />
           </div>
 
           <div
@@ -341,6 +341,7 @@ export default function ArtistPage() {
                   const queueIndex = dedupedQueue.findIndex((t) => t.id === track.id)
                   playTrack(track, dedupedQueue, queueIndex >= 0 ? queueIndex : index)
                 }}
+                onAddToQueue={() => addToQueue(track)}
                 userPlaylists={playlists}
                 onAddToPlaylist={(playlistId) => handleAddToPlaylist(playlistId, track)}
                 playlistTracks={showAll ? topTracks : topTracks.slice(0, INITIAL_COUNT)}

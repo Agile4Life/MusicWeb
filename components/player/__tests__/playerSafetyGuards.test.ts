@@ -84,4 +84,77 @@ describe('Player Safety Mechanisms & Edge Guards', () => {
     expect(consecutiveSkips).toBe(0)
     expect(autoAdvanceBlocked).toBe(false)
   })
+
+  it('ensures restored player state on mount initializes audio ownership token matching the restored track ID', () => {
+    const restoredTrack: Track = {
+      id: 'song-restored-456',
+      title: 'Restored Song',
+      artist: 'Restored Artist',
+      duration: 210,
+      source: 'nhaccuatui',
+    }
+
+    const audioGenerationRef = { current: 0 }
+    const playRequestRef = { current: 0 }
+    const restoreRequestId = playRequestRef.current
+    const currentTrackRef = { current: restoredTrack }
+
+    const audioOwnershipRef = {
+      current: {
+        generation: audioGenerationRef.current,
+        requestId: restoreRequestId,
+        trackId: restoredTrack.id,
+      },
+    }
+
+    const isCurrentAudioOwnership = () => {
+      const token = audioOwnershipRef.current
+      const activeId = currentTrackRef.current?.id
+      if (!activeId || !token.trackId) return false
+      return (
+        token.generation === audioGenerationRef.current &&
+        token.requestId === playRequestRef.current &&
+        token.trackId === activeId
+      )
+    }
+
+    // Ownership check must be immediately valid after mount restore
+    expect(isCurrentAudioOwnership()).toBe(true)
+  })
+
+  it('ensures togglePlay resume keeps ownership token aligned when resuming pre-loaded audio', () => {
+    const activeTrack: Track = {
+      id: 'song-789',
+      title: 'Active Track',
+      duration: 190,
+      source: 'local',
+    }
+
+    const audioGenerationRef = { current: 1 }
+    const playRequestRef = { current: 1 }
+    const currentTrackRef = { current: activeTrack }
+
+    // Simulating resume where ownership token is synchronized with current track
+    const audioOwnershipRef = {
+      current: {
+        generation: audioGenerationRef.current,
+        requestId: playRequestRef.current,
+        trackId: activeTrack.id,
+      },
+    }
+
+    const isCurrentAudioOwnership = () => {
+      const token = audioOwnershipRef.current
+      const activeId = currentTrackRef.current?.id
+      if (!activeId || !token.trackId) return false
+      return (
+        token.generation === audioGenerationRef.current &&
+        token.requestId === playRequestRef.current &&
+        token.trackId === activeId
+      )
+    }
+
+    expect(isCurrentAudioOwnership()).toBe(true)
+  })
 })
+

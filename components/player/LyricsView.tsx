@@ -479,6 +479,7 @@ export const LyricsView = memo(function LyricsView({
   // 2. High-Performance Active Lyric Finder (Throttled calculation, zero state churn)
   useEffect(() => {
     if (!isSynced || parsedLyrics.length === 0) return
+    if (typeof document !== 'undefined' && document.hidden) return
 
     const now = performance.now()
     if (now - lastLyricCheckRef.current < 60) return
@@ -491,6 +492,7 @@ export const LyricsView = memo(function LyricsView({
   // 3. Ultra-Smooth Hardware Accelerated Scroll
   useEffect(() => {
     if (activeIndex < 0 || !isSynced || isUserScrollingRef.current) return
+    if (typeof document !== 'undefined' && document.hidden) return
 
     const rafId = requestAnimationFrame(() => {
       const container = scrollContainerRef.current

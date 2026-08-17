@@ -6261,4 +6261,16 @@ html[data-theme-style="minimal-flat"] body {
 /* Classic Cyber Dark overrides for Mobile Fullview */
 [data-theme-style="classic"] .mobile-fullview-overlay {
   background-color: var(--bg-space, #07090e) !important;
-}
+}
+
+/* ================================================================
+   Background / Gaming Eco Mode (When tab is hidden)
+   Freezes CSS animations and transitions to drop GPU/CPU to near zero
+   ================================================================ */
+html[data-tab-hidden="true"] *,
+html[data-tab-hidden="true"] *::before,
+html[data-tab-hidden="true"] *::after {
+  animation-play-state: paused !important;
+  transition: none !important;
+}
+

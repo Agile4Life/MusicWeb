@@ -1,16 +1,16 @@
 # Graph Report - MusicWeb  (2026-08-17)
 
 ## Corpus Check
-- 512 files · ~604,953 words
+- 513 files · ~605,857 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 4858 nodes · 7462 edges · 398 communities (332 shown, 66 thin omitted)
+- 4859 nodes · 7462 edges · 397 communities (331 shown, 66 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 72 edges (avg confidence: 0.57)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `83a0a8bf`
+- Built from commit: `a14fb8a3`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -319,11 +319,11 @@
 - TrackCoverImage.tsx
 - LiquidGlassFilterDefs
 - Global Constraints
-- padding-y
-- xl
-- md
 - none
-- 1. THE THREE DIALS (Core Configuration)
+- xl
+- sm
+- 0
+- 1
 - 7. DIAL DEFINITIONS (Technical Reference)
 - 15. DEFAULT SITE PACKS
 - 20. EXAMPLE INTERPRETATIONS
@@ -339,11 +339,11 @@
 - README.md
 - test_sync_brand_to_tokens.py
 - main
-- 16
-- 1
 - 3
+- primary
+- .test_init_default_project_root
 - 8
-- destructive
+- .test_add_components_no_config
 - destructive-foreground
 - muted
 - primary-foreground
@@ -361,8 +361,6 @@
 - slides-create.md
 - create.md
 - test-academic.md
-- .test_add_components_no_config
-- .test_add_components_already_installed
 - .test_init_dry_run
 - .test_check_shadcn_config_exists
 - .test_get_installed_components_empty
@@ -423,7 +421,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (398 total, 66 thin omitted)
+## Communities (397 total, 66 thin omitted)
 
 ### Community 0 - "AuthForm.tsx"
 Cohesion: 0.09
@@ -823,7 +821,7 @@ Nodes (18): 1. Wordmark (Logotype), 2. Lettermark (Monogram), 3. Pictorial Mark 
 
 ### Community 127 - "color"
 Cohesion: 0.11
-Nodes (19): $type, $value, background, foreground, muted-foreground, primary, primary-hover, secondary (+11 more)
+Nodes (19): $type, $value, background, destructive, foreground, muted-foreground, primary-hover, secondary (+11 more)
 
 ### Community 129 - "Brand Consistency Checklist"
 Cohesion: 0.11
@@ -899,7 +897,7 @@ Nodes (15): Common Rationalizations, Overview, Phase 1: Root Cause Investigation
 
 ### Community 147 - "TestShadcnInstaller"
 Cohesion: 0.12
-Nodes (9): Test adding components in dry run mode., Test ShadcnInstaller class., Test adding all components without config., Test adding all components in dry run mode., Test listing installed components without config., Test listing installed components when they exist., Test initialization with custom project root., Test getting installed components without config. (+1 more)
+Nodes (9): Test adding components in dry run mode., Test ShadcnInstaller class., Test adding all components without config., Test adding all components in dry run mode., Test listing installed components without config., Test listing installed components when none exist., Test initialization with custom project root., Test checking for non-existent shadcn config. (+1 more)
 
 ### Community 149 - "Persuasion Principles for Skill Design"
 Cohesion: 0.12
@@ -918,8 +916,8 @@ Cohesion: 0.13
 Nodes (14): AIDA (Attention-Interest-Desire-Action), Before-After-Bridge, Contrast Patterns, Copywriting Formulas, Core Formulas, Cost of Inaction, FAB (Features-Advantages-Benefits), Formula-to-Slide Mapping (+6 more)
 
 ### Community 153 - "radius"
-Cohesion: 0.18
-Nodes (15): $type, $value, sm, $type, $value, primitive, radius, shadow (+7 more)
+Cohesion: 0.19
+Nodes (14): $type, $value, $type, $value, $type, $value, primitive, radius (+6 more)
 
 ### Community 154 - "Appendix B - Canonical Sources (read these before reinventing)"
 Cohesion: 0.13
@@ -1067,7 +1065,7 @@ Nodes (11): Applying the Pattern, Defense-in-Depth Validation, Example from Sess
 
 ### Community 190 - "ShadcnInstaller"
 Cohesion: 0.20
-Nodes (7): main(), Handle shadcn/ui component installation., ShadcnInstaller, Tests for shadcn_add.py, Test listing installed components when none exist., Test initialization with default project root., Test checking for non-existent shadcn config.
+Nodes (7): main(), Handle shadcn/ui component installation., ShadcnInstaller, Tests for shadcn_add.py, Test adding components that are already installed., Test listing installed components when they exist., Test getting installed components without config.
 
 ### Community 191 - ".check_shadcn_config"
 Cohesion: 0.21
@@ -1138,8 +1136,8 @@ Cohesion: 0.18
 Nodes (8): args, fs, minimal, MINIMAL_TOKENS, path, projectRoot, tokensPath, wrapStyle
 
 ### Community 208 - "tasteskill: Anti-Slop Frontend Skill"
-Cohesion: 0.18
-Nodes (11): 0.A Read these signals first, 0.B Output a one-line "Design Read" before generating, 0. BRIEF INFERENCE (Read the Room Before Anything Else), 0.C If the brief is ambiguous, ask one question, do not guess, 0.D Anti-Default Discipline, 13. OUT OF SCOPE, 14. FINAL PRE-FLIGHT CHECK, 2.A When to reach for a real design system (use official packages) (+3 more)
+Cohesion: 0.13
+Nodes (15): 0.A Read these signals first, 0.B Output a one-line "Design Read" before generating, 0. BRIEF INFERENCE (Read the Room Before Anything Else), 0.C If the brief is ambiguous, ask one question, do not guess, 0.D Anti-Default Discipline, 13. OUT OF SCOPE, 14. FINAL PRE-FLIGHT CHECK, 1.A Dial Inference (design read → dial values) (+7 more)
 
 ### Community 209 - "patch"
 Cohesion: 0.18
@@ -1314,8 +1312,8 @@ Cohesion: 0.25
 Nodes (7): After the Design, Anti-Pattern: "This Is Too Simple To Need A Design", Brainstorming Ideas Into Designs, Checklist, Process Flow, The Process, Visual Companion
 
 ### Community 252 - "input"
-Cohesion: 0.29
-Nodes (8): padding-x, input, $type, $value, focus-ring, padding-x, $type, $value
+Cohesion: 0.20
+Nodes (12): padding-x, padding-y, input, $type, $value, focus-ring, padding-x, padding-y (+4 more)
 
 ### Community 253 - "9. AI TELLS (Forbidden Patterns)"
 Cohesion: 0.25
@@ -1573,25 +1571,25 @@ Nodes (3): getHighResCoverUrl(), TrackCoverImageComponent(), TrackCoverImageProp
 Cohesion: 0.40
 Nodes (4): Global Constraints, Sidebar Navigation Gliding Indicator & Hover Implementation Plan, Task 1: Add CSS Rules for Gliding Indicator, Nudging, and Ripple Effect, Task 2: Implement Gliding Indicator & Ripple Logic in Sidebar Component
 
-### Community 318 - "padding-y"
+### Community 318 - "none"
 Cohesion: 0.67
-Nodes (4): padding-y, padding-y, $type, $value
+Nodes (4): $type, $value, none, none
 
 ### Community 319 - "xl"
 Cohesion: 0.67
 Nodes (4): xl, xl, $type, $value
 
-### Community 320 - "md"
-Cohesion: 0.67
-Nodes (4): $type, $value, md, md
+### Community 320 - "sm"
+Cohesion: 0.60
+Nodes (5): sm, sm, sm, $type, $value
 
-### Community 321 - "none"
+### Community 321 - "0"
 Cohesion: 0.67
-Nodes (4): $type, $value, none, none
+Nodes (3): $type, $value, 0
 
-### Community 322 - "1. THE THREE DIALS (Core Configuration)"
-Cohesion: 0.50
-Nodes (4): 1.A Dial Inference (design read → dial values), 1.B Use-Case Presets, 1.C How the Dials Drive Output, 1. THE THREE DIALS (Core Configuration)
+### Community 322 - "1"
+Cohesion: 0.67
+Nodes (3): $type, $value, 1
 
 ### Community 323 - "7. DIAL DEFINITIONS (Technical Reference)"
 Cohesion: 0.50
@@ -1641,25 +1639,17 @@ Nodes (3): POST(), romajiCache, transliterateSingleLine()
 Cohesion: 0.50
 Nodes (3): Deploy on Vercel, Getting Started, Learn More
 
-### Community 338 - "16"
-Cohesion: 0.67
-Nodes (3): $type, $value, 16
-
-### Community 339 - "1"
-Cohesion: 0.67
-Nodes (3): $type, $value, 1
-
-### Community 340 - "3"
+### Community 338 - "3"
 Cohesion: 0.67
 Nodes (3): $type, $value, 3
+
+### Community 339 - "primary"
+Cohesion: 0.67
+Nodes (3): primary, $type, $value
 
 ### Community 341 - "8"
 Cohesion: 0.67
 Nodes (3): $type, $value, 8
-
-### Community 342 - "destructive"
-Cohesion: 0.67
-Nodes (3): destructive, $type, $value
 
 ### Community 343 - "destructive-foreground"
 Cohesion: 0.67
@@ -1693,7 +1683,7 @@ _Questions this graph is uniquely positioned to answer:_
   _High betweenness centrality (0.009) - this node is a cross-community bridge._
 - **Why does `search()` connect `search` to `test_text_layout_resilience.py`, `scripts/core.py`, `BM25`, `generate_design_system`, `design_system.py`, `BM25`, `validate_data.py`, `detect_domain`, `.generate`, `_row_identities`?**
   _High betweenness centrality (0.004) - this node is a cross-community bridge._
-- **Why does `BM25` connect `BM25` to `DesignSystemGenerator`, `search`, `BM25`, `generate_design_system`, `detect_domain`, `search`?**
+- **Why does `useTheme()` connect `useTheme` to `AuthForm.tsx`, `NowPlayingStage.tsx`, `LyricsShareModal.tsx`, `customCursorBehavior.ts`, `ThemeContext.tsx`, `LiquidGlassFilterDefs.tsx`, `NowPlayingOverlay.tsx`, `LiquidGlassFilterDefs`?**
   _High betweenness centrality (0.003) - this node is a cross-community bridge._
 - **Are the 2 inferred relationships involving `TailwindConfigGenerator` (e.g. with `TestGeneratedConfigIsValidJs` and `TestTailwindConfigGenerator`) actually correct?**
   _`TailwindConfigGenerator` has 2 INFERRED edges - model-reasoned connections that need verification._

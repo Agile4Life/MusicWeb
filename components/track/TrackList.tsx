@@ -261,11 +261,11 @@ export function TrackList({
           <span>LƯỢT XEM</span>
         </div>
 
-        <div className="w-14 sm:w-16 flex items-center justify-end shrink-0" title="Thời lượng">
+        <div className="w-14 sm:w-16 flex items-center justify-end shrink-0 pr-1" title="Thời lượng">
           <Clock className="w-4 h-4 text-slate-400" />
         </div>
 
-        <div className="w-10 shrink-0" />
+        <div className="w-8 sm:w-16 shrink-0" />
       </div>
 
       {/* Track Rows with Liquid Glide Indicator */}
