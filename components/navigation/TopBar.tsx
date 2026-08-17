@@ -246,9 +246,11 @@ export function TopBar() {
                 <span className="text-xs font-bold text-white truncate max-w-[140px]">
                   {user.user_metadata?.full_name || user.email?.split('@')[0]}
                 </span>
-                <span className="text-[10px] font-mono text-[var(--spotify-glow,#22d3ee)] leading-none mt-0.5">
-                  {isAdmin(user?.email) ? 'Admin' : 'Listener'}
-                </span>
+                {isAdmin(user?.email) && (
+                  <span className="text-[10px] font-mono text-[var(--spotify-glow,#22d3ee)] leading-none mt-0.5">
+                    Admin
+                  </span>
+                )}
               </div>
             </button>
             {isProfileMenuOpen && (
@@ -263,9 +265,11 @@ export function TopBar() {
                     {user.user_metadata?.full_name || user.email?.split('@')[0]}
                   </p>
                   <p className="text-[11px] text-slate-300 truncate mt-0.5">{user.email}</p>
-                  <p className="text-[10px] font-mono text-[var(--spotify-glow,#22d3ee)] mt-1">
-                    {isAdmin(user.email) ? 'Admin' : 'Listener'}
-                  </p>
+                  {isAdmin(user.email) && (
+                    <p className="text-[10px] font-mono text-[var(--spotify-glow,#22d3ee)] mt-1">
+                      Admin
+                    </p>
+                  )}
                 </div>
                 <button
                   type="button"

@@ -135,14 +135,21 @@ export async function resolveYouTubeAudioStream(videoId: string): Promise<Resolv
   if (androidStream) return androidStream
 
   try {
-    const info = await ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`, {
-      requestOptions: {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    // Bound ytdl-core with an 8-second timeout — it has no built-in timeout and can hang
+    // indefinitely on slow/inaccessible videos.
+    const info = await Promise.race([
+      ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`, {
+        requestOptions: {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          },
         },
-      },
-    })
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('ytdl-core timeout (8s)')), 8000)
+      ),
+    ])
     const audioFormats = ytdl.filterFormats(info.formats, 'audioonly')
     if (audioFormats && audioFormats.length > 0) {
       const m4aFormat = audioFormats.find((f) => f.mimeType && f.mimeType.includes('audio/mp4')) || audioFormats[0]
@@ -157,6 +164,8 @@ export async function resolveYouTubeAudioStream(videoId: string): Promise<Resolv
     console.warn('ytdl-core stream resolution warning:', err?.message || err)
   }
 
+  // Run all Piped instances in parallel — first successful response wins.
+  // Total worst-case latency: max(3.5s) instead of sequential 4 × 3.5s = 14s.
   const pipedInstances = [
     'https://pipedapi.mha.fi/streams/',
     'https://pipedapi.adminforge.de/streams/',
@@ -164,26 +173,24 @@ export async function resolveYouTubeAudioStream(videoId: string): Promise<Resolv
     'https://api.piped.video/streams/',
   ]
 
-  for (const base of pipedInstances) {
-    try {
+  const pipedResults = await Promise.allSettled(
+    pipedInstances.map(async (base) => {
       const res = await fetch(`${base}${videoId}`, {
         headers: { 'User-Agent': 'Mozilla/5.0' },
         signal: AbortSignal.timeout(3500),
       })
-      if (res.ok) {
-        const data = await res.json()
-        const audioStreams = data.audioStreams || []
-        if (audioStreams.length > 0) {
-          const best = audioStreams.find((s: any) => s.mimeType && s.mimeType.includes('audio/mp4')) || audioStreams[0]
-          if (best && best.url) {
-            return {
-              url: best.url,
-              mimeType: best.mimeType || 'audio/mp4',
-            }
-          }
-        }
-      }
-    } catch {}
+      if (!res.ok) throw new Error(`Piped ${base} responded ${res.status}`)
+      const data = await res.json()
+      const audioStreams = data.audioStreams || []
+      if (!audioStreams.length) throw new Error('No audio streams')
+      const best = audioStreams.find((s: any) => s.mimeType && s.mimeType.includes('audio/mp4')) || audioStreams[0]
+      if (!best?.url) throw new Error('No URL in stream')
+      return { url: best.url, mimeType: best.mimeType || 'audio/mp4' }
+    })
+  )
+
+  for (const result of pipedResults) {
+    if (result.status === 'fulfilled') return result.value
   }
 
   return null

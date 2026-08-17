@@ -475,7 +475,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Refresh vị trí LRU khi đọc — nếu entry đã hết hạn (TTL), tự xoá (evict) và trả về undefined.
+  // Refresh LRU position on read — only evict if entry is expired.
+  // LRU eviction for size > maxEntries is handled exclusively in setBounded.
   function getBoundedRefreshed<K, V>(
     map: Map<K, V>,
     key: K,
@@ -487,6 +488,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       map.delete(key)
       return undefined
     }
+    // Refresh LRU: move to end without evicting
     map.delete(key)
     map.set(key, value)
     return value
@@ -642,11 +644,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     [supabase]
   )
 
+  // TTL for NCT stream URL cache (mirrors server-side NCT_CACHE_TTL = 8 min)
+  const NCT_URL_CACHE_TTL = 8 * 60 * 1000
+
   const getAudioUrlCached = useCallback(
     async (track: Track): Promise<string | null> => {
       if (!track || !track.id) return null
-      // NCT stream URLs are dynamic/signed XML tokens; SoundCloud can now be cached safely in memory
-      if (track.source === 'nhaccuatui') return getAudioUrl(track)
       // Catalog/preview tracks should NOT cache preview URLs as playable full-length audio!
       if (
         (track.audio_url && isPreviewUrl(track.audio_url)) ||
@@ -656,14 +659,23 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       ) {
         return null
       }
+
+      // Check cache for all sources (including NCT) before fetching.
+      // NCT URLs are cached with NCT_URL_CACHE_TTL = 8 min to match server-side TTL.
+      const isNct = track.source === 'nhaccuatui'
+      const cacheTtl = isNct ? NCT_URL_CACHE_TTL : URL_CACHE_TTL
       const cached = getBoundedRefreshed(
         audioUrlCacheRef.current,
         track.id,
-        (entry) => Date.now() - entry.ts >= URL_CACHE_TTL
+        (entry) => Date.now() - entry.ts >= cacheTtl
       )
       if (cached) {
         return cached.url
       }
+
+      // NCT tracks skip the fetch if they have no nhaccuatui_id
+      if (isNct && !track.nhaccuatui_id) return null
+
       const url = await getAudioUrl(track)
       if (url && !isPreviewUrl(url)) {
         setBounded(audioUrlCacheRef.current, track.id, { url, ts: Date.now() }, AUDIO_URL_MAX_ENTRIES)
@@ -1326,6 +1338,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     // ⚡ Reset engine state CHỈ SAU KHI đã dùng xong snapshot ở trên.
     ytHtml5ModeRef.current = false
+    ;(track as any)._ytRetried = false
 
     // ⚡ 1. PAUSE & STOP ALL PREVIOUS AUDIO ENGINES IMMEDIATELY (ZERO DELAY OVERLAP)
     clearPlaybackTimers()
@@ -1663,11 +1676,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
         if (audioRef.current) {
           try {
-            const mediaErr = audioRef.current.error
-            if (!mediaErr || mediaErr.code !== 2) { // 2 = MEDIA_ERR_NETWORK (transient)
-              await invalidateCurrentResolution()
-              trackResolutionCacheRef.current.delete(activeTrack.id)
-            }
+            await invalidateCurrentResolution()
+            trackResolutionCacheRef.current.delete(activeTrack.id)
+            audioUrlCacheRef.current.delete(activeTrack.id)
             audioRef.current.pause()
             audioRef.current.removeAttribute('src')
           } catch {}
