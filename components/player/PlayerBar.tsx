@@ -288,7 +288,18 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
   if (!currentTrack) {
     return (
-      <footer className={`player-bar hidden lg:flex h-20 rounded-2xl px-6 items-center justify-between text-slate-400 select-none shrink-0 pointer-events-auto ${isScrolled ? 'is-scrolled' : ''}`}>
+      <footer className={`player-bar hidden lg:flex h-20 rounded-2xl px-6 items-center justify-between text-slate-400 select-none shrink-0 pointer-events-auto relative overflow-hidden ${isScrolled ? 'is-scrolled' : ''}`}>
+        {/* Inner glass specular gradient */}
+        <span
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            borderRadius: 'inherit',
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 40%)',
+            pointerEvents: 'none',
+          }}
+        />
         <div className="flex items-center gap-3 w-1/4 min-w-[200px]">
           <div className="w-11 h-11 bg-white/5 rounded-xl flex items-center justify-center text-slate-600 border border-white/5">
             <Music className="w-5 h-5" />
@@ -692,6 +703,17 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         }}
         role="presentation"
       >
+        {/* Inner glass specular gradient (Same as Mobile Player Bar) */}
+        <span
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            borderRadius: 'inherit',
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 40%)',
+            pointerEvents: 'none',
+          }}
+        />
         <PlayerBarGlowBorder duration={duration || currentTrack.duration} rx={16} />
         {/* Left: Track Metadata */}
         <div className="flex items-center gap-3 w-1/4 min-w-[250px] lg:min-w-[300px] xl:min-w-[360px] max-w-[420px]">

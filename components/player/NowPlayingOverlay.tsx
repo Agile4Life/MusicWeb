@@ -382,7 +382,18 @@ export function NowPlayingOverlay() {
         </div>
 
         {/* 🎛️ DESKTOP FLOATING CONTROL BAR (>= 1024px) */}
-        <div className="player-bar group/playerbar hidden lg:flex absolute bottom-2 sm:bottom-3 lg:bottom-4 inset-x-3 sm:inset-x-6 z-30 px-4 lg:px-6 xl:px-8 py-2 xl:py-3.5 h-[76px] lg:h-[84px] xl:h-[96px] items-center justify-between rounded-2xl transition-all duration-300 select-none">
+        <div className="player-bar group/playerbar hidden lg:flex absolute bottom-2 sm:bottom-3 lg:bottom-4 inset-x-3 sm:inset-x-6 z-30 px-4 lg:px-6 xl:px-8 py-2 xl:py-3.5 h-[76px] lg:h-[84px] xl:h-[96px] items-center justify-between rounded-2xl transition-all duration-300 select-none overflow-hidden">
+          {/* Inner glass specular gradient (Same as Mobile Player Bar) */}
+          <span
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: 'inherit',
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 40%)',
+              pointerEvents: 'none',
+            }}
+          />
           {/* Top ambient highlight reflection line (fades in on hover) */}
           <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-[var(--spotify-glow,#22d3ee)]/35 to-transparent pointer-events-none rounded-t-2xl opacity-0 group-hover/playerbar:opacity-100 transition-opacity duration-300" />
 

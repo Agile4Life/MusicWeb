@@ -80,7 +80,6 @@ export function ThemeSelector() {
                   VISION
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 line-clamp-2 mt-0.5">Khúc xạ quang học, sắc sai viền & cực quang</p>
             </div>
             {themeStyle === 'liquid-glass' && (
               <div
@@ -114,7 +113,6 @@ export function ThemeSelector() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-bold text-xs text-white truncate">Classic Dark</p>
-              <p className="text-[11px] text-slate-400 line-clamp-2 mt-0.5">Giao diện tối phẳng chuẩn Spotify nguyên bản</p>
             </div>
             {themeStyle === 'classic' && (
               <div
@@ -154,7 +152,6 @@ export function ThemeSelector() {
                   VINYL
                 </span>
               </div>
-              <p className={`text-[11px] line-clamp-2 mt-0.5 ${themeStyle === 'minimal-flat' ? 'text-[#B9AC9C]' : 'text-slate-400'}`}>Đĩa than cổ điển, font Fraunces, hổ phách ấm</p>
             </div>
             {themeStyle === 'minimal-flat' && (
               <div
@@ -320,16 +317,6 @@ export function ThemeSelector() {
                   />
                   <span>Tương tác đàn hồi (Elastic Motion)</span>
                 </label>
-
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={liquidGlassConfig?.ambientCanvas !== false}
-                    onChange={(e) => setLiquidGlassConfig({ ambientCanvas: e.target.checked })}
-                    className="rounded accent-cyan-400"
-                  />
-                  <span>Nền cực quang động (Ambient Mesh)</span>
-                </label>
               </div>
 
               {/* Granular Aberration Component Targets */}
@@ -488,8 +475,7 @@ export function ThemeSelector() {
                   </div>
 
                   {/* Title */}
-                  <p className="font-bold text-xs text-white mb-0.5">{theme.name}</p>
-                  <p className="text-[11px] text-slate-400">{t(`theme_${theme.id}_sub`, theme.subtitle)}</p>
+                  <p className="font-bold text-xs text-white">{theme.name}</p>
 
                   {/* Active checkmark */}
                   {isSelected && (

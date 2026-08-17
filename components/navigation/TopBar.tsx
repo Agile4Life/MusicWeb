@@ -167,7 +167,7 @@ export function TopBar() {
 
           {/* Suggestions Dropdown Popup — Elevation Level 3 */}
           {showDropdown && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--elevation-3-bg,#0d111a)]/95 border border-white/10 rounded-2xl shadow-2xl z-40 overflow-hidden backdrop-blur-2xl">
+            <div className="search-dropdown-glass absolute top-full left-0 right-0 mt-2 bg-[var(--elevation-3-bg,#0d111a)]/95 border border-white/10 rounded-2xl shadow-2xl z-40 overflow-hidden backdrop-blur-2xl">
               <div className="p-2 max-h-80 overflow-y-auto flex flex-col gap-1 custom-slim-scrollbar">
                 {searchingSuggestions && suggestions.length === 0 ? (
                   <div className="p-4 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
