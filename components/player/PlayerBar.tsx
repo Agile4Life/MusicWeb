@@ -24,6 +24,7 @@ import { miniPlayerClassName } from './mobileLayout'
 import { LyricsShareModal } from './LyricsShareModal'
 import { getPrimaryLyrics } from '@/lib/lyricsFlow'
 import { parseLrc, parsePlainLyrics, LyricLine } from '@/lib/lrcParser'
+import { useLanguage } from '@/components/i18n/LanguageContext'
 import {
   Play,
   Pause,
@@ -53,6 +54,7 @@ function formatTime(seconds: number) {
 }
 
 export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
+  const { t } = useLanguage()
   const { currentTime, duration } = usePlaybackProgress()
   const {
     currentTrack,
@@ -411,7 +413,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             <button
               onClick={(e) => { e.stopPropagation(); prevTrack() }}
               className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white active:scale-90 transition-all rounded-full"
-              title="Bài trước"
+              title={t('previous')}
             >
               <SkipBack className="w-4 h-4" />
             </button>
@@ -423,7 +425,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                 background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
                 boxShadow: '0 2px 10px var(--theme-glow-shadow, rgba(6,182,212,0.4))',
               }}
-              title={isPlaying ? 'Tạm dừng' : 'Phát'}
+              title={isPlaying ? t('pause') : t('play')}
             >
               {isPlaying
                 ? <Pause className="w-4 h-4 fill-current text-black" />
@@ -433,7 +435,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             <button
               onClick={(e) => { e.stopPropagation(); nextTrack() }}
               className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white active:scale-90 transition-all rounded-full"
-              title="Bài kế tiếp"
+              title={t('next')}
             >
               <SkipForward className="w-4 h-4" />
             </button>
@@ -441,7 +443,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             <button
               onClick={(e) => { e.stopPropagation(); toggleFavoriteCurrentTrack() }}
               className="w-8 h-8 flex items-center justify-center active:scale-90 transition-all rounded-full"
-              title={currentTrack.is_favorite ? 'Bỏ yêu thích' : 'Thêm yêu thích'}
+              title={currentTrack.is_favorite ? t('remove_favorite') : t('add_to_favorite')}
             >
               <Heart
                 className={`w-4 h-4 transition-all ${currentTrack.is_favorite
@@ -817,22 +819,22 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
             <button
               onClick={(e) => { e.stopPropagation(); prevTrack() }}
-              aria-label="Bài trước"
+              aria-label={t('previous')}
               className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full btn-3d-tactile"
-              title="Bài trước"
+              title={t('previous')}
             >
               <SkipBack className="w-5 h-5" />
             </button>
 
             <button
               onClick={(e) => { e.stopPropagation(); togglePlay() }}
-              aria-label={isBuffering ? 'Đang tải bài hát' : isPlaying ? 'Tạm dừng bài hát' : 'Phát bài hát'}
+              aria-label={isBuffering ? t('buffering') : isPlaying ? t('pause') : t('play')}
               style={{
                 background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.4), 0 0 10px var(--theme-glow-shadow, rgba(6,182,212,0.25))',
               }}
               className="w-10 h-10 rounded-full btn-3d-tactile flex items-center justify-center text-black font-bold shrink-0 border border-white/20"
-              title={isBuffering ? 'Đang tải...' : isPlaying ? 'Tạm dừng' : 'Phát'}
+              title={isBuffering ? t('buffering') : isPlaying ? t('pause') : t('play')}
             >
               {isBuffering ? (
                 <Loader2 className="w-4 h-4 animate-spin text-black shrink-0" />
@@ -845,9 +847,9 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
             <button
               onClick={(e) => { e.stopPropagation(); nextTrack() }}
-              aria-label="Bài kế tiếp"
+              aria-label={t('next')}
               className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full btn-3d-tactile"
-              title="Bài kế tiếp"
+              title={t('next')}
             >
               <SkipForward className="w-5 h-5" />
             </button>
@@ -856,10 +858,10 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
               onClick={(e) => { e.stopPropagation(); toggleRepeat() }}
               aria-label={
                 repeatMode === 'one'
-                  ? 'Lặp lại 1 bài'
+                  ? t('repeat_one')
                   : repeatMode === 'all'
-                    ? 'Lặp lại danh sách'
-                    : 'Tắt lặp lại'
+                    ? t('repeat_all')
+                    : t('repeat_off')
               }
               style={
                 repeatMode !== 'off'
@@ -874,10 +876,10 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                 }`}
               title={
                 repeatMode === 'one'
-                  ? 'Lặp lại 1 bài'
+                  ? t('repeat_one')
                   : repeatMode === 'all'
-                    ? 'Lặp lại toàn bộ danh sách'
-                    : 'Bật lặp lại bài hát'
+                    ? t('repeat_all')
+                    : t('repeat_off')
               }
             >
               {repeatMode === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
@@ -908,12 +910,12 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         <div className="flex items-center justify-end gap-2 lg:gap-3 flex-[0_0_170px] lg:flex-[0_0_200px] xl:flex-[0_0_240px] shrink-0">
           <button
             onClick={(e) => { e.stopPropagation(); toggleFavoriteCurrentTrack() }}
-            aria-label={currentTrack.is_favorite ? 'Bỏ khỏi bài hát yêu thích' : 'Thêm vào bài hát yêu thích'}
+            aria-label={currentTrack.is_favorite ? t('remove_favorite') : t('add_to_favorite')}
             className={`p-2 rounded-xl transition-all btn-3d-tactile ${currentTrack.is_favorite
                 ? 'text-rose-500 bg-rose-500/15 border border-rose-500/30'
                 : 'text-slate-400 hover:text-rose-400 hover:bg-white/5'
               }`}
-            title={currentTrack.is_favorite ? 'Bỏ khỏi bài hát yêu thích' : 'Thêm vào bài hát yêu thích'}
+            title={currentTrack.is_favorite ? t('remove_favorite') : t('add_to_favorite')}
           >
             <Heart
               className={`w-4 h-4 transition-all ${currentTrack.is_favorite ? 'fill-current drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]' : ''
@@ -923,28 +925,28 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
           <button
             onClick={(e) => { e.stopPropagation(); setShowLyricsModal(!showLyricsModal) }}
-            aria-label={showLyricsModal ? 'Ẩn lời bài hát' : 'Xem lời bài hát'}
+            aria-label={t('lyrics')}
             className={`p-2 rounded-xl transition-all btn-3d-tactile ${showLyricsModal
                 ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md font-bold'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
-            title="Lời bài hát (Lyrics)"
+            title={t('lyrics')}
           >
             <Mic2 className="w-4 h-4" />
           </button>
 
           <button
             onClick={handleOpenShare}
-            aria-label="Chia sẻ câu hát"
+            aria-label={t('share_lyrics')}
             className="p-2 rounded-xl transition-all btn-3d-tactile text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/5"
-            title="Chia sẻ câu hát (Lyrics Story)"
+            title={t('share_lyrics')}
           >
             <Share2 className="w-4 h-4" />
           </button>
 
           <button
             onClick={(e) => { e.stopPropagation(); toggleQueue() }}
-            aria-label={isQueueOpen ? 'Đóng danh sách hàng đợi' : 'Xem danh sách hàng đợi'}
+            aria-label={t('queue')}
             style={
               isQueueOpen
                 ? {
@@ -956,7 +958,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             }
             className={`p-2 rounded-xl relative transition-all btn-3d-tactile ${isQueueOpen ? 'border shadow-md font-bold' : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
-            title="Danh sách hàng đợi (Queue)"
+            title={t('queue')}
           >
             <ListMusic className="w-4 h-4" />
             {isQueueOpen && (
@@ -972,9 +974,9 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <div className="flex items-center gap-2.5 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1" onClick={(e) => e.stopPropagation()}>
             <button
               onClick={(e) => { e.stopPropagation(); handleVolumeToggle() }}
-              aria-label={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}
+              aria-label={volume === 0 ? t('unmute') : t('mute')}
               className="text-slate-400 hover:text-white transition-colors p-0.5 shrink-0"
-              title={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}
+              title={volume === 0 ? t('unmute') : t('mute')}
             >
               {volume === 0 ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
             </button>

@@ -199,7 +199,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
           />
 
           <p className="text-[11px] font-mono tracking-wider text-slate-500 uppercase px-2.5 py-1 relative z-10">
-            Khám phá
+            {t('explore')}
           </p>
 
           <Link
@@ -231,7 +231,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
             }`}
           >
             <DiscAlbum className="w-4 h-4 icon" />
-            <span>Albums</span>
+            <span>{t('albums')}</span>
           </Link>
 
           <Link

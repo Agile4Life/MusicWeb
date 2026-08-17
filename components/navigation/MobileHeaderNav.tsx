@@ -204,10 +204,10 @@ export function MobileHeaderNav() {
       {/* 📱 Mobile Bottom Navigation Bar (< 768px) — Liquid Glass */}
       <LiquidNavBar
         tabs={[
-          { id: 'home', label: 'Trang chủ', icon: 'Home', href: '/' },
-          { id: 'albums', label: 'Albums', icon: 'DiscAlbum', href: '/albums' },
-          { id: 'favorites', label: 'Yêu thích', icon: 'Heart', href: '/favorites' },
-          { id: 'playlist', label: 'Playlist', icon: 'ListMusic', href: undefined, onClick: () => {
+          { id: 'home', label: t('home'), icon: 'Home', href: '/' },
+          { id: 'albums', label: t('albums'), icon: 'DiscAlbum', href: '/albums' },
+          { id: 'favorites', label: t('favorites'), icon: 'Heart', href: '/favorites' },
+          { id: 'playlist', label: t('playlists'), icon: 'ListMusic', href: undefined, onClick: () => {
             if (playlists.length > 0) {
               if (pathname.startsWith('/playlist/')) {
                 const currentId = pathname.replace('/playlist/', '')
@@ -221,7 +221,7 @@ export function MobileHeaderNav() {
               setIsDrawerOpen(true)
             }
           }},
-          { id: 'history', label: 'Lịch sử', icon: 'History', href: '/history' },
+          { id: 'history', label: t('history'), icon: 'History', href: '/history' },
         ]}
         displacementScale={35}
         blurAmount={0.0625}
@@ -266,7 +266,7 @@ export function MobileHeaderNav() {
               <button
                 onClick={() => setIsDrawerOpen(false)}
                 className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] active:scale-95 transition-all"
-                title="Đóng menu"
+                title={t('close')}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -285,7 +285,7 @@ export function MobileHeaderNav() {
                 className={`sidebar-item text-xs font-semibold ${pathname === '/' ? 'active' : ''}`}
               >
                 <Home className="w-4 h-4" />
-                <span>Trang chủ</span>
+                <span>{t('home')}</span>
               </Link>
 
               <Link
@@ -297,7 +297,7 @@ export function MobileHeaderNav() {
                 }`}
               >
                 <DiscAlbum className="w-4 h-4" />
-                <span>Albums</span>
+                <span>{t('albums')}</span>
               </Link>
 
               <Link
@@ -334,7 +334,7 @@ export function MobileHeaderNav() {
                 className={`sidebar-item text-xs font-semibold ${pathname === '/favorites' ? 'active' : ''}`}
               >
                 <Heart className="w-4 h-4" />
-                <span>Yêu thích</span>
+                <span>{t('favorites')}</span>
               </Link>
 
               <Link
@@ -344,7 +344,7 @@ export function MobileHeaderNav() {
                 className={`sidebar-item text-xs font-semibold ${pathname === '/history' ? 'active' : ''}`}
               >
                 <History className="w-4 h-4" />
-                <span>Lịch sử nghe</span>
+                <span>{t('history')}</span>
               </Link>
 
               <Link
@@ -355,9 +355,9 @@ export function MobileHeaderNav() {
               >
                 <Receipt className="w-4 h-4 text-amber-400" />
                 <div className="flex items-center justify-between flex-1">
-                  <span>Hóa đơn âm nhạc</span>
+                  <span>{t('receipt')}</span>
                   <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                    MỚI
+                    NEW
                   </span>
                 </div>
               </Link>
@@ -370,7 +370,7 @@ export function MobileHeaderNav() {
                   className={`sidebar-item text-xs font-semibold ${pathname === '/upload' ? 'active' : ''}`}
                 >
                   <Upload className="w-4 h-4" />
-                  <span>Upload Nhạc</span>
+                  <span>{t('upload')}</span>
                 </Link>
               )}
 
@@ -381,7 +381,7 @@ export function MobileHeaderNav() {
                 className={`sidebar-item text-xs font-semibold ${pathname === '/settings' ? 'active' : ''}`}
               >
                 <Settings className="w-4 h-4" />
-                <span>Cài đặt & Màu sắc</span>
+                <span>{t('settings')}</span>
               </Link>
             </nav>
 
