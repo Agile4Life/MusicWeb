@@ -16,6 +16,7 @@ import { getMusicOfftopicSegments, calculateIntroOffset } from '@/lib/sponsorblo
 import { isIOSDevice, playAudioElement, redactAudioSource, shouldUseHtml5Audio, toPersistedTrack } from '@/lib/audioPlayback'
 import { isCurrentPlayback } from '@/lib/playbackRaceGuards'
 import { getNhacCuaTuiStreamUrl, resolveNhacCuaTuiSong, resolveNhacCuaTuiTrack, prewarmNctStreamUrl, getCachedNctStreamUrl, clearCachedNctStreamUrl } from '@/lib/nhaccuatuiClient'
+import { prewarmTrackBatch } from '@/lib/prewarmTrackBatch'
 import { resolveStreamCached, invalidateStreamResolution } from '@/lib/resolveStreamClient'
 import { setAudioSourceForPlayback } from './audioSourceSwitch'
 
@@ -1414,6 +1415,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (newQueue) {
       nextQueue = deduplicateQueueTracks(newQueue)
       setQueue(nextQueue)
+      // Pre-warm top-10 NCT stream URLs so next tracks play instantly
+      prewarmTrackBatch(nextQueue).catch(() => {})
       const index = nextQueue.findIndex((t) => t.id === track.id)
       nextIndex = index >= 0 ? index : 0
     } else if (typeof forceIndex === 'number') {
@@ -1421,6 +1424,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     } else if (queue.length === 0) {
       nextQueue = [track]
       setQueue(nextQueue)
+      prewarmTrackBatch(nextQueue).catch(() => {})
       nextIndex = 0
     } else {
       const index = nextQueue.findIndex((t) => t.id === track.id)
@@ -1447,6 +1451,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         synced[nextIndex] = { ...synced[nextIndex], ...resolvedTrack }
         nextQueue = synced
         setQueue(synced)
+        // Pre-warm NCT stream URLs for upcoming tracks now that we know their sources
+        prewarmTrackBatch(nextQueue.slice(nextIndex + 1)).catch(() => {})
       }
     }
 
@@ -2163,6 +2169,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       newQ.splice(insertIdx, 0, track)
       return deduplicateQueueTracks(newQ)
     })
+    // Pre-warm the added track's stream URL since user likely wants to play it next
+    prewarmTrackBatch([track]).catch(() => {})
   }
 
   const removeFromQueue = (indexToRemove: number) => {
