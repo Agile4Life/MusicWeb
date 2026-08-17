@@ -48,8 +48,6 @@ interface PlayerContextType {
   isBuffering: boolean
   queue: Track[]
   currentIndex: number
-  currentTime: number
-  duration: number
   volume: number
   isShuffle: boolean
   toggleShuffle: () => void
@@ -2724,29 +2722,37 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentTrack])
 
-  // Playback state & position — throttled to once per second to avoid overhead
-  const lastPositionUpdateRef = useRef<number>(0)
+  // Playback state — only re-run when play state changes (NOT every frame)
   useEffect(() => {
     if (typeof window === 'undefined' || !('mediaSession' in navigator) || !currentTrack) return
-
     try {
       navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused'
-
-      const now = Date.now()
-      if ('setPositionState' in navigator.mediaSession && duration > 0 && currentTime >= 0 && (now - lastPositionUpdateRef.current > 1000)) {
-        lastPositionUpdateRef.current = now
-        try {
-          navigator.mediaSession.setPositionState({
-            duration: Math.max(duration, 0),
-            playbackRate: 1,
-            position: Math.min(Math.max(currentTime, 0), duration),
-          })
-        } catch (e) {}
-      }
     } catch (err) {
       // silently ignore
     }
-  }, [currentTrack, isPlaying, currentTime, duration])
+  }, [currentTrack, isPlaying])
+
+  // MediaSession position — poll via 1s interval to avoid 60fps useEffect overhead
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('mediaSession' in navigator) || !('setPositionState' in navigator.mediaSession)) return
+    if (!isPlaying || !currentTrack) return
+
+    const interval = setInterval(() => {
+      try {
+        const d = duration > 0 ? duration : (currentTrack?.duration || 0)
+        const t = currentTime
+        if (d > 0 && t >= 0) {
+          navigator.mediaSession.setPositionState({
+            duration: Math.max(d, 0),
+            playbackRate: 1,
+            position: Math.min(Math.max(t, 0), d),
+          })
+        }
+      } catch (e) {}
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [currentTrack, isPlaying]) // eslint-disable-line react-hooks/exhaustive-deps
 
 
 
@@ -2761,8 +2767,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       isBuffering,
       queue,
       currentIndex,
-      currentTime,
-      duration: effectiveDuration,
       volume,
       isShuffle,
       toggleShuffle,
@@ -2796,8 +2800,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       isBuffering,
       queue,
       currentIndex,
-      currentTime,
-      effectiveDuration,
       volume,
       isShuffle,
       repeatMode,
