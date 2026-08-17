@@ -18,9 +18,9 @@ export const dynamic = 'force-dynamic'
 interface L1Entry {
   source: string | null
   resolvedId: string | null
-  title?: string
-  artist?: string
-  duration?: number
+  title?: string | null
+  artist?: string | null
+  duration?: number | null
   coverUrl?: string | null
   isMiss: boolean
   expiresAt: number
