@@ -999,7 +999,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             const tryLoadYt = (retries = 5) => {
               if (requestId !== playRequestRef.current) return
               if (ytPlayerRef.current?.loadVideoById) {
-                ytLoadedIdRef.current = bestMatch.youtube_id
+                ytLoadedIdRef.current = bestMatch.youtube_id || null
                 const currentVol = volumeRef.current ?? DEFAULT_VOLUME
                 if (currentVol > 0) {
                   if (ytPlayerRef.current.unMute) ytPlayerRef.current.unMute()
