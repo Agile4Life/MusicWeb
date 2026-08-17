@@ -197,8 +197,36 @@ export async function GET(req: NextRequest) {
               const albName = normalizeText(alb.name)
               const albArtist = normalizeText(alb.artist)
               const isNotSingle = !cleanTitle || albName !== cleanTitle
-              const nameMatch = albName === targetSearchName || albName.includes(targetSearchName) || targetSearchName.includes(albName)
-              const artistMatch = !cleanArtist || albArtist.includes(cleanArtist) || cleanArtist.includes(albArtist)
+
+              // STRICT artist matching: only match if artist is an exact prefix/suffix or equals the full name.
+              // This prevents "Taylor" from matching "Taylor Swift" albums.
+              let artistMatch = false
+              if (!cleanArtist) {
+                artistMatch = true
+              } else if (albArtist === cleanArtist) {
+                // Exact match — always accept
+                artistMatch = true
+              } else {
+                // Check if one is a meaningful prefix of the other (albArtist starts with cleanArtist + space, or vice versa)
+                // e.g., "Taylor Swift" matches "Taylor Swift feat. ..." but NOT just "Taylor"
+                const albStartsWithArtist = albArtist.startsWith(cleanArtist + ' ')
+                const artistStartsWithAlb = cleanArtist.startsWith(albArtist + ' ')
+                artistMatch = albStartsWithArtist || artistStartsWithAlb
+              }
+
+              // STRICT name matching: only accept exact match OR substring from album → search.
+              // "the best of the beatles" does NOT match album "best of" via includes.
+              // But "best of" from album IS a substring of "the best of the beatles" search — reject this too.
+              // Only accept: exact match, OR album name starts with search term (album is a subset prefix).
+              let nameMatch = false
+              if (albName === targetSearchName) {
+                nameMatch = true
+              } else if (targetSearchName.startsWith(albName + ' ') || targetSearchName.startsWith(albName + '(') || targetSearchName.startsWith(albName + '[')) {
+                // Search term contains album name as a prefix (album name is a meaningful subset)
+                // e.g., search="midnights taylor swift", album="midnights" → acceptable
+                nameMatch = true
+              }
+
               return isNotSingle && nameMatch && artistMatch
             })
 
@@ -263,20 +291,24 @@ export async function GET(req: NextRequest) {
       return null
     }
 
-    // Helper for artist matching
+    // Helper for artist matching — STRICT matching to prevent cross-artist album assignment
     const isArtistMatch = (candidateArtist?: string) => {
       if (!cleanArtist) return true
       if (!candidateArtist) return false
       const cNorm = normalizeText(candidateArtist)
       if (!cNorm) return false
 
-      if (cNorm === cleanArtist || cNorm.includes(cleanArtist) || cleanArtist.includes(cNorm)) {
-        return true
-      }
+      // Exact match — always accept
+      if (cNorm === cleanArtist) return true
 
-      const cleanTokens = cleanArtist.split(' ').filter((t) => t.length > 2)
-      const candidateTokens = cNorm.split(' ').filter((t) => t.length > 2)
-      return cleanTokens.some((t) => candidateTokens.includes(t))
+      // One is a proper prefix of the other (with space boundary to avoid "Taylor" matching "Taylor Swift")
+      // e.g., "Taylor" → "Taylor Swift", "Taylor Swift feat. ..." → "Taylor Swift"
+      if (cNorm.startsWith(cleanArtist + ' ') || cleanArtist.startsWith(cNorm + ' ')) return true
+
+      // Do NOT use includes() — it causes "Taylor" to match "Taylor Swift" albums incorrectly
+      // Do NOT use token overlap — it causes "Taylor Swift" to match "Taylor Jackson" (both have "Taylor")
+
+      return false
     }
 
     // 2. Priority Direct Deezer Album Search
@@ -291,7 +323,8 @@ export async function GET(req: NextRequest) {
           const best = deezerResults.find((a) => {
             const albName = normalizeText(a.name)
             const target = cleanAlbum || cleanTitle
-            const nameOk = target ? albName.includes(target) || target.includes(albName) : true
+            // STRICT name match: exact equality OR album name is prefix of search target
+            const nameOk = !target || albName === target || target.startsWith(albName + ' ')
             return nameOk && isArtistMatch((a as any).artist?.name || (a as any).artist)
           })
 
