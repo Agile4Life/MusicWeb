@@ -59,7 +59,7 @@ export function extractCleanTitleAndArtist(
   title = title
     .replace(/[\(\[\{].*?[\)\]\}]/g, ' ') // Remove anything inside parens e.g. (Official MV), [Lyrics]
     .replace(/\b(official|music video|mv|audio|lyric video|lyrics|live|hd|4k|remix|reverb|slowed|speed up|sped up|lofi|1hour|1 hour|hot tiktok)\b/gi, ' ')
-    .replace(/feat\.?|ft\.?/gi, ' ')
+    .replace(/\b(?:feat|ft)\.?\b/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 

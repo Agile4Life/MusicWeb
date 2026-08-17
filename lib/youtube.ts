@@ -322,7 +322,7 @@ export function normalizeTitle(text: string): string {
   return text
     .normalize('NFC')
     .replace(/[\(\[\{].*?[\)\]\}]/g, ' ')
-    .replace(/feat\.?|ft\.?/gi, ' ')
+    .replace(/\b(?:feat|ft)\.?\b/gi, ' ')
     .replace(/[\-\_\,\.\:\;]/g, ' ')
     .toLowerCase()
     .trim()

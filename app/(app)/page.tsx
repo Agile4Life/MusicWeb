@@ -306,7 +306,7 @@ export default function HomePage() {
       const cleanTitle = (track.title || '')
         .normalize('NFC')
         .replace(/[\(\[\{].*?[\)\]\}]/g, '')
-        .replace(/feat\.?|ft\.?/gi, '')
+        .replace(/\b(?:feat|ft)\.?\b/gi, '')
         .toLowerCase()
         .trim()
         .replace(/\s+/g, ' ')

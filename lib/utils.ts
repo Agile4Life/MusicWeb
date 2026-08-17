@@ -19,7 +19,7 @@ export function extractCoreSongTitle(title?: string): string {
     .toLowerCase()
     .replace(/[\(\[\{].*?[\)\]\}]/g, ' ')
     .replace(/\b(remix|reverb|slowed|speed up|sped up|lofi|lo-fi|lyrics?|lyric video|official video|official music video|official audio|official mv|mv|audio|full video|video|1\s*hour|1hour|30\s*min|loop|podcast|compilation|playlist|hot tiktok|tiktok|chu\u1ea9n hot|hay nhat|mashup|prod|beat)\b/gi, ' ')
-    .replace(/feat\.?|ft\.?/gi, ' ')
+    .replace(/\b(?:feat|ft)\.?\b/gi, ' ')
     .replace(/[\-\_\,\.\:\;\|\/\\]/g, ' ')
     .trim()
     .replace(/\s+/g, ' ')
