@@ -110,6 +110,71 @@ export function getBestSoundCloudTranscoding(track: SoundCloudRawTrack | any): S
 }
 
 /**
+ * Smart parsing of SoundCloud title and artist from raw title and uploader name
+ */
+export function parseSoundCloudTitleAndArtist(rawTitle?: string | null, uploader?: string | null): { title: string; artist: string } {
+  if (!rawTitle) return { title: 'SoundCloud Track', artist: uploader || 'SoundCloud Artist' }
+
+  let cleanT = rawTitle
+    .replace(/[\(\[\{].*?(official|video|audio|mv|lyric|lyrics|full|hd|4k|mp3|visualizer|prod|remix).*?[\)\]\}]/gi, '')
+    .trim()
+
+  let artist = (uploader || '').trim()
+  const cleanUploader = artist
+    .replace(/\s+(official|channel|music|records|topic|vevo|audio|media|tv|entertainment|vn|vietnam)\b/gi, '')
+    .trim()
+
+  let songTitle = cleanT || rawTitle
+
+  const JUNK_PART_REGEX = /^\s*(official\s*(music\s*video|video|audio|mv|lyric|lyrics)?|mv|video|audio|lyrics?|full\s*hd|visualizer|prod\.?)\s*$/i
+
+  const delimiters = [' - ', ' | ', ' — ', ' // ']
+  for (const delim of delimiters) {
+    if (cleanT.includes(delim)) {
+      const parts = cleanT
+        .split(delim)
+        .map((p) => p.trim())
+        .filter((p) => Boolean(p) && !JUNK_PART_REGEX.test(p))
+
+      if (parts.length >= 2) {
+        const p0Norm = parts[0].toLowerCase()
+        const p1Norm = parts[1].toLowerCase()
+        const uNorm = cleanUploader.toLowerCase()
+
+        if (uNorm && (uNorm.includes(p1Norm) || p1Norm.includes(uNorm.replace(/\s+/g, '')))) {
+          artist = parts[1]
+          songTitle = parts[0]
+        } else if (uNorm && (uNorm.includes(p0Norm) || p0Norm.includes(uNorm.replace(/\s+/g, '')))) {
+          artist = parts[0]
+          songTitle = parts.slice(1).join(' - ')
+        } else {
+          artist = parts[0]
+          songTitle = parts.slice(1).join(' - ')
+        }
+        break
+      } else if (parts.length === 1) {
+        songTitle = parts[0]
+        break
+      }
+    }
+  }
+
+  // Clean trailing descriptor junk like "- Official MV", "| Audio"
+  songTitle = songTitle
+    .replace(/\s*[-|/]\s*(official\s*(music\s*video|video|audio|mv|lyric|lyrics)?|mv|video|audio|lyrics?|visualizer)\s*$/i, '')
+    .trim()
+
+  if (!artist || artist === 'SoundCloud' || artist.toLowerCase().includes('unknown')) {
+    artist = cleanUploader || uploader || 'SoundCloud Artist'
+  }
+
+  return {
+    title: songTitle.trim() || rawTitle,
+    artist: artist.trim() || uploader || 'SoundCloud Artist',
+  }
+}
+
+/**
  * Transforms a SoundCloud API raw track into MusicWeb standard Track entity
  */
 export function soundCloudTrackToAppTrack(scTrack: SoundCloudRawTrack): Track {
@@ -120,13 +185,14 @@ export function soundCloudTrackToAppTrack(scTrack: SoundCloudRawTrack): Track {
 
   const durationSec = Math.max(1, Math.round((scTrack.duration || 0) / 1000))
   const trackId = `sc-${scTrack.id}`
+  const { title, artist } = parseSoundCloudTitleAndArtist(scTrack.title, scTrack.user?.username)
 
   return {
     id: trackId,
     user_id: 'system',
-    title: scTrack.title || 'SoundCloud Track',
-    artist: scTrack.user?.username || 'SoundCloud Artist',
-    artist_name: scTrack.user?.username || 'SoundCloud Artist',
+    title,
+    artist,
+    artist_name: artist,
     album: 'SoundCloud Single',
     album_title: 'SoundCloud Single',
     genre: scTrack.genre || 'SoundCloud',

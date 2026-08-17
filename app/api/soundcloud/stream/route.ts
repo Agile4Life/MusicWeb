@@ -42,17 +42,15 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    const cacheControl = refresh
-      ? 'no-cache, no-store, must-revalidate'
-      : 'public, max-age=900, s-maxage=900, stale-while-revalidate=300'
+    const cacheControl = 'no-cache, no-store, must-revalidate, max-age=0'
 
     if (format === 'json') {
       const res = NextResponse.json({ url: streamUrl }, { headers: CORS_HEADERS })
-      res.headers.set('Cache-Control', cacheControl)
+      res.headers.set('Cache-Control', refresh ? cacheControl : 'public, max-age=300, s-maxage=300, stale-while-revalidate=60')
       return res
     }
 
-    // Default: Redirect browser/audio element directly to the resolved stream CDN
+    // Default: Redirect browser/audio element directly to the resolved stream CDN with no-cache so reconnection fetches fresh URLs
     const res = NextResponse.redirect(streamUrl, 307)
     for (const [k, v] of Object.entries(CORS_HEADERS)) {
       res.headers.set(k, v)

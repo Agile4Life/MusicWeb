@@ -3,11 +3,33 @@ import {
   isSoundCloudFullAudio,
   getSoundCloudHighResArtwork,
   soundCloudTrackToAppTrack,
+  parseSoundCloudTitleAndArtist,
   getBestSoundCloudTranscoding,
   SoundCloudRawTrack,
 } from '../soundcloud'
 
 describe('SoundCloud Helper & Full Audio Filter Unit Tests', () => {
+  it('parseSoundCloudTitleAndArtist should cleanly extract artist and title from diverse formats', () => {
+    expect(parseSoundCloudTitleAndArtist('SƠN TÙNG M-TP | CHÚNG TA CỦA HIỆN TẠI | OFFICIAL MV', 'Sơn Tùng M-TP Official')).toEqual({
+      title: 'CHÚNG TA CỦA HIỆN TẠI',
+      artist: 'SƠN TÙNG M-TP',
+    })
+
+    expect(parseSoundCloudTitleAndArtist('Anh Sai Rồi - Sơn Tùng M-TP', 'Sơn Tùng M-TP')).toEqual({
+      title: 'Anh Sai Rồi',
+      artist: 'Sơn Tùng M-TP',
+    })
+
+    expect(parseSoundCloudTitleAndArtist('HIEUTHUHAI - Vệ Tinh (ft. Hoàng Tôn) [Official Audio]', 'vpop_vibes')).toEqual({
+      title: 'Vệ Tinh',
+      artist: 'HIEUTHUHAI',
+    })
+
+    expect(parseSoundCloudTitleAndArtist('Making My Way', 'Sơn Tùng M-TP')).toEqual({
+      title: 'Making My Way',
+      artist: 'Sơn Tùng M-TP',
+    })
+  })
   it('isSoundCloudFullAudio should return true for valid full audio tracks', () => {
     const fullTrack: SoundCloudRawTrack = {
       id: 123456,

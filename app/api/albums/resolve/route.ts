@@ -75,14 +75,52 @@ export async function GET(req: NextRequest) {
     const cleanArtist = normalizeText(artist)
     let cleanAlbum = normalizeText(albumParam)
 
+    const GENERIC_ALBUM_NAMES = new Set([
+      'single',
+      'ep',
+      'album',
+      'unknown album',
+      'soundcloud',
+      'soundcloud single',
+      'soundcloud track',
+      'soundcloud playlist',
+      'soundcloud import',
+      'soundcloud audio',
+      'google drive',
+      'google drive sync',
+      'youtube music',
+      'apple music top hits',
+      'itunes global',
+      'spotify album',
+      'spotify import',
+    ])
+
     // If album parameter matches song title or generic placeholder, ignore it to find the real album
-    if (cleanAlbum === cleanTitle || cleanAlbum === 'single' || cleanAlbum === 'unknown album') {
+    if (!cleanAlbum || cleanAlbum === cleanTitle || GENERIC_ALBUM_NAMES.has(cleanAlbum) || cleanAlbum.startsWith('soundcloud')) {
       cleanAlbum = ''
       albumParam = ''
     }
 
-    const primaryArtist = artist.split(/[,&/]/)[0].trim()
-    const cacheKey = `${cleanTitle}_${cleanArtist}_${cleanAlbum}`
+    let effectiveArtist = artist
+    let effectiveTitle = displayTitle || title
+
+    // If artist is generic or uploader-like, attempt to extract artist from raw title
+    const artistLower = (artist || '').toLowerCase()
+    const isGenericArtist = !artist || artistLower.includes('soundcloud') || artistLower.includes('official') || artistLower.includes('channel') || artistLower.includes('records') || artistLower.includes('music') || artistLower.includes('audio') || artistLower.includes('vibes') || artistLower.includes('media')
+
+    if (title.includes(' - ') || title.includes(' | ')) {
+      const delim = title.includes(' - ') ? ' - ' : ' | '
+      const parts = title.split(delim).map((p) => p.trim()).filter(Boolean)
+      if (parts.length >= 2 && isGenericArtist) {
+        effectiveArtist = parts[0]
+        effectiveTitle = parts.slice(1).join(' - ')
+      }
+    }
+
+    const primaryArtist = (effectiveArtist || artist).split(/[,&/]/)[0].trim()
+    const finalCleanTitle = normalizeText(effectiveTitle || title)
+    const finalCleanArtist = normalizeText(effectiveArtist || artist)
+    const cacheKey = `${finalCleanTitle}_${finalCleanArtist}_${cleanAlbum}`
 
     const supabase = getSupabaseClient()
 
@@ -94,13 +132,13 @@ export async function GET(req: NextRequest) {
         await supabase.from('spotify_albums').upsert({
           id: albumId,
           name: albumName,
-          artist: artist || 'Various Artists',
+          artist: effectiveArtist || artist || 'Various Artists',
           cover_url: coverUrl || null,
         })
 
         const updatePayload: any = { album: albumName, spotify_album_id: albumId }
 
-        if (trackId && !trackId.startsWith('yt-') && !trackId.startsWith('spotify-') && !trackId.startsWith('itunes-') && !trackId.startsWith('deezer-')) {
+        if (trackId && !trackId.startsWith('yt-') && !trackId.startsWith('sc-') && !trackId.startsWith('spotify-') && !trackId.startsWith('itunes-') && !trackId.startsWith('deezer-')) {
           const { error: trackUpdateErr } = await supabase
             .from('tracks')
             .update(updatePayload)
@@ -109,16 +147,16 @@ export async function GET(req: NextRequest) {
           if (trackUpdateErr && updatePayload.spotify_album_id) {
             await supabase.from('tracks').update({ album: albumName }).eq('id', trackId)
           }
-        } else if (cleanTitle) {
+        } else if (finalCleanTitle && finalCleanArtist) {
           const { data: matched } = await supabase
             .from('tracks')
             .select('id, title')
-            .ilike('artist', `%${artist.trim() || ''}%`)
+            .ilike('artist', `%${(effectiveArtist || artist).trim() || ''}%`)
             .limit(20)
 
           if (matched && matched.length > 0) {
             const targetIds = matched
-              .filter((t) => !t.title || normalizeText(t.title) === cleanTitle || t.title.toLowerCase().includes(title.trim().toLowerCase()))
+              .filter((t) => !t.title || normalizeText(t.title) === finalCleanTitle || t.title.toLowerCase().includes((effectiveTitle || title).trim().toLowerCase()))
               .map((t) => t.id)
 
             if (targetIds.length > 0) {
@@ -142,10 +180,10 @@ export async function GET(req: NextRequest) {
     if (memCached && Date.now() - memCached.timestamp < RESOLVE_CACHE_TTL) {
       const cachedId = String(memCached.data?.albumId || '')
       const cachedNameNorm = normalizeText(memCached.data?.albumName)
-      const targetNorm = cleanAlbum || cleanTitle
+      const targetNorm = cleanAlbum || finalCleanTitle
 
       const isBadDefianceCache = cachedId.includes('299152445') || cachedId.includes('296970753')
-      const isSingleCache = cleanTitle && cachedNameNorm === cleanTitle
+      const isSingleCache = finalCleanTitle && cachedNameNorm === finalCleanTitle
 
       // STRICT name matching: exact equality OR target starts with album name (album is a prefix)
       const isNameMatching = !targetNorm || cachedNameNorm === targetNorm || targetNorm.startsWith(cachedNameNorm + ' ') || targetNorm.startsWith(cachedNameNorm + '(')
@@ -164,23 +202,23 @@ export async function GET(req: NextRequest) {
     // 1. Check local Supabase DB cache first
     if (supabase) {
       try {
-        if (cleanTitle) {
+        if (finalCleanTitle) {
           const { data: dbTrack } = await supabase
             .from('tracks')
             .select('spotify_album_id, album, artist')
             .not('spotify_album_id', 'is', null)
-            .ilike('title', `%${(displayTitle || title).trim()}%`)
+            .ilike('title', `%${(effectiveTitle || title).trim()}%`)
             .limit(10)
 
           if (dbTrack && dbTrack.length > 0) {
             const foundTrack = dbTrack.find((t) => {
-              if (!t.spotify_album_id || normalizeText(t.album) === cleanTitle) return false
-              if (cleanArtist && t.artist) {
+              if (!t.spotify_album_id || normalizeText(t.album) === finalCleanTitle) return false
+              if (finalCleanArtist && t.artist) {
                 const dbArtistNorm = normalizeText(t.artist)
                 // STRICT artist match: exact equality or proper prefix
-                const exactMatch = dbArtistNorm === cleanArtist
-                const albStartsWithArtist = dbArtistNorm.startsWith(cleanArtist + ' ')
-                const artistStartsWithAlb = cleanArtist.startsWith(dbArtistNorm + ' ')
+                const exactMatch = dbArtistNorm === finalCleanArtist
+                const albStartsWithArtist = dbArtistNorm.startsWith(finalCleanArtist + ' ')
+                const artistStartsWithAlb = finalCleanArtist.startsWith(dbArtistNorm + ' ')
                 if (!exactMatch && !albStartsWithArtist && !artistStartsWithAlb) return false
               }
               return true
@@ -192,7 +230,7 @@ export async function GET(req: NextRequest) {
           }
         }
 
-        const targetSearchName = cleanAlbum || cleanTitle
+        const targetSearchName = cleanAlbum || finalCleanTitle
         if (targetSearchName) {
           const { data: dbAlbums } = await supabase
             .from('spotify_albums')
@@ -202,34 +240,24 @@ export async function GET(req: NextRequest) {
             const match = dbAlbums.find((alb) => {
               const albName = normalizeText(alb.name)
               const albArtist = normalizeText(alb.artist)
-              const isNotSingle = !cleanTitle || albName !== cleanTitle
+              const isNotSingle = !finalCleanTitle || albName !== finalCleanTitle
 
-              // STRICT artist matching: only match if artist is an exact prefix/suffix or equals the full name.
-              // This prevents "Taylor" from matching "Taylor Swift" albums.
+              // STRICT artist matching
               let artistMatch = false
-              if (!cleanArtist) {
-                artistMatch = true
-              } else if (albArtist === cleanArtist) {
-                // Exact match — always accept
+              if (!finalCleanArtist) {
+                artistMatch = false
+              } else if (albArtist === finalCleanArtist) {
                 artistMatch = true
               } else {
-                // Check if one is a meaningful prefix of the other (albArtist starts with cleanArtist + space, or vice versa)
-                // e.g., "Taylor Swift" matches "Taylor Swift feat. ..." but NOT just "Taylor"
-                const albStartsWithArtist = albArtist.startsWith(cleanArtist + ' ')
-                const artistStartsWithAlb = cleanArtist.startsWith(albArtist + ' ')
+                const albStartsWithArtist = albArtist.startsWith(finalCleanArtist + ' ')
+                const artistStartsWithAlb = finalCleanArtist.startsWith(albArtist + ' ')
                 artistMatch = albStartsWithArtist || artistStartsWithAlb
               }
 
-              // STRICT name matching: only accept exact match OR substring from album → search.
-              // "the best of the beatles" does NOT match album "best of" via includes.
-              // But "best of" from album IS a substring of "the best of the beatles" search — reject this too.
-              // Only accept: exact match, OR album name starts with search term (album is a subset prefix).
               let nameMatch = false
               if (albName === targetSearchName) {
                 nameMatch = true
               } else if (targetSearchName.startsWith(albName + ' ') || targetSearchName.startsWith(albName + '(') || targetSearchName.startsWith(albName + '[')) {
-                // Search term contains album name as a prefix (album name is a meaningful subset)
-                // e.g., search="midnights taylor swift", album="midnights" → acceptable
                 nameMatch = true
               }
 
@@ -253,19 +281,51 @@ export async function GET(req: NextRequest) {
       return normalizeText(albumTitle) === normalizeText(trackTitle)
     }
 
+    // Helper: detect if candidate track title matches searched song title
+    const isTitleMatch = (candidateTitle?: string) => {
+      if (!finalCleanTitle) return true
+      if (!candidateTitle) return false
+      const cNorm = normalizeText(candidateTitle)
+      if (!cNorm) return false
+
+      if (cNorm === finalCleanTitle) return true
+      if (cNorm.startsWith(finalCleanTitle) || finalCleanTitle.startsWith(cNorm)) return true
+
+      const cWords = cNorm.split(' ').filter((w) => w.length > 1)
+      const tWords = finalCleanTitle.split(' ').filter((w) => w.length > 1)
+      if (tWords.length === 0 || cWords.length === 0) return false
+
+      const matches = tWords.filter((w) => cWords.includes(w)).length
+      return matches / tWords.length >= 0.7
+    }
+
+    // Helper for artist matching — STRICT matching to prevent cross-artist album assignment
+    const isArtistMatch = (candidateArtist?: string) => {
+      if (!finalCleanArtist) return false
+      if (!candidateArtist) return false
+      const cNorm = normalizeText(candidateArtist)
+      if (!cNorm) return false
+
+      if (cNorm === finalCleanArtist) return true
+      if (cNorm.startsWith(finalCleanArtist + ' ') || finalCleanArtist.startsWith(cNorm + ' ')) return true
+      if (cNorm.includes(finalCleanArtist) || finalCleanArtist.includes(cNorm)) {
+        if (finalCleanArtist.length >= 3 && cNorm.length >= 3) return true
+      }
+
+      return false
+    }
+
     // Helper: try to find the real parent album for a track via Deezer album search
     const tryFindRealAlbum = async (artistName: string, trackTitle: string): Promise<{ albumId: string; albumName: string; coverUrl: string | null } | null> => {
       try {
         const deezerAlbumResults = await searchDeezerAlbums(`${artistName}`.trim(), 10)
         if (deezerAlbumResults && deezerAlbumResults.length > 0) {
-          // Find an album that is NOT named after the track (i.e. not a single) and matches the artist
           const realAlbum = deezerAlbumResults.find((a) => {
             const albName = normalizeText(a.name)
             const isNotSingle = albName !== normalizeText(trackTitle)
             const hasMultipleTracks = (a as any).nb_tracks > 1
             return isNotSingle && hasMultipleTracks && isArtistMatch((a as any).artist?.name || (a as any).artist)
           })
-          // As a secondary check, verify this album actually contains the track
           if (realAlbum && realAlbum.id) {
             try {
               const albumDetailRes = await fetch(
@@ -286,50 +346,25 @@ export async function GET(req: NextRequest) {
                   }
                 }
               }
-            } catch {
-              // Fall through — album track list check failed
-            }
+            } catch {}
           }
         }
-      } catch {
-        // Fall through
-      }
+      } catch {}
       return null
-    }
-
-    // Helper for artist matching — STRICT matching to prevent cross-artist album assignment
-    const isArtistMatch = (candidateArtist?: string) => {
-      if (!cleanArtist) return true
-      if (!candidateArtist) return false
-      const cNorm = normalizeText(candidateArtist)
-      if (!cNorm) return false
-
-      // Exact match — always accept
-      if (cNorm === cleanArtist) return true
-
-      // One is a proper prefix of the other (with space boundary to avoid "Taylor" matching "Taylor Swift")
-      // e.g., "Taylor" → "Taylor Swift", "Taylor Swift feat. ..." → "Taylor Swift"
-      if (cNorm.startsWith(cleanArtist + ' ') || cleanArtist.startsWith(cNorm + ' ')) return true
-
-      // Do NOT use includes() — it causes "Taylor" to match "Taylor Swift" albums incorrectly
-      // Do NOT use token overlap — it causes "Taylor Swift" to match "Taylor Jackson" (both have "Taylor")
-
-      return false
     }
 
     // 2. Priority Direct Deezer Album Search
     const directAlbumQuery = cleanAlbum
       ? `${primaryArtist} ${albumParam}`.trim()
-      : `${primaryArtist} ${displayTitle || title}`.trim()
+      : `${primaryArtist} ${effectiveTitle || title}`.trim()
 
-    if (directAlbumQuery) {
+    if (directAlbumQuery && primaryArtist) {
       try {
         const deezerResults = await searchDeezerAlbums(directAlbumQuery, 5)
         if (deezerResults && deezerResults.length > 0) {
           const best = deezerResults.find((a) => {
             const albName = normalizeText(a.name)
-            const target = cleanAlbum || cleanTitle
-            // STRICT name match: exact equality OR album name is prefix of search target
+            const target = cleanAlbum || finalCleanTitle
             const nameOk = !target || albName === target || target.startsWith(albName + ' ')
             return nameOk && isArtistMatch((a as any).artist?.name || (a as any).artist)
           })
@@ -350,8 +385,8 @@ export async function GET(req: NextRequest) {
     }
 
     // 3. Primary track-to-album resolution via Deezer search API (primary artist + display title)
-    const searchQuery = `${primaryArtist} ${displayTitle || title}`.trim()
-    if (searchQuery) {
+    const searchQuery = `${primaryArtist} ${effectiveTitle || title}`.trim()
+    if (searchQuery && primaryArtist) {
       try {
         const dTrackRes = await fetch(
           `https://api.deezer.com/search?q=${encodeURIComponent(searchQuery)}&limit=5`,
@@ -360,10 +395,9 @@ export async function GET(req: NextRequest) {
         if (dTrackRes.ok) {
           const dData = await dTrackRes.json()
           if (dData.data && dData.data.length > 0) {
-            const bestTrack = dData.data.find((item: any) => isArtistMatch(item.artist?.name))
+            const bestTrack = dData.data.find((item: any) => isArtistMatch(item.artist?.name) && isTitleMatch(item.title))
 
             if (bestTrack && bestTrack.album?.id) {
-              // Check if result is likely a single (album name ≈ track title)
               if (isLikelySingle(bestTrack.album.title, bestTrack.title)) {
                 const realAlbum = await tryFindRealAlbum(primaryArtist, bestTrack.title)
                 if (realAlbum) {
@@ -388,18 +422,17 @@ export async function GET(req: NextRequest) {
     }
 
     // 4. Title-Only Deezer Track Search (Strict Artist Match Only)
-    if (cleanTitle) {
+    if (finalCleanTitle && finalCleanArtist) {
       try {
         const dTitleRes = await fetch(
-          `https://api.deezer.com/search?q=${encodeURIComponent(displayTitle || title)}&limit=5`,
+          `https://api.deezer.com/search?q=${encodeURIComponent(effectiveTitle || title)}&limit=5`,
           { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(4000) }
         )
         if (dTitleRes.ok) {
           const dTitleData = await dTitleRes.json()
           if (dTitleData.data && dTitleData.data.length > 0) {
-            const bestTrack = dTitleData.data.find((item: any) => isArtistMatch(item.artist?.name))
+            const bestTrack = dTitleData.data.find((item: any) => isArtistMatch(item.artist?.name) && isTitleMatch(item.title))
             if (bestTrack && bestTrack.album?.id) {
-              // Check if result is likely a single (album name ≈ track title)
               if (isLikelySingle(bestTrack.album.title, bestTrack.title)) {
                 const realAlbum = await tryFindRealAlbum(primaryArtist, bestTrack.title)
                 if (realAlbum) {
@@ -425,8 +458,8 @@ export async function GET(req: NextRequest) {
 
     // 5. iTunes Track / Collection Search Fallback (Strict Artist Match Only)
     try {
-      const iTunesSearchTerm = searchQuery || (displayTitle || title).trim()
-      if (iTunesSearchTerm) {
+      const iTunesSearchTerm = searchQuery || (effectiveTitle || title).trim()
+      if (iTunesSearchTerm && finalCleanArtist) {
         const iRes = await fetch(
           `https://itunes.apple.com/search?term=${encodeURIComponent(iTunesSearchTerm)}&entity=song&limit=5`,
           { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(4000) }
@@ -434,7 +467,7 @@ export async function GET(req: NextRequest) {
         if (iRes.ok) {
           const iData = await iRes.json()
           if (iData.results && iData.results.length > 0) {
-            const match = iData.results.find((t: any) => t.collectionId && t.collectionName && isArtistMatch(t.artistName))
+            const match = iData.results.find((t: any) => t.collectionId && t.collectionName && isArtistMatch(t.artistName) && isTitleMatch(t.trackName || t.collectionName))
             if (match && match.collectionId) {
               const resData = {
                 albumId: `itunes-${match.collectionId}`,

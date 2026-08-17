@@ -145,16 +145,32 @@ function inferTrackSource(track: Track): Track {
     return { ...track, source: 'youtube', youtube_id: ytId }
   }
 
-  if (fp.includes('spotify.com') || track.spotify_id || track.id.startsWith('spotify-')) {
+  if (
+    fp.includes('spotify.com') ||
+    fp.startsWith('spotify:') ||
+    track.spotify_id ||
+    track.id.startsWith('spotify-') ||
+    fp.includes('p.scdn.co')
+  ) {
     return { ...track, source: 'spotify' }
   }
 
-  if (fp.includes('itunes.apple.com') || track.itunes_id || track.id.startsWith('itunes-')) {
+  if (
+    fp.includes('itunes.apple.com') ||
+    fp.startsWith('itunes:') ||
+    track.itunes_id ||
+    track.id.startsWith('itunes-') ||
+    fp.includes('mzstatic.com')
+  ) {
     return { ...track, source: 'itunes' }
   }
 
-  if (fp.includes('audius.co') || track.audius_id || track.id.startsWith('audius-')) {
+  if (fp.includes('audius.co') || fp.startsWith('audius:') || track.audius_id || track.id.startsWith('audius-')) {
     return { ...track, source: 'audius' }
+  }
+
+  if (fp.includes('soundcloud.com') || fp.startsWith('soundcloud:') || track.soundcloud_id || track.id.startsWith('sc-')) {
+    return { ...track, source: 'soundcloud' }
   }
 
   return track
@@ -276,6 +292,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const nextTrackRef = useRef<() => void>(() => {})
   const prevTrackRef = useRef<() => void>(() => {})
   const pendingResumeRef = useRef<boolean>(false)
+  const audioStallWatchdogRef = useRef<NodeJS.Timeout | null>(null)
 
   const isCurrentAudioOwnership = useCallback(() => {
     const token = audioOwnershipRef.current
@@ -521,6 +538,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(ytStuckTimerRef.current)
       ytStuckTimerRef.current = null
     }
+    if (audioStallWatchdogRef.current) {
+      clearTimeout(audioStallWatchdogRef.current)
+      audioStallWatchdogRef.current = null
+    }
   }
 
   // Resolve audio URL for local and external tracks
@@ -594,11 +615,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const filePath = track.file_path || ''
       if (!filePath) return null
 
-      // Spotify webpage URLs cannot be played directly by HTML5 <audio>
-      if (filePath.includes('spotify.com') || track.source === 'spotify') {
-        if (filePath.includes('.mp3') || filePath.includes('p.scdn.co') || filePath.includes('preview')) {
-          return filePath
-        }
+      // Spotify webpage URLs and 30s preview clips cannot be played directly by HTML5 <audio>
+      if (
+        filePath.includes('spotify.com') ||
+        filePath.startsWith('spotify:') ||
+        filePath.includes('p.scdn.co') ||
+        track.source === 'spotify' ||
+        Boolean(track.spotify_id) ||
+        isPreviewUrl(filePath)
+      ) {
         return null
       }
 
@@ -664,11 +689,21 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
 
       const isNct = track.source === 'nhaccuatui'
+      const isSoundCloud = Boolean(
+        track.source === 'soundcloud' ||
+        track.soundcloud_id ||
+        track.id?.startsWith('sc-') ||
+        (track.file_path && track.file_path.includes('soundcloud.com')) ||
+        (track.source_url && track.source_url.includes('soundcloud.com'))
+      )
 
       // 1. Check localStorage persistence (cross-session, survives app restart)
-      const persisted = getStreamUrl(track.id)
-      if (persisted?.url) {
-        return persisted.url
+      // Only for permanent/stable URLs (skip ephemeral signed tokens from SoundCloud/NCT)
+      if (!isSoundCloud && !isNct) {
+        const persisted = getStreamUrl(track.id)
+        if (persisted?.url) {
+          return persisted.url
+        }
       }
 
       // 2. NCT fast-path: check module-level nctStreamUrlCache (warmed by pre-warm effect).
@@ -679,7 +714,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
 
       // 3. Check audioUrlCacheRef for all other sources / cold NCT
-      const cacheTtl = isNct ? NCT_URL_CACHE_TTL : URL_CACHE_TTL
+      // SoundCloud tokens expire in ~15-20 min, so limit in-memory cache to 10 min
+      const SC_URL_CACHE_TTL = 10 * 60 * 1000
+      const cacheTtl = isNct ? NCT_URL_CACHE_TTL : isSoundCloud ? SC_URL_CACHE_TTL : URL_CACHE_TTL
       const cached = getBoundedRefreshed(
         audioUrlCacheRef.current,
         track.id,
@@ -694,11 +731,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       const url = await getAudioUrl(track)
       if (url && !isPreviewUrl(url)) {
-        // Persist to localStorage for cross-session restore
-        saveStreamUrl(track.id, url, {
-          nhaccuatui_id: isNct ? track.nhaccuatui_id : undefined,
-          youtube_id: track.youtube_id,
-        })
+        // Persist to localStorage for cross-session restore (skip ephemeral signed SoundCloud/NCT URLs)
+        if (!isSoundCloud && !isNct) {
+          saveStreamUrl(track.id, url, {
+            youtube_id: track.youtube_id,
+          })
+        }
         setBounded(audioUrlCacheRef.current, track.id, { url, ts: Date.now() }, AUDIO_URL_MAX_ENTRIES)
       }
       return url
@@ -1459,23 +1497,22 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // 🎵 Full-Length Stream Resolver for iTunes & Spotify tracks (Resolves DRM/metadata into 100% playable full song)
     let activeTrack = track
     const isPreviewAudio = Boolean(
-      (track.audio_url && (
-        track.audio_url.includes('apple.com') ||
-        track.audio_url.includes('dzcdn.net') ||
-        track.audio_url.includes('p.scdn.co') ||
-        track.audio_url.includes('mzstatic.com') ||
-        track.audio_url.includes('preview')
-      )) ||
-      (track.file_path && (
-        track.file_path.includes('apple.com') ||
-        track.file_path.includes('dzcdn.net') ||
-        track.file_path.includes('p.scdn.co') ||
-        track.file_path.includes('mzstatic.com') ||
-        track.file_path.includes('preview')
-      )) ||
+      (track.audio_url && isPreviewUrl(track.audio_url)) ||
+      (track.file_path && isPreviewUrl(track.file_path)) ||
       track.source === 'itunes' ||
       track.source === 'spotify' ||
-      (track as any).source === 'deezer'
+      (track as any).source === 'deezer' ||
+      Boolean(track.spotify_id) ||
+      Boolean(track.itunes_id) ||
+      (track.file_path && (
+        track.file_path.startsWith('spotify:') ||
+        track.file_path.startsWith('itunes:') ||
+        track.file_path.startsWith('deezer:') ||
+        track.file_path.includes('spotify.com') ||
+        track.file_path.includes('p.scdn.co') ||
+        track.file_path.includes('mzstatic.com') ||
+        track.file_path.includes('apple.com')
+      ))
     )
 
     const hasDirectPlayableAudio = !isPreviewAudio && Boolean(
@@ -1494,6 +1531,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       track.source === 'itunes' ||
       track.source === 'spotify' ||
       (track as any).source === 'deezer' ||
+      Boolean(track.spotify_id) ||
+      Boolean(track.itunes_id) ||
       isPreviewAudio ||
       (!track.youtube_id && !track.nhaccuatui_id && (track.spotify_id || track.itunes_id))
     ) && !track.youtube_id && !(track.source === 'nhaccuatui' && Boolean(track.nhaccuatui_id))
@@ -1553,12 +1592,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       let streamResult = resolved
       if (!streamResult) {
         try {
-          const cleanQ = `${track.title} ${track.artist}`.replace(/[\(\[\{].*?[\)\]\}]/g, '').trim()
+          const cleanQ = `${track.title} ${track.artist || ''}`.replace(/[\(\[\{].*?[\)\]\}]/g, '').trim()
           const fbRes = await fetch(`/api/search?q=${encodeURIComponent(cleanQ)}&source=all`)
           if (fbRes.ok) {
             const fbData = await fbRes.json()
             const nctMatch = fbData.nhaccuatui?.[0]
             const ytMatch = fbData.youtube?.[0] || fbData.spotify?.find((s: any) => s.youtube_id)
+            const scMatch = fbData.soundcloud?.[0]
             if (nctMatch?.nhaccuatui_id) {
               streamResult = {
                 source: 'nhaccuatui',
@@ -1576,6 +1616,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 artist: ytMatch.artist,
                 duration: ytMatch.duration,
                 coverUrl: ytMatch.cover_url,
+              }
+            } else if (scMatch?.soundcloud_id || scMatch?.id) {
+              const scId = scMatch.soundcloud_id ? String(scMatch.soundcloud_id) : scMatch.id.replace(/^sc-/, '')
+              streamResult = {
+                source: 'soundcloud',
+                id: scId,
+                title: scMatch.title,
+                artist: scMatch.artist,
+                duration: scMatch.duration,
+                coverUrl: scMatch.cover_url,
               }
             }
           }
@@ -1908,11 +1958,22 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       (track.file_path && isPreviewUrl(track.file_path)) ||
       track.source === 'spotify' ||
       track.source === 'itunes' ||
-      (track as any).source === 'deezer'
+      (track as any).source === 'deezer' ||
+      Boolean(track.spotify_id) ||
+      Boolean(track.itunes_id) ||
+      (track.file_path && (
+        track.file_path.startsWith('spotify:') ||
+        track.file_path.startsWith('itunes:') ||
+        track.file_path.startsWith('deezer:') ||
+        track.file_path.includes('spotify.com') ||
+        track.file_path.includes('p.scdn.co')
+      ))
     )
     const hasFullLengthSource = Boolean(
       track.youtube_id ||
-      track.nhaccuatui_id ||
+      (track.source === 'nhaccuatui' && track.nhaccuatui_id) ||
+      track.source === 'soundcloud' ||
+      Boolean(track.soundcloud_id) ||
       track.drive_file_id ||
       extractDriveFileId(track.file_path || '') ||
       (track.source === 'local' && track.file_path && !isPreviewUrl(track.file_path))
@@ -2405,6 +2466,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           console.log('[SoundCloud Auto-Retry] Audio playback error, requesting fresh stream URL with bypass cache...')
           ;(current as any)._scRetried = true
           try {
+            audioUrlCacheRef.current.delete(current.id)
             const freshUrl = await getAudioUrl(current, true)
             if (!isCurrentAudioOwnership()) return
             if (
@@ -2417,8 +2479,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 currentTrackId: currentTrackRef.current?.id,
               })
             ) {
+              const savedTime = currentTimeRef.current || audioRef.current.currentTime || 0
               audioRef.current.src = freshUrl
               audioRef.current.load()
+              if (savedTime > 0) {
+                audioRef.current.currentTime = savedTime
+              }
               audioRef.current.play().then(() => {
                 if (!isCurrentAudioOwnership()) return
                 setIsPlaying(true)
@@ -2460,7 +2526,56 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    const clearAudioStallWatchdog = () => {
+      if (audioStallWatchdogRef.current) {
+        clearTimeout(audioStallWatchdogRef.current)
+        audioStallWatchdogRef.current = null
+      }
+    }
+
+    const triggerAudioStallWatchdog = () => {
+      if (audioStallWatchdogRef.current) return
+      audioStallWatchdogRef.current = setTimeout(async () => {
+        audioStallWatchdogRef.current = null
+        if (!isCurrentAudioOwnership()) return
+        const current = currentTrackRef.current
+        if (!current) return
+
+        const isSoundCloud = Boolean(
+          current.source === 'soundcloud' ||
+          current.soundcloud_id ||
+          current.id?.startsWith('sc-')
+        )
+
+        if (isSoundCloud && !(current as any)._scStallRecovered) {
+          console.warn('[SoundCloud Watchdog] Playback stalled for >6.5s, auto-refreshing stream URL...')
+          ;(current as any)._scStallRecovered = true
+          try {
+            audioUrlCacheRef.current.delete(current.id)
+            const freshUrl = await getAudioUrl(current, true)
+            if (!isCurrentAudioOwnership()) return
+            if (freshUrl && audioRef.current) {
+              const savedTime = currentTimeRef.current || audioRef.current.currentTime || 0
+              audioRef.current.src = freshUrl
+              audioRef.current.load()
+              if (savedTime > 0) {
+                audioRef.current.currentTime = savedTime
+              }
+              audioRef.current.play().then(() => {
+                if (!isCurrentAudioOwnership()) return
+                setIsPlaying(true)
+                setIsBuffering(false)
+              }).catch(() => {})
+            }
+          } catch (e) {
+            console.warn('[SoundCloud Watchdog] Recovery failed:', e)
+          }
+        }
+      }, 6500)
+    }
+
     const handleEnded = () => {
+      clearAudioStallWatchdog()
       if (!isYtIframeEngine()) {
         if (!isCurrentAudioOwnership()) return
         if (!audio.ended) return
@@ -2490,16 +2605,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const handleWaiting = () => {
       if (!isCurrentAudioOwnership()) return
       setIsBuffering(true)
+      triggerAudioStallWatchdog()
     }
     const handleStalled = () => {
       if (!isCurrentAudioOwnership()) return
       setIsBuffering(true)
+      triggerAudioStallWatchdog()
     }
     const handleLoadStart = () => {
       if (!isCurrentAudioOwnership()) return
       setIsBuffering(true)
     }
     const handleCanPlay = () => {
+      clearAudioStallWatchdog()
       if (!isCurrentAudioOwnership()) return
       setIsBuffering(false)
       // Retry a background play() that was rejected by iOS for lacking a fresh gesture
@@ -2511,6 +2629,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     }
     const handlePlaying = () => {
+      clearAudioStallWatchdog()
       if (!isCurrentAudioOwnership()) return
       setIsBuffering(false)
       audioRetryCountRef.current = 0
@@ -2536,6 +2655,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
+      clearAudioStallWatchdog()
       audio.removeEventListener('timeupdate', handleTimeUpdate)
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
       audio.removeEventListener('ended', handleEnded)

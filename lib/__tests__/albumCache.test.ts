@@ -268,6 +268,9 @@ describe('isRealAlbumName', () => {
     expect(isRealAlbumName('SINGLE')).toBe(false)
     expect(isRealAlbumName('unknown album')).toBe(false)
     expect(isRealAlbumName('EP')).toBe(false)
+    expect(isRealAlbumName('SoundCloud Single')).toBe(false)
+    expect(isRealAlbumName('SoundCloud')).toBe(false)
+    expect(isRealAlbumName('soundcloud track')).toBe(false)
   })
 
   it('returns true for real album names', () => {

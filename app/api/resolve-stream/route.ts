@@ -10,6 +10,7 @@ import {
 } from '@/lib/nhaccuatui'
 import { getPrimaryArtistName } from '@/lib/artistParser'
 import { findMemoryDriveTrack } from '@/lib/driveTracksMap'
+import { searchSoundCloudTracks } from '@/lib/soundcloudClient'
 
 export const dynamic = 'force-dynamic'
 
@@ -108,18 +109,24 @@ function extractDriveFileId(path: string): string | null {
 
 function isPreviewUrl(filePath: string): boolean {
   const lower = filePath.toLowerCase()
-  return lower.includes('preview') ||
+  return (
+    lower.includes('preview') ||
     lower.includes('itunes.apple.com') ||
     lower.includes('audio-ssl.itunes.apple.com') ||
     lower.includes('is1-ssl.mzstatic.com') ||
     lower.includes('mzstatic.com') ||
+    lower.startsWith('itunes:') ||
     lower.includes('spotify.com') ||
+    lower.startsWith('spotify:') ||
+    lower.includes('p.scdn.co') ||
     lower.includes('scdn.co') ||
     lower.includes('deezer.com') ||
+    lower.startsWith('deezer:') ||
     lower.includes('dzcdn.net')
+  )
 }
 
-// ── Server-side full resolution (Drive ‖ NCT ‖ YouTube — chạy SONG SONG với Smart Race) ────
+// ── Server-side full resolution (Drive ‖ NCT ‖ YouTube ‖ SoundCloud) ────
 async function resolveStream(
   title: string,
   artist: string,
@@ -249,18 +256,50 @@ async function resolveStream(
     }
   }
 
+  // === 4. SoundCloud: Fast Full-Length Audio Fallback ===
+  async function trySoundCloud(): Promise<L1Entry | null> {
+    try {
+      const scQuery = `${cleanTitle || title} ${cleanPrimaryArtist || primaryArtist}`.trim()
+      const candidates = await searchSoundCloudTracks(scQuery, 5).catch(() => [])
+      if (candidates.length === 0) return null
+
+      const match = candidates.find((c) => {
+        if (!c.duration || !duration) return true
+        return Math.abs(c.duration - duration) <= 30
+      }) || candidates[0]
+
+      if (!match?.soundcloud_id && !match?.id) return null
+      const scId = match.soundcloud_id ? String(match.soundcloud_id) : match.id.replace(/^sc-/, '')
+      return {
+        source: 'soundcloud',
+        resolvedId: scId,
+        title: match.title,
+        artist: match.artist,
+        duration: match.duration,
+        coverUrl: match.cover_url || null,
+        isMiss: false,
+        expiresAt: Date.now() + L1_HIT_TTL,
+      }
+    } catch {
+      return null
+    }
+  }
+
   // 1. Instant check for local Drive (<5ms)
   const driveResult = await tryDrive()
   if (driveResult) return driveResult
 
-  // 2. Run NCT and YouTube searches in parallel, but choose by stable priority.
-  // NCT is preferred because it uses a direct audio stream path in our player;
-  // YouTube remains the deterministic fallback when NCT has no valid match.
-  const [nctResult, ytResult] = await Promise.all([tryNct(), tryYoutube()])
+  // 2. Run NCT, YouTube, and SoundCloud searches in parallel with strict priority
+  const [nctResult, ytResult, scResult] = await Promise.all([
+    tryNct(),
+    tryYoutube(),
+    trySoundCloud(),
+  ])
   if (nctResult) return nctResult
   if (ytResult) return ytResult
+  if (scResult) return scResult
 
-  // === Miss — cả 3 nguồn đều không tìm được ===
+  // === Miss — Tất cả các nguồn đều không tìm được ===
   return {
     source: null,
     resolvedId: null,

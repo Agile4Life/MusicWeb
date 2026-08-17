@@ -84,8 +84,16 @@ export function isPreviewUrl(filePath: string): boolean {
   return (
     lower.includes('preview') ||
     lower.includes('audio-ssl.itunes.apple.com') ||
+    lower.includes('is1-ssl.mzstatic.com') ||
+    lower.includes('mzstatic.com') ||
+    lower.includes('itunes.apple.com') ||
+    lower.startsWith('itunes:') ||
     lower.includes('p.scdn.co') ||
-    lower.includes('spotify.com')
+    lower.includes('spotify.com') ||
+    lower.startsWith('spotify:') ||
+    lower.startsWith('deezer:') ||
+    lower.includes('deezer.com') ||
+    lower.includes('dzcdn.net')
   )
 }
 
