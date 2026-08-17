@@ -74,10 +74,16 @@ export function MobileFullviewPlayer() {
 
   const { themeStyle, currentTheme } = useTheme()
 
-  // Gesture Pull to Dismiss
+  // Unified iOS Drag to Dismiss Physics
   const [dragY, setDragY] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const touchStartYRef = useRef(0)
+  const touchStartXRef = useRef(0)
+  const touchStartTimeRef = useRef(0)
+  const lastTouchYRef = useRef(0)
+  const isDraggingRef = useRef(false)
+  const dragYRef = useRef(0)
+  const isClosingRef = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Lyrics state
@@ -104,6 +110,17 @@ export function MobileFullviewPlayer() {
   const userScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isUserInteractingRef = useRef(false)
   const lyricsReqIdRef = useRef(0)
+
+  // Reset drag on open
+  useEffect(() => {
+    if (isNowPlayingOpen) {
+      setDragY(0)
+      dragYRef.current = 0
+      setIsDragging(false)
+      isDraggingRef.current = false
+      isClosingRef.current = false
+    }
+  }, [isNowPlayingOpen])
 
   // Fetch lyrics whenever currentTrack changes (with fast-path cache hit)
   useEffect(() => {
@@ -139,28 +156,35 @@ export function MobileFullviewPlayer() {
     })
       .then(async (res) => {
         if (reqId !== lyricsReqIdRef.current) return
+        if (!res || (!res.syncedLyrics && !res.plainLyrics)) {
+          setLyrics([])
+          setIsSynced(false)
+          return
+        }
+
         let parsed: ExtendedLyricLine[] = []
         let hasSynced = false
 
-        if (res?.syncedLyrics && res.syncedLyrics.trim().length > 0) {
+        if (res.syncedLyrics && res.syncedLyrics.trim().length > 0) {
           parsed = parseLrc(res.syncedLyrics)
           hasSynced = true
-        } else if (res?.plainLyrics && res.plainLyrics.trim().length > 0) {
+        } else if (res.plainLyrics && res.plainLyrics.trim().length > 0) {
           parsed = parsePlainLyrics(res.plainLyrics)
           hasSynced = false
         }
 
-        if (parsed.length > 0) {
-          setLyrics(parsed)
-          setIsSynced(hasSynced)
-          globalLyricsCache.set(trackId, { lyrics: parsed, isSynced: hasSynced })
+        const validLyrics = parsed.filter((l) => l.text && l.text.trim().length > 0)
+        setLyrics(validLyrics)
+        setIsSynced(hasSynced)
+        globalLyricsCache.set(trackId, { lyrics: validLyrics, isSynced: hasSynced })
 
-          // Asynchronously fetch Romaji transliteration for all lines
-          const rawLines = parsed.map((p) => p.text)
+        // Asynchronously fetch Romaji transliteration for all lines
+        if (validLyrics.length > 0) {
           try {
+            const rawLines = validLyrics.map((p) => p.text)
             const romajiResults = await fetchLyricsRomaji(rawLines)
-            if (reqId === lyricsReqIdRef.current && romajiResults.length === parsed.length) {
-              const withRomaji = parsed.map((line, idx) => ({
+            if (reqId === lyricsReqIdRef.current && romajiResults.length === validLyrics.length) {
+              const withRomaji = validLyrics.map((line, idx) => ({
                 ...line,
                 romaji: romajiResults[idx] || '',
               }))
@@ -170,10 +194,6 @@ export function MobileFullviewPlayer() {
           } catch (err) {
             console.warn('Romaji transliteration error:', err)
           }
-        } else {
-          setLyrics([])
-          setIsSynced(false)
-          globalLyricsCache.set(trackId, { lyrics: [], isSynced: false })
         }
       })
       .catch((err) => {
@@ -188,20 +208,7 @@ export function MobileFullviewPlayer() {
           setLyricsLoading(false)
         }
       })
-
-    return () => {
-      // no-op
-    }
-  }, [
-    currentTrack?.id,
-    currentTrack?.title,
-    currentTrack?.artist,
-    currentTrack?.album,
-    currentTrack?.duration,
-    currentTrack?.youtube_id,
-    currentTrack?.nhaccuatui_id,
-    currentTrack?.source,
-  ])
+  }, [currentTrack])
 
   // Active lyric index calculation
   const activeIndex = useMemo(() => {
@@ -266,28 +273,100 @@ export function MobileFullviewPlayer() {
     }, 3000)
   }, [])
 
-  // Header Dismiss Gestures
-  const handleHeaderTouchStart = (e: React.TouchEvent) => {
-    touchStartYRef.current = e.touches[0].clientY
-    setIsDragging(true)
-  }
+  // Unified iOS Sheet Drag Gestures
+  const handleDragTouchStart = useCallback((e: React.TouchEvent) => {
+    if (isClosingRef.current) return
+    const touch = e.touches[0]
+    touchStartYRef.current = touch.clientY
+    touchStartXRef.current = touch.clientX
+    lastTouchYRef.current = touch.clientY
+    touchStartTimeRef.current = Date.now()
+    dragYRef.current = 0
+  }, [])
 
-  const handleHeaderTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging) return
-    const currentY = e.touches[0].clientY
+  const handleDragTouchMove = useCallback((e: React.TouchEvent) => {
+    if (isClosingRef.current) return
+    const touch = e.touches[0]
+    const currentY = touch.clientY
+    const currentX = touch.clientX
     const deltaY = currentY - touchStartYRef.current
-    if (deltaY > 0) {
-      setDragY(deltaY)
-    }
-  }
+    const deltaX = currentX - touchStartXRef.current
+    lastTouchYRef.current = currentY
 
-  const handleHeaderTouchEnd = () => {
-    setIsDragging(false)
-    if (dragY > 120) {
-      closeNowPlayingOverlay()
+    if (!isDraggingRef.current) {
+      // If horizontal movement is dominant, ignore vertical drag
+      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 8) {
+        return
+      }
+
+      // If touching the lyrics scroll container, only allow drag down if at top
+      const isOverLyrics = scrollContainerRef.current && scrollContainerRef.current.contains(e.target as Node)
+      if (isOverLyrics) {
+        if ((scrollContainerRef.current?.scrollTop || 0) > 2) {
+          return
+        }
+      }
+
+      // If moved down past 6px threshold, engage drag
+      if (deltaY > 6) {
+        isDraggingRef.current = true
+        setIsDragging(true)
+        isUserInteractingRef.current = true
+      }
     }
-    setDragY(0)
-  }
+
+    if (isDraggingRef.current) {
+      if (e.cancelable) {
+        e.preventDefault()
+      }
+      if (deltaY > 0) {
+        // Direct tracking with smooth finger follow
+        setDragY(deltaY)
+        dragYRef.current = deltaY
+      } else {
+        // Rubberband resistance when pulling upwards
+        const rubberband = deltaY * 0.18
+        setDragY(rubberband)
+        dragYRef.current = rubberband
+      }
+    }
+  }, [])
+
+  const handleDragTouchEnd = useCallback(() => {
+    if (isClosingRef.current) return
+    if (!isDraggingRef.current) {
+      setIsDragging(false)
+      return
+    }
+
+    const elapsed = Math.max(1, Date.now() - touchStartTimeRef.current)
+    const currentDragY = dragYRef.current
+    const velocity = (lastTouchYRef.current - touchStartYRef.current) / elapsed
+
+    isDraggingRef.current = false
+    setIsDragging(false)
+
+    // Dismiss if pulled down > 110px or flicked down with velocity > 0.45px/ms
+    const shouldDismiss = currentDragY > 110 || (currentDragY > 40 && velocity > 0.45)
+
+    if (shouldDismiss) {
+      isClosingRef.current = true
+      const screenH = typeof window !== 'undefined' ? window.innerHeight : 800
+      setDragY(screenH)
+      dragYRef.current = screenH
+
+      setTimeout(() => {
+        closeNowPlayingOverlay()
+        setDragY(0)
+        dragYRef.current = 0
+        isClosingRef.current = false
+      }, 300)
+    } else {
+      // Snap back to open with spring animation
+      setDragY(0)
+      dragYRef.current = 0
+    }
+  }, [closeNowPlayingOverlay])
 
   const handleLineClick = (line: ExtendedLyricLine) => {
     if (typeof line.time === 'number' && line.time >= 0) {
@@ -311,19 +390,35 @@ export function MobileFullviewPlayer() {
   const isMinimal = themeStyle === 'minimal-flat'
   const isClassic = themeStyle === 'classic'
 
+  const dragProgress = Math.min(1, Math.max(0, dragY / 500))
+  const sheetScale = dragY > 0 ? Math.max(0.92, 1 - dragProgress * 0.08) : 1
+  const sheetRadius = dragY > 0 ? Math.min(36, 16 + dragY * 0.12) : 0
+  const sheetOpacity = dragY > 0 ? Math.max(0.35, 1 - dragProgress * 0.55) : 1
+
   return (
     <div
       ref={containerRef}
-      className={`mobile-fullview-overlay fixed inset-0 z-[100] flex flex-col select-none overflow-hidden touch-pan-y transition-all duration-350 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-        isNowPlayingOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0 translate-y-full'
+      onTouchStart={handleDragTouchStart}
+      onTouchMove={handleDragTouchMove}
+      onTouchEnd={handleDragTouchEnd}
+      onTouchCancel={handleDragTouchEnd}
+      className={`mobile-fullview-overlay fixed inset-0 z-[100] flex flex-col select-none overflow-hidden touch-pan-y ${
+        isNowPlayingOpen ? 'pointer-events-auto' : 'pointer-events-none opacity-0 translate-y-full'
       } ${
         isMinimal ? 'bg-[#141017] text-[#F4ECE1]' : 'bg-[#07090e] text-white'
       }`}
       style={{
         transform: isNowPlayingOpen
-          ? `translate3d(0, ${dragY}px, 0)`
+          ? `translate3d(0, ${Math.max(0, dragY)}px, 0) scale(${sheetScale})`
           : 'translate3d(0, 100%, 0)',
-        transition: isDragging ? 'none' : 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease',
+        borderRadius: `${sheetRadius}px ${sheetRadius}px 0 0`,
+        opacity: isNowPlayingOpen ? sheetOpacity : 0,
+        boxShadow: dragY > 0 ? '0 -12px 48px rgba(0, 0, 0, 0.85)' : 'none',
+        transition: isDragging
+          ? 'none'
+          : 'transform 0.38s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.3s ease, border-radius 0.3s ease',
+        transformOrigin: 'bottom center',
+        willChange: 'transform, opacity',
       }}
     >
       {/* 🌟 1. Theme-Aware Ambient Fluid Background */}
@@ -368,20 +463,17 @@ export function MobileFullviewPlayer() {
 
       {/* 📱 2. Header: Drag Handle & Floating Liquid Glass Track Plaque */}
       <header
-        onTouchStart={handleHeaderTouchStart}
-        onTouchMove={handleHeaderTouchMove}
-        onTouchEnd={handleHeaderTouchEnd}
         className="relative z-20 pt-[calc(0.6rem+env(safe-area-inset-top,0px))] px-4 flex flex-col gap-2 shrink-0 cursor-grab active:cursor-grabbing"
       >
         {/* Top Grabber Bar */}
         <div
           onClick={closeNowPlayingOverlay}
-          className={`w-11 h-1.5 rounded-full transition-all mx-auto cursor-pointer active:scale-95 ${
+          className={`w-12 h-1.5 rounded-full transition-all mx-auto cursor-pointer active:scale-95 ${
             isMinimal
-              ? 'bg-[#E8A94F]/40 hover:bg-[#E8A94F]'
+              ? 'bg-[#E8A94F]/50 hover:bg-[#E8A94F]'
               : isClassic
-                ? 'bg-[var(--spotify-glow,#22d3ee)]/40 hover:bg-[var(--spotify-glow,#22d3ee)] shadow-[0_0_8px_var(--theme-glow-shadow)]'
-                : 'bg-white/30 hover:bg-white/50 backdrop-blur-md'
+                ? 'bg-[var(--spotify-glow,#22d3ee)]/50 hover:bg-[var(--spotify-glow,#22d3ee)] shadow-[0_0_8px_var(--theme-glow-shadow)]'
+                : 'bg-white/40 hover:bg-white/60 backdrop-blur-md'
           }`}
           title="Thu nhỏ"
         />
