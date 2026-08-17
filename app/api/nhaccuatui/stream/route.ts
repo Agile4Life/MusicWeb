@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { normalizeNhacCuaTuiSongResponse } from '@/lib/nhaccuatui'
+import { fetchWithRetry, isTransientError } from '@/lib/fetchWithRetry'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,11 +28,25 @@ async function resolveNctAudioUrlCached(id: string): Promise<string | null> {
   }
 
   try {
-    const songRes = await fetch(getNctSongUrl(trimmed), {
-      cache: 'no-store',
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(8000),
-    })
+    // Retry up to 2 times with exponential backoff on transient errors.
+    // Only retry on HTTP 502/503/504/500 or network/timeout errors.
+    const songRes = await fetchWithRetry(
+      () =>
+        fetch(getNctSongUrl(trimmed), {
+          cache: 'no-store',
+          headers: { Accept: 'application/json' },
+          signal: AbortSignal.timeout(8000),
+        }),
+      {
+        retries: 2,
+        baseDelayMs: 200,
+        maxDelayMs: 800,
+        retryOn: (res: unknown) => {
+          if (res instanceof Response) return isTransientError(res)
+          return false
+        },
+      }
+    )
     if (!songRes.ok) return null
 
     const payload: unknown = await songRes.json()

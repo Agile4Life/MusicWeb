@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { normalizeNhacCuaTuiSongResponse } from '@/lib/nhaccuatui'
+import { fetchWithRetry, isTransientError } from '@/lib/fetchWithRetry'
 
 const DEFAULT_NCT_API_BASE_URL = 'https://music-api.vanhuy2004h.io.vn'
 
@@ -18,11 +19,23 @@ export async function GET(
   if (!id?.trim()) return NextResponse.json({ error: 'Missing song id' }, { status: 400 })
 
   try {
-    const upstream = await fetch(getNctSongUrl(id.trim()), {
-      cache: 'no-store',
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(8000),
-    })
+    const upstream = await fetchWithRetry(
+      () =>
+        fetch(getNctSongUrl(id.trim()), {
+          cache: 'no-store',
+          headers: { Accept: 'application/json' },
+          signal: AbortSignal.timeout(8000),
+        }),
+      {
+        retries: 2,
+        baseDelayMs: 200,
+        maxDelayMs: 800,
+        retryOn: (res: unknown) => {
+          if (res instanceof Response) return isTransientError(res)
+          return false
+        },
+      }
+    )
     if (!upstream.ok) return NextResponse.json({ error: 'Song not found' }, { status: 404 })
 
     const payload: unknown = await upstream.json()
