@@ -55,7 +55,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       <TopBar />
                       <div
                         onScroll={handleScroll}
-                        className={`flex-1 overflow-y-auto min-h-0 relative main-content-scroll ${mobileContentPaddingClassName} lg:pb-48`}
+                        className={`flex-1 overflow-y-auto min-h-0 relative main-content-scroll ${mobileContentPaddingClassName} lg:pb-24`}
                       >
                         {children}
                       </div>

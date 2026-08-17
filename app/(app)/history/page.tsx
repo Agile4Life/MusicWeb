@@ -201,31 +201,31 @@ export default function HistoryPage() {
   })
 
   return (
-    <div className="p-3.5 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6 lg:gap-8 max-w-7xl mx-auto w-full pb-36 lg:pb-8 select-none">
+    <div className="p-2.5 sm:p-4 md:p-6 lg:p-7 flex flex-col gap-3 sm:gap-4 md:gap-5 max-w-7xl mx-auto w-full pb-36 lg:pb-12 select-none">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-white/[0.06] p-4 sm:p-6 md:p-8 bg-[#0d1017] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
-        <div className="flex items-center gap-3 sm:gap-4">
+      <div className="relative overflow-hidden rounded-2xl border border-white/[0.06] p-3 sm:p-4 md:p-5 bg-[#0d1017] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex items-center gap-2.5 sm:gap-3.5">
           <div
             style={{
               backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
               borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
               color: 'var(--spotify-glow, #22d3ee)',
             }}
-            className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl border flex items-center justify-center shrink-0 shadow-md"
+            className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl border flex items-center justify-center shrink-0 shadow-md"
           >
-            <History className="w-6 h-6 sm:w-7 sm:h-7" />
+            <History className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
 
-          <div className="flex flex-col gap-1">
-            <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">Lịch sử nghe nhạc</h1>
-            <p className="text-xs text-slate-400">
+          <div className="flex flex-col gap-0.5">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-extrabold text-white tracking-tight">Lịch sử nghe nhạc</h1>
+            <p className="text-[11px] sm:text-xs text-slate-400">
               Danh sách bài hát bạn đã nghe gần đây
             </p>
           </div>
         </div>
 
         {/* Top Actions */}
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0">
           {historyItems.length > 0 && (
             <>
               <button
@@ -234,16 +234,16 @@ export default function HistoryPage() {
                   background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
                   boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
                 }}
-                className="text-black font-bold px-4 py-2 sm:px-5 sm:py-2.5 rounded-full flex items-center gap-2 text-xs transition-all hover:brightness-110 active:scale-95 border border-white/20"
+                className="text-black font-bold px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full flex items-center gap-1.5 text-xs transition-all hover:brightness-110 active:scale-95 border border-white/20"
               >
-                <Play className="w-4 h-4 fill-current text-black" />
+                <Play className="w-3.5 h-3.5 fill-current text-black" />
                 <span>Phát tất cả</span>
               </button>
 
               <button
                 onClick={handleClearAllHistory}
                 disabled={clearing}
-                className="bg-white/5 hover:bg-red-500/10 text-slate-300 hover:text-red-400 border border-white/10 font-semibold px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full flex items-center gap-2 text-xs transition-colors disabled:opacity-50"
+                className="bg-white/5 hover:bg-red-500/10 text-slate-300 hover:text-red-400 border border-white/10 font-semibold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full flex items-center gap-1.5 text-xs transition-colors disabled:opacity-50"
                 title="Xóa tất cả lịch sử"
               >
                 <Trash2 className="w-3.5 h-3.5" />

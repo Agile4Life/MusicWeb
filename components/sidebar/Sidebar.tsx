@@ -161,7 +161,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
   return (
     <aside className={`app-sidebar hidden lg:flex w-60 lg:w-64 xl:w-72 flex-col justify-between p-3 lg:p-3.5 xl:p-4 h-full select-none text-slate-300 rounded-2xl panel-theme-hover shrink-0 z-10 overflow-hidden ${isScrolled ? 'is-scrolled' : ''}`}>
-      <div className="flex flex-col gap-2.5 lg:gap-3 xl:gap-3.5 min-h-0 flex-1 h-full max-h-full pb-20 xl:pb-24 overflow-hidden">
+      <div className="flex flex-col gap-2 min-h-0 flex-1 h-full max-h-full pb-14 overflow-y-auto no-scrollbar touch-pan-y">
         {/* App Branding Header (Mini Glass Plaque) */}
         <div className="px-0.5 py-0.5 shrink-0">
           <Link
@@ -344,7 +344,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
         </nav>
 
         {/* Playlists Container with Dedicated Scrollable Track Area */}
-        <div className="flex-1 flex flex-col min-h-0 pt-2 lg:pt-2.5 border-t border-white/[0.05] overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-[140px] pt-2 border-t border-white/[0.06]">
           {/* Action cluster: enlarged import & create buttons with horizontal glide indicator */}
           <div className="px-0.5 mb-1.5 shrink-0">
             <div
