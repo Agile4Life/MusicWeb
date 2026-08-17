@@ -105,6 +105,51 @@ function generateDisplacementMap(
   return canvas.toDataURL()
 }
 
+function generateSphericalLensMap(size: number = 96): string {
+  if (typeof window === 'undefined') return ''
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return ''
+
+  const imgData = ctx.createImageData(size, size)
+  const d = imgData.data
+  const cx = size / 2
+  const cy = size / 2
+  const radius = size * 0.48
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const idx = (y * size + x) * 4
+      const dx = (x - cx) / radius
+      const dy = (y - cy) / radius
+      const dist = Math.sqrt(dx * dx + dy * dy)
+
+      if (dist < 1.0) {
+        const height = Math.sqrt(1 - dist * dist)
+        const refractFactor = (1 - height) * 0.75
+        const r = (dx * refractFactor) * 0.5 + 0.5
+        const g = (dy * refractFactor) * 0.5 + 0.5
+        const b = height
+
+        d[idx] = Math.round(r * 255)
+        d[idx + 1] = Math.round(g * 255)
+        d[idx + 2] = Math.round(b * 255)
+        d[idx + 3] = 255
+      } else {
+        d[idx] = 128
+        d[idx + 1] = 128
+        d[idx + 2] = 0
+        d[idx + 3] = 255
+      }
+    }
+  }
+
+  ctx.putImageData(imgData, 0, 0)
+  return canvas.toDataURL()
+}
+
 // ─── SVG Filter ───
 
 interface NavSVGFilterProps {
@@ -135,13 +180,13 @@ function NavSVGFilter({ id, displacementSrc, aberrationIntensity, scale }: NavSV
           </feComponentTransfer>
           <feOffset in="SourceGraphic" dx="0" dy="0" result="CENTER_ORIGINAL" />
 
-          <feDisplacementMap in="SourceGraphic" in2="DMAP" scale={scale} xChannelSelector="R" yChannelSelector="B" result="RED_DISPLACED" />
+          <feDisplacementMap in="SourceGraphic" in2="DMAP" scale={scale} xChannelSelector="R" yChannelSelector="G" result="RED_DISPLACED" />
           <feColorMatrix in="RED_DISPLACED" type="matrix" values="1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0" result="RED_CHANNEL" />
 
-          <feDisplacementMap in="SourceGraphic" in2="DMAP" scale={scale * (1 - aberrationIntensity * 0.05)} xChannelSelector="R" yChannelSelector="B" result="GREEN_DISPLACED" />
+          <feDisplacementMap in="SourceGraphic" in2="DMAP" scale={scale * (1 - aberrationIntensity * 0.05)} xChannelSelector="R" yChannelSelector="G" result="GREEN_DISPLACED" />
           <feColorMatrix in="GREEN_DISPLACED" type="matrix" values="0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 1 0" result="GREEN_CHANNEL" />
 
-          <feDisplacementMap in="SourceGraphic" in2="DMAP" scale={scale * (1 - aberrationIntensity * 0.1)} xChannelSelector="R" yChannelSelector="B" result="BLUE_DISPLACED" />
+          <feDisplacementMap in="SourceGraphic" in2="DMAP" scale={scale * (1 - aberrationIntensity * 0.1)} xChannelSelector="R" yChannelSelector="G" result="BLUE_DISPLACED" />
           <feColorMatrix in="BLUE_DISPLACED" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 1 0" result="BLUE_CHANNEL" />
 
           <feBlend in="GREEN_CHANNEL" in2="BLUE_CHANNEL" mode="screen" result="GB" />
@@ -228,6 +273,7 @@ export function LiquidNavBar({
   const [isDragging, setIsDragging] = useState(false)
   const [isNavExpanded, setIsNavExpanded] = useState(false)
   const [displacementMapUrl, setDisplacementMapUrl] = useState('')
+  const [sphericalLensUrl, setSphericalLensUrl] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
 
   const navRef = useRef<HTMLDivElement>(null)
@@ -273,7 +319,7 @@ export function LiquidNavBar({
     }
   }, [pathname, tabs]) // eslint-disable-line
 
-  // Generate displacement map
+  // Generate displacement maps
   useEffect(() => {
     const nav = navRef.current
     if (!nav) return
@@ -281,6 +327,7 @@ export function LiquidNavBar({
     const h = nav.offsetHeight || 68
     const url = generateDisplacementMap(w, h, 0.35, 0.25, 0.6)
     setDisplacementMapUrl(url)
+    setSphericalLensUrl(generateSphericalLensMap(96))
   }, [])
 
   // Init blob position — use offsetLeft/offsetWidth (relative to offset parent)
@@ -484,6 +531,55 @@ export function LiquidNavBar({
         />
       )}
 
+      {/* Dynamic Per-Stroke Vector Optical Refraction Filters for each Tab */}
+      {sphericalLensUrl && (
+        <svg style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }} aria-hidden="true">
+          <defs>
+            {tabs.map((_, i) => {
+              const blobCenter = blobLeft + blobWidth / 2
+              const tabEl = tabRefs.current[i]
+              const tabCenter = tabEl ? (tabEl.offsetLeft + tabEl.offsetWidth / 2) : (i * 64 + 32)
+              const dx = tabCenter - blobCenter
+              const lensRadius = Math.max(blobWidth * 0.95, 52)
+              const u = Math.min(Math.abs(dx) / lensRadius, 1)
+              const strokeDisplacementScale = isDragging && u < 1
+                ? Math.round((1 - u * u) * 24)
+                : (i === activeIndex ? 6 : 0)
+
+              return (
+                <filter
+                  key={`stroke-filter-${i}`}
+                  id={`tabStrokeFilter-${i}`}
+                  x="-60%"
+                  y="-60%"
+                  width="220%"
+                  height="220%"
+                  colorInterpolationFilters="sRGB"
+                >
+                  <feImage
+                    x="0"
+                    y="0"
+                    width="100%"
+                    height="100%"
+                    result="LENS_MAP"
+                    href={sphericalLensUrl}
+                    preserveAspectRatio="xMidYMid slice"
+                  />
+                  <feDisplacementMap
+                    in="SourceGraphic"
+                    in2="LENS_MAP"
+                    scale={strokeDisplacementScale}
+                    xChannelSelector="R"
+                    yChannelSelector="G"
+                    result="WARPED_STROKES"
+                  />
+                </filter>
+              )
+            })}
+          </defs>
+        </svg>
+      )}
+
       <div
         className={`liquid-nav-container lg:hidden fixed bottom-0 left-0 right-0 z-40 px-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] select-none ${className}`}
         style={style}
@@ -545,10 +641,70 @@ export function LiquidNavBar({
                 ? 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 18%, rgba(255,255,255,0.12))'
                 : 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 12%, rgba(255,255,255,0.06))',
               boxShadow: isDragging
-                ? '0 0 0 0.75px color-mix(in srgb, var(--spotify-glow, #22d3ee) 40%, rgba(255,255,255,0.45)), 0 18px 44px rgba(0,0,0,0.65), 0 6px 18px rgba(0,0,0,0.35), inset 0 1px 2px rgba(255,255,255,0.35), inset 0 -1px 2px rgba(0,0,0,0.2), 0 0 18px color-mix(in srgb, var(--spotify-glow, #22d3ee) 28%, transparent)'
-                : '0 0 0 0.5px color-mix(in srgb, var(--spotify-glow, #22d3ee) 20%, transparent), 0 4px 12px color-mix(in srgb, var(--spotify-glow, #22d3ee) 12%, transparent), inset 0 0.5px 0 rgba(255,255,255,0.12)',
+                ? '0 0 0 0.75px rgba(255,255,255,0.35), 0 16px 36px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.3), inset 0 1px 1.5px rgba(255,255,255,0.35), inset 0 -1px 1.5px rgba(0,0,0,0.2)'
+                : '0 0 0 0.5px rgba(255,255,255,0.2), 0 4px 12px rgba(0,0,0,0.2), inset 0 0.5px 0 rgba(255,255,255,0.12)',
             }}
           >
+            {/* 3D Convex Mirror Glass Surface Reflection */}
+            <div
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                borderRadius: 28,
+                pointerEvents: 'none',
+                overflow: 'hidden',
+                zIndex: 2,
+                maskImage: 'linear-gradient(180deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.1) 45%, transparent 75%)',
+                WebkitMaskImage: 'linear-gradient(180deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.1) 45%, transparent 75%)',
+              }}
+            >
+              {/* Top dome glass specular sheen */}
+              <span
+                style={{
+                  position: 'absolute',
+                  top: 1,
+                  left: 6,
+                  right: 6,
+                  height: '42%',
+                  borderRadius: '24px 24px 50% 50%',
+                  background: 'linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.01) 100%)',
+                  pointerEvents: 'none',
+                }}
+              />
+
+              {/* Reflected ghost icon on glass mirror */}
+              {(() => {
+                const bCenter = blobLeft + blobWidth / 2
+                let nIdx = 0
+                let mDist = Infinity
+                tabs.forEach((_, idx) => {
+                  const tEl = tabRefs.current[idx]
+                  const c = tEl ? tEl.offsetLeft + tEl.offsetWidth / 2 : (idx * 64 + 32)
+                  const d = Math.abs(c - bCenter)
+                  if (d < mDist) {
+                    mDist = d
+                    nIdx = idx
+                  }
+                })
+                const MirrorIcon = icons[tabs[nIdx]?.icon]
+                return MirrorIcon ? (
+                  <div
+                    className="flex items-center justify-center w-full h-full"
+                    style={{
+                      transform: 'translateY(-6px) scale(0.9) scaleY(-0.42)',
+                      opacity: isDragging ? 0.35 : 0.22,
+                      filter: 'blur(0.4px)',
+                      color: 'rgba(255,255,255,0.9)',
+                      transition: 'opacity 0.2s ease',
+                    }}
+                  >
+                    <MirrorIcon className="w-5 h-5" strokeWidth={2.2} />
+                  </div>
+                ) : null
+              })()}
+            </div>
+
             {/* Chromatic aberration rainbow rim on holding */}
             <span
               aria-hidden="true"
@@ -576,21 +732,47 @@ export function LiquidNavBar({
               const isActive = i === activeIndex
               const IconComp = icons[tab.icon]
 
+              // Optical physics calculations relative to moving liquid blob center
+              const blobCenter = blobLeft + blobWidth / 2
+              const tabEl = tabRefs.current[i]
+              const tabCenter = tabEl ? (tabEl.offsetLeft + tabEl.offsetWidth / 2) : (i * 64 + 32)
+              const dx = tabCenter - blobCenter
+              const lensRadius = Math.max(blobWidth * 0.95, 52)
+              const u = Math.min(Math.abs(dx) / lensRadius, 1)
+
+              // Optical magnification (highest at peak of convex droplet)
+              const opticalZoom = isDragging
+                ? (u < 1 ? (1 + (1 - u * u) * 0.36).toFixed(3) : '1.000')
+                : (isActive ? '1.120' : '1.000')
+
+              // Optical refraction shift (Snell's law pinch towards optical center)
+              const opticalShiftX = isDragging && u < 1
+                ? (-Math.sign(dx) * (u * (1 - u)) * 14).toFixed(2)
+                : '0.00'
+
+              // Fluid velocity shear (viscous drag warp)
+              const velocityShear = isDragging && u < 1
+                ? Math.max(-6, Math.min(6, (dragRef.current.smoothVelocity || 0) * 0.015 * (1 - u))).toFixed(2)
+                : '0.00'
+
+              const iconTransform = `translateX(${opticalShiftX}px) scale(${opticalZoom}) skewX(${velocityShear}deg)`
+              const textTransform = `translateX(${opticalShiftX}px) scale(${isDragging ? (u < 1 ? (1 + (1 - u * u) * 0.16).toFixed(3) : '1.000') : (isActive ? '1.040' : '1.000')}) skewX(${velocityShear}deg)`
+
               const iconColor = isDragging
-                ? isActive
-                  ? 'text-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_0_9px_var(--spotify-glow,#22d3ee)]'
-                  : 'text-[var(--spotify-glow,#22d3ee)]/65'
-                : isActive
-                  ? 'text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.45)]'
-                  : 'text-slate-400 hover:text-slate-200'
+                ? (u < 0.6
+                  ? 'text-[var(--spotify-glow,#22d3ee)]'
+                  : 'text-[var(--spotify-glow,#22d3ee)]/70')
+                : (isActive
+                  ? 'text-white'
+                  : 'text-slate-400 hover:text-slate-200')
 
               const textColor = isDragging
-                ? isActive
-                  ? 'text-[var(--spotify-glow,#22d3ee)] font-bold drop-shadow-[0_0_6px_var(--spotify-glow,#22d3ee)]'
-                  : 'text-[var(--spotify-glow,#22d3ee)]/80 font-semibold'
-                : isActive
-                  ? 'text-white font-bold drop-shadow-[0_0_4px_rgba(255,255,255,0.35)]'
-                  : 'text-slate-300 font-medium'
+                ? (u < 0.6
+                  ? 'text-[var(--spotify-glow,#22d3ee)] font-bold'
+                  : 'text-[var(--spotify-glow,#22d3ee)]/80 font-semibold')
+                : (isActive
+                  ? 'text-white font-bold'
+                  : 'text-slate-300 font-medium')
 
               const content = (
                 <button
@@ -614,25 +796,30 @@ export function LiquidNavBar({
                 >
                   <span
                     style={{
-                      transform: isActive
-                        ? isDragging
-                          ? 'scale(1.36)'
-                          : 'scale(1.12)'
-                        : 'scale(1)',
-                      transition: 'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                      transform: iconTransform,
+                      transition: isDragging
+                        ? 'transform 0.05s linear'
+                        : 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
                     }}
                   >
                     {IconComp && (
                       <IconComp
                         className={`w-5 h-5 transition-all duration-250 ${iconColor}`}
                         strokeWidth={isActive ? (isDragging ? 2.85 : 2.5) : 2}
+                        style={{
+                          filter: isDragging
+                            ? (u < 1 ? `url(#tabStrokeFilter-${i})` : 'none')
+                            : (isActive ? `url(#tabStrokeFilter-${i})` : 'none'),
+                        }}
                       />
                     )}
                   </span>
                   <span
                     style={{
-                      transform: isActive && isDragging ? 'scale(1.16)' : 'scale(1)',
-                      transition: 'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                      transform: textTransform,
+                      transition: isDragging
+                        ? 'transform 0.05s linear'
+                        : 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
                     }}
                     className={`text-[10px] leading-none transition-all duration-250 ${textColor}`}
                   >
