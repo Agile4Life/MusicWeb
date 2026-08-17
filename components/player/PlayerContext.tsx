@@ -996,7 +996,18 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             }
             if (ytPlayerRef.current?.loadVideoById) {
               ytLoadedIdRef.current = bestMatch.youtube_id
-              ytPlayerRef.current.setVolume((volumeRef.current ?? 0.8) * 100)
+              const currentVol = volumeRef.current ?? DEFAULT_VOLUME
+              if (currentVol > 0) {
+                if (ytPlayerRef.current.unMute) ytPlayerRef.current.unMute()
+                if (ytPlayerRef.current.isMuted && ytPlayerRef.current.isMuted()) {
+                  ytPlayerRef.current.unMute()
+                }
+              } else {
+                if (ytPlayerRef.current.mute) ytPlayerRef.current.mute()
+              }
+              if (ytPlayerRef.current.setVolume) {
+                ytPlayerRef.current.setVolume(currentVol * 100)
+              }
               ytPlayerRef.current.loadVideoById(bestMatch.youtube_id)
               if (ytPlayerRef.current.playVideo) {
                 try { ytPlayerRef.current.playVideo() } catch {}
@@ -1107,6 +1118,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             onReady: () => {
               ytReadyRef.current = true
               ytEngineRef.current.setPlayerInstance(ytPlayerRef.current)
+              try {
+                const currentVol = volumeRef.current ?? DEFAULT_VOLUME
+                if (currentVol > 0 && ytPlayerRef.current?.unMute) {
+                  ytPlayerRef.current.unMute()
+                }
+                if (ytPlayerRef.current?.setVolume) {
+                  ytPlayerRef.current.setVolume(currentVol * 100)
+                }
+              } catch {}
               const active = currentTrackRef.current
               if (active && active.source === 'youtube' && active.youtube_id) {
                 try {
@@ -1157,6 +1177,22 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 ) {
                   return
                 }
+
+                // 🔊 Ensure YouTube player is UNMUTED and volume is synced on PLAYING state
+                try {
+                  const currentVol = volumeRef.current ?? DEFAULT_VOLUME
+                  if (currentVol > 0) {
+                    if (ytPlayerRef.current?.unMute) ytPlayerRef.current.unMute()
+                    if (ytPlayerRef.current?.isMuted && ytPlayerRef.current.isMuted()) {
+                      ytPlayerRef.current.unMute()
+                    }
+                  } else {
+                    if (ytPlayerRef.current?.mute) ytPlayerRef.current.mute()
+                  }
+                  if (ytPlayerRef.current?.setVolume) {
+                    ytPlayerRef.current.setVolume(currentVol * 100)
+                  }
+                } catch {}
 
                 if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
                 consecutiveSkipRef.current = 0
@@ -1910,8 +1946,18 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (requestId !== playRequestRef.current) return
         if (ytPlayerRef.current && ytPlayerRef.current.loadVideoById) {
           try {
-            if (ytPlayerRef.current.unMute) ytPlayerRef.current.unMute()
-            ytPlayerRef.current.setVolume((volumeRef.current ?? 0.8) * 100)
+            const currentVol = volumeRef.current ?? DEFAULT_VOLUME
+            if (currentVol > 0) {
+              if (ytPlayerRef.current.unMute) ytPlayerRef.current.unMute()
+              if (ytPlayerRef.current.isMuted && ytPlayerRef.current.isMuted()) {
+                ytPlayerRef.current.unMute()
+              }
+            } else {
+              if (ytPlayerRef.current.mute) ytPlayerRef.current.mute()
+            }
+            if (ytPlayerRef.current.setVolume) {
+              ytPlayerRef.current.setVolume(currentVol * 100)
+            }
             ytLoadedIdRef.current = ytId
             ytPlayerRef.current.loadVideoById({
               videoId: ytId,
@@ -2060,13 +2106,26 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const setVolume = useCallback((val: number) => {
-    setVolumeState(val)
+    const safeVol = typeof val === 'number' && !isNaN(val) ? Math.max(0, Math.min(1, val)) : DEFAULT_VOLUME
+    volumeRef.current = safeVol
+    setVolumeState(safeVol)
     if (audioRef.current) {
-      audioRef.current.volume = val
+      audioRef.current.volume = safeVol
+      audioRef.current.muted = safeVol === 0
     }
-    if (ytPlayerRef.current?.setVolume) {
+    if (ytPlayerRef.current) {
       try {
-        ytPlayerRef.current.setVolume(val * 100)
+        if (safeVol === 0) {
+          if (ytPlayerRef.current.mute) ytPlayerRef.current.mute()
+        } else {
+          if (ytPlayerRef.current.unMute) ytPlayerRef.current.unMute()
+          if (ytPlayerRef.current.isMuted && ytPlayerRef.current.isMuted()) {
+            ytPlayerRef.current.unMute()
+          }
+        }
+        if (ytPlayerRef.current.setVolume) {
+          ytPlayerRef.current.setVolume(safeVol * 100)
+        }
       } catch {}
     }
   }, [])
