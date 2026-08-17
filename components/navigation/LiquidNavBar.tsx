@@ -105,51 +105,6 @@ function generateDisplacementMap(
   return canvas.toDataURL()
 }
 
-function generateSphericalLensMap(size: number = 96): string {
-  if (typeof window === 'undefined') return ''
-  const canvas = document.createElement('canvas')
-  canvas.width = size
-  canvas.height = size
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return ''
-
-  const imgData = ctx.createImageData(size, size)
-  const d = imgData.data
-  const cx = size / 2
-  const cy = size / 2
-  const radius = size * 0.48
-
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const idx = (y * size + x) * 4
-      const dx = (x - cx) / radius
-      const dy = (y - cy) / radius
-      const dist = Math.sqrt(dx * dx + dy * dy)
-
-      if (dist < 1.0) {
-        const height = Math.sqrt(1 - dist * dist)
-        const refractFactor = (1 - height) * 0.75
-        const r = (dx * refractFactor) * 0.5 + 0.5
-        const g = (dy * refractFactor) * 0.5 + 0.5
-        const b = height
-
-        d[idx] = Math.round(r * 255)
-        d[idx + 1] = Math.round(g * 255)
-        d[idx + 2] = Math.round(b * 255)
-        d[idx + 3] = 255
-      } else {
-        d[idx] = 128
-        d[idx + 1] = 128
-        d[idx + 2] = 0
-        d[idx + 3] = 255
-      }
-    }
-  }
-
-  ctx.putImageData(imgData, 0, 0)
-  return canvas.toDataURL()
-}
-
 // ─── SVG Filter ───
 
 interface NavSVGFilterProps {
@@ -273,7 +228,6 @@ export function LiquidNavBar({
   const [isDragging, setIsDragging] = useState(false)
   const [isNavExpanded, setIsNavExpanded] = useState(false)
   const [displacementMapUrl, setDisplacementMapUrl] = useState('')
-  const [sphericalLensUrl, setSphericalLensUrl] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
 
   const navRef = useRef<HTMLDivElement>(null)
@@ -319,7 +273,7 @@ export function LiquidNavBar({
     }
   }, [pathname, tabs]) // eslint-disable-line
 
-  // Generate displacement maps
+  // Generate displacement map
   useEffect(() => {
     const nav = navRef.current
     if (!nav) return
@@ -327,7 +281,6 @@ export function LiquidNavBar({
     const h = nav.offsetHeight || 68
     const url = generateDisplacementMap(w, h, 0.35, 0.25, 0.6)
     setDisplacementMapUrl(url)
-    setSphericalLensUrl(generateSphericalLensMap(96))
   }, [])
 
   // Init blob position — use offsetLeft/offsetWidth (relative to offset parent)
@@ -596,22 +549,6 @@ export function LiquidNavBar({
                 : '0 0 0 0.5px rgba(255,255,255,0.2), 0 4px 12px rgba(0,0,0,0.2), inset 0 0.5px 0 rgba(255,255,255,0.12)',
             }}
           >
-            {/* Top dome glass specular sheen */}
-            <span
-              aria-hidden="true"
-              style={{
-                position: 'absolute',
-                top: 1,
-                left: 6,
-                right: 6,
-                height: '42%',
-                borderRadius: '24px 24px 50% 50%',
-                background: 'linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.01) 100%)',
-                pointerEvents: 'none',
-                zIndex: 2,
-              }}
-            />
-
             {/* Chromatic aberration rainbow rim on holding */}
             <span
               aria-hidden="true"
