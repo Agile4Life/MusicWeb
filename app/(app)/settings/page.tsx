@@ -7,7 +7,8 @@ import { useLanguage } from '@/components/i18n/LanguageContext'
 import { createClient } from '@/lib/supabase/client'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { getValidUserId, isAdmin as checkIsAdmin } from '@/lib/accessControl'
-import { Volume2, Globe, Bell, Mail, Sparkles } from 'lucide-react'
+import { useTheme } from '@/components/theme/ThemeContext'
+import { Volume2, Globe, Bell, Mail, Sparkles, Gamepad2 } from 'lucide-react'
 
 function FacebookIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -31,6 +32,7 @@ export default function SettingsPage() {
   const { t } = useLanguage()
   const supabase = createClient()
   const { userEmail } = useCurrentUser()
+  const { gamingMode, setGamingMode } = useTheme()
   const [autoPlayNext, setAutoPlayNext] = useState(true)
 
   React.useEffect(() => {
@@ -117,6 +119,52 @@ export default function SettingsPage() {
             />
           </button>
         </div>
+      </div>
+
+      {/* 🎮 Gaming Mode */}
+      <div className="bg-[var(--elevation-1-bg)] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-5">
+        <div className="flex items-center gap-2 text-sm font-bold text-white border-b border-white/[0.05] pb-3">
+          <Gamepad2 className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
+          <span>Gaming Mode</span>
+          {gamingMode && (
+            <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-green-500/20 text-green-300 border border-green-400/40 animate-pulse">
+              ON
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between py-1">
+          <div className="flex-1 pr-4">
+            <p className="text-xs font-bold text-white">Tối ưu RAM khi chuyển tab</p>
+            <p className="text-[11px] text-slate-400 leading-relaxed mt-0.5">
+              Khi bật, chuyển sang tab khác sẽ tự động tắt toàn bộ giao diện (hiệu ứng, sidebar, player bar...) để giảm RAM. Nhạc vẫn phát bình thường, dùng phím media trên bàn phím/Windows để chuyển bài.
+            </p>
+          </div>
+          <button
+            id="gaming-mode-toggle"
+            onClick={() => setGamingMode(!gamingMode)}
+            className={`w-11 h-6 rounded-full p-1 transition-colors flex-shrink-0 ${
+              gamingMode ? 'bg-[var(--primary-spotify,#06b6d4)]' : 'bg-white/20'
+            }`}
+          >
+            <div
+              className={`w-4 h-4 rounded-full bg-black transition-transform ${
+                gamingMode ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+
+        {gamingMode && (
+          <div className="rounded-xl bg-green-500/[0.06] border border-green-500/20 px-4 py-3 flex items-start gap-3">
+            <Gamepad2 className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+            <div className="text-[11px] text-green-300/90 leading-relaxed">
+              <p className="font-bold text-green-300 mb-1">✅ Gaming Mode đã bật</p>
+              <p>Khi bạn alt-tab sang game hoặc app khác, MusicWeb sẽ tự động giải phóng RAM. Quay lại tab → giao diện tự load lại.</p>
+              <p className="mt-1 text-green-400/70">💡 Điều khiển nhạc: Dùng phím Play/Pause/Next/Prev trên bàn phím hoặc Windows media overlay.</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 🔔 Notifications / Thông báo từ Tác giả */}

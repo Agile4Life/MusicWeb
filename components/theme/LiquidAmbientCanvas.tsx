@@ -60,11 +60,19 @@ export function LiquidAmbientCanvas() {
 
     let time = 0
 
+    let isHidden = document.hidden
+
     const render = () => {
+      if (isHidden) {
+        // Tab is hidden — skip rendering, schedule next check
+        animationFrameId = requestAnimationFrame(render)
+        return
+      }
       // Different speed and animation physics depending on refraction mode
       const speed = refractionMode === 'shader' ? 0.015 : refractionMode === 'polar' ? 0.012 : refractionMode === 'prominent' ? 0.01 : 0.006
       time += speed
       ctx.clearRect(0, 0, width, height)
+
 
       // Dark translucent backdrop
       ctx.fillStyle = currentTheme?.bgSpace || '#07090e'
@@ -177,10 +185,16 @@ export function LiquidAmbientCanvas() {
       animationFrameId = requestAnimationFrame(render)
     }
 
+    const handleVisibility = () => {
+      isHidden = document.hidden
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+
     render()
 
     return () => {
       window.removeEventListener('resize', handleResize)
+      document.removeEventListener('visibilitychange', handleVisibility)
       cancelAnimationFrame(animationFrameId)
     }
   }, [currentTheme, themeStyle, refractionMode, liquidGlassConfig?.ambientCanvas])

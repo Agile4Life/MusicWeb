@@ -222,6 +222,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     let animId: number
 
     const tick = () => {
+      if (typeof document !== 'undefined' && document.hidden) {
+        // Tab hidden — skip fake frequency computation (no visual consumers)
+        animId = requestAnimationFrame(tick)
+        return
+      }
       const now = Date.now() / 120
       for (let i = 0; i < 16; i++) {
         frequencyData[i] = Math.floor(Math.sin(now + i * 0.8) * 80 + 150 + Math.random() * 25)

@@ -434,6 +434,8 @@ interface ThemeContextType {
   setThemeStyle: (style: ThemeStyle) => void
   liquidGlassConfig: LiquidGlassConfig
   setLiquidGlassConfig: (config: Partial<LiquidGlassConfig>) => void
+  gamingMode: boolean
+  setGamingMode: (enabled: boolean) => void
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
@@ -443,6 +445,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [cursorStyle, setCursorStyleState] = useState<CursorStyle>('default')
   const [themeStyle, setThemeStyleState] = useState<ThemeStyle>('classic')
   const [liquidGlassConfig, setLiquidGlassConfigState] = useState<LiquidGlassConfig>(DEFAULT_LIQUID_GLASS_CONFIG)
+  const [gamingMode, setGamingModeState] = useState<boolean>(false)
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('musicweb-theme') as ThemeId
@@ -485,6 +488,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       }
     }
     setLiquidGlassConfigState(currentGlassConfig)
+
+    const savedGaming = localStorage.getItem('musicweb-gaming-mode')
+    if (savedGaming === 'true') {
+      setGamingModeState(true)
+    }
 
     applyThemeStyle(initialStyle, currentGlassConfig)
   }, [])
@@ -616,6 +624,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const setGamingMode = (enabled: boolean) => {
+    setGamingModeState(enabled)
+    localStorage.setItem('musicweb-gaming-mode', enabled ? 'true' : 'false')
+  }
+
   return (
     <ThemeContext.Provider
       value={{
@@ -627,6 +640,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         setThemeStyle,
         liquidGlassConfig,
         setLiquidGlassConfig,
+        gamingMode,
+        setGamingMode,
       }}
     >
       {children}
