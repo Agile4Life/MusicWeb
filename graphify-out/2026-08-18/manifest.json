@@ -385,8 +385,8 @@
     "semantic_hash": ""
   },
   "components/navigation/TopBar.tsx": {
-    "mtime": 1786950646.7027962,
-    "ast_hash": "3f7be4277084177abf32d96b426dfa23",
+    "mtime": 1787053225.93185,
+    "ast_hash": "b550423e906468402aab69e92332f5ad",
     "semantic_hash": ""
   },
   "components/player/AudioWaveformScrubber.tsx": {
@@ -425,13 +425,13 @@
     "semantic_hash": ""
   },
   "components/player/PlayerContext.tsx": {
-    "mtime": 1787052748.548775,
-    "ast_hash": "f5584a2cc8ae2a9c1ed297bf44a04ac9",
+    "mtime": 1787052932.5983667,
+    "ast_hash": "2f3614d510ba73c7f62db39e546a3fd1",
     "semantic_hash": ""
   },
   "components/player/QueueDrawer.tsx": {
-    "mtime": 1786877044.1522915,
-    "ast_hash": "a609464f037e0f57dcefb82669b2f1ba",
+    "mtime": 1787053152.8395808,
+    "ast_hash": "fdc96e925b04832fe8027d83ff308ff4",
     "semantic_hash": ""
   },
   "components/player/UpNextList.tsx": {
@@ -460,8 +460,8 @@
     "semantic_hash": ""
   },
   "components/sidebar/Sidebar.tsx": {
-    "mtime": 1786964748.72248,
-    "ast_hash": "87a30bc0119a132331422b12c01405ea",
+    "mtime": 1787053145.3755424,
+    "ast_hash": "867d3ce8e59af8083cab7b410d743611",
     "semantic_hash": ""
   },
   "components/theme/CustomCursor.tsx": {
@@ -1385,8 +1385,8 @@
     "semantic_hash": ""
   },
   "components/player/__tests__/playerSafetyGuards.test.ts": {
-    "mtime": 1786975836.4393303,
-    "ast_hash": "6f425b93e5788fcdbca70fd35db2b959",
+    "mtime": 1787052937.3564403,
+    "ast_hash": "ae7eff67ff26904206038141c051dcda",
     "semantic_hash": ""
   },
   "components/player/__tests__/trackMetadataLayout.test.ts": {
@@ -1440,13 +1440,13 @@
     "semantic_hash": ""
   },
   "components/search/__tests__/searchInteraction.test.ts": {
-    "mtime": 1786600244.126175,
-    "ast_hash": "07c5220f5021c3dba88cfe2da9c6eee0",
+    "mtime": 1787053238.1793532,
+    "ast_hash": "e65ebb3c8b32f7de7e7ffaed8bdda21f",
     "semantic_hash": ""
   },
   "components/search/searchInteraction.ts": {
-    "mtime": 1786600279.4419675,
-    "ast_hash": "2460f4deb74dff4885592f6f53c005b4",
+    "mtime": 1787053208.2522933,
+    "ast_hash": "dfa2b07615bbc5136a119d8d0e4391c3",
     "semantic_hash": ""
   },
   "components/theme/LiquidAmbientCanvas.tsx": {
@@ -2860,8 +2860,8 @@
     "semantic_hash": ""
   },
   "components/player/__tests__/backgroundTabOptimization.test.ts": {
-    "mtime": 1787052758.0878434,
-    "ast_hash": "0227fbfa16653b73a8fc04400c0dfcd9",
+    "mtime": 1787053027.818575,
+    "ast_hash": "a76dfe88659bb277a41602d7b96bd3ec",
     "semantic_hash": ""
   },
   "app/api/track-views/batch/route.ts": {

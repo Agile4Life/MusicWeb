@@ -110,4 +110,19 @@ describe('Minimal Flat Theme Behavioral & DOM Tests', () => {
     expect(TOKENS.radiusMd).toBe('14px')
     expect(TOKENS.radiusLg).toBe('20px')
   })
+
+  it('aligns track-glide-indicator styling with sidebar-glide in minimal flat mode', () => {
+    const MINIMAL_FLAT_GLIDE_TOKENS = {
+      sidebarAccent: '#f0a860',
+      sidebarAccentSoft: 'rgba(240, 168, 96, 0.12)',
+      sidebarAccentBorder: 'rgba(240, 168, 96, 0.35)',
+      easeGlide: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      borderRadius: '12px',
+    }
+
+    expect(MINIMAL_FLAT_GLIDE_TOKENS.sidebarAccent).toBe('#f0a860')
+    expect(MINIMAL_FLAT_GLIDE_TOKENS.sidebarAccentSoft).toContain('240, 168, 96')
+    expect(MINIMAL_FLAT_GLIDE_TOKENS.easeGlide).toBe('cubic-bezier(0.22, 1, 0.36, 1)')
+    expect(MINIMAL_FLAT_GLIDE_TOKENS.borderRadius).toBe('12px')
+  })
 })

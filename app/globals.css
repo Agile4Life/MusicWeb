@@ -3323,10 +3323,23 @@ html[data-theme-style="minimal-flat"] body {
 
 /* Minimal Flat Tracklist & Grid Glide Indicators */
 [data-theme-style="minimal-flat"] .track-glide-indicator {
-  background: rgba(244, 236, 230, 0.05) !important;
-  border: 1px solid rgba(244, 236, 230, 0.1) !important;
-  box-shadow: none !important;
-  border-radius: 9px !important;
+  position: absolute;
+  left: 0;
+  right: 0;
+  width: 100%;
+  border-radius: 12px !important;
+  background: var(--sidebar-accent-soft, rgba(240, 168, 96, 0.12)) !important;
+  border: 1px solid var(--sidebar-accent-border, rgba(240, 168, 96, 0.35)) !important;
+  box-shadow: 0 0 14px rgba(240, 168, 96, 0.12) !important;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+  transform-origin: center;
+  will-change: transform, opacity;
+  transition:
+    transform 300ms var(--ease-glide, cubic-bezier(0.22, 1, 0.36, 1)),
+    height 200ms ease,
+    opacity 180ms ease !important;
 }
 
 [data-theme-style="minimal-flat"] .grid-glide-indicator {
@@ -3763,26 +3776,54 @@ html[data-theme-style="minimal-flat"] body {
   background: rgba(244, 236, 230, 0.06) !important;
 }
 
-/* Track Row & Song Table */
+/* Track Row & Song Table (Minimal Flat Editorial Anti-Collision & Smooth Interactions) */
 [data-theme-style="minimal-flat"] .song-row,
+[data-theme-style="minimal-flat"] .recent-row,
 [data-theme-style="minimal-flat"] tr.track-row,
-[data-theme-style="minimal-flat"] .queue-track-row {
-  border-radius: 9px !important;
+[data-theme-style="minimal-flat"] .queue-track-row,
+[data-theme-style="minimal-flat"] .history-track-row {
+  position: relative;
+  z-index: 1;
+  border-radius: 12px !important;
   background: transparent !important;
-  color: #F4ECE1 !important;
+  border: 1px solid transparent !important;
+  color: var(--sidebar-text-muted, #8b8b93) !important;
+  transition: color 220ms ease, background-color 220ms ease, border-color 220ms ease !important;
+  user-select: none;
 }
 
-[data-theme-style="minimal-flat"] .song-row:hover,
-[data-theme-style="minimal-flat"] tr.track-row:hover,
-[data-theme-style="minimal-flat"] .queue-track-row:hover {
-  background-color: rgba(244, 236, 230, 0.04) !important;
+/* Hover: Pure transparent background so .track-glide-indicator glows cleanly beneath without double-layer collision */
+[data-theme-style="minimal-flat"] .song-row:hover:not(.is-playing):not(.is-active):not(.active),
+[data-theme-style="minimal-flat"] .recent-row:hover:not(.is-playing):not(.is-active):not(.active),
+[data-theme-style="minimal-flat"] tr.track-row:hover:not(.is-playing):not(.is-active):not(.active),
+[data-theme-style="minimal-flat"] .queue-track-row:hover:not(.is-playing):not(.is-active):not(.active),
+[data-theme-style="minimal-flat"] .history-track-row:hover:not(.is-playing):not(.is-active):not(.active) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--sidebar-text, #f4ece1) !important;
 }
 
+[data-theme-style="minimal-flat"] .song-row:hover .row-thumb,
+[data-theme-style="minimal-flat"] .recent-row:hover .row-thumb,
+[data-theme-style="minimal-flat"] .song-row:hover button[aria-label="Phát"],
+[data-theme-style="minimal-flat"] .song-row:hover button[aria-label="Tạm dừng"] {
+  transform: translateX(2px) scale(1.03) !important;
+  transition: transform 300ms var(--ease-glide) !important;
+}
+
+/* Active / Playing Track Row */
+[data-theme-style="minimal-flat"] .song-row.is-playing,
 [data-theme-style="minimal-flat"] .song-row.is-active,
+[data-theme-style="minimal-flat"] .recent-row.is-playing,
 [data-theme-style="minimal-flat"] tr.track-row.is-active,
 [data-theme-style="minimal-flat"] .queue-track-current {
-  background-color: rgba(201, 138, 61, 0.12) !important;
-  color: #F4ECE1 !important;
+  background: var(--sidebar-accent-soft, rgba(240, 168, 96, 0.12)) !important;
+  border: 1px solid var(--sidebar-accent-border, rgba(240, 168, 96, 0.35)) !important;
+  box-shadow: 0 0 14px rgba(240, 168, 96, 0.1) !important;
+  color: var(--sidebar-accent, #f0a860) !important;
+  font-weight: 600 !important;
 }
 
 /* Text Inputs & Form Controls */
@@ -4588,48 +4629,18 @@ html[data-theme-style="minimal-flat"] body {
 }
 
 /* ================================================================
-   Track Row - Smooth Interactions
+   Minimal Flat Track Row Interactions & Accent Lines
    ================================================================ */
 
-[data-theme-style="minimal-flat"] .song-row,
-[data-theme-style="minimal-flat"] tr.track-row,
-[data-theme-style="minimal-flat"] .queue-track-row {
-  transition:
-    background-color 0.25s ease,
-    transform 0.2s ease,
-    border-color 0.25s ease;
-  position: relative;
+[data-theme-style="minimal-flat"] .song-row .is-playing,
+[data-theme-style="minimal-flat"] .song-row.is-playing,
+[data-theme-style="minimal-flat"] .recent-row.is-playing {
+  color: var(--sidebar-accent, #f0a860) !important;
 }
 
-/* Playing Indicator Bar */
-[data-theme-style="minimal-flat"] .song-row::before,
-[data-theme-style="minimal-flat"] tr.track-row::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 0;
-  background: linear-gradient(90deg, #E8A94F, transparent);
-  opacity: 0;
-  transition: width 0.3s ease, opacity 0.3s ease;
-}
-
-[data-theme-style="minimal-flat"] .song-row:hover::before {
-  width: 3px;
-  opacity: 0.8;
-}
-
-[data-theme-style="minimal-flat"] .song-row.is-active::before,
-[data-theme-style="minimal-flat"] tr.track-row.is-active::before {
-  width: 3px;
-  opacity: 1;
-}
-
-/* Hover Scale Effect */
-[data-theme-style="minimal-flat"] .song-row:hover,
-[data-theme-style="minimal-flat"] tr.track-row:hover {
-  transform: translateX(2px);
+[data-theme-style="minimal-flat"] .song-row .absolute.left-0.top-2.bottom-2 {
+  background-color: var(--sidebar-accent, #f0a860) !important;
+  box-shadow: 0 0 10px rgba(240, 168, 96, 0.8) !important;
 }
 
 /* ================================================================

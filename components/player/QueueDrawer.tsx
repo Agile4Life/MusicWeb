@@ -5,6 +5,7 @@ import { usePlayer } from './PlayerContext'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { X, Play, Music, History, Sparkles } from 'lucide-react'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
+import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
 import { createClient } from '@/lib/supabase/client'
 import { useSession } from 'next-auth/react'
 import { getValidUserId, getAllValidUserIds } from '@/lib/accessControl'
@@ -61,14 +62,16 @@ export function QueueDrawer() {
     }
   }, [isQueueOpen, activeTab, supabase, nextAuthSession])
 
+  const queueGlide = useListGlideIndicator(48)
+  const historyGlide = useListGlideIndicator(48)
+
   if (!isQueueOpen) return null
 
   // Remaining upcoming tracks in queue after current index
   const nextUpTracks = currentIndex >= 0 ? queue.slice(currentIndex + 1) : queue
 
   // Fallback to memory queue history if persisted history is empty
-  const fallbackQueueHistory = currentIndex > 0 ? queue.slice(0, currentIndex).reverse() : []
-  const displayHistoryTracks = persistedRecentTracks.length > 0 ? persistedRecentTracks : fallbackQueueHistory
+  const displayHistoryTracks = persistedRecentTracks.length > 0 ? persistedRecentTracks : []
 
   return (
     <aside className="queue-drawer fixed inset-x-2 top-16 bottom-36 z-40 lg:z-40 lg:static lg:inset-auto lg:top-auto lg:bottom-auto lg:h-full w-auto lg:w-80 xl:w-96 bg-[var(--elevation-3-bg)] backdrop-blur-2xl rounded-2xl border border-white/10 panel-theme-hover shadow-2xl flex flex-col overflow-hidden shrink-0 select-none animate-in slide-in-from-bottom lg:slide-in-from-right duration-200 transform-gpu">
@@ -175,14 +178,27 @@ export function QueueDrawer() {
               </div>
 
               {nextUpTracks.length > 0 ? (
-                <div className="flex flex-col gap-1.5">
+                <div
+                  ref={queueGlide.containerRef}
+                  onMouseLeave={queueGlide.handleContainerMouseLeave}
+                  className="flex flex-col gap-1.5 relative"
+                >
+                  <div
+                    className="track-glide-indicator"
+                    style={{
+                      transform: `translateY(${queueGlide.indicator.top}px) scaleY(${queueGlide.indicator.scaleY})`,
+                      height: `${queueGlide.indicator.height}px`,
+                      opacity: queueGlide.indicator.opacity,
+                    }}
+                  />
                   {nextUpTracks.map((track, idx) => {
                     const actualQueueIndex = currentIndex + 1 + idx
                     return (
                       <div
                         key={`${track.id}-${idx}`}
                         onClick={() => playTrack(track, queue, actualQueueIndex)}
-                        className="queue-track-row flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-white/[0.06] border border-transparent hover:border-white/10 group transition-all cursor-pointer"
+                        onMouseEnter={queueGlide.handleItemMouseEnter}
+                        className="queue-track-row flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-white/[0.06] border border-transparent hover:border-white/10 group transition-all cursor-pointer relative z-[1]"
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <div className="w-9 h-9 rounded-lg bg-slate-800 border border-white/10 overflow-hidden shrink-0 relative flex items-center justify-center">
@@ -231,12 +247,25 @@ export function QueueDrawer() {
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('recently_played')}</h3>
 
             {displayHistoryTracks.length > 0 ? (
-              <div className="flex flex-col gap-1.5">
+              <div
+                ref={historyGlide.containerRef}
+                onMouseLeave={historyGlide.handleContainerMouseLeave}
+                className="flex flex-col gap-1.5 relative"
+              >
+                <div
+                  className="track-glide-indicator"
+                  style={{
+                    transform: `translateY(${historyGlide.indicator.top}px) scaleY(${historyGlide.indicator.scaleY})`,
+                    height: `${historyGlide.indicator.height}px`,
+                    opacity: historyGlide.indicator.opacity,
+                  }}
+                />
                 {displayHistoryTracks.map((track, idx) => (
                   <div
                     key={`hist-${track.id}-${idx}`}
                     onClick={() => playTrack(track)}
-                    className="queue-track-row flex items-center gap-3 p-2 rounded-xl hover:bg-white/[0.06] border border-transparent hover:border-white/10 group transition-all cursor-pointer"
+                    onMouseEnter={historyGlide.handleItemMouseEnter}
+                    className="queue-track-row flex items-center gap-3 p-2 rounded-xl hover:bg-white/[0.06] border border-transparent hover:border-white/10 group transition-all cursor-pointer relative z-[1]"
                   >
                     <div className="w-9 h-9 rounded-lg bg-slate-800 border border-white/10 overflow-hidden shrink-0 relative flex items-center justify-center">
                       {track.cover_url ? (

@@ -18,6 +18,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
+import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
 
 import { fetchListeningHistory } from '@/lib/listeningHistory'
 
@@ -67,6 +68,13 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(cachedHistory.length === 0)
   const [searchQuery, setSearchQuery] = useState('')
   const [clearing, setClearing] = useState(false)
+
+  const {
+    containerRef: historyContainerRef,
+    indicator: historyIndicator,
+    handleItemMouseEnter: handleHistoryMouseEnter,
+    handleContainerMouseLeave: handleHistoryMouseLeave,
+  } = useListGlideIndicator(60)
 
   const fetchHistory = useCallback(async (silent = false) => {
     if (!silent && cachedHistory.length === 0) {
@@ -282,7 +290,19 @@ export default function HistoryPage() {
         </div>
       ) : filteredItems.length > 0 ? (
         <div className="glass-panel rounded-3xl p-2.5 sm:p-4 md:p-6 border border-white/10 overflow-hidden">
-          <div className="flex flex-col divide-y divide-white/5">
+          <div
+            ref={historyContainerRef}
+            onMouseLeave={handleHistoryMouseLeave}
+            className="flex flex-col gap-1 relative"
+          >
+            <div
+              className="track-glide-indicator"
+              style={{
+                transform: `translateY(${historyIndicator.top}px) scaleY(${historyIndicator.scaleY})`,
+                height: `${historyIndicator.height}px`,
+                opacity: historyIndicator.opacity,
+              }}
+            />
             {filteredItems.map((item, idx) => {
               const track = item.track
               const isCurrentPlaying = currentTrack?.id === track.id && isPlaying
@@ -291,7 +311,8 @@ export default function HistoryPage() {
                 <div
                   key={item.id}
                   onClick={() => playTrack(track, filteredItems.map((i) => i.track))}
-                  className="flex items-center justify-between p-2.5 sm:p-3 rounded-2xl hover:bg-white/5 transition-all group gap-2.5 sm:gap-4 cursor-pointer"
+                  onMouseEnter={handleHistoryMouseEnter}
+                  className="history-track-row song-row recent-row flex items-center justify-between p-2.5 sm:p-3 rounded-2xl hover:bg-white/5 transition-all group gap-2.5 sm:gap-4 cursor-pointer relative z-[1]"
                 >
                   <div className="flex items-center gap-2.5 sm:gap-4 flex-1 min-w-0">
                     <span className="text-xs font-mono text-slate-500 w-5 sm:w-6 text-right shrink-0">
@@ -301,7 +322,7 @@ export default function HistoryPage() {
                     {/* Play / Cover Thumbnail */}
                     <div
                       onClick={() => playTrack(track, filteredItems.map((i) => i.track))}
-                      className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center shrink-0 cursor-pointer relative overflow-hidden group/thumb"
+                      className="row-thumb w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center shrink-0 cursor-pointer relative overflow-hidden group/thumb"
                     >
                       {track.cover_url ? (
                         <img
