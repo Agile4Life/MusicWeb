@@ -66,7 +66,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
         <Sidebar isScrolled={isScrolled} />
 
         {/* Main Content Area */}
-        <main className="main-content-panel flex-1 rounded-none sm:rounded-2xl overflow-hidden flex flex-col relative">
+        <main className="main-content-panel flex-1 rounded-none sm:rounded-t-2xl sm:rounded-b-[37px] overflow-hidden flex flex-col relative">
           <TopBar />
           <div
             onScroll={handleScroll}

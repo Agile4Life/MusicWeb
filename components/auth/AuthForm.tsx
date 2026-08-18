@@ -10,6 +10,7 @@ import { markEmailAsAllowed } from '@/lib/accessControl'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { LanguageSelector } from '@/components/i18n/LanguageSelector'
 import { FloatingMusicNotes } from './FloatingMusicNotes'
+import { LoginAmbientCanvas } from './LoginAmbientCanvas'
 import { scheduleAuthRedirect } from './authNavigation'
 import { createPasswordSession } from './passwordSession'
 import { Lock, Mail, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react'
@@ -302,29 +303,25 @@ export function AuthForm({ mode }: AuthFormProps) {
     const rotateY = Math.min(Math.max(dx * 7.5, -9), 9)
 
     setTiltStyle({
-      transform: `rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg)`,
+      transform: `perspective(1200px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg)`,
       transition: 'transform 0.08s ease-out',
     })
   }
 
   const handleCardMouseLeave = () => {
     setTiltStyle({
-      transform: 'rotateX(0deg) rotateY(0deg)',
+      transform: 'perspective(1200px) rotateX(0deg) rotateY(0deg)',
       transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
     })
   }
 
   return (
     <div
-      className="min-h-screen w-screen flex items-center justify-center p-4 sm:p-6 relative overflow-hidden select-none glass-3d-container"
-      style={{
-        background: `
-          radial-gradient(ellipse at 15% 15%, color-mix(in srgb, var(--spotify-glow, #22d3ee) 5%, transparent), transparent 50%),
-          radial-gradient(ellipse at 85% 85%, color-mix(in srgb, var(--primary-spotify, #06b6d4) 3.5%, transparent), transparent 55%),
-          linear-gradient(160deg, var(--bg-space, #07090e), #0d1017 55%, var(--bg-space, #07090e) 100%)
-        `,
-      }}
+      className="min-h-screen w-screen flex items-center justify-center p-4 sm:p-6 relative overflow-hidden select-none"
+      style={{ background: 'var(--bg-space, #07090e)' }}
     >
+      {/* Animated Ambient Orb Canvas — Layer 0 light source behind the glass card */}
+      <LoginAmbientCanvas />
       {/* Dynamic Cursor Background Spotlight */}
       <div
         className="pointer-events-none fixed inset-0 z-0 transition-opacity duration-300"
@@ -336,13 +333,21 @@ export function AuthForm({ mode }: AuthFormProps) {
       {/* Random Floating Music Icons & Ambient Glow Background */}
       <FloatingMusicNotes />
 
-      {/* 3D Glass Auth Card Container */}
+      {/* Glass Auth Card — inline styles to guarantee backdrop-filter */}
       <div
         ref={cardRef}
         onMouseMove={handleCardMouseMove}
         onMouseLeave={handleCardMouseLeave}
-        style={tiltStyle}
-        className="w-full max-w-md glass-3d-card p-6 sm:p-8 rounded-[28px] relative z-10 [transform-style:preserve-3d] shadow-2xl transition-transform duration-150 ease-out"
+        style={{
+          ...tiltStyle,
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.06) 40%, hsla(213 74% 12% / 0.40) 100%)',
+          backdropFilter: 'blur(36px) saturate(220%) brightness(1.08)',
+          WebkitBackdropFilter: 'blur(36px) saturate(220%) brightness(1.08)',
+          border: '1px solid rgba(255,255,255,0.28)',
+          borderTopColor: 'rgba(255,255,255,0.50)',
+          boxShadow: '0 30px 70px -12px rgba(0,0,0,0.55), 0 0 60px -8px rgba(34,211,238,0.25), inset 0 1px 0 rgba(255,255,255,0.40), inset 0 -1px 0 rgba(255,255,255,0.10)',
+        }}
+        className="w-full max-w-md p-6 sm:p-8 rounded-[28px] relative z-10 overflow-hidden transition-transform duration-150 ease-out"
       >
         {/* Dynamic Card Internal Cursor Spotlight */}
         <div

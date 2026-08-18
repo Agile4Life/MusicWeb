@@ -80,6 +80,17 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
   if (isNowPlayingOpen) return null
 
+  const [isLiquidGlass, setIsLiquidGlass] = useState(false)
+
+  useEffect(() => {
+    const root = document.documentElement
+    const check = () => setIsLiquidGlass(root.getAttribute('data-theme-style') === 'liquid-glass')
+    check()
+    const observer = new MutationObserver(check)
+    observer.observe(root, { attributes: true, attributeFilter: ['data-theme-style'] })
+    return () => observer.disconnect()
+  }, [])
+
   const [isNavigatingAlbum, setIsNavigatingAlbum] = useState(false)
   const [isResolvingAlbumInfo, setIsResolvingAlbumInfo] = useState(false)
   const [resolvedAlbumInfo, setResolvedAlbumInfo] = useState<{ id?: string; name?: string } | null>(null)
@@ -290,8 +301,17 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
   if (!currentTrack) {
     return (
-      <footer className={`player-bar hidden lg:flex h-20 rounded-2xl px-6 items-center justify-between text-slate-400 select-none shrink-0 pointer-events-auto relative overflow-hidden ${isScrolled ? 'is-scrolled' : ''}`}>
-        {/* Inner glass specular gradient */}
+      <footer
+        className={`player-bar hidden lg:flex h-20 rounded-[37px] px-6 items-center justify-between text-slate-400 select-none shrink-0 pointer-events-auto relative overflow-hidden ${isScrolled ? 'is-scrolled' : ''}`}
+        style={isLiquidGlass ? {
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 40%, hsla(213 74% 12% / 0.35) 100%)',
+          backdropFilter: 'blur(36px) saturate(220%) brightness(1.06)',
+          WebkitBackdropFilter: 'blur(36px) saturate(220%) brightness(1.06)',
+          border: '1px solid rgba(255,255,255,0.22)',
+          borderTopColor: 'rgba(255,255,255,0.40)',
+          boxShadow: '0 20px 50px -10px rgba(0,0,0,0.6), 0 0 40px -4px rgba(34,211,238,0.2), inset 0 1px 0 rgba(255,255,255,0.30)',
+        } : undefined}
+      >        {/* Inner glass specular gradient */}
         <span
           aria-hidden="true"
           style={{
@@ -697,7 +717,15 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
       {/* 💻 DESKTOP PLAYER BAR (Visible on >= 768px screens) */}
       <footer
-        className={`player-bar hidden lg:flex h-[84px] xl:h-[96px] py-2.5 xl:py-3.5 rounded-2xl px-4 lg:px-6 xl:px-8 items-center justify-between text-slate-300 select-none shrink-0 panel-theme-hover transition-all relative overflow-hidden pointer-events-auto ${isScrolled ? 'is-scrolled' : ''}`}
+        className={`player-bar hidden lg:flex h-[84px] xl:h-[96px] py-2.5 xl:py-3.5 rounded-[37px] px-4 lg:px-6 xl:px-8 items-center justify-between text-slate-300 select-none shrink-0 panel-theme-hover transition-all relative overflow-hidden pointer-events-auto ${isScrolled ? 'is-scrolled' : ''}`}
+        style={isLiquidGlass ? {
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 40%, hsla(213 74% 12% / 0.35) 100%)',
+          backdropFilter: 'blur(36px) saturate(220%) brightness(1.06)',
+          WebkitBackdropFilter: 'blur(36px) saturate(220%) brightness(1.06)',
+          border: '1px solid rgba(255,255,255,0.22)',
+          borderTopColor: 'rgba(255,255,255,0.40)',
+          boxShadow: '0 20px 50px -10px rgba(0,0,0,0.6), 0 0 40px -4px rgba(34,211,238,0.2), inset 0 1px 0 rgba(255,255,255,0.30)',
+        } : undefined}
         onClick={(e) => {
           if (!isPlayerBarFeatureTarget(e.target as { closest?: (selector: string) => unknown })) {
             openNowPlayingOverlay()
@@ -712,7 +740,9 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             position: 'absolute',
             inset: 0,
             borderRadius: 'inherit',
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 40%)',
+            background: isLiquidGlass
+              ? 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.015) 15%, transparent 40%)'
+              : 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 40%)',
             pointerEvents: 'none',
           }}
         />

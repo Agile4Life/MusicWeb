@@ -551,7 +551,6 @@ body {
 }
 
 .glass-3d-card {
-  transform-style: preserve-3d;
   border-radius: 28px;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.02) 100%),
@@ -565,6 +564,7 @@ body {
     0 0 40px -5px color-mix(in srgb, var(--spotify-glow, #22d3ee) 22%, transparent),
     inset 0 1px 1px rgba(255, 255, 255, 0.25);
   position: relative;
+  overflow: hidden;
   transition: transform 0.15s cubic-bezier(0.2, 0, 0.2, 1), box-shadow 0.3s ease;
 }
 
@@ -2107,29 +2107,84 @@ html[data-cursor="default"][data-buffering="true"] * {
 }
 
 /* ================================================================
-   Login Page — Theme-Aware Glass Surface Architecture
+   Login Page — Liquid Glass Surface Architecture
+   Same 3-layer system as mobile PlayerBar & LiquidNavBar:
+   Layer 0: LoginAmbientCanvas (animated orbs = light source)
+   Layer 1: Semi-transparent RGBA + backdrop-filter blur (this card)
+   Layer 2: Specular highlights via ::before/::after + inset shadows
    ================================================================ */
 .glass-3d-card {
   background: linear-gradient(135deg,
-      color-mix(in srgb, var(--spotify-glow, #22d3ee) 6%, rgba(16, 20, 30, 0.78)),
-      rgba(12, 15, 24, 0.72)) !important;
-  backdrop-filter: blur(24px) saturate(135%);
-  -webkit-backdrop-filter: blur(24px) saturate(135%);
-  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 12%, rgba(255, 255, 255, 0.08)) !important;
+      rgba(255, 255, 255, 0.06) 0%,
+      hsla(var(--base-h, 213) var(--base-s, 74%) 10% / 0.28) 100%) !important;
+  backdrop-filter: blur(40px) saturate(200%) brightness(1.05) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  border-top-color: rgba(255, 255, 255, 0.45) !important;
   box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.16),
-    0 20px 50px rgba(0, 0, 0, 0.45) !important;
+    0 30px 70px -12px rgba(0, 0, 0, 0.6),
+    0 0 50px -8px color-mix(in srgb, var(--spotify-glow, #22d3ee) 25%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Top specular edge highlight — same as PlayerBar border-top glow */
+.glass-3d-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 8%;
+  right: 8%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Inner specular gradient — simulates light refraction on glass surface */
+.glass-3d-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.015) 15%,
+    transparent 40%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.glass-3d-card:hover {
+  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, rgba(255, 255, 255, 0.30)) !important;
+  border-top-color: rgba(255, 255, 255, 0.50) !important;
+  box-shadow:
+    0 34px 80px -12px rgba(0, 0, 0, 0.65),
+    0 0 60px -8px color-mix(in srgb, var(--spotify-glow, #22d3ee) 30%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.40),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.10) !important;
 }
 
 .glass-3d-input {
-  background: linear-gradient(135deg, rgba(8, 11, 18, 0.45), rgba(12, 16, 26, 0.35)) !important;
-  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 8%, rgba(255, 255, 255, 0.08)) !important;
-  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.04) !important;
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-3d-input:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
 }
 
 .glass-3d-input:focus {
-  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 55%, transparent) !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--spotify-glow, #22d3ee) 12%, transparent) !important;
+  background: rgba(255, 255, 255, 0.09) !important;
+  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 60%, transparent) !important;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--spotify-glow, #22d3ee) 15%, transparent),
+    inset 0 1px 2px rgba(0, 0, 0, 0.15) !important;
 }
 
 .btn-3d-primary {
