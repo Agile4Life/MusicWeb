@@ -197,15 +197,39 @@ export default function HomePage() {
       const userId = activeUser ? getValidUserId(activeUser) : null
 
       let userFavSet = new Set<string>()
+      let historyItems: any[] = []
+
+      // Single combined request for favorites + history (saves 1 function invocation)
       try {
-        const favRes = await fetch('/api/favorites/status')
-        if (favRes.ok) {
-          const favData = await favRes.json()
-          if (Array.isArray(favData.trackIds)) {
-            userFavSet = new Set(favData.trackIds)
+        const initRes = await fetch('/api/user/init-data?history_limit=100')
+        if (initRes.ok) {
+          const initData = await initRes.json()
+          if (Array.isArray(initData.trackIds)) {
+            userFavSet = new Set(initData.trackIds)
+          }
+          if (initData.history?.items) {
+            historyItems = initData.history.items
           }
         }
-      } catch {}
+      } catch {
+        // Fallback to separate requests if combined endpoint fails (e.g. unauthenticated)
+        try {
+          const favRes = await fetch('/api/favorites/status')
+          if (favRes.ok) {
+            const favData = await favRes.json()
+            if (Array.isArray(favData.trackIds)) {
+              userFavSet = new Set(favData.trackIds)
+            }
+          }
+        } catch {}
+        try {
+          const historyRes = await fetch('/api/history/list?limit=100')
+          if (historyRes.ok) {
+            const histData = await historyRes.json()
+            historyItems = histData.items ?? []
+          }
+        } catch {}
+      }
       if (mySeq !== fetchSeqRef.current) return
       setUserFavTrackIds(userFavSet)
 
@@ -257,22 +281,16 @@ export default function HomePage() {
         )
       }
 
+      // Process history from combined response
       try {
-        const historyRes = await fetch('/api/history/list?limit=100')
-        if (historyRes.ok) {
-          const { items: historyItems } = await historyRes.json()
-          const recent = getRecentUniqueTracks(historyItems ?? []).map((tr) => ({
-            ...tr,
-            source: tr.source || 'local',
-          }))
-          if (mySeq !== fetchSeqRef.current) return
-          setRecentTracks(recent)
-        } else {
-          if (mySeq !== fetchSeqRef.current) return
-          setRecentTracks([])
-        }
+        const recent = getRecentUniqueTracks(historyItems).map((tr) => ({
+          ...tr,
+          source: tr.source || 'local',
+        }))
+        if (mySeq !== fetchSeqRef.current) return
+        setRecentTracks(recent)
       } catch (hErr) {
-        console.error('Failed to fetch recent listening history:', hErr)
+        console.error('Failed to process listening history:', hErr)
         if (mySeq !== fetchSeqRef.current) return
         setRecentTracks([])
       }

@@ -2,9 +2,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { fetchUnifiedSearch, GlobalSearchTracks } from '@/lib/searchApi'
-import { searchNhacCuaTui } from '@/lib/nhaccuatuiClient'
-import { nhacCuaTuiSearchItemToTrack } from '@/lib/nhaccuatui'
-import { combineCombinedSearchResults } from '@/lib/searchFlow'
 
 interface SearchContextType {
   searchQuery: string
@@ -76,33 +73,13 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
 
     const timer = setTimeout(async () => {
       if (!trimmed) {
-        // Debounce the empty state too: transient intermediate "" values (e.g. IME
-        // reverting a lone tone-mark key like "s") must not clear the results.
         setGlobalTracks(emptyResults)
         setSearchingGlobal(false)
         return
       }
       try {
-        // Combine NhacCuaTui + Spotify + Deezer + SoundCloud in parallel, dedupe duplicates
-        const [nctItems, spotifyData, deezerData, soundcloudData] = await Promise.all([
-          searchNhacCuaTui(trimmed),
-          fetchUnifiedSearch(trimmed, 'spotify', false),
-          fetchUnifiedSearch(trimmed, 'deezer', false),
-          fetchUnifiedSearch(trimmed, 'soundcloud', false),
-        ])
-
-        const data = combineCombinedSearchResults(
-          nctItems.map(nhacCuaTuiSearchItemToTrack),
-          spotifyData.spotify,
-          deezerData.deezer,
-          soundcloudData.soundcloud || [],
-        )
-
-        if (data.nhaccuatui.length + data.spotify.length + data.deezer.length + (data.soundcloud?.length || 0) === 0) {
-          // All primary sources empty -> final YouTube fallback
-          const youtubeData = await fetchUnifiedSearch(trimmed, 'youtube', false)
-          data.youtube = youtubeData.youtube
-        }
+        // Single unified request — server handles all sources internally
+        const data = await fetchUnifiedSearch(trimmed, 'all', false)
 
         if (activeSearchRef.current === currentSearchId) {
           setGlobalTracks(data)
@@ -135,18 +112,8 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
     setSearchingSuggestions(true)
     const timer = setTimeout(async () => {
       try {
-        const [nctItems, spotifyData, deezerData, soundcloudData] = await Promise.all([
-          searchNhacCuaTui(trimmed),
-          fetchUnifiedSearch(trimmed, 'spotify', false),
-          fetchUnifiedSearch(trimmed, 'deezer', false),
-          fetchUnifiedSearch(trimmed, 'soundcloud', false),
-        ])
-        const data = combineCombinedSearchResults(
-          nctItems.map(nhacCuaTuiSearchItemToTrack),
-          spotifyData.spotify,
-          deezerData.deezer,
-          soundcloudData.soundcloud || [],
-        )
+        // Single unified request — reuses client-side cache from global search
+        const data = await fetchUnifiedSearch(trimmed, 'all', false)
         if (activeSuggestionRef.current === currentSearchId) {
           setSuggestionTracks(data)
           setSearchingSuggestions(false)
@@ -157,7 +124,7 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
           setSearchingSuggestions(false)
         }
       }
-    }, 250)
+    }, 350)
 
     return () => clearTimeout(timer)
   }, [suggestionQuery])

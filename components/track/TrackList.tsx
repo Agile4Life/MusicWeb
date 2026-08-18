@@ -67,6 +67,43 @@ export function TrackList({
     }
   }, [tracks])
 
+  // Batch-fetch view counts for all tracks in a single request (replaces N per-row fetches)
+  const [batchViews, setBatchViews] = React.useState<Map<string, number | null>>(new Map())
+
+  React.useEffect(() => {
+    if (!tracks || tracks.length === 0) return
+
+    // Only fetch for tracks that don't already have view_count
+    const needsFetch = tracks.filter(
+      (t) => (t.view_count == null || t.view_count <= 0) && (t.title || t.youtube_id)
+    )
+    if (needsFetch.length === 0) return
+
+    let isMounted = true
+    const batchPayload = needsFetch.map((t) => ({
+      youtube_id: t.youtube_id || undefined,
+      title: t.title || undefined,
+      artist: t.artist || undefined,
+    }))
+
+    fetch('/api/track-views/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tracks: batchPayload }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (isMounted && data?.views) {
+          setBatchViews(new Map(Object.entries(data.views)))
+        }
+      })
+      .catch(() => {})
+
+    return () => {
+      isMounted = false
+    }
+  }, [tracks])
+
   if (tracks.length === 0) {
     return (
       <div className="text-center py-12 text-gray-400 bg-[#181818]/60 border border-white/5 rounded-2xl">
@@ -285,6 +322,10 @@ export function TrackList({
         {tracks.map((track, idx) => {
           const isCurrent = currentTrack?.id === track.id
           const isPlayingThis = isCurrent && isPlaying
+          // Compute the same cache key used by the batch API
+          const viewCacheKey =
+            track.youtube_id ||
+            `${(track.title || '').trim().toLowerCase()}_${(track.artist || '').trim().toLowerCase()}`
           return (
             <TrackRow
               key={`${track.source || 'local'}_${track.id}`}
@@ -310,6 +351,7 @@ export function TrackList({
               selectable={isAdmin}
               isSelected={selectedIds.has(track.id)}
               onToggleSelect={() => toggleSelect(track.id)}
+              batchViewCount={batchViews.get(viewCacheKey)}
             />
           )
         })}

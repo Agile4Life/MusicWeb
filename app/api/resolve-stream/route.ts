@@ -467,6 +467,6 @@ function respondWith(entry: L1Entry): Response {
     coverUrl: entry.coverUrl,
   }, {
     status: 200,
-    headers: { 'Cache-Control': 'no-store' },
+    headers: { 'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600' },
   })
 }

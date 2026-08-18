@@ -38,6 +38,8 @@ interface TrackRowProps {
   isSelected?: boolean
   onToggleSelect?: () => void
   onMouseEnterRow?: (e: React.MouseEvent<HTMLDivElement>) => void
+  /** Pre-fetched view count from batch API — skips per-row /api/track-views call */
+  batchViewCount?: number | null
 }
 
 function formatDuration(seconds: number) {
@@ -65,6 +67,7 @@ function TrackRowComponent({
   isSelected = false,
   onToggleSelect,
   onMouseEnterRow,
+  batchViewCount,
 }: TrackRowProps) {
   const router = useRouter()
   const [isResolvingAlbum, setIsResolvingAlbum] = useState(false)
@@ -266,6 +269,9 @@ function TrackRowComponent({
   const [loadingViews, setLoadingViews] = useState(false)
 
   useEffect(() => {
+    // Skip per-row fetch if batch data is available from TrackList
+    if (batchViewCount !== undefined) return
+
     if (track.view_count != null && track.view_count > 0) return
 
     const cacheKey = track.youtube_id || `${(track.title || '').trim().toLowerCase()}_${(track.artist || '').trim().toLowerCase()}`
@@ -303,9 +309,10 @@ function TrackRowComponent({
     return () => {
       isMounted = false
     }
-  }, [track.youtube_id, track.title, track.artist, track.view_count])
+  }, [track.youtube_id, track.title, track.artist, track.view_count, batchViewCount])
 
-  const displayViews = (track.view_count != null && track.view_count > 0 ? track.view_count : null) ?? fetchedViews
+  // Priority: track.view_count > batchViewCount > fetchedViews (per-row fallback)
+  const displayViews = (track.view_count != null && track.view_count > 0 ? track.view_count : null) ?? batchViewCount ?? fetchedViews
 
   const [editMode, setEditMode] = useState(false)
   const [editTitle, setEditTitle] = useState(track.title || '')
