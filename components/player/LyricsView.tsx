@@ -14,7 +14,6 @@ import {
   RefreshCw,
   Sparkles,
   Mic2,
-  AlertCircle,
   Play,
   Pause,
   SkipBack,
@@ -702,17 +701,7 @@ export const LyricsView = memo(function LyricsView({
               )
             })}
           </div>
-        ) : (
-          <div className="h-full flex flex-col items-center justify-center text-slate-400 py-20 text-center">
-            <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-4 shadow-xl">
-              <AlertCircle className="w-8 h-8 text-slate-400" />
-            </div>
-            <h4 className="text-base font-extrabold text-white mb-1">Chưa có dữ liệu lời bài hát</h4>
-            <p className="text-xs text-slate-400 max-w-sm">
-              Bài hát này chưa có bản ghi lời trên thư viện LRCLIB hoặc đang được cập nhật.
-            </p>
-          </div>
-        )}
+        ) : null}
       </div>
 
       {/* 🎵 Bottom Glassmorphic Player Controls & Seekbar (Isolated 60FPS re-render) */}
