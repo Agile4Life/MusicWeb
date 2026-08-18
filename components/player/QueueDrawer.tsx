@@ -116,7 +116,7 @@ export function QueueDrawer() {
       </div>
 
       {/* Drawer Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 pb-28 lg:pb-32 space-y-6">
         {activeTab === 'queue' ? (
           <>
             {/* Section 1: Now Playing */}

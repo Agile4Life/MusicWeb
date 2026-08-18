@@ -156,5 +156,68 @@ describe('Player Safety Mechanisms & Edge Guards', () => {
 
     expect(isCurrentAudioOwnership()).toBe(true)
   })
+
+  it('prevents play/pause spam race conditions by serializing action IDs and desired play state', async () => {
+    let isPlaying = false
+    const toggleActionIdRef = { current: 0 }
+    const desiredPlayStateRef = { current: null as 'playing' | 'paused' | null }
+
+    const mockAudio = {
+      paused: true,
+      pause: () => {
+        mockAudio.paused = true
+      },
+      play: () =>
+        new Promise<void>((resolve) => {
+          setTimeout(() => {
+            mockAudio.paused = false
+            resolve()
+          }, 50)
+        }),
+    }
+
+    const togglePlay = async () => {
+      const actionId = ++toggleActionIdRef.current
+      const isCurrentlyActive =
+        (isPlaying || !mockAudio.paused || desiredPlayStateRef.current === 'playing') &&
+        desiredPlayStateRef.current !== 'paused'
+
+      if (isCurrentlyActive) {
+        desiredPlayStateRef.current = 'paused'
+        mockAudio.pause()
+        isPlaying = false
+        return
+      }
+
+      desiredPlayStateRef.current = 'playing'
+      try {
+        await mockAudio.play()
+        if (actionId !== toggleActionIdRef.current || desiredPlayStateRef.current === 'paused') {
+          mockAudio.pause()
+          isPlaying = false
+          return
+        }
+        isPlaying = true
+      } catch {}
+    }
+
+    // 1. User clicks PLAY (action 1)
+    const p1 = togglePlay()
+    expect(desiredPlayStateRef.current).toBe('playing')
+
+    // 2. User quickly clicks PAUSE (action 2) while action 1 play() is in-flight (after 10ms)
+    await new Promise((r) => setTimeout(r, 10))
+    const p2 = togglePlay()
+    expect(desiredPlayStateRef.current).toBe('paused')
+    expect(isPlaying).toBe(false)
+    expect(mockAudio.paused).toBe(true)
+
+    // Await both promises to complete
+    await Promise.all([p1, p2])
+
+    // After action 1 resolves, the guard must prevent action 1 from setting isPlaying = true
+    expect(isPlaying).toBe(false)
+    expect(mockAudio.paused).toBe(true)
+  })
 })
 

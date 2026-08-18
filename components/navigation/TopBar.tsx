@@ -14,7 +14,7 @@ import Link from 'next/link'
 
 import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
-import { shouldCommitGlobalSearch } from '@/components/search/searchInteraction'
+import { shouldCommitGlobalSearch, shouldRedirectToHomeOnSearch } from '@/components/search/searchInteraction'
 import { shouldCloseProfileMenu, shouldToggleProfileMenu } from './profileMenuInteraction'
 
 export function TopBar() {
@@ -120,6 +120,9 @@ export function TopBar() {
     setSearchQuery(trimmed)
     setSuggestionQuery('')
     setShowDropdown(false)
+    if (shouldRedirectToHomeOnSearch(pathname)) {
+      router.push('/')
+    }
   }
 
   return (
@@ -204,10 +207,19 @@ export function TopBar() {
                         </div>
                       </div>
                     ))}
+
+                    <button
+                      type="button"
+                      onClick={handleSubmitSearch}
+                      className="mt-1 p-2 text-xs font-semibold text-[var(--spotify-glow,#22d3ee)] hover:text-white bg-white/[0.03] hover:bg-white/[0.08] rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-white/[0.06]"
+                    >
+                      <Search className="w-3.5 h-3.5" />
+                      <span>Xem tất cả kết quả cho &quot;{inputQuery.trim()}&quot;</span>
+                    </button>
                   </>
                 ) : (
                   <div className="p-4 text-center text-xs text-slate-400">
-                    Không tìm thấy kết quả phù hợp cho &quot;{searchQuery}&quot;
+                    Không tìm thấy kết quả phù hợp cho &quot;{inputQuery || searchQuery}&quot;
                   </div>
                 )}
               </div>

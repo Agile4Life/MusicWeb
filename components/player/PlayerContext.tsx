@@ -321,6 +321,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const prevTrackRef = useRef<() => void>(() => {})
   const pendingResumeRef = useRef<boolean>(false)
   const audioStallWatchdogRef = useRef<NodeJS.Timeout | null>(null)
+  const toggleActionIdRef = useRef<number>(0)
+  const desiredPlayStateRef = useRef<'playing' | 'paused' | null>(null)
 
   const isCurrentAudioOwnership = useCallback(() => {
     const token = audioOwnershipRef.current
@@ -1175,6 +1177,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               // YT.PlayerState.PLAYING = 1, PAUSED = 2, ENDED = 0, BUFFERING = 3
               if (event.data === 1) {
                 if (!active?.youtube_id) return
+
+                if (desiredPlayStateRef.current === 'paused') {
+                  try {
+                    ytPlayerRef.current?.pauseVideo?.()
+                  } catch {}
+                  setIsPlaying(false)
+                  setIsBuffering(false)
+                  return
+                }
 
                 const actualVideoId = getActualYouTubeVideoId()
                 const matchesVideo = (actualVideoId && actualVideoId === active.youtube_id) || (ytLoadedIdRef.current === active.youtube_id)
@@ -2070,72 +2081,101 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const current = currentTrackRef.current
     if (!current) return
 
+    const actionId = ++toggleActionIdRef.current
     const track = inferTrackSource(current)
+    const isYt = isYtIframeEngine()
+    const audio = audioRef.current
 
-    if (track.source === 'youtube' && !ytHtml5ModeRef.current) {
-      if (isPlaying) {
-        if (ytPlayerRef.current?.pauseVideo) {
-          try {
-            ytPlayerRef.current.pauseVideo()
-          } catch {}
-        }
-        setIsPlaying(false)
-      } else {
-        if (ytPlayerRef.current && ytReadyRef.current) {
-          try {
-            const state = ytPlayerRef.current.getPlayerState ? ytPlayerRef.current.getPlayerState() : -1
-            // 1 = playing, 2 = paused, 3 = buffering, 5 = video cued
-            if (state === 5 || state === 2 || state === 1 || state === 3) {
-              ytPlayerRef.current.playVideo()
-              setIsPlaying(true)
-              return
-            }
-          } catch (e) {
-            console.warn('YT playVideo state check failed:', e)
-          }
-        }
-        // Fallback: If YT player was unstarted (-1), empty, or not cued, start via playTrack
-        await playTrack(track, queueRef.current, currentIndexRef.current, currentTimeRef.current)
+    // Check actual engine playback state to prevent desynchronization when tab is backgrounded
+    const isAudioPlaying = Boolean(audio && !audio.paused && !audio.ended && audio.readyState > 1)
+    const isYtPlaying = Boolean(isYt && ytPlayerRef.current?.getPlayerState?.() === 1)
+    const isCurrentlyActive =
+      (isPlaying || isAudioPlaying || isYtPlaying || desiredPlayStateRef.current === 'playing') &&
+      desiredPlayStateRef.current !== 'paused'
+
+    if (isCurrentlyActive) {
+      // 🛑 PAUSE ACTION: User explicitly intends to pause
+      desiredPlayStateRef.current = 'paused'
+      if (audio) {
+        try {
+          audio.pause()
+        } catch {}
       }
+      if (ytPlayerRef.current?.pauseVideo) {
+        try {
+          ytPlayerRef.current.pauseVideo()
+        } catch {}
+      }
+      setIsPlaying(false)
+      setIsBuffering(false)
       return
     }
 
+    // ▶️ PLAY / RESUME ACTION: User explicitly intends to play
+    desiredPlayStateRef.current = 'playing'
     consecutiveSkipRef.current = 0
-    if (isPlaying) {
-      if (audioRef.current) {
-        audioRef.current.pause()
+
+    if (isYt) {
+      if (ytPlayerRef.current && ytReadyRef.current) {
+        try {
+          const state = ytPlayerRef.current.getPlayerState ? ytPlayerRef.current.getPlayerState() : -1
+          // 1 = playing, 2 = paused, 3 = buffering, 5 = video cued
+          if (state === 5 || state === 2 || state === 1 || state === 3) {
+            ytPlayerRef.current.playVideo()
+            if (actionId === toggleActionIdRef.current && desiredPlayStateRef.current === 'playing') {
+              setIsPlaying(true)
+            }
+            return
+          }
+        } catch (e) {
+          console.warn('YT playVideo state check failed:', e)
+        }
       }
-      setIsPlaying(false)
-    } else {
-      const audio = audioRef.current
-      if (!audio || !audio.src || audio.src === window.location.href || audio.error) {
-        // If audio source is missing, invalid, or errored out (e.g. after reload)
-        await playTrack(track, queueRef.current, currentIndexRef.current, currentTimeRef.current)
+      // Fallback: If YT player was unstarted (-1), empty, or not cued, start via playTrack
+      await playTrack(track, queueRef.current, currentIndexRef.current, currentTimeRef.current)
+      return
+    }
+
+    // HTML5 audio engine (SoundCloud, NCT, Drive, Local, iOS YouTube proxy)
+    if (!audio || !audio.src || audio.src === window.location.href || audio.error) {
+      // If audio source is missing, invalid, or errored out (e.g. after reload)
+      await playTrack(track, queueRef.current, currentIndexRef.current, currentTimeRef.current)
+      return
+    }
+
+    // Ensure audio ownership token and volume are synchronized with current track
+    audioOwnershipRef.current = {
+      generation: audioGenerationRef.current,
+      requestId: playRequestRef.current,
+      trackId: track.id,
+    }
+    const safeVolume = volumeRef.current ?? DEFAULT_VOLUME
+    audio.volume = safeVolume
+    audio.muted = safeVolume === 0
+
+    try {
+      await playAudioElement(audio)
+      // Guard: If user clicked Pause while playAudioElement was in-flight, immediately pause and drop
+      if (actionId !== toggleActionIdRef.current || desiredPlayStateRef.current === 'paused') {
+        audio.pause()
+        setIsPlaying(false)
         return
       }
-
-      // Ensure audio ownership token and volume are synchronized with current track
-      audioOwnershipRef.current = {
-        generation: audioGenerationRef.current,
-        requestId: playRequestRef.current,
-        trackId: track.id,
-      }
-      const safeVolume = volumeRef.current ?? DEFAULT_VOLUME
-      audio.volume = safeVolume
-      audio.muted = safeVolume === 0
-
-      try {
-        await audio.play()
-        setIsPlaying(true)
-      } catch (err: any) {
-        if (err?.name === 'AbortError' || String(err).includes('interrupted')) {
-          return
+      setIsPlaying(true)
+    } catch (err: any) {
+      if (err?.name === 'AbortError' || String(err).includes('interrupted')) {
+        if (desiredPlayStateRef.current === 'paused') {
+          setIsPlaying(false)
         }
-        console.warn('audio.play() failed, re-loading track:', err)
-        await playTrack(track, queueRef.current, currentIndexRef.current, currentTimeRef.current)
+        return
       }
+      if (actionId !== toggleActionIdRef.current || desiredPlayStateRef.current === 'paused') {
+        return
+      }
+      console.warn('audio.play() failed, re-loading track:', err)
+      await playTrack(track, queueRef.current, currentIndexRef.current, currentTimeRef.current)
     }
-  }, [isPlaying, playTrack])
+  }, [isPlaying, isYtIframeEngine, playTrack])
 
   const seek = useCallback((time: number) => {
     setCurrentTime(time)
@@ -2717,7 +2757,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (mode === 'one') {
           if (audioRef.current) {
             audioRef.current.currentTime = 0
-            audioRef.current.play().catch(() => {})
+            audioRef.current.play().then(() => {
+              setIsPlaying(true)
+            }).catch(() => {})
           }
         } else if (mode === 'all') {
           nextTrackRef.current()
@@ -2732,6 +2774,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         } else {
           setIsPlaying(false)
         }
+      }
+    }
+
+    const handlePlay = () => {
+      if (!isCurrentAudioOwnership()) return
+      if (!isYtIframeEngine()) {
+        setIsPlaying(true)
+      }
+    }
+
+    const handlePause = () => {
+      if (!isCurrentAudioOwnership()) return
+      if (!isYtIframeEngine()) {
+        setIsPlaying(false)
       }
     }
 
@@ -2756,7 +2812,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       // Retry a background play() that was rejected by iOS for lacking a fresh gesture
       if (pendingResumeRef.current && audioRef.current && audioRef.current.paused) {
         pendingResumeRef.current = false
-        audioRef.current.play().catch(() => {
+        audioRef.current.play().then(() => {
+          setIsPlaying(true)
+        }).catch(() => {
           pendingResumeRef.current = true
         })
       }
@@ -2765,6 +2823,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       clearAudioStallWatchdog()
       if (!isCurrentAudioOwnership()) return
       setIsBuffering(false)
+      setIsPlaying(true)
       audioRetryCountRef.current = 0
     }
     const handleVisibilityChange = () => {
@@ -2780,22 +2839,64 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (!isHidden) {
-        // Tab restored: immediately sync UI currentTime to real audio position
-        if (audioRef.current && !isYtIframeEngine()) {
-          const actualTime = audioRef.current.currentTime || 0
+        const activeAudio = audioRef.current
+        const ytActive = isYtIframeEngine()
+
+        // 1. Tab restored: immediately sync UI currentTime & duration to real audio/video position
+        if (ytActive && ytPlayerRef.current?.getCurrentTime) {
+          try {
+            const ytTime = ytPlayerRef.current.getCurrentTime() || 0
+            currentTimeRef.current = ytTime
+            setCurrentTime(ytTime)
+            if (ytPlayerRef.current.getDuration) {
+              const dur = ytPlayerRef.current.getDuration() || 0
+              if (dur > 0) setDuration(dur)
+            }
+          } catch {}
+        } else if (activeAudio) {
+          const actualTime = activeAudio.currentTime || 0
           currentTimeRef.current = actualTime
           setCurrentTime(actualTime)
+          if (activeAudio.duration && !isNaN(activeAudio.duration) && activeAudio.duration > 0) {
+            setDuration(Math.round(activeAudio.duration))
+          }
         }
 
-        if (pendingResumeRef.current && audioRef.current && audioRef.current.paused) {
+        // 2. Synchronize isPlaying state with true hardware/player status
+        if (ytActive) {
+          try {
+            const ytState = ytPlayerRef.current?.getPlayerState?.()
+            if (ytState === 1) {
+              setIsPlaying(true)
+              setIsBuffering(false)
+            } else if (ytState === 2) {
+              setIsPlaying(false)
+              setIsBuffering(false)
+            }
+          } catch {}
+        } else if (activeAudio) {
+          if (!activeAudio.paused && !activeAudio.ended && activeAudio.readyState > 1) {
+            setIsPlaying(true)
+            setIsBuffering(false)
+          } else if (activeAudio.paused && !pendingResumeRef.current) {
+            setIsPlaying(false)
+          }
+        }
+
+        // 3. Resume audio if pending user-gesture / background resume
+        if (pendingResumeRef.current && activeAudio && activeAudio.paused) {
           pendingResumeRef.current = false
-          audioRef.current.play().catch(() => {
+          activeAudio.play().then(() => {
+            setIsPlaying(true)
+          }).catch(() => {
             pendingResumeRef.current = true
           })
         }
       }
     }
 
+    audio.addEventListener('play', handlePlay)
+    audio.addEventListener('pause', handlePause)
     audio.addEventListener('timeupdate', handleTimeUpdate)
     audio.addEventListener('loadedmetadata', handleLoadedMetadata)
     audio.addEventListener('ended', handleEnded)
@@ -2809,6 +2910,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       clearAudioStallWatchdog()
+      audio.removeEventListener('play', handlePlay)
+      audio.removeEventListener('pause', handlePause)
       audio.removeEventListener('timeupdate', handleTimeUpdate)
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
       audio.removeEventListener('ended', handleEnded)

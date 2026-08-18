@@ -50,8 +50,8 @@
     "semantic_hash": "e9d8be9caa34d327cac6f746f947cee0"
   },
   "app/(app)/album/[id]/page.tsx": {
-    "mtime": 1786953704.9655876,
-    "ast_hash": "ade85c701f5bc5714ad03c0048f9fb61",
+    "mtime": 1786975940.2510424,
+    "ast_hash": "34f08be08df38ceb6cd3322bd7e52bad",
     "semantic_hash": ""
   },
   "app/(app)/albums/page.tsx": {
@@ -75,8 +75,8 @@
     "semantic_hash": ""
   },
   "app/(app)/layout.tsx": {
-    "mtime": 1786944372.6940098,
-    "ast_hash": "f0ad5dd5d09396aac16b77a9783b171c",
+    "mtime": 1787037615.7548046,
+    "ast_hash": "77bb775a71593e4f7f863b8f3d469d3f",
     "semantic_hash": ""
   },
   "app/(app)/loading.tsx": {
@@ -90,8 +90,8 @@
     "semantic_hash": "cd9fd7c859ebd0405c9cd14a299741f9"
   },
   "app/(app)/page.tsx": {
-    "mtime": 1786964371.5080228,
-    "ast_hash": "9272ac0577576221410fc0b20f57b08d",
+    "mtime": 1787024489.3066986,
+    "ast_hash": "eadd114d37308f23781f840b4a3f5f1c",
     "semantic_hash": ""
   },
   "app/(app)/playlist/[id]/page.tsx": {
@@ -100,8 +100,8 @@
     "semantic_hash": ""
   },
   "app/(app)/settings/page.tsx": {
-    "mtime": 1786877044.0074775,
-    "ast_hash": "50fabee7a39ecaac775eadf0205aec0e",
+    "mtime": 1787037731.3805707,
+    "ast_hash": "77fa05fd64c3de3999e39162053d9265",
     "semantic_hash": ""
   },
   "app/(app)/upload/page.tsx": {
@@ -225,8 +225,8 @@
     "semantic_hash": "93679e37511593238391987470516335"
   },
   "app/api/resolve-stream/route.ts": {
-    "mtime": 1786965784.8868444,
-    "ast_hash": "09d3c56be12a3b3fdebc9163612f7dcd",
+    "mtime": 1787024235.7700486,
+    "ast_hash": "5a979ea925bff0acd2293e3b2abc7aae",
     "semantic_hash": ""
   },
   "app/api/search/route.ts": {
@@ -415,8 +415,8 @@
     "semantic_hash": ""
   },
   "components/player/ParticleScene.tsx": {
-    "mtime": 1786975201.8401852,
-    "ast_hash": "1886257a4a0782cb98f719adaa249b3f",
+    "mtime": 1786975939.9278224,
+    "ast_hash": "3f6e4b7faab7917e1c71a8fce86581d0",
     "semantic_hash": ""
   },
   "components/player/PlayerBar.tsx": {
@@ -425,8 +425,8 @@
     "semantic_hash": ""
   },
   "components/player/PlayerContext.tsx": {
-    "mtime": 1786975820.9087186,
-    "ast_hash": "5224d73c2989b05035837f6adde8ec33",
+    "mtime": 1787052748.548775,
+    "ast_hash": "f5584a2cc8ae2a9c1ed297bf44a04ac9",
     "semantic_hash": ""
   },
   "components/player/QueueDrawer.tsx": {
@@ -455,8 +455,8 @@
     "semantic_hash": ""
   },
   "components/search/SearchContext.tsx": {
-    "mtime": 1786877044.1722376,
-    "ast_hash": "205d70aee4e38cad45aac926cf960bb6",
+    "mtime": 1787024299.9620748,
+    "ast_hash": "f678d69767a6510e0b21502d28658839",
     "semantic_hash": ""
   },
   "components/sidebar/Sidebar.tsx": {
@@ -470,8 +470,8 @@
     "semantic_hash": ""
   },
   "components/theme/ThemeContext.tsx": {
-    "mtime": 1786877044.18221,
-    "ast_hash": "a3d71c0c0699ecc79c851fd1c9bb83e1",
+    "mtime": 1787037552.8083246,
+    "ast_hash": "6bd5af3293250baba492a64413aebbc3",
     "semantic_hash": ""
   },
   "components/theme/ThemeSelector.tsx": {
@@ -490,13 +490,13 @@
     "semantic_hash": "eb8eb8750ff9875298b73bf5a05bb7cc"
   },
   "components/track/TrackList.tsx": {
-    "mtime": 1786877044.1881945,
-    "ast_hash": "4d121edf575d3ebe1d838c4ad4d22821",
+    "mtime": 1787024435.3952467,
+    "ast_hash": "27fa4652aa245c8c45296f1f43e8cc3a",
     "semantic_hash": ""
   },
   "components/track/TrackRow.tsx": {
-    "mtime": 1786953886.4928143,
-    "ast_hash": "a5cb4a8fe2f1de84e83fca339768f110",
+    "mtime": 1787024399.2350252,
+    "ast_hash": "4a814a22bf70d331df177195fb2217d6",
     "semantic_hash": ""
   },
   "components/ui/AppLogoIcon.tsx": {
@@ -1145,8 +1145,8 @@
     "semantic_hash": ""
   },
   "app/(app)/artist/page.tsx": {
-    "mtime": 1786953838.3434544,
-    "ast_hash": "fb7d8ba8ffcf4138ea5a329b197d60b8",
+    "mtime": 1786975924.7329123,
+    "ast_hash": "41705de5d199a0f8d1ceccb0299d11e2",
     "semantic_hash": ""
   },
   "app/(app)/receipt/page.tsx": {
@@ -1335,8 +1335,8 @@
     "semantic_hash": ""
   },
   "components/player/MobileFullviewPlayer.tsx": {
-    "mtime": 1786949881.6195772,
-    "ast_hash": "8c446d1ff0bb9efedc52103cceb7812c",
+    "mtime": 1786976341.5988507,
+    "ast_hash": "9b7b597c1864a11486d12dab51d93b87",
     "semantic_hash": ""
   },
   "components/player/PlayerBarGlowBorder.tsx": {
@@ -1395,8 +1395,8 @@
     "semantic_hash": ""
   },
   "components/player/audioSourceSwitch.ts": {
-    "mtime": 1786973904.8928986,
-    "ast_hash": "aba320a597e8c0e99963c508d7f1e5c4",
+    "mtime": 1786989171.6264346,
+    "ast_hash": "506b8f325644681ce5c11864cdf60bd2",
     "semantic_hash": ""
   },
   "components/player/engines/Html5AudioEngine.ts": {
@@ -1450,8 +1450,8 @@
     "semantic_hash": ""
   },
   "components/theme/LiquidAmbientCanvas.tsx": {
-    "mtime": 1786877044.1772234,
-    "ast_hash": "dfc05a064fb4e8e9b33f1c63a628f92b",
+    "mtime": 1787037642.1260316,
+    "ast_hash": "db643bb144f4d042f4ebcc265a534fab",
     "semantic_hash": ""
   },
   "components/theme/LiquidGlassContainer.tsx": {
@@ -2860,8 +2860,23 @@
     "semantic_hash": ""
   },
   "components/player/__tests__/backgroundTabOptimization.test.ts": {
-    "mtime": 1786975271.0039046,
-    "ast_hash": "28b2a5cf551d8645bd7bf1a79352d3ca",
+    "mtime": 1787052758.0878434,
+    "ast_hash": "0227fbfa16653b73a8fc04400c0dfcd9",
+    "semantic_hash": ""
+  },
+  "app/api/track-views/batch/route.ts": {
+    "mtime": 1787024335.4291422,
+    "ast_hash": "17912e39c8baab3ae0fa44c077511c54",
+    "semantic_hash": ""
+  },
+  "app/api/user/init-data/route.ts": {
+    "mtime": 1787024452.4799182,
+    "ast_hash": "623dff2003c7ad2fdd938c8935f210f0",
+    "semantic_hash": ""
+  },
+  "components/theme/useGamingMode.ts": {
+    "mtime": 1787037565.7815444,
+    "ast_hash": "a75a65aa6e57e92faddd0ecfaa310768",
     "semantic_hash": ""
   }
 }
