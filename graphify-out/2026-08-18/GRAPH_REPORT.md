@@ -1,16 +1,16 @@
-# Graph Report - MusicWeb  (2026-08-18)
+# Graph Report - MusicWeb  (2026-08-17)
 
 ## Corpus Check
-- 513 files · ~607,352 words
+- 513 files · ~605,857 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 4859 nodes · 7462 edges · 401 communities (334 shown, 67 thin omitted)
+- 4859 nodes · 7462 edges · 397 communities (331 shown, 66 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 72 edges (avg confidence: 0.57)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `7007c4ec`
+- Built from commit: `a14fb8a3`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -319,11 +319,11 @@
 - TrackCoverImage.tsx
 - LiquidGlassFilterDefs
 - Global Constraints
-- compressAudioIfNeeded
+- none
 - xl
 - sm
-- padding-y
-- md
+- 0
+- 1
 - 7. DIAL DEFINITIONS (Technical Reference)
 - 15. DEFAULT SITE PACKS
 - 20. EXAMPLE INTERPRETATIONS
@@ -339,9 +339,9 @@
 - README.md
 - test_sync_brand_to_tokens.py
 - main
-- 1. THE THREE DIALS (Core Configuration)
-- 12
-- 2
+- 3
+- primary
+- .test_init_default_project_root
 - 8
 - .test_add_components_no_config
 - destructive-foreground
@@ -361,7 +361,6 @@
 - slides-create.md
 - create.md
 - test-academic.md
-- 4
 - .test_init_dry_run
 - .test_check_shadcn_config_exists
 - .test_get_installed_components_empty
@@ -394,9 +393,6 @@
 - tailwind-merge
 - three
 - progress.md
-- destructive
-- imagegen-frontend-web/SKILL.md
-- .test_add_components_already_installed
 
 ## God Nodes (most connected - your core abstractions)
 1. `Track` - 70 edges
@@ -425,7 +421,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (401 total, 67 thin omitted)
+## Communities (397 total, 66 thin omitted)
 
 ### Community 0 - "AuthForm.tsx"
 Cohesion: 0.09
@@ -484,8 +480,8 @@ Cohesion: 0.07
 Nodes (28): dom, dom.iterable, esnext, **/*.mts, .next/dev/types/**/*.ts, next-env.d.ts, .next/types/**/*.ts, node_modules (+20 more)
 
 ### Community 14 - "googleDriveUpload.ts"
-Cohesion: 0.16
-Nodes (24): formatFileSize(), GoogleDriveUpload(), cleanSongArtist(), cleanSongTitle(), formatDuration(), formatFileSize(), QueueItem, trackDuplicateKey() (+16 more)
+Cohesion: 0.12
+Nodes (28): formatFileSize(), GoogleDriveUpload(), cleanSongArtist(), cleanSongTitle(), formatDuration(), formatFileSize(), QueueItem, trackDuplicateKey() (+20 more)
 
 ### Community 15 - "drive-stream-resolver.ts"
 Cohesion: 0.14
@@ -808,7 +804,7 @@ Cohesion: 0.18
 Nodes (11): MiniEqualizer(), MiniEqualizerProps, miniPlayerClassName, mobileContentPaddingClassName, ClosestTarget, isPlayerBarFeatureTarget(), trackMetadataArtistClass, trackMetadataArtistInlineClass (+3 more)
 
 ### Community 123 - "PlayerProvider"
-Cohesion: 0.19
+Cohesion: 0.23
 Nodes (17): PlayerProvider(), extractDriveFileId(), getClientCdnCache(), isPreviewUrl(), setClientCdnCache(), triggerDrivePrewarm(), verifyDriveFile(), getCachedNctStreamUrl() (+9 more)
 
 ### Community 124 - "Asset Organization Guide"
@@ -825,7 +821,7 @@ Nodes (18): 1. Wordmark (Logotype), 2. Lettermark (Monogram), 3. Pictorial Mark 
 
 ### Community 127 - "color"
 Cohesion: 0.11
-Nodes (19): $type, $value, background, foreground, muted-foreground, primary, primary-hover, secondary (+11 more)
+Nodes (19): $type, $value, background, destructive, foreground, muted-foreground, primary-hover, secondary (+11 more)
 
 ### Community 129 - "Brand Consistency Checklist"
 Cohesion: 0.11
@@ -844,8 +840,8 @@ Cohesion: 0.17
 Nodes (17): generate_css_for_background(), get_background_image(), get_curated_images(), get_overlay_css(), get_pexels_search_url(), load_backgrounds_config(), load_brand_colors(), main() (+9 more)
 
 ### Community 133 - "CORE DIRECTIVE: AWWWARDS-LEVEL IMAGE ART DIRECTION"
-Cohesion: 0.14
-Nodes (14): 10. SECTION RHYTHM RULE, 12. DENSITY & SPACING DISCIPLINE, 14. IMAGE / MEDIA DIRECTION, 16. MULTI-IMAGE CONSISTENCY RULE, 17. CLARITY CHECK, 19. RESPONSE BEHAVIOR, 1. ACTIVE BASELINE CONFIGURATION, 21. FINAL GOAL (+6 more)
+Cohesion: 0.12
+Nodes (16): 10. SECTION RHYTHM RULE, 12. DENSITY & SPACING DISCIPLINE, 14. IMAGE / MEDIA DIRECTION, 16. MULTI-IMAGE CONSISTENCY RULE, 17. CLARITY CHECK, 19. RESPONSE BEHAVIOR, 1. ACTIVE BASELINE CONFIGURATION, 21. FINAL GOAL (+8 more)
 
 ### Community 134 - "Code Review Reception"
 Cohesion: 0.12
@@ -1069,7 +1065,7 @@ Nodes (11): Applying the Pattern, Defense-in-Depth Validation, Example from Sess
 
 ### Community 190 - "ShadcnInstaller"
 Cohesion: 0.20
-Nodes (7): main(), Handle shadcn/ui component installation., ShadcnInstaller, Tests for shadcn_add.py, Test listing installed components when they exist., Test initialization with default project root., Test getting installed components without config.
+Nodes (7): main(), Handle shadcn/ui component installation., ShadcnInstaller, Tests for shadcn_add.py, Test adding components that are already installed., Test listing installed components when they exist., Test getting installed components without config.
 
 ### Community 191 - ".check_shadcn_config"
 Cohesion: 0.21
@@ -1140,8 +1136,8 @@ Cohesion: 0.18
 Nodes (8): args, fs, minimal, MINIMAL_TOKENS, path, projectRoot, tokensPath, wrapStyle
 
 ### Community 208 - "tasteskill: Anti-Slop Frontend Skill"
-Cohesion: 0.18
-Nodes (11): 0.A Read these signals first, 0.B Output a one-line "Design Read" before generating, 0. BRIEF INFERENCE (Read the Room Before Anything Else), 0.C If the brief is ambiguous, ask one question, do not guess, 0.D Anti-Default Discipline, 13. OUT OF SCOPE, 14. FINAL PRE-FLIGHT CHECK, 2.A When to reach for a real design system (use official packages) (+3 more)
+Cohesion: 0.13
+Nodes (15): 0.A Read these signals first, 0.B Output a one-line "Design Read" before generating, 0. BRIEF INFERENCE (Read the Room Before Anything Else), 0.C If the brief is ambiguous, ask one question, do not guess, 0.D Anti-Default Discipline, 13. OUT OF SCOPE, 14. FINAL PRE-FLIGHT CHECK, 1.A Dial Inference (design read → dial values) (+7 more)
 
 ### Community 209 - "patch"
 Cohesion: 0.18
@@ -1316,8 +1312,8 @@ Cohesion: 0.25
 Nodes (7): After the Design, Anti-Pattern: "This Is Too Simple To Need A Design", Brainstorming Ideas Into Designs, Checklist, Process Flow, The Process, Visual Companion
 
 ### Community 252 - "input"
-Cohesion: 0.29
-Nodes (8): padding-x, input, $type, $value, focus-ring, padding-x, $type, $value
+Cohesion: 0.20
+Nodes (12): padding-x, padding-y, input, $type, $value, focus-ring, padding-x, padding-y (+4 more)
 
 ### Community 253 - "9. AI TELLS (Forbidden Patterns)"
 Cohesion: 0.25
@@ -1575,9 +1571,9 @@ Nodes (3): getHighResCoverUrl(), TrackCoverImageComponent(), TrackCoverImageProp
 Cohesion: 0.40
 Nodes (4): Global Constraints, Sidebar Navigation Gliding Indicator & Hover Implementation Plan, Task 1: Add CSS Rules for Gliding Indicator, Nudging, and Ripple Effect, Task 2: Implement Gliding Indicator & Ripple Logic in Sidebar Component
 
-### Community 318 - "compressAudioIfNeeded"
-Cohesion: 0.70
-Nodes (4): compressAudioIfNeeded(), convertPcmCooperatively(), encodeInWorker(), encodeOnMainThread()
+### Community 318 - "none"
+Cohesion: 0.67
+Nodes (4): $type, $value, none, none
 
 ### Community 319 - "xl"
 Cohesion: 0.67
@@ -1587,13 +1583,13 @@ Nodes (4): xl, xl, $type, $value
 Cohesion: 0.60
 Nodes (5): sm, sm, sm, $type, $value
 
-### Community 321 - "padding-y"
+### Community 321 - "0"
 Cohesion: 0.67
-Nodes (4): padding-y, padding-y, $type, $value
+Nodes (3): $type, $value, 0
 
-### Community 322 - "md"
+### Community 322 - "1"
 Cohesion: 0.67
-Nodes (4): $type, $value, md, md
+Nodes (3): $type, $value, 1
 
 ### Community 323 - "7. DIAL DEFINITIONS (Technical Reference)"
 Cohesion: 0.50
@@ -1643,17 +1639,13 @@ Nodes (3): POST(), romajiCache, transliterateSingleLine()
 Cohesion: 0.50
 Nodes (3): Deploy on Vercel, Getting Started, Learn More
 
-### Community 338 - "1. THE THREE DIALS (Core Configuration)"
-Cohesion: 0.50
-Nodes (4): 1.A Dial Inference (design read → dial values), 1.B Use-Case Presets, 1.C How the Dials Drive Output, 1. THE THREE DIALS (Core Configuration)
-
-### Community 339 - "12"
+### Community 338 - "3"
 Cohesion: 0.67
-Nodes (3): $type, $value, 12
+Nodes (3): $type, $value, 3
 
-### Community 340 - "2"
+### Community 339 - "primary"
 Cohesion: 0.67
-Nodes (3): $type, $value, 2
+Nodes (3): primary, $type, $value
 
 ### Community 341 - "8"
 Cohesion: 0.67
@@ -1679,18 +1671,10 @@ Nodes (3): ring, $type, $value
 Cohesion: 0.67
 Nodes (3): secondary-foreground, $type, $value
 
-### Community 361 - "4"
-Cohesion: 0.67
-Nodes (3): $type, $value, 4
-
-### Community 398 - "destructive"
-Cohesion: 0.67
-Nodes (3): destructive, $type, $value
-
 ## Knowledge Gaps
 - **2097 isolated node(s):** `crypto`, `http`, `fs`, `path`, `OPCODES` (+2092 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **67 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **66 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_

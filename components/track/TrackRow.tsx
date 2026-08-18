@@ -110,6 +110,8 @@ function TrackRowComponent({
   const { data: nextAuthSession } = useSession()
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const [menuPos, setMenuPos] = useState<{ top?: number; bottom?: number; right: number } | null>(null)
   const hoverTimeoutRef = useRef<any>(null)
   const favBusyRef = useRef(false)
   // Track recently pre-warmed NCT IDs to avoid re-triggering
@@ -198,13 +200,44 @@ function TrackRowComponent({
     setMounted(true)
   }, [])
 
+  const handleToggleMenu = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!showMenu) {
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect()
+        const menuEstimatedHeight = 280
+        const spaceBelow = window.innerHeight - rect.bottom
+        const openUpward = spaceBelow < menuEstimatedHeight && rect.top > spaceBelow
+
+        setMenuPos({
+          top: openUpward ? undefined : rect.bottom + 6,
+          bottom: openUpward ? window.innerHeight - rect.top + 6 : undefined,
+          right: Math.max(12, window.innerWidth - rect.right),
+        })
+      }
+      setShowMenu(true)
+    } else {
+      setShowMenu(false)
+    }
+  }
+
   useEffect(() => {
     if (!showMenu) return
 
     const handlePointerDownOutside = (event: PointerEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      const target = event.target as Node
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(target) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(target)
+      ) {
         setShowMenu(false)
       }
+    }
+
+    const handleScrollOrResize = () => {
+      setShowMenu(false)
     }
 
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
@@ -214,11 +247,15 @@ function TrackRowComponent({
 
     const timer = setTimeout(() => {
       window.addEventListener('pointerdown', handlePointerDownOutside)
+      window.addEventListener('scroll', handleScrollOrResize, true)
+      window.addEventListener('resize', handleScrollOrResize)
     }, 0)
 
     return () => {
       clearTimeout(timer)
       window.removeEventListener('pointerdown', handlePointerDownOutside)
+      window.removeEventListener('scroll', handleScrollOrResize, true)
+      window.removeEventListener('resize', handleScrollOrResize)
       if (isMobile) {
         document.body.style.overflow = ''
       }
@@ -584,10 +621,8 @@ function TrackRowComponent({
               )}
 
               <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setShowMenu(!showMenu)
-                }}
+                ref={buttonRef}
+                onClick={handleToggleMenu}
                 className={`p-1.5 hover:text-white hover:bg-white/10 rounded-lg transition-colors ${
                   showMenu ? 'opacity-100 text-white bg-white/10' : 'opacity-100 md:opacity-0 md:group-hover:opacity-100'
                 }`}
@@ -596,19 +631,26 @@ function TrackRowComponent({
                 <MoreVertical className="w-4 h-4" />
               </button>
 
-            {showMenu && (
+            {/* Desktop Dropdown Menu via Portal */}
+            {showMenu && mounted && typeof window !== 'undefined' && createPortal(
               <div
                 ref={menuRef}
-                className="hidden md:block absolute right-0 top-9 bg-[#0c121e]/98 backdrop-blur-2xl shadow-2xl rounded-2xl py-1.5 w-56 z-50 text-xs text-slate-200 border border-white/15 animate-in fade-in zoom-in-95 duration-150"
+                style={{
+                  position: 'fixed',
+                  top: menuPos?.top !== undefined ? `${menuPos.top}px` : undefined,
+                  bottom: menuPos?.bottom !== undefined ? `${menuPos.bottom}px` : undefined,
+                  right: menuPos?.right !== undefined ? `${menuPos.right}px` : 16,
+                }}
+                className="hidden md:block bg-[#0c121e]/98 backdrop-blur-2xl shadow-2xl rounded-2xl py-1.5 w-56 z-[99999] text-xs text-slate-200 border border-white/15 animate-in fade-in zoom-in-95 duration-150 select-none"
                 onClick={(e) => e.stopPropagation()}
               >
-                {/* Edit artist/album */}
+                {/* Toggle Favorite */}
                 <button
                   onClick={handleToggleFavorite}
-                  className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors"
+                  className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors cursor-pointer"
                 >
                   <Heart className={`w-3.5 h-3.5 ${isFavorite ? 'fill-rose-400 text-rose-400' : 'text-rose-400'}`} />
-                  {isFavorite ? 'Bỏ khỏi yêu thích' : 'Thêm vào yêu thích'}
+                  <span>{isFavorite ? 'Bỏ khỏi yêu thích' : 'Thêm vào yêu thích'}</span>
                 </button>
 
                 {onAddToQueue && (
@@ -618,10 +660,10 @@ function TrackRowComponent({
                       setShowMenu(false)
                       onAddToQueue()
                     }}
-                    className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors text-[var(--spotify-glow,#22d3ee)]"
+                    className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors text-[var(--spotify-glow,#22d3ee)] cursor-pointer"
                   >
                     <ListMusic className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)]" />
-                    Thêm vào hàng đợi
+                    <span>Thêm vào hàng đợi</span>
                   </button>
                 )}
 
@@ -631,7 +673,7 @@ function TrackRowComponent({
                     handleOpenTrackAlbum(e)
                   }}
                   disabled={isResolvingAlbum}
-                  className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors text-purple-300"
+                  className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors text-purple-300 cursor-pointer disabled:opacity-50"
                 >
                   {isResolvingAlbum ? (
                     <Loader2 className="w-3.5 h-3.5 text-purple-400 animate-spin" />
@@ -647,10 +689,10 @@ function TrackRowComponent({
                       setEditMode(true)
                       setShowMenu(false)
                     }}
-                    className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors border-b border-white/10"
+                    className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors border-b border-white/10 text-blue-300 cursor-pointer"
                   >
                     <Pencil className="w-3.5 h-3.5 text-blue-400" />
-                    Sửa Tên / Nghệ sĩ / Album
+                    <span>Sửa Tên / Nghệ sĩ / Album</span>
                   </button>
                 )}
 
@@ -659,20 +701,22 @@ function TrackRowComponent({
                     <div className="px-3 py-1 text-slate-400 font-semibold text-[10px] uppercase tracking-wider border-b border-white/10">
                       Thêm vào Playlist
                     </div>
-                    {userPlaylists.map((pl) => (
-                      <button
-                        key={pl.id}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onAddToPlaylist?.(pl.id, track)
-                          setShowMenu(false)
-                        }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 truncate transition-colors"
-                      >
-                        <Plus className="w-3.5 h-3.5 text-emerald-400" />
-                        <span className="truncate">{pl.name}</span>
-                      </button>
-                    ))}
+                    <div className="max-h-40 overflow-y-auto no-scrollbar flex flex-col">
+                      {userPlaylists.map((pl) => (
+                        <button
+                          key={pl.id}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onAddToPlaylist?.(pl.id, track)
+                            setShowMenu(false)
+                          }}
+                          className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center gap-2 truncate transition-colors cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          <span className="truncate">{pl.name}</span>
+                        </button>
+                      ))}
+                    </div>
                   </>
                 )}
 
@@ -683,10 +727,10 @@ function TrackRowComponent({
                       onDeleteTrack(track.id)
                       setShowMenu(false)
                     }}
-                    className="w-full text-left px-3.5 py-2 hover:bg-red-500/10 text-slate-300 hover:text-red-300 flex items-center gap-2 border-t border-white/10 transition-colors"
+                    className="w-full text-left px-3.5 py-2 hover:bg-red-500/10 text-slate-300 hover:text-red-300 flex items-center gap-2 border-t border-white/10 transition-colors cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5 text-slate-400" />
-                    Bỏ khỏi Playlist này
+                    <span>Bỏ khỏi Playlist này</span>
                   </button>
                 )}
 
@@ -697,13 +741,14 @@ function TrackRowComponent({
                       onDeleteTrackPermanently(track.id)
                       setShowMenu(false)
                     }}
-                    className="w-full text-left px-3.5 py-2 hover:bg-red-500/20 text-red-400 flex items-center gap-2 border-t border-white/10 transition-colors font-semibold"
+                    className="w-full text-left px-3.5 py-2 hover:bg-red-500/20 text-red-400 flex items-center gap-2 border-t border-white/10 transition-colors font-semibold cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                    Xóa vĩnh viễn khỏi Thư viện
+                    <span>Xóa vĩnh viễn khỏi Thư viện</span>
                   </button>
                 )}
-              </div>
+              </div>,
+              document.body
             )}
 
             {/* Mobile Action Sheet Modal via Portal */}
