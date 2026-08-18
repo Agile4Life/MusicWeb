@@ -312,7 +312,7 @@ export default function HistoryPage() {
                   key={item.id}
                   onClick={() => playTrack(track, filteredItems.map((i) => i.track))}
                   onMouseEnter={handleHistoryMouseEnter}
-                  className="history-track-row song-row recent-row flex items-center justify-between p-2.5 sm:p-3 rounded-2xl hover:bg-white/5 transition-all group gap-2.5 sm:gap-4 cursor-pointer relative z-[1]"
+                  className="history-track-row song-row recent-row flex items-center justify-between p-2.5 sm:p-3 rounded-xl transition-all group gap-2.5 sm:gap-4 cursor-pointer relative z-[1]"
                 >
                   <div className="flex items-center gap-2.5 sm:gap-4 flex-1 min-w-0">
                     <span className="text-xs font-mono text-slate-500 w-5 sm:w-6 text-right shrink-0">

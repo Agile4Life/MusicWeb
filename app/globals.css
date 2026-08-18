@@ -925,16 +925,58 @@ input[type='range']:hover::-moz-range-thumb {
 }
 
 /* ================================================================
-   Redesign: Song Rows (TrackList)
+   Redesign: Song Rows (TrackList, Album, Artist, History, Queue)
+   Unified glide motion & clean hover interaction across all themes
    ================================================================ */
 .song-row,
-.recent-row {
-  border-radius: var(--radius-control, 12px);
-  transition: transform 180ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+.recent-row,
+tr.track-row,
+.queue-track-row,
+.history-track-row {
+  position: relative;
+  z-index: 1;
+  border-radius: 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  transition: transform 220ms var(--ease-glide, cubic-bezier(0.22, 1, 0.36, 1)),
+              color 180ms ease,
+              background-color 180ms ease,
+              border-color 180ms ease,
+              box-shadow 180ms ease;
+  user-select: none;
+}
+
+/* Hover: Keep row background transparent so .track-glide-indicator glides cleanly beneath without double-layer collision */
+.song-row:hover:not(.is-playing):not(.is-active):not(.active),
+.recent-row:hover:not(.is-playing):not(.is-active):not(.active),
+tr.track-row:hover:not(.is-playing):not(.is-active):not(.active),
+.queue-track-row:hover:not(.is-playing):not(.is-active):not(.active),
+.history-track-row:hover:not(.is-playing):not(.is-active):not(.active) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Unified Micro-interactions: Smooth cover thumbnail & play button micro-motion on hover */
+.song-row:hover .row-thumb,
+.recent-row:hover .row-thumb,
+.queue-track-row:hover .row-thumb,
+.history-track-row:hover .row-thumb {
+  transform: translateX(2px) scale(1.03);
+  transition: transform 300ms var(--ease-glide, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.song-row:hover button[aria-label="Phát"],
+.song-row:hover button[aria-label="Tạm dừng"] {
+  transform: scale(1.08);
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .song-row:active,
-.recent-row:active {
+.recent-row:active,
+.queue-track-row:active,
+.history-track-row:active {
   transform: scale(0.995);
 }
 
@@ -1441,26 +1483,25 @@ input[type='range']:hover::-moz-range-thumb {
 .track-glide-indicator {
   position: absolute;
   left: 0;
+  right: 0;
   width: 100%;
   border-radius: 12px;
   background: linear-gradient(90deg,
-      color-mix(in srgb, var(--spotify-glow, #22d3ee) 22%, rgba(255, 255, 255, 0.05)) 0%,
-      color-mix(in srgb, var(--spotify-glow, #22d3ee) 8%, transparent) 100%);
-  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 60%, rgba(255, 255, 255, 0.2));
+      color-mix(in srgb, var(--spotify-glow, #22d3ee) 20%, rgba(255, 255, 255, 0.06)) 0%,
+      color-mix(in srgb, var(--spotify-glow, #22d3ee) 6%, transparent) 100%);
+  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 50%, rgba(255, 255, 255, 0.18));
   box-shadow:
-    0 0 24px -2px color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, transparent),
-    inset 0 1px 1px rgba(255, 255, 255, 0.3);
+    0 0 24px -2px color-mix(in srgb, var(--spotify-glow, #22d3ee) 30%, transparent),
+    inset 0 1px 1px rgba(255, 255, 255, 0.28);
   opacity: 0;
   pointer-events: none;
   z-index: 0;
   transform-origin: center center;
   will-change: transform, opacity;
   transition:
-    transform 300ms var(--ease-out-quint),
+    transform 300ms var(--ease-glide, cubic-bezier(0.22, 1, 0.36, 1)),
     height 200ms ease,
-    opacity 180ms ease,
-    background 220ms ease,
-    border-color 220ms ease;
+    opacity 180ms ease;
 }
 
 /* === Sidebar Action Bar Horizontal Liquid Glide Indicator === */
@@ -2773,12 +2814,63 @@ html[data-cursor="default"][data-buffering="true"] * {
   pointer-events: none !important;
 }
 
-[data-theme-style="liquid-glass"] .song-row:hover {
-  background: rgba(255, 255, 255, 0.09) !important;
-  border-color: rgba(255, 255, 255, 0.16) !important;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+/* 🎵 Liquid Glass Track Glide Indicator (Refined frosted glass gliding highlight) */
+[data-theme-style="liquid-glass"] .track-glide-indicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  width: 100%;
+  border-radius: 12px;
+  background: linear-gradient(90deg,
+      rgba(255, 255, 255, 0.12) 0%,
+      color-mix(in srgb, var(--spotify-glow, #22d3ee) 18%, rgba(255, 255, 255, 0.06)) 50%,
+      rgba(255, 255, 255, 0.02) 100%) !important;
+  backdrop-filter: blur(16px) saturate(180%) brightness(1.06) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) brightness(1.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.24) !important;
+  border-top-color: rgba(255, 255, 255, 0.45) !important;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.3),
+    0 0 24px -2px color-mix(in srgb, var(--spotify-glow, #22d3ee) 28%, transparent),
+    inset 0 1px 1px rgba(255, 255, 255, 0.35) !important;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+  transform-origin: center center;
+  will-change: transform, opacity;
+  transition:
+    transform 300ms var(--ease-glide, cubic-bezier(0.22, 1, 0.36, 1)),
+    height 200ms ease,
+    opacity 180ms ease !important;
+}
+
+/* Liquid Glass Track Row: Transparent on hover to avoid collision with .track-glide-indicator */
+[data-theme-style="liquid-glass"] .song-row:hover:not(.is-playing):not(.is-active):not(.active),
+[data-theme-style="liquid-glass"] .recent-row:hover:not(.is-playing):not(.is-active):not(.active),
+[data-theme-style="liquid-glass"] .queue-track-row:hover:not(.is-playing):not(.is-active):not(.active),
+[data-theme-style="liquid-glass"] .history-track-row:hover:not(.is-playing):not(.is-active):not(.active) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Liquid Glass Active Playing Row */
+[data-theme-style="liquid-glass"] .song-row.is-playing,
+[data-theme-style="liquid-glass"] .recent-row.is-playing,
+[data-theme-style="liquid-glass"] .song-row.is-active,
+[data-theme-style="liquid-glass"] .queue-track-current {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.20) !important;
+  border-top-color: rgba(255, 255, 255, 0.35) !important;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.25),
+    0 0 20px -2px color-mix(in srgb, var(--spotify-glow, #22d3ee) 25%, transparent),
+    inset 0 1px 1px rgba(255, 255, 255, 0.25) !important;
+  backdrop-filter: blur(12px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(160%) !important;
 }
 
 /* === Refraction Mode Distinct Visual Signatures === */

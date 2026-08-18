@@ -198,7 +198,7 @@ export function QueueDrawer() {
                         key={`${track.id}-${idx}`}
                         onClick={() => playTrack(track, queue, actualQueueIndex)}
                         onMouseEnter={queueGlide.handleItemMouseEnter}
-                        className="queue-track-row flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-white/[0.06] border border-transparent hover:border-white/10 group transition-all cursor-pointer relative z-[1]"
+                        className="queue-track-row flex items-center justify-between gap-3 p-2 rounded-xl border border-transparent group transition-all cursor-pointer relative z-[1]"
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <div className="w-9 h-9 rounded-lg bg-slate-800 border border-white/10 overflow-hidden shrink-0 relative flex items-center justify-center">
@@ -265,7 +265,7 @@ export function QueueDrawer() {
                     key={`hist-${track.id}-${idx}`}
                     onClick={() => playTrack(track)}
                     onMouseEnter={historyGlide.handleItemMouseEnter}
-                    className="queue-track-row flex items-center gap-3 p-2 rounded-xl hover:bg-white/[0.06] border border-transparent hover:border-white/10 group transition-all cursor-pointer relative z-[1]"
+                    className="queue-track-row flex items-center gap-3 p-2 rounded-xl border border-transparent group transition-all cursor-pointer relative z-[1]"
                   >
                     <div className="w-9 h-9 rounded-lg bg-slate-800 border border-white/10 overflow-hidden shrink-0 relative flex items-center justify-center">
                       {track.cover_url ? (
