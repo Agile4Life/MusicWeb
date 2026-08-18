@@ -2156,7 +2156,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     try {
       await playAudioElement(audio)
       // Guard: If user clicked Pause while playAudioElement was in-flight, immediately pause and drop
-      if (actionId !== toggleActionIdRef.current || desiredPlayStateRef.current === 'paused') {
+      if (actionId !== toggleActionIdRef.current || (desiredPlayStateRef.current as 'playing' | 'paused' | null) === 'paused') {
         audio.pause()
         setIsPlaying(false)
         return
@@ -2164,12 +2164,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setIsPlaying(true)
     } catch (err: any) {
       if (err?.name === 'AbortError' || String(err).includes('interrupted')) {
-        if (desiredPlayStateRef.current === 'paused') {
+        if ((desiredPlayStateRef.current as 'playing' | 'paused' | null) === 'paused') {
           setIsPlaying(false)
         }
         return
       }
-      if (actionId !== toggleActionIdRef.current || desiredPlayStateRef.current === 'paused') {
+      if (actionId !== toggleActionIdRef.current || (desiredPlayStateRef.current as 'playing' | 'paused' | null) === 'paused') {
         return
       }
       console.warn('audio.play() failed, re-loading track:', err)

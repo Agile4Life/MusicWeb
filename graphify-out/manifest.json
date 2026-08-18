@@ -425,8 +425,8 @@
     "semantic_hash": ""
   },
   "components/player/PlayerContext.tsx": {
-    "mtime": 1787052932.5983667,
-    "ast_hash": "2f3614d510ba73c7f62db39e546a3fd1",
+    "mtime": 1787054228.8080347,
+    "ast_hash": "0eecf9010029afa69abbab010944d667",
     "semantic_hash": ""
   },
   "components/player/QueueDrawer.tsx": {
