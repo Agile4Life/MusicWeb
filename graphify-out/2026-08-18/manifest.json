@@ -70,8 +70,8 @@
     "semantic_hash": ""
   },
   "app/(app)/history/page.tsx": {
-    "mtime": 1786944447.9599595,
-    "ast_hash": "764afd55caa069af0a6945868b26f751",
+    "mtime": 1787053645.533468,
+    "ast_hash": "9d188b2ddbd653af58f31a16e9b3882e",
     "semantic_hash": ""
   },
   "app/(app)/layout.tsx": {
@@ -430,8 +430,8 @@
     "semantic_hash": ""
   },
   "components/player/QueueDrawer.tsx": {
-    "mtime": 1787053152.8395808,
-    "ast_hash": "fdc96e925b04832fe8027d83ff308ff4",
+    "mtime": 1787053615.8433826,
+    "ast_hash": "73a4526ca825184a82e3c1d1fb78858f",
     "semantic_hash": ""
   },
   "components/player/UpNextList.tsx": {
@@ -1515,8 +1515,8 @@
     "semantic_hash": ""
   },
   "lib/__tests__/minimalFlatTheme.test.ts": {
-    "mtime": 1786877044.23217,
-    "ast_hash": "5ec93451a2e9131e12051b0bf4d673aa",
+    "mtime": 1787053686.4276738,
+    "ast_hash": "4d1069d4e5a5470a003c25019ba029db",
     "semantic_hash": ""
   },
   "lib/__tests__/playbackFallback.test.ts": {

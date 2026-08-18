@@ -1,16 +1,16 @@
 # Graph Report - MusicWeb  (2026-08-18)
 
 ## Corpus Check
-- 516 files · ~610,047 words
+- 516 files · ~609,984 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 4870 nodes · 7490 edges · 387 communities (318 shown, 69 thin omitted)
+- 4870 nodes · 7490 edges · 389 communities (319 shown, 70 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 71 edges (avg confidence: 0.57)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `c58d515d`
+- Built from commit: `97dfe3c1`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -236,7 +236,7 @@
 - Skill structure
 - announcement/route.ts
 - nhaccuatui/stream/route.ts
-- $type
+- padding-y
 - Stream Optimization Plan
 - 2. Proposed Changes & Architecture
 - sync-brand-to-tokens.cjs
@@ -316,10 +316,14 @@
 - RED-GREEN-REFACTOR for Skills
 - VERIFY GREEN: Pressure Testing
 - playerBarInteraction.ts
-- primary
+- 1. THE THREE DIALS (Core Configuration)
 - .test_add_components_no_config
 - Global Constraints
 - next
+- destructive
+- imagegen-frontend-web/SKILL.md
+- Anti-patterns to avoid
+- .test_add_components_no_components
 - 7. DIAL DEFINITIONS (Technical Reference)
 - 15. DEFAULT SITE PACKS
 - 20. EXAMPLE INTERPRETATIONS
@@ -334,7 +338,6 @@
 - README.md
 - test_sync_brand_to_tokens.py
 - main
-- Evaluation and iteration
 - .test_add_components_already_installed
 - destructive-foreground
 - muted
@@ -354,7 +357,6 @@
 - create.md
 - test-academic.md
 - .test_init_dry_run
-- .test_check_shadcn_config_exists
 - .test_get_installed_components_empty
 - .test_get_installed_components_with_files
 - .test_add_fonts
@@ -411,7 +413,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (387 total, 69 thin omitted)
+## Communities (389 total, 70 thin omitted)
 
 ### Community 0 - "AuthForm.tsx"
 Cohesion: 0.15
@@ -807,7 +809,7 @@ Nodes (18): 1. Wordmark (Logotype), 2. Lettermark (Monogram), 3. Pictorial Mark 
 
 ### Community 127 - "color"
 Cohesion: 0.11
-Nodes (19): $type, $value, background, destructive, foreground, muted-foreground, primary-hover, secondary (+11 more)
+Nodes (19): $type, $value, background, foreground, muted-foreground, primary, primary-hover, secondary (+11 more)
 
 ### Community 129 - "Brand Consistency Checklist"
 Cohesion: 0.11
@@ -826,8 +828,8 @@ Cohesion: 0.17
 Nodes (17): generate_css_for_background(), get_background_image(), get_curated_images(), get_overlay_css(), get_pexels_search_url(), load_backgrounds_config(), load_brand_colors(), main() (+9 more)
 
 ### Community 133 - "CORE DIRECTIVE: AWWWARDS-LEVEL IMAGE ART DIRECTION"
-Cohesion: 0.12
-Nodes (16): 10. SECTION RHYTHM RULE, 12. DENSITY & SPACING DISCIPLINE, 14. IMAGE / MEDIA DIRECTION, 16. MULTI-IMAGE CONSISTENCY RULE, 17. CLARITY CHECK, 19. RESPONSE BEHAVIOR, 1. ACTIVE BASELINE CONFIGURATION, 21. FINAL GOAL (+8 more)
+Cohesion: 0.14
+Nodes (14): 10. SECTION RHYTHM RULE, 12. DENSITY & SPACING DISCIPLINE, 14. IMAGE / MEDIA DIRECTION, 16. MULTI-IMAGE CONSISTENCY RULE, 17. CLARITY CHECK, 19. RESPONSE BEHAVIOR, 1. ACTIVE BASELINE CONFIGURATION, 21. FINAL GOAL (+6 more)
 
 ### Community 134 - "Code Review Reception"
 Cohesion: 0.12
@@ -942,8 +944,8 @@ Cohesion: 0.26
 Nodes (11): applyCorsHeaders(), dynamic, GET(), getNctSongUrl(), nctResolveCache, OPTIONS(), resolveNctStreamUrlCached(), GET() (+3 more)
 
 ### Community 164 - "blue"
-Cohesion: 0.28
-Nodes (9): $type, $value, $type, $value, 50, 800, blue, 50 (+1 more)
+Cohesion: 0.18
+Nodes (15): $type, $value, $type, $value, $type, $value, 50, 600 (+7 more)
 
 ### Community 165 - "Banner Design - Multi-Format Creative Banner System"
 Cohesion: 0.14
@@ -1047,7 +1049,7 @@ Nodes (11): Applying the Pattern, Defense-in-Depth Validation, Example from Sess
 
 ### Community 190 - "ShadcnInstaller"
 Cohesion: 0.20
-Nodes (7): main(), Handle shadcn/ui component installation., ShadcnInstaller, Tests for shadcn_add.py, Test listing installed components when they exist., Test getting installed components without config., Test adding components with empty list.
+Nodes (7): main(), Handle shadcn/ui component installation., ShadcnInstaller, Tests for shadcn_add.py, Test listing installed components when they exist., Test checking for existing shadcn config., Test getting installed components without config.
 
 ### Community 191 - ".check_shadcn_config"
 Cohesion: 0.21
@@ -1066,8 +1068,8 @@ Cohesion: 0.17
 Nodes (11): Bite-Sized Task Granularity, Execution Handoff, File Structure, No Placeholders, Overview, Plan Document Header, Scope Check, Self-Review (+3 more)
 
 ### Community 195 - "[Analysis Title]"
-Cohesion: 0.17
-Nodes (12): Advanced: Skills with executable code, [Analysis Title], Anti-patterns to avoid, Avoid offering too many options, Avoid Windows-style paths, Conditional workflow pattern, Examples pattern, Executive summary (+4 more)
+Cohesion: 0.15
+Nodes (13): Advanced: Skills with executable code, [Analysis Title], Build evaluations first, Conditional workflow pattern, Develop Skills iteratively with the agent, Evaluation and iteration, Examples pattern, Executive summary (+5 more)
 
 ### Community 196 - "resolve/route.ts"
 Cohesion: 0.27
@@ -1118,8 +1120,8 @@ Cohesion: 0.18
 Nodes (8): args, fs, minimal, MINIMAL_TOKENS, path, projectRoot, tokensPath, wrapStyle
 
 ### Community 208 - "tasteskill: Anti-Slop Frontend Skill"
-Cohesion: 0.13
-Nodes (15): 0.A Read these signals first, 0.B Output a one-line "Design Read" before generating, 0. BRIEF INFERENCE (Read the Room Before Anything Else), 0.C If the brief is ambiguous, ask one question, do not guess, 0.D Anti-Default Discipline, 13. OUT OF SCOPE, 14. FINAL PRE-FLIGHT CHECK, 1.A Dial Inference (design read → dial values) (+7 more)
+Cohesion: 0.18
+Nodes (11): 0.A Read these signals first, 0.B Output a one-line "Design Read" before generating, 0. BRIEF INFERENCE (Read the Room Before Anything Else), 0.C If the brief is ambiguous, ask one question, do not guess, 0.D Anti-Default Discipline, 13. OUT OF SCOPE, 14. FINAL PRE-FLIGHT CHECK, 2.A When to reach for a real design system (use official packages) (+3 more)
 
 ### Community 209 - "patch"
 Cohesion: 0.18
@@ -1225,9 +1227,9 @@ Nodes (6): GET(), getSupabaseServerClient(), POST(), AnnouncementData, DEFAULT_A
 Cohesion: 0.40
 Nodes (8): applyCorsHeaders(), dynamic, GET(), getNctSongUrl(), HEAD(), nctAudioUrlCache, OPTIONS(), resolveNctAudioUrlCached()
 
-### Community 235 - "$type"
-Cohesion: 0.53
-Nodes (6): $type, $value, 600, 600, 600, 600
+### Community 235 - "padding-y"
+Cohesion: 0.67
+Nodes (4): padding-y, padding-y, $type, $value
 
 ### Community 236 - "Stream Optimization Plan"
 Cohesion: 0.20
@@ -1294,8 +1296,8 @@ Cohesion: 0.25
 Nodes (7): After the Design, Anti-Pattern: "This Is Too Simple To Need A Design", Brainstorming Ideas Into Designs, Checklist, Process Flow, The Process, Visual Companion
 
 ### Community 252 - "input"
-Cohesion: 0.20
-Nodes (12): padding-x, padding-y, input, $type, $value, focus-ring, padding-x, padding-y (+4 more)
+Cohesion: 0.29
+Nodes (8): padding-x, input, $type, $value, focus-ring, padding-x, $type, $value
 
 ### Community 253 - "9. AI TELLS (Forbidden Patterns)"
 Cohesion: 0.25
@@ -1533,13 +1535,21 @@ Nodes (5): GREEN: Write Minimal Skill, Micro-Test Wording Before Full Scenarios,
 Cohesion: 0.40
 Nodes (5): Key Elements of Good Scenarios, Pressure Types, Testing Setup, VERIFY GREEN: Pressure Testing, Writing Pressure Scenarios
 
-### Community 315 - "primary"
-Cohesion: 0.67
-Nodes (3): primary, $type, $value
+### Community 315 - "1. THE THREE DIALS (Core Configuration)"
+Cohesion: 0.50
+Nodes (4): 1.A Dial Inference (design read → dial values), 1.B Use-Case Presets, 1.C How the Dials Drive Output, 1. THE THREE DIALS (Core Configuration)
 
 ### Community 317 - "Global Constraints"
 Cohesion: 0.40
 Nodes (4): Global Constraints, Sidebar Navigation Gliding Indicator & Hover Implementation Plan, Task 1: Add CSS Rules for Gliding Indicator, Nudging, and Ripple Effect, Task 2: Implement Gliding Indicator & Ripple Logic in Sidebar Component
+
+### Community 319 - "destructive"
+Cohesion: 0.67
+Nodes (3): destructive, $type, $value
+
+### Community 321 - "Anti-patterns to avoid"
+Cohesion: 0.67
+Nodes (3): Anti-patterns to avoid, Avoid offering too many options, Avoid Windows-style paths
 
 ### Community 323 - "7. DIAL DEFINITIONS (Technical Reference)"
 Cohesion: 0.50
@@ -1585,10 +1595,6 @@ Nodes (3): POST(), romajiCache, transliterateSingleLine()
 Cohesion: 0.50
 Nodes (3): Deploy on Vercel, Getting Started, Learn More
 
-### Community 340 - "Evaluation and iteration"
-Cohesion: 0.50
-Nodes (4): Build evaluations first, Develop Skills iteratively with the agent, Evaluation and iteration, Observe how agents navigate Skills
-
 ### Community 343 - "destructive-foreground"
 Cohesion: 0.67
 Nodes (3): destructive-foreground, $type, $value
@@ -1612,7 +1618,7 @@ Nodes (3): secondary-foreground, $type, $value
 ## Knowledge Gaps
 - **2099 isolated node(s):** `crypto`, `http`, `fs`, `path`, `OPCODES` (+2094 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **69 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **70 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_

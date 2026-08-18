@@ -395,8 +395,8 @@
     "semantic_hash": ""
   },
   "components/player/LyricsView.tsx": {
-    "mtime": 1786975222.0275426,
-    "ast_hash": "38598e5a7eaced3a76c924eb467b767f",
+    "mtime": 1787053816.7124996,
+    "ast_hash": "ff1e725d735f7f931130b900a9af1f04",
     "semantic_hash": ""
   },
   "components/player/MiniEqualizer.tsx": {
