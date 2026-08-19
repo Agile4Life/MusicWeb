@@ -1,9 +1,12 @@
 import { QueueTrack, NextQueueResponse } from '@/types/queue'
 import { getDeezerArtistRadio, getDeezerRelatedArtistsTopTracks, getDeezerArtistTopTracks } from './deezer'
 import { searchSpotifyTracks } from './spotify'
+import { searchNhacCuaTuiDirect } from './nhaccuatui'
+import { searchSoundCloudTracks } from './soundcloudClient'
 import { removeDiacritics } from './smartRecommend'
+import { analyzeTrackMetadata } from './smartRecommend'
 import { adminClient } from '@/lib/serverUser'
-import { isOriginalTrackOnly } from './youtube'
+import { isOriginalTrackOnly, GENRE_ALLOWED_KEYWORDS } from './youtube'
 
 /**
  * Normalize title or artist string for deduplication comparison
@@ -30,15 +33,35 @@ export function getDedupKey(track: QueueTrack): string {
 }
 
 /**
- * Get all identity variants of a track (id, source_id, prefixed IDs)
+ * Get all identity variants of a track (id, source_id, prefixed IDs).
+ * Only generates cross-source prefix variants for the track's own source to
+ * prevent false skip-collisions between sources that share numeric IDs
+ * (e.g. SoundCloud id "4521" ≠ Deezer id "4521").
  */
 export function getTrackIdentityVariants(track: Partial<QueueTrack>): string[] {
   const variants = new Set<string>()
   if (track.id) variants.add(track.id)
+
   if (track.source_id) {
     variants.add(track.source_id)
-    variants.add(`spotify-${track.source_id}`)
-    variants.add(`deezer-${track.source_id}`)
+    // Only add prefixed variants that match this track's actual source.
+    // Adding ALL source prefixes risks false collisions when two sources
+    // happen to use the same numeric id for different tracks.
+    switch (track.source) {
+      case 'spotify':
+        variants.add(`spotify-${track.source_id}`)
+        break
+      case 'deezer':
+        variants.add(`deezer-${track.source_id}`)
+        break
+      case 'nhaccuatui':
+        variants.add(`nct-${track.source_id}`)
+        break
+      case 'soundcloud':
+        variants.add(`sc-${track.source_id}`)
+        break
+      // 'internal_history': source_id is already the raw track id, no prefix needed
+    }
   }
   return Array.from(variants)
 }
@@ -202,32 +225,32 @@ async function maybeSpotifySearchFallback(seedTrack: QueueTrack, limit = 10): Pr
 }
 
 /**
- * Deduplicate candidates by ISRC or Title + Artist
+ * Deduplicate candidates by ISRC or Title + Artist.
+ * Uses a Map<key, QueueTrack> for O(1) reverse lookup on merge instead of
+ * findIndex O(n) per duplicate, keeping the overall complexity at O(n).
  */
 export function dedupCandidates(candidates: QueueTrack[]): QueueTrack[] {
-  const seenKeys = new Set<string>()
+  // keyMap allows O(1) access to the already-inserted track by dedup key
+  const keyMap = new Map<string, QueueTrack>()
   const result: QueueTrack[] = []
 
   for (const track of candidates) {
     const key = getDedupKey(track)
-    if (!seenKeys.has(key)) {
-      seenKeys.add(key)
+    const existing = keyMap.get(key)
+    if (!existing) {
+      keyMap.set(key, track)
       result.push(track)
     } else {
-      // Merge score reasons if duplicate found from a higher quality source
-      const existingIndex = result.findIndex((t) => getDedupKey(t) === key)
-      if (existingIndex !== -1) {
-        const existing = result[existingIndex]
-        if (!existing.isrc && track.isrc) {
-          existing.isrc = track.isrc
-        }
-        if (!existing.preview_url && track.preview_url) {
-          existing.preview_url = track.preview_url
-        }
-        for (const reason of track.score_reasons) {
-          if (!existing.score_reasons.includes(reason)) {
-            existing.score_reasons.push(reason)
-          }
+      // Merge enrichment fields from the duplicate into the already-kept track
+      if (!existing.isrc && track.isrc) {
+        existing.isrc = track.isrc
+      }
+      if (!existing.preview_url && track.preview_url) {
+        existing.preview_url = track.preview_url
+      }
+      for (const reason of track.score_reasons) {
+        if (!existing.score_reasons.includes(reason)) {
+          existing.score_reasons.push(reason)
         }
       }
     }
@@ -303,12 +326,59 @@ export async function buildNextQueue(
   const sourcesUsed: string[] = []
   const sourcesFailed: string[] = []
 
-  // 1. Parallel primary candidate generation
-  const [deezerRadioRes, deezerRelatedRes, internalCFRes] = await Promise.allSettled([
+  // 1. Parallel primary candidate generation (Prioritizing native HTML5 streaming: NhacCuaTui & SoundCloud)
+  const artistQuery = seedTrack.artist && seedTrack.artist !== 'Nghệ sĩ chưa xác định' ? seedTrack.artist : ''
+  const searchSeedQuery = artistQuery || seedTrack.title || ''
+
+  const [
+    nctRes,
+    scRes,
+    deezerRadioRes,
+    deezerRelatedRes,
+    internalCFRes,
+  ] = await Promise.allSettled([
+    searchSeedQuery ? searchNhacCuaTuiDirect(searchSeedQuery, 20) : Promise.resolve([]),
+    searchSeedQuery ? searchSoundCloudTracks(searchSeedQuery, 20) : Promise.resolve([]),
     getDeezerArtistRadio(seedTrack.artist, 30),
     getDeezerRelatedArtistsTopTracks(seedTrack.artist, 30),
     getInternalCollaborativeCandidates(seedTrack.id, seedTrack.artist, userId),
   ])
+
+  let nctTracks: QueueTrack[] = []
+  if (nctRes.status === 'fulfilled' && nctRes.value.length > 0) {
+    nctTracks = nctRes.value.map((t) => ({
+      id: t.id,
+      title: t.title,
+      artist: t.artist || seedTrack.artist,
+      cover_url: t.cover_url,
+      duration: t.duration,
+      source: 'nhaccuatui' as const,
+      source_id: t.nhaccuatui_id || t.id.replace('nct-', ''),
+      score: 1.4,
+      score_reasons: ['nhaccuatui_native_priority'],
+    }))
+    sourcesUsed.push('nhaccuatui')
+  } else {
+    sourcesFailed.push('nhaccuatui')
+  }
+
+  let soundCloudTracks: QueueTrack[] = []
+  if (scRes.status === 'fulfilled' && scRes.value.length > 0) {
+    soundCloudTracks = scRes.value.map((t) => ({
+      id: t.id,
+      title: t.title,
+      artist: t.artist || seedTrack.artist,
+      cover_url: t.cover_url,
+      duration: t.duration,
+      source: 'soundcloud' as const,
+      source_id: String(t.soundcloud_id || t.id.replace('sc-', '')),
+      score: 1.35,
+      score_reasons: ['soundcloud_native_priority'],
+    }))
+    sourcesUsed.push('soundcloud')
+  } else {
+    sourcesFailed.push('soundcloud')
+  }
 
   let deezerRadioTracks: QueueTrack[] = []
   if (deezerRadioRes.status === 'fulfilled' && deezerRadioRes.value.length > 0) {
@@ -344,6 +414,8 @@ export async function buildNextQueue(
   }
 
   let candidates: QueueTrack[] = [
+    ...nctTracks,
+    ...soundCloudTracks,
     ...internalCFTracks,
     ...deezerRadioTracks,
     ...deezerRelatedTracks,
@@ -366,8 +438,26 @@ export async function buildNextQueue(
     sessionRawIds.add(track.id)
   }
 
+  // 3. Detect seed genre to build allowedKeywords so filterCandidate doesn't
+  //    incorrectly discard candidates that match the seed's own genre.
+  //    e.g. seed is a remix -> we should NOT filter out remix candidates.
+  const seedTrackAsTrack = {
+    id: seedTrack.id,
+    user_id: 'system',
+    title: seedTrack.title,
+    artist: seedTrack.artist,
+    duration: seedTrack.duration,
+    file_path: '',
+    cover_url: null,
+    created_at: new Date().toISOString(),
+  }
+  const seedAnalysis = analyzeTrackMetadata(seedTrackAsTrack)
+  // Keywords that are allowed for this seed's genre (won't be filtered out)
+  const filterAllowedKeywords: string[] = GENRE_ALLOWED_KEYWORDS[seedAnalysis.genre] || []
+
   const filterCandidate = (c: QueueTrack) => {
-    if (!isOriginalTrackOnly(c.title)) return false
+    // Pass genre-aware allowed keywords so remix candidates survive when seed is a remix
+    if (!isOriginalTrackOnly(c.title, filterAllowedKeywords)) return false
     if (sessionRawIds.has(c.id)) return false // Chặn trùng theo ID thô
     if (sessionDedupKeys.has(getDedupKey(c))) return false
     const candidateNormTitle = normalizeString(c.title)
@@ -414,10 +504,12 @@ export async function buildNextQueue(
     }
   }
 
-  // 6. Multi-factor Scoring
+  // 6. Multi-factor Scoring (Giving strong boost to NhacCuaTui & SoundCloud native streams)
   for (const c of candidates) {
-    // Base weight by source
+    // Base weight by source (NCT & SoundCloud have highest priority for universal instant HTML5 playback)
     let score = c.score || 1.0
+    if (c.source === 'nhaccuatui') score += 0.4
+    if (c.source === 'soundcloud') score += 0.35
     if (c.source === 'internal_history') score += 0.2
     if (c.source === 'deezer') score += 0.1
     if (c.source === 'spotify') score += 0.05
