@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ListeningHistoryItem, Track } from '@/types'
 
+export type { ListeningHistoryItem, Track }
+
 function toError(message: string | undefined, fallback: string): Error {
   return new Error(message || fallback)
 }

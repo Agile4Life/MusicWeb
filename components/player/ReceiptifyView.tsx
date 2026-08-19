@@ -25,6 +25,7 @@ import {
   Copy,
   Check,
   RefreshCw,
+  Sparkles,
   Layers,
   Palette,
   User,

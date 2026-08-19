@@ -92,6 +92,10 @@ describe('Player Safety Mechanisms & Edge Guards', () => {
       artist: 'Restored Artist',
       duration: 210,
       source: 'nhaccuatui',
+      user_id: 'user-1',
+      file_path: '',
+      cover_url: null,
+      created_at: '2026-01-01T00:00:00Z',
     }
 
     const audioGenerationRef = { current: 0 }
@@ -128,6 +132,10 @@ describe('Player Safety Mechanisms & Edge Guards', () => {
       title: 'Active Track',
       duration: 190,
       source: 'local',
+      user_id: 'user-1',
+      file_path: '',
+      cover_url: null,
+      created_at: '2026-01-01T00:00:00Z',
     }
 
     const audioGenerationRef = { current: 1 }
@@ -192,7 +200,7 @@ describe('Player Safety Mechanisms & Edge Guards', () => {
       desiredPlayStateRef.current = 'playing'
       try {
         await mockAudio.play()
-        if (actionId !== toggleActionIdRef.current || desiredPlayStateRef.current === 'paused') {
+        if (actionId !== toggleActionIdRef.current || (desiredPlayStateRef.current as any) === 'paused') {
           mockAudio.pause()
           isPlaying = false
           return
