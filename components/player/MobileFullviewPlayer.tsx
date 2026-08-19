@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import { usePlayer, usePlaybackProgress } from './PlayerContext'
+import type { RepeatMode } from './PlayerContext'
 import { useTheme } from '../theme/ThemeContext'
 import { TrackCoverImage } from '../common/TrackCoverImage'
 import { LyricsShareModal } from './LyricsShareModal'
@@ -17,6 +17,8 @@ import {
   Star,
   Heart,
   Shuffle,
+  Repeat,
+  Repeat1,
   MoreHorizontal,
   Volume2,
   VolumeX,
@@ -26,11 +28,15 @@ import {
   Share2,
   Loader2,
   X,
+  MessageSquareQuote,
+  GripVertical,
 } from 'lucide-react'
 
 interface ExtendedLyricLine extends LyricLine {
   romaji?: string
 }
+
+type FullviewTab = 'cover' | 'lyrics' | 'queue'
 
 // 🚀 Global module-level in-memory cache for parsed lyrics (zero lag & non-freezing on open/close)
 const globalLyricsCache = new Map<string, { lyrics: ExtendedLyricLine[]; isSynced: boolean }>()
@@ -50,7 +56,6 @@ function formatNegativeTime(seconds: number) {
 }
 
 export function MobileFullviewPlayer() {
-  const router = useRouter()
   const { currentTime, duration } = usePlaybackProgress()
   const {
     currentTrack,
@@ -64,17 +69,23 @@ export function MobileFullviewPlayer() {
     setVolume,
     isShuffle,
     toggleShuffle,
+    repeatMode,
+    toggleRepeat,
     toggleFavoriteCurrentTrack,
     isNowPlayingOpen,
     closeNowPlayingOverlay,
-    toggleQueue,
-    isQueueOpen,
+    queue,
+    currentIndex,
+    playTrack,
     mvIntroOffset,
   } = usePlayer()
 
   const { themeStyle, currentTheme } = useTheme()
 
-  // Unified iOS Drag to Dismiss Physics
+  // ===== Tab State =====
+  const [activeTab, setActiveTab] = useState<FullviewTab>('cover')
+
+  // ===== Unified iOS Drag to Dismiss Physics =====
   const [dragY, setDragY] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const touchStartYRef = useRef(0)
@@ -86,7 +97,13 @@ export function MobileFullviewPlayer() {
   const isClosingRef = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Lyrics state
+  // ===== Horizontal Swipe Between Tabs =====
+  const swipeStartXRef = useRef(0)
+  const swipeStartYRef = useRef(0)
+  const isHorizontalSwipeRef = useRef(false)
+  const swipeDeltaXRef = useRef(0)
+
+  // ===== Lyrics State =====
   const [lyrics, setLyrics] = useState<ExtendedLyricLine[]>(() => {
     if (currentTrack?.id && globalLyricsCache.has(currentTrack.id)) {
       return globalLyricsCache.get(currentTrack.id)!.lyrics
@@ -117,7 +134,11 @@ export function MobileFullviewPlayer() {
   const isUserInteractingRef = useRef(false)
   const lyricsReqIdRef = useRef(0)
 
-  // Reset drag on open
+  // ===== Progress bar scrub state =====
+  const [isScrubbing, setIsScrubbing] = useState(false)
+  const [scrubValue, setScrubValue] = useState(0)
+
+  // ===== Reset state on open =====
   useEffect(() => {
     if (isNowPlayingOpen) {
       setDragY(0)
@@ -125,10 +146,11 @@ export function MobileFullviewPlayer() {
       setIsDragging(false)
       isDraggingRef.current = false
       isClosingRef.current = false
+      setActiveTab('cover')
     }
   }, [isNowPlayingOpen])
 
-  // Fetch lyrics whenever currentTrack changes (with fast-path cache hit)
+  // ===== Fetch lyrics whenever currentTrack changes =====
   useEffect(() => {
     if (!currentTrack) {
       setLyrics([])
@@ -138,8 +160,6 @@ export function MobileFullviewPlayer() {
     }
 
     const trackId = currentTrack.id
-
-    // ⚡ Fast-path: Check memory cache first (instant 0ms response)
     const cached = globalLyricsCache.get(trackId)
     if (cached) {
       setLyrics(cached.lyrics)
@@ -184,7 +204,6 @@ export function MobileFullviewPlayer() {
         setIsSynced(hasSynced)
         globalLyricsCache.set(trackId, { lyrics: validLyrics, isSynced: hasSynced })
 
-        // Asynchronously fetch Romaji transliteration for all lines
         if (validLyrics.length > 0) {
           try {
             const rawLines = validLyrics.map((p) => p.text)
@@ -224,7 +243,7 @@ export function MobileFullviewPlayer() {
 
   // Ultra-Smooth Spring Auto-scroll to active line
   useEffect(() => {
-    if (!isNowPlayingOpen || isUserInteractingRef.current || activeIndex < 0 || !isSynced) {
+    if (!isNowPlayingOpen || activeTab !== 'lyrics' || isUserInteractingRef.current || activeIndex < 0 || !isSynced) {
       return
     }
 
@@ -242,11 +261,11 @@ export function MobileFullviewPlayer() {
     })
 
     return () => cancelAnimationFrame(rafId)
-  }, [activeIndex, isSynced, isNowPlayingOpen])
+  }, [activeIndex, isSynced, isNowPlayingOpen, activeTab])
 
-  // Instant scroll on opening overlay
+  // Instant scroll on opening overlay or switching to lyrics tab
   useEffect(() => {
-    if (isNowPlayingOpen && activeIndex >= 0 && isSynced) {
+    if (isNowPlayingOpen && activeTab === 'lyrics' && activeIndex >= 0 && isSynced) {
       const rafId = requestAnimationFrame(() => {
         const container = scrollContainerRef.current
         const activeEl = lineRefs.current[activeIndex]
@@ -260,9 +279,9 @@ export function MobileFullviewPlayer() {
       })
       return () => cancelAnimationFrame(rafId)
     }
-  }, [isNowPlayingOpen])
+  }, [isNowPlayingOpen, activeTab])
 
-  // User touch detection (Only user finger drag pauses auto-scroll)
+  // User touch detection
   const handleUserTouchStart = useCallback(() => {
     isUserInteractingRef.current = true
     if (userScrollTimeoutRef.current) {
@@ -279,7 +298,7 @@ export function MobileFullviewPlayer() {
     }, 3000)
   }, [])
 
-  // Unified iOS Sheet Drag Gestures
+  // ===== iOS Sheet Drag Gestures =====
   const handleDragTouchStart = useCallback((e: React.TouchEvent) => {
     if (isClosingRef.current) return
     const touch = e.touches[0]
@@ -288,6 +307,11 @@ export function MobileFullviewPlayer() {
     lastTouchYRef.current = touch.clientY
     touchStartTimeRef.current = Date.now()
     dragYRef.current = 0
+    // Reset horizontal swipe detection
+    swipeStartXRef.current = touch.clientX
+    swipeStartYRef.current = touch.clientY
+    isHorizontalSwipeRef.current = false
+    swipeDeltaXRef.current = 0
   }, [])
 
   const handleDragTouchMove = useCallback((e: React.TouchEvent) => {
@@ -299,13 +323,29 @@ export function MobileFullviewPlayer() {
     const deltaX = currentX - touchStartXRef.current
     lastTouchYRef.current = currentY
 
+    // Detect horizontal swipe for tab switching
+    if (!isDraggingRef.current && !isHorizontalSwipeRef.current) {
+      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 12) {
+        // Check if we're NOT over a scrollable lyrics container
+        const isOverLyrics = scrollContainerRef.current && scrollContainerRef.current.contains(e.target as Node)
+        if (!isOverLyrics) {
+          isHorizontalSwipeRef.current = true
+          swipeDeltaXRef.current = deltaX
+          return
+        }
+      }
+    }
+
+    if (isHorizontalSwipeRef.current) {
+      swipeDeltaXRef.current = deltaX
+      return
+    }
+
     if (!isDraggingRef.current) {
-      // If horizontal movement is dominant, ignore vertical drag
       if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 8) {
         return
       }
 
-      // If touching the lyrics scroll container, only allow drag down if at top
       const isOverLyrics = scrollContainerRef.current && scrollContainerRef.current.contains(e.target as Node)
       if (isOverLyrics) {
         if ((scrollContainerRef.current?.scrollTop || 0) > 2) {
@@ -313,7 +353,6 @@ export function MobileFullviewPlayer() {
         }
       }
 
-      // If moved down past 6px threshold, engage drag
       if (deltaY > 6) {
         isDraggingRef.current = true
         setIsDragging(true)
@@ -326,11 +365,9 @@ export function MobileFullviewPlayer() {
         e.preventDefault()
       }
       if (deltaY > 0) {
-        // Direct tracking with smooth finger follow
         setDragY(deltaY)
         dragYRef.current = deltaY
       } else {
-        // Rubberband resistance when pulling upwards
         const rubberband = deltaY * 0.18
         setDragY(rubberband)
         dragYRef.current = rubberband
@@ -338,7 +375,25 @@ export function MobileFullviewPlayer() {
     }
   }, [])
 
+  const tabOrder: FullviewTab[] = ['cover', 'lyrics', 'queue']
+
   const handleDragTouchEnd = useCallback(() => {
+    // Handle horizontal swipe → tab switch
+    if (isHorizontalSwipeRef.current) {
+      isHorizontalSwipeRef.current = false
+      const dx = swipeDeltaXRef.current
+      if (Math.abs(dx) > 50) {
+        setActiveTab((prev) => {
+          const idx = tabOrder.indexOf(prev)
+          if (dx < 0 && idx < tabOrder.length - 1) return tabOrder[idx + 1]
+          if (dx > 0 && idx > 0) return tabOrder[idx - 1]
+          return prev
+        })
+      }
+      swipeDeltaXRef.current = 0
+      return
+    }
+
     if (isClosingRef.current) return
     if (!isDraggingRef.current) {
       setIsDragging(false)
@@ -352,7 +407,6 @@ export function MobileFullviewPlayer() {
     isDraggingRef.current = false
     setIsDragging(false)
 
-    // Dismiss if pulled down > 110px or flicked down with velocity > 0.45px/ms
     const shouldDismiss = currentDragY > 110 || (currentDragY > 40 && velocity > 0.45)
 
     if (shouldDismiss) {
@@ -368,7 +422,6 @@ export function MobileFullviewPlayer() {
         isClosingRef.current = false
       }, 300)
     } else {
-      // Snap back to open with spring animation
       setDragY(0)
       dragYRef.current = 0
     }
@@ -386,11 +439,42 @@ export function MobileFullviewPlayer() {
     setVolume(volume > 0 ? 0 : 0.8)
   }
 
+  // ===== Progress Scrubbing =====
+  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+    seek(pct * effectiveDuration)
+  }
+
+  const handleProgressTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    setIsScrubbing(true)
+    const rect = e.currentTarget.getBoundingClientRect()
+    const touch = e.touches[0]
+    const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
+    setScrubValue(pct * effectiveDuration)
+  }
+
+  const handleProgressTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isScrubbing) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const touch = e.touches[0]
+    const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
+    setScrubValue(pct * effectiveDuration)
+  }
+
+  const handleProgressTouchEnd = () => {
+    if (isScrubbing) {
+      seek(scrubValue)
+      setIsScrubbing(false)
+    }
+  }
+
   if (!currentTrack) return null
 
   const effectiveDuration = duration > 0 ? duration : (currentTrack.duration || 0)
-  const remainingTime = Math.max(0, effectiveDuration - currentTime)
-  const progressPercent = effectiveDuration > 0 ? Math.min(100, Math.max(0, (currentTime / effectiveDuration) * 100)) : 0
+  const displayTime = isScrubbing ? scrubValue : currentTime
+  const remainingTime = Math.max(0, effectiveDuration - displayTime)
+  const progressPercent = effectiveDuration > 0 ? Math.min(100, Math.max(0, (displayTime / effectiveDuration) * 100)) : 0
 
   const isLiquid = themeStyle === 'liquid-glass'
   const isMinimal = themeStyle === 'minimal-flat'
@@ -401,6 +485,13 @@ export function MobileFullviewPlayer() {
   const sheetRadius = dragY > 0 ? Math.min(36, 16 + dragY * 0.12) : 0
   const sheetOpacity = dragY > 0 ? Math.max(0.35, 1 - dragProgress * 0.55) : 1
 
+  // Queue: upcoming tracks after current
+  const nextUpTracks = currentIndex >= 0 ? queue.slice(currentIndex + 1) : queue
+
+  // Repeat icon
+  const RepeatIcon = repeatMode === 'one' ? Repeat1 : Repeat
+  const isRepeatActive = repeatMode !== 'off'
+
   return (
     <div
       ref={containerRef}
@@ -410,8 +501,6 @@ export function MobileFullviewPlayer() {
       onTouchCancel={handleDragTouchEnd}
       className={`mobile-fullview-overlay fixed inset-0 z-[100] flex flex-col select-none overflow-hidden touch-pan-y ${
         isNowPlayingOpen ? 'pointer-events-auto' : 'pointer-events-none opacity-0 translate-y-full'
-      } ${
-        isMinimal ? 'bg-[#141017] text-[#F4ECE1]' : 'bg-[#07090e] text-white'
       }`}
       style={{
         transform: isNowPlayingOpen
@@ -425,686 +514,436 @@ export function MobileFullviewPlayer() {
           : 'transform 0.38s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.3s ease, border-radius 0.3s ease',
         transformOrigin: 'bottom center',
         willChange: 'transform, opacity',
+        backgroundColor: isMinimal ? '#141017' : '#0a0a0a',
+        color: isMinimal ? '#F4ECE1' : 'white',
       }}
     >
-      {/* 🌟 1. Theme-Aware Ambient Fluid Background */}
-      {isLiquid && (
-        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-          {currentTrack.cover_url ? (
-            <div
-              className="absolute inset-[-20%] bg-cover bg-center blur-[70px] brightness-[0.55] saturate-[180%] scale-110 opacity-70 transition-all duration-1000"
-              style={{
-                backgroundImage: `url(${currentTrack.cover_url})`,
-              }}
-            />
-          ) : (
-            <div
-              className="absolute inset-[-20%] blur-[80px] opacity-50"
-              style={{
-                background: `radial-gradient(circle at 30% 30%, ${currentTheme.gradient1}, transparent 60%), radial-gradient(circle at 70% 70%, ${currentTheme.gradient2}, transparent 60%)`,
-              }}
-            />
-          )}
-          {/* Subtle dark vignette */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/80" />
-        </div>
-      )}
-
-      {isClassic && (
-        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 bg-[#07090e]">
+      {/* ══════════════════════════════════════════════════════════════════
+          🌟 BACKGROUND — Blurred album art (Apple Music style)
+          ══════════════════════════════════════════════════════════════════ */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+        {currentTrack.cover_url ? (
           <div
-            className="absolute top-0 inset-x-0 h-96 opacity-30 blur-3xl"
+            className="absolute inset-[-30%] bg-cover bg-center transition-all duration-[1200ms]"
             style={{
-              background: `radial-gradient(circle at 50% 0%, ${currentTheme.accentColor}, transparent 70%)`,
+              backgroundImage: `url(${currentTrack.cover_url})`,
+              filter: 'blur(80px) brightness(0.4) saturate(1.8)',
+              transform: 'scale(1.2)',
             }}
           />
-        </div>
-      )}
+        ) : (
+          <div
+            className="absolute inset-[-20%] blur-[80px] opacity-40"
+            style={{
+              background: `radial-gradient(circle at 30% 30%, ${currentTheme.gradient1}, transparent 60%), radial-gradient(circle at 70% 70%, ${currentTheme.gradient2}, transparent 60%)`,
+            }}
+          />
+        )}
+        {/* Dark vignette overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/70" />
+      </div>
 
-      {isMinimal && (
-        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 bg-[#141017]">
-          <div className="absolute inset-0 bg-radial from-[#1D1720] to-[#141017] opacity-90" />
-        </div>
-      )}
-
-      {/* 📱 2. Header: Drag Handle & Floating Liquid Glass Track Plaque */}
-      <header
-        className="relative z-20 pt-[calc(0.6rem+env(safe-area-inset-top,0px))] px-4 flex flex-col gap-2 shrink-0 cursor-grab active:cursor-grabbing"
+      {/* ══════════════════════════════════════════════════════════════════
+          📎 DRAG HANDLE
+          ══════════════════════════════════════════════════════════════════ */}
+      <div
+        className="relative z-20 flex justify-center pt-[calc(0.6rem+env(safe-area-inset-top,0px))] pb-1 cursor-grab active:cursor-grabbing"
       >
-        {/* Top Grabber Bar */}
         <div
           onClick={closeNowPlayingOverlay}
-          className={`w-12 h-1.5 rounded-full transition-all mx-auto cursor-pointer active:scale-95 ${
-            isMinimal
-              ? 'bg-[#E8A94F]/50 hover:bg-[#E8A94F]'
-              : isClassic
-                ? 'bg-[var(--spotify-glow,#22d3ee)]/50 hover:bg-[var(--spotify-glow,#22d3ee)] shadow-[0_0_8px_var(--theme-glow-shadow)]'
-                : 'bg-white/40 hover:bg-white/60 backdrop-blur-md'
-          }`}
-          title="Thu nhỏ"
+          className="w-10 h-1 rounded-full bg-white/40 hover:bg-white/60 transition-all cursor-pointer active:scale-95"
         />
+      </div>
 
-        {/* 🌊 Floating Liquid Glass Plaque (Positioned between top grabber and lyrics) */}
-        <div
-          className="relative mx-1 mt-2.5 mb-1.5 rounded-[28px] overflow-hidden select-none transition-all duration-300 shadow-xl"
-          style={
-            isMinimal
-              ? {
-                  backgroundColor: '#1D1720',
-                  border: '1px solid rgba(232, 169, 79, 0.45)',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
-                }
-              : isClassic
-                ? {
-                    backgroundColor: 'var(--elevation-2-bg, #111622)',
-                    border: '1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 45%, rgba(255,255,255,0.15))',
-                    boxShadow: '0 0 20px var(--theme-glow-shadow), 0 8px 24px rgba(0,0,0,0.45)',
-                  }
-                : {
-                    backgroundColor: 'rgba(255, 255, 255, 0.035)',
-                    border: '1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, rgba(255, 255, 255, 0.15))',
-                    boxShadow: '0 10px 32px rgba(0, 0, 0, 0.28), 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 0 14px var(--theme-glow-shadow)',
-                    backdropFilter: 'blur(20px) saturate(160%)',
-                    WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-                  }
-          }
-        >
-          {/* Inner specular highlight reflection line */}
-          <span
-            aria-hidden="true"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              borderRadius: 28,
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 40%)',
-              pointerEvents: 'none',
-            }}
-          />
-
-          <div className="flex items-center justify-between gap-3 px-3 py-2 sm:px-3.5 sm:py-2.5 relative z-10">
-            {/* Track Info (Cover + Title + Artist) */}
-            <div className="flex items-center gap-2.5 min-w-0 flex-1">
-              {/* Mini Cover Art */}
-              <div
-                className={`w-10 h-10 rounded-full overflow-hidden shrink-0 shadow-md relative ${
-                  isPlaying ? 'is-playing' : ''
+      {/* ══════════════════════════════════════════════════════════════════
+          🎵 HEADER PLAQUE (Lyrics & Queue tabs only)
+          ══════════════════════════════════════════════════════════════════ */}
+      {activeTab !== 'cover' && (
+        <div className="relative z-20 px-5 py-2 flex items-center gap-3 cursor-grab active:cursor-grabbing">
+          {/* Mini Cover */}
+          <div className="w-11 h-11 rounded-lg overflow-hidden shrink-0 shadow-lg">
+            <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
+          </div>
+          {/* Title & Artist */}
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-sm font-bold truncate leading-tight text-white">
+              {currentTrack.title}
+            </span>
+            <span className="text-xs truncate leading-tight mt-0.5 text-white/55">
+              {currentTrack.artist || 'Nghệ sĩ chưa rõ'}
+            </span>
+          </div>
+          {/* Star + ⋯ */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={toggleFavoriteCurrentTrack}
+              className="p-1.5 active:scale-90 transition-transform cursor-pointer"
+            >
+              <Star
+                className={`w-5 h-5 transition-all ${
+                  currentTrack.is_favorite
+                    ? 'text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]'
+                    : 'text-white/50 hover:text-white/80'
                 }`}
-                style={{
-                  border: isMinimal
-                    ? '1.5px solid rgba(232, 169, 79, 0.6)'
-                    : isClassic || isLiquid
-                      ? '1.5px solid var(--spotify-glow, #22d3ee)'
-                      : '1.5px solid rgba(255,255,255,0.2)',
-                  boxShadow: isMinimal ? 'none' : '0 0 10px var(--theme-glow-shadow)',
-                }}
-              >
-                <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
-              </div>
-
-              {/* Title & Artist */}
-              <div className="flex flex-col min-w-0 flex-1 pr-1">
-                <span
-                  className={`text-xs sm:text-sm font-bold truncate leading-tight ${
-                    isMinimal
-                      ? 'font-serif text-[#F4ECE1]'
-                      : isClassic
-                        ? 'text-white font-extrabold'
-                        : 'text-white'
-                  }`}
-                >
-                  {currentTrack.title}
-                </span>
-                <span
-                  className={`text-[11px] truncate leading-tight mt-0.5 ${
-                    isMinimal
-                      ? 'text-[#B9AC9C]'
-                      : isClassic
-                        ? 'text-[var(--spotify-glow,#22d3ee)]/75'
-                        : 'text-white/60'
-                  }`}
-                >
-                  {currentTrack.artist || 'Nghệ sĩ chưa rõ'}
-                </span>
-              </div>
-            </div>
-
-            {/* Action Buttons: Star + More Options */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={toggleFavoriteCurrentTrack}
-                style={
-                  isMinimal
-                    ? { backgroundColor: '#141017', border: '1px solid rgba(232, 169, 79, 0.35)', color: '#E8A94F' }
-                    : isClassic
-                      ? { backgroundColor: 'rgba(255, 255, 255, 0.05)', border: '1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, rgba(255,255,255,0.1))' }
-                      : { backgroundColor: 'rgba(255, 255, 255, 0.04)', border: '1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 30%, rgba(255,255,255,0.1))', backdropFilter: 'blur(12px)' }
-                }
-                className="w-8 h-8 rounded-full flex items-center justify-center active:scale-90 transition-all cursor-pointer"
-                title={currentTrack.is_favorite ? 'Bỏ yêu thích' : 'Yêu thích'}
-              >
-                <Star
-                  className={`w-4 h-4 transition-all ${
-                    currentTrack.is_favorite
-                      ? isMinimal
-                        ? 'text-[#E8A94F] fill-[#E8A94F]'
-                        : isClassic
-                          ? 'text-[var(--spotify-glow,#22d3ee)] fill-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_0_10px_var(--theme-glow-shadow)]'
-                          : 'text-amber-400 fill-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.6)]'
-                      : isMinimal
-                        ? 'text-[#B9AC9C] hover:text-[#E8A94F]'
-                        : isClassic
-                          ? 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)]'
-                          : 'text-white/60 hover:text-white'
-                  }`}
-                />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowMenuSheet(true)}
-                style={
-                  isMinimal
-                    ? { backgroundColor: '#141017', border: '1px solid rgba(232, 169, 79, 0.35)', color: '#E8A94F' }
-                    : isClassic
-                      ? { backgroundColor: 'rgba(255, 255, 255, 0.05)', border: '1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, rgba(255,255,255,0.1))' }
-                      : { backgroundColor: 'rgba(255, 255, 255, 0.04)', border: '1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 30%, rgba(255,255,255,0.1))', backdropFilter: 'blur(12px)' }
-                }
-                className="w-8 h-8 rounded-full flex items-center justify-center text-white/70 hover:text-white active:scale-90 transition-all cursor-pointer"
-                title="Tùy chọn khác"
-              >
-                <MoreHorizontal className="w-4 h-4" />
-              </button>
-            </div>
+              />
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowMenuSheet(true)}
+              className="p-1.5 text-white/50 hover:text-white/80 active:scale-90 transition-all cursor-pointer"
+            >
+              <MoreHorizontal className="w-5 h-5" />
+            </button>
           </div>
         </div>
-      </header>
+      )}
 
-      {/* 📜 3. Central Stage: Kinetic Time-Synced Lyrics with Theme Typography */}
-      <main className="relative z-10 flex-1 min-h-0 flex flex-col justify-center overflow-hidden px-4 sm:px-6">
-        {lyricsLoading ? (
-          <div className="flex flex-col items-center justify-center gap-3 my-auto text-slate-400">
-            <Loader2
-              className="w-7 h-7 animate-spin"
-              style={{ color: isMinimal ? '#E8A94F' : 'var(--spotify-glow, #22d3ee)' }}
-            />
-            <span className="text-xs font-semibold">Đang tải lời bài hát...</span>
-          </div>
-        ) : lyrics.length > 0 ? (
-          <div
-            ref={scrollContainerRef}
-            onTouchStart={handleUserTouchStart}
-            onTouchEnd={handleUserTouchEnd}
-            onWheel={handleUserTouchStart}
-            className="w-full h-full overflow-y-auto overflow-x-hidden no-scrollbar flex flex-col gap-6 py-28 px-1 touch-pan-y"
-            style={{
-              maskImage: 'linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%)',
-              WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%)',
-            }}
-          >
-            {lyrics.map((line, idx) => {
-              const isActive = idx === activeIndex
-              const isSyncedMode = isSynced && activeIndex >= 0
+      {/* ══════════════════════════════════════════════════════════════════
+          📱 MAIN CONTENT AREA — Switches between 3 tabs
+          ══════════════════════════════════════════════════════════════════ */}
+      <main className="relative z-10 flex-1 min-h-0 flex flex-col overflow-hidden">
 
-              let blurPx = 0
-              let opacity = 1.0
+        {/* ─── TAB 1: COVER ART VIEW ─── */}
+        {activeTab === 'cover' && (
+          <div className="flex-1 flex flex-col justify-center px-6 sm:px-8 gap-6 overflow-hidden">
+            {/* Large Cover Art */}
+            <div className="w-full aspect-square max-w-[min(85vw,380px)] mx-auto rounded-2xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.6)] transition-all duration-500">
+              <TrackCoverImage
+                src={currentTrack.cover_url}
+                alt={currentTrack.title}
+                className="w-full h-full object-cover"
+              />
+            </div>
 
-              if (!isSyncedMode) {
-                // Không sync được lời bài hát: đừng blur gì hết!
-                blurPx = 0
-                opacity = 0.95
-              } else if (isActive) {
-                // Đang hát: Tiêu điểm sắc nét 100%, không blur
-                blurPx = 0
-                opacity = 1.0
-              } else {
-                // Cả lời phía trên và phía dưới đều được blur quang học nhẹ theo tiêu cự
-                const distance = Math.abs(idx - activeIndex)
-                const isPast = idx < activeIndex
-
-                if (distance === 1) {
-                  blurPx = isLiquid ? 1.2 : 0.8
-                  opacity = isPast ? 0.55 : 0.45
-                } else if (distance === 2) {
-                  blurPx = isLiquid ? 2.0 : 1.4
-                  opacity = isPast ? 0.38 : 0.3
-                } else {
-                  blurPx = isLiquid ? 2.8 : 2.0
-                  opacity = isPast ? 0.22 : 0.18
-                }
-              }
-
-              const hasRomaji = showTranslation && Boolean(line.romaji) && line.romaji !== line.text
-
-              return (
-                <div
-                  key={`${line.time}-${idx}`}
-                  ref={(el) => {
-                    lineRefs.current[idx] = el
-                  }}
-                  onClick={() => handleLineClick(line)}
-                  className={`cursor-pointer select-none transition-all duration-300 ease-out py-1 px-1 pr-3 w-full max-w-full rounded-2xl flex flex-col ${
-                    isActive ? '' : 'hover:opacity-80 active:scale-98'
-                  }`}
-                  style={{
-                    opacity,
-                    filter: blurPx > 0 ? `blur(${blurPx}px)` : 'none',
-                  }}
+            {/* Song Info Row */}
+            <div className="flex items-start justify-between gap-3 px-1">
+              <div className="flex flex-col min-w-0 flex-1">
+                <h2 className="text-xl font-bold truncate leading-tight text-white">
+                  {currentTrack.title}
+                </h2>
+                <p className="text-base truncate leading-tight mt-1 text-white/55">
+                  {currentTrack.artist || 'Nghệ sĩ chưa rõ'}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 mt-0.5">
+                <button
+                  type="button"
+                  onClick={toggleFavoriteCurrentTrack}
+                  className="p-1.5 active:scale-90 transition-transform cursor-pointer"
                 >
-                  {/* Main Lyric Line (Safe Wrapping - Zero Clipping) */}
-                  <p
-                    className={`leading-snug break-words break-normal whitespace-pre-wrap transition-all duration-300 pr-1 ${
-                      isMinimal ? 'font-serif' : 'font-sans'
-                    } ${
-                      isActive
-                        ? isMinimal
-                          ? 'text-[clamp(1.35rem,5.5vw,1.85rem)] font-black text-[#F4ECE1] drop-shadow-sm'
-                          : isClassic
-                            ? 'text-[clamp(1.35rem,5.5vw,1.85rem)] font-black text-white drop-shadow-[0_0_15px_var(--theme-glow-shadow)]'
-                            : 'text-[clamp(1.35rem,5.5vw,1.85rem)] font-black text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]'
-                        : isMinimal
-                          ? 'text-[clamp(1.1rem,4.5vw,1.5rem)] font-bold text-[#B9AC9C]'
-                          : isClassic
-                            ? 'text-[clamp(1.1rem,4.5vw,1.5rem)] font-bold text-slate-300'
-                            : 'text-[clamp(1.1rem,4.5vw,1.5rem)] font-bold text-white'
+                  <Star
+                    className={`w-[22px] h-[22px] transition-all ${
+                      currentTrack.is_favorite
+                        ? 'text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]'
+                        : 'text-white/45 hover:text-white/75'
                     }`}
-                  >
-                    {line.text}
-                  </p>
-
-                  {/* Phonetic Romaji / Pronunciation Subtitle (Themed) */}
-                  {hasRomaji && (
-                    <p
-                      className={`text-xs sm:text-sm font-semibold mt-1 tracking-wide leading-normal break-words whitespace-pre-wrap transition-all duration-300 pr-1 ${
-                        isActive
-                          ? isMinimal
-                            ? 'text-[#E8A94F]'
-                            : isClassic
-                              ? 'text-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_0_8px_var(--theme-glow-shadow)] font-bold'
-                              : 'text-white/85 drop-shadow-sm'
-                          : isMinimal
-                            ? 'text-[#8A7E70]'
-                            : isClassic
-                              ? 'text-[var(--spotify-glow,#22d3ee)]/50'
-                              : 'text-white/50'
-                      }`}
-                    >
-                      {line.romaji}
-                    </p>
-                  )}
-                </div>
-              )
-            })}
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowMenuSheet(true)}
+                  className="p-1.5 text-white/45 hover:text-white/75 active:scale-90 transition-all cursor-pointer"
+                >
+                  <MoreHorizontal className="w-[22px] h-[22px]" />
+                </button>
+              </div>
+            </div>
           </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center gap-3 my-auto text-slate-400 text-center px-4">
-            <Sparkles
-              className="w-8 h-8 stroke-[1.5]"
-              style={{ color: isMinimal ? '#E8A94F' : 'var(--spotify-glow, #22d3ee)' }}
-            />
-            <p className="text-sm font-semibold text-white">Chưa có lời đồng bộ cho bài hát này</p>
-            <p className="text-xs text-slate-400">Bạn có thể tự tìm kiếm hoặc thưởng thức giai điệu tuyệt vời</p>
+        )}
+
+        {/* ─── TAB 2: LYRICS VIEW ─── */}
+        {activeTab === 'lyrics' && (
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden px-4 sm:px-6">
+            {lyricsLoading ? (
+              <div className="flex flex-col items-center justify-center gap-3 my-auto text-white/40">
+                <Loader2 className="w-7 h-7 animate-spin text-white/60" />
+                <span className="text-xs font-semibold">Đang tải lời bài hát...</span>
+              </div>
+            ) : lyrics.length > 0 ? (
+              <div
+                ref={scrollContainerRef}
+                onTouchStart={handleUserTouchStart}
+                onTouchEnd={handleUserTouchEnd}
+                onWheel={handleUserTouchStart}
+                className="w-full h-full overflow-y-auto overflow-x-hidden no-scrollbar flex flex-col gap-5 py-24 px-1 touch-pan-y"
+                style={{
+                  maskImage: 'linear-gradient(to bottom, transparent 0%, black 10%, black 88%, transparent 100%)',
+                  WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 10%, black 88%, transparent 100%)',
+                }}
+              >
+                {lyrics.map((line, idx) => {
+                  const isActive = idx === activeIndex
+                  const isSyncedMode = isSynced && activeIndex >= 0
+
+                  let blurPx = 0
+                  let opacity = 1.0
+
+                  if (!isSyncedMode) {
+                    blurPx = 0
+                    opacity = 0.95
+                  } else if (isActive) {
+                    blurPx = 0
+                    opacity = 1.0
+                  } else {
+                    const distance = Math.abs(idx - activeIndex)
+                    const isPast = idx < activeIndex
+
+                    if (distance === 1) {
+                      blurPx = 1.0
+                      opacity = isPast ? 0.5 : 0.4
+                    } else if (distance === 2) {
+                      blurPx = 1.8
+                      opacity = isPast ? 0.35 : 0.28
+                    } else {
+                      blurPx = 2.5
+                      opacity = isPast ? 0.2 : 0.15
+                    }
+                  }
+
+                  const hasRomaji = showTranslation && Boolean(line.romaji) && line.romaji !== line.text
+
+                  return (
+                    <div
+                      key={`${line.time}-${idx}`}
+                      ref={(el) => {
+                        lineRefs.current[idx] = el
+                      }}
+                      onClick={() => handleLineClick(line)}
+                      className={`cursor-pointer select-none transition-all duration-300 ease-out py-1 px-1 pr-3 w-full max-w-full rounded-2xl flex flex-col ${
+                        isActive ? '' : 'hover:opacity-80 active:scale-98'
+                      }`}
+                      style={{
+                        opacity,
+                        filter: blurPx > 0 ? `blur(${blurPx}px)` : 'none',
+                      }}
+                    >
+                      {/* Main Lyric Line */}
+                      <p
+                        className={`leading-snug break-words break-normal whitespace-pre-wrap transition-all duration-300 pr-1 font-sans ${
+                          isActive
+                            ? 'text-[clamp(1.35rem,5.5vw,1.85rem)] font-black text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]'
+                            : 'text-[clamp(1.1rem,4.5vw,1.5rem)] font-bold text-white'
+                        }`}
+                      >
+                        {line.text}
+                      </p>
+
+                      {/* Romaji / Translation */}
+                      {hasRomaji && (
+                        <p
+                          className={`text-xs sm:text-sm font-semibold mt-1 tracking-wide leading-normal break-words whitespace-pre-wrap transition-all duration-300 pr-1 ${
+                            isActive
+                              ? 'text-white/70 drop-shadow-sm'
+                              : 'text-white/40'
+                          }`}
+                        >
+                          {line.romaji}
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-3 my-auto text-white/40 text-center px-4">
+                <Sparkles className="w-8 h-8 stroke-[1.5] text-white/30" />
+                <p className="text-sm font-semibold text-white/70">Chưa có lời đồng bộ cho bài hát này</p>
+                <p className="text-xs text-white/40">Bạn có thể tự tìm kiếm hoặc thưởng thức giai điệu tuyệt vời</p>
+              </div>
+            )}
+
+            {/* Lyrics utility bar: Language toggle + Share */}
+            {lyrics.length > 0 && (
+              <div className="flex items-center justify-between px-2 py-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowTranslation((prev) => {
+                    const next = !prev
+                    try { localStorage.setItem('musicweb_show_romaji', String(next)) } catch {}
+                    return next
+                  })}
+                  className={`p-2 rounded-full transition-all cursor-pointer active:scale-95 ${
+                    showTranslation
+                      ? 'bg-white/15 text-white'
+                      : 'text-white/40 hover:text-white/60'
+                  }`}
+                >
+                  <Languages className="w-5 h-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowShareModal(true)}
+                  className="p-2 rounded-full text-white/40 hover:text-white/60 transition-all cursor-pointer active:scale-95"
+                >
+                  <Sparkles className="w-5 h-5" />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── TAB 3: QUEUE VIEW ─── */}
+        {activeTab === 'queue' && (
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden px-4 sm:px-5">
+            {/* Control Pills: Shuffle / Repeat / Autoplay */}
+            <div className="flex items-center gap-2 py-3 px-1 shrink-0">
+              <button
+                type="button"
+                onClick={toggleShuffle}
+                className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer active:scale-95 ${
+                  isShuffle
+                    ? 'bg-white/20 text-white border border-white/25'
+                    : 'bg-white/[0.06] text-white/55 border border-white/10 hover:bg-white/10'
+                }`}
+              >
+                <Shuffle className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={toggleRepeat}
+                className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer active:scale-95 ${
+                  isRepeatActive
+                    ? 'bg-white/20 text-white border border-white/25'
+                    : 'bg-white/[0.06] text-white/55 border border-white/10 hover:bg-white/10'
+                }`}
+              >
+                <RepeatIcon className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* "Tiếp tục phát" header */}
+            <div className="px-1 pb-2 shrink-0">
+              <h3 className="text-base font-bold text-white">Tiếp tục phát</h3>
+            </div>
+
+            {/* Track List */}
+            <div className="flex-1 overflow-y-auto no-scrollbar touch-pan-y pb-4">
+              {nextUpTracks.length > 0 ? (
+                <div className="flex flex-col">
+                  {nextUpTracks.map((track, idx) => (
+                    <button
+                      key={`queue-${track.id}-${idx}`}
+                      type="button"
+                      onClick={() => playTrack(track, queue, currentIndex + 1 + idx)}
+                      className="flex items-center gap-3 py-2.5 px-1 rounded-xl hover:bg-white/[0.04] transition-colors cursor-pointer group text-left w-full"
+                    >
+                      {/* Mini Cover */}
+                      <div className="w-11 h-11 rounded-lg overflow-hidden shrink-0 shadow-md">
+                        <TrackCoverImage src={track.cover_url} alt={track.title} />
+                      </div>
+                      {/* Track Info */}
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="text-sm font-semibold truncate text-white leading-tight">
+                          {track.title}
+                        </span>
+                        <span className="text-xs truncate text-white/45 leading-tight mt-0.5">
+                          {track.artist || 'Nghệ sĩ chưa rõ'}
+                        </span>
+                      </div>
+                      {/* Drag Handle Icon */}
+                      <div className="shrink-0 text-white/20 group-hover:text-white/35">
+                        <GripVertical className="w-5 h-5" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-2 py-12 text-white/30">
+                  <ListMusic className="w-8 h-8" />
+                  <p className="text-sm font-medium">Chưa có bài hát trong hàng đợi</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>
 
-      {/* 🎛️ 4. Floating Liquid Glass Bottom Control Block (Unified & Refined) */}
-      <footer
-        className="relative z-20 mx-3 sm:mx-4 mb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] mt-auto rounded-2xl overflow-hidden select-none transition-all duration-300 shadow-2xl p-3.5 sm:p-4 flex flex-col gap-2.5"
-        style={
-          isMinimal
-            ? {
-                backgroundColor: '#1D1720',
-                border: '1px solid rgba(232, 169, 79, 0.45)',
-                boxShadow: '0 8px 28px rgba(0,0,0,0.35)',
-              }
-            : isClassic
-              ? {
-                  backgroundColor: 'var(--elevation-2-bg, #111622)',
-                  border: '1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 45%, rgba(255,255,255,0.15))',
-                  boxShadow: '0 0 20px var(--theme-glow-shadow), 0 8px 28px rgba(0,0,0,0.45)',
-                }
-              : {
-                  backgroundColor: 'rgba(255, 255, 255, 0.035)',
-                  border: '1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, rgba(255, 255, 255, 0.15))',
-                  boxShadow: '0 12px 36px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 0 16px var(--theme-glow-shadow)',
-                  backdropFilter: 'blur(20px) saturate(160%)',
-                  WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-                }
-        }
-      >
-        {/* Inner specular highlight line */}
-        <span
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            borderRadius: '1rem',
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 40%)',
-            pointerEvents: 'none',
-          }}
-        />
+      {/* ══════════════════════════════════════════════════════════════════
+          🎛️ SHARED CONTROLS FOOTER (Apple Music style — no glassmorphism panel)
+          ══════════════════════════════════════════════════════════════════ */}
+      <footer className="relative z-20 px-6 sm:px-8 pb-1 pt-1 shrink-0">
 
-        {/* Row 1: Utility Bar (Romaji + Shuffle + Favorite + Share) */}
-        <div className="flex items-center justify-between px-0.5 relative z-10">
-          {/* Romaji Toggle */}
-          <button
-            type="button"
-            onClick={() => setShowTranslation((prev) => {
-              const next = !prev
-              try {
-                localStorage.setItem('musicweb_show_romaji', String(next))
-              } catch {}
-              return next
-            })}
-            style={
-              showTranslation
-                ? isMinimal
-                  ? { backgroundColor: 'rgba(232, 169, 79, 0.18)', borderColor: '#E8A94F', color: '#E8A94F' }
-                  : isClassic
-                    ? {
-                        backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.25))',
-                        borderColor: 'var(--spotify-glow, #22d3ee)',
-                        color: 'var(--spotify-glow, #22d3ee)',
-                        boxShadow: '0 0 12px var(--theme-glow-shadow)',
-                      }
-                    : {
-                        backgroundColor: 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 18%, rgba(255,255,255,0.06))',
-                        borderColor: 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 60%, rgba(255,255,255,0.25))',
-                        color: 'var(--spotify-glow, #22d3ee)',
-                        boxShadow: '0 4px 14px var(--theme-glow-shadow)',
-                        backdropFilter: 'blur(14px)',
-                      }
-                : isMinimal
-                  ? { backgroundColor: '#141017', borderColor: 'rgba(232, 169, 79, 0.25)', color: '#B9AC9C' }
-                  : { backgroundColor: 'rgba(255, 255, 255, 0.04)', borderColor: 'rgba(255, 255, 255, 0.08)', color: 'rgba(255, 255, 255, 0.5)' }
-            }
-            className="p-1.5 rounded-full flex items-center justify-center border transition-all cursor-pointer active:scale-95"
-            title="Bật/Tắt phiên âm Romaji"
-            aria-label="Bật/Tắt phiên âm Romaji"
-          >
-            <Languages className="w-4 h-4" />
-          </button>
-
-          {/* Right Action Icons: Shuffle + Favorite + Share */}
-          <div className="flex items-center gap-2">
-            {/* Shuffle Toggle Button */}
-            <button
-              type="button"
-              onClick={toggleShuffle}
-              style={
-                isShuffle
-                  ? isMinimal
-                    ? { backgroundColor: 'rgba(232, 169, 79, 0.2)', borderColor: '#E8A94F', color: '#E8A94F' }
-                    : isClassic
-                      ? {
-                          backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                          borderColor: 'var(--spotify-glow, #22d3ee)',
-                          color: 'var(--spotify-glow, #22d3ee)',
-                          boxShadow: '0 0 10px var(--theme-glow-shadow)',
-                        }
-                      : {
-                          backgroundColor: 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 20%, rgba(255,255,255,0.06))',
-                          borderColor: 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 50%, rgba(255,255,255,0.2))',
-                          color: 'var(--spotify-glow, #22d3ee)',
-                          boxShadow: '0 0 12px var(--theme-glow-shadow)',
-                          backdropFilter: 'blur(12px)',
-                        }
-                  : isMinimal
-                    ? { backgroundColor: '#141017', borderColor: 'rgba(232, 169, 79, 0.2)', color: '#B9AC9C' }
-                    : { backgroundColor: 'rgba(255, 255, 255, 0.04)', borderColor: 'rgba(255, 255, 255, 0.08)', color: 'rgba(255, 255, 255, 0.5)' }
-              }
-              className="w-8 h-8 rounded-full flex items-center justify-center border active:scale-90 transition-all cursor-pointer relative"
-              title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
-            >
-              <Shuffle className="w-3.5 h-3.5" />
-              {isShuffle && (
-                <span
-                  className="absolute -bottom-0.5 w-1 h-1 rounded-full"
-                  style={{ backgroundColor: isMinimal ? '#E8A94F' : 'var(--spotify-glow, #22d3ee)' }}
-                />
-              )}
-            </button>
-
-            {/* Favorite Toggle Button */}
-            <button
-              type="button"
-              onClick={toggleFavoriteCurrentTrack}
-              style={
-                currentTrack.is_favorite
-                  ? isMinimal
-                    ? { backgroundColor: 'rgba(232, 169, 79, 0.2)', borderColor: '#E8A94F', color: '#E8A94F' }
-                    : isClassic
-                      ? {
-                          backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                          borderColor: 'var(--spotify-glow, #22d3ee)',
-                          color: 'var(--spotify-glow, #22d3ee)',
-                          boxShadow: '0 0 10px var(--theme-glow-shadow)',
-                        }
-                      : {
-                          backgroundColor: 'rgba(244, 63, 94, 0.15)',
-                          borderColor: 'rgba(244, 63, 94, 0.35)',
-                          color: '#f43f5e',
-                          boxShadow: '0 0 12px rgba(244, 63, 94, 0.3)',
-                          backdropFilter: 'blur(12px)',
-                        }
-                  : isMinimal
-                    ? { backgroundColor: '#141017', borderColor: 'rgba(232, 169, 79, 0.2)', color: '#B9AC9C' }
-                    : { backgroundColor: 'rgba(255, 255, 255, 0.04)', borderColor: 'rgba(255, 255, 255, 0.08)', color: 'rgba(255, 255, 255, 0.5)' }
-              }
-              className="w-8 h-8 rounded-full flex items-center justify-center border active:scale-90 transition-all cursor-pointer"
-              title={currentTrack.is_favorite ? 'Bỏ yêu thích' : 'Yêu thích'}
-            >
-              <Heart
-                className={`w-3.5 h-3.5 transition-all ${
-                  currentTrack.is_favorite
-                    ? isMinimal
-                      ? 'fill-[#E8A94F]'
-                      : isClassic
-                        ? 'fill-[var(--spotify-glow,#22d3ee)]'
-                        : 'fill-[#f43f5e]'
-                    : ''
-                }`}
-              />
-            </button>
-
-            {/* Share Lyrics Story Button */}
-            <button
-              type="button"
-              onClick={() => setShowShareModal(true)}
-              style={
-                isMinimal
-                  ? { backgroundColor: '#141017', borderColor: 'rgba(232, 169, 79, 0.2)', color: '#E8A94F' }
-                  : isClassic
-                    ? {
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                        borderColor: 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 40%, rgba(255,255,255,0.1))',
-                        color: 'var(--spotify-glow, #22d3ee)',
-                        boxShadow: '0 0 10px var(--theme-glow-shadow)',
-                      }
-                    : {
-                        backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                        borderColor: 'rgba(255, 255, 255, 0.1)',
-                        color: 'var(--spotify-glow, #22d3ee)',
-                        backdropFilter: 'blur(14px)',
-                      }
-              }
-              className="w-8 h-8 rounded-full flex items-center justify-center border active:scale-95 transition-all cursor-pointer"
-              title="Chia sẻ câu hát"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Row 2: Timeline Precision Scrubber */}
-        <div className="flex flex-col gap-1 w-full relative z-10">
+        {/* ─── Progress Bar ─── */}
+        <div className="flex flex-col gap-1 w-full">
           <div
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect()
-              const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-              seek(pct * effectiveDuration)
-            }}
-            className="relative w-full h-3.5 flex items-center cursor-pointer group"
+            onClick={handleProgressClick}
+            onTouchStart={handleProgressTouchStart}
+            onTouchMove={handleProgressTouchMove}
+            onTouchEnd={handleProgressTouchEnd}
+            className="relative w-full h-4 flex items-center cursor-pointer group touch-none"
           >
-            {/* Background Track */}
-            <div
-              className={`w-full h-1.5 rounded-full overflow-hidden relative ${
-                isMinimal ? 'bg-[#2A222F]' : 'bg-white/15'
-              }`}
-            >
-              {/* Progress Fill */}
+            {/* Track background */}
+            <div className="w-full h-[3px] rounded-full overflow-hidden bg-white/[0.18] group-active:h-[5px] transition-all">
+              {/* Progress fill */}
               <div
-                className="h-full rounded-full transition-[width] duration-100"
+                className="h-full rounded-full transition-[width] duration-75"
                 style={{
                   width: `${progressPercent}%`,
-                  background: isMinimal
-                    ? '#E8A94F'
-                    : isClassic
-                      ? 'linear-gradient(90deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))'
-                      : 'linear-gradient(90deg, color-mix(in srgb, var(--spotify-glow, #22d3ee) 70%, white), var(--spotify-glow, #22d3ee))',
-                  boxShadow: isClassic || isLiquid ? '0 0 10px var(--theme-glow-shadow)' : 'none',
+                  backgroundColor: 'rgba(255, 255, 255, 0.92)',
                 }}
               />
             </div>
-            {/* Grabber thumb */}
+            {/* Scrub thumb (appears on hover/touch) */}
             <div
-              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full shadow-md transition-transform scale-0 group-hover:scale-100 group-active:scale-100"
-              style={{
-                left: `calc(${progressPercent}% - 6px)`,
-                backgroundColor: isMinimal ? '#E8A94F' : 'var(--spotify-glow, #ffffff)',
-                boxShadow: isMinimal ? 'none' : '0 0 10px var(--theme-glow-shadow)',
-              }}
+              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-md transition-transform scale-0 group-hover:scale-100 group-active:scale-100"
+              style={{ left: `calc(${progressPercent}% - 6px)` }}
             />
           </div>
 
-          <div
-            className="flex items-center justify-between text-[11px] font-mono tracking-tight font-semibold px-0.5"
-            style={{
-              color: isMinimal
-                ? '#B9AC9C'
-                : isClassic
-                  ? 'var(--spotify-glow, #22d3ee)'
-                  : 'rgba(255, 255, 255, 0.65)',
-            }}
-          >
-            <span>{formatTime(currentTime)}</span>
+          {/* Time labels */}
+          <div className="flex items-center justify-between text-[11px] font-medium tracking-tight text-white/50 px-0.5">
+            <span>{formatTime(displayTime)}</span>
             <span>{formatNegativeTime(remainingTime)}</span>
           </div>
         </div>
 
-        {/* Row 3: Main Playback Controls Trio (Prev / Play-Pause / Next) */}
-        <div className="flex items-center justify-center gap-9 sm:gap-11 py-0.5 relative z-10">
-          {/* Previous Track Button */}
+        {/* ─── Playback Controls (Apple style: no backgrounds, pure white icons) ─── */}
+        <div className="flex items-center justify-center gap-10 py-3">
+          {/* Previous */}
           <button
             type="button"
             onClick={prevTrack}
-            style={
-              isMinimal
-                ? { backgroundColor: '#141017', borderColor: 'rgba(232, 169, 79, 0.3)', color: '#E8A94F' }
-                : isClassic
-                  ? {
-                      backgroundColor: 'var(--elevation-2-bg, #111622)',
-                      borderColor: 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, rgba(255,255,255,0.1))',
-                      color: 'var(--spotify-glow, #22d3ee)',
-                      boxShadow: '0 0 12px var(--theme-glow-shadow)',
-                    }
-                  : {
-                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                      borderColor: 'rgba(255, 255, 255, 0.12)',
-                      color: 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 75%, white)',
-                      backdropFilter: 'blur(16px)',
-                    }
-            }
-            className="w-10 h-10 rounded-full flex items-center justify-center border active:scale-85 transition-all cursor-pointer shadow-md"
-            title="Bài trước"
+            className="text-white active:scale-85 active:opacity-60 transition-all cursor-pointer p-2"
           >
-            <SkipBack className="w-4.5 h-4.5 fill-current" />
+            <SkipBack className="w-7 h-7 fill-white" />
           </button>
 
-          {/* Main Play / Pause Button (Themed Hero Vessel) */}
+          {/* Play / Pause */}
           <button
             type="button"
             onClick={togglePlay}
-            style={
-              isMinimal
-                ? {
-                    backgroundColor: '#E8A94F',
-                    borderColor: '#E8A94F',
-                    color: '#141017',
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-                  }
-                : isClassic
-                  ? {
-                      background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                      borderColor: 'rgba(255, 255, 255, 0.4)',
-                      color: '#07090e',
-                      boxShadow: '0 0 25px var(--theme-glow-shadow), 0 4px 16px rgba(0,0,0,0.5)',
-                    }
-                  : {
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      borderColor: 'rgba(255, 255, 255, 0.22)',
-                      color: 'var(--spotify-glow, #22d3ee)',
-                      boxShadow: '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3), 0 0 20px var(--theme-glow-shadow)',
-                      backdropFilter: 'blur(20px) saturate(160%)',
-                      WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-                    }
-            }
-            className="w-13 h-13 sm:w-14 sm:h-14 rounded-full flex items-center justify-center border active:scale-85 transition-all cursor-pointer"
-            title={isPlaying ? 'Tạm dừng' : 'Phát'}
+            className="text-white active:scale-85 active:opacity-60 transition-all cursor-pointer p-2"
           >
             {isBuffering ? (
-              <Loader2 className="w-6 h-6 animate-spin text-current" />
+              <Loader2 className="w-10 h-10 animate-spin" />
             ) : isPlaying ? (
-              <Pause className="w-6 h-6 fill-current" />
+              <Pause className="w-10 h-10 fill-white" />
             ) : (
-              <Play className="w-6 h-6 fill-current ml-0.5" />
+              <Play className="w-10 h-10 fill-white ml-0.5" />
             )}
           </button>
 
-          {/* Next Track Button */}
+          {/* Next */}
           <button
             type="button"
             onClick={nextTrack}
-            style={
-              isMinimal
-                ? { backgroundColor: '#141017', borderColor: 'rgba(232, 169, 79, 0.3)', color: '#E8A94F' }
-                : isClassic
-                  ? {
-                      backgroundColor: 'var(--elevation-2-bg, #111622)',
-                      borderColor: 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, rgba(255,255,255,0.1))',
-                      color: 'var(--spotify-glow, #22d3ee)',
-                      boxShadow: '0 0 12px var(--theme-glow-shadow)',
-                    }
-                  : {
-                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                      borderColor: 'rgba(255, 255, 255, 0.12)',
-                      color: 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 75%, white)',
-                      backdropFilter: 'blur(16px)',
-                    }
-            }
-            className="w-10 h-10 rounded-full flex items-center justify-center border active:scale-85 transition-all cursor-pointer shadow-md"
-            title="Bài kế tiếp"
+            className="text-white active:scale-85 active:opacity-60 transition-all cursor-pointer p-2"
           >
-            <SkipForward className="w-4.5 h-4.5 fill-current" />
+            <SkipForward className="w-7 h-7 fill-white" />
           </button>
         </div>
 
-        {/* Row 4: Volume Slider Row */}
-        <div className="flex items-center gap-3 px-1 pt-0.5 relative z-10">
+        {/* ─── Volume Slider ─── */}
+        <div className="flex items-center gap-3 px-1 pb-2">
           <button
             type="button"
             onClick={handleVolumeToggle}
-            style={{
-              color: isMinimal
-                ? '#E8A94F'
-                : isClassic
-                  ? 'var(--spotify-glow, #22d3ee)'
-                  : 'rgba(255, 255, 255, 0.6)',
-            }}
-            className="active:scale-90 transition-all cursor-pointer"
+            className="text-white/50 active:scale-90 transition-all cursor-pointer"
           >
-            {volume === 0 ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+            {volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
           </button>
           <input
             type="range"
@@ -1114,32 +953,62 @@ export function MobileFullviewPlayer() {
             value={volume}
             onChange={(e) => setVolume(Number(e.target.value))}
             style={{
-              background: `linear-gradient(to right, ${
-                isMinimal
-                  ? '#E8A94F'
-                  : isClassic
-                    ? 'var(--spotify-glow, #22d3ee)'
-                    : 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 80%, white)'
-              } ${volume * 100}%, ${
-                isMinimal ? '#2A222F' : 'rgba(255,255,255,0.15)'
-              } ${volume * 100}%)`,
+              background: `linear-gradient(to right, rgba(255,255,255,0.85) ${volume * 100}%, rgba(255,255,255,0.15) ${volume * 100}%)`,
             }}
-            className="w-full h-1 rounded-lg appearance-none cursor-pointer outline-none"
+            className="w-full h-[3px] rounded-lg appearance-none cursor-pointer outline-none"
           />
-          <Volume2
-            className="w-3.5 h-3.5"
-            style={{
-              color: isMinimal
-                ? '#E8A94F'
-                : isClassic
-                  ? 'var(--spotify-glow, #22d3ee)'
-                  : 'rgba(255, 255, 255, 0.6)',
-            }}
-          />
+          <Volume2 className="w-4 h-4 text-white/50" />
+        </div>
+
+        {/* ─── Bottom Tab Bar (Apple Music style) ─── */}
+        <div className="flex items-center justify-center gap-16 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
+          {/* Lyrics Tab */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('lyrics')}
+            className={`p-2.5 rounded-full transition-all cursor-pointer active:scale-90 ${
+              activeTab === 'lyrics'
+                ? 'bg-white/15 text-white'
+                : 'text-white/40 hover:text-white/60'
+            }`}
+            title="Lời bài hát"
+          >
+            <MessageSquareQuote className="w-5 h-5" />
+          </button>
+
+          {/* Share / Lyrics Story Tab (Middle — replaces AirPlay) */}
+          <button
+            type="button"
+            onClick={() => setShowShareModal(true)}
+            className={`p-2.5 rounded-full transition-all cursor-pointer active:scale-90 ${
+              showShareModal
+                ? 'bg-white/15 text-white'
+                : 'text-white/40 hover:text-white/60'
+            }`}
+            title="Chia sẻ"
+          >
+            <Sparkles className="w-5 h-5" />
+          </button>
+
+          {/* Queue Tab */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('queue')}
+            className={`p-2.5 rounded-full transition-all cursor-pointer active:scale-90 ${
+              activeTab === 'queue'
+                ? 'bg-white/15 text-white'
+                : 'text-white/40 hover:text-white/60'
+            }`}
+            title="Hàng đợi phát"
+          >
+            <ListMusic className="w-5 h-5" />
+          </button>
         </div>
       </footer>
 
-      {/* 📱 5. Context Menu Bottom Sheet */}
+      {/* ══════════════════════════════════════════════════════════════════
+          📱 Context Menu Bottom Sheet
+          ══════════════════════════════════════════════════════════════════ */}
       {showMenuSheet && (
         <div
           onClick={() => setShowMenuSheet(false)}
@@ -1147,20 +1016,14 @@ export function MobileFullviewPlayer() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className={`w-full border-t rounded-t-3xl p-5 shadow-2xl flex flex-col gap-3 max-h-[70vh] animate-in slide-in-from-bottom-5 duration-200 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] ${
-              isMinimal
-                ? 'bg-[#141017] border-[#E8A94F]/30 text-[#F4ECE1]'
-                : isClassic
-                  ? 'bg-[#0a0e17] border-white/15 text-white'
-                  : 'bg-[#10141e]/95 backdrop-blur-2xl border-white/15 text-white'
-            }`}
+            className="w-full border-t rounded-t-3xl p-5 shadow-2xl flex flex-col gap-3 max-h-[70vh] animate-in slide-in-from-bottom-5 duration-200 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] bg-[#1a1a1a]/95 backdrop-blur-2xl border-white/15 text-white"
           >
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <span className="text-sm font-bold">Tùy chọn bài hát</span>
               <button
                 type="button"
                 onClick={() => setShowMenuSheet(false)}
-                className="p-1.5 text-slate-400 hover:text-white rounded-full bg-white/5"
+                className="p-1.5 text-white/40 hover:text-white rounded-full bg-white/5"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1172,19 +1035,9 @@ export function MobileFullviewPlayer() {
                 setShowMenuSheet(false)
                 setShowShareModal(true)
               }}
-              style={
-                isMinimal
-                  ? { backgroundColor: 'rgba(232, 169, 79, 0.1)', borderColor: 'rgba(232, 169, 79, 0.25)' }
-                  : isClassic
-                    ? { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderColor: 'rgba(255, 255, 255, 0.1)' }
-                    : { backgroundColor: 'rgba(255, 255, 255, 0.04)', borderColor: 'rgba(255, 255, 255, 0.08)' }
-              }
-              className="flex items-center gap-3 p-3.5 rounded-2xl border text-xs font-semibold transition-all"
+              className="flex items-center gap-3 p-3.5 rounded-2xl border border-white/8 bg-white/[0.04] text-xs font-semibold transition-all hover:bg-white/[0.08]"
             >
-              <Share2
-                className="w-4 h-4"
-                style={{ color: isMinimal ? '#E8A94F' : 'var(--spotify-glow, #22d3ee)' }}
-              />
+              <Share2 className="w-4 h-4 text-white/60" />
               <span>Chia sẻ trích dẫn lời bài hát</span>
             </button>
 
@@ -1192,29 +1045,20 @@ export function MobileFullviewPlayer() {
               type="button"
               onClick={() => {
                 setShowMenuSheet(false)
-                closeNowPlayingOverlay()
-                toggleQueue()
+                setActiveTab('queue')
               }}
-              style={
-                isMinimal
-                  ? { backgroundColor: 'rgba(232, 169, 79, 0.1)', borderColor: 'rgba(232, 169, 79, 0.25)' }
-                  : isClassic
-                    ? { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderColor: 'rgba(255, 255, 255, 0.1)' }
-                    : { backgroundColor: 'rgba(255, 255, 255, 0.04)', borderColor: 'rgba(255, 255, 255, 0.08)' }
-              }
-              className="flex items-center gap-3 p-3.5 rounded-2xl border text-xs font-semibold transition-all"
+              className="flex items-center gap-3 p-3.5 rounded-2xl border border-white/8 bg-white/[0.04] text-xs font-semibold transition-all hover:bg-white/[0.08]"
             >
-              <ListMusic
-                className="w-4 h-4"
-                style={{ color: isMinimal ? '#E8A94F' : '#34d399' }}
-              />
+              <ListMusic className="w-4 h-4 text-emerald-400/80" />
               <span>Xem danh sách hàng đợi phát</span>
             </button>
           </div>
         </div>
       )}
 
-      {/* 📱 6. Lyrics Share Story Modal */}
+      {/* ══════════════════════════════════════════════════════════════════
+          📱 Lyrics Share Story Modal
+          ══════════════════════════════════════════════════════════════════ */}
       {showShareModal && (
         <LyricsShareModal
           isOpen={showShareModal}
