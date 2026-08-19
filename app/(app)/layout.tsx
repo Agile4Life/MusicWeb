@@ -73,14 +73,8 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
             onScroll={handleScroll}
             className={`flex-1 overflow-y-auto min-h-0 relative main-content-scroll ${mobileContentPaddingClassName} lg:pb-24`}
           >
-            {/* Mobile: subtle page transition on route change */}
-            <div className="lg:hidden">
-              <MobilePageTransition>{children}</MobilePageTransition>
-            </div>
-            {/* Desktop: instant, no transition */}
-            <div className="hidden lg:block">
-              {children}
-            </div>
+            {/* Single children tree wrapped with page transition */}
+            <MobilePageTransition>{children}</MobilePageTransition>
           </div>
         </main>
 
