@@ -394,6 +394,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const triggerSmartQueueFill = useCallback(async (seedTrack: Track, currentQ: Track[]) => {
     if (!seedTrack || autoFetchSmartQueueRef.current) return
+    if (repeatModeRef.current !== 'off') return
     autoFetchSmartQueueRef.current = true
     const requestId = ++activeQueueRequestIdRef.current
     try {
@@ -1050,9 +1051,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const toggleRepeat = useCallback(() => {
     setRepeatMode((prev) => {
-      if (prev === 'off') return 'all'
-      if (prev === 'all') return 'one'
-      return 'off'
+      const next: RepeatMode = prev === 'off' ? 'all' : prev === 'all' ? 'one' : 'off'
+      try {
+        localStorage.setItem('musicweb_repeat_mode', next)
+      } catch {}
+      return next
     })
   }, [])
 
@@ -1474,6 +1477,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (typeof window === 'undefined') return
     const restoreRequestId = playRequestRef.current
     try {
+      const savedRepeat = localStorage.getItem('musicweb_repeat_mode') as RepeatMode | null
+      if (savedRepeat === 'all' || savedRepeat === 'one' || savedRepeat === 'off') {
+        setRepeatMode(savedRepeat)
+        repeatModeRef.current = savedRepeat
+      }
+
       const savedRaw = localStorage.getItem('musicweb_player_state')
       if (savedRaw) {
         const saved = JSON.parse(savedRaw)
