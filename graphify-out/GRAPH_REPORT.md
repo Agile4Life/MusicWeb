@@ -1,16 +1,16 @@
 # Graph Report - MusicWeb  (2026-08-19)
 
 ## Corpus Check
-- 517 files · ~611,722 words
+- 517 files · ~611,892 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 4874 nodes · 7510 edges · 399 communities (328 shown, 71 thin omitted)
+- 4874 nodes · 7510 edges · 398 communities (327 shown, 71 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 71 edges (avg confidence: 0.57)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `ff43381d`
+- Built from commit: `e74107e1`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -163,7 +163,7 @@
 - test_design_system_mode.py
 - Using Git Worktrees
 - Writing Skills
-- artist/route.ts
+- deezer.ts
 - nhaccuatui/stream/route.ts
 - _style_is_dark_primary
 - Banner Design - Multi-Format Creative Banner System
@@ -197,7 +197,7 @@
 - audioPlayback.ts
 - Writing Plans
 - [Analysis Title]
-- deezer.ts
+- resolve/route.ts
 - match-stream/route.ts
 - Implementation steps
 - Implementation steps
@@ -236,7 +236,7 @@
 - Skill structure
 - announcement/route.ts
 - parse_decision_rules
-- padding-y
+- input
 - Stream Optimization Plan
 - 2. Proposed Changes & Architecture
 - sync-brand-to-tokens.cjs
@@ -253,7 +253,7 @@
 - query_history.js
 - test_auth.js
 - Brainstorming Ideas Into Designs
-- input
+- padding-x
 - 9. AI TELLS (Forbidden Patterns)
 - 8. ANTI-AI-SLOP RULES
 - Html5AudioEngine.ts
@@ -316,11 +316,11 @@
 - RED-GREEN-REFACTOR for Skills
 - VERIFY GREEN: Pressure Testing
 - playerBarInteraction.ts
-- 1. THE THREE DIALS (Core Configuration)
+- 1
 - .test_add_components_no_config
 - Global Constraints
 - next
-- destructive
+- primary
 - TestGeneratedCatalogContract
 - lg
 - .test_add_components_no_components
@@ -361,7 +361,6 @@
 - slides-create.md
 - create.md
 - test-academic.md
-- 0
 - .test_init_dry_run
 - 16
 - .test_get_installed_components_empty
@@ -423,7 +422,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (399 total, 71 thin omitted)
+## Communities (398 total, 71 thin omitted)
 
 ### Community 0 - "AuthForm.tsx"
 Cohesion: 0.13
@@ -434,16 +433,16 @@ Cohesion: 0.13
 Nodes (9): DesignSystemGenerator, Generates design system recommendations from aggregated searches., Load reasoning rules from CSV., Find matching reasoning rule for a category., Apply reasoning rules to search results., Select best matching result based on priority keywords., TestReasoningMatch, The exact reproduction from issue #428. (+1 more)
 
 ### Community 2 - "youtube.ts"
-Cohesion: 0.10
-Nodes (34): BatchTrackRequest, POST(), viewCountMemoryCache, GET(), viewCountMemoryCache, cleanHtmlEntities(), fetchViaInnerTube(), fetchViaOfficialApi() (+26 more)
+Cohesion: 0.15
+Nodes (24): BatchTrackRequest, POST(), viewCountMemoryCache, GET(), viewCountMemoryCache, cleanHtmlEntities(), fetchViaInnerTube(), fetchViaOfficialApi() (+16 more)
 
 ### Community 3 - "albumCache.ts"
 Cohesion: 0.24
 Nodes (16): NowPlayingOverlay(), PlayerBar(), clearAlbumCache(), GENERIC_PLACEHOLDERS, getCachedResolvedAlbum(), invalidateCachedAlbum(), isKnownBadFallback(), isRealAlbumName() (+8 more)
 
 ### Community 4 - "queueRecommend.ts"
-Cohesion: 0.19
-Nodes (20): GET(), queueCache, getDeezerArtistRadio(), getDeezerArtistTopTracks(), getDeezerRelatedArtistsTopTracks(), mapDeezerTracksToQueue(), searchDeezerArtist(), buildNextQueue() (+12 more)
+Cohesion: 0.20
+Nodes (19): GET(), queueCache, getDeezerArtistRadio(), getDeezerArtistTopTracks(), getDeezerRelatedArtistsTopTracks(), mapDeezerTracksToQueue(), buildNextQueue(), dedupCandidates() (+11 more)
 
 ### Community 5 - "server.cjs"
 Cohesion: 0.06
@@ -454,8 +453,8 @@ Cohesion: 0.23
 Nodes (9): cleanArtworkUrl(), ITunesAlbumDetail, ITunesAlbumItem, ITunesLookupResult, ITunesRssEntry, ITunesSearchResult, mapITunesAlbums(), mapITunesRssAlbums() (+1 more)
 
 ### Community 7 - "Track"
-Cohesion: 0.07
-Nodes (36): AlbumDetail, cachedFavorites, PlayerContextType, PlayerControlsContextType, PlayerQueueContextType, PlayerTrackContextType, DataSourceType, ReceiptifyViewProps (+28 more)
+Cohesion: 0.09
+Nodes (32): AlbumDetail, cachedFavorites, PlayerContextType, PlayerControlsContextType, PlayerQueueContextType, PlayerTrackContextType, DataSourceType, ReceiptifyViewProps (+24 more)
 
 ### Community 8 - "PlayerContext.tsx"
 Cohesion: 0.07
@@ -490,8 +489,8 @@ Cohesion: 0.14
 Nodes (20): dynamic, GET(), dynamic, POST(), dynamic, GET(), HEAD(), CachedCdnEntry (+12 more)
 
 ### Community 16 - "createClient"
-Cohesion: 0.10
-Nodes (47): AlbumDetailPage(), AlbumCard(), AlbumCardProps, AlbumsPage(), cachedListenedAlbums, cachedNewReleases, ArtistInfo, ArtistPage() (+39 more)
+Cohesion: 0.08
+Nodes (51): AlbumDetailPage(), AlbumCard(), AlbumCardProps, AlbumsPage(), cachedListenedAlbums, cachedNewReleases, ArtistInfo, ArtistPage() (+43 more)
 
 ### Community 17 - "add-cursor.js"
 Cohesion: 0.15
@@ -578,8 +577,8 @@ Cohesion: 0.05
 Nodes (53): $type, $value, $type, $value, $type, $value, $type, $value (+45 more)
 
 ### Community 66 - "(app)/layout.tsx"
-Cohesion: 0.09
-Nodes (30): SettingsPage(), CurrentUserContext, CurrentUserContextType, CurrentUserProvider(), useCurrentUser(), GlideIndicator1DState, GlideIndicator2DState, useLanguage() (+22 more)
+Cohesion: 0.08
+Nodes (40): SettingsPage(), AuthGuard(), CurrentUserContext, CurrentUserContextType, CurrentUserProvider(), useCurrentUser(), useLanguage(), YoutubeIcon() (+32 more)
 
 ### Community 67 - "Tailwind CSS Utility Reference"
 Cohesion: 0.05
@@ -819,7 +818,7 @@ Nodes (18): 1. Wordmark (Logotype), 2. Lettermark (Monogram), 3. Pictorial Mark 
 
 ### Community 127 - "color"
 Cohesion: 0.11
-Nodes (19): $type, $value, background, foreground, muted-foreground, primary, primary-hover, secondary (+11 more)
+Nodes (19): $type, $value, background, destructive, foreground, muted-foreground, primary-hover, secondary (+11 more)
 
 ### Community 129 - "Brand Consistency Checklist"
 Cohesion: 0.11
@@ -945,9 +944,9 @@ Nodes (14): 1a. Native Worktree Tools (preferred), 1b. Git Worktree Fallback, Co
 Cohesion: 0.13
 Nodes (15): Code Examples, Common Rationalizations for Skipping Testing, Directory Structure, Discovery Workflow, Flowchart Usage, Match the Form to the Failure, Overview, Skill Creation Checklist (TDD Adapted) (+7 more)
 
-### Community 162 - "artist/route.ts"
-Cohesion: 0.39
-Nodes (7): GET(), normalizeTitleForDedup(), fetchArtistAudienceCount(), parseSubscriberCount(), getSpotifyArtistTopTracks(), normalizeArtistForMatch(), searchSpotifyArtistExact()
+### Community 162 - "deezer.ts"
+Cohesion: 0.23
+Nodes (12): GET(), normalizeTitleForDedup(), fetchArtistAudienceCount(), parseSubscriberCount(), DeezerAlbumItem, extractDeezerArtistName(), normalizeArtistForComparison(), searchDeezerArtist() (+4 more)
 
 ### Community 163 - "nhaccuatui/stream/route.ts"
 Cohesion: 0.17
@@ -1081,9 +1080,9 @@ Nodes (11): Bite-Sized Task Granularity, Execution Handoff, File Structure, No P
 Cohesion: 0.17
 Nodes (12): Advanced: Skills with executable code, [Analysis Title], Anti-patterns to avoid, Avoid offering too many options, Avoid Windows-style paths, Conditional workflow pattern, Examples pattern, Executive summary (+4 more)
 
-### Community 196 - "deezer.ts"
-Cohesion: 0.18
-Nodes (14): cachedResolveResponse(), cleanTitleString(), GET(), getSupabaseClient(), normalizeText(), resolveMemoryCache, GET(), getSupabaseClient() (+6 more)
+### Community 196 - "resolve/route.ts"
+Cohesion: 0.27
+Nodes (10): cachedResolveResponse(), cleanTitleString(), GET(), getSupabaseClient(), normalizeText(), resolveMemoryCache, GET(), getSupabaseClient() (+2 more)
 
 ### Community 197 - "match-stream/route.ts"
 Cohesion: 0.24
@@ -1130,8 +1129,8 @@ Cohesion: 0.18
 Nodes (8): args, fs, minimal, MINIMAL_TOKENS, path, projectRoot, tokensPath, wrapStyle
 
 ### Community 208 - "tasteskill: Anti-Slop Frontend Skill"
-Cohesion: 0.18
-Nodes (11): 0.A Read these signals first, 0.B Output a one-line "Design Read" before generating, 0. BRIEF INFERENCE (Read the Room Before Anything Else), 0.C If the brief is ambiguous, ask one question, do not guess, 0.D Anti-Default Discipline, 13. OUT OF SCOPE, 14. FINAL PRE-FLIGHT CHECK, 2.A When to reach for a real design system (use official packages) (+3 more)
+Cohesion: 0.13
+Nodes (15): 0.A Read these signals first, 0.B Output a one-line "Design Read" before generating, 0. BRIEF INFERENCE (Read the Room Before Anything Else), 0.C If the brief is ambiguous, ask one question, do not guess, 0.D Anti-Default Discipline, 13. OUT OF SCOPE, 14. FINAL PRE-FLIGHT CHECK, 1.A Dial Inference (design read → dial values) (+7 more)
 
 ### Community 209 - "patch"
 Cohesion: 0.18
@@ -1237,9 +1236,9 @@ Nodes (6): GET(), getSupabaseServerClient(), POST(), AnnouncementData, DEFAULT_A
 Cohesion: 0.31
 Nodes (6): apply_decision_rules(), _object_without_duplicates(), parse_decision_rules(), Return deterministic mutations and an audit trail; never execute data., Parse the canonical condition -> action-array representation., _validate_action()
 
-### Community 235 - "padding-y"
-Cohesion: 0.67
-Nodes (4): padding-y, padding-y, $type, $value
+### Community 235 - "input"
+Cohesion: 0.29
+Nodes (8): padding-y, input, $type, $value, focus-ring, padding-y, $type, $value
 
 ### Community 236 - "Stream Optimization Plan"
 Cohesion: 0.20
@@ -1305,9 +1304,9 @@ Nodes (7): { createClient }, envContent, envPath, envVars, fs, path, supabase
 Cohesion: 0.25
 Nodes (7): After the Design, Anti-Pattern: "This Is Too Simple To Need A Design", Brainstorming Ideas Into Designs, Checklist, Process Flow, The Process, Visual Companion
 
-### Community 252 - "input"
-Cohesion: 0.29
-Nodes (8): padding-x, input, $type, $value, focus-ring, padding-x, $type, $value
+### Community 252 - "padding-x"
+Cohesion: 0.67
+Nodes (4): padding-x, padding-x, $type, $value
 
 ### Community 253 - "9. AI TELLS (Forbidden Patterns)"
 Cohesion: 0.25
@@ -1545,17 +1544,17 @@ Nodes (5): GREEN: Write Minimal Skill, Micro-Test Wording Before Full Scenarios,
 Cohesion: 0.40
 Nodes (5): Key Elements of Good Scenarios, Pressure Types, Testing Setup, VERIFY GREEN: Pressure Testing, Writing Pressure Scenarios
 
-### Community 315 - "1. THE THREE DIALS (Core Configuration)"
-Cohesion: 0.50
-Nodes (4): 1.A Dial Inference (design read → dial values), 1.B Use-Case Presets, 1.C How the Dials Drive Output, 1. THE THREE DIALS (Core Configuration)
+### Community 315 - "1"
+Cohesion: 0.67
+Nodes (3): $type, $value, 1
 
 ### Community 317 - "Global Constraints"
 Cohesion: 0.40
 Nodes (4): Global Constraints, Sidebar Navigation Gliding Indicator & Hover Implementation Plan, Task 1: Add CSS Rules for Gliding Indicator, Nudging, and Ripple Effect, Task 2: Implement Gliding Indicator & Ripple Logic in Sidebar Component
 
-### Community 319 - "destructive"
+### Community 319 - "primary"
 Cohesion: 0.67
-Nodes (3): destructive, $type, $value
+Nodes (3): primary, $type, $value
 
 ### Community 321 - "lg"
 Cohesion: 0.60
@@ -1645,10 +1644,6 @@ Nodes (3): ring, $type, $value
 Cohesion: 0.67
 Nodes (3): secondary-foreground, $type, $value
 
-### Community 361 - "0"
-Cohesion: 0.67
-Nodes (3): $type, $value, 0
-
 ### Community 363 - "16"
 Cohesion: 0.67
 Nodes (3): $type, $value, 16
@@ -1669,9 +1664,9 @@ Nodes (3): $type, $value, 8
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Track` connect `Track` to `artist/route.ts`, `youtube.ts`, `(app)/layout.tsx`, `deezer.ts`, `itunes.ts`, `queueRecommend.ts`, `PlayerContext.tsx`, `nhaccuatui.ts`, `soundcloudClient.ts`, `lyricsFlow.ts`, `googleDriveUpload.ts`, `createClient`, `LyricsShareModal.tsx`, `spotify.ts`, `utils.ts`, `LyricsView.tsx`, `TrackRow.tsx`, `resolveStreamClient.ts`?**
+- **Why does `Track` connect `Track` to `deezer.ts`, `youtube.ts`, `(app)/layout.tsx`, `queueRecommend.ts`, `itunes.ts`, `PlayerContext.tsx`, `nhaccuatui.ts`, `soundcloudClient.ts`, `lyricsFlow.ts`, `googleDriveUpload.ts`, `createClient`, `LyricsShareModal.tsx`, `spotify.ts`, `utils.ts`, `LyricsView.tsx`, `TrackRow.tsx`, `resolveStreamClient.ts`?**
   _High betweenness centrality (0.010) - this node is a cross-community bridge._
-- **Why does `getValidUserId()` connect `createClient` to `(app)/layout.tsx`, `youtube.ts`, `Track`, `PlayerContext.tsx`, `googleDriveUpload.ts`, `requireUser`, `TrackRow.tsx`?**
+- **Why does `getValidUserId()` connect `(app)/layout.tsx` to `Track`, `PlayerContext.tsx`, `googleDriveUpload.ts`, `createClient`, `requireUser`, `TrackRow.tsx`?**
   _High betweenness centrality (0.007) - this node is a cross-community bridge._
 - **Why does `YouTubeIframeEngine` connect `YouTubeIframeEngine` to `PlayerContext.tsx`, `PlaybackEngine`, `Html5AudioEngine.ts`?**
   _High betweenness centrality (0.005) - this node is a cross-community bridge._

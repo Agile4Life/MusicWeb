@@ -107,7 +107,7 @@ export async function resolveNhacCuaTuiTrack(
 // Pre-populated by prewarmNctStreamUrl() so getAudioUrlCached() gets a
 // synchronous cache hit (0ms network) when the user clicks play.
 const nctStreamUrlCache = new Map<string, { url: string; ts: number }>()
-const NCT_STREAM_URL_CACHE_TTL = 8 * 60 * 1000 // 8 min — must match server TTL
+const NCT_STREAM_URL_CACHE_TTL = 5 * 60 * 1000 // 5 min safe TTL to prevent 403 expired signed tokens
 const nctResolveInFlight = new Map<string, Promise<string | null>>()
 
 /** Fire-and-forget pre-warm: fetches stream URL + metadata and caches the proxy URL.

@@ -22,7 +22,7 @@ const nctResolveCache = new Map<string, {
   coverUrl: string | null
   expiresAt: number
 }>()
-const NCT_RESOLVE_CACHE_TTL = 8 * 60 * 1000
+const NCT_RESOLVE_CACHE_TTL = 5 * 60 * 1000
 
 async function resolveNctStreamUrlCached(id: string): Promise<{
   url: string
@@ -107,7 +107,7 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   const headers = new Headers()
-  headers.set('Cache-Control', 'public, max-age=480, s-maxage=480, stale-while-revalidate=300')
+  headers.set('Cache-Control', 'public, max-age=300, s-maxage=300, stale-while-revalidate=180')
   applyCorsHeaders(headers)
   const contentType = 'application/json'
   headers.set('Content-Type', contentType)

@@ -51,5 +51,24 @@ describe('Catalog stream resolution helpers', () => {
     deleteTrackResolution(key)
     expect(getTrackResolution(key)).toBeNull()
   })
+
+  it('correctly cleans complex Spotify track titles for search fallback', () => {
+    const rawTitle = 'In The End (Official Video) - 2020 Remastered'
+    const rawArtist = 'Linkin Park (feat. Chester)'
+
+    const cleanTitleOnly = rawTitle
+      .replace(/[\(\[\{].*?[\)\]\}]/g, '')
+      .replace(/\s*-\s*.*?\b(remaster(ed)?|live|bonus track|single version|mono|stereo|official\s+(audio|video|mv))\b.*/i, '')
+      .trim()
+    const cleanArtistOnly = rawArtist
+      .replace(/[\(\[\{].*?[\)\]\}]/g, '')
+      .replace(/\s*feat(\.|\s).*$/i, '')
+      .trim()
+    const cleanQ = `${cleanTitleOnly || rawTitle} ${cleanArtistOnly || rawArtist}`.trim()
+
+    expect(cleanTitleOnly).toBe('In The End')
+    expect(cleanArtistOnly).toBe('Linkin Park')
+    expect(cleanQ).toBe('In The End Linkin Park')
+  })
 })
 

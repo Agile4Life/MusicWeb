@@ -60,8 +60,8 @@
     "semantic_hash": ""
   },
   "app/(app)/drive/page.tsx": {
-    "mtime": 1786877043.9939847,
-    "ast_hash": "82ffd3d467ec747d0e403ba40b91a07d",
+    "mtime": 1787113745.6194072,
+    "ast_hash": "844314e8c7ffd120e6047d9faa42ff16",
     "semantic_hash": ""
   },
   "app/(app)/favorites/page.tsx": {
@@ -70,13 +70,13 @@
     "semantic_hash": ""
   },
   "app/(app)/history/page.tsx": {
-    "mtime": 1787053645.533468,
-    "ast_hash": "9d188b2ddbd653af58f31a16e9b3882e",
+    "mtime": 1787057952.3098521,
+    "ast_hash": "3daeb3af8a0336aa0b7c60197a618972",
     "semantic_hash": ""
   },
   "app/(app)/layout.tsx": {
-    "mtime": 1787037615.7548046,
-    "ast_hash": "77bb775a71593e4f7f863b8f3d469d3f",
+    "mtime": 1787057220.894425,
+    "ast_hash": "96d9178fd462dd891224967d85eb9732",
     "semantic_hash": ""
   },
   "app/(app)/loading.tsx": {
@@ -90,8 +90,8 @@
     "semantic_hash": "cd9fd7c859ebd0405c9cd14a299741f9"
   },
   "app/(app)/page.tsx": {
-    "mtime": 1787024489.3066986,
-    "ast_hash": "eadd114d37308f23781f840b4a3f5f1c",
+    "mtime": 1787113752.0593154,
+    "ast_hash": "4a6748fbc43daec22a1522feafea4d32",
     "semantic_hash": ""
   },
   "app/(app)/playlist/[id]/page.tsx": {
@@ -300,9 +300,9 @@
     "semantic_hash": "f643566b3e89a00b4d05d99d4188b99b"
   },
   "components/auth/AuthForm.tsx": {
-    "mtime": 1786551420.7286088,
-    "ast_hash": "1c1b9b9b8361890240b2a08cd452a823",
-    "semantic_hash": "1c1b9b9b8361890240b2a08cd452a823"
+    "mtime": 1787056489.2780912,
+    "ast_hash": "bc41ff42a64f08bb544a4f27b15579ac",
+    "semantic_hash": ""
   },
   "components/auth/AuthGuard.tsx": {
     "mtime": 1786877044.086242,
@@ -405,8 +405,8 @@
     "semantic_hash": ""
   },
   "components/player/NowPlayingOverlay.tsx": {
-    "mtime": 1786951645.338053,
-    "ast_hash": "a01ba95d4fb5c7d2aa78cf9085a410fa",
+    "mtime": 1787115205.3221326,
+    "ast_hash": "d3f07764f9c8aa4a41f35e485796540b",
     "semantic_hash": ""
   },
   "components/player/NowPlayingStage.tsx": {
@@ -420,23 +420,23 @@
     "semantic_hash": ""
   },
   "components/player/PlayerBar.tsx": {
-    "mtime": 1786964829.3818295,
-    "ast_hash": "d6ef4bce7b6b2fa1ed7dbdd3a27ed723",
+    "mtime": 1787057069.5757513,
+    "ast_hash": "70db36463a41035a98d9bd3f93b2495e",
     "semantic_hash": ""
   },
   "components/player/PlayerContext.tsx": {
-    "mtime": 1787054228.8080347,
-    "ast_hash": "0eecf9010029afa69abbab010944d667",
+    "mtime": 1787116125.767341,
+    "ast_hash": "a47bb5e1a3887aed7bf59f6972989b15",
     "semantic_hash": ""
   },
   "components/player/QueueDrawer.tsx": {
-    "mtime": 1787053615.8433826,
-    "ast_hash": "73a4526ca825184a82e3c1d1fb78858f",
+    "mtime": 1787057941.3844473,
+    "ast_hash": "a9dc9af2ea47af43438a6070611b7c1a",
     "semantic_hash": ""
   },
   "components/player/UpNextList.tsx": {
-    "mtime": 1786877044.1552823,
-    "ast_hash": "7d2a27b9971a54be10c084f959be3ca6",
+    "mtime": 1787114230.5132601,
+    "ast_hash": "366273d7ed5c2316bbf3aa2723f3a470",
     "semantic_hash": ""
   },
   "components/playlist/ImportSpotifyModal.tsx": {
@@ -460,8 +460,8 @@
     "semantic_hash": ""
   },
   "components/sidebar/Sidebar.tsx": {
-    "mtime": 1787053145.3755424,
-    "ast_hash": "867d3ce8e59af8083cab7b410d743611",
+    "mtime": 1787057208.4633026,
+    "ast_hash": "6f7c912708a68dc25bb023739fabad01",
     "semantic_hash": ""
   },
   "components/theme/CustomCursor.tsx": {
@@ -550,8 +550,8 @@
     "semantic_hash": "eac79ab492f87e75fd981f5a669d0a17"
   },
   "lib/__tests__/catalogStreamResolution.test.ts": {
-    "mtime": 1786964152.6649997,
-    "ast_hash": "19181dea439e8775c07cfe4063e59e8b",
+    "mtime": 1787116162.6822212,
+    "ast_hash": "24c43edf4e3a2d2bd7eb45fa47c1187c",
     "semantic_hash": ""
   },
   "lib/__tests__/lyrics.test.ts": {
@@ -725,8 +725,8 @@
     "semantic_hash": ""
   },
   "lib/resolveStreamClient.ts": {
-    "mtime": 1786956012.12036,
-    "ast_hash": "60062610d6707dc9fffe3eb14b55e94d",
+    "mtime": 1787116115.725758,
+    "ast_hash": "ed4d460e0be906fe60044c44de8670db",
     "semantic_hash": ""
   },
   "lib/searchApi.ts": {
@@ -1595,8 +1595,8 @@
     "semantic_hash": ""
   },
   "lib/playbackPersistence.ts": {
-    "mtime": 1786956170.454413,
-    "ast_hash": "a03a2f043f53a1daf58c7e1ed32cdd43",
+    "mtime": 1787116100.6445858,
+    "ast_hash": "cc27e71562b992bb6cb7284a983be282",
     "semantic_hash": ""
   },
   "lib/playbackRaceGuards.ts": {
@@ -2877,6 +2877,11 @@
   "components/theme/useGamingMode.ts": {
     "mtime": 1787037565.7815444,
     "ast_hash": "a75a65aa6e57e92faddd0ecfaa310768",
+    "semantic_hash": ""
+  },
+  "components/auth/LoginAmbientCanvas.tsx": {
+    "mtime": 1787056505.995228,
+    "ast_hash": "7dd4f7c817581c7ef8e67a3029540f38",
     "semantic_hash": ""
   }
 }

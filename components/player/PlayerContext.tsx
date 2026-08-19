@@ -730,8 +730,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     [supabase]
   )
 
-  // TTL for NCT stream URL cache (mirrors server-side NCT_RESOLVE_CACHE_TTL = 8 min)
-  const NCT_URL_CACHE_TTL = 8 * 60 * 1000
+  // TTL for NCT stream URL cache (mirrors server-side NCT_RESOLVE_CACHE_TTL = 5 min)
+  const NCT_URL_CACHE_TTL = 5 * 60 * 1000
 
   const getAudioUrlCached = useCallback(
     async (track: Track): Promise<string | null> => {
@@ -1229,7 +1229,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 if (!isCurrentYouTubeVideo()) return
                 setIsBuffering(true)
 
-                // Cold-start / kẹt-buffering watchdog: nếu BUFFERING kéo dài > 800ms,
+                // Cold-start / kẹt-buffering watchdog: nếu BUFFERING kéo dài > 1500ms,
                 // tự nudge playVideo() để giải cứu
                 if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
                 const requestId = playRequestRef.current
@@ -1251,7 +1251,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                       ytPlayerRef.current?.playVideo?.()
                     } catch (e) {}
                   }
-                }, 800)
+                }, 1500)
               } else if (event.data === 2) {
                 if (!isCurrentYouTubeVideo()) return
                 if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
@@ -1311,7 +1311,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                   }
                 }
               } else if (event.data === -1 || event.data === 5) {
-                // Cold-start watchdog: if stuck in cued/unstarted for > 800ms, auto-trigger playVideo() ONLY if active track is YouTube
+                // Cold-start watchdog: if stuck in cued/unstarted for > 1500ms, auto-trigger playVideo() ONLY if active track is YouTube
                 if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
                 const requestId = playRequestRef.current
                 const trackId = active?.id
@@ -1332,7 +1332,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                       ytPlayerRef.current?.playVideo?.()
                     } catch (e) {}
                   }
-                }, 800)
+                }, 1500)
               }
             },
             onError: async (err: any) => {
@@ -1780,7 +1780,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       let streamResult = resolved
       if (!streamResult) {
         try {
-          const cleanQ = `${track.title} ${track.artist || ''}`.replace(/[\(\[\{].*?[\)\]\}]/g, '').trim()
+          const cleanTitleOnly = track.title
+            .replace(/[\(\[\{].*?[\)\]\}]/g, '')
+            .replace(/\s*-\s*.*?\b(remaster(ed)?|live|bonus track|single version|mono|stereo|official\s+(audio|video|mv))\b.*/i, '')
+            .trim()
+          const cleanArtistOnly = (track.artist || '')
+            .replace(/[\(\[\{].*?[\)\]\}]/g, '')
+            .replace(/\s*feat(\.|\s).*$/i, '')
+            .trim()
+          const cleanQ = `${cleanTitleOnly || track.title} ${cleanArtistOnly || track.artist || ''}`.trim()
           const fbRes = await fetch(`/api/search?q=${encodeURIComponent(cleanQ)}&source=all`)
           if (fbRes.ok) {
             const fbData = await fbRes.json()
@@ -2231,15 +2239,27 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   // ⚡ Fast-path: play a track synchronously from the URL cache
-  const tryQuickPlayFromCache = useCallback((track: Track, idx?: number): boolean => {
-    if (!track || typeof window === 'undefined') return false
+  const tryQuickPlayFromCache = useCallback((rawTrack: Track, idx?: number): boolean => {
+    if (!rawTrack || typeof window === 'undefined') return false
+
+    // Check if this track was already pre-resolved in cache (e.g. Spotify -> NCT / YouTube / Drive)
+    const cachedRes = getBoundedRefreshed(
+      trackResolutionCacheRef.current,
+      rawTrack.id,
+      (entry) => Date.now() >= entry.expiresAt
+    )
+    const track = cachedRes?.activeTrack || rawTrack
 
     const classification = classifyTrack(track, isIOSDevice())
     if (classification.needsCatalogResolution && !classification.isDirectPlayable) {
       return false
     }
 
-    const cached = audioUrlCacheRef.current.get(track.id)?.url
+    let cached = audioUrlCacheRef.current.get(track.id)?.url
+    if (!cached && track.source === 'nhaccuatui' && track.nhaccuatui_id) {
+      cached = getCachedNctStreamUrl(track.nhaccuatui_id) || undefined
+    }
+
     if (!cached || isPreviewUrl(cached) || !audioRef.current) return false
     const audio = audioRef.current
 
@@ -2290,6 +2310,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         } else {
           console.warn('Quick-play audio failed, falling back to full resolve:', err?.message || err)
           audioUrlCacheRef.current.delete(track.id)
+          if (track.nhaccuatui_id) {
+            clearCachedNctStreamUrl(track.nhaccuatui_id)
+          }
           playTrack(track, undefined, targetIdx >= 0 ? targetIdx : undefined)
         }
       })

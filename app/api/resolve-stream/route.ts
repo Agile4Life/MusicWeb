@@ -201,7 +201,10 @@ async function resolveStream(
   // === 2. NCT: Search NhacCuaTui (Single Fast Search Round-Trip <600ms) ===
   async function tryNct(): Promise<L1Entry | null> {
     try {
-      const nctCandidates = await searchNctServer(queryStr)
+      let nctCandidates = await searchNctServer(queryStr)
+      if (nctCandidates.length === 0 && cleanTitle && cleanTitle !== queryStr) {
+        nctCandidates = await searchNctServer(cleanTitle)
+      }
       if (nctCandidates.length === 0) return null
 
       const match = findBestNhacCuaTuiMatch(nctCandidates, { title, artist: primaryArtist || artist, duration })
