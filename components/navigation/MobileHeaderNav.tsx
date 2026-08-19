@@ -57,6 +57,8 @@ export function MobileHeaderNav() {
   const navBackBusyRef = useRef(false)
   const profileMenuRef = useRef<HTMLDivElement>(null)
   const profileTriggerRef = useRef<HTMLButtonElement>(null)
+  const drawerNavRef = useRef<HTMLElement>(null)
+  const prevDrawerOpenRef = useRef(false)
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStartX(e.targetTouches[0].clientX)
@@ -99,6 +101,28 @@ export function MobileHeaderNav() {
   useEffect(() => {
     setIsProfileMenuOpen(false)
   }, [pathname])
+
+  // Stagger animation for drawer items
+  useEffect(() => {
+    if (isDrawerOpen && !prevDrawerOpenRef.current && drawerNavRef.current) {
+      // Drawer just opened — apply stagger animation
+      const items = drawerNavRef.current.querySelectorAll('.sidebar-item')
+      items.forEach((item, idx) => {
+        const el = item as HTMLElement
+        el.style.opacity = '0'
+        el.style.animation = `drawerItemSlideIn 250ms var(--ease-out-strong, cubic-bezier(0.23,1,0.32,1)) ${idx * 40}ms forwards`
+      })
+    } else if (!isDrawerOpen && prevDrawerOpenRef.current && drawerNavRef.current) {
+      // Drawer closing — clear animation for re-trigger
+      const items = drawerNavRef.current.querySelectorAll('.sidebar-item')
+      items.forEach((item) => {
+        const el = item as HTMLElement
+        el.style.animation = ''
+        el.style.opacity = ''
+      })
+    }
+    prevDrawerOpenRef.current = isDrawerOpen
+  }, [isDrawerOpen])
 
   const user = userEmail
     ? {
@@ -273,7 +297,7 @@ export function MobileHeaderNav() {
             </div>
 
             {/* Navigation links */}
-            <nav className="flex flex-col gap-1">
+            <nav ref={drawerNavRef} className="flex flex-col gap-1">
               <Link
                 href="/"
                 prefetch={false}
