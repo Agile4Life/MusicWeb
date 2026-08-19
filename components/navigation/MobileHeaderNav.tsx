@@ -230,7 +230,7 @@ export function MobileHeaderNav() {
         tabs={[
           { id: 'home', label: t('home'), icon: 'Home', href: '/' },
           { id: 'albums', label: t('albums'), icon: 'DiscAlbum', href: '/albums' },
-          { id: 'favorites', label: t('favorites'), icon: 'Heart', href: '/favorites' },
+          { id: 'favorites', label: t('favorites_mobile') || t('favorites'), icon: 'Heart', href: '/favorites' },
           { id: 'playlist', label: t('playlists'), icon: 'ListMusic', href: undefined, onClick: () => {
             if (playlists.length > 0) {
               if (pathname.startsWith('/playlist/')) {
@@ -358,7 +358,7 @@ export function MobileHeaderNav() {
                 className={`sidebar-item text-xs font-semibold ${pathname === '/favorites' ? 'active' : ''}`}
               >
                 <Heart className="w-4 h-4" />
-                <span>{t('favorites')}</span>
+                <span>{t('favorites_mobile') || t('favorites')}</span>
               </Link>
 
               <Link

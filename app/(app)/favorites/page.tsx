@@ -117,7 +117,10 @@ export default function FavoritesPage() {
           </div>
 
           <div className="flex flex-col gap-0.5">
-            <h1 className="text-lg sm:text-xl md:text-2xl font-extrabold text-white tracking-tight">Bài hát yêu thích</h1>
+            <h1 className="text-lg sm:text-xl md:text-2xl font-extrabold text-white tracking-tight">
+              <span className="hidden sm:inline">Bài hát yêu thích</span>
+              <span className="sm:hidden">Yêu thích</span>
+            </h1>
             <p className="text-[11px] sm:text-xs text-slate-400">
               {tracks.length > 0
                 ? `${tracks.length} bài hát trong bộ sưu tập của bạn`
