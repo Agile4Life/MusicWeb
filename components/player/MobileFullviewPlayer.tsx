@@ -1,11 +1,13 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { usePlayer, usePlaybackProgress } from './PlayerContext'
 import type { RepeatMode } from './PlayerContext'
 import { useTheme } from '../theme/ThemeContext'
 import { TrackCoverImage } from '../common/TrackCoverImage'
 import { LyricsShareModal } from './LyricsShareModal'
+import { MobileTabTransition } from './MobileTabTransition'
 import { getPrimaryLyrics } from '@/lib/lyricsFlow'
 import { parseLrc, parsePlainLyrics, findActiveLyricIndex, LyricLine } from '@/lib/lrcParser'
 import { fetchLyricsRomaji } from '@/lib/romajiTransliteration'
@@ -84,6 +86,19 @@ export function MobileFullviewPlayer() {
 
   // ===== Tab State =====
   const [activeTab, setActiveTab] = useState<FullviewTab>('cover')
+  const [tabDirection, setTabDirection] = useState(0)
+  const prefersReducedMotion = useReducedMotion()
+
+  // Direction-aware tab setter
+  const switchTab = useCallback((newTab: FullviewTab) => {
+    setActiveTab((prev) => {
+      const tabOrder: FullviewTab[] = ['cover', 'lyrics', 'queue']
+      const prevIdx = tabOrder.indexOf(prev)
+      const newIdx = tabOrder.indexOf(newTab)
+      setTabDirection(newIdx > prevIdx ? 1 : -1)
+      return newTab
+    })
+  }, [])
 
   // ===== Unified iOS Drag to Dismiss Physics =====
   const [dragY, setDragY] = useState(0)
@@ -147,6 +162,7 @@ export function MobileFullviewPlayer() {
       isDraggingRef.current = false
       isClosingRef.current = false
       setActiveTab('cover')
+      setTabDirection(0)
     }
   }, [isNowPlayingOpen])
 
@@ -385,8 +401,14 @@ export function MobileFullviewPlayer() {
       if (Math.abs(dx) > 50) {
         setActiveTab((prev) => {
           const idx = tabOrder.indexOf(prev)
-          if (dx < 0 && idx < tabOrder.length - 1) return tabOrder[idx + 1]
-          if (dx > 0 && idx > 0) return tabOrder[idx - 1]
+          if (dx < 0 && idx < tabOrder.length - 1) {
+            setTabDirection(1)
+            return tabOrder[idx + 1]
+          }
+          if (dx > 0 && idx > 0) {
+            setTabDirection(-1)
+            return tabOrder[idx - 1]
+          }
           return prev
         })
       }
@@ -603,21 +625,32 @@ export function MobileFullviewPlayer() {
           📱 MAIN CONTENT AREA — Switches between 3 tabs
           ══════════════════════════════════════════════════════════════════ */}
       <main className="relative z-10 flex-1 min-h-0 flex flex-col overflow-hidden">
+        <MobileTabTransition activeTab={activeTab} direction={tabDirection}>
 
         {/* ─── TAB 1: COVER ART VIEW ─── */}
         {activeTab === 'cover' && (
           <div className="flex-1 flex flex-col justify-center px-6 sm:px-8 gap-6 overflow-hidden">
-            {/* Large Cover Art */}
-            <div className="w-full aspect-square max-w-[min(85vw,380px)] mx-auto rounded-2xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.6)] transition-all duration-500">
+            {/* Large Cover Art — stagger entrance */}
+            <motion.div
+              initial={prefersReducedMotion ? false : { opacity: 0, transform: 'scale(0.92)' }}
+              animate={{ opacity: 1, transform: 'scale(1)' }}
+              transition={{ duration: 0.4, delay: 0.1, ease: [0.32, 0.72, 0, 1] }}
+              className="w-full aspect-square max-w-[min(85vw,380px)] mx-auto rounded-2xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.6)] will-change-transform"
+            >
               <TrackCoverImage
                 src={currentTrack.cover_url}
                 alt={currentTrack.title}
                 className="w-full h-full object-cover"
               />
-            </div>
+            </motion.div>
 
-            {/* Song Info Row */}
-            <div className="flex items-start justify-between gap-3 px-1">
+            {/* Song Info Row — stagger entrance */}
+            <motion.div
+              initial={prefersReducedMotion ? false : { opacity: 0, transform: 'translateY(12px)' }}
+              animate={{ opacity: 1, transform: 'translateY(0px)' }}
+              transition={{ duration: 0.3, delay: 0.18, ease: [0.23, 1, 0.32, 1] }}
+              className="flex items-start justify-between gap-3 px-1"
+            >
               <div className="flex flex-col min-w-0 flex-1">
                 <h2 className="text-xl font-bold truncate leading-tight text-white">
                   {currentTrack.title}
@@ -648,7 +681,7 @@ export function MobileFullviewPlayer() {
                   <MoreHorizontal className="w-[22px] h-[22px]" />
                 </button>
               </div>
-            </div>
+            </motion.div>
           </div>
         )}
 
@@ -859,6 +892,7 @@ export function MobileFullviewPlayer() {
             </div>
           </div>
         )}
+        </MobileTabTransition>
       </main>
 
       {/* ══════════════════════════════════════════════════════════════════
@@ -982,7 +1016,7 @@ export function MobileFullviewPlayer() {
           {/* Lyrics Tab */}
           <button
             type="button"
-            onClick={() => setActiveTab(activeTab === 'lyrics' ? 'cover' : 'lyrics')}
+            onClick={() => switchTab(activeTab === 'lyrics' ? 'cover' : 'lyrics')}
             className={`p-2.5 rounded-full transition-all cursor-pointer active:scale-90 ${
               activeTab === 'lyrics'
                 ? 'bg-white/15 text-white'
@@ -997,7 +1031,7 @@ export function MobileFullviewPlayer() {
           {/* Queue Tab */}
           <button
             type="button"
-            onClick={() => setActiveTab(activeTab === 'queue' ? 'cover' : 'queue')}
+            onClick={() => switchTab(activeTab === 'queue' ? 'cover' : 'queue')}
             className={`p-2.5 rounded-full transition-all cursor-pointer active:scale-90 ${
               activeTab === 'queue'
                 ? 'bg-white/15 text-white'
@@ -1013,40 +1047,52 @@ export function MobileFullviewPlayer() {
       {/* ══════════════════════════════════════════════════════════════════
           📱 Context Menu Bottom Sheet
           ══════════════════════════════════════════════════════════════════ */}
-      {showMenuSheet && (
-        <div
-          onClick={() => setShowMenuSheet(false)}
-          className="fixed inset-0 z-[110] bg-black/70 backdrop-blur-md flex items-end justify-center p-0 animate-in fade-in duration-200"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full border-t rounded-t-3xl p-5 shadow-2xl flex flex-col gap-3 max-h-[70vh] animate-in slide-in-from-bottom-5 duration-200 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] bg-[#1a1a1a]/95 backdrop-blur-2xl border-white/15 text-white"
+      <AnimatePresence>
+        {showMenuSheet && (
+          <motion.div
+            key="menu-sheet-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+            onClick={() => setShowMenuSheet(false)}
+            className="fixed inset-0 z-[110] bg-black/70 backdrop-blur-md flex items-end justify-center p-0"
           >
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
-              <span className="text-sm font-bold">Tùy chọn bài hát</span>
+            <motion.div
+              key="menu-sheet-content"
+              initial={{ transform: 'translateY(100%)' }}
+              animate={{ transform: 'translateY(0%)' }}
+              exit={{ transform: 'translateY(100%)' }}
+              transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full border-t rounded-t-3xl p-5 shadow-2xl flex flex-col gap-3 max-h-[70vh] pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] bg-[#1a1a1a]/95 backdrop-blur-2xl border-white/15 text-white will-change-transform"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <span className="text-sm font-bold">Tùy chọn bài hát</span>
+                <button
+                  type="button"
+                  onClick={() => setShowMenuSheet(false)}
+                  className="p-1.5 text-white/40 hover:text-white rounded-full bg-white/5"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
               <button
                 type="button"
-                onClick={() => setShowMenuSheet(false)}
-                className="p-1.5 text-white/40 hover:text-white rounded-full bg-white/5"
+                onClick={() => {
+                  setShowMenuSheet(false)
+                  setShowShareModal(true)
+                }}
+                className="flex items-center gap-3 p-3.5 rounded-2xl border border-white/8 bg-white/[0.04] text-xs font-semibold transition-all hover:bg-white/[0.08]"
               >
-                <X className="w-4 h-4" />
+                <Share2 className="w-4 h-4 text-white/60" />
+                <span>Chia sẻ trích dẫn lời bài hát</span>
               </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                setShowMenuSheet(false)
-                setShowShareModal(true)
-              }}
-              className="flex items-center gap-3 p-3.5 rounded-2xl border border-white/8 bg-white/[0.04] text-xs font-semibold transition-all hover:bg-white/[0.08]"
-            >
-              <Share2 className="w-4 h-4 text-white/60" />
-              <span>Chia sẻ trích dẫn lời bài hát</span>
-            </button>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ══════════════════════════════════════════════════════════════════
           📱 Lyrics Share Story Modal
