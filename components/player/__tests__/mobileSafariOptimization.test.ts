@@ -38,12 +38,13 @@ describe('iOS Safari Compatibility & Performance Optimizations', () => {
 
   it('calculates swipe dismiss decision correctly with momentum', () => {
     const shouldDismiss = (dragY: number, velocity: number) => {
-      return dragY > 110 || (dragY > 40 && velocity > 0.45)
+      return dragY > 100 || (dragY > 35 && velocity > 0.4)
     }
 
-    expect(shouldDismiss(120, 0.1)).toBe(true) // distance threshold
-    expect(shouldDismiss(50, 0.5)).toBe(true) // velocity flick threshold
-    expect(shouldDismiss(30, 0.2)).toBe(false) // not enough
+    expect(shouldDismiss(110, 0.1)).toBe(true) // distance threshold (>100px)
+    expect(shouldDismiss(40, 0.45)).toBe(true) // velocity flick threshold (>35px with >0.4px/ms)
+    expect(shouldDismiss(25, 0.2)).toBe(false) // not enough distance or speed
+    expect(shouldDismiss(20, 0.5)).toBe(false) // too shallow (<35px) even if fast
   })
 
   it('computes hardware-accelerated lyrics opacity and scale without CSS blur', () => {

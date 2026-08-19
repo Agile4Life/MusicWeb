@@ -114,6 +114,7 @@ export function MobileFullviewPlayer() {
   const touchStartXRef = useRef(0)
   const touchStartTimeRef = useRef(0)
   const lastTouchYRef = useRef(0)
+  const touchHistoryRef = useRef<{ y: number; t: number }[]>([])
   const isDraggingRef = useRef(false)
   const dragYRef = useRef(0)
   const isClosingRef = useRef(false)
@@ -168,6 +169,14 @@ export function MobileFullviewPlayer() {
       setIsDragging(false)
       isDraggingRef.current = false
       isClosingRef.current = false
+      touchHistoryRef.current = []
+      if (containerRef.current) {
+        containerRef.current.style.transform = ''
+        containerRef.current.style.opacity = ''
+        containerRef.current.style.borderRadius = ''
+        containerRef.current.style.boxShadow = ''
+        containerRef.current.style.transition = ''
+      }
       setActiveTab('cover')
       setTabDirection(0)
     }
@@ -325,10 +334,12 @@ export function MobileFullviewPlayer() {
   const handleDragTouchStart = useCallback((e: React.TouchEvent) => {
     if (isClosingRef.current) return
     const touch = e.touches[0]
+    const now = Date.now()
     touchStartYRef.current = touch.clientY
     touchStartXRef.current = touch.clientX
     lastTouchYRef.current = touch.clientY
-    touchStartTimeRef.current = Date.now()
+    touchStartTimeRef.current = now
+    touchHistoryRef.current = [{ y: touch.clientY, t: now }]
     dragYRef.current = 0
     // Reset horizontal swipe detection
     swipeStartXRef.current = touch.clientX
@@ -344,14 +355,19 @@ export function MobileFullviewPlayer() {
     const currentX = touch.clientX
     const deltaY = currentY - touchStartYRef.current
     const deltaX = currentX - touchStartXRef.current
+    const now = Date.now()
     lastTouchYRef.current = currentY
+    touchHistoryRef.current.push({ y: currentY, t: now })
+    if (touchHistoryRef.current.length > 6) {
+      touchHistoryRef.current.shift()
+    }
 
     // Detect horizontal swipe for tab switching
     if (!isDraggingRef.current && !isHorizontalSwipeRef.current) {
       if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 12) {
-        // Check if we're NOT over a scrollable lyrics container
-        const isOverLyrics = scrollContainerRef.current && scrollContainerRef.current.contains(e.target as Node)
-        if (!isOverLyrics) {
+        // Check if we're NOT over a scrollable lyrics or queue container
+        const isOverScrollable = Boolean((e.target as HTMLElement)?.closest?.('.overflow-y-auto'))
+        if (!isOverScrollable) {
           isHorizontalSwipeRef.current = true
           swipeDeltaXRef.current = deltaX
           return
@@ -369,16 +385,18 @@ export function MobileFullviewPlayer() {
         return
       }
 
-      const isOverLyrics = scrollContainerRef.current && scrollContainerRef.current.contains(e.target as Node)
-      if (isOverLyrics) {
-        if ((scrollContainerRef.current?.scrollTop || 0) > 2) {
-          return
-        }
+      // Check if user is scrolling inside a scrollable container (lyrics, queue list)
+      const scrollableEl = (e.target as HTMLElement)?.closest?.('.overflow-y-auto') as HTMLElement | null
+      if (scrollableEl && scrollableEl.scrollTop > 2) {
+        return
       }
 
       if (deltaY > 6) {
         isDraggingRef.current = true
         isUserInteractingRef.current = true
+        if (containerRef.current) {
+          containerRef.current.style.transition = ''
+        }
       }
     }
 
@@ -433,19 +451,38 @@ export function MobileFullviewPlayer() {
       return
     }
 
-    const elapsed = Math.max(1, Date.now() - touchStartTimeRef.current)
-    const currentDragY = dragYRef.current
-    const velocity = (lastTouchYRef.current - touchStartYRef.current) / elapsed
+    // Precise flick velocity calculation from recent touch points window
+    let velocity = 0
+    const history = touchHistoryRef.current
+    if (history.length >= 2) {
+      const first = history[0]
+      const last = history[history.length - 1]
+      const dt = Math.max(1, last.t - first.t)
+      velocity = (last.y - first.y) / dt // px per ms
+    } else {
+      const elapsed = Math.max(1, Date.now() - touchStartTimeRef.current)
+      velocity = (lastTouchYRef.current - touchStartYRef.current) / elapsed
+    }
 
+    const currentDragY = dragYRef.current
     isDraggingRef.current = false
 
-    const shouldDismiss = currentDragY > 110 || (currentDragY > 40 && velocity > 0.45)
+    const shouldDismiss = currentDragY > 100 || (currentDragY > 35 && velocity > 0.4)
 
     if (shouldDismiss) {
       isClosingRef.current = true
-      closeNowPlayingOverlay()
+
+      if (containerRef.current) {
+        containerRef.current.style.transition =
+          'transform 0.28s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.25s ease-out, border-radius 0.25s ease, box-shadow 0.25s ease'
+        containerRef.current.style.transform = 'translateY(100%) scale(0.92)'
+        containerRef.current.style.opacity = '0'
+        containerRef.current.style.borderRadius = '36px 36px 0 0'
+        containerRef.current.style.boxShadow = 'none'
+      }
 
       setTimeout(() => {
+        closeNowPlayingOverlay()
         if (containerRef.current) {
           containerRef.current.style.transform = ''
           containerRef.current.style.opacity = ''
@@ -455,10 +492,11 @@ export function MobileFullviewPlayer() {
         }
         dragYRef.current = 0
         isClosingRef.current = false
-      }, 400)
+      }, 280)
     } else {
       if (containerRef.current) {
-        containerRef.current.style.transition = 'transform 0.35s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.3s ease, border-radius 0.3s ease, box-shadow 0.3s ease'
+        containerRef.current.style.transition =
+          'transform 0.35s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.3s ease, border-radius 0.3s ease, box-shadow 0.3s ease'
         containerRef.current.style.transform = 'translateY(0px) scale(1)'
         containerRef.current.style.opacity = '1'
         containerRef.current.style.borderRadius = '0px'
@@ -593,10 +631,14 @@ export function MobileFullviewPlayer() {
       <div
         className="relative z-20 flex justify-center pt-[calc(0.6rem+env(safe-area-inset-top,0px))] pb-1 cursor-grab active:cursor-grabbing"
       >
-        <div
+        <button
+          type="button"
+          aria-label="Đóng trình phát toàn màn hình"
           onClick={closeNowPlayingOverlay}
-          className="w-10 h-1 rounded-full bg-white/40 hover:bg-white/60 transition-all cursor-pointer active:scale-95"
-        />
+          className="w-16 h-7 flex items-center justify-center -my-2.5 cursor-pointer active:scale-95 group focus:outline-none"
+        >
+          <span className="w-10 h-1 rounded-full bg-white/40 group-hover:bg-white/60 transition-all" />
+        </button>
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════
