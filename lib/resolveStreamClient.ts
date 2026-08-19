@@ -1,5 +1,5 @@
 import { findMemoryDriveTrack } from './driveTracksMap'
-import { saveTrackResolution, getTrackResolution } from './playbackPersistence'
+import { saveTrackResolution, getTrackResolution, deleteTrackResolution } from './playbackPersistence'
 
 export interface ResolvedStreamResult {
   source: 'youtube' | 'nhaccuatui' | 'drive' | 'soundcloud'
@@ -110,6 +110,9 @@ export async function resolveStreamCached(
   // Check localStorage persistence (cross-session)
   const persisted = getTrackResolution(key)
   if (persisted && !forceRefresh) {
+    if (persisted.source === 'none' || !persisted.resolvedId) {
+      return null
+    }
     const cachedResult: ResolvedStreamResult = { source: persisted.source as ResolvedStreamResult['source'], id: persisted.resolvedId }
     cacheResult(key, cachedResult, Date.now() + CLIENT_CACHE_TTL, generation)
     return cachedResult
@@ -202,6 +205,7 @@ export async function invalidateStreamResolution(
 
   const generation = advanceGeneration(key)
   clientCache.delete(key)
+  deleteTrackResolution(key)
   forceRefreshGeneration.set(key, generation)
 
   // Best-effort eager server invalidation. The next resolve also sends

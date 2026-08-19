@@ -294,7 +294,19 @@ export function saveTrackResolution(
   safeWrite(STORAGE_KEY, state)
 }
 
-/** Get a saved track resolution. Returns null if not found or expired. */
+/** Delete a saved track resolution from persistence (e.g., when invalidated). */
+export function deleteTrackResolution(key: string): void {
+  const state = safeRead<PlaybackState>(STORAGE_KEY, {
+    queue: [], currentIndex: -1, currentTime: 0,
+    currentTrack: null, streamUrls: {}, resolutions: {}, savedAt: 0
+  })
+  if (state.resolutions[key]) {
+    delete state.resolutions[key]
+    safeWrite(STORAGE_KEY, state)
+  }
+}
+
+/** Get a saved track resolution. Returns null if not found, expired, or recorded as an unplayable miss ('none'). */
 export function getTrackResolution(key: string): { source: string; resolvedId: string } | null {
   const state = safeRead<PlaybackState>(STORAGE_KEY, {
     queue: [], currentIndex: -1, currentTime: 0,
@@ -306,6 +318,11 @@ export function getTrackResolution(key: string): { source: string; resolvedId: s
   if (entry.expiresAt < Date.now()) {
     delete state.resolutions[key]
     safeWrite(STORAGE_KEY, state)
+    return null
+  }
+
+  // Treat 'none' or missing resolvedId as null to prevent returning a truthy unplayable object
+  if (entry.source === 'none' || !entry.resolvedId) {
     return null
   }
 

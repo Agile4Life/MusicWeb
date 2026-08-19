@@ -532,8 +532,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const nextIsYouTubeEngine = (track.source === 'youtube' || Boolean(track.youtube_id)) && !isIOSDevice()
     if (!nextIsYouTubeEngine && ytPlayerRef.current) {
       try {
-        if (ytPlayerRef.current.mute) ytPlayerRef.current.mute()
-        if (ytPlayerRef.current.stopVideo) ytPlayerRef.current.stopVideo()
         if (ytPlayerRef.current.pauseVideo) ytPlayerRef.current.pauseVideo()
       } catch {}
     }
