@@ -3082,21 +3082,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       navigator.mediaSession.setActionHandler('previoustrack', () => prevTrackRef.current())
       navigator.mediaSession.setActionHandler('nexttrack', () => nextTrackRef.current())
 
-      try {
-        navigator.mediaSession.setActionHandler('seekto', (details) => {
-          if (details.seekTime !== undefined) seek(details.seekTime)
-        })
-      } catch (e) {}
-
-      // Explicitly unset seekbackward and seekforward so Safari (iOS & macOS) and OS lock screens /
-      // Control Center always display the Next Track (⏭️) and Previous Track (⏮️) buttons instead of
-      // replacing them with 10s/15s skip buttons.
+      // We deliberately DO NOT set 'seekto', 'seekbackward', or 'seekforward' handlers.
+      // Setting 'seekto' causes Chrome on Android to replace the Next/Prev track buttons
+      // with 10-second rewind/forward buttons in the background media notification.
+      // By omitting them, the OS defaults to displaying the 'previoustrack' and 'nexttrack' buttons.
       try {
         navigator.mediaSession.setActionHandler('seekbackward', null)
-      } catch (e) {}
-
-      try {
         navigator.mediaSession.setActionHandler('seekforward', null)
+        navigator.mediaSession.setActionHandler('seekto', null)
       } catch (e) {}
 
       try {
