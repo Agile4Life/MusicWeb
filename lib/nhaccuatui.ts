@@ -107,11 +107,6 @@ function readCandidate(value: unknown): NhacCuaTuiSearchItem | null {
   if (!id || !title) return null
 
   const artist = asText(item.artist || item.artistName)
-  // Allow empty artist: some album/OST results omit the field but are still valid tracks.
-  // Log a debug warning so we can track the ratio of artist-less results in production.
-  if (!artist) {
-    console.debug(`[NCT] readCandidate: track "${title}" (id=${id}) has no artist field — using fallback`)
-  }
 
   const candidate: NhacCuaTuiSearchItem = {
     id,

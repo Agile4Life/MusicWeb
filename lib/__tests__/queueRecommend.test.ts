@@ -72,9 +72,9 @@ describe('queueRecommend logic unit tests', () => {
         score_reasons: [],
       }
       const variants = getTrackIdentityVariants(track)
-      expect(variants).toContain('spotify-999') // prefixed id
-      expect(variants).toContain('999')           // raw source_id
-      // must NOT include cross-source prefixes to prevent false skip-collisions
+      expect(variants).toContain('spotify-999')
+      // Raw numeric source_ids are NOT added to prevent collisions with other sources
+      expect(variants).not.toContain('999')
       expect(variants).not.toContain('nct-999')
       expect(variants).not.toContain('sc-999')
       expect(variants).not.toContain('deezer-999')
@@ -94,7 +94,7 @@ describe('queueRecommend logic unit tests', () => {
       }
       const variants = getTrackIdentityVariants(track)
       expect(variants).toContain('nct-abc')
-      expect(variants).toContain('abc')
+      expect(variants).not.toContain('abc')
       expect(variants).not.toContain('sc-abc')
       expect(variants).not.toContain('spotify-abc')
     })
@@ -113,8 +113,26 @@ describe('queueRecommend logic unit tests', () => {
       }
       const variants = getTrackIdentityVariants(track)
       expect(variants).toContain('sc-77')
+      expect(variants).not.toContain('77')
       expect(variants).not.toContain('nct-77')
       expect(variants).not.toContain('deezer-77')
+    })
+
+    it('returns raw id and source_id for internal_history source', () => {
+      const track: QueueTrack = {
+        id: 'local-uuid-123',
+        title: 'Local Track',
+        artist: 'Local Artist',
+        cover_url: null,
+        duration: 200,
+        source: 'internal_history',
+        source_id: 'local-uuid-123',
+        score: 1.0,
+        score_reasons: [],
+      }
+      const variants = getTrackIdentityVariants(track)
+      expect(variants).toContain('local-uuid-123')
+      expect(variants).toHaveLength(1)
     })
   })
 

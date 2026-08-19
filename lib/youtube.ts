@@ -317,11 +317,11 @@ export const NEGATIVE_KEYWORDS = [
  * E.g. if the user is listening to a remix, we should NOT filter out remix candidates.
  */
 export const GENRE_ALLOWED_KEYWORDS: Record<string, string[]> = {
-  remix:  ['remix', 'mashup'],
-  ballad: ['lofi', 'lo-fi', 'acoustic version', 'piano version'],
-  rap:    [],
-  indie:  ['acoustic version'],
-  pop:    [],
+  remix:   ['remix', 'mashup'],
+  ballad:  ['lofi', 'lo-fi', 'acoustic version', 'piano version'],
+  rap:     ['remix'],
+  indie:   ['acoustic version'],
+  pop:     [],
   general: [],
 }
 

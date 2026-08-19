@@ -43,10 +43,9 @@ export function getTrackIdentityVariants(track: Partial<QueueTrack>): string[] {
   if (track.id) variants.add(track.id)
 
   if (track.source_id) {
-    variants.add(track.source_id)
     // Only add prefixed variants that match this track's actual source.
-    // Adding ALL source prefixes risks false collisions when two sources
-    // happen to use the same numeric id for different tracks.
+    // Raw numeric source_ids are NOT added for external sources to completely
+    // eliminate false collisions (e.g. SoundCloud 4521 ≠ Deezer 4521).
     switch (track.source) {
       case 'spotify':
         variants.add(`spotify-${track.source_id}`)
@@ -60,7 +59,9 @@ export function getTrackIdentityVariants(track: Partial<QueueTrack>): string[] {
       case 'soundcloud':
         variants.add(`sc-${track.source_id}`)
         break
-      // 'internal_history': source_id is already the raw track id, no prefix needed
+      case 'internal_history':
+        variants.add(track.source_id)
+        break
     }
   }
   return Array.from(variants)
