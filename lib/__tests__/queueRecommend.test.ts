@@ -7,7 +7,8 @@ import {
   diversify,
   injectExplorationSlots,
 } from '../queueRecommend'
-import { QueueTrack } from '@/types/queue'
+import { isOriginalTrackOnly } from '../youtube'
+import { QueueTrack, trackToQueueTrack, queueTrackToTrack } from '@/types/queue'
 
 describe('queueRecommend logic unit tests', () => {
   describe('normalizeString', () => {
@@ -58,7 +59,7 @@ describe('queueRecommend logic unit tests', () => {
       expect(getDedupKey(track)).toContain('meta:')
     })
 
-    it('returns identity variants for skipped track set comparison', () => {
+    it('returns only source-matched prefixed variants for spotify track', () => {
       const track: QueueTrack = {
         id: 'spotify-999',
         title: 'Track',
@@ -71,8 +72,148 @@ describe('queueRecommend logic unit tests', () => {
         score_reasons: [],
       }
       const variants = getTrackIdentityVariants(track)
-      expect(variants).toContain('spotify-999')
-      expect(variants).toContain('999')
+      expect(variants).toContain('spotify-999') // prefixed id
+      expect(variants).toContain('999')           // raw source_id
+      // must NOT include cross-source prefixes to prevent false skip-collisions
+      expect(variants).not.toContain('nct-999')
+      expect(variants).not.toContain('sc-999')
+      expect(variants).not.toContain('deezer-999')
+    })
+
+    it('returns nct- prefix only for nhaccuatui source', () => {
+      const track: QueueTrack = {
+        id: 'nct-abc',
+        title: 'Bai Hat NCT',
+        artist: 'Ca Si',
+        cover_url: null,
+        duration: 200,
+        source: 'nhaccuatui',
+        source_id: 'abc',
+        score: 1.0,
+        score_reasons: [],
+      }
+      const variants = getTrackIdentityVariants(track)
+      expect(variants).toContain('nct-abc')
+      expect(variants).toContain('abc')
+      expect(variants).not.toContain('sc-abc')
+      expect(variants).not.toContain('spotify-abc')
+    })
+
+    it('returns sc- prefix only for soundcloud source', () => {
+      const track: QueueTrack = {
+        id: 'sc-77',
+        title: 'SC Track',
+        artist: 'Creator',
+        cover_url: null,
+        duration: 200,
+        source: 'soundcloud',
+        source_id: '77',
+        score: 1.0,
+        score_reasons: [],
+      }
+      const variants = getTrackIdentityVariants(track)
+      expect(variants).toContain('sc-77')
+      expect(variants).not.toContain('nct-77')
+      expect(variants).not.toContain('deezer-77')
+    })
+  })
+
+  describe('QueueTrack converters', () => {
+    it('correctly maps NhacCuaTui Track to QueueTrack and back', () => {
+      const nctTrack = {
+        id: 'nct-song123',
+        user_id: 'user1',
+        title: 'Bản Nhạc NCT',
+        artist: 'Ca sĩ Việt',
+        duration: 210,
+        file_path: '',
+        cover_url: 'https://avatar.nct.vn/cover.jpg',
+        created_at: new Date().toISOString(),
+        source: 'nhaccuatui' as const,
+        nhaccuatui_id: 'song123',
+      }
+
+      const queueTrack = trackToQueueTrack(nctTrack)
+      expect(queueTrack.source).toBe('nhaccuatui')
+      expect(queueTrack.source_id).toBe('song123')
+
+      const restoredTrack = queueTrackToTrack(queueTrack)
+      expect(restoredTrack.source).toBe('nhaccuatui')
+      expect(restoredTrack.nhaccuatui_id).toBe('song123')
+      expect(restoredTrack.title).toBe('Bản Nhạc NCT')
+    })
+
+    it('correctly maps SoundCloud Track to QueueTrack and back', () => {
+      const scTrack = {
+        id: 'sc-88888',
+        user_id: 'user1',
+        title: 'SoundCloud Hit',
+        artist: 'Indie Creator',
+        duration: 195,
+        file_path: '',
+        cover_url: 'https://i1.sndcdn.com/art.jpg',
+        created_at: new Date().toISOString(),
+        source: 'soundcloud' as const,
+        soundcloud_id: 88888,
+      }
+
+      const queueTrack = trackToQueueTrack(scTrack)
+      expect(queueTrack.source).toBe('soundcloud')
+      expect(queueTrack.source_id).toBe('88888')
+
+      const restoredTrack = queueTrackToTrack(queueTrack)
+      expect(restoredTrack.source).toBe('soundcloud')
+      expect(restoredTrack.soundcloud_id).toBe(88888)
+      expect(restoredTrack.audio_url).toContain('88888')
+    })
+
+    it('correctly maps Deezer QueueTrack back preserving source=deezer', () => {
+      const deezerQueueTrack: QueueTrack = {
+        id: 'deezer-999',
+        title: 'Deezer Song',
+        artist: 'Deezer Artist',
+        cover_url: null,
+        duration: 200,
+        source: 'deezer',
+        source_id: '999',
+        preview_url: 'https://preview.deezer.com/999.mp3',
+        score: 1.0,
+        score_reasons: ['deezer_radio'],
+      }
+      const track = queueTrackToTrack(deezerQueueTrack)
+      // Source must remain 'deezer' so downstream label/analytics logic works
+      expect(track.source).toBe('deezer')
+      // playback_engine tells the audio engine to use the Spotify-compatible preview protocol
+      expect(track.playback_engine).toBe('spotify')
+      expect(track.audio_url).toContain('preview.deezer.com')
+    })
+  })
+
+  describe('isOriginalTrackOnly - word boundary matching', () => {
+    it('does NOT reject words that merely contain a negative keyword substring', () => {
+      // False-positives that .includes() would generate but \b regex should not
+      expect(isOriginalTrackOnly('Discover Music')).toBe(true)    // 'cover' inside 'discover'
+      expect(isOriginalTrackOnly('Liverpool FC')).toBe(true)      // 'live' inside 'Liverpool'
+      expect(isOriginalTrackOnly('recover from love')).toBe(true) // 'cover' inside 'recover'
+      expect(isOriginalTrackOnly('Loophole')).toBe(true)          // 'loop' inside 'loophole'
+    })
+
+    it('rejects exact negative keyword matches', () => {
+      expect(isOriginalTrackOnly('Song Cover')).toBe(false)
+      expect(isOriginalTrackOnly('Song (Live)')).toBe(false)
+      expect(isOriginalTrackOnly('Remix Version')).toBe(false)
+      expect(isOriginalTrackOnly('Karaoke Version')).toBe(false)
+    })
+
+    it('allows genre keywords when passed as allowedKeywords', () => {
+      // When seed genre is 'remix', remix candidates should NOT be filtered
+      expect(isOriginalTrackOnly('Party Remix', ['remix', 'mashup'])).toBe(true)
+      expect(isOriginalTrackOnly('DJ Mashup Mix', ['remix', 'mashup'])).toBe(true)
+    })
+
+    it('still rejects other negative keywords even with allowedKeywords', () => {
+      // Only the explicitly allowed keyword is whitelisted, not all
+      expect(isOriginalTrackOnly('Remix Karaoke Version', ['remix'])).toBe(false)
     })
   })
 
