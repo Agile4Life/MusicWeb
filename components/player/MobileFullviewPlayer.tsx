@@ -433,16 +433,14 @@ export function MobileFullviewPlayer() {
 
     if (shouldDismiss) {
       isClosingRef.current = true
-      const screenH = typeof window !== 'undefined' ? window.innerHeight : 800
-      setDragY(screenH)
-      dragYRef.current = screenH
-
+      closeNowPlayingOverlay()
+      
+      // Reset dragY after the exit animation completes so next time it opens from 0
       setTimeout(() => {
-        closeNowPlayingOverlay()
         setDragY(0)
         dragYRef.current = 0
         isClosingRef.current = false
-      }, 300)
+      }, 400)
     } else {
       setDragY(0)
       dragYRef.current = 0
@@ -515,25 +513,29 @@ export function MobileFullviewPlayer() {
   const isRepeatActive = repeatMode !== 'off'
 
   return (
-    <div
+    <motion.div
       ref={containerRef}
+      initial={false}
+      animate={{
+        y: isNowPlayingOpen ? Math.max(0, dragY) : '100%',
+        opacity: isNowPlayingOpen ? sheetOpacity : 0,
+        scale: isNowPlayingOpen ? sheetScale : 1,
+      }}
+      transition={
+        isDragging
+          ? { duration: 0 }
+          : { type: 'spring', damping: 28, stiffness: 220, opacity: { duration: 0.3 } }
+      }
       onTouchStart={handleDragTouchStart}
       onTouchMove={handleDragTouchMove}
       onTouchEnd={handleDragTouchEnd}
       onTouchCancel={handleDragTouchEnd}
       className={`mobile-fullview-overlay fixed inset-0 z-[100] flex flex-col select-none overflow-hidden touch-pan-y ${
-        isNowPlayingOpen ? 'pointer-events-auto' : 'pointer-events-none opacity-0 translate-y-full'
+        isNowPlayingOpen ? 'pointer-events-auto' : 'pointer-events-none'
       }`}
       style={{
-        transform: isNowPlayingOpen
-          ? `translate3d(0, ${Math.max(0, dragY)}px, 0) scale(${sheetScale})`
-          : 'translate3d(0, 100%, 0)',
         borderRadius: `${sheetRadius}px ${sheetRadius}px 0 0`,
-        opacity: isNowPlayingOpen ? sheetOpacity : 0,
         boxShadow: dragY > 0 ? '0 -12px 48px rgba(0, 0, 0, 0.85)' : 'none',
-        transition: isDragging
-          ? 'none'
-          : 'transform 0.38s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.3s ease, border-radius 0.3s ease',
         transformOrigin: 'bottom center',
         willChange: 'transform, opacity',
         backgroundColor: isMinimal ? '#141017' : '#0a0a0a',
@@ -1105,6 +1107,6 @@ export function MobileFullviewPlayer() {
           lyrics={lyrics}
         />
       )}
-    </div>
+    </motion.div>
   )
 }
