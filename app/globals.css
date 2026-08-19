@@ -2481,7 +2481,6 @@ html[data-cursor="default"][data-buffering="true"] * {
 /* 🎵 Liquid Glass Player Bar (Desktop & Mobile - Identical Logic) */
 [data-theme-style="liquid-glass"] .player-bar,
 [data-theme-style="liquid-glass"] .mini-player-bar {
-  isolation: isolate;
   background: rgba(255, 255, 255, 0.025) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
@@ -2505,10 +2504,22 @@ html[data-cursor="default"][data-buffering="true"] * {
   }
 }
 
+
 @media (min-width: 1024px) {
   .now-playing-overlay .player-bar {
     bottom: 1rem !important;
   }
+}
+
+/* === Fullview Liquid Glass Player Bar (overrides generic rule with higher specificity) === */
+[data-theme-style="liquid-glass"] .now-playing-overlay .player-bar {
+  background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 40%, rgba(7,9,14,0.30) 100%) !important;
+  backdrop-filter: blur(40px) saturate(220%) brightness(1.08) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(220%) brightness(1.08) !important;
+  border: 1px solid rgba(255,255,255,0.24) !important;
+  border-top-color: rgba(255,255,255,0.45) !important;
+  box-shadow: 0 20px 60px -10px rgba(0,0,0,0.7), 0 0 50px -8px rgba(34,211,238,0.22), inset 0 1.5px 0 rgba(255,255,255,0.38) !important;
+  border-radius: 37px !important;
 }
 
 [data-theme-style="liquid-glass"] .player-bar::before {
@@ -3086,7 +3097,10 @@ html[data-cursor="default"][data-buffering="true"] * {
 /* === Fullview (NowPlayingOverlay) Liquid Glass Engine === */
 
 [data-theme-style="liquid-glass"] .now-playing-overlay {
-  background: radial-gradient(ellipse at 50% 25%, rgba(15, 20, 36, 0.96) 0%, rgba(7, 9, 14, 0.98) 70%, #07090e 100%) !important;
+  background:
+    radial-gradient(ellipse at 15% 80%, color-mix(in srgb, var(--spotify-glow, #22d3ee) 18%, transparent) 0%, transparent 45%),
+    radial-gradient(ellipse at 85% 90%, color-mix(in srgb, var(--theme-gradient-1, rgba(168,85,247,0.5)) 20%, transparent) 0%, transparent 40%),
+    #07090e !important;
 }
 
 [data-theme-style="liquid-glass"] .now-playing-overlay .up-next-list {

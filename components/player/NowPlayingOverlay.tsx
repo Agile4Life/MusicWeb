@@ -103,6 +103,16 @@ export function NowPlayingOverlay() {
   const [resolvedAlbumInfo, setResolvedAlbumInfo] = useState<{ id?: string; name?: string } | null>(null)
   const [showShareModal, setShowShareModal] = useState(false)
   const [shareLyrics, setShareLyrics] = useState<LyricLine[]>([])
+  const [isLiquidGlass, setIsLiquidGlass] = useState(false)
+
+  useEffect(() => {
+    const root = document.documentElement
+    const check = () => setIsLiquidGlass(root.getAttribute('data-theme-style') === 'liquid-glass')
+    check()
+    const observer = new MutationObserver(check)
+    observer.observe(root, { attributes: true, attributeFilter: ['data-theme-style'] })
+    return () => observer.disconnect()
+  }, [])
 
   const handleOpenShare = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
@@ -329,6 +339,12 @@ export function NowPlayingOverlay() {
           <div className="absolute -top-1/4 -left-1/4 w-[75vw] h-[75vw] rounded-full bg-[radial-gradient(circle,var(--spotify-glow,rgba(34,211,238,0.25))_0%,transparent_65%)] blur-3xl" />
           <div className="absolute -bottom-1/4 -right-1/4 w-[75vw] h-[75vw] rounded-full bg-[radial-gradient(circle,var(--theme-gradient-1,rgba(168,85,247,0.2))_0%,transparent_65%)] blur-3xl" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[55vw] h-[55vw] rounded-full bg-[radial-gradient(circle,var(--theme-gradient-2,rgba(6,182,212,0.15))_0%,transparent_70%)] blur-3xl" />
+          {/* Extra bottom glow for liquid-glass player bar backdrop (extends into bar region) */}
+          {isLiquidGlass && (
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[90vw] h-[35vh] rounded-full blur-3xl opacity-70"
+              style={{ background: 'radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--spotify-glow,#22d3ee) 28%, transparent) 0%, color-mix(in srgb, var(--theme-gradient-1,rgba(168,85,247,0.3)) 20%, transparent) 45%, transparent 75%)' }}
+            />
+          )}
         </div>
 
         {/* 🔝 Unified Top Header (Desktop) */}
@@ -358,7 +374,7 @@ export function NowPlayingOverlay() {
           </div>
         </div>
 
-      {/* 🎭 Main Stage Area (Full Height underneath header so Lyrics & Particles scroll under the glass PlayerBar) */}
+      {/* 🎭 Main Stage Area */}
       <div className="flex-1 min-h-0 relative flex overflow-hidden bg-gradient-to-r from-[#07090e] via-[#07090e] to-[#0f0b16]">
         {/* Desktop View (>=1024px): Centered 2-Column Unified Stage (Album 320px Left, Lyrics Right) */}
         <div className="hidden lg:block w-full h-full relative">
@@ -373,16 +389,35 @@ export function NowPlayingOverlay() {
             />
           </div>
 
-          {/* Layer 3: Right Column Lyrics (Centered inside shared max-w-[1360px] stage) */}
+          {/* Layer 3: Right Column Lyrics */}
           <div className="absolute inset-0 z-10 w-full h-full max-w-[1360px] xl:max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-end pointer-events-none">
             <div className="w-full max-w-[640px] lg:w-[50%] xl:w-[48%] h-full pointer-events-auto flex flex-col justify-center pb-24 sm:pb-28 lg:pb-32 pt-2 sm:pt-4">
               <LyricsView isModal={false} showControls={false} showHeader={false} />
             </div>
           </div>
+
+          {/* Liquid Glass: bottom glow source for player bar backdrop-filter */}
+          {isLiquidGlass && (
+            <div
+              aria-hidden="true"
+              className="absolute bottom-0 inset-x-0 h-[200px] pointer-events-none"
+              style={{
+                zIndex: 29,
+                background: 'radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--spotify-glow,#22d3ee) 35%, transparent) 0%, color-mix(in srgb, var(--theme-gradient-1,rgba(168,85,247,0.4)) 25%, transparent) 40%, transparent 70%)',
+                opacity: 0.85,
+              }}
+            />
+          )}
         </div>
 
         {/* 🎛️ DESKTOP FLOATING CONTROL BAR (>= 1024px) */}
-        <div className="player-bar group/playerbar hidden lg:flex absolute bottom-2 sm:bottom-3 lg:bottom-4 inset-x-3 sm:inset-x-6 z-30 px-4 lg:px-6 xl:px-8 py-2 xl:py-3.5 h-[76px] lg:h-[84px] xl:h-[96px] items-center justify-between rounded-2xl transition-all duration-300 select-none overflow-hidden">
+        <div
+          className={`player-bar group/playerbar hidden lg:flex absolute bottom-2 sm:bottom-3 lg:bottom-4 inset-x-3 sm:inset-x-6 z-30 px-4 lg:px-6 xl:px-8 py-2 xl:py-3.5 h-[76px] lg:h-[84px] xl:h-[96px] items-center justify-between rounded-[37px] transition-all duration-300 select-none ${isLiquidGlass ? '' : 'overflow-hidden'}`}
+          style={isLiquidGlass ? {
+            backdropFilter: 'blur(40px) saturate(220%) brightness(1.08)',
+            WebkitBackdropFilter: 'blur(40px) saturate(220%) brightness(1.08)',
+          } : undefined}
+        >
           {/* Inner glass specular gradient (Same as Mobile Player Bar) */}
           <span
             aria-hidden="true"
@@ -390,7 +425,9 @@ export function NowPlayingOverlay() {
               position: 'absolute',
               inset: 0,
               borderRadius: 'inherit',
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 40%)',
+              background: isLiquidGlass
+                ? 'linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 20%, transparent 40%)'
+                : 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 40%)',
               pointerEvents: 'none',
             }}
           />
