@@ -35,11 +35,13 @@ interface ExtendedLyricLine extends LyricLine {
   romaji?: string
 }
 
-interface LyricsViewProps {
+export interface LyricsViewProps {
   onClose?: () => void
   isModal?: boolean
   showControls?: boolean
   showHeader?: boolean
+  showRomaji?: boolean
+  onToggleRomaji?: () => void
 }
 
 function formatTime(seconds: number) {
@@ -349,6 +351,8 @@ export const LyricsView = memo(function LyricsView({
   isModal = false,
   showControls = true,
   showHeader = true,
+  showRomaji: showRomajiProp,
+  onToggleRomaji,
 }: LyricsViewProps) {
   const { currentTime } = usePlaybackProgress()
   const { currentTrack, seek, mvIntroOffset } = usePlayer()
@@ -356,7 +360,29 @@ export const LyricsView = memo(function LyricsView({
   const [loading, setLoading] = useState(false)
   const [, setLyricsData] = useState<LrclibResponse | null>(null)
   const [parsedLyrics, setParsedLyrics] = useState<ExtendedLyricLine[]>([])
-  const [showRomaji, setShowRomaji] = useState(true)
+  const [internalShowRomaji, setInternalShowRomaji] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('musicweb_show_romaji')
+      if (saved !== null) return saved === 'true'
+    }
+    return true
+  })
+  const showRomaji = showRomajiProp !== undefined ? showRomajiProp : internalShowRomaji
+
+  const handleToggleRomaji = useCallback(() => {
+    if (onToggleRomaji) {
+      onToggleRomaji()
+    } else {
+      setInternalShowRomaji((prev) => {
+        const next = !prev
+        try {
+          localStorage.setItem('musicweb_show_romaji', String(next))
+        } catch {}
+        return next
+      })
+    }
+  }, [onToggleRomaji])
+
   const [isSynced, setIsSynced] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const [lyricOffset, setLyricOffset] = useState(0) // Default 0.0s
@@ -620,16 +646,16 @@ export const LyricsView = memo(function LyricsView({
             )}
 
             <button
-              onClick={() => setShowRomaji((prev) => !prev)}
-              className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-all flex items-center gap-1 shrink-0 ${
+              onClick={handleToggleRomaji}
+              className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all shrink-0 shadow-md ${
                 showRomaji
                   ? 'bg-white/15 text-white border-white/25 shadow-sm'
                   : 'text-slate-400 hover:text-white bg-white/5 border-white/10'
               }`}
               title="Bật/Tắt phiên âm Romaji"
+              aria-label="Bật/Tắt phiên âm Romaji"
             >
-              <Languages className="w-3.5 h-3.5" />
-              <span className="text-[10px]">Romaji</span>
+              <Languages className="w-4 h-4" />
             </button>
 
             <button

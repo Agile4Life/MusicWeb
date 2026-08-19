@@ -100,7 +100,13 @@ export function MobileFullviewPlayer() {
     return false
   })
   const [lyricsLoading, setLyricsLoading] = useState(false)
-  const [showTranslation, setShowTranslation] = useState(true)
+  const [showTranslation, setShowTranslation] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('musicweb_show_romaji')
+      if (saved !== null) return saved === 'true'
+    }
+    return true
+  })
   const [showMenuSheet, setShowMenuSheet] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
 
@@ -784,7 +790,13 @@ export function MobileFullviewPlayer() {
           {/* Romaji Toggle */}
           <button
             type="button"
-            onClick={() => setShowTranslation((prev) => !prev)}
+            onClick={() => setShowTranslation((prev) => {
+              const next = !prev
+              try {
+                localStorage.setItem('musicweb_show_romaji', String(next))
+              } catch {}
+              return next
+            })}
             style={
               showTranslation
                 ? isMinimal
@@ -807,11 +819,11 @@ export function MobileFullviewPlayer() {
                   ? { backgroundColor: '#141017', borderColor: 'rgba(232, 169, 79, 0.25)', color: '#B9AC9C' }
                   : { backgroundColor: 'rgba(255, 255, 255, 0.04)', borderColor: 'rgba(255, 255, 255, 0.08)', color: 'rgba(255, 255, 255, 0.5)' }
             }
-            className="px-2.5 py-1 rounded-full flex items-center gap-1 text-[11px] font-bold border transition-all cursor-pointer active:scale-95"
+            className="p-1.5 rounded-full flex items-center justify-center border transition-all cursor-pointer active:scale-95"
             title="Bật/Tắt phiên âm Romaji"
+            aria-label="Bật/Tắt phiên âm Romaji"
           >
-            <Languages className="w-3.5 h-3.5" />
-            <span>Romaji</span>
+            <Languages className="w-4 h-4" />
           </button>
 
           {/* Right Action Icons: Shuffle + Favorite + Share */}

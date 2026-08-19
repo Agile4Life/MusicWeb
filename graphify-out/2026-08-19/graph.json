@@ -1031,6 +1031,19 @@
       "norm_label": "soundcloudplaylist"
     },
     {
+      "label": "DeezerAlbumItem",
+      "file_type": "code",
+      "source_file": "lib/deezer.ts",
+      "source_location": "L4",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "lib_deezer_deezeralbumitem",
+      "community": 162,
+      "community_name": "deezer.ts",
+      "norm_label": "deezeralbumitem"
+    },
+    {
       "label": "TestModeResolution",
       "file_type": "code",
       "source_file": ".agents/skills/ui-ux-pro-max/scripts/tests/test_design_system_mode.py",
@@ -1159,19 +1172,6 @@
       "community": 190,
       "community_name": "ShadcnInstaller",
       "norm_label": "shadcninstaller"
-    },
-    {
-      "label": "DeezerAlbumItem",
-      "file_type": "code",
-      "source_file": "lib/deezer.ts",
-      "source_location": "L4",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "lib_deezer_deezeralbumitem",
-      "community": 196,
-      "community_name": "deezer.ts",
-      "norm_label": "deezeralbumitem"
     },
     {
       "label": "MockVideo",
@@ -1718,6 +1718,19 @@
       "community": 4,
       "community_name": "queueRecommend.ts",
       "norm_label": "queuetrack"
+    },
+    {
+      "label": "TrendingAlbum",
+      "file_type": "code",
+      "source_file": "app/api/albums/new-releases/route.ts",
+      "source_location": "L8",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "app_api_albums_new_releases_route_trendingalbum",
+      "community": 6,
+      "community_name": "itunes.ts",
+      "norm_label": "trendingalbum"
     },
     {
       "label": "ITunesAlbumDetail",
@@ -2394,19 +2407,6 @@
       "community": 81,
       "community_name": "search_stack",
       "norm_label": "testwebstackfreshness"
-    },
-    {
-      "label": "TrendingAlbum",
-      "file_type": "code",
-      "source_file": "app/api/albums/new-releases/route.ts",
-      "source_location": "L8",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "app_api_albums_new_releases_route_trendingalbum",
-      "community": 82,
-      "community_name": "spotify.ts",
-      "norm_label": "trendingalbum"
     },
     {
       "label": "SpotifyArtistResult",
@@ -3325,7 +3325,7 @@
       "label": "GET()",
       "file_type": "code",
       "source_file": "app/api/resolve-stream/route.ts",
-      "source_location": "L315",
+      "source_location": "L318",
       "_callable": true,
       "_origin": "ast",
       "id": "app_api_resolve_stream_route_get",
@@ -3373,7 +3373,7 @@
       "label": "respondWith()",
       "file_type": "code",
       "source_file": "app/api/resolve-stream/route.ts",
-      "source_location": "L452",
+      "source_location": "L455",
       "_callable": true,
       "_origin": "ast",
       "id": "app_api_resolve_stream_route_respondwith",
@@ -7057,7 +7057,7 @@
       "label": "usePlayer()",
       "file_type": "code",
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L3271",
+      "source_location": "L3303",
       "_callable": true,
       "_origin": "ast",
       "id": "components_player_playercontext_useplayer",
@@ -7218,7 +7218,7 @@
       "_origin": "ast",
       "id": "app_api_artist_route_get",
       "community": 162,
-      "community_name": "artist/route.ts",
+      "community_name": "deezer.ts",
       "norm_label": "get()"
     },
     {
@@ -7230,7 +7230,7 @@
       "_origin": "ast",
       "id": "app_api_artist_route_normalizetitlefordedup",
       "community": 162,
-      "community_name": "artist/route.ts",
+      "community_name": "deezer.ts",
       "norm_label": "normalizetitlefordedup()"
     },
     {
@@ -7242,7 +7242,7 @@
       "_origin": "ast",
       "id": "lib_artistaudience_fetchartistaudiencecount",
       "community": 162,
-      "community_name": "artist/route.ts",
+      "community_name": "deezer.ts",
       "norm_label": "fetchartistaudiencecount()"
     },
     {
@@ -7254,8 +7254,68 @@
       "_origin": "ast",
       "id": "lib_artistaudience_parsesubscribercount",
       "community": 162,
-      "community_name": "artist/route.ts",
+      "community_name": "deezer.ts",
       "norm_label": "parsesubscribercount()"
+    },
+    {
+      "label": "extractDeezerArtistName()",
+      "file_type": "code",
+      "source_file": "lib/deezer.ts",
+      "source_location": "L304",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_deezer_extractdeezerartistname",
+      "community": 162,
+      "community_name": "deezer.ts",
+      "norm_label": "extractdeezerartistname()"
+    },
+    {
+      "label": "fetchDeezerAlbumMeta()",
+      "file_type": "code",
+      "source_file": "lib/deezer.ts",
+      "source_location": "L104",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_deezer_fetchdeezeralbummeta",
+      "community": 162,
+      "community_name": "deezer.ts",
+      "norm_label": "fetchdeezeralbummeta()"
+    },
+    {
+      "label": "normalizeArtistForComparison()",
+      "file_type": "code",
+      "source_file": "lib/deezer.ts",
+      "source_location": "L333",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_deezer_normalizeartistforcomparison",
+      "community": 162,
+      "community_name": "deezer.ts",
+      "norm_label": "normalizeartistforcomparison()"
+    },
+    {
+      "label": "searchDeezerArtist()",
+      "file_type": "code",
+      "source_file": "lib/deezer.ts",
+      "source_location": "L348",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_deezer_searchdeezerartist",
+      "community": 162,
+      "community_name": "deezer.ts",
+      "norm_label": "searchdeezerartist()"
+    },
+    {
+      "label": "searchDeezerTracks()",
+      "file_type": "code",
+      "source_file": "lib/deezer.ts",
+      "source_location": "L260",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_deezer_searchdeezertracks",
+      "community": 162,
+      "community_name": "deezer.ts",
+      "norm_label": "searchdeezertracks()"
     },
     {
       "label": "getSpotifyArtistTopTracks()",
@@ -7266,7 +7326,7 @@
       "_origin": "ast",
       "id": "lib_spotify_getspotifyartisttoptracks",
       "community": 162,
-      "community_name": "artist/route.ts",
+      "community_name": "deezer.ts",
       "norm_label": "getspotifyartisttoptracks()"
     },
     {
@@ -7278,7 +7338,7 @@
       "_origin": "ast",
       "id": "lib_spotify_normalizeartistformatch",
       "community": 162,
-      "community_name": "artist/route.ts",
+      "community_name": "deezer.ts",
       "norm_label": "normalizeartistformatch()"
     },
     {
@@ -7290,7 +7350,7 @@
       "_origin": "ast",
       "id": "lib_spotify_searchspotifyartistexact",
       "community": 162,
-      "community_name": "artist/route.ts",
+      "community_name": "deezer.ts",
       "norm_label": "searchspotifyartistexact()"
     },
     {
@@ -8398,18 +8458,6 @@
       "norm_label": "main()"
     },
     {
-      "label": ".test_add_components_already_installed()",
-      "file_type": "code",
-      "source_file": ".agents/skills/ui-styling/scripts/tests/test_shadcn_add.py",
-      "source_location": "L111",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "agents_skills_ui_styling_scripts_tests_test_shadcn_add_testshadcninstaller_test_add_components_already_installed",
-      "community": 190,
-      "community_name": "ShadcnInstaller",
-      "norm_label": ".test_add_components_already_installed()"
-    },
-    {
       "label": ".test_get_installed_components_no_config()",
       "file_type": "code",
       "source_file": ".agents/skills/ui-styling/scripts/tests/test_shadcn_add.py",
@@ -8420,6 +8468,18 @@
       "community": 190,
       "community_name": "ShadcnInstaller",
       "norm_label": ".test_get_installed_components_no_config()"
+    },
+    {
+      "label": ".test_get_installed_components_with_files()",
+      "file_type": "code",
+      "source_file": ".agents/skills/ui-styling/scripts/tests/test_shadcn_add.py",
+      "source_location": "L76",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "agents_skills_ui_styling_scripts_tests_test_shadcn_add_testshadcninstaller_test_get_installed_components_with_files",
+      "community": 190,
+      "community_name": "ShadcnInstaller",
+      "norm_label": ".test_get_installed_components_with_files()"
     },
     {
       "label": ".test_list_installed_with_components()",
@@ -8646,7 +8706,7 @@
       "_origin": "ast",
       "id": "app_api_albums_resolve_route_cachedresolveresponse",
       "community": 196,
-      "community_name": "deezer.ts",
+      "community_name": "resolve/route.ts",
       "norm_label": "cachedresolveresponse()"
     },
     {
@@ -8658,7 +8718,7 @@
       "_origin": "ast",
       "id": "app_api_albums_resolve_route_cleantitlestring",
       "community": 196,
-      "community_name": "deezer.ts",
+      "community_name": "resolve/route.ts",
       "norm_label": "cleantitlestring()"
     },
     {
@@ -8670,7 +8730,7 @@
       "_origin": "ast",
       "id": "app_api_albums_resolve_route_get",
       "community": 196,
-      "community_name": "deezer.ts",
+      "community_name": "resolve/route.ts",
       "norm_label": "get()"
     },
     {
@@ -8682,7 +8742,7 @@
       "_origin": "ast",
       "id": "app_api_albums_resolve_route_getsupabaseclient",
       "community": 196,
-      "community_name": "deezer.ts",
+      "community_name": "resolve/route.ts",
       "norm_label": "getsupabaseclient()"
     },
     {
@@ -8694,7 +8754,7 @@
       "_origin": "ast",
       "id": "app_api_albums_resolve_route_normalizetext",
       "community": 196,
-      "community_name": "deezer.ts",
+      "community_name": "resolve/route.ts",
       "norm_label": "normalizetext()"
     },
     {
@@ -8706,7 +8766,7 @@
       "_origin": "ast",
       "id": "app_api_albums_search_route_get",
       "community": 196,
-      "community_name": "deezer.ts",
+      "community_name": "resolve/route.ts",
       "norm_label": "get()"
     },
     {
@@ -8718,32 +8778,8 @@
       "_origin": "ast",
       "id": "app_api_albums_search_route_getsupabaseclient",
       "community": 196,
-      "community_name": "deezer.ts",
+      "community_name": "resolve/route.ts",
       "norm_label": "getsupabaseclient()"
-    },
-    {
-      "label": "extractDeezerArtistName()",
-      "file_type": "code",
-      "source_file": "lib/deezer.ts",
-      "source_location": "L304",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "lib_deezer_extractdeezerartistname",
-      "community": 196,
-      "community_name": "deezer.ts",
-      "norm_label": "extractdeezerartistname()"
-    },
-    {
-      "label": "fetchDeezerAlbumMeta()",
-      "file_type": "code",
-      "source_file": "lib/deezer.ts",
-      "source_location": "L104",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "lib_deezer_fetchdeezeralbummeta",
-      "community": 196,
-      "community_name": "deezer.ts",
-      "norm_label": "fetchdeezeralbummeta()"
     },
     {
       "label": "mapDeezerAlbums()",
@@ -8754,20 +8790,8 @@
       "_origin": "ast",
       "id": "lib_deezer_mapdeezeralbums",
       "community": 196,
-      "community_name": "deezer.ts",
+      "community_name": "resolve/route.ts",
       "norm_label": "mapdeezeralbums()"
-    },
-    {
-      "label": "normalizeArtistForComparison()",
-      "file_type": "code",
-      "source_file": "lib/deezer.ts",
-      "source_location": "L333",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "lib_deezer_normalizeartistforcomparison",
-      "community": 196,
-      "community_name": "deezer.ts",
-      "norm_label": "normalizeartistforcomparison()"
     },
     {
       "label": "searchDeezerAlbums()",
@@ -8778,20 +8802,8 @@
       "_origin": "ast",
       "id": "lib_deezer_searchdeezeralbums",
       "community": 196,
-      "community_name": "deezer.ts",
+      "community_name": "resolve/route.ts",
       "norm_label": "searchdeezeralbums()"
-    },
-    {
-      "label": "searchDeezerTracks()",
-      "file_type": "code",
-      "source_file": "lib/deezer.ts",
-      "source_location": "L260",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "lib_deezer_searchdeezertracks",
-      "community": 196,
-      "community_name": "deezer.ts",
-      "norm_label": "searchdeezertracks()"
     },
     {
       "label": "applyCorsHeaders()",
@@ -12154,42 +12166,6 @@
       "norm_label": "main()"
     },
     {
-      "label": "GET()",
-      "file_type": "code",
-      "source_file": "app/api/trending/route.ts",
-      "source_location": "L7",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_api_trending_route_get",
-      "community": 338,
-      "community_name": "trending/route.ts",
-      "norm_label": "get()"
-    },
-    {
-      "label": "getTrendingSpotifyTracks()",
-      "file_type": "code",
-      "source_file": "lib/spotify.ts",
-      "source_location": "L93",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "lib_spotify_gettrendingspotifytracks",
-      "community": 338,
-      "community_name": "trending/route.ts",
-      "norm_label": "gettrendingspotifytracks()"
-    },
-    {
-      "label": "getTrendingYouTubeTracks()",
-      "file_type": "code",
-      "source_file": "lib/youtube.ts",
-      "source_location": "L692",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "lib_youtube_gettrendingyoutubetracks",
-      "community": 338,
-      "community_name": "trending/route.ts",
-      "norm_label": "gettrendingyoutubetracks()"
-    },
-    {
       "label": "updateSession()",
       "file_type": "code",
       "source_file": "lib/supabase/middleware.ts",
@@ -12298,6 +12274,18 @@
       "norm_label": "waitforeventmatch()"
     },
     {
+      "label": ".test_add_components_already_installed()",
+      "file_type": "code",
+      "source_file": ".agents/skills/ui-styling/scripts/tests/test_shadcn_add.py",
+      "source_location": "L111",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "agents_skills_ui_styling_scripts_tests_test_shadcn_add_testshadcninstaller_test_add_components_already_installed",
+      "community": 361,
+      "community_name": ".test_add_components_already_installed",
+      "norm_label": ".test_add_components_already_installed()"
+    },
+    {
       "label": ".test_init_dry_run()",
       "file_type": "code",
       "source_file": ".agents/skills/ui-styling/scripts/tests/test_shadcn_add.py",
@@ -12320,18 +12308,6 @@
       "community": 364,
       "community_name": ".test_get_installed_components_empty",
       "norm_label": ".test_get_installed_components_empty()"
-    },
-    {
-      "label": ".test_get_installed_components_with_files()",
-      "file_type": "code",
-      "source_file": ".agents/skills/ui-styling/scripts/tests/test_shadcn_add.py",
-      "source_location": "L76",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "agents_skills_ui_styling_scripts_tests_test_shadcn_add_testshadcninstaller_test_get_installed_components_with_files",
-      "community": 365,
-      "community_name": ".test_get_installed_components_with_files",
-      "norm_label": ".test_get_installed_components_with_files()"
     },
     {
       "label": ".test_add_fonts()",
@@ -12752,18 +12728,6 @@
       "community": 4,
       "community_name": "queueRecommend.ts",
       "norm_label": "mapdeezertrackstoqueue()"
-    },
-    {
-      "label": "searchDeezerArtist()",
-      "file_type": "code",
-      "source_file": "lib/deezer.ts",
-      "source_location": "L348",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "lib_deezer_searchdeezerartist",
-      "community": 4,
-      "community_name": "queueRecommend.ts",
-      "norm_label": "searchdeezerartist()"
     },
     {
       "label": "buildNextQueue()",
@@ -13462,6 +13426,42 @@
       "norm_label": "handleaudiofetch()"
     },
     {
+      "label": "GET()",
+      "file_type": "code",
+      "source_file": "app/api/albums/new-releases/route.ts",
+      "source_location": "L30",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_api_albums_new_releases_route_get",
+      "community": 6,
+      "community_name": "itunes.ts",
+      "norm_label": "get()"
+    },
+    {
+      "label": "normalizeAlbumKey()",
+      "file_type": "code",
+      "source_file": "app/api/albums/new-releases/route.ts",
+      "source_location": "L20",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_api_albums_new_releases_route_normalizealbumkey",
+      "community": 6,
+      "community_name": "itunes.ts",
+      "norm_label": "normalizealbumkey()"
+    },
+    {
+      "label": "fetchDeezerNewReleases()",
+      "file_type": "code",
+      "source_file": "lib/deezer.ts",
+      "source_location": "L18",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_deezer_fetchdeezernewreleases",
+      "community": 6,
+      "community_name": "itunes.ts",
+      "norm_label": "fetchdeezernewreleases()"
+    },
+    {
       "label": "cleanArtworkUrl()",
       "file_type": "code",
       "source_file": "lib/itunes.ts",
@@ -13472,6 +13472,18 @@
       "community": 6,
       "community_name": "itunes.ts",
       "norm_label": "cleanartworkurl()"
+    },
+    {
+      "label": "getTrendingITunesAlbums()",
+      "file_type": "code",
+      "source_file": "lib/itunes.ts",
+      "source_location": "L57",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_itunes_gettrendingitunesalbums",
+      "community": 6,
+      "community_name": "itunes.ts",
+      "norm_label": "gettrendingitunesalbums()"
     },
     {
       "label": "getTrendingITunesTracks()",
@@ -16356,30 +16368,6 @@
     {
       "label": "GET()",
       "file_type": "code",
-      "source_file": "app/api/albums/new-releases/route.ts",
-      "source_location": "L30",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_api_albums_new_releases_route_get",
-      "community": 82,
-      "community_name": "spotify.ts",
-      "norm_label": "get()"
-    },
-    {
-      "label": "normalizeAlbumKey()",
-      "file_type": "code",
-      "source_file": "app/api/albums/new-releases/route.ts",
-      "source_location": "L20",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_api_albums_new_releases_route_normalizealbumkey",
-      "community": 82,
-      "community_name": "spotify.ts",
-      "norm_label": "normalizealbumkey()"
-    },
-    {
-      "label": "GET()",
-      "file_type": "code",
       "source_file": "app/api/spotify/playlist/route.ts",
       "source_location": "L4",
       "_callable": true,
@@ -16390,28 +16378,16 @@
       "norm_label": "get()"
     },
     {
-      "label": "fetchDeezerNewReleases()",
+      "label": "GET()",
       "file_type": "code",
-      "source_file": "lib/deezer.ts",
-      "source_location": "L18",
+      "source_file": "app/api/trending/route.ts",
+      "source_location": "L7",
       "_callable": true,
       "_origin": "ast",
-      "id": "lib_deezer_fetchdeezernewreleases",
+      "id": "app_api_trending_route_get",
       "community": 82,
       "community_name": "spotify.ts",
-      "norm_label": "fetchdeezernewreleases()"
-    },
-    {
-      "label": "getTrendingITunesAlbums()",
-      "file_type": "code",
-      "source_file": "lib/itunes.ts",
-      "source_location": "L57",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "lib_itunes_gettrendingitunesalbums",
-      "community": 82,
-      "community_name": "spotify.ts",
-      "norm_label": "gettrendingitunesalbums()"
+      "norm_label": "get()"
     },
     {
       "label": "fetchNewReleases()",
@@ -16498,6 +16474,18 @@
       "norm_label": "getspotifyaccesstoken()"
     },
     {
+      "label": "getTrendingSpotifyTracks()",
+      "file_type": "code",
+      "source_file": "lib/spotify.ts",
+      "source_location": "L93",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_spotify_gettrendingspotifytracks",
+      "community": 82,
+      "community_name": "spotify.ts",
+      "norm_label": "gettrendingspotifytracks()"
+    },
+    {
       "label": "mapSpotifyAlbumItems()",
       "file_type": "code",
       "source_file": "lib/spotify.ts",
@@ -16520,6 +16508,18 @@
       "community": 82,
       "community_name": "spotify.ts",
       "norm_label": "searchspotifytracks()"
+    },
+    {
+      "label": "getTrendingYouTubeTracks()",
+      "file_type": "code",
+      "source_file": "lib/youtube.ts",
+      "source_location": "L692",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_youtube_gettrendingyoutubetracks",
+      "community": 82,
+      "community_name": "spotify.ts",
+      "norm_label": "gettrendingyoutubetracks()"
     },
     {
       "label": ".test_add_breakpoints()",
@@ -18314,17 +18314,6 @@
       "norm_label": "framer-motion"
     },
     {
-      "label": "lamejs",
-      "file_type": "code",
-      "source_file": "package.json",
-      "source_location": "L21",
-      "_origin": "ast",
-      "id": "package_dependencies_lamejs",
-      "community": 10,
-      "community_name": "dependencies",
-      "norm_label": "lamejs"
-    },
-    {
       "label": "lucide-react",
       "file_type": "code",
       "source_file": "package.json",
@@ -18334,6 +18323,17 @@
       "community": 10,
       "community_name": "dependencies",
       "norm_label": "lucide-react"
+    },
+    {
+      "label": "next-auth",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L26",
+      "_origin": "ast",
+      "id": "package_dependencies_next_auth",
+      "community": 10,
+      "community_name": "dependencies",
+      "norm_label": "next-auth"
     },
     {
       "label": "react",
@@ -18424,17 +18424,6 @@
       "norm_label": "framer-motion"
     },
     {
-      "label": "lamejs",
-      "file_type": "concept",
-      "source_file": "package.json",
-      "source_location": "L21",
-      "_origin": "ast",
-      "id": "lamejs",
-      "community": 10,
-      "community_name": "dependencies",
-      "norm_label": "lamejs"
-    },
-    {
       "label": "lucide-react",
       "file_type": "concept",
       "source_file": "package.json",
@@ -18444,6 +18433,17 @@
       "community": 10,
       "community_name": "dependencies",
       "norm_label": "lucide-react"
+    },
+    {
+      "label": "next-auth",
+      "file_type": "concept",
+      "source_file": "package.json",
+      "source_location": "L26",
+      "_origin": "ast",
+      "id": "next_auth",
+      "community": 10,
+      "community_name": "dependencies",
+      "norm_label": "next-auth"
     },
     {
       "label": "react",
@@ -20902,28 +20902,6 @@
       "label": "$type",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L41",
-      "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_1_type",
-      "community": 110,
-      "community_name": "spacing",
-      "norm_label": "$type"
-    },
-    {
-      "label": "$value",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L41",
-      "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_1_value",
-      "community": 110,
-      "community_name": "spacing",
-      "norm_label": "$value"
-    },
-    {
-      "label": "$type",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
       "source_location": "L42",
       "_origin": "ast",
       "id": "agents_skills_design_system_templates_design_tokens_starter_2_type",
@@ -21009,6 +20987,28 @@
       "norm_label": "$value"
     },
     {
+      "label": "$type",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L47",
+      "_origin": "ast",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_8_type",
+      "community": 110,
+      "community_name": "spacing",
+      "norm_label": "$type"
+    },
+    {
+      "label": "$value",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L47",
+      "_origin": "ast",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_8_value",
+      "community": 110,
+      "community_name": "spacing",
+      "norm_label": "$value"
+    },
+    {
       "label": "spacing",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
@@ -21018,17 +21018,6 @@
       "community": 110,
       "community_name": "spacing",
       "norm_label": "spacing"
-    },
-    {
-      "label": "1",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L41",
-      "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_spacing_1",
-      "community": 110,
-      "community_name": "spacing",
-      "norm_label": "1"
     },
     {
       "label": "10",
@@ -21095,6 +21084,17 @@
       "community": 110,
       "community_name": "spacing",
       "norm_label": "6"
+    },
+    {
+      "label": "8",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L47",
+      "_origin": "ast",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_spacing_8",
+      "community": 110,
+      "community_name": "spacing",
+      "norm_label": "8"
     },
     {
       "label": "tailwind_config_gen.py",
@@ -28815,7 +28815,7 @@
       "_origin": "ast",
       "id": "app_api_artist_route",
       "community": 162,
-      "community_name": "artist/route.ts",
+      "community_name": "deezer.ts",
       "norm_label": "artist/route.ts"
     },
     {
@@ -28826,8 +28826,19 @@
       "_origin": "ast",
       "id": "lib_artistaudience",
       "community": 162,
-      "community_name": "artist/route.ts",
+      "community_name": "deezer.ts",
       "norm_label": "artistaudience.ts"
+    },
+    {
+      "label": "deezer.ts",
+      "file_type": "code",
+      "source_file": "lib/deezer.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "lib_deezer",
+      "community": 162,
+      "community_name": "deezer.ts",
+      "norm_label": "deezer.ts"
     },
     {
       "label": "nhaccuatui/resolve-stream/route.ts",
@@ -32339,17 +32350,6 @@
       "norm_label": "tests for shadcn_add.py"
     },
     {
-      "label": "Test adding components that are already installed.",
-      "file_type": "rationale",
-      "source_file": ".agents/skills/ui-styling/scripts/tests/test_shadcn_add.py",
-      "source_location": "L112",
-      "_origin": "ast",
-      "id": "agents_skills_ui_styling_scripts_tests_test_shadcn_add_rationale_112",
-      "community": 190,
-      "community_name": "ShadcnInstaller",
-      "norm_label": "test adding components that are already installed."
-    },
-    {
       "label": "Test listing installed components when they exist.",
       "file_type": "rationale",
       "source_file": ".agents/skills/ui-styling/scripts/tests/test_shadcn_add.py",
@@ -32359,6 +32359,17 @@
       "community": 190,
       "community_name": "ShadcnInstaller",
       "norm_label": "test listing installed components when they exist."
+    },
+    {
+      "label": "Test getting installed components when files exist.",
+      "file_type": "rationale",
+      "source_file": ".agents/skills/ui-styling/scripts/tests/test_shadcn_add.py",
+      "source_location": "L77",
+      "_origin": "ast",
+      "id": "agents_skills_ui_styling_scripts_tests_test_shadcn_add_rationale_77",
+      "community": 190,
+      "community_name": "ShadcnInstaller",
+      "norm_label": "test getting installed components when files exist."
     },
     {
       "label": "Test getting installed components without config.",
@@ -32797,7 +32808,7 @@
       "_origin": "ast",
       "id": "app_api_albums_resolve_route",
       "community": 196,
-      "community_name": "deezer.ts",
+      "community_name": "resolve/route.ts",
       "norm_label": "resolve/route.ts"
     },
     {
@@ -32808,7 +32819,7 @@
       "_origin": "ast",
       "id": "app_api_albums_resolve_route_resolvememorycache",
       "community": 196,
-      "community_name": "deezer.ts",
+      "community_name": "resolve/route.ts",
       "norm_label": "resolvememorycache"
     },
     {
@@ -32819,19 +32830,8 @@
       "_origin": "ast",
       "id": "app_api_albums_search_route",
       "community": 196,
-      "community_name": "deezer.ts",
+      "community_name": "resolve/route.ts",
       "norm_label": "albums/search/route.ts"
-    },
-    {
-      "label": "deezer.ts",
-      "file_type": "code",
-      "source_file": "lib/deezer.ts",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "lib_deezer",
-      "community": 196,
-      "community_name": "deezer.ts",
-      "norm_label": "deezer.ts"
     },
     {
       "label": "match-stream/route.ts",
@@ -34504,6 +34504,50 @@
       "community": 208,
       "community_name": "tasteskill: Anti-Slop Frontend Skill",
       "norm_label": "14. final pre-flight check"
+    },
+    {
+      "label": "1.A Dial Inference (design read \u2192 dial values)",
+      "file_type": "document",
+      "source_file": ".agents/skills/design-taste-frontend/SKILL.md",
+      "source_location": "L53",
+      "_origin": "ast",
+      "id": "agents_skills_design_taste_frontend_skill_1_a_dial_inference_design_read_dial_values",
+      "community": 208,
+      "community_name": "tasteskill: Anti-Slop Frontend Skill",
+      "norm_label": "1.a dial inference (design read \u2192 dial values)"
+    },
+    {
+      "label": "1.B Use-Case Presets",
+      "file_type": "document",
+      "source_file": ".agents/skills/design-taste-frontend/SKILL.md",
+      "source_location": "L64",
+      "_origin": "ast",
+      "id": "agents_skills_design_taste_frontend_skill_1_b_use_case_presets",
+      "community": 208,
+      "community_name": "tasteskill: Anti-Slop Frontend Skill",
+      "norm_label": "1.b use-case presets"
+    },
+    {
+      "label": "1.C How the Dials Drive Output",
+      "file_type": "document",
+      "source_file": ".agents/skills/design-taste-frontend/SKILL.md",
+      "source_location": "L77",
+      "_origin": "ast",
+      "id": "agents_skills_design_taste_frontend_skill_1_c_how_the_dials_drive_output",
+      "community": 208,
+      "community_name": "tasteskill: Anti-Slop Frontend Skill",
+      "norm_label": "1.c how the dials drive output"
+    },
+    {
+      "label": "1. THE THREE DIALS (Core Configuration)",
+      "file_type": "document",
+      "source_file": ".agents/skills/design-taste-frontend/SKILL.md",
+      "source_location": "L43",
+      "_origin": "ast",
+      "id": "agents_skills_design_taste_frontend_skill_1_the_three_dials_core_configuration",
+      "community": 208,
+      "community_name": "tasteskill: Anti-Slop Frontend Skill",
+      "norm_label": "1. the three dials (core configuration)"
     },
     {
       "label": "2.A When to reach for a real design system (use official packages)",
@@ -37113,47 +37157,91 @@
       "norm_label": "parse the canonical condition -> action-array representation."
     },
     {
-      "label": "padding-y",
+      "label": "padding-x",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L111",
+      "source_location": "L110",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_button_padding_y",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_button_padding_x",
       "community": 235,
-      "community_name": "padding-y",
-      "norm_label": "padding-y"
+      "community_name": "input",
+      "norm_label": "padding-x"
     },
     {
-      "label": "padding-y",
+      "label": "input",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L120",
+      "source_location": "L115",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_input_padding_y",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_component_input",
       "community": 235,
-      "community_name": "padding-y",
-      "norm_label": "padding-y"
+      "community_name": "input",
+      "norm_label": "input"
     },
     {
       "label": "$type",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L111",
+      "source_location": "L118",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_padding_y_type",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_focus_ring_type",
       "community": 235,
-      "community_name": "padding-y",
+      "community_name": "input",
       "norm_label": "$type"
     },
     {
       "label": "$value",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L111",
+      "source_location": "L118",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_padding_y_value",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_focus_ring_value",
       "community": 235,
-      "community_name": "padding-y",
+      "community_name": "input",
+      "norm_label": "$value"
+    },
+    {
+      "label": "focus-ring",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L118",
+      "_origin": "ast",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_input_focus_ring",
+      "community": 235,
+      "community_name": "input",
+      "norm_label": "focus-ring"
+    },
+    {
+      "label": "padding-x",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L119",
+      "_origin": "ast",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_input_padding_x",
+      "community": 235,
+      "community_name": "input",
+      "norm_label": "padding-x"
+    },
+    {
+      "label": "$type",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L110",
+      "_origin": "ast",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_padding_x_type",
+      "community": 235,
+      "community_name": "input",
+      "norm_label": "$type"
+    },
+    {
+      "label": "$value",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L110",
+      "_origin": "ast",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_padding_x_value",
+      "community": 235,
+      "community_name": "input",
       "norm_label": "$value"
     },
     {
@@ -38697,91 +38785,47 @@
       "norm_label": "visual companion"
     },
     {
-      "label": "padding-x",
+      "label": "padding-y",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L110",
+      "source_location": "L111",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_button_padding_x",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_button_padding_y",
       "community": 252,
-      "community_name": "input",
-      "norm_label": "padding-x"
+      "community_name": "padding-y",
+      "norm_label": "padding-y"
     },
     {
-      "label": "input",
+      "label": "padding-y",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L115",
+      "source_location": "L120",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_component_input",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_input_padding_y",
       "community": 252,
-      "community_name": "input",
-      "norm_label": "input"
+      "community_name": "padding-y",
+      "norm_label": "padding-y"
     },
     {
       "label": "$type",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L118",
+      "source_location": "L111",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_focus_ring_type",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_padding_y_type",
       "community": 252,
-      "community_name": "input",
+      "community_name": "padding-y",
       "norm_label": "$type"
     },
     {
       "label": "$value",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L118",
+      "source_location": "L111",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_focus_ring_value",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_padding_y_value",
       "community": 252,
-      "community_name": "input",
-      "norm_label": "$value"
-    },
-    {
-      "label": "focus-ring",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L118",
-      "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_input_focus_ring",
-      "community": 252,
-      "community_name": "input",
-      "norm_label": "focus-ring"
-    },
-    {
-      "label": "padding-x",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L119",
-      "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_input_padding_x",
-      "community": 252,
-      "community_name": "input",
-      "norm_label": "padding-x"
-    },
-    {
-      "label": "$type",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L110",
-      "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_padding_x_type",
-      "community": 252,
-      "community_name": "input",
-      "norm_label": "$type"
-    },
-    {
-      "label": "$value",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L110",
-      "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_padding_x_value",
-      "community": 252,
-      "community_name": "input",
+      "community_name": "padding-y",
       "norm_label": "$value"
     },
     {
@@ -43301,48 +43345,37 @@
       "norm_label": "playerbarinteraction.test.ts"
     },
     {
-      "label": "1.A Dial Inference (design read \u2192 dial values)",
-      "file_type": "document",
-      "source_file": ".agents/skills/design-taste-frontend/SKILL.md",
-      "source_location": "L53",
+      "label": "$type",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L41",
       "_origin": "ast",
-      "id": "agents_skills_design_taste_frontend_skill_1_a_dial_inference_design_read_dial_values",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_1_type",
       "community": 315,
-      "community_name": "1. THE THREE DIALS (Core Configuration)",
-      "norm_label": "1.a dial inference (design read \u2192 dial values)"
+      "community_name": "1",
+      "norm_label": "$type"
     },
     {
-      "label": "1.B Use-Case Presets",
-      "file_type": "document",
-      "source_file": ".agents/skills/design-taste-frontend/SKILL.md",
-      "source_location": "L64",
+      "label": "$value",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L41",
       "_origin": "ast",
-      "id": "agents_skills_design_taste_frontend_skill_1_b_use_case_presets",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_1_value",
       "community": 315,
-      "community_name": "1. THE THREE DIALS (Core Configuration)",
-      "norm_label": "1.b use-case presets"
+      "community_name": "1",
+      "norm_label": "$value"
     },
     {
-      "label": "1.C How the Dials Drive Output",
-      "file_type": "document",
-      "source_file": ".agents/skills/design-taste-frontend/SKILL.md",
-      "source_location": "L77",
+      "label": "1",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L41",
       "_origin": "ast",
-      "id": "agents_skills_design_taste_frontend_skill_1_c_how_the_dials_drive_output",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_spacing_1",
       "community": 315,
-      "community_name": "1. THE THREE DIALS (Core Configuration)",
-      "norm_label": "1.c how the dials drive output"
-    },
-    {
-      "label": "1. THE THREE DIALS (Core Configuration)",
-      "file_type": "document",
-      "source_file": ".agents/skills/design-taste-frontend/SKILL.md",
-      "source_location": "L43",
-      "_origin": "ast",
-      "id": "agents_skills_design_taste_frontend_skill_1_the_three_dials_core_configuration",
-      "community": 315,
-      "community_name": "1. THE THREE DIALS (Core Configuration)",
-      "norm_label": "1. the three dials (core configuration)"
+      "community_name": "1",
+      "norm_label": "1"
     },
     {
       "label": "Test adding components without shadcn config.",
@@ -43433,37 +43466,37 @@
       "norm_label": "next"
     },
     {
-      "label": "destructive",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L95",
-      "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_color_destructive",
-      "community": 319,
-      "community_name": "destructive",
-      "norm_label": "destructive"
-    },
-    {
       "label": "$type",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L95",
+      "source_location": "L40",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_destructive_type",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_0_type",
       "community": 319,
-      "community_name": "destructive",
+      "community_name": "0",
       "norm_label": "$type"
     },
     {
       "label": "$value",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L95",
+      "source_location": "L40",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_destructive_value",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_0_value",
       "community": 319,
-      "community_name": "destructive",
+      "community_name": "0",
       "norm_label": "$value"
+    },
+    {
+      "label": "0",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L40",
+      "_origin": "ast",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_spacing_0",
+      "community": 319,
+      "community_name": "0",
+      "norm_label": "0"
     },
     {
       "label": "test_smtp.js",
@@ -44170,26 +44203,37 @@
       "norm_label": "delegate to unified html-token-validator.py with --type slides."
     },
     {
-      "label": "trending/route.ts",
+      "label": "destructive",
       "file_type": "code",
-      "source_file": "app/api/trending/route.ts",
-      "source_location": "L1",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L95",
       "_origin": "ast",
-      "id": "app_api_trending_route",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_color_destructive",
       "community": 338,
-      "community_name": "trending/route.ts",
-      "norm_label": "trending/route.ts"
+      "community_name": "destructive",
+      "norm_label": "destructive"
     },
     {
-      "label": "runtime",
+      "label": "$type",
       "file_type": "code",
-      "source_file": "app/api/trending/route.ts",
-      "source_location": "L5",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L95",
       "_origin": "ast",
-      "id": "app_api_trending_route_runtime",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_destructive_type",
       "community": 338,
-      "community_name": "trending/route.ts",
-      "norm_label": "runtime"
+      "community_name": "destructive",
+      "norm_label": "$type"
+    },
+    {
+      "label": "$value",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L95",
+      "_origin": "ast",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_destructive_value",
+      "community": 338,
+      "community_name": "destructive",
+      "norm_label": "$value"
     },
     {
       "label": "xl",
@@ -44929,37 +44973,15 @@
       "norm_label": "backgroundtaboptimization.test.ts"
     },
     {
-      "label": "$type",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L40",
+      "label": "Test adding components that are already installed.",
+      "file_type": "rationale",
+      "source_file": ".agents/skills/ui-styling/scripts/tests/test_shadcn_add.py",
+      "source_location": "L112",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_0_type",
+      "id": "agents_skills_ui_styling_scripts_tests_test_shadcn_add_rationale_112",
       "community": 361,
-      "community_name": "0",
-      "norm_label": "$type"
-    },
-    {
-      "label": "$value",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L40",
-      "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_0_value",
-      "community": 361,
-      "community_name": "0",
-      "norm_label": "$value"
-    },
-    {
-      "label": "0",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L40",
-      "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_spacing_0",
-      "community": 361,
-      "community_name": "0",
-      "norm_label": "0"
+      "community_name": ".test_add_components_already_installed",
+      "norm_label": "test adding components that are already installed."
     },
     {
       "label": "Test initialization with dry run mode.",
@@ -45017,15 +45039,26 @@
       "norm_label": "test getting installed components when none exist."
     },
     {
-      "label": "Test getting installed components when files exist.",
-      "file_type": "rationale",
-      "source_file": ".agents/skills/ui-styling/scripts/tests/test_shadcn_add.py",
-      "source_location": "L77",
+      "label": "lamejs",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L21",
       "_origin": "ast",
-      "id": "agents_skills_ui_styling_scripts_tests_test_shadcn_add_rationale_77",
+      "id": "package_dependencies_lamejs",
       "community": 365,
-      "community_name": ".test_get_installed_components_with_files",
-      "norm_label": "test getting installed components when files exist."
+      "community_name": "lamejs",
+      "norm_label": "lamejs"
+    },
+    {
+      "label": "lamejs",
+      "file_type": "concept",
+      "source_file": "package.json",
+      "source_location": "L21",
+      "_origin": "ast",
+      "id": "lamejs",
+      "community": 365,
+      "community_name": "lamejs",
+      "norm_label": "lamejs"
     },
     {
       "label": "$type",
@@ -45378,61 +45411,6 @@
       "community": 386,
       "community_name": "music-metadata-browser",
       "norm_label": "music-metadata-browser"
-    },
-    {
-      "label": "$type",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L47",
-      "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_8_type",
-      "community": 387,
-      "community_name": "8",
-      "norm_label": "$type"
-    },
-    {
-      "label": "$value",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L47",
-      "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_8_value",
-      "community": 387,
-      "community_name": "8",
-      "norm_label": "$value"
-    },
-    {
-      "label": "8",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L47",
-      "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_spacing_8",
-      "community": 387,
-      "community_name": "8",
-      "norm_label": "8"
-    },
-    {
-      "label": "next-auth",
-      "file_type": "code",
-      "source_file": "package.json",
-      "source_location": "L26",
-      "_origin": "ast",
-      "id": "package_dependencies_next_auth",
-      "community": 388,
-      "community_name": "next-auth",
-      "norm_label": "next-auth"
-    },
-    {
-      "label": "next-auth",
-      "file_type": "concept",
-      "source_file": "package.json",
-      "source_location": "L26",
-      "_origin": "ast",
-      "id": "next_auth",
-      "community": 388,
-      "community_name": "next-auth",
-      "norm_label": "next-auth"
     },
     {
       "label": "nodemailer",
@@ -46335,6 +46313,28 @@
       "community": 59,
       "community_name": "sw.js",
       "norm_label": "sw.js"
+    },
+    {
+      "label": "new-releases/route.ts",
+      "file_type": "code",
+      "source_file": "app/api/albums/new-releases/route.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_api_albums_new_releases_route",
+      "community": 6,
+      "community_name": "itunes.ts",
+      "norm_label": "new-releases/route.ts"
+    },
+    {
+      "label": "dynamic",
+      "file_type": "code",
+      "source_file": "app/api/albums/new-releases/route.ts",
+      "source_location": "L6",
+      "_origin": "ast",
+      "id": "app_api_albums_new_releases_route_dynamic",
+      "community": 6,
+      "community_name": "itunes.ts",
+      "norm_label": "dynamic"
     },
     {
       "label": "itunes.ts",
@@ -51606,28 +51606,6 @@
       "norm_label": "search stack-specific guidelines"
     },
     {
-      "label": "new-releases/route.ts",
-      "file_type": "code",
-      "source_file": "app/api/albums/new-releases/route.ts",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_api_albums_new_releases_route",
-      "community": 82,
-      "community_name": "spotify.ts",
-      "norm_label": "new-releases/route.ts"
-    },
-    {
-      "label": "dynamic",
-      "file_type": "code",
-      "source_file": "app/api/albums/new-releases/route.ts",
-      "source_location": "L6",
-      "_origin": "ast",
-      "id": "app_api_albums_new_releases_route_dynamic",
-      "community": 82,
-      "community_name": "spotify.ts",
-      "norm_label": "dynamic"
-    },
-    {
       "label": "spotify/playlist/route.ts",
       "file_type": "code",
       "source_file": "app/api/spotify/playlist/route.ts",
@@ -51637,6 +51615,28 @@
       "community": 82,
       "community_name": "spotify.ts",
       "norm_label": "spotify/playlist/route.ts"
+    },
+    {
+      "label": "trending/route.ts",
+      "file_type": "code",
+      "source_file": "app/api/trending/route.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_api_trending_route",
+      "community": 82,
+      "community_name": "spotify.ts",
+      "norm_label": "trending/route.ts"
+    },
+    {
+      "label": "runtime",
+      "file_type": "code",
+      "source_file": "app/api/trending/route.ts",
+      "source_location": "L5",
+      "_origin": "ast",
+      "id": "app_api_trending_route_runtime",
+      "community": 82,
+      "community_name": "spotify.ts",
+      "norm_label": "runtime"
     },
     {
       "label": "spotify.ts",
@@ -63809,7 +63809,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/api/resolve-stream/route.ts",
-      "source_location": "L327",
+      "source_location": "L330",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_api_resolve_stream_route_get",
@@ -63821,7 +63821,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/api/resolve-stream/route.ts",
-      "source_location": "L329",
+      "source_location": "L332",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_api_resolve_stream_route_get",
@@ -63833,7 +63833,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/api/resolve-stream/route.ts",
-      "source_location": "L330",
+      "source_location": "L333",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_api_resolve_stream_route_get",
@@ -63844,7 +63844,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/api/resolve-stream/route.ts",
-      "source_location": "L332",
+      "source_location": "L335",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_api_resolve_stream_route_get",
@@ -63856,7 +63856,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/api/resolve-stream/route.ts",
-      "source_location": "L354",
+      "source_location": "L357",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_api_resolve_stream_route_get",
@@ -63869,7 +63869,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/api/resolve-stream/route.ts",
-      "source_location": "L359",
+      "source_location": "L362",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_api_resolve_stream_route_get",
@@ -63880,7 +63880,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/api/resolve-stream/route.ts",
-      "source_location": "L371",
+      "source_location": "L374",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_api_resolve_stream_route_get",
@@ -63892,7 +63892,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/api/resolve-stream/route.ts",
-      "source_location": "L410",
+      "source_location": "L413",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_api_resolve_stream_route_get",
@@ -63976,7 +63976,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/api/resolve-stream/route.ts",
-      "source_location": "L207",
+      "source_location": "L210",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_api_resolve_stream_route_resolvestream",
@@ -63988,7 +63988,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/api/resolve-stream/route.ts",
-      "source_location": "L230",
+      "source_location": "L233",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_api_resolve_stream_route_resolvestream",
@@ -64000,7 +64000,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/api/resolve-stream/route.ts",
-      "source_location": "L238",
+      "source_location": "L241",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_api_resolve_stream_route_resolvestream",
@@ -64012,7 +64012,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/api/resolve-stream/route.ts",
-      "source_location": "L263",
+      "source_location": "L266",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_api_resolve_stream_route_resolvestream",
@@ -66677,7 +66677,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L1076",
+      "source_location": "L1079",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -66689,7 +66689,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L1078",
+      "source_location": "L1081",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -66701,7 +66701,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L1522",
+      "source_location": "L1531",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -66713,7 +66713,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L1674",
+      "source_location": "L1683",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -66725,7 +66725,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L1725",
+      "source_location": "L1734",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -66737,7 +66737,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L2340",
+      "source_location": "L2372",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -66749,7 +66749,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L2353",
+      "source_location": "L2385",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -66797,7 +66797,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L2936",
+      "source_location": "L2968",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -66821,7 +66821,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L416",
+      "source_location": "L417",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -66833,7 +66833,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L417",
+      "source_location": "L418",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -66845,7 +66845,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L421",
+      "source_location": "L422",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -66857,7 +66857,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L433",
+      "source_location": "L434",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -66868,7 +66868,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L502",
+      "source_location": "L503",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -66881,7 +66881,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L532",
+      "source_location": "L533",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -66893,7 +66893,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L608",
+      "source_location": "L609",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -66905,7 +66905,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L665",
+      "source_location": "L666",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -66917,7 +66917,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L671",
+      "source_location": "L672",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -66929,7 +66929,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L688",
+      "source_location": "L689",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -66941,7 +66941,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L690",
+      "source_location": "L691",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -66953,7 +66953,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L699",
+      "source_location": "L700",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -66965,7 +66965,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L761",
+      "source_location": "L762",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -66977,7 +66977,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L770",
+      "source_location": "L771",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -66989,7 +66989,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L794",
+      "source_location": "L795",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -67001,7 +67001,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L816",
+      "source_location": "L817",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -67013,7 +67013,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L824",
+      "source_location": "L825",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -67025,7 +67025,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L932",
+      "source_location": "L933",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -67037,7 +67037,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L934",
+      "source_location": "L935",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -67049,7 +67049,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L941",
+      "source_location": "L942",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -67061,7 +67061,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L957",
+      "source_location": "L958",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -67073,7 +67073,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L977",
+      "source_location": "L978",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -67085,7 +67085,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L979",
+      "source_location": "L980",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -119054,7 +119054,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/api/resolve-stream/route.ts",
-      "source_location": "L315",
+      "source_location": "L318",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_api_resolve_stream_route",
@@ -119087,7 +119087,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/api/resolve-stream/route.ts",
-      "source_location": "L452",
+      "source_location": "L455",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_api_resolve_stream_route",
@@ -121430,7 +121430,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L3271",
+      "source_location": "L3303",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext",
@@ -140906,7 +140906,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L1485",
+      "source_location": "L1494",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -141086,7 +141086,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "components/player/PlayerContext.tsx",
-      "source_location": "L2071",
+      "source_location": "L2088",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_playercontext_playerprovider",
@@ -141094,5 +141094,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "ff43381df7334d1b1a6f07590608a86cbc4bcae1"
+  "built_at_commit": "092419ab740177e9d16e5fcf53f7fa6fa991b3d6"
 }

@@ -40,6 +40,7 @@ import {
   Loader2,
   Share2,
   Cloud,
+  Languages,
 } from 'lucide-react'
 
 const StageWithFrequencyData = React.memo(function StageWithFrequencyData({
@@ -104,6 +105,23 @@ export function NowPlayingOverlay() {
   const [showShareModal, setShowShareModal] = useState(false)
   const [shareLyrics, setShareLyrics] = useState<LyricLine[]>([])
   const [isLiquidGlass, setIsLiquidGlass] = useState(false)
+  const [showRomaji, setShowRomaji] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('musicweb_show_romaji')
+      if (saved !== null) return saved === 'true'
+    }
+    return true
+  })
+
+  const toggleRomaji = () => {
+    setShowRomaji((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem('musicweb_show_romaji', String(next))
+      } catch {}
+      return next
+    })
+  }
 
   useEffect(() => {
     const root = document.documentElement
@@ -358,8 +376,32 @@ export function NowPlayingOverlay() {
             <span className="hidden sm:inline">Thu nhỏ</span>
           </button>
 
-          {/* Right Header context badge */}
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Right Header context badge & Romaji Toggle */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            {/* Romaji Transliteration Toggle Button (Icon Only) */}
+            <button
+              onClick={toggleRomaji}
+              style={
+                showRomaji
+                  ? {
+                      backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.2))',
+                      borderColor: 'var(--spotify-glow, #22d3ee)',
+                      color: 'var(--spotify-glow, #22d3ee)',
+                      boxShadow: '0 0 12px var(--theme-glow-shadow)',
+                    }
+                  : {
+                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                      borderColor: 'rgba(255, 255, 255, 0.1)',
+                      color: 'rgba(255, 255, 255, 0.6)',
+                    }
+              }
+              className="p-2 rounded-full flex items-center justify-center border transition-all cursor-pointer hover:scale-110 active:scale-95 shadow-sm"
+              title="Bật/Tắt phiên âm Romaji / Pinyin"
+              aria-label="Bật/Tắt phiên âm Romaji"
+            >
+              <Languages className="w-4 h-4" />
+            </button>
+
             {currentTrack.source === 'soundcloud' ? (
               <span className="fullview-header-badge text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/40 flex items-center gap-1.5 shadow-[0_0_12px_rgba(255,85,0,0.3)]">
                 <Cloud className="w-3 h-3 text-[#ff7700]" />
@@ -392,7 +434,7 @@ export function NowPlayingOverlay() {
           {/* Layer 3: Right Column Lyrics */}
           <div className="absolute inset-0 z-10 w-full h-full max-w-[1360px] xl:max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-end pointer-events-none">
             <div className="w-full max-w-[640px] lg:w-[50%] xl:w-[48%] h-full pointer-events-auto flex flex-col justify-center pb-24 sm:pb-28 lg:pb-32 pt-2 sm:pt-4">
-              <LyricsView isModal={false} showControls={false} showHeader={false} />
+              <LyricsView isModal={false} showControls={false} showHeader={false} showRomaji={showRomaji} onToggleRomaji={toggleRomaji} />
             </div>
           </div>
 
@@ -602,8 +644,30 @@ export function NowPlayingOverlay() {
 
           </div>
 
-          {/* Right: Volume & Favorite Controls (Clean Fullview) */}
-          <div className="w-1/4 flex justify-end items-center gap-3 min-w-0">
+          {/* Right: Volume, Romaji & Favorite Controls (Clean Fullview) */}
+          <div className="w-1/4 flex justify-end items-center gap-2.5 min-w-0">
+            <button
+              onClick={toggleRomaji}
+              style={
+                showRomaji
+                  ? {
+                      color: 'var(--spotify-glow, #22d3ee)',
+                      backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                      borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
+                    }
+                  : undefined
+              }
+              className={`p-2 rounded-xl border transition-all flex items-center justify-center ${
+                showRomaji
+                  ? 'border shadow-md'
+                  : 'text-slate-400 border-transparent hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/5'
+              }`}
+              title="Bật/Tắt phiên âm Romaji / Pinyin"
+              aria-label="Bật/Tắt phiên âm Romaji"
+            >
+              <Languages className="w-4 h-4" />
+            </button>
+
             <button
               onClick={handleOpenShare}
               className="p-2 rounded-xl transition-all text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/5"

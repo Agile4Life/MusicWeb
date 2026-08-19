@@ -1,16 +1,16 @@
 # Graph Report - MusicWeb  (2026-08-19)
 
 ## Corpus Check
-- 517 files · ~611,722 words
+- 517 files · ~611,935 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 4874 nodes · 7510 edges · 399 communities (328 shown, 71 thin omitted)
+- 4874 nodes · 7510 edges · 397 communities (326 shown, 71 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 71 edges (avg confidence: 0.57)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `ff43381d`
+- Built from commit: `092419ab`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -163,7 +163,7 @@
 - test_design_system_mode.py
 - Using Git Worktrees
 - Writing Skills
-- artist/route.ts
+- deezer.ts
 - nhaccuatui/stream/route.ts
 - _style_is_dark_primary
 - Banner Design - Multi-Format Creative Banner System
@@ -197,7 +197,7 @@
 - audioPlayback.ts
 - Writing Plans
 - [Analysis Title]
-- deezer.ts
+- resolve/route.ts
 - match-stream/route.ts
 - Implementation steps
 - Implementation steps
@@ -236,7 +236,7 @@
 - Skill structure
 - announcement/route.ts
 - parse_decision_rules
-- padding-y
+- input
 - Stream Optimization Plan
 - 2. Proposed Changes & Architecture
 - sync-brand-to-tokens.cjs
@@ -253,7 +253,7 @@
 - query_history.js
 - test_auth.js
 - Brainstorming Ideas Into Designs
-- input
+- padding-y
 - 9. AI TELLS (Forbidden Patterns)
 - 8. ANTI-AI-SLOP RULES
 - Html5AudioEngine.ts
@@ -316,11 +316,11 @@
 - RED-GREEN-REFACTOR for Skills
 - VERIFY GREEN: Pressure Testing
 - playerBarInteraction.ts
-- 1. THE THREE DIALS (Core Configuration)
+- 1
 - .test_add_components_no_config
 - Global Constraints
 - next
-- destructive
+- 0
 - TestGeneratedCatalogContract
 - lg
 - .test_add_components_no_components
@@ -339,7 +339,7 @@
 - README.md
 - test_sync_brand_to_tokens.py
 - main
-- trending/route.ts
+- destructive
 - xl
 - none
 - Evaluation and iteration
@@ -361,11 +361,11 @@
 - slides-create.md
 - create.md
 - test-academic.md
-- 0
+- .test_add_components_already_installed
 - .test_init_dry_run
 - 16
 - .test_get_installed_components_empty
-- .test_get_installed_components_with_files
+- lamejs
 - 3
 - .test_add_fonts
 - .test_recommend_plugins
@@ -387,8 +387,6 @@
 - workflows/graphify.md
 - lottie-web
 - music-metadata-browser
-- 8
-- next-auth
 - nodemailer
 - @supabase/supabase-js
 - tailwind-merge
@@ -423,7 +421,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (399 total, 71 thin omitted)
+## Communities (397 total, 71 thin omitted)
 
 ### Community 0 - "AuthForm.tsx"
 Cohesion: 0.13
@@ -442,16 +440,16 @@ Cohesion: 0.24
 Nodes (16): NowPlayingOverlay(), PlayerBar(), clearAlbumCache(), GENERIC_PLACEHOLDERS, getCachedResolvedAlbum(), invalidateCachedAlbum(), isKnownBadFallback(), isRealAlbumName() (+8 more)
 
 ### Community 4 - "queueRecommend.ts"
-Cohesion: 0.19
-Nodes (20): GET(), queueCache, getDeezerArtistRadio(), getDeezerArtistTopTracks(), getDeezerRelatedArtistsTopTracks(), mapDeezerTracksToQueue(), searchDeezerArtist(), buildNextQueue() (+12 more)
+Cohesion: 0.20
+Nodes (19): GET(), queueCache, getDeezerArtistRadio(), getDeezerArtistTopTracks(), getDeezerRelatedArtistsTopTracks(), mapDeezerTracksToQueue(), buildNextQueue(), dedupCandidates() (+11 more)
 
 ### Community 5 - "server.cjs"
 Cohesion: 0.06
 Nodes (56): bootstrapPage(), brandMarkup(), broadcast(), browserLauncherForPlatform(), chmodOwnerOnly(), clients, companionUrl(), computeAcceptKey() (+48 more)
 
 ### Community 6 - "itunes.ts"
-Cohesion: 0.23
-Nodes (9): cleanArtworkUrl(), ITunesAlbumDetail, ITunesAlbumItem, ITunesLookupResult, ITunesRssEntry, ITunesSearchResult, mapITunesAlbums(), mapITunesRssAlbums() (+1 more)
+Cohesion: 0.16
+Nodes (15): dynamic, GET(), normalizeAlbumKey(), TrendingAlbum, fetchDeezerNewReleases(), cleanArtworkUrl(), getTrendingITunesAlbums(), ITunesAlbumDetail (+7 more)
 
 ### Community 7 - "Track"
 Cohesion: 0.07
@@ -467,7 +465,7 @@ Nodes (10): fraunces, ibmPlexMono, inter, jetbrainsMono, metadata, spaceGrotesk,
 
 ### Community 10 - "dependencies"
 Cohesion: 0.10
-Nodes (21): @breezystack/lamejs, clsx, @distube/ytdl-core, framer-motion, lamejs, lucide-react, dependencies, @breezystack/lamejs (+13 more)
+Nodes (21): @breezystack/lamejs, clsx, @distube/ytdl-core, framer-motion, lucide-react, next-auth, dependencies, @breezystack/lamejs (+13 more)
 
 ### Community 11 - "devDependencies"
 Cohesion: 0.09
@@ -638,8 +636,8 @@ Cohesion: 0.10
 Nodes (8): _exact_stack_identifier(), Resolve a standalone API identifier even when its BM25 IDF is low., Search stack-specific guidelines, search_stack(), _rows(), TestNativeDesktopStackFreshness, _rows(), TestWebStackFreshness
 
 ### Community 82 - "spotify.ts"
-Cohesion: 0.20
-Nodes (18): dynamic, GET(), normalizeAlbumKey(), TrendingAlbum, GET(), fetchDeezerNewReleases(), getTrendingITunesAlbums(), fetchNewReleases() (+10 more)
+Cohesion: 0.21
+Nodes (16): GET(), GET(), runtime, fetchNewReleases(), fetchSpotifyEmbedPlaylistData(), fetchSpotifyNewReleases(), fetchSpotifyPlaylistMeta(), fetchSpotifyPlaylistTracks() (+8 more)
 
 ### Community 83 - "Typography Specifications"
 Cohesion: 0.06
@@ -945,9 +943,9 @@ Nodes (14): 1a. Native Worktree Tools (preferred), 1b. Git Worktree Fallback, Co
 Cohesion: 0.13
 Nodes (15): Code Examples, Common Rationalizations for Skipping Testing, Directory Structure, Discovery Workflow, Flowchart Usage, Match the Form to the Failure, Overview, Skill Creation Checklist (TDD Adapted) (+7 more)
 
-### Community 162 - "artist/route.ts"
-Cohesion: 0.39
-Nodes (7): GET(), normalizeTitleForDedup(), fetchArtistAudienceCount(), parseSubscriberCount(), getSpotifyArtistTopTracks(), normalizeArtistForMatch(), searchSpotifyArtistExact()
+### Community 162 - "deezer.ts"
+Cohesion: 0.23
+Nodes (12): GET(), normalizeTitleForDedup(), fetchArtistAudienceCount(), parseSubscriberCount(), DeezerAlbumItem, extractDeezerArtistName(), normalizeArtistForComparison(), searchDeezerArtist() (+4 more)
 
 ### Community 163 - "nhaccuatui/stream/route.ts"
 Cohesion: 0.17
@@ -1059,7 +1057,7 @@ Nodes (11): Applying the Pattern, Defense-in-Depth Validation, Example from Sess
 
 ### Community 190 - "ShadcnInstaller"
 Cohesion: 0.20
-Nodes (7): main(), Handle shadcn/ui component installation., ShadcnInstaller, Tests for shadcn_add.py, Test adding components that are already installed., Test listing installed components when they exist., Test getting installed components without config.
+Nodes (7): main(), Handle shadcn/ui component installation., ShadcnInstaller, Tests for shadcn_add.py, Test listing installed components when they exist., Test getting installed components when files exist., Test getting installed components without config.
 
 ### Community 191 - ".check_shadcn_config"
 Cohesion: 0.21
@@ -1081,9 +1079,9 @@ Nodes (11): Bite-Sized Task Granularity, Execution Handoff, File Structure, No P
 Cohesion: 0.17
 Nodes (12): Advanced: Skills with executable code, [Analysis Title], Anti-patterns to avoid, Avoid offering too many options, Avoid Windows-style paths, Conditional workflow pattern, Examples pattern, Executive summary (+4 more)
 
-### Community 196 - "deezer.ts"
-Cohesion: 0.18
-Nodes (14): cachedResolveResponse(), cleanTitleString(), GET(), getSupabaseClient(), normalizeText(), resolveMemoryCache, GET(), getSupabaseClient() (+6 more)
+### Community 196 - "resolve/route.ts"
+Cohesion: 0.27
+Nodes (10): cachedResolveResponse(), cleanTitleString(), GET(), getSupabaseClient(), normalizeText(), resolveMemoryCache, GET(), getSupabaseClient() (+2 more)
 
 ### Community 197 - "match-stream/route.ts"
 Cohesion: 0.24
@@ -1130,8 +1128,8 @@ Cohesion: 0.18
 Nodes (8): args, fs, minimal, MINIMAL_TOKENS, path, projectRoot, tokensPath, wrapStyle
 
 ### Community 208 - "tasteskill: Anti-Slop Frontend Skill"
-Cohesion: 0.18
-Nodes (11): 0.A Read these signals first, 0.B Output a one-line "Design Read" before generating, 0. BRIEF INFERENCE (Read the Room Before Anything Else), 0.C If the brief is ambiguous, ask one question, do not guess, 0.D Anti-Default Discipline, 13. OUT OF SCOPE, 14. FINAL PRE-FLIGHT CHECK, 2.A When to reach for a real design system (use official packages) (+3 more)
+Cohesion: 0.13
+Nodes (15): 0.A Read these signals first, 0.B Output a one-line "Design Read" before generating, 0. BRIEF INFERENCE (Read the Room Before Anything Else), 0.C If the brief is ambiguous, ask one question, do not guess, 0.D Anti-Default Discipline, 13. OUT OF SCOPE, 14. FINAL PRE-FLIGHT CHECK, 1.A Dial Inference (design read → dial values) (+7 more)
 
 ### Community 209 - "patch"
 Cohesion: 0.18
@@ -1237,9 +1235,9 @@ Nodes (6): GET(), getSupabaseServerClient(), POST(), AnnouncementData, DEFAULT_A
 Cohesion: 0.31
 Nodes (6): apply_decision_rules(), _object_without_duplicates(), parse_decision_rules(), Return deterministic mutations and an audit trail; never execute data., Parse the canonical condition -> action-array representation., _validate_action()
 
-### Community 235 - "padding-y"
-Cohesion: 0.67
-Nodes (4): padding-y, padding-y, $type, $value
+### Community 235 - "input"
+Cohesion: 0.29
+Nodes (8): padding-x, input, $type, $value, focus-ring, padding-x, $type, $value
 
 ### Community 236 - "Stream Optimization Plan"
 Cohesion: 0.20
@@ -1305,9 +1303,9 @@ Nodes (7): { createClient }, envContent, envPath, envVars, fs, path, supabase
 Cohesion: 0.25
 Nodes (7): After the Design, Anti-Pattern: "This Is Too Simple To Need A Design", Brainstorming Ideas Into Designs, Checklist, Process Flow, The Process, Visual Companion
 
-### Community 252 - "input"
-Cohesion: 0.29
-Nodes (8): padding-x, input, $type, $value, focus-ring, padding-x, $type, $value
+### Community 252 - "padding-y"
+Cohesion: 0.67
+Nodes (4): padding-y, padding-y, $type, $value
 
 ### Community 253 - "9. AI TELLS (Forbidden Patterns)"
 Cohesion: 0.25
@@ -1545,17 +1543,17 @@ Nodes (5): GREEN: Write Minimal Skill, Micro-Test Wording Before Full Scenarios,
 Cohesion: 0.40
 Nodes (5): Key Elements of Good Scenarios, Pressure Types, Testing Setup, VERIFY GREEN: Pressure Testing, Writing Pressure Scenarios
 
-### Community 315 - "1. THE THREE DIALS (Core Configuration)"
-Cohesion: 0.50
-Nodes (4): 1.A Dial Inference (design read → dial values), 1.B Use-Case Presets, 1.C How the Dials Drive Output, 1. THE THREE DIALS (Core Configuration)
+### Community 315 - "1"
+Cohesion: 0.67
+Nodes (3): $type, $value, 1
 
 ### Community 317 - "Global Constraints"
 Cohesion: 0.40
 Nodes (4): Global Constraints, Sidebar Navigation Gliding Indicator & Hover Implementation Plan, Task 1: Add CSS Rules for Gliding Indicator, Nudging, and Ripple Effect, Task 2: Implement Gliding Indicator & Ripple Logic in Sidebar Component
 
-### Community 319 - "destructive"
+### Community 319 - "0"
 Cohesion: 0.67
-Nodes (3): destructive, $type, $value
+Nodes (3): $type, $value, 0
 
 ### Community 321 - "lg"
 Cohesion: 0.60
@@ -1609,9 +1607,9 @@ Nodes (3): POST(), romajiCache, transliterateSingleLine()
 Cohesion: 0.50
 Nodes (3): Deploy on Vercel, Getting Started, Learn More
 
-### Community 338 - "trending/route.ts"
-Cohesion: 0.60
-Nodes (4): GET(), runtime, getTrendingSpotifyTracks(), getTrendingYouTubeTracks()
+### Community 338 - "destructive"
+Cohesion: 0.67
+Nodes (3): destructive, $type, $value
 
 ### Community 339 - "xl"
 Cohesion: 0.67
@@ -1645,10 +1643,6 @@ Nodes (3): ring, $type, $value
 Cohesion: 0.67
 Nodes (3): secondary-foreground, $type, $value
 
-### Community 361 - "0"
-Cohesion: 0.67
-Nodes (3): $type, $value, 0
-
 ### Community 363 - "16"
 Cohesion: 0.67
 Nodes (3): $type, $value, 16
@@ -1656,10 +1650,6 @@ Nodes (3): $type, $value, 16
 ### Community 366 - "3"
 Cohesion: 0.67
 Nodes (3): $type, $value, 3
-
-### Community 387 - "8"
-Cohesion: 0.67
-Nodes (3): $type, $value, 8
 
 ## Knowledge Gaps
 - **2099 isolated node(s):** `crypto`, `http`, `fs`, `path`, `OPCODES` (+2094 more)
@@ -1669,7 +1659,7 @@ Nodes (3): $type, $value, 8
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Track` connect `Track` to `artist/route.ts`, `youtube.ts`, `(app)/layout.tsx`, `deezer.ts`, `itunes.ts`, `queueRecommend.ts`, `PlayerContext.tsx`, `nhaccuatui.ts`, `soundcloudClient.ts`, `lyricsFlow.ts`, `googleDriveUpload.ts`, `createClient`, `LyricsShareModal.tsx`, `spotify.ts`, `utils.ts`, `LyricsView.tsx`, `TrackRow.tsx`, `resolveStreamClient.ts`?**
+- **Why does `Track` connect `Track` to `deezer.ts`, `youtube.ts`, `(app)/layout.tsx`, `queueRecommend.ts`, `itunes.ts`, `PlayerContext.tsx`, `nhaccuatui.ts`, `soundcloudClient.ts`, `lyricsFlow.ts`, `googleDriveUpload.ts`, `createClient`, `LyricsShareModal.tsx`, `spotify.ts`, `utils.ts`, `LyricsView.tsx`, `TrackRow.tsx`, `resolveStreamClient.ts`?**
   _High betweenness centrality (0.010) - this node is a cross-community bridge._
 - **Why does `getValidUserId()` connect `createClient` to `(app)/layout.tsx`, `youtube.ts`, `Track`, `PlayerContext.tsx`, `googleDriveUpload.ts`, `requireUser`, `TrackRow.tsx`?**
   _High betweenness centrality (0.007) - this node is a cross-community bridge._

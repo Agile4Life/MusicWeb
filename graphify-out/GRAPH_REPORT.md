@@ -1,16 +1,16 @@
 # Graph Report - MusicWeb  (2026-08-19)
 
 ## Corpus Check
-- 517 files · ~611,892 words
+- 517 files · ~612,235 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 4874 nodes · 7510 edges · 398 communities (327 shown, 71 thin omitted)
+- 4874 nodes · 7510 edges · 397 communities (326 shown, 71 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 71 edges (avg confidence: 0.57)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e74107e1`
+- Built from commit: `dc692405`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -253,7 +253,7 @@
 - query_history.js
 - test_auth.js
 - Brainstorming Ideas Into Designs
-- padding-x
+- padding-y
 - 9. AI TELLS (Forbidden Patterns)
 - 8. ANTI-AI-SLOP RULES
 - Html5AudioEngine.ts
@@ -301,7 +301,7 @@
 - Hướng Dẫn Deploy Dự Án MusicWeb Lên Vercel
 - Automatic Execution Procedure
 - Brand Guidelines Template
-- $type
+- trending/route.ts
 - radius
 - mobileLayout.ts
 - 12. THE BLOCK LIBRARY (Contract - Implementations Land Here Iteratively)
@@ -320,7 +320,7 @@
 - .test_add_components_no_config
 - Global Constraints
 - next
-- primary
+- 6
 - TestGeneratedCatalogContract
 - lg
 - .test_add_components_no_components
@@ -339,16 +339,16 @@
 - README.md
 - test_sync_brand_to_tokens.py
 - main
-- trending/route.ts
+- destructive
 - xl
 - none
-- Evaluation and iteration
+- foreground
 - nhaccuatui/search/route.ts
-- destructive-foreground
-- muted
-- primary-foreground
+- muted-foreground
+- primary
+- primary-hover
 - ring
-- secondary-foreground
+- Anti-patterns to avoid
 - .__init__
 - .temp_project
 - Antigravity CLI (`agy`) Tool Mapping
@@ -361,10 +361,11 @@
 - slides-create.md
 - create.md
 - test-academic.md
+- .test_get_installed_components_with_files
 - .test_init_dry_run
 - 16
 - .test_get_installed_components_empty
-- .test_get_installed_components_with_files
+- next-auth
 - 3
 - .test_add_fonts
 - .test_recommend_plugins
@@ -386,8 +387,6 @@
 - workflows/graphify.md
 - lottie-web
 - music-metadata-browser
-- 8
-- next-auth
 - nodemailer
 - @supabase/supabase-js
 - tailwind-merge
@@ -422,7 +421,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (398 total, 71 thin omitted)
+## Communities (397 total, 71 thin omitted)
 
 ### Community 0 - "AuthForm.tsx"
 Cohesion: 0.13
@@ -818,7 +817,7 @@ Nodes (18): 1. Wordmark (Logotype), 2. Lettermark (Monogram), 3. Pictorial Mark 
 
 ### Community 127 - "color"
 Cohesion: 0.11
-Nodes (19): $type, $value, background, destructive, foreground, muted-foreground, primary-hover, secondary (+11 more)
+Nodes (19): $type, $value, background, destructive-foreground, muted, primary-foreground, secondary, secondary-foreground (+11 more)
 
 ### Community 129 - "Brand Consistency Checklist"
 Cohesion: 0.11
@@ -1045,8 +1044,8 @@ Cohesion: 0.24
 Nodes (11): extensions, formatReport(), fs, getFiles(), main(), parseArgs(), path, patterns (+3 more)
 
 ### Community 187 - "card"
-Cohesion: 0.20
-Nodes (12): $type, $value, bg, bg, padding, shadow, card, bg (+4 more)
+Cohesion: 0.15
+Nodes (17): $type, $value, $type, $value, bg, bg, border, padding (+9 more)
 
 ### Community 188 - "4. DESIGN ENGINEERING DIRECTIVES (Bias Correction)"
 Cohesion: 0.17
@@ -1077,8 +1076,8 @@ Cohesion: 0.17
 Nodes (11): Bite-Sized Task Granularity, Execution Handoff, File Structure, No Placeholders, Overview, Plan Document Header, Scope Check, Self-Review (+3 more)
 
 ### Community 195 - "[Analysis Title]"
-Cohesion: 0.17
-Nodes (12): Advanced: Skills with executable code, [Analysis Title], Anti-patterns to avoid, Avoid offering too many options, Avoid Windows-style paths, Conditional workflow pattern, Examples pattern, Executive summary (+4 more)
+Cohesion: 0.15
+Nodes (13): Advanced: Skills with executable code, [Analysis Title], Build evaluations first, Conditional workflow pattern, Develop Skills iteratively with the agent, Evaluation and iteration, Examples pattern, Executive summary (+5 more)
 
 ### Community 196 - "resolve/route.ts"
 Cohesion: 0.27
@@ -1238,7 +1237,7 @@ Nodes (6): apply_decision_rules(), _object_without_duplicates(), parse_decision_
 
 ### Community 235 - "input"
 Cohesion: 0.29
-Nodes (8): padding-y, input, $type, $value, focus-ring, padding-y, $type, $value
+Nodes (8): padding-x, input, $type, $value, focus-ring, padding-x, $type, $value
 
 ### Community 236 - "Stream Optimization Plan"
 Cohesion: 0.20
@@ -1304,9 +1303,9 @@ Nodes (7): { createClient }, envContent, envPath, envVars, fs, path, supabase
 Cohesion: 0.25
 Nodes (7): After the Design, Anti-Pattern: "This Is Too Simple To Need A Design", Brainstorming Ideas Into Designs, Checklist, Process Flow, The Process, Visual Companion
 
-### Community 252 - "padding-x"
+### Community 252 - "padding-y"
 Cohesion: 0.67
-Nodes (4): padding-x, padding-x, $type, $value
+Nodes (4): padding-y, padding-y, $type, $value
 
 ### Community 253 - "9. AI TELLS (Forbidden Patterns)"
 Cohesion: 0.25
@@ -1492,9 +1491,9 @@ Nodes (4): Add Custom Cursor Skill, Automatic Execution Procedure, Parameters:, 
 Cohesion: 0.40
 Nodes (4): Brand Guidelines Template, Document Structure, Extractable Fields, Usage
 
-### Community 300 - "$type"
+### Community 300 - "trending/route.ts"
 Cohesion: 0.60
-Nodes (5): $type, $value, border, border, border
+Nodes (4): GET(), runtime, getTrendingSpotifyTracks(), getTrendingYouTubeTracks()
 
 ### Community 301 - "radius"
 Cohesion: 0.60
@@ -1552,9 +1551,9 @@ Nodes (3): $type, $value, 1
 Cohesion: 0.40
 Nodes (4): Global Constraints, Sidebar Navigation Gliding Indicator & Hover Implementation Plan, Task 1: Add CSS Rules for Gliding Indicator, Nudging, and Ripple Effect, Task 2: Implement Gliding Indicator & Ripple Logic in Sidebar Component
 
-### Community 319 - "primary"
+### Community 319 - "6"
 Cohesion: 0.67
-Nodes (3): primary, $type, $value
+Nodes (3): $type, $value, 6
 
 ### Community 321 - "lg"
 Cohesion: 0.60
@@ -1608,9 +1607,9 @@ Nodes (3): POST(), romajiCache, transliterateSingleLine()
 Cohesion: 0.50
 Nodes (3): Deploy on Vercel, Getting Started, Learn More
 
-### Community 338 - "trending/route.ts"
-Cohesion: 0.60
-Nodes (4): GET(), runtime, getTrendingSpotifyTracks(), getTrendingYouTubeTracks()
+### Community 338 - "destructive"
+Cohesion: 0.67
+Nodes (3): destructive, $type, $value
 
 ### Community 339 - "xl"
 Cohesion: 0.67
@@ -1620,29 +1619,29 @@ Nodes (4): xl, xl, $type, $value
 Cohesion: 0.67
 Nodes (4): $type, $value, none, none
 
-### Community 341 - "Evaluation and iteration"
-Cohesion: 0.50
-Nodes (4): Build evaluations first, Develop Skills iteratively with the agent, Evaluation and iteration, Observe how agents navigate Skills
-
-### Community 343 - "destructive-foreground"
+### Community 341 - "foreground"
 Cohesion: 0.67
-Nodes (3): destructive-foreground, $type, $value
+Nodes (3): foreground, $type, $value
 
-### Community 344 - "muted"
+### Community 343 - "muted-foreground"
 Cohesion: 0.67
-Nodes (3): muted, $type, $value
+Nodes (3): muted-foreground, $type, $value
 
-### Community 345 - "primary-foreground"
+### Community 344 - "primary"
 Cohesion: 0.67
-Nodes (3): primary-foreground, $type, $value
+Nodes (3): primary, $type, $value
+
+### Community 345 - "primary-hover"
+Cohesion: 0.67
+Nodes (3): primary-hover, $type, $value
 
 ### Community 346 - "ring"
 Cohesion: 0.67
 Nodes (3): ring, $type, $value
 
-### Community 347 - "secondary-foreground"
+### Community 347 - "Anti-patterns to avoid"
 Cohesion: 0.67
-Nodes (3): secondary-foreground, $type, $value
+Nodes (3): Anti-patterns to avoid, Avoid offering too many options, Avoid Windows-style paths
 
 ### Community 363 - "16"
 Cohesion: 0.67
@@ -1651,10 +1650,6 @@ Nodes (3): $type, $value, 16
 ### Community 366 - "3"
 Cohesion: 0.67
 Nodes (3): $type, $value, 3
-
-### Community 387 - "8"
-Cohesion: 0.67
-Nodes (3): $type, $value, 8
 
 ## Knowledge Gaps
 - **2099 isolated node(s):** `crypto`, `http`, `fs`, `path`, `OPCODES` (+2094 more)
