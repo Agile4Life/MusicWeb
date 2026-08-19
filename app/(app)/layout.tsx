@@ -17,6 +17,7 @@ import { mobileContentPaddingClassName } from '@/components/player/mobileLayout'
 import { WelcomeAnnouncementModal } from '@/components/modals/WelcomeAnnouncementModal'
 import { LiquidAmbientCanvas } from '@/components/theme/LiquidAmbientCanvas'
 import { NavPreloader } from '@/components/navigation/NavPreloader'
+import { MobilePageTransition } from '@/components/navigation/MobilePageTransition'
 import { useGamingMode } from '@/components/theme/useGamingMode'
 
 /** Minimal shell shown when Gaming Mode is active — only audio engine runs */
@@ -72,7 +73,14 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
             onScroll={handleScroll}
             className={`flex-1 overflow-y-auto min-h-0 relative main-content-scroll ${mobileContentPaddingClassName} lg:pb-24`}
           >
-            {children}
+            {/* Mobile: subtle page transition on route change */}
+            <div className="lg:hidden">
+              <MobilePageTransition>{children}</MobilePageTransition>
+            </div>
+            {/* Desktop: instant, no transition */}
+            <div className="hidden lg:block">
+              {children}
+            </div>
           </div>
         </main>
 

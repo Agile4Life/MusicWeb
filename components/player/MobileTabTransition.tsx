@@ -66,7 +66,7 @@ export function MobileTabTransition({
         exit="exit"
         transition={{
           duration: 0.22,
-          ease: [...EASE_OUT_STRONG],
+          ease: EASE_OUT_STRONG as [number, number, number, number],
         }}
         className="flex-1 flex flex-col min-h-0 overflow-hidden will-change-transform"
       >
