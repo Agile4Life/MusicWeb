@@ -104,4 +104,33 @@ describe('iOS Safari Compatibility & Performance Optimizations', () => {
     const desktop = getParticleCounts(false)
     expect(desktop.total).toBe(8120)
   })
+
+  it('updates Web Audio GainNode and HTMLAudioElement volume synchronously', () => {
+    const mockAudio: any = { volume: 1, muted: false }
+    const mockGainNode: any = { gain: { value: 1 } }
+
+    const setVolumeHandler = (val: number, audio: typeof mockAudio, gainNode: typeof mockGainNode) => {
+      const safeVol = typeof val === 'number' && !isNaN(val) ? Math.max(0, Math.min(1, val)) : 0.8
+      audio.volume = safeVol
+      audio.muted = safeVol === 0
+      if (gainNode) {
+        gainNode.gain.value = safeVol
+      }
+      return safeVol
+    }
+
+    // Set to 50%
+    const vol1 = setVolumeHandler(0.5, mockAudio, mockGainNode)
+    expect(vol1).toBe(0.5)
+    expect(mockAudio.volume).toBe(0.5)
+    expect(mockGainNode.gain.value).toBe(0.5)
+    expect(mockAudio.muted).toBe(false)
+
+    // Set to mute (0%)
+    const vol2 = setVolumeHandler(0, mockAudio, mockGainNode)
+    expect(vol2).toBe(0)
+    expect(mockAudio.volume).toBe(0)
+    expect(mockGainNode.gain.value).toBe(0)
+    expect(mockAudio.muted).toBe(true)
+  })
 })

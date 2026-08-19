@@ -271,6 +271,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const closeQueue = useCallback(() => setIsQueueOpen(false), [])
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const gainNodeRef = useRef<GainNode | null>(null)
+  const isWebAudioConnectedRef = useRef<boolean>(false)
   const audioRetryCountRef = useRef(0)
   const ytPlayerRef = useRef<any>(null)
   const ytReadyRef = useRef<boolean>(false)
@@ -373,6 +376,42 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const isYtIframeEngine = useCallback((): boolean => {
     const t = currentTrackRef.current
     return (t?.source === 'youtube' || Boolean(t?.youtube_id)) && !ytHtml5ModeRef.current
+  }, [])
+
+  // Web Audio API GainNode initialization for software volume attenuation (works on iOS Safari)
+  const ensureWebAudioGain = useCallback(() => {
+    if (typeof window === 'undefined' || !audioRef.current) return
+    try {
+      if (!audioContextRef.current) {
+        const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext
+        if (!AudioCtxClass) return
+        audioContextRef.current = new AudioCtxClass()
+      }
+
+      const ctx = audioContextRef.current
+      if (ctx && ctx.state === 'suspended') {
+        ctx.resume().catch(() => {})
+      }
+
+      if (!gainNodeRef.current && ctx) {
+        const gainNode = ctx.createGain()
+        gainNode.gain.value = volumeRef.current
+        gainNodeRef.current = gainNode
+
+        if (!isWebAudioConnectedRef.current && audioRef.current) {
+          try {
+            const source = ctx.createMediaElementSource(audioRef.current)
+            source.connect(gainNode)
+            gainNode.connect(ctx.destination)
+            isWebAudioConnectedRef.current = true
+          } catch (connErr) {
+            console.warn('[WebAudio] MediaElementSource connection deferred:', connErr)
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[WebAudio] GainNode setup error:', err)
+    }
   }, [])
 
   const autoFetchSmartQueueRef = useRef(false)
@@ -2167,6 +2206,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const safeVolume = volumeRef.current ?? DEFAULT_VOLUME
     audio.volume = safeVolume
     audio.muted = safeVolume === 0
+    ensureWebAudioGain()
 
     try {
       await playAudioElement(audio)
@@ -2229,6 +2269,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (audioRef.current) {
       audioRef.current.volume = safeVol
       audioRef.current.muted = safeVol === 0
+    }
+    // Web Audio GainNode volume attenuation (works on iOS Safari where audio.volume is ignored)
+    if (gainNodeRef.current) {
+      try {
+        gainNodeRef.current.gain.value = safeVol
+      } catch {}
     }
     if (ytPlayerRef.current) {
       try {
@@ -3274,6 +3320,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 ref={audioRef}
                 preload="auto"
                 playsInline
+                crossOrigin="anonymous"
                 {...({'webkit-playsinline': ''} as any)}
                 onWaiting={() => setIsBuffering(true)}
                 onStalled={() => setIsBuffering(true)}

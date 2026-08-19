@@ -985,51 +985,49 @@ export function MobileFullviewPlayer() {
           </button>
         </div>
 
-        {/* ─── Volume Slider (Apple Music: thin bar only, no knob — hidden on iOS as Apple ignores software audio.volume) ─── */}
-        {!isIOS && (
-          <div className="flex items-center gap-3 px-0.5 pb-2">
-            <button
-              type="button"
-              onClick={handleVolumeToggle}
-              className="text-white/35 active:scale-90 transition-all cursor-pointer shrink-0"
-            >
-              {volume === 0 ? <VolumeX className="w-[14px] h-[14px]" /> : <Volume2 className="w-[14px] h-[14px]" />}
-            </button>
-            {/* Custom volume track (div-based, no knob — Apple Music style) */}
-            <div
-              className="relative flex-1 h-6 flex items-center cursor-pointer touch-none"
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect()
-                const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-                setVolume(pct)
-              }}
-              onTouchStart={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect()
-                const touch = e.touches[0]
-                const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
-                setVolume(pct)
-              }}
-              onTouchMove={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect()
-                const touch = e.touches[0]
-                const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
-                setVolume(pct)
-              }}
-            >
-              {/* Volume track */}
-              <div className="w-full h-[3px] rounded-full overflow-hidden bg-white/[0.18]">
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: `${volume * 100}%`,
-                    backgroundColor: 'rgba(255, 255, 255, 0.85)',
-                  }}
-                />
-              </div>
+        {/* ─── Volume Slider (Apple Music: thin bar only, no knob — supported on iOS via Web Audio GainNode) ─── */}
+        <div className="flex items-center gap-3 px-0.5 pb-2">
+          <button
+            type="button"
+            onClick={handleVolumeToggle}
+            className="text-white/35 active:scale-90 transition-all cursor-pointer shrink-0"
+          >
+            {volume === 0 ? <VolumeX className="w-[14px] h-[14px]" /> : <Volume2 className="w-[14px] h-[14px]" />}
+          </button>
+          {/* Custom volume track (div-based, no knob — Apple Music style) */}
+          <div
+            className="relative flex-1 h-6 flex items-center cursor-pointer touch-none"
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect()
+              const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+              setVolume(pct)
+            }}
+            onTouchStart={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect()
+              const touch = e.touches[0]
+              const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
+              setVolume(pct)
+            }}
+            onTouchMove={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect()
+              const touch = e.touches[0]
+              const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
+              setVolume(pct)
+            }}
+          >
+            {/* Volume track */}
+            <div className="w-full h-[3px] rounded-full overflow-hidden bg-white/[0.18]">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${volume * 100}%`,
+                  backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                }}
+              />
             </div>
-            <Volume2 className="w-[14px] h-[14px] text-white/35 shrink-0" />
           </div>
-        )}
+          <Volume2 className="w-[14px] h-[14px] text-white/35 shrink-0" />
+        </div>
 
         {/* ─── Bottom Tab Bar (Apple Music style) ─── */}
         <div className="flex items-center justify-center gap-16 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
