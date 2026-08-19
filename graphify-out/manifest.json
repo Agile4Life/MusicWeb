@@ -70,8 +70,8 @@
     "semantic_hash": ""
   },
   "app/(app)/history/page.tsx": {
-    "mtime": 1787057952.3098521,
-    "ast_hash": "3daeb3af8a0336aa0b7c60197a618972",
+    "mtime": 1787117870.0291378,
+    "ast_hash": "004e2e2321d72e04ab7ae8dd68fb26eb",
     "semantic_hash": ""
   },
   "app/(app)/layout.tsx": {
@@ -1585,8 +1585,8 @@
     "semantic_hash": ""
   },
   "lib/listeningHistory.ts": {
-    "mtime": 1786877044.2790446,
-    "ast_hash": "53b6f02206fa6bd8887e1da1535161e5",
+    "mtime": 1787117803.9932325,
+    "ast_hash": "68cef27ce6a3d9ac0f57e42c53491bce",
     "semantic_hash": ""
   },
   "lib/lyricsShareCanvas.ts": {
@@ -2882,6 +2882,16 @@
   "components/auth/LoginAmbientCanvas.tsx": {
     "mtime": 1787056505.995228,
     "ast_hash": "7dd4f7c817581c7ef8e67a3029540f38",
+    "semantic_hash": ""
+  },
+  "app/api/history/top/route.ts": {
+    "mtime": 1787117820.7013016,
+    "ast_hash": "7a94c6e61f7c6f83aa47f194525b32aa",
+    "semantic_hash": ""
+  },
+  "lib/__tests__/topListeningHistory.test.ts": {
+    "mtime": 1787117832.4633331,
+    "ast_hash": "6b0fb186e37670bbf4419eb7d50ba224",
     "semantic_hash": ""
   }
 }

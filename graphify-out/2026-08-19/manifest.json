@@ -395,8 +395,8 @@
     "semantic_hash": ""
   },
   "components/player/LyricsView.tsx": {
-    "mtime": 1787053816.7124996,
-    "ast_hash": "ff1e725d735f7f931130b900a9af1f04",
+    "mtime": 1787117225.109843,
+    "ast_hash": "ae53b0a07b0d239bb87211f708da4abd",
     "semantic_hash": ""
   },
   "components/player/MiniEqualizer.tsx": {
@@ -405,8 +405,8 @@
     "semantic_hash": ""
   },
   "components/player/NowPlayingOverlay.tsx": {
-    "mtime": 1787115205.3221326,
-    "ast_hash": "d3f07764f9c8aa4a41f35e485796540b",
+    "mtime": 1787117218.1469116,
+    "ast_hash": "027ff3dd3caaa20b814f26dfc2948f43",
     "semantic_hash": ""
   },
   "components/player/NowPlayingStage.tsx": {
@@ -1335,8 +1335,8 @@
     "semantic_hash": ""
   },
   "components/player/MobileFullviewPlayer.tsx": {
-    "mtime": 1786976341.5988507,
-    "ast_hash": "9b7b597c1864a11486d12dab51d93b87",
+    "mtime": 1787117232.082926,
+    "ast_hash": "03960f200ad9d028728bd4ab4d560978",
     "semantic_hash": ""
   },
   "components/player/PlayerBarGlowBorder.tsx": {

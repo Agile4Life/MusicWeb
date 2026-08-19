@@ -1,7 +1,7 @@
 # Graph Report - MusicWeb  (2026-08-19)
 
 ## Corpus Check
-- 517 files · ~611,935 words
+- 517 files · ~612,235 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `092419ab`
+- Built from commit: `dc692405`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -301,7 +301,7 @@
 - Hướng Dẫn Deploy Dự Án MusicWeb Lên Vercel
 - Automatic Execution Procedure
 - Brand Guidelines Template
-- $type
+- trending/route.ts
 - radius
 - mobileLayout.ts
 - 12. THE BLOCK LIBRARY (Contract - Implementations Land Here Iteratively)
@@ -320,7 +320,7 @@
 - .test_add_components_no_config
 - Global Constraints
 - next
-- 0
+- 6
 - TestGeneratedCatalogContract
 - lg
 - .test_add_components_no_components
@@ -342,13 +342,13 @@
 - destructive
 - xl
 - none
-- Evaluation and iteration
+- foreground
 - nhaccuatui/search/route.ts
-- destructive-foreground
-- muted
-- primary-foreground
+- muted-foreground
+- primary
+- primary-hover
 - ring
-- secondary-foreground
+- Anti-patterns to avoid
 - .__init__
 - .temp_project
 - Antigravity CLI (`agy`) Tool Mapping
@@ -361,11 +361,11 @@
 - slides-create.md
 - create.md
 - test-academic.md
-- .test_add_components_already_installed
+- .test_get_installed_components_with_files
 - .test_init_dry_run
 - 16
 - .test_get_installed_components_empty
-- lamejs
+- next-auth
 - 3
 - .test_add_fonts
 - .test_recommend_plugins
@@ -432,8 +432,8 @@ Cohesion: 0.13
 Nodes (9): DesignSystemGenerator, Generates design system recommendations from aggregated searches., Load reasoning rules from CSV., Find matching reasoning rule for a category., Apply reasoning rules to search results., Select best matching result based on priority keywords., TestReasoningMatch, The exact reproduction from issue #428. (+1 more)
 
 ### Community 2 - "youtube.ts"
-Cohesion: 0.10
-Nodes (34): BatchTrackRequest, POST(), viewCountMemoryCache, GET(), viewCountMemoryCache, cleanHtmlEntities(), fetchViaInnerTube(), fetchViaOfficialApi() (+26 more)
+Cohesion: 0.15
+Nodes (24): BatchTrackRequest, POST(), viewCountMemoryCache, GET(), viewCountMemoryCache, cleanHtmlEntities(), fetchViaInnerTube(), fetchViaOfficialApi() (+16 more)
 
 ### Community 3 - "albumCache.ts"
 Cohesion: 0.24
@@ -448,12 +448,12 @@ Cohesion: 0.06
 Nodes (56): bootstrapPage(), brandMarkup(), broadcast(), browserLauncherForPlatform(), chmodOwnerOnly(), clients, companionUrl(), computeAcceptKey() (+48 more)
 
 ### Community 6 - "itunes.ts"
-Cohesion: 0.16
-Nodes (15): dynamic, GET(), normalizeAlbumKey(), TrendingAlbum, fetchDeezerNewReleases(), cleanArtworkUrl(), getTrendingITunesAlbums(), ITunesAlbumDetail (+7 more)
+Cohesion: 0.23
+Nodes (9): cleanArtworkUrl(), ITunesAlbumDetail, ITunesAlbumItem, ITunesLookupResult, ITunesRssEntry, ITunesSearchResult, mapITunesAlbums(), mapITunesRssAlbums() (+1 more)
 
 ### Community 7 - "Track"
-Cohesion: 0.07
-Nodes (36): AlbumDetail, cachedFavorites, PlayerContextType, PlayerControlsContextType, PlayerQueueContextType, PlayerTrackContextType, DataSourceType, ReceiptifyViewProps (+28 more)
+Cohesion: 0.09
+Nodes (32): AlbumDetail, cachedFavorites, PlayerContextType, PlayerControlsContextType, PlayerQueueContextType, PlayerTrackContextType, DataSourceType, ReceiptifyViewProps (+24 more)
 
 ### Community 8 - "PlayerContext.tsx"
 Cohesion: 0.07
@@ -465,7 +465,7 @@ Nodes (10): fraunces, ibmPlexMono, inter, jetbrainsMono, metadata, spaceGrotesk,
 
 ### Community 10 - "dependencies"
 Cohesion: 0.10
-Nodes (21): @breezystack/lamejs, clsx, @distube/ytdl-core, framer-motion, lucide-react, next-auth, dependencies, @breezystack/lamejs (+13 more)
+Nodes (21): @breezystack/lamejs, clsx, @distube/ytdl-core, framer-motion, lamejs, lucide-react, dependencies, @breezystack/lamejs (+13 more)
 
 ### Community 11 - "devDependencies"
 Cohesion: 0.09
@@ -488,8 +488,8 @@ Cohesion: 0.14
 Nodes (20): dynamic, GET(), dynamic, POST(), dynamic, GET(), HEAD(), CachedCdnEntry (+12 more)
 
 ### Community 16 - "createClient"
-Cohesion: 0.10
-Nodes (47): AlbumDetailPage(), AlbumCard(), AlbumCardProps, AlbumsPage(), cachedListenedAlbums, cachedNewReleases, ArtistInfo, ArtistPage() (+39 more)
+Cohesion: 0.08
+Nodes (51): AlbumDetailPage(), AlbumCard(), AlbumCardProps, AlbumsPage(), cachedListenedAlbums, cachedNewReleases, ArtistInfo, ArtistPage() (+43 more)
 
 ### Community 17 - "add-cursor.js"
 Cohesion: 0.15
@@ -576,8 +576,8 @@ Cohesion: 0.05
 Nodes (53): $type, $value, $type, $value, $type, $value, $type, $value (+45 more)
 
 ### Community 66 - "(app)/layout.tsx"
-Cohesion: 0.09
-Nodes (30): SettingsPage(), CurrentUserContext, CurrentUserContextType, CurrentUserProvider(), useCurrentUser(), GlideIndicator1DState, GlideIndicator2DState, useLanguage() (+22 more)
+Cohesion: 0.08
+Nodes (40): SettingsPage(), AuthGuard(), CurrentUserContext, CurrentUserContextType, CurrentUserProvider(), useCurrentUser(), useLanguage(), YoutubeIcon() (+32 more)
 
 ### Community 67 - "Tailwind CSS Utility Reference"
 Cohesion: 0.05
@@ -636,8 +636,8 @@ Cohesion: 0.10
 Nodes (8): _exact_stack_identifier(), Resolve a standalone API identifier even when its BM25 IDF is low., Search stack-specific guidelines, search_stack(), _rows(), TestNativeDesktopStackFreshness, _rows(), TestWebStackFreshness
 
 ### Community 82 - "spotify.ts"
-Cohesion: 0.21
-Nodes (16): GET(), GET(), runtime, fetchNewReleases(), fetchSpotifyEmbedPlaylistData(), fetchSpotifyNewReleases(), fetchSpotifyPlaylistMeta(), fetchSpotifyPlaylistTracks() (+8 more)
+Cohesion: 0.20
+Nodes (18): dynamic, GET(), normalizeAlbumKey(), TrendingAlbum, GET(), fetchDeezerNewReleases(), getTrendingITunesAlbums(), fetchNewReleases() (+10 more)
 
 ### Community 83 - "Typography Specifications"
 Cohesion: 0.06
@@ -817,7 +817,7 @@ Nodes (18): 1. Wordmark (Logotype), 2. Lettermark (Monogram), 3. Pictorial Mark 
 
 ### Community 127 - "color"
 Cohesion: 0.11
-Nodes (19): $type, $value, background, foreground, muted-foreground, primary, primary-hover, secondary (+11 more)
+Nodes (19): $type, $value, background, destructive-foreground, muted, primary-foreground, secondary, secondary-foreground (+11 more)
 
 ### Community 129 - "Brand Consistency Checklist"
 Cohesion: 0.11
@@ -1044,8 +1044,8 @@ Cohesion: 0.24
 Nodes (11): extensions, formatReport(), fs, getFiles(), main(), parseArgs(), path, patterns (+3 more)
 
 ### Community 187 - "card"
-Cohesion: 0.20
-Nodes (12): $type, $value, bg, bg, padding, shadow, card, bg (+4 more)
+Cohesion: 0.15
+Nodes (17): $type, $value, $type, $value, bg, bg, border, padding (+9 more)
 
 ### Community 188 - "4. DESIGN ENGINEERING DIRECTIVES (Bias Correction)"
 Cohesion: 0.17
@@ -1057,7 +1057,7 @@ Nodes (11): Applying the Pattern, Defense-in-Depth Validation, Example from Sess
 
 ### Community 190 - "ShadcnInstaller"
 Cohesion: 0.20
-Nodes (7): main(), Handle shadcn/ui component installation., ShadcnInstaller, Tests for shadcn_add.py, Test listing installed components when they exist., Test getting installed components when files exist., Test getting installed components without config.
+Nodes (7): main(), Handle shadcn/ui component installation., ShadcnInstaller, Tests for shadcn_add.py, Test adding components that are already installed., Test listing installed components when they exist., Test getting installed components without config.
 
 ### Community 191 - ".check_shadcn_config"
 Cohesion: 0.21
@@ -1076,8 +1076,8 @@ Cohesion: 0.17
 Nodes (11): Bite-Sized Task Granularity, Execution Handoff, File Structure, No Placeholders, Overview, Plan Document Header, Scope Check, Self-Review (+3 more)
 
 ### Community 195 - "[Analysis Title]"
-Cohesion: 0.17
-Nodes (12): Advanced: Skills with executable code, [Analysis Title], Anti-patterns to avoid, Avoid offering too many options, Avoid Windows-style paths, Conditional workflow pattern, Examples pattern, Executive summary (+4 more)
+Cohesion: 0.15
+Nodes (13): Advanced: Skills with executable code, [Analysis Title], Build evaluations first, Conditional workflow pattern, Develop Skills iteratively with the agent, Evaluation and iteration, Examples pattern, Executive summary (+5 more)
 
 ### Community 196 - "resolve/route.ts"
 Cohesion: 0.27
@@ -1491,9 +1491,9 @@ Nodes (4): Add Custom Cursor Skill, Automatic Execution Procedure, Parameters:, 
 Cohesion: 0.40
 Nodes (4): Brand Guidelines Template, Document Structure, Extractable Fields, Usage
 
-### Community 300 - "$type"
+### Community 300 - "trending/route.ts"
 Cohesion: 0.60
-Nodes (5): $type, $value, border, border, border
+Nodes (4): GET(), runtime, getTrendingSpotifyTracks(), getTrendingYouTubeTracks()
 
 ### Community 301 - "radius"
 Cohesion: 0.60
@@ -1551,9 +1551,9 @@ Nodes (3): $type, $value, 1
 Cohesion: 0.40
 Nodes (4): Global Constraints, Sidebar Navigation Gliding Indicator & Hover Implementation Plan, Task 1: Add CSS Rules for Gliding Indicator, Nudging, and Ripple Effect, Task 2: Implement Gliding Indicator & Ripple Logic in Sidebar Component
 
-### Community 319 - "0"
+### Community 319 - "6"
 Cohesion: 0.67
-Nodes (3): $type, $value, 0
+Nodes (3): $type, $value, 6
 
 ### Community 321 - "lg"
 Cohesion: 0.60
@@ -1619,29 +1619,29 @@ Nodes (4): xl, xl, $type, $value
 Cohesion: 0.67
 Nodes (4): $type, $value, none, none
 
-### Community 341 - "Evaluation and iteration"
-Cohesion: 0.50
-Nodes (4): Build evaluations first, Develop Skills iteratively with the agent, Evaluation and iteration, Observe how agents navigate Skills
-
-### Community 343 - "destructive-foreground"
+### Community 341 - "foreground"
 Cohesion: 0.67
-Nodes (3): destructive-foreground, $type, $value
+Nodes (3): foreground, $type, $value
 
-### Community 344 - "muted"
+### Community 343 - "muted-foreground"
 Cohesion: 0.67
-Nodes (3): muted, $type, $value
+Nodes (3): muted-foreground, $type, $value
 
-### Community 345 - "primary-foreground"
+### Community 344 - "primary"
 Cohesion: 0.67
-Nodes (3): primary-foreground, $type, $value
+Nodes (3): primary, $type, $value
+
+### Community 345 - "primary-hover"
+Cohesion: 0.67
+Nodes (3): primary-hover, $type, $value
 
 ### Community 346 - "ring"
 Cohesion: 0.67
 Nodes (3): ring, $type, $value
 
-### Community 347 - "secondary-foreground"
+### Community 347 - "Anti-patterns to avoid"
 Cohesion: 0.67
-Nodes (3): secondary-foreground, $type, $value
+Nodes (3): Anti-patterns to avoid, Avoid offering too many options, Avoid Windows-style paths
 
 ### Community 363 - "16"
 Cohesion: 0.67
@@ -1661,7 +1661,7 @@ _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `Track` connect `Track` to `deezer.ts`, `youtube.ts`, `(app)/layout.tsx`, `queueRecommend.ts`, `itunes.ts`, `PlayerContext.tsx`, `nhaccuatui.ts`, `soundcloudClient.ts`, `lyricsFlow.ts`, `googleDriveUpload.ts`, `createClient`, `LyricsShareModal.tsx`, `spotify.ts`, `utils.ts`, `LyricsView.tsx`, `TrackRow.tsx`, `resolveStreamClient.ts`?**
   _High betweenness centrality (0.010) - this node is a cross-community bridge._
-- **Why does `getValidUserId()` connect `createClient` to `(app)/layout.tsx`, `youtube.ts`, `Track`, `PlayerContext.tsx`, `googleDriveUpload.ts`, `requireUser`, `TrackRow.tsx`?**
+- **Why does `getValidUserId()` connect `(app)/layout.tsx` to `Track`, `PlayerContext.tsx`, `googleDriveUpload.ts`, `createClient`, `requireUser`, `TrackRow.tsx`?**
   _High betweenness centrality (0.007) - this node is a cross-community bridge._
 - **Why does `YouTubeIframeEngine` connect `YouTubeIframeEngine` to `PlayerContext.tsx`, `PlaybackEngine`, `Html5AudioEngine.ts`?**
   _High betweenness centrality (0.005) - this node is a cross-community bridge._

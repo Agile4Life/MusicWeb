@@ -979,6 +979,32 @@
       "norm_label": "mediacardprops"
     },
     {
+      "label": "GlideIndicator1DState",
+      "file_type": "code",
+      "source_file": "components/common/useGlideIndicator.ts",
+      "source_location": "L57",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "components_common_useglideindicator_glideindicator1dstate",
+      "community": 16,
+      "community_name": "createClient",
+      "norm_label": "glideindicator1dstate"
+    },
+    {
+      "label": "GlideIndicator2DState",
+      "file_type": "code",
+      "source_file": "components/common/useGlideIndicator.ts",
+      "source_location": "L5",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "components_common_useglideindicator_glideindicator2dstate",
+      "community": 16,
+      "community_name": "createClient",
+      "norm_label": "glideindicator2dstate"
+    },
+    {
       "label": "ImportSoundCloudModalProps",
       "file_type": "code",
       "source_file": "components/playlist/ImportSoundCloudModal.tsx",
@@ -1003,6 +1029,58 @@
       "community": 16,
       "community_name": "createClient",
       "norm_label": "modalstep"
+    },
+    {
+      "label": "ToastContextType",
+      "file_type": "code",
+      "source_file": "components/ui/ToastContext.tsx",
+      "source_location": "L16",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "components_ui_toastcontext_toastcontexttype",
+      "community": 16,
+      "community_name": "createClient",
+      "norm_label": "toastcontexttype"
+    },
+    {
+      "label": "ToastItem",
+      "file_type": "code",
+      "source_file": "components/ui/ToastContext.tsx",
+      "source_location": "L8",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "components_ui_toastcontext_toastitem",
+      "community": 16,
+      "community_name": "createClient",
+      "norm_label": "toastitem"
+    },
+    {
+      "label": "ToastType",
+      "file_type": "code",
+      "source_file": "components/ui/ToastContext.tsx",
+      "source_location": "L6",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "components_ui_toastcontext_toasttype",
+      "community": 16,
+      "community_name": "createClient",
+      "norm_label": "toasttype"
+    },
+    {
+      "label": "IndicatorState",
+      "file_type": "code",
+      "source_file": "hooks/useGlideIndicator.ts",
+      "source_location": "L5",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "hooks_useglideindicator_indicatorstate",
+      "community": 16,
+      "community_name": "createClient",
+      "norm_label": "indicatorstate"
     },
     {
       "label": "SpotifyAlbumItem",
@@ -1211,58 +1289,6 @@
       "community": 2,
       "community_name": "youtube.ts",
       "norm_label": "youtubeplaylistmeta"
-    },
-    {
-      "label": "ImportSpotifyModalProps",
-      "file_type": "code",
-      "source_file": "components/playlist/ImportSpotifyModal.tsx",
-      "source_location": "L41",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "components_playlist_importspotifymodal_importspotifymodalprops",
-      "community": 2,
-      "community_name": "youtube.ts",
-      "norm_label": "importspotifymodalprops"
-    },
-    {
-      "label": "ModalStep",
-      "file_type": "code",
-      "source_file": "components/playlist/ImportSpotifyModal.tsx",
-      "source_location": "L46",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "components_playlist_importspotifymodal_modalstep",
-      "community": 2,
-      "community_name": "youtube.ts",
-      "norm_label": "modalstep"
-    },
-    {
-      "label": "PlaylistImportResult",
-      "file_type": "code",
-      "source_file": "lib/playlist-import.ts",
-      "source_location": "L6",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "lib_playlist_import_playlistimportresult",
-      "community": 2,
-      "community_name": "youtube.ts",
-      "norm_label": "playlistimportresult"
-    },
-    {
-      "label": "SpotifyPlaylistTrack",
-      "file_type": "code",
-      "source_file": "lib/spotify.ts",
-      "source_location": "L409",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "lib_spotify_spotifyplaylisttrack",
-      "community": 2,
-      "community_name": "youtube.ts",
-      "norm_label": "spotifyplaylisttrack"
     },
     {
       "label": "VideoMeta",
@@ -1720,19 +1746,6 @@
       "norm_label": "queuetrack"
     },
     {
-      "label": "TrendingAlbum",
-      "file_type": "code",
-      "source_file": "app/api/albums/new-releases/route.ts",
-      "source_location": "L8",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "app_api_albums_new_releases_route_trendingalbum",
-      "community": 6,
-      "community_name": "itunes.ts",
-      "norm_label": "trendingalbum"
-    },
-    {
       "label": "ITunesAlbumDetail",
       "file_type": "code",
       "source_file": "lib/itunes.ts",
@@ -1811,30 +1824,30 @@
       "norm_label": "currentusercontexttype"
     },
     {
-      "label": "GlideIndicator1DState",
+      "label": "ImportSpotifyModalProps",
       "file_type": "code",
-      "source_file": "components/common/useGlideIndicator.ts",
-      "source_location": "L57",
+      "source_file": "components/playlist/ImportSpotifyModal.tsx",
+      "source_location": "L41",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "components_common_useglideindicator_glideindicator1dstate",
+      "id": "components_playlist_importspotifymodal_importspotifymodalprops",
       "community": 66,
       "community_name": "(app)/layout.tsx",
-      "norm_label": "glideindicator1dstate"
+      "norm_label": "importspotifymodalprops"
     },
     {
-      "label": "GlideIndicator2DState",
+      "label": "ModalStep",
       "file_type": "code",
-      "source_file": "components/common/useGlideIndicator.ts",
-      "source_location": "L5",
+      "source_file": "components/playlist/ImportSpotifyModal.tsx",
+      "source_location": "L46",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "components_common_useglideindicator_glideindicator2dstate",
+      "id": "components_playlist_importspotifymodal_modalstep",
       "community": 66,
       "community_name": "(app)/layout.tsx",
-      "norm_label": "glideindicator2dstate"
+      "norm_label": "modalstep"
     },
     {
       "label": "ImportYouTubePlaylistModalProps",
@@ -1863,19 +1876,6 @@
       "norm_label": "modalstep"
     },
     {
-      "label": "IndicatorState",
-      "file_type": "code",
-      "source_file": "hooks/useGlideIndicator.ts",
-      "source_location": "L5",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "hooks_useglideindicator_indicatorstate",
-      "community": 66,
-      "community_name": "(app)/layout.tsx",
-      "norm_label": "indicatorstate"
-    },
-    {
       "label": "UserRole",
       "file_type": "code",
       "source_file": "lib/accessControl.ts",
@@ -1887,6 +1887,32 @@
       "community": 66,
       "community_name": "(app)/layout.tsx",
       "norm_label": "userrole"
+    },
+    {
+      "label": "PlaylistImportResult",
+      "file_type": "code",
+      "source_file": "lib/playlist-import.ts",
+      "source_location": "L6",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "lib_playlist_import_playlistimportresult",
+      "community": 66,
+      "community_name": "(app)/layout.tsx",
+      "norm_label": "playlistimportresult"
+    },
+    {
+      "label": "SpotifyPlaylistTrack",
+      "file_type": "code",
+      "source_file": "lib/spotify.ts",
+      "source_location": "L409",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "lib_spotify_spotifyplaylisttrack",
+      "community": 66,
+      "community_name": "(app)/layout.tsx",
+      "norm_label": "spotifyplaylisttrack"
     },
     {
       "label": "BM25",
@@ -2030,45 +2056,6 @@
       "community": 7,
       "community_name": "Track",
       "norm_label": "trackrowprops"
-    },
-    {
-      "label": "ToastContextType",
-      "file_type": "code",
-      "source_file": "components/ui/ToastContext.tsx",
-      "source_location": "L16",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "components_ui_toastcontext_toastcontexttype",
-      "community": 7,
-      "community_name": "Track",
-      "norm_label": "toastcontexttype"
-    },
-    {
-      "label": "ToastItem",
-      "file_type": "code",
-      "source_file": "components/ui/ToastContext.tsx",
-      "source_location": "L8",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "components_ui_toastcontext_toastitem",
-      "community": 7,
-      "community_name": "Track",
-      "norm_label": "toastitem"
-    },
-    {
-      "label": "ToastType",
-      "file_type": "code",
-      "source_file": "components/ui/ToastContext.tsx",
-      "source_location": "L6",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "components_ui_toastcontext_toasttype",
-      "community": 7,
-      "community_name": "Track",
-      "norm_label": "toasttype"
     },
     {
       "label": "FetchReceiptTracksParams",
@@ -2409,6 +2396,19 @@
       "norm_label": "testwebstackfreshness"
     },
     {
+      "label": "TrendingAlbum",
+      "file_type": "code",
+      "source_file": "app/api/albums/new-releases/route.ts",
+      "source_location": "L8",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "app_api_albums_new_releases_route_trendingalbum",
+      "community": 82,
+      "community_name": "spotify.ts",
+      "norm_label": "trendingalbum"
+    },
+    {
       "label": "SpotifyArtistResult",
       "file_type": "code",
       "source_file": "lib/spotify.ts",
@@ -2477,7 +2477,7 @@
       "label": "LyricLineItemProps",
       "file_type": "code",
       "source_file": "components/player/LyricsView.tsx",
-      "source_location": "L55",
+      "source_location": "L57",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
@@ -6958,18 +6958,6 @@
       "norm_label": "soundcloudpage()"
     },
     {
-      "label": "AuthGuard()",
-      "file_type": "code",
-      "source_file": "components/auth/AuthGuard.tsx",
-      "source_location": "L10",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "components_auth_authguard_authguard",
-      "community": 16,
-      "community_name": "createClient",
-      "norm_label": "authguard()"
-    },
-    {
       "label": "MediaCard()",
       "file_type": "code",
       "source_file": "components/common/MediaCard.tsx",
@@ -7114,18 +7102,6 @@
       "norm_label": "importsoundcloudmodal()"
     },
     {
-      "label": "PlaylistProvider()",
-      "file_type": "code",
-      "source_file": "components/playlist/PlaylistContext.tsx",
-      "source_location": "L20",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "components_playlist_playlistcontext_playlistprovider",
-      "community": 16,
-      "community_name": "createClient",
-      "norm_label": "playlistprovider()"
-    },
-    {
       "label": "usePlaylists()",
       "file_type": "code",
       "source_file": "components/playlist/PlaylistContext.tsx",
@@ -7162,28 +7138,40 @@
       "norm_label": "toast()"
     },
     {
-      "label": "getValidUserId()",
+      "label": "ToastProvider()",
       "file_type": "code",
-      "source_file": "lib/accessControl.ts",
-      "source_location": "L154",
+      "source_file": "components/ui/ToastContext.tsx",
+      "source_location": "L36",
       "_callable": true,
       "_origin": "ast",
-      "id": "lib_accesscontrol_getvaliduserid",
+      "id": "components_ui_toastcontext_toastprovider",
       "community": 16,
       "community_name": "createClient",
-      "norm_label": "getvaliduserid()"
+      "norm_label": "toastprovider()"
     },
     {
-      "label": "getRecentUniqueTracks()",
+      "label": "useToast()",
       "file_type": "code",
-      "source_file": "lib/listeningHistory.ts",
-      "source_location": "L81",
+      "source_file": "components/ui/ToastContext.tsx",
+      "source_location": "L168",
       "_callable": true,
       "_origin": "ast",
-      "id": "lib_listeninghistory_getrecentuniquetracks",
+      "id": "components_ui_toastcontext_usetoast",
       "community": 16,
       "community_name": "createClient",
-      "norm_label": "getrecentuniquetracks()"
+      "norm_label": "usetoast()"
+    },
+    {
+      "label": "useGlideIndicator()",
+      "file_type": "code",
+      "source_file": "hooks/useGlideIndicator.ts",
+      "source_location": "L12",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "hooks_useglideindicator_useglideindicator",
+      "community": 16,
+      "community_name": "createClient",
+      "norm_label": "useglideindicator()"
     },
     {
       "label": "createClient()",
@@ -8458,6 +8446,18 @@
       "norm_label": "main()"
     },
     {
+      "label": ".test_add_components_already_installed()",
+      "file_type": "code",
+      "source_file": ".agents/skills/ui-styling/scripts/tests/test_shadcn_add.py",
+      "source_location": "L111",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "agents_skills_ui_styling_scripts_tests_test_shadcn_add_testshadcninstaller_test_add_components_already_installed",
+      "community": 190,
+      "community_name": "ShadcnInstaller",
+      "norm_label": ".test_add_components_already_installed()"
+    },
+    {
       "label": ".test_get_installed_components_no_config()",
       "file_type": "code",
       "source_file": ".agents/skills/ui-styling/scripts/tests/test_shadcn_add.py",
@@ -8468,18 +8468,6 @@
       "community": 190,
       "community_name": "ShadcnInstaller",
       "norm_label": ".test_get_installed_components_no_config()"
-    },
-    {
-      "label": ".test_get_installed_components_with_files()",
-      "file_type": "code",
-      "source_file": ".agents/skills/ui-styling/scripts/tests/test_shadcn_add.py",
-      "source_location": "L76",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "agents_skills_ui_styling_scripts_tests_test_shadcn_add_testshadcninstaller_test_get_installed_components_with_files",
-      "community": 190,
-      "community_name": "ShadcnInstaller",
-      "norm_label": ".test_get_installed_components_with_files()"
     },
     {
       "label": ".test_list_installed_with_components()",
@@ -8984,66 +8972,6 @@
       "community": 2,
       "community_name": "youtube.ts",
       "norm_label": "parsedurationtext()"
-    },
-    {
-      "label": "formatSeconds()",
-      "file_type": "code",
-      "source_file": "components/playlist/ImportSpotifyModal.tsx",
-      "source_location": "L48",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "components_playlist_importspotifymodal_formatseconds",
-      "community": 2,
-      "community_name": "youtube.ts",
-      "norm_label": "formatseconds()"
-    },
-    {
-      "label": "ImportSpotifyModal()",
-      "file_type": "code",
-      "source_file": "components/playlist/ImportSpotifyModal.tsx",
-      "source_location": "L55",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "components_playlist_importspotifymodal_importspotifymodal",
-      "community": 2,
-      "community_name": "youtube.ts",
-      "norm_label": "importspotifymodal()"
-    },
-    {
-      "label": "matchPlaylistToYouTube()",
-      "file_type": "code",
-      "source_file": "lib/playlist-import.ts",
-      "source_location": "L105",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "lib_playlist_import_matchplaylisttoyoutube",
-      "community": 2,
-      "community_name": "youtube.ts",
-      "norm_label": "matchplaylisttoyoutube()"
-    },
-    {
-      "label": "matchSingleTrack()",
-      "file_type": "code",
-      "source_file": "lib/playlist-import.ts",
-      "source_location": "L22",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "lib_playlist_import_matchsingletrack",
-      "community": 2,
-      "community_name": "youtube.ts",
-      "norm_label": "matchsingletrack()"
-    },
-    {
-      "label": "extractSpotifyPlaylistId()",
-      "file_type": "code",
-      "source_file": "lib/spotify.ts",
-      "source_location": "L389",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "lib_spotify_extractspotifyplaylistid",
-      "community": 2,
-      "community_name": "youtube.ts",
-      "norm_label": "extractspotifyplaylistid()"
     },
     {
       "label": "enrichPlaylistTracksWithMeta()",
@@ -11737,7 +11665,7 @@
       "label": "NowPlayingOverlay()",
       "file_type": "code",
       "source_file": "components/player/NowPlayingOverlay.tsx",
-      "source_location": "L75",
+      "source_location": "L76",
       "_callable": true,
       "_origin": "ast",
       "id": "components_player_nowplayingoverlay_nowplayingoverlay",
@@ -11900,6 +11828,42 @@
       "community": 30,
       "community_name": "drive-folder/route.ts",
       "norm_label": "get()"
+    },
+    {
+      "label": "GET()",
+      "file_type": "code",
+      "source_file": "app/api/trending/route.ts",
+      "source_location": "L7",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_api_trending_route_get",
+      "community": 300,
+      "community_name": "trending/route.ts",
+      "norm_label": "get()"
+    },
+    {
+      "label": "getTrendingSpotifyTracks()",
+      "file_type": "code",
+      "source_file": "lib/spotify.ts",
+      "source_location": "L93",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_spotify_gettrendingspotifytracks",
+      "community": 300,
+      "community_name": "trending/route.ts",
+      "norm_label": "gettrendingspotifytracks()"
+    },
+    {
+      "label": "getTrendingYouTubeTracks()",
+      "file_type": "code",
+      "source_file": "lib/youtube.ts",
+      "source_location": "L692",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_youtube_gettrendingyoutubetracks",
+      "community": 300,
+      "community_name": "trending/route.ts",
+      "norm_label": "gettrendingyoutubetracks()"
     },
     {
       "label": "GET()",
@@ -12274,16 +12238,16 @@
       "norm_label": "waitforeventmatch()"
     },
     {
-      "label": ".test_add_components_already_installed()",
+      "label": ".test_get_installed_components_with_files()",
       "file_type": "code",
       "source_file": ".agents/skills/ui-styling/scripts/tests/test_shadcn_add.py",
-      "source_location": "L111",
+      "source_location": "L76",
       "_callable": true,
       "_origin": "ast",
-      "id": "agents_skills_ui_styling_scripts_tests_test_shadcn_add_testshadcninstaller_test_add_components_already_installed",
+      "id": "agents_skills_ui_styling_scripts_tests_test_shadcn_add_testshadcninstaller_test_get_installed_components_with_files",
       "community": 361,
-      "community_name": ".test_add_components_already_installed",
-      "norm_label": ".test_add_components_already_installed()"
+      "community_name": ".test_get_installed_components_with_files",
+      "norm_label": ".test_get_installed_components_with_files()"
     },
     {
       "label": ".test_init_dry_run()",
@@ -13426,42 +13390,6 @@
       "norm_label": "handleaudiofetch()"
     },
     {
-      "label": "GET()",
-      "file_type": "code",
-      "source_file": "app/api/albums/new-releases/route.ts",
-      "source_location": "L30",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_api_albums_new_releases_route_get",
-      "community": 6,
-      "community_name": "itunes.ts",
-      "norm_label": "get()"
-    },
-    {
-      "label": "normalizeAlbumKey()",
-      "file_type": "code",
-      "source_file": "app/api/albums/new-releases/route.ts",
-      "source_location": "L20",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_api_albums_new_releases_route_normalizealbumkey",
-      "community": 6,
-      "community_name": "itunes.ts",
-      "norm_label": "normalizealbumkey()"
-    },
-    {
-      "label": "fetchDeezerNewReleases()",
-      "file_type": "code",
-      "source_file": "lib/deezer.ts",
-      "source_location": "L18",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "lib_deezer_fetchdeezernewreleases",
-      "community": 6,
-      "community_name": "itunes.ts",
-      "norm_label": "fetchdeezernewreleases()"
-    },
-    {
       "label": "cleanArtworkUrl()",
       "file_type": "code",
       "source_file": "lib/itunes.ts",
@@ -13472,18 +13400,6 @@
       "community": 6,
       "community_name": "itunes.ts",
       "norm_label": "cleanartworkurl()"
-    },
-    {
-      "label": "getTrendingITunesAlbums()",
-      "file_type": "code",
-      "source_file": "lib/itunes.ts",
-      "source_location": "L57",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "lib_itunes_gettrendingitunesalbums",
-      "community": 6,
-      "community_name": "itunes.ts",
-      "norm_label": "gettrendingitunesalbums()"
     },
     {
       "label": "getTrendingITunesTracks()",
@@ -13642,6 +13558,18 @@
       "norm_label": "settingspage()"
     },
     {
+      "label": "AuthGuard()",
+      "file_type": "code",
+      "source_file": "components/auth/AuthGuard.tsx",
+      "source_location": "L10",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "components_auth_authguard_authguard",
+      "community": 66,
+      "community_name": "(app)/layout.tsx",
+      "norm_label": "authguard()"
+    },
+    {
       "label": "CurrentUserProvider()",
       "file_type": "code",
       "source_file": "components/auth/CurrentUserContext.tsx",
@@ -13788,6 +13716,30 @@
     {
       "label": "formatSeconds()",
       "file_type": "code",
+      "source_file": "components/playlist/ImportSpotifyModal.tsx",
+      "source_location": "L48",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "components_playlist_importspotifymodal_formatseconds",
+      "community": 66,
+      "community_name": "(app)/layout.tsx",
+      "norm_label": "formatseconds()"
+    },
+    {
+      "label": "ImportSpotifyModal()",
+      "file_type": "code",
+      "source_file": "components/playlist/ImportSpotifyModal.tsx",
+      "source_location": "L55",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "components_playlist_importspotifymodal_importspotifymodal",
+      "community": 66,
+      "community_name": "(app)/layout.tsx",
+      "norm_label": "importspotifymodal()"
+    },
+    {
+      "label": "formatSeconds()",
+      "file_type": "code",
       "source_file": "components/playlist/ImportYouTubePlaylistModal.tsx",
       "source_location": "L40",
       "_callable": true,
@@ -13808,6 +13760,18 @@
       "community": 66,
       "community_name": "(app)/layout.tsx",
       "norm_label": "importyoutubeplaylistmodal()"
+    },
+    {
+      "label": "PlaylistProvider()",
+      "file_type": "code",
+      "source_file": "components/playlist/PlaylistContext.tsx",
+      "source_location": "L20",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "components_playlist_playlistcontext_playlistprovider",
+      "community": 66,
+      "community_name": "(app)/layout.tsx",
+      "norm_label": "playlistprovider()"
     },
     {
       "label": "useSearch()",
@@ -13870,18 +13834,6 @@
       "norm_label": "themeselector()"
     },
     {
-      "label": "useGlideIndicator()",
-      "file_type": "code",
-      "source_file": "hooks/useGlideIndicator.ts",
-      "source_location": "L12",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "hooks_useglideindicator_useglideindicator",
-      "community": 66,
-      "community_name": "(app)/layout.tsx",
-      "norm_label": "useglideindicator()"
-    },
-    {
       "label": "checkServerApproval()",
       "file_type": "code",
       "source_file": "lib/accessControl.ts",
@@ -13906,6 +13858,18 @@
       "norm_label": "getuserrole()"
     },
     {
+      "label": "getValidUserId()",
+      "file_type": "code",
+      "source_file": "lib/accessControl.ts",
+      "source_location": "L154",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_accesscontrol_getvaliduserid",
+      "community": 66,
+      "community_name": "(app)/layout.tsx",
+      "norm_label": "getvaliduserid()"
+    },
+    {
       "label": "isAdmin()",
       "file_type": "code",
       "source_file": "lib/accessControl.ts",
@@ -13928,6 +13892,42 @@
       "community": 66,
       "community_name": "(app)/layout.tsx",
       "norm_label": "isallowedtologin()"
+    },
+    {
+      "label": "matchPlaylistToYouTube()",
+      "file_type": "code",
+      "source_file": "lib/playlist-import.ts",
+      "source_location": "L105",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_playlist_import_matchplaylisttoyoutube",
+      "community": 66,
+      "community_name": "(app)/layout.tsx",
+      "norm_label": "matchplaylisttoyoutube()"
+    },
+    {
+      "label": "matchSingleTrack()",
+      "file_type": "code",
+      "source_file": "lib/playlist-import.ts",
+      "source_location": "L22",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_playlist_import_matchsingletrack",
+      "community": 66,
+      "community_name": "(app)/layout.tsx",
+      "norm_label": "matchsingletrack()"
+    },
+    {
+      "label": "extractSpotifyPlaylistId()",
+      "file_type": "code",
+      "source_file": "lib/spotify.ts",
+      "source_location": "L389",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_spotify_extractspotifyplaylistid",
+      "community": 66,
+      "community_name": "(app)/layout.tsx",
+      "norm_label": "extractspotifyplaylistid()"
     },
     {
       "label": "extractYouTubePlaylistId()",
@@ -14434,30 +14434,6 @@
       "norm_label": "receiptpage()"
     },
     {
-      "label": "ToastProvider()",
-      "file_type": "code",
-      "source_file": "components/ui/ToastContext.tsx",
-      "source_location": "L36",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "components_ui_toastcontext_toastprovider",
-      "community": 7,
-      "community_name": "Track",
-      "norm_label": "toastprovider()"
-    },
-    {
-      "label": "useToast()",
-      "file_type": "code",
-      "source_file": "components/ui/ToastContext.tsx",
-      "source_location": "L168",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "components_ui_toastcontext_usetoast",
-      "community": 7,
-      "community_name": "Track",
-      "norm_label": "usetoast()"
-    },
-    {
       "label": "getAllValidUserIds()",
       "file_type": "code",
       "source_file": "lib/accessControl.ts",
@@ -14552,6 +14528,18 @@
       "community": 7,
       "community_name": "Track",
       "norm_label": "fetchlisteninghistory()"
+    },
+    {
+      "label": "getRecentUniqueTracks()",
+      "file_type": "code",
+      "source_file": "lib/listeningHistory.ts",
+      "source_location": "L81",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_listeninghistory_getrecentuniquetracks",
+      "community": 7,
+      "community_name": "Track",
+      "norm_label": "getrecentuniquetracks()"
     },
     {
       "label": "toError()",
@@ -16368,6 +16356,30 @@
     {
       "label": "GET()",
       "file_type": "code",
+      "source_file": "app/api/albums/new-releases/route.ts",
+      "source_location": "L30",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_api_albums_new_releases_route_get",
+      "community": 82,
+      "community_name": "spotify.ts",
+      "norm_label": "get()"
+    },
+    {
+      "label": "normalizeAlbumKey()",
+      "file_type": "code",
+      "source_file": "app/api/albums/new-releases/route.ts",
+      "source_location": "L20",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_api_albums_new_releases_route_normalizealbumkey",
+      "community": 82,
+      "community_name": "spotify.ts",
+      "norm_label": "normalizealbumkey()"
+    },
+    {
+      "label": "GET()",
+      "file_type": "code",
       "source_file": "app/api/spotify/playlist/route.ts",
       "source_location": "L4",
       "_callable": true,
@@ -16378,16 +16390,28 @@
       "norm_label": "get()"
     },
     {
-      "label": "GET()",
+      "label": "fetchDeezerNewReleases()",
       "file_type": "code",
-      "source_file": "app/api/trending/route.ts",
-      "source_location": "L7",
+      "source_file": "lib/deezer.ts",
+      "source_location": "L18",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_api_trending_route_get",
+      "id": "lib_deezer_fetchdeezernewreleases",
       "community": 82,
       "community_name": "spotify.ts",
-      "norm_label": "get()"
+      "norm_label": "fetchdeezernewreleases()"
+    },
+    {
+      "label": "getTrendingITunesAlbums()",
+      "file_type": "code",
+      "source_file": "lib/itunes.ts",
+      "source_location": "L57",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "lib_itunes_gettrendingitunesalbums",
+      "community": 82,
+      "community_name": "spotify.ts",
+      "norm_label": "gettrendingitunesalbums()"
     },
     {
       "label": "fetchNewReleases()",
@@ -16474,18 +16498,6 @@
       "norm_label": "getspotifyaccesstoken()"
     },
     {
-      "label": "getTrendingSpotifyTracks()",
-      "file_type": "code",
-      "source_file": "lib/spotify.ts",
-      "source_location": "L93",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "lib_spotify_gettrendingspotifytracks",
-      "community": 82,
-      "community_name": "spotify.ts",
-      "norm_label": "gettrendingspotifytracks()"
-    },
-    {
       "label": "mapSpotifyAlbumItems()",
       "file_type": "code",
       "source_file": "lib/spotify.ts",
@@ -16508,18 +16520,6 @@
       "community": 82,
       "community_name": "spotify.ts",
       "norm_label": "searchspotifytracks()"
-    },
-    {
-      "label": "getTrendingYouTubeTracks()",
-      "file_type": "code",
-      "source_file": "lib/youtube.ts",
-      "source_location": "L692",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "lib_youtube_gettrendingyoutubetracks",
-      "community": 82,
-      "community_name": "spotify.ts",
-      "norm_label": "gettrendingyoutubetracks()"
     },
     {
       "label": ".test_add_breakpoints()",
@@ -16861,7 +16861,7 @@
       "label": "formatTime()",
       "file_type": "code",
       "source_file": "components/player/LyricsView.tsx",
-      "source_location": "L45",
+      "source_location": "L47",
       "_callable": true,
       "_origin": "ast",
       "id": "components_player_lyricsview_formattime",
@@ -18314,6 +18314,17 @@
       "norm_label": "framer-motion"
     },
     {
+      "label": "lamejs",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L21",
+      "_origin": "ast",
+      "id": "package_dependencies_lamejs",
+      "community": 10,
+      "community_name": "dependencies",
+      "norm_label": "lamejs"
+    },
+    {
       "label": "lucide-react",
       "file_type": "code",
       "source_file": "package.json",
@@ -18323,17 +18334,6 @@
       "community": 10,
       "community_name": "dependencies",
       "norm_label": "lucide-react"
-    },
-    {
-      "label": "next-auth",
-      "file_type": "code",
-      "source_file": "package.json",
-      "source_location": "L26",
-      "_origin": "ast",
-      "id": "package_dependencies_next_auth",
-      "community": 10,
-      "community_name": "dependencies",
-      "norm_label": "next-auth"
     },
     {
       "label": "react",
@@ -18424,6 +18424,17 @@
       "norm_label": "framer-motion"
     },
     {
+      "label": "lamejs",
+      "file_type": "concept",
+      "source_file": "package.json",
+      "source_location": "L21",
+      "_origin": "ast",
+      "id": "lamejs",
+      "community": 10,
+      "community_name": "dependencies",
+      "norm_label": "lamejs"
+    },
+    {
       "label": "lucide-react",
       "file_type": "concept",
       "source_file": "package.json",
@@ -18433,17 +18444,6 @@
       "community": 10,
       "community_name": "dependencies",
       "norm_label": "lucide-react"
-    },
-    {
-      "label": "next-auth",
-      "file_type": "concept",
-      "source_file": "package.json",
-      "source_location": "L26",
-      "_origin": "ast",
-      "id": "next_auth",
-      "community": 10,
-      "community_name": "dependencies",
-      "norm_label": "next-auth"
     },
     {
       "label": "react",
@@ -20858,6 +20858,28 @@
       "label": "$type",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L40",
+      "_origin": "ast",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_0_type",
+      "community": 110,
+      "community_name": "spacing",
+      "norm_label": "$type"
+    },
+    {
+      "label": "$value",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L40",
+      "_origin": "ast",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_0_value",
+      "community": 110,
+      "community_name": "spacing",
+      "norm_label": "$value"
+    },
+    {
+      "label": "$type",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
       "source_location": "L48",
       "_origin": "ast",
       "id": "agents_skills_design_system_templates_design_tokens_starter_10_type",
@@ -20968,28 +20990,6 @@
       "label": "$type",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L46",
-      "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_6_type",
-      "community": 110,
-      "community_name": "spacing",
-      "norm_label": "$type"
-    },
-    {
-      "label": "$value",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L46",
-      "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_6_value",
-      "community": 110,
-      "community_name": "spacing",
-      "norm_label": "$value"
-    },
-    {
-      "label": "$type",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
       "source_location": "L47",
       "_origin": "ast",
       "id": "agents_skills_design_system_templates_design_tokens_starter_8_type",
@@ -21018,6 +21018,17 @@
       "community": 110,
       "community_name": "spacing",
       "norm_label": "spacing"
+    },
+    {
+      "label": "0",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L40",
+      "_origin": "ast",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_spacing_0",
+      "community": 110,
+      "community_name": "spacing",
+      "norm_label": "0"
     },
     {
       "label": "10",
@@ -21073,17 +21084,6 @@
       "community": 110,
       "community_name": "spacing",
       "norm_label": "5"
-    },
-    {
-      "label": "6",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L46",
-      "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_spacing_6",
-      "community": 110,
-      "community_name": "spacing",
-      "norm_label": "6"
     },
     {
       "label": "8",
@@ -22695,7 +22695,7 @@
       "label": "StageWithFrequencyData",
       "file_type": "code",
       "source_file": "components/player/NowPlayingOverlay.tsx",
-      "source_location": "L45",
+      "source_location": "L46",
       "_origin": "ast",
       "id": "components_player_nowplayingoverlay_stagewithfrequencydata",
       "community": 122,
@@ -23506,48 +23506,37 @@
       "norm_label": "background"
     },
     {
-      "label": "foreground",
+      "label": "destructive-foreground",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L87",
+      "source_location": "L96",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_color_foreground",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_color_destructive_foreground",
       "community": 127,
       "community_name": "color",
-      "norm_label": "foreground"
+      "norm_label": "destructive-foreground"
     },
     {
-      "label": "muted-foreground",
+      "label": "muted",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L94",
+      "source_location": "L93",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_color_muted_foreground",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_color_muted",
       "community": 127,
       "community_name": "color",
-      "norm_label": "muted-foreground"
+      "norm_label": "muted"
     },
     {
-      "label": "primary",
+      "label": "primary-foreground",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L88",
+      "source_location": "L90",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_color_primary",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_color_primary_foreground",
       "community": 127,
       "community_name": "color",
-      "norm_label": "primary"
-    },
-    {
-      "label": "primary-hover",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L89",
-      "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_color_primary_hover",
-      "community": 127,
-      "community_name": "color",
-      "norm_label": "primary-hover"
+      "norm_label": "primary-foreground"
     },
     {
       "label": "secondary",
@@ -23561,12 +23550,23 @@
       "norm_label": "secondary"
     },
     {
+      "label": "secondary-foreground",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L92",
+      "_origin": "ast",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_color_secondary_foreground",
+      "community": 127,
+      "community_name": "color",
+      "norm_label": "secondary-foreground"
+    },
+    {
       "label": "$type",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L87",
+      "source_location": "L96",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_foreground_type",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_destructive_foreground_type",
       "community": 127,
       "community_name": "color",
       "norm_label": "$type"
@@ -23575,9 +23575,9 @@
       "label": "$value",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L87",
+      "source_location": "L96",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_foreground_value",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_destructive_foreground_value",
       "community": 127,
       "community_name": "color",
       "norm_label": "$value"
@@ -23586,9 +23586,9 @@
       "label": "$type",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L94",
+      "source_location": "L93",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_muted_foreground_type",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_muted_type",
       "community": 127,
       "community_name": "color",
       "norm_label": "$type"
@@ -23597,9 +23597,9 @@
       "label": "$value",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L94",
+      "source_location": "L93",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_muted_foreground_value",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_muted_value",
       "community": 127,
       "community_name": "color",
       "norm_label": "$value"
@@ -23608,9 +23608,9 @@
       "label": "$type",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L89",
+      "source_location": "L90",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_primary_hover_type",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_primary_foreground_type",
       "community": 127,
       "community_name": "color",
       "norm_label": "$type"
@@ -23619,9 +23619,9 @@
       "label": "$value",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L89",
+      "source_location": "L90",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_primary_hover_value",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_primary_foreground_value",
       "community": 127,
       "community_name": "color",
       "norm_label": "$value"
@@ -23630,9 +23630,9 @@
       "label": "$type",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L88",
+      "source_location": "L92",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_primary_type",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_secondary_foreground_type",
       "community": 127,
       "community_name": "color",
       "norm_label": "$type"
@@ -23641,9 +23641,9 @@
       "label": "$value",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L88",
+      "source_location": "L92",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_primary_value",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_secondary_foreground_value",
       "community": 127,
       "community_name": "color",
       "norm_label": "$value"
@@ -28346,17 +28346,6 @@
       "norm_label": "genre_tabs"
     },
     {
-      "label": "AuthGuard.tsx",
-      "file_type": "code",
-      "source_file": "components/auth/AuthGuard.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "components_auth_authguard",
-      "community": 16,
-      "community_name": "createClient",
-      "norm_label": "authguard.tsx"
-    },
-    {
       "label": "MediaCard.tsx",
       "file_type": "code",
       "source_file": "components/common/MediaCard.tsx",
@@ -28379,15 +28368,15 @@
       "norm_label": "skeletonloader.tsx"
     },
     {
-      "label": "QueueDrawer.tsx",
+      "label": "common/useGlideIndicator.ts",
       "file_type": "code",
-      "source_file": "components/player/QueueDrawer.tsx",
+      "source_file": "components/common/useGlideIndicator.ts",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "components_player_queuedrawer",
+      "id": "components_common_useglideindicator",
       "community": 16,
       "community_name": "createClient",
-      "norm_label": "queuedrawer.tsx"
+      "norm_label": "common/useglideindicator.ts"
     },
     {
       "label": "ImportSoundCloudModal.tsx",
@@ -28412,28 +28401,6 @@
       "norm_label": "empty_tracks"
     },
     {
-      "label": "PlaylistContext.tsx",
-      "file_type": "code",
-      "source_file": "components/playlist/PlaylistContext.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "components_playlist_playlistcontext",
-      "community": 16,
-      "community_name": "createClient",
-      "norm_label": "playlistcontext.tsx"
-    },
-    {
-      "label": "PlaylistContext",
-      "file_type": "code",
-      "source_file": "components/playlist/PlaylistContext.tsx",
-      "source_location": "L18",
-      "_origin": "ast",
-      "id": "components_playlist_playlistcontext_playlistcontext",
-      "community": 16,
-      "community_name": "createClient",
-      "norm_label": "playlistcontext"
-    },
-    {
       "label": "TrackList.tsx",
       "file_type": "code",
       "source_file": "components/track/TrackList.tsx",
@@ -28456,6 +28423,39 @@
       "norm_label": "trackrow"
     },
     {
+      "label": "ToastContext.tsx",
+      "file_type": "code",
+      "source_file": "components/ui/ToastContext.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "components_ui_toastcontext",
+      "community": 16,
+      "community_name": "createClient",
+      "norm_label": "toastcontext.tsx"
+    },
+    {
+      "label": "ToastContext",
+      "file_type": "code",
+      "source_file": "components/ui/ToastContext.tsx",
+      "source_location": "L23",
+      "_origin": "ast",
+      "id": "components_ui_toastcontext_toastcontext",
+      "community": 16,
+      "community_name": "createClient",
+      "norm_label": "toastcontext"
+    },
+    {
+      "label": "hooks/useGlideIndicator.ts",
+      "file_type": "code",
+      "source_file": "hooks/useGlideIndicator.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "hooks_useglideindicator",
+      "community": 16,
+      "community_name": "createClient",
+      "norm_label": "hooks/useglideindicator.ts"
+    },
+    {
       "label": "STATIC_DRIVE_TRACKS",
       "file_type": "code",
       "source_file": "lib/driveTracksMap.ts",
@@ -28465,17 +28465,6 @@
       "community": 16,
       "community_name": "createClient",
       "norm_label": "static_drive_tracks"
-    },
-    {
-      "label": "client.ts",
-      "file_type": "code",
-      "source_file": "lib/supabase/client.ts",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "lib_supabase_client",
-      "community": 16,
-      "community_name": "createClient",
-      "norm_label": "client.ts"
     },
     {
       "label": "using-git-worktrees/SKILL.md",
@@ -31778,6 +31767,28 @@
       "norm_label": "$value"
     },
     {
+      "label": "$type",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L97",
+      "_origin": "ast",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_border_type",
+      "community": 187,
+      "community_name": "card",
+      "norm_label": "$type"
+    },
+    {
+      "label": "$value",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L97",
+      "_origin": "ast",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_border_value",
+      "community": 187,
+      "community_name": "card",
+      "norm_label": "$value"
+    },
+    {
       "label": "bg",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
@@ -31798,6 +31809,17 @@
       "community": 187,
       "community_name": "card",
       "norm_label": "bg"
+    },
+    {
+      "label": "border",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L125",
+      "_origin": "ast",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_card_border",
+      "community": 187,
+      "community_name": "card",
+      "norm_label": "border"
     },
     {
       "label": "padding",
@@ -31822,6 +31844,17 @@
       "norm_label": "shadow"
     },
     {
+      "label": "border",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L97",
+      "_origin": "ast",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_color_border",
+      "community": 187,
+      "community_name": "card",
+      "norm_label": "border"
+    },
+    {
       "label": "card",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
@@ -31842,6 +31875,17 @@
       "community": 187,
       "community_name": "card",
       "norm_label": "bg"
+    },
+    {
+      "label": "border",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L117",
+      "_origin": "ast",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_input_border",
+      "community": 187,
+      "community_name": "card",
+      "norm_label": "border"
     },
     {
       "label": "$type",
@@ -32350,6 +32394,17 @@
       "norm_label": "tests for shadcn_add.py"
     },
     {
+      "label": "Test adding components that are already installed.",
+      "file_type": "rationale",
+      "source_file": ".agents/skills/ui-styling/scripts/tests/test_shadcn_add.py",
+      "source_location": "L112",
+      "_origin": "ast",
+      "id": "agents_skills_ui_styling_scripts_tests_test_shadcn_add_rationale_112",
+      "community": 190,
+      "community_name": "ShadcnInstaller",
+      "norm_label": "test adding components that are already installed."
+    },
+    {
       "label": "Test listing installed components when they exist.",
       "file_type": "rationale",
       "source_file": ".agents/skills/ui-styling/scripts/tests/test_shadcn_add.py",
@@ -32359,17 +32414,6 @@
       "community": 190,
       "community_name": "ShadcnInstaller",
       "norm_label": "test listing installed components when they exist."
-    },
-    {
-      "label": "Test getting installed components when files exist.",
-      "file_type": "rationale",
-      "source_file": ".agents/skills/ui-styling/scripts/tests/test_shadcn_add.py",
-      "source_location": "L77",
-      "_origin": "ast",
-      "id": "agents_skills_ui_styling_scripts_tests_test_shadcn_add_rationale_77",
-      "community": 190,
-      "community_name": "ShadcnInstaller",
-      "norm_label": "test getting installed components when files exist."
     },
     {
       "label": "Test getting installed components without config.",
@@ -32691,37 +32735,15 @@
       "norm_label": "[analysis title]"
     },
     {
-      "label": "Anti-patterns to avoid",
+      "label": "Build evaluations first",
       "file_type": "document",
       "source_file": ".agents/skills/writing-skills/anthropic-best-practices.md",
-      "source_location": "L823",
+      "source_location": "L723",
       "_origin": "ast",
-      "id": "agents_skills_writing_skills_anthropic_best_practices_anti_patterns_to_avoid",
+      "id": "agents_skills_writing_skills_anthropic_best_practices_build_evaluations_first",
       "community": 195,
       "community_name": "[Analysis Title]",
-      "norm_label": "anti-patterns to avoid"
-    },
-    {
-      "label": "Avoid offering too many options",
-      "file_type": "document",
-      "source_file": ".agents/skills/writing-skills/anthropic-best-practices.md",
-      "source_location": "L834",
-      "_origin": "ast",
-      "id": "agents_skills_writing_skills_anthropic_best_practices_avoid_offering_too_many_options",
-      "community": 195,
-      "community_name": "[Analysis Title]",
-      "norm_label": "avoid offering too many options"
-    },
-    {
-      "label": "Avoid Windows-style paths",
-      "file_type": "document",
-      "source_file": ".agents/skills/writing-skills/anthropic-best-practices.md",
-      "source_location": "L825",
-      "_origin": "ast",
-      "id": "agents_skills_writing_skills_anthropic_best_practices_avoid_windows_style_paths",
-      "community": 195,
-      "community_name": "[Analysis Title]",
-      "norm_label": "avoid windows-style paths"
+      "norm_label": "build evaluations first"
     },
     {
       "label": "Conditional workflow pattern",
@@ -32733,6 +32755,28 @@
       "community": 195,
       "community_name": "[Analysis Title]",
       "norm_label": "conditional workflow pattern"
+    },
+    {
+      "label": "Develop Skills iteratively with the agent",
+      "file_type": "document",
+      "source_file": ".agents/skills/writing-skills/anthropic-best-practices.md",
+      "source_location": "L756",
+      "_origin": "ast",
+      "id": "agents_skills_writing_skills_anthropic_best_practices_develop_skills_iteratively_with_the_agent",
+      "community": 195,
+      "community_name": "[Analysis Title]",
+      "norm_label": "develop skills iteratively with the agent"
+    },
+    {
+      "label": "Evaluation and iteration",
+      "file_type": "document",
+      "source_file": ".agents/skills/writing-skills/anthropic-best-practices.md",
+      "source_location": "L721",
+      "_origin": "ast",
+      "id": "agents_skills_writing_skills_anthropic_best_practices_evaluation_and_iteration",
+      "community": 195,
+      "community_name": "[Analysis Title]",
+      "norm_label": "evaluation and iteration"
     },
     {
       "label": "Examples pattern",
@@ -32766,6 +32810,17 @@
       "community": 195,
       "community_name": "[Analysis Title]",
       "norm_label": "key findings"
+    },
+    {
+      "label": "Observe how agents navigate Skills",
+      "file_type": "document",
+      "source_file": ".agents/skills/writing-skills/anthropic-best-practices.md",
+      "source_location": "L812",
+      "_origin": "ast",
+      "id": "agents_skills_writing_skills_anthropic_best_practices_observe_how_agents_navigate_skills",
+      "community": 195,
+      "community_name": "[Analysis Title]",
+      "norm_label": "observe how agents navigate skills"
     },
     {
       "label": "Provide utility scripts",
@@ -33195,39 +33250,6 @@
       "community": 2,
       "community_name": "youtube.ts",
       "norm_label": "youtube/playlist/route.ts"
-    },
-    {
-      "label": "ImportSpotifyModal.tsx",
-      "file_type": "code",
-      "source_file": "components/playlist/ImportSpotifyModal.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "components_playlist_importspotifymodal",
-      "community": 2,
-      "community_name": "youtube.ts",
-      "norm_label": "importspotifymodal.tsx"
-    },
-    {
-      "label": "playlist-import.ts",
-      "file_type": "code",
-      "source_file": "lib/playlist-import.ts",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "lib_playlist_import",
-      "community": 2,
-      "community_name": "youtube.ts",
-      "norm_label": "playlist-import.ts"
-    },
-    {
-      "label": "matchCache",
-      "file_type": "code",
-      "source_file": "lib/playlist-import.ts",
-      "source_location": "L15",
-      "_origin": "ast",
-      "id": "lib_playlist_import_matchcache",
-      "community": 2,
-      "community_name": "youtube.ts",
-      "norm_label": "matchcache"
     },
     {
       "label": "youtube.ts",
@@ -42542,59 +42564,26 @@
       "norm_label": "foldercache"
     },
     {
-      "label": "$type",
+      "label": "trending/route.ts",
       "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L97",
+      "source_file": "app/api/trending/route.ts",
+      "source_location": "L1",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_border_type",
+      "id": "app_api_trending_route",
       "community": 300,
-      "community_name": "$type",
-      "norm_label": "$type"
+      "community_name": "trending/route.ts",
+      "norm_label": "trending/route.ts"
     },
     {
-      "label": "$value",
+      "label": "runtime",
       "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L97",
+      "source_file": "app/api/trending/route.ts",
+      "source_location": "L5",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_border_value",
+      "id": "app_api_trending_route_runtime",
       "community": 300,
-      "community_name": "$type",
-      "norm_label": "$value"
-    },
-    {
-      "label": "border",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L125",
-      "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_card_border",
-      "community": 300,
-      "community_name": "$type",
-      "norm_label": "border"
-    },
-    {
-      "label": "border",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L97",
-      "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_color_border",
-      "community": 300,
-      "community_name": "$type",
-      "norm_label": "border"
-    },
-    {
-      "label": "border",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L117",
-      "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_input_border",
-      "community": 300,
-      "community_name": "$type",
-      "norm_label": "border"
+      "community_name": "trending/route.ts",
+      "norm_label": "runtime"
     },
     {
       "label": "radius",
@@ -43469,34 +43458,34 @@
       "label": "$type",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L40",
+      "source_location": "L46",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_0_type",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_6_type",
       "community": 319,
-      "community_name": "0",
+      "community_name": "6",
       "norm_label": "$type"
     },
     {
       "label": "$value",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L40",
+      "source_location": "L46",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_0_value",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_6_value",
       "community": 319,
-      "community_name": "0",
+      "community_name": "6",
       "norm_label": "$value"
     },
     {
-      "label": "0",
+      "label": "6",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L40",
+      "source_location": "L46",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_spacing_0",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_spacing_6",
       "community": 319,
-      "community_name": "0",
-      "norm_label": "0"
+      "community_name": "6",
+      "norm_label": "6"
     },
     {
       "label": "test_smtp.js",
@@ -44357,48 +44346,37 @@
       "norm_label": "none"
     },
     {
-      "label": "Build evaluations first",
-      "file_type": "document",
-      "source_file": ".agents/skills/writing-skills/anthropic-best-practices.md",
-      "source_location": "L723",
+      "label": "foreground",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L87",
       "_origin": "ast",
-      "id": "agents_skills_writing_skills_anthropic_best_practices_build_evaluations_first",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_color_foreground",
       "community": 341,
-      "community_name": "Evaluation and iteration",
-      "norm_label": "build evaluations first"
+      "community_name": "foreground",
+      "norm_label": "foreground"
     },
     {
-      "label": "Develop Skills iteratively with the agent",
-      "file_type": "document",
-      "source_file": ".agents/skills/writing-skills/anthropic-best-practices.md",
-      "source_location": "L756",
+      "label": "$type",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L87",
       "_origin": "ast",
-      "id": "agents_skills_writing_skills_anthropic_best_practices_develop_skills_iteratively_with_the_agent",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_foreground_type",
       "community": 341,
-      "community_name": "Evaluation and iteration",
-      "norm_label": "develop skills iteratively with the agent"
+      "community_name": "foreground",
+      "norm_label": "$type"
     },
     {
-      "label": "Evaluation and iteration",
-      "file_type": "document",
-      "source_file": ".agents/skills/writing-skills/anthropic-best-practices.md",
-      "source_location": "L721",
+      "label": "$value",
+      "file_type": "code",
+      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
+      "source_location": "L87",
       "_origin": "ast",
-      "id": "agents_skills_writing_skills_anthropic_best_practices_evaluation_and_iteration",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_foreground_value",
       "community": 341,
-      "community_name": "Evaluation and iteration",
-      "norm_label": "evaluation and iteration"
-    },
-    {
-      "label": "Observe how agents navigate Skills",
-      "file_type": "document",
-      "source_file": ".agents/skills/writing-skills/anthropic-best-practices.md",
-      "source_location": "L812",
-      "_origin": "ast",
-      "id": "agents_skills_writing_skills_anthropic_best_practices_observe_how_agents_navigate_skills",
-      "community": 341,
-      "community_name": "Evaluation and iteration",
-      "norm_label": "observe how agents navigate skills"
+      "community_name": "foreground",
+      "norm_label": "$value"
     },
     {
       "label": "nhaccuatui/search/route.ts",
@@ -44423,102 +44401,102 @@
       "norm_label": "nhaccuatui/__tests__/route.test.ts"
     },
     {
-      "label": "destructive-foreground",
+      "label": "muted-foreground",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L96",
+      "source_location": "L94",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_color_destructive_foreground",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_color_muted_foreground",
       "community": 343,
-      "community_name": "destructive-foreground",
-      "norm_label": "destructive-foreground"
+      "community_name": "muted-foreground",
+      "norm_label": "muted-foreground"
     },
     {
       "label": "$type",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L96",
+      "source_location": "L94",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_destructive_foreground_type",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_muted_foreground_type",
       "community": 343,
-      "community_name": "destructive-foreground",
+      "community_name": "muted-foreground",
       "norm_label": "$type"
     },
     {
       "label": "$value",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L96",
+      "source_location": "L94",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_destructive_foreground_value",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_muted_foreground_value",
       "community": 343,
-      "community_name": "destructive-foreground",
+      "community_name": "muted-foreground",
       "norm_label": "$value"
     },
     {
-      "label": "muted",
+      "label": "primary",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L93",
+      "source_location": "L88",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_color_muted",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_color_primary",
       "community": 344,
-      "community_name": "muted",
-      "norm_label": "muted"
+      "community_name": "primary",
+      "norm_label": "primary"
     },
     {
       "label": "$type",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L93",
+      "source_location": "L88",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_muted_type",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_primary_type",
       "community": 344,
-      "community_name": "muted",
+      "community_name": "primary",
       "norm_label": "$type"
     },
     {
       "label": "$value",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L93",
+      "source_location": "L88",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_muted_value",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_primary_value",
       "community": 344,
-      "community_name": "muted",
+      "community_name": "primary",
       "norm_label": "$value"
     },
     {
-      "label": "primary-foreground",
+      "label": "primary-hover",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L90",
+      "source_location": "L89",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_color_primary_foreground",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_color_primary_hover",
       "community": 345,
-      "community_name": "primary-foreground",
-      "norm_label": "primary-foreground"
+      "community_name": "primary-hover",
+      "norm_label": "primary-hover"
     },
     {
       "label": "$type",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L90",
+      "source_location": "L89",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_primary_foreground_type",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_primary_hover_type",
       "community": 345,
-      "community_name": "primary-foreground",
+      "community_name": "primary-hover",
       "norm_label": "$type"
     },
     {
       "label": "$value",
       "file_type": "code",
       "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L90",
+      "source_location": "L89",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_primary_foreground_value",
+      "id": "agents_skills_design_system_templates_design_tokens_starter_primary_hover_value",
       "community": 345,
-      "community_name": "primary-foreground",
+      "community_name": "primary-hover",
       "norm_label": "$value"
     },
     {
@@ -44555,37 +44533,37 @@
       "norm_label": "$value"
     },
     {
-      "label": "secondary-foreground",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L92",
+      "label": "Anti-patterns to avoid",
+      "file_type": "document",
+      "source_file": ".agents/skills/writing-skills/anthropic-best-practices.md",
+      "source_location": "L823",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_color_secondary_foreground",
+      "id": "agents_skills_writing_skills_anthropic_best_practices_anti_patterns_to_avoid",
       "community": 347,
-      "community_name": "secondary-foreground",
-      "norm_label": "secondary-foreground"
+      "community_name": "Anti-patterns to avoid",
+      "norm_label": "anti-patterns to avoid"
     },
     {
-      "label": "$type",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L92",
+      "label": "Avoid offering too many options",
+      "file_type": "document",
+      "source_file": ".agents/skills/writing-skills/anthropic-best-practices.md",
+      "source_location": "L834",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_secondary_foreground_type",
+      "id": "agents_skills_writing_skills_anthropic_best_practices_avoid_offering_too_many_options",
       "community": 347,
-      "community_name": "secondary-foreground",
-      "norm_label": "$type"
+      "community_name": "Anti-patterns to avoid",
+      "norm_label": "avoid offering too many options"
     },
     {
-      "label": "$value",
-      "file_type": "code",
-      "source_file": ".agents/skills/design-system/templates/design-tokens-starter.json",
-      "source_location": "L92",
+      "label": "Avoid Windows-style paths",
+      "file_type": "document",
+      "source_file": ".agents/skills/writing-skills/anthropic-best-practices.md",
+      "source_location": "L825",
       "_origin": "ast",
-      "id": "agents_skills_design_system_templates_design_tokens_starter_secondary_foreground_value",
+      "id": "agents_skills_writing_skills_anthropic_best_practices_avoid_windows_style_paths",
       "community": 347,
-      "community_name": "secondary-foreground",
-      "norm_label": "$value"
+      "community_name": "Anti-patterns to avoid",
+      "norm_label": "avoid windows-style paths"
     },
     {
       "label": "Path",
@@ -44973,15 +44951,15 @@
       "norm_label": "backgroundtaboptimization.test.ts"
     },
     {
-      "label": "Test adding components that are already installed.",
+      "label": "Test getting installed components when files exist.",
       "file_type": "rationale",
       "source_file": ".agents/skills/ui-styling/scripts/tests/test_shadcn_add.py",
-      "source_location": "L112",
+      "source_location": "L77",
       "_origin": "ast",
-      "id": "agents_skills_ui_styling_scripts_tests_test_shadcn_add_rationale_112",
+      "id": "agents_skills_ui_styling_scripts_tests_test_shadcn_add_rationale_77",
       "community": 361,
-      "community_name": ".test_add_components_already_installed",
-      "norm_label": "test adding components that are already installed."
+      "community_name": ".test_get_installed_components_with_files",
+      "norm_label": "test getting installed components when files exist."
     },
     {
       "label": "Test initialization with dry run mode.",
@@ -45039,26 +45017,26 @@
       "norm_label": "test getting installed components when none exist."
     },
     {
-      "label": "lamejs",
+      "label": "next-auth",
       "file_type": "code",
       "source_file": "package.json",
-      "source_location": "L21",
+      "source_location": "L26",
       "_origin": "ast",
-      "id": "package_dependencies_lamejs",
+      "id": "package_dependencies_next_auth",
       "community": 365,
-      "community_name": "lamejs",
-      "norm_label": "lamejs"
+      "community_name": "next-auth",
+      "norm_label": "next-auth"
     },
     {
-      "label": "lamejs",
+      "label": "next-auth",
       "file_type": "concept",
       "source_file": "package.json",
-      "source_location": "L21",
+      "source_location": "L26",
       "_origin": "ast",
-      "id": "lamejs",
+      "id": "next_auth",
       "community": 365,
-      "community_name": "lamejs",
-      "norm_label": "lamejs"
+      "community_name": "next-auth",
+      "norm_label": "next-auth"
     },
     {
       "label": "$type",
@@ -46315,28 +46293,6 @@
       "norm_label": "sw.js"
     },
     {
-      "label": "new-releases/route.ts",
-      "file_type": "code",
-      "source_file": "app/api/albums/new-releases/route.ts",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_api_albums_new_releases_route",
-      "community": 6,
-      "community_name": "itunes.ts",
-      "norm_label": "new-releases/route.ts"
-    },
-    {
-      "label": "dynamic",
-      "file_type": "code",
-      "source_file": "app/api/albums/new-releases/route.ts",
-      "source_location": "L6",
-      "_origin": "ast",
-      "id": "app_api_albums_new_releases_route_dynamic",
-      "community": 6,
-      "community_name": "itunes.ts",
-      "norm_label": "dynamic"
-    },
-    {
       "label": "itunes.ts",
       "file_type": "code",
       "source_file": "lib/itunes.ts",
@@ -47008,6 +46964,17 @@
       "norm_label": "settings/page.tsx"
     },
     {
+      "label": "AuthGuard.tsx",
+      "file_type": "code",
+      "source_file": "components/auth/AuthGuard.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "components_auth_authguard",
+      "community": 66,
+      "community_name": "(app)/layout.tsx",
+      "norm_label": "authguard.tsx"
+    },
+    {
       "label": "CurrentUserContext.tsx",
       "file_type": "code",
       "source_file": "components/auth/CurrentUserContext.tsx",
@@ -47028,17 +46995,6 @@
       "community": 66,
       "community_name": "(app)/layout.tsx",
       "norm_label": "currentusercontext"
-    },
-    {
-      "label": "common/useGlideIndicator.ts",
-      "file_type": "code",
-      "source_file": "components/common/useGlideIndicator.ts",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "components_common_useglideindicator",
-      "community": 66,
-      "community_name": "(app)/layout.tsx",
-      "norm_label": "common/useglideindicator.ts"
     },
     {
       "label": "YoutubeIcon.tsx",
@@ -47118,6 +47074,17 @@
       "norm_label": "topbar.tsx"
     },
     {
+      "label": "ImportSpotifyModal.tsx",
+      "file_type": "code",
+      "source_file": "components/playlist/ImportSpotifyModal.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "components_playlist_importspotifymodal",
+      "community": 66,
+      "community_name": "(app)/layout.tsx",
+      "norm_label": "importspotifymodal.tsx"
+    },
+    {
       "label": "ImportYouTubePlaylistModal.tsx",
       "file_type": "code",
       "source_file": "components/playlist/ImportYouTubePlaylistModal.tsx",
@@ -47127,6 +47094,28 @@
       "community": 66,
       "community_name": "(app)/layout.tsx",
       "norm_label": "importyoutubeplaylistmodal.tsx"
+    },
+    {
+      "label": "PlaylistContext.tsx",
+      "file_type": "code",
+      "source_file": "components/playlist/PlaylistContext.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "components_playlist_playlistcontext",
+      "community": 66,
+      "community_name": "(app)/layout.tsx",
+      "norm_label": "playlistcontext.tsx"
+    },
+    {
+      "label": "PlaylistContext",
+      "file_type": "code",
+      "source_file": "components/playlist/PlaylistContext.tsx",
+      "source_location": "L18",
+      "_origin": "ast",
+      "id": "components_playlist_playlistcontext_playlistcontext",
+      "community": 66,
+      "community_name": "(app)/layout.tsx",
+      "norm_label": "playlistcontext"
     },
     {
       "label": "searchInteraction.ts",
@@ -47162,17 +47151,6 @@
       "norm_label": "sidebar.tsx"
     },
     {
-      "label": "hooks/useGlideIndicator.ts",
-      "file_type": "code",
-      "source_file": "hooks/useGlideIndicator.ts",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "hooks_useglideindicator",
-      "community": 66,
-      "community_name": "(app)/layout.tsx",
-      "norm_label": "hooks/useglideindicator.ts"
-    },
-    {
       "label": "accessControl.ts",
       "file_type": "code",
       "source_file": "lib/accessControl.ts",
@@ -47182,6 +47160,39 @@
       "community": 66,
       "community_name": "(app)/layout.tsx",
       "norm_label": "accesscontrol.ts"
+    },
+    {
+      "label": "playlist-import.ts",
+      "file_type": "code",
+      "source_file": "lib/playlist-import.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "lib_playlist_import",
+      "community": 66,
+      "community_name": "(app)/layout.tsx",
+      "norm_label": "playlist-import.ts"
+    },
+    {
+      "label": "matchCache",
+      "file_type": "code",
+      "source_file": "lib/playlist-import.ts",
+      "source_location": "L15",
+      "_origin": "ast",
+      "id": "lib_playlist_import_matchcache",
+      "community": 66,
+      "community_name": "(app)/layout.tsx",
+      "norm_label": "matchcache"
+    },
+    {
+      "label": "client.ts",
+      "file_type": "code",
+      "source_file": "lib/supabase/client.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "lib_supabase_client",
+      "community": 66,
+      "community_name": "(app)/layout.tsx",
+      "norm_label": "client.ts"
     },
     {
       "label": "tailwind-utilities.md",
@@ -48163,6 +48174,17 @@
       "norm_label": "receipt/page.tsx"
     },
     {
+      "label": "QueueDrawer.tsx",
+      "file_type": "code",
+      "source_file": "components/player/QueueDrawer.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "components_player_queuedrawer",
+      "community": 7,
+      "community_name": "Track",
+      "norm_label": "queuedrawer.tsx"
+    },
+    {
       "label": "ReceiptifyView.tsx",
       "file_type": "code",
       "source_file": "components/player/ReceiptifyView.tsx",
@@ -48183,28 +48205,6 @@
       "community": 7,
       "community_name": "Track",
       "norm_label": "playersafetyguards.test.ts"
-    },
-    {
-      "label": "ToastContext.tsx",
-      "file_type": "code",
-      "source_file": "components/ui/ToastContext.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "components_ui_toastcontext",
-      "community": 7,
-      "community_name": "Track",
-      "norm_label": "toastcontext.tsx"
-    },
-    {
-      "label": "ToastContext",
-      "file_type": "code",
-      "source_file": "components/ui/ToastContext.tsx",
-      "source_location": "L23",
-      "_origin": "ast",
-      "id": "components_ui_toastcontext_toastcontext",
-      "community": 7,
-      "community_name": "Track",
-      "norm_label": "toastcontext"
     },
     {
       "label": "audius.ts",
@@ -51606,6 +51606,28 @@
       "norm_label": "search stack-specific guidelines"
     },
     {
+      "label": "new-releases/route.ts",
+      "file_type": "code",
+      "source_file": "app/api/albums/new-releases/route.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_api_albums_new_releases_route",
+      "community": 82,
+      "community_name": "spotify.ts",
+      "norm_label": "new-releases/route.ts"
+    },
+    {
+      "label": "dynamic",
+      "file_type": "code",
+      "source_file": "app/api/albums/new-releases/route.ts",
+      "source_location": "L6",
+      "_origin": "ast",
+      "id": "app_api_albums_new_releases_route_dynamic",
+      "community": 82,
+      "community_name": "spotify.ts",
+      "norm_label": "dynamic"
+    },
+    {
       "label": "spotify/playlist/route.ts",
       "file_type": "code",
       "source_file": "app/api/spotify/playlist/route.ts",
@@ -51615,28 +51637,6 @@
       "community": 82,
       "community_name": "spotify.ts",
       "norm_label": "spotify/playlist/route.ts"
-    },
-    {
-      "label": "trending/route.ts",
-      "file_type": "code",
-      "source_file": "app/api/trending/route.ts",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_api_trending_route",
-      "community": 82,
-      "community_name": "spotify.ts",
-      "norm_label": "trending/route.ts"
-    },
-    {
-      "label": "runtime",
-      "file_type": "code",
-      "source_file": "app/api/trending/route.ts",
-      "source_location": "L5",
-      "_origin": "ast",
-      "id": "app_api_trending_route_runtime",
-      "community": 82,
-      "community_name": "spotify.ts",
-      "norm_label": "runtime"
     },
     {
       "label": "spotify.ts",
@@ -53017,7 +53017,7 @@
       "label": "LyricLineItem",
       "file_type": "code",
       "source_file": "components/player/LyricsView.tsx",
-      "source_location": "L66",
+      "source_location": "L68",
       "_origin": "ast",
       "id": "components_player_lyricsview_lyriclineitem",
       "community": 88,
@@ -53028,7 +53028,7 @@
       "label": "LyricsBottomControls",
       "file_type": "code",
       "source_file": "components/player/LyricsView.tsx",
-      "source_location": "L142",
+      "source_location": "L144",
       "_origin": "ast",
       "id": "components_player_lyricsview_lyricsbottomcontrols",
       "community": 88,
@@ -53039,7 +53039,7 @@
       "label": "LyricsView",
       "file_type": "code",
       "source_file": "components/player/LyricsView.tsx",
-      "source_location": "L347",
+      "source_location": "L349",
       "_origin": "ast",
       "id": "components_player_lyricsview_lyricsview",
       "community": 88,
@@ -66101,7 +66101,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/LyricsView.tsx",
-      "source_location": "L143",
+      "source_location": "L145",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_lyricsview_lyricsbottomcontrols",
@@ -66113,7 +66113,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/LyricsView.tsx",
-      "source_location": "L158",
+      "source_location": "L160",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_lyricsview_lyricsbottomcontrols",
@@ -66124,7 +66124,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "components/player/LyricsView.tsx",
-      "source_location": "L297",
+      "source_location": "L299",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_lyricsview_lyricsbottomcontrols",
@@ -66137,7 +66137,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/LyricsView.tsx",
-      "source_location": "L353",
+      "source_location": "L357",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_lyricsview_lyricsview",
@@ -66149,7 +66149,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/LyricsView.tsx",
-      "source_location": "L354",
+      "source_location": "L358",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_lyricsview_lyricsview",
@@ -66161,7 +66161,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/LyricsView.tsx",
-      "source_location": "L387",
+      "source_location": "L413",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_lyricsview_lyricsview",
@@ -66173,7 +66173,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/LyricsView.tsx",
-      "source_location": "L403",
+      "source_location": "L429",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_lyricsview_lyricsview",
@@ -66185,7 +66185,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/LyricsView.tsx",
-      "source_location": "L407",
+      "source_location": "L433",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_lyricsview_lyricsview",
@@ -66197,7 +66197,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/LyricsView.tsx",
-      "source_location": "L417",
+      "source_location": "L443",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_lyricsview_lyricsview",
@@ -66209,7 +66209,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/LyricsView.tsx",
-      "source_location": "L487",
+      "source_location": "L513",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_lyricsview_lyricsview",
@@ -66221,7 +66221,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/MobileFullviewPlayer.tsx",
-      "source_location": "L148",
+      "source_location": "L154",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_mobilefullviewplayer_mobilefullviewplayer",
@@ -66233,7 +66233,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/MobileFullviewPlayer.tsx",
-      "source_location": "L169",
+      "source_location": "L175",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_mobilefullviewplayer_mobilefullviewplayer",
@@ -66245,7 +66245,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/MobileFullviewPlayer.tsx",
-      "source_location": "L172",
+      "source_location": "L178",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_mobilefullviewplayer_mobilefullviewplayer",
@@ -66257,7 +66257,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/MobileFullviewPlayer.tsx",
-      "source_location": "L185",
+      "source_location": "L191",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_mobilefullviewplayer_mobilefullviewplayer",
@@ -66269,7 +66269,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/MobileFullviewPlayer.tsx",
-      "source_location": "L216",
+      "source_location": "L222",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_mobilefullviewplayer_mobilefullviewplayer",
@@ -66316,7 +66316,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "components/player/MobileFullviewPlayer.tsx",
-      "source_location": "L979",
+      "source_location": "L991",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_mobilefullviewplayer_mobilefullviewplayer",
@@ -66328,7 +66328,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "components/player/MobileFullviewPlayer.tsx",
-      "source_location": "L980",
+      "source_location": "L992",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_mobilefullviewplayer_mobilefullviewplayer",
@@ -66341,7 +66341,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/NowPlayingOverlay.tsx",
-      "source_location": "L121",
+      "source_location": "L139",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_nowplayingoverlay_nowplayingoverlay",
@@ -66353,7 +66353,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/NowPlayingOverlay.tsx",
-      "source_location": "L130",
+      "source_location": "L148",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_nowplayingoverlay_nowplayingoverlay",
@@ -66365,7 +66365,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/NowPlayingOverlay.tsx",
-      "source_location": "L132",
+      "source_location": "L150",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_nowplayingoverlay_nowplayingoverlay",
@@ -66377,7 +66377,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/NowPlayingOverlay.tsx",
-      "source_location": "L150",
+      "source_location": "L168",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_nowplayingoverlay_nowplayingoverlay",
@@ -66389,7 +66389,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/NowPlayingOverlay.tsx",
-      "source_location": "L153",
+      "source_location": "L171",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_nowplayingoverlay_nowplayingoverlay",
@@ -66401,7 +66401,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/NowPlayingOverlay.tsx",
-      "source_location": "L192",
+      "source_location": "L210",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_nowplayingoverlay_nowplayingoverlay",
@@ -66413,7 +66413,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/NowPlayingOverlay.tsx",
-      "source_location": "L76",
+      "source_location": "L77",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_nowplayingoverlay_nowplayingoverlay",
@@ -66425,7 +66425,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/NowPlayingOverlay.tsx",
-      "source_location": "L98",
+      "source_location": "L99",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_nowplayingoverlay_nowplayingoverlay",
@@ -66437,7 +66437,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/player/NowPlayingOverlay.tsx",
-      "source_location": "L60",
+      "source_location": "L61",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_nowplayingoverlay_stagewithfrequencydata",
@@ -120946,7 +120946,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/player/LyricsView.tsx",
-      "source_location": "L142",
+      "source_location": "L144",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_lyricsview",
@@ -120968,7 +120968,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/player/LyricsView.tsx",
-      "source_location": "L347",
+      "source_location": "L349",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_lyricsview",
@@ -120990,7 +120990,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/player/LyricsView.tsx",
-      "source_location": "L45",
+      "source_location": "L47",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_lyricsview",
@@ -121001,7 +121001,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/player/LyricsView.tsx",
-      "source_location": "L55",
+      "source_location": "L57",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_lyricsview",
@@ -121012,7 +121012,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/player/LyricsView.tsx",
-      "source_location": "L66",
+      "source_location": "L68",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_lyricsview",
@@ -121122,7 +121122,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/player/NowPlayingOverlay.tsx",
-      "source_location": "L45",
+      "source_location": "L46",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_nowplayingoverlay",
@@ -121133,7 +121133,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/player/NowPlayingOverlay.tsx",
-      "source_location": "L75",
+      "source_location": "L76",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_player_nowplayingoverlay",
@@ -141094,5 +141094,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "092419ab740177e9d16e5fcf53f7fa6fa991b3d6"
+  "built_at_commit": "dc692405712b186d60fd7dc8190f9d7ada44e9a8"
 }
