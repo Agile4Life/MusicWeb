@@ -1,5 +1,3 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # Dependencies
 /node_modules
 /.pnp
@@ -20,9 +18,11 @@
 # Testing & Coverage
 /coverage/
 
-# Local Isolated Worktrees
+# Local Worktrees & Environments
 /.worktrees/
-/.claude/worktrees/
+/.claude/
+/.codegraph/
+/.superpowers/
 
 # TypeScript & Compilers
 *.tsbuildinfo
@@ -32,7 +32,7 @@ next-env.d.ts
 .env*
 !.env.example
 
-# Scratch & Temporary Debug Scripts
+# Scratch & Temporary Debug Files
 /scratch/
 test_smtp.js
 
@@ -43,10 +43,8 @@ test_smtp.js
 *.dylib
 *.so
 
-# Graphify Ephemeral Cache & Backups
-graphify-out/cache/
-graphify-out/20*/
-graphify-out/.*
+# Graphify Local Knowledge Graph Artifacts
+/graphify-out/
 
 # IDE & Editor Settings
 .idea/
@@ -55,8 +53,6 @@ graphify-out/.*
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
-.claude/settings.local.json
-.codegraph/
 
 # Logs & Debugging
 *.log

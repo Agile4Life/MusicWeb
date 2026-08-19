@@ -1,2 +1,9 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# GitHub Linguist Overrides
+# Exclude vendored audio decoders, demos, docs, and database scripts from repo language percentage
+public/lame*.js linguist-vendored
+public/demos/** linguist-documentation
+docs/** linguist-documentation
+supabase/** linguist-documentation
