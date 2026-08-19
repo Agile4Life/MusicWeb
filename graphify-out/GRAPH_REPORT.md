@@ -1,16 +1,16 @@
 # Graph Report - MusicWeb  (2026-08-19)
 
 ## Corpus Check
-- 519 files · ~614,557 words
+- 519 files · ~614,821 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 4884 nodes · 7531 edges · 389 communities (322 shown, 67 thin omitted)
+- 4884 nodes · 7531 edges · 387 communities (320 shown, 67 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 71 edges (avg confidence: 0.57)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `60d2a9c4`
+- Built from commit: `2d8f8387`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -159,7 +159,7 @@
 - Finishing a Development Branch
 - Copywriting Formulas
 - detect_domain
-- .generate
+- albums/page.tsx
 - test_design_system_mode.py
 - Using Git Worktrees
 - Writing Skills
@@ -185,7 +185,7 @@
 - nhaccuatui/stream/route.ts
 - Testing Skills With Subagents
 - LiquidGlassFilterDefs.tsx
-- BM25
+- _style_is_dark_primary
 - Primitive Tokens
 - validate-tokens.cjs
 - card
@@ -198,7 +198,7 @@
 - Writing Plans
 - [Analysis Title]
 - resolve/route.ts
-- ToastContext.tsx
+- $type
 - Implementation steps
 - Implementation steps
 - Component Architecture & Responsive Changes
@@ -235,7 +235,7 @@
 - Verification Before Completion
 - Skill structure
 - isAdmin
-- $type
+- destructive-foreground
 - input
 - Stream Optimization Plan
 - 2. Proposed Changes & Architecture
@@ -315,7 +315,7 @@
 - Testing All Skill Types
 - RED-GREEN-REFACTOR for Skills
 - VERIFY GREEN: Pressure Testing
-- 1. THE THREE DIALS (Core Configuration)
+- muted
 - Evaluation and iteration
 - .test_add_components_no_config
 - Global Constraints
@@ -328,6 +328,7 @@
 - 15. DEFAULT SITE PACKS
 - 20. EXAMPLE INTERPRETATIONS
 - Pi Tool Mapping
+- primary-foreground
 - Checklist for effective Skills
 - Core principles
 - File Organization
@@ -339,10 +340,7 @@
 - test_sync_brand_to_tokens.py
 - main
 - destructive
-- foreground
-- muted-foreground
-- primary
-- primary-hover
+- secondary-foreground
 - ring
 - .__init__
 - .temp_project
@@ -399,6 +397,8 @@
 10. `search_stack()` - 35 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `AlbumCard()` --calls--> `usePlayer()`  [EXTRACTED]
+  app/(app)/albums/page.tsx → components/player/PlayerContext.tsx
 - `HistoryEntry` --references--> `Track`  [EXTRACTED]
   app/(app)/history/page.tsx → types/index.ts
 - `POST()` --calls--> `getValidUserId()`  [EXTRACTED]
@@ -407,13 +407,11 @@
   app/api/resolve-stream/route.ts → lib/nhaccuatui.ts
 - `PlayerQueueContextType` --references--> `Track`  [EXTRACTED]
   components/player/PlayerContext.tsx → types/index.ts
-- `PlayerProvider()` --indirect_call--> `resolveStreamCached()`  [INFERRED]
-  components/player/PlayerContext.tsx → lib/resolveStreamClient.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (389 total, 67 thin omitted)
+## Communities (387 total, 67 thin omitted)
 
 ### Community 0 - "AuthForm.tsx"
 Cohesion: 0.09
@@ -480,8 +478,8 @@ Cohesion: 0.14
 Nodes (20): dynamic, GET(), dynamic, POST(), dynamic, GET(), HEAD(), CachedCdnEntry (+12 more)
 
 ### Community 16 - "Track"
-Cohesion: 0.10
-Nodes (41): AlbumDetail, AlbumDetailPage(), AlbumCard(), AlbumCardProps, AlbumsPage(), cachedListenedAlbums, cachedNewReleases, ArtistInfo (+33 more)
+Cohesion: 0.11
+Nodes (37): AlbumDetail, AlbumDetailPage(), ArtistInfo, ArtistPage(), formatFanCount(), DrivePage(), FavoritesPage(), HomePage() (+29 more)
 
 ### Community 17 - "add-cursor.js"
 Cohesion: 0.15
@@ -564,8 +562,8 @@ Cohesion: 0.26
 Nodes (11): albumMemoryCache, cachedAlbumResponse(), GET(), getSupabaseClient(), safeSaveAlbumToDb(), touchMemCache(), stripAlbumIdPrefix(), fetchDeezerAlbumTracks() (+3 more)
 
 ### Community 65 - "color"
-Cohesion: 0.15
-Nodes (21): $type, $value, $type, $value, 500, 600, blue, green (+13 more)
+Cohesion: 0.12
+Nodes (26): $type, $value, $type, $value, $type, $value, 500, 600 (+18 more)
 
 ### Community 66 - "createClient"
 Cohesion: 0.14
@@ -692,8 +690,8 @@ Cohesion: 0.08
 Nodes (25): Common Pitfalls, Core Prompt Structure, Detailed Brief, Eco/Sustainable, Effective Keywords by Style, Fashion Brand, Healthcare, Industry-Specific Prompts (+17 more)
 
 ### Community 97 - "DesignSystemGenerator"
-Cohesion: 0.06
-Nodes (21): DesignSystemGenerator, Generates design system recommendations from aggregated searches., Load reasoning rules from CSV., Find matching reasoning rule for a category., Apply reasoning rules to search results., Select best matching result based on priority keywords., apply_decision_rules(), _object_without_duplicates() (+13 more)
+Cohesion: 0.05
+Nodes (26): DesignSystemGenerator, Generates design system recommendations from aggregated searches., Load reasoning rules from CSV., Execute searches across multiple domains., Find matching reasoning rule for a category., Apply reasoning rules to search results., Select best matching result based on priority keywords., Extract results list from search result dict. (+18 more)
 
 ### Community 98 - "NowPlayingStage.tsx"
 Cohesion: 0.12
@@ -752,8 +750,8 @@ Cohesion: 0.10
 Nodes (12): main(), Add custom font families. Args: fonts: Dict of font_type: [font_names] e.g.,…, Add custom spacing values. Args: spacing: Dict of name: value e.g., {'18':…, Add custom breakpoints. Args: breakpoints: Dict of name: width e.g., {'3xl':…, Add plugin requirements. Args: plugins: List of plugin names e.g.,…, Get plugin recommendations based on configuration. Returns: List of recommended…, Generate Tailwind CSS configuration files., Validate configuration. Returns: Tuple of (valid, message) (+4 more)
 
 ### Community 112 - "BM25"
-Cohesion: 0.12
-Nodes (8): BM25, BM25 ranking algorithm for text search, Lowercase, normalize synonyms, split, remove punctuation, filter stopwords, Build BM25 index from documents, Score all documents against query, All indexed terms, for suggestion/typo-recovery purposes., TestBm25CoreBehavior, TestTokenizer
+Cohesion: 0.08
+Nodes (14): BM25, BM25 ranking algorithm for text search, Lowercase, split, remove punctuation, filter short words, Build BM25 index from documents, Score all documents against query, BM25, BM25 ranking algorithm for text search, Lowercase, normalize synonyms, split, remove punctuation, filter stopwords (+6 more)
 
 ### Community 113 - "PlayerProvider"
 Cohesion: 0.22
@@ -813,7 +811,7 @@ Nodes (18): 1. Wordmark (Logotype), 2. Lettermark (Monogram), 3. Pictorial Mark 
 
 ### Community 127 - "color"
 Cohesion: 0.11
-Nodes (19): $type, $value, background, destructive-foreground, muted, primary-foreground, secondary, secondary-foreground (+11 more)
+Nodes (19): $type, $value, background, foreground, muted-foreground, primary, primary-hover, secondary (+11 more)
 
 ### Community 129 - "Brand Consistency Checklist"
 Cohesion: 0.11
@@ -856,8 +854,8 @@ Cohesion: 0.16
 Nodes (18): cachedJsonResponse(), dynamic, GET(), getNhacCuaTuiTrending(), inFlightRequests, maxDuration, searchCache, dynamic (+10 more)
 
 ### Community 139 - "history/page.tsx"
-Cohesion: 0.15
-Nodes (13): cachedHistory, cachedTopMap, cachedTotalPlays, formatRelativeTime(), HistoryEntry, HistoryPage(), HistoryTab, TopTimeframe (+5 more)
+Cohesion: 0.22
+Nodes (9): cachedHistory, cachedTopMap, cachedTotalPlays, formatRelativeTime(), HistoryEntry, HistoryPage(), HistoryTab, TopTimeframe (+1 more)
 
 ### Community 140 - "lyricsFlow.ts"
 Cohesion: 0.17
@@ -927,13 +925,13 @@ Nodes (14): AIDA (Attention-Interest-Desire-Action), Before-After-Bridge, Contra
 Cohesion: 0.23
 Nodes (3): detect_domain(), Auto-detect the most relevant domain from query. Matches are weighted by…, TestDomainDetection
 
-### Community 158 - ".generate"
+### Community 158 - "albums/page.tsx"
 Cohesion: 0.16
-Nodes (8): _filter_anti_patterns_for_mode(), Drop "avoid dark mode" advice once dark mode is the resolved answer., Execute searches across multiple domains., Extract results list from search result dict., Generate complete design system recommendation. variance/motion/density are…, Bucket a 1-10 dial value into its tier config. Returns None if value is None., _resolve_dial(), TestAntiPatternGating
+Nodes (13): AlbumCard(), AlbumCardProps, AlbumsPage(), cachedListenedAlbums, cachedNewReleases, MediaCard(), MediaCardProps, GlideIndicator1DState (+5 more)
 
 ### Community 159 - "test_design_system_mode.py"
-Cohesion: 0.08
-Nodes (21): _contrast_ratio(), _derive_dark_palette(), _palette_is_dark(), _query_wants_dark(), WCAG relative luminance of a #RRGGBB string, or None if unparseable., True when a colors.csv row's Background is a dark surface., WCAG contrast ratio for two hex colors, or None if either is invalid., True when a styles.csv row describes itself as dark-first. (+13 more)
+Cohesion: 0.09
+Nodes (17): _contrast_ratio(), _derive_dark_palette(), _filter_anti_patterns_for_mode(), _palette_is_dark(), WCAG relative luminance of a #RRGGBB string, or None if unparseable., True when a colors.csv row's Background is a dark surface., WCAG contrast ratio for two hex colors, or None if either is invalid., Keep product brand tokens while deriving accessible dark surfaces. (+9 more)
 
 ### Community 160 - "Using Git Worktrees"
 Cohesion: 0.13
@@ -1031,9 +1029,9 @@ Nodes (13): Common Mistakes (Same as TDD), GREEN Phase: Write Minimal Skill (Mak
 Cohesion: 0.19
 Nodes (9): fragmentShaders, FragmentShaderType, length2(), LiquidGlassFilterDefsProps, LiquidRefractionMode, polarSDF(), roundedRectSDF(), STATIC_DISPLACEMENT_MAPS (+1 more)
 
-### Community 184 - "BM25"
-Cohesion: 0.20
-Nodes (6): BM25, BM25 ranking algorithm for text search, Lowercase, split, remove punctuation, filter short words, Build BM25 index from documents, Score all documents against query, TestDiagnosticsContracts
+### Community 184 - "_style_is_dark_primary"
+Cohesion: 0.21
+Nodes (7): _query_wants_dark(), True when a styles.csv row describes itself as dark-first., True when the query explicitly asks for a dark theme., Resolve the mode the rest of the output has to agree with., _resolve_color_mode(), _style_is_dark_primary(), TestModeResolution
 
 ### Community 185 - "Primitive Tokens"
 Cohesion: 0.17
@@ -1044,8 +1042,8 @@ Cohesion: 0.24
 Nodes (11): extensions, formatReport(), fs, getFiles(), main(), parseArgs(), path, patterns (+3 more)
 
 ### Community 187 - "card"
-Cohesion: 0.15
-Nodes (17): $type, $value, $type, $value, bg, bg, border, padding (+9 more)
+Cohesion: 0.20
+Nodes (12): $type, $value, bg, bg, padding, shadow, card, bg (+4 more)
 
 ### Community 188 - "4. DESIGN ENGINEERING DIRECTIVES (Bias Correction)"
 Cohesion: 0.17
@@ -1083,9 +1081,9 @@ Nodes (12): Advanced: Skills with executable code, [Analysis Title], Anti-patter
 Cohesion: 0.27
 Nodes (10): cachedResolveResponse(), cleanTitleString(), GET(), getSupabaseClient(), normalizeText(), resolveMemoryCache, GET(), getSupabaseClient() (+2 more)
 
-### Community 197 - "ToastContext.tsx"
-Cohesion: 0.29
-Nodes (5): ToastContext, ToastContextType, ToastItem, ToastProvider(), ToastType
+### Community 197 - "$type"
+Cohesion: 0.60
+Nodes (5): $type, $value, border, border, border
 
 ### Community 198 - "Implementation steps"
 Cohesion: 0.17
@@ -1128,8 +1126,8 @@ Cohesion: 0.18
 Nodes (8): args, fs, minimal, MINIMAL_TOKENS, path, projectRoot, tokensPath, wrapStyle
 
 ### Community 208 - "tasteskill: Anti-Slop Frontend Skill"
-Cohesion: 0.18
-Nodes (11): 0.A Read these signals first, 0.B Output a one-line "Design Read" before generating, 0. BRIEF INFERENCE (Read the Room Before Anything Else), 0.C If the brief is ambiguous, ask one question, do not guess, 0.D Anti-Default Discipline, 13. OUT OF SCOPE, 14. FINAL PRE-FLIGHT CHECK, 2.A When to reach for a real design system (use official packages) (+3 more)
+Cohesion: 0.13
+Nodes (15): 0.A Read these signals first, 0.B Output a one-line "Design Read" before generating, 0. BRIEF INFERENCE (Read the Room Before Anything Else), 0.C If the brief is ambiguous, ask one question, do not guess, 0.D Anti-Default Discipline, 13. OUT OF SCOPE, 14. FINAL PRE-FLIGHT CHECK, 1.A Dial Inference (design read → dial values) (+7 more)
 
 ### Community 209 - "patch"
 Cohesion: 0.18
@@ -1231,9 +1229,9 @@ Nodes (10): Avoid deeply nested references, Naming conventions, Pattern 1: High-
 Cohesion: 0.24
 Nodes (9): GET(), getSupabaseServerClient(), POST(), WelcomeAnnouncementModal(), getUserRole(), isAdmin(), AnnouncementData, DEFAULT_ANNOUNCEMENT (+1 more)
 
-### Community 234 - "$type"
-Cohesion: 0.60
-Nodes (5): $type, $value, 700, 700, 700
+### Community 234 - "destructive-foreground"
+Cohesion: 0.67
+Nodes (3): destructive-foreground, $type, $value
 
 ### Community 235 - "input"
 Cohesion: 0.29
@@ -1543,9 +1541,9 @@ Nodes (5): GREEN: Write Minimal Skill, Micro-Test Wording Before Full Scenarios,
 Cohesion: 0.40
 Nodes (5): Key Elements of Good Scenarios, Pressure Types, Testing Setup, VERIFY GREEN: Pressure Testing, Writing Pressure Scenarios
 
-### Community 314 - "1. THE THREE DIALS (Core Configuration)"
-Cohesion: 0.50
-Nodes (4): 1.A Dial Inference (design read → dial values), 1.B Use-Case Presets, 1.C How the Dials Drive Output, 1. THE THREE DIALS (Core Configuration)
+### Community 314 - "muted"
+Cohesion: 0.67
+Nodes (3): muted, $type, $value
 
 ### Community 315 - "Evaluation and iteration"
 Cohesion: 0.50
@@ -1574,6 +1572,10 @@ Nodes (4): 20. EXAMPLE INTERPRETATIONS, Example 1, Example 2, Example 3
 ### Community 326 - "Pi Tool Mapping"
 Cohesion: 0.50
 Nodes (3): Pi Tool Mapping, Subagents, Task lists
+
+### Community 327 - "primary-foreground"
+Cohesion: 0.67
+Nodes (3): primary-foreground, $type, $value
 
 ### Community 328 - "Checklist for effective Skills"
 Cohesion: 0.50
@@ -1607,21 +1609,9 @@ Nodes (3): Deploy on Vercel, Getting Started, Learn More
 Cohesion: 0.67
 Nodes (3): destructive, $type, $value
 
-### Community 341 - "foreground"
+### Community 339 - "secondary-foreground"
 Cohesion: 0.67
-Nodes (3): foreground, $type, $value
-
-### Community 343 - "muted-foreground"
-Cohesion: 0.67
-Nodes (3): muted-foreground, $type, $value
-
-### Community 344 - "primary"
-Cohesion: 0.67
-Nodes (3): primary, $type, $value
-
-### Community 345 - "primary-hover"
-Cohesion: 0.67
-Nodes (3): primary-hover, $type, $value
+Nodes (3): secondary-foreground, $type, $value
 
 ### Community 346 - "ring"
 Cohesion: 0.67
@@ -1635,7 +1625,7 @@ Nodes (3): ring, $type, $value
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Track` connect `Track` to `youtube.ts`, `queueRecommend.ts`, `itunes.ts`, `types/index.ts`, `PlayerContext.tsx`, `nhaccuatui.ts`, `api/search/route.ts`, `history/page.tsx`, `lyricsFlow.ts`, `googleDriveUpload.ts`, `MobileFullviewPlayer.tsx`, `SearchContext.tsx`, `deezer.ts`, `utils.ts`, `audius.ts`, `TopBar.tsx`, `createClient`, `soundcloudClient.ts`, `spotify.ts`, `LyricsView.tsx`, `resolveStreamClient.ts`, `ReceiptifyView.tsx`, `PlayerProvider`, `ImportSpotifyModal.tsx`?**
+- **Why does `Track` connect `Track` to `youtube.ts`, `queueRecommend.ts`, `itunes.ts`, `types/index.ts`, `PlayerContext.tsx`, `nhaccuatui.ts`, `api/search/route.ts`, `history/page.tsx`, `lyricsFlow.ts`, `googleDriveUpload.ts`, `MobileFullviewPlayer.tsx`, `SearchContext.tsx`, `albums/page.tsx`, `deezer.ts`, `utils.ts`, `audius.ts`, `TopBar.tsx`, `createClient`, `soundcloudClient.ts`, `spotify.ts`, `LyricsView.tsx`, `resolveStreamClient.ts`, `ReceiptifyView.tsx`, `PlayerProvider`, `ImportSpotifyModal.tsx`?**
   _High betweenness centrality (0.011) - this node is a cross-community bridge._
 - **Why does `useTheme()` connect `MobileFullviewPlayer.tsx` to `AuthForm.tsx`, `NowPlayingStage.tsx`, `createClient`, `LiquidGlassFilterDefs`, `customCursorBehavior.ts`, `ThemeContext.tsx`, `LiquidGlassFilterDefs.tsx`, `LyricsView.tsx`?**
   _High betweenness centrality (0.006) - this node is a cross-community bridge._

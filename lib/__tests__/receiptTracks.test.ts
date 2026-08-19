@@ -31,7 +31,40 @@ describe('getAllValidUserIds defense-in-depth', () => {
 })
 
 describe('fetchReceiptTracks', () => {
-  it('returns queue tracks when source is queue', async () => {
+  it('returns billboard top tracks when source is top', async () => {
+    const originalFetch = global.fetch
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        items: [
+          { track: { id: 'top-1', title: 'Top Song 1', artist: 'Artist 1', duration: 200 }, playCount: 15 },
+          { track: { id: 'top-2', title: 'Top Song 2', artist: 'Artist 2', duration: 180 }, playCount: 10 },
+        ],
+      }),
+    }) as any
+
+    const mockSupabase = {} as SupabaseClient
+
+    const result = await fetchReceiptTracks({
+      supabase: mockSupabase,
+      source: 'top',
+    })
+
+    expect(result).toHaveLength(2)
+    expect(result[0]).toEqual({ id: 'top-1', title: 'Top Song 1', artist: 'Artist 1', duration: 200 })
+    expect(result[1]).toEqual({ id: 'top-2', title: 'Top Song 2', artist: 'Artist 2', duration: 180 })
+
+    global.fetch = originalFetch
+  })
+
+  it('returns queue tracks when source is queue and fallback is needed', async () => {
+    const originalFetch = global.fetch
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+    }) as any
+
     const mockSupabase = {} as SupabaseClient
     const currentTrack = { id: 't-1', title: 'Song 1', artist: 'Artist 1', duration: 180 } as any
     const queue = [
@@ -49,6 +82,8 @@ describe('fetchReceiptTracks', () => {
     expect(result).toHaveLength(2)
     expect(result[0]).toEqual({ id: 't-1', title: 'Song 1', artist: 'Artist 1', duration: 180 })
     expect(result[1]).toEqual({ id: 't-2', title: 'Song 2', artist: 'Artist 2', duration: 240 })
+
+    global.fetch = originalFetch
   })
 
   it('fetches history tracks and falls back to in-memory queue if DB history is empty', async () => {

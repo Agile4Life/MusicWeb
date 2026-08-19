@@ -5,7 +5,7 @@ import { fetchListeningHistory, getRecentUniqueTracks } from '@/lib/listeningHis
 import { fetchFavoriteTracks } from '@/lib/favoriteTracks'
 import type { ReceiptTrackItem } from '@/lib/receiptCanvas'
 
-export type ReceiptDataSource = 'queue' | 'history' | 'favorites' | 'playlist'
+export type ReceiptDataSource = 'top' | 'history' | 'favorites' | 'playlist' | 'queue'
 
 export interface FetchReceiptTracksParams {
   supabase: SupabaseClient
@@ -34,22 +34,45 @@ export async function fetchReceiptTracks({
 }: FetchReceiptTracksParams): Promise<ReceiptTrackItem[]> {
   const userIds = getAllValidUserIds(currentUser, nextAuthSession)
 
-  if (source === 'queue') {
-    const queueTracks: Track[] = []
-    if (currentTrack) queueTracks.push(currentTrack)
-    if (queue && queue.length > 0) {
-      queue.forEach((t) => {
-        if (!queueTracks.some((existing) => existing.id === t.id)) {
-          queueTracks.push(t)
+  if (source === 'top' || source === 'queue') {
+    let items: ReceiptTrackItem[] = []
+    try {
+      const res = await fetch(`/api/history/top?limit=${limit}&timeframe=all`)
+      if (res.ok) {
+        const { items: topItems } = await res.json()
+        if (Array.isArray(topItems) && topItems.length > 0) {
+          items = topItems.map((item: any) => ({
+            id: item.track?.id || item.id,
+            title: item.track?.title || item.title,
+            artist: item.track?.artist || item.artist,
+            duration: item.track?.duration || item.duration,
+          }))
         }
-      })
+      }
+    } catch (err) {
+      console.warn('[ReceiptTracks] top tracks fetch error:', err)
     }
-    return queueTracks.map((t) => ({
-      id: t.id,
-      title: t.title,
-      artist: t.artist,
-      duration: t.duration,
-    }))
+
+    // Fallback: If DB top history is empty or user is guest, use in-memory queue / playing tracks
+    if (items.length === 0) {
+      const fallbackTracks: Track[] = []
+      if (currentTrack) fallbackTracks.push(currentTrack)
+      if (queue && queue.length > 0) {
+        queue.forEach((t) => {
+          if (!fallbackTracks.some((existing) => existing.id === t.id)) {
+            fallbackTracks.push(t)
+          }
+        })
+      }
+      items = fallbackTracks.map((t) => ({
+        id: t.id,
+        title: t.title,
+        artist: t.artist,
+        duration: t.duration,
+      }))
+    }
+
+    return items
   }
 
   if (source === 'history') {

@@ -25,10 +25,11 @@ import {
   Copy,
   Check,
   RefreshCw,
-  Sparkles,
   Layers,
   Palette,
   User,
+  Flame,
+  Trophy,
 } from 'lucide-react'
 
 interface ReceiptifyViewProps {
@@ -37,7 +38,7 @@ interface ReceiptifyViewProps {
   isPageMode?: boolean
 }
 
-type DataSourceType = 'queue' | 'history' | 'favorites' | 'playlist'
+type DataSourceType = 'top' | 'history' | 'favorites' | 'playlist' | 'queue'
 
 export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
   isOpen = true,
@@ -50,7 +51,7 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
   const { data: nextAuthSession } = useSession()
   const supabase = createClient()
 
-  const [dataSource, setDataSource] = useState<DataSourceType>('queue')
+  const [dataSource, setDataSource] = useState<DataSourceType>('top')
   const [mobileTab, setMobileTab] = useState<'custom' | 'preview'>('custom')
   const [trackLimit, setTrackLimit] = useState<number>(10)
   const [selectedThemeId, setSelectedThemeId] = useState<string>('classic')
@@ -108,9 +109,9 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
 
   // Realtime update when listening_history or favorite_tracks change
   useEffect(() => {
-    if (!isOpen || (dataSource !== 'history' && dataSource !== 'favorites')) return
+    if (!isOpen || (dataSource !== 'top' && dataSource !== 'history' && dataSource !== 'favorites')) return
 
-    const tableToListen = dataSource === 'history' ? 'listening_history' : 'favorite_tracks'
+    const tableToListen = (dataSource === 'top' || dataSource === 'history') ? 'listening_history' : 'favorite_tracks'
     const channel = supabase
       .channel(`receipt-realtime-${dataSource}`)
       .on(
@@ -142,10 +143,11 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
 
     const playlistName = (playlists[0]?.name || 'PLAYLIST').toUpperCase()
     const labelMap: Record<DataSourceType, string> = {
-      queue: 'NOW PLAYING QUEUE',
+      top: 'BILLBOARD TOP TRACKS',
       history: 'RECENT LISTENING HISTORY',
       favorites: 'TOP FAVORITES RECEIPT',
       playlist: `${playlistName} RECEIPT`,
+      queue: 'NOW PLAYING QUEUE',
     }
 
     generateReceiptDataUrl({
@@ -186,10 +188,11 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
       if (!downloadUrl) {
         const playlistName = (playlists[0]?.name || 'PLAYLIST').toUpperCase()
         const labelMap: Record<DataSourceType, string> = {
-          queue: 'NOW PLAYING QUEUE',
+          top: 'BILLBOARD TOP TRACKS',
           history: 'RECENT LISTENING HISTORY',
           favorites: 'TOP FAVORITES RECEIPT',
           playlist: `${playlistName} RECEIPT`,
+          queue: 'NOW PLAYING QUEUE',
         }
 
         const blob = await generateReceiptBlob({
@@ -233,10 +236,11 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
 
       const playlistName = (playlists[0]?.name || 'PLAYLIST').toUpperCase()
       const labelMap: Record<DataSourceType, string> = {
-        queue: 'NOW PLAYING QUEUE',
+        top: 'BILLBOARD TOP TRACKS',
         history: 'RECENT LISTENING HISTORY',
         favorites: 'TOP FAVORITES RECEIPT',
         playlist: `${playlistName} RECEIPT`,
+        queue: 'NOW PLAYING QUEUE',
       }
 
       const blob = await generateReceiptBlob({
@@ -277,10 +281,11 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
 
       const playlistName = (playlists[0]?.name || 'PLAYLIST').toUpperCase()
       const labelMap: Record<DataSourceType, string> = {
-        queue: 'NOW PLAYING QUEUE',
+        top: 'BILLBOARD TOP TRACKS',
         history: 'RECENT LISTENING HISTORY',
         favorites: 'TOP FAVORITES RECEIPT',
         playlist: `${playlistName} RECEIPT`,
+        queue: 'NOW PLAYING QUEUE',
       }
 
       const blob = await generateReceiptBlob({
@@ -367,20 +372,20 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
                   </span>
                 </div>
                 <span className="text-[11px] font-semibold text-slate-400">
-                  {dataSource === 'queue' ? 'Hàng đợi' : dataSource === 'history' ? 'Lịch sử' : 'Yêu thích'}
+                  {dataSource === 'top' ? 'Billboard' : dataSource === 'history' ? 'Lịch sử' : 'Yêu thích'}
                 </span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <button
-                  onClick={() => setDataSource('queue')}
+                  onClick={() => setDataSource('top')}
                   className={`py-2.5 px-3 rounded-xl font-bold text-xs flex flex-col items-center gap-1.5 transition-all duration-200 border cursor-pointer ${
-                    dataSource === 'queue'
+                    dataSource === 'top'
                       ? 'bg-[var(--spotify-glow,#22d3ee)]/15 border-[var(--spotify-glow,#22d3ee)]/50 text-[var(--spotify-glow,#22d3ee)] shadow-[0_0_15px_var(--theme-glow-shadow,rgba(34,211,238,0.25))] ring-1 ring-[var(--spotify-glow,#22d3ee)]/40'
                       : 'bg-white/[0.04] border-white/10 text-slate-400 hover:text-white hover:bg-white/[0.08]'
                   }`}
                 >
-                  <Layers className="w-4 h-4" />
-                  <span>Hàng đợi</span>
+                  <Flame className="w-4 h-4 text-orange-400" />
+                  <span>Billboard</span>
                 </button>
 
                 <button

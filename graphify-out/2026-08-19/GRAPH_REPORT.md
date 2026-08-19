@@ -1,28 +1,28 @@
 # Graph Report - MusicWeb  (2026-08-19)
 
 ## Corpus Check
-- 517 files · ~612,235 words
+- 519 files · ~614,557 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 4874 nodes · 7510 edges · 397 communities (326 shown, 71 thin omitted)
+- 4884 nodes · 7531 edges · 389 communities (322 shown, 67 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 71 edges (avg confidence: 0.57)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `dc692405`
+- Built from commit: `60d2a9c4`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - AuthForm.tsx
-- DesignSystemGenerator
+- gray
 - youtube.ts
 - albumCache.ts
 - queueRecommend.ts
 - server.cjs
 - itunes.ts
-- Track
+- types/index.ts
 - PlayerContext.tsx
 - app/layout.tsx
 - dependencies
@@ -31,12 +31,12 @@
 - compilerOptions
 - googleDriveUpload.ts
 - drive-stream-resolver.ts
-- createClient
+- Track
 - add-cursor.js
 - worker/src/index.js
 - manifest.json
 - requireUser
-- utils.ts
+- SearchContext.tsx
 - music-drive-stream-cache/src/index.js
 - helper.js
 - render-graphs.js
@@ -66,8 +66,8 @@
 - eslint.config.mjs
 - next.config.ts
 - postcss.config.mjs
-- gray
-- (app)/layout.tsx
+- color
+- createClient
 - Tailwind CSS Utility Reference
 - slide_search_core.py
 - search
@@ -98,7 +98,7 @@
 - search
 - Asset Approval Checklist
 - Logo AI Prompt Engineering
-- read_rows
+- DesignSystemGenerator
 - NowPlayingStage.tsx
 - Color Palette Management
 - CIP Deliverable Guide
@@ -106,7 +106,7 @@
 - States and Variants
 - UI Styling Skill
 - Workflow
-- receiptCanvas.ts
+- ReceiptifyView.tsx
 - Design System
 - Tailwind CSS Customization
 - api/resolve-stream/route.ts
@@ -114,8 +114,8 @@
 - spacing
 - TailwindConfigGenerator
 - BM25
-- LanguageContext.tsx
-- LyricsShareModal.tsx
+- PlayerProvider
+- lyricsShareCanvas.ts
 - LiquidNavBar.tsx
 - ThemeContext.tsx
 - Visual Companion Guide
@@ -124,7 +124,7 @@
 - Creation Log: Systematic Debugging Skill
 - shadcn/ui Theming & Customization
 - PlayerBar.tsx
-- TrackRow.tsx
+- ImportSpotifyModal.tsx
 - Asset Organization Guide
 - Primary Color Meanings
 - Core Logo Types
@@ -139,8 +139,8 @@
 - TestThresholdGate
 - Testing CLAUDE.md Skills Documentation
 - nhaccuatui.ts
-- upload/page.tsx
-- PlaybackEngine
+- api/search/route.ts
+- history/page.tsx
 - lyricsFlow.ts
 - Design Principles
 - Design Principles
@@ -164,8 +164,8 @@
 - Using Git Worktrees
 - Writing Skills
 - deezer.ts
-- nhaccuatui/stream/route.ts
-- _style_is_dark_primary
+- match-stream/route.ts
+- utils.ts
 - Banner Design - Multi-Format Creative Banner System
 - Messaging Framework
 - Brand Voice Framework
@@ -182,7 +182,7 @@
 - Logo Design Reference
 - Token Architecture
 - design-tokens-starter.json
-- generate_design_system
+- nhaccuatui/stream/route.ts
 - Testing Skills With Subagents
 - LiquidGlassFilterDefs.tsx
 - BM25
@@ -194,11 +194,11 @@
 - ShadcnInstaller
 - .check_shadcn_config
 - .generate_config_string
-- audioPlayback.ts
+- TopBar.tsx
 - Writing Plans
 - [Analysis Title]
 - resolve/route.ts
-- match-stream/route.ts
+- ToastContext.tsx
 - Implementation steps
 - Implementation steps
 - Component Architecture & Responsive Changes
@@ -225,7 +225,7 @@
 - Component Tokens
 - generate-tokens.cjs
 - button
-- duration
+- primitive
 - 10. REFERENCE VOCABULARY (Pattern Names the Agent Should Know)
 - Executing Plans
 - Slide Strategies
@@ -234,8 +234,8 @@
 - test_text_layout_resilience.py
 - Verification Before Completion
 - Skill structure
-- announcement/route.ts
-- parse_decision_rules
+- isAdmin
+- $type
 - input
 - Stream Optimization Plan
 - 2. Proposed Changes & Architecture
@@ -243,7 +243,7 @@
 - _run
 - 11. COMPONENT EXECUTION GUIDELINES
 - 18. EXTRA CREATIVITY & IMPLEMENTATION EDGE
-- setAudioSourceForPlayback
+- LiquidGlassFilterDefs
 - Skill authoring best practices
 - Global Constraints
 - NhacCuaTui Primary Flow Design
@@ -256,8 +256,8 @@
 - padding-y
 - 9. AI TELLS (Forbidden Patterns)
 - 8. ANTI-AI-SLOP RULES
-- Html5AudioEngine.ts
-- _row_identities
+- compressAudioIfNeeded
+- 50
 - Global Constraints
 - Global Constraints
 - NhacCuaTui Vercel Stream Proxy Implementation Plan
@@ -276,7 +276,7 @@
 - Gemini CLI Tool Mapping
 - REFACTOR Phase: Close Loopholes (Stay Green)
 - TiltCard.tsx
-- useTheme
+- MobileFullviewPlayer.tsx
 - Global Constraints
 - Global Constraints
 - Global Constraints
@@ -301,7 +301,7 @@
 - Hướng Dẫn Deploy Dự Án MusicWeb Lên Vercel
 - Automatic Execution Procedure
 - Brand Guidelines Template
-- trending/route.ts
+- 800
 - radius
 - mobileLayout.ts
 - 12. THE BLOCK LIBRARY (Contract - Implementations Land Here Iteratively)
@@ -315,20 +315,19 @@
 - Testing All Skill Types
 - RED-GREEN-REFACTOR for Skills
 - VERIFY GREEN: Pressure Testing
-- playerBarInteraction.ts
-- 1
+- 1. THE THREE DIALS (Core Configuration)
+- Evaluation and iteration
 - .test_add_components_no_config
 - Global Constraints
 - next
-- 6
-- TestGeneratedCatalogContract
-- lg
+- minimalFlatTheme.test.ts
+- audius.ts
+- .test_add_components_already_installed
 - .test_add_components_no_components
 - 7. DIAL DEFINITIONS (Technical Reference)
 - 15. DEFAULT SITE PACKS
 - 20. EXAMPLE INTERPRETATIONS
 - Pi Tool Mapping
-- sm
 - Checklist for effective Skills
 - Core principles
 - File Organization
@@ -340,15 +339,11 @@
 - test_sync_brand_to_tokens.py
 - main
 - destructive
-- xl
-- none
 - foreground
-- nhaccuatui/search/route.ts
 - muted-foreground
 - primary
 - primary-hover
 - ring
-- Anti-patterns to avoid
 - .__init__
 - .temp_project
 - Antigravity CLI (`agy`) Tool Mapping
@@ -363,10 +358,8 @@
 - test-academic.md
 - .test_get_installed_components_with_files
 - .test_init_dry_run
-- 16
 - .test_get_installed_components_empty
 - next-auth
-- 3
 - .test_add_fonts
 - .test_recommend_plugins
 - .test_recommend_plugins_nextjs
@@ -392,17 +385,16 @@
 - tailwind-merge
 - three
 - progress.md
-- .test_check_shadcn_config_exists
 
 ## God Nodes (most connected - your core abstractions)
-1. `Track` - 70 edges
+1. `Track` - 72 edges
 2. `TailwindConfigGenerator` - 58 edges
 3. `createClient()` - 51 edges
 4. `DesignSystemGenerator` - 48 edges
 5. `search()` - 43 edges
 6. `usePlayer()` - 42 edges
 7. `PlayerProvider()` - 39 edges
-8. `requireUser()` - 36 edges
+8. `requireUser()` - 38 edges
 9. `TestTailwindConfigGenerator` - 35 edges
 10. `search_stack()` - 35 edges
 
@@ -413,51 +405,51 @@
   app/api/listen-events/route.ts → lib/accessControl.ts
 - `fetchNctSong()` --calls--> `normalizeNhacCuaTuiSongResponse()`  [EXTRACTED]
   app/api/resolve-stream/route.ts → lib/nhaccuatui.ts
+- `PlayerQueueContextType` --references--> `Track`  [EXTRACTED]
+  components/player/PlayerContext.tsx → types/index.ts
 - `PlayerProvider()` --indirect_call--> `resolveStreamCached()`  [INFERRED]
   components/player/PlayerContext.tsx → lib/resolveStreamClient.ts
-- `ITunesAlbumDetail` --references--> `Track`  [EXTRACTED]
-  lib/itunes.ts → types/index.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (397 total, 71 thin omitted)
+## Communities (389 total, 67 thin omitted)
 
 ### Community 0 - "AuthForm.tsx"
-Cohesion: 0.13
-Nodes (13): AuthForm(), AuthFormProps, translateAuthError(), Window, AuthRedirectRouter, scheduleAuthRedirect(), FloatingMusicNotes(), NoteItem (+5 more)
+Cohesion: 0.09
+Nodes (25): SettingsPage(), AuthForm(), AuthFormProps, translateAuthError(), Window, AuthRedirectRouter, scheduleAuthRedirect(), FloatingMusicNotes() (+17 more)
 
-### Community 1 - "DesignSystemGenerator"
-Cohesion: 0.13
-Nodes (9): DesignSystemGenerator, Generates design system recommendations from aggregated searches., Load reasoning rules from CSV., Find matching reasoning rule for a category., Apply reasoning rules to search results., Select best matching result based on priority keywords., TestReasoningMatch, The exact reproduction from issue #428. (+1 more)
+### Community 1 - "gray"
+Cohesion: 0.11
+Nodes (19): $type, $value, $type, $value, $type, $value, $type, $value (+11 more)
 
 ### Community 2 - "youtube.ts"
-Cohesion: 0.15
+Cohesion: 0.14
 Nodes (24): BatchTrackRequest, POST(), viewCountMemoryCache, GET(), viewCountMemoryCache, cleanHtmlEntities(), fetchViaInnerTube(), fetchViaOfficialApi() (+16 more)
 
 ### Community 3 - "albumCache.ts"
-Cohesion: 0.24
-Nodes (16): NowPlayingOverlay(), PlayerBar(), clearAlbumCache(), GENERIC_PLACEHOLDERS, getCachedResolvedAlbum(), invalidateCachedAlbum(), isKnownBadFallback(), isRealAlbumName() (+8 more)
+Cohesion: 0.25
+Nodes (14): clearAlbumCache(), GENERIC_PLACEHOLDERS, getCachedResolvedAlbum(), invalidateCachedAlbum(), isKnownBadFallback(), isRealAlbumName(), KNOWN_BAD_FALLBACK_ALBUM_IDS, makeKey() (+6 more)
 
 ### Community 4 - "queueRecommend.ts"
-Cohesion: 0.20
-Nodes (19): GET(), queueCache, getDeezerArtistRadio(), getDeezerArtistTopTracks(), getDeezerRelatedArtistsTopTracks(), mapDeezerTracksToQueue(), buildNextQueue(), dedupCandidates() (+11 more)
+Cohesion: 0.24
+Nodes (15): GET(), queueCache, buildNextQueue(), dedupCandidates(), diversify(), getDedupKey(), getFrequentlySkippedTrackIds(), getInternalCollaborativeCandidates() (+7 more)
 
 ### Community 5 - "server.cjs"
 Cohesion: 0.06
 Nodes (56): bootstrapPage(), brandMarkup(), broadcast(), browserLauncherForPlatform(), chmodOwnerOnly(), clients, companionUrl(), computeAcceptKey() (+48 more)
 
 ### Community 6 - "itunes.ts"
-Cohesion: 0.23
-Nodes (9): cleanArtworkUrl(), ITunesAlbumDetail, ITunesAlbumItem, ITunesLookupResult, ITunesRssEntry, ITunesSearchResult, mapITunesAlbums(), mapITunesRssAlbums() (+1 more)
+Cohesion: 0.16
+Nodes (15): dynamic, GET(), normalizeAlbumKey(), TrendingAlbum, fetchDeezerNewReleases(), cleanArtworkUrl(), getTrendingITunesAlbums(), ITunesAlbumDetail (+7 more)
 
-### Community 7 - "Track"
-Cohesion: 0.09
-Nodes (32): AlbumDetail, cachedFavorites, PlayerContextType, PlayerControlsContextType, PlayerQueueContextType, PlayerTrackContextType, DataSourceType, ReceiptifyViewProps (+24 more)
+### Community 7 - "types/index.ts"
+Cohesion: 0.13
+Nodes (20): cachedFavorites, QueueDrawer(), getAllValidUserIds(), getValidUserId(), UserRole, fetchFavoriteTracks(), inferTrackSource(), toError() (+12 more)
 
 ### Community 8 - "PlayerContext.tsx"
-Cohesion: 0.07
-Nodes (52): DEFAULT_VOLUME, MAX_CONSECUTIVE_SKIPS, PlaybackProgressContext, PlaybackProgressContextType, PlayerContext, PlayerControlsContext, PlayerProvider(), PlayerQueueContext (+44 more)
+Cohesion: 0.09
+Nodes (28): DEFAULT_VOLUME, MAX_CONSECUTIVE_SKIPS, PlaybackProgressContext, PlaybackProgressContextType, PlayerContext, PlayerContextType, PlayerControlsContext, PlayerControlsContextType (+20 more)
 
 ### Community 9 - "app/layout.tsx"
 Cohesion: 0.17
@@ -480,16 +472,16 @@ Cohesion: 0.07
 Nodes (28): dom, dom.iterable, esnext, **/*.mts, .next/dev/types/**/*.ts, next-env.d.ts, .next/types/**/*.ts, node_modules (+20 more)
 
 ### Community 14 - "googleDriveUpload.ts"
-Cohesion: 0.12
-Nodes (30): formatFileSize(), GoogleDriveUpload(), cleanSongArtist(), cleanSongTitle(), formatDuration(), formatFileSize(), QueueItem, trackDuplicateKey() (+22 more)
+Cohesion: 0.14
+Nodes (24): formatFileSize(), GoogleDriveUpload(), cleanSongArtist(), cleanSongTitle(), formatDuration(), formatFileSize(), QueueItem, trackDuplicateKey() (+16 more)
 
 ### Community 15 - "drive-stream-resolver.ts"
 Cohesion: 0.14
 Nodes (20): dynamic, GET(), dynamic, POST(), dynamic, GET(), HEAD(), CachedCdnEntry (+12 more)
 
-### Community 16 - "createClient"
-Cohesion: 0.08
-Nodes (51): AlbumDetailPage(), AlbumCard(), AlbumCardProps, AlbumsPage(), cachedListenedAlbums, cachedNewReleases, ArtistInfo, ArtistPage() (+43 more)
+### Community 16 - "Track"
+Cohesion: 0.10
+Nodes (41): AlbumDetail, AlbumDetailPage(), AlbumCard(), AlbumCardProps, AlbumsPage(), cachedListenedAlbums, cachedNewReleases, ArtistInfo (+33 more)
 
 ### Community 17 - "add-cursor.js"
 Cohesion: 0.15
@@ -505,11 +497,11 @@ Nodes (13): background_color, categories, description, display, icons, name, ori
 
 ### Community 20 - "requireUser"
 Cohesion: 0.06
-Nodes (39): handler, GET(), GET(), POST(), POST(), GET(), POST(), POST() (+31 more)
+Nodes (43): handler, GET(), GET(), POST(), POST(), GET(), POST(), GET() (+35 more)
 
-### Community 21 - "utils.ts"
-Cohesion: 0.11
-Nodes (26): emptyResults, SearchContext, SearchContextType, SearchProvider(), CacheItem, fetchUnifiedSearch(), GlobalSearchTracks, inFlightRequests (+18 more)
+### Community 21 - "SearchContext.tsx"
+Cohesion: 0.18
+Nodes (12): emptyResults, SearchContext, SearchContextType, SearchProvider(), CacheItem, fetchUnifiedSearch(), GlobalSearchTracks, inFlightRequests (+4 more)
 
 ### Community 22 - "music-drive-stream-cache/src/index.js"
 Cohesion: 0.32
@@ -533,7 +525,7 @@ Nodes (4): command_has_server_id(), is_brainstorm_server(), mark_stopped(), stop
 
 ### Community 27 - "validate_data.py"
 Cohesion: 0.08
-Nodes (46): read_rows(), TestAccessibilityGuidance, TestChartsTypographyAndIcons, TestCurrentReactGuidance, TestSemanticColors, _catalog_date(), _check_app_interface_contract(), _check_catalog_contract() (+38 more)
+Nodes (45): read_rows(), TestAccessibilityGuidance, TestChartsTypographyAndIcons, TestCurrentReactGuidance, TestSemanticColors, _catalog_date(), _check_app_interface_contract(), _check_catalog_contract() (+37 more)
 
 ### Community 28 - "lame.all.js"
 Cohesion: 0.29
@@ -571,13 +563,13 @@ Nodes (4): fs, items, path, zlib
 Cohesion: 0.26
 Nodes (11): albumMemoryCache, cachedAlbumResponse(), GET(), getSupabaseClient(), safeSaveAlbumToDb(), touchMemCache(), stripAlbumIdPrefix(), fetchDeezerAlbumTracks() (+3 more)
 
-### Community 65 - "gray"
-Cohesion: 0.05
-Nodes (53): $type, $value, $type, $value, $type, $value, $type, $value (+45 more)
+### Community 65 - "color"
+Cohesion: 0.15
+Nodes (21): $type, $value, $type, $value, 500, 600, blue, green (+13 more)
 
-### Community 66 - "(app)/layout.tsx"
-Cohesion: 0.08
-Nodes (40): SettingsPage(), AuthGuard(), CurrentUserContext, CurrentUserContextType, CurrentUserProvider(), useCurrentUser(), useLanguage(), YoutubeIcon() (+32 more)
+### Community 66 - "createClient"
+Cohesion: 0.14
+Nodes (29): AppLayoutInner(), GENRE_TABS, SoundCloudPage(), AuthGuard(), CurrentUserContext, CurrentUserContextType, CurrentUserProvider(), useCurrentUser() (+21 more)
 
 ### Community 67 - "Tailwind CSS Utility Reference"
 Cohesion: 0.05
@@ -590,6 +582,10 @@ Nodes (36): format_context(), format_result(), main(), Format a single search re
 ### Community 69 - "search"
 Cohesion: 0.08
 Nodes (37): detect_domain(), get_cip_brief(), _load_csv(), Load CSV and return list of dicts, Core search function using BM25, Auto-detect the most relevant domain from query, Main search function with auto-domain detection, Search across all domains and combine results (+29 more)
+
+### Community 70 - "Html5AudioEngine"
+Cohesion: 0.07
+Nodes (11): AudioSourceTarget, isSameAudioSource(), setAudioSourceForPlayback(), Html5AudioEngine, PlaybackEngine, PlaybackEngineEvents, isIOSDevice(), playAudioElement() (+3 more)
 
 ### Community 71 - "sc-api-auth.mjs"
 Cohesion: 0.10
@@ -612,8 +608,8 @@ Cohesion: 0.06
 Nodes (35): 1. Visual Communication First, 2. Minimal Text Integration, 3. Expert Craftsmanship, 4. Systematic Patterns, Analog Meditation, Approach, Canvas Boundaries, Canvas Design System (+27 more)
 
 ### Community 76 - "scripts/core.py"
-Cohesion: 0.10
-Nodes (34): _contains_phrase(), _domain_keywords(), _exact_match_diagnostic(), _file_signature(), _get_bm25(), _legacy_successor_guidance(), _load_csv(), _load_csv_snapshot() (+26 more)
+Cohesion: 0.08
+Nodes (40): _contains_phrase(), _domain_keywords(), _exact_match_diagnostic(), _exact_row_identity(), _file_signature(), _get_bm25(), _legacy_successor_guidance(), _load_csv() (+32 more)
 
 ### Community 77 - "Prerequisites"
 Cohesion: 0.06
@@ -633,11 +629,11 @@ Nodes (26): Code Reviewer Prompt Template, Example Output, Common Rationalizatio
 
 ### Community 81 - "search_stack"
 Cohesion: 0.10
-Nodes (8): _exact_stack_identifier(), Resolve a standalone API identifier even when its BM25 IDF is low., Search stack-specific guidelines, search_stack(), _rows(), TestNativeDesktopStackFreshness, _rows(), TestWebStackFreshness
+Nodes (10): _exact_stack_identifier(), _project_row(), Resolve a standalone API identifier even when its BM25 IDF is low., Search stack-specific guidelines, search_stack(), _valid_max_results(), _rows(), TestNativeDesktopStackFreshness (+2 more)
 
 ### Community 82 - "spotify.ts"
-Cohesion: 0.20
-Nodes (18): dynamic, GET(), normalizeAlbumKey(), TrendingAlbum, GET(), fetchDeezerNewReleases(), getTrendingITunesAlbums(), fetchNewReleases() (+10 more)
+Cohesion: 0.19
+Nodes (18): GET(), GET(), runtime, fetchNewReleases(), fetchSpotifyEmbedPlaylistData(), fetchSpotifyNewReleases(), fetchSpotifyPlaylistMeta(), fetchSpotifyPlaylistTracks() (+10 more)
 
 ### Community 83 - "Typography Specifications"
 Cohesion: 0.06
@@ -656,12 +652,12 @@ Cohesion: 0.06
 Nodes (16): Test adding colors multiple times., Test adding full color palette., Test adding custom spacing., Test adding custom breakpoints., Test TailwindConfigGenerator class., Test generating TypeScript configuration., Test validating config with empty theme extensions., Test writing configuration to file. (+8 more)
 
 ### Community 87 - "design_system.py"
-Cohesion: 0.11
-Nodes (25): ansi_ljust(), _detect_page_type(), format_ascii_box(), format_markdown(), format_master_md(), format_page_override_md(), _generate_intelligent_overrides(), hex_to_ansi() (+17 more)
+Cohesion: 0.08
+Nodes (30): ansi_ljust(), _detect_page_type(), format_ascii_box(), format_markdown(), format_master_md(), format_page_override_md(), generate_design_system(), _generate_intelligent_overrides() (+22 more)
 
 ### Community 88 - "LyricsView.tsx"
-Cohesion: 0.15
-Nodes (21): LyricsShareModalProps, ExtendedLyricLine, formatTime(), LyricLineItem, LyricLineItemProps, LyricsBottomControls, LyricsView, LyricsViewProps (+13 more)
+Cohesion: 0.17
+Nodes (19): formatTime(), LyricLineItem, LyricLineItemProps, LyricsBottomControls, LyricsView, LyricsViewProps, MobileFullviewPlayer(), NowPlayingOverlay() (+11 more)
 
 ### Community 89 - "Logo Usage Rules"
 Cohesion: 0.07
@@ -695,13 +691,13 @@ Nodes (25): Accessibility, Archival, Asset Approval Checklist, Automation Suppor
 Cohesion: 0.08
 Nodes (25): Common Pitfalls, Core Prompt Structure, Detailed Brief, Eco/Sustainable, Effective Keywords by Style, Fashion Brand, Healthcare, Industry-Specific Prompts (+17 more)
 
-### Community 97 - "read_rows"
-Cohesion: 0.12
-Nodes (6): read_rows(), split_values(), style_identities(), TestLandingAndStackContract, TestReasoningContract, TestStyleIdentityContract
+### Community 97 - "DesignSystemGenerator"
+Cohesion: 0.06
+Nodes (21): DesignSystemGenerator, Generates design system recommendations from aggregated searches., Load reasoning rules from CSV., Find matching reasoning rule for a category., Apply reasoning rules to search results., Select best matching result based on priority keywords., apply_decision_rules(), _object_without_duplicates() (+13 more)
 
 ### Community 98 - "NowPlayingStage.tsx"
-Cohesion: 0.11
-Nodes (18): getHighResCoverUrl(), TrackCoverImageComponent(), TrackCoverImageProps, NowPlayingStage, NowPlayingStageProps, ParticleScene, createCometTexture(), createSparkleTexture() (+10 more)
+Cohesion: 0.12
+Nodes (19): getHighResCoverUrl(), TrackCoverImage, TrackCoverImageComponent(), TrackCoverImageProps, NowPlayingStage, NowPlayingStageProps, ParticleScene, createCometTexture() (+11 more)
 
 ### Community 99 - "Color Palette Management"
 Cohesion: 0.08
@@ -727,9 +723,9 @@ Nodes (24): Accessibility Patterns, Alternative: Tailwind-Only Setup, Best Pract
 Cohesion: 0.08
 Nodes (23): Art Direction Styles (Reuse from Banner), Color & Contrast, Design Best Practices, HTML Design Rules, HTML Template Structure, Option A: Chrome Headless CLI (Recommended — zero dependencies), Option B: chrome-devtools skill, Option C: Playwright script (+15 more)
 
-### Community 105 - "receiptCanvas.ts"
-Cohesion: 0.25
-Nodes (14): calculateReceiptHeight(), drawBarcode(), drawRippedEdge(), formatReceiptDuration(), formatTotalDuration(), generateReceiptBlob(), generateReceiptDataUrl(), GenerateReceiptOptions (+6 more)
+### Community 105 - "ReceiptifyView.tsx"
+Cohesion: 0.17
+Nodes (18): DataSourceType, ReceiptifyView(), ReceiptifyViewProps, calculateReceiptHeight(), drawBarcode(), drawRippedEdge(), formatReceiptDuration(), formatTotalDuration() (+10 more)
 
 ### Community 106 - "Design System"
 Cohesion: 0.09
@@ -740,40 +736,40 @@ Cohesion: 0.09
 Nodes (22): @apply Directive, Best Practices, Color Customization, Complete Tailwind Config, Configuration Examples, Content Configuration, Custom Color Palette, Custom Font Sizes (+14 more)
 
 ### Community 108 - "api/resolve-stream/route.ts"
-Cohesion: 0.15
-Nodes (22): dynamic, evictL1IfFull(), extractDriveFileId(), fetchNctSong(), GET(), getSupabaseAdmin(), isPreviewUrl(), l1Cache (+14 more)
+Cohesion: 0.19
+Nodes (19): dynamic, evictL1IfFull(), extractDriveFileId(), fetchNctSong(), GET(), getSupabaseAdmin(), isPreviewUrl(), l1Cache (+11 more)
 
 ### Community 109 - "Kế Hoạch Dự Án: Web Nghe Nhạc Cá Nhân (Personal Music Streaming App)"
 Cohesion: 0.09
 Nodes (22): 10. Có Thể Mở Rộng Sau (Không bắt buộc ở bản đầu), 1. Tổng Quan Dự Án, 2. Kiến Trúc Hệ Thống, 3. Thiết Kế Database (Supabase / Postgres), 4. Cấu Trúc Thư Mục Đề Xuất (Next.js App Router), 5.1 Authentication (Login/Logout), 5.2 Upload nhạc, 5.3 Music Player (+14 more)
 
 ### Community 110 - "spacing"
-Cohesion: 0.09
-Nodes (22): $type, $value, $type, $value, $type, $value, $type, $value (+14 more)
+Cohesion: 0.06
+Nodes (34): $type, $value, $type, $value, $type, $value, $type, $value (+26 more)
 
 ### Community 111 - "TailwindConfigGenerator"
 Cohesion: 0.10
 Nodes (12): main(), Add custom font families. Args: fonts: Dict of font_type: [font_names] e.g.,…, Add custom spacing values. Args: spacing: Dict of name: value e.g., {'18':…, Add custom breakpoints. Args: breakpoints: Dict of name: width e.g., {'3xl':…, Add plugin requirements. Args: plugins: List of plugin names e.g.,…, Get plugin recommendations based on configuration. Returns: List of recommended…, Generate Tailwind CSS configuration files., Validate configuration. Returns: Tuple of (valid, message) (+4 more)
 
 ### Community 112 - "BM25"
-Cohesion: 0.13
+Cohesion: 0.12
 Nodes (8): BM25, BM25 ranking algorithm for text search, Lowercase, normalize synonyms, split, remove punctuation, filter stopwords, Build BM25 index from documents, Score all documents against query, All indexed terms, for suggestion/typo-recovery purposes., TestBm25CoreBehavior, TestTokenizer
 
-### Community 113 - "LanguageContext.tsx"
-Cohesion: 0.31
-Nodes (9): LanguageContext, LanguageContextType, LanguageSelector(), LanguageSelectorProps, renderFlag(), Language, LANGUAGE_OPTIONS, LanguageOption (+1 more)
+### Community 113 - "PlayerProvider"
+Cohesion: 0.22
+Nodes (16): PlayerProvider(), extractDriveFileId(), isPreviewUrl(), verifyDriveFile(), calculateIntroOffset(), getMusicOfftopicSegments(), sponsorBlockCache, SponsorBlockSegment (+8 more)
 
-### Community 114 - "LyricsShareModal.tsx"
-Cohesion: 0.23
-Nodes (18): getInitialThemeForApp(), LyricsShareModal(), calculateCompactCardHeight(), calculateLyricsBlockStartX(), calculateOptimalFontSize(), drawRoundedRect(), GenerateCardOptions, generateLyricCardBlob() (+10 more)
+### Community 114 - "lyricsShareCanvas.ts"
+Cohesion: 0.30
+Nodes (13): calculateCompactCardHeight(), calculateLyricsBlockStartX(), calculateOptimalFontSize(), drawRoundedRect(), GenerateCardOptions, getThemeById(), loadImageSafe(), LYRIC_CARD_THEMES (+5 more)
 
 ### Community 115 - "LiquidNavBar.tsx"
 Cohesion: 0.14
 Nodes (18): DEFAULT_TABS, generateDisplacementMap(), IconName, icons, length2(), LiquidNavBar(), LiquidNavBarProps, NavSVGFilterProps (+10 more)
 
 ### Community 116 - "ThemeContext.tsx"
-Cohesion: 0.13
-Nodes (14): CursorStyle, DEFAULT_LIQUID_GLASS_CONFIG, LiquidGlassAberrationTargets, LiquidGlassConfig, ThemeConfig, ThemeContext, ThemeContextType, ThemeId (+6 more)
+Cohesion: 0.15
+Nodes (13): CursorStyle, DEFAULT_LIQUID_GLASS_CONFIG, LiquidGlassAberrationTargets, LiquidGlassConfig, ThemeConfig, ThemeContext, ThemeContextType, ThemeId (+5 more)
 
 ### Community 117 - "Visual Companion Guide"
 Cohesion: 0.10
@@ -797,11 +793,11 @@ Nodes (19): Base Color Presets, Best Practices, Color Customization, Color Forma
 
 ### Community 122 - "PlayerBar.tsx"
 Cohesion: 0.15
-Nodes (19): ArtistLinks(), ArtistLinksProps, OverflowMarqueeText(), OverflowMarqueeTextProps, TrackCoverImage, AudioWaveformScrubber(), AudioWaveformScrubberProps, formatTime() (+11 more)
+Nodes (17): ArtistLinks(), ArtistLinksProps, OverflowMarqueeText(), OverflowMarqueeTextProps, AudioWaveformScrubber(), AudioWaveformScrubberProps, formatTime(), MiniEqualizer() (+9 more)
 
-### Community 123 - "TrackRow.tsx"
-Cohesion: 0.27
-Nodes (9): formatDuration(), TrackRowComponent(), viewCountCache, MockQuery, MockSupabase, inferTrackSource(), isExternalTrack(), resolveExternalTrackId() (+1 more)
+### Community 123 - "ImportSpotifyModal.tsx"
+Cohesion: 0.22
+Nodes (14): formatSeconds(), ImportSpotifyModal(), ImportSpotifyModalProps, ModalStep, resolveNhacCuaTuiTrack(), matchCache, matchPlaylistToYouTube(), matchSingleTrack() (+6 more)
 
 ### Community 124 - "Asset Organization Guide"
 Cohesion: 0.11
@@ -853,15 +849,19 @@ Nodes (16): Documentation Variants to Test, Expected Results, Next Steps, NULL (
 
 ### Community 137 - "nhaccuatui.ts"
 Cohesion: 0.14
-Nodes (28): cachedJsonResponse(), dynamic, GET(), getNhacCuaTuiTrending(), inFlightRequests, maxDuration, searchCache, getTrendingDeezerTracks() (+20 more)
+Nodes (27): GET(), getNctUrl(), asDuration(), asText(), findBestNhacCuaTuiMatch(), isValidNhacCuaTuiAudioUrl(), NEGATIVE_MARKERS, NhacCuaTuiMatchTarget (+19 more)
 
-### Community 138 - "upload/page.tsx"
-Cohesion: 0.43
-Nodes (5): dynamic, UploadPage(), GET(), createClient(), getRequiredEnv()
+### Community 138 - "api/search/route.ts"
+Cohesion: 0.16
+Nodes (18): cachedJsonResponse(), dynamic, GET(), getNhacCuaTuiTrending(), inFlightRequests, maxDuration, searchCache, dynamic (+10 more)
+
+### Community 139 - "history/page.tsx"
+Cohesion: 0.15
+Nodes (13): cachedHistory, cachedTopMap, cachedTotalPlays, formatRelativeTime(), HistoryEntry, HistoryPage(), HistoryTab, TopTimeframe (+5 more)
 
 ### Community 140 - "lyricsFlow.ts"
-Cohesion: 0.18
-Nodes (16): calculateTitleSimilarity(), extractCleanTitleAndArtist(), fetchLyricsFromLrclib(), isInstrumentalOrBeatTrack(), lyricsCache, lyricsInFlight, tryGetApi(), trySearchApi() (+8 more)
+Cohesion: 0.17
+Nodes (16): calculateTitleSimilarity(), extractCleanTitleAndArtist(), fetchLyricsFromLrclib(), isInstrumentalOrBeatTrack(), LrclibResponse, lyricsCache, lyricsInFlight, tryGetApi() (+8 more)
 
 ### Community 141 - "Design Principles"
 Cohesion: 0.12
@@ -876,8 +876,8 @@ Cohesion: 0.20
 Nodes (15): apply_color(), apply_viewbox_size(), extract_svgs(), generate_batch(), generate_icon(), generate_sizes(), load_env(), main() (+7 more)
 
 ### Community 144 - "fontSize"
-Cohesion: 0.12
-Nodes (16): $type, $value, $type, $value, $type, $value, $type, $value (+8 more)
+Cohesion: 0.11
+Nodes (20): $type, $value, $type, $value, $type, $value, $type, $value (+12 more)
 
 ### Community 145 - "Root Cause Tracing"
 Cohesion: 0.12
@@ -908,8 +908,8 @@ Cohesion: 0.13
 Nodes (14): AIDA (Attention-Interest-Desire-Action), Before-After-Bridge, Contrast Patterns, Copywriting Formulas, Core Formulas, Cost of Inaction, FAB (Features-Advantages-Benefits), Formula-to-Slide Mapping (+6 more)
 
 ### Community 153 - "radius"
-Cohesion: 0.19
-Nodes (14): $type, $value, $type, $value, $type, $value, primitive, radius (+6 more)
+Cohesion: 0.11
+Nodes (27): $type, $value, lg, sm, $type, $value, $type, $value (+19 more)
 
 ### Community 154 - "Appendix B - Canonical Sources (read these before reinventing)"
 Cohesion: 0.13
@@ -932,8 +932,8 @@ Cohesion: 0.16
 Nodes (8): _filter_anti_patterns_for_mode(), Drop "avoid dark mode" advice once dark mode is the resolved answer., Execute searches across multiple domains., Extract results list from search result dict., Generate complete design system recommendation. variance/motion/density are…, Bucket a 1-10 dial value into its tier config. Returns None if value is None., _resolve_dial(), TestAntiPatternGating
 
 ### Community 159 - "test_design_system_mode.py"
-Cohesion: 0.16
-Nodes (12): _contrast_ratio(), _derive_dark_palette(), _palette_is_dark(), WCAG relative luminance of a #RRGGBB string, or None if unparseable., True when a colors.csv row's Background is a dark surface., WCAG contrast ratio for two hex colors, or None if either is invalid., Keep product brand tokens while deriving accessible dark surfaces., Pick the highest-ranked palette matching the resolved mode. Only the dark case… (+4 more)
+Cohesion: 0.08
+Nodes (21): _contrast_ratio(), _derive_dark_palette(), _palette_is_dark(), _query_wants_dark(), WCAG relative luminance of a #RRGGBB string, or None if unparseable., True when a colors.csv row's Background is a dark surface., WCAG contrast ratio for two hex colors, or None if either is invalid., True when a styles.csv row describes itself as dark-first. (+13 more)
 
 ### Community 160 - "Using Git Worktrees"
 Cohesion: 0.13
@@ -944,16 +944,16 @@ Cohesion: 0.13
 Nodes (15): Code Examples, Common Rationalizations for Skipping Testing, Directory Structure, Discovery Workflow, Flowchart Usage, Match the Form to the Failure, Overview, Skill Creation Checklist (TDD Adapted) (+7 more)
 
 ### Community 162 - "deezer.ts"
-Cohesion: 0.23
-Nodes (12): GET(), normalizeTitleForDedup(), fetchArtistAudienceCount(), parseSubscriberCount(), DeezerAlbumItem, extractDeezerArtistName(), normalizeArtistForComparison(), searchDeezerArtist() (+4 more)
+Cohesion: 0.19
+Nodes (16): GET(), normalizeTitleForDedup(), fetchArtistAudienceCount(), parseSubscriberCount(), getPrimaryArtistName(), parseArtists(), ParsedArtist, DeezerAlbumItem (+8 more)
 
-### Community 163 - "nhaccuatui/stream/route.ts"
-Cohesion: 0.17
-Nodes (19): applyCorsHeaders(), dynamic, GET(), getNctSongUrl(), nctResolveCache, OPTIONS(), resolveNctStreamUrlCached(), GET() (+11 more)
+### Community 163 - "match-stream/route.ts"
+Cohesion: 0.14
+Nodes (19): applyCorsHeaders(), dynamic, GET(), getNctSongUrl(), matchCache, OPTIONS(), resolveYouTubeVideoIdForNctSong(), applyCorsHeaders() (+11 more)
 
-### Community 164 - "_style_is_dark_primary"
-Cohesion: 0.21
-Nodes (7): _query_wants_dark(), True when a styles.csv row describes itself as dark-first., True when the query explicitly asks for a dark theme., Resolve the mode the rest of the output has to agree with., _resolve_color_mode(), _style_is_dark_primary(), TestModeResolution
+### Community 164 - "utils.ts"
+Cohesion: 0.26
+Nodes (13): analyzeTrackMetadata(), getSmartRecommendedTracks(), removeDiacritics(), TrackMetadataAnalysis, deduplicateQueueTracks(), extractCoreSongTitle(), extractDriveId(), formatDuration (+5 more)
 
 ### Community 165 - "Banner Design - Multi-Format Creative Banner System"
 Cohesion: 0.14
@@ -1019,17 +1019,17 @@ Nodes (12): Categories, Dark Mode, File Organization, Layer 1: Primitive Tokens,
 Cohesion: 0.15
 Nodes (12): component, $type, $value, dark, semantic, $schema, $type, $value (+4 more)
 
-### Community 181 - "generate_design_system"
-Cohesion: 0.25
-Nodes (5): generate_design_system(), Main entry point for design system generation. Args: query: Search query (e.g.,…, format_output(), Format results for Claude consumption (token-optimized), TestPersistence
+### Community 181 - "nhaccuatui/stream/route.ts"
+Cohesion: 0.40
+Nodes (8): applyCorsHeaders(), dynamic, GET(), getNctSongUrl(), HEAD(), nctAudioUrlCache, OPTIONS(), resolveNctAudioUrlCached()
 
 ### Community 182 - "Testing Skills With Subagents"
 Cohesion: 0.15
 Nodes (13): Common Mistakes (Same as TDD), GREEN Phase: Write Minimal Skill (Make It Pass), Meta-Testing (When GREEN Isn't Working), Overview, Quick Reference (TDD Cycle), Real-World Impact, RED Phase: Baseline Testing (Watch It Fail), TDD Mapping for Skill Testing (+5 more)
 
 ### Community 183 - "LiquidGlassFilterDefs.tsx"
-Cohesion: 0.14
-Nodes (11): fragmentShaders, FragmentShaderType, length2(), LiquidGlassFilterDefs(), LiquidGlassFilterDefsProps, LiquidRefractionMode, polarSDF(), roundedRectSDF() (+3 more)
+Cohesion: 0.19
+Nodes (9): fragmentShaders, FragmentShaderType, length2(), LiquidGlassFilterDefsProps, LiquidRefractionMode, polarSDF(), roundedRectSDF(), STATIC_DISPLACEMENT_MAPS (+1 more)
 
 ### Community 184 - "BM25"
 Cohesion: 0.20
@@ -1057,7 +1057,7 @@ Nodes (11): Applying the Pattern, Defense-in-Depth Validation, Example from Sess
 
 ### Community 190 - "ShadcnInstaller"
 Cohesion: 0.20
-Nodes (7): main(), Handle shadcn/ui component installation., ShadcnInstaller, Tests for shadcn_add.py, Test adding components that are already installed., Test listing installed components when they exist., Test getting installed components without config.
+Nodes (7): main(), Handle shadcn/ui component installation., ShadcnInstaller, Tests for shadcn_add.py, Test listing installed components when they exist., Test checking for existing shadcn config., Test getting installed components without config.
 
 ### Community 191 - ".check_shadcn_config"
 Cohesion: 0.21
@@ -1067,25 +1067,25 @@ Nodes (6): Add all available shadcn/ui components. Args: overwrite: If True, ove
 Cohesion: 0.20
 Nodes (6): Generate configuration file content. Returns: Configuration file as string, Generate TypeScript configuration., Generate JavaScript configuration., Format plugins array for config. Validates each plugin name against a strict…, Add indentation to JSON string., Write configuration to file. Returns: Tuple of (success, message)
 
-### Community 193 - "audioPlayback.ts"
-Cohesion: 0.48
-Nodes (4): playAudioElement(), redactAudioSource(), shouldUseHtml5Audio(), toPersistedTrack()
+### Community 193 - "TopBar.tsx"
+Cohesion: 0.47
+Nodes (5): shouldCloseProfileMenu(), shouldToggleProfileMenu(), TopBar(), shouldCommitGlobalSearch(), shouldRedirectToHomeOnSearch()
 
 ### Community 194 - "Writing Plans"
 Cohesion: 0.17
 Nodes (11): Bite-Sized Task Granularity, Execution Handoff, File Structure, No Placeholders, Overview, Plan Document Header, Scope Check, Self-Review (+3 more)
 
 ### Community 195 - "[Analysis Title]"
-Cohesion: 0.15
-Nodes (13): Advanced: Skills with executable code, [Analysis Title], Build evaluations first, Conditional workflow pattern, Develop Skills iteratively with the agent, Evaluation and iteration, Examples pattern, Executive summary (+5 more)
+Cohesion: 0.17
+Nodes (12): Advanced: Skills with executable code, [Analysis Title], Anti-patterns to avoid, Avoid offering too many options, Avoid Windows-style paths, Conditional workflow pattern, Examples pattern, Executive summary (+4 more)
 
 ### Community 196 - "resolve/route.ts"
 Cohesion: 0.27
 Nodes (10): cachedResolveResponse(), cleanTitleString(), GET(), getSupabaseClient(), normalizeText(), resolveMemoryCache, GET(), getSupabaseClient() (+2 more)
 
-### Community 197 - "match-stream/route.ts"
-Cohesion: 0.24
-Nodes (9): applyCorsHeaders(), dynamic, GET(), getNctSongUrl(), matchCache, OPTIONS(), resolveYouTubeVideoIdForNctSong(), MockVideo (+1 more)
+### Community 197 - "ToastContext.tsx"
+Cohesion: 0.29
+Nodes (5): ToastContext, ToastContextType, ToastItem, ToastProvider(), ToastType
 
 ### Community 198 - "Implementation steps"
 Cohesion: 0.17
@@ -1128,8 +1128,8 @@ Cohesion: 0.18
 Nodes (8): args, fs, minimal, MINIMAL_TOKENS, path, projectRoot, tokensPath, wrapStyle
 
 ### Community 208 - "tasteskill: Anti-Slop Frontend Skill"
-Cohesion: 0.13
-Nodes (15): 0.A Read these signals first, 0.B Output a one-line "Design Read" before generating, 0. BRIEF INFERENCE (Read the Room Before Anything Else), 0.C If the brief is ambiguous, ask one question, do not guess, 0.D Anti-Default Discipline, 13. OUT OF SCOPE, 14. FINAL PRE-FLIGHT CHECK, 1.A Dial Inference (design read → dial values) (+7 more)
+Cohesion: 0.18
+Nodes (11): 0.A Read these signals first, 0.B Output a one-line "Design Read" before generating, 0. BRIEF INFERENCE (Read the Room Before Anything Else), 0.C If the brief is ambiguous, ask one question, do not guess, 0.D Anti-Default Discipline, 13. OUT OF SCOPE, 14. FINAL PRE-FLIGHT CHECK, 2.A When to reach for a real design system (use official packages) (+3 more)
 
 ### Community 209 - "patch"
 Cohesion: 0.18
@@ -1191,9 +1191,9 @@ Nodes (9): flattenTokens(), fs, generateCSS(), generateTailwind(), main(), parse
 Cohesion: 0.20
 Nodes (10): fg, font-size, hover-bg, button, $type, $value, $type, $value (+2 more)
 
-### Community 224 - "duration"
-Cohesion: 0.20
-Nodes (10): fast, normal, slow, $type, $value, $type, $value, duration (+2 more)
+### Community 224 - "primitive"
+Cohesion: 0.18
+Nodes (11): fast, normal, slow, $type, $value, $type, $value, primitive (+3 more)
 
 ### Community 225 - "10. REFERENCE VOCABULARY (Pattern Names the Agent Should Know)"
 Cohesion: 0.20
@@ -1227,13 +1227,13 @@ Nodes (9): Common Failures, Key Patterns, Overview, Rationalization Prevention, 
 Cohesion: 0.20
 Nodes (10): Avoid deeply nested references, Naming conventions, Pattern 1: High-level guide with references, Pattern 2: Domain-specific organization, Pattern 3: Conditional details, Progressive disclosure patterns, Skill structure, Structure longer reference files with table of contents (+2 more)
 
-### Community 233 - "announcement/route.ts"
-Cohesion: 0.42
-Nodes (6): GET(), getSupabaseServerClient(), POST(), AnnouncementData, DEFAULT_ANNOUNCEMENT, validateAnnouncementPayload()
+### Community 233 - "isAdmin"
+Cohesion: 0.24
+Nodes (9): GET(), getSupabaseServerClient(), POST(), WelcomeAnnouncementModal(), getUserRole(), isAdmin(), AnnouncementData, DEFAULT_ANNOUNCEMENT (+1 more)
 
-### Community 234 - "parse_decision_rules"
-Cohesion: 0.31
-Nodes (6): apply_decision_rules(), _object_without_duplicates(), parse_decision_rules(), Return deterministic mutations and an audit trail; never execute data., Parse the canonical condition -> action-array representation., _validate_action()
+### Community 234 - "$type"
+Cohesion: 0.60
+Nodes (5): $type, $value, 700, 700, 700
 
 ### Community 235 - "input"
 Cohesion: 0.29
@@ -1262,10 +1262,6 @@ Nodes (9): 11. COMPONENT EXECUTION GUIDELINES, 3D Cascading Card Deck, Diagonal 
 ### Community 241 - "18. EXTRA CREATIVITY & IMPLEMENTATION EDGE"
 Cohesion: 0.22
 Nodes (9): 18. EXTRA CREATIVITY & IMPLEMENTATION EDGE, Composition variety check, Conversion focus, Cross-section contrast, CTA specificity, Cultural / tonal alignment, Data-viz restraint, Image variety inside one comp (+1 more)
-
-### Community 242 - "setAudioSourceForPlayback"
-Cohesion: 0.53
-Nodes (3): AudioSourceTarget, isSameAudioSource(), setAudioSourceForPlayback()
 
 ### Community 243 - "Skill authoring best practices"
 Cohesion: 0.22
@@ -1315,9 +1311,13 @@ Nodes (8): 9.A Visual & CSS, 9. AI TELLS (Forbidden Patterns), 9.B Typography, 9
 Cohesion: 0.25
 Nodes (8): 8. ANTI-AI-SLOP RULES, Carousel / marquee slop (layout), Content slop, Data / KPI slop, Density slop, Layout slop, Typography slop, Visual slop
 
-### Community 256 - "_row_identities"
-Cohesion: 0.25
-Nodes (8): _exact_row_identity(), Suggest complete public identities so a retry can bypass score thresholds., Return non-empty public identities from ordinary and alias fields., Resolve an explicit style identity without opening generic variant ranking., Return one row whose stable public identity exactly matches the query., _row_identities(), _style_identity(), _suggest_identities()
+### Community 255 - "compressAudioIfNeeded"
+Cohesion: 0.70
+Nodes (4): compressAudioIfNeeded(), convertPcmCooperatively(), encodeInWorker(), encodeOnMainThread()
+
+### Community 256 - "50"
+Cohesion: 0.67
+Nodes (4): $type, $value, 50, 50
 
 ### Community 257 - "Global Constraints"
 Cohesion: 0.25
@@ -1391,9 +1391,9 @@ Nodes (7): 1. Explicit Negation in Rules, 2. Entry in Rationalization Table, 3. 
 Cohesion: 0.43
 Nodes (4): TiltCard(), TiltCardProps, calculateTilt(), TiltRect
 
-### Community 275 - "useTheme"
-Cohesion: 0.27
-Nodes (7): AppLayoutInner(), LiquidAmbientCanvas(), Orb, LiquidGlassContainer(), LiquidGlassContainerProps, useTheme(), useGamingMode()
+### Community 275 - "MobileFullviewPlayer.tsx"
+Cohesion: 0.15
+Nodes (17): getInitialThemeForApp(), LyricsShareModal(), LyricsShareModalProps, ExtendedLyricLine, ExtendedLyricLine, formatNegativeTime(), formatTime(), globalLyricsCache (+9 more)
 
 ### Community 276 - "Global Constraints"
 Cohesion: 0.29
@@ -1491,9 +1491,9 @@ Nodes (4): Add Custom Cursor Skill, Automatic Execution Procedure, Parameters:, 
 Cohesion: 0.40
 Nodes (4): Brand Guidelines Template, Document Structure, Extractable Fields, Usage
 
-### Community 300 - "trending/route.ts"
-Cohesion: 0.60
-Nodes (4): GET(), runtime, getTrendingSpotifyTracks(), getTrendingYouTubeTracks()
+### Community 300 - "800"
+Cohesion: 0.67
+Nodes (4): $type, $value, 800, 800
 
 ### Community 301 - "radius"
 Cohesion: 0.60
@@ -1543,21 +1543,21 @@ Nodes (5): GREEN: Write Minimal Skill, Micro-Test Wording Before Full Scenarios,
 Cohesion: 0.40
 Nodes (5): Key Elements of Good Scenarios, Pressure Types, Testing Setup, VERIFY GREEN: Pressure Testing, Writing Pressure Scenarios
 
-### Community 315 - "1"
-Cohesion: 0.67
-Nodes (3): $type, $value, 1
+### Community 314 - "1. THE THREE DIALS (Core Configuration)"
+Cohesion: 0.50
+Nodes (4): 1.A Dial Inference (design read → dial values), 1.B Use-Case Presets, 1.C How the Dials Drive Output, 1. THE THREE DIALS (Core Configuration)
+
+### Community 315 - "Evaluation and iteration"
+Cohesion: 0.50
+Nodes (4): Build evaluations first, Develop Skills iteratively with the agent, Evaluation and iteration, Observe how agents navigate Skills
 
 ### Community 317 - "Global Constraints"
 Cohesion: 0.40
 Nodes (4): Global Constraints, Sidebar Navigation Gliding Indicator & Hover Implementation Plan, Task 1: Add CSS Rules for Gliding Indicator, Nudging, and Ripple Effect, Task 2: Implement Gliding Indicator & Ripple Logic in Sidebar Component
 
-### Community 319 - "6"
-Cohesion: 0.67
-Nodes (3): $type, $value, 6
-
-### Community 321 - "lg"
-Cohesion: 0.60
-Nodes (5): lg, $type, $value, lg, lg
+### Community 320 - "audius.ts"
+Cohesion: 0.83
+Nodes (3): getAudiusHost(), getTrendingAudiusTracks(), searchAudiusTracks()
 
 ### Community 323 - "7. DIAL DEFINITIONS (Technical Reference)"
 Cohesion: 0.50
@@ -1574,10 +1574,6 @@ Nodes (4): 20. EXAMPLE INTERPRETATIONS, Example 1, Example 2, Example 3
 ### Community 326 - "Pi Tool Mapping"
 Cohesion: 0.50
 Nodes (3): Pi Tool Mapping, Subagents, Task lists
-
-### Community 327 - "sm"
-Cohesion: 0.60
-Nodes (5): sm, sm, sm, $type, $value
 
 ### Community 328 - "Checklist for effective Skills"
 Cohesion: 0.50
@@ -1611,14 +1607,6 @@ Nodes (3): Deploy on Vercel, Getting Started, Learn More
 Cohesion: 0.67
 Nodes (3): destructive, $type, $value
 
-### Community 339 - "xl"
-Cohesion: 0.67
-Nodes (4): xl, xl, $type, $value
-
-### Community 340 - "none"
-Cohesion: 0.67
-Nodes (4): $type, $value, none, none
-
 ### Community 341 - "foreground"
 Cohesion: 0.67
 Nodes (3): foreground, $type, $value
@@ -1639,37 +1627,25 @@ Nodes (3): primary-hover, $type, $value
 Cohesion: 0.67
 Nodes (3): ring, $type, $value
 
-### Community 347 - "Anti-patterns to avoid"
-Cohesion: 0.67
-Nodes (3): Anti-patterns to avoid, Avoid offering too many options, Avoid Windows-style paths
-
-### Community 363 - "16"
-Cohesion: 0.67
-Nodes (3): $type, $value, 16
-
-### Community 366 - "3"
-Cohesion: 0.67
-Nodes (3): $type, $value, 3
-
 ## Knowledge Gaps
-- **2099 isolated node(s):** `crypto`, `http`, `fs`, `path`, `OPCODES` (+2094 more)
+- **2103 isolated node(s):** `crypto`, `http`, `fs`, `path`, `OPCODES` (+2098 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **71 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **67 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Track` connect `Track` to `deezer.ts`, `youtube.ts`, `(app)/layout.tsx`, `queueRecommend.ts`, `itunes.ts`, `PlayerContext.tsx`, `nhaccuatui.ts`, `soundcloudClient.ts`, `lyricsFlow.ts`, `googleDriveUpload.ts`, `createClient`, `LyricsShareModal.tsx`, `spotify.ts`, `utils.ts`, `LyricsView.tsx`, `TrackRow.tsx`, `resolveStreamClient.ts`?**
-  _High betweenness centrality (0.010) - this node is a cross-community bridge._
-- **Why does `getValidUserId()` connect `(app)/layout.tsx` to `Track`, `PlayerContext.tsx`, `googleDriveUpload.ts`, `createClient`, `requireUser`, `TrackRow.tsx`?**
-  _High betweenness centrality (0.007) - this node is a cross-community bridge._
-- **Why does `YouTubeIframeEngine` connect `YouTubeIframeEngine` to `PlayerContext.tsx`, `PlaybackEngine`, `Html5AudioEngine.ts`?**
-  _High betweenness centrality (0.005) - this node is a cross-community bridge._
+- **Why does `Track` connect `Track` to `youtube.ts`, `queueRecommend.ts`, `itunes.ts`, `types/index.ts`, `PlayerContext.tsx`, `nhaccuatui.ts`, `api/search/route.ts`, `history/page.tsx`, `lyricsFlow.ts`, `googleDriveUpload.ts`, `MobileFullviewPlayer.tsx`, `SearchContext.tsx`, `deezer.ts`, `utils.ts`, `audius.ts`, `TopBar.tsx`, `createClient`, `soundcloudClient.ts`, `spotify.ts`, `LyricsView.tsx`, `resolveStreamClient.ts`, `ReceiptifyView.tsx`, `PlayerProvider`, `ImportSpotifyModal.tsx`?**
+  _High betweenness centrality (0.011) - this node is a cross-community bridge._
+- **Why does `useTheme()` connect `MobileFullviewPlayer.tsx` to `AuthForm.tsx`, `NowPlayingStage.tsx`, `createClient`, `LiquidGlassFilterDefs`, `customCursorBehavior.ts`, `ThemeContext.tsx`, `LiquidGlassFilterDefs.tsx`, `LyricsView.tsx`?**
+  _High betweenness centrality (0.006) - this node is a cross-community bridge._
 - **Are the 2 inferred relationships involving `TailwindConfigGenerator` (e.g. with `TestGeneratedConfigIsValidJs` and `TestTailwindConfigGenerator`) actually correct?**
   _`TailwindConfigGenerator` has 2 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 16 inferred relationships involving `DesignSystemGenerator` (e.g. with `TestBm25CoreBehavior` and `TestDiagnosticsContracts`) actually correct?**
   _`DesignSystemGenerator` has 16 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `crypto`, `http`, `fs` to the rest of the system?**
-  _2099 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _2103 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `AuthForm.tsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.12681159420289856 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08527131782945736 - nodes in this community are weakly interconnected._
+- **Should `gray` be split into smaller, more focused modules?**
+  _Cohesion score 0.10526315789473684 - nodes in this community are weakly interconnected._
