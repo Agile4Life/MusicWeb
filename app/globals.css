@@ -2011,13 +2011,14 @@ nextjs-portal,
   -webkit-backdrop-filter: blur(24px) saturate(160%);
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 20px 0 50px rgba(0, 0, 0, 0.7), inset -1px 0 0 rgba(255, 255, 255, 0.05);
-  transform: translateX(-100%);
-  transition: transform var(--transition-base);
+  transform: translateX(-101%) scale(0.97);
+  transition: transform 380ms var(--ease-drawer, cubic-bezier(0.32, 0.72, 0, 1));
   z-index: 100 !important;
+  will-change: transform;
 }
 
 .mobile-drawer.open {
-  transform: translateX(0);
+  transform: translateX(0) scale(1);
 }
 
 .mobile-drawer-backdrop {
@@ -2028,8 +2029,9 @@ nextjs-portal,
   -webkit-backdrop-filter: blur(12px) saturate(140%);
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--transition-base);
+  transition: opacity 300ms var(--ease-out-strong, cubic-bezier(0.23, 1, 0.32, 1));
   z-index: 95 !important;
+  will-change: opacity;
 }
 
 .mobile-drawer-backdrop.open {
@@ -6436,6 +6438,41 @@ html[data-theme-style="minimal-flat"] body {
 /* Classic Cyber Dark overrides for Mobile Fullview */
 [data-theme-style="classic"] .mobile-fullview-overlay {
   background-color: var(--bg-space, #07090e) !important;
+}
+
+/* ================================================================
+   🎬 GLOBAL ANIMATION TOKENS — Mobile Transition System
+   Easing curves from easing.dev / Emil Kowalski's animation vocabulary
+   ================================================================ */
+:root {
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* ── Reduced Motion: gentler, not zero ── */
+@media (prefers-reduced-motion: reduce) {
+  .mobile-drawer {
+    transition-duration: 0.01ms !important;
+  }
+  .mobile-drawer-backdrop {
+    transition-duration: 0.15s !important;
+  }
+  .mobile-fullview-overlay {
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* ── Mobile Drawer Stagger Items ── */
+@keyframes drawerItemSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 /* ================================================================
