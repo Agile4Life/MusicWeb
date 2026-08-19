@@ -1,5 +1,7 @@
 import { Track } from '@/types'
 import { searchYouTubeTracks, NEGATIVE_KEYWORDS, normalizeTitle } from './youtube'
+import { searchNhacCuaTuiDirect } from './nhaccuatui'
+import { searchSoundCloudTracks } from './soundcloudClient'
 import { deduplicateQueueTracks } from './utils'
 
 export interface TrackMetadataAnalysis {
@@ -118,7 +120,8 @@ export function analyzeTrackMetadata(track: Track): TrackMetadataAnalysis {
 
 /**
  * 🚀 Fetch Smart Recommended Related Tracks matching region & genre
- * Parallelized & Filtered against negative keywords (cover, karaoke, etc.)
+ * 🌟 Prioritizes NhacCuaTui & SoundCloud native tracks for instant HTML5 background playback,
+ * with YouTube as secondary fallback.
  */
 export async function getSmartRecommendedTracks(
   seedTrack: Track,
@@ -131,29 +134,58 @@ export async function getSmartRecommendedTracks(
   const existingIds = new Set(existingQueue.map((t) => t.id))
   existingIds.add(seedTrack.id)
 
+  const cleanArtist = (seedTrack.artist || '').replace(/[\(\[\{].*?[\)\]\}]/g, '').trim()
+  const searchQuery = cleanArtist && cleanArtist !== 'Nghệ sĩ chưa xác định' ? cleanArtist : seedTrack.title
+
   const recommended: Track[] = []
 
   try {
-    // 1. Fetch YouTube candidates in PARALLEL and filter NEGATIVE_KEYWORDS (cover, karaoke, etc.)
-    const ytTasks = analysis.queryTerms.map((query) =>
-      searchYouTubeTracks(query, 10)
-        .then((results) =>
-          results.filter((tr) => {
-            const normTitle = normalizeTitle(tr.title || '')
-            return !NEGATIVE_KEYWORDS.some((kw) => normTitle.includes(kw))
-          })
-        )
-        .catch(() => [])
-    )
+    // 1. Fetch NhacCuaTui & SoundCloud candidates FIRST in parallel
+    const [nctRes, scRes] = await Promise.allSettled([
+      searchQuery ? searchNhacCuaTuiDirect(searchQuery, 12) : Promise.resolve([]),
+      searchQuery ? searchSoundCloudTracks(searchQuery, 12) : Promise.resolve([]),
+    ])
 
-    const ytResultsArray = await Promise.all(ytTasks)
-
-    // Add YouTube matches next
-    for (const ytResults of ytResultsArray) {
-      for (const tr of ytResults) {
-        if (!existingIds.has(tr.id) && recommended.length < limit + 10) {
+    // Prioritize NhacCuaTui tracks
+    if (nctRes.status === 'fulfilled' && Array.isArray(nctRes.value)) {
+      for (const tr of nctRes.value) {
+        if (!existingIds.has(tr.id) && recommended.length < limit) {
           existingIds.add(tr.id)
           recommended.push(tr)
+        }
+      }
+    }
+
+    // Prioritize SoundCloud tracks
+    if (scRes.status === 'fulfilled' && Array.isArray(scRes.value)) {
+      for (const tr of scRes.value) {
+        if (!existingIds.has(tr.id) && recommended.length < limit) {
+          existingIds.add(tr.id)
+          recommended.push(tr)
+        }
+      }
+    }
+
+    // 2. If we still need more tracks to reach the limit, fetch YouTube candidates as fallback
+    if (recommended.length < limit) {
+      const ytTasks = analysis.queryTerms.map((query) =>
+        searchYouTubeTracks(query, 8)
+          .then((results) =>
+            results.filter((tr) => {
+              const normTitle = normalizeTitle(tr.title || '')
+              return !NEGATIVE_KEYWORDS.some((kw) => normTitle.includes(kw))
+            })
+          )
+          .catch(() => [])
+      )
+
+      const ytResultsArray = await Promise.all(ytTasks)
+      for (const ytResults of ytResultsArray) {
+        for (const tr of ytResults) {
+          if (!existingIds.has(tr.id) && recommended.length < limit) {
+            existingIds.add(tr.id)
+            recommended.push(tr)
+          }
         }
       }
     }
