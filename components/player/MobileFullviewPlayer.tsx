@@ -153,8 +153,8 @@ export function MobileFullviewPlayer() {
   // Auto-scroll management & timeouts
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const lineRefs = useRef<(HTMLDivElement | null)[]>([])
-  const userScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const dismissTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const userScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const dismissTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isUserScrollingLyricsRef = useRef(false)
   const scrollableElRef = useRef<HTMLElement | null>(null)
   const isOverScrollableRef = useRef(false)
@@ -328,7 +328,7 @@ export function MobileFullviewPlayer() {
     }
   }, [isNowPlayingOpen, activeTab])
 
-  // User touch & scroll detection for lyrics auto-scroll
+  // User touch & scroll detection for lyrics auto-scroll (responsive 1.8s resume)
   const handleLyricsUserScroll = useCallback(() => {
     isUserScrollingLyricsRef.current = true
     if (userScrollTimeoutRef.current) {
@@ -336,7 +336,7 @@ export function MobileFullviewPlayer() {
     }
     userScrollTimeoutRef.current = setTimeout(() => {
       isUserScrollingLyricsRef.current = false
-    }, 3000)
+    }, 1800)
   }, [])
 
   // ===== iOS Sheet Drag Gestures =====
@@ -830,6 +830,13 @@ export function MobileFullviewPlayer() {
 
                   const hasRomaji = showTranslation && Boolean(line.romaji) && line.romaji !== line.text
 
+                  // Heuristic for word-wrap on narrow mobile viewports (~28-34 chars/line)
+                  const textLen = line.text?.length || 0
+                  let intrinsicHeight = textLen > 70 ? 92 : textLen > 35 ? 68 : 48
+                  if (hasRomaji) {
+                    intrinsicHeight += (line.romaji && line.romaji.length > 40) ? 44 : 28
+                  }
+
                   return (
                     <div
                       key={`${line.time}-${idx}`}
@@ -846,7 +853,7 @@ export function MobileFullviewPlayer() {
                         transformOrigin: 'left center',
                         willChange: (isActive || isNearby) ? 'opacity, transform' : 'auto',
                         contentVisibility: (isActive || distance <= 6) ? 'visible' : 'auto',
-                        containIntrinsicSize: 'auto 48px',
+                        containIntrinsicSize: `auto ${intrinsicHeight}px`,
                       }}
                     >
                       {/* Main Lyric Line */}
