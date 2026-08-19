@@ -1,9 +1,12 @@
 # Auto detect text files and perform LF normalization
 * text=auto
 
-# GitHub Linguist Overrides
-# Exclude vendored audio decoders, demos, docs, and database scripts from repo language percentage
+# GitHub Linguist Overrides: Exclude agent skills, vendor files, demos, docs, and database scripts from repo language stats
+.agents/** linguist-vendored
 public/lame*.js linguist-vendored
-public/demos/** linguist-documentation
+public/demos/** linguist-vendored
 docs/** linguist-documentation
 supabase/** linguist-documentation
+scripts/** linguist-vendored
+worker/** linguist-vendored
+workers/** linguist-vendored
