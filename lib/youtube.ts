@@ -311,10 +311,53 @@ export const NEGATIVE_KEYWORDS = [
   '30min', 'loop', 'mashup'
 ]
 
-export function isOriginalTrackOnly(title?: string): boolean {
+/**
+ * Mapping from detected track genre to the NEGATIVE_KEYWORDS entries that should be
+ * ALLOWED when the seed track itself belongs to that genre.
+ * E.g. if the user is listening to a remix, we should NOT filter out remix candidates.
+ */
+export const GENRE_ALLOWED_KEYWORDS: Record<string, string[]> = {
+  remix:  ['remix', 'mashup'],
+  ballad: ['lofi', 'lo-fi', 'acoustic version', 'piano version'],
+  rap:    [],
+  indie:  ['acoustic version'],
+  pop:    [],
+  general: [],
+}
+
+/**
+ * Returns true when the title looks like an original/official release.
+ *
+ * - Uses \b word-boundary matching (not .includes) to avoid false-positives:
+ *   "cover" ≠ "recover", "live" ≠ "Liverpool", "loop" ≠ "loophole".
+ * - Multi-word keywords ("sped up", "1 hour", etc.) still use a space-padded
+ *   check because \b doesn't work reliably across Unicode word characters.
+ * - `allowedKeywords` lets callers whitelist keywords that match the seed's
+ *   detected genre (e.g. genre=remix → allowedKeywords=['remix','mashup']).
+ */
+export function isOriginalTrackOnly(
+  title?: string,
+  allowedKeywords: string[] = []
+): boolean {
   if (!title) return true
   const lower = title.toLowerCase().normalize('NFC')
-  return !NEGATIVE_KEYWORDS.some((kw) => lower.includes(kw))
+  // Pad with spaces so multi-word boundary checks work at start/end of string too
+  const padded = ` ${lower} `
+
+  for (const kw of NEGATIVE_KEYWORDS) {
+    if (allowedKeywords.includes(kw)) continue
+
+    // Single-word keywords: use word-boundary regex for precision
+    // Multi-word keywords (contain a space): use space-padded substring match
+    if (kw.includes(' ')) {
+      if (padded.includes(` ${kw} `)) return false
+    } else {
+      // Build boundary regex once per check (fast enough for short lists)
+      const re = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i')
+      if (re.test(lower)) return false
+    }
+  }
+  return true
 }
 
 export function normalizeTitle(text: string): string {
