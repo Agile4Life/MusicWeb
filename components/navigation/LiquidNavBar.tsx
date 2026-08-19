@@ -273,10 +273,13 @@ export function LiquidNavBar({
     }
   }, [pathname, tabs]) // eslint-disable-line
 
-  // Generate displacement map
+  // Generate displacement map (only on non-touch / desktop to prevent WebKit mobile GPU throttling)
   useEffect(() => {
     const nav = navRef.current
     if (!nav) return
+    if (typeof window !== 'undefined' && (window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 768)) {
+      return
+    }
     const w = nav.offsetWidth || 320
     const h = nav.offsetHeight || 68
     const url = generateDisplacementMap(w, h, 0.35, 0.25, 0.6)
@@ -559,8 +562,8 @@ export function LiquidNavBar({
               transition: isDragging
                 ? 'transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, background 0.2s ease'
                 : 'left 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, background 0.3s ease',
-              backdropFilter: `url(#liquidNavDisplacement) blur(${blurAmount * 32 + (isDragging ? 22 : 16)}px) saturate(${isDragging ? 220 : saturation}%) brightness(${isDragging ? 1.15 : 1})`,
-              WebkitBackdropFilter: `url(#liquidNavDisplacement) blur(${blurAmount * 32 + (isDragging ? 22 : 16)}px) saturate(${isDragging ? 220 : saturation}%) brightness(${isDragging ? 1.15 : 1})`,
+              backdropFilter: `${displacementMapUrl ? 'url(#liquidNavDisplacement) ' : ''}blur(${blurAmount * 32 + (isDragging ? 22 : 16)}px) saturate(${isDragging ? 220 : saturation}%) brightness(${isDragging ? 1.15 : 1})`,
+              WebkitBackdropFilter: `${displacementMapUrl ? 'url(#liquidNavDisplacement) ' : ''}blur(${blurAmount * 32 + (isDragging ? 22 : 16)}px) saturate(${isDragging ? 220 : saturation}%) brightness(${isDragging ? 1.15 : 1})`,
               background: isDragging
                 ? 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 18%, rgba(255,255,255,0.12))'
                 : 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 12%, rgba(255,255,255,0.06))',

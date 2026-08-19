@@ -228,12 +228,18 @@ function Particles({ analyserData, isPlaying, accentColor: propAccent, glowColor
     }
   }, [propAccent, propGlow])
 
+  // Dynamic particle count based on screen width (avoids GPU overheating on Retina mobile screens)
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+  const bgCount = isMobile ? 1000 : BG_COUNT
+  const midCount = isMobile ? 600 : MID_COUNT
+  const fgCount = isMobile ? 200 : FG_COUNT
+
   // Tầng nền: vệt sao băng, trải rộng toàn màn hình
-  const bg = useMemo(() => makeTwinkleGeometry(BG_COUNT, 26, 18, -5.0, 3.0, 0.09), [])
+  const bg = useMemo(() => makeTwinkleGeometry(bgCount, 26, 18, -5.0, 3.0, 0.09), [bgCount])
   // Tầng giữa: sao lấp lánh cỡ vừa
-  const mid = useMemo(() => makeTwinkleGeometry(MID_COUNT, 22, 15, -2.0, 2.5, 0.095), [])
+  const mid = useMemo(() => makeTwinkleGeometry(midCount, 22, 15, -2.0, 2.5, 0.095), [midCount])
   // Tầng cận cảnh: sao lấp lánh lớn, sáng nhất
-  const fg = useMemo(() => makeTwinkleGeometry(FG_COUNT, 18, 12, 0.5, 2.0, 0.12), [])
+  const fg = useMemo(() => makeTwinkleGeometry(fgCount, 18, 12, 0.5, 2.0, 0.12), [fgCount])
 
   useFrame((state) => {
     const t = state.clock.getElapsedTime()
@@ -371,12 +377,14 @@ export default function ParticleScene({ analyserData, isPlaying, accentColor, gl
     return null
   }
 
+  const isMobileScreen = typeof window !== 'undefined' && window.innerWidth < 768
+
   return (
     <Canvas
       className="particle-canvas w-full h-full"
       camera={{ position: [0, 0, 5], fov: 45 }}
-      dpr={[1, 2]}
-      gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+      dpr={isMobileScreen ? [1, 1.5] : [1, 2]}
+      gl={{ antialias: !isMobileScreen, alpha: true, powerPreference: 'high-performance' }}
     >
       <Particles
         analyserData={analyserData}

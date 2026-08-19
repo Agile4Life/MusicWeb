@@ -151,15 +151,31 @@
   --ease-out-cubic: cubic-bezier(0.33, 1, 0.68, 1);
 }
 
-/* === Page Ambient Theme Lighting (Soft Ambient Reflection for Glass Surfaces) === */
+/* === Page Ambient Theme Lighting (GPU Hardware Cached Layer for Smooth Safari iOS Scrolling) === */
 body {
   position: relative;
+  background-color: var(--bg-space, #0a0e1a);
+  color: #f3f4f6;
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
   background-color: var(--bg-space, #0a0e1a);
   background-image:
     linear-gradient(145deg, var(--bg-space, #0a0e1a) 0%, var(--bg-space-end, #12172b) 100%),
     radial-gradient(circle at 85% 5%, color-mix(in srgb, var(--spotify-glow, #22d3ee) 3.5%, transparent) 0%, transparent 50%),
-    radial-gradient(circle at 15% 95%, color-mix(in srgb, var(--primary-spotify, #22d3ee) 2.5%, transparent) 0%, transparent 55%);
-  background-attachment: fixed;
+    radial-gradient(circle at 15% 95%, color-mix(in srgb, var(--primary-spotify, #22d3ee) 2.5%, transparent) 0%, transparent 55%),
+    radial-gradient(at 0% 0%, var(--theme-gradient-1) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, var(--theme-gradient-2) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, var(--theme-gradient-3) 0px, transparent 50%);
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 /* === Button Press & Interactive Feedback (Tactile Motion) === */
@@ -487,11 +503,6 @@ body {
 
 body {
   background-color: var(--bg-space);
-  background-image:
-    radial-gradient(at 0% 0%, var(--theme-gradient-1) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, var(--theme-gradient-2) 0px, transparent 50%),
-    radial-gradient(at 50% 100%, var(--theme-gradient-3) 0px, transparent 50%);
-  background-attachment: fixed;
   color: #f3f4f6;
   overflow: hidden;
   user-select: none;

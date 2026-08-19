@@ -11,6 +11,7 @@ import { MobileTabTransition } from './MobileTabTransition'
 import { getPrimaryLyrics } from '@/lib/lyricsFlow'
 import { parseLrc, parsePlainLyrics, findActiveLyricIndex, LyricLine } from '@/lib/lrcParser'
 import { fetchLyricsRomaji } from '@/lib/romajiTransliteration'
+import { isIOSDevice } from '@/lib/audioPlayback'
 import {
   Play,
   Pause,
@@ -98,6 +99,12 @@ export function MobileFullviewPlayer() {
       setTabDirection(newIdx > prevIdx ? 1 : -1)
       return newTab
     })
+  }, [])
+
+  // ===== iOS Device Detection =====
+  const [isIOS, setIsIOS] = useState(false)
+  useEffect(() => {
+    setIsIOS(isIOSDevice())
   }, [])
 
   // ===== Unified iOS Drag to Dismiss Physics =====
@@ -371,7 +378,6 @@ export function MobileFullviewPlayer() {
 
       if (deltaY > 6) {
         isDraggingRef.current = true
-        setIsDragging(true)
         isUserInteractingRef.current = true
       }
     }
@@ -380,13 +386,19 @@ export function MobileFullviewPlayer() {
       if (e.cancelable) {
         e.preventDefault()
       }
-      if (deltaY > 0) {
-        setDragY(deltaY)
-        dragYRef.current = deltaY
-      } else {
-        const rubberband = deltaY * 0.18
-        setDragY(rubberband)
-        dragYRef.current = rubberband
+      const currentDrag = deltaY > 0 ? deltaY : deltaY * 0.18
+      dragYRef.current = currentDrag
+
+      if (containerRef.current) {
+        const progress = Math.min(1, Math.max(0, currentDrag / 500))
+        const scale = currentDrag > 0 ? Math.max(0.92, 1 - progress * 0.08) : 1
+        const radius = currentDrag > 0 ? Math.min(36, 16 + currentDrag * 0.12) : 0
+        const opacity = currentDrag > 0 ? Math.max(0.35, 1 - progress * 0.55) : 1
+
+        containerRef.current.style.transform = `translateY(${Math.max(0, currentDrag)}px) scale(${scale})`
+        containerRef.current.style.opacity = `${opacity}`
+        containerRef.current.style.borderRadius = `${radius}px ${radius}px 0 0`
+        containerRef.current.style.boxShadow = currentDrag > 0 ? '0 -12px 48px rgba(0, 0, 0, 0.85)' : 'none'
       }
     }
   }, [])
@@ -418,7 +430,6 @@ export function MobileFullviewPlayer() {
 
     if (isClosingRef.current) return
     if (!isDraggingRef.current) {
-      setIsDragging(false)
       return
     }
 
@@ -427,22 +438,38 @@ export function MobileFullviewPlayer() {
     const velocity = (lastTouchYRef.current - touchStartYRef.current) / elapsed
 
     isDraggingRef.current = false
-    setIsDragging(false)
 
     const shouldDismiss = currentDragY > 110 || (currentDragY > 40 && velocity > 0.45)
 
     if (shouldDismiss) {
       isClosingRef.current = true
       closeNowPlayingOverlay()
-      
-      // Reset dragY after the exit animation completes so next time it opens from 0
+
       setTimeout(() => {
-        setDragY(0)
+        if (containerRef.current) {
+          containerRef.current.style.transform = ''
+          containerRef.current.style.opacity = ''
+          containerRef.current.style.borderRadius = ''
+          containerRef.current.style.boxShadow = ''
+          containerRef.current.style.transition = ''
+        }
         dragYRef.current = 0
         isClosingRef.current = false
       }, 400)
     } else {
-      setDragY(0)
+      if (containerRef.current) {
+        containerRef.current.style.transition = 'transform 0.35s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.3s ease, border-radius 0.3s ease, box-shadow 0.3s ease'
+        containerRef.current.style.transform = 'translateY(0px) scale(1)'
+        containerRef.current.style.opacity = '1'
+        containerRef.current.style.borderRadius = '0px'
+        containerRef.current.style.boxShadow = 'none'
+
+        setTimeout(() => {
+          if (containerRef.current && !isDraggingRef.current) {
+            containerRef.current.style.transition = ''
+          }
+        }, 350)
+      }
       dragYRef.current = 0
     }
   }, [closeNowPlayingOverlay])
@@ -517,25 +544,18 @@ export function MobileFullviewPlayer() {
       ref={containerRef}
       initial={false}
       animate={{
-        y: isNowPlayingOpen ? Math.max(0, dragY) : '100%',
-        opacity: isNowPlayingOpen ? sheetOpacity : 0,
-        scale: isNowPlayingOpen ? sheetScale : 1,
+        y: isNowPlayingOpen ? 0 : '100%',
+        opacity: isNowPlayingOpen ? 1 : 0,
       }}
-      transition={
-        isDragging
-          ? { duration: 0 }
-          : { type: 'spring', damping: 28, stiffness: 220, opacity: { duration: 0.3 } }
-      }
+      transition={{ type: 'spring', damping: 30, stiffness: 260, opacity: { duration: 0.25 } }}
       onTouchStart={handleDragTouchStart}
       onTouchMove={handleDragTouchMove}
       onTouchEnd={handleDragTouchEnd}
       onTouchCancel={handleDragTouchEnd}
-      className={`mobile-fullview-overlay fixed inset-0 z-[100] flex flex-col select-none overflow-hidden touch-pan-y ${
+      className={`mobile-fullview-overlay fixed inset-0 h-[100dvh] max-h-[100dvh] z-[100] flex flex-col select-none overflow-hidden touch-pan-y ${
         isNowPlayingOpen ? 'pointer-events-auto' : 'pointer-events-none'
       }`}
       style={{
-        borderRadius: `${sheetRadius}px ${sheetRadius}px 0 0`,
-        boxShadow: dragY > 0 ? '0 -12px 48px rgba(0, 0, 0, 0.85)' : 'none',
         transformOrigin: 'bottom center',
         willChange: 'transform, opacity',
         backgroundColor: isMinimal ? '#141017' : '#0a0a0a',
@@ -711,27 +731,23 @@ export function MobileFullviewPlayer() {
                   const isActive = idx === activeIndex
                   const isSyncedMode = isSynced && activeIndex >= 0
 
-                  let blurPx = 0
                   let opacity = 1.0
+                  let scale = 1.0
 
                   if (!isSyncedMode) {
-                    blurPx = 0
                     opacity = 0.95
                   } else if (isActive) {
-                    blurPx = 0
                     opacity = 1.0
+                    scale = 1.02
                   } else {
                     const distance = Math.abs(idx - activeIndex)
                     const isPast = idx < activeIndex
 
                     if (distance === 1) {
-                      blurPx = 1.0
-                      opacity = isPast ? 0.5 : 0.4
+                      opacity = isPast ? 0.45 : 0.4
                     } else if (distance === 2) {
-                      blurPx = 1.8
-                      opacity = isPast ? 0.35 : 0.28
+                      opacity = isPast ? 0.3 : 0.25
                     } else {
-                      blurPx = 2.5
                       opacity = isPast ? 0.2 : 0.15
                     }
                   }
@@ -750,7 +766,9 @@ export function MobileFullviewPlayer() {
                       }`}
                       style={{
                         opacity,
-                        filter: blurPx > 0 ? `blur(${blurPx}px)` : 'none',
+                        transform: `scale(${scale})`,
+                        transformOrigin: 'left center',
+                        willChange: 'opacity, transform',
                       }}
                     >
                       {/* Main Lyric Line */}
@@ -967,51 +985,51 @@ export function MobileFullviewPlayer() {
           </button>
         </div>
 
-        {/* ─── Volume Slider (Apple Music: thin bar only, no knob) ─── */}
-        <div className="flex items-center gap-3 px-0.5 pb-2">
-          <button
-            type="button"
-            onClick={handleVolumeToggle}
-            className="text-white/35 active:scale-90 transition-all cursor-pointer shrink-0"
-          >
-            {volume === 0 ? <VolumeX className="w-[14px] h-[14px]" /> : <Volume2 className="w-[14px] h-[14px]" />}
-          </button>
-          {/* Custom volume track (div-based, no knob — Apple Music style) */}
-          <div
-            className="relative flex-1 h-6 flex items-center cursor-pointer touch-none"
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect()
-              const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-              setVolume(pct)
-            }}
-            onTouchStart={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect()
-              const touch = e.touches[0]
-              const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
-              setVolume(pct)
-            }}
-            onTouchMove={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect()
-              const touch = e.touches[0]
-              const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
-              setVolume(pct)
-            }}
-          >
-            {/* Volume track */}
-            <div className="w-full h-[3px] rounded-full overflow-hidden bg-white/[0.18]">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${volume * 100}%`,
-                  backgroundColor: 'rgba(255, 255, 255, 0.85)',
-                }}
-              />
+        {/* ─── Volume Slider (Apple Music: thin bar only, no knob — hidden on iOS as Apple ignores software audio.volume) ─── */}
+        {!isIOS && (
+          <div className="flex items-center gap-3 px-0.5 pb-2">
+            <button
+              type="button"
+              onClick={handleVolumeToggle}
+              className="text-white/35 active:scale-90 transition-all cursor-pointer shrink-0"
+            >
+              {volume === 0 ? <VolumeX className="w-[14px] h-[14px]" /> : <Volume2 className="w-[14px] h-[14px]" />}
+            </button>
+            {/* Custom volume track (div-based, no knob — Apple Music style) */}
+            <div
+              className="relative flex-1 h-6 flex items-center cursor-pointer touch-none"
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect()
+                const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+                setVolume(pct)
+              }}
+              onTouchStart={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect()
+                const touch = e.touches[0]
+                const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
+                setVolume(pct)
+              }}
+              onTouchMove={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect()
+                const touch = e.touches[0]
+                const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
+                setVolume(pct)
+              }}
+            >
+              {/* Volume track */}
+              <div className="w-full h-[3px] rounded-full overflow-hidden bg-white/[0.18]">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${volume * 100}%`,
+                    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                  }}
+                />
+              </div>
             </div>
-
-
+            <Volume2 className="w-[14px] h-[14px] text-white/35 shrink-0" />
           </div>
-          <Volume2 className="w-[14px] h-[14px] text-white/35 shrink-0" />
-        </div>
+        )}
 
         {/* ─── Bottom Tab Bar (Apple Music style) ─── */}
         <div className="flex items-center justify-center gap-16 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
