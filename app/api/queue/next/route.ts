@@ -79,7 +79,9 @@ export async function GET(req: NextRequest) {
     }
 
     let source: QueueTrack['source'] = 'spotify'
-    if (currentTrackId.startsWith('deezer-')) source = 'deezer'
+    if (currentTrackId.startsWith('nct-')) source = 'nhaccuatui'
+    else if (currentTrackId.startsWith('sc-')) source = 'soundcloud'
+    else if (currentTrackId.startsWith('deezer-')) source = 'deezer'
     else if (!currentTrackId.startsWith('spotify-')) source = 'internal_history'
 
     const seedTrack: QueueTrack = {
@@ -90,7 +92,7 @@ export async function GET(req: NextRequest) {
       duration: 180,
       isrc,
       source,
-      source_id: currentTrackId.replace(/^(deezer|spotify)-/, ''),
+      source_id: currentTrackId.replace(/^(deezer|spotify|nct|sc)-/, ''),
       score: 1.0,
       score_reasons: ['seed_track'],
     }
