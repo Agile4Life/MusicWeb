@@ -41,6 +41,7 @@ import { useSession } from 'next-auth/react'
 import { isAdmin as checkIsAdmin } from '@/lib/accessControl'
 import { useSearchParams, usePathname } from 'next/navigation'
 import { extractDriveFileId, parseFilenameToTitleArtist } from '@/lib/googleDriveUpload'
+import { STATIC_DRIVE_TRACKS } from '@/lib/driveTracksMap'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { useSearch } from '@/components/search/SearchContext'
 import { LONG_COMPILATION_KEYWORDS } from '@/lib/youtube'
@@ -52,6 +53,7 @@ export default function HomePage() {
   const albumGrid = useGridGlideIndicator()
   const playlistGrid = useGridGlideIndicator()
   const trendingGrid = useGridGlideIndicator()
+  const driveGrid = useGridGlideIndicator()
   const {
     searchQuery,
     setSearchQuery,
@@ -234,52 +236,73 @@ export default function HomePage() {
       setUserFavTrackIds(userFavSet)
 
       // Query all tracks from database
-      const { data: rawTracks, error: trackError } = await supabase
-        .from('tracks')
-        .select('*')
-        .order('created_at', { ascending: false })
+      let visibleTracks: Track[] = []
+      try {
+        const { data: rawTracks, error: trackError } = await supabase
+          .from('tracks')
+          .select('*')
+          .order('created_at', { ascending: false })
 
-      if (!trackError && rawTracks) {
-        // Drive tracks are shared publicly for everyone to view;
-        // Non-drive personal uploads are filtered by user_id.
-        const visibleTracks = rawTracks.filter((t: Track) => {
-          const fp = t.file_path || ''
-          const isDrive = Boolean(
-            extractDriveFileId(fp) ||
-            fp.includes('drive-stream') ||
-            fp.includes('drive.google.com') ||
-            fp.includes('lh3.googleusercontent.com')
-          )
-          if (isDrive) return true
-          if (userId && t.user_id === userId) return true
-          if (!t.user_id || (t as any).is_public) return true
-          return false
-        })
-
-        const uniqueVisibleTracks: Track[] = []
-        const seenTrackKeys = new Set<string>()
-
-        for (const tr of visibleTracks) {
-          const driveId = extractDriveFileId(tr.file_path || '')
-          const normTitle = (tr.title || '').trim().toLowerCase().normalize('NFKC')
-          const normArtist = (tr.artist || '').trim().toLowerCase().normalize('NFKC')
-          const key = driveId ? `drive_${driveId}` : `title_${normTitle}|||${normArtist}`
-
-          if (!seenTrackKeys.has(key)) {
-            seenTrackKeys.add(key)
-            uniqueVisibleTracks.push(tr)
-          }
+        if (!trackError && rawTracks) {
+          // Drive tracks are shared publicly for everyone to view;
+          // Non-drive personal uploads are filtered by user_id.
+          visibleTracks = rawTracks.filter((t: Track) => {
+            const fp = t.file_path || ''
+            const isDrive = Boolean(
+              extractDriveFileId(fp) ||
+              fp.includes('drive-stream') ||
+              fp.includes('drive.google.com') ||
+              fp.includes('lh3.googleusercontent.com')
+            )
+            if (isDrive) return true
+            if (userId && t.user_id === userId) return true
+            if (!t.user_id || (t as any).is_public) return true
+            return false
+          })
         }
-
-        if (mySeq !== fetchSeqRef.current) return
-        setTracks(
-          uniqueVisibleTracks.map((t: Track) => ({
-            ...t,
-            source: t.source || 'local',
-            is_favorite: userFavSet.has(t.id),
-          }))
-        )
+      } catch (dbErr) {
+        console.warn('DB fetch error on home page:', dbErr)
       }
+
+      // Convert static preloaded Drive tracks
+      const staticDriveList: Track[] = STATIC_DRIVE_TRACKS.map((st) => ({
+        id: st.id,
+        user_id: 'system_drive',
+        title: st.title,
+        artist: st.artist,
+        album: st.album || null,
+        duration: st.duration || 0,
+        file_path: st.file_path,
+        drive_file_id: st.drive_file_id || undefined,
+        cover_url: st.cover_url || null,
+        source: 'local' as const,
+        created_at: '2026-01-01T00:00:00.000Z',
+      }))
+
+      const combinedTracks = [...visibleTracks, ...staticDriveList]
+      const uniqueVisibleTracks: Track[] = []
+      const seenTrackKeys = new Set<string>()
+
+      for (const tr of combinedTracks) {
+        const driveId = tr.drive_file_id || extractDriveFileId(tr.file_path || '')
+        const normTitle = (tr.title || '').trim().toLowerCase().normalize('NFKC')
+        const normArtist = (tr.artist || '').trim().toLowerCase().normalize('NFKC')
+        const key = driveId ? `drive_${driveId}` : `title_${normTitle}|||${normArtist}`
+
+        if (!seenTrackKeys.has(key)) {
+          seenTrackKeys.add(key)
+          uniqueVisibleTracks.push(tr)
+        }
+      }
+
+      if (mySeq !== fetchSeqRef.current) return
+      setTracks(
+        uniqueVisibleTracks.map((t: Track) => ({
+          ...t,
+          source: t.source || 'local',
+          is_favorite: userFavSet.has(t.id),
+        }))
+      )
 
       // Process history from combined response
       try {
@@ -944,6 +967,66 @@ export default function HomePage() {
         </div>
       )}
 
+      {/* Google Drive Music Showcase Section */}
+      {!isSearching && driveTracks.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between pb-1">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-[var(--spotify-glow,#22d3ee)]/10 border border-[var(--spotify-glow,#22d3ee)]/25 flex items-center justify-center shadow-[0_0_12px_var(--theme-glow-shadow,#22d3ee)]">
+                <Cloud style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
+              </div>
+              <h2 className="text-base font-bold font-display text-white tracking-tight">
+                Kho Nhạc Google Drive
+              </h2>
+            </div>
+            <Link
+              href="/drive"
+              className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-all px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10 hover:border-cyan-500/40 hover:bg-white/[0.08]"
+            >
+              <span>Xem tất cả ({driveTracks.length})</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <div
+            ref={driveGrid.containerRef}
+            onMouseLeave={driveGrid.handleContainerMouseLeave}
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative"
+          >
+            <div
+              className="grid-glide-indicator"
+              style={{
+                transform: `translate3d(${driveGrid.indicator.left}px, ${driveGrid.indicator.top}px, 0) scale(${driveGrid.indicator.scaleX}, ${driveGrid.indicator.scaleY})`,
+                width: `${driveGrid.indicator.width}px`,
+                height: `${driveGrid.indicator.height}px`,
+                opacity: driveGrid.indicator.opacity,
+              }}
+            />
+            {driveTracks.slice(0, 6).map((t, idx) => (
+              <div
+                key={t.id}
+                onMouseEnter={driveGrid.handleItemMouseEnter}
+                className="relative z-[1] h-full"
+              >
+                <MediaCard
+                  id={t.id}
+                  title={t.title}
+                  subtitle={t.artist || 'Nghệ sĩ chưa xác định'}
+                  coverUrl={t.cover_url}
+                  type="track"
+                  badgeLabel="Drive"
+                  href="/drive"
+                  onPlay={() => playTrack(t, driveTracks)}
+                  isPlaying={currentTrack?.id === t.id && isPlaying}
+                  index={idx}
+                  fallbackIcon="track"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Main Tracks Table Section */}
       <div className="flex flex-col gap-4">
         {!isSearching && (
@@ -951,14 +1034,62 @@ export default function HomePage() {
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar touch-pan-x pr-2 py-0.5">
               <button
                 onClick={() => setLibraryTab('recent')}
-                style={{
-                  background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                  boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
-                }}
-                className="px-4 py-2 rounded-full text-xs font-extrabold text-black border border-white/20 transition-all flex items-center gap-1.5 shrink-0"
+                style={
+                  libraryTab === 'recent'
+                    ? {
+                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                        boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                      }
+                    : undefined
+                }
+                className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                  libraryTab === 'recent'
+                    ? 'text-black font-extrabold border border-white/20'
+                    : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:bg-white/10'
+                }`}
               >
                 <History className="w-3.5 h-3.5" />
                 <span>Vừa Nghe Gần Đây ({recentTracks.length})</span>
+              </button>
+
+              <button
+                onClick={() => setLibraryTab('drive')}
+                style={
+                  libraryTab === 'drive'
+                    ? {
+                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                        boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                      }
+                    : undefined
+                }
+                className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                  libraryTab === 'drive'
+                    ? 'text-black font-extrabold border border-white/20'
+                    : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:bg-white/10'
+                }`}
+              >
+                <Cloud className="w-3.5 h-3.5" />
+                <span>Google Drive ({driveTracks.length})</span>
+              </button>
+
+              <button
+                onClick={() => setLibraryTab('all')}
+                style={
+                  libraryTab === 'all'
+                    ? {
+                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                        boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                      }
+                    : undefined
+                }
+                className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                  libraryTab === 'all'
+                    ? 'text-black font-extrabold border border-white/20'
+                    : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:bg-white/10'
+                }`}
+              >
+                <Music className="w-3.5 h-3.5" />
+                <span>Tất Cả Bài Hát ({tracks.length})</span>
               </button>
             </div>
           </div>

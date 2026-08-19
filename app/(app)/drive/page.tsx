@@ -11,6 +11,7 @@ import { Cloud, Play, Shuffle, Music, Sparkles, Upload, FolderSync } from 'lucid
 import { TrackList } from '@/components/track/TrackList'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 import { extractDriveFileId } from '@/lib/googleDriveUpload'
+import { STATIC_DRIVE_TRACKS } from '@/lib/driveTracksMap'
 import { addTrackToPlaylist } from '@/lib/trackPersistence'
 import { toast } from '@/components/ui/ToastContext'
 import { useLanguage } from '@/components/i18n/LanguageContext'
@@ -66,45 +67,67 @@ export default function DrivePage() {
       } catch {}
 
       // Fetch all tracks from DB and filter Drive tracks
-      const { data: rawTracks, error } = await supabase
-        .from('tracks')
-        .select('*')
-        .order('created_at', { ascending: false })
+      let filteredDb: Track[] = []
+      try {
+        const { data: rawTracks, error } = await supabase
+          .from('tracks')
+          .select('*')
+          .order('created_at', { ascending: false })
 
-      if (!error && rawTracks) {
-        const filtered = rawTracks.filter((tr: Track) => {
-          const fp = tr.file_path || ''
-          return Boolean(
-            extractDriveFileId(fp) ||
-            fp.includes('drive-stream') ||
-            fp.includes('drive.google.com') ||
-            fp.includes('lh3.googleusercontent.com')
-          )
-        })
-
-        const uniqueDriveTracks: Track[] = []
-        const seenDriveKeys = new Set<string>()
-
-        for (const tr of filtered) {
-          const driveId = extractDriveFileId(tr.file_path || '')
-          const normTitle = (tr.title || '').trim().toLowerCase().normalize('NFKC')
-          const normArtist = (tr.artist || '').trim().toLowerCase().normalize('NFKC')
-          const key = driveId ? `drive_${driveId}` : `title_${normTitle}|||${normArtist}`
-
-          if (!seenDriveKeys.has(key)) {
-            seenDriveKeys.add(key)
-            uniqueDriveTracks.push(tr)
-          }
+        if (!error && rawTracks) {
+          filteredDb = rawTracks.filter((tr: Track) => {
+            const fp = tr.file_path || ''
+            return Boolean(
+              extractDriveFileId(fp) ||
+              fp.includes('drive-stream') ||
+              fp.includes('drive.google.com') ||
+              fp.includes('lh3.googleusercontent.com')
+            )
+          })
         }
-
-        setDriveTracks(
-          uniqueDriveTracks.map((t: Track) => ({
-            ...t,
-            source: t.source || 'local',
-            is_favorite: userFavSet.has(t.id),
-          }))
-        )
+      } catch (dbErr) {
+        console.warn('DB fetch error in drive page:', dbErr)
       }
+
+      // Convert static preloaded Drive tracks
+      const staticTracks: Track[] = STATIC_DRIVE_TRACKS.map((st) => ({
+        id: st.id,
+        user_id: 'system_drive',
+        title: st.title,
+        artist: st.artist,
+        album: st.album || null,
+        duration: st.duration || 0,
+        file_path: st.file_path,
+        drive_file_id: st.drive_file_id || undefined,
+        cover_url: st.cover_url || null,
+        source: 'local' as const,
+        created_at: '2026-01-01T00:00:00.000Z',
+      }))
+
+      // Merge DB tracks + static preloaded tracks
+      const combinedRaw = [...filteredDb, ...staticTracks]
+      const uniqueDriveTracks: Track[] = []
+      const seenDriveKeys = new Set<string>()
+
+      for (const tr of combinedRaw) {
+        const driveId = tr.drive_file_id || extractDriveFileId(tr.file_path || '')
+        const normTitle = (tr.title || '').trim().toLowerCase().normalize('NFKC')
+        const normArtist = (tr.artist || '').trim().toLowerCase().normalize('NFKC')
+        const key = driveId ? `drive_${driveId}` : `title_${normTitle}|||${normArtist}`
+
+        if (!seenDriveKeys.has(key)) {
+          seenDriveKeys.add(key)
+          uniqueDriveTracks.push(tr)
+        }
+      }
+
+      setDriveTracks(
+        uniqueDriveTracks.map((t: Track) => ({
+          ...t,
+          source: t.source || 'local',
+          is_favorite: userFavSet.has(t.id),
+        }))
+      )
     } catch (err) {
       console.error('Error fetching drive tracks:', err)
     } finally {
