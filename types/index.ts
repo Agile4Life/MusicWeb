@@ -33,6 +33,13 @@ export interface Track {
   disc_number?: number
   track_number?: number
   view_count?: number | null   // Real YouTube view count, only set when youtube_id exists.
+  /**
+   * Playback engine to use for this track, independent of `source`.
+   * Allows Deezer tracks to retain source='deezer' while still routing
+   * through the Spotify-compatible preview engine when needed.
+   * Values: 'spotify' | 'deezer' | 'nhaccuatui' | 'soundcloud' | 'youtube' | 'local'
+   */
+  playback_engine?: string
 }
 
 export interface Playlist {
