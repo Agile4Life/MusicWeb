@@ -102,13 +102,21 @@ function readCandidate(value: unknown): NhacCuaTuiSearchItem | null {
   const item = value as Record<string, unknown>
   const id = asText(item.id)
   const title = asText(item.title || item.name)
+
+  // id and title are mandatory — without them there's nothing to play or display
+  if (!id || !title) return null
+
   const artist = asText(item.artist || item.artistName)
-  if (!id || !title || !artist) return null
+  // Allow empty artist: some album/OST results omit the field but are still valid tracks.
+  // Log a debug warning so we can track the ratio of artist-less results in production.
+  if (!artist) {
+    console.debug(`[NCT] readCandidate: track "${title}" (id=${id}) has no artist field — using fallback`)
+  }
 
   const candidate: NhacCuaTuiSearchItem = {
     id,
     title,
-    artist,
+    artist: artist || 'Nghệ sĩ chưa xác định',
     thumbnail: asText(item.thumbnail || item.coverUrl || item.cover_url) || undefined,
   }
 
