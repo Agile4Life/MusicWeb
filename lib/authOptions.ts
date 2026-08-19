@@ -4,7 +4,7 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import { authorizePasswordCredentials } from '@/lib/auth/credentials'
 import nodemailer from 'nodemailer'
 
-const ADMIN_PERSONAL_EMAIL = process.env.ADMIN_PERSONAL_EMAIL || 'tranphong16012006@gmail.com'
+const ADMIN_PERSONAL_EMAIL = process.env.ADMIN_PERSONAL_EMAIL || process.env.SMTP_USER || ''
 
 // Validate required environment variables in production
 function validateRequiredEnv(): void {

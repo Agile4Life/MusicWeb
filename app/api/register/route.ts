@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import nodemailer from 'nodemailer'
 
-const ADMIN_PERSONAL_EMAIL = process.env.ADMIN_PERSONAL_EMAIL || 'tranphong16012006@gmail.com'
+const ADMIN_PERSONAL_EMAIL = process.env.ADMIN_PERSONAL_EMAIL || process.env.SMTP_USER || ''
 
 export async function POST(req: NextRequest) {
   try {
