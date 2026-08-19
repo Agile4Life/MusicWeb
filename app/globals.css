@@ -6417,25 +6417,6 @@ html[data-theme-style="minimal-flat"] body {
   }
 }
 
-/* ================================================================
-   📱 MOBILE FULLVIEW PLAYER THEME INTEGRATION
-   ================================================================ */
-
-.mobile-fullview-overlay {
-  animation: mobileFullviewSlideUp 0.35s cubic-bezier(0.32, 0.72, 0, 1) forwards;
-}
-
-@keyframes mobileFullviewSlideUp {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 100%, 0);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-}
-
 /* Minimal-flat overrides for Mobile Fullview */
 [data-theme-style="minimal-flat"] .mobile-fullview-overlay {
   background-color: #141017 !important;

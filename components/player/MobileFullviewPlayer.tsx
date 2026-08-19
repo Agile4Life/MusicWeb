@@ -150,20 +150,35 @@ export function MobileFullviewPlayer() {
   const [showMenuSheet, setShowMenuSheet] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
 
-  // Auto-scroll management
+  // Auto-scroll management & timeouts
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const lineRefs = useRef<(HTMLDivElement | null)[]>([])
   const userScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const isUserInteractingRef = useRef(false)
+  const dismissTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const isUserScrollingLyricsRef = useRef(false)
+  const scrollableElRef = useRef<HTMLElement | null>(null)
+  const isOverScrollableRef = useRef(false)
   const lyricsReqIdRef = useRef(0)
 
   // ===== Progress bar scrub state =====
   const [isScrubbing, setIsScrubbing] = useState(false)
   const [scrubValue, setScrubValue] = useState(0)
 
+  // ===== Cleanup timeouts on unmount =====
+  useEffect(() => {
+    return () => {
+      if (dismissTimeoutRef.current) clearTimeout(dismissTimeoutRef.current)
+      if (userScrollTimeoutRef.current) clearTimeout(userScrollTimeoutRef.current)
+    }
+  }, [])
+
   // ===== Reset state on open =====
   useEffect(() => {
     if (isNowPlayingOpen) {
+      if (dismissTimeoutRef.current) {
+        clearTimeout(dismissTimeoutRef.current)
+        dismissTimeoutRef.current = null
+      }
       setDragY(0)
       dragYRef.current = 0
       setIsDragging(false)
@@ -275,7 +290,7 @@ export function MobileFullviewPlayer() {
 
   // Ultra-Smooth Spring Auto-scroll to active line
   useEffect(() => {
-    if (!isNowPlayingOpen || activeTab !== 'lyrics' || isUserInteractingRef.current || activeIndex < 0 || !isSynced) {
+    if (!isNowPlayingOpen || activeTab !== 'lyrics' || isUserScrollingLyricsRef.current || activeIndex < 0 || !isSynced) {
       return
     }
 
@@ -313,25 +328,19 @@ export function MobileFullviewPlayer() {
     }
   }, [isNowPlayingOpen, activeTab])
 
-  // User touch detection
-  const handleUserTouchStart = useCallback(() => {
-    isUserInteractingRef.current = true
-    if (userScrollTimeoutRef.current) {
-      clearTimeout(userScrollTimeoutRef.current)
-    }
-  }, [])
-
-  const handleUserTouchEnd = useCallback(() => {
+  // User touch & scroll detection for lyrics auto-scroll
+  const handleLyricsUserScroll = useCallback(() => {
+    isUserScrollingLyricsRef.current = true
     if (userScrollTimeoutRef.current) {
       clearTimeout(userScrollTimeoutRef.current)
     }
     userScrollTimeoutRef.current = setTimeout(() => {
-      isUserInteractingRef.current = false
+      isUserScrollingLyricsRef.current = false
     }, 3000)
   }, [])
 
   // ===== iOS Sheet Drag Gestures =====
-  const handleDragTouchStart = useCallback((e: React.TouchEvent) => {
+  const handleDragTouchStart = useCallback((e: TouchEvent) => {
     if (isClosingRef.current) return
     const touch = e.touches[0]
     const now = Date.now()
@@ -341,6 +350,12 @@ export function MobileFullviewPlayer() {
     touchStartTimeRef.current = now
     touchHistoryRef.current = [{ y: touch.clientY, t: now }]
     dragYRef.current = 0
+
+    // Cache DOM query at touchstart once (O(1) instead of O(N) traversal on every move)
+    const target = e.target as HTMLElement | null
+    scrollableElRef.current = target?.closest?.('.overflow-y-auto') as HTMLElement | null
+    isOverScrollableRef.current = Boolean(scrollableElRef.current)
+
     // Reset horizontal swipe detection
     swipeStartXRef.current = touch.clientX
     swipeStartYRef.current = touch.clientY
@@ -348,7 +363,7 @@ export function MobileFullviewPlayer() {
     swipeDeltaXRef.current = 0
   }, [])
 
-  const handleDragTouchMove = useCallback((e: React.TouchEvent) => {
+  const handleDragTouchMove = useCallback((e: TouchEvent) => {
     if (isClosingRef.current) return
     const touch = e.touches[0]
     const currentY = touch.clientY
@@ -362,12 +377,10 @@ export function MobileFullviewPlayer() {
       touchHistoryRef.current.shift()
     }
 
-    // Detect horizontal swipe for tab switching
+    // Detect horizontal swipe for tab switching (uses cached isOverScrollableRef)
     if (!isDraggingRef.current && !isHorizontalSwipeRef.current) {
       if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 12) {
-        // Check if we're NOT over a scrollable lyrics or queue container
-        const isOverScrollable = Boolean((e.target as HTMLElement)?.closest?.('.overflow-y-auto'))
-        if (!isOverScrollable) {
+        if (!isOverScrollableRef.current) {
           isHorizontalSwipeRef.current = true
           swipeDeltaXRef.current = deltaX
           return
@@ -385,24 +398,23 @@ export function MobileFullviewPlayer() {
         return
       }
 
-      // Check if user is scrolling inside a scrollable container (lyrics, queue list)
-      const scrollableEl = (e.target as HTMLElement)?.closest?.('.overflow-y-auto') as HTMLElement | null
+      // Check if user is scrolling inside a scrollable container (uses cached scrollableElRef)
+      const scrollableEl = scrollableElRef.current
       if (scrollableEl && scrollableEl.scrollTop > 2) {
         return
       }
 
       if (deltaY > 6) {
         isDraggingRef.current = true
-        isUserInteractingRef.current = true
         if (containerRef.current) {
-          containerRef.current.style.transition = ''
+          containerRef.current.style.transition = 'none'
         }
       }
     }
 
     if (isDraggingRef.current) {
       if (e.cancelable) {
-        e.preventDefault()
+        e.preventDefault() // Guarantees preventDefault succeeds because listener is { passive: false }
       }
       const currentDrag = deltaY > 0 ? deltaY : deltaY * 0.18
       dragYRef.current = currentDrag
@@ -481,7 +493,10 @@ export function MobileFullviewPlayer() {
         containerRef.current.style.boxShadow = 'none'
       }
 
-      setTimeout(() => {
+      if (dismissTimeoutRef.current) {
+        clearTimeout(dismissTimeoutRef.current)
+      }
+      dismissTimeoutRef.current = setTimeout(() => {
         closeNowPlayingOverlay()
         if (containerRef.current) {
           containerRef.current.style.transform = ''
@@ -492,6 +507,7 @@ export function MobileFullviewPlayer() {
         }
         dragYRef.current = 0
         isClosingRef.current = false
+        dismissTimeoutRef.current = null
       }, 280)
     } else {
       if (containerRef.current) {
@@ -512,11 +528,33 @@ export function MobileFullviewPlayer() {
     }
   }, [closeNowPlayingOverlay])
 
+  // Attach native non-passive touchmove listener to allow preventDefault
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const onTouchStart = (e: TouchEvent) => handleDragTouchStart(e)
+    const onTouchMove = (e: TouchEvent) => handleDragTouchMove(e)
+    const onTouchEnd = () => handleDragTouchEnd()
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd, { passive: true })
+    el.addEventListener('touchcancel', onTouchEnd, { passive: true })
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+      el.removeEventListener('touchcancel', onTouchEnd)
+    }
+  }, [handleDragTouchStart, handleDragTouchMove, handleDragTouchEnd])
+
   const handleLineClick = (line: ExtendedLyricLine) => {
     if (typeof line.time === 'number' && line.time >= 0) {
       const targetTime = Math.max(0, line.time + (mvIntroOffset || 0))
       seek(targetTime)
-      isUserInteractingRef.current = false
+      isUserScrollingLyricsRef.current = false
     }
   }
 
@@ -532,6 +570,7 @@ export function MobileFullviewPlayer() {
   }
 
   const handleProgressTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.stopPropagation()
     setIsScrubbing(true)
     const rect = e.currentTarget.getBoundingClientRect()
     const touch = e.touches[0]
@@ -540,6 +579,7 @@ export function MobileFullviewPlayer() {
   }
 
   const handleProgressTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.stopPropagation()
     if (!isScrubbing) return
     const rect = e.currentTarget.getBoundingClientRect()
     const touch = e.touches[0]
@@ -547,7 +587,8 @@ export function MobileFullviewPlayer() {
     setScrubValue(pct * effectiveDuration)
   }
 
-  const handleProgressTouchEnd = () => {
+  const handleProgressTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.stopPropagation()
     if (isScrubbing) {
       seek(scrubValue)
       setIsScrubbing(false)
@@ -578,24 +619,15 @@ export function MobileFullviewPlayer() {
   const isRepeatActive = repeatMode !== 'off'
 
   return (
-    <motion.div
+    <div
       ref={containerRef}
-      initial={false}
-      animate={{
-        y: isNowPlayingOpen ? 0 : '100%',
-        opacity: isNowPlayingOpen ? 1 : 0,
-      }}
-      transition={{ type: 'spring', damping: 30, stiffness: 260, opacity: { duration: 0.25 } }}
-      onTouchStart={handleDragTouchStart}
-      onTouchMove={handleDragTouchMove}
-      onTouchEnd={handleDragTouchEnd}
-      onTouchCancel={handleDragTouchEnd}
-      className={`mobile-fullview-overlay fixed inset-0 h-[100dvh] max-h-[100dvh] z-[100] flex flex-col select-none overflow-hidden touch-pan-y ${
-        isNowPlayingOpen ? 'pointer-events-auto' : 'pointer-events-none'
+      className={`mobile-fullview-overlay fixed inset-0 h-[100dvh] max-h-[100dvh] z-[100] flex flex-col select-none overflow-hidden touch-manipulation transition-all duration-350 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+        isNowPlayingOpen
+          ? 'translate-y-0 opacity-100 pointer-events-auto'
+          : 'translate-y-full opacity-0 pointer-events-none'
       }`}
       style={{
         transformOrigin: 'bottom center',
-        willChange: 'transform, opacity',
         backgroundColor: isMinimal ? '#141017' : '#0a0a0a',
         color: isMinimal ? '#F4ECE1' : 'white',
       }}
@@ -760,9 +792,10 @@ export function MobileFullviewPlayer() {
             ) : lyrics.length > 0 ? (
               <div
                 ref={scrollContainerRef}
-                onTouchStart={handleUserTouchStart}
-                onTouchEnd={handleUserTouchEnd}
-                onWheel={handleUserTouchStart}
+                onTouchStart={handleLyricsUserScroll}
+                onTouchEnd={handleLyricsUserScroll}
+                onWheel={handleLyricsUserScroll}
+                onScroll={handleLyricsUserScroll}
                 className="w-full h-full overflow-y-auto overflow-x-hidden no-scrollbar flex flex-col gap-5 py-24 px-1 touch-pan-y"
                 style={{
                   maskImage: 'linear-gradient(to bottom, transparent 0%, black 10%, black 88%, transparent 100%)',
@@ -772,6 +805,8 @@ export function MobileFullviewPlayer() {
                 {lyrics.map((line, idx) => {
                   const isActive = idx === activeIndex
                   const isSyncedMode = isSynced && activeIndex >= 0
+                  const distance = isSyncedMode ? Math.abs(idx - activeIndex) : 99
+                  const isNearby = distance <= 1
 
                   let opacity = 1.0
                   let scale = 1.0
@@ -782,7 +817,6 @@ export function MobileFullviewPlayer() {
                     opacity = 1.0
                     scale = 1.02
                   } else {
-                    const distance = Math.abs(idx - activeIndex)
                     const isPast = idx < activeIndex
 
                     if (distance === 1) {
@@ -810,7 +844,9 @@ export function MobileFullviewPlayer() {
                         opacity,
                         transform: `scale(${scale})`,
                         transformOrigin: 'left center',
-                        willChange: 'opacity, transform',
+                        willChange: (isActive || isNearby) ? 'opacity, transform' : 'auto',
+                        contentVisibility: (isActive || distance <= 6) ? 'visible' : 'auto',
+                        containIntrinsicSize: 'auto 48px',
                       }}
                     >
                       {/* Main Lyric Line */}
@@ -1045,16 +1081,21 @@ export function MobileFullviewPlayer() {
               setVolume(pct)
             }}
             onTouchStart={(e) => {
+              e.stopPropagation()
               const rect = e.currentTarget.getBoundingClientRect()
               const touch = e.touches[0]
               const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
               setVolume(pct)
             }}
             onTouchMove={(e) => {
+              e.stopPropagation()
               const rect = e.currentTarget.getBoundingClientRect()
               const touch = e.touches[0]
               const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
               setVolume(pct)
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation()
             }}
           >
             {/* Volume track */}
@@ -1165,6 +1206,6 @@ export function MobileFullviewPlayer() {
           lyrics={lyrics}
         />
       )}
-    </motion.div>
+    </div>
   )
 }
