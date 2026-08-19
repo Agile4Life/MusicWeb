@@ -862,53 +862,48 @@ export function MobileFullviewPlayer() {
       </main>
 
       {/* ══════════════════════════════════════════════════════════════════
-          🎛️ SHARED CONTROLS FOOTER (Apple Music style — no glassmorphism panel)
+          🎛️ SHARED CONTROLS FOOTER (Apple Music style)
           ══════════════════════════════════════════════════════════════════ */}
       <footer className="relative z-20 px-6 sm:px-8 pb-1 pt-1 shrink-0">
 
-        {/* ─── Progress Bar ─── */}
-        <div className="flex flex-col gap-1 w-full">
+        {/* ─── Progress Bar (Apple Music: thin track only, no knob) ─── */}
+        <div className="flex flex-col gap-0.5 w-full">
           <div
             onClick={handleProgressClick}
             onTouchStart={handleProgressTouchStart}
             onTouchMove={handleProgressTouchMove}
             onTouchEnd={handleProgressTouchEnd}
-            className="relative w-full h-4 flex items-center cursor-pointer group touch-none"
+            className="relative w-full h-6 flex items-center cursor-pointer touch-none"
           >
-            {/* Track background */}
-            <div className="w-full h-[3px] rounded-full overflow-hidden bg-white/[0.18] group-active:h-[5px] transition-all">
-              {/* Progress fill */}
+            {/* Track */}
+            <div className="w-full h-[3px] rounded-full overflow-hidden bg-white/[0.22]">
               <div
-                className="h-full rounded-full transition-[width] duration-75"
+                className="h-full rounded-full"
                 style={{
                   width: `${progressPercent}%`,
                   backgroundColor: 'rgba(255, 255, 255, 0.92)',
+                  transition: isScrubbing ? 'none' : 'width 0.15s linear',
                 }}
               />
             </div>
-            {/* Scrub thumb (appears on hover/touch) */}
-            <div
-              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-md transition-transform scale-0 group-hover:scale-100 group-active:scale-100"
-              style={{ left: `calc(${progressPercent}% - 6px)` }}
-            />
           </div>
 
           {/* Time labels */}
-          <div className="flex items-center justify-between text-[11px] font-medium tracking-tight text-white/50 px-0.5">
+          <div className="flex items-center justify-between text-[10px] font-semibold tracking-tight text-white/45 px-0.5 -mt-0.5">
             <span>{formatTime(displayTime)}</span>
             <span>{formatNegativeTime(remainingTime)}</span>
           </div>
         </div>
 
         {/* ─── Playback Controls (Apple style: no backgrounds, pure white icons) ─── */}
-        <div className="flex items-center justify-center gap-10 py-3">
+        <div className="flex items-center justify-center gap-10 py-2.5">
           {/* Previous */}
           <button
             type="button"
             onClick={prevTrack}
             className="text-white active:scale-85 active:opacity-60 transition-all cursor-pointer p-2"
           >
-            <SkipBack className="w-7 h-7 fill-white" />
+            <SkipBack className="w-8 h-8 fill-white" />
           </button>
 
           {/* Play / Pause */}
@@ -918,11 +913,11 @@ export function MobileFullviewPlayer() {
             className="text-white active:scale-85 active:opacity-60 transition-all cursor-pointer p-2"
           >
             {isBuffering ? (
-              <Loader2 className="w-10 h-10 animate-spin" />
+              <Loader2 className="w-12 h-12 animate-spin" />
             ) : isPlaying ? (
-              <Pause className="w-10 h-10 fill-white" />
+              <Pause className="w-12 h-12 fill-white" />
             ) : (
-              <Play className="w-10 h-10 fill-white ml-0.5" />
+              <Play className="w-12 h-12 fill-white ml-1" />
             )}
           </button>
 
@@ -932,32 +927,54 @@ export function MobileFullviewPlayer() {
             onClick={nextTrack}
             className="text-white active:scale-85 active:opacity-60 transition-all cursor-pointer p-2"
           >
-            <SkipForward className="w-7 h-7 fill-white" />
+            <SkipForward className="w-8 h-8 fill-white" />
           </button>
         </div>
 
-        {/* ─── Volume Slider ─── */}
-        <div className="flex items-center gap-3 px-1 pb-2">
+        {/* ─── Volume Slider (Apple Music: thin bar only, no knob) ─── */}
+        <div className="flex items-center gap-3 px-0.5 pb-2">
           <button
             type="button"
             onClick={handleVolumeToggle}
-            className="text-white/50 active:scale-90 transition-all cursor-pointer"
+            className="text-white/35 active:scale-90 transition-all cursor-pointer shrink-0"
           >
-            {volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+            {volume === 0 ? <VolumeX className="w-[14px] h-[14px]" /> : <Volume2 className="w-[14px] h-[14px]" />}
           </button>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={volume}
-            onChange={(e) => setVolume(Number(e.target.value))}
-            style={{
-              background: `linear-gradient(to right, rgba(255,255,255,0.85) ${volume * 100}%, rgba(255,255,255,0.15) ${volume * 100}%)`,
+          {/* Custom volume track (div-based, no knob — Apple Music style) */}
+          <div
+            className="relative flex-1 h-6 flex items-center cursor-pointer touch-none"
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect()
+              const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+              setVolume(pct)
             }}
-            className="w-full h-[3px] rounded-lg appearance-none cursor-pointer outline-none"
-          />
-          <Volume2 className="w-4 h-4 text-white/50" />
+            onTouchStart={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect()
+              const touch = e.touches[0]
+              const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
+              setVolume(pct)
+            }}
+            onTouchMove={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect()
+              const touch = e.touches[0]
+              const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
+              setVolume(pct)
+            }}
+          >
+            {/* Volume track */}
+            <div className="w-full h-[3px] rounded-full overflow-hidden bg-white/[0.18]">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${volume * 100}%`,
+                  backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                }}
+              />
+            </div>
+
+
+          </div>
+          <Volume2 className="w-[14px] h-[14px] text-white/35 shrink-0" />
         </div>
 
         {/* ─── Bottom Tab Bar (Apple Music style) ─── */}
@@ -965,7 +982,7 @@ export function MobileFullviewPlayer() {
           {/* Lyrics Tab */}
           <button
             type="button"
-            onClick={() => setActiveTab('lyrics')}
+            onClick={() => setActiveTab(activeTab === 'lyrics' ? 'cover' : 'lyrics')}
             className={`p-2.5 rounded-full transition-all cursor-pointer active:scale-90 ${
               activeTab === 'lyrics'
                 ? 'bg-white/15 text-white'
@@ -976,24 +993,11 @@ export function MobileFullviewPlayer() {
             <MessageSquareQuote className="w-5 h-5" />
           </button>
 
-          {/* Share / Lyrics Story Tab (Middle — replaces AirPlay) */}
-          <button
-            type="button"
-            onClick={() => setShowShareModal(true)}
-            className={`p-2.5 rounded-full transition-all cursor-pointer active:scale-90 ${
-              showShareModal
-                ? 'bg-white/15 text-white'
-                : 'text-white/40 hover:text-white/60'
-            }`}
-            title="Chia sẻ"
-          >
-            <Sparkles className="w-5 h-5" />
-          </button>
 
           {/* Queue Tab */}
           <button
             type="button"
-            onClick={() => setActiveTab('queue')}
+            onClick={() => setActiveTab(activeTab === 'queue' ? 'cover' : 'queue')}
             className={`p-2.5 rounded-full transition-all cursor-pointer active:scale-90 ${
               activeTab === 'queue'
                 ? 'bg-white/15 text-white'
@@ -1039,18 +1043,6 @@ export function MobileFullviewPlayer() {
             >
               <Share2 className="w-4 h-4 text-white/60" />
               <span>Chia sẻ trích dẫn lời bài hát</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setShowMenuSheet(false)
-                setActiveTab('queue')
-              }}
-              className="flex items-center gap-3 p-3.5 rounded-2xl border border-white/8 bg-white/[0.04] text-xs font-semibold transition-all hover:bg-white/[0.08]"
-            >
-              <ListMusic className="w-4 h-4 text-emerald-400/80" />
-              <span>Xem danh sách hàng đợi phát</span>
             </button>
           </div>
         </div>
