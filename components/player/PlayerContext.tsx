@@ -18,7 +18,7 @@ import { isCurrentPlayback } from '@/lib/playbackRaceGuards'
 import { getNhacCuaTuiStreamUrl, resolveNhacCuaTuiSong, resolveNhacCuaTuiTrack, prewarmNctStreamUrl, getCachedNctStreamUrl, clearCachedNctStreamUrl } from '@/lib/nhaccuatuiClient'
 import { prewarmTrackBatch } from '@/lib/prewarmTrackBatch'
 import { resolveStreamCached, invalidateStreamResolution } from '@/lib/resolveStreamClient'
-import { saveStreamUrl, getStreamUrl, saveTrackResolution, getTrackResolution, savePlaybackState, loadPlaybackState } from '@/lib/playbackPersistence'
+import { saveStreamUrl, getStreamUrl, saveTrackResolution, getTrackResolution, getCachedYouTubeId, savePlaybackState, loadPlaybackState } from '@/lib/playbackPersistence'
 import { setAudioSourceForPlayback } from './audioSourceSwitch'
 import {
   classifyTrack,
@@ -976,18 +976,36 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [repeatMode])
 
   /**
-   * Core YouTube fallback logic. Optionally accepts a pre-searched Track to skip
-   * the YouTube Data API search — used when search was already run in parallel
-   * with NCT retry to save ~700ms.
+   * Core YouTube fallback logic.
+   * - Checks localStorage cache for pre-resolved YouTube video ID (skips search = save ~700ms)
+   * - Accepts optional preSearchedTrack from parallel search in handleError
+   * - Saves resolved youtube_id to localStorage on success for future plays
    */
   const fallbackToYouTube = useCallback(async (
     track: Track,
     requestId: number,
     preSearchedTrack?: Track | null
   ) => {
-    // ── Step 1: YouTube search (skip if already provided) ─────────────────────
+    // ── Step 0: Check localStorage cache for YouTube video ID ───────────────
+    // This is the fastest path — if we've resolved this track to YouTube before,
+    // skip the YouTube Data API search entirely and go straight to streaming.
     let bestMatch = preSearchedTrack ?? null
 
+    if (!bestMatch) {
+      const cachedYtId = getCachedYouTubeId(track.title, track.artist, track.album)
+      if (cachedYtId) {
+        console.log(`[fallbackToYouTube] Cache hit for YouTube ID: ${cachedYtId} — skipping search`)
+        bestMatch = {
+          ...track,
+          youtube_id: cachedYtId,
+          source: 'youtube',
+          // Duration unknown from cache — use track's known duration or 0
+          duration: track.duration || 0,
+        }
+      }
+    }
+
+    // ── Step 1: YouTube Data API search (if no cached ID) ────────────────────
     if (!bestMatch) {
       try {
         const query = `${track.title} ${track.artist || ''}`.trim()
@@ -1040,6 +1058,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       ...track,
       youtube_id: bestMatch.youtube_id,
       source: 'youtube',
+    }
+
+    // ── Step 2: Save youtube_id to localStorage for future plays ─────────────
+    // Long TTL (24h) — YouTube video IDs are stable. This saves ~700ms on replay.
+    try {
+      saveTrackResolution(
+        `${track.title.trim().toLowerCase()}___${(track.artist || '').trim().toLowerCase()}___${(track.album || '').trim().toLowerCase()}`,
+        { source: 'youtube', resolvedId: bestMatch.youtube_id, ttl: 24 * 60 * 60 * 1000, youtubeVideoId: bestMatch.youtube_id }
+      )
+    } catch {
+      // Best-effort — cache miss on next play is not critical
     }
 
     // Invalidate the broken stream resolution so subsequent plays don't re-fetch the dead stream

@@ -39,6 +39,8 @@ interface TrackResolutionEntry {
   resolvedId: string
   ts: number
   expiresAt: number
+  /** Cached YouTube video ID — avoids re-searching the same track. */
+  youtubeVideoId?: string
 }
 
 export interface PlaybackState {
@@ -274,10 +276,11 @@ export function getStreamUrl(trackId: string): { url: string; nhaccuatui_id?: st
   return { url: entry.url, nhaccuatui_id: entry.nhaccuatui_id, youtube_id: entry.youtube_id }
 }
 
-/** Save a resolved track (e.g., Spotify → NCT match). Call after resolveStreamCached. */
+/** Save a resolved track (e.g., Spotify → NCT match). Call after resolveStreamCached.
+ *  Optionally save the YouTube video ID to skip future YouTube searches. */
 export function saveTrackResolution(
   key: string,
-  resolution: { source: string; resolvedId: string; ttl?: number }
+  resolution: { source: string; resolvedId: string; ttl?: number; youtubeVideoId?: string }
 ): void {
   const state = safeRead<PlaybackState>(STORAGE_KEY, {
     queue: [], currentIndex: -1, currentTime: 0,
@@ -289,6 +292,7 @@ export function saveTrackResolution(
     resolvedId: resolution.resolvedId,
     ts: Date.now(),
     expiresAt: Date.now() + (resolution.ttl ?? 30 * 60 * 1000),
+    youtubeVideoId: resolution.youtubeVideoId,
   }
 
   safeWrite(STORAGE_KEY, state)
@@ -306,8 +310,9 @@ export function deleteTrackResolution(key: string): void {
   }
 }
 
-/** Get a saved track resolution. Returns null if not found, expired, or recorded as an unplayable miss ('none'). */
-export function getTrackResolution(key: string): { source: string; resolvedId: string } | null {
+/** Get a saved track resolution. Returns null if not found, expired, or recorded as an unplayable miss ('none').
+ *  Also returns youtubeVideoId if cached. */
+export function getTrackResolution(key: string): { source: string; resolvedId: string; youtubeVideoId?: string } | null {
   const state = safeRead<PlaybackState>(STORAGE_KEY, {
     queue: [], currentIndex: -1, currentTime: 0,
     currentTrack: null, streamUrls: {}, resolutions: {}, savedAt: 0
@@ -326,5 +331,25 @@ export function getTrackResolution(key: string): { source: string; resolvedId: s
     return null
   }
 
-  return { source: entry.source, resolvedId: entry.resolvedId }
+  return { source: entry.source, resolvedId: entry.resolvedId, youtubeVideoId: entry.youtubeVideoId }
+}
+
+/**
+ * Get cached YouTube video ID for a track (title + artist + album key).
+ * Returns null if not cached or expired. This lets fallbackToYouTube skip the
+ * YouTube Data API search and go straight to InnerTube, saving ~700ms.
+ */
+export function getCachedYouTubeId(
+  title: string,
+  artist?: string | null,
+  album?: string | null
+): string | null {
+  const key = makeResolutionKey(title, artist, album)
+  const entry = getTrackResolution(key)
+  return entry?.youtubeVideoId ?? null
+}
+
+/** Build the same resolution key used by resolveStreamClient.ts */
+function makeResolutionKey(title: string, artist?: string | null, album?: string | null): string {
+  return `${title.trim().toLowerCase()}___${(artist || '').trim().toLowerCase()}___${(album || '').trim().toLowerCase()}`
 }
