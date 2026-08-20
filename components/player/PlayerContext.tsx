@@ -2863,6 +2863,18 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           } catch (e) {
             console.warn('[SoundCloud Watchdog] Recovery failed:', e)
           }
+          return
+        }
+
+        // NCT stall: stream started (HTTP 200 received) but data stopped flowing.
+        // audio.error never fires in this case, so handleError can't trigger NCT→YouTube fallback.
+        // After 6.5s of silence, give up on NCT and switch to YouTube.
+        const isNct = Boolean(current.source === 'nhaccuatui' || current.nhaccuatui_id)
+        if (isNct && !fallbackAttemptedRef.current.has(activeRequestId)) {
+          console.warn('[NCT Watchdog] NCT playback stalled >6.5s — no error event fired. Falling back to YouTube...')
+          recordRequestIdFlag(fallbackAttemptedRef.current, activeRequestId)
+          void fallbackToYouTube(current, activeRequestId)
+          return
         }
       }, 6500)
     }
