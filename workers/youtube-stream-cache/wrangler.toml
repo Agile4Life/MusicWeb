@@ -1,0 +1,19 @@
+# Cloudflare Worker — YouTube Audio R2 Stream Cache
+# Docs: https://developers.cloudflare.com/workers/wrangler/configuration/
+name = "youtube-stream-cache"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+workers_dev = true
+
+# ── R2 bucket ────────────────────────────────────────────────────────────────
+# Create with: wrangler r2 bucket create music-audio-cache-yt
+[[r2_buckets]]
+binding    = "AUDIO_BUCKET"
+bucket_name = "music-audio-cache-yt"
+
+# ── Vars (override with wrangler secret put for sensitive values) ─────────────
+[vars]
+# URL of the Vercel /api/youtube/resolve endpoint (last-resort fallback)
+APP_YT_RESOLVE_URL = "https://phongtctmusic.vercel.app/api/youtube/resolve"
+# Must match INTERNAL_YT_RESOLVE_SECRET in Vercel env vars
+INTERNAL_YT_RESOLVE_SECRET = "musicweb_internal_yt_resolve_secret_2026"
