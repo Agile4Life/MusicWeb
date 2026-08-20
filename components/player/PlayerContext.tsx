@@ -624,6 +624,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const resolvingTrackIdsRef = useRef<Set<string>>(new Set())
   // Chỉ pre-warm khi currentIndex thay đổi — tránh gọi lại cho cùng queue.
   const lastPrewarmIndexRef = useRef<number>(-1)
+  // Gates the "30s-before-end" prewarm — reset per track so it fires exactly once.
+  const nextTrackEndPrewarmedRef = useRef<boolean>(false)
 
   const pendingAutoSkipTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -1681,6 +1683,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const track = inferTrackSource(rawTrack)
 
     consecutiveSkipRef.current = 0
+    nextTrackEndPrewarmedRef.current = false // reset near-end prewarm guard for new track
     const requestId = beginNewPlaybackRequest(track)
 
     // 🚀 Push currentTrack onto true playback history stack when user changes track
@@ -2627,6 +2630,45 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             currentIndexRef.current,
             volumeRef.current
           )
+        }
+
+        // ── Near-end prewarm: 30s before track ends, warm next track URL ─────────
+        // Fires exactly once per track (guard: nextTrackEndPrewarmedRef).
+        // Critical on iOS: tryQuickPlayFromCache must get a synchronous hit when
+        // handleEnded fires — async resolution triggers NotAllowedError because
+        // iOS requires the play() call to happen within the user-gesture chain.
+        if (!nextTrackEndPrewarmedRef.current) {
+          const dur = audio.duration
+          if (dur && !isNaN(dur) && dur > 0 && dur !== Infinity) {
+            const remaining = dur - time
+            if (remaining <= 30 && remaining >= 0) {
+              nextTrackEndPrewarmedRef.current = true
+              const q = queueRef.current
+              const idx = currentIndexRef.current
+              // Only prewarm for sequential playback — shuffle order is unpredictable
+              if (!isShuffleRef.current && idx >= 0 && q.length > 1) {
+                const nextIdx = repeatModeRef.current === 'one' ? idx : (idx + 1) % q.length
+                const nextTr = q[nextIdx]
+                if (nextTr && nextTr.id) {
+                  if (nextTr.source === 'nhaccuatui' && nextTr.nhaccuatui_id) {
+                    // Refresh NCT stream URL cache (5-min TTL — may have expired since track start)
+                    prewarmNctStreamUrl(nextTr.nhaccuatui_id).catch(() => {})
+                  } else if (isIOSDevice() && (nextTr.source === 'youtube' || Boolean(nextTr.youtube_id))) {
+                    // iOS + YouTube: HEAD request warms server-side streamUrlCache so the
+                    // subsequent GET skips the slow ytdl resolution step (~8-15s).
+                    const ytId = nextTr.youtube_id
+                    if (ytId) {
+                      fetch(`/api/youtube/stream?id=${encodeURIComponent(ytId)}`, { method: 'HEAD' })
+                        .catch(() => {})
+                    }
+                  } else if (!audioUrlCacheRef.current.has(nextTr.id)) {
+                    // Other sources: warm the in-memory audio URL cache
+                    getAudioUrlCached(nextTr).catch(() => {})
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }

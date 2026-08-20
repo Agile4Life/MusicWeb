@@ -1,0 +1,3 @@
+{
+  "buildCommand": "mkdir -p bin && (curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o bin/yt-dlp && chmod +x bin/yt-dlp && echo 'yt-dlp downloaded') || echo 'yt-dlp download skipped, using InnerTube+Piped fallback' ; npm run build"
+}
