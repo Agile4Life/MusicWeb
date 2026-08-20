@@ -9,11 +9,10 @@ import { createClient } from '@/lib/supabase/client'
 import { markEmailAsAllowed } from '@/lib/accessControl'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { LanguageSelector } from '@/components/i18n/LanguageSelector'
-import { FloatingMusicNotes } from './FloatingMusicNotes'
-import { LoginAmbientCanvas } from './LoginAmbientCanvas'
+import { MiniEqualizer } from '@/components/player/MiniEqualizer'
 import { scheduleAuthRedirect } from './authNavigation'
 import { createPasswordSession } from './passwordSession'
-import { Lock, Mail, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, Info } from 'lucide-react'
+import { Lock, Mail, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, Info, Music } from 'lucide-react'
 
 interface AuthFormProps {
   mode: 'login' | 'register'
@@ -322,13 +321,26 @@ export function AuthForm({ mode }: AuthFormProps) {
     })
   }
 
+  // Original, invented atmosphere copy for the lyric wall below — never real
+  // song lyrics (copyright), just short evocative lines in the product's own
+  // voice.
+  const lyricLines = [
+    { text: 'để em nghe gió hát', top: '6%', left: '-2%', size: 84, rotate: -6, opacity: 0.06 },
+    { text: 'âm thanh cũ, cảm xúc mới', top: '30%', left: '-4%', size: 72, rotate: -4, opacity: 0.07 },
+    { text: 'nhắm mắt, nghe nhịp thành phố', top: '52%', left: '2%', size: 96, rotate: 5, opacity: 0.055 },
+    { text: 'giai điệu này là của riêng mình', top: '76%', left: '-3%', size: 80, rotate: -3, opacity: 0.06 },
+  ]
+
   return (
     <div
-      className="min-h-screen w-screen flex items-center justify-center p-4 sm:p-6 relative overflow-hidden select-none"
+      className="min-h-screen w-full flex items-center justify-center lg:justify-end p-4 sm:p-6 lg:pr-16 relative overflow-hidden select-none"
       style={{ background: 'var(--bg-space, #07090e)' }}
     >
-      {/* Animated Ambient Orb Canvas — Layer 0 light source behind the glass card */}
-      <LoginAmbientCanvas />
+      {/* Ambient wash behind the docked card */}
+      <div
+        className="pointer-events-none fixed inset-0 z-0"
+        style={{ background: 'radial-gradient(900px circle at 82% 8%, color-mix(in srgb, var(--spotify-glow,#22d3ee) 12%, transparent), transparent 70%)' }}
+      />
       {/* Dynamic Cursor Background Spotlight */}
       <div
         className="pointer-events-none fixed inset-0 z-0 transition-opacity duration-300"
@@ -337,57 +349,98 @@ export function AuthForm({ mode }: AuthFormProps) {
         }}
       />
 
-      {/* Random Floating Music Icons & Ambient Glow Background */}
-      <FloatingMusicNotes />
+      {/* Lyric typographic wall — decorative, original copy, desktop only (too dense to stay legible at phone widths) */}
+      <div className="hidden lg:block pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
+        {lyricLines.map((line) => (
+          <div
+            key={line.text}
+            style={{
+              position: 'absolute',
+              top: line.top,
+              left: line.left,
+              fontFamily: 'var(--font-fraunces, serif)',
+              fontWeight: 600,
+              fontSize: `${line.size}px`,
+              color: `rgba(240,236,232,${line.opacity})`,
+              transform: `rotate(${line.rotate}deg)`,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {line.text}
+          </div>
+        ))}
+      </div>
 
-      {/* Glass Auth Card — inline styles to guarantee backdrop-filter */}
+      {/* Wordmark — top left, over the wall */}
+      <div className="fixed top-6 left-6 sm:top-8 sm:left-10 z-10 flex items-center">
+        <img
+          src="/phong-signature.png"
+          alt="MusicWeb"
+          className="h-8 sm:h-9 w-auto object-contain signature-img-invert"
+        />
+      </div>
+      {/* Language Selector — top right */}
+      <div className="fixed top-6 right-6 sm:top-8 sm:right-10 z-10">
+        <LanguageSelector variant="flag-only" />
+      </div>
+
+      {/* Docked Auth Card — ticket-style dashed edge, inline styles to guarantee backdrop-filter */}
       <div
         ref={cardRef}
         onMouseMove={handleCardMouseMove}
         onMouseLeave={handleCardMouseLeave}
         style={{
           ...tiltStyle,
-          background: 'linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.06) 40%, hsla(213 74% 12% / 0.40) 100%)',
-          backdropFilter: 'blur(36px) saturate(220%) brightness(1.08)',
-          WebkitBackdropFilter: 'blur(36px) saturate(220%) brightness(1.08)',
-          border: '1px solid rgba(255,255,255,0.28)',
-          borderTopColor: 'rgba(255,255,255,0.50)',
-          boxShadow: '0 30px 70px -12px rgba(0,0,0,0.55), 0 0 60px -8px rgba(34,211,238,0.25), inset 0 1px 0 rgba(255,255,255,0.40), inset 0 -1px 0 rgba(255,255,255,0.10)',
+          background: 'linear-gradient(160deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 60%, hsla(213 74% 10% / 0.35) 100%)',
+          backdropFilter: 'blur(28px) saturate(200%) brightness(1.06)',
+          WebkitBackdropFilter: 'blur(28px) saturate(200%) brightness(1.06)',
+          border: '1px solid rgba(255,255,255,0.12)',
+          boxShadow: '0 40px 90px -20px rgba(0,0,0,0.6), 0 0 60px -12px color-mix(in srgb, var(--spotify-glow,#22d3ee) 35%, transparent), inset 0 1px 0 rgba(255,255,255,0.14)',
         }}
-        className="w-full max-w-md p-6 sm:p-8 rounded-[28px] relative z-10 overflow-hidden transition-transform duration-150 ease-out"
+        className="w-full max-w-[440px] rounded-[26px] relative z-10 overflow-hidden transition-transform duration-150 ease-out mt-20 lg:mt-0"
       >
         {/* Dynamic Card Internal Cursor Spotlight */}
         <div
-          className="pointer-events-none absolute inset-0 z-0 rounded-[28px] overflow-hidden transition-opacity duration-300"
+          className="pointer-events-none absolute inset-0 z-0 rounded-[26px] overflow-hidden transition-opacity duration-300"
           style={{
-            background: `radial-gradient(120px circle at ${cardCursorPos.x}px ${cardCursorPos.y}px, rgba(255, 255, 255, 0.12), transparent 80%)`,
+            background: `radial-gradient(120px circle at ${cardCursorPos.x}px ${cardCursorPos.y}px, rgba(255, 255, 255, 0.10), transparent 80%)`,
           }}
         />
 
-        {/* 1. Language Selector Button (Top Right - Flag Only) */}
-        <div className="absolute top-3 right-3 sm:top-3.5 sm:right-3.5 z-20">
-          <LanguageSelector variant="flag-only" />
-        </div>
+        {/* Ticket perforation */}
+        <div style={{ borderTop: '2px dashed rgba(255,255,255,0.14)' }} className="mx-7 mt-6 relative z-10" />
 
-        {/* 2. MuSic Wordmark Brand Logo & 3. Title */}
-        <div className="flex flex-col items-center gap-3 mb-5 text-center relative z-10 pt-8 sm:pt-2">
-          <div className="flex items-center justify-center h-10 shrink-0 mb-3">
-            <img
-              src="/phong-signature.png"
-              alt="MuSic"
-              className="h-10 w-auto object-contain signature-img-invert"
-            />
+        <div className="px-6 sm:px-8 pt-6 pb-7 sm:pb-8 relative z-10">
+
+          {/* "Now playing" strip — decorative brand flavor, not wired to real playback */}
+          <div
+            className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl mb-6"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+          >
+            <div
+              className="w-8 h-8 rounded-[9px] shrink-0 flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, var(--spotify-glow,#22d3ee), var(--primary-spotify,#06b6d4))' }}
+            >
+              <Music className="w-3.5 h-3.5" style={{ color: 'rgba(10,12,17,0.6)' }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[9.5px] font-bold tracking-widest" style={{ color: 'var(--spotify-glow,#22d3ee)' }}>ĐANG PHÁT</div>
+              <div className="text-xs text-slate-400 truncate">một bản nhạc đang chờ bạn</div>
+            </div>
+            <MiniEqualizer isPlaying className="h-4" />
           </div>
 
-          <div className="flex flex-col items-center gap-1.5">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+          <div className="flex flex-col gap-1.5 mb-5 relative z-10">
+            <h1
+              style={{ fontFamily: 'var(--font-fraunces, serif)' }}
+              className="text-2xl sm:text-[26px] font-bold text-white tracking-tight"
+            >
               {authMode === 'login' ? t('welcome_back') : t('register')}
             </h1>
-            <p className="text-xs sm:text-sm text-slate-400 font-medium leading-relaxed max-w-xs">
+            <p className="text-xs sm:text-sm text-slate-400 font-medium leading-relaxed">
               {t('login_subtitle')}
             </p>
           </div>
-        </div>
 
         {ssoNotice && (
           <div className="mb-4 p-3.5 bg-[var(--spotify-glow,#22d3ee)]/10 border border-[var(--spotify-glow,#22d3ee)]/30 text-[var(--spotify-glow,#22d3ee)] rounded-2xl text-xs flex items-start gap-2 relative z-10">
@@ -626,8 +679,8 @@ export function AuthForm({ mode }: AuthFormProps) {
 
         </div>
 
+        </div>
       </div>
-
 
     </div>
   )
