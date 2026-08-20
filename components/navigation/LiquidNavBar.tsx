@@ -748,7 +748,7 @@ export function LiquidNavBar({
               style={{
                 background: 'rgba(255,255,255,0.03)',
                 border: '1px solid rgba(255,255,255,0.12)',
-                borderTopColor: 'rgba(255,255,255,0.25)',
+                borderTopColor: 'rgba(255,255,255,0.12)',
                 boxShadow: '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15)',
                 backdropFilter: 'blur(20px) saturate(180%)',
                 WebkitBackdropFilter: 'blur(20px) saturate(180%)',
@@ -761,7 +761,7 @@ export function LiquidNavBar({
                 style={{
                   background: 'rgba(255,255,255,0.06)',
                   border: '1px solid rgba(255,255,255,0.10)',
-                  borderTopColor: 'rgba(255,255,255,0.20)',
+                  borderTopColor: 'rgba(255,255,255,0.10)',
                   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)',
                   minWidth: 48,
                 }}
@@ -783,7 +783,7 @@ export function LiquidNavBar({
                     ? 'linear-gradient(135deg, rgba(var(--spotify-glow-rgb,34,211,238),0.14) 0%, rgba(255,255,255,0.05) 100%)'
                     : 'rgba(255,255,255,0.03)',
                   border: '1px solid rgba(255,255,255,0.10)',
-                  borderTopColor: 'rgba(255,255,255,0.20)',
+                  borderTopColor: 'rgba(255,255,255,0.10)',
                   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10)',
                 }}
                 onClick={(e) => {
@@ -841,7 +841,7 @@ export function LiquidNavBar({
                 style={{
                   background: 'rgba(255,255,255,0.06)',
                   border: '1px solid rgba(255,255,255,0.10)',
-                  borderTopColor: 'rgba(255,255,255,0.20)',
+                  borderTopColor: 'rgba(255,255,255,0.10)',
                   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)',
                   minWidth: 48,
                 }}

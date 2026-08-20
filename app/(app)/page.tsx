@@ -35,6 +35,7 @@ import {
   DiscAlbum,
   ChevronRight,
   ListMusic,
+  RefreshCw,
 } from 'lucide-react'
 import { SpotifyAlbumItem } from '@/lib/spotify'
 import { useSession } from 'next-auth/react'
@@ -70,6 +71,64 @@ export default function HomePage() {
   const [recentTracks, setRecentTracks] = useState<Track[]>([])
   const [libraryTab, setLibraryTab] = useState<'all' | 'drive' | 'recent'>('recent')
   const [showAllResults, setShowAllResults] = useState(false)
+
+  // Pull-to-refresh state
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [pullDistance, setPullDistance] = useState(0)
+  const touchStartRef = useRef<number | null>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  // Category chips for trending
+  const categories = [
+    { id: 'all', label: 'Tất cả' },
+    { id: 'vietnamese', label: 'Nhạc Việt' },
+    { id: 'usuk', label: 'US-UK' },
+    { id: 'korean', label: 'K-Pop' },
+    { id: 'chinese', label: 'C-Pop' },
+    { id: 'japanese', label: 'J-Pop' },
+  ]
+  const [selectedCategory, setSelectedCategory] = useState('all')
+
+  // Pull-to-refresh handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    // Only activate when scrolled to top
+    if (scrollContainerRef.current && scrollContainerRef.current.scrollTop === 0) {
+      touchStartRef.current = e.touches[0].clientY
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartRef.current === null) return
+    const currentY = e.touches[0].clientY
+    const diff = currentY - touchStartRef.current
+    // Only allow pull down, not up
+    if (diff > 0) {
+      // Dampen the pull distance for smoother feel
+      const dampened = Math.min(diff * 0.4, 120)
+      setPullDistance(dampened)
+    }
+  }
+
+  const handleTouchEnd = () => {
+    if (pullDistance > 60) {
+      setIsRefreshing(true)
+      fetchData().finally(() => {
+        setIsRefreshing(false)
+        setPullDistance(0)
+      })
+      // Also refresh trending albums
+      setLoadingAlbums(true)
+      fetch('/api/albums/new-releases')
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          if (Array.isArray(data)) setTrendingAlbums(data.slice(0, 12))
+        })
+        .catch((err) => console.warn('Failed to refresh albums:', err))
+        .finally(() => setLoadingAlbums(false))
+    }
+    setPullDistance(0)
+    touchStartRef.current = null
+  }
 
   const searchQueryRef = useRef(searchQuery)
   useEffect(() => {
@@ -168,10 +227,10 @@ export default function HomePage() {
     supabaseUser ||
     (nextAuthSession?.user
       ? {
-          id: nextAuthSession.user.email,
-          email: nextAuthSession.user.email,
-          user_metadata: { full_name: nextAuthSession.user.name },
-        }
+        id: nextAuthSession.user.email,
+        email: nextAuthSession.user.email,
+        user_metadata: { full_name: nextAuthSession.user.name },
+      }
       : null)
 
   const [userFavTrackIds, setUserFavTrackIds] = useState<Set<string>>(new Set())
@@ -192,9 +251,9 @@ export default function HomePage() {
         currentUser ||
         (nextAuthSession?.user
           ? {
-              id: nextAuthSession.user.email,
-              email: nextAuthSession.user.email,
-            }
+            id: nextAuthSession.user.email,
+            email: nextAuthSession.user.email,
+          }
           : null)
       const userId = activeUser ? getValidUserId(activeUser) : null
 
@@ -223,14 +282,14 @@ export default function HomePage() {
               userFavSet = new Set(favData.trackIds)
             }
           }
-        } catch {}
+        } catch { }
         try {
           const historyRes = await fetch('/api/history/list?limit=100')
           if (historyRes.ok) {
             const histData = await historyRes.json()
             historyItems = histData.items ?? []
           }
-        } catch {}
+        } catch { }
       }
       if (mySeq !== fetchSeqRef.current) return
       setUserFavTrackIds(userFavSet)
@@ -381,6 +440,32 @@ export default function HomePage() {
     const count = Math.floor(combinedTrendingTracks.length / 6) * 6
     return combinedTrendingTracks.slice(0, Math.max(count, 6))
   }, [combinedTrendingTracks])
+
+  // Filter trending by selected category
+  const filteredTrending: Track[] = useMemo(() => {
+    if (selectedCategory === 'all') return displayTrending
+
+    // Category keywords for filtering
+    const categoryKeywords: Record<string, string[]> = {
+      vietnamese: ['việt', 'viet', 'nam', 'hương', 'lam', 'minh', 'phương', 'đông', 'trung', 'onlyc', 'bray', 'soobin', 'duc', 'hoaprox', 'chan', 'than', 'thắng', 'tùng', 'huy', 'khắc', 'hưng', 'vũ', 'hà', 'hạ', 'nga', 'my', 'lan', 'trang', 'thảo', 'như', 'huyền', 'thiên', 'bảo', 'khánh', 'phong', 'ca', 'chi', 'quân', 'ân', 'diệp', 'bình', 'quỳnh', 'thanh', 'yến', 'phương', 'liên', 'hà', 'mai', 'loan', 'thu', 'hằng', 'phúc', 'long', 'minh', 'ngọc', 'anh', 'tú', 'trâm', 'oops'],
+      usuk: ['english', 'billie', 'taylor', 'swift', 'justin', 'bieber', 'ariana', 'drake', 'weeknd', 'ed sheeran', 'bruno mars', 'dua lipa', 'harry styles', 'the weeknd', 'post malone', 'doja cat', 'olivia', 'bad bunny', 'shawn', 'dua'],
+      korean: ['korean', 'kpop', 'bts', 'blackpink', 'twice', 'newjeans', 'seventeen', 'stray', 'nct', 'exo', 'red velvet', 'ateez', 'enhypen', 'txt', 'ive', 'lesserafim', 'aespa', 'le sserafim', 'itzy', 'g Idle', 'gidle', 'treasure', 'zico', 'hyde', 'rm', 'jungkook', 'jimin', 'lisa', 'jisoo', 'rose', ' Jennie', 'v (bts)', 'suga', 'jhope', 'j-hope', 'taehyung', 'iu', 'lee'],
+      chinese: ['c-pop', 'chinese', 'mandopop', 'jay Chou', 'taylor swift', 'jj lin', 'jolin tsai', 'a-mei', '告五人', '周杰倫', '林俊傑', '蔡依林', '張惠妹', '八三夭', '動力火車', '王心凌', '鄧紫棋', 'g.e.m', '林宥嘉', '周深', '華晨宇', '五月天', '蘇打綠'],
+      japanese: ['j-pop', 'japanese', 'anime', 'hatano', 'yoasobi', 'radwimps', 'official', '髭男', 'Ado', 'YOASOBI', '米津玄師', '椎名林檎', 'RADWIMPS', 'LiSA', 'Aimer', 'TK from'],
+    }
+
+    const keywords = categoryKeywords[selectedCategory] || []
+    if (keywords.length === 0) return displayTrending
+
+    return displayTrending.filter((track) => {
+      const title = (track.title || '').toLowerCase()
+      const artist = (track.artist || '').toLowerCase()
+
+      return keywords.some((kw) =>
+        title.includes(kw.toLowerCase()) || artist.includes(kw.toLowerCase())
+      )
+    }).slice(0, 12) // Limit filtered results
+  }, [displayTrending, selectedCategory])
 
   // Fetch initial page data
   useEffect(() => {
@@ -542,7 +627,7 @@ export default function HomePage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ trackIds: [track.id] }),
-          }).catch(() => {})
+          }).catch(() => { })
           deletedCount++
           processedCount++
           setCleanStatusText(`Đang dọn (${processedCount}/${total})...`)
@@ -594,7 +679,7 @@ export default function HomePage() {
                       method: 'PATCH',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify(updates),
-                    }).catch(() => {})
+                    }).catch(() => { })
                     repairedCount++
                   }
                 }
@@ -613,7 +698,7 @@ export default function HomePage() {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ title: cleanTitle }),
-            }).catch(() => {})
+            }).catch(() => { })
             repairedCount++
           }
         }
@@ -714,269 +799,353 @@ export default function HomePage() {
         : 'tracklist'
 
   return (
-    <div className="px-2.5 py-3 sm:px-4 sm:py-3.5 md:px-6 md:py-4 lg:px-7 lg:py-5 flex flex-col gap-3 sm:gap-4 md:gap-5 max-w-7xl mx-auto w-full pb-36 lg:pb-16 select-none">
-      {/* High-Impact Clean Hero Card with Editorial Vinyl Element */}
-      <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.06] p-3.5 sm:p-4 md:p-5">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 lg:gap-5 relative z-10">
-          <div className="hero-copy flex flex-col gap-1 sm:gap-1.5 max-w-xl">
-            <span className="eyebrow text-[10px] sm:text-[11px] font-mono tracking-widest uppercase font-semibold text-[var(--spotify-glow,#22d3ee)]">
-              Thư viện âm nhạc của bạn
-            </span>
-            <h1 className="text-lg sm:text-xl lg:text-2xl font-display font-bold text-white tracking-tight leading-tight">
-              Xin chào{user ? `, ${user.user_metadata?.full_name || user.email?.split('@')[0]}` : ''}
-            </h1>
-            <p className="text-xs text-slate-400 leading-relaxed max-w-md line-clamp-2 sm:line-clamp-none">
-              Khám phá và nghe những bài hát yêu thích, được gom về từ một thư viện âm nhạc thống nhất.
-            </p>
-            <div className="flex items-center gap-3 mt-1.5">
-              {isAdmin && (
-                <Link
-                  href="/upload"
-                  className="btn-outline-accent font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-2 text-xs"
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>Upload bài hát</span>
-                </Link>
-              )}
-            </div>
-          </div>
+    <div className="relative">
+      {/* Pull-to-refresh indicator */}
+      <div
+        className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-center pointer-events-none transition-transform duration-200"
+        style={{
+          transform: `translateY(${pullDistance > 0 ? pullDistance : -60}px)`,
+          height: '60px',
+        }}
+      >
+        <div
+          className="flex flex-col items-center gap-1"
+          style={{ opacity: Math.min(pullDistance / 60, 1) }}
+        >
+          <RefreshCw
+            className={`w-5 h-5 text-cyan-400 ${isRefreshing ? 'animate-spin' : ''}`}
+            style={{
+              transform: isRefreshing ? 'rotate(360deg)' : `rotate(${Math.min(pullDistance, 180)}deg)`,
+              transition: isRefreshing ? 'none' : 'transform 0.1s linear',
+            }}
+          />
+          <span className="text-[10px] text-cyan-400 font-semibold">
+            {isRefreshing ? 'Đang tải...' : pullDistance > 60 ? 'Thả ra để làm mới' : 'Kéo xuống để làm mới'}
+          </span>
+        </div>
+      </div>
 
-          {/* Editorial Decorative Vinyl Disc with Track Cover Center */}
-          <div className="hero-vinyl hidden md:flex items-center justify-center shrink-0">
-            <div className={`hero-vinyl-disc ${isPlaying ? 'is-spinning' : 'is-paused'}`}>
-              <div className="hero-vinyl-label overflow-hidden rounded-full relative flex items-center justify-center">
-                {currentTrack?.cover_url ? (
-                  <>
-                    <img
-                      src={currentTrack.cover_url}
-                      alt={currentTrack.title || 'Now Playing'}
-                      className="w-full h-full object-cover rounded-full"
-                    />
-                    {/* Vinyl Center Spindle Hole */}
-                    <div className="absolute inset-[38%] rounded-full bg-[#100C13] border border-white/20 shadow-inner" />
-                  </>
-                ) : (
-                  <span className="font-display italic text-[11px] font-semibold text-center leading-tight text-[#2A1704]">
-                    Now<br />Spinning
-                  </span>
+      {/* Main scrollable content with pull-to-refresh */}
+      <div
+        ref={scrollContainerRef}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className="px-6 py-3 sm:px-5 sm:py-3.5 md:px-6 md:py-4 lg:px-7 lg:py-5 flex flex-col gap-3 sm:gap-4 md:gap-5 max-w-7xl mx-auto w-full pb-36 lg:pb-16 select-none"
+      >
+        {/* High-Impact Clean Hero Card with Editorial Vinyl Element */}
+        {/* Mobile: Compact greeting only | Desktop: Full banner with vinyl */}
+        <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.06] p-3.5 sm:p-4 md:p-5">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 lg:gap-5 relative z-10">
+            <div className="hero-copy flex flex-col gap-1 sm:gap-1.5 max-w-xl">
+              {/* Mobile: Hidden eyebrow, desc, admin button | Desktop: Full content */}
+              <span className="eyebrow hidden sm:block text-[10px] sm:text-[11px] font-mono tracking-widest uppercase font-semibold text-[var(--spotify-glow,#22d3ee)]">
+                Thư viện âm nhạc của bạn
+              </span>
+              <h1 className="text-base sm:text-xl lg:text-2xl font-display font-bold text-white tracking-tight leading-tight">
+                Xin chào{user ? `, ${user.user_metadata?.full_name || user.email?.split('@')[0]}` : ''}
+              </h1>
+              <p className="hidden sm:block text-xs text-slate-400 leading-relaxed max-w-md line-clamp-2 sm:line-clamp-none">
+                Khám phá và nghe những bài hát yêu thích, được gom về từ một thư viện âm nhạc thống nhất.
+              </p>
+              <div className="hidden sm:flex items-center gap-3 mt-1.5">
+                {isAdmin && (
+                  <Link
+                    href="/upload"
+                    className="btn-outline-accent font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-2 text-xs"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Upload bài hát</span>
+                  </Link>
                 )}
+              </div>
+            </div>
+
+            {/* Editorial Decorative Vinyl Disc with Track Cover Center */}
+            <div className="hero-vinyl hidden md:flex items-center justify-center shrink-0">
+              <div className={`hero-vinyl-disc ${isPlaying ? 'is-spinning' : 'is-paused'}`}>
+                <div className="hero-vinyl-label overflow-hidden rounded-full relative flex items-center justify-center">
+                  {currentTrack?.cover_url ? (
+                    <>
+                      <img
+                        src={currentTrack.cover_url}
+                        alt={currentTrack.title || 'Now Playing'}
+                        className="w-full h-full object-cover rounded-full"
+                      />
+                      {/* Vinyl Center Spindle Hole */}
+                      <div className="absolute inset-[38%] rounded-full bg-[#100C13] border border-white/20 shadow-inner" />
+                    </>
+                  ) : (
+                    <span className="font-display italic text-[11px] font-semibold text-center leading-tight text-[#2A1704]">
+                      Now<br />Spinning
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Global Trending Albums Showcase Section */}
-      {!isSearching && (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between pb-1">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-[var(--spotify-glow,#22d3ee)]/10 border border-[var(--spotify-glow,#22d3ee)]/25 flex items-center justify-center shadow-[0_0_12px_var(--theme-glow-shadow,#22d3ee)]">
-                <DiscAlbum style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
-              </div>
-              <h2 className="text-base font-bold font-display text-white tracking-tight">
-                Trending & Hot Albums
-              </h2>
-            </div>
-            <Link
-              href="/albums"
-              className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-all px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10 hover:border-cyan-500/40 hover:bg-white/[0.08]"
-            >
-              <span>Xem tất cả</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          {/* Mobile: Horizontal scrollable row | Desktop: Grid */}
-          {loadingAlbums ? (
-            <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse flex flex-col gap-2.5">
-                  <div className="aspect-square w-full bg-slate-800/80 rounded-xl" />
-                  <div className="h-3 bg-slate-700/80 rounded w-3/4" />
-                  <div className="h-2 bg-slate-800/80 rounded w-1/2" />
+        {/* Global Trending Music Showcase Section */}
+        {!isSearching && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between pb-1">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-rose-500/10 border border-rose-500/25 flex items-center justify-center shadow-[0_0_12px_rgba(244,63,94,0.3)]">
+                  <TrendingUp className="w-4 h-4 text-rose-400" />
                 </div>
+                <h2 className="text-base font-bold font-display text-white tracking-tight">
+                  Trending & Hot Songs
+                </h2>
+              </div>
+              {loadingTrending && <Loader2 style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3.5 h-3.5 animate-spin" />}
+            </div>
+
+            {/* Category Chips - Mobile Only */}
+            <div className="lg:hidden flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`flex-shrink-0 px-4 py-1.5 rounded-full text-[11px] font-semibold transition-all ${selectedCategory === cat.id
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-black border border-white/20 shadow-[0_2px_8px_rgba(6,182,212,0.4)]'
+                      : 'bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10 hover:text-white'
+                    }`}
+                >
+                  {cat.label}
+                </button>
               ))}
             </div>
-          ) : trendingAlbums.length > 0 ? (
-            <>
+
+            {/* Category Chips - Desktop */}
+            <div className="hidden lg:flex gap-2 overflow-x-auto no-scrollbar pb-1"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${selectedCategory === cat.id
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-black border border-white/20 shadow-[0_2px_8px_rgba(6,182,212,0.4)]'
+                      : 'bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10 hover:text-white'
+                    }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Mobile: Horizontal scroll | Desktop: Grid */}
+            {loadingTrending ? (
+              <>
+                {/* Mobile skeleton */}
+                <div className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2 -mx-2.5 px-2.5"
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="flex-shrink-0 w-[140px] bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse">
+                      <div className="aspect-square w-full bg-slate-800/80 rounded-xl" />
+                      <div className="h-3 bg-slate-700/80 rounded w-3/4 mt-2.5" />
+                      <div className="h-2 bg-slate-800/80 rounded w-1/2 mt-1" />
+                    </div>
+                  ))}
+                </div>
+                {/* Desktop skeleton */}
+                <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse flex flex-col gap-2.5">
+                      <div className="aspect-square w-full bg-slate-800/80 rounded-xl" />
+                      <div className="h-3 bg-slate-700/80 rounded w-3/4" />
+                      <div className="h-2 bg-slate-800/80 rounded w-1/2" />
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : displayTrending.length > 0 ? (
+              <>
+                {/* Mobile: Horizontal scroll */}
+                <div
+                  className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2 -mx-2.5 px-2.5"
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                  {filteredTrending.map((t, idx) => (
+                    <div
+                      key={t.id}
+                      className="flex-shrink-0 w-[140px] snap-start"
+                    >
+                      <MediaCard
+                        id={t.id}
+                        title={t.title}
+                        subtitle={t.artist || 'Nghệ sĩ chưa xác định'}
+                        coverUrl={t.cover_url}
+                        type="track"
+                        badgeLabel="Hot"
+                        href="#"
+                        onPlay={() => playTrack(t, combinedTrendingTracks)}
+                        isPlaying={currentTrack?.id === t.id && isPlaying}
+                        index={idx}
+                        fallbackIcon="track"
+                      />
+                    </div>
+                  ))}
+                </div>
+                {/* Desktop: Grid with glide indicator */}
+                <div
+                  ref={trendingGrid.containerRef}
+                  onMouseLeave={trendingGrid.handleContainerMouseLeave}
+                  className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative"
+                >
+                  <div
+                    className="grid-glide-indicator"
+                    style={{
+                      transform: `translate3d(${trendingGrid.indicator.left}px, ${trendingGrid.indicator.top}px, 0) scale(${trendingGrid.indicator.scaleX}, ${trendingGrid.indicator.scaleY})`,
+                      width: `${trendingGrid.indicator.width}px`,
+                      height: `${trendingGrid.indicator.height}px`,
+                      opacity: trendingGrid.indicator.opacity,
+                    }}
+                  />
+                  {filteredTrending.map((t, idx) => (
+                    <div
+                      key={t.id}
+                      onMouseEnter={trendingGrid.handleItemMouseEnter}
+                      className="relative z-[1] h-full"
+                    >
+                      <MediaCard
+                        id={t.id}
+                        title={t.title}
+                        subtitle={t.artist || 'Nghệ sĩ chưa xác định'}
+                        coverUrl={t.cover_url}
+                        type="track"
+                        badgeLabel="Hot"
+                        href="#"
+                        onPlay={() => playTrack(t, combinedTrendingTracks)}
+                        isPlaying={currentTrack?.id === t.id && isPlaying}
+                        index={idx}
+                        fallbackIcon="track"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="p-6 bg-white/[0.02] border border-white/10 rounded-2xl flex flex-col items-center justify-center text-center gap-2">
+                <p className="text-xs text-slate-400">Đang cập nhật danh sách bài hát Trending...</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="text-xs text-cyan-400 hover:underline font-semibold"
+                >
+                  Tải lại trang
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* User Playlists Showcase Section */}
+        {!isSearching && playlists && playlists.length > 0 && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between pb-1">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-[var(--spotify-glow,#22d3ee)]/10 border border-[var(--spotify-glow,#22d3ee)]/25 flex items-center justify-center shadow-[0_0_12px_var(--theme-glow-shadow,#22d3ee)]">
+                  <ListMusic style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
+                </div>
+                <h2 className="text-base font-bold font-display text-white tracking-tight">
+                  Playlist Của Bạn
+                </h2>
+              </div>
+              <span className="text-xs font-mono text-slate-500">
+                {playlists.length} playlists
+              </span>
+            </div>
+
+            {/* Mobile: Horizontal scroll | Desktop: Grid with glide indicator */}
+            <div
+              ref={playlistGrid.containerRef}
+              onMouseLeave={playlistGrid.handleContainerMouseLeave}
+            >
               {/* Mobile: Horizontal scroll */}
-              <div
-                className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2 -mx-2.5 px-2.5"
+              <div className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2 -mx-2.5 px-2.5"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
-                {trendingAlbums.map((album, idx) => (
+                {playlists.slice(0, 6).map((pl, idx) => (
                   <div
-                    key={album.id}
+                    key={pl.id}
                     className="flex-shrink-0 w-[140px] snap-start"
                   >
                     <MediaCard
-                      id={album.id}
-                      title={album.name}
-                      subtitle={album.artist}
-                      coverUrl={album.cover_url}
-                      type={album.album_type === 'single' ? 'single' : 'album'}
-                      badgeLabel={album.album_type === 'single' ? 'Single' : 'Album'}
-                      href={`/album/${album.id}`}
-                      onPlay={(e) => void handlePlayAlbum(e, album)}
+                      id={pl.id}
+                      title={pl.name}
+                      subtitle="Playlist cá nhân"
+                      coverUrl={pl.cover_url || undefined}
+                      type="playlist"
+                      badgeLabel="Playlist"
+                      href={`/playlist/${pl.id}`}
                       index={idx}
-                      fallbackIcon="album"
+                      fallbackIcon="playlist"
                     />
                   </div>
                 ))}
               </div>
               {/* Desktop: Grid with glide indicator */}
-              <div
-                ref={albumGrid.containerRef}
-                onMouseLeave={albumGrid.handleContainerMouseLeave}
-                className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative"
-              >
+              <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative">
                 <div
                   className="grid-glide-indicator"
                   style={{
-                    transform: `translate3d(${albumGrid.indicator.left}px, ${albumGrid.indicator.top}px, 0) scale(${albumGrid.indicator.scaleX}, ${albumGrid.indicator.scaleY})`,
-                    width: `${albumGrid.indicator.width}px`,
-                    height: `${albumGrid.indicator.height}px`,
-                    opacity: albumGrid.indicator.opacity,
+                    transform: `translate3d(${playlistGrid.indicator.left}px, ${playlistGrid.indicator.top}px, 0) scale(${playlistGrid.indicator.scaleX}, ${playlistGrid.indicator.scaleY})`,
+                    width: `${playlistGrid.indicator.width}px`,
+                    height: `${playlistGrid.indicator.height}px`,
+                    opacity: playlistGrid.indicator.opacity,
                   }}
                 />
-                {trendingAlbums.map((album, idx) => (
+                {playlists.slice(0, 6).map((pl, idx) => (
                   <div
-                    key={album.id}
-                    onMouseEnter={albumGrid.handleItemMouseEnter}
+                    key={pl.id}
+                    onMouseEnter={playlistGrid.handleItemMouseEnter}
                     className="relative z-[1] h-full"
                   >
                     <MediaCard
-                      id={album.id}
-                      title={album.name}
-                      subtitle={album.artist}
-                      coverUrl={album.cover_url}
-                      type={album.album_type === 'single' ? 'single' : 'album'}
-                      badgeLabel={album.album_type === 'single' ? 'Single' : 'Album'}
-                      href={`/album/${album.id}`}
-                      onPlay={(e) => void handlePlayAlbum(e, album)}
+                      id={pl.id}
+                      title={pl.name}
+                      subtitle="Playlist cá nhân"
+                      coverUrl={pl.cover_url || undefined}
+                      type="playlist"
+                      badgeLabel="Playlist"
+                      href={`/playlist/${pl.id}`}
                       index={idx}
-                      fallbackIcon="album"
+                      fallbackIcon="playlist"
                     />
                   </div>
                 ))}
               </div>
-            </>
-          ) : null}
-        </div>
-      )}
-
-      {/* User Playlists Showcase Section */}
-      {!isSearching && playlists && playlists.length > 0 && (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between pb-1">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-[var(--spotify-glow,#22d3ee)]/10 border border-[var(--spotify-glow,#22d3ee)]/25 flex items-center justify-center shadow-[0_0_12px_var(--theme-glow-shadow,#22d3ee)]">
-                <ListMusic style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
-              </div>
-              <h2 className="text-base font-bold font-display text-white tracking-tight">
-                Playlist Của Bạn
-              </h2>
             </div>
-            <span className="text-xs font-mono text-slate-500">
-              {playlists.length} playlists
-            </span>
           </div>
+        )}
 
-          {/* Mobile: Horizontal scroll | Desktop: Grid with glide indicator */}
-          <div
-            ref={playlistGrid.containerRef}
-            onMouseLeave={playlistGrid.handleContainerMouseLeave}
-          >
-            {/* Mobile: Horizontal scroll */}
-            <div className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2 -mx-2.5 px-2.5"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {playlists.slice(0, 6).map((pl, idx) => (
-                <div
-                  key={pl.id}
-                  className="flex-shrink-0 w-[140px] snap-start"
-                >
-                  <MediaCard
-                    id={pl.id}
-                    title={pl.name}
-                    subtitle="Playlist cá nhân"
-                    coverUrl={pl.cover_url || undefined}
-                    type="playlist"
-                    badgeLabel="Playlist"
-                    href={`/playlist/${pl.id}`}
-                    index={idx}
-                    fallbackIcon="playlist"
-                  />
+        {/* Global Trending Albums Showcase Section */}
+        {!isSearching && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between pb-1">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-[var(--spotify-glow,#22d3ee)]/10 border border-[var(--spotify-glow,#22d3ee)]/25 flex items-center justify-center shadow-[0_0_12px_var(--theme-glow-shadow,#22d3ee)]">
+                  <DiscAlbum style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
                 </div>
-              ))}
-            </div>
-            {/* Desktop: Grid with glide indicator */}
-            <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative">
-              <div
-                className="grid-glide-indicator"
-                style={{
-                  transform: `translate3d(${playlistGrid.indicator.left}px, ${playlistGrid.indicator.top}px, 0) scale(${playlistGrid.indicator.scaleX}, ${playlistGrid.indicator.scaleY})`,
-                  width: `${playlistGrid.indicator.width}px`,
-                  height: `${playlistGrid.indicator.height}px`,
-                  opacity: playlistGrid.indicator.opacity,
-                }}
-              />
-              {playlists.slice(0, 6).map((pl, idx) => (
-                <div
-                  key={pl.id}
-                  onMouseEnter={playlistGrid.handleItemMouseEnter}
-                  className="relative z-[1] h-full"
-                >
-                  <MediaCard
-                    id={pl.id}
-                    title={pl.name}
-                    subtitle="Playlist cá nhân"
-                    coverUrl={pl.cover_url || undefined}
-                    type="playlist"
-                    badgeLabel="Playlist"
-                    href={`/playlist/${pl.id}`}
-                    index={idx}
-                    fallbackIcon="playlist"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Global Trending Music Showcase Section */}
-      {!isSearching && (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between pb-1">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-rose-500/10 border border-rose-500/25 flex items-center justify-center shadow-[0_0_12px_rgba(244,63,94,0.3)]">
-                <TrendingUp className="w-4 h-4 text-rose-400" />
+                <h2 className="text-base font-bold font-display text-white tracking-tight">
+                  Trending & Hot Albums
+                </h2>
               </div>
-              <h2 className="text-base font-bold font-display text-white tracking-tight">
-                Trending & Hot Songs
-              </h2>
-            </div>
-            {loadingTrending && <Loader2 style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3.5 h-3.5 animate-spin" />}
-          </div>
-
-          {/* Mobile: Horizontal scroll | Desktop: Grid */}
-          {loadingTrending ? (
-            <>
-              {/* Mobile skeleton */}
-              <div className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2 -mx-2.5 px-2.5"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              <Link
+                href="/albums"
+                className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-all px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10 hover:border-cyan-500/40 hover:bg-white/[0.08]"
               >
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex-shrink-0 w-[140px] bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse">
-                    <div className="aspect-square w-full bg-slate-800/80 rounded-xl" />
-                    <div className="h-3 bg-slate-700/80 rounded w-3/4 mt-2.5" />
-                    <div className="h-2 bg-slate-800/80 rounded w-1/2 mt-1" />
-                  </div>
-                ))}
-              </div>
-              {/* Desktop skeleton */}
+                <span>Xem tất cả</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+
+            {/* Mobile: Horizontal scrollable row | Desktop: Grid */}
+            {loadingAlbums ? (
               <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse flex flex-col gap-2.5">
@@ -986,15 +1155,105 @@ export default function HomePage() {
                   </div>
                 ))}
               </div>
-            </>
-          ) : displayTrending.length > 0 ? (
-            <>
+            ) : trendingAlbums.length > 0 ? (
+              <>
+                {/* Mobile: Horizontal scroll */}
+                <div
+                  className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2 -mx-2.5 px-2.5"
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                  {trendingAlbums.map((album, idx) => (
+                    <div
+                      key={album.id}
+                      className="flex-shrink-0 w-[140px] snap-start"
+                    >
+                      <MediaCard
+                        id={album.id}
+                        title={album.name}
+                        subtitle={album.artist}
+                        coverUrl={album.cover_url}
+                        type={album.album_type === 'single' ? 'single' : 'album'}
+                        badgeLabel={album.album_type === 'single' ? 'Single' : 'Album'}
+                        href={`/album/${album.id}`}
+                        onPlay={(e) => void handlePlayAlbum(e, album)}
+                        index={idx}
+                        fallbackIcon="album"
+                      />
+                    </div>
+                  ))}
+                </div>
+                {/* Desktop: Grid with glide indicator */}
+                <div
+                  ref={albumGrid.containerRef}
+                  onMouseLeave={albumGrid.handleContainerMouseLeave}
+                  className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative"
+                >
+                  <div
+                    className="grid-glide-indicator"
+                    style={{
+                      transform: `translate3d(${albumGrid.indicator.left}px, ${albumGrid.indicator.top}px, 0) scale(${albumGrid.indicator.scaleX}, ${albumGrid.indicator.scaleY})`,
+                      width: `${albumGrid.indicator.width}px`,
+                      height: `${albumGrid.indicator.height}px`,
+                      opacity: albumGrid.indicator.opacity,
+                    }}
+                  />
+                  {trendingAlbums.map((album, idx) => (
+                    <div
+                      key={album.id}
+                      onMouseEnter={albumGrid.handleItemMouseEnter}
+                      className="relative z-[1] h-full"
+                    >
+                      <MediaCard
+                        id={album.id}
+                        title={album.name}
+                        subtitle={album.artist}
+                        coverUrl={album.cover_url}
+                        type={album.album_type === 'single' ? 'single' : 'album'}
+                        badgeLabel={album.album_type === 'single' ? 'Single' : 'Album'}
+                        href={`/album/${album.id}`}
+                        onPlay={(e) => void handlePlayAlbum(e, album)}
+                        index={idx}
+                        fallbackIcon="album"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : null}
+          </div>
+        )}
+
+        {/* Google Drive Music Showcase Section */}
+        {!isSearching && driveTracks.length > 0 && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between pb-1">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-[var(--spotify-glow,#22d3ee)]/10 border border-[var(--spotify-glow,#22d3ee)]/25 flex items-center justify-center shadow-[0_0_12px_var(--theme-glow-shadow,#22d3ee)]">
+                  <Cloud style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
+                </div>
+                <h2 className="text-base font-bold font-display text-white tracking-tight">
+                  Kho Nhạc Google Drive
+                </h2>
+              </div>
+              <Link
+                href="/drive"
+                className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-all px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10 hover:border-cyan-500/40 hover:bg-white/[0.08]"
+              >
+                <span>Xem tất cả ({driveTracks.length})</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+
+            {/* Mobile: Horizontal scroll | Desktop: Grid */}
+            <div
+              ref={driveGrid.containerRef}
+              onMouseLeave={driveGrid.handleContainerMouseLeave}
+            >
               {/* Mobile: Horizontal scroll */}
-              <div
-                className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2 -mx-2.5 px-2.5"
+              <div className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2 -mx-2.5 px-2.5"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
-                {displayTrending.map((t, idx) => (
+                {driveTracks.slice(0, 6).map((t, idx) => (
                   <div
                     key={t.id}
                     className="flex-shrink-0 w-[140px] snap-start"
@@ -1005,9 +1264,9 @@ export default function HomePage() {
                       subtitle={t.artist || 'Nghệ sĩ chưa xác định'}
                       coverUrl={t.cover_url}
                       type="track"
-                      badgeLabel="Hot"
-                      href="#"
-                      onPlay={() => playTrack(t, combinedTrendingTracks)}
+                      badgeLabel="Drive"
+                      href="/drive"
+                      onPlay={() => playTrack(t, driveTracks)}
                       isPlaying={currentTrack?.id === t.id && isPlaying}
                       index={idx}
                       fallbackIcon="track"
@@ -1016,24 +1275,20 @@ export default function HomePage() {
                 ))}
               </div>
               {/* Desktop: Grid with glide indicator */}
-              <div
-                ref={trendingGrid.containerRef}
-                onMouseLeave={trendingGrid.handleContainerMouseLeave}
-                className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative"
-              >
+              <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative">
                 <div
                   className="grid-glide-indicator"
                   style={{
-                    transform: `translate3d(${trendingGrid.indicator.left}px, ${trendingGrid.indicator.top}px, 0) scale(${trendingGrid.indicator.scaleX}, ${trendingGrid.indicator.scaleY})`,
-                    width: `${trendingGrid.indicator.width}px`,
-                    height: `${trendingGrid.indicator.height}px`,
-                    opacity: trendingGrid.indicator.opacity,
+                    transform: `translate3d(${driveGrid.indicator.left}px, ${driveGrid.indicator.top}px, 0) scale(${driveGrid.indicator.scaleX}, ${driveGrid.indicator.scaleY})`,
+                    width: `${driveGrid.indicator.width}px`,
+                    height: `${driveGrid.indicator.height}px`,
+                    opacity: driveGrid.indicator.opacity,
                   }}
                 />
-                {displayTrending.map((t, idx) => (
+                {driveTracks.slice(0, 6).map((t, idx) => (
                   <div
                     key={t.id}
-                    onMouseEnter={trendingGrid.handleItemMouseEnter}
+                    onMouseEnter={driveGrid.handleItemMouseEnter}
                     className="relative z-[1] h-full"
                   >
                     <MediaCard
@@ -1042,9 +1297,9 @@ export default function HomePage() {
                       subtitle={t.artist || 'Nghệ sĩ chưa xác định'}
                       coverUrl={t.cover_url}
                       type="track"
-                      badgeLabel="Hot"
-                      href="#"
-                      onPlay={() => playTrack(t, combinedTrendingTracks)}
+                      badgeLabel="Drive"
+                      href="/drive"
+                      onPlay={() => playTrack(t, driveTracks)}
                       isPlaying={currentTrack?.id === t.id && isPlaying}
                       index={idx}
                       fallbackIcon="track"
@@ -1052,265 +1307,164 @@ export default function HomePage() {
                   </div>
                 ))}
               </div>
-            </>
-          ) : (
-            <div className="p-6 bg-white/[0.02] border border-white/10 rounded-2xl flex flex-col items-center justify-center text-center gap-2">
-              <p className="text-xs text-slate-400">Đang cập nhật danh sách bài hát Trending...</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="text-xs text-cyan-400 hover:underline font-semibold"
-              >
-                Tải lại trang
-              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Main Tracks Table Section */}
+        <div className="flex flex-col gap-4">
+          {!isSearching && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+              {/* Tabs: hidden on mobile, visible on md+ */}
+              <div className="hidden md:flex items-center gap-2 overflow-x-auto no-scrollbar touch-pan-x pr-2 py-0.5">
+                <button
+                  onClick={() => setLibraryTab('recent')}
+                  style={
+                    libraryTab === 'recent'
+                      ? {
+                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                        boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                      }
+                      : undefined
+                  }
+                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${libraryTab === 'recent'
+                      ? 'text-black font-extrabold border border-white/20'
+                      : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:bg-white/10'
+                    }`}
+                >
+                  <History className="w-3.5 h-3.5" />
+                  <span>Vừa Nghe Gần Đây ({recentTracks.length})</span>
+                </button>
+
+                <button
+                  onClick={() => setLibraryTab('drive')}
+                  style={
+                    libraryTab === 'drive'
+                      ? {
+                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                        boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                      }
+                      : undefined
+                  }
+                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${libraryTab === 'drive'
+                      ? 'text-black font-extrabold border border-white/20'
+                      : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:bg-white/10'
+                    }`}
+                >
+                  <Cloud className="w-3.5 h-3.5" />
+                  <span>Google Drive ({driveTracks.length})</span>
+                </button>
+
+                <button
+                  onClick={() => setLibraryTab('all')}
+                  style={
+                    libraryTab === 'all'
+                      ? {
+                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                        boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
+                      }
+                      : undefined
+                  }
+                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${libraryTab === 'all'
+                      ? 'text-black font-extrabold border border-white/20'
+                      : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:bg-white/10'
+                    }`}
+                >
+                  <Music className="w-3.5 h-3.5" />
+                  <span>Tất Cả Bài Hát ({tracks.length})</span>
+                </button>
+              </div>
             </div>
           )}
-        </div>
-      )}
+          {isAdmin && !isSearching && (
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={handleCleanMissingDriveFiles}
+                disabled={cleaningDuplicates}
+                className="flex items-center gap-1.5 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 px-3.5 py-1.5 rounded-full transition-all disabled:opacity-50"
+                title="Tự động kiểm tra và xóa khỏi CSDL các bài hát đã bị xóa khỏi Google Drive"
+              >
+                {cleaningDuplicates ? (
+                  <span className="animate-spin w-3.5 h-3.5 border-2 border-cyan-400 border-t-transparent rounded-full inline-block" />
+                ) : (
+                  <RotateCcw className="w-3.5 h-3.5" />
+                )}
+                {cleaningDuplicates ? (cleanStatusText || 'Đang dọn...') : 'Sửa tên & Dọn bài lỗi'}
+              </button>
 
-      {/* Google Drive Music Showcase Section */}
-      {!isSearching && driveTracks.length > 0 && (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between pb-1">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-[var(--spotify-glow,#22d3ee)]/10 border border-[var(--spotify-glow,#22d3ee)]/25 flex items-center justify-center shadow-[0_0_12px_var(--theme-glow-shadow,#22d3ee)]">
-                <Cloud style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
+              {(() => {
+                const seen = new Set<string>()
+                const hasDupes = tracks.some((t) => {
+                  const key = `${t.title?.toLowerCase().trim()}|||${(t.artist || '')
+                    .toLowerCase()
+                    .trim()}`
+                  if (seen.has(key)) return true
+                  seen.add(key)
+                  return false
+                })
+                return hasDupes ? (
+                  <button
+                    onClick={handleCleanDuplicates}
+                    disabled={cleaningDuplicates}
+                    className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-3.5 py-1.5 rounded-full transition-all disabled:opacity-50"
+                  >
+                    {cleaningDuplicates ? (
+                      <span className="animate-spin w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full inline-block" />
+                    ) : (
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                    )}
+                    {cleaningDuplicates ? 'Đang dọn...' : 'Dọn bài trùng'}
+                  </button>
+                ) : null
+              })()}
+            </div>
+          )}
+          {isSearching && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-bold font-display text-white flex items-center gap-2">
+                  <Search className="w-5 h-5 text-cyan-400" />
+                  Kết Quả Tìm Kiếm Toàn Cầu
+                </h2>
+                {searchingGlobal && <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />}
               </div>
-              <h2 className="text-base font-bold font-display text-white tracking-tight">
-                Kho Nhạc Google Drive
-              </h2>
             </div>
-            <Link
-              href="/drive"
-              className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-all px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10 hover:border-cyan-500/40 hover:bg-white/[0.08]"
-            >
-              <span>Xem tất cả ({driveTracks.length})</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
+          )}
 
-          {/* Mobile: Horizontal scroll | Desktop: Grid */}
-          <div
-            ref={driveGrid.containerRef}
-            onMouseLeave={driveGrid.handleContainerMouseLeave}
-          >
-            {/* Mobile: Horizontal scroll */}
-            <div className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2 -mx-2.5 px-2.5"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {driveTracks.slice(0, 6).map((t, idx) => (
-                <div
-                  key={t.id}
-                  className="flex-shrink-0 w-[140px] snap-start"
-                >
-                  <MediaCard
-                    id={t.id}
-                    title={t.title}
-                    subtitle={t.artist || 'Nghệ sĩ chưa xác định'}
-                    coverUrl={t.cover_url}
-                    type="track"
-                    badgeLabel="Drive"
-                    href="/drive"
-                    onPlay={() => playTrack(t, driveTracks)}
-                    isPlaying={currentTrack?.id === t.id && isPlaying}
-                    index={idx}
-                    fallbackIcon="track"
-                  />
-                </div>
-              ))}
+          {loading ? (
+            <TrackListSkeleton count={8} />
+          ) : isSearching && searchingGlobal && displayedTracks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400 bg-[#181818]/60 border border-white/5 rounded-2xl gap-3">
+              <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
+              <p className="text-sm font-medium text-white">Đang tìm kiếm bài hát...</p>
             </div>
-            {/* Desktop: Grid with glide indicator */}
-            <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative">
-              <div
-                className="grid-glide-indicator"
-                style={{
-                  transform: `translate3d(${driveGrid.indicator.left}px, ${driveGrid.indicator.top}px, 0) scale(${driveGrid.indicator.scaleX}, ${driveGrid.indicator.scaleY})`,
-                  width: `${driveGrid.indicator.width}px`,
-                  height: `${driveGrid.indicator.height}px`,
-                  opacity: driveGrid.indicator.opacity,
-                }}
+          ) : (
+            <>
+              <TrackList
+                tracks={finalTracksToRender}
+                userPlaylists={playlists}
+                onAddToPlaylist={handleAddToPlaylist}
+                onDeleteTrack={handleDeleteTrack}
+                onTrackUpdated={handleTrackUpdated}
+                isAdmin={isAdmin}
+                onBulkUpdated={handleBulkUpdated}
+                onBulkDeleted={handleBulkDeleted}
               />
-              {driveTracks.slice(0, 6).map((t, idx) => (
-                <div
-                  key={t.id}
-                  onMouseEnter={driveGrid.handleItemMouseEnter}
-                  className="relative z-[1] h-full"
-                >
-                  <MediaCard
-                    id={t.id}
-                    title={t.title}
-                    subtitle={t.artist || 'Nghệ sĩ chưa xác định'}
-                    coverUrl={t.cover_url}
-                    type="track"
-                    badgeLabel="Drive"
-                    href="/drive"
-                    onPlay={() => playTrack(t, driveTracks)}
-                    isPlaying={currentTrack?.id === t.id && isPlaying}
-                    index={idx}
-                    fallbackIcon="track"
-                  />
+
+              {isShortQuery && !showAllResults && displayedTracks.length > 15 && (
+                <div className="flex justify-center pt-3 pb-2">
+                  <button
+                    onClick={() => setShowAllResults(true)}
+                    className="bg-white/5 hover:bg-white/10 text-cyan-400 hover:text-cyan-300 border border-white/10 text-xs font-bold px-6 py-2.5 rounded-full transition-all flex items-center gap-2 shadow-lg hover:scale-105"
+                  >
+                    <span>Xem thêm {displayedTracks.length - 15} kết quả cho &quot;{searchQuery.trim()}&quot;</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Tracks Table Section */}
-      <div className="flex flex-col gap-4">
-        {!isSearching && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
-            {/* Tabs: hidden on mobile, visible on md+ */}
-            <div className="hidden md:flex items-center gap-2 overflow-x-auto no-scrollbar touch-pan-x pr-2 py-0.5">
-              <button
-                onClick={() => setLibraryTab('recent')}
-                style={
-                  libraryTab === 'recent'
-                    ? {
-                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                        boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
-                      }
-                    : undefined
-                }
-                className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-                  libraryTab === 'recent'
-                    ? 'text-black font-extrabold border border-white/20'
-                    : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:bg-white/10'
-                }`}
-              >
-                <History className="w-3.5 h-3.5" />
-                <span>Vừa Nghe Gần Đây ({recentTracks.length})</span>
-              </button>
-
-              <button
-                onClick={() => setLibraryTab('drive')}
-                style={
-                  libraryTab === 'drive'
-                    ? {
-                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                        boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
-                      }
-                    : undefined
-                }
-                className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-                  libraryTab === 'drive'
-                    ? 'text-black font-extrabold border border-white/20'
-                    : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:bg-white/10'
-                }`}
-              >
-                <Cloud className="w-3.5 h-3.5" />
-                <span>Google Drive ({driveTracks.length})</span>
-              </button>
-
-              <button
-                onClick={() => setLibraryTab('all')}
-                style={
-                  libraryTab === 'all'
-                    ? {
-                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                        boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
-                      }
-                    : undefined
-                }
-                className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-                  libraryTab === 'all'
-                    ? 'text-black font-extrabold border border-white/20'
-                    : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:bg-white/10'
-                }`}
-              >
-                <Music className="w-3.5 h-3.5" />
-                <span>Tất Cả Bài Hát ({tracks.length})</span>
-              </button>
-            </div>
-          </div>
-        )}
-        {isAdmin && !isSearching && (
-          <div className="flex items-center justify-end gap-2">
-            <button
-              onClick={handleCleanMissingDriveFiles}
-              disabled={cleaningDuplicates}
-              className="flex items-center gap-1.5 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 px-3.5 py-1.5 rounded-full transition-all disabled:opacity-50"
-              title="Tự động kiểm tra và xóa khỏi CSDL các bài hát đã bị xóa khỏi Google Drive"
-            >
-              {cleaningDuplicates ? (
-                <span className="animate-spin w-3.5 h-3.5 border-2 border-cyan-400 border-t-transparent rounded-full inline-block" />
-              ) : (
-                <RotateCcw className="w-3.5 h-3.5" />
               )}
-              {cleaningDuplicates ? (cleanStatusText || 'Đang dọn...') : 'Sửa tên & Dọn bài lỗi'}
-            </button>
-
-            {(() => {
-              const seen = new Set<string>()
-              const hasDupes = tracks.some((t) => {
-                const key = `${t.title?.toLowerCase().trim()}|||${(t.artist || '')
-                  .toLowerCase()
-                  .trim()}`
-                if (seen.has(key)) return true
-                seen.add(key)
-                return false
-              })
-              return hasDupes ? (
-                <button
-                  onClick={handleCleanDuplicates}
-                  disabled={cleaningDuplicates}
-                  className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-3.5 py-1.5 rounded-full transition-all disabled:opacity-50"
-                >
-                  {cleaningDuplicates ? (
-                    <span className="animate-spin w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full inline-block" />
-                  ) : (
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                  )}
-                  {cleaningDuplicates ? 'Đang dọn...' : 'Dọn bài trùng'}
-                </button>
-              ) : null
-            })()}
-          </div>
-        )}
-        {isSearching && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
-            <div className="flex items-center gap-3">
-              <h2 className="text-lg font-bold font-display text-white flex items-center gap-2">
-                <Search className="w-5 h-5 text-cyan-400" />
-                Kết Quả Tìm Kiếm Toàn Cầu
-              </h2>
-              {searchingGlobal && <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />}
-            </div>
-          </div>
-        )}
-
-        {loading ? (
-          <TrackListSkeleton count={8} />
-        ) : isSearching && searchingGlobal && displayedTracks.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-slate-400 bg-[#181818]/60 border border-white/5 rounded-2xl gap-3">
-            <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
-            <p className="text-sm font-medium text-white">Đang tìm kiếm bài hát...</p>
-          </div>
-        ) : (
-          <>
-            <TrackList
-              tracks={finalTracksToRender}
-              userPlaylists={playlists}
-              onAddToPlaylist={handleAddToPlaylist}
-              onDeleteTrack={handleDeleteTrack}
-              onTrackUpdated={handleTrackUpdated}
-              isAdmin={isAdmin}
-              onBulkUpdated={handleBulkUpdated}
-              onBulkDeleted={handleBulkDeleted}
-            />
-
-            {isShortQuery && !showAllResults && displayedTracks.length > 15 && (
-              <div className="flex justify-center pt-3 pb-2">
-                <button
-                  onClick={() => setShowAllResults(true)}
-                  className="bg-white/5 hover:bg-white/10 text-cyan-400 hover:text-cyan-300 border border-white/10 text-xs font-bold px-6 py-2.5 rounded-full transition-all flex items-center gap-2 shadow-lg hover:scale-105"
-                >
-                  <span>Xem thêm {displayedTracks.length - 15} kết quả cho &quot;{searchQuery.trim()}&quot;</span>
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   )

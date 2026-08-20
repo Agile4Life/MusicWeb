@@ -311,7 +311,7 @@ export function MobileScrollHeader() {
               backdropFilter: 'blur(32px) saturate(210%) brightness(1.08)',
               WebkitBackdropFilter: 'blur(32px) saturate(210%) brightness(1.08)',
               border: '1px solid rgba(255, 255, 255, 0.22)',
-              borderTopColor: 'rgba(255, 255, 255, 0.45)',
+              borderTopColor: 'rgba(255, 255, 255, 0.22)',
               boxShadow: '0 12px 36px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 25px -4px rgba(34, 211, 238, 0.15)',
             }}
           >
@@ -398,7 +398,7 @@ export function MobileScrollHeader() {
                 backdropFilter: 'blur(40px) saturate(220%) brightness(1.08)',
                 WebkitBackdropFilter: 'blur(40px) saturate(220%) brightness(1.08)',
                 border: '1px solid rgba(255,255,255,0.25)',
-                borderTopColor: 'rgba(255,255,255,0.45)',
+                borderTopColor: 'rgba(255,255,255,0.25)',
                 boxShadow: '0 20px 50px -10px rgba(0,0,0,0.6), 0 0 40px -4px rgba(34,211,238,0.2), inset 0 1px 0 rgba(255,255,255,0.30)',
               }}
             >
