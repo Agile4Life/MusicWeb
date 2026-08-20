@@ -9,7 +9,6 @@ import { Play, Pause, Music, Trash2, MoreVertical, Plus, Pencil, Check, X, Heart
 import { createClient } from '@/lib/supabase/client'
 import { isAdmin, getValidUserId } from '@/lib/accessControl'
 import { formatViewCount } from '@/lib/utils'
-import { fetchViewCountForVideo } from '@/lib/youtube'
 import { resolveExternalTrackId, isExternalTrack } from '@/lib/trackPersistence'
 import { useSession } from 'next-auth/react'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
@@ -19,7 +18,7 @@ import { getCachedResolvedAlbum, setCachedResolvedAlbum, isRealAlbumName } from 
 import { triggerDrivePrewarm } from '@/lib/googleDriveUpload'
 import { prewarmNctStreamUrl } from '@/lib/nhaccuatuiClient'
 
-const viewCountCache = new Map<string, number>()
+
 
 interface TrackRowProps {
   track: Track
@@ -265,54 +264,10 @@ function TrackRowComponent({
     }
   }, [showMenu])
 
-  const [fetchedViews, setFetchedViews] = useState<number | null>(null)
-  const [loadingViews, setLoadingViews] = useState(false)
-
-  useEffect(() => {
-    // Skip per-row fetch if batch data is available from TrackList
-    if (batchViewCount !== undefined) return
-
-    if (track.view_count != null && track.view_count > 0) return
-
-    const cacheKey = track.youtube_id || `${(track.title || '').trim().toLowerCase()}_${(track.artist || '').trim().toLowerCase()}`
-    if (!cacheKey || cacheKey === '_') return
-
-    if (viewCountCache.has(cacheKey)) {
-      setFetchedViews(viewCountCache.get(cacheKey)!)
-      return
-    }
-
-    let isMounted = true
-    setLoadingViews(true)
-
-    const params = new URLSearchParams()
-    if (track.youtube_id) params.set('youtube_id', track.youtube_id)
-    if (track.title) params.set('title', track.title)
-    if (track.artist) params.set('artist', track.artist)
-
-    fetch(`/api/track-views?${params.toString()}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (isMounted) {
-          const views = data?.viewCount ?? null
-          if (views != null && views > 0) {
-            viewCountCache.set(cacheKey, views)
-            setFetchedViews(views)
-          }
-        }
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (isMounted) setLoadingViews(false)
-      })
-
-    return () => {
-      isMounted = false
-    }
-  }, [track.youtube_id, track.title, track.artist, track.view_count, batchViewCount])
-
-  // Priority: track.view_count > batchViewCount > fetchedViews (per-row fallback)
-  const displayViews = (track.view_count != null && track.view_count > 0 ? track.view_count : null) ?? batchViewCount ?? fetchedViews
+  // Display view count: embedded track.view_count takes priority; otherwise use the
+  // batch-fetched value provided by the parent (via useBatchViewCounts).
+  // Per-row individual fetching has been removed to prevent N+1 Serverless Function bursts.
+  const displayViews = (track.view_count != null && track.view_count > 0 ? track.view_count : null) ?? batchViewCount ?? null
 
   const [editMode, setEditMode] = useState(false)
   const [editTitle, setEditTitle] = useState(track.title || '')
@@ -575,11 +530,6 @@ function TrackRowComponent({
           <>
             <Eye className="w-3.5 h-3.5 text-slate-500 shrink-0" />
             <span className="font-mono text-right truncate">{formatViewCount(displayViews).replace(' lượt xem', '')}</span>
-          </>
-        ) : loadingViews ? (
-          <>
-            <Eye className="w-3.5 h-3.5 opacity-30 shrink-0" />
-            <span className="w-10 h-2.5 bg-white/5 rounded animate-pulse" />
           </>
         ) : null}
       </div>

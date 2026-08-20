@@ -17,6 +17,7 @@ import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
 import { resolveStreamCached } from '@/lib/resolveStreamClient'
 import { prewarmNctStreamUrl } from '@/lib/nhaccuatuiClient'
 import { Play, DiscAlbum, Calendar, Music, Shuffle, Disc, Eye, Clock } from 'lucide-react'
+import { useBatchViewCounts, getViewCountCacheKey } from '@/hooks/useBatchViewCounts'
 
 interface AlbumDetail {
   id: string
@@ -45,6 +46,9 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
 
   const [album, setAlbum] = useState<AlbumDetail | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Batch-fetch view counts in a single request — prevents N+1 /api/track-views calls
+  const batchViews = useBatchViewCounts(album?.tracks ?? [])
 
   const handleAddToPlaylist = async (playlistId: string, track: Track) => {
     const result = await addTrackToPlaylist(playlistId, track)
@@ -314,6 +318,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
               {discTracks.map((track, idx) => {
                 const isCurrent = currentTrack?.id === track.id
                 const isPlayingThis = isCurrent && isPlaying
+                const viewCacheKey = getViewCountCacheKey(track)
                 return (
                   <TrackRow
                     key={track.id || `track-${discNum}-${idx}`}
@@ -327,6 +332,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
                     onAddToPlaylist={handleAddToPlaylist}
                     onAddToQueue={() => addToQueue(track)}
                     onPlayClick={() => playTrack(track, album.tracks)}
+                    batchViewCount={batchViews.get(viewCacheKey)}
                   />
                 )
               })}

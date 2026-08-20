@@ -13,6 +13,7 @@ import { deduplicateQueueTracks } from '@/lib/utils'
 import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
 import { resolveStreamCached } from '@/lib/resolveStreamClient'
 import { prewarmNctStreamUrl } from '@/lib/nhaccuatuiClient'
+import { useBatchViewCounts, getViewCountCacheKey } from '@/hooks/useBatchViewCounts'
 import {
   Play,
   Shuffle,
@@ -48,6 +49,7 @@ export default function ArtistPage() {
   const artistName = searchParams.get('name') || ''
 
   const { playTrack, currentTrack, isPlaying, isShuffle, toggleShuffle, addToQueue } = usePlayer()
+
   const { playlists } = usePlaylists()
   const {
     containerRef: listContainerRef,
@@ -61,6 +63,9 @@ export default function ArtistPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAll, setShowAll] = useState(false)
+
+  // Batch-fetch view counts in a single request — prevents N+1 /api/track-views calls
+  const batchViews = useBatchViewCounts(topTracks)
 
   const INITIAL_COUNT = 5
 
@@ -326,7 +331,9 @@ export default function ArtistPage() {
                 opacity: trackIndicator.opacity,
               }}
             />
-            {displayTracks.map((track, index) => (
+            {displayTracks.map((track, index) => {
+              const viewCacheKey = getViewCountCacheKey(track)
+              return (
               <TrackRow
                 key={track.id}
                 track={track}
@@ -334,6 +341,7 @@ export default function ArtistPage() {
                 isCurrent={currentTrack?.id === track.id}
                 isPlayingThis={currentTrack?.id === track.id && isPlaying}
                 onMouseEnterRow={handleRowMouseEnter}
+                batchViewCount={batchViews.get(viewCacheKey)}
                 onPlayClick={() => {
                   const dedupedQueue = deduplicateQueueTracks(
                     showAll ? topTracks : topTracks.slice(0, INITIAL_COUNT)
@@ -346,7 +354,8 @@ export default function ArtistPage() {
                 onAddToPlaylist={(playlistId) => handleAddToPlaylist(playlistId, track)}
                 playlistTracks={showAll ? topTracks : topTracks.slice(0, INITIAL_COUNT)}
               />
-            ))}
+              )
+            })}
           </div>
 
           {/* See More / Collapse Button */}
