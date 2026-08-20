@@ -975,122 +975,156 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     repeatModeRef.current = repeatMode
   }, [repeatMode])
 
-  const fallbackToYouTube = useCallback(async (track: Track, requestId: number) => {
-    try {
-      const query = `${track.title} ${track.artist || ''}`.trim()
-      const data = await fetchUnifiedSearch(query, 'youtube')
+  /**
+   * Core YouTube fallback logic. Optionally accepts a pre-searched Track to skip
+   * the YouTube Data API search — used when search was already run in parallel
+   * with NCT retry to save ~700ms.
+   */
+  const fallbackToYouTube = useCallback(async (
+    track: Track,
+    requestId: number,
+    preSearchedTrack?: Track | null
+  ) => {
+    // ── Step 1: YouTube search (skip if already provided) ─────────────────────
+    let bestMatch = preSearchedTrack ?? null
+
+    if (!bestMatch) {
+      try {
+        const query = `${track.title} ${track.artist || ''}`.trim()
+        const data = await fetchUnifiedSearch(query, 'youtube')
+        if (!isCurrentAudioOwnership()) return
+        if (!isCurrentPlayback({
+          requestId,
+          currentRequestId: playRequestRef.current,
+          trackId: track.id,
+          currentTrackId: currentTrackRef.current?.id,
+        })) return
+        const ytList: Track[] = data.youtube || []
+        bestMatch = findBestYouTubeMatch(ytList, track.title, track.artist, track.duration, track.album)
+      } catch {
+        // Search failed — fall through to error message below
+      }
+    }
+
+    if (!bestMatch) {
       if (!isCurrentAudioOwnership()) return
-      if (!isCurrentPlayback({
-        requestId,
-        currentRequestId: playRequestRef.current,
-        trackId: track.id,
-        currentTrackId: currentTrackRef.current?.id,
-      })) return
-      const ytList: Track[] = data.youtube || []
-      const bestMatch = findBestYouTubeMatch(ytList, track.title, track.artist, track.duration, track.album)
-      if (bestMatch && bestMatch.youtube_id) {
-        const candidateDuration = bestMatch.duration || 0
-        const isTargetShort = !track.duration || track.duration < 900
-        if (!isTargetShort || candidateDuration <= 1200) {
-          const activeTrack: Track = {
-            ...track,
-            youtube_id: bestMatch.youtube_id,
-            source: 'youtube',
-          }
+      if (requestId !== playRequestRef.current) return
+      setIsPlaying(false)
+      setIsBuffering(false)
+      setPlaybackError(`Không thể phát bài hát "${track.title}". Vui lòng chọn bài khác.`)
+      return
+    }
 
-          // Invalidate the broken stream resolution so subsequent plays don't re-fetch the dead stream
-          await invalidateCurrentResolution()
-          trackResolutionCacheRef.current.delete(track.id)
-          audioUrlCacheRef.current.delete(track.id)
-          if (track.nhaccuatui_id) {
-            clearCachedNctStreamUrl(track.nhaccuatui_id)
-          }
+    if (!bestMatch.youtube_id) {
+      if (!isCurrentAudioOwnership()) return
+      if (requestId !== playRequestRef.current) return
+      setIsPlaying(false)
+      setIsBuffering(false)
+      setPlaybackError(`Không thể phát bài hát "${track.title}". Vui lòng chọn bài khác.`)
+      return
+    }
 
-          // Cache the new working youtube resolution
-          setBounded(
-            trackResolutionCacheRef.current,
-            track.id,
-            { activeTrack, expiresAt: Date.now() + TRACK_RESOLUTION_TTL },
-            TRACK_RESOLUTION_MAX_ENTRIES
-          )
+    const candidateDuration = bestMatch.duration || 0
+    const isTargetShort = !track.duration || track.duration < 900
+    if (isTargetShort && candidateDuration > 1200) {
+      // Target is a short track but YouTube match is > 2min — reject (likely wrong match)
+      if (!isCurrentAudioOwnership()) return
+      if (requestId !== playRequestRef.current) return
+      setIsPlaying(false)
+      setIsBuffering(false)
+      setPlaybackError(`Không thể phát bài hát "${track.title}". Vui lòng chọn bài khác.`)
+      return
+    }
 
-          setCurrentTrack(activeTrack)
-          currentTrackRef.current = activeTrack
-          setPlaybackError(null)
+    const activeTrack: Track = {
+      ...track,
+      youtube_id: bestMatch.youtube_id,
+      source: 'youtube',
+    }
 
-          if (isIOSDevice()) {
-            // iOS: Play YouTube through HTML5 stream proxy so it continues in background / lock screen
-            ytHtml5ModeRef.current = true
-            const streamUrl = buildYouTubeStreamUrl(bestMatch.youtube_id)
-            if (audioRef.current) {
-              setAudioSourceForPlayback(audioRef.current, streamUrl, volumeRef.current ?? 0.8, 0)
-              try {
-                await playAudioElement(audioRef.current)
-                if (!isCurrentAudioOwnership()) {
-                  audioRef.current.pause()
-                  return
-                }
-                if (requestId !== playRequestRef.current) {
-                  audioRef.current.pause()
-                  return
-                }
-                setIsPlaying(true)
-                setIsBuffering(false)
-                return
-              } catch (iosPlayErr) {
-                console.warn('iOS YouTube fallback stream playback error:', iosPlayErr)
-              }
-            }
-          } else {
-            // Desktop / Android: Play through YouTube iframe engine
-            ytHtml5ModeRef.current = false
-            if (audioRef.current) {
-              try {
-                audioRef.current.pause()
-                audioRef.current.removeAttribute('src')
-              } catch {}
-            }
-            const tryLoadYt = (retries = 5) => {
-              if (requestId !== playRequestRef.current) return
-              if (ytPlayerRef.current?.loadVideoById) {
-                ytLoadedIdRef.current = bestMatch.youtube_id || null
-                const currentVol = volumeRef.current ?? DEFAULT_VOLUME
-                if (currentVol > 0) {
-                  if (ytPlayerRef.current.unMute) ytPlayerRef.current.unMute()
-                  if (ytPlayerRef.current.isMuted && ytPlayerRef.current.isMuted()) {
-                    ytPlayerRef.current.unMute()
-                  }
-                } else {
-                  if (ytPlayerRef.current.mute) ytPlayerRef.current.mute()
-                }
-                if (ytPlayerRef.current.setVolume) {
-                  ytPlayerRef.current.setVolume(currentVol * 100)
-                }
-                ytPlayerRef.current.loadVideoById({
-                  videoId: bestMatch.youtube_id,
-                })
-                if (ytPlayerRef.current.playVideo) {
-                  try { ytPlayerRef.current.playVideo() } catch {}
-                }
-                setIsPlaying(true)
-                setIsBuffering(false)
-              } else if (retries > 0) {
-                setTimeout(() => tryLoadYt(retries - 1), 150)
-              }
-            }
-            tryLoadYt()
+    // Invalidate the broken stream resolution so subsequent plays don't re-fetch the dead stream
+    await invalidateCurrentResolution()
+    trackResolutionCacheRef.current.delete(track.id)
+    audioUrlCacheRef.current.delete(track.id)
+    if (track.nhaccuatui_id) {
+      clearCachedNctStreamUrl(track.nhaccuatui_id)
+    }
+
+    // Cache the new working youtube resolution
+    setBounded(
+      trackResolutionCacheRef.current,
+      track.id,
+      { activeTrack, expiresAt: Date.now() + TRACK_RESOLUTION_TTL },
+      TRACK_RESOLUTION_MAX_ENTRIES
+    )
+
+    setCurrentTrack(activeTrack)
+    currentTrackRef.current = activeTrack
+    setPlaybackError(null)
+
+    if (isIOSDevice()) {
+      // iOS: Play YouTube through HTML5 stream proxy so it continues in background / lock screen
+      ytHtml5ModeRef.current = true
+      const streamUrl = buildYouTubeStreamUrl(bestMatch.youtube_id)
+      if (audioRef.current) {
+        setAudioSourceForPlayback(audioRef.current, streamUrl, volumeRef.current ?? 0.8, 0)
+        try {
+          await playAudioElement(audioRef.current)
+          if (!isCurrentAudioOwnership()) {
+            audioRef.current.pause()
             return
           }
+          if (requestId !== playRequestRef.current) {
+            audioRef.current.pause()
+            return
+          }
+          setIsPlaying(true)
+          setIsBuffering(false)
+          return
+        } catch (iosPlayErr) {
+          console.warn('iOS YouTube fallback stream playback error:', iosPlayErr)
         }
       }
-    } catch (e) {
-      console.warn('YouTube fallback failed:', e)
+    } else {
+      // Desktop / Android: Play through YouTube iframe engine
+      ytHtml5ModeRef.current = false
+      if (audioRef.current) {
+        try {
+          audioRef.current.pause()
+          audioRef.current.removeAttribute('src')
+        } catch {}
+      }
+      const tryLoadYt = (retries = 5) => {
+        if (requestId !== playRequestRef.current) return
+        if (ytPlayerRef.current?.loadVideoById) {
+          ytLoadedIdRef.current = bestMatch.youtube_id || null
+          const currentVol = volumeRef.current ?? DEFAULT_VOLUME
+          if (currentVol > 0) {
+            if (ytPlayerRef.current.unMute) ytPlayerRef.current.unMute()
+            if (ytPlayerRef.current.isMuted && ytPlayerRef.current.isMuted()) {
+              ytPlayerRef.current.unMute()
+            }
+          } else {
+            if (ytPlayerRef.current.mute) ytPlayerRef.current.mute()
+          }
+          if (ytPlayerRef.current.setVolume) {
+            ytPlayerRef.current.setVolume(currentVol * 100)
+          }
+          ytPlayerRef.current.loadVideoById({
+            videoId: bestMatch.youtube_id,
+          })
+          if (ytPlayerRef.current.playVideo) {
+            try { ytPlayerRef.current.playVideo() } catch {}
+          }
+          setIsPlaying(true)
+          setIsBuffering(false)
+        } else if (retries > 0) {
+          setTimeout(() => tryLoadYt(retries - 1), 150)
+        }
+      }
+      tryLoadYt()
+      return
     }
-    if (!isCurrentAudioOwnership()) return
-    if (requestId !== playRequestRef.current) return
-    setIsPlaying(false)
-    setIsBuffering(false)
-    setPlaybackError(`Không thể phát bài hát "${track.title}". Vui lòng chọn bài khác.`)
   }, [invalidateCurrentResolution, isCurrentAudioOwnership])
 
   const toggleShuffle = useCallback(() => {
@@ -2704,14 +2738,28 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         trackResolutionCacheRef.current.delete(current.id)
         audioUrlCacheRef.current.delete(current.id)
 
-        // Self-healing for NhacCuaTui: If external worker returned 503 / 502 / failed, fallback to native Next.js stream proxy ONCE
+        // ── Parallel: NCT retry + YouTube search simultaneously ─────────────────
+        // This saves ~700ms because YouTube search runs while NCT retry is pending.
+        // If NCT succeeds → cancel YouTube search. If NCT fails → use pre-fetched result.
         const isNct = Boolean(
           current?.source === 'nhaccuatui' ||
           current?.nhaccuatui_id
         )
         if (isNct && current && current.nhaccuatui_id && !nctRetriedRef.current.has(requestId)) {
           recordRequestIdFlag(nctRetriedRef.current, requestId)
-          const fallbackUrl = `/api/nhaccuatui/stream?id=${encodeURIComponent(current.nhaccuatui_id)}`
+
+          const searchQuery = `${current.title} ${current.artist || ''}`.trim()
+          // Start YouTube search IMMEDIATELY — don't wait for NCT to fail first
+          const searchPromise = (async () => {
+            try {
+              const data = await fetchUnifiedSearch(searchQuery, 'youtube')
+              if (!data?.youtube?.length) return null
+              return findBestYouTubeMatch(data.youtube, current.title, current.artist, current.duration, current.album)
+            } catch {
+              return null
+            }
+          })()
+
           if (
             audioRef.current &&
             isCurrentAudioOwnership() &&
@@ -2722,19 +2770,48 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               currentTrackId: currentTrackRef.current?.id,
             })
           ) {
-            console.log('[NCT Auto-Retry] Worker stream failed, switching to native Next.js stream proxy:', fallbackUrl)
+            const fallbackUrl = `/api/nhaccuatui/stream?id=${encodeURIComponent(current.nhaccuatui_id)}`
+            console.log('[NCT Auto-Retry] Worker stream failed, switching to native Next.js stream proxy (YouTube search running in parallel):', fallbackUrl)
             audioRef.current.src = fallbackUrl
             audioRef.current.load()
+
+            // Race: wait for NCT play OR timeout. If NCT fails → use pre-searched YouTube result.
+            let nctSucceeded = false
+            const NCT_RACE_TIMEOUT_MS = 4000 // Give NCT 4s to start playing before bailing
+
             audioRef.current.play().then(() => {
+              nctSucceeded = true
               if (!isCurrentAudioOwnership()) return
               setIsPlaying(true)
               setIsBuffering(false)
               setPlaybackError(null)
-            }).catch((err) => {
-              if (!isCurrentAudioOwnership()) return
-              console.warn('[NCT Auto-Retry] Native stream playback failed:', err)
-              void fallbackToYouTube(current, requestId)
-            })
+            }).catch(() => {})
+
+            try {
+              await Promise.race([
+                new Promise<void>((resolve) => {
+                  const check = () => {
+                    if (nctSucceeded || !isCurrentAudioOwnership()) {
+                      resolve()
+                      return
+                    }
+                    if (requestId !== playRequestRef.current) {
+                      resolve()
+                      return
+                    }
+                    setTimeout(check, 100)
+                  }
+                  setTimeout(check, 100)
+                }),
+                new Promise<void>((resolve) => setTimeout(() => resolve(), NCT_RACE_TIMEOUT_MS))
+              ])
+            } catch {}
+
+            if (!nctSucceeded && isCurrentAudioOwnership() && requestId === playRequestRef.current) {
+              console.log('[NCT Auto-Retry] NCT play timeout, using pre-fetched YouTube result...')
+              const preSearchedTrack = await searchPromise
+              void fallbackToYouTube(current, requestId, preSearchedTrack)
+            }
             return
           }
         }
@@ -2869,11 +2946,28 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         // NCT stall: stream started (HTTP 200 received) but data stopped flowing.
         // audio.error never fires in this case, so handleError can't trigger NCT→YouTube fallback.
         // After 6.5s of silence, give up on NCT and switch to YouTube.
+        // Parallel YouTube search started upfront saves ~700ms vs sequential fallback.
         const isNct = Boolean(current.source === 'nhaccuatui' || current.nhaccuatui_id)
         if (isNct && !fallbackAttemptedRef.current.has(activeRequestId)) {
-          console.warn('[NCT Watchdog] NCT playback stalled >6.5s — no error event fired. Falling back to YouTube...')
+          console.warn('[NCT Watchdog] NCT playback stalled >6.5s — no error event fired. Starting YouTube search in parallel...')
           recordRequestIdFlag(fallbackAttemptedRef.current, activeRequestId)
-          void fallbackToYouTube(current, activeRequestId)
+
+          const searchQuery = `${current.title} ${current.artist || ''}`.trim()
+          const searchPromise = (async () => {
+            try {
+              const data = await fetchUnifiedSearch(searchQuery, 'youtube')
+              if (!data?.youtube?.length) return null
+              return findBestYouTubeMatch(data.youtube, current.title, current.artist, current.duration, current.album)
+            } catch {
+              return null
+            }
+          })()
+
+          void searchPromise.then((preSearchedTrack) => {
+            if (isCurrentAudioOwnership() && playRequestRef.current === activeRequestId) {
+              void fallbackToYouTube(current, activeRequestId, preSearchedTrack)
+            }
+          })
           return
         }
       }, 6500)
