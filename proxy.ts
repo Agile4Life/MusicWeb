@@ -30,8 +30,12 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public media files (.svg, .png, .jpg, etc.)
+     * - public static files (.svg, .png, .jpg, .json, .xml, .txt, etc.) —
+     *   these must be reachable unauthenticated (e.g. manifest.json is
+     *   fetched by the browser before login redirects can apply; letting
+     *   the middleware intercept it returns the /login HTML instead of
+     *   JSON, which breaks manifest parsing)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|json|xml|txt|webmanifest|ico)$).*)',
   ],
 }
