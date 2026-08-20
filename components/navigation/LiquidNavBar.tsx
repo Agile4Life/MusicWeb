@@ -23,7 +23,7 @@ import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 // ─── NavBar state machine ───
 type NavBarMode = 'expanded' | 'collapsing' | 'collapsed' | 'expanding'
 
-/** Duration of the one-shot morph, in ms — synchronized with PlayerBar docking motion */
+/** Dusration of the one-shot morph, in ms — synchronized with PlayerBar docking motion */
 const MORPH_DURATION_MS = 360
 /** Cubic-bezier matching Apple UIKit fluid spring curve: steep responsive start, buttery smooth settle */
 const MORPH_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1]
@@ -275,7 +275,7 @@ export function LiquidNavBar({
       setMode('expanding')
       morphTimerRef.current = setTimeout(() => setMode('expanded'), MORPH_DURATION_MS)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname])
 
   const handleCapsuleTap = useCallback(() => {
@@ -317,7 +317,7 @@ export function LiquidNavBar({
       if (tab.href) {
         try {
           router.prefetch(tab.href)
-        } catch {}
+        } catch { }
       }
     })
   }, [router, tabs])
@@ -417,7 +417,7 @@ export function LiquidNavBar({
     }
     setIsDragging(true)
     setIsNavExpanded(true)
-    ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
+      ; (e.target as HTMLElement).setPointerCapture?.(e.pointerId)
   }, [blobWidth])
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
