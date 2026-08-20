@@ -52,7 +52,7 @@ export async function searchITunesAlbums(query: string, limit = 30): Promise<ITu
 }
 
 /**
- * Fetch the latest trending/hot albums from the Apple Music/iTunes Top Albums chart
+ * Fetch the latest trending/hot albums from the Apple Music/iTunes Top Albums charts
  */
 export async function getTrendingITunesAlbums(countryCode = 'us', limit = 30): Promise<ITunesAlbumItem[]> {
   try {
