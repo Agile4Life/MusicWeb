@@ -12,6 +12,19 @@ interface Orb {
   color: string
 }
 
+// See LoginAmbientCanvas.tsx's copy of this helper: addColorStop below
+// appends its own alpha suffix, so theme colors must be a bare 6/3-digit
+// hex — this guards against a theme value that's already 8-digit hex or a
+// non-hex CSS color function, either of which would otherwise produce an
+// invalid color string.
+function normalizeHex(value: string, fallback: string): string {
+  const v = value.trim()
+  if (/^#[0-9a-fA-F]{6}$/.test(v) || /^#[0-9a-fA-F]{3}$/.test(v)) return v
+  const withAlpha = v.match(/^#([0-9a-fA-F]{6})[0-9a-fA-F]{2}$/)
+  if (withAlpha) return `#${withAlpha[1]}`
+  return fallback
+}
+
 export function LiquidAmbientCanvas() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const { currentTheme, themeStyle, liquidGlassConfig } = useTheme()
@@ -41,9 +54,9 @@ export function LiquidAmbientCanvas() {
     window.addEventListener('resize', handleResize)
 
     // Palette colors from current active theme
-    const c1 = currentTheme?.accentColor || '#22d3ee'
-    const c2 = currentTheme?.secondaryColor || '#6366f1'
-    const c3 = currentTheme?.glowColor || '#ec4899'
+    const c1 = normalizeHex(currentTheme?.accentColor || '#22d3ee', '#22d3ee')
+    const c2 = normalizeHex(currentTheme?.secondaryColor || '#6366f1', '#6366f1')
+    const c3 = normalizeHex(currentTheme?.glowColor || '#ec4899', '#ec4899')
 
     // Extra chromatic colors for prominent / shader modes
     const cRed = '#f43f5e'

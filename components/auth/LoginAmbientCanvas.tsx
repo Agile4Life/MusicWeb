@@ -21,6 +21,20 @@ interface Orb {
   color: string
 }
 
+// CSS custom props here are meant to hold a bare 6-digit hex (addColorStop
+// below appends its own alpha suffix), but a theme can override them with
+// something else entirely — e.g. minimal-flat sets --spotify-glow to an
+// rgba(...) string. Falls back to `fallback` for anything that isn't a
+// clean hex color, and strips any alpha already baked into an 8-digit hex
+// so the appended suffix doesn't produce an invalid 10-digit string.
+function normalizeHex(value: string, fallback: string): string {
+  const v = value.trim()
+  if (/^#[0-9a-fA-F]{6}$/.test(v) || /^#[0-9a-fA-F]{3}$/.test(v)) return v
+  const withAlpha = v.match(/^#([0-9a-fA-F]{6})[0-9a-fA-F]{2}$/)
+  if (withAlpha) return `#${withAlpha[1]}`
+  return fallback
+}
+
 export function LoginAmbientCanvas() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
@@ -43,8 +57,8 @@ export function LoginAmbientCanvas() {
 
     // Theme-aware palette — read CSS custom props or fallback
     const rootStyle = getComputedStyle(document.documentElement)
-    const c1 = rootStyle.getPropertyValue('--spotify-glow').trim() || '#22d3ee'
-    const c2 = rootStyle.getPropertyValue('--primary-spotify').trim() || '#6366f1'
+    const c1 = normalizeHex(rootStyle.getPropertyValue('--spotify-glow').trim() || '#22d3ee', '#22d3ee')
+    const c2 = normalizeHex(rootStyle.getPropertyValue('--primary-spotify').trim() || '#6366f1', '#6366f1')
     const c3 = '#ec4899'
     const bgSpace = rootStyle.getPropertyValue('--bg-space').trim() || '#07090e'
 
