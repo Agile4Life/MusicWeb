@@ -137,7 +137,7 @@ export function MobileScrollHeader() {
     }
 
     // 3. NavBar capsule trigger
-    const isCollapsed = p >= 0.8
+    const isCollapsed = p >= 0.7
     const isExpanded = p <= 0.15
     if (isCollapsed && lastDispatchedCollapsed.current !== true) {
       lastDispatchedCollapsed.current = true

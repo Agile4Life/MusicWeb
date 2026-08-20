@@ -23,8 +23,8 @@ import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 // ─── NavBar state machine ───
 type NavBarMode = 'expanded' | 'collapsing' | 'collapsed' | 'expanding'
 
-/** Duration of the one-shot morph, in ms — measured for Apple-smooth fluid morphing */
-const MORPH_DURATION_MS = 280
+/** Duration of the one-shot morph, in ms — synchronized with PlayerBar docking motion */
+const MORPH_DURATION_MS = 360
 /** Cubic-bezier matching Apple UIKit fluid spring curve: steep responsive start, buttery smooth settle */
 const MORPH_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1]
 
