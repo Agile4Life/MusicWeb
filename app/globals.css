@@ -4017,10 +4017,7 @@ html[data-theme-style="minimal-flat"] body {
   font-weight: 600 !important;
 }
 
-/* Text Inputs & Form Controls */
-[data-theme-style="minimal-flat"] .search-input,
-[data-theme-style="minimal-flat"] input[type="search"],
-[data-theme-style="minimal-flat"] input[type="text"],
+/* Text Inputs & Form Controls (Search inputs excluded to preserve unified frosted glass capsule) */
 [data-theme-style="minimal-flat"] input[type="password"],
 [data-theme-style="minimal-flat"] input[type="email"],
 [data-theme-style="minimal-flat"] textarea,
@@ -4031,20 +4028,68 @@ html[data-theme-style="minimal-flat"] body {
   color: #F4ECE1 !important;
 }
 
-[data-theme-style="minimal-flat"] .search-input::placeholder,
-[data-theme-style="minimal-flat"] input::placeholder,
+[data-theme-style="minimal-flat"] input[type="password"]::placeholder,
+[data-theme-style="minimal-flat"] input[type="email"]::placeholder,
 [data-theme-style="minimal-flat"] textarea::placeholder {
   color: #8B8090 !important;
 }
 
-[data-theme-style="minimal-flat"] .search-input:focus,
-[data-theme-style="minimal-flat"] input[type="search"]:focus,
-[data-theme-style="minimal-flat"] input[type="text"]:focus,
 [data-theme-style="minimal-flat"] input[type="password"]:focus,
 [data-theme-style="minimal-flat"] input[type="email"]:focus,
 [data-theme-style="minimal-flat"] textarea:focus,
 [data-theme-style="minimal-flat"] select:focus {
   border-color: #E8A94F !important;
+}
+
+/* Minimal Flat Search Bar - Unified with Classic Dark and Liquid Glass */
+[data-theme-style="minimal-flat"] .search-input {
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(20px) saturate(180%) brightness(1.05) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) brightness(1.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.25),
+    0 1px 4px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0.5px rgba(255, 255, 255, 0.35),
+    inset 0 -1px 0.5px rgba(0, 0, 0, 0.15) !important;
+  border-radius: 9999px !important;
+  color: #F4ECE1 !important;
+  transform: none !important;
+}
+
+[data-theme-style="minimal-flat"] .search-input:focus {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.35),
+    inset 0 1.5px 0.5px rgba(255, 255, 255, 0.5) !important;
+  transform: none !important;
+}
+
+.mobile-scroll-header input,
+[data-theme-style="minimal-flat"] .mobile-scroll-header input,
+[data-theme-style="liquid-glass"] .mobile-scroll-header input,
+[data-theme-style="classic"] .mobile-scroll-header input {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  transform: none !important;
+  border-radius: 0 !important;
+}
+
+.mobile-scroll-header input:focus,
+[data-theme-style="minimal-flat"] .mobile-scroll-header input:focus,
+[data-theme-style="liquid-glass"] .mobile-scroll-header input:focus,
+[data-theme-style="classic"] .mobile-scroll-header input:focus {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  transform: none !important;
+  border-radius: 0 !important;
 }
 
 /* Modals & Dialogs */
@@ -4882,9 +4927,6 @@ html[data-theme-style="minimal-flat"] body {
    Input Fields - Smooth Focus
    ================================================================ */
 
-[data-theme-style="minimal-flat"] .search-input,
-[data-theme-style="minimal-flat"] input[type="search"],
-[data-theme-style="minimal-flat"] input[type="text"],
 [data-theme-style="minimal-flat"] input[type="password"],
 [data-theme-style="minimal-flat"] input[type="email"],
 [data-theme-style="minimal-flat"] textarea,
@@ -4896,13 +4938,10 @@ html[data-theme-style="minimal-flat"] body {
     transform 0.2s ease;
 }
 
-[data-theme-style="minimal-flat"] .search-input:hover,
-[data-theme-style="minimal-flat"] input[type="search"]:hover {
-  border-color: rgba(244, 236, 230, 0.14) !important;
-}
-
-[data-theme-style="minimal-flat"] .search-input:focus,
-[data-theme-style="minimal-flat"] input:focus {
+[data-theme-style="minimal-flat"] input[type="password"]:focus,
+[data-theme-style="minimal-flat"] input[type="email"]:focus,
+[data-theme-style="minimal-flat"] textarea:focus,
+[data-theme-style="minimal-flat"] select:focus {
   border-color: #E8A94F !important;
   box-shadow: 0 0 0 3px rgba(232, 169, 79, 0.2) !important;
   transform: translateY(-1px);

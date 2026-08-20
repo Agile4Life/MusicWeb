@@ -233,7 +233,7 @@ export function LiquidNavBar({
   const router = useRouter()
   const pathname = usePathname()
   const filterId = useId()
-  const { currentTrack, isPlaying, togglePlay } = usePlayer()
+  const { currentTrack, isPlaying, togglePlay, openNowPlayingOverlay } = usePlayer()
 
   // ─── Capsule / NavBar state machine ───
   const [navMode, setNavMode] = useState<NavBarMode>('expanded')
@@ -774,10 +774,10 @@ export function LiquidNavBar({
                 )}
               </motion.div>
 
-              {/* Center: Mini Player — flex-1 */}
+              {/* Center: Mini Player — flex-1 (Tapping opens Now Playing Fullview) */}
               <motion.div
                 layout
-                className="flex-1 min-w-0 h-[46px] flex items-center gap-2 px-2.5 rounded-[16px]"
+                className="flex-1 min-w-0 h-[46px] flex items-center gap-2 px-2.5 rounded-[16px] cursor-pointer select-none active:scale-[0.98] transition-transform"
                 style={{
                   background: currentTrack
                     ? 'linear-gradient(135deg, rgba(var(--spotify-glow-rgb,34,211,238),0.14) 0%, rgba(255,255,255,0.05) 100%)'
@@ -787,8 +787,10 @@ export function LiquidNavBar({
                   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10)',
                 }}
                 onClick={(e) => {
-                  // Prevent expanding capsule when tapping player controls
                   e.stopPropagation()
+                  if (currentTrack) {
+                    openNowPlayingOverlay?.()
+                  }
                 }}
               >
                 {currentTrack ? (
