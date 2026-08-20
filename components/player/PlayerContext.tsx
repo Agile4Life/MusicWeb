@@ -1071,23 +1071,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       // Best-effort — cache miss on next play is not critical
     }
 
-    // ── Step 3: CF Worker prewarm — trigger InnerTube resolution early ───────
-    // This saves ~2s on R2 miss: InnerTube starts resolving while we do other setup.
-    // Fire-and-forget — audio play happens after this resolves (via normal flow).
+    // ── Step 3: Background R2 population trigger ────────────────────────────
+    // ⚠️ Disabled for YouTube — YouTube streams are less stable and the
+    // Range pre-warm can cause the browser to reload playback when the
+    // InnerTube resolution completes. The actual audio.play() below triggers
+    // InnerTube naturally. R2 population will happen as a side-effect of
+    // normal playback, making the NEXT play instant.
+    //
+    // If you want to re-enable, ensure the Range request doesn't interfere
+    // with the browser's audio element by using a different mechanism.
     const streamUrl = buildYouTubeStreamUrl(bestMatch.youtube_id)
-    if (streamUrl && !streamUrl.startsWith('/')) {
-      // Only prewarm external CF Worker URLs (skip local /api/youtube/stream fallback)
-      fetch(streamUrl, { method: 'HEAD' }).catch(() => {})
-    }
-
-    // ── Step 4: Background R2 population trigger ────────────────────────────
-    // Initiate a range request for just the first byte range (1-1) to trigger
-    // CF Worker to start InnerTube resolution + R2 population in background.
-    // The client doesn't wait — it uses the normal play path.
-    // This populates R2 so the NEXT play of this video is instant.
-    if (streamUrl && !streamUrl.startsWith('/')) {
-      fetch(streamUrl, { headers: { Range: 'bytes=0-0' } }).catch(() => {})
-    }
+    // fetch(streamUrl, { headers: { Range: 'bytes=0-0' } }).catch(() => {}) // Disabled
 
     // Invalidate the broken stream resolution so subsequent plays don't re-fetch the dead stream
     await invalidateCurrentResolution()
@@ -2735,13 +2729,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                     // Refresh NCT stream URL cache (5-min TTL — may have expired since track start)
                     prewarmNctStreamUrl(nextTr.nhaccuatui_id).catch(() => {})
                   } else if (isIOSDevice() && (nextTr.source === 'youtube' || Boolean(nextTr.youtube_id))) {
-                    // iOS + YouTube: HEAD request warms server-side streamUrlCache so the
-                    // subsequent GET skips the slow ytdl resolution step (~8-15s).
-                    const ytId = nextTr.youtube_id
-                    if (ytId) {
-                      fetch(buildYouTubeStreamUrl(ytId), { method: 'HEAD' })
-                        .catch(() => {})
-                    }
+                    // ⚠️ Disabled: HEAD requests for YouTube can cause the browser to reload
+                    // playback when InnerTube resolution completes. YouTube streams should
+                    // be resolved naturally on play, not pre-warmed.
+                    // const ytId = nextTr.youtube_id
+                    // if (ytId) { fetch(buildYouTubeStreamUrl(ytId), { method: 'HEAD' }).catch(() => {}) }
                   } else if (!audioUrlCacheRef.current.has(nextTr.id)) {
                     // Other sources: warm the in-memory audio URL cache
                     getAudioUrlCached(nextTr).catch(() => {})
