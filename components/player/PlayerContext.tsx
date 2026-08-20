@@ -27,6 +27,7 @@ import {
   isFullYouTubeQueue,
 } from '@/lib/trackSourceClassifier'
 import { Html5AudioEngine, YouTubeIframeEngine } from './engines'
+import { buildYouTubeStreamUrl } from '@/lib/youtubeStreamUrl'
 
 export { isBackgroundPlayableTrack, isFullYouTubeQueue, inferTrackSource }
 export type RepeatMode = 'off' | 'all' | 'one'
@@ -701,7 +702,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       // iOS (Safari & Chrome): play YouTube through the HTML5 stream proxy so audio
       // keeps playing in the background — iOS pauses the iframe engine on lock/background.
       if (isIOSDevice() && track.youtube_id) {
-        return `/api/youtube/stream?id=${encodeURIComponent(track.youtube_id)}`
+        return buildYouTubeStreamUrl(track.youtube_id)
       }
 
       if (track.source === 'audius' || (track.audio_url && !isPreviewUrl(track.audio_url) && !track.youtube_id && !track.nhaccuatui_id && !track.soundcloud_id)) {
@@ -1020,7 +1021,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           if (isIOSDevice()) {
             // iOS: Play YouTube through HTML5 stream proxy so it continues in background / lock screen
             ytHtml5ModeRef.current = true
-            const streamUrl = `/api/youtube/stream?id=${encodeURIComponent(bestMatch.youtube_id)}`
+            const streamUrl = buildYouTubeStreamUrl(bestMatch.youtube_id)
             if (audioRef.current) {
               setAudioSourceForPlayback(audioRef.current, streamUrl, volumeRef.current ?? 0.8, 0)
               try {
@@ -2658,7 +2659,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                     // subsequent GET skips the slow ytdl resolution step (~8-15s).
                     const ytId = nextTr.youtube_id
                     if (ytId) {
-                      fetch(`/api/youtube/stream?id=${encodeURIComponent(ytId)}`, { method: 'HEAD' })
+                      fetch(buildYouTubeStreamUrl(ytId), { method: 'HEAD' })
                         .catch(() => {})
                     }
                   } else if (!audioUrlCacheRef.current.has(nextTr.id)) {
