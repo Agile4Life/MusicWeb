@@ -787,8 +787,9 @@ export default function HomePage() {
             </Link>
           </div>
 
+          {/* Mobile: Horizontal scrollable row | Desktop: Grid */}
           {loadingAlbums ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
+            <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse flex flex-col gap-2.5">
                   <div className="aspect-square w-full bg-slate-800/80 rounded-xl" />
@@ -798,41 +799,69 @@ export default function HomePage() {
               ))}
             </div>
           ) : trendingAlbums.length > 0 ? (
-            <div
-              ref={albumGrid.containerRef}
-              onMouseLeave={albumGrid.handleContainerMouseLeave}
-              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative"
-            >
+            <>
+              {/* Mobile: Horizontal scroll */}
               <div
-                className="grid-glide-indicator"
-                style={{
-                  transform: `translate3d(${albumGrid.indicator.left}px, ${albumGrid.indicator.top}px, 0) scale(${albumGrid.indicator.scaleX}, ${albumGrid.indicator.scaleY})`,
-                  width: `${albumGrid.indicator.width}px`,
-                  height: `${albumGrid.indicator.height}px`,
-                  opacity: albumGrid.indicator.opacity,
-                }}
-              />
-              {trendingAlbums.map((album, idx) => (
+                className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2 -mx-2.5 px-2.5"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {trendingAlbums.map((album, idx) => (
+                  <div
+                    key={album.id}
+                    className="flex-shrink-0 w-[140px] snap-start"
+                  >
+                    <MediaCard
+                      id={album.id}
+                      title={album.name}
+                      subtitle={album.artist}
+                      coverUrl={album.cover_url}
+                      type={album.album_type === 'single' ? 'single' : 'album'}
+                      badgeLabel={album.album_type === 'single' ? 'Single' : 'Album'}
+                      href={`/album/${album.id}`}
+                      onPlay={(e) => void handlePlayAlbum(e, album)}
+                      index={idx}
+                      fallbackIcon="album"
+                    />
+                  </div>
+                ))}
+              </div>
+              {/* Desktop: Grid with glide indicator */}
+              <div
+                ref={albumGrid.containerRef}
+                onMouseLeave={albumGrid.handleContainerMouseLeave}
+                className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative"
+              >
                 <div
-                  key={album.id}
-                  onMouseEnter={albumGrid.handleItemMouseEnter}
-                  className="relative z-[1] h-full"
-                >
-                  <MediaCard
-                    id={album.id}
-                    title={album.name}
-                    subtitle={album.artist}
-                    coverUrl={album.cover_url}
-                    type={album.album_type === 'single' ? 'single' : 'album'}
-                    badgeLabel={album.album_type === 'single' ? 'Single' : 'Album'}
-                    href={`/album/${album.id}`}
-                    onPlay={(e) => void handlePlayAlbum(e, album)}
-                    index={idx}
-                    fallbackIcon="album"
-                  />
-                </div>
-              ))}
-            </div>
+                  className="grid-glide-indicator"
+                  style={{
+                    transform: `translate3d(${albumGrid.indicator.left}px, ${albumGrid.indicator.top}px, 0) scale(${albumGrid.indicator.scaleX}, ${albumGrid.indicator.scaleY})`,
+                    width: `${albumGrid.indicator.width}px`,
+                    height: `${albumGrid.indicator.height}px`,
+                    opacity: albumGrid.indicator.opacity,
+                  }}
+                />
+                {trendingAlbums.map((album, idx) => (
+                  <div
+                    key={album.id}
+                    onMouseEnter={albumGrid.handleItemMouseEnter}
+                    className="relative z-[1] h-full"
+                  >
+                    <MediaCard
+                      id={album.id}
+                      title={album.name}
+                      subtitle={album.artist}
+                      coverUrl={album.cover_url}
+                      type={album.album_type === 'single' ? 'single' : 'album'}
+                      badgeLabel={album.album_type === 'single' ? 'Single' : 'Album'}
+                      href={`/album/${album.id}`}
+                      onPlay={(e) => void handlePlayAlbum(e, album)}
+                      index={idx}
+                      fallbackIcon="album"
+                    />
+                  </div>
+                ))}
+              </div>
+            </>
           ) : null}
         </div>
       )}
@@ -854,39 +883,65 @@ export default function HomePage() {
             </span>
           </div>
 
+          {/* Mobile: Horizontal scroll | Desktop: Grid with glide indicator */}
           <div
             ref={playlistGrid.containerRef}
             onMouseLeave={playlistGrid.handleContainerMouseLeave}
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative"
           >
-            <div
-              className="grid-glide-indicator"
-              style={{
-                transform: `translate3d(${playlistGrid.indicator.left}px, ${playlistGrid.indicator.top}px, 0) scale(${playlistGrid.indicator.scaleX}, ${playlistGrid.indicator.scaleY})`,
-                width: `${playlistGrid.indicator.width}px`,
-                height: `${playlistGrid.indicator.height}px`,
-                opacity: playlistGrid.indicator.opacity,
-              }}
-            />
-            {playlists.slice(0, 6).map((pl, idx) => (
+            {/* Mobile: Horizontal scroll */}
+            <div className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2 -mx-2.5 px-2.5"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {playlists.slice(0, 6).map((pl, idx) => (
+                <div
+                  key={pl.id}
+                  className="flex-shrink-0 w-[140px] snap-start"
+                >
+                  <MediaCard
+                    id={pl.id}
+                    title={pl.name}
+                    subtitle="Playlist cá nhân"
+                    coverUrl={pl.cover_url || undefined}
+                    type="playlist"
+                    badgeLabel="Playlist"
+                    href={`/playlist/${pl.id}`}
+                    index={idx}
+                    fallbackIcon="playlist"
+                  />
+                </div>
+              ))}
+            </div>
+            {/* Desktop: Grid with glide indicator */}
+            <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative">
               <div
-                key={pl.id}
-                onMouseEnter={playlistGrid.handleItemMouseEnter}
-                className="relative z-[1] h-full"
-              >
-                <MediaCard
-                  id={pl.id}
-                  title={pl.name}
-                  subtitle="Playlist cá nhân"
-                  coverUrl={pl.cover_url || undefined}
-                  type="playlist"
-                  badgeLabel="Playlist"
-                  href={`/playlist/${pl.id}`}
-                  index={idx}
-                  fallbackIcon="playlist"
-                />
-              </div>
-            ))}
+                className="grid-glide-indicator"
+                style={{
+                  transform: `translate3d(${playlistGrid.indicator.left}px, ${playlistGrid.indicator.top}px, 0) scale(${playlistGrid.indicator.scaleX}, ${playlistGrid.indicator.scaleY})`,
+                  width: `${playlistGrid.indicator.width}px`,
+                  height: `${playlistGrid.indicator.height}px`,
+                  opacity: playlistGrid.indicator.opacity,
+                }}
+              />
+              {playlists.slice(0, 6).map((pl, idx) => (
+                <div
+                  key={pl.id}
+                  onMouseEnter={playlistGrid.handleItemMouseEnter}
+                  className="relative z-[1] h-full"
+                >
+                  <MediaCard
+                    id={pl.id}
+                    title={pl.name}
+                    subtitle="Playlist cá nhân"
+                    coverUrl={pl.cover_url || undefined}
+                    type="playlist"
+                    badgeLabel="Playlist"
+                    href={`/playlist/${pl.id}`}
+                    index={idx}
+                    fallbackIcon="playlist"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -906,53 +961,98 @@ export default function HomePage() {
             {loadingTrending && <Loader2 style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3.5 h-3.5 animate-spin" />}
           </div>
 
+          {/* Mobile: Horizontal scroll | Desktop: Grid */}
           {loadingTrending ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse flex flex-col gap-2.5">
-                  <div className="aspect-square w-full bg-slate-800/80 rounded-xl" />
-                  <div className="h-3 bg-slate-700/80 rounded w-3/4" />
-                  <div className="h-2 bg-slate-800/80 rounded w-1/2" />
-                </div>
-              ))}
-            </div>
+            <>
+              {/* Mobile skeleton */}
+              <div className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2 -mx-2.5 px-2.5"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex-shrink-0 w-[140px] bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse">
+                    <div className="aspect-square w-full bg-slate-800/80 rounded-xl" />
+                    <div className="h-3 bg-slate-700/80 rounded w-3/4 mt-2.5" />
+                    <div className="h-2 bg-slate-800/80 rounded w-1/2 mt-1" />
+                  </div>
+                ))}
+              </div>
+              {/* Desktop skeleton */}
+              <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse flex flex-col gap-2.5">
+                    <div className="aspect-square w-full bg-slate-800/80 rounded-xl" />
+                    <div className="h-3 bg-slate-700/80 rounded w-3/4" />
+                    <div className="h-2 bg-slate-800/80 rounded w-1/2" />
+                  </div>
+                ))}
+              </div>
+            </>
           ) : displayTrending.length > 0 ? (
-            <div
-              ref={trendingGrid.containerRef}
-              onMouseLeave={trendingGrid.handleContainerMouseLeave}
-              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative"
-            >
+            <>
+              {/* Mobile: Horizontal scroll */}
               <div
-                className="grid-glide-indicator"
-                style={{
-                  transform: `translate3d(${trendingGrid.indicator.left}px, ${trendingGrid.indicator.top}px, 0) scale(${trendingGrid.indicator.scaleX}, ${trendingGrid.indicator.scaleY})`,
-                  width: `${trendingGrid.indicator.width}px`,
-                  height: `${trendingGrid.indicator.height}px`,
-                  opacity: trendingGrid.indicator.opacity,
-                }}
-              />
-              {displayTrending.map((t, idx) => (
+                className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2 -mx-2.5 px-2.5"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {displayTrending.map((t, idx) => (
+                  <div
+                    key={t.id}
+                    className="flex-shrink-0 w-[140px] snap-start"
+                  >
+                    <MediaCard
+                      id={t.id}
+                      title={t.title}
+                      subtitle={t.artist || 'Nghệ sĩ chưa xác định'}
+                      coverUrl={t.cover_url}
+                      type="track"
+                      badgeLabel="Hot"
+                      href="#"
+                      onPlay={() => playTrack(t, combinedTrendingTracks)}
+                      isPlaying={currentTrack?.id === t.id && isPlaying}
+                      index={idx}
+                      fallbackIcon="track"
+                    />
+                  </div>
+                ))}
+              </div>
+              {/* Desktop: Grid with glide indicator */}
+              <div
+                ref={trendingGrid.containerRef}
+                onMouseLeave={trendingGrid.handleContainerMouseLeave}
+                className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative"
+              >
                 <div
-                  key={t.id}
-                  onMouseEnter={trendingGrid.handleItemMouseEnter}
-                  className="relative z-[1] h-full"
-                >
-                  <MediaCard
-                    id={t.id}
-                    title={t.title}
-                    subtitle={t.artist || 'Nghệ sĩ chưa xác định'}
-                    coverUrl={t.cover_url}
-                    type="track"
-                    badgeLabel="Hot"
-                    href="#"
-                    onPlay={() => playTrack(t, combinedTrendingTracks)}
-                    isPlaying={currentTrack?.id === t.id && isPlaying}
-                    index={idx}
-                    fallbackIcon="track"
-                  />
-                </div>
-              ))}
-            </div>
+                  className="grid-glide-indicator"
+                  style={{
+                    transform: `translate3d(${trendingGrid.indicator.left}px, ${trendingGrid.indicator.top}px, 0) scale(${trendingGrid.indicator.scaleX}, ${trendingGrid.indicator.scaleY})`,
+                    width: `${trendingGrid.indicator.width}px`,
+                    height: `${trendingGrid.indicator.height}px`,
+                    opacity: trendingGrid.indicator.opacity,
+                  }}
+                />
+                {displayTrending.map((t, idx) => (
+                  <div
+                    key={t.id}
+                    onMouseEnter={trendingGrid.handleItemMouseEnter}
+                    className="relative z-[1] h-full"
+                  >
+                    <MediaCard
+                      id={t.id}
+                      title={t.title}
+                      subtitle={t.artist || 'Nghệ sĩ chưa xác định'}
+                      coverUrl={t.cover_url}
+                      type="track"
+                      badgeLabel="Hot"
+                      href="#"
+                      onPlay={() => playTrack(t, combinedTrendingTracks)}
+                      isPlaying={currentTrack?.id === t.id && isPlaying}
+                      index={idx}
+                      fallbackIcon="track"
+                    />
+                  </div>
+                ))}
+              </div>
+            </>
           ) : (
             <div className="p-6 bg-white/[0.02] border border-white/10 rounded-2xl flex flex-col items-center justify-center text-center gap-2">
               <p className="text-xs text-slate-400">Đang cập nhật danh sách bài hát Trending...</p>
@@ -988,41 +1088,69 @@ export default function HomePage() {
             </Link>
           </div>
 
+          {/* Mobile: Horizontal scroll | Desktop: Grid */}
           <div
             ref={driveGrid.containerRef}
             onMouseLeave={driveGrid.handleContainerMouseLeave}
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative"
           >
-            <div
-              className="grid-glide-indicator"
-              style={{
-                transform: `translate3d(${driveGrid.indicator.left}px, ${driveGrid.indicator.top}px, 0) scale(${driveGrid.indicator.scaleX}, ${driveGrid.indicator.scaleY})`,
-                width: `${driveGrid.indicator.width}px`,
-                height: `${driveGrid.indicator.height}px`,
-                opacity: driveGrid.indicator.opacity,
-              }}
-            />
-            {driveTracks.slice(0, 6).map((t, idx) => (
+            {/* Mobile: Horizontal scroll */}
+            <div className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2 -mx-2.5 px-2.5"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {driveTracks.slice(0, 6).map((t, idx) => (
+                <div
+                  key={t.id}
+                  className="flex-shrink-0 w-[140px] snap-start"
+                >
+                  <MediaCard
+                    id={t.id}
+                    title={t.title}
+                    subtitle={t.artist || 'Nghệ sĩ chưa xác định'}
+                    coverUrl={t.cover_url}
+                    type="track"
+                    badgeLabel="Drive"
+                    href="/drive"
+                    onPlay={() => playTrack(t, driveTracks)}
+                    isPlaying={currentTrack?.id === t.id && isPlaying}
+                    index={idx}
+                    fallbackIcon="track"
+                  />
+                </div>
+              ))}
+            </div>
+            {/* Desktop: Grid with glide indicator */}
+            <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative">
               <div
-                key={t.id}
-                onMouseEnter={driveGrid.handleItemMouseEnter}
-                className="relative z-[1] h-full"
-              >
-                <MediaCard
-                  id={t.id}
-                  title={t.title}
-                  subtitle={t.artist || 'Nghệ sĩ chưa xác định'}
-                  coverUrl={t.cover_url}
-                  type="track"
-                  badgeLabel="Drive"
-                  href="/drive"
-                  onPlay={() => playTrack(t, driveTracks)}
-                  isPlaying={currentTrack?.id === t.id && isPlaying}
-                  index={idx}
-                  fallbackIcon="track"
-                />
-              </div>
-            ))}
+                className="grid-glide-indicator"
+                style={{
+                  transform: `translate3d(${driveGrid.indicator.left}px, ${driveGrid.indicator.top}px, 0) scale(${driveGrid.indicator.scaleX}, ${driveGrid.indicator.scaleY})`,
+                  width: `${driveGrid.indicator.width}px`,
+                  height: `${driveGrid.indicator.height}px`,
+                  opacity: driveGrid.indicator.opacity,
+                }}
+              />
+              {driveTracks.slice(0, 6).map((t, idx) => (
+                <div
+                  key={t.id}
+                  onMouseEnter={driveGrid.handleItemMouseEnter}
+                  className="relative z-[1] h-full"
+                >
+                  <MediaCard
+                    id={t.id}
+                    title={t.title}
+                    subtitle={t.artist || 'Nghệ sĩ chưa xác định'}
+                    coverUrl={t.cover_url}
+                    type="track"
+                    badgeLabel="Drive"
+                    href="/drive"
+                    onPlay={() => playTrack(t, driveTracks)}
+                    isPlaying={currentTrack?.id === t.id && isPlaying}
+                    index={idx}
+                    fallbackIcon="track"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -1031,7 +1159,8 @@ export default function HomePage() {
       <div className="flex flex-col gap-4">
         {!isSearching && (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar touch-pan-x pr-2 py-0.5">
+            {/* Tabs: hidden on mobile, visible on md+ */}
+            <div className="hidden md:flex items-center gap-2 overflow-x-auto no-scrollbar touch-pan-x pr-2 py-0.5">
               <button
                 onClick={() => setLibraryTab('recent')}
                 style={
