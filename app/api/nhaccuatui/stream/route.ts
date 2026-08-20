@@ -3,6 +3,9 @@ import { normalizeNhacCuaTuiSongResponse } from '@/lib/nhaccuatui'
 import { fetchWithRetry, isTransientError } from '@/lib/fetchWithRetry'
 
 export const dynamic = 'force-dynamic'
+// Maximum execution time per invocation (Vercel Pro limit = 300s).
+// NCT stream resolution + CDN pipe can take 8-15s on cold path.
+export const maxDuration = 300
 
 const DEFAULT_NCT_API_BASE_URL = 'https://music-api.vanhuy2004h.io.vn'
 

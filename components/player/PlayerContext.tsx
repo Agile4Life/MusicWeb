@@ -727,9 +727,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       const driveFileId = track.drive_file_id || extractDriveFileId(filePath)
       if (driveFileId) {
-        const cachedDirectUrl = getClientCdnCache(driveFileId)
-        if (cachedDirectUrl) {
-          return cachedDirectUrl
+        // On iOS: always use the proxy URL (Cloudflare Worker or /api/drive-stream).
+        // The audio element has crossOrigin="anonymous" for Web Audio API support, which
+        // requires CORS headers. Direct Drive CDN URLs (lh3.googleusercontent.com, etc.)
+        // don't consistently send CORS headers → iOS blocks the audio with a CORS error.
+        if (!isIOSDevice()) {
+          const cachedDirectUrl = getClientCdnCache(driveFileId)
+          if (cachedDirectUrl) {
+            return cachedDirectUrl
+          }
         }
         const ext =
           track.file_ext ||

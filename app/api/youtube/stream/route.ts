@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { resolveYouTubeAudioStreamCached, streamUrlCache } from '@/lib/youtubeStream'
 
 export const dynamic = 'force-dynamic'
+// Maximum execution time per invocation (Vercel Pro limit = 300s).
+// Each browser Range request is a separate invocation — resolution takes ~8-15s
+// on cold start; subsequent Range chunks complete in < 1s.
+export const maxDuration = 300
 
 export async function GET(req: NextRequest) {
   try {
