@@ -35,39 +35,61 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${appUrl}/login?error=SsoUnavailable`)
   }
 
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  if (!anonKey) {
+    console.warn('[SSO] Supabase anon key not configured')
+    return NextResponse.redirect(`${appUrl}/login?error=SsoUnavailable`)
+  }
+
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } })
 
-  // Same full-scan lookup already used for Google-account linking in
-  // lib/authOptions.ts — kept consistent rather than introducing a second
-  // way to find a user by email.
-  const { data: listData } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
-  let userId = listData?.users?.find((u) => u.email?.toLowerCase() === profile.email)?.id
-
-  if (!userId) {
-    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+  try {
+    // Auto-provision on first visit — anyone with a valid hlc_session is
+    // already a vetted hoilauchay member. createUser() no-ops into an
+    // "already registered" error for a returning user, which is fine: we
+    // only need the account to exist before minting a session below.
+    const { error: createErr } = await admin.auth.admin.createUser({
       email: profile.email,
       email_confirm: true,
       user_metadata: { name: profile.name, picture: profile.picture, source: 'hoilauchay-sso' },
     })
-    if (createErr || !created?.user) {
-      console.warn('[SSO] auto-provision failed:', createErr?.message)
+    if (createErr && !/already.*registered|already.*exists/i.test(createErr.message || '')) {
+      console.warn('[SSO] auto-provision failed:', createErr.message)
       return NextResponse.redirect(`${appUrl}/login?error=SsoProvisionFailed`)
     }
-    userId = created.user.id
-  }
 
-  // Same admin.createSession() call already used to mint a Supabase session
-  // for a known user id in the Google-linking flow (lib/authOptions.ts).
-  const { data: sessionData, error: sessionErr } = await (admin.auth.admin as any).createSession({
-    user_id: userId,
-  })
-  if (sessionErr || !sessionData?.session?.access_token) {
-    console.warn('[SSO] session mint failed:', sessionErr?.message)
+    // generateLink()+verifyOtp() is Supabase's documented way to mint a real
+    // session server-side for a known email without a password — unlike
+    // admin.createSession() (used elsewhere in this codebase for Google
+    // account linking), this is public API, not an `as any`-cast internal
+    // method, so it's the more reliable choice for a flow that has to work
+    // every time rather than being a best-effort enhancement.
+    const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
+      type: 'magiclink',
+      email: profile.email,
+    })
+    const hashedToken = linkData?.properties?.hashed_token
+    if (linkErr || !hashedToken) {
+      console.warn('[SSO] generateLink failed:', linkErr?.message)
+      return NextResponse.redirect(`${appUrl}/login?error=SsoSessionFailed`)
+    }
+
+    const anon = createClient(supabaseUrl, anonKey, { auth: { persistSession: false } })
+    const { data: verifyData, error: verifyErr } = await anon.auth.verifyOtp({
+      token_hash: hashedToken,
+      type: 'magiclink',
+    })
+    if (verifyErr || !verifyData?.session?.access_token) {
+      console.warn('[SSO] verifyOtp failed:', verifyErr?.message)
+      return NextResponse.redirect(`${appUrl}/login?error=SsoSessionFailed`)
+    }
+
+    const complete = new URL('/sso/complete', appUrl)
+    complete.searchParams.set('email', profile.email)
+    complete.searchParams.set('accessToken', verifyData.session.access_token)
+    return NextResponse.redirect(complete)
+  } catch (err) {
+    console.error('[SSO] Supabase admin call threw:', err)
     return NextResponse.redirect(`${appUrl}/login?error=SsoSessionFailed`)
   }
-
-  const complete = new URL('/sso/complete', appUrl)
-  complete.searchParams.set('email', profile.email)
-  complete.searchParams.set('accessToken', sessionData.session.access_token)
-  return NextResponse.redirect(complete)
 }
