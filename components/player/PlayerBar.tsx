@@ -81,6 +81,18 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
   if (isNowPlayingOpen) return null
 
   const [isLiquidGlass, setIsLiquidGlass] = useState(false)
+  const [isNavCollapsed, setIsNavCollapsed] = useState(false)
+
+  useEffect(() => {
+    const handleNavMode = (e: Event) => {
+      const detail = (e as CustomEvent<{ mode: string; isCollapsed: boolean }>).detail
+      if (typeof detail?.isCollapsed === 'boolean') {
+        setIsNavCollapsed(detail.isCollapsed)
+      }
+    }
+    window.addEventListener('mweb:navbar-mode', handleNavMode)
+    return () => window.removeEventListener('mweb:navbar-mode', handleNavMode)
+  }, [])
 
   useEffect(() => {
     const root = document.documentElement
@@ -375,7 +387,11 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
       {/* 📱 MOBILE FLOATING MINI PLAYER BAR (Visible on < 768px) */}
       <div
         onClick={openNowPlayingOverlay}
-        className={`${miniPlayerClassName} !rounded-[37px] rounded-[37px] select-none cursor-pointer active:opacity-90 transition-opacity relative overflow-hidden pointer-events-auto`}
+        className={`${miniPlayerClassName} !rounded-[37px] rounded-[37px] select-none cursor-pointer active:scale-[0.98] transition-transform relative overflow-hidden ${
+          isNavCollapsed
+            ? 'opacity-0 translate-y-6 scale-[0.94] pointer-events-none'
+            : 'opacity-100 translate-y-0 scale-100 pointer-events-auto'
+        }`}
         style={{
           borderRadius: 37,
           background: 'rgba(255, 255, 255, 0.025)',
@@ -383,6 +399,9 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
           boxShadow: '0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.12)',
           backdropFilter: 'blur(16px) saturate(150%)',
           WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+          transition: isNavCollapsed
+            ? 'opacity 220ms cubic-bezier(0.32, 0.72, 0, 1), transform 220ms cubic-bezier(0.32, 0.72, 0, 1)'
+            : 'opacity 320ms cubic-bezier(0.16, 1, 0.3, 1), transform 320ms cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
         {/* Inner glass specular gradient */}

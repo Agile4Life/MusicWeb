@@ -126,7 +126,8 @@ export function TopBar() {
   }
 
   return (
-    <header className="sticky top-0 z-20 h-14 sm:h-16 lg:h-18 px-4 sm:px-6 lg:px-8 py-2 lg:py-3 app-header flex lg:grid lg:grid-cols-[1fr_auto_1fr] items-center justify-center gap-3 sm:gap-4 select-none">
+    <header className="sticky top-0 z-20 hidden lg:grid lg:grid-cols-[1fr_auto_1fr] h-14 sm:h-16 lg:h-18 px-4 sm:px-6 lg:px-8 py-2 lg:py-3 app-header items-center justify-center gap-3 sm:gap-4 select-none">
+
       {/* Left Slot: Balanced 1fr space on desktop */}
       <div className="hidden lg:flex items-center justify-start min-w-0" />
 

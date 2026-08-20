@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { PlayerProvider } from '@/components/player/PlayerContext'
 import { PlaylistProvider } from '@/components/playlist/PlaylistContext'
 import { SearchProvider } from '@/components/search/SearchContext'
@@ -10,7 +10,9 @@ import { PlayerBar } from '@/components/player/PlayerBar'
 import { AuthGuard } from '@/components/auth/AuthGuard'
 import { CurrentUserProvider } from '@/components/auth/CurrentUserContext'
 import { MobileHeaderNav } from '@/components/navigation/MobileHeaderNav'
+import { MobileScrollHeader } from '@/components/navigation/MobileScrollHeader'
 import { TopBar } from '@/components/navigation/TopBar'
+import { ScrollProvider, useScrollContext } from '@/components/navigation/ScrollContext'
 import { QueueDrawer } from '@/components/player/QueueDrawer'
 import { NowPlayingOverlay } from '@/components/player/NowPlayingOverlay'
 import { mobileContentPaddingClassName } from '@/components/player/mobileLayout'
@@ -38,6 +40,14 @@ function GamingModeShell() {
 function AppLayoutInner({ children }: { children: React.ReactNode }) {
   const [isScrolled, setIsScrolled] = useState(false)
   const isGamingActive = useGamingMode()
+  const contentScrollRef = useRef<HTMLDivElement>(null)
+  const { setScrollContainer } = useScrollContext()
+
+  useEffect(() => {
+    if (contentScrollRef.current) {
+      setScrollContainer(contentScrollRef.current)
+    }
+  }, [setScrollContainer])
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const scrollTop = e.currentTarget.scrollTop
@@ -59,8 +69,8 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
       {/* Dynamic Liquid Ambient Canvas */}
       <LiquidAmbientCanvas />
 
-      {/* Mobile Header (Smartphone view) */}
-      <MobileHeaderNav />
+      {/* Bottom nav and drawer only */}
+      <MobileHeaderNav hideTopHeader />
 
       <div className="flex-1 flex min-h-0 relative gap-0 sm:gap-1.5 lg:gap-3">
         {/* Desktop Left Sidebar */}
@@ -70,9 +80,12 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
         <main className="main-content-panel flex-1 rounded-none sm:rounded-t-2xl sm:rounded-b-[37px] overflow-hidden flex flex-col relative">
           <TopBar />
           <div
+            ref={contentScrollRef}
             onScroll={handleScroll}
             className={`flex-1 overflow-y-auto min-h-0 relative main-content-scroll ${mobileContentPaddingClassName} lg:pb-24`}
           >
+            {/* Mobile scroll header — sticky at top of scroll container */}
+            <MobileScrollHeader />
             {/* Single children tree wrapped with page transition */}
             <MobilePageTransition>{children}</MobilePageTransition>
           </div>
@@ -100,7 +113,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <PlayerProvider>
             <PlaylistProvider>
               <SearchProvider>
-                <AppLayoutInner>{children}</AppLayoutInner>
+                <ScrollProvider>
+                  <AppLayoutInner>{children}</AppLayoutInner>
+                </ScrollProvider>
               </SearchProvider>
             </PlaylistProvider>
           </PlayerProvider>

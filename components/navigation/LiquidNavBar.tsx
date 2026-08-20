@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
   Home,
   DiscAlbum,
@@ -11,8 +12,21 @@ import {
   History,
   Cloud,
   Music,
+  Play,
+  Pause,
+  Search,
 } from 'lucide-react'
 import { useLiquidNav, LiquidNavTab } from '@/hooks/useLiquidNav'
+import { usePlayer } from '@/components/player/PlayerContext'
+import { TrackCoverImage } from '@/components/common/TrackCoverImage'
+
+// ─── NavBar state machine ───
+type NavBarMode = 'expanded' | 'collapsing' | 'collapsed' | 'expanding'
+
+/** Duration of the one-shot morph, in ms — measured for Apple-smooth fluid morphing */
+const MORPH_DURATION_MS = 280
+/** Cubic-bezier matching Apple UIKit fluid spring curve: steep responsive start, buttery smooth settle */
+const MORPH_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1]
 
 // ─── SDF Math (same as hook) ───
 
@@ -219,6 +233,61 @@ export function LiquidNavBar({
   const router = useRouter()
   const pathname = usePathname()
   const filterId = useId()
+  const { currentTrack, isPlaying, togglePlay } = usePlayer()
+
+  // ─── Capsule / NavBar state machine ───
+  const [navMode, setNavMode] = useState<NavBarMode>('expanded')
+  const navModeRef = useRef<NavBarMode>('expanded')
+  const morphTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const setMode = useCallback((m: NavBarMode) => {
+    navModeRef.current = m
+    setNavMode(m)
+    window.dispatchEvent(
+      new CustomEvent('mweb:navbar-mode', {
+        detail: { mode: m, isCollapsed: m === 'collapsed' || m === 'collapsing' },
+      })
+    )
+  }, [])
+
+  // Listen for header-progress events — collapse on scroll down, re-expand when scrolling back to top
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ collapsed: boolean }>).detail
+      if (detail.collapsed && (navModeRef.current === 'expanded' || navModeRef.current === 'expanding')) {
+        if (morphTimerRef.current) clearTimeout(morphTimerRef.current)
+        setMode('collapsing')
+        morphTimerRef.current = setTimeout(() => setMode('collapsed'), MORPH_DURATION_MS)
+      } else if (!detail.collapsed && (navModeRef.current === 'collapsed' || navModeRef.current === 'collapsing')) {
+        if (morphTimerRef.current) clearTimeout(morphTimerRef.current)
+        setMode('expanding')
+        morphTimerRef.current = setTimeout(() => setMode('expanded'), MORPH_DURATION_MS)
+      }
+    }
+    window.addEventListener('mweb:header-progress', handler)
+    return () => window.removeEventListener('mweb:header-progress', handler)
+  }, [setMode])
+
+  // Expand on route change (natural reset when navigating)
+  useEffect(() => {
+    if (navModeRef.current === 'collapsed' || navModeRef.current === 'collapsing') {
+      if (morphTimerRef.current) clearTimeout(morphTimerRef.current)
+      setMode('expanding')
+      morphTimerRef.current = setTimeout(() => setMode('expanded'), MORPH_DURATION_MS)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname])
+
+  const handleCapsuleTap = useCallback(() => {
+    if (navModeRef.current === 'collapsed') {
+      if (morphTimerRef.current) clearTimeout(morphTimerRef.current)
+      setMode('expanding')
+      morphTimerRef.current = setTimeout(() => setMode('expanded'), MORPH_DURATION_MS)
+    }
+  }, [setMode])
+
+  const isCollapsedMode = navMode === 'collapsed' || navMode === 'collapsing'
+  const isExpandedMode = navMode === 'expanded' || navMode === 'expanding'
 
   // Blob state
   const [blobLeft, setBlobLeft] = useState(0)
@@ -495,6 +564,9 @@ export function LiquidNavBar({
 
   // ─── Render ───
 
+  const activeTab = tabs[activeIndex]
+  const ActiveIcon = activeTab ? icons[activeTab.icon] : null
+
   return (
     <>
       {/* SVG Filter */}
@@ -511,187 +583,280 @@ export function LiquidNavBar({
         className={`liquid-nav-container lg:hidden fixed bottom-0 left-0 right-0 z-40 px-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] select-none ${className}`}
         style={style}
       >
-        {/* Main liquid glass bar */}
-        <div
-          ref={navRef}
-          className={`liquid-nav relative h-[68px] rounded-[37px] ${isNavExpanded ? 'scale-[1.01]' : ''}`}
-          style={{
-            background: 'rgba(255,255,255,0.025)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.12)',
-            backdropFilter: 'blur(16px) saturate(150%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(150%)',
-            transformOrigin: 'center bottom',
-            transition: isDragging ? 'transform 0.08s ease-out' : 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
-          }}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerLeave={(e) => { if (dragRef.current.active) onPointerUp(e as unknown as React.PointerEvent) }}
-          onMouseMove={onMouseMove}
-          onMouseLeave={onMouseLeave}
-        >
-          {/* Inner glass gradient */}
-          <span
-            aria-hidden="true"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              borderRadius: 37,
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 40%)',
-              pointerEvents: 'none',
-            }}
-          />
-
-          {/* Liquid blob indicator */}
-          <span
-            aria-hidden="true"
-            style={{
-              position: 'absolute',
-              top: 6,
-              bottom: 6,
-              left: blobLeft,
-              width: blobWidth,
-              borderRadius: 28,
-              pointerEvents: 'none',
-              zIndex: 1,
-              transformOrigin: 'center center',
-              transform: isDragging
-                ? `scaleX(${blobScaleX * 1.20}) scaleY(${blobScaleY * 1.36})`
-                : `scaleX(${blobScaleX}) scaleY(${blobScaleY})`,
-              transition: isDragging
-                ? 'transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, background 0.2s ease'
-                : 'left 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, background 0.3s ease',
-              backdropFilter: `${displacementMapUrl ? 'url(#liquidNavDisplacement) ' : ''}blur(${blurAmount * 32 + (isDragging ? 22 : 16)}px) saturate(${isDragging ? 220 : saturation}%) brightness(${isDragging ? 1.15 : 1})`,
-              WebkitBackdropFilter: `${displacementMapUrl ? 'url(#liquidNavDisplacement) ' : ''}blur(${blurAmount * 32 + (isDragging ? 22 : 16)}px) saturate(${isDragging ? 220 : saturation}%) brightness(${isDragging ? 1.15 : 1})`,
-              background: isDragging
-                ? 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 18%, rgba(255,255,255,0.12))'
-                : 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 12%, rgba(255,255,255,0.06))',
-              boxShadow: isDragging
-                ? '0 0 0 0.75px rgba(255,255,255,0.35), 0 16px 36px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.3), inset 0 1px 1.5px rgba(255,255,255,0.35), inset 0 -1px 1.5px rgba(0,0,0,0.2)'
-                : '0 0 0 0.5px rgba(255,255,255,0.2), 0 4px 12px rgba(0,0,0,0.2), inset 0 0.5px 0 rgba(255,255,255,0.12)',
-            }}
-          >
-            {/* Chromatic aberration rainbow rim on holding */}
-            <span
-              aria-hidden="true"
+        <AnimatePresence mode="popLayout" initial={false}>
+          {isExpandedMode ? (
+            /* ─── EXPANDED: Full 5-tab liquid bar ─── */
+            <motion.div
+              key="navbar-expanded"
+              layoutId="navbar-shell"
+              layout
+              transition={{ duration: MORPH_DURATION_MS / 1000, ease: MORPH_EASE }}
+              ref={navRef}
+              className={`liquid-nav relative h-[68px] rounded-[37px] ${isNavExpanded ? 'scale-[1.01]' : ''}`}
               style={{
-                position: 'absolute',
-                inset: 0,
-                borderRadius: 28,
-                pointerEvents: 'none',
-                background: 'linear-gradient(135deg, rgba(34,211,238,0.5) 0%, rgba(255,255,255,0.7) 30%, rgba(236,72,153,0.5) 70%, rgba(59,130,246,0.5) 100%)',
-                mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-                WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-                maskComposite: 'exclude',
-                WebkitMaskComposite: 'xor',
-                padding: '0.75px',
-                opacity: isDragging ? 0.7 : 0,
-                transition: 'opacity 0.2s ease',
-                zIndex: 3,
+                background: 'rgba(255,255,255,0.025)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.12)',
+                backdropFilter: 'blur(16px) saturate(150%)',
+                WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+                transformOrigin: 'center bottom',
               }}
-            />
-          </span>
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerLeave={(e) => { if (dragRef.current.active) onPointerUp(e as unknown as React.PointerEvent) }}
+              onMouseMove={onMouseMove}
+              onMouseLeave={onMouseLeave}
+            >
+              {/* Inner glass gradient */}
+              <span
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  borderRadius: 37,
+                  background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 40%)',
+                  pointerEvents: 'none',
+                }}
+              />
 
-          {/* Tabs grid */}
-          <div className="relative grid grid-cols-5 h-full items-stretch z-[2] px-1.5">
-            {tabs.map((tab, i) => {
-              const isActive = i === activeIndex
-              const IconComp = icons[tab.icon]
-
-              // Optical physics calculations relative to moving liquid blob center
-              const blobCenter = blobLeft + blobWidth / 2
-              const tabEl = tabRefs.current[i]
-              const tabCenter = tabEl ? (tabEl.offsetLeft + tabEl.offsetWidth / 2) : (i * 64 + 32)
-              const dx = tabCenter - blobCenter
-              const lensRadius = Math.max(blobWidth * 0.95, 52)
-              const u = Math.min(Math.abs(dx) / lensRadius, 1)
-
-              // Pure centered magnification without drift or horizontal displacement
-              const opticalZoom = isDragging
-                ? (u < 1 ? (1 + (1 - u * u) * 0.28).toFixed(3) : '1.000')
-                : (isActive ? '1.120' : '1.000')
-
-              const textZoom = isDragging
-                ? (u < 1 ? (1 + (1 - u * u) * 0.12).toFixed(3) : '1.000')
-                : '1.000'
-
-              const iconTransform = `scale(${opticalZoom})`
-              const textTransform = `scale(${textZoom})`
-
-              const iconColor = isDragging
-                ? (u < 0.6
-                  ? 'text-[var(--spotify-glow,#22d3ee)]'
-                  : 'text-[var(--spotify-glow,#22d3ee)]/70')
-                : (isActive
-                  ? 'text-white'
-                  : 'text-slate-400 hover:text-slate-200')
-
-              const textColor = isDragging
-                ? (u < 0.6
-                  ? 'text-[var(--spotify-glow,#22d3ee)] font-bold'
-                  : 'text-[var(--spotify-glow,#22d3ee)]/80 font-semibold')
-                : (isActive
-                  ? 'text-white font-bold'
-                  : 'text-slate-300 font-medium')
-
-              const content = (
-                <button
-                  key={tab.id}
-                  ref={(el) => { tabRefs.current[i] = el }}
-                  type="button"
-                  onPointerDown={(e) => onPointerDown(e)}
-                  onClick={(e) => {
-                    e.preventDefault()
-                    if (!dragRef.current.active) {
-                      handleTabClick(i)
-                    }
+              {/* Liquid blob indicator */}
+              <span
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  top: 6,
+                  bottom: 6,
+                  left: blobLeft,
+                  width: blobWidth,
+                  borderRadius: 28,
+                  pointerEvents: 'none',
+                  zIndex: 1,
+                  transformOrigin: 'center center',
+                  transform: isDragging
+                    ? `scaleX(${blobScaleX * 1.20}) scaleY(${blobScaleY * 1.36})`
+                    : `scaleX(${blobScaleX}) scaleY(${blobScaleY})`,
+                  transition: isDragging
+                    ? 'transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, background 0.2s ease'
+                    : 'left 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, background 0.3s ease',
+                  backdropFilter: `${displacementMapUrl ? 'url(#liquidNavDisplacement) ' : ''}blur(${blurAmount * 32 + (isDragging ? 22 : 16)}px) saturate(${isDragging ? 220 : saturation}%) brightness(${isDragging ? 1.15 : 1})`,
+                  WebkitBackdropFilter: `${displacementMapUrl ? 'url(#liquidNavDisplacement) ' : ''}blur(${blurAmount * 32 + (isDragging ? 22 : 16)}px) saturate(${isDragging ? 220 : saturation}%) brightness(${isDragging ? 1.15 : 1})`,
+                  background: isDragging
+                    ? 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 18%, rgba(255,255,255,0.12))'
+                    : 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 12%, rgba(255,255,255,0.06))',
+                  boxShadow: isDragging
+                    ? '0 0 0 0.75px rgba(255,255,255,0.35), 0 16px 36px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.3), inset 0 1px 1.5px rgba(255,255,255,0.35), inset 0 -1px 1.5px rgba(0,0,0,0.2)'
+                    : '0 0 0 0.5px rgba(255,255,255,0.2), 0 4px 12px rgba(0,0,0,0.2), inset 0 0.5px 0 rgba(255,255,255,0.12)',
+                }}
+              >
+                {/* Chromatic aberration rainbow rim on holding */}
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    borderRadius: 28,
+                    pointerEvents: 'none',
+                    background: 'linear-gradient(135deg, rgba(34,211,238,0.5) 0%, rgba(255,255,255,0.7) 30%, rgba(236,72,153,0.5) 70%, rgba(59,130,246,0.5) 100%)',
+                    mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                    WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                    maskComposite: 'exclude',
+                    WebkitMaskComposite: 'xor',
+                    padding: '0.75px',
+                    opacity: isDragging ? 0.7 : 0,
+                    transition: 'opacity 0.2s ease',
+                    zIndex: 3,
                   }}
-                  className={[
-                    'h-full w-full flex flex-col items-center justify-center gap-[2px] cursor-pointer',
-                    'transition-colors duration-250 select-none',
-                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-glow,#22d3ee)]/50 focus-visible:ring-offset-1',
-                    textColor,
-                  ].join(' ')}
-                  style={{ position: 'relative', zIndex: 3 }}
-                >
-                  <span
-                    style={{
-                      transform: iconTransform,
-                      transition: isDragging
-                        ? 'transform 0.05s linear'
-                        : 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                    }}
-                  >
-                    {IconComp && (
-                      <IconComp
-                        className={`w-5 h-5 transition-all duration-250 ${iconColor}`}
-                        strokeWidth={isActive ? (isDragging ? 2.85 : 2.5) : 2}
-                      />
-                    )}
-                  </span>
-                  <span
-                    style={{
-                      transform: textTransform,
-                      transition: isDragging
-                        ? 'transform 0.05s linear'
-                        : 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                    }}
-                    className={`text-[10px] leading-none transition-all duration-250 ${textColor}`}
-                  >
-                    {tab.label}
-                  </span>
-                </button>
-              )
+                />
+              </span>
 
-              return (
-                <React.Fragment key={tab.id}>
-                  {content}
-                </React.Fragment>
-              )
-            })}
-          </div>
-        </div>
+              {/* Tabs grid */}
+              <div className="relative grid grid-cols-5 h-full items-stretch z-[2] px-1.5">
+                {tabs.map((tab, i) => {
+                  const isActive = i === activeIndex
+                  const IconComp = icons[tab.icon]
+
+                  const blobCenter = blobLeft + blobWidth / 2
+                  const tabEl = tabRefs.current[i]
+                  const tabCenter = tabEl ? (tabEl.offsetLeft + tabEl.offsetWidth / 2) : (i * 64 + 32)
+                  const dx = tabCenter - blobCenter
+                  const lensRadius = Math.max(blobWidth * 0.95, 52)
+                  const u = Math.min(Math.abs(dx) / lensRadius, 1)
+
+                  const opticalZoom = isDragging
+                    ? (u < 1 ? (1 + (1 - u * u) * 0.28).toFixed(3) : '1.000')
+                    : (isActive ? '1.120' : '1.000')
+
+                  const textZoom = isDragging
+                    ? (u < 1 ? (1 + (1 - u * u) * 0.12).toFixed(3) : '1.000')
+                    : '1.000'
+
+                  const iconColor = isDragging
+                    ? (u < 0.6 ? 'text-[var(--spotify-glow,#22d3ee)]' : 'text-[var(--spotify-glow,#22d3ee)]/70')
+                    : (isActive ? 'text-white' : 'text-slate-400 hover:text-slate-200')
+
+                  const textColor = isDragging
+                    ? (u < 0.6 ? 'text-[var(--spotify-glow,#22d3ee)] font-bold' : 'text-[var(--spotify-glow,#22d3ee)]/80 font-semibold')
+                    : (isActive ? 'text-white font-bold' : 'text-slate-300 font-medium')
+
+                  return (
+                    <React.Fragment key={tab.id}>
+                      <button
+                        ref={(el) => { tabRefs.current[i] = el }}
+                        type="button"
+                        onPointerDown={(e) => onPointerDown(e)}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          if (!dragRef.current.active) handleTabClick(i)
+                        }}
+                        className={[
+                          'h-full w-full flex flex-col items-center justify-center gap-[2px] cursor-pointer',
+                          'transition-colors duration-250 select-none',
+                          'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-glow,#22d3ee)]/50 focus-visible:ring-offset-1',
+                          textColor,
+                        ].join(' ')}
+                        style={{ position: 'relative', zIndex: 3 }}
+                      >
+                        <span style={{ transform: `scale(${opticalZoom})`, transition: isDragging ? 'transform 0.05s linear' : 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
+                          {IconComp && <IconComp className={`w-5 h-5 transition-all duration-250 ${iconColor}`} strokeWidth={isActive ? (isDragging ? 2.85 : 2.5) : 2} />}
+                        </span>
+                        <span
+                          style={{ transform: `scale(${textZoom})`, transition: isDragging ? 'transform 0.05s linear' : 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
+                          className={`text-[10px] leading-none transition-all duration-250 ${textColor}`}
+                        >
+                          {tab.label}
+                        </span>
+                      </button>
+                    </React.Fragment>
+                  )
+                })}
+              </div>
+            </motion.div>
+          ) : (
+            /* ─── COLLAPSED: Apple Music-style capsule ─── */
+            <motion.div
+              key="navbar-capsule"
+              layoutId="navbar-shell"
+              layout
+              transition={{ duration: MORPH_DURATION_MS / 1000, ease: MORPH_EASE }}
+              role="button"
+              tabIndex={0}
+              onClick={handleCapsuleTap}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleCapsuleTap() }}
+              aria-label="Mở thanh điều hướng"
+              className="w-full h-[62px] flex items-center px-2 gap-2 rounded-[37px] overflow-hidden cursor-pointer"
+              style={{
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderTopColor: 'rgba(255,255,255,0.25)',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15)',
+                backdropFilter: 'blur(20px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+              }}
+            >
+              {/* Left: Active Tab Icon — harmonized with outer left capsule curve */}
+              <motion.div
+                layout
+                className="shrink-0 w-[48px] h-[46px] rounded-l-[26px] rounded-r-[14px] flex items-center justify-center"
+                style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.10)',
+                  borderTopColor: 'rgba(255,255,255,0.20)',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)',
+                  minWidth: 48,
+                }}
+              >
+                {ActiveIcon && (
+                  <ActiveIcon
+                    className="w-5 h-5 text-white"
+                    strokeWidth={2.2}
+                  />
+                )}
+              </motion.div>
+
+              {/* Center: Mini Player — flex-1 */}
+              <motion.div
+                layout
+                className="flex-1 min-w-0 h-[46px] flex items-center gap-2 px-2.5 rounded-[16px]"
+                style={{
+                  background: currentTrack
+                    ? 'linear-gradient(135deg, rgba(var(--spotify-glow-rgb,34,211,238),0.14) 0%, rgba(255,255,255,0.05) 100%)'
+                    : 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.10)',
+                  borderTopColor: 'rgba(255,255,255,0.20)',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10)',
+                }}
+                onClick={(e) => {
+                  // Prevent expanding capsule when tapping player controls
+                  e.stopPropagation()
+                }}
+              >
+                {currentTrack ? (
+                  <>
+                    {/* Album art */}
+                    <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 bg-slate-800 border border-white/10">
+                      <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
+                    </div>
+                    {/* Track info */}
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <p className="text-[11px] font-bold text-white truncate leading-tight">
+                        {currentTrack.title}
+                      </p>
+                      <p className="text-[10px] text-slate-400 truncate leading-tight">
+                        {currentTrack.artist}
+                      </p>
+                    </div>
+                    {/* Play/Pause — div not button to avoid nesting */}
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); togglePlay?.() }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); togglePlay?.() } }}
+                      className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
+                      style={{
+                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                        boxShadow: '0 2px 8px rgba(6,182,212,0.4)',
+                        minWidth: 32,
+                      }}
+                      aria-label={isPlaying ? 'Tạm dừng' : 'Phát'}
+                    >
+                      {isPlaying
+                        ? <Pause className="w-3.5 h-3.5 fill-current text-black" />
+                        : <Play className="w-3.5 h-3.5 fill-current text-black ml-px" />}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-[11px] text-slate-500 truncate w-full text-center">
+                    Chưa phát nhạc
+                  </p>
+                )}
+              </motion.div>
+
+              {/* Right: Search Icon — harmonized with outer right capsule curve */}
+              <motion.div
+                layout
+                className="shrink-0 w-[48px] h-[46px] rounded-r-[26px] rounded-l-[14px] flex items-center justify-center cursor-pointer"
+                style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.10)',
+                  borderTopColor: 'rgba(255,255,255,0.20)',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)',
+                  minWidth: 48,
+                }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleCapsuleTap()
+                  setTimeout(() => {
+                    document.querySelector<HTMLElement>('.main-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' })
+                  }, 100)
+                }}
+              >
+                <Search className="w-5 h-5 text-slate-300" strokeWidth={2} />
+              </motion.div>
+            </motion.div>
+          )}
+
+        </AnimatePresence>
       </div>
     </>
   )

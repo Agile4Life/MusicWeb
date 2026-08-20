@@ -38,7 +38,7 @@ import { YoutubeIcon } from '@/components/icons/YoutubeIcon'
 import { shouldCloseProfileMenu, shouldToggleProfileMenu } from './profileMenuInteraction'
 import { LiquidNavBar } from './LiquidNavBar'
 
-export function MobileHeaderNav() {
+export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boolean }) {
   const { t } = useLanguage()
   const pathname = usePathname()
   const router = useRouter()
@@ -101,6 +101,13 @@ export function MobileHeaderNav() {
   useEffect(() => {
     setIsProfileMenuOpen(false)
   }, [pathname])
+
+  // Listen for drawer toggle from MobileScrollHeader
+  useEffect(() => {
+    const handleToggleDrawer = () => setIsDrawerOpen(true)
+    window.addEventListener('musicweb-toggle-drawer', handleToggleDrawer)
+    return () => window.removeEventListener('musicweb-toggle-drawer', handleToggleDrawer)
+  }, [])
 
   // Stagger animation for drawer items
   useEffect(() => {
@@ -168,8 +175,9 @@ export function MobileHeaderNav() {
 
   return (
     <>
-      {/* 📱 Mobile Top Header Bar (< 768px) */}
-      <div className="mobile-header relative lg:hidden h-14 px-3 xs:px-4 flex items-center justify-between select-none shrink-0">
+      {/* 📱 Mobile Top Header Bar (< 768px) - Hidden when using MobileScrollHeader */}
+      {!hideTopHeader && (
+        <div className="mobile-header relative lg:hidden h-14 px-3 xs:px-4 flex items-center justify-between select-none shrink-0">
         <div className="flex items-center gap-2 shrink-0 z-10">
           {pathname !== '/' && (
             <button
@@ -224,6 +232,7 @@ export function MobileHeaderNav() {
         {/* Right Slot: Balanced space for centered logo */}
         <div className="w-9 h-9 shrink-0 z-10 pointer-events-none" />
       </div>
+      )}
 
       {/* 📱 Mobile Bottom Navigation Bar (< 768px) — Liquid Glass */}
       <LiquidNavBar

@@ -260,6 +260,22 @@ body::before {
     0 4px 24px rgba(0, 0, 0, 0.4) !important;
 }
 
+/* Mobile: full-screen panel — remove ALL borders and top highlights */
+@media (max-width: 639px) {
+  .main-content-panel {
+    border: none !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+  .main-content-panel::before {
+    display: none !important;
+  }
+}
+
 .main-content-panel::before {
   content: "";
   position: absolute;
@@ -6477,5 +6493,31 @@ html[data-tab-hidden="true"] *::before,
 html[data-tab-hidden="true"] *::after {
   animation-play-state: paused !important;
   transition: none !important;
+}
+
+/* ================================================================
+   📱 MOBILE TOP-EDGE FIX — placed LAST to win all specificity wars
+   Removes every possible source of a top border/line on mobile.
+   ================================================================ */
+@media (max-width: 639px) {
+  .main-content-panel,
+  [data-theme-style] .main-content-panel,
+  [data-theme-style="liquid-glass"] .main-content-panel,
+  [data-theme-style="minimal-flat"] .main-content-panel {
+    border: none !important;
+    border-top: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
+  .main-content-panel::before,
+  .main-content-panel::after,
+  [data-theme-style] .main-content-panel::before,
+  [data-theme-style] .main-content-panel::after,
+  [data-theme-style="liquid-glass"] .main-content-panel::before,
+  [data-theme-style="liquid-glass"] .main-content-panel::after {
+    display: none !important;
+    content: none !important;
+  }
 }
 
