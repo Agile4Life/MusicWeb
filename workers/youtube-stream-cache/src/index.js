@@ -81,7 +81,7 @@ export default {
       if (!videoId) return json({ error: 'Invalid or missing videoId' }, 400)
 
       return method === 'HEAD'
-        ? handleHead(videoId, env)
+        ? handleHead(videoId, env, ctx)
         : handleStream(videoId, request, env, ctx)
     }
 
@@ -90,13 +90,17 @@ export default {
 }
 
 // ── HEAD handler ─────────────────────────────────────────────────────────────
+// When R2 is cold (miss), trigger background R2 population via ctx.waitUntil.
+// This turns the PlayerContext near-end prewarm (HEAD sent 30s before track ends)
+// into a true prewarm: by the time the next GET arrives, R2 is already warm.
 
-async function handleHead(videoId, env) {
+async function handleHead(videoId, env, ctx) {
   const r2Key = r2KeyFor(videoId)
 
   try {
     const meta = await env.AUDIO_BUCKET.head(r2Key)
     if (meta && meta.size > 0) {
+      // R2 hit — file is ready, return rich headers
       const headers = new Headers(CORS)
       headers.set('Content-Type', meta.httpMetadata?.contentType || 'audio/mp4')
       headers.set('Content-Length', String(meta.size))
@@ -107,7 +111,10 @@ async function handleHead(videoId, env) {
     }
   } catch {}
 
-  // Not in R2 yet — return 200 with minimal headers to indicate the URL is valid
+  // R2 miss — kick off background prewarm so the next GET is a cache hit.
+  // ctx.waitUntil keeps the Worker alive after the HEAD response is sent.
+  ctx.waitUntil(prewarmR2Background(videoId, r2Key, env))
+
   return new Response(null, {
     status: 200,
     headers: { ...CORS, 'Accept-Ranges': 'bytes', 'Content-Type': 'audio/mp4' },
@@ -273,7 +280,37 @@ async function populateR2(videoId, resolvedUrl, contentType, r2Key, env) {
   }
 }
 
-// ── YouTube URL resolution ────────────────────────────────────────────────────
+// ── HEAD prewarm → background R2 population ───────────────────────────────────
+// Triggered by handleHead when R2 is cold. Resolves the YouTube URL and fetches
+// the full audio file into R2 asynchronously. Because this runs in ctx.waitUntil,
+// the HEAD response (200) is already sent before any slow network I/O begins.
+//
+// Typical timing when PlayerContext sends HEAD 30s before current track ends:
+//   - InnerTube ANDROID resolve: ~2s
+//   - googlevideo full download: ~10-25s (3-5 MB audio)
+//   → Total: ~15-25s — well within the 30s prewarm window for most songs
+//
+// When the next GET arrives: R2 hit → first byte in <100ms
+
+async function prewarmR2Background(videoId, r2Key, env) {
+  // Guard: skip if already cached (another request may have just populated it)
+  try {
+    const existing = await env.AUDIO_BUCKET.head(r2Key)
+    if (existing && existing.size > 0) return
+  } catch {}
+
+  // Resolve URL
+  const resolved = await resolveYouTubeAudio(videoId, env)
+  if (!resolved) {
+    console.warn('[YT Worker] prewarmR2Background: resolve failed for', videoId)
+    return
+  }
+
+  // Fetch and write full audio to R2
+  await populateR2(videoId, resolved.url, resolved.mimeType, r2Key, env)
+}
+
+
 //
 // Priority order — all methods produce non-IP-bound URLs that CF Worker can use
 // to fetch audio from googlevideo on Cloudflare's network:
