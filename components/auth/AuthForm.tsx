@@ -13,7 +13,7 @@ import { FloatingMusicNotes } from './FloatingMusicNotes'
 import { LoginAmbientCanvas } from './LoginAmbientCanvas'
 import { scheduleAuthRedirect } from './authNavigation'
 import { createPasswordSession } from './passwordSession'
-import { Lock, Mail, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react'
+import { Lock, Mail, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, Info } from 'lucide-react'
 
 interface AuthFormProps {
   mode: 'login' | 'register'
@@ -80,6 +80,7 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [rawError, setRawError] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
+  const [ssoNotice, setSsoNotice] = useState<string | null>(null)
   const [authMode, setAuthMode] = useState<'login' | 'register'>(mode)
 
   // Map a login account (username or email) to the auth email used by Supabase.
@@ -98,6 +99,12 @@ export function AuthForm({ mode }: AuthFormProps) {
       if (errParam === 'UnapprovedAccount' || errParam === 'OAuthCallback' || errParam === 'AccessDenied') {
         const mailText = unapprovedEmailParam ? ` (${unapprovedEmailParam})` : ''
         setError(`Tài khoản${mailText} chưa được cấp phép. Vui lòng liên hệ Admin để được cấp quyền!`)
+      }
+      // Landed here after a failed handoff from /api/sso (see hoilauchay's
+      // "Nhạc" nav link) — this isn't the visitor's mistake, so it gets its
+      // own calmer notice rather than the red error banner.
+      if (errParam === 'SsoInvalid' || errParam === 'SsoUnavailable' || errParam === 'SsoProvisionFailed' || errParam === 'SsoSessionFailed') {
+        setSsoNotice('Không thể tự động đăng nhập từ Hội Lẩu chay. Vui lòng đăng nhập thủ công bên dưới, hoặc thử lại từ nút "Nhạc" bên đó.')
       }
     }
   }, [searchParams])
@@ -381,6 +388,13 @@ export function AuthForm({ mode }: AuthFormProps) {
             </p>
           </div>
         </div>
+
+        {ssoNotice && (
+          <div className="mb-4 p-3.5 bg-[var(--spotify-glow,#22d3ee)]/10 border border-[var(--spotify-glow,#22d3ee)]/30 text-[var(--spotify-glow,#22d3ee)] rounded-2xl text-xs flex items-start gap-2 relative z-10">
+            <Info className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="font-semibold leading-relaxed">{ssoNotice}</span>
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 p-3.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded-2xl text-xs flex flex-col gap-2 relative z-10">
