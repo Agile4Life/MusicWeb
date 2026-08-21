@@ -23,6 +23,9 @@ function SsoCompleteInner() {
   useEffect(() => {
     const email = params.get('email')
     const accessToken = params.get('accessToken')
+    if (typeof window !== 'undefined' && window.location.search) {
+      window.history.replaceState({}, '', '/sso/complete')
+    }
     if (!email || !accessToken) {
       router.replace('/login?error=SsoInvalid')
       return

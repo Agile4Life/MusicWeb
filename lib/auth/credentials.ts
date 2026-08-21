@@ -47,15 +47,7 @@ export async function authorizePasswordCredentials(
 
   if (!email) return null
 
-  if (accessToken === 'dev-token') {
-    return {
-      id: email,
-      email,
-      name: email.split('@')[0],
-    }
-  }
-
-  if (!accessToken) return null
+  if (!accessToken || accessToken === 'dev-token') return null
 
   try {
     const supabase = createPasswordClient()
