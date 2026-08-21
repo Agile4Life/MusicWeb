@@ -3,7 +3,7 @@ import { fetchWithRetry, isTransientError } from '../fetchWithRetry'
 
 describe('fetchWithRetry', () => {
   it('retries a transient HTTP response before returning success', async () => {
-    const operation = vi.fn()
+    const operation = vi.fn<() => Promise<Response>>()
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(new Response('ok', { status: 200 }))
 
@@ -33,7 +33,7 @@ describe('fetchWithRetry', () => {
   })
 
   it('returns a non-transient HTTP response without retrying it', async () => {
-    const operation = vi.fn().mockResolvedValue(new Response(null, { status: 403 }))
+    const operation = vi.fn<() => Promise<Response>>().mockResolvedValue(new Response(null, { status: 403 }))
 
     const result = await fetchWithRetry(operation, {
       retries: 2,

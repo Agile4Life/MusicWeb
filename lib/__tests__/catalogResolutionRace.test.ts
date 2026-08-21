@@ -5,7 +5,7 @@ describe('resolveCatalogCandidates', () => {
   it('returns a fallback after the preferred source misses its head start', async () => {
     const startedAt = Date.now()
     const result = await resolveCatalogCandidates(
-      () => new Promise((resolve) => setTimeout(() => resolve({ source: 'nhaccuatui' }), 200)),
+      () => new Promise<{ source: string } | null>((resolve) => setTimeout(() => resolve({ source: 'nhaccuatui' }), 200)),
       [async () => ({ source: 'youtube' })],
       20,
     )
@@ -16,7 +16,7 @@ describe('resolveCatalogCandidates', () => {
 
   it('keeps the preferred source when it resolves within its head start', async () => {
     const result = await resolveCatalogCandidates(
-      () => new Promise((resolve) => setTimeout(() => resolve({ source: 'nhaccuatui' }), 5)),
+      () => new Promise<{ source: string } | null>((resolve) => setTimeout(() => resolve({ source: 'nhaccuatui' }), 5)),
       [async () => ({ source: 'youtube' })],
       20,
     )
