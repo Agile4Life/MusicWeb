@@ -4,6 +4,7 @@ import { execFile } from 'child_process'
 import { promisify } from 'util'
 import path from 'path'
 import fs from 'fs'
+import { firstValidResult } from './firstValidResult'
 
 try {
   dns.setDefaultResultOrder('ipv4first')
@@ -173,8 +174,8 @@ export async function resolveYouTubeAudioStream(videoId: string): Promise<Resolv
     'https://api.piped.video/streams/',
   ]
 
-  const pipedResults = await Promise.allSettled(
-    pipedInstances.map(async (base) => {
+  const pipedStream = await firstValidResult(
+    pipedInstances.map((base) => async () => {
       const res = await fetch(`${base}${videoId}`, {
         headers: { 'User-Agent': 'Mozilla/5.0' },
         signal: AbortSignal.timeout(3500),
@@ -186,12 +187,10 @@ export async function resolveYouTubeAudioStream(videoId: string): Promise<Resolv
       const best = audioStreams.find((s: any) => s.mimeType && s.mimeType.includes('audio/mp4')) || audioStreams[0]
       if (!best?.url) throw new Error('No URL in stream')
       return { url: best.url, mimeType: best.mimeType || 'audio/mp4' }
-    })
+    }),
   )
 
-  for (const result of pipedResults) {
-    if (result.status === 'fulfilled') return result.value
-  }
+  if (pipedStream) return pipedStream
 
   return null
 }
