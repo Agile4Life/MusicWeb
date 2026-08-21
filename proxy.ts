@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
+import { isNextAuthRoute, isPublicAuthPath } from '@/lib/auth/publicPaths'
 
 export default async function proxy(request: NextRequest) {
   try {
@@ -7,12 +8,7 @@ export default async function proxy(request: NextRequest) {
   } catch (err) {
     console.error('Proxy execution error:', err)
     const isAuthPage =
-      request.nextUrl.pathname.startsWith('/login') ||
-      request.nextUrl.pathname.startsWith('/register') ||
-      request.nextUrl.pathname.startsWith('/reset-password') ||
-      request.nextUrl.pathname.startsWith('/api/auth') ||
-      request.nextUrl.pathname.startsWith('/api/passkey-request') ||
-      request.nextUrl.pathname.startsWith('/auth/callback')
+      isPublicAuthPath(request.nextUrl.pathname) || isNextAuthRoute(request.nextUrl.pathname)
 
     if (!isAuthPage) {
       const url = request.nextUrl.clone()

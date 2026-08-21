@@ -1,20 +1,15 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+import { isNextAuthRoute, isPublicAuthPath } from '@/lib/auth/publicPaths'
 
 export async function updateSession(request: NextRequest) {
-  const isAuthPage =
-    request.nextUrl.pathname.startsWith('/login') ||
-    request.nextUrl.pathname.startsWith('/register') ||
-    request.nextUrl.pathname.startsWith('/reset-password')
+  const isAuthPage = isPublicAuthPath(request.nextUrl.pathname)
 
-  const isNextAuthRoute =
-    request.nextUrl.pathname.startsWith('/api/auth') ||
-    request.nextUrl.pathname.startsWith('/api/passkey-request') ||
-    request.nextUrl.pathname.startsWith('/auth/callback')
+  const isNextAuthApi = isNextAuthRoute(request.nextUrl.pathname)
 
   // Never block NextAuth API routes, Passkey API, or auth callback
-  if (isNextAuthRoute) {
+  if (isNextAuthApi) {
     return NextResponse.next({ request })
   }
 

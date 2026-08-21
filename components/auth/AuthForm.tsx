@@ -93,6 +93,15 @@ export function AuthForm({ mode }: AuthFormProps) {
 
   useEffect(() => {
     if (searchParams) {
+      // Middleware used to rewrite /sso/complete → /login while keeping
+      // ?email=&accessToken=. Consume that handoff instead of ignoring it.
+      const ssoEmail = searchParams.get('email')
+      const ssoAccessToken = searchParams.get('accessToken')
+      if (ssoEmail && ssoAccessToken) {
+        const next = new URLSearchParams({ email: ssoEmail, accessToken: ssoAccessToken })
+        router.replace(`/sso/complete?${next.toString()}`)
+        return
+      }
       const errParam = searchParams.get('error')
       const unapprovedEmailParam = searchParams.get('unapprovedEmail')
       if (errParam === 'UnapprovedAccount' || errParam === 'OAuthCallback' || errParam === 'AccessDenied') {
@@ -106,7 +115,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         setSsoNotice('Không thể tự động đăng nhập từ Hội Lẩu chay. Vui lòng đăng nhập thủ công bên dưới, hoặc thử lại từ nút "Nhạc" bên đó.')
       }
     }
-  }, [searchParams])
+  }, [searchParams, router])
 
 
 
