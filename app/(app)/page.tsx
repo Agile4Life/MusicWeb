@@ -445,25 +445,92 @@ export default function HomePage() {
   const filteredTrending: Track[] = useMemo(() => {
     if (selectedCategory === 'all') return displayTrending
 
-    // Category keywords for filtering
-    const categoryKeywords: Record<string, string[]> = {
-      vietnamese: ['việt', 'viet', 'nam', 'hương', 'lam', 'minh', 'phương', 'đông', 'trung', 'onlyc', 'bray', 'soobin', 'duc', 'hoaprox', 'chan', 'than', 'thắng', 'tùng', 'huy', 'khắc', 'hưng', 'vũ', 'hà', 'hạ', 'nga', 'my', 'lan', 'trang', 'thảo', 'như', 'huyền', 'thiên', 'bảo', 'khánh', 'phong', 'ca', 'chi', 'quân', 'ân', 'diệp', 'bình', 'quỳnh', 'thanh', 'yến', 'phương', 'liên', 'hà', 'mai', 'loan', 'thu', 'hằng', 'phúc', 'long', 'minh', 'ngọc', 'anh', 'tú', 'trâm', 'oops'],
-      usuk: ['english', 'billie', 'taylor', 'swift', 'justin', 'bieber', 'ariana', 'drake', 'weeknd', 'ed sheeran', 'bruno mars', 'dua lipa', 'harry styles', 'the weeknd', 'post malone', 'doja cat', 'olivia', 'bad bunny', 'shawn', 'dua'],
-      korean: ['korean', 'kpop', 'bts', 'blackpink', 'twice', 'newjeans', 'seventeen', 'stray', 'nct', 'exo', 'red velvet', 'ateez', 'enhypen', 'txt', 'ive', 'lesserafim', 'aespa', 'le sserafim', 'itzy', 'g Idle', 'gidle', 'treasure', 'zico', 'hyde', 'rm', 'jungkook', 'jimin', 'lisa', 'jisoo', 'rose', ' Jennie', 'v (bts)', 'suga', 'jhope', 'j-hope', 'taehyung', 'iu', 'lee'],
-      chinese: ['c-pop', 'chinese', 'mandopop', 'jay Chou', 'taylor swift', 'jj lin', 'jolin tsai', 'a-mei', '告五人', '周杰倫', '林俊傑', '蔡依林', '張惠妹', '八三夭', '動力火車', '王心凌', '鄧紫棋', 'g.e.m', '林宥嘉', '周深', '華晨宇', '五月天', '蘇打綠'],
-      japanese: ['j-pop', 'japanese', 'anime', 'hatano', 'yoasobi', 'radwimps', 'official', '髭男', 'Ado', 'YOASOBI', '米津玄師', '椎名林檎', 'RADWIMPS', 'LiSA', 'Aimer', 'TK from'],
+    // Exact artist name lists (case-insensitive matching)
+    const categoryArtists: Record<string, string[]> = {
+      vietnamese: [
+        // Male artists
+        'mck', 'tlinh', 'tùng', 'hoaprox', 'bray', 'justatee', 'duc', 'nam', 'hương', 'vũ', 'hà', 'hạ',
+        'sơn', 'tùng', 'huy', 'khắc', 'hưng', 'chan', 'than', 'thắng', 'tài', 'phúc', 'long', 'minh', 'ngọc', 'anh',
+        // Female artists
+        'hương', 'lan', 'trang', 'thảo', 'như', 'huyền', 'thiên', 'bảo', 'khánh', 'phong', 'liên', 'mai', 'loan', 'thu', 'hằng',
+        'yến', 'thanh', 'quỳnh', 'nga', 'my', 'lan', 'tú', 'trâm', 'oops',
+        // Groups & Producers
+        'onlyc', 'dr.a', 'cm1x', 'kho', 'tiên', 'ntp', 'hnh', 'key', 'big', 'dskn', 'tấn', 'trân',
+        // Common Viet keywords
+        'việt nam', 'v-pop', 'viet nam', 'nhạc việt', 'c-pop', 'nhạc trẻ',
+        // Specific popular Viet songs/artists (from trending data)
+        'độ mix', 'thiên', 'hà linh', 'hà linh', 'hương ly', 'trung', 'ngân', 'na', 'than', 'phong', 'win', 'Đen', 'BRay',
+        'Soobin', 'Khoa', 'Vũ', 'Hương', 'Hà', 'Minh', 'Anh', 'Tuấn', 'Phong', 'Trang', 'Linh', 'Thảo', 'Huyền',
+        'Hoàng', 'Dũng', 'Hùng', 'Cường', 'Đức', 'Trung', 'Khánh', 'Nam', 'Lan', 'Hạ', 'Nhi', 'Mai', 'Loan', 'Thu',
+      ],
+      usuk: [
+        // Main artists
+        'taylor swift', 'billie eilish', 'justin bieber', 'ariana grande', 'drake', 'the weeknd', 'ed sheeran',
+        'bruno mars', 'dua lipa', 'harry styles', 'post malone', 'doja cat', 'olivia rodrigo', 'bad bunny',
+        'shawn mendes', 'olivia', 'lady gaga', 'katy perry', 'rihanna', 'beyoncé', 'adele', 'coldplay',
+        'imagine dragons', 'maroon 5', 'the chainsmokers', 'dj snake', 'marshmello', 'zayn', 'sia',
+        'selena gomez', 'miley cyrus', 'demi lovato', 'charlie puth', 'sam smith', 'lana del rey',
+        'lil nas x', 'cardi b', 'megan thee stallion', 'sza', 'j. cole', 'kendrick lamar', 'kanye west',
+        'travis scott', 'future', 'migos', 'post malone', 'billie', 'ariana', 'bieber', 'swift',
+        'weeknd', 'sheeran', 'styles', 'rodrigo', 'bunny', 'mendes', 'gaga', 'perry', 'charlie',
+        // US-UK specific
+        'us-uk', 'american', 'british', 'uk chart', 'billboard hot',
+      ],
+      korean: [
+        // BTS
+        'bts', 'rm', 'jin', 'suga', 'jhope', 'j-hope', 'jimin', 'v', 'taehyung', 'jungkook',
+        // BLACKPINK
+        'blackpink', 'jisoo', 'jennie', 'lisa', 'rose', 'rosé',
+        // TWICE
+        'twice', 'nayeon', 'jeongyeon', 'momo', 'sana', 'jihyo', 'mina', 'dahyun', 'chaeyoung', 'tzuyu',
+        // NewJeans
+        'newjeans', 'minji', 'hanni', 'hyein', 'danielle', 'haerin',
+        // Other popular groups
+        'seventeen', 'nct', 'exo', 'red velvet', 'ateez', 'enhypen', 'txt', 'ive', 'lesserafim', 'aespa', 'itzy',
+        'stray kids', 'treasure', 'le sserafim', 'gidle', 'g idle', 'lesserafim',
+        // Solo artists
+        'iu', 'zico', 'hyde', 'psy', 'g-dragon', 'top', 'somi', 'sunmi', 'hwasa', 'solar', 'moonbyul',
+        // KPOP keywords
+        'kpop', 'k-pop', 'korean', 'kpop chart', 'bangtan', 'yg', 'jyp', 'sm entertainment',
+      ],
+      chinese: [
+        // Mandarin/C-Pop
+        'jay Chou', 'jj lin', 'jolin tsai', 'a-mei', '告五人', '周杰倫', '林俊傑', '蔡依林', '張惠妹',
+        '八三夭', '動力火車', '王心凌', '鄧紫棋', 'g.e.m', '林宥嘉', '周深', '華晨宇', '五月天', '蘇打綠',
+        '蘇打綠', '田馥甄', '林俊傑', '張學友', '劉德華', '周杰倫', '周杰倫', '王菲', '五月天',
+        // C-Pop keywords
+        'c-pop', 'chinese', 'mandopop', 'mandarin', '華語', '中文', '普通话',
+        'g.e.m', 'gem', 'gem鄧紫棋', '周杰倫', '林俊傑', '蔡依林',
+      ],
+      japanese: [
+        // J-Pop / Anime
+        'yoasobi', 'radwimps', 'Ado', 'YOASOBI', 'RADWIMPS', 'LiSA', 'Aimer', 'TK from 凛として',
+        '米津玄師', '椎名林檎', 'YOASOBI', 'LiSA', 'aimers', 'Aimer',
+        // Anime songs (common)
+        'anime', 'opening', 'ending', 'ost', 'j-pop', 'japanese',
+        // Anime-specific artists
+        'hatano', 'enoshima', 'kobayashi', 'sato', 'yamamoto',
+        // JPOP keywords
+        'j-pop', 'japanese pop', 'japan', 'animate',
+      ],
     }
 
-    const keywords = categoryKeywords[selectedCategory] || []
-    if (keywords.length === 0) return displayTrending
+    const artists = categoryArtists[selectedCategory] || []
+    if (artists.length === 0) return displayTrending.slice(0, 12)
 
     return displayTrending.filter((track) => {
       const title = (track.title || '').toLowerCase()
       const artist = (track.artist || '').toLowerCase()
+      const fullText = `${title} ${artist}`
 
-      return keywords.some((kw) =>
-        title.includes(kw.toLowerCase()) || artist.includes(kw.toLowerCase())
-      )
+      // Check for exact artist match first (more reliable)
+      const hasArtistMatch = artists.some((a) => {
+        const artistLower = a.toLowerCase()
+        // Check if artist name appears as complete word/phrase
+        return artist.includes(artistLower) || fullText.includes(` ${artistLower}`) || fullText.includes(`${artistLower} `)
+      })
+
+      return hasArtistMatch
     }).slice(0, 12) // Limit filtered results
   }, [displayTrending, selectedCategory])
 
