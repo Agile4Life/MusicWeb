@@ -78,14 +78,14 @@ export function MediaCard({
 
   return (
     <TiltCard
-      className={`media-card group p-0 flex flex-col gap-2 sm:gap-2.5 cursor-pointer outline-none w-full select-none ${
+      className={`media-card group p-2.5 xs:p-3 sm:p-3.5 flex flex-col gap-2.5 sm:gap-3 cursor-pointer outline-none w-full select-none ${
         isPlaying ? 'is-playing' : ''
       } ${className}`}
       style={{ '--i': index } as React.CSSProperties}
     >
-      <Link href={href} onClick={handleCardClick} className="flex flex-col gap-2 sm:gap-2.5 h-full w-full outline-none">
+      <Link href={href} onClick={handleCardClick} className="flex flex-col gap-2.5 sm:gap-3 h-full w-full outline-none">
         {/* 3D Elevated Cover Artwork Container */}
-        <div className="aspect-square w-full rounded-xl sm:rounded-2xl overflow-hidden relative border border-white/[0.06] flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.03)' }}>
+        <div className="aspect-square w-full bg-[#0a0e17] rounded-xl sm:rounded-2xl overflow-hidden relative border border-white/10 flex items-center justify-center shadow-inner">
           {coverUrl ? (
             <img
               src={coverUrl}

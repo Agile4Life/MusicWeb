@@ -1749,9 +1749,14 @@ tr.track-row:hover:not(.is-playing):not(.is-active):not(.active),
 .media-card {
   position: relative;
   border-radius: var(--radius-card, 18px);
-  background: transparent;
-  border: 1px solid transparent;
-  box-shadow: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%), rgba(13, 18, 31, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
+    0 8px 20px -4px rgba(0, 0, 0, 0.55),
+    0 2px 6px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   transition:
     border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
     background 0.3s ease,
@@ -1759,7 +1764,6 @@ tr.track-row:hover:not(.is-playing):not(.is-active):not(.active),
   transform-style: preserve-3d;
   perspective: 1000px;
 }
-
 
 /* Subtle Dynamic Cursor Spotlight Following Mouse Movement Across Card */
 .media-card::before {
@@ -1783,12 +1787,12 @@ tr.track-row:hover:not(.is-playing):not(.is-active):not(.active),
 }
 
 .media-card:hover {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 40%, rgba(255, 255, 255, 0.2));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.01) 100%), rgba(14, 19, 32, 0.88);
+  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 45%, rgba(255, 255, 255, 0.25));
   box-shadow:
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.15),
-    0 12px 30px -6px rgba(0, 0, 0, 0.6),
-    0 0 16px -2px color-mix(in srgb, var(--spotify-glow, #22d3ee) 20%, transparent);
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.25),
+    0 16px 36px -6px rgba(0, 0, 0, 0.75),
+    0 0 18px -2px color-mix(in srgb, var(--spotify-glow, #22d3ee) 22%, transparent);
   z-index: 2;
 }
 
@@ -3805,8 +3809,8 @@ html[data-theme-style="minimal-flat"] body {
   position: relative !important;
   border-radius: 14px !important;
   padding: 10px !important;
-  background: rgba(255, 255, 255, 0.03) !important;
-  border: 1px solid rgba(255, 255, 255, 0.07) !important;
+  background: linear-gradient(180deg, #251E29, #1D1720) !important;
+  border: 1px solid rgba(244, 236, 230, 0.08) !important;
   transition: transform 0.2s ease, border-color 0.2s ease !important;
 }
 
@@ -3821,8 +3825,8 @@ html[data-theme-style="minimal-flat"] body {
   overflow: hidden !important;
   margin-bottom: 10px !important;
   box-shadow: 0 14px 26px -14px rgba(0, 0, 0, 0.65) !important;
-  background: rgba(255, 255, 255, 0.03) !important;
-  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  background: #1D1720 !important;
+  border: 1px solid rgba(244, 236, 230, 0.08) !important;
 }
 
 [data-theme-style="minimal-flat"] .media-card .aspect-square svg {
@@ -6554,32 +6558,5 @@ html[data-tab-hidden="true"] *::after {
     display: none !important;
     content: none !important;
   }
-}
-
-/* ================================================================
-   Global Card Transparency Override — All Themes
-   Cards float on the page background instead of having their own bg
-   ================================================================ */
-.media-card,
-.tilt-card,
-[data-theme-style] .media-card,
-[data-theme-style] .tilt-card {
-  background: rgba(255, 255, 255, 0.03) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-}
-
-.media-card:hover,
-.tilt-card:hover,
-[data-theme-style] .media-card:hover,
-[data-theme-style] .tilt-card:hover {
-  background: rgba(255, 255, 255, 0.06) !important;
-}
-
-.media-card .aspect-square,
-[data-theme-style] .media-card .aspect-square,
-[data-theme-style="minimal-flat"] .media-card .aspect-square {
-  background: rgba(255, 255, 255, 0.03) !important;
-  border-color: rgba(255, 255, 255, 0.06) !important;
 }
 
