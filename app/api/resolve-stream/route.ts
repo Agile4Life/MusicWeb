@@ -11,6 +11,7 @@ import {
 import { getPrimaryArtistName } from '@/lib/artistParser'
 import { findMemoryDriveTrack } from '@/lib/driveTracksMap'
 import { searchSoundCloudTracks } from '@/lib/soundcloudClient'
+import { resolveCatalogCandidates } from '@/lib/catalogResolutionRace'
 
 export const dynamic = 'force-dynamic'
 
@@ -292,15 +293,10 @@ async function resolveStream(
   const driveResult = await tryDrive()
   if (driveResult) return driveResult
 
-  // 2. Run NCT, YouTube, and SoundCloud searches in parallel with strict priority
-  const [nctResult, ytResult, scResult] = await Promise.all([
-    tryNct(),
-    tryYoutube(),
-    trySoundCloud(),
-  ])
-  if (nctResult) return nctResult
-  if (ytResult) return ytResult
-  if (scResult) return scResult
+  // 2. Give NCT a short preference window, then use the first valid source.
+  // This avoids a slow provider delaying playback after another source is ready.
+  const resolved = await resolveCatalogCandidates(tryNct, [tryYoutube, trySoundCloud])
+  if (resolved) return resolved
 
   // === Miss — Tất cả các nguồn đều không tìm được ===
   return {
