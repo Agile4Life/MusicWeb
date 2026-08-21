@@ -3,9 +3,20 @@ import { createClient } from '@supabase/supabase-js'
 // ⚡ Cache TTL cho CDN URL đã xác minh (45 phút — Google CDN URLs expire in ~1h)
 export const CDN_CACHE_TTL_MS = 45 * 60 * 1000
 
-// In-memory CDN URL cache — checked FIRST so repeated plays / range requests skip
-// the Supabase queries AND the HEAD validation entirely (both live on the critical path).
+// LRU eviction: giới hạn memory cache size để tránh memory leak
+const MAX_MEMORY_CACHE_ITEMS = 500
 const memoryCdnCache = new Map<string, { url: string; contentType: string; expiresAt: number }>()
+
+function evictOldestCacheEntries(targetSize: number) {
+  if (memoryCdnCache.size <= targetSize) return
+  const entries = Array.from(memoryCdnCache.entries())
+  // Sort by expiresAt ascending (oldest first)
+  entries.sort((a, b) => a[1].expiresAt - b[1].expiresAt)
+  const toRemove = entries.slice(0, memoryCdnCache.size - targetSize)
+  for (const [key] of toRemove) {
+    memoryCdnCache.delete(key)
+  }
+}
 
 // Track in-flight validation promises for cleanup
 const inFlightValidations = new Map<string, { controller: AbortController; timeout: ReturnType<typeof setTimeout> }>()
@@ -43,11 +54,36 @@ export function getMemoryCachedCdnUrl(fileId: string): { url: string; contentTyp
 }
 
 export function setMemoryCachedCdnUrl(fileId: string, url: string, contentType: string) {
+  // Evict oldest entries if cache is getting full (keep 80% capacity)
+  if (memoryCdnCache.size >= MAX_MEMORY_CACHE_ITEMS) {
+    evictOldestCacheEntries(Math.floor(MAX_MEMORY_CACHE_ITEMS * 0.8))
+  }
   memoryCdnCache.set(fileId, { url, contentType, expiresAt: Date.now() + CDN_CACHE_TTL_MS })
 }
 
 export function clearMemoryCachedCdnUrl(fileId: string) {
   memoryCdnCache.delete(fileId)
+}
+
+// Clear both memory and DB cache for a fileId
+export async function clearAllCachesForFile(
+  fileId: string,
+  supabase: ReturnType<typeof getServiceClient>
+) {
+  memoryCdnCache.delete(fileId)
+  if (supabase) {
+    try {
+      await supabase
+        .from('tracks')
+        .update({
+          drive_stream_url: null,
+          drive_stream_cached_at: null,
+        })
+        .eq('drive_file_id', fileId)
+    } catch (err) {
+      console.warn('Failed to clear DB cache for fileId:', fileId, err)
+    }
+  }
 }
 
 // Service-role client để đọc/ghi cache mà không bị chặn bởi RLS
@@ -134,11 +170,13 @@ export async function getCachedCdnUrl(
         .then((checkRes) => {
           const ct = checkRes.headers.get('content-type') || ''
           if (!(checkRes.ok || checkRes.status === 206) || ct.includes('text/html')) {
-            memoryCdnCache.delete(fileId)
+            // URL died — clear BOTH memory and DB cache
+            clearAllCachesForFile(fileId, supabase).catch(() => {})
           }
         })
         .catch(() => {
-          memoryCdnCache.delete(fileId)
+          // Network error — clear BOTH memory and DB cache
+          clearAllCachesForFile(fileId, supabase).catch(() => {})
         })
         .finally(() => {
           const entry = inFlightValidations.get(fileId)

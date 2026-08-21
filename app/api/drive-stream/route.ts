@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { resolveDriveStreamUrl, clearMemoryCachedCdnUrl } from '@/lib/drive-stream-resolver'
+import { resolveDriveStreamUrl, clearAllCachesForFile, getServiceClient } from '@/lib/drive-stream-resolver'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +14,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Missing fileId parameter' }, { status: 400 })
     }
 
-    const resolved = await resolveDriveStreamUrl(fileId, undefined, titleParam)
+    // ⚡ Get Supabase service client for DB caching
+    const supabase = getServiceClient()
+    const resolved = await resolveDriveStreamUrl(fileId, supabase, titleParam)
 
     if (!resolved || !resolved.url) {
       return NextResponse.json(
@@ -39,8 +41,8 @@ export async function GET(req: NextRequest) {
 
       // Cached CDN URL may have died upstream — invalidate caches and re-resolve once
       if (!streamRes.ok) {
-        clearMemoryCachedCdnUrl(fileId)
-        const reResolved = await resolveDriveStreamUrl(fileId, undefined, titleParam)
+        clearAllCachesForFile(fileId, supabase)
+        const reResolved = await resolveDriveStreamUrl(fileId, supabase, titleParam)
         if (reResolved && reResolved.url) {
           streamRes = await fetch(reResolved.url, {
             headers: proxyHeaders,
@@ -106,7 +108,8 @@ export async function HEAD(req: NextRequest) {
       return new NextResponse(null, { status: 400 })
     }
 
-    const resolved = await resolveDriveStreamUrl(fileId, undefined, titleParam)
+    const supabase = getServiceClient()
+    const resolved = await resolveDriveStreamUrl(fileId, supabase, titleParam)
     if (!resolved || !resolved.url) {
       return new NextResponse(null, { status: 502 })
     }
