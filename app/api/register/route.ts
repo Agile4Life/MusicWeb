@@ -96,8 +96,8 @@ export async function POST(req: NextRequest) {
       .from('roles')
       .upsert({ email: authEmail, role: 'user', roleApproved: true }, { onConflict: 'email' })
 
-    // --- Notify admin (fire-and-forget with error logging) ---
-    notifyAdmin(username, authEmail, realEmail).catch((err) => {
+    // --- Notify admin (awaited with 4.5s internal timeout) ---
+    await notifyAdmin(username, authEmail, realEmail).catch((err) => {
       console.warn('[REGISTER NOTIFY] Error sending notification email:', err?.message || err)
     })
 
@@ -111,7 +111,8 @@ export async function POST(req: NextRequest) {
 async function notifyAdmin(username: string, authEmail: string, realEmail?: string) {
   const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER
   const smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD
-  if (!smtpUser || !smtpPass) return
+  const targetAdminEmail = process.env.ADMIN_PERSONAL_EMAIL || smtpUser || ''
+  if (!smtpUser || !smtpPass || !targetAdminEmail) return
 
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -128,7 +129,7 @@ async function notifyAdmin(username: string, authEmail: string, realEmail?: stri
   await Promise.race([
     transporter.sendMail({
       from: `"MusicWeb Studio" <${smtpUser}>`,
-      to: ADMIN_PERSONAL_EMAIL,
+      to: targetAdminEmail,
       subject: `🎵 [MusicWeb] Tài khoản mới: ${username}`,
       html: `
         <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:560px;margin:0 auto;padding:28px;background:#0b0e14;color:#fff;border-radius:18px;border:1px solid rgba(29,185,84,0.25);">
@@ -140,7 +141,7 @@ async function notifyAdmin(username: string, authEmail: string, realEmail?: stri
               <tr><td style="padding:8px 0;color:#94a3b8;">Thời gian:</td><td style="padding:8px 0;color:#e2e8f0;">${now}</td></tr>
             </table>
           </div>
-          <p style="color:#64748b;font-size:12px;text-align:center;margin:16px 0 0;">Thông báo tự động từ <strong>MusicWeb Studio System</strong></p>
+          <p style="color:#64748b;font-size:12px;text-align:center;margin:16px 0 0;">Thông báo tự động từ <strong>MusicWeb Studio System</strong> gửi tới <strong>${targetAdminEmail}</strong></p>
         </div>
       `,
     }),

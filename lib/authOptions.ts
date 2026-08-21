@@ -28,7 +28,8 @@ async function sendNewGoogleLoginNotification(email: string, name?: string | nul
     const smtpPort = Number(process.env.SMTP_PORT) || 587
     const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER
     const smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD
-    if (!smtpUser || !smtpPass) return
+    const targetAdminEmail = process.env.ADMIN_PERSONAL_EMAIL || smtpUser || ''
+    if (!smtpUser || !smtpPass || !targetAdminEmail) return
 
     const transporter = nodemailer.createTransport({
       host: smtpHost,
@@ -45,7 +46,7 @@ async function sendNewGoogleLoginNotification(email: string, name?: string | nul
     await Promise.race([
       transporter.sendMail({
         from: `"MusicWeb Studio" <${smtpUser}>`,
-        to: ADMIN_PERSONAL_EMAIL,
+        to: targetAdminEmail,
         subject: `🔵 [MusicWeb] Người dùng mới đăng nhập Google: ${email}`,
         html: `
           <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:580px;margin:0 auto;padding:28px;background:#0b0e14;color:#fff;border-radius:18px;border:1px solid rgba(56,189,248,0.25);">
@@ -78,7 +79,7 @@ async function sendNewGoogleLoginNotification(email: string, name?: string | nul
             </div>
 
             <p style="color:#64748b;font-size:12px;text-align:center;margin:0;">
-              Thông báo tự động từ <strong>MusicWeb Studio System</strong> gửi tới <strong>${ADMIN_PERSONAL_EMAIL}</strong>.
+              Thông báo tự động từ <strong>MusicWeb Studio System</strong> gửi tới <strong>${targetAdminEmail}</strong>.
             </p>
           </div>
         `,
@@ -180,8 +181,8 @@ export const authOptions: NextAuthOptions = {
               console.warn('[AUTH SIGNIN] Roles upsert failed (non-fatal):', err)
             }
 
-            // 📧 Notify admin about first-time Google login
-            sendNewGoogleLoginNotification(cleanEmail, user?.name).catch(() => {})
+            // 📧 Notify admin about first-time Google login (awaited safely with 4.5s internal timeout)
+            await sendNewGoogleLoginNotification(cleanEmail, user?.name)
           }
         }
 

@@ -144,9 +144,9 @@ export async function POST(req: NextRequest) {
         const smtpPort = Number(process.env.SMTP_PORT) || 587
         const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER
         const smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD
-        const targetAdminEmail = ADMIN_PERSONAL_EMAIL
+        const targetAdminEmail = process.env.ADMIN_PERSONAL_EMAIL || smtpUser || ''
 
-        if (smtpUser && smtpPass) {
+        if (smtpUser && smtpPass && targetAdminEmail) {
           const transporter = nodemailer.createTransport({
             host: smtpHost,
             port: smtpPort,
