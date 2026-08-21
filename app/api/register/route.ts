@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
       .from('roles')
       .upsert({ email: authEmail, role: 'user', roleApproved: true }, { onConflict: 'email' })
 
-    // --- Notify admin (awaited with 4.5s internal timeout) ---
+    // --- Nostify admin (awaited with 4.5s internal timeout) ---
     await notifyAdmin(username, authEmail, realEmail).catch((err) => {
       console.warn('[REGISTER NOTIFY] Error sending notification email:', err?.message || err)
     })
