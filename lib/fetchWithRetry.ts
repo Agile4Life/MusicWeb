@@ -11,7 +11,7 @@ export async function fetchWithRetry<T>(
     retries?: number       // total attempts (default: 2)
     baseDelayMs?: number  // delay before first retry (default: 200)
     maxDelayMs?: number   // cap on delay (default: 1000)
-    retryOn?: (err: unknown, attempt: number) => boolean
+    retryOn?: (outcome: unknown, attempt: number) => boolean
   } = {}
 ): Promise<T> {
   const {
@@ -25,7 +25,13 @@ export async function fetchWithRetry<T>(
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      return await fn()
+      const result = await fn()
+      if (attempt === retries || !retryOn || !retryOn(result, attempt)) {
+        return result
+      }
+
+      const delay = Math.min(baseDelayMs * Math.pow(2, attempt), maxDelayMs)
+      await new Promise((resolve) => setTimeout(resolve, delay))
     } catch (err) {
       lastError = err
 

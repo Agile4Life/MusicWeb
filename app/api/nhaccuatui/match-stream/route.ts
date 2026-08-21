@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { normalizeNhacCuaTuiSongMetadata } from '@/lib/nhaccuatui'
 import { findBestYouTubeMatch, searchYouTubeTracks } from '@/lib/youtube'
 import { resolveYouTubeAudioStreamAndroid } from '@/lib/youtubeStream'
-import { fetchWithRetry, isTransientError } from '@/lib/fetchWithRetry'
+import { fetchWithRetry, isNetworkError, isTransientError } from '@/lib/fetchWithRetry'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,10 +39,8 @@ async function resolveYouTubeVideoIdForNctSong(id: string): Promise<string | nul
         retries: 1,
         baseDelayMs: 200,
         maxDelayMs: 400,
-        retryOn: (res: unknown) => {
-          if (res instanceof Response) return isTransientError(res)
-          return false
-        },
+        retryOn: (outcome) =>
+          outcome instanceof Response ? isTransientError(outcome) : isNetworkError(outcome),
       }
     )
     if (songRes.ok) {

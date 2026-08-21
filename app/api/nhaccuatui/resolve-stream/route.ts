@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { normalizeNhacCuaTuiSongResponse } from '@/lib/nhaccuatui'
-import { fetchWithRetry, isTransientError } from '@/lib/fetchWithRetry'
+import { fetchWithRetry, isNetworkError, isTransientError } from '@/lib/fetchWithRetry'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,10 +52,8 @@ async function resolveNctStreamUrlCached(id: string): Promise<{
         retries: 2,
         baseDelayMs: 200,
         maxDelayMs: 800,
-        retryOn: (res: unknown) => {
-          if (res instanceof Response) return isTransientError(res)
-          return false
-        },
+        retryOn: (outcome) =>
+          outcome instanceof Response ? isTransientError(outcome) : isNetworkError(outcome),
       }
     )
     if (!songRes.ok) return null
