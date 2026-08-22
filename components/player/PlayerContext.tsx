@@ -2099,9 +2099,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
         setIsPlaying(false)
         setIsBuffering(false)
-        if (isIOSDevice() && (err?.name === 'NotAllowedError' || String(err?.message || '').includes('not allowed'))) {
-          // iOS background: play() needs a fresh user gesture. Keep the stream loaded and
-          // resume on the next media-session action (lock-screen play button) or when visible.
+        if (err?.name === 'NotAllowedError' || String(err?.message || '').includes('not allowed')) {
+          // Background autoplay / User gesture restriction: Keep stream loaded and resume on next user gesture or visibility restore
+          console.warn('[Audio Autoplay Restricted] play() waiting for user activation:', err?.name || err?.message)
           pendingResumeRef.current = true
           return
         }
@@ -3111,7 +3111,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         const activeAudio = audioRef.current
         const ytActive = isYtIframeEngine()
 
-        // 1. Tab restored: immediately sync UI currentTime & duration to real audio/video position
+        // 1. Wake up Web Audio AudioContext if suspended by the browser while hidden
+        if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+          audioContextRef.current.resume().catch((e) => {
+            console.warn('[WebAudio] Visibility resume error:', e)
+          })
+        }
+
+        // 2. Tab restored: immediately sync UI currentTime & duration to real audio/video position
         if (ytActive && ytPlayerRef.current?.getCurrentTime) {
           try {
             const ytTime = ytPlayerRef.current.getCurrentTime() || 0
@@ -3131,36 +3138,92 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // 2. Synchronize isPlaying state with true hardware/player status
+        // 3. Reconcile playback state with user intent (desiredPlayStateRef)
+        const userWantsToPlay = desiredPlayStateRef.current === 'playing'
+
         if (ytActive) {
           try {
             const ytState = ytPlayerRef.current?.getPlayerState?.()
             if (ytState === 1) {
               setIsPlaying(true)
               setIsBuffering(false)
-            } else if (ytState === 2) {
+            } else if (userWantsToPlay && (ytState === 2 || ytState === 3 || ytState === -1)) {
+              // YouTube player was paused or buffering due to background throttling while user still intends to play
+              try {
+                ytPlayerRef.current?.playVideo?.()
+                setIsPlaying(true)
+                setIsBuffering(false)
+              } catch (ytErr) {
+                console.warn('[YouTube Visibility Resume] playVideo() failed:', ytErr)
+                setIsPlaying(false)
+                setIsBuffering(false)
+              }
+            } else if (ytState === 2 && !userWantsToPlay) {
               setIsPlaying(false)
               setIsBuffering(false)
             }
-          } catch {}
+          } catch (e) {
+            console.warn('[YouTube Visibility Sync] error:', e)
+          }
         } else if (activeAudio) {
           if (!activeAudio.paused && !activeAudio.ended && activeAudio.readyState > 1) {
             setIsPlaying(true)
             setIsBuffering(false)
+          } else if (userWantsToPlay && activeAudio.paused && !activeAudio.ended && activeAudio.src) {
+            pendingResumeRef.current = false
+            activeAudio.play().then(() => {
+              setIsPlaying(true)
+              setIsBuffering(false)
+            }).catch((playErr: any) => {
+              console.warn('[HTML5 Audio Visibility Resume] play() rejected:', playErr?.name || playErr?.message || playErr)
+              pendingResumeRef.current = true
+              setIsPlaying(false)
+              setIsBuffering(false)
+            })
           } else if (activeAudio.paused && !pendingResumeRef.current) {
             setIsPlaying(false)
           }
         }
 
-        // 3. Resume audio if pending user-gesture / background resume
-        if (pendingResumeRef.current && activeAudio && activeAudio.paused) {
+        // 4. Resume audio if pending user-gesture / background resume
+        if (pendingResumeRef.current && activeAudio && activeAudio.paused && activeAudio.src) {
           pendingResumeRef.current = false
           activeAudio.play().then(() => {
             setIsPlaying(true)
-          }).catch(() => {
+            setIsBuffering(false)
+          }).catch((resumeErr: any) => {
+            console.warn('[Pending Resume] play() requires user activation:', resumeErr?.name || resumeErr?.message)
             pendingResumeRef.current = true
           })
         }
+      }
+    }
+
+    // Direct User Activation Handler: Wakes up pending playback on first click/touch if browser blocked autoplay
+    const handleUserActivation = () => {
+      if (!pendingResumeRef.current) return
+      const activeAudio = audioRef.current
+      const ytActive = isYtIframeEngine()
+      pendingResumeRef.current = false
+
+      if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume().catch(() => {})
+      }
+
+      if (ytActive) {
+        try {
+          ytPlayerRef.current?.playVideo?.()
+          setIsPlaying(true)
+          setIsBuffering(false)
+        } catch {}
+      } else if (activeAudio && activeAudio.paused && !activeAudio.ended && activeAudio.src) {
+        activeAudio.play().then(() => {
+          setIsPlaying(true)
+          setIsBuffering(false)
+        }).catch((err: any) => {
+          console.warn('[User Activation Resume] play() failed:', err?.name || err?.message)
+          pendingResumeRef.current = true
+        })
       }
     }
 
@@ -3176,6 +3239,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     audio.addEventListener('canplay', handleCanPlay)
     audio.addEventListener('playing', handlePlaying)
     document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('pointerdown', handleUserActivation, { passive: true })
+    window.addEventListener('keydown', handleUserActivation, { passive: true })
 
     return () => {
       clearAudioStallWatchdog()
@@ -3191,6 +3256,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audio.removeEventListener('canplay', handleCanPlay)
       audio.removeEventListener('playing', handlePlaying)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('pointerdown', handleUserActivation)
+      window.removeEventListener('keydown', handleUserActivation)
       if (typeof document !== 'undefined') {
         document.documentElement.removeAttribute('data-tab-hidden')
       }
