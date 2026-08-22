@@ -240,7 +240,7 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
           { id: 'home', label: t('home'), icon: 'Home', href: '/' },
           { id: 'albums', label: t('albums'), icon: 'DiscAlbum', href: '/albums' },
           { id: 'favorites', label: t('favorites_mobile') || t('favorites'), icon: 'Heart', href: '/favorites' },
-          { id: 'playlist', label: t('playlists'), icon: 'ListMusic', href: undefined, onClick: () => {
+          { id: 'playlist', label: t('playlists_mobile') || t('playlists'), icon: 'ListMusic', href: undefined, onClick: () => {
             if (playlists.length > 0) {
               if (pathname.startsWith('/playlist/')) {
                 const currentId = pathname.replace('/playlist/', '')
@@ -254,7 +254,7 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
               setIsDrawerOpen(true)
             }
           }},
-          { id: 'history', label: t('history'), icon: 'History', href: '/history' },
+          { id: 'history', label: t('history_mobile') || t('history'), icon: 'History', href: '/history' },
         ]}
         displacementScale={35}
         blurAmount={0.0625}

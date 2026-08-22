@@ -722,7 +722,7 @@ export function LiquidNavBar({
                         </span>
                         <span
                           style={{ transform: `scale(${textZoom})`, transition: isDragging ? 'transform 0.05s linear' : 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
-                          className={`text-[10px] leading-none transition-all duration-250 ${textColor}`}
+                          className={`text-[9.5px] xs:text-[10px] leading-tight tracking-tight max-w-[62px] truncate transition-all duration-250 ${textColor}`}
                         >
                           {tab.label}
                         </span>

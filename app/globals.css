@@ -3645,16 +3645,33 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] .hero-banner h1 {
   font-family: var(--font-fraunces), serif !important;
   font-weight: 500 !important;
-  font-size: 32px !important;
-  line-height: 1.15 !important;
+  font-size: 20px !important;
+  line-height: 1.25 !important;
   color: #F4ECE1 !important;
-  margin-bottom: 10px !important;
+  margin-bottom: 0 !important;
+  letter-spacing: -0.02em !important;
+}
+
+@media (min-width: 640px) {
+  [data-theme-style="minimal-flat"] .hero-banner h1 {
+    font-size: 26px !important;
+    line-height: 1.2 !important;
+    margin-bottom: 6px !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  [data-theme-style="minimal-flat"] .hero-banner h1 {
+    font-size: 30px !important;
+    line-height: 1.15 !important;
+    margin-bottom: 8px !important;
+  }
 }
 
 [data-theme-style="minimal-flat"] .hero-banner p {
   color: #B9AC9C !important;
-  font-size: 13.5px !important;
-  line-height: 1.6 !important;
+  font-size: 13px !important;
+  line-height: 1.55 !important;
 }
 
 [data-theme-style="minimal-flat"] .hero-banner .btn-outline-accent {
@@ -3780,8 +3797,15 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] h2 {
   font-family: var(--font-fraunces), serif !important;
   font-weight: 500 !important;
-  font-size: 21px !important;
+  font-size: 17.5px !important;
+  line-height: 1.3 !important;
   color: #F4ECE1 !important;
+}
+
+@media (min-width: 768px) {
+  [data-theme-style="minimal-flat"] h2 {
+    font-size: 21px !important;
+  }
 }
 
 [data-theme-style="minimal-flat"] a[href="/albums"],
@@ -3873,17 +3897,41 @@ html[data-theme-style="minimal-flat"] body {
   fill: #2A1704 !important;
 }
 
-[data-theme-style="minimal-flat"] .media-card .card-title {
-  font-size: 13px !important;
+[data-theme-style="minimal-flat"] .media-card .card-title,
+[data-theme-style="minimal-flat"] .tilt-card .card-title,
+[data-theme-style="minimal-flat"] .album-card .card-title {
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif !important;
+  font-size: 12.5px !important;
   font-weight: 600 !important;
   color: #F4ECE1 !important;
   margin-bottom: 2px !important;
   line-height: 1.3 !important;
+  letter-spacing: -0.01em !important;
 }
 
-[data-theme-style="minimal-flat"] .media-card .card-artist {
-  font-size: 11.5px !important;
+@media (min-width: 640px) {
+  [data-theme-style="minimal-flat"] .media-card .card-title,
+  [data-theme-style="minimal-flat"] .tilt-card .card-title,
+  [data-theme-style="minimal-flat"] .album-card .card-title {
+    font-size: 13.5px !important;
+  }
+}
+
+[data-theme-style="minimal-flat"] .media-card .card-artist,
+[data-theme-style="minimal-flat"] .tilt-card .card-artist,
+[data-theme-style="minimal-flat"] .album-card .card-artist {
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif !important;
+  font-size: 11px !important;
   color: #8B8090 !important;
+  line-height: 1.35 !important;
+}
+
+@media (min-width: 640px) {
+  [data-theme-style="minimal-flat"] .media-card .card-artist,
+  [data-theme-style="minimal-flat"] .tilt-card .card-artist,
+  [data-theme-style="minimal-flat"] .album-card .card-artist {
+    font-size: 12px !important;
+  }
 }
 
 /* Player Bar (Solid High-Fidelity Minimal Surface, No Bleed Through) */
@@ -4520,12 +4568,20 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] .section-heading {
   font-family: var(--font-fraunces), Georgia, serif !important;
   font-weight: 500;
-  font-size: 21px;
+  font-size: 17.5px;
   color: #F4ECE1;
   letter-spacing: -0.01em;
   line-height: 1.3;
   position: relative;
   display: inline-block;
+}
+
+@media (min-width: 768px) {
+  [data-theme-style="minimal-flat"] h2,
+  [data-theme-style="minimal-flat"] .section-title,
+  [data-theme-style="minimal-flat"] .section-heading {
+    font-size: 21px;
+  }
 }
 
 [data-theme-style="minimal-flat"] h2::after,
@@ -4546,9 +4602,9 @@ html[data-theme-style="minimal-flat"] body {
 }
 
 /* Subtitle & Meta Text */
-[data-theme-style="minimal-flat"] h3,
-[data-theme-style="minimal-flat"] h4,
-[data-theme-style="minimal-flat"] .subtitle {
+[data-theme-style="minimal-flat"] .subtitle,
+[data-theme-style="minimal-flat"] .section-subtitle,
+[data-theme-style="minimal-flat"] .hero-subtitle {
   font-family: var(--font-fraunces), Georgia, serif !important;
   font-weight: 400;
   color: #B9AC9C;
