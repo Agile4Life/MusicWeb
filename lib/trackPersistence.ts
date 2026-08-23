@@ -97,42 +97,30 @@ export async function resolveExternalTrackId(
   // 1. Look for an existing row in `tracks` table.
   // We check BOTH per-user rows AND global/system rows so existing tracks can be reused.
   // Note: Only query columns that actually exist in the database schema (nhaccuatui_id, spotify_id, youtube_id, file_path)
-  const lookups: Array<{ column: string; value: string }> = []
-  if (normalizedTrack.nhaccuatui_id) lookups.push({ column: 'nhaccuatui_id', value: normalizedTrack.nhaccuatui_id })
-  if (normalizedTrack.spotify_id) lookups.push({ column: 'spotify_id', value: normalizedTrack.spotify_id })
-  if (normalizedTrack.youtube_id) lookups.push({ column: 'youtube_id', value: normalizedTrack.youtube_id })
-  if (normalizedTrack.soundcloud_id) lookups.push({ column: 'file_path', value: `soundcloud:${normalizedTrack.soundcloud_id}` })
-  if (normalizedTrack.soundcloud_permalink_url) lookups.push({ column: 'file_path', value: normalizedTrack.soundcloud_permalink_url })
-  if (normalizedTrack.file_path) lookups.push({ column: 'file_path', value: normalizedTrack.file_path })
+  // Phase A & B Consolidated: Lookup by any ID across all users
+  const idLookups: string[] = []
+  if (normalizedTrack.nhaccuatui_id) idLookups.push(`nhaccuatui_id.eq.${normalizedTrack.nhaccuatui_id}`)
+  if (normalizedTrack.spotify_id) idLookups.push(`spotify_id.eq.${normalizedTrack.spotify_id}`)
+  if (normalizedTrack.youtube_id) idLookups.push(`youtube_id.eq.${normalizedTrack.youtube_id}`)
+  if (normalizedTrack.soundcloud_id) idLookups.push(`file_path.eq.soundcloud:${normalizedTrack.soundcloud_id}`)
+  if (normalizedTrack.soundcloud_permalink_url) idLookups.push(`file_path.eq.${normalizedTrack.soundcloud_permalink_url}`)
+  if (normalizedTrack.file_path) idLookups.push(`file_path.eq.${normalizedTrack.file_path}`)
 
-  // Phase A: Search under current user_id first
-  for (const { column, value } of lookups) {
-    if (!value) continue
+  if (idLookups.length > 0) {
     try {
-      const { data } = await supabase
+      const { data: idMatches } = await supabase
         .from('tracks')
-        .select('id')
-        .eq('user_id', userId)
-        .eq(column, value)
-        .limit(1)
-      if (data && data.length > 0 && data[0].id) return data[0].id
-    } catch {
-      // Ignore column or query errors
-    }
-  }
-
-  // Phase B: Search globally across all users / system user
-  for (const { column, value } of lookups) {
-    if (!value) continue
-    try {
-      const { data } = await supabase
-        .from('tracks')
-        .select('id')
-        .eq(column, value)
-        .limit(1)
-      if (data && data.length > 0 && data[0].id) return data[0].id
-    } catch {
-      // Ignore column or query errors
+        .select('id, user_id')
+        .or(idLookups.join(','))
+        .limit(10)
+      
+      if (idMatches && idMatches.length > 0) {
+        const userMatch = idMatches.find(m => m.user_id === userId)
+        if (userMatch) return userMatch.id
+        return idMatches[0].id
+      }
+    } catch (e) {
+      console.warn('ID lookup error:', e)
     }
   }
 
@@ -141,22 +129,20 @@ export async function resolveExternalTrackId(
     const titleVal = normalizedTrack.title.trim()
     const artistVal = (normalizedTrack.artist || '').trim()
 
-    let query = supabase.from('tracks').select('id').eq('user_id', userId).eq('title', titleVal)
-    if (artistVal) {
-      query = query.eq('artist', artistVal)
-    }
-    const { data: userTitleMatches } = await query.limit(1)
-    if (userTitleMatches && userTitleMatches.length > 0 && userTitleMatches[0].id) {
-      return userTitleMatches[0].id
-    }
-
-    let globalQuery = supabase.from('tracks').select('id').eq('title', titleVal)
-    if (artistVal) {
-      globalQuery = globalQuery.eq('artist', artistVal)
-    }
-    const { data: globalTitleMatches } = await globalQuery.limit(1)
-    if (globalTitleMatches && globalTitleMatches.length > 0 && globalTitleMatches[0].id) {
-      return globalTitleMatches[0].id
+    try {
+      let query = supabase.from('tracks').select('id, user_id').eq('title', titleVal)
+      if (artistVal) {
+        query = query.eq('artist', artistVal)
+      }
+      
+      const { data: titleMatches } = await query.limit(10)
+      if (titleMatches && titleMatches.length > 0) {
+        const userMatch = titleMatches.find(m => m.user_id === userId)
+        if (userMatch) return userMatch.id
+        return titleMatches[0].id
+      }
+    } catch (e) {
+      console.warn('Title lookup error:', e)
     }
   }
 
