@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Track, Playlist } from '@/types'
@@ -28,7 +28,34 @@ export default function DrivePage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [supabaseUser, setSupabaseUser] = useState<any>(null)
 
+  const fetchSeqRef = useRef(0)
+  const isFetchingRef = useRef(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  
+  const userFavTrackIdsRef = useRef<Set<string>>(new Set())
+  const supabaseUserRef = useRef<any>(null)
+  const searchQueryRef = useRef(searchQuery)
+
+  useEffect(() => {
+    supabaseUserRef.current = supabaseUser
+  }, [supabaseUser])
+
+  useEffect(() => {
+    searchQueryRef.current = searchQuery
+  }, [searchQuery])
+
   const fetchDriveTracks = useCallback(async () => {
+    if (isFetchingRef.current) return
+    isFetchingRef.current = true
+    const mySeq = ++fetchSeqRef.current
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+    const signal = controller.signal
+
     setLoading(true)
     try {
       const {
@@ -49,14 +76,16 @@ export default function DrivePage() {
 
       let userFavSet = new Set<string>()
       try {
-        const favRes = await fetch('/api/favorites/status')
+        const favRes = await fetch('/api/favorites/status', { signal })
         if (favRes.ok) {
           const favData = await favRes.json()
           if (Array.isArray(favData.trackIds)) {
             userFavSet = new Set(favData.trackIds)
           }
         }
-      } catch {}
+      } catch (err: any) {
+        if (err.name === 'AbortError') throw err
+      }
 
       try {
         const plRes = await fetch('/api/playlists')
@@ -69,12 +98,13 @@ export default function DrivePage() {
       // Fetch all tracks from DB and filter Drive tracks
       let filteredDb: Track[] = []
       try {
-        const { data: rawTracks, error } = await supabase
-          .from('tracks')
-          .select('*')
-          .order('created_at', { ascending: false })
+        const { data: rawTracks, error: trackError } = await supabase
+        .from('tracks')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .abortSignal(signal)
 
-        if (!error && rawTracks) {
+        if (!trackError && rawTracks) {
           filteredDb = rawTracks.filter((tr: Track) => {
             const fp = tr.file_path || ''
             return Boolean(
@@ -128,22 +158,78 @@ export default function DrivePage() {
           is_favorite: userFavSet.has(t.id),
         }))
       )
-    } catch (err) {
+      
+      if (mySeq === fetchSeqRef.current) {
+        userFavTrackIdsRef.current = userFavSet
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return
       console.error('Error fetching drive tracks:', err)
     } finally {
-      setLoading(false)
+      isFetchingRef.current = false
+      if (mySeq === fetchSeqRef.current) setLoading(false)
     }
   }, [nextAuthSession, supabase])
 
   useEffect(() => {
     fetchDriveTracks()
 
+    let timer: NodeJS.Timeout
+    const debouncedFetch = () => {
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        fetchDriveTracks()
+      }, 800)
+    }
+
     const channel = supabase
       .channel('drive-page-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tracks' }, () => fetchDriveTracks())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tracks' }, (payload) => {
+        if (searchQueryRef.current.trim()) return
+
+        if (payload.eventType === 'INSERT') {
+          const newTrack = payload.new as Track
+          
+          const fp = newTrack.file_path || ''
+          const isDrive = Boolean(
+            extractDriveFileId(fp) ||
+            fp.includes('drive-stream') ||
+            fp.includes('drive.google.com') ||
+            fp.includes('lh3.googleusercontent.com')
+          )
+          
+          if (!isDrive) return
+
+          setDriveTracks(prev => {
+            if (prev.some(t => t.id === newTrack.id)) return prev
+            
+            const normTitle = (newTrack.title || '').trim().toLowerCase().normalize('NFKC')
+            const normArtist = (newTrack.artist || '').trim().toLowerCase().normalize('NFKC')
+            const driveId = newTrack.drive_file_id || extractDriveFileId(fp)
+            const key = driveId ? `drive_${driveId}` : `title_${normTitle}|||${normArtist}`
+            
+            if (prev.some(t => {
+              const tDriveId = t.drive_file_id || extractDriveFileId(t.file_path || '')
+              const tNormTitle = (t.title || '').trim().toLowerCase().normalize('NFKC')
+              const tNormArtist = (t.artist || '').trim().toLowerCase().normalize('NFKC')
+              const tKey = tDriveId ? `drive_${tDriveId}` : `title_${tNormTitle}|||${tNormArtist}`
+              return tKey === key
+            })) {
+              return prev
+            }
+            
+            return [{ ...newTrack, source: newTrack.source || 'local', is_favorite: userFavTrackIdsRef.current.has(newTrack.id) }, ...prev]
+          })
+        } else if (payload.eventType === 'UPDATE') {
+          setDriveTracks(prev => prev.map(t => t.id === payload.new.id ? { ...t, ...payload.new } : t))
+        } else if (payload.eventType === 'DELETE') {
+          setDriveTracks(prev => prev.filter(t => t.id !== payload.old.id))
+        }
+      })
       .subscribe()
 
     return () => {
+      clearTimeout(timer)
       supabase.removeChannel(channel)
     }
   }, [fetchDriveTracks, supabase])

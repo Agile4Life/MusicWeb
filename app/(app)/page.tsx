@@ -236,8 +236,21 @@ export default function HomePage() {
   const [userFavTrackIds, setUserFavTrackIds] = useState<Set<string>>(new Set())
 
   const fetchSeqRef = useRef(0)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const supabaseUserRef = useRef<any>(null)
+
+  useEffect(() => {
+    supabaseUserRef.current = supabaseUser
+  }, [supabaseUser])
 
   const fetchData = async (showSkeleton = false) => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+    const signal = controller.signal
+
     if (showSkeleton) setLoading(true)
     const mySeq = ++fetchSeqRef.current
     try {
@@ -262,7 +275,7 @@ export default function HomePage() {
 
       // Single combined request for favorites + history (saves 1 function invocation)
       try {
-        const initRes = await fetch('/api/user/init-data?history_limit=100')
+        const initRes = await fetch('/api/user/init-data?history_limit=100', { signal })
         if (initRes.ok) {
           const initData = await initRes.json()
           if (Array.isArray(initData.trackIds)) {
@@ -272,10 +285,11 @@ export default function HomePage() {
             historyItems = initData.history.items
           }
         }
-      } catch {
+      } catch (err: any) {
+        if (err.name === 'AbortError') throw err
         // Fallback to separate requests if combined endpoint fails (e.g. unauthenticated)
         try {
-          const favRes = await fetch('/api/favorites/status')
+          const favRes = await fetch('/api/favorites/status', { signal })
           if (favRes.ok) {
             const favData = await favRes.json()
             if (Array.isArray(favData.trackIds)) {
@@ -284,7 +298,7 @@ export default function HomePage() {
           }
         } catch { }
         try {
-          const historyRes = await fetch('/api/history/list?limit=100')
+          const historyRes = await fetch('/api/history/list?limit=100', { signal })
           if (historyRes.ok) {
             const histData = await historyRes.json()
             historyItems = histData.items ?? []
@@ -301,6 +315,7 @@ export default function HomePage() {
           .from('tracks')
           .select('*')
           .order('created_at', { ascending: false })
+          .abortSignal(signal)
 
         if (!trackError && rawTracks) {
           // Drive tracks are shared publicly for everyone to view;
@@ -376,7 +391,8 @@ export default function HomePage() {
         if (mySeq !== fetchSeqRef.current) return
         setRecentTracks([])
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (err.name === 'AbortError') return
       console.error('fetchData error in page.tsx:', err)
     } finally {
       if (mySeq === fetchSeqRef.current) setLoading(false)
@@ -548,8 +564,52 @@ export default function HomePage() {
 
     const channel = supabase
       .channel('home-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tracks' }, () => {
-        if (!searchQueryRef.current.trim()) debouncedFetch()
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tracks' }, (payload) => {
+        if (searchQueryRef.current.trim()) return
+
+        if (payload.eventType === 'INSERT') {
+          const newTrack = payload.new as Track
+          
+          const fp = newTrack.file_path || ''
+          const isDrive = Boolean(
+            extractDriveFileId(fp) ||
+            fp.includes('drive-stream') ||
+            fp.includes('drive.google.com') ||
+            fp.includes('lh3.googleusercontent.com')
+          )
+          
+          const currentUser = supabaseUserRef.current
+          const userId = currentUser ? getValidUserId(currentUser) : null
+          
+          const isVisible = isDrive || (userId && newTrack.user_id === userId) || !newTrack.user_id || (newTrack as any).is_public
+          
+          if (!isVisible) return
+
+          setTracks(prev => {
+            if (prev.some(t => t.id === newTrack.id)) return prev
+            
+            const normTitle = (newTrack.title || '').trim().toLowerCase().normalize('NFKC')
+            const normArtist = (newTrack.artist || '').trim().toLowerCase().normalize('NFKC')
+            const driveId = newTrack.drive_file_id || extractDriveFileId(fp)
+            const key = driveId ? `drive_${driveId}` : `title_${normTitle}|||${normArtist}`
+            
+            if (prev.some(t => {
+              const tDriveId = t.drive_file_id || extractDriveFileId(t.file_path || '')
+              const tNormTitle = (t.title || '').trim().toLowerCase().normalize('NFKC')
+              const tNormArtist = (t.artist || '').trim().toLowerCase().normalize('NFKC')
+              const tKey = tDriveId ? `drive_${tDriveId}` : `title_${tNormTitle}|||${tNormArtist}`
+              return tKey === key
+            })) {
+              return prev
+            }
+            
+            return [{ ...newTrack, source: newTrack.source || 'local', is_favorite: userFavTrackIdsRef.current.has(newTrack.id) }, ...prev]
+          })
+        } else if (payload.eventType === 'UPDATE') {
+          setTracks(prev => prev.map(t => t.id === payload.new.id ? { ...t, ...payload.new } : t))
+        } else if (payload.eventType === 'DELETE') {
+          setTracks(prev => prev.filter(t => t.id !== payload.old.id))
+        }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'playlists' }, () => {
         if (!searchQueryRef.current.trim()) debouncedFetch()
