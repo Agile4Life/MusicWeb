@@ -566,7 +566,7 @@ export default function HomePage() {
 
     const channel = supabase
       .channel('home-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tracks' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tracks' }, (payload: any) => {
         if (searchQueryRef.current.trim()) return
 
         if (payload.eventType === 'INSERT') {

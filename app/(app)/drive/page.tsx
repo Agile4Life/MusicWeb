@@ -184,7 +184,7 @@ export default function DrivePage() {
 
     const channel = supabase
       .channel('drive-page-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tracks' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tracks' }, (payload: any) => {
         if (searchQueryRef.current.trim()) return
 
         if (payload.eventType === 'INSERT') {
