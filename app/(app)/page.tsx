@@ -15,6 +15,20 @@ import { toast } from '@/components/ui/ToastContext'
 import { fetchListeningHistory, getRecentUniqueTracks } from '@/lib/listeningHistory'
 import { MediaCard } from '@/components/common/MediaCard'
 import { useGridGlideIndicator } from '@/components/common/useGlideIndicator'
+
+function isTrackVisibleToUser(track: Track, userId: string | null): boolean {
+  const fp = track.file_path || ''
+  const isDrive = Boolean(
+    extractDriveFileId(fp) ||
+    fp.includes('drive-stream') ||
+    fp.includes('drive.google.com') ||
+    fp.includes('lh3.googleusercontent.com')
+  )
+  if (isDrive) return true
+  if (userId && track.user_id === userId) return true
+  if (!track.user_id || (track as any).is_public) return true
+  return false
+}
 import {
   Play,
   Upload,
@@ -320,19 +334,7 @@ export default function HomePage() {
         if (!trackError && rawTracks) {
           // Drive tracks are shared publicly for everyone to view;
           // Non-drive personal uploads are filtered by user_id.
-          visibleTracks = rawTracks.filter((t: Track) => {
-            const fp = t.file_path || ''
-            const isDrive = Boolean(
-              extractDriveFileId(fp) ||
-              fp.includes('drive-stream') ||
-              fp.includes('drive.google.com') ||
-              fp.includes('lh3.googleusercontent.com')
-            )
-            if (isDrive) return true
-            if (userId && t.user_id === userId) return true
-            if (!t.user_id || (t as any).is_public) return true
-            return false
-          })
+          visibleTracks = rawTracks.filter((t: Track) => isTrackVisibleToUser(t, userId))
         }
       } catch (dbErr) {
         console.warn('DB fetch error on home page:', dbErr)
@@ -571,19 +573,10 @@ export default function HomePage() {
           const newTrack = payload.new as Track
           
           const fp = newTrack.file_path || ''
-          const isDrive = Boolean(
-            extractDriveFileId(fp) ||
-            fp.includes('drive-stream') ||
-            fp.includes('drive.google.com') ||
-            fp.includes('lh3.googleusercontent.com')
-          )
-          
           const currentUser = supabaseUserRef.current
           const userId = currentUser ? getValidUserId(currentUser) : null
           
-          const isVisible = isDrive || (userId && newTrack.user_id === userId) || !newTrack.user_id || (newTrack as any).is_public
-          
-          if (!isVisible) return
+          if (!isTrackVisibleToUser(newTrack, userId)) return
 
           setTracks(prev => {
             if (prev.some(t => t.id === newTrack.id)) return prev
@@ -606,7 +599,16 @@ export default function HomePage() {
             return [{ ...newTrack, source: newTrack.source || 'local', is_favorite: userFavTrackIdsRef.current.has(newTrack.id) }, ...prev]
           })
         } else if (payload.eventType === 'UPDATE') {
-          setTracks(prev => prev.map(t => t.id === payload.new.id ? { ...t, ...payload.new } : t))
+          const updatedTrack = payload.new as Track
+          const currentUser = supabaseUserRef.current
+          const userId = currentUser ? getValidUserId(currentUser) : null
+
+          setTracks(prev => {
+            if (!isTrackVisibleToUser(updatedTrack, userId)) {
+              return prev.filter(t => t.id !== updatedTrack.id)
+            }
+            return prev.map(t => t.id === updatedTrack.id ? { ...t, ...updatedTrack } : t)
+          })
         } else if (payload.eventType === 'DELETE') {
           setTracks(prev => prev.filter(t => t.id !== payload.old.id))
         }

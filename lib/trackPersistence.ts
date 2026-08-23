@@ -125,6 +125,9 @@ export async function resolveExternalTrackId(
   }
 
   // Phase C: Search by exact title + artist match
+  // TODO: [Ticket Data-Quality] Fix mismatch between client NFKC normalization and server exact string match in Phase C.
+  // The client uses .trim().toLowerCase().normalize('NFKC') while the server uses exact string matching. 
+  // This causes duplicates in DB when strings differ in Unicode normalization or casing.
   if (normalizedTrack.title) {
     const titleVal = normalizedTrack.title.trim()
     const artistVal = (normalizedTrack.artist || '').trim()
