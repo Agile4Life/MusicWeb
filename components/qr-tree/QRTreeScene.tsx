@@ -1,126 +1,80 @@
 "use client";
-// ---------------------------------------------------------------------------
-// QRTreeScene.tsx — Three.js (R3F) 3D Scene matching tree.icqr.com
-//
-// • Flat Mode: 100% clean, square, seamless green pixel-art QR code.
-// • 3D Mode: Beautiful organic bonsai tree with 650 fine, lush leaf clusters,
-//   natural multi-branch wooden trunk, stone paver plaza, and stylized grass tufts.
-// ---------------------------------------------------------------------------
 
-import React, { useRef, useMemo, useEffect } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
   generateSceneData,
+  type FlowerParticle,
+  type LeafParticle,
   type TerrainTile,
   type TreeSegment,
-  type LeafParticle,
 } from "./treeGenerator";
 import { SEASON_THEMES, type Season, type SeasonTheme } from "./seasonTheme";
-import { lerp } from "./hashNoise";
+import { clamp, lerp } from "./hashNoise";
 
-// Shared calculation objects
-const _obj = new THREE.Object3D();
-const _col = new THREE.Color();
-const _v3a = new THREE.Vector3();
-const _v3b = new THREE.Vector3();
-const _quat = new THREE.Quaternion();
-const _upY = new THREE.Vector3(0, 1, 0);
-const _camUp = new THREE.Vector3();
-const _target = new THREE.Vector3();
+const TMP = new THREE.Object3D();
+const COLOR = new THREE.Color();
+const A = new THREE.Vector3();
+const B = new THREE.Vector3();
+const UP = new THREE.Vector3(0, 1, 0);
+const QUAT = new THREE.Quaternion();
+const TARGET = new THREE.Vector3();
 
-// ===================================================================
-// IslandPlaza — Stone Pedestal Platform Base
-// ===================================================================
-function IslandPlaza({
-  platformSize,
-  theme,
-  progressRef,
-}: {
-  platformSize: number;
-  theme: SeasonTheme;
-  progressRef: React.MutableRefObject<number>;
-}) {
-  const slabRef = useRef<THREE.Mesh>(null);
-  const rimRef = useRef<THREE.Mesh>(null);
-
-  const slabSize = platformSize + 1.2;
-  const rimSize = slabSize + 0.5;
-
-  useFrame(() => {
-    const p = progressRef.current;
-    if (slabRef.current) {
-      const mat = slabRef.current.material as THREE.MeshStandardMaterial;
-      mat.color.set(lerpColor("#f7f4ed", theme.stoneTileColors[0], p));
-    }
-    if (rimRef.current) {
-      rimRef.current.visible = p > 0.05;
-    }
-  });
-
-  return (
-    <group position={[0, -0.04, 0]}>
-      {/* Main ground slab */}
-      <mesh ref={slabRef} position={[0, 0, 0]} receiveShadow>
-        <boxGeometry args={[slabSize, 0.08, slabSize]} />
-        <meshStandardMaterial color="#f7f4ed" roughness={0.95} metalness={0.0} />
-      </mesh>
-      {/* Outer stone rim border */}
-      <mesh ref={rimRef} position={[0, -0.05, 0]} receiveShadow>
-        <boxGeometry args={[rimSize, 0.07, rimSize]} />
-        <meshStandardMaterial color="#9e988a" roughness={0.85} metalness={0.05} />
-      </mesh>
-    </group>
-  );
+function ease(t: number): number {
+  const x = clamp(t, 0, 1);
+  return x * x * (3 - 2 * x);
 }
 
-// ===================================================================
-// TerrainTilesMesh — QR Pixel Tiles (Flat) <-> Stone Floor (3D)
-// ===================================================================
-function TerrainTilesMesh({
-  tiles,
-  cellSize,
-  theme,
-  progressRef,
-}: {
+function phase(t: number, start: number, end: number): number {
+  return ease(clamp((t - start) / Math.max(0.0001, end - start), 0, 1));
+}
+
+function mixColor(a: string, b: string, t: number): string {
+  const aa = new THREE.Color(a);
+  const bb = new THREE.Color(b);
+  return `#${aa.lerp(bb, clamp(t, 0, 1)).getHexString()}`;
+}
+
+function TerrainMesh({ tiles, cellSize, theme, progressRef }: {
   tiles: TerrainTile[];
   cellSize: number;
   theme: SeasonTheme;
   progressRef: React.MutableRefObject<number>;
 }) {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const count = tiles.length;
+  const ref = useRef<THREE.InstancedMesh>(null);
 
   useEffect(() => {
-    const mesh = meshRef.current;
-    if (!mesh) return;
+    if (!ref.current) return;
     tiles.forEach((tile, i) => {
-      _col.set(tile.qrColor);
-      mesh.setColorAt(i, _col);
+      COLOR.set(tile.qrColor);
+      ref.current!.setColorAt(i, COLOR);
     });
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    if (ref.current.instanceColor) ref.current.instanceColor.needsUpdate = true;
   }, [tiles]);
 
   useFrame(() => {
-    const mesh = meshRef.current;
+    const mesh = ref.current;
     if (!mesh) return;
     const p = progressRef.current;
 
-    // Flat: 100.2% cell width (seamless, zero gaps) -> 3D: 98% (subtle paver joints)
-    const curSize = cellSize * lerp(1.002, 0.98, p);
-
     tiles.forEach((tile, i) => {
-      _obj.position.set(tile.x, 0.005, tile.z);
-      _obj.rotation.set(0, 0, 0);
-      _obj.quaternion.identity();
-      _obj.scale.set(curSize, 0.01, curSize);
-      _obj.updateMatrix();
-      mesh.setMatrixAt(i, _obj.matrix);
+      const stonePhase = phase(p, 0.18, 0.82);
+      const darkHeight = tile.isDark ? 0.055 : 0.035;
+      const treeGroundHeight = tile.isDark ? 0.12 : 0.08;
+      const height = lerp(darkHeight, treeGroundHeight, stonePhase);
+      const width = cellSize * lerp(1.005, 0.94, stonePhase);
 
-      // Interpolate color: Flat = QR green pixel art -> 3D = Stone paver plaza
-      const targetColor = p < 0.15 ? tile.qrColor : lerpColor(tile.qrColor, tile.stoneColor, (p - 0.15) / 0.85);
-      _col.set(targetColor);
-      mesh.setColorAt(i, _col);
+      TMP.position.set(tile.x, height * 0.5 - 0.01, tile.z);
+      TMP.rotation.set(0, 0, 0);
+      TMP.scale.set(width, height, width);
+      TMP.updateMatrix();
+      mesh.setMatrixAt(i, TMP.matrix);
+
+      const qrToGround = phase(p, 0.28, 0.8);
+      const target = mixColor(tile.qrColor, tile.stoneColor, qrToGround);
+      COLOR.set(target);
+      mesh.setColorAt(i, COLOR);
     });
 
     mesh.instanceMatrix.needsUpdate = true;
@@ -128,405 +82,260 @@ function TerrainTilesMesh({
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, count]} receiveShadow>
+    <instancedMesh ref={ref} args={[undefined, undefined, tiles.length]} receiveShadow>
       <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial roughness={0.95} metalness={0.0} />
+      <meshStandardMaterial roughness={0.88} metalness={0} />
     </instancedMesh>
   );
 }
 
-// ===================================================================
-// StylizedGrassMesh — Multi-blade Grass Tufts along Perimeter
-// ===================================================================
-function StylizedGrassMesh({
-  tiles,
-  theme,
-  progressRef,
-}: {
-  tiles: TerrainTile[];
+function Platform({ size, theme, progressRef }: {
+  size: number;
   theme: SeasonTheme;
   progressRef: React.MutableRefObject<number>;
 }) {
-  const grassTiles = useMemo(() => tiles.filter((t) => t.isGrass), [tiles]);
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const count = grassTiles.length;
+  const ref = useRef<THREE.Mesh>(null);
+  const rimRef = useRef<THREE.Mesh>(null);
 
-  useEffect(() => {
-    const mesh = meshRef.current;
-    if (!mesh) return;
-    grassTiles.forEach((_, i) => {
-      const colHex = theme.grassColors[i % theme.grassColors.length];
-      _col.set(colHex);
-      mesh.setColorAt(i, _col);
-    });
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }, [grassTiles, theme]);
-
-  useFrame((state) => {
-    const mesh = meshRef.current;
-    if (!mesh || count === 0) return;
+  useFrame(() => {
     const p = progressRef.current;
-    const time = state.clock.elapsedTime;
-    const vis = Math.max(0, Math.min(1, (p - 0.2) / 0.75));
-
-    grassTiles.forEach((gt, i) => {
-      if (vis <= 0.001) {
-        _obj.position.set(gt.x, -2, gt.z);
-        _obj.scale.set(0, 0, 0);
-        _obj.quaternion.identity();
-        _obj.updateMatrix();
-        mesh.setMatrixAt(i, _obj.matrix);
-        return;
-      }
-
-      // Wind sway
-      const wind = Math.sin(time * 2.5 + gt.x * 1.8 + gt.z * 1.8) * 0.15 * vis;
-      const s = gt.grassScale * vis * 0.85;
-
-      _obj.position.set(gt.x, s * 0.5, gt.z);
-      _obj.rotation.set(wind, gt.grassRot, wind * 0.5);
-      _obj.scale.set(s * 0.45, s, s * 0.45);
-      _obj.updateMatrix();
-      mesh.setMatrixAt(i, _obj.matrix);
-    });
-
-    mesh.instanceMatrix.needsUpdate = true;
+    if (ref.current) {
+      const m = ref.current.material as THREE.MeshStandardMaterial;
+      m.color.set(mixColor("#f7f4ed", theme.stoneTileColors[0], phase(p, 0.22, 0.78)));
+    }
+    if (rimRef.current) rimRef.current.visible = p > 0.2;
   });
 
-  if (count === 0) return null;
-
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, count]} castShadow receiveShadow>
-      {/* Slender tapered 4-sided grass clump */}
-      <cylinderGeometry args={[0.08, 0.4, 1, 4]} />
-      <meshStandardMaterial roughness={0.65} metalness={0.0} flatShading />
-    </instancedMesh>
+    <group position={[0, -0.05, 0]}>
+      <mesh ref={ref} receiveShadow>
+        <boxGeometry args={[size + 1, 0.08, size + 1]} />
+        <meshStandardMaterial color="#f7f4ed" roughness={0.98} />
+      </mesh>
+      <mesh ref={rimRef} position={[0, -0.045, 0]} receiveShadow>
+        <boxGeometry args={[size + 1.45, 0.06, size + 1.45]} />
+        <meshStandardMaterial color="#b8ad9c" roughness={0.92} />
+      </mesh>
+    </group>
   );
 }
 
-// ===================================================================
-// TreeBranchesMesh — Wooden Trunk & Branch Architecture
-// ===================================================================
-function TreeBranchesMesh({
-  segments,
-  theme,
-  progressRef,
-}: {
+function BranchMesh({ segments, theme, progressRef }: {
   segments: TreeSegment[];
   theme: SeasonTheme;
   progressRef: React.MutableRefObject<number>;
 }) {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const count = segments.length;
+  const ref = useRef<THREE.InstancedMesh>(null);
 
   useEffect(() => {
-    const mesh = meshRef.current;
-    if (!mesh) return;
-    _col.set(theme.trunkColor);
-    for (let i = 0; i < count; i++) {
-      mesh.setColorAt(i, _col);
-    }
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }, [theme, count]);
+    if (!ref.current) return;
+    COLOR.set(theme.trunkColor);
+    for (let i = 0; i < segments.length; i++) ref.current.setColorAt(i, COLOR);
+    if (ref.current.instanceColor) ref.current.instanceColor.needsUpdate = true;
+  }, [segments, theme]);
 
   useFrame(() => {
-    const mesh = meshRef.current;
+    const mesh = ref.current;
     if (!mesh) return;
     const p = progressRef.current;
-    const treeVis = Math.max(0, Math.min(1, (p - 0.1) / 0.65));
+    const grow = phase(p, 0.22, 0.82);
+    const settle = 0.55 + 0.45 * grow;
 
     segments.forEach((seg, i) => {
-      if (treeVis <= 0.001) {
-        _obj.position.set(0, -5, 0);
-        _obj.scale.set(0, 0, 0);
-        _obj.quaternion.identity();
-        _obj.updateMatrix();
-        mesh.setMatrixAt(i, _obj.matrix);
-        return;
-      }
-
-      const s = seg.start;
-      const e = seg.end;
-
-      _v3a.set(s.x * treeVis, s.y * treeVis, s.z * treeVis);
-      _v3b.set(e.x * treeVis, e.y * treeVis, e.z * treeVis);
-
-      const mx = (_v3a.x + _v3b.x) / 2;
-      const my = (_v3a.y + _v3b.y) / 2;
-      const mz = (_v3a.z + _v3b.z) / 2;
-
-      _v3b.sub(_v3a);
-      const len = _v3b.length();
+      A.set(seg.start.x * grow, seg.start.y * grow, seg.start.z * grow);
+      B.set(seg.end.x * grow, seg.end.y * grow, seg.end.z * grow);
+      const mid = A.clone().add(B).multiplyScalar(0.5);
+      const dir = B.clone().sub(A);
+      const len = dir.length();
       if (len < 0.001) {
-        _obj.scale.set(0, 0, 0);
-        _obj.updateMatrix();
-        mesh.setMatrixAt(i, _obj.matrix);
+        TMP.scale.set(0, 0, 0);
+        TMP.updateMatrix();
+        mesh.setMatrixAt(i, TMP.matrix);
         return;
       }
-      _v3b.normalize();
+      dir.normalize();
+      QUAT.setFromUnitVectors(UP, dir);
+      const radius = ((seg.radiusStart + seg.radiusEnd) * 0.5) * settle;
 
-      _quat.setFromUnitVectors(_upY, _v3b);
-      const radius = ((seg.radiusStart + seg.radiusEnd) / 2) * treeVis;
-
-      _obj.position.set(mx, my, mz);
-      _obj.quaternion.copy(_quat);
-      _obj.scale.set(radius, len, radius);
-      _obj.updateMatrix();
-      mesh.setMatrixAt(i, _obj.matrix);
+      TMP.position.copy(mid);
+      TMP.quaternion.copy(QUAT);
+      TMP.scale.set(radius, len, radius);
+      TMP.updateMatrix();
+      mesh.setMatrixAt(i, TMP.matrix);
     });
 
     mesh.instanceMatrix.needsUpdate = true;
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, count]} castShadow receiveShadow>
-      <cylinderGeometry args={[0.75, 1, 1, 8]} />
-      <meshStandardMaterial color={theme.trunkColor} roughness={0.85} metalness={0.02} />
+    <instancedMesh ref={ref} args={[undefined, undefined, segments.length]} castShadow receiveShadow>
+      <cylinderGeometry args={[0.72, 1, 1, 8]} />
+      <meshStandardMaterial color={theme.trunkColor} roughness={0.84} metalness={0.02} />
     </instancedMesh>
   );
 }
 
-// ===================================================================
-// LushLeavesMesh — 650 Fine-Grained Stylized Leaf Clusters
-// ===================================================================
-function LushLeavesMesh({
-  leaves,
-  theme,
-  progressRef,
-}: {
-  leaves: LeafParticle[];
-  theme: SeasonTheme;
-  progressRef: React.MutableRefObject<number>;
-}) {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const count = leaves.length;
+function LeavesMesh({ leaves, progressRef }: { leaves: LeafParticle[]; progressRef: React.MutableRefObject<number> }) {
+  const ref = useRef<THREE.InstancedMesh>(null);
 
   useEffect(() => {
-    const mesh = meshRef.current;
-    if (!mesh) return;
-    leaves.forEach((lf, i) => {
-      _col.set(lf.colorHex);
-      mesh.setColorAt(i, _col);
+    if (!ref.current) return;
+    leaves.forEach((leaf, i) => {
+      COLOR.set(leaf.colorHex);
+      ref.current!.setColorAt(i, COLOR);
     });
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    if (ref.current.instanceColor) ref.current.instanceColor.needsUpdate = true;
   }, [leaves]);
 
   useFrame((state) => {
-    const mesh = meshRef.current;
+    const mesh = ref.current;
     if (!mesh) return;
-    const p = progressRef.current;
-    const vis = Math.max(0, Math.min(1, (p - 0.22) / 0.75));
+    const grow = phase(progressRef.current, 0.38, 0.92);
     const time = state.clock.elapsedTime;
 
-    leaves.forEach((lf, i) => {
-      if (vis <= 0.001) {
-        _obj.position.set(0, -5, 0);
-        _obj.scale.set(0, 0, 0);
-        _obj.quaternion.identity();
-        _obj.updateMatrix();
-        mesh.setMatrixAt(i, _obj.matrix);
-        return;
-      }
-
-      // Natural subtle canopy flutter
-      const flutter = Math.sin(time * 2.0 + lf.x * 2.5 + lf.z * 2.5) * 0.08;
-      const s = lf.scale * vis * (1 + flutter);
-
-      _obj.position.set(lf.x * vis, lf.y * vis, lf.z * vis);
-      _obj.rotation.set(lf.rotX + flutter, lf.rotY + time * 0.02, lf.rotZ + flutter * 0.5);
-      _obj.scale.setScalar(s);
-      _obj.updateMatrix();
-      mesh.setMatrixAt(i, _obj.matrix);
+    leaves.forEach((leaf, i) => {
+      const flutter = Math.sin(time * 1.7 + leaf.x * 2.1 + leaf.z * 1.7) * 0.035;
+      const s = leaf.scale * grow * (1 + flutter);
+      TMP.position.set(leaf.x * grow, leaf.y * grow, leaf.z * grow);
+      TMP.rotation.set(leaf.rotX + flutter, leaf.rotY + time * 0.008, leaf.rotZ + flutter);
+      TMP.scale.setScalar(s);
+      TMP.updateMatrix();
+      mesh.setMatrixAt(i, TMP.matrix);
     });
-
     mesh.instanceMatrix.needsUpdate = true;
   });
 
-  if (count === 0) return null;
-
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, count]} castShadow receiveShadow>
-      {/* Low-poly icosahedron for fine organic leaf facets */}
+    <instancedMesh ref={ref} args={[undefined, undefined, leaves.length]} castShadow>
       <icosahedronGeometry args={[1, 0]} />
-      <meshStandardMaterial roughness={0.6} metalness={0.0} flatShading />
+      <meshStandardMaterial roughness={0.66} flatShading />
     </instancedMesh>
   );
 }
 
-// ===================================================================
-// FloatingButterflies — Fluttering particles around the lush tree
-// ===================================================================
-const BUTTERFLY_COUNT = 8;
-
-function FloatingButterflies({
-  progressRef,
-}: {
-  progressRef: React.MutableRefObject<number>;
-}) {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-
+function FlowersMesh({ flowers, progressRef }: { flowers: FlowerParticle[]; progressRef: React.MutableRefObject<number> }) {
+  const ref = useRef<THREE.InstancedMesh>(null);
   useEffect(() => {
-    const mesh = meshRef.current;
+    if (!ref.current) return;
+    flowers.forEach((flower, i) => {
+      COLOR.set(flower.colorHex);
+      ref.current!.setColorAt(i, COLOR);
+    });
+    if (ref.current.instanceColor) ref.current.instanceColor.needsUpdate = true;
+  }, [flowers]);
+
+  useFrame(() => {
+    const mesh = ref.current;
     if (!mesh) return;
-    const butterflyColors = ["#8ee452", "#f7adc5", "#ffe066", "#7bd844"];
-    for (let i = 0; i < BUTTERFLY_COUNT; i++) {
-      _col.set(butterflyColors[i % butterflyColors.length]);
-      mesh.setColorAt(i, _col);
+    const grow = phase(progressRef.current, 0.58, 0.96);
+    flowers.forEach((flower, i) => {
+      TMP.position.set(flower.x * grow, flower.y * grow, flower.z * grow);
+      TMP.scale.setScalar(flower.scale * grow);
+      TMP.rotation.set(Math.PI * 0.5, 0, flower.scale * 4);
+      TMP.updateMatrix();
+      mesh.setMatrixAt(i, TMP.matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+
+  return (
+    <instancedMesh ref={ref} args={[undefined, undefined, flowers.length]}>
+      <octahedronGeometry args={[1, 0]} />
+      <meshStandardMaterial roughness={0.35} />
+    </instancedMesh>
+  );
+}
+
+function TreeParticles({ theme, progressRef }: { theme: SeasonTheme; progressRef: React.MutableRefObject<number> }) {
+  const ref = useRef<THREE.Points>(null);
+  const positions = useMemo(() => {
+    const count = 110;
+    const values = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2;
+      const r = 3.2 + (i % 11) * 0.12;
+      values[i * 3] = Math.cos(a) * r;
+      values[i * 3 + 1] = 1.7 + (i % 9) * 0.22;
+      values[i * 3 + 2] = Math.sin(a) * r;
     }
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    return values;
   }, []);
 
   useFrame((state) => {
-    const mesh = meshRef.current;
-    if (!mesh) return;
-    const p = progressRef.current;
-    const vis = Math.max(0, Math.min(1, (p - 0.6) / 0.4));
-    const time = state.clock.elapsedTime;
-
-    for (let i = 0; i < BUTTERFLY_COUNT; i++) {
-      if (vis <= 0.01) {
-        _obj.position.set(0, -5, 0);
-        _obj.scale.set(0, 0, 0);
-        _obj.quaternion.identity();
-        _obj.updateMatrix();
-        mesh.setMatrixAt(i, _obj.matrix);
-        continue;
-      }
-
-      const angle = time * 0.6 + (i * Math.PI * 2) / BUTTERFLY_COUNT;
-      const radius = 2.8 + Math.sin(time * 0.8 + i) * 0.8;
-      const bx = Math.sin(angle) * radius;
-      const bz = Math.cos(angle) * radius;
-      const by = 2.6 + Math.sin(time * 1.5 + i * 2) * 1.2;
-
-      _obj.position.set(bx, by, bz);
-      _obj.rotation.set(0, angle, 0);
-      _obj.scale.setScalar(0.12 * vis);
-      _obj.updateMatrix();
-      mesh.setMatrixAt(i, _obj.matrix);
-    }
-
-    mesh.instanceMatrix.needsUpdate = true;
+    if (!ref.current) return;
+    const grow = phase(progressRef.current, 0.65, 1);
+    ref.current.visible = grow > 0.01;
+    ref.current.rotation.y = state.clock.elapsedTime * 0.05;
+    const mat = ref.current.material as THREE.PointsMaterial;
+    mat.opacity = grow * 0.55;
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, BUTTERFLY_COUNT]}>
-      <octahedronGeometry args={[1, 0]} />
-      <meshStandardMaterial roughness={0.3} metalness={0.1} />
-    </instancedMesh>
+    <points ref={ref}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+      </bufferGeometry>
+      <pointsMaterial color={theme.particleColor} size={0.07} transparent depthWrite={false} opacity={0} />
+    </points>
   );
 }
 
-// ===================================================================
-// CameraRig — Perfect Top-Down Flat QR <-> Isometric 3D Tree Angle
-// ===================================================================
-function CameraRig({
-  progressRef,
-  gridSize,
-  cellSize,
-  userAngleRef,
-}: {
+function CameraRig({ progressRef, gridSize, cellSize, userAngleRef }: {
   progressRef: React.MutableRefObject<number>;
   gridSize: number;
   cellSize: number;
   userAngleRef: React.MutableRefObject<{ azimuth: number; elevation: number }>;
 }) {
   const { camera, size } = useThree();
-  const baseDim = gridSize * cellSize; // e.g. 25 * 0.5 = 12.5
+  const dimension = gridSize * cellSize;
 
   useFrame((state) => {
-    const p = progressRef.current;
-    const time = state.clock.elapsedTime;
+    const p = ease(progressRef.current);
     const aspect = size.width / Math.max(1, size.height);
-
-    // Height in Flat Mode so QR fits cleanly in center of screen
-    const fovRad = (38 * Math.PI) / 180;
-    const vertDist = (baseDim * 0.85) / Math.tan(fovRad / 2);
-    const horizDist = (baseDim * 0.85) / (Math.tan(fovRad / 2) * aspect);
-    const flatHeight = Math.max(vertDist, horizDist, 20);
-
-    // 3D Isometric View (Matching exact 3D angle from Screenshot 2: ~33 deg elevation, ~45 deg azimuth)
-    const baseIsometricAzimuth = Math.PI * 0.25; // 45 degrees
-    const autoOrbit = time * 0.05;
+    const fov = (38 * Math.PI) / 180;
+    const flatDistance = Math.max(18, (dimension * 0.74) / Math.tan(fov / 2) / Math.max(0.55, aspect));
     const user = userAngleRef.current;
-    const curAzimuth = baseIsometricAzimuth + autoOrbit + user.azimuth;
-    const curElevation = 0.58 + user.elevation; // ~33 deg elevation
+    const azimuth = Math.PI * 0.25 + state.clock.elapsedTime * 0.035 + user.azimuth;
+    const elevation = clamp(0.58 + user.elevation, 0.35, 1.0);
+    const distance = dimension * 1.55;
 
-    const orbDist = baseDim * 1.65;
-    const orbX = Math.sin(curAzimuth) * Math.cos(curElevation) * orbDist;
-    const orbY = Math.sin(curElevation) * orbDist + Math.sin(time * 0.5) * 0.12;
-    const orbZ = Math.cos(curAzimuth) * Math.cos(curElevation) * orbDist;
-
-    // Interpolate camera position
-    camera.position.set(
-      lerp(0, orbX, p),
-      lerp(flatHeight, orbY, p),
-      lerp(0.0001, orbZ, p)
+    const treePos = new THREE.Vector3(
+      Math.sin(azimuth) * Math.cos(elevation) * distance,
+      Math.sin(elevation) * distance,
+      Math.cos(azimuth) * Math.cos(elevation) * distance,
     );
 
-    // Target: Flat mode looks at [0, 0, 0], 3D mode looks at tree center [0, 2.8, 0]
-    _target.set(0, lerp(0, 2.8, p), 0);
-
-    // Up vector interpolation (avoids gimbal lock)
-    _camUp.set(0, lerp(0, 1, p), lerp(-1, 0, p)).normalize();
-    camera.up.copy(_camUp);
-
-    camera.lookAt(_target);
+    camera.position.set(
+      lerp(0, treePos.x, p),
+      lerp(flatDistance, treePos.y, p),
+      lerp(0.001, treePos.z, p),
+    );
+    TARGET.set(0, lerp(0, 2.5, p), 0);
+    camera.up.set(0, 1, 0);
+    camera.lookAt(TARGET);
   });
 
   return null;
 }
 
-// ===================================================================
-// DynamicLighting — Direct overhead in Flat mode -> angled sun in 3D
-// ===================================================================
-function DynamicLighting({
-  theme,
-  progressRef,
-}: {
-  theme: SeasonTheme;
-  progressRef: React.MutableRefObject<number>;
-}) {
-  const dirLightRef = useRef<THREE.DirectionalLight>(null);
-
+function Lights({ theme, progressRef }: { theme: SeasonTheme; progressRef: React.MutableRefObject<number> }) {
+  const key = useRef<THREE.DirectionalLight>(null);
   useFrame(() => {
+    if (!key.current) return;
     const p = progressRef.current;
-    if (!dirLightRef.current) return;
-    // Flat: straight down [0, 30, 0] -> 3D: angled warm sun [14, 22, 16]
-    dirLightRef.current.position.set(lerp(0, 14, p), 24, lerp(0, 16, p));
-    dirLightRef.current.intensity = lerp(1.1, 1.5, p);
-    dirLightRef.current.castShadow = p > 0.05;
+    key.current.position.set(lerp(0, 12, p), 22, lerp(0, 14, p));
+    key.current.intensity = lerp(1.15, 1.55, p);
   });
-
   return (
     <>
-      <ambientLight color={theme.ambientColor} intensity={1.2} />
-      <directionalLight
-        ref={dirLightRef}
-        color={theme.sunColor}
-        intensity={1.2}
-        position={[0, 24, 0]}
-        castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-        shadow-bias={-0.0002}
-      />
-      <directionalLight color="#dbeafe" intensity={0.4} position={[-12, 14, -10]} />
-      <directionalLight color="#fef3c7" intensity={0.25} position={[0, -10, 0]} />
+      <ambientLight color={theme.ambientColor} intensity={1.35} />
+      <directionalLight ref={key} color={theme.sunColor} position={[0, 22, 0]} intensity={1.2} castShadow shadow-mapSize-width={1536} shadow-mapSize-height={1536} />
+      <hemisphereLight color="#fffaf0" groundColor="#b7a993" intensity={0.42} />
     </>
   );
 }
 
-// ===================================================================
-// SceneContent — Main scene graph
-// ===================================================================
-function SceneContent({
-  matrix,
-  url,
-  season,
-  isFlat,
-  userAngleRef,
-}: {
+function SceneContent({ matrix, url, season, isFlat, userAngleRef }: {
   matrix: boolean[][];
   url: string;
   season: Season;
@@ -535,81 +344,29 @@ function SceneContent({
 }) {
   const progressRef = useRef(isFlat ? 0 : 1);
   const theme = SEASON_THEMES[season];
-
-  const sceneData = useMemo(() => generateSceneData(matrix, url, season), [matrix, url, season]);
+  const data = useMemo(() => generateSceneData(matrix, url, season), [matrix, url, season]);
 
   useFrame((_, delta) => {
     const target = isFlat ? 0 : 1;
-    const diff = target - progressRef.current;
-    const speed = diff > 0 ? 2.4 : 2.8;
-    progressRef.current += diff * Math.min(delta * speed, 0.08);
-    if (Math.abs(diff) < 0.002) progressRef.current = target;
+    const speed = target > progressRef.current ? 2.35 : 2.8;
+    progressRef.current += (target - progressRef.current) * Math.min(1, delta * speed);
+    if (Math.abs(target - progressRef.current) < 0.0015) progressRef.current = target;
   });
 
   return (
     <>
-      <DynamicLighting theme={theme} progressRef={progressRef} />
-
-      <CameraRig
-        progressRef={progressRef}
-        gridSize={sceneData.gridSize}
-        cellSize={sceneData.cellSize}
-        userAngleRef={userAngleRef}
-      />
-
-      {/* Stone Plaza Ground Base */}
-      <IslandPlaza
-        platformSize={sceneData.platformSize}
-        theme={theme}
-        progressRef={progressRef}
-      />
-
-      {/* QR Pixel Art Grid (Flat) <-> Stone Floor (3D) */}
-      <TerrainTilesMesh
-        key={`tiles-${sceneData.gridSize}-${season}`}
-        tiles={sceneData.tiles}
-        cellSize={sceneData.cellSize}
-        theme={theme}
-        progressRef={progressRef}
-      />
-
-      {/* Stylized Grass Tufts around perimeter */}
-      <StylizedGrassMesh
-        key={`grass-${sceneData.gridSize}-${season}`}
-        tiles={sceneData.tiles}
-        theme={theme}
-        progressRef={progressRef}
-      />
-
-      {/* Wooden Trunk & Branches */}
-      {sceneData.tree.segments.length > 0 && (
-        <TreeBranchesMesh
-          key={`trunk-${sceneData.tree.segments.length}`}
-          segments={sceneData.tree.segments}
-          theme={theme}
-          progressRef={progressRef}
-        />
-      )}
-
-      {/* 650 Fine Organic Leaf Clusters */}
-      {sceneData.tree.leaves.length > 0 && (
-        <LushLeavesMesh
-          key={`leaves-${sceneData.tree.leaves.length}-${season}`}
-          leaves={sceneData.tree.leaves}
-          theme={theme}
-          progressRef={progressRef}
-        />
-      )}
-
-      {/* Floating Butterflies / Particles */}
-      <FloatingButterflies progressRef={progressRef} />
+      <Lights theme={theme} progressRef={progressRef} />
+      <CameraRig progressRef={progressRef} gridSize={data.gridSize} cellSize={data.cellSize} userAngleRef={userAngleRef} />
+      <Platform size={data.platformSize} theme={theme} progressRef={progressRef} />
+      <TerrainMesh tiles={data.tiles} cellSize={data.cellSize} theme={theme} progressRef={progressRef} />
+      <BranchMesh segments={data.tree.segments} theme={theme} progressRef={progressRef} />
+      <LeavesMesh leaves={data.tree.leaves} progressRef={progressRef} />
+      <FlowersMesh flowers={data.tree.flowers} progressRef={progressRef} />
+      <TreeParticles theme={theme} progressRef={progressRef} />
     </>
   );
 }
 
-// ===================================================================
-// QRTreeScene — Public Canvas wrapper with touch & drag orbit support
-// ===================================================================
 export interface QRTreeSceneProps {
   matrix: boolean[][];
   url: string;
@@ -620,96 +377,50 @@ export interface QRTreeSceneProps {
   style?: React.CSSProperties;
 }
 
-export default function QRTreeScene({
-  matrix,
-  url,
-  season,
-  isFlat,
-  onToggleFlat,
-  className,
-  style,
-}: QRTreeSceneProps) {
+export default function QRTreeScene({ matrix, url, season, isFlat, onToggleFlat, className, style }: QRTreeSceneProps) {
   const theme = SEASON_THEMES[season];
   const userAngleRef = useRef({ azimuth: 0, elevation: 0 });
-  const dragRef = useRef<{ startX: number; startY: number; moved: boolean } | null>(null);
-
-  const handlePointerDown = (e: React.PointerEvent) => {
-    if (e.button !== 0) return;
-    dragRef.current = { startX: e.clientX, startY: e.clientY, moved: false };
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!dragRef.current) return;
-    const dx = e.clientX - dragRef.current.startX;
-    const dy = e.clientY - dragRef.current.startY;
-    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
-      dragRef.current.moved = true;
-      userAngleRef.current.azimuth += dx * 0.005;
-      userAngleRef.current.elevation = Math.max(-0.25, Math.min(0.45, userAngleRef.current.elevation - dy * 0.005));
-      dragRef.current.startX = e.clientX;
-      dragRef.current.startY = e.clientY;
-    }
-  };
-
-  const handlePointerUp = () => {
-    if (dragRef.current && !dragRef.current.moved) {
-      onToggleFlat();
-    }
-    dragRef.current = null;
-  };
+  const dragRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
 
   return (
     <div
       className={className}
-      style={{
-        width: "100%",
-        height: "100%",
-        cursor: "grab",
-        touchAction: "none",
-        ...style,
+      style={{ width: "100%", height: "100%", touchAction: "none", cursor: "grab", ...style }}
+      onPointerDown={(e) => {
+        if (e.button !== 0) return;
+        dragRef.current = { x: e.clientX, y: e.clientY, moved: false };
       }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={() => (dragRef.current = null)}
+      onPointerMove={(e) => {
+        const drag = dragRef.current;
+        if (!drag) return;
+        const dx = e.clientX - drag.x;
+        const dy = e.clientY - drag.y;
+        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+          drag.moved = true;
+          userAngleRef.current.azimuth += dx * 0.004;
+          userAngleRef.current.elevation = clamp(userAngleRef.current.elevation - dy * 0.004, -0.22, 0.35);
+          drag.x = e.clientX;
+          drag.y = e.clientY;
+        }
+      }}
+      onPointerUp={() => {
+        const drag = dragRef.current;
+        if (drag && !drag.moved) onToggleFlat();
+        dragRef.current = null;
+      }}
+      onPointerLeave={() => { dragRef.current = null; }}
     >
       <Canvas
-        camera={{ fov: 38, near: 0.1, far: 200, position: [0, 22, 0.0001] }}
-        dpr={[1, 2]}
+        camera={{ fov: 38, near: 0.1, far: 220, position: [0, 20, 0.001] }}
+        dpr={[1, 1.75]}
         gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
         shadows
         style={{ background: theme.bgColor }}
       >
         <color attach="background" args={[theme.bgColor]} />
-        <fog attach="fog" args={[theme.bgColor, 32, 90]} />
-
-        <SceneContent
-          matrix={matrix}
-          url={url}
-          season={season}
-          isFlat={isFlat}
-          userAngleRef={userAngleRef}
-        />
+        <fog attach="fog" args={[theme.bgColor, 34, 90]} />
+        <SceneContent matrix={matrix} url={url} season={season} isFlat={isFlat} userAngleRef={userAngleRef} />
       </Canvas>
     </div>
   );
-}
-
-// Utility: Color interpolation
-function lerpColor(hexA: string, hexB: string, t: number): string {
-  const a = hexToRgb(hexA);
-  const b = hexToRgb(hexB);
-  const r = Math.round(lerp(a.r, b.r, t));
-  const g = Math.round(lerp(a.g, b.g, t));
-  const bl = Math.round(lerp(a.b, b.b, t));
-  return `rgb(${r},${g},${bl})`;
-}
-
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const v = hex.replace("#", "");
-  return {
-    r: parseInt(v.substring(0, 2), 16),
-    g: parseInt(v.substring(2, 4), 16),
-    b: parseInt(v.substring(4, 6), 16),
-  };
 }
