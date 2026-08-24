@@ -1,15 +1,7 @@
-// ---------------------------------------------------------------------------
-// treeGenerator.ts — Natural stylized tree, fine-grained leaf clusters & grass
-// ---------------------------------------------------------------------------
-
 import { hash31, mulberry32 } from "./hashNoise";
 import { SEASON_THEMES, type Season, type SeasonTheme } from "./seasonTheme";
 
-export interface Vec3 {
-  x: number;
-  y: number;
-  z: number;
-}
+export interface Vec3 { x: number; y: number; z: number }
 
 export interface TerrainTile {
   col: number;
@@ -17,12 +9,10 @@ export interface TerrainTile {
   x: number;
   z: number;
   isDark: boolean;
-  zone: "center" | "finder" | "outer" | "middle";
+  finder: boolean;
   qrColor: string;
   stoneColor: string;
-  isGrass: boolean;
-  grassScale: number;
-  grassRot: number;
+  variation: number;
 }
 
 export interface TreeSegment {
@@ -44,9 +34,18 @@ export interface LeafParticle {
   colorHex: string;
 }
 
+export interface FlowerParticle {
+  x: number;
+  y: number;
+  z: number;
+  scale: number;
+  colorHex: string;
+}
+
 export interface TreeData {
   segments: TreeSegment[];
   leaves: LeafParticle[];
+  flowers: FlowerParticle[];
 }
 
 export interface SceneData {
@@ -57,255 +56,196 @@ export interface SceneData {
   platformSize: number;
 }
 
-const CELL_BASE = 0.5;
+const CELL_SIZE = 0.5;
 
-function getModuleZone(r: number, c: number, n: number): "center" | "finder" | "outer" | "middle" {
-  const isFinder =
-    (r < 8 && c < 8) ||
-    (r < 8 && c >= n - 8) ||
-    (r >= n - 8 && c < 8);
-  if (isFinder) return "finder";
-
-  const half = (n - 1) / 2;
-  const dist = Math.sqrt((r - half) ** 2 + (c - half) ** 2);
-  const maxDist = Math.sqrt(half * half + half * half);
-  const distRatio = dist / maxDist;
-
-  if (distRatio < 0.3) return "center";
-  if (distRatio > 0.62 || r <= 1 || r >= n - 2 || c <= 1 || c >= n - 2) return "outer";
-  return "middle";
+function isFinderCell(row: number, col: number, n: number): boolean {
+  return (
+    (row < 7 && col < 7) ||
+    (row < 7 && col >= n - 7) ||
+    (row >= n - 7 && col < 7)
+  );
 }
 
-export function generateSceneData(matrix: boolean[][], url: string, season: Season): SceneData {
-  const seed = hash31(url);
-  const gridSize = matrix.length;
-  const cellSize = CELL_BASE;
-  const half = (gridSize - 1) / 2;
-  const rnd = mulberry32(seed ^ 0x9e3779b9);
-  const theme = SEASON_THEMES[season];
+function cellCenter(row: number, col: number, n: number): Vec3 {
+  const half = (n - 1) / 2;
+  return { x: (col - half) * CELL_SIZE, y: 0, z: (row - half) * CELL_SIZE };
+}
 
-  // ---- 1. Terrain Tiles ----
-  const tiles: TerrainTile[] = [];
-
-  for (let r = 0; r < gridSize; r++) {
-    for (let c = 0; c < gridSize; c++) {
-      const isDark = matrix[r][c];
-      const x = (c - half) * cellSize;
-      const z = (r - half) * cellSize;
-      const zone = getModuleZone(r, c, gridSize);
-
-      let qrColor: string;
-      if (isDark) {
-        const isCornerEdge = (r === 0 || r === 6 || r === gridSize - 7 || r === gridSize - 1) &&
-                             (c === 0 || c === 6 || c === gridSize - 7 || c === gridSize - 1);
-        if (isCornerEdge && rnd() < 0.6) {
-          qrColor = theme.cornerAccent[Math.floor(rnd() * theme.cornerAccent.length)];
-        } else {
-          qrColor = theme.qrDarkPalette[Math.floor(rnd() * theme.qrDarkPalette.length)];
-        }
-      } else {
-        qrColor = theme.qrLightPalette[Math.floor(rnd() * theme.qrLightPalette.length)];
-      }
-
-      const stoneColor = theme.stoneTileColors[Math.floor(rnd() * theme.stoneTileColors.length)];
-
-      // Grass only grows on dark modules in the OUTER border and FINDER corners
-      const isGrass = isDark && (zone === "outer" || zone === "finder" || (zone === "middle" && rnd() < 0.35));
-      const grassScale = isGrass ? 0.35 + rnd() * 0.25 : 0;
-      const grassRot = rnd() * Math.PI * 2;
-
-      tiles.push({
-        col: c,
-        row: r,
-        x,
-        z,
-        isDark,
-        zone,
-        qrColor,
-        stoneColor,
-        isGrass,
-        grassScale,
-        grassRot,
-      });
+function averageDarkCells(matrix: boolean[][], minR: number, maxR: number, minC: number, maxC: number): Vec3 {
+  const n = matrix.length;
+  let sx = 0;
+  let sz = 0;
+  let count = 0;
+  for (let r = Math.max(0, minR); r < Math.min(n, maxR); r++) {
+    for (let c = Math.max(0, minC); c < Math.min(n, maxC); c++) {
+      if (!matrix[r][c]) continue;
+      const p = cellCenter(r, c, n);
+      sx += p.x;
+      sz += p.z;
+      count++;
     }
   }
-
-  // ---- 2. Organic Tree with Hundreds of Fine Leaf Particles ----
-  const tree = generateRealisticTree(gridSize, cellSize, seed, theme);
-
-  return {
-    tiles,
-    tree,
-    cellSize,
-    gridSize,
-    platformSize: gridSize * cellSize,
-  };
+  return count > 0 ? { x: sx / count, y: 0, z: sz / count } : { x: 0, y: 0, z: 0 };
 }
 
-function generateRealisticTree(gridSize: number, cellSize: number, seed: number, theme: SeasonTheme): TreeData {
+function buildBranches(matrix: boolean[][], seed: number, theme: SeasonTheme): TreeData {
+  const n = matrix.length;
+  const rnd = mulberry32(seed ^ 0x6d2b79f5);
   const segments: TreeSegment[] = [];
   const leaves: LeafParticle[] = [];
-  const rnd = mulberry32(seed ^ 0x4f1b8a92);
+  const flowers: FlowerParticle[] = [];
 
-  const trunkHeight = 5.2 + rnd() * 0.8;
-  const trunkRadius = 0.36;
+  const center = { x: 0, y: 0, z: 0 };
+  const root = averageDarkCells(matrix, Math.floor(n * 0.32), Math.ceil(n * 0.68), Math.floor(n * 0.32), Math.ceil(n * 0.68));
+  center.x = root.x * 0.15;
+  center.z = root.z * 0.15;
 
-  // ---- Trunk (smooth tapering cylinder sections) ----
-  const TRUNK_SEGS = 7;
-  const leanX = (rnd() - 0.5) * 0.35;
-  const leanZ = (rnd() - 0.5) * 0.35;
+  const density = matrix.flat().filter(Boolean).length / Math.max(1, n * n);
+  const trunkHeight = 4.5 + density * 2.4;
+  const trunkSegments = 8;
 
-  for (let i = 0; i < TRUNK_SEGS; i++) {
-    const t0 = i / TRUNK_SEGS;
-    const t1 = (i + 1) / TRUNK_SEGS;
-
-    const x0 = leanX * t0 * t0;
-    const y0 = t0 * trunkHeight;
-    const z0 = leanZ * t0 * t0;
-
-    const x1 = leanX * t1 * t1;
-    const y1 = t1 * trunkHeight;
-    const z1 = leanZ * t1 * t1;
-
-    const r0 = trunkRadius * (1 - t0 * 0.45);
-    const r1 = trunkRadius * (1 - t1 * 0.45);
-
+  for (let i = 0; i < trunkSegments; i++) {
+    const t0 = i / trunkSegments;
+    const t1 = (i + 1) / trunkSegments;
+    const driftX = Math.sin(seed * 0.001 + i * 0.7) * 0.14 * t1;
+    const driftZ = Math.cos(seed * 0.0013 + i * 0.55) * 0.14 * t1;
     segments.push({
-      start: { x: x0, y: y0, z: z0 },
-      end: { x: x1, y: y1, z: z1 },
-      radiusStart: r0,
-      radiusEnd: r1,
+      start: { x: center.x + driftX * t0, y: t0 * trunkHeight, z: center.z + driftZ * t0 },
+      end: { x: center.x + driftX, y: t1 * trunkHeight, z: center.z + driftZ },
+      radiusStart: 0.38 * (1 - t0 * 0.45),
+      radiusEnd: 0.38 * (1 - t1 * 0.48),
       depth: 0,
     });
   }
 
-  // ---- Major Branches (8 main boughs reaching out & up) ----
-  const NUM_BOUGHS = 8;
-  const leafSpawners: Vec3[] = [];
+  const branchCount = 10 + Math.round(density * 8);
+  const spawners: Vec3[] = [];
 
-  for (let b = 0; b < NUM_BOUGHS; b++) {
-    const attachT = 0.38 + (b / NUM_BOUGHS) * 0.55 + (rnd() - 0.5) * 0.08;
-    const attachY = attachT * trunkHeight;
-    const attachX = leanX * attachT * attachT;
-    const attachZ = leanZ * attachT * attachT;
+  for (let b = 0; b < branchCount; b++) {
+    const angle = (b / branchCount) * Math.PI * 2 + (rnd() - 0.5) * 0.34;
+    const attachT = 0.42 + rnd() * 0.45;
+    const attachY = trunkHeight * attachT;
+    const baseRadius = 0.18 * (1 - attachT * 0.2);
 
-    const angle = (b / NUM_BOUGHS) * Math.PI * 2 + (rnd() - 0.5) * 0.4;
-    const boughLen = 2.2 + rnd() * 1.4;
-    const upwardAngle = 0.35 + (1 - attachT) * 0.35; // lower branches point up more
+    // Sample a QR quadrant so branch orientation is driven by the encoded pattern.
+    const qx = Math.cos(angle);
+    const qz = Math.sin(angle);
+    const minR = qz < 0 ? 7 : Math.floor(n * 0.48);
+    const maxR = qz < 0 ? Math.floor(n * 0.52) : n - 7;
+    const minC = qx < 0 ? 7 : Math.floor(n * 0.48);
+    const maxC = qx < 0 ? Math.floor(n * 0.52) : n - 7;
+    const target = averageDarkCells(matrix, minR, maxR, minC, maxC);
+    const targetRadius = Math.max(2.0, Math.min(4.2, Math.hypot(target.x, target.z) * 0.55 + 2.2));
+    const length = targetRadius * (0.75 + rnd() * 0.35);
 
-    const endX = attachX + Math.cos(angle) * boughLen * (1 - upwardAngle * 0.4);
-    const endY = attachY + upwardAngle * boughLen;
-    const endZ = attachZ + Math.sin(angle) * boughLen * (1 - upwardAngle * 0.4);
+    const start = {
+      x: center.x + qx * 0.12,
+      y: attachY,
+      z: center.z + qz * 0.12,
+    };
+    const end = {
+      x: start.x + qx * length,
+      y: attachY + 0.55 + rnd() * 1.05,
+      z: start.z + qz * length,
+    };
 
-    const bRadius = trunkRadius * 0.4 * (1 - attachT * 0.25);
+    segments.push({ start, end, radiusStart: baseRadius, radiusEnd: baseRadius * 0.48, depth: 1 });
+    spawners.push(end);
 
-    segments.push({
-      start: { x: attachX, y: attachY, z: attachZ },
-      end: { x: endX, y: endY, z: endZ },
-      radiusStart: bRadius,
-      radiusEnd: bRadius * 0.55,
-      depth: 1,
-    });
-
-    leafSpawners.push({ x: (attachX + endX) / 2, y: (attachY + endY) / 2, z: (attachZ + endZ) / 2 });
-    leafSpawners.push({ x: endX, y: endY, z: endZ });
-
-    // Sub-twigs (2-3 per bough)
-    const numTwigs = 2 + Math.floor(rnd() * 2);
-    for (let tw = 0; tw < numTwigs; tw++) {
-      const twAngle = angle + (tw === 0 ? 0.5 : -0.5) * (0.8 + rnd() * 0.4);
-      const twLen = boughLen * (0.55 + rnd() * 0.25);
-      const twEndX = endX + Math.cos(twAngle) * twLen * 0.8;
-      const twEndY = endY + 0.4 + rnd() * 0.8;
-      const twEndZ = endZ + Math.sin(twAngle) * twLen * 0.8;
-
+    const twigCount = 3 + Math.floor(rnd() * 3);
+    for (let t = 0; t < twigCount; t++) {
+      const spread = (t - (twigCount - 1) / 2) * 0.24;
+      const twigAngle = angle + spread + (rnd() - 0.5) * 0.22;
+      const twigLen = length * (0.38 + rnd() * 0.28);
+      const twigStart = {
+        x: end.x * 0.75 + start.x * 0.25,
+        y: end.y * 0.75 + start.y * 0.25,
+        z: end.z * 0.75 + start.z * 0.25,
+      };
+      const twigEnd = {
+        x: twigStart.x + Math.cos(twigAngle) * twigLen,
+        y: twigStart.y + 0.45 + rnd() * 0.75,
+        z: twigStart.z + Math.sin(twigAngle) * twigLen,
+      };
       segments.push({
-        start: { x: endX, y: endY, z: endZ },
-        end: { x: twEndX, y: twEndY, z: twEndZ },
-        radiusStart: bRadius * 0.45,
-        radiusEnd: bRadius * 0.2,
+        start: twigStart,
+        end: twigEnd,
+        radiusStart: baseRadius * 0.5,
+        radiusEnd: baseRadius * 0.16,
         depth: 2,
       });
-
-      leafSpawners.push({ x: twEndX, y: twEndY, z: twEndZ });
+      spawners.push(twigEnd);
     }
   }
 
-  // Top trunk leader branches
-  for (let top = 0; top < 3; top++) {
-    const topAngle = (top / 3) * Math.PI * 2 + rnd() * 0.5;
-    const topEndX = Math.cos(topAngle) * 0.8;
-    const topEndY = trunkHeight + 1.6 + rnd() * 0.8;
-    const topEndZ = Math.sin(topAngle) * 0.8;
+  const leafCount = Math.min(900, 520 + Math.round(density * 500));
+  const flowerCount = theme.name === "spring" ? 110 : 70;
+  const foliage = theme.foliageColors;
 
-    segments.push({
-      start: { x: leanX, y: trunkHeight, z: leanZ },
-      end: { x: topEndX, y: topEndY, z: topEndZ },
-      radiusStart: trunkRadius * 0.35,
-      radiusEnd: trunkRadius * 0.15,
-      depth: 1,
-    });
-
-    leafSpawners.push({ x: topEndX, y: topEndY, z: topEndZ });
-  }
-
-  // ---- Dense Organic Foliage: 650 fine leaf clusters ----
-  const TOTAL_LEAVES = 650;
-  const colors = theme.foliageColors;
-
-  // 1. Cluster leaves tightly around all branch endpoints and twigs (60% of leaves)
-  const branchLeaves = Math.floor(TOTAL_LEAVES * 0.65);
-  for (let i = 0; i < branchLeaves; i++) {
-    const spawner = leafSpawners[i % leafSpawners.length];
-    const spread = 0.95;
-    const lx = spawner.x + (rnd() - 0.5) * spread * 2;
-    const ly = spawner.y + (rnd() - 0.5) * spread * 1.5;
-    const lz = spawner.z + (rnd() - 0.5) * spread * 2;
-    const scale = 0.38 + rnd() * 0.32; // small, delicate leaf cluster!
-
+  for (let i = 0; i < leafCount; i++) {
+    const source = spawners[i % spawners.length];
+    const cluster = 0.55 + rnd() * 1.15;
+    const angle = rnd() * Math.PI * 2;
+    const radius = Math.sqrt(rnd()) * cluster;
     leaves.push({
-      x: lx,
-      y: ly,
-      z: lz,
-      scale,
+      x: source.x + Math.cos(angle) * radius,
+      y: source.y + (rnd() - 0.35) * cluster * 1.2,
+      z: source.z + Math.sin(angle) * radius,
+      scale: 0.22 + rnd() * 0.28,
       rotX: rnd() * Math.PI,
       rotY: rnd() * Math.PI * 2,
       rotZ: rnd() * Math.PI,
-      colorHex: colors[Math.floor(rnd() * colors.length)],
+      colorHex: foliage[Math.floor(rnd() * foliage.length)],
     });
   }
 
-  // 2. Dome volume filler leaves to form a complete lush canopy silhouette (35% of leaves)
-  const domeLeaves = TOTAL_LEAVES - branchLeaves;
-  const canopyCenterY = trunkHeight * 0.85;
-
-  for (let i = 0; i < domeLeaves; i++) {
-    const u = rnd();
-    const v = rnd();
-    const theta = u * 2.0 * Math.PI;
-    const phi = Math.acos(2.0 * v - 1.0);
-    const r = Math.cbrt(rnd()) * 2.8;
-
-    const sinPhi = Math.sin(phi);
-    const lx = r * sinPhi * Math.cos(theta) * 1.25; // wide canopy
-    const ly = canopyCenterY + r * Math.cos(phi) * 1.1; // height
-    const lz = r * sinPhi * Math.sin(theta) * 1.25;
-    const scale = 0.35 + rnd() * 0.35;
-
-    leaves.push({
-      x: lx,
-      y: Math.max(trunkHeight * 0.4, ly),
-      z: lz,
-      scale,
-      rotX: rnd() * Math.PI,
-      rotY: rnd() * Math.PI * 2,
-      rotZ: rnd() * Math.PI,
-      colorHex: colors[Math.floor(rnd() * colors.length)],
+  for (let i = 0; i < flowerCount; i++) {
+    const source = spawners[Math.floor(rnd() * spawners.length)];
+    flowers.push({
+      x: source.x + (rnd() - 0.5) * 1.2,
+      y: source.y + (rnd() - 0.2) * 0.8,
+      z: source.z + (rnd() - 0.5) * 1.2,
+      scale: 0.08 + rnd() * 0.09,
+      colorHex: theme.foliageColors[(i + 1) % theme.foliageColors.length],
     });
+  }
+
+  return { segments, leaves, flowers };
+}
+
+export function generateSceneData(matrix: boolean[][], url: string, season: Season): SceneData {
+  const n = matrix.length;
+  const theme = SEASON_THEMES[season];
+  const seed = hash31(url);
+  const rnd = mulberry32(seed ^ 0x13579bdf);
+  const half = (n - 1) / 2;
+  const tiles: TerrainTile[] = [];
+
+  for (let row = 0; row < n; row++) {
+    for (let col = 0; col < n; col++) {
+      const isDark = matrix[row][col];
+      const finder = isFinderCell(row, col, n);
+      tiles.push({
+        row,
+        col,
+        x: (col - half) * CELL_SIZE,
+        z: (row - half) * CELL_SIZE,
+        isDark,
+        finder,
+        qrColor: isDark
+          ? theme.qrDarkPalette[Math.floor(rnd() * theme.qrDarkPalette.length)]
+          : theme.qrLightPalette[Math.floor(rnd() * theme.qrLightPalette.length)],
+        stoneColor: theme.stoneTileColors[Math.floor(rnd() * theme.stoneTileColors.length)],
+        variation: rnd(),
+      });
+    }
   }
 
   return {
-    segments,
-    leaves,
+    tiles,
+    tree: buildBranches(matrix, seed, theme),
+    cellSize: CELL_SIZE,
+    gridSize: n,
+    platformSize: n * CELL_SIZE,
   };
 }
