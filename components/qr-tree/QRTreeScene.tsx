@@ -108,8 +108,10 @@ function QRState({matrix,theme,progressRef,qrCell}:{matrix:boolean[][];theme:Sea
     const mesh=ref.current;if(!mesh)return;
     const p=progressRef.current,visible=1-phase(p,0.08,0.58),soften=phase(p,0.12,0.62);
     for(let r=0;r<n;r++)for(let c=0;c<n;c++){
-      const i=r*n+c,dark=matrix[r][c],x=(c-mid)*qrCell,z=(r-mid)*qrCell,h=dark?0.08*visible:0.035;
-      DUMMY.position.set(x,h*0.5-0.01,z);DUMMY.scale.set(qrCell*0.98,h,qrCell*0.98);DUMMY.rotation.set(0,0,0);DUMMY.updateMatrix();mesh.setMatrixAt(i,DUMMY.matrix);
+      const i=r*n+c,dark=matrix[r][c],x=(c-mid)*qrCell,z=(r-mid)*qrCell;
+      const h=dark?0.08*visible:0.035*visible;
+      const s=qrCell*0.98*visible;
+      DUMMY.position.set(x,h*0.5-0.01,z);DUMMY.scale.set(s,h,s);DUMMY.rotation.set(0,0,0);DUMMY.updateMatrix();mesh.setMatrixAt(i,DUMMY.matrix);
       const stone=theme.stoneTileColors[1]||"#e4ddcc",darkColor=theme.qrDarkPalette[2]||"#4f9638";
       COLOR.set(dark?darkColor:(theme.qrLightPalette[1]||"#e7dfcf")); if(dark)COLOR.lerp(new THREE.Color(stone),soften);mesh.setColorAt(i,COLOR);
     }
@@ -152,7 +154,7 @@ function CameraRig({progressRef,qrSpan,userAngleRef}:{progressRef:MutableRefObje
   useFrame(()=>{
     const p=smooth(progressRef.current),aspect=size.width/Math.max(1,size.height),fov=(34*Math.PI)/180;
     const qrDistance=Math.max(16,(qrSpan*0.74)/Math.tan(fov/2)/Math.max(0.62,aspect));
-    const user=userAngleRef.current,azimuth=Math.PI*0.25+user.azimuth,elevation=clamp(0.64+user.elevation,0.40,0.9),treeDistance=18.0;
+    const user=userAngleRef.current,azimuth=Math.PI*0.25+user.azimuth,elevation=clamp(0.64+user.elevation,0.40,0.9),treeDistance=9.6;
     const tx=Math.sin(azimuth)*Math.cos(elevation)*treeDistance,ty=Math.sin(elevation)*treeDistance,tz=Math.cos(azimuth)*Math.cos(elevation)*treeDistance;
     camera.position.set(lerp(0,tx,p),lerp(qrDistance,ty,p),lerp(0.001,tz,p));TARGET.set(0,lerp(0,1.0,p),0);camera.up.set(0,1,0);camera.lookAt(TARGET);
   });
