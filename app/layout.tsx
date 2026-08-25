@@ -72,6 +72,12 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Permanent+Marker&family=Rock+Salt&family=Sedgwick+Ave&display=swap"
+        />
       </head>
       <body className="min-h-full flex flex-col bg-[var(--bg-space,#0A0E1A)] text-slate-100 selection:bg-[var(--primary-spotify,#22D3EE)] selection:text-black font-sans">
         <SessionProvider>

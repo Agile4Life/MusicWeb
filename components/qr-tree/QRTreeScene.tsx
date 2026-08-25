@@ -12,6 +12,7 @@ import {
   type FlowerParticle,
   type CanopyBlob,
   type TerrainTile,
+  type GrassBlade,
 } from "./treeGenerator";
 
 const DUMMY = new THREE.Object3D();
@@ -213,7 +214,9 @@ function Branches({
 }
 
 // ---------------------------------------------------------------------------
-// 4. Canopy Silhouette Base Blobs (Solid, lush silhouette crown volume)
+// 4. Canopy Silhouette Base Blobs (small inner filler — see FIX 2 in
+//    treeGenerator.ts. These are now deliberately small so the dense Leaves
+//    layer below is what reads as the visible surface, not these blobs.)
 // ---------------------------------------------------------------------------
 function CanopyBlobs({
   blobs,
@@ -259,13 +262,14 @@ function CanopyBlobs({
   return (
     <instancedMesh ref={ref} args={[undefined, undefined, blobs.length]} castShadow receiveShadow>
       <sphereGeometry args={[1, 14, 12]} />
-      <meshStandardMaterial roughness={0.85} />
+      <meshStandardMaterial roughness={0.7} flatShading />
     </instancedMesh>
   );
 }
 
 // ---------------------------------------------------------------------------
-// 5. Fibonacci Surface Leaves (Dense, smooth leaf layer)
+// 5. Fibonacci Surface Leaves (Dense, smooth leaf layer — the main visible
+//    canopy texture; see FIX 2 in treeGenerator.ts for the density/shell tuning)
 // ---------------------------------------------------------------------------
 function Leaves({
   leaves,
@@ -302,6 +306,11 @@ function Leaves({
 
       mesh.setMatrixAt(i, DUMMY.matrix);
       COLOR.set(l.colorHex);
+      // Deterministic per-instance brightness jitter (±15%) so neighbouring
+      // leaf facets read as distinct shapes instead of blending into one
+      // smooth green mass — this is most of what "sharpens" the canopy.
+      const variance = 0.85 + ((i * 92837 + 17) % 233) / 233 * 0.3;
+      COLOR.multiplyScalar(variance);
       mesh.setColorAt(i, COLOR);
     }
     mesh.instanceMatrix.needsUpdate = true;
@@ -311,7 +320,10 @@ function Leaves({
   return (
     <instancedMesh ref={ref} args={[undefined, undefined, leaves.length]} castShadow receiveShadow>
       <sphereGeometry args={[1, 8, 6]} />
-      <meshStandardMaterial roughness={0.65} />
+      {/* flatShading turns each leaf into a hard-edged low-poly facet instead
+          of a smooth Phong-shaded ball — this is the main fix for "blurry"
+          leaves. Lower roughness (0.65→0.45) gives crisper specular pop too. */}
+      <meshStandardMaterial roughness={0.45} flatShading />
     </instancedMesh>
   );
 }
@@ -367,7 +379,56 @@ function Flowers({
 }
 
 // ---------------------------------------------------------------------------
-// 7. Atmosphere Falling Particles (Anchored tightly to Canopy)
+// 7. Grass Tufts (NEW — four little clusters at the platform corners,
+//    matching the reference site. Grows in with the tree, fades out flat.)
+// ---------------------------------------------------------------------------
+function Grass({
+  blades,
+  progressRef,
+}: {
+  blades: GrassBlade[];
+  progressRef: MutableRefObject<number>;
+}) {
+  const ref = useRef<THREE.InstancedMesh>(null);
+
+  useFrame((state) => {
+    const mesh = ref.current;
+    if (!mesh || blades.length === 0) return;
+
+    const p = progressRef.current;
+    const grow = phase(p, 0.45, 0.9);
+    const time = state.clock.elapsedTime;
+
+    for (let i = 0; i < blades.length; i++) {
+      const g = blades[i];
+      const sway = Math.sin(time * 1.4 + i) * 0.06 * grow;
+
+      DUMMY.position.set(g.x, 0.001, g.z);
+      DUMMY.rotation.set(g.tilt + sway, g.rotY, 0);
+      const s = g.scale * grow;
+      DUMMY.scale.set(s * 0.5, s, s * 0.5);
+      DUMMY.updateMatrix();
+
+      mesh.setMatrixAt(i, DUMMY.matrix);
+      COLOR.set(g.colorHex);
+      mesh.setColorAt(i, COLOR);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  });
+
+  if (blades.length === 0) return null;
+
+  return (
+    <instancedMesh ref={ref} args={[undefined, undefined, blades.length]} castShadow receiveShadow>
+      <coneGeometry args={[1, 1, 4]} />
+      <meshStandardMaterial roughness={0.75} />
+    </instancedMesh>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 8. Atmosphere Falling Particles (Anchored tightly to Canopy)
 // ---------------------------------------------------------------------------
 function AtmosphereParticles({
   theme,
@@ -447,7 +508,7 @@ function AtmosphereParticles({
 }
 
 // ---------------------------------------------------------------------------
-// 8. Camera Rig (Isometric Perspective & Clean Zoom/Orbit)
+// 9. Camera Rig (Isometric Perspective & Clean Zoom/Orbit)
 // ---------------------------------------------------------------------------
 function CameraRig({
   progressRef,
@@ -492,7 +553,7 @@ function CameraRig({
 }
 
 // ---------------------------------------------------------------------------
-// 9. Lighting
+// 10. Lighting
 // ---------------------------------------------------------------------------
 function Lighting({
   theme,
@@ -528,7 +589,7 @@ function Lighting({
 }
 
 // ---------------------------------------------------------------------------
-// 10. Main 3D Scene Controller
+// 11. Main 3D Scene Controller
 // ---------------------------------------------------------------------------
 function Scene({
   matrix,
@@ -575,6 +636,7 @@ function Scene({
       <CanopyBlobs blobs={sceneData.tree.canopyBlobs} progressRef={progressRef} />
       <Leaves leaves={sceneData.tree.leaves} progressRef={progressRef} />
       <Flowers flowers={sceneData.tree.flowers} progressRef={progressRef} />
+      <Grass blades={sceneData.grass} progressRef={progressRef} />
       <AtmosphereParticles
         theme={theme}
         progressRef={progressRef}
@@ -665,7 +727,7 @@ export default function QRTreeScene({
     >
       <Canvas
         camera={{ fov: 35, near: 0.1, far: 200, position: [0, 22, 0.001] }}
-        dpr={[1, 1.75]}
+        dpr={[1, 2]}
         gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
         shadows
         style={{ background: theme.bgColor }}

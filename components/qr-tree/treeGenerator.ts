@@ -56,6 +56,17 @@ export interface CanopyBlob {
   colorHex: string;
 }
 
+// NEW: grass tufts scattered at the platform corners.
+export interface GrassBlade {
+  x: number;
+  y: number;
+  z: number;
+  rotY: number;
+  tilt: number;
+  scale: number;
+  colorHex: string;
+}
+
 export interface TreeData {
   segments: TreeSegment[];
   leaves: LeafParticle[];
@@ -68,12 +79,21 @@ export interface TreeData {
 export interface SceneData {
   tiles: TerrainTile[];
   tree: TreeData;
+  grass: GrassBlade[];
   cellSize: number;
   gridSize: number;
   platformSize: number;
 }
 
-const CELL_SIZE = 0.44;
+// ---------------------------------------------------------------------------
+// FIX 1 — platform size must stay roughly constant regardless of how much
+// data is encoded in the QR (n can range ~21..41 modules). Previously
+// CELL_SIZE was a fixed 0.44, which made platformSize = n * 0.44 balloon up
+// to ~18 units for long URLs while the canopy stayed ~4.2 units wide — that
+// mismatch is exactly the "huge slab, tiny blob" look in the screenshot.
+// Now we pick cellSize per-QR so the platform always spans TARGET_PLATFORM_SPAN.
+// ---------------------------------------------------------------------------
+const TARGET_PLATFORM_SPAN = 5.4; // world units — tuned to ~1.3x canopy diameter
 
 function isFinderCell(row: number, col: number, n: number): boolean {
   return (
@@ -83,12 +103,19 @@ function isFinderCell(row: number, col: number, n: number): boolean {
   );
 }
 
-function cellCenter(row: number, col: number, n: number): Vec3 {
+function cellCenter(row: number, col: number, n: number, cellSize: number): Vec3 {
   const half = (n - 1) / 2;
-  return { x: (col - half) * CELL_SIZE, y: 0, z: (row - half) * CELL_SIZE };
+  return { x: (col - half) * cellSize, y: 0, z: (row - half) * cellSize };
 }
 
-function averageDarkCells(matrix: boolean[][], minR: number, maxR: number, minC: number, maxC: number): Vec3 {
+function averageDarkCells(
+  matrix: boolean[][],
+  minR: number,
+  maxR: number,
+  minC: number,
+  maxC: number,
+  cellSize: number
+): Vec3 {
   const n = matrix.length;
   let sx = 0;
   let sz = 0;
@@ -96,7 +123,7 @@ function averageDarkCells(matrix: boolean[][], minR: number, maxR: number, minC:
   for (let r = Math.max(0, minR); r < Math.min(n, maxR); r++) {
     for (let c = Math.max(0, minC); c < Math.min(n, maxC); c++) {
       if (!matrix[r][c]) continue;
-      const p = cellCenter(r, c, n);
+      const p = cellCenter(r, c, n, cellSize);
       sx += p.x;
       sz += p.z;
       count++;
@@ -105,7 +132,40 @@ function averageDarkCells(matrix: boolean[][], minR: number, maxR: number, minC:
   return count > 0 ? { x: sx / count, y: 0, z: sz / count } : { x: 0, y: 0, z: 0 };
 }
 
-function buildTreeData(matrix: boolean[][], seed: number, theme: SeasonTheme): TreeData {
+const GRASS_COLORS = ["#8bc34a", "#7cb342", "#9ccc65", "#689f38"];
+
+// NEW — four little grass clusters at the platform corners, matching the
+// reference site. Purely decorative: grows in during the tree phase and
+// disappears again in flat/QR mode, doesn't touch QR data at all.
+function buildGrass(platformSize: number, seed: number): GrassBlade[] {
+  const rnd = mulberry32(seed ^ 0x9e3779b9);
+  const half = platformSize / 2;
+  const blades: GrassBlade[] = [];
+  const corners = [
+    { cx: half * 0.9, cz: half * 0.9 },
+    { cx: -half * 0.9, cz: half * 0.9 },
+    { cx: half * 0.9, cz: -half * 0.9 },
+    { cx: -half * 0.9, cz: -half * 0.9 },
+  ];
+  for (const corner of corners) {
+    const bladeCount = 10 + Math.floor(rnd() * 6);
+    for (let i = 0; i < bladeCount; i++) {
+      const spread = platformSize * 0.09;
+      blades.push({
+        x: corner.cx + (rnd() - 0.5) * spread,
+        y: 0,
+        z: corner.cz + (rnd() - 0.5) * spread,
+        rotY: rnd() * Math.PI * 2,
+        tilt: (rnd() - 0.5) * 0.35,
+        scale: 0.16 + rnd() * 0.14,
+        colorHex: GRASS_COLORS[Math.floor(rnd() * GRASS_COLORS.length)],
+      });
+    }
+  }
+  return blades;
+}
+
+function buildTreeData(matrix: boolean[][], seed: number, theme: SeasonTheme, cellSize: number): TreeData {
   const n = matrix.length;
   const rnd = mulberry32(seed ^ 0x6d2b79f5);
   const segments: TreeSegment[] = [];
@@ -118,7 +178,7 @@ function buildTreeData(matrix: boolean[][], seed: number, theme: SeasonTheme): T
   for (let r = 0; r < n; r++) {
     for (let c = 0; c < n; c++) {
       if (matrix[r][c]) {
-        darkCells.push(cellCenter(r, c, n));
+        darkCells.push(cellCenter(r, c, n, cellSize));
       }
     }
   }
@@ -137,7 +197,8 @@ function buildTreeData(matrix: boolean[][], seed: number, theme: SeasonTheme): T
     Math.floor(n * 0.35),
     Math.ceil(n * 0.65),
     Math.floor(n * 0.35),
-    Math.ceil(n * 0.65)
+    Math.ceil(n * 0.65),
+    cellSize
   );
   const center = { x: root.x * 0.1, y: 0, z: root.z * 0.1 };
 
@@ -236,21 +297,30 @@ function buildTreeData(matrix: boolean[][], seed: number, theme: SeasonTheme): T
 
   const foliage = theme.foliageColors.length > 0 ? theme.foliageColors : ["#69c73d", "#7bd844", "#5ab92a"];
 
-  // 3. Canopy Silhouette Base Blobs (Creates a solid, smooth connected crown shape)
-  // 1 Core center blob
+  // ---------------------------------------------------------------------
+  // FIX 2 — canopy blobs were sized 0.65–1.15, i.e. almost as big as the
+  // whole canopy radius (~2.1). That's why they rendered as a few huge
+  // faceted chunks dominating the silhouette instead of hiding under the
+  // dense leaf layer. Shrinking them to a small inner "filler" core lets
+  // the 1000+ small Leaves instances read as the visible surface texture,
+  // which is what actually gives the fine dappled look in the reference.
+  // ---------------------------------------------------------------------
+
+  // Core center blob — small filler, not a visible dominant shape anymore
   canopyBlobs.push({
     x: canopyCenter.x,
     y: canopyCenter.y + 0.1,
     z: canopyCenter.z,
     qrX: darkCells[0].x,
     qrZ: darkCells[0].z,
-    radius: 1.15,
+    radius: 0.55,
     colorHex: foliage[0],
   });
 
-  // 5-7 Surrounding sub-blobs along branch hubs
+  // Fewer, smaller sub-blobs along branch hubs — just enough to avoid
+  // gaps at the branch tips, still small enough to stay under the leaves
   for (let i = 0; i < branchHubs.length; i++) {
-    if (i % 2 === 0 || rnd() > 0.4) {
+    if (i % 3 === 0 || rnd() > 0.65) {
       const hub = branchHubs[i];
       canopyBlobs.push({
         x: hub.pos.x,
@@ -258,14 +328,14 @@ function buildTreeData(matrix: boolean[][], seed: number, theme: SeasonTheme): T
         z: hub.pos.z,
         qrX: hub.qrCell.x,
         qrZ: hub.qrCell.z,
-        radius: 0.65 + rnd() * 0.35,
+        radius: 0.24 + rnd() * 0.2,
         colorHex: foliage[Math.floor(rnd() * foliage.length)],
       });
     }
   }
 
   // 4. Dense Fibonacci Surface Leaf Particles (100% strictly bound within canopy envelope)
-  const leafCount = 1100;
+  const leafCount = 1500; // was 1100 — extra density hides any remaining blob edges
   const flowerCount = theme.name === "spring" ? 120 : 60;
 
   for (let i = 0; i < leafCount; i++) {
@@ -273,8 +343,10 @@ function buildTreeData(matrix: boolean[][], seed: number, theme: SeasonTheme): T
     const phi = Math.acos(1 - 2 * ((i + 0.5) / leafCount)); // 0 to PI
     const theta = Math.PI * (1 + Math.sqrt(5)) * i; // Golden angle
 
-    // Radius distribution: bias towards the outer shell (0.65 -> 1.05) for dense lush surface
-    const shellRadius = 0.68 + 0.32 * Math.cbrt(rnd()) + (rnd() - 0.5) * 0.08;
+    // Radius distribution: widened inner bound (0.62 vs old 0.68) so leaves
+    // also fill more of the mid-volume, not just the outer shell — this is
+    // what gives extra depth/richness instead of a hollow-looking canopy.
+    const shellRadius = 0.62 + 0.38 * Math.cbrt(rnd()) + (rnd() - 0.5) * 0.06;
 
     const nx = Math.sin(phi) * Math.cos(theta);
     const ny = Math.cos(phi);
@@ -343,8 +415,11 @@ export function generateSceneData(matrix: boolean[][], url: string, season: Seas
   const seed = hash31(url);
   const rnd = mulberry32(seed ^ 0x13579bdf);
   const half = (n - 1) / 2;
-  const tiles: TerrainTile[] = [];
 
+  // cellSize now derived from n so platformSize stays ~constant (see FIX 1)
+  const cellSize = TARGET_PLATFORM_SPAN / n;
+
+  const tiles: TerrainTile[] = [];
   for (let row = 0; row < n; row++) {
     for (let col = 0; col < n; col++) {
       const isDark = matrix[row][col];
@@ -352,8 +427,8 @@ export function generateSceneData(matrix: boolean[][], url: string, season: Seas
       tiles.push({
         row,
         col,
-        x: (col - half) * CELL_SIZE,
-        z: (row - half) * CELL_SIZE,
+        x: (col - half) * cellSize,
+        z: (row - half) * cellSize,
         isDark,
         finder,
         qrColor: isDark
@@ -365,11 +440,14 @@ export function generateSceneData(matrix: boolean[][], url: string, season: Seas
     }
   }
 
+  const platformSize = n * cellSize; // == TARGET_PLATFORM_SPAN, kept as n*cellSize for clarity
+
   return {
     tiles,
-    tree: buildTreeData(matrix, seed, theme),
-    cellSize: CELL_SIZE,
+    tree: buildTreeData(matrix, seed, theme, cellSize),
+    grass: buildGrass(platformSize, seed),
+    cellSize,
     gridSize: n,
-    platformSize: n * CELL_SIZE,
+    platformSize,
   };
 }
