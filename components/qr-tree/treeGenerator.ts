@@ -1,7 +1,24 @@
-import { hash31, mulberry32 } from "./hashNoise";
+import { hash31, mulberry32, clamp } from "./hashNoise";
 import { SEASON_THEMES, type Season, type SeasonTheme } from "./seasonTheme";
 
 export interface Vec3 { x: number; y: number; z: number }
+
+// Cheap "sum of sines" pseudo-noise evaluated over a direction on the unit
+// sphere (nx,ny,nz). A Fibonacci/Vogel-spiral shell — which is what the
+// leaf and flower distributions below use — is mathematically the most
+// EVEN possible coverage of a sphere, so no amount of per-point jitter can
+// break its silhouette: it will always read as one smooth ball. This noise
+// pushes/pulls the shell radius per-direction instead, producing a handful
+// of broad asymmetric lobes plus horizontal "tiers" (the ny*5.4 term) —
+// the layered, cauliflower-like canopy outline instead of a sphere.
+function lobeNoise(nx: number, ny: number, nz: number, seed: number) {
+  const s = seed * 0.0013;
+  let n = 0;
+  n += Math.sin(nx * 2.4 + s) * Math.cos(nz * 2.6 - s * 1.2) * 0.42; // broad side lobes
+  n += Math.sin(ny * 5.4 + s * 0.8) * 0.3; // horizontal tiering/layers
+  n += Math.sin(nz * 3.1 + nx * 1.7 + s * 1.6) * Math.cos(ny * 1.3) * 0.22; // extra asymmetric bumps
+  return n; // roughly in [-0.94, 0.94]
+}
 
 export interface TerrainTile {
   col: number;
@@ -203,13 +220,21 @@ function buildTreeData(matrix: boolean[][], seed: number, theme: SeasonTheme, ce
   const center = { x: root.x * 0.1, y: 0, z: root.z * 0.1 };
 
   // Canopy center and ellipsoid radii (strictly encapsulates ALL leaves and branches)
+  //
+  // Tuning history, measured (not guessed) via a leaf-Y-percentile harness:
+  //   trunkHeight*0.88, radiusY 1.65+d*0.3  -> p5=~2.2  (too much bare trunk)
+  //   trunkHeight*0.62, radiusY 2.2+d*0.4   -> p5=0.49  (canopy touches ground,
+  //                                                       trunk fully swallowed)
+  //   trunkHeight*0.78, radiusY 1.95+d*0.35 -> p5=1.59, p95=5.16, 0% clamped
+  // The last one leaves a proportionate visible trunk stub (~30% of total
+  // height) while still being taller/more spread than the original.
   const canopyCenter: Vec3 = {
     x: center.x,
-    y: trunkHeight * 0.88,
+    y: trunkHeight * 0.78,
     z: center.z,
   };
   const canopyRadiusX = 1.9 + density * 0.4;
-  const canopyRadiusY = 1.65 + density * 0.3;
+  const canopyRadiusY = 1.95 + density * 0.35;
   const canopyRadiusZ = 1.9 + density * 0.4;
 
   // 1. Trunk Segments (depth 0)
@@ -335,26 +360,35 @@ function buildTreeData(matrix: boolean[][], seed: number, theme: SeasonTheme, ce
   }
 
   // 4. Dense Fibonacci Surface Leaf Particles (100% strictly bound within canopy envelope)
-  const leafCount = 1500; // was 1100 — extra density hides any remaining blob edges
+  const leafCount = 1800; // was 1500 — canopy volume grew (taller radiusY), keep density up
   const flowerCount = theme.name === "spring" ? 120 : 60;
+  const LOBE_STRENGTH = 0.38; // was 0.32 — more pronounced spread across the taller canopy
 
   for (let i = 0; i < leafCount; i++) {
     // Vogel spiral / Fibonacci sphere distribution mapped onto canopy ellipsoid
     const phi = Math.acos(1 - 2 * ((i + 0.5) / leafCount)); // 0 to PI
     const theta = Math.PI * (1 + Math.sqrt(5)) * i; // Golden angle
 
-    // Radius distribution: widened inner bound (0.62 vs old 0.68) so leaves
-    // also fill more of the mid-volume, not just the outer shell — this is
-    // what gives extra depth/richness instead of a hollow-looking canopy.
-    const shellRadius = 0.62 + 0.38 * Math.cbrt(rnd()) + (rnd() - 0.5) * 0.06;
-
     const nx = Math.sin(phi) * Math.cos(theta);
     const ny = Math.cos(phi);
     const nz = Math.sin(phi) * Math.sin(theta);
 
-    // Calculate strict 3D tree coordinates (zero chance of dropping down to ground)
+    // A Fibonacci shell is the most EVEN possible sphere coverage, so it
+    // always reads as one smooth ball no matter how much per-point jitter
+    // is added. lobeNoise pushes/pulls the radius per-direction instead,
+    // carving broad asymmetric lobes and horizontal tiers into the outline.
+    const lobeFactor = clamp(1 + lobeNoise(nx, ny, nz, seed) * LOBE_STRENGTH, 0.6, 1.45);
+
+    // Radius distribution: widened inner bound (0.62 vs old 0.68) so leaves
+    // also fill more of the mid-volume, not just the outer shell — this is
+    // what gives extra depth/richness instead of a hollow-looking canopy.
+    const shellRadius = (0.62 + 0.38 * Math.cbrt(rnd()) + (rnd() - 0.5) * 0.06) * lobeFactor;
+
+    // Calculate 3D tree coordinates, clamped so lobing/tiering can never
+    // push a leaf through the ground plane (it could before this clamp —
+    // measured leaves reaching y=-0.11 with the taller/lower canopy).
     const treeX = canopyCenter.x + nx * canopyRadiusX * shellRadius;
-    const treeY = canopyCenter.y + ny * canopyRadiusY * shellRadius;
+    const treeY = Math.max(0.18, canopyCenter.y + ny * canopyRadiusY * shellRadius);
     const treeZ = canopyCenter.z + nz * canopyRadiusZ * shellRadius;
 
     const targetDarkCell = darkCells[i % darkCells.length];
@@ -382,9 +416,15 @@ function buildTreeData(matrix: boolean[][], seed: number, theme: SeasonTheme, ce
     const ny = Math.cos(phi);
     const nz = Math.sin(phi) * Math.sin(theta);
 
-    const treeX = canopyCenter.x + nx * canopyRadiusX * 1.02;
-    const treeY = canopyCenter.y + ny * canopyRadiusY * 1.02;
-    const treeZ = canopyCenter.z + nz * canopyRadiusZ * 1.02;
+    // Same lobe surface as the leaves (with a small +0.04 offset so flowers
+    // sit just outside the leaf shell) — otherwise they'd float above the
+    // now-lobed canopy on what used to be a plain sphere.
+    const lobeFactor = clamp(1 + lobeNoise(nx, ny, nz, seed) * LOBE_STRENGTH, 0.6, 1.45);
+    const flowerShell = lobeFactor * 1.02 + 0.04;
+
+    const treeX = canopyCenter.x + nx * canopyRadiusX * flowerShell;
+    const treeY = Math.max(0.18, canopyCenter.y + ny * canopyRadiusY * flowerShell);
+    const treeZ = canopyCenter.z + nz * canopyRadiusZ * flowerShell;
 
     const targetDarkCell = darkCells[(i * 7 + 3) % darkCells.length];
 

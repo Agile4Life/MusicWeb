@@ -29,6 +29,29 @@ function smooth(t: number) {
   return x * x * (3 - 2 * x);
 }
 
+// Builds one irregular "lumpy blob" geometry by displacing every vertex of
+// an icosahedron outward/inward by a deterministic pseudo-random amount.
+// Used (once, via useMemo) as the shared InstancedMesh geometry for leaves
+// and canopy filler blobs — a perfect sphere always reads as "a ball" no
+// matter how it's shaded, so breaking the silhouette itself is what's
+// needed to look like an irregular leaf/foliage clump instead.
+function makeLumpyGeometry(detail: number, jitterMin: number, jitterMax: number, seedOffset: number) {
+  const geo = new THREE.IcosahedronGeometry(1, detail);
+  const pos = geo.attributes.position;
+  const v = new THREE.Vector3();
+  const n = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    n.copy(v).normalize();
+    const h = Math.abs(Math.sin((i + seedOffset) * 12.9898) * 43758.5453) % 1;
+    const jitter = jitterMin + h * (jitterMax - jitterMin);
+    v.copy(n).multiplyScalar(jitter);
+    pos.setXYZ(i, v.x, v.y, v.z);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+
 function phase(t: number, start: number, end: number) {
   return smooth((t - start) / Math.max(0.0001, end - start));
 }
@@ -226,6 +249,9 @@ function CanopyBlobs({
   progressRef: MutableRefObject<number>;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
+  // More aggressive jitter than the leaves — these are bigger and fewer,
+  // so they need more shape break-up to avoid reading as distinct balls.
+  const blobGeometry = useMemo(() => makeLumpyGeometry(1, 0.62, 1.22, 99), []);
 
   useFrame((state) => {
     const mesh = ref.current;
@@ -261,7 +287,7 @@ function CanopyBlobs({
 
   return (
     <instancedMesh ref={ref} args={[undefined, undefined, blobs.length]} castShadow receiveShadow>
-      <sphereGeometry args={[1, 14, 12]} />
+      <primitive object={blobGeometry} attach="geometry" />
       <meshStandardMaterial roughness={0.7} flatShading />
     </instancedMesh>
   );
@@ -279,6 +305,9 @@ function Leaves({
   progressRef: MutableRefObject<number>;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
+  // Same shared geometry for every instance — irregular but consistent,
+  // varied further per-instance by random rotation + non-uniform scale below.
+  const leafGeometry = useMemo(() => makeLumpyGeometry(1, 0.72, 1.18, 1), []);
 
   useFrame((state) => {
     const mesh = ref.current;
@@ -301,7 +330,11 @@ function Leaves({
       DUMMY.rotation.set(l.rotX, l.rotY + time * 0.15 * tree, l.rotZ);
 
       const s = l.scale * (0.2 + 0.8 * tree);
-      DUMMY.scale.set(s, s * 0.65, s);
+      // Non-uniform per-axis jitter (deterministic from index) so each
+      // instance's silhouette is an irregular clump, not a circular disc.
+      const jx = 0.8 + ((i * 15731) % 211) / 211 * 0.5;
+      const jz = 0.8 + ((i * 42391 + 7) % 197) / 197 * 0.5;
+      DUMMY.scale.set(s * jx, s * 0.58, s * jz);
       DUMMY.updateMatrix();
 
       mesh.setMatrixAt(i, DUMMY.matrix);
@@ -319,10 +352,10 @@ function Leaves({
 
   return (
     <instancedMesh ref={ref} args={[undefined, undefined, leaves.length]} castShadow receiveShadow>
-      <sphereGeometry args={[1, 8, 6]} />
-      {/* flatShading turns each leaf into a hard-edged low-poly facet instead
-          of a smooth Phong-shaded ball — this is the main fix for "blurry"
-          leaves. Lower roughness (0.65→0.45) gives crisper specular pop too. */}
+      {/* Irregular lumpy geometry instead of a perfect sphere — this is what
+          actually stops each leaf from reading as "a ball", regardless of
+          shading. flatShading still gives it hard, defined edges. */}
+      <primitive object={leafGeometry} attach="geometry" />
       <meshStandardMaterial roughness={0.45} flatShading />
     </instancedMesh>
   );
