@@ -428,13 +428,14 @@ async function runAllTests() {
     })
     const isPass = !!lyrics && (!!lyrics.syncedLyrics || !!lyrics.plainLyrics)
     const lineCount = lyrics?.syncedLyrics?.split('\n').length ?? 0
+    const hasSyncedLyrics = Boolean(lyrics?.syncedLyrics)
     results.push({
       caseNumber: 8.1,
       name: 'LRCLIB Synced Lyrics resolution',
       api: 'fetchLyricsFromLrclib()',
       status: isPass ? 'PASS' : 'FAIL',
       latencyMs: elapsed,
-      details: `Tìm thấy ${lineCount} dòng lời bài hát đồng bộ (synced: ${lyrics?.hasSynced}). ID: ${lyrics?.id}`,
+      details: `Tìm thấy ${lineCount} dòng lời bài hát đồng bộ (synced: ${hasSyncedLyrics}). ID: ${lyrics?.id}`,
       dataPreview: {
         id: lyrics?.id,
         trackName: lyrics?.trackName,
@@ -442,7 +443,7 @@ async function runAllTests() {
         sample: lyrics?.syncedLyrics?.split('\n').slice(0, 3).join(' | '),
       },
     })
-    console.log(`  [${isPass ? 'OK' : 'ERR'}] Latency: ${elapsed}ms, Synced: ${lyrics?.hasSynced}, Lines: ${lineCount}`)
+    console.log(`  [${isPass ? 'OK' : 'ERR'}] Latency: ${elapsed}ms, Synced: ${hasSyncedLyrics}, Lines: ${lineCount}`)
   } catch (err: any) {
     results.push({
       caseNumber: 8.1,
@@ -489,6 +490,8 @@ async function runAllTests() {
       return await resolveYouTubeAudioStreamAndroid('W8rP_F9S-n4')
     })
     const isPass = !!ytRes && !!ytRes.url
+    const ytAny = ytRes as any
+    const bitrate = ytAny?.bitrate
     results.push({
       caseNumber: 9.1,
       name: 'YouTube audio stream resolution (Android client)',
@@ -496,11 +499,11 @@ async function runAllTests() {
       status: isPass ? 'PASS' : 'WARN',
       latencyMs: elapsed,
       details: isPass
-        ? `Resolve stream URL thành công trong ${elapsed}ms. MIME: ${ytRes?.mimeType}, Bitrate: ${ytRes?.bitrate}`
+        ? `Resolve stream URL thành công trong ${elapsed}ms. MIME: ${ytRes?.mimeType}, Bitrate: ${bitrate}`
         : 'YouTube streaming không trả về URL (có thể do IP datacenter hoặc hạn chế YouTube client)',
-      dataPreview: ytRes ? { mimeType: ytRes.mimeType, bitrate: ytRes.bitrate, hasUrl: !!ytRes.url } : null,
+      dataPreview: ytRes ? { mimeType: ytRes.mimeType, bitrate, hasUrl: !!ytRes.url } : null,
     })
-    console.log(`  [${isPass ? 'OK' : 'WARN'}] Latency: ${elapsed}ms, Bitrate: ${ytRes?.bitrate}, MIME: ${ytRes?.mimeType}`)
+    console.log(`  [${isPass ? 'OK' : 'WARN'}] Latency: ${elapsed}ms, Bitrate: ${bitrate}, MIME: ${ytRes?.mimeType}`)
   } catch (err: any) {
     results.push({
       caseNumber: 9.1,
