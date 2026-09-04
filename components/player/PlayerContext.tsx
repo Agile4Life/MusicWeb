@@ -281,6 +281,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const ytStuckTimerRef = useRef<any>(null)
   const playRequestRef = useRef(0)
   const ytLoadedIdRef = useRef<string | null>(null)
+  const pendingYtPlayRef = useRef<{ videoId: string; startTime: number; requestId: number } | null>(null)
   const audioRequestRef = useRef(0)
   const audioGenerationRef = useRef(0)
   const audioOwnershipRef = useRef<{
@@ -730,16 +731,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       const driveFileId = track.drive_file_id || extractDriveFileId(filePath)
       if (driveFileId) {
-        // On iOS: always use the proxy URL (Cloudflare Worker or /api/drive-stream).
-        // The audio element has crossOrigin="anonymous" for Web Audio API support, which
+        // Note: The audio element has crossOrigin="anonymous" for Web Audio API support, which
         // requires CORS headers. Direct Drive CDN URLs (lh3.googleusercontent.com, etc.)
-        // don't consistently send CORS headers → iOS blocks the audio with a CORS error.
-        if (!isIOSDevice()) {
-          const cachedDirectUrl = getClientCdnCache(driveFileId)
-          if (cachedDirectUrl) {
-            return cachedDirectUrl
-          }
-        }
+        // don't consistently send CORS headers → always route through CORS-safe proxy (Worker or /api/drive-stream).
         const ext =
           track.file_ext ||
           track.title?.match(/\.(flac|mp3|wav|m4a|aac|ogg|wma)(?:[?#]|$)/i)?.[1]?.toLowerCase() ||
@@ -1267,8 +1261,31 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                   ytPlayerRef.current.setVolume(currentVol * 100)
                 }
               } catch {}
+              // 🚀 If there is a pending play request waiting for player to initialize on cold start:
+              const pending = pendingYtPlayRef.current
+              if (pending && pending.requestId === playRequestRef.current && isCurrentYouTubeVideo()) {
+                pendingYtPlayRef.current = null
+                try {
+                  ytLoadedIdRef.current = pending.videoId
+                  ytPlayerRef.current.loadVideoById({
+                    videoId: pending.videoId,
+                    startSeconds: pending.startTime,
+                  })
+                  if (ytPlayerRef.current.playVideo) {
+                    try { ytPlayerRef.current.playVideo() } catch {}
+                  }
+                  setIsPlaying(true)
+                  setIsBuffering(false)
+                  return
+                } catch (loadErr) {
+                  console.warn('[YT onReady] pending play error:', loadErr)
+                }
+              }
+
+              // Pre-arm restored track ONLY if player is completely idle and user has not started playback
               const active = currentTrackRef.current
-              if (active && active.source === 'youtube' && active.youtube_id) {
+              const isUserPlaying = desiredPlayStateRef.current === 'playing' || isPlaying
+              if (!isUserPlaying && active && active.source === 'youtube' && active.youtube_id) {
                 try {
                   ytPlayerRef.current.cueVideoById({
                     videoId: active.youtube_id,
@@ -1436,14 +1453,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                   }
                 }
               } else if (event.data === -1 || event.data === 5) {
-                // Cold-start watchdog: if stuck in cued/unstarted for > 1500ms, auto-trigger playVideo() ONLY if active track is YouTube
+                // Cold-start watchdog: if stuck in cued/unstarted for > 1500ms, auto-trigger playVideo() ONLY if active track is YouTube and user wants to play
                 if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
+                if (desiredPlayStateRef.current !== 'playing') return
                 const requestId = playRequestRef.current
                 const trackId = active?.id
                 ytStuckTimerRef.current = setTimeout(() => {
                   const currentActive = currentTrackRef.current
                   if (!currentActive?.youtube_id) return
                   if (!isCurrentYouTubeVideo()) return
+                  if (desiredPlayStateRef.current !== 'playing') return
 
                   if (
                     isCurrentPlayback({
@@ -1661,6 +1680,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
             restoreTrack.then((playableTrack) => {
                 if (playRequestRef.current !== restoreRequestId) return
+                if (desiredPlayStateRef.current === 'playing' || (audioRef.current && !audioRef.current.paused)) return
                 if (playableTrack !== restoredTrack) {
                   setCurrentTrack(playableTrack)
                   currentTrackRef.current = playableTrack
@@ -1674,8 +1694,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               })
               .then((url) => {
                 if (playRequestRef.current !== restoreRequestId) return
+                if (desiredPlayStateRef.current === 'playing' || (audioRef.current && !audioRef.current.paused)) return
                 const audio = audioRef.current
-                if (url && audio) {
+                if (url && audio && (!audio.src || audio.src === window.location.href)) {
                   const onLoaded = () => {
                     if (restoredTime > 0 && restoredTime < (audio.duration || Infinity)) {
                       audio.currentTime = restoredTime
@@ -1759,6 +1780,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     consecutiveSkipRef.current = 0
     nextTrackEndPrewarmedRef.current = false // reset near-end prewarm guard for new track
+    desiredPlayStateRef.current = 'playing'
     const requestId = beginNewPlaybackRequest(track)
 
     // 🚀 Push currentTrack onto true playback history stack when user changes track
@@ -2143,9 +2165,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         } catch {}
       }
 
-      const tryLoadYt = (retries = 5) => {
+      const initialStartTime = consumePendingSeek(initialTime)
+      pendingYtPlayRef.current = { videoId: ytId, startTime: initialStartTime, requestId }
+
+      const tryLoadYt = (retries = 25) => {
         if (requestId !== playRequestRef.current) return
         if (ytPlayerRef.current && ytPlayerRef.current.loadVideoById) {
+          pendingYtPlayRef.current = null
           try {
             const currentVol = volumeRef.current ?? DEFAULT_VOLUME
             if (currentVol > 0) {
@@ -2162,7 +2188,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             ytLoadedIdRef.current = ytId
             ytPlayerRef.current.loadVideoById({
               videoId: ytId,
-              startSeconds: consumePendingSeek(initialTime),
+              startSeconds: initialStartTime,
             })
             if (ytPlayerRef.current.playVideo) {
               try { ytPlayerRef.current.playVideo() } catch {}
@@ -2178,8 +2204,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             }
           }
         } else if (retries > 0) {
-          setTimeout(() => tryLoadYt(retries - 1), 100)
+          setTimeout(() => tryLoadYt(retries - 1), 200)
         } else {
+          pendingYtPlayRef.current = null
           if (requestId === playRequestRef.current) {
             setIsPlaying(false)
             setIsBuffering(false)
@@ -2252,6 +2279,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // ▶️ PLAY / RESUME ACTION: User explicitly intends to play
     desiredPlayStateRef.current = 'playing'
     consecutiveSkipRef.current = 0
+    if (playRequestRef.current === 0) {
+      playRequestRef.current = 1
+    }
 
     if (isYt) {
       if (ytPlayerRef.current && ytReadyRef.current) {

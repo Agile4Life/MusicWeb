@@ -412,8 +412,18 @@ function Flowers({
 }
 
 // ---------------------------------------------------------------------------
-// 7. Grass Tufts (NEW — four little clusters at the platform corners,
-//    matching the reference site. Grows in with the tree, fades out flat.)
+// 7. Grass Tufts (four little clusters at the platform corners, matching
+//    the reference site.)
+//
+// FIX 4 — grass used to fade all the way to zero scale in flat/QR mode
+// (`phase(p, 0.45, 0.9)` hits exactly 0 at p = 0, and p = 0 IS the flat
+// state — see `progressRef = useRef(isFlat ? 0 : 1)` below). That's why it
+// nearly disappeared once the scene settled into the QR view, unlike the
+// reference site where the corner grass tufts stay clearly visible even
+// in the flattened state. Leaves/flowers/canopy blobs are SUPPOSED to
+// vanish in QR mode (they're morphing into QR dots), but grass is a fixed
+// decorative element that should persist — so its "grow" value now has a
+// floor instead of bottoming out at 0.
 // ---------------------------------------------------------------------------
 function Grass({
   blades,
@@ -429,7 +439,13 @@ function Grass({
     if (!mesh || blades.length === 0) return;
 
     const p = progressRef.current;
-    const grow = phase(p, 0.45, 0.9);
+    // Was: const grow = phase(p, 0.45, 0.9); — went all the way to 0 at
+    // p = 0 (flat/QR mode), wiping the grass out. Now it only ever eases
+    // between a visible floor (0.62) and full size (1), so the corner
+    // tufts stay readable in both the tree view and the flat QR view,
+    // matching the reference screenshot.
+    const treeGrow = phase(p, 0.2, 0.85);
+    const grow = lerp(0.62, 1, treeGrow);
     const time = state.clock.elapsedTime;
 
     for (let i = 0; i < blades.length; i++) {

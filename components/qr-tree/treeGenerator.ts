@@ -4,19 +4,15 @@ import { SEASON_THEMES, type Season, type SeasonTheme } from "./seasonTheme";
 export interface Vec3 { x: number; y: number; z: number }
 
 // Cheap "sum of sines" pseudo-noise evaluated over a direction on the unit
-// sphere (nx,ny,nz). A Fibonacci/Vogel-spiral shell — which is what the
-// leaf and flower distributions below use — is mathematically the most
-// EVEN possible coverage of a sphere, so no amount of per-point jitter can
-// break its silhouette: it will always read as one smooth ball. This noise
-// pushes/pulls the shell radius per-direction instead, producing a handful
-// of broad asymmetric lobes plus horizontal "tiers" (the ny*5.4 term) —
-// the layered, cauliflower-like canopy outline instead of a sphere.
+// sphere (nx,ny,nz). Used only as a *secondary* surface wobble now (see
+// FIX 3 below) — the primary silhouette shaping comes from the lobe
+// clustering, not from this noise anymore.
 function lobeNoise(nx: number, ny: number, nz: number, seed: number) {
   const s = seed * 0.0013;
   let n = 0;
-  n += Math.sin(nx * 2.4 + s) * Math.cos(nz * 2.6 - s * 1.2) * 0.42; // broad side lobes
-  n += Math.sin(ny * 5.4 + s * 0.8) * 0.3; // horizontal tiering/layers
-  n += Math.sin(nz * 3.1 + nx * 1.7 + s * 1.6) * Math.cos(ny * 1.3) * 0.22; // extra asymmetric bumps
+  n += Math.sin(nx * 2.4 + s) * Math.cos(nz * 2.6 - s * 1.2) * 0.42;
+  n += Math.sin(ny * 5.4 + s * 0.8) * 0.3;
+  n += Math.sin(nz * 3.1 + nx * 1.7 + s * 1.6) * Math.cos(ny * 1.3) * 0.22;
   return n; // roughly in [-0.94, 0.94]
 }
 
@@ -151,35 +147,143 @@ function averageDarkCells(
 
 const GRASS_COLORS = ["#8bc34a", "#7cb342", "#9ccc65", "#689f38"];
 
-// NEW — four little grass clusters at the platform corners, matching the
-// reference site. Purely decorative: grows in during the tree phase and
-// disappears again in flat/QR mode, doesn't touch QR data at all.
-function buildGrass(platformSize: number, seed: number): GrassBlade[] {
+// ---------------------------------------------------------------------------
+// FIX 5 — GRID-ALIGNED "FINDER EYE" GRASS
+//
+// Old buildGrass() just scattered 10-16 blades randomly inside a small
+// patch near each corner — no relationship to the QR module grid at all.
+// That's why it read as a sparse, shapeless tuft instead of the dense,
+// recognizable "eye" pattern in the reference screenshot.
+//
+// A real QR code's finder pattern is a fixed 7x7 module glyph: solid
+// outer ring, one ring of empty space, solid 3x3 core. We place grass
+// directly ON that glyph's cells — anchored to the exact same cellSize
+// grid the QR tiles use — at all 4 platform corners (only 3 of those are
+// true QR finder corners; the 4th is kept for visual symmetry, matching
+// the reference). Because each covered cell gets its own blade cluster,
+// density now tracks the module grid 1:1, and the eye shape itself is
+// legible once the scene flattens into the 2D QR view.
+// ---------------------------------------------------------------------------
+const FINDER_PATTERN: boolean[][] = [
+  [true, true, true, true, true, true, true],
+  [true, false, false, false, false, false, true],
+  [true, false, true, true, true, false, true],
+  [true, false, true, true, true, false, true],
+  [true, false, true, true, true, false, true],
+  [true, false, false, false, false, false, true],
+  [true, true, true, true, true, true, true],
+];
+
+function buildGrass(n: number, cellSize: number, seed: number): GrassBlade[] {
   const rnd = mulberry32(seed ^ 0x9e3779b9);
-  const half = platformSize / 2;
+  const half = (n - 1) / 2;
   const blades: GrassBlade[] = [];
+
+  // Anchor (row, col) of each 7x7 corner block. Top-left/top-right/bottom-
+  // left are real QR finder positions; bottom-right has no finder pattern
+  // in an actual QR code but gets the same synthetic glyph for symmetry.
   const corners = [
-    { cx: half * 0.9, cz: half * 0.9 },
-    { cx: -half * 0.9, cz: half * 0.9 },
-    { cx: half * 0.9, cz: -half * 0.9 },
-    { cx: -half * 0.9, cz: -half * 0.9 },
+    { rowStart: 0, colStart: 0 },
+    { rowStart: 0, colStart: n - 7 },
+    { rowStart: n - 7, colStart: 0 },
+    { rowStart: n - 7, colStart: n - 7 },
   ];
+
   for (const corner of corners) {
-    const bladeCount = 10 + Math.floor(rnd() * 6);
-    for (let i = 0; i < bladeCount; i++) {
-      const spread = platformSize * 0.09;
-      blades.push({
-        x: corner.cx + (rnd() - 0.5) * spread,
-        y: 0,
-        z: corner.cz + (rnd() - 0.5) * spread,
-        rotY: rnd() * Math.PI * 2,
-        tilt: (rnd() - 0.5) * 0.35,
-        scale: 0.16 + rnd() * 0.14,
-        colorHex: GRASS_COLORS[Math.floor(rnd() * GRASS_COLORS.length)],
-      });
+    for (let r = 0; r < 7; r++) {
+      for (let c = 0; c < 7; c++) {
+        if (!FINDER_PATTERN[r][c]) continue; // leave the light ring bare so the eye shape reads clearly
+
+        const row = corner.rowStart + r;
+        const col = corner.colStart + c;
+        const cx = (col - half) * cellSize;
+        const cz = (row - half) * cellSize;
+
+        // 1-2 blades per covered cell, tightly clustered around the cell
+        // center so the module reads as "filled" rather than a single
+        // thin blade poking out of it.
+        const bladeCount = 1 + Math.floor(rnd() * 2);
+        for (let i = 0; i < bladeCount; i++) {
+          const jitter = cellSize * 0.3;
+          blades.push({
+            x: cx + (rnd() - 0.5) * jitter,
+            y: 0,
+            z: cz + (rnd() - 0.5) * jitter,
+            rotY: rnd() * Math.PI * 2,
+            tilt: (rnd() - 0.5) * 0.3,
+            scale: 0.13 + rnd() * 0.09,
+            colorHex: GRASS_COLORS[Math.floor(rnd() * GRASS_COLORS.length)],
+          });
+        }
+      }
     }
   }
   return blades;
+}
+
+// ---------------------------------------------------------------------------
+// FIX 3 — CLUSTERED LOBE CANOPY
+//
+// The old canopy was ONE Fibonacci/Vogel shell warped by lobeNoise(). A
+// Vogel spiral is the most evenly-distributed possible point set on a
+// sphere, so no matter how much you warp its radius with smooth sine
+// noise, it still reads as a single round ball — which is exactly what
+// the screenshot shows (a uniform green sphere with a couple of accidental
+// gaps near the trunk).
+//
+// Real / stylized tree crowns don't read as one shell — they read as a
+// union of several overlapping "florets" (cauliflower clumps), each with
+// its own rounded silhouette, offset from a shared core. The gaps BETWEEN
+// florets are what break the sphere illusion and give the outline its
+// bumpy, layered, unmistakably-a-tree look.
+//
+// buildCanopyLobes() generates that cluster layout: one dominant core lobe
+// plus 6-8 satellite lobes scattered around it (golden-angle ring + random
+// jitter in angle/elevation/distance so they never line up into a ring).
+// Each lobe gets its own local Fibonacci shell for leaves/flowers, sized
+// and populated proportionally to its volume (radius^3).
+// ---------------------------------------------------------------------------
+interface CanopyLobe {
+  offset: Vec3;   // lobe center, in canopy-radius units (pre axis-scaling)
+  radius: number; // lobe size, in canopy-radius units
+  leafShare: number; // fraction of total leaves/flowers this lobe gets
+}
+
+function buildCanopyLobes(rnd: () => number): CanopyLobe[] {
+  const lobes: CanopyLobe[] = [];
+
+  // Dominant central mass — anchors the silhouette, sits slightly low so
+  // satellite lobes read as growth bulging outward/upward from it.
+  lobes.push({ offset: { x: 0, y: -0.08, z: 0 }, radius: 1.0, leafShare: 0 });
+
+  const satelliteCount = 6 + Math.floor(rnd() * 3); // 6-8 satellite florets
+  const GOLDEN_ANGLE = 2.39996323; // radians
+  for (let i = 0; i < satelliteCount; i++) {
+    const angle = i * GOLDEN_ANGLE + rnd() * 0.5;
+    // slight upward bias (real crowns bulge more above the attachment
+    // point than below it) while still covering the full sphere so the
+    // overall envelope stays roughly round, just lobed.
+    const elevation = -0.5 + rnd() * 1.3; // -0.5..0.8
+    const ringRadius = Math.sqrt(Math.max(0, 1 - elevation * elevation));
+    const distFromCenter = 0.5 + rnd() * 0.4; // how far the lobe sits from the core
+
+    lobes.push({
+      offset: {
+        x: Math.cos(angle) * ringRadius * distFromCenter,
+        y: elevation * distFromCenter * 0.85,
+        z: Math.sin(angle) * ringRadius * distFromCenter,
+      },
+      radius: 0.42 + rnd() * 0.34, // satellites are smaller than the core
+      leafShare: 0,
+    });
+  }
+
+  // Weight leaf allocation by lobe volume so big lobes look full and tiny
+  // ones don't get overcrowded.
+  const totalVolume = lobes.reduce((sum, l) => sum + Math.pow(l.radius, 3), 0);
+  for (const lobe of lobes) lobe.leafShare = Math.pow(lobe.radius, 3) / totalVolume;
+
+  return lobes;
 }
 
 function buildTreeData(matrix: boolean[][], seed: number, theme: SeasonTheme, cellSize: number): TreeData {
@@ -220,21 +324,13 @@ function buildTreeData(matrix: boolean[][], seed: number, theme: SeasonTheme, ce
   const center = { x: root.x * 0.1, y: 0, z: root.z * 0.1 };
 
   // Canopy center and ellipsoid radii (strictly encapsulates ALL leaves and branches)
-  //
-  // Tuning history, measured (not guessed) via a leaf-Y-percentile harness:
-  //   trunkHeight*0.88, radiusY 1.65+d*0.3  -> p5=~2.2  (too much bare trunk)
-  //   trunkHeight*0.62, radiusY 2.2+d*0.4   -> p5=0.49  (canopy touches ground,
-  //                                                       trunk fully swallowed)
-  //   trunkHeight*0.78, radiusY 1.95+d*0.35 -> p5=1.59, p95=5.16, 0% clamped
-  // The last one leaves a proportionate visible trunk stub (~30% of total
-  // height) while still being taller/more spread than the original.
   const canopyCenter: Vec3 = {
     x: center.x,
-    y: trunkHeight * 0.78,
+    y: trunkHeight * 0.88,
     z: center.z,
   };
   const canopyRadiusX = 1.9 + density * 0.4;
-  const canopyRadiusY = 1.95 + density * 0.35;
+  const canopyRadiusY = 1.65 + density * 0.3;
   const canopyRadiusZ = 1.9 + density * 0.4;
 
   // 1. Trunk Segments (depth 0)
@@ -322,28 +418,29 @@ function buildTreeData(matrix: boolean[][], seed: number, theme: SeasonTheme, ce
 
   const foliage = theme.foliageColors.length > 0 ? theme.foliageColors : ["#69c73d", "#7bd844", "#5ab92a"];
 
-  // ---------------------------------------------------------------------
-  // FIX 2 — canopy blobs were sized 0.65–1.15, i.e. almost as big as the
-  // whole canopy radius (~2.1). That's why they rendered as a few huge
-  // faceted chunks dominating the silhouette instead of hiding under the
-  // dense leaf layer. Shrinking them to a small inner "filler" core lets
-  // the 1000+ small Leaves instances read as the visible surface texture,
-  // which is what actually gives the fine dappled look in the reference.
-  // ---------------------------------------------------------------------
+  // Build the lobe cluster layout for this canopy (see FIX 3 above).
+  const lobes = buildCanopyLobes(rnd);
+  const maxLobeReach = Math.max(
+    ...lobes.map((l) => Math.hypot(l.offset.x, l.offset.y, l.offset.z) + l.radius)
+  );
 
-  // Core center blob — small filler, not a visible dominant shape anymore
-  canopyBlobs.push({
-    x: canopyCenter.x,
-    y: canopyCenter.y + 0.1,
-    z: canopyCenter.z,
-    qrX: darkCells[0].x,
-    qrZ: darkCells[0].z,
-    radius: 0.55,
-    colorHex: foliage[0],
-  });
+  // Small filler blob under each lobe core — keeps gaps between florets
+  // from showing bare empty space, without being big enough to read as
+  // a dominant shape once the leaf particles cover it.
+  for (const lobe of lobes) {
+    canopyBlobs.push({
+      x: canopyCenter.x + lobe.offset.x * canopyRadiusX,
+      y: canopyCenter.y + lobe.offset.y * canopyRadiusY,
+      z: canopyCenter.z + lobe.offset.z * canopyRadiusZ,
+      qrX: darkCells[Math.floor(rnd() * darkCells.length)].x,
+      qrZ: darkCells[Math.floor(rnd() * darkCells.length)].z,
+      radius: lobe.radius * 0.42,
+      colorHex: foliage[Math.floor(rnd() * foliage.length)],
+    });
+  }
 
   // Fewer, smaller sub-blobs along branch hubs — just enough to avoid
-  // gaps at the branch tips, still small enough to stay under the leaves
+  // gaps at the branch tips, still small enough to stay under the leaves.
   for (let i = 0; i < branchHubs.length; i++) {
     if (i % 3 === 0 || rnd() > 0.65) {
       const hub = branchHubs[i];
@@ -353,90 +450,110 @@ function buildTreeData(matrix: boolean[][], seed: number, theme: SeasonTheme, ce
         z: hub.pos.z,
         qrX: hub.qrCell.x,
         qrZ: hub.qrCell.z,
-        radius: 0.24 + rnd() * 0.2,
+        radius: 0.2 + rnd() * 0.16,
         colorHex: foliage[Math.floor(rnd() * foliage.length)],
       });
     }
   }
 
-  // 4. Dense Fibonacci Surface Leaf Particles (100% strictly bound within canopy envelope)
-  const leafCount = 1800; // was 1500 — canopy volume grew (taller radiusY), keep density up
+  // 4. Dense leaf particles, distributed across lobes (100% strictly bound
+  // within the widened canopy envelope, but now clustered instead of one
+  // smooth shell).
+  const leafCount = 1500;
   const flowerCount = theme.name === "spring" ? 120 : 60;
-  const LOBE_STRENGTH = 0.38; // was 0.32 — more pronounced spread across the taller canopy
+  const WOBBLE_STRENGTH = 0.18; // secondary surface texture, per-lobe (subtle now — the lobes do the heavy lifting)
 
-  for (let i = 0; i < leafCount; i++) {
-    // Vogel spiral / Fibonacci sphere distribution mapped onto canopy ellipsoid
-    const phi = Math.acos(1 - 2 * ((i + 0.5) / leafCount)); // 0 to PI
-    const theta = Math.PI * (1 + Math.sqrt(5)) * i; // Golden angle
+  let leafCursor = 0;
+  for (let li = 0; li < lobes.length; li++) {
+    const lobe = lobes[li];
+    const count =
+      li === lobes.length - 1
+        ? leafCount - leafCursor // give the remainder to the last lobe so totals match exactly
+        : Math.round(leafCount * lobe.leafShare);
 
-    const nx = Math.sin(phi) * Math.cos(theta);
-    const ny = Math.cos(phi);
-    const nz = Math.sin(phi) * Math.sin(theta);
+    for (let i = 0; i < count; i++) {
+      const denom = Math.max(1, count);
+      const phi = Math.acos(1 - 2 * ((i + 0.5) / denom));
+      const theta = Math.PI * (1 + Math.sqrt(5)) * i;
 
-    // A Fibonacci shell is the most EVEN possible sphere coverage, so it
-    // always reads as one smooth ball no matter how much per-point jitter
-    // is added. lobeNoise pushes/pulls the radius per-direction instead,
-    // carving broad asymmetric lobes and horizontal tiers into the outline.
-    const lobeFactor = clamp(1 + lobeNoise(nx, ny, nz, seed) * LOBE_STRENGTH, 0.6, 1.45);
+      const nx = Math.sin(phi) * Math.cos(theta);
+      const ny = Math.cos(phi);
+      const nz = Math.sin(phi) * Math.sin(theta);
 
-    // Radius distribution: widened inner bound (0.62 vs old 0.68) so leaves
-    // also fill more of the mid-volume, not just the outer shell — this is
-    // what gives extra depth/richness instead of a hollow-looking canopy.
-    const shellRadius = (0.62 + 0.38 * Math.cbrt(rnd()) + (rnd() - 0.5) * 0.06) * lobeFactor;
+      // gentle secondary wobble so each lobe doesn't itself read as a
+      // perfectly smooth mini-ball
+      const wobble = clamp(1 + lobeNoise(nx, ny, nz, seed + li * 97) * WOBBLE_STRENGTH, 0.85, 1.15);
+      const shellRadius = (0.6 + 0.4 * Math.cbrt(rnd())) * wobble;
 
-    // Calculate 3D tree coordinates, clamped so lobing/tiering can never
-    // push a leaf through the ground plane (it could before this clamp —
-    // measured leaves reaching y=-0.11 with the taller/lower canopy).
-    const treeX = canopyCenter.x + nx * canopyRadiusX * shellRadius;
-    const treeY = Math.max(0.18, canopyCenter.y + ny * canopyRadiusY * shellRadius);
-    const treeZ = canopyCenter.z + nz * canopyRadiusZ * shellRadius;
+      const lx = lobe.offset.x + nx * lobe.radius * shellRadius;
+      const ly = lobe.offset.y + ny * lobe.radius * shellRadius * 0.92; // each lobe flattened slightly too
+      const lz = lobe.offset.z + nz * lobe.radius * shellRadius;
 
-    const targetDarkCell = darkCells[i % darkCells.length];
+      const treeX = canopyCenter.x + lx * canopyRadiusX;
+      const treeY = canopyCenter.y + ly * canopyRadiusY;
+      const treeZ = canopyCenter.z + lz * canopyRadiusZ;
 
-    leaves.push({
-      x: treeX,
-      y: treeY,
-      z: treeZ,
-      qrX: targetDarkCell.x,
-      qrZ: targetDarkCell.z,
-      scale: 0.11 + rnd() * 0.07,
-      rotX: rnd() * Math.PI,
-      rotY: rnd() * Math.PI * 2,
-      rotZ: rnd() * Math.PI,
-      colorHex: foliage[Math.floor(rnd() * foliage.length)],
-    });
+      const targetDarkCell = darkCells[leafCursor % darkCells.length];
+
+      leaves.push({
+        x: treeX,
+        y: treeY,
+        z: treeZ,
+        qrX: targetDarkCell.x,
+        qrZ: targetDarkCell.z,
+        scale: 0.11 + rnd() * 0.07,
+        rotX: rnd() * Math.PI,
+        rotY: rnd() * Math.PI * 2,
+        rotZ: rnd() * Math.PI,
+        colorHex: foliage[Math.floor(rnd() * foliage.length)],
+      });
+      leafCursor++;
+    }
   }
 
-  // 5. Flower Blossoms (Scattered on outer canopy shell)
-  for (let i = 0; i < flowerCount; i++) {
-    const phi = Math.acos(1 - 2 * ((i + 0.5) / flowerCount));
-    const theta = Math.PI * (1 + Math.sqrt(5)) * (i * 3 + 1);
+  // 5. Flower Blossoms — same lobe clustering, sitting just outside each
+  // lobe's leaf shell.
+  let flowerCursor = 0;
+  for (let li = 0; li < lobes.length; li++) {
+    const lobe = lobes[li];
+    const count =
+      li === lobes.length - 1
+        ? flowerCount - flowerCursor
+        : Math.round(flowerCount * lobe.leafShare);
 
-    const nx = Math.sin(phi) * Math.cos(theta);
-    const ny = Math.cos(phi);
-    const nz = Math.sin(phi) * Math.sin(theta);
+    for (let i = 0; i < count; i++) {
+      const denom = Math.max(1, count);
+      const phi = Math.acos(1 - 2 * ((i + 0.5) / denom));
+      const theta = Math.PI * (1 + Math.sqrt(5)) * (i * 3 + 1);
 
-    // Same lobe surface as the leaves (with a small +0.04 offset so flowers
-    // sit just outside the leaf shell) — otherwise they'd float above the
-    // now-lobed canopy on what used to be a plain sphere.
-    const lobeFactor = clamp(1 + lobeNoise(nx, ny, nz, seed) * LOBE_STRENGTH, 0.6, 1.45);
-    const flowerShell = lobeFactor * 1.02 + 0.04;
+      const nx = Math.sin(phi) * Math.cos(theta);
+      const ny = Math.cos(phi);
+      const nz = Math.sin(phi) * Math.sin(theta);
 
-    const treeX = canopyCenter.x + nx * canopyRadiusX * flowerShell;
-    const treeY = Math.max(0.18, canopyCenter.y + ny * canopyRadiusY * flowerShell);
-    const treeZ = canopyCenter.z + nz * canopyRadiusZ * flowerShell;
+      const wobble = clamp(1 + lobeNoise(nx, ny, nz, seed + li * 97) * WOBBLE_STRENGTH, 0.85, 1.15);
+      const flowerShell = wobble * 1.02 + 0.04; // small offset outside the leaf shell
 
-    const targetDarkCell = darkCells[(i * 7 + 3) % darkCells.length];
+      const lx = lobe.offset.x + nx * lobe.radius * flowerShell;
+      const ly = lobe.offset.y + ny * lobe.radius * flowerShell * 0.92;
+      const lz = lobe.offset.z + nz * lobe.radius * flowerShell;
 
-    flowers.push({
-      x: treeX,
-      y: treeY,
-      z: treeZ,
-      qrX: targetDarkCell.x,
-      qrZ: targetDarkCell.z,
-      scale: 0.045 + rnd() * 0.035,
-      colorHex: theme.foliageColors[(i + 1) % theme.foliageColors.length],
-    });
+      const treeX = canopyCenter.x + lx * canopyRadiusX;
+      const treeY = canopyCenter.y + ly * canopyRadiusY;
+      const treeZ = canopyCenter.z + lz * canopyRadiusZ;
+
+      const targetDarkCell = darkCells[(flowerCursor * 7 + 3) % darkCells.length];
+
+      flowers.push({
+        x: treeX,
+        y: treeY,
+        z: treeZ,
+        qrX: targetDarkCell.x,
+        qrZ: targetDarkCell.z,
+        scale: 0.045 + rnd() * 0.035,
+        colorHex: theme.foliageColors[(flowerCursor + 1) % theme.foliageColors.length],
+      });
+      flowerCursor++;
+    }
   }
 
   return {
@@ -445,7 +562,9 @@ function buildTreeData(matrix: boolean[][], seed: number, theme: SeasonTheme, ce
     flowers,
     canopyBlobs,
     canopyCenter,
-    canopyRadius: (canopyRadiusX + canopyRadiusZ) / 2,
+    // account for satellite lobes bulging past the base ellipsoid so any
+    // downstream bounding/camera-framing code stays correct
+    canopyRadius: ((canopyRadiusX + canopyRadiusZ) / 2) * maxLobeReach,
   };
 }
 
@@ -485,7 +604,7 @@ export function generateSceneData(matrix: boolean[][], url: string, season: Seas
   return {
     tiles,
     tree: buildTreeData(matrix, seed, theme, cellSize),
-    grass: buildGrass(platformSize, seed),
+    grass: buildGrass(n, cellSize, seed),
     cellSize,
     gridSize: n,
     platformSize,

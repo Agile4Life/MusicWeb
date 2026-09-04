@@ -111,4 +111,19 @@ describe('NhacCuaTui browser client', () => {
     })).resolves.toMatchObject({ id: 'nct-1' })
     expect(fetchMock).toHaveBeenCalledOnce()
   })
+
+  it('prewarms and caches the CORS-safe proxy URL rather than raw CDN URL', async () => {
+    const { prewarmNctStreamUrl, getCachedNctStreamUrl, clearCachedNctStreamUrl } = await import('../nhaccuatuiClient')
+    clearCachedNctStreamUrl('test-1')
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({
+        url: 'https://stc-id.nct.nixcdn.com/raw-signed-token.mp3',
+      }), { status: 200 }),
+    )
+
+    await prewarmNctStreamUrl('test-1')
+    // Must return the proxy URL /api/nhaccuatui/stream?id=test-1 to avoid CORS failure with crossOrigin="anonymous"
+    expect(getCachedNctStreamUrl('test-1')).toBe('/api/nhaccuatui/stream?id=test-1')
+  })
 })

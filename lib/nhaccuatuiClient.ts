@@ -132,9 +132,10 @@ export async function prewarmNctStreamUrl(nhaccuatuiId: string): Promise<void> {
       const data = await res.json() as { url?: string }
       if (!data?.url) return null
 
-      // Store the proxy URL (not the raw signed URL) keyed by nhaccuatui_id
-      nctStreamUrlCache.set(nhaccuatuiId, { url: data.url, ts: Date.now() })
-      return data.url
+      // Store the CORS-safe proxy URL (not the raw signed CDN URL which lacks CORS headers)
+      const proxyUrl = getNhacCuaTuiStreamUrl({ source: 'nhaccuatui', nhaccuatui_id: nhaccuatuiId }) || data.url
+      nctStreamUrlCache.set(nhaccuatuiId, { url: proxyUrl, ts: Date.now() })
+      return proxyUrl
     } catch {
       return null
     } finally {
@@ -143,6 +144,7 @@ export async function prewarmNctStreamUrl(nhaccuatuiId: string): Promise<void> {
   })()
 
   nctResolveInFlight.set(nhaccuatuiId, promise)
+  await promise
 }
 
 /** Synchronous cache lookup for getAudioUrlCached. Returns null on miss — caller

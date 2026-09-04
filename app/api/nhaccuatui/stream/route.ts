@@ -31,19 +31,18 @@ async function resolveNctAudioUrlCached(id: string): Promise<string | null> {
   }
 
   try {
-    // Retry up to 2 times with exponential backoff on transient errors.
-    // Only retry on HTTP 502/503/504/500 or network/timeout errors.
+    // Retry once with quick backoff to fail-fast if external NCT upstream is cold/unresponsive
     const songRes = await fetchWithRetry(
       () =>
         fetch(getNctSongUrl(trimmed), {
           cache: 'no-store',
           headers: { Accept: 'application/json' },
-          signal: AbortSignal.timeout(8000),
+          signal: AbortSignal.timeout(3800),
         }),
       {
-        retries: 2,
-        baseDelayMs: 200,
-        maxDelayMs: 800,
+        retries: 1,
+        baseDelayMs: 150,
+        maxDelayMs: 400,
         retryOn: (outcome) =>
           outcome instanceof Response ? isTransientError(outcome) : isNetworkError(outcome),
       }
@@ -88,7 +87,7 @@ export async function HEAD(request: Request): Promise<Response> {
     let upstream = await fetch(audioUrl, {
       method: 'HEAD',
       cache: 'no-store',
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(3500),
     })
 
     // Cached URL may have expired upstream — re-resolve once before giving up
@@ -99,7 +98,7 @@ export async function HEAD(request: Request): Promise<Response> {
       upstream = await fetch(audioUrl, {
         method: 'HEAD',
         cache: 'no-store',
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(3500),
       })
     }
 
@@ -144,7 +143,7 @@ export async function GET(request: Request): Promise<Response> {
       method: 'GET',
       headers: upstreamHeaders,
       cache: 'no-store',
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(4500),
     })
 
     // Cached URL may have expired upstream — re-resolve once before giving up
@@ -158,7 +157,7 @@ export async function GET(request: Request): Promise<Response> {
         method: 'GET',
         headers: upstreamHeaders,
         cache: 'no-store',
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(4500),
       })
     }
 

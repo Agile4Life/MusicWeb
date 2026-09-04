@@ -40,18 +40,18 @@ async function resolveNctStreamUrlCached(id: string): Promise<{
   }
 
   try {
-    // Retry up to 2 times with exponential backoff on transient errors.
+    // Retry once with fast backoff to fail-fast on cold start
     const songRes = await fetchWithRetry(
       () =>
         fetch(getNctSongUrl(trimmed), {
           cache: 'no-store',
           headers: { Accept: 'application/json' },
-          signal: AbortSignal.timeout(8000),
+          signal: AbortSignal.timeout(3800),
         }),
       {
-        retries: 2,
-        baseDelayMs: 200,
-        maxDelayMs: 800,
+        retries: 1,
+        baseDelayMs: 150,
+        maxDelayMs: 400,
         retryOn: (outcome) =>
           outcome instanceof Response ? isTransientError(outcome) : isNetworkError(outcome),
       }
