@@ -78,8 +78,6 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
   } = usePlayer()
   const router = useRouter()
 
-  if (isNowPlayingOpen) return null
-
   const [isLiquidGlass, setIsLiquidGlass] = useState(false)
   const [isNavCollapsed, setIsNavCollapsed] = useState(false)
 
@@ -399,12 +397,13 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             ? 'translate3d(0, 80px, 0) scale(0.88)'
             : 'translate3d(0, 0px, 0) scale(1)',
           opacity: isNavCollapsed ? 0 : 1,
-          pointerEvents: isNavCollapsed ? 'none' : 'auto',
+          pointerEvents: (isNavCollapsed || isNowPlayingOpen) ? 'none' : 'auto',
           filter: isNavCollapsed ? 'blur(3px)' : 'blur(0px)',
           transition: isNavCollapsed
             ? 'transform 360ms cubic-bezier(0.32, 0.72, 0, 1), opacity 300ms cubic-bezier(0.32, 0.72, 0, 1), filter 300ms cubic-bezier(0.32, 0.72, 0, 1)'
             : 'transform 420ms cubic-bezier(0.16, 1, 0.3, 1), opacity 360ms cubic-bezier(0.16, 1, 0.3, 1), filter 360ms cubic-bezier(0.16, 1, 0.3, 1)',
         }}
+        aria-hidden={isNowPlayingOpen ? true : undefined}
       >
         {/* Inner glass specular gradient */}
         <span
@@ -738,7 +737,8 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
       {/* 💻 DESKTOP PLAYER BAR (Visible on >= 768px screens) */}
       <footer
-        className={`player-bar hidden lg:flex h-[84px] xl:h-[96px] py-2.5 xl:py-3.5 rounded-[37px] px-4 lg:px-6 xl:px-8 items-center justify-between text-slate-300 select-none shrink-0 panel-theme-hover transition-all relative overflow-hidden pointer-events-auto ${isScrolled ? 'is-scrolled' : ''}`}
+        className={`player-bar hidden lg:flex h-[84px] xl:h-[96px] py-2.5 xl:py-3.5 rounded-[37px] px-4 lg:px-6 xl:px-8 items-center justify-between text-slate-300 select-none shrink-0 panel-theme-hover transition-all relative overflow-hidden ${isNowPlayingOpen ? 'pointer-events-none' : 'pointer-events-auto'} ${isScrolled ? 'is-scrolled' : ''}`}
+        aria-hidden={isNowPlayingOpen ? true : undefined}
         style={isLiquidGlass ? {
           background: 'linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 40%, hsla(213 74% 12% / 0.35) 100%)',
           backdropFilter: 'blur(36px) saturate(220%) brightness(1.06)',
