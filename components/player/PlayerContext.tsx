@@ -19,6 +19,7 @@ import { getNhacCuaTuiStreamUrl, resolveNhacCuaTuiSong, resolveNhacCuaTuiTrack, 
 import { prewarmTrackBatch } from '@/lib/prewarmTrackBatch'
 import { isFastConnection } from './prewarmAdaptive'
 import { toMinimalPersistedTrack, PlaybackPersistenceScheduler } from './playbackPersistenceScheduler'
+import { playbackProgressStore, usePlaybackProgressStore } from './PlaybackProgressStore'
 import { resolveStreamCached, invalidateStreamResolution } from '@/lib/resolveStreamClient'
 import { saveStreamUrl, getStreamUrl, saveTrackResolution, getTrackResolution, getCachedYouTubeId, savePlaybackState, loadPlaybackState } from '@/lib/playbackPersistence'
 import { setAudioSourceForPlayback } from './audioSourceSwitch'
@@ -132,7 +133,7 @@ export function usePlayerQueue() {
 }
 
 export function usePlaybackProgress() {
-  return useContext(PlaybackProgressContext)
+  return usePlaybackProgressStore()
 }
 
 const persistenceScheduler = new PlaybackPersistenceScheduler()
@@ -182,8 +183,18 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [])
   const [queue, setQueue] = useState<Track[]>([])
   const [currentIndex, setCurrentIndex] = useState<number>(-1)
-  const [currentTime, setCurrentTime] = useState<number>(0)
-  const [duration, setDuration] = useState<number>(0)
+  const setCurrentTime = useCallback((time: number) => {
+    currentTimeRef.current = time
+    playbackProgressStore.setCurrentTime(time)
+  }, [])
+  const [duration, setDurationState] = useState<number>(0)
+  const setDuration = useCallback((dur: number | ((prev: number) => number)) => {
+    setDurationState((prev) => {
+      const next = typeof dur === 'function' ? dur(prev) : dur
+      playbackProgressStore.setDuration(next)
+      return next
+    })
+  }, [])
   const [volume, setVolumeState] = useState<number>(0.8)
   const [playbackError, setPlaybackError] = useState<string | null>(null)
   const [mvIntroOffset, setMvIntroOffset] = useState<number>(0)
@@ -3539,8 +3550,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     const interval = setInterval(() => {
       try {
-        const d = duration > 0 ? duration : (currentTrack?.duration || 0)
-        const t = currentTime
+        const d = playbackProgressStore.getDuration() || (duration > 0 ? duration : (currentTrack?.duration || 0))
+        const t = currentTimeRef.current || playbackProgressStore.getCurrentTime()
         if (d > 0 && t >= 0) {
           navigator.mediaSession.setPositionState({
             duration: Math.max(d, 0),
@@ -3552,13 +3563,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [currentTrack, isPlaying]) // eslint-disable-line react-hooks/exhaustive-deps
-
-
+  }, [currentTrack?.id, isPlaying])
 
   const effectiveDuration = duration > 0 ? duration : (currentTrack?.duration || 0)
 
-  const progressValue = useMemo(() => ({ currentTime, duration: effectiveDuration }), [currentTime, duration, currentTrack?.duration])
+  const progressValue = useMemo(() => ({ currentTime: 0, duration: effectiveDuration }), [effectiveDuration])
 
   const controlsValue = useMemo<PlayerControlsContextType>(
     () => ({
