@@ -380,6 +380,41 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     return (t?.source === 'youtube' || Boolean(t?.youtube_id)) && !ytHtml5ModeRef.current
   }, [])
 
+  // ⚡ Teardown helper for mutual exclusion and unmount cleanup across HTML5 & YouTube
+  const stopActivePlaybackEngines = useCallback((targetEngine: 'html5' | 'youtube' | 'all') => {
+    if (targetEngine === 'youtube' || targetEngine === 'all') {
+      pendingYtPlayRef.current = null
+      const ytPlayer = ytPlayerRef.current
+      if (ytPlayer) {
+        try {
+          if (ytPlayer.stopVideo) ytPlayer.stopVideo()
+          if (ytPlayer.pauseVideo) ytPlayer.pauseVideo()
+        } catch {}
+      }
+      try {
+        ytEngineRef.current.stop()
+      } catch {}
+    }
+
+    if (targetEngine === 'html5' || targetEngine === 'all') {
+      const audio = audioRef.current
+      if (audio) {
+        try {
+          audio.pause()
+          audio.removeAttribute('src')
+          audio.load()
+        } catch (err: any) {
+          if (err?.name !== 'AbortError') {
+            // Silently absorb AbortError from interrupted play()
+          }
+        }
+      }
+      try {
+        html5EngineRef.current.stop()
+      } catch {}
+    }
+  }, [])
+
   // Web Audio API GainNode initialization for software volume attenuation (works on iOS Safari)
   const ensureWebAudioGain = useCallback(() => {
     if (typeof window === 'undefined' || !audioRef.current) return
@@ -1805,18 +1840,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     ytHtml5ModeRef.current = false
 
     // ⚡ 1. PAUSE & STOP ALL PREVIOUS AUDIO ENGINES IMMEDIATELY (ZERO DELAY OVERLAP)
-    if (audioRef.current) {
-      try {
-        audioRef.current.pause()
-        // Remove the old source entirely and call load() to reset the audio
-        // element's internal network/error state.  Previously we only set
-        // currentTime = 0 which could trigger a seek on an expired SoundCloud
-        // CDN URL — that seek fires a network request for the dead URL and
-        // can leave the element in an error state that poisons the next play().
-        audioRef.current.removeAttribute('src')
-        audioRef.current.load()
-      } catch {}
-    }
+    stopActivePlaybackEngines('all')
 
     let nextQueue = queueRef.current
     let nextIndex = currentIndexRef.current
@@ -2236,6 +2260,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     recordHistory,
     recordListenEvent,
     resolveStreamCached,
+    stopActivePlaybackEngines,
     triggerSmartQueueFill,
   ])
 
@@ -2451,6 +2476,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       })
     }
 
+    stopActivePlaybackEngines('youtube')
     setAudioSourceForPlayback(audio, cached, volumeRef.current ?? DEFAULT_VOLUME, 0)
 
     audio.play()
@@ -2470,6 +2496,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         recordHistory(track)
       })
       .catch((err: any) => {
+        if (err?.name === 'AbortError' || String(err?.message || '').includes('interrupted')) {
+          return // Rapid track change interrupted audio.play() — ignore silently
+        }
         if (!isCurrentAudioOwnership()) return
         if (requestId !== playRequestRef.current) return
         setIsBuffering(false)
@@ -2487,7 +2516,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       })
 
     return true
-  }, [beginNewPlaybackRequest, commitNavigation, isCurrentAudioOwnership, playTrack, recordHistory])
+  }, [beginNewPlaybackRequest, commitNavigation, isCurrentAudioOwnership, playTrack, recordHistory, stopActivePlaybackEngines])
 
   // Centralized playback controller for navigation convergence
   const playResolvedTrack = useCallback((track: Track, index: number) => {
@@ -3273,6 +3302,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener('keydown', handleUserActivation, { passive: true })
 
     return () => {
+      stopActivePlaybackEngines('all')
       clearAudioStallWatchdog()
       audio.removeEventListener('play', handlePlay)
       audio.removeEventListener('pause', handlePause)
