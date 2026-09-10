@@ -8,6 +8,26 @@ export interface ResolvedStreamResult {
   artist?: string
   duration?: number
   coverUrl?: string | null
+  streamUrl?: string | null
+}
+
+export function buildStableProxyStreamUrl(source: string, id: string): string {
+  if (!id) return ''
+  switch (source) {
+    case 'nhaccuatui':
+      return `/api/nhaccuatui/stream?id=${encodeURIComponent(id)}`
+    case 'soundcloud':
+      return `/api/soundcloud/stream?id=${encodeURIComponent(id)}`
+    case 'drive': {
+      const match = id.match(/\/d\/([a-zA-Z0-9_-]+)/) || id.match(/id=([a-zA-Z0-9_-]+)/)
+      const fileId = match ? match[1] : id
+      return fileId.startsWith('http') || fileId.startsWith('/') ? fileId : `/api/drive-stream?fileId=${encodeURIComponent(fileId)}`
+    }
+    case 'youtube':
+      return `/api/yt-stream?id=${encodeURIComponent(id)}`
+    default:
+      return id
+  }
 }
 
 interface CacheEntry {
@@ -156,13 +176,15 @@ export async function resolveStreamCached(
         return null
       }
 
+      const resultId = data.id || data.resolvedId || data.resolved_id
       const result: ResolvedStreamResult = {
         source: data.source,
-        id: data.id || data.resolvedId || data.resolved_id,
+        id: resultId,
         title: data.title,
         artist: data.artist,
         duration: data.duration,
         coverUrl: data.coverUrl,
+        streamUrl: data.streamUrl || buildStableProxyStreamUrl(data.source, resultId),
       }
 
       cacheResult(key, result, Date.now() + CLIENT_CACHE_TTL, generation)

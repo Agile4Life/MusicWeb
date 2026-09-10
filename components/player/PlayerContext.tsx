@@ -2045,6 +2045,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           track.youtube_id = streamResult.id
         }
 
+        if (streamResult.streamUrl) {
+          audioUrlCacheRef.current.set(activeTrack.id, {
+            url: streamResult.streamUrl,
+            ts: Date.now(),
+          })
+        }
+
         setBounded(trackResolutionCacheRef.current, track.id, { activeTrack, expiresAt: Date.now() + TRACK_RESOLUTION_TTL }, TRACK_RESOLUTION_MAX_ENTRIES)
 
         if (requestId === playRequestRef.current) {

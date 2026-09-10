@@ -456,6 +456,19 @@ function respondWith(entry: L1Entry): Response {
     })
   }
 
+  const resolvedId = entry.resolvedId || ''
+  let streamUrl: string | null = null
+  if (entry.source === 'nhaccuatui') {
+    streamUrl = `/api/nhaccuatui/stream?id=${encodeURIComponent(resolvedId)}`
+  } else if (entry.source === 'soundcloud') {
+    streamUrl = `/api/soundcloud/stream?id=${encodeURIComponent(resolvedId)}`
+  } else if (entry.source === 'drive') {
+    const fileId = extractDriveFileId(resolvedId) || resolvedId
+    streamUrl = fileId.startsWith('http') || fileId.startsWith('/') ? fileId : `/api/drive-stream?fileId=${encodeURIComponent(fileId)}`
+  } else if (entry.source === 'youtube') {
+    streamUrl = `/api/yt-stream?id=${encodeURIComponent(resolvedId)}`
+  }
+
   return NextResponse.json({
     source: entry.source,
     id: entry.resolvedId,
@@ -464,6 +477,7 @@ function respondWith(entry: L1Entry): Response {
     artist: entry.artist,
     duration: entry.duration,
     coverUrl: entry.coverUrl,
+    streamUrl,
   }, {
     status: 200,
     headers: { 'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600' },
