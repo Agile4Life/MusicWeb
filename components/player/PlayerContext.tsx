@@ -18,6 +18,7 @@ import { isCurrentPlayback } from '@/lib/playbackRaceGuards'
 import { getNhacCuaTuiStreamUrl, resolveNhacCuaTuiSong, resolveNhacCuaTuiTrack, prewarmNctStreamUrl, getCachedNctStreamUrl, clearCachedNctStreamUrl } from '@/lib/nhaccuatuiClient'
 import { prewarmTrackBatch } from '@/lib/prewarmTrackBatch'
 import { isFastConnection } from './prewarmAdaptive'
+import { toMinimalPersistedTrack, PlaybackPersistenceScheduler } from './playbackPersistenceScheduler'
 import { resolveStreamCached, invalidateStreamResolution } from '@/lib/resolveStreamClient'
 import { saveStreamUrl, getStreamUrl, saveTrackResolution, getTrackResolution, getCachedYouTubeId, savePlaybackState, loadPlaybackState } from '@/lib/playbackPersistence'
 import { setAudioSourceForPlayback } from './audioSourceSwitch'
@@ -134,60 +135,28 @@ export function usePlaybackProgress() {
   return useContext(PlaybackProgressContext)
 }
 
-function toMinimalPersistedTrack(track: Track): Partial<Track> {
-  return {
-    id: track.id,
-    title: track.title,
-    artist: track.artist,
-    duration: track.duration,
-    cover_url: track.cover_url,
-    source: track.source,
-    file_path: track.source === 'nhaccuatui' ? '' : track.file_path,
-    youtube_id: track.youtube_id,
-    nhaccuatui_id: track.nhaccuatui_id,
-    soundcloud_id: track.soundcloud_id,
-    drive_file_id: track.drive_file_id,
-    spotify_id: track.spotify_id,
-    itunes_id: track.itunes_id,
-    album: track.album,
-    is_favorite: track.is_favorite,
-  }
-}
+const persistenceScheduler = new PlaybackPersistenceScheduler()
 
 const savePlayerStateToStorage = (
   track: Track | null,
   time: number,
   trackQueue: Track[],
   index: number,
-  vol: number
+  vol: number,
+  immediate: boolean = false
 ) => {
-  if (typeof window === 'undefined' || !track) return
-  try {
-    const maxItems = 150
-    let windowedQueue = trackQueue
-    let persistedIndex = index
-
-    if (trackQueue.length > maxItems) {
-      const safeIndex = Math.max(0, index)
-      const start = Math.max(0, Math.min(safeIndex - 20, trackQueue.length - maxItems))
-      const end = Math.min(trackQueue.length, start + maxItems)
-      windowedQueue = trackQueue.slice(start, end)
-      persistedIndex = safeIndex >= 0 ? safeIndex - start : -1
-    }
-
-    localStorage.setItem(
-      'musicweb_player_state',
-      JSON.stringify({
-        track: toMinimalPersistedTrack(track),
-        currentTime: time,
-        queue: windowedQueue.map(toMinimalPersistedTrack),
-        currentIndex: persistedIndex,
-        volume: vol,
-        savedAt: Date.now(),
-      })
-    )
-  } catch {
-    // ignore storage error
+  if (!track) return
+  const payload = {
+    track,
+    currentTime: time,
+    queue: trackQueue,
+    currentIndex: index,
+    volume: vol,
+  }
+  if (immediate) {
+    persistenceScheduler.saveImmediate(payload)
+  } else {
+    persistenceScheduler.scheduleDebounced(payload)
   }
 }
 
@@ -586,7 +555,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     setPlaybackError(null)
     setIsBuffering(true)
 
-    savePlayerStateToStorage(track, time, targetQueue, targetIndex, volumeRef.current ?? 0.8)
+    savePlayerStateToStorage(track, time, targetQueue, targetIndex, volumeRef.current ?? 0.8, true)
   }, [])
 
   const fallbackAttemptedRef = useRef<Set<number>>(new Set())
@@ -1617,14 +1586,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             triggerAdaptivePrewarm(queueRef.current, currentIndexRef.current)
           }
 
-          if (Math.abs(time - lastSavedTimeRef.current) > 5) {
+          if (Math.abs(time - lastSavedTimeRef.current) > 15) {
             lastSavedTimeRef.current = time
             savePlayerStateToStorage(
               currentTrackRef.current,
-              time,
+              currentTimeRef.current,
               queueRef.current,
               currentIndexRef.current,
-              volumeRef.current
+              volumeRef.current,
+              false
             )
           }
         }
@@ -1783,7 +1753,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           finalTime,
           queueRef.current,
           currentIndexRef.current,
-          volumeRef.current
+          volumeRef.current,
+          true
         )
       }
     }
@@ -2398,7 +2369,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         time,
         queueRef.current,
         currentIndexRef.current,
-        volumeRef.current
+        volumeRef.current,
+        true
       )
     }
   }, [])
@@ -2764,14 +2736,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           consecutiveSkipRef.current = 0
         }
 
-        if (Math.abs(time - lastSavedTimeRef.current) > 5 && currentTrackRef.current) {
+        if (Math.abs(time - lastSavedTimeRef.current) > 15 && currentTrackRef.current) {
           lastSavedTimeRef.current = time
           savePlayerStateToStorage(
             currentTrackRef.current,
-            time,
+            currentTimeRef.current,
             queueRef.current,
             currentIndexRef.current,
-            volumeRef.current
+            volumeRef.current,
+            false
           )
         }
 
@@ -3188,6 +3161,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (typeof document !== 'undefined') {
         if (isHidden) {
           document.documentElement.setAttribute('data-tab-hidden', 'true')
+          // ⚡ Task 4: Immediate flush on tab hidden / iOS app backgrounding
+          if (currentTrackRef.current) {
+            savePlayerStateToStorage(
+              currentTrackRef.current,
+              currentTimeRef.current,
+              queueRef.current,
+              currentIndexRef.current,
+              volumeRef.current,
+              true
+            )
+          } else {
+            persistenceScheduler.flushPending()
+          }
         } else {
           document.documentElement.removeAttribute('data-tab-hidden')
         }
@@ -3313,6 +3299,21 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    const handlePageHide = () => {
+      if (currentTrackRef.current) {
+        savePlayerStateToStorage(
+          currentTrackRef.current,
+          currentTimeRef.current,
+          queueRef.current,
+          currentIndexRef.current,
+          volumeRef.current,
+          true
+        )
+      } else {
+        persistenceScheduler.flushPending()
+      }
+    }
+
     audio.addEventListener('play', handlePlay)
     audio.addEventListener('pause', handlePause)
     audio.addEventListener('timeupdate', handleTimeUpdate)
@@ -3325,6 +3326,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     audio.addEventListener('canplay', handleCanPlay)
     audio.addEventListener('playing', handlePlaying)
     document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('pagehide', handlePageHide)
+    window.addEventListener('beforeunload', handlePageHide)
     window.addEventListener('pointerdown', handleUserActivation, { passive: true })
     window.addEventListener('keydown', handleUserActivation, { passive: true })
 
@@ -3343,6 +3346,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audio.removeEventListener('canplay', handleCanPlay)
       audio.removeEventListener('playing', handlePlaying)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('pagehide', handlePageHide)
+      window.removeEventListener('beforeunload', handlePageHide)
+      persistenceScheduler.flushPending()
       window.removeEventListener('pointerdown', handleUserActivation)
       window.removeEventListener('keydown', handleUserActivation)
       if (typeof document !== 'undefined') {
