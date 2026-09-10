@@ -17,6 +17,7 @@ import { isIOSDevice, playAudioElement, shouldUseHtml5Audio } from '@/lib/audioP
 import { isCurrentPlayback } from '@/lib/playbackRaceGuards'
 import { getNhacCuaTuiStreamUrl, resolveNhacCuaTuiSong, resolveNhacCuaTuiTrack, prewarmNctStreamUrl, getCachedNctStreamUrl, clearCachedNctStreamUrl } from '@/lib/nhaccuatuiClient'
 import { prewarmTrackBatch } from '@/lib/prewarmTrackBatch'
+import { isFastConnection } from './prewarmAdaptive'
 import { resolveStreamCached, invalidateStreamResolution } from '@/lib/resolveStreamClient'
 import { saveStreamUrl, getStreamUrl, saveTrackResolution, getTrackResolution, getCachedYouTubeId, savePlaybackState, loadPlaybackState } from '@/lib/playbackPersistence'
 import { setAudioSourceForPlayback } from './audioSourceSwitch'
@@ -201,7 +202,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const { data: nextAuthSession } = useSession()
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null)
   const [isPlaying, setIsPlaying] = useState<boolean>(false)
-  const [isBuffering, setIsBuffering] = useState<boolean>(false)
+  const [isBuffering, setIsBufferingState] = useState<boolean>(false)
+  const isBufferingRef = useRef<boolean>(false)
+  const setIsBuffering = useCallback((val: boolean | ((prev: boolean) => boolean)) => {
+    setIsBufferingState((prev) => {
+      const next = typeof val === 'function' ? val(prev) : val
+      isBufferingRef.current = next
+      return next
+    })
+  }, [])
   const [queue, setQueue] = useState<Track[]>([])
   const [currentIndex, setCurrentIndex] = useState<number>(-1)
   const [currentTime, setCurrentTime] = useState<number>(0)
@@ -664,6 +673,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const lastPrewarmIndexRef = useRef<number>(-1)
   // Gates the "30s-before-end" prewarm — reset per track so it fires exactly once.
   const nextTrackEndPrewarmedRef = useRef<boolean>(false)
+  // Gates stable playback prewarm (triggered once per track after 5s stable play)
+  const hasPrewarmedNextTrackRef = useRef<boolean>(false)
 
   const pendingAutoSkipTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -881,50 +892,33 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     [getAudioUrl]
   )
 
-  // Fire-and-forget prewarm & audio URL prefetch for upcoming tracks (prevents iOS background autoplay blocks)
-  useEffect(() => {
-    // Only pre-warm when currentIndex changes — not on every queue render.
-    // Skip if we already pre-warmed for this index.
-    if (currentIndex === lastPrewarmIndexRef.current) return
-    lastPrewarmIndexRef.current = currentIndex
+  // ⚡ Task 3: Adaptive single-track prewarm gated by network conditions and playback stability
+  const triggerAdaptivePrewarm = useCallback(
+    (q: Track[], idx: number) => {
+      // Gate 1: Network-first check (0ms)
+      if (!isFastConnection()) return
+      if (!q || q.length === 0 || idx < -1 || idx >= q.length - 1) return
 
-    if (!queue || queue.length === 0) return
+      const targetIdx = idx >= 0 ? idx + 1 : 0
+      const nextTr = q[targetIdx]
+      if (!nextTr || !nextTr.id) return
 
-    // ── Drive pre-warm ──────────────────────────────────────────────────────────
-    const upcoming = queue.slice(currentIndex, currentIndex + 6)
-    triggerDrivePrewarm(upcoming)
-
-    // ── NCT stream URL pre-warm (next 4 tracks + current) ───────────────────────
-    const nctTargets = queue
-      .slice(currentIndex, currentIndex + 5)
-      .filter((t) => t?.source === 'nhaccuatui' && t.nhaccuatui_id && !getCachedNctStreamUrl(t.nhaccuatui_id))
-
-    for (const tr of nctTargets) {
-      prewarmNctStreamUrl(tr.nhaccuatui_id!).catch(() => {})
-    }
-
-    // ── Non-NCT URL pre-warm ───────────────────────────────────────────────────
-    const nonNctTracks = queue.slice(currentIndex + 1, currentIndex + 5)
-    for (const nextTr of nonNctTracks) {
-      if (!nextTr || !nextTr.id) continue
-      if (nextTr.source === 'nhaccuatui') continue
-      if (!audioUrlCacheRef.current.has(nextTr.id)) {
-        getAudioUrlCached(nextTr).catch(() => {})
+      // Prewarm single next track only
+      const isDrive = Boolean(nextTr.drive_file_id || extractDriveFileId(nextTr.file_path || ''))
+      if (isDrive) {
+        triggerDrivePrewarm([nextTr])
+        return
       }
-    }
 
-    // ── Pre-resolve catalog tracks (Spotify/iTunes/preview → NCT/YouTube) ───────
-    if (currentIndex < 0) return
-    for (let offset = 1; offset <= 3; offset++) {
-      const nextIdx = currentIndex + offset
-      if (nextIdx >= queue.length) break
-      const nextTr = queue[nextIdx]
-      if (!nextTr) break
-      const targetTrackId = nextTr.id
+      if (nextTr.source === 'nhaccuatui' && nextTr.nhaccuatui_id) {
+        if (!getCachedNctStreamUrl(nextTr.nhaccuatui_id)) {
+          prewarmNctStreamUrl(nextTr.nhaccuatui_id).catch(() => {})
+        }
+        return
+      }
+
       const hasDirectPlayable = Boolean(
         nextTr.audio_url ||
-        nextTr.drive_file_id ||
-        extractDriveFileId(nextTr.file_path || '') ||
         nextTr.youtube_id ||
         nextTr.source === 'soundcloud' ||
         Boolean(nextTr.soundcloud_id) ||
@@ -938,9 +932,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         ))
       )
 
-      if (!hasDirectPlayable && !resolvingTrackIdsRef.current.has(targetTrackId)) {
-        resolvingTrackIdsRef.current.add(targetTrackId)
+      if (hasDirectPlayable) {
+        if (!audioUrlCacheRef.current.has(nextTr.id)) {
+          getAudioUrlCached(nextTr).catch(() => {})
+        }
+        return
+      }
 
+      // Catalog track: resolve next single track
+      const targetTrackId = nextTr.id
+      if (!resolvingTrackIdsRef.current.has(targetTrackId)) {
+        resolvingTrackIdsRef.current.add(targetTrackId)
         resolveStreamCached({
           title: nextTr.title,
           artist: nextTr.artist,
@@ -949,12 +951,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         })
           .then((resolved) => {
             if (!resolved) return
-
             let updatedTrack: Track | null = null
             if (resolved.source === 'nhaccuatui') {
               updatedTrack = { source: 'nhaccuatui', nhaccuatui_id: resolved.id } as Partial<Track> as Track
-              // After resolving a catalog track to NCT, immediately pre-warm the stream URL
-              // so play is instant when the user reaches this track.
               if (!getCachedNctStreamUrl(resolved.id)) {
                 prewarmNctStreamUrl(resolved.id).catch(() => {})
               }
@@ -964,7 +963,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               updatedTrack = { source: 'youtube' as const, youtube_id: resolved.id } as Partial<Track> as Track
             }
             if (!updatedTrack) return
-
             const mergedTrack = { ...nextTr, ...updatedTrack }
             setBounded(
               trackResolutionCacheRef.current,
@@ -981,8 +979,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             resolvingTrackIdsRef.current.delete(targetTrackId)
           })
       }
-    }
-  }, [currentIndex, queue.length]) // eslint-disable-line react-hooks/exhaustive-deps
+    },
+    [getAudioUrlCached, resolveStreamCached]
+  )
 
 
 
@@ -1612,6 +1611,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             setDuration((prev) => (Math.abs(prev - dur) > 1 ? dur : prev))
           }
 
+          // ⚡ Task 3: Trigger single next-track prewarm only after 5s stable play
+          if (!hasPrewarmedNextTrackRef.current && time >= 5 && !isBufferingRef.current) {
+            hasPrewarmedNextTrackRef.current = true
+            triggerAdaptivePrewarm(queueRef.current, currentIndexRef.current)
+          }
+
           if (Math.abs(time - lastSavedTimeRef.current) > 5) {
             lastSavedTimeRef.current = time
             savePlayerStateToStorage(
@@ -1816,6 +1821,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     consecutiveSkipRef.current = 0
     nextTrackEndPrewarmedRef.current = false // reset near-end prewarm guard for new track
+    hasPrewarmedNextTrackRef.current = false
     desiredPlayStateRef.current = 'playing'
     const requestId = beginNewPlaybackRequest(track)
 
@@ -1849,8 +1855,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (newQueue) {
       nextQueue = deduplicateQueueTracks(newQueue)
       setQueue(nextQueue)
-      // Pre-warm top-10 NCT stream URLs so next tracks play instantly
-      prewarmTrackBatch(nextQueue).catch(() => {})
       const index = nextQueue.findIndex((t) => t.id === track.id)
       nextIndex = index >= 0 ? index : 0
     } else if (typeof forceIndex === 'number') {
@@ -1858,7 +1862,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     } else if (nextQueue.length === 0) {
       nextQueue = [track]
       setQueue(nextQueue)
-      prewarmTrackBatch(nextQueue).catch(() => {})
       nextIndex = 0
     } else {
       const index = nextQueue.findIndex((t) => t.id === track.id)
@@ -1885,8 +1888,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         synced[nextIndex] = { ...synced[nextIndex], ...resolvedTrack }
         nextQueue = synced
         setQueue(synced)
-        // Pre-warm NCT stream URLs for upcoming tracks now that we know their sources
-        prewarmTrackBatch(nextQueue.slice(nextIndex + 1)).catch(() => {})
       }
     }
 
@@ -2464,6 +2465,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     let targetIdx = typeof idx === 'number' && idx >= 0 ? idx : q.findIndex((t) => t.id === track.id)
     if (targetIdx < 0) targetIdx = -1
 
+    hasPrewarmedNextTrackRef.current = false
     ytHtml5ModeRef.current = isIOSDevice() && (track.source === 'youtube' || Boolean(track.youtube_id))
 
     // Commit navigation state synchronously
@@ -2680,9 +2682,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       newQ.splice(insertIdx, 0, track)
       return deduplicateQueueTracks(newQ)
     })
-    // Pre-warm the added track's stream URL since user likely wants to play it next
-    prewarmTrackBatch([track]).catch(() => {})
-  }, [])
+    // Pre-warm the added track's stream URL only if network connection is fast
+    if (isFastConnection()) {
+      triggerAdaptivePrewarm([track], -1)
+    }
+  }, [triggerAdaptivePrewarm])
 
   const removeFromQueue = useCallback((indexToRemove: number) => {
     const activeIndex = currentIndexRef.current
@@ -2771,12 +2775,18 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           )
         }
 
+        // ⚡ Task 3: Trigger single next-track prewarm only after 5s stable play
+        if (!hasPrewarmedNextTrackRef.current && time >= 5 && !isBufferingRef.current) {
+          hasPrewarmedNextTrackRef.current = true
+          triggerAdaptivePrewarm(queueRef.current, currentIndexRef.current)
+        }
+
         // ── Near-end prewarm: 30s before track ends, warm next track URL ─────────
         // Fires exactly once per track (guard: nextTrackEndPrewarmedRef).
         // Critical on iOS: tryQuickPlayFromCache must get a synchronous hit when
         // handleEnded fires — async resolution triggers NotAllowedError because
         // iOS requires the play() call to happen within the user-gesture chain.
-        if (!nextTrackEndPrewarmedRef.current) {
+        if (!nextTrackEndPrewarmedRef.current && isFastConnection()) {
           const dur = audio.duration
           if (dur && !isNaN(dur) && dur > 0 && dur !== Infinity) {
             const remaining = dur - time
