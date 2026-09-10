@@ -9,7 +9,7 @@ export function toMinimalPersistedTrack(track: Track): Partial<Track> {
     id: track.id,
     title: track.title,
     artist: track.artist,
-    artwork_url: track.artwork_url,
+    cover_url: track.cover_url,
     duration: track.duration,
     source: track.source,
     file_path: track.file_path,
