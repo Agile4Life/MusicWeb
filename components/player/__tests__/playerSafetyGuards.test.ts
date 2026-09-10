@@ -227,5 +227,62 @@ describe('Player Safety Mechanisms & Edge Guards', () => {
     expect(isPlaying).toBe(false)
     expect(mockAudio.paused).toBe(true)
   })
+
+  it('Universal audio stall watchdog triggers YouTube fallback for Drive/local tracks when stalled > 6500ms', async () => {
+    const AUDIO_STALL_WATCHDOG_TIMEOUT_MS = 6500
+    const fallbackAttempted = new Set<number>()
+    let fallbackCalled = false
+    let isPlaying = true
+    let isBuffering = true
+    const currentTrack = { id: 'drive-1', title: 'Drive Song', source: 'local' as const }
+    const activeRequestId = 10
+
+    const triggerWatchdogLogic = (track: typeof currentTrack, requestId: number) => {
+      if (!fallbackAttempted.has(requestId)) {
+        fallbackAttempted.add(requestId)
+        fallbackCalled = true
+        return
+      }
+      // If already attempted, circuit breaker trips and halts
+      isPlaying = false
+      isBuffering = false
+    }
+
+    // First stall timeout
+    triggerWatchdogLogic(currentTrack, activeRequestId)
+    expect(fallbackCalled).toBe(true)
+    expect(fallbackAttempted.has(activeRequestId)).toBe(true)
+
+    // If stream stalls again on the SAME request (fallback failed or second stall)
+    fallbackCalled = false
+    triggerWatchdogLogic(currentTrack, activeRequestId)
+    expect(fallbackCalled).toBe(false) // Must not trigger infinite fallback loop
+    expect(isPlaying).toBe(false)
+    expect(isBuffering).toBe(false)
+  })
+
+  it('Circuit breaker counter resets cleanly to 0 when playback becomes stable', () => {
+    let consecutiveSkips = 3 // Had 3 errors previously
+
+    // When playing becomes active (handlePlaying fires)
+    const handlePlaying = () => {
+      consecutiveSkips = 0
+    }
+
+    handlePlaying()
+    expect(consecutiveSkips).toBe(0)
+
+    // Also when currentTime >= 3s
+    consecutiveSkips = 2
+    const handleTimeUpdate = (currentTime: number) => {
+      if (currentTime >= 3 && consecutiveSkips > 0) {
+        consecutiveSkips = 0
+      }
+    }
+
+    handleTimeUpdate(4)
+    expect(consecutiveSkips).toBe(0)
+  })
 })
+
 

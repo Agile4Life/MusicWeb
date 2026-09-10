@@ -34,6 +34,7 @@ export type RepeatMode = 'off' | 'all' | 'one'
 
 export const DEFAULT_VOLUME = 0.8
 export const MAX_CONSECUTIVE_SKIPS = 4
+export const AUDIO_STALL_WATCHDOG_TIMEOUT_MS = 6500
 
 export interface PlayerControlsContextType {
   playTrack: (
@@ -2755,6 +2756,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           setCurrentTime(time)
         }
 
+        if (time >= 3 && consecutiveSkipRef.current > 0) {
+          consecutiveSkipRef.current = 0
+        }
+
         if (Math.abs(time - lastSavedTimeRef.current) > 5 && currentTrackRef.current) {
           lastSavedTimeRef.current = time
           savePlayerStateToStorage(
@@ -3015,7 +3020,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
         const activeRequestId = playRequestRef.current
         if (isSoundCloud && !scStallRecoveredRef.current.has(activeRequestId)) {
-          console.warn('[SoundCloud Watchdog] Playback stalled for >6.5s, auto-refreshing stream URL...')
+          console.warn(`[SoundCloud Watchdog] Playback stalled for >${AUDIO_STALL_WATCHDOG_TIMEOUT_MS}ms, auto-refreshing stream URL...`)
           recordRequestIdFlag(scStallRecoveredRef.current, activeRequestId)
           try {
             audioUrlCacheRef.current.delete(current.id)
@@ -3040,13 +3045,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           return
         }
 
-        // NCT stall: stream started (HTTP 200 received) but data stopped flowing.
-        // audio.error never fires in this case, so handleError can't trigger NCT→YouTube fallback.
-        // After 6.5s of silence, give up on NCT and switch to YouTube.
-        // Parallel YouTube search started upfront saves ~700ms vs sequential fallback.
-        const isNct = Boolean(current.source === 'nhaccuatui' || current.nhaccuatui_id)
-        if (isNct && !fallbackAttemptedRef.current.has(activeRequestId)) {
-          console.warn('[NCT Watchdog] NCT playback stalled >6.5s — no error event fired. Starting YouTube search in parallel...')
+        // Universal stall recovery for all other sources (NCT, Drive, Local, Catalog)
+        if (!fallbackAttemptedRef.current.has(activeRequestId)) {
+          console.warn(`[Audio Watchdog] ${current.source || 'Audio'} stream stalled >${AUDIO_STALL_WATCHDOG_TIMEOUT_MS}ms — attempting YouTube fallback...`)
           recordRequestIdFlag(fallbackAttemptedRef.current, activeRequestId)
 
           const searchQuery = `${current.title} ${current.artist || ''}`.trim()
@@ -3067,7 +3068,23 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           })
           return
         }
-      }, 6500)
+
+        // Circuit breaker: Fallback already attempted or failed on this request, stop spinning
+        if (isCurrentAudioOwnership() && playRequestRef.current === activeRequestId) {
+          consecutiveSkipRef.current += 1
+          setIsPlaying(false)
+          setIsBuffering(false)
+          if (consecutiveSkipRef.current >= MAX_CONSECUTIVE_SKIPS) {
+            console.warn(`[Circuit Breaker] Tripped after ${consecutiveSkipRef.current} consecutive errors. Stopping auto-advance.`)
+            setPlaybackError(
+              `Đã dừng tự động chuyển bài do có ${consecutiveSkipRef.current} bài hát liên tiếp gặp sự cố kết nối/nguồn phát. Vui lòng chọn bài khác.`
+            )
+          } else {
+            setPlaybackError(`Không thể tải luồng phát cho bài hát "${current.title}". Vui lòng thử lại hoặc chọn bài khác.`)
+          }
+        }
+      }, AUDIO_STALL_WATCHDOG_TIMEOUT_MS)
+
     }
 
     const handleEnded = () => {
