@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { getTrendingYouTubeTracks } from '@/lib/youtube'
-import { getTrendingSpotifyTracks } from '@/lib/spotify'
+import { getTrendingSpotifyTracks, isCleanTrendingTrack } from '@/lib/spotify'
+import { getTrendingDeezerTracks } from '@/lib/deezer'
 
 export const runtime = 'nodejs'
 
@@ -16,12 +16,15 @@ export async function GET(req: Request) {
     const countryCode = countryHeader.toLowerCase()
     const limit = parseInt(searchParams.get('limit') || '12', 10)
 
-    const [ytTrending, spotifyTrending] = await Promise.all([
-      getTrendingYouTubeTracks(limit).catch(() => []),
+    const [spotifyTrending, deezerTrending] = await Promise.all([
       getTrendingSpotifyTracks(limit).catch(() => []),
+      getTrendingDeezerTracks(limit).catch(() => []),
     ])
 
-    const tracks = ytTrending.length > 0 ? ytTrending : spotifyTrending
+    const combined = [...spotifyTrending, ...deezerTrending].filter((t) =>
+      isCleanTrendingTrack(t.title, t.artist)
+    )
+    const tracks = combined.slice(0, limit)
 
     return NextResponse.json(
       {

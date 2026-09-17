@@ -61,29 +61,29 @@ import { STATIC_DRIVE_TRACKS } from '@/lib/driveTracksMap'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { useSearch } from '@/components/search/SearchContext'
 import { LONG_COMPILATION_KEYWORDS } from '@/lib/youtube'
+import { isCleanTrendingTrack } from '@/lib/spotify'
 
 function processTrendingTracks(raw: GlobalSearchTracks, maxItems = 18): Track[] {
+  // Exclusively Spotify & Deezer (plus NhacCuaTui for VN charts). Zero YouTube.
   const nct = raw.nhaccuatui || []
-  const yt = raw.youtube || []
-  const audius = raw.audius || []
-  const itunes = raw.itunes || []
   const spotify = raw.spotify || []
   const deezer = raw.deezer || []
   const rawList: Track[] = []
-  const maxLen = Math.max(nct.length, yt.length, audius.length, itunes.length, spotify.length, deezer.length)
+  const maxLen = Math.max(nct.length, spotify.length, deezer.length)
   for (let i = 0; i < maxLen; i++) {
     if (nct[i]) rawList.push(nct[i])
     if (spotify[i]) rawList.push(spotify[i])
     if (deezer[i]) rawList.push(deezer[i])
-    if (itunes[i]) rawList.push(itunes[i])
-    if (audius[i]) rawList.push(audius[i])
-    if (yt[i]) rawList.push(yt[i])
   }
 
   const seenKeys = new Set<string>()
   const result: Track[] = []
 
   for (const track of rawList) {
+    if (!isCleanTrendingTrack(track.title, track.artist)) {
+      continue
+    }
+
     const cleanTitle = (track.title || '')
       .normalize('NFC')
       .replace(/[\(\[\{].*?[\)\]\}]/g, '')

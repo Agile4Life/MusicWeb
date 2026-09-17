@@ -90,41 +90,107 @@ export async function searchSpotifyTracks(query: string, limit = 15): Promise<Tr
   }
 }
 
+export const SPAM_OR_COMPILATION_KEYWORDS = [
+  'billboard',
+  'hot 100',
+  'hot100',
+  'top music',
+  'top 100',
+  'top 50',
+  'top 20',
+  'top 10',
+  'top songs',
+  'trending songs',
+  'top hits',
+  'popular music',
+  'best songs',
+  'music hits',
+  'bảng xếp hạng',
+  'ocean beats',
+  'jsvibes',
+  'tradingview',
+  'full album',
+  'compilation',
+  'tổng hợp',
+  'tuyển tập',
+  '1 hour',
+  '2 hour',
+  '3 hour',
+  '10 hours',
+  'loop',
+]
+
+export function isCleanTrendingTrack(title?: string | null, artist?: string | null): boolean {
+  const t = (title || '').toLowerCase()
+  const a = (artist || '').toLowerCase()
+  return !SPAM_OR_COMPILATION_KEYWORDS.some((kw) => t.includes(kw) || a.includes(kw))
+}
+
 export async function getTrendingSpotifyTracks(limit = 12): Promise<Track[]> {
   try {
-    const token = await getSpotifyAccessToken()
-    if (token) {
-      const res = await fetch(`https://api.spotify.com/v1/search?q=year:2024-2026&type=track&limit=${limit}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-
-      if (res.ok) {
-        const data = await res.json()
-        const items = data.tracks?.items || []
-
-        if (items.length > 0) {
-          return items.map((item: any) => ({
-            id: `spotify-${item.id}`,
-            user_id: 'spotify',
-            title: item.name,
-            artist: item.artists?.map((a: any) => a.name).join(', ') || 'Nghệ sĩ chưa xác định',
-            album: item.album?.name || '',
-            spotify_album_id: item.album?.id || undefined,
-            duration: Math.round((item.duration_ms || 0) / 1000),
-            file_path: item.external_urls?.spotify || item.preview_url || '',
-            cover_url: item.album?.images?.[0]?.url || item.album?.images?.[1]?.url || null,
-            created_at: new Date().toISOString(),
-            source: 'spotify',
-          }))
-        }
-      }
-    }
+    const globalArtists = [
+      'Taylor Swift',
+      'The Weeknd',
+      'Billie Eilish',
+      'Bruno Mars',
+      'Sabrina Carpenter',
+      'Ariana Grande',
+      'Post Malone',
+      'Dua Lipa',
+      'Drake',
+      'Olivia Rodrigo',
+    ]
+    const perArtist = Math.max(1, Math.ceil(limit / globalArtists.length))
+    const tracks = await getTopArtistSpotifyTracks(globalArtists, perArtist)
+    const clean = tracks.filter((t) => isCleanTrendingTrack(t.title, t.artist))
+    return clean.slice(0, limit)
   } catch (err) {
     console.warn('Spotify trending fetch error:', err)
   }
   return []
+}
+
+/**
+ * Fetch top hit tracks for specified iconic artists using Spotify Search API
+ */
+export async function getTopArtistSpotifyTracks(artists: string[], tracksPerArtist = 3): Promise<Track[]> {
+  try {
+    const token = await getSpotifyAccessToken()
+    if (!token) return []
+
+    const promises = artists.map(async (artist) => {
+      try {
+        const url = `https://api.spotify.com/v1/search?q=artist:${encodeURIComponent(artist)}&type=track&limit=${tracksPerArtist}`
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) return []
+        const data = await res.json()
+        const items = data.tracks?.items || []
+        return items.map((item: any) => ({
+          id: `spotify-${item.id}`,
+          user_id: 'spotify',
+          title: item.name,
+          artist: item.artists?.map((a: any) => a.name).join(', ') || artist,
+          album: item.album?.name || '',
+          spotify_album_id: item.album?.id || undefined,
+          duration: Math.round((item.duration_ms || 0) / 1000),
+          file_path: item.external_urls?.spotify || item.preview_url || '',
+          cover_url: item.album?.images?.[0]?.url || item.album?.images?.[1]?.url || null,
+          created_at: new Date().toISOString(),
+          source: 'spotify' as const,
+          spotify_id: item.id,
+        }))
+      } catch {
+        return []
+      }
+    })
+
+    const results = await Promise.all(promises)
+    return results.flat()
+  } catch {
+    return []
+  }
 }
 
 export interface SpotifyAlbumItem {

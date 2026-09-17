@@ -93,4 +93,23 @@ describe('category trending search API', () => {
     expect(result.nhaccuatui).toEqual([])
     expect(result.youtube).toEqual([])
   })
+
+  it('rejects spam and compilation tracks with billboard or top music keywords', async () => {
+    const { isCleanTrendingTrack } = await import('../spotify')
+
+    // Blocked examples from user screenshot
+    expect(isCleanTrendingTrack('Billboard 2026 🍀 Top Popular Music Hits', 'Top Music Hits')).toBe(false)
+    expect(isCleanTrendingTrack('Selena Gomez, Bruno Mars', 'Trending Songs 2026')).toBe(false)
+    expect(isCleanTrendingTrack('Billboard Hot 100 Top Songs', 'Billboard News')).toBe(false)
+    expect(isCleanTrendingTrack('Billboard Hot 10', 'JsVibes Music')).toBe(false)
+    expect(isCleanTrendingTrack('Billboard Hot 100 Pop', 'Ocean Beats')).toBe(false)
+    expect(isCleanTrendingTrack('Billboard Hot 100 Songs', 'TradingView')).toBe(false)
+
+    // Allowed genuine songs
+    expect(isCleanTrendingTrack('The Fate of Ophelia', 'Taylor Swift')).toBe(true)
+    expect(isCleanTrendingTrack('BIRDS OF A FEATHER', 'Billie Eilish')).toBe(true)
+    expect(isCleanTrendingTrack('Espresso', 'Sabrina Carpenter')).toBe(true)
+    expect(isCleanTrendingTrack('Đừng Làm Trái Tim Anh Đau', 'Sơn Tùng M-TP')).toBe(true)
+    expect(isCleanTrendingTrack('Whiplash', 'aespa')).toBe(true)
+  })
 })

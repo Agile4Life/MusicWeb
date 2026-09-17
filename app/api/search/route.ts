@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { searchYouTubeTracks, findBestYouTubeMatch, isOriginalTrackOnly } from '@/lib/youtube'
-import { searchSpotifyTracks, getTrendingSpotifyTracks } from '@/lib/spotify'
+import { searchSpotifyTracks, getTrendingSpotifyTracks, getTopArtistSpotifyTracks, isCleanTrendingTrack } from '@/lib/spotify'
 import { getTrendingDeezerTracks, searchDeezerTracks } from '@/lib/deezer'
 import { searchSoundCloudTracks } from '@/lib/soundcloudClient'
 import { normalizeNhacCuaTuiChartResponse, nhacCuaTuiSearchItemToTrack, searchNhacCuaTuiDirect } from '@/lib/nhaccuatui'
@@ -70,98 +70,128 @@ export async function GET(request: Request) {
           case 'vietnamese': {
             const [nctTrending, spotifyVpop, deezerVpop] = await Promise.all([
               getNhacCuaTuiTrending(24).catch(() => []),
-              searchSpotifyTracks('v-pop top hits 2025 2026', 16).catch(() => []),
-              searchDeezerTracks('nhạc việt top hits', 16).catch(() => []),
+              getTopArtistSpotifyTracks(['Sơn Tùng M-TP', 'Vũ.', 'HIEUTHUHAI', 'SOOBIN', 'Wren Evans', 'tlinh', 'MCK', 'MONO'], 3).catch(() => []),
+              searchDeezerTracks('Sơn Tùng M-TP Vũ HIEUTHUHAI', 16).catch(() => []),
             ])
+            const cleanSpotify = [...spotifyVpop, ...deezerVpop].filter((t) => isCleanTrendingTrack(t.title, t.artist))
             return {
-              nhaccuatui: nctTrending,
+              nhaccuatui: nctTrending.filter((t) => isCleanTrendingTrack(t.title, t.artist)),
               local: [],
               youtube: [],
               audius: [],
               itunes: [],
-              spotify: [...spotifyVpop, ...deezerVpop],
+              spotify: cleanSpotify,
               deezer: [],
             }
           }
           case 'usuk': {
-            const [spotifyUsUk, deezerUsUk, spotifyBillboard] = await Promise.all([
-              getTrendingSpotifyTracks(16).catch(() => []),
-              getTrendingDeezerTracks(16).catch(() => []),
-              searchSpotifyTracks('billboard hot 100 hits', 16).catch(() => []),
+            const [spotifyUsUkArtists, deezerUsUk] = await Promise.all([
+              getTopArtistSpotifyTracks(
+                [
+                  'Taylor Swift',
+                  'The Weeknd',
+                  'Billie Eilish',
+                  'Bruno Mars',
+                  'Sabrina Carpenter',
+                  'Ariana Grande',
+                  'Dua Lipa',
+                  'Post Malone',
+                  'Drake',
+                  'Olivia Rodrigo',
+                  'Lady Gaga',
+                  'Kendrick Lamar',
+                ],
+                2
+              ).catch(() => []),
+              getTrendingDeezerTracks(20).catch(() => []),
             ])
+            const cleanSpotify = [...spotifyUsUkArtists, ...deezerUsUk].filter((t) => isCleanTrendingTrack(t.title, t.artist))
             return {
               nhaccuatui: [],
               local: [],
               youtube: [],
               audius: [],
               itunes: [],
-              spotify: [...spotifyUsUk, ...deezerUsUk, ...spotifyBillboard],
+              spotify: cleanSpotify,
               deezer: [],
             }
           }
           case 'korean': {
-            const [spotifyKpop, deezerKpop, ytKpop] = await Promise.all([
-              searchSpotifyTracks('k-pop top hits 2025 2026', 20).catch(() => []),
-              searchDeezerTracks('k-pop trending hits', 16).catch(() => []),
-              searchYouTubeTracks('kpop trending music official audio', 12).catch(() => []),
+            const [spotifyKpopArtists, deezerKpop] = await Promise.all([
+              getTopArtistSpotifyTracks(
+                ['NewJeans', 'aespa', 'BLACKPINK', 'BTS', 'LE SSERAFIM', 'IVE', 'TWICE', 'SEVENTEEN', 'ILLIT', 'Stray Kids'],
+                2
+              ).catch(() => []),
+              searchDeezerTracks('NewJeans aespa BTS BLACKPINK', 16).catch(() => []),
             ])
+            const cleanSpotify = [...spotifyKpopArtists, ...deezerKpop].filter((t) => isCleanTrendingTrack(t.title, t.artist))
             return {
               nhaccuatui: [],
               local: [],
-              youtube: ytKpop,
+              youtube: [],
               audius: [],
               itunes: [],
-              spotify: [...spotifyKpop, ...deezerKpop],
+              spotify: cleanSpotify,
               deezer: [],
             }
           }
           case 'chinese': {
-            const [spotifyCpop, deezerCpop, ytCpop] = await Promise.all([
-              searchSpotifyTracks('c-pop mandopop top hits', 20).catch(() => []),
-              searchDeezerTracks('c-pop mandopop hits', 16).catch(() => []),
-              searchYouTubeTracks('cpop hot music official audio', 12).catch(() => []),
+            const [spotifyCpopArtists, deezerCpop] = await Promise.all([
+              getTopArtistSpotifyTracks(
+                ['Jay Chou', 'JJ Lin', 'G.E.M.', 'Eric Chou', 'Mayday', 'Jolin Tsai', 'Eason Chan', 'A-Lin'],
+                2
+              ).catch(() => []),
+              searchDeezerTracks('Jay Chou JJ Lin GEM', 16).catch(() => []),
             ])
+            const cleanSpotify = [...spotifyCpopArtists, ...deezerCpop].filter((t) => isCleanTrendingTrack(t.title, t.artist))
             return {
               nhaccuatui: [],
               local: [],
-              youtube: ytCpop,
+              youtube: [],
               audius: [],
               itunes: [],
-              spotify: [...spotifyCpop, ...deezerCpop],
+              spotify: cleanSpotify,
               deezer: [],
             }
           }
           case 'japanese': {
-            const [spotifyJpop, deezerJpop, ytJpop] = await Promise.all([
-              searchSpotifyTracks('j-pop anime top hits 2025 2026', 20).catch(() => []),
-              searchDeezerTracks('j-pop anime hits', 16).catch(() => []),
-              searchYouTubeTracks('jpop anime trending official audio', 12).catch(() => []),
+            const [spotifyJpopArtists, deezerJpop] = await Promise.all([
+              getTopArtistSpotifyTracks(
+                ['YOASOBI', 'Ado', 'Kenshi Yonezu', 'LiSA', 'Fujii Kaze', 'Aimer', 'RADWIMPS', 'Official HIGE DANDISM'],
+                2
+              ).catch(() => []),
+              searchDeezerTracks('YOASOBI Ado Kenshi Yonezu', 16).catch(() => []),
             ])
+            const cleanSpotify = [...spotifyJpopArtists, ...deezerJpop].filter((t) => isCleanTrendingTrack(t.title, t.artist))
             return {
               nhaccuatui: [],
               local: [],
-              youtube: ytJpop,
+              youtube: [],
               audius: [],
               itunes: [],
-              spotify: [...spotifyJpop, ...deezerJpop],
+              spotify: cleanSpotify,
               deezer: [],
             }
           }
           case 'all':
           default: {
-            const [nctTrending, spotifyTrending, deezerTrending] = await Promise.all([
+            const [nctTrending, spotifyGlobalArtists, deezerTrending] = await Promise.all([
               getNhacCuaTuiTrending(20).catch(() => []),
-              getTrendingSpotifyTracks(16).catch(() => []),
+              getTopArtistSpotifyTracks(
+                ['Taylor Swift', 'The Weeknd', 'NewJeans', 'Bruno Mars', 'Billie Eilish', 'Sơn Tùng M-TP', 'YOASOBI', 'Sabrina Carpenter'],
+                2
+              ).catch(() => []),
               getTrendingDeezerTracks(16).catch(() => []),
             ])
+            const cleanSpotify = [...spotifyGlobalArtists, ...deezerTrending].filter((t) => isCleanTrendingTrack(t.title, t.artist))
 
             return {
-              nhaccuatui: nctTrending,
+              nhaccuatui: nctTrending.filter((t) => isCleanTrendingTrack(t.title, t.artist)),
               local: [],
               youtube: [],
               audius: [],
               itunes: [],
-              spotify: [...spotifyTrending, ...deezerTrending],
+              spotify: cleanSpotify,
               deezer: [],
             }
           }
