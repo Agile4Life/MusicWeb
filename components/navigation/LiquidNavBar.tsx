@@ -850,6 +850,7 @@ export function LiquidNavBar({
                   handleCapsuleTap()
                   setTimeout(() => {
                     document.querySelector<HTMLElement>('.main-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' })
+                    window.dispatchEvent(new CustomEvent('musicweb-open-search'))
                   }, 100)
                 }}
               >

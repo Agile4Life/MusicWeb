@@ -66,7 +66,7 @@ describe('Playback Persistence Optimization (Task 4)', () => {
     const scheduler = new PlaybackPersistenceScheduler()
     const setItemSpy = vi.spyOn(localStorage, 'setItem')
 
-    const track: Track = { id: 't1', title: 'Song 1', artist: 'Artist 1' }
+    const track: Track = { id: 't1', title: 'Song 1', artist: 'Artist 1' } as unknown as Track
     const queue = [track]
 
     // Simulate timeupdates every 5s during playback
@@ -90,7 +90,7 @@ describe('Playback Persistence Optimization (Task 4)', () => {
     const scheduler = new PlaybackPersistenceScheduler()
     const setItemSpy = vi.spyOn(localStorage, 'setItem')
 
-    const track: Track = { id: 't1', title: 'Song 1', artist: 'Artist 1' }
+    const track: Track = { id: 't1', title: 'Song 1', artist: 'Artist 1' } as unknown as Track
     const queue = [track]
 
     // Audio is playing, user listens up to 73s, schedule debounced save
@@ -111,7 +111,7 @@ describe('Playback Persistence Optimization (Task 4)', () => {
     const getTimeRef = () => internalRefTime
 
     const scheduler = new PlaybackPersistenceScheduler()
-    const track: Track = { id: 't1', title: 'Song 1', artist: 'Artist 1' }
+    const track: Track = { id: 't1', title: 'Song 1', artist: 'Artist 1' } as unknown as Track
     const queue = [track]
 
     scheduler.scheduleDebounced({

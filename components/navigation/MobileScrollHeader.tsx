@@ -19,7 +19,12 @@ import { useLanguage } from '@/components/i18n/LanguageContext'
 import { useScrollContext } from '@/components/navigation/ScrollContext'
 import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
-import { shouldCommitGlobalSearch } from '@/components/search/searchInteraction'
+import {
+  shouldCommitGlobalSearch,
+  shouldKeepSearchOpenOnScroll,
+  shouldCloseSearchOnOutsideClick,
+  shouldRedirectToHomeOnSearch,
+} from '@/components/search/searchInteraction'
 
 /** Distance in px before topbar is fully shrunk + search gone */
 const COLLAPSE_DISTANCE = 90
@@ -86,6 +91,9 @@ export function MobileScrollHeader() {
 
   const [inputQuery, setInputQuery] = useState(searchQuery)
   const [showDropdown, setShowDropdown] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const isSearchOpenRef = useRef(false)
+  const visibilityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const progressRef = useRef(0)
   const lastDispatchedCollapsed = useRef<boolean | null>(null)
 
@@ -109,6 +117,20 @@ export function MobileScrollHeader() {
   // ─── Core animation driver ───────────────────────────────────────────────
   const applyProgress = useCallback((p: number) => {
     progressRef.current = p
+
+    // If search was explicitly opened by user, maintain search bar visibility and topbar hidden
+    if (isSearchOpenRef.current) {
+      const isCollapsed = p >= 0.7
+      const isExpanded = p <= 0.15
+      if (isCollapsed && lastDispatchedCollapsed.current !== true) {
+        lastDispatchedCollapsed.current = true
+        window.dispatchEvent(new CustomEvent('mweb:header-progress', { detail: { progress: 1, collapsed: true } }))
+      } else if (isExpanded && lastDispatchedCollapsed.current !== false) {
+        lastDispatchedCollapsed.current = false
+        window.dispatchEvent(new CustomEvent('mweb:header-progress', { detail: { progress: 0, collapsed: false } }))
+      }
+      return
+    }
 
     // 1. Topbar row (logo + buttons): fades out as scroll starts
     //    Position absolute to overlay with search row — zero layout shift
@@ -150,21 +172,111 @@ export function MobileScrollHeader() {
 
   useScrollProgress(COLLAPSE_DISTANCE, addScrollListener, applyProgress)
 
-  // Click outside dropdown
-  useEffect(() => {
-    const h = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setShowDropdown(false)
+  const openSearch = useCallback(() => {
+    if (visibilityTimeoutRef.current) {
+      clearTimeout(visibilityTimeoutRef.current)
+      visibilityTimeoutRef.current = null
+    }
+    setIsSearchOpen(true)
+    isSearchOpenRef.current = true
+
+    // Animate topbar out
+    const row = topbarRowRef.current
+    if (row) {
+      row.style.opacity = '0'
+      row.style.pointerEvents = 'none'
+      row.style.transform = 'translate3d(0, -8px, 0) scale(0.96)'
+    }
+
+    // Animate search row in
+    const searchRow = searchRowRef.current
+    if (searchRow) {
+      searchRow.style.visibility = 'visible'
+      searchRow.style.opacity = '1'
+      searchRow.style.pointerEvents = 'auto'
+      searchRow.style.transform = 'translate3d(0, 0, 0) scale(1)'
+    }
+
+    requestAnimationFrame(() => {
+      searchInputRef.current?.focus()
+    })
+  }, [])
+
+  const closeSearch = useCallback(() => {
+    setIsSearchOpen(false)
+    isSearchOpenRef.current = false
+    setShowDropdown(false)
+    searchInputRef.current?.blur()
+
+    const p = progressRef.current
+    const row = topbarRowRef.current
+    if (row) {
+      const qFade = clamp(p / 0.5, 0, 1)
+      row.style.opacity = String(1 - qFade)
+      row.style.pointerEvents = qFade > 0.7 ? 'none' : 'auto'
+      row.style.transform = `translate3d(0, ${-qFade * 8}px, 0) scale(${1 - qFade * 0.04})`
+    }
+
+    const searchRow = searchRowRef.current
+    if (searchRow) {
+      const q = clamp((p - 0.1) / 0.5, 0, 1)
+      if (q < 0.01) {
+        searchRow.style.opacity = '0'
+        searchRow.style.pointerEvents = 'none'
+        searchRow.style.transform = 'translate3d(0, 8px, 0) scale(0.96)'
+        if (visibilityTimeoutRef.current) clearTimeout(visibilityTimeoutRef.current)
+        visibilityTimeoutRef.current = setTimeout(() => {
+          if (!isSearchOpenRef.current && progressRef.current < 0.01 && searchRowRef.current) {
+            searchRowRef.current.style.visibility = 'hidden'
+          }
+        }, 260)
+      } else {
+        searchRow.style.visibility = 'visible'
+        searchRow.style.opacity = String(q)
+        searchRow.style.transform = `translate3d(0, ${(1 - q) * 8}px, 0) scale(${0.96 + q * 0.04})`
+        searchRow.style.pointerEvents = q < 0.3 ? 'none' : 'auto'
       }
     }
-    document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
   }, [])
+
+  // Listen for global open search request (e.g. from LiquidNavBar capsule)
+  useEffect(() => {
+    const handleOpenSearchEvent = () => openSearch()
+    window.addEventListener('musicweb-open-search', handleOpenSearchEvent)
+    return () => window.removeEventListener('musicweb-open-search', handleOpenSearchEvent)
+  }, [openSearch])
+
+  // Click outside dropdown / search bar
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node
+      if (dropdownRef.current && !dropdownRef.current.contains(target)) {
+        setShowDropdown(false)
+        if (shouldCloseSearchOnOutsideClick(isSearchOpenRef.current, Boolean(inputQuery.trim()), progressRef.current)) {
+          closeSearch()
+        }
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    document.addEventListener('touchstart', handleOutsideClick, { passive: true })
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+      document.removeEventListener('touchstart', handleOutsideClick)
+    }
+  }, [closeSearch, inputQuery])
+
+  // Route navigation closes search
+  useEffect(() => {
+    closeSearch()
+  }, [pathname, closeSearch])
 
   const handleClearSearch = () => {
     clearSearch()
     setInputQuery('')
     setShowDropdown(false)
+    if (isSearchOpenRef.current && progressRef.current < 0.2) {
+      closeSearch()
+    }
   }
 
   const handleSubmitSearch = () => {
@@ -173,16 +285,14 @@ export function MobileScrollHeader() {
     setSearchQuery(trimmed)
     setSuggestionQuery('')
     setShowDropdown(false)
-    router.push('/')
+    searchInputRef.current?.blur()
+    if (shouldRedirectToHomeOnSearch(pathname)) {
+      router.push('/')
+    }
   }
 
   const handleSearchIconClick = () => {
-    if (progressRef.current > 0.3) {
-      document.querySelector('.main-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' })
-      setTimeout(() => searchInputRef.current?.focus(), 350)
-    } else {
-      searchInputRef.current?.focus()
-    }
+    openSearch()
   }
 
   return (
@@ -291,7 +401,7 @@ export function MobileScrollHeader() {
           top: 8,
           paddingLeft: 14,
           paddingRight: 14,
-          // Start HIDDEN — applyProgress will reveal on scroll
+          // Start HIDDEN — applyProgress or openSearch will reveal
           opacity: 0,
           visibility: 'hidden',
           transformOrigin: 'top center',
@@ -343,7 +453,19 @@ export function MobileScrollHeader() {
               }}
             />
 
-            <Search className="w-4 h-4 text-white/60 absolute left-4 pointer-events-none z-10" />
+            {isSearchOpen ? (
+              <button
+                type="button"
+                onClick={closeSearch}
+                className="absolute left-3 p-1.5 text-white/70 hover:text-white active:scale-90 rounded-full hover:bg-white/10 transition-all z-20 cursor-pointer"
+                title="Đóng tìm kiếm"
+                aria-label="Đóng tìm kiếm"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+            ) : (
+              <Search className="w-4 h-4 text-white/60 absolute left-4 pointer-events-none z-10" />
+            )}
 
             <input
               ref={searchInputRef}
@@ -358,10 +480,17 @@ export function MobileScrollHeader() {
                 setShowDropdown(Boolean(v.trim()))
               }}
               onKeyDown={(e) => {
-                if (e.key === 'Escape') handleClearSearch()
+                if (e.key === 'Escape') {
+                  handleClearSearch()
+                  closeSearch()
+                }
                 if (shouldCommitGlobalSearch(inputQuery, e.key)) handleSubmitSearch()
               }}
-              onFocus={() => { if (inputQuery.trim()) setShowDropdown(true) }}
+              onFocus={() => {
+                setIsSearchOpen(true)
+                isSearchOpenRef.current = true
+                if (inputQuery.trim()) setShowDropdown(true)
+              }}
               placeholder="Tìm bài hát, nghệ sĩ, lời bài hát..."
               className="w-full h-full pl-11 pr-11 text-sm text-white placeholder-white/50 outline-none bg-transparent relative z-10 border-none shadow-none focus:outline-none focus:ring-0"
               style={{
@@ -380,6 +509,18 @@ export function MobileScrollHeader() {
                 type="button"
                 onClick={handleClearSearch}
                 className="absolute right-3.5 p-1 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors z-10 active:scale-90 cursor-pointer"
+                title="Xóa tìm kiếm"
+                aria-label="Xóa tìm kiếm"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            ) : isSearchOpen ? (
+              <button
+                type="button"
+                onClick={closeSearch}
+                className="absolute right-3.5 p-1 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors z-10 active:scale-90 cursor-pointer"
+                title="Đóng tìm kiếm"
+                aria-label="Đóng tìm kiếm"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -416,7 +557,11 @@ export function MobileScrollHeader() {
                     {suggestions.map((track) => (
                       <div
                         key={track.id}
-                        onClick={() => { playTrack(track, suggestions); setShowDropdown(false) }}
+                        onClick={() => {
+                          playTrack(track, suggestions)
+                          setShowDropdown(false)
+                          closeSearch()
+                        }}
                         className="flex items-center gap-3 p-2 hover:bg-white/10 rounded-xl cursor-pointer transition-colors group"
                       >
                         <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 relative bg-slate-800 border border-white/10">

@@ -23,10 +23,10 @@ describe('Player Adaptive Prewarming & Bandwidth Protection (Task 3)', () => {
 
   it('Throttling: Only schedules prewarm for single next track (currentIndex + 1)', () => {
     const queue: Track[] = [
-      { id: 't0', title: 'Track 0', source: 'nhaccuatui', nhaccuatui_id: 'nct-0' },
-      { id: 't1', title: 'Track 1', source: 'nhaccuatui', nhaccuatui_id: 'nct-1' },
-      { id: 't2', title: 'Track 2', source: 'nhaccuatui', nhaccuatui_id: 'nct-2' },
-      { id: 't3', title: 'Track 3', source: 'nhaccuatui', nhaccuatui_id: 'nct-3' },
+      { id: 't0', title: 'Track 0', source: 'nhaccuatui', nhaccuatui_id: 'nct-0' } as unknown as Track,
+      { id: 't1', title: 'Track 1', source: 'nhaccuatui', nhaccuatui_id: 'nct-1' } as unknown as Track,
+      { id: 't2', title: 'Track 2', source: 'nhaccuatui', nhaccuatui_id: 'nct-2' } as unknown as Track,
+      { id: 't3', title: 'Track 3', source: 'nhaccuatui', nhaccuatui_id: 'nct-3' } as unknown as Track,
     ]
     const currentIndex = 0
     const prewarmedIds: string[] = []
