@@ -160,29 +160,29 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
   }
 
   return (
-    <aside className={`app-sidebar hidden lg:flex w-60 lg:w-64 xl:w-72 flex-col justify-between p-3 lg:p-3.5 xl:p-4 h-full select-none text-slate-300 rounded-t-2xl rounded-b-[37px] panel-theme-hover shrink-0 z-10 overflow-hidden ${isScrolled ? 'is-scrolled' : ''}`}>
-      <div className="flex flex-col gap-2 min-h-0 flex-1 h-full max-h-full pb-28 xl:pb-32 overflow-y-auto no-scrollbar touch-pan-y">
-        {/* App Branding Header (Mini Glass Plaque) */}
-        <div className="px-0.5 py-0.5 shrink-0">
-          <Link
-            href="/"
-            onClick={() => {
-              clearSearch()
-              window.dispatchEvent(new Event('musicweb-tab-home'))
-            }}
-            className="sidebar-logo-plaque w-full flex items-center justify-start px-3.5 py-2 lg:py-2.5 rounded-2xl group cursor-pointer"
-            title="MusicWeb"
-          >
-            <div className="flex items-center justify-start h-8 lg:h-9 shrink-0">
-              <img
-                src="/phong-signature.png"
-                alt="MusicWeb Logo"
-                className="h-8 lg:h-9 w-auto object-contain signature-img-invert group-hover:scale-[1.03] transition-transform"
-              />
-            </div>
-          </Link>
-        </div>
+    <aside className={`app-sidebar hidden lg:flex w-60 lg:w-64 xl:w-72 flex-col p-3 lg:p-3.5 xl:p-4 h-full select-none text-slate-300 rounded-t-2xl rounded-b-[37px] panel-theme-hover shrink-0 z-10 overflow-hidden ${isScrolled ? 'is-scrolled' : ''}`}>
+      {/* App Branding Header (Mini Glass Plaque) - Fixed at top, never scrolls or clips */}
+      <div className="px-0.5 py-0.5 shrink-0 mb-2 z-20">
+        <Link
+          href="/"
+          onClick={() => {
+            clearSearch()
+            window.dispatchEvent(new Event('musicweb-tab-home'))
+          }}
+          className="sidebar-logo-plaque w-full flex items-center justify-start px-3.5 py-2 lg:py-2.5 rounded-2xl group cursor-pointer"
+          title="MusicWeb"
+        >
+          <div className="flex items-center justify-start h-8 lg:h-9 shrink-0">
+            <img
+              src="/phong-signature.png"
+              alt="MusicWeb Logo"
+              className="h-8 lg:h-9 w-auto object-contain signature-img-invert group-hover:scale-[1.03] transition-transform"
+            />
+          </div>
+        </Link>
+      </div>
 
+      <div className="flex flex-col gap-2 min-h-0 flex-1 pb-28 xl:pb-32 overflow-y-auto no-scrollbar touch-pan-y">
         {/* Main Navigation List */}
         <nav
           ref={exploreNavRef}

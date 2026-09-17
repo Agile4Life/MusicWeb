@@ -1,6 +1,6 @@
 {
-  "name": "MusicWeb • Stream Music",
-  "short_name": "MusicWeb",
+  "name": "Music",
+  "short_name": "Music",
   "description": "Trình nghe nhạc cá nhân high-quality độc bản",
   "start_url": "/",
   "scope": "/",
