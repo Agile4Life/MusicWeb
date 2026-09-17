@@ -9,6 +9,7 @@ import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 import { usePlayer } from '@/components/player/PlayerContext'
 import { deduplicateQueueTracks } from '@/lib/utils'
 import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
+import { fetchUnifiedSearch, GlobalSearchTracks } from '@/lib/searchApi'
 import { resolveExternalTrackId, isExternalTrack, addTrackToPlaylist } from '@/lib/trackPersistence'
 import { getValidUserId, getAllValidUserIds } from '@/lib/accessControl'
 import { toast } from '@/components/ui/ToastContext'
@@ -61,6 +62,61 @@ import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { useSearch } from '@/components/search/SearchContext'
 import { LONG_COMPILATION_KEYWORDS } from '@/lib/youtube'
 
+function processTrendingTracks(raw: GlobalSearchTracks, maxItems = 18): Track[] {
+  const nct = raw.nhaccuatui || []
+  const yt = raw.youtube || []
+  const audius = raw.audius || []
+  const itunes = raw.itunes || []
+  const spotify = raw.spotify || []
+  const deezer = raw.deezer || []
+  const rawList: Track[] = []
+  const maxLen = Math.max(nct.length, yt.length, audius.length, itunes.length, spotify.length, deezer.length)
+  for (let i = 0; i < maxLen; i++) {
+    if (nct[i]) rawList.push(nct[i])
+    if (spotify[i]) rawList.push(spotify[i])
+    if (deezer[i]) rawList.push(deezer[i])
+    if (itunes[i]) rawList.push(itunes[i])
+    if (audius[i]) rawList.push(audius[i])
+    if (yt[i]) rawList.push(yt[i])
+  }
+
+  const seenKeys = new Set<string>()
+  const result: Track[] = []
+
+  for (const track of rawList) {
+    const cleanTitle = (track.title || '')
+      .normalize('NFC')
+      .replace(/[\(\[\{].*?[\)\]\}]/g, '')
+      .replace(/\b(?:feat|ft)\.?\b/gi, '')
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, ' ')
+
+    const cleanArtist = (track.artist || '')
+      .normalize('NFC')
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, ' ')
+
+    const key = `${cleanTitle}_${cleanArtist}`
+
+    // Filter out long compilation mixes, charts, or top 50 videos
+    const isCompilation = LONG_COMPILATION_KEYWORDS.some((kw) =>
+      cleanTitle.includes(kw) || cleanArtist.includes(kw)
+    )
+
+    if (!isCompilation && !seenKeys.has(key)) {
+      seenKeys.add(key)
+      result.push(track)
+    }
+  }
+
+  if (result.length >= maxItems) return result.slice(0, maxItems)
+  if (result.length >= 12) return result.slice(0, 12)
+  const count = Math.floor(result.length / 6) * 6
+  return result.slice(0, Math.max(count, Math.min(result.length, 6)))
+}
+
 export default function HomePage() {
   const supabase = createClient()
   const { playTrack, currentTrack, isPlaying, isShuffle, toggleShuffle } = usePlayer()
@@ -102,6 +158,8 @@ export default function HomePage() {
     { id: 'japanese', label: 'J-Pop' },
   ]
   const [selectedCategory, setSelectedCategory] = useState('all')
+  const [categoryTracksMap, setCategoryTracksMap] = useState<Record<string, Track[]>>({})
+  const [loadingCategory, setLoadingCategory] = useState(false)
 
   // Pull-to-refresh handlers
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -401,156 +459,48 @@ export default function HomePage() {
     }
   }
 
-  const combinedTrendingTracks: Track[] = useMemo(() => {
-    const nct = trendingTracks.nhaccuatui || []
-    const yt = trendingTracks.youtube || []
-    const audius = trendingTracks.audius || []
-    const itunes = trendingTracks.itunes || []
-    const spotify = trendingTracks.spotify || []
-    const rawList: Track[] = []
-    const maxLen = Math.max(nct.length, yt.length, audius.length, itunes.length, spotify.length)
-    for (let i = 0; i < maxLen; i++) {
-      if (nct[i]) rawList.push(nct[i])
-      if (spotify[i]) rawList.push(spotify[i])
-      if (itunes[i]) rawList.push(itunes[i])
-      if (audius[i]) rawList.push(audius[i])
-      if (yt[i]) rawList.push(yt[i])
-    }
-
-    const seenKeys = new Set<string>()
-    const result: Track[] = []
-
-    for (const track of rawList) {
-      const cleanTitle = (track.title || '')
-        .normalize('NFC')
-        .replace(/[\(\[\{].*?[\)\]\}]/g, '')
-        .replace(/\b(?:feat|ft)\.?\b/gi, '')
-        .toLowerCase()
-        .trim()
-        .replace(/\s+/g, ' ')
-
-      const cleanArtist = (track.artist || '')
-        .normalize('NFC')
-        .toLowerCase()
-        .trim()
-        .replace(/\s+/g, ' ')
-
-      const key = `${cleanTitle}_${cleanArtist}`
-
-      // Filter out long compilation mixes, charts, or top 50 videos
-      const isCompilation = LONG_COMPILATION_KEYWORDS.some((kw) =>
-        cleanTitle.includes(kw) || cleanArtist.includes(kw)
-      )
-
-      if (!isCompilation && !seenKeys.has(key)) {
-        seenKeys.add(key)
-        result.push(track)
-      }
-    }
-
-    return result
+  const displayTrending: Track[] = useMemo(() => {
+    return processTrendingTracks(trendingTracks, 18)
   }, [trendingTracks])
 
-  const displayTrending: Track[] = useMemo(() => {
-    if (combinedTrendingTracks.length === 0) return []
-    if (combinedTrendingTracks.length >= 18) return combinedTrendingTracks.slice(0, 18)
-    if (combinedTrendingTracks.length >= 12) return combinedTrendingTracks.slice(0, 12)
-    const count = Math.floor(combinedTrendingTracks.length / 6) * 6
-    return combinedTrendingTracks.slice(0, Math.max(count, 6))
-  }, [combinedTrendingTracks])
+  // Fetch category trending tracks when a genre chip is clicked
+  useEffect(() => {
+    if (selectedCategory === 'all') return
+    if (categoryTracksMap[selectedCategory]) return
 
-  // Filter trending by selected category
-  const filteredTrending: Track[] = useMemo(() => {
-    if (selectedCategory === 'all') return displayTrending
+    let active = true
+    setLoadingCategory(true)
 
-    // Exact artist name lists (case-insensitive matching)
-    const categoryArtists: Record<string, string[]> = {
-      vietnamese: [
-        // Male artists
-        'mck', 'tlinh', 'tùng', 'hoaprox', 'bray', 'justatee', 'duc', 'nam', 'hương', 'vũ', 'hà', 'hạ',
-        'sơn', 'tùng', 'huy', 'khắc', 'hưng', 'chan', 'than', 'thắng', 'tài', 'phúc', 'long', 'minh', 'ngọc', 'anh',
-        // Female artists
-        'hương', 'lan', 'trang', 'thảo', 'như', 'huyền', 'thiên', 'bảo', 'khánh', 'phong', 'liên', 'mai', 'loan', 'thu', 'hằng',
-        'yến', 'thanh', 'quỳnh', 'nga', 'my', 'lan', 'tú', 'trâm', 'oops',
-        // Groups & Producers
-        'onlyc', 'dr.a', 'cm1x', 'kho', 'tiên', 'ntp', 'hnh', 'key', 'big', 'dskn', 'tấn', 'trân',
-        // Common Viet keywords
-        'việt nam', 'v-pop', 'viet nam', 'nhạc việt', 'c-pop', 'nhạc trẻ',
-        // Specific popular Viet songs/artists (from trending data)
-        'độ mix', 'thiên', 'hà linh', 'hà linh', 'hương ly', 'trung', 'ngân', 'na', 'than', 'phong', 'win', 'Đen', 'BRay',
-        'Soobin', 'Khoa', 'Vũ', 'Hương', 'Hà', 'Minh', 'Anh', 'Tuấn', 'Phong', 'Trang', 'Linh', 'Thảo', 'Huyền',
-        'Hoàng', 'Dũng', 'Hùng', 'Cường', 'Đức', 'Trung', 'Khánh', 'Nam', 'Lan', 'Hạ', 'Nhi', 'Mai', 'Loan', 'Thu',
-      ],
-      usuk: [
-        // Main artists
-        'taylor swift', 'billie eilish', 'justin bieber', 'ariana grande', 'drake', 'the weeknd', 'ed sheeran',
-        'bruno mars', 'dua lipa', 'harry styles', 'post malone', 'doja cat', 'olivia rodrigo', 'bad bunny',
-        'shawn mendes', 'olivia', 'lady gaga', 'katy perry', 'rihanna', 'beyoncé', 'adele', 'coldplay',
-        'imagine dragons', 'maroon 5', 'the chainsmokers', 'dj snake', 'marshmello', 'zayn', 'sia',
-        'selena gomez', 'miley cyrus', 'demi lovato', 'charlie puth', 'sam smith', 'lana del rey',
-        'lil nas x', 'cardi b', 'megan thee stallion', 'sza', 'j. cole', 'kendrick lamar', 'kanye west',
-        'travis scott', 'future', 'migos', 'post malone', 'billie', 'ariana', 'bieber', 'swift',
-        'weeknd', 'sheeran', 'styles', 'rodrigo', 'bunny', 'mendes', 'gaga', 'perry', 'charlie',
-        // US-UK specific
-        'us-uk', 'american', 'british', 'uk chart', 'billboard hot',
-      ],
-      korean: [
-        // BTS
-        'bts', 'rm', 'jin', 'suga', 'jhope', 'j-hope', 'jimin', 'v', 'taehyung', 'jungkook',
-        // BLACKPINK
-        'blackpink', 'jisoo', 'jennie', 'lisa', 'rose', 'rosé',
-        // TWICE
-        'twice', 'nayeon', 'jeongyeon', 'momo', 'sana', 'jihyo', 'mina', 'dahyun', 'chaeyoung', 'tzuyu',
-        // NewJeans
-        'newjeans', 'minji', 'hanni', 'hyein', 'danielle', 'haerin',
-        // Other popular groups
-        'seventeen', 'nct', 'exo', 'red velvet', 'ateez', 'enhypen', 'txt', 'ive', 'lesserafim', 'aespa', 'itzy',
-        'stray kids', 'treasure', 'le sserafim', 'gidle', 'g idle', 'lesserafim',
-        // Solo artists
-        'iu', 'zico', 'hyde', 'psy', 'g-dragon', 'top', 'somi', 'sunmi', 'hwasa', 'solar', 'moonbyul',
-        // KPOP keywords
-        'kpop', 'k-pop', 'korean', 'kpop chart', 'bangtan', 'yg', 'jyp', 'sm entertainment',
-      ],
-      chinese: [
-        // Mandarin/C-Pop
-        'jay Chou', 'jj lin', 'jolin tsai', 'a-mei', '告五人', '周杰倫', '林俊傑', '蔡依林', '張惠妹',
-        '八三夭', '動力火車', '王心凌', '鄧紫棋', 'g.e.m', '林宥嘉', '周深', '華晨宇', '五月天', '蘇打綠',
-        '蘇打綠', '田馥甄', '林俊傑', '張學友', '劉德華', '周杰倫', '周杰倫', '王菲', '五月天',
-        // C-Pop keywords
-        'c-pop', 'chinese', 'mandopop', 'mandarin', '華語', '中文', '普通话',
-        'g.e.m', 'gem', 'gem鄧紫棋', '周杰倫', '林俊傑', '蔡依林',
-      ],
-      japanese: [
-        // J-Pop / Anime
-        'yoasobi', 'radwimps', 'Ado', 'YOASOBI', 'RADWIMPS', 'LiSA', 'Aimer', 'TK from 凛として',
-        '米津玄師', '椎名林檎', 'YOASOBI', 'LiSA', 'aimers', 'Aimer',
-        // Anime songs (common)
-        'anime', 'opening', 'ending', 'ost', 'j-pop', 'japanese',
-        // Anime-specific artists
-        'hatano', 'enoshima', 'kobayashi', 'sato', 'yamamoto',
-        // JPOP keywords
-        'j-pop', 'japanese pop', 'japan', 'animate',
-      ],
-    }
-
-    const artists = categoryArtists[selectedCategory] || []
-    if (artists.length === 0) return displayTrending.slice(0, 12)
-
-    return displayTrending.filter((track) => {
-      const title = (track.title || '').toLowerCase()
-      const artist = (track.artist || '').toLowerCase()
-      const fullText = `${title} ${artist}`
-
-      // Check for exact artist match first (more reliable)
-      const hasArtistMatch = artists.some((a) => {
-        const artistLower = a.toLowerCase()
-        // Check if artist name appears as complete word/phrase
-        return artist.includes(artistLower) || fullText.includes(` ${artistLower}`) || fullText.includes(`${artistLower} `)
+    fetchUnifiedSearch('', 'all', true, selectedCategory)
+      .then((data) => {
+        if (!active) return
+        const processed = processTrendingTracks(data, 18)
+        setCategoryTracksMap((prev) => ({
+          ...prev,
+          [selectedCategory]: processed,
+        }))
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch category trending:', err)
+        if (!active) return
+        setCategoryTracksMap((prev) => ({
+          ...prev,
+          [selectedCategory]: [],
+        }))
+      })
+      .finally(() => {
+        if (active) setLoadingCategory(false)
       })
 
-      return hasArtistMatch
-    }).slice(0, 12) // Limit filtered results
-  }, [displayTrending, selectedCategory])
+    return () => {
+      active = false
+    }
+  }, [selectedCategory, categoryTracksMap])
+
+  const currentCategoryTracks: Track[] = useMemo(() => {
+    if (selectedCategory === 'all') return displayTrending
+    return categoryTracksMap[selectedCategory] || []
+  }, [selectedCategory, displayTrending, categoryTracksMap])
 
   // Fetch initial page data
   useEffect(() => {
@@ -1027,47 +977,63 @@ export default function HomePage() {
                   Trending & Hot Songs
                 </h2>
               </div>
-              {loadingTrending && <Loader2 style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3.5 h-3.5 animate-spin" />}
+              {(loadingTrending || loadingCategory) && (
+                <Loader2 style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3.5 h-3.5 animate-spin" />
+              )}
             </div>
 
             {/* Category Chips - Mobile Only */}
             <div className="lg:hidden flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
-              {categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setSelectedCategory(cat.id)}
-                  className={`flex-shrink-0 px-4 py-1.5 rounded-full text-[11px] font-semibold transition-all ${selectedCategory === cat.id
-                      ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-black border border-white/20 shadow-[0_2px_8px_rgba(6,182,212,0.4)]'
-                      : 'bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10 hover:text-white'
+              {categories.map((cat) => {
+                const isActive = selectedCategory === cat.id
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={`flex-shrink-0 px-4 py-1.5 rounded-full text-[11px] font-semibold transition-all inline-flex items-center gap-1.5 ${
+                      isActive
+                        ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-black border border-white/20 shadow-[0_2px_8px_rgba(6,182,212,0.4)]'
+                        : 'bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10 hover:text-white'
                     }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
+                  >
+                    {isActive && loadingCategory && (
+                      <Loader2 className="w-3 h-3 animate-spin text-black" />
+                    )}
+                    <span>{cat.label}</span>
+                  </button>
+                )
+              })}
             </div>
 
             {/* Category Chips - Desktop */}
             <div className="hidden lg:flex gap-2 overflow-x-auto no-scrollbar pb-1"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
-              {categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setSelectedCategory(cat.id)}
-                  className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${selectedCategory === cat.id
-                      ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-black border border-white/20 shadow-[0_2px_8px_rgba(6,182,212,0.4)]'
-                      : 'bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10 hover:text-white'
+              {categories.map((cat) => {
+                const isActive = selectedCategory === cat.id
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all inline-flex items-center gap-1.5 ${
+                      isActive
+                        ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-black border border-white/20 shadow-[0_2px_8px_rgba(6,182,212,0.4)]'
+                        : 'bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10 hover:text-white'
                     }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
+                  >
+                    {isActive && loadingCategory && (
+                      <Loader2 className="w-3 h-3 animate-spin text-black" />
+                    )}
+                    <span>{cat.label}</span>
+                  </button>
+                )
+              })}
             </div>
 
             {/* Mobile: Horizontal scroll | Desktop: Grid */}
-            {loadingTrending ? (
+            {(loadingTrending && selectedCategory === 'all') || (loadingCategory && currentCategoryTracks.length === 0) ? (
               <>
                 {/* Mobile skeleton */}
                 <div className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2 -mx-2.5 px-2.5"
@@ -1092,14 +1058,14 @@ export default function HomePage() {
                   ))}
                 </div>
               </>
-            ) : displayTrending.length > 0 ? (
+            ) : currentCategoryTracks.length > 0 ? (
               <>
                 {/* Mobile: Horizontal scroll */}
                 <div
                   className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2 -mx-2.5 px-2.5"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
-                  {filteredTrending.map((t, idx) => (
+                  {currentCategoryTracks.map((t, idx) => (
                     <div
                       key={t.id}
                       className="flex-shrink-0 w-[140px] snap-start"
@@ -1112,7 +1078,7 @@ export default function HomePage() {
                         type="track"
                         badgeLabel="Hot"
                         href="#"
-                        onPlay={() => playTrack(t, combinedTrendingTracks)}
+                        onPlay={() => playTrack(t, currentCategoryTracks)}
                         isPlaying={currentTrack?.id === t.id && isPlaying}
                         index={idx}
                         fallbackIcon="track"
@@ -1135,7 +1101,7 @@ export default function HomePage() {
                       opacity: trendingGrid.indicator.opacity,
                     }}
                   />
-                  {filteredTrending.map((t, idx) => (
+                  {currentCategoryTracks.map((t, idx) => (
                     <div
                       key={t.id}
                       onMouseEnter={trendingGrid.handleItemMouseEnter}
@@ -1149,7 +1115,7 @@ export default function HomePage() {
                         type="track"
                         badgeLabel="Hot"
                         href="#"
-                        onPlay={() => playTrack(t, combinedTrendingTracks)}
+                        onPlay={() => playTrack(t, currentCategoryTracks)}
                         isPlaying={currentTrack?.id === t.id && isPlaying}
                         index={idx}
                         fallbackIcon="track"
@@ -1159,13 +1125,23 @@ export default function HomePage() {
                 </div>
               </>
             ) : (
-              <div className="p-6 bg-white/[0.02] border border-white/10 rounded-2xl flex flex-col items-center justify-center text-center gap-2">
-                <p className="text-xs text-slate-400">Đang cập nhật danh sách bài hát Trending...</p>
+              <div className="p-8 bg-white/[0.02] border border-white/10 rounded-2xl flex flex-col items-center justify-center text-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400">
+                  <Music className="w-5 h-5 text-slate-400" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm font-semibold text-slate-200">
+                    Chưa có bài hát thịnh hành cho thể loại này
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    Hệ thống đang cập nhật dữ liệu bảng xếp hạng mới nhất.
+                  </p>
+                </div>
                 <button
-                  onClick={() => window.location.reload()}
-                  className="text-xs text-cyan-400 hover:underline font-semibold"
+                  onClick={() => setSelectedCategory('all')}
+                  className="mt-1 px-4 py-1.5 rounded-full text-xs font-semibold bg-white/10 hover:bg-white/15 text-cyan-300 border border-cyan-500/30 transition-all shadow-[0_0_12px_rgba(6,182,212,0.15)]"
                 >
-                  Tải lại trang
+                  Xem tất cả thể loại
                 </button>
               </div>
             )}

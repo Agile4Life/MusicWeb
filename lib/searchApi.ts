@@ -23,10 +23,11 @@ const CACHE_TTL = 3 * 60 * 1000 // 3 minutes
 export async function fetchUnifiedSearch(
   query: string,
   source = 'all',
-  isTrending = false
+  isTrending = false,
+  category = 'all'
 ): Promise<GlobalSearchTracks> {
   const trimmed = query.trim().toLowerCase()
-  const cacheKey = isTrending ? `trending_${source}` : `${trimmed}_${source}`
+  const cacheKey = isTrending ? `trending_${source}_${category}` : `${trimmed}_${source}`
 
   if (!isTrending && !trimmed) {
     return { nhaccuatui: [], local: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: [], soundcloud: [] }
@@ -47,7 +48,7 @@ export async function fetchUnifiedSearch(
   const fetchPromise = (async (): Promise<GlobalSearchTracks> => {
     try {
       const url = isTrending
-        ? `/api/search?trending=true&source=${encodeURIComponent(source)}`
+        ? `/api/search?trending=true&source=${encodeURIComponent(source)}&category=${encodeURIComponent(category)}`
         : `/api/search?q=${encodeURIComponent(query.trim())}&source=${encodeURIComponent(source)}`
 
       const res = await fetch(url)

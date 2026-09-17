@@ -49,11 +49,12 @@ export async function GET(request: Request) {
   const q = searchParams.get('q') || ''
   const source = searchParams.get('source') || 'all'
   const isTrending = searchParams.get('trending') === 'true'
+  const category = (searchParams.get('category') || 'all').toLowerCase().trim()
 
-  // Handle Trending Global Request
+  // Handle Trending Global / Category-specific Request
   if (isTrending || (!q.trim() && searchParams.has('trending'))) {
     try {
-      const cacheKey = `trending_${source}`
+      const cacheKey = `trending_${source}_${category}`
       const cached = searchCache.get(cacheKey)
       if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
         return cachedJsonResponse(cached.data)
@@ -65,19 +66,105 @@ export async function GET(request: Request) {
       }
 
       const trendingPromise = (async () => {
-        const [nctTrending, spotifyTrending, deezerTrending] = await Promise.all([
-          getNhacCuaTuiTrending(20).catch(() => []),
-          getTrendingSpotifyTracks(16).catch(() => []),
-          getTrendingDeezerTracks(16).catch(() => []),
-        ])
+        switch (category) {
+          case 'vietnamese': {
+            const [nctTrending, spotifyVpop, deezerVpop] = await Promise.all([
+              getNhacCuaTuiTrending(24).catch(() => []),
+              searchSpotifyTracks('v-pop top hits 2025 2026', 16).catch(() => []),
+              searchDeezerTracks('nhạc việt top hits', 16).catch(() => []),
+            ])
+            return {
+              nhaccuatui: nctTrending,
+              local: [],
+              youtube: [],
+              audius: [],
+              itunes: [],
+              spotify: [...spotifyVpop, ...deezerVpop],
+              deezer: [],
+            }
+          }
+          case 'usuk': {
+            const [spotifyUsUk, deezerUsUk, spotifyBillboard] = await Promise.all([
+              getTrendingSpotifyTracks(16).catch(() => []),
+              getTrendingDeezerTracks(16).catch(() => []),
+              searchSpotifyTracks('billboard hot 100 hits', 16).catch(() => []),
+            ])
+            return {
+              nhaccuatui: [],
+              local: [],
+              youtube: [],
+              audius: [],
+              itunes: [],
+              spotify: [...spotifyUsUk, ...deezerUsUk, ...spotifyBillboard],
+              deezer: [],
+            }
+          }
+          case 'korean': {
+            const [spotifyKpop, deezerKpop, ytKpop] = await Promise.all([
+              searchSpotifyTracks('k-pop top hits 2025 2026', 20).catch(() => []),
+              searchDeezerTracks('k-pop trending hits', 16).catch(() => []),
+              searchYouTubeTracks('kpop trending music official audio', 12).catch(() => []),
+            ])
+            return {
+              nhaccuatui: [],
+              local: [],
+              youtube: ytKpop,
+              audius: [],
+              itunes: [],
+              spotify: [...spotifyKpop, ...deezerKpop],
+              deezer: [],
+            }
+          }
+          case 'chinese': {
+            const [spotifyCpop, deezerCpop, ytCpop] = await Promise.all([
+              searchSpotifyTracks('c-pop mandopop top hits', 20).catch(() => []),
+              searchDeezerTracks('c-pop mandopop hits', 16).catch(() => []),
+              searchYouTubeTracks('cpop hot music official audio', 12).catch(() => []),
+            ])
+            return {
+              nhaccuatui: [],
+              local: [],
+              youtube: ytCpop,
+              audius: [],
+              itunes: [],
+              spotify: [...spotifyCpop, ...deezerCpop],
+              deezer: [],
+            }
+          }
+          case 'japanese': {
+            const [spotifyJpop, deezerJpop, ytJpop] = await Promise.all([
+              searchSpotifyTracks('j-pop anime top hits 2025 2026', 20).catch(() => []),
+              searchDeezerTracks('j-pop anime hits', 16).catch(() => []),
+              searchYouTubeTracks('jpop anime trending official audio', 12).catch(() => []),
+            ])
+            return {
+              nhaccuatui: [],
+              local: [],
+              youtube: ytJpop,
+              audius: [],
+              itunes: [],
+              spotify: [...spotifyJpop, ...deezerJpop],
+              deezer: [],
+            }
+          }
+          case 'all':
+          default: {
+            const [nctTrending, spotifyTrending, deezerTrending] = await Promise.all([
+              getNhacCuaTuiTrending(20).catch(() => []),
+              getTrendingSpotifyTracks(16).catch(() => []),
+              getTrendingDeezerTracks(16).catch(() => []),
+            ])
 
-        return {
-          nhaccuatui: nctTrending,
-          youtube: [],
-          audius: [],
-          itunes: [],
-          spotify: [...spotifyTrending, ...deezerTrending],
-          deezer: [],
+            return {
+              nhaccuatui: nctTrending,
+              local: [],
+              youtube: [],
+              audius: [],
+              itunes: [],
+              spotify: [...spotifyTrending, ...deezerTrending],
+              deezer: [],
+            }
+          }
         }
       })()
 
@@ -91,7 +178,7 @@ export async function GET(request: Request) {
         inFlightRequests.delete(cacheKey)
       }
     } catch (err: any) {
-      return NextResponse.json({ nhaccuatui: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: [] })
+      return NextResponse.json({ nhaccuatui: [], local: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: [] })
     }
   }
 
