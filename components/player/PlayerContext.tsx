@@ -574,8 +574,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const fallbackAttemptedRef = useRef<Set<number>>(new Set())
+  const fallbackInProgressRef = useRef<Set<number>>(new Set())
   const ytRetriedRef = useRef<Set<number>>(new Set())
   const nctRetriedRef = useRef<Set<number>>(new Set())
+  const nctRetryAbortedRef = useRef<Set<number>>(new Set())
   const scRetriedRef = useRef<Set<number>>(new Set())
   const scStallRecoveredRef = useRef<Set<number>>(new Set())
 
@@ -1004,6 +1006,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     requestId: number,
     preSearchedTrack?: Track | null
   ) => {
+    // 🛡️ Concurrency Mutex: Guard against duplicate concurrent fallback executions for the same request
+    if (fallbackInProgressRef.current.has(requestId) || fallbackAttemptedRef.current.has(requestId)) {
+      return
+    }
+    recordRequestIdFlag(fallbackInProgressRef.current, requestId)
+    recordRequestIdFlag(fallbackAttemptedRef.current, requestId)
+
     // ── Step 0: Check localStorage cache for YouTube video ID ───────────────
     // This is the fastest path — if we've resolved this track to YouTube before,
     // skip the YouTube Data API search entirely and go straight to streaming.
@@ -2944,6 +2953,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     const handleError = async () => {
+      // 🛡️ Cancel any pending stall watchdog immediately on error so it doesn't fire late and kill fallback playback
+      clearAudioStallWatchdog()
+
       // Ignore error events from cleared audio sources (fired after
       // removeAttribute('src') + load() during track switching).
       if (!audio.src || audio.src === window.location.href) return
@@ -2965,74 +2977,81 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           current?.source === 'nhaccuatui' ||
           current?.nhaccuatui_id
         )
-        if (isNct && current && current.nhaccuatui_id && !nctRetriedRef.current.has(requestId)) {
-          recordRequestIdFlag(nctRetriedRef.current, requestId)
+        if (isNct && current && current.nhaccuatui_id) {
+          if (nctRetriedRef.current.has(requestId)) {
+            // NCT retry stream has also failed -> mark aborted early so any waiting loop unlocks immediately
+            recordRequestIdFlag(nctRetryAbortedRef.current, requestId)
+          } else {
+            recordRequestIdFlag(nctRetriedRef.current, requestId)
 
-          const searchQuery = `${current.title} ${current.artist || ''}`.trim()
-          // Start YouTube search IMMEDIATELY — don't wait for NCT to fail first
-          const searchPromise = (async () => {
-            try {
-              const data = await fetchUnifiedSearch(searchQuery, 'youtube')
-              if (!data?.youtube?.length) return null
-              return findBestYouTubeMatch(data.youtube, current.title, current.artist, current.duration, current.album)
-            } catch {
-              return null
-            }
-          })()
+            const searchQuery = `${current.title} ${current.artist || ''}`.trim()
+            // Start YouTube search IMMEDIATELY — don't wait for NCT to fail first
+            const searchPromise = (async () => {
+              try {
+                const data = await fetchUnifiedSearch(searchQuery, 'youtube')
+                if (!data?.youtube?.length) return null
+                return findBestYouTubeMatch(data.youtube, current.title, current.artist, current.duration, current.album)
+              } catch {
+                return null
+              }
+            })()
 
-          if (
-            audioRef.current &&
-            isCurrentAudioOwnership() &&
-            isCurrentPlayback({
-              requestId,
-              currentRequestId: playRequestRef.current,
-              trackId: current.id,
-              currentTrackId: currentTrackRef.current?.id,
-            })
-          ) {
-            const fallbackUrl = `/api/nhaccuatui/stream?id=${encodeURIComponent(current.nhaccuatui_id)}`
-            console.log('[NCT Auto-Retry] Worker stream failed, switching to native Next.js stream proxy (YouTube search running in parallel):', fallbackUrl)
-            audioRef.current.src = fallbackUrl
-            audioRef.current.load()
+            if (
+              audioRef.current &&
+              isCurrentAudioOwnership() &&
+              isCurrentPlayback({
+                requestId,
+                currentRequestId: playRequestRef.current,
+                trackId: current.id,
+                currentTrackId: currentTrackRef.current?.id,
+              })
+            ) {
+              const fallbackUrl = `/api/nhaccuatui/stream?id=${encodeURIComponent(current.nhaccuatui_id)}`
+              console.log('[NCT Auto-Retry] Worker stream failed, switching to native Next.js stream proxy (YouTube search running in parallel):', fallbackUrl)
+              audioRef.current.src = fallbackUrl
+              audioRef.current.load()
 
-            // Race: wait for NCT play OR timeout. If NCT fails → use pre-searched YouTube result.
-            let nctSucceeded = false
-            const NCT_RACE_TIMEOUT_MS = 4000 // Give NCT 4s to start playing before bailing
+              // Race: wait for NCT play OR timeout. If NCT fails → use pre-searched YouTube result.
+              let nctSucceeded = false
+              const NCT_RACE_TIMEOUT_MS = 4000 // Give NCT 4s to start playing before bailing
 
-            audioRef.current.play().then(() => {
-              nctSucceeded = true
-              if (!isCurrentAudioOwnership()) return
-              setIsPlaying(true)
-              setIsBuffering(false)
-              setPlaybackError(null)
-            }).catch(() => {})
+              audioRef.current.play().then(() => {
+                nctSucceeded = true
+                if (!isCurrentAudioOwnership()) return
+                setIsPlaying(true)
+                setIsBuffering(false)
+                setPlaybackError(null)
+              }).catch(() => {
+                recordRequestIdFlag(nctRetryAbortedRef.current, requestId)
+              })
 
-            try {
-              await Promise.race([
-                new Promise<void>((resolve) => {
-                  const check = () => {
-                    if (nctSucceeded || !isCurrentAudioOwnership()) {
-                      resolve()
-                      return
+              try {
+                await Promise.race([
+                  new Promise<void>((resolve) => {
+                    const check = () => {
+                      if (nctSucceeded || !isCurrentAudioOwnership() || nctRetryAbortedRef.current.has(requestId)) {
+                        resolve()
+                        return
+                      }
+                      if (requestId !== playRequestRef.current) {
+                        resolve()
+                        return
+                      }
+                      setTimeout(check, 50)
                     }
-                    if (requestId !== playRequestRef.current) {
-                      resolve()
-                      return
-                    }
-                    setTimeout(check, 100)
-                  }
-                  setTimeout(check, 100)
-                }),
-                new Promise<void>((resolve) => setTimeout(() => resolve(), NCT_RACE_TIMEOUT_MS))
-              ])
-            } catch {}
+                    setTimeout(check, 50)
+                  }),
+                  new Promise<void>((resolve) => setTimeout(() => resolve(), NCT_RACE_TIMEOUT_MS))
+                ])
+              } catch {}
 
-            if (!nctSucceeded && isCurrentAudioOwnership() && requestId === playRequestRef.current) {
-              console.log('[NCT Auto-Retry] NCT play timeout, using pre-fetched YouTube result...')
-              const preSearchedTrack = await searchPromise
-              void fallbackToYouTube(current, requestId, preSearchedTrack)
+              if (!nctSucceeded && isCurrentAudioOwnership() && requestId === playRequestRef.current && !fallbackAttemptedRef.current.has(requestId)) {
+                console.log('[NCT Auto-Retry] NCT play failed or timed out, using pre-fetched YouTube result...')
+                const preSearchedTrack = await searchPromise
+                void fallbackToYouTube(current, requestId, preSearchedTrack)
+              }
+              return
             }
-            return
           }
         }
 
