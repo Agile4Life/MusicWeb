@@ -295,4 +295,89 @@ describe('Background Tab Optimization (Gaming Eco Mode)', () => {
     expect(isPlaying).toBe(true)
     expect(playTrackMock).not.toHaveBeenCalled() // Direct resume, zero reload
   })
+
+  it('triggers near-end auto-advance when audio reaches the last fraction of a second (<= 0.35s)', () => {
+    let advanced = false
+    const nextTrackMock = vi.fn(() => {
+      advanced = true
+    })
+
+    const simulateNearEndTimeUpdate = (time: number, duration: number) => {
+      if (duration > 0 && duration !== Infinity && time >= 3) {
+        const remaining = duration - time
+        if (remaining <= 0.35) {
+          nextTrackMock()
+        }
+      }
+    }
+
+    // Mid track: should not advance
+    simulateNearEndTimeUpdate(150.0, 180.0)
+    expect(nextTrackMock).not.toHaveBeenCalled()
+
+    // 0.8s before end: should not auto-advance yet
+    simulateNearEndTimeUpdate(179.2, 180.0)
+    expect(nextTrackMock).not.toHaveBeenCalled()
+
+    // 0.25s before end (last frame): auto-advances smoothly
+    simulateNearEndTimeUpdate(179.75, 180.0)
+    expect(nextTrackMock).toHaveBeenCalledTimes(1)
+    expect(advanced).toBe(true)
+  })
+
+  it('treats waiting/stalled near the end (<= 1.8s) as EOF completion rather than a broken network stall', () => {
+    const fallbackMock = vi.fn()
+    const trackCompletionMock = vi.fn()
+
+    const handleStalled = (currentTime: number, duration: number) => {
+      if (duration > 0 && currentTime >= 3 && duration - currentTime <= 1.8) {
+        trackCompletionMock('html5-stalled-at-eof')
+        return
+      }
+      fallbackMock('triggerAudioStallWatchdog')
+    }
+
+    // Stall in the middle of track -> triggers stall watchdog for network recovery
+    handleStalled(60.0, 180.0)
+    expect(fallbackMock).toHaveBeenCalledWith('triggerAudioStallWatchdog')
+    expect(trackCompletionMock).not.toHaveBeenCalled()
+
+    // Stall in last 1.2s -> recognized as EOF buffer completion, smoothly auto-advances
+    handleStalled(178.8, 180.0)
+    expect(trackCompletionMock).toHaveBeenCalledWith('html5-stalled-at-eof')
+  })
+
+  it('rescues stuck playback via background heartbeat while tab is hidden', () => {
+    const trackCompletionMock = vi.fn()
+    const isTabHidden = true
+    const desiredPlayState = 'playing'
+
+    const runBackgroundHeartbeat = (currentTime: number, duration: number, ended: boolean) => {
+      if (!isTabHidden) return
+      if (desiredPlayState !== 'playing') return
+
+      if (duration > 3 && currentTime >= 3 && (duration - currentTime <= 1.0 || ended)) {
+        trackCompletionMock('html5-background-heartbeat-eof')
+      }
+    }
+
+    // Frozen in background at 199.2 / 200.0 (last 0.8s):
+    runBackgroundHeartbeat(199.2, 200.0, false)
+    expect(trackCompletionMock).toHaveBeenCalledWith('html5-background-heartbeat-eof')
+  })
+
+  it('immediately advances track upon tab visibility restore if found stuck at the last second', () => {
+    const trackCompletionMock = vi.fn()
+
+    const handleVisibilityRestore = (currentTime: number, duration: number) => {
+      if (duration > 0 && currentTime >= 3 && (duration - currentTime <= 1.0)) {
+        trackCompletionMock('html5-visibility-restore-eof')
+        return
+      }
+    }
+
+    // User switches back to tab after being stuck at 213.6s / 214s:
+    handleVisibilityRestore(213.6, 214.0)
+    expect(trackCompletionMock).toHaveBeenCalledWith('html5-visibility-restore-eof')
+  })
 })

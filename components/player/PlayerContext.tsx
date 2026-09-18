@@ -316,6 +316,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const prevTrackRef = useRef<() => void>(() => {})
   const pendingResumeRef = useRef<boolean>(false)
   const audioStallWatchdogRef = useRef<NodeJS.Timeout | null>(null)
+  const nearEndWatchdogRef = useRef<NodeJS.Timeout | null>(null)
+  const trackCompletionHandledRef = useRef<{ trackId: string; requestId: number } | null>(null)
+  const triggerTrackCompletionRef = useRef<(reason: string, isYouTube?: boolean) => void>(() => {})
   const toggleActionIdRef = useRef<number>(0)
   const desiredPlayStateRef = useRef<'playing' | 'paused' | null>(null)
 
@@ -671,6 +674,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(audioStallWatchdogRef.current)
       audioStallWatchdogRef.current = null
     }
+    if (nearEndWatchdogRef.current) {
+      clearTimeout(nearEndWatchdogRef.current)
+      nearEndWatchdogRef.current = null
+    }
+    trackCompletionHandledRef.current = null
   }
 
   // Resolve audio URL for local and external tracks
@@ -1428,45 +1436,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 }
 
                 if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
-                setIsPlaying(false)
-                recordListenEvent(activeForEnded, true)
-                const endedRequestId = playRequestRef.current
-                const endedTrackId = activeForEnded?.id
-                const mode = repeatModeRef.current
-                if (mode === 'one') {
-                  setTimeout(() => {
-                    if (currentTrackRef.current && isCurrentPlayback({
-                      requestId: endedRequestId,
-                      currentRequestId: playRequestRef.current,
-                      trackId: endedTrackId,
-                      currentTrackId: currentTrackRef.current.id,
-                    })) {
-                      playTrackRef.current(currentTrackRef.current)
-                    }
-                  }, 0)
-                } else if (mode === 'all') {
-                  setTimeout(() => {
-                    if (isCurrentPlayback({
-                      requestId: endedRequestId,
-                      currentRequestId: playRequestRef.current,
-                      trackId: endedTrackId,
-                      currentTrackId: currentTrackRef.current?.id,
-                    })) nextTrackRef.current()
-                  }, 0)
-                } else if (autoPlayNextRef.current) {
-                  const q = queueRef.current
-                  const idx = currentIndexRef.current
-                  if (isShuffleRef.current || idx < q.length - 1) {
-                    setTimeout(() => {
-                      if (isCurrentPlayback({
-                        requestId: endedRequestId,
-                        currentRequestId: playRequestRef.current,
-                        trackId: endedTrackId,
-                        currentTrackId: currentTrackRef.current?.id,
-                      })) nextTrackRef.current()
-                    }, 0)
-                  }
-                }
+                triggerTrackCompletionRef.current('youtube-native-ended', true)
               } else if (event.data === -1 || event.data === 5) {
                 // Cold-start watchdog: if stuck in cued/unstarted for > 1500ms, auto-trigger playVideo() ONLY if active track is YouTube and user wants to play
                 if (ytStuckTimerRef.current) clearTimeout(ytStuckTimerRef.current)
@@ -1589,6 +1559,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           if (ytPlayerRef.current.getDuration) {
             const dur = ytPlayerRef.current.getDuration() || 0
             setDuration((prev) => (Math.abs(prev - dur) > 1 ? dur : prev))
+
+            // ── Near-end completion guard for YouTube (fires when onStateChange: 0 is throttled in background tabs) ──
+            if (dur > 5 && time >= 3 && dur - time <= 0.75) {
+              triggerTrackCompletionRef.current('youtube-near-end-interval', true)
+              return
+            }
           }
 
           // ⚡ Task 3: Trigger single next-track prewarm only after 5s stable play
@@ -2721,6 +2697,78 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  const clearNearEndWatchdog = useCallback(() => {
+    if (nearEndWatchdogRef.current) {
+      clearTimeout(nearEndWatchdogRef.current)
+      nearEndWatchdogRef.current = null
+    }
+  }, [])
+
+  const triggerTrackCompletion = useCallback((reason: string, isYouTube: boolean = false) => {
+    if (audioStallWatchdogRef.current) {
+      clearTimeout(audioStallWatchdogRef.current)
+      audioStallWatchdogRef.current = null
+    }
+    clearNearEndWatchdog()
+
+    const current = currentTrackRef.current
+    const activeRequestId = playRequestRef.current
+    if (!current) return
+
+    // Deduplication guard: never advance the same track twice on the same request
+    if (
+      trackCompletionHandledRef.current?.trackId === current.id &&
+      trackCompletionHandledRef.current?.requestId === activeRequestId
+    ) {
+      return
+    }
+
+    if (!isYouTube) {
+      if (!isCurrentAudioOwnership()) return
+    } else {
+      if (!isCurrentYouTubeVideo()) return
+    }
+
+    trackCompletionHandledRef.current = { trackId: current.id, requestId: activeRequestId }
+    console.log(`[Auto-Advance] Track completed (${reason}):`, current.title)
+
+    if (consecutiveSkipRef.current >= MAX_CONSECUTIVE_SKIPS) {
+      console.warn('[Circuit Breaker] Auto-advance blocked by consecutive skip limit.')
+      setIsPlaying(false)
+      return
+    }
+
+    recordListenEvent(current, true)
+    const mode = repeatModeRef.current
+
+    if (mode === 'one') {
+      if (isYouTube) {
+        playTrackRef.current(current)
+      } else if (audioRef.current) {
+        audioRef.current.currentTime = 0
+        audioRef.current.play().then(() => {
+          setIsPlaying(true)
+        }).catch(() => {})
+      }
+    } else if (mode === 'all') {
+      nextTrackRef.current()
+    } else if (autoPlayNextRef.current) {
+      const q = queueRef.current
+      const idx = currentIndexRef.current
+      if (isShuffleRef.current || idx < q.length - 1) {
+        nextTrackRef.current()
+      } else {
+        setIsPlaying(false)
+      }
+    } else {
+      setIsPlaying(false)
+    }
+  }, [clearNearEndWatchdog, isCurrentAudioOwnership, isCurrentYouTubeVideo, recordListenEvent])
+
+  useEffect(() => {
+    triggerTrackCompletionRef.current = triggerTrackCompletion
+  }, [triggerTrackCompletion])
+
   const isTabHiddenRef = useRef<boolean>(false)
 
   // HTML5 Audio Event Listeners
@@ -2748,6 +2796,33 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         // to prevent dozens of components from re-rendering on every timeupdate.
         if (!isTabHiddenRef.current) {
           setCurrentTime(time)
+        }
+
+        // ── Near-end completion guard (prevents freezing at the last second in background tabs) ──
+        const dur = audio.duration
+        if (dur && !isNaN(dur) && dur > 0 && dur !== Infinity && time >= 3) {
+          const remaining = dur - time
+          // If within 0.35s of end, or reached/exceeded duration, trigger auto-advance
+          if (remaining <= 0.35) {
+            triggerTrackCompletion('html5-near-end-timeupdate', false)
+            return
+          }
+
+          // If within 1.5s of end, arm a safety timer in case background tab throttling halts further timeupdates
+          if (remaining <= 1.5 && remaining > 0) {
+            if (!nearEndWatchdogRef.current) {
+              const graceMs = Math.max(150, Math.round(remaining * 1000 + 400))
+              nearEndWatchdogRef.current = setTimeout(() => {
+                nearEndWatchdogRef.current = null
+                if (!isCurrentAudioOwnership()) return
+                const curTime = audioRef.current?.currentTime || 0
+                const curDur = audioRef.current?.duration || 0
+                if (curDur > 0 && (curDur - curTime <= 0.9 || audioRef.current?.ended)) {
+                  triggerTrackCompletion('html5-near-end-watchdog', false)
+                }
+              }, graceMs)
+            }
+          }
         }
 
         if (time >= 3 && consecutiveSkipRef.current > 0) {
@@ -3087,40 +3162,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }, AUDIO_STALL_WATCHDOG_TIMEOUT_MS)
 
     }
-
     const handleEnded = () => {
-      clearAudioStallWatchdog()
-      if (!isYtIframeEngine()) {
-        if (!isCurrentAudioOwnership()) return
-        if (!audio.ended) return
-        if (consecutiveSkipRef.current >= MAX_CONSECUTIVE_SKIPS) {
-          console.warn('[Circuit Breaker] Auto-advance blocked by consecutive skip limit.')
-          setIsPlaying(false)
-          return
-        }
-        recordListenEvent(currentTrackRef.current, true)
-        const mode = repeatModeRef.current
-        if (mode === 'one') {
-          if (audioRef.current) {
-            audioRef.current.currentTime = 0
-            audioRef.current.play().then(() => {
-              setIsPlaying(true)
-            }).catch(() => {})
-          }
-        } else if (mode === 'all') {
-          nextTrackRef.current()
-        } else if (autoPlayNextRef.current) {
-          const q = queueRef.current
-          const idx = currentIndexRef.current
-          if (isShuffleRef.current || idx < q.length - 1) {
-            nextTrackRef.current()
-          } else {
-            setIsPlaying(false)
-          }
-        } else {
-          setIsPlaying(false)
-        }
-      }
+      triggerTrackCompletion('html5-native-ended', false)
     }
 
     const handlePlay = () => {
@@ -3139,11 +3182,21 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     const handleWaiting = () => {
       if (!isCurrentAudioOwnership()) return
+      // If audio is in the last 1.8s of the song, treat as EOF buffer completion rather than broken network stall
+      if (audio.duration > 0 && audio.currentTime >= 3 && audio.duration - audio.currentTime <= 1.8) {
+        triggerTrackCompletion('html5-waiting-at-eof', false)
+        return
+      }
       setIsBuffering(true)
       triggerAudioStallWatchdog()
     }
     const handleStalled = () => {
       if (!isCurrentAudioOwnership()) return
+      // If audio is in the last 1.8s of the song, treat as EOF buffer completion rather than broken network stall
+      if (audio.duration > 0 && audio.currentTime >= 3 && audio.duration - audio.currentTime <= 1.8) {
+        triggerTrackCompletion('html5-stalled-at-eof', false)
+        return
+      }
       setIsBuffering(true)
       triggerAudioStallWatchdog()
     }
@@ -3200,6 +3253,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (!isHidden) {
         const activeAudio = audioRef.current
         const ytActive = isYtIframeEngine()
+
+        // 0. If tab was restored and track is stuck at the last second (<= 1.0s remaining), immediately advance!
+        if (activeAudio && activeAudio.duration > 0 && activeAudio.currentTime >= 3 && (activeAudio.duration - activeAudio.currentTime <= 1.0)) {
+          triggerTrackCompletion('html5-visibility-restore-eof', false)
+          return
+        }
+        if (ytActive && ytPlayerRef.current?.getCurrentTime && ytPlayerRef.current?.getDuration) {
+          const ytTime = ytPlayerRef.current.getCurrentTime() || 0
+          const ytDur = ytPlayerRef.current.getDuration() || 0
+          if (ytDur > 5 && ytTime >= 3 && (ytDur - ytTime <= 1.0)) {
+            triggerTrackCompletion('youtube-visibility-restore-eof', true)
+            return
+          }
+        }
 
         // 1. Wake up Web Audio AudioContext if suspended by the browser while hidden
         if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
@@ -3332,6 +3399,29 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    // Background tab heartbeat: actively rescues playback if stuck in the last second while tab is hidden
+    const backgroundHeartbeat = setInterval(() => {
+      if (!isTabHiddenRef.current) return
+      if (desiredPlayStateRef.current !== 'playing') return
+
+      const activeAudio = audioRef.current
+      if (activeAudio && isCurrentAudioOwnership() && !isYtIframeEngine()) {
+        const time = activeAudio.currentTime || 0
+        const dur = activeAudio.duration || 0
+        if (dur > 3 && time >= 3 && (dur - time <= 1.0 || activeAudio.ended)) {
+          triggerTrackCompletion('html5-background-heartbeat-eof', false)
+        }
+      }
+
+      if (isCurrentYouTubeVideo()) {
+        const ytTime = ytPlayerRef.current?.getCurrentTime?.() || 0
+        const ytDur = ytPlayerRef.current?.getDuration?.() || 0
+        if (ytDur > 5 && ytTime >= 3 && (ytDur - ytTime <= 1.0)) {
+          triggerTrackCompletion('youtube-background-heartbeat-eof', true)
+        }
+      }
+    }, 1500)
+
     audio.addEventListener('play', handlePlay)
     audio.addEventListener('pause', handlePause)
     audio.addEventListener('timeupdate', handleTimeUpdate)
@@ -3350,6 +3440,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener('keydown', handleUserActivation, { passive: true })
 
     return () => {
+      clearInterval(backgroundHeartbeat)
+      clearNearEndWatchdog()
       stopActivePlaybackEngines('all')
       clearAudioStallWatchdog()
       audio.removeEventListener('play', handlePlay)
@@ -3373,7 +3465,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         document.documentElement.removeAttribute('data-tab-hidden')
       }
     }
-  }, [])
+  }, [clearNearEndWatchdog, isCurrentAudioOwnership, isCurrentYouTubeVideo, triggerTrackCompletion])
 
   // On-demand fetch view_count for current track if youtube_id exists and view_count is null
   useEffect(() => {
