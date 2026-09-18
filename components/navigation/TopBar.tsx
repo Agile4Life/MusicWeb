@@ -21,7 +21,7 @@ export function TopBar() {
   const router = useRouter()
   const pathname = usePathname()
   const isSoundCloudPage = pathname === '/soundcloud'
-  const { playTrack } = usePlayer()
+  const { playTrack, playSearchTrack } = usePlayer()
   const {
     searchQuery,
     setSearchQuery,
@@ -187,7 +187,7 @@ export function TopBar() {
                       <div
                         key={track.id}
                         onClick={() => {
-                          playTrack(track, suggestions)
+                          playSearchTrack(track)
                           setShowDropdown(false)
                         }}
                         className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-xl cursor-pointer transition-colors group"

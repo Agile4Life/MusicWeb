@@ -78,7 +78,7 @@ export function MobileScrollHeader() {
   const { t } = useLanguage()
   const pathname = usePathname()
   const router = useRouter()
-  const { playTrack } = usePlayer()
+  const { playTrack, playSearchTrack } = usePlayer()
   const {
     searchQuery,
     setSearchQuery,
@@ -558,7 +558,7 @@ export function MobileScrollHeader() {
                       <div
                         key={track.id}
                         onClick={() => {
-                          playTrack(track, suggestions)
+                          playSearchTrack(track)
                           setShowDropdown(false)
                           closeSearch()
                         }}

@@ -46,6 +46,7 @@ export interface PlayerControlsContextType {
     forceIndex?: number,
     startFromTime?: number
   ) => Promise<void>
+  playSearchTrack: (track: Track) => Promise<void>
   togglePlay: () => void
   seek: (time: number) => void
   setVolume: (val: number) => void
@@ -1823,7 +1824,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       nextIndex = 0
     } else {
       const index = nextQueue.findIndex((t) => t.id === track.id)
-      nextIndex = index >= 0 ? index : -1
+      if (index >= 0) {
+        nextIndex = index
+      } else {
+        const insertIdx = nextIndex >= 0 ? nextIndex + 1 : nextQueue.length
+        const updated = [...nextQueue]
+        updated.splice(insertIdx, 0, track)
+        nextQueue = deduplicateQueueTracks(updated)
+        setQueue(nextQueue)
+        const found = nextQueue.findIndex((t) => t.id === track.id)
+        nextIndex = found >= 0 ? found : insertIdx
+      }
     }
 
     const initialTime = typeof startFromTime === 'number' && startFromTime >= 0 ? startFromTime : 0
@@ -2233,6 +2244,37 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   // Keep playTrackRef in sync so YouTube onStateChange closure always calls latest version
   playTrackRef.current = playTrack
+
+  const playSearchTrack = useCallback(async (rawTrack: Track) => {
+    const track = inferTrackSource(rawTrack)
+    const currentQ = queueRef.current
+    const currentIdx = currentIndexRef.current
+
+    // Case 1: Empty queue — initialize queue with this track as seed.
+    // Smart Autoplay will naturally fill recommended songs for it when it ends!
+    if (currentQ.length === 0) {
+      await playTrack(track, [track], 0)
+      return
+    }
+
+    // Case 2: Track is already in current queue — jump to it without altering the queue
+    const existingIdx = currentQ.findIndex((t) => t.id === track.id)
+    if (existingIdx !== -1) {
+      await playTrack(track, undefined, existingIdx)
+      return
+    }
+
+    // Case 3: User already has an active queue / playlist playing.
+    // Insert the searched track right after the current playing track and play it immediately.
+    // This preserves the existing playlist / queue for when this track finishes.
+    const insertIdx = currentIdx >= 0 ? currentIdx + 1 : currentQ.length
+    const updatedQueue = [...currentQ]
+    updatedQueue.splice(insertIdx, 0, track)
+    const deduped = deduplicateQueueTracks(updatedQueue)
+    const targetIdx = deduped.findIndex((t) => t.id === track.id)
+
+    await playTrack(track, deduped, targetIdx >= 0 ? targetIdx : insertIdx)
+  }, [playTrack])
 
   const togglePlay = useCallback(async () => {
     const current = currentTrackRef.current
@@ -3664,6 +3706,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const controlsValue = useMemo<PlayerControlsContextType>(
     () => ({
       playTrack,
+      playSearchTrack,
       togglePlay,
       seek,
       setVolume,
@@ -3683,6 +3726,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       playTrack,
+      playSearchTrack,
       togglePlay,
       seek,
       setVolume,

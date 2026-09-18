@@ -554,6 +554,7 @@ export default function SoundCloudPage() {
               userPlaylists={userPlaylists}
               onAddToPlaylist={handleAddToPlaylist}
               onTrackUpdated={handleTrackUpdated}
+              isSearchResult={Boolean(debouncedQuery && !selectedPlaylist)}
             />
 
             {/* 📥 Load More / Pagination Bar (Only when not in a specific playlist) */}

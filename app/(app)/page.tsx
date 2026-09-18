@@ -1554,6 +1554,7 @@ export default function HomePage() {
                 isAdmin={isAdmin}
                 onBulkUpdated={handleBulkUpdated}
                 onBulkDeleted={handleBulkDeleted}
+                isSearchResult={isSearching}
               />
 
               {isShortQuery && !showAllResults && displayedTracks.length > 15 && (

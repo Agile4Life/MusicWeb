@@ -20,6 +20,7 @@ interface TrackListProps {
   isAdmin?: boolean
   onBulkUpdated?: (trackIds: string[], updates: Partial<Track>) => void
   onBulkDeleted?: (trackIds: string[]) => void
+  isSearchResult?: boolean
 }
 
 export function TrackList({
@@ -32,8 +33,9 @@ export function TrackList({
   isAdmin = false,
   onBulkUpdated,
   onBulkDeleted,
+  isSearchResult = false,
 }: TrackListProps) {
-  const { currentTrack, isPlaying, playTrack, togglePlay, addToQueue } = usePlayer()
+  const { currentTrack, isPlaying, playTrack, playSearchTrack, togglePlay, addToQueue } = usePlayer()
   const supabase = createClient()
   const {
     containerRef: listContainerRef,
@@ -301,6 +303,8 @@ export function TrackList({
               onPlayClick={() => {
                 if (isCurrent) {
                   togglePlay()
+                } else if (isSearchResult) {
+                  playSearchTrack(track)
                 } else {
                   playTrack(track, tracks)
                 }
