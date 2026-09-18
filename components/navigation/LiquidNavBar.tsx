@@ -14,7 +14,6 @@ import {
   Music,
   Play,
   Pause,
-  Search,
 } from 'lucide-react'
 import { useLiquidNav, LiquidNavTab } from '@/hooks/useLiquidNav'
 import { usePlayer } from '@/components/player/PlayerContext'
@@ -203,6 +202,7 @@ export interface LiquidNavBarProps {
   aberrationIntensity?: number
   elasticity?: number
   onTabChange?: (index: number) => void
+  onPlaylistClick?: () => void
   className?: string
   style?: React.CSSProperties
 }
@@ -227,6 +227,7 @@ export function LiquidNavBar({
   aberrationIntensity = 1.5,
   elasticity = 0.15,
   onTabChange,
+  onPlaylistClick,
   className = '',
   style,
 }: LiquidNavBarProps) {
@@ -325,6 +326,7 @@ export function LiquidNavBar({
   // Determine default active tab from pathname
   useEffect(() => {
     const idx = tabs.findIndex((t) => {
+      if (t.id === 'playlist' && pathname.startsWith('/playlist')) return true
       if (!t.href) return false
       if (t.href === '/') return pathname === '/'
       return pathname.startsWith(t.href)
@@ -562,8 +564,37 @@ export function LiquidNavBar({
     }
   }, [])
 
+  const handlePlaylistClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation()
+      handleCapsuleTap()
+      const playlistIdx = tabs.findIndex((t) => t.id === 'playlist')
+      if (playlistIdx >= 0) {
+        const tabEl = tabRefs.current[playlistIdx]
+        if (tabEl) {
+          setBlobLeft(tabEl.offsetLeft)
+          setBlobWidth(tabEl.offsetWidth)
+        }
+        setActiveIndex(playlistIdx)
+        onTabChange?.(playlistIdx)
+      }
+      document.querySelector<HTMLElement>('.main-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' })
+      if (onPlaylistClick) {
+        onPlaylistClick()
+      } else if (playlistIdx >= 0 && tabs[playlistIdx].onClick) {
+        tabs[playlistIdx].onClick!()
+      } else if (playlistIdx >= 0 && tabs[playlistIdx].href) {
+        router.push(tabs[playlistIdx].href!)
+      } else {
+        router.push('/playlist')
+      }
+    },
+    [handleCapsuleTap, tabs, onTabChange, onPlaylistClick, router]
+  )
+
   // ─── Render ───
 
+  const isPlaylistActive = pathname.startsWith('/playlist')
   const activeTab = tabs[activeIndex]
   const ActiveIcon = activeTab ? icons[activeTab.icon] : null
 
@@ -834,10 +865,14 @@ export function LiquidNavBar({
                 )}
               </motion.div>
 
-              {/* Right: Search Icon — harmonized with outer right capsule curve */}
+              {/* Right: Playlist Button — harmonized with outer right capsule curve */}
               <motion.div
                 layout
-                className="shrink-0 w-[48px] h-[46px] rounded-r-[26px] rounded-l-[14px] flex items-center justify-center cursor-pointer"
+                role="button"
+                tabIndex={0}
+                aria-label="Danh sách phát"
+                title="Playlist"
+                className="shrink-0 w-[48px] h-[46px] rounded-r-[26px] rounded-l-[14px] flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
                 style={{
                   background: 'rgba(255,255,255,0.06)',
                   border: '1px solid rgba(255,255,255,0.10)',
@@ -845,16 +880,20 @@ export function LiquidNavBar({
                   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)',
                   minWidth: 48,
                 }}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleCapsuleTap()
-                  setTimeout(() => {
-                    document.querySelector<HTMLElement>('.main-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' })
-                    window.dispatchEvent(new CustomEvent('musicweb-open-search'))
-                  }, 100)
+                onClick={handlePlaylistClick}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.stopPropagation()
+                    handlePlaylistClick(e as unknown as React.MouseEvent)
+                  }
                 }}
               >
-                <Search className="w-5 h-5 text-slate-300" strokeWidth={2} />
+                <ListMusic
+                  className={`w-5 h-5 transition-colors ${
+                    isPlaylistActive ? 'text-[var(--spotify-glow,#22d3ee)]' : 'text-slate-300 hover:text-white'
+                  }`}
+                  strokeWidth={isPlaylistActive ? 2.5 : 2}
+                />
               </motion.div>
             </motion.div>
           )}

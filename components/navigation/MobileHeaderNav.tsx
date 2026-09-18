@@ -37,6 +37,7 @@ import { ImportSoundCloudModal } from '@/components/playlist/ImportSoundCloudMod
 import { YoutubeIcon } from '@/components/icons/YoutubeIcon'
 import { shouldCloseProfileMenu, shouldToggleProfileMenu } from './profileMenuInteraction'
 import { LiquidNavBar } from './LiquidNavBar'
+import { getNextPlaylistRoute } from './playlistNavigation'
 
 export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boolean }) {
   const { t } = useLanguage()
@@ -173,6 +174,15 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
     }
   }
 
+  const handleNavigatePlaylist = useCallback(() => {
+    const nextRoute = getNextPlaylistRoute(playlists, pathname)
+    if (nextRoute) {
+      router.push(nextRoute)
+    } else {
+      setIsDrawerOpen(true)
+    }
+  }, [pathname, playlists, router])
+
   return (
     <>
       {/* 📱 Mobile Top Header Bar (< 768px) - Hidden when using MobileScrollHeader */}
@@ -240,22 +250,10 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
           { id: 'home', label: t('home'), icon: 'Home', href: '/' },
           { id: 'albums', label: t('albums'), icon: 'DiscAlbum', href: '/albums' },
           { id: 'favorites', label: t('favorites_mobile') || t('favorites'), icon: 'Heart', href: '/favorites' },
-          { id: 'playlist', label: t('playlists_mobile') || t('playlists'), icon: 'ListMusic', href: undefined, onClick: () => {
-            if (playlists.length > 0) {
-              if (pathname.startsWith('/playlist/')) {
-                const currentId = pathname.replace('/playlist/', '')
-                const curIdx = playlists.findIndex((p) => p.id === currentId)
-                const nextIdx = (curIdx + 1) % playlists.length
-                router.push(`/playlist/${playlists[nextIdx].id}`)
-              } else {
-                router.push(`/playlist/${playlists[0].id}`)
-              }
-            } else {
-              setIsDrawerOpen(true)
-            }
-          }},
+          { id: 'playlist', label: t('playlists_mobile') || t('playlists'), icon: 'ListMusic', href: undefined, onClick: handleNavigatePlaylist },
           { id: 'history', label: t('history_mobile') || t('history'), icon: 'History', href: '/history' },
         ]}
+        onPlaylistClick={handleNavigatePlaylist}
         displacementScale={35}
         blurAmount={0.0625}
         saturation={160}
