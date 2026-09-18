@@ -109,23 +109,32 @@ export async function resolveNhacCuaTuiTrack(
 const nctStreamUrlCache = new Map<string, { url: string; ts: number }>()
 const NCT_STREAM_URL_CACHE_TTL = 5 * 60 * 1000 // 5 min safe TTL to prevent 403 expired signed tokens
 const nctResolveInFlight = new Map<string, Promise<string | null>>()
+const nctPrewarmGeneration = new Map<string, number>()
 
 /** Fire-and-forget pre-warm: fetches stream URL + metadata and caches the proxy URL.
  *  Call this for all upcoming NCT tracks so play is instant on click. */
 export async function prewarmNctStreamUrl(nhaccuatuiId: string): Promise<void> {
-  if (!nhaccuatuiId?.trim()) return
+  const trimmedId = nhaccuatuiId?.trim()
+  if (!trimmedId) return
 
   // Deduplicate concurrent pre-warm calls for the same ID
-  const inFlight = nctResolveInFlight.get(nhaccuatuiId)
+  const inFlight = nctResolveInFlight.get(trimmedId)
   if (inFlight) {
     await inFlight.catch(() => {})
     return
   }
 
+  const currentGen = (nctPrewarmGeneration.get(trimmedId) || 0) + 1
+  nctPrewarmGeneration.set(trimmedId, currentGen)
+  if (nctPrewarmGeneration.size > 200) {
+    const oldest = nctPrewarmGeneration.keys().next().value
+    if (oldest) nctPrewarmGeneration.delete(oldest)
+  }
+
   const promise = (async (): Promise<string | null> => {
     try {
       const res = await fetch(
-        `/api/nhaccuatui/resolve-stream?id=${encodeURIComponent(nhaccuatuiId)}`,
+        `/api/nhaccuatui/resolve-stream?id=${encodeURIComponent(trimmedId)}`,
         { cache: 'no-store' }
       )
       if (!res.ok) return null
@@ -133,17 +142,20 @@ export async function prewarmNctStreamUrl(nhaccuatuiId: string): Promise<void> {
       if (!data?.url) return null
 
       // Store the CORS-safe proxy URL (not the raw signed CDN URL which lacks CORS headers)
-      const proxyUrl = getNhacCuaTuiStreamUrl({ source: 'nhaccuatui', nhaccuatui_id: nhaccuatuiId }) || data.url
-      nctStreamUrlCache.set(nhaccuatuiId, { url: proxyUrl, ts: Date.now() })
+      const proxyUrl = getNhacCuaTuiStreamUrl({ source: 'nhaccuatui', nhaccuatui_id: trimmedId }) || data.url
+      // Only cache if this prewarm request was not superseded or invalidated while in-flight
+      if (nctPrewarmGeneration.get(trimmedId) === currentGen) {
+        nctStreamUrlCache.set(trimmedId, { url: proxyUrl, ts: Date.now() })
+      }
       return proxyUrl
     } catch {
       return null
     } finally {
-      nctResolveInFlight.delete(nhaccuatuiId)
+      nctResolveInFlight.delete(trimmedId)
     }
   })()
 
-  nctResolveInFlight.set(nhaccuatuiId, promise)
+  nctResolveInFlight.set(trimmedId, promise)
   await promise
 }
 
@@ -162,5 +174,9 @@ export function getCachedNctStreamUrl(nhaccuatuiId: string): string | null {
 /** Clear a cached NCT stream URL — call when a stream becomes invalid so the next
  *  play attempt re-resolves from the server instead of returning the stale URL. */
 export function clearCachedNctStreamUrl(nhaccuatuiId: string): void {
-  nctStreamUrlCache.delete(nhaccuatuiId)
+  const trimmed = nhaccuatuiId?.trim()
+  if (!trimmed) return
+  nctStreamUrlCache.delete(trimmed)
+  // Invalidate any in-flight prewarm requests by bumping the generation
+  nctPrewarmGeneration.set(trimmed, (nctPrewarmGeneration.get(trimmed) || 0) + 1)
 }
