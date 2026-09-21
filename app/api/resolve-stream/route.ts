@@ -210,8 +210,6 @@ async function resolveStream(
       if (nctCandidates.length === 0) return null
 
       const match = findBestNhacCuaTuiMatch(nctCandidates, { title, artist: primaryArtist || artist, duration })
-        || nctCandidates[0]
-
       if (!match?.id) return null
       return {
         source: 'nhaccuatui',
@@ -240,12 +238,9 @@ async function resolveStream(
 
       if (candidates.length === 0) return null
 
-      let best = findBestYouTubeMatch(candidates, title, primaryArtist || artist, duration)
-      if (!best && candidates.length > 0) {
-        best = candidates[0]
-      }
-
+      const best = findBestYouTubeMatch(candidates, title, primaryArtist || artist, duration)
       if (!best?.youtube_id) return null
+
       return {
         source: 'youtube',
         resolvedId: best.youtube_id,
@@ -269,9 +264,13 @@ async function resolveStream(
       if (candidates.length === 0) return null
 
       const match = candidates.find((c) => {
+        const cTitle = (c.title || '').toLowerCase()
+        const targetClean = (cleanTitle || title).toLowerCase()
+        const matchesTitle = targetClean && (cTitle.includes(targetClean) || targetClean.includes(cTitle))
+        if (!matchesTitle) return false
         if (!c.duration || !duration) return true
         return Math.abs(c.duration - duration) <= 30
-      }) || candidates[0]
+      })
 
       if (!match?.soundcloud_id && !match?.id) return null
       const scId = match.soundcloud_id ? String(match.soundcloud_id) : match.id.replace(/^sc-/, '')
