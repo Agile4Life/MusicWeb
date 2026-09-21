@@ -28,6 +28,7 @@ interface L1Entry {
 }
 
 const l1Cache = new Map<string, L1Entry>()
+const inFlightResolutions = new Map<string, Promise<L1Entry>>()
 const L1_HIT_TTL = 10 * 60 * 1000    // 10 min for hits
 const L1_MISS_TTL = 60 * 1000         // 1 min for misses
 const L1_MAX_SIZE = 2000
@@ -343,6 +344,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       console.warn('Failed to invalidate stream_resolutions row:', e)
     }
     l1Cache.delete(cacheKey)
+    inFlightResolutions.delete(cacheKey)
     // Fall through to re-resolve
   }
 
@@ -405,47 +407,73 @@ export async function GET(request: NextRequest): Promise<Response> {
     }
   }
 
-  // ── Resolve (cold path) ───────────────────────────────────────────
-  const result = await resolveStream(title, artist, duration, supabase)
-
-  // Store in L1
-  evictL1IfFull()
-  l1Cache.set(cacheKey, result)
-
-  // Store in L2 (Supabase) — upsert
-  if (supabase) {
-    try {
-      const expiresAt = new Date(
-        Date.now() + (result.isMiss
-          ? MISS_TTL_HOURS * 60 * 60 * 1000
-          : HIT_TTL_DAYS * 24 * 60 * 60 * 1000)
-      ).toISOString()
-
-      await supabase
-        .from('stream_resolutions')
-        .upsert({
-          title_key: titleKey,
-          artist_key: artistKey,
-          duration_bucket: durBucket,
-          source: result.source,
-          resolved_id: result.resolvedId,
-          resolved_title: result.title || null,
-          resolved_artist: result.artist || null,
-          resolved_duration: result.duration || null,
-          resolved_cover_url: result.coverUrl || null,
-          is_miss: result.isMiss,
-          fail_count: 0,
-          updated_at: new Date().toISOString(),
-          expires_at: expiresAt,
-        }, {
-          onConflict: 'title_key,artist_key,duration_bucket',
-        })
-    } catch (e) {
-      console.warn('Failed to persist stream resolution:', e)
+  // ── In-Flight Request Deduplication (Thundering Herd / Stampede Protection) ──
+  if (!invalidate) {
+    const existingInFlight = inFlightResolutions.get(cacheKey)
+    if (existingInFlight) {
+      try {
+        const resolvedEntry = await existingInFlight
+        return respondWith(resolvedEntry)
+      } catch {
+        // Fall through to re-resolve if in-flight failed
+      }
     }
   }
 
-  return respondWith(result)
+  // ── Resolve (cold path) with In-Flight Coalescing ───────────────────
+  const resolvePromise = (async (): Promise<L1Entry> => {
+    const result = await resolveStream(title, artist, duration, supabase)
+
+    // Store in L1
+    evictL1IfFull()
+    l1Cache.set(cacheKey, result)
+
+    // Store in L2 (Supabase) — upsert
+    if (supabase) {
+      try {
+        const expiresAt = new Date(
+          Date.now() + (result.isMiss
+            ? MISS_TTL_HOURS * 60 * 60 * 1000
+            : HIT_TTL_DAYS * 24 * 60 * 60 * 1000)
+        ).toISOString()
+
+        await supabase
+          .from('stream_resolutions')
+          .upsert({
+            title_key: titleKey,
+            artist_key: artistKey,
+            duration_bucket: durBucket,
+            source: result.source,
+            resolved_id: result.resolvedId,
+            resolved_title: result.title || null,
+            resolved_artist: result.artist || null,
+            resolved_duration: result.duration || null,
+            resolved_cover_url: result.coverUrl || null,
+            is_miss: result.isMiss,
+            fail_count: 0,
+            updated_at: new Date().toISOString(),
+            expires_at: expiresAt,
+          }, {
+            onConflict: 'title_key,artist_key,duration_bucket',
+          })
+      } catch (e) {
+        console.warn('Failed to persist stream resolution:', e)
+      }
+    }
+
+    return result
+  })()
+
+  if (!invalidate) {
+    inFlightResolutions.set(cacheKey, resolvePromise)
+  }
+
+  try {
+    const result = await resolvePromise
+    return respondWith(result)
+  } finally {
+    inFlightResolutions.delete(cacheKey)
+  }
 }
 
 function respondWith(entry: L1Entry): Response {

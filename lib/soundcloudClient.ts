@@ -22,6 +22,7 @@ let inFlightForceRefreshPromise: Promise<string> | null = null
 
 // In-memory stream URL cache (15-minute TTL)
 const streamUrlCache = new Map<string, { url: string; expiresAt: number }>()
+const inFlightSoundCloudStream = new Map<string, Promise<string | null>>()
 
 // In-memory track metadata cache (1-hour TTL)
 const trackMetadataCache = new Map<
@@ -645,43 +646,30 @@ export async function resolveSoundCloudStreamUrl(
   // 3. Check in-memory stream cache
   if (bypassCache) {
     streamUrlCache.delete(rawId)
+    inFlightSoundCloudStream.delete(rawId)
   } else {
     const cachedStream = streamUrlCache.get(rawId)
     if (cachedStream && now < cachedStream.expiresAt) {
       return cachedStream.url
     }
+    const existingInFlight = inFlightSoundCloudStream.get(rawId)
+    if (existingInFlight) {
+      return existingInFlight
+    }
   }
 
-  const resolved = await resolveSoundCloudTrack(rawId)
-  if (!resolved || !resolved.raw) return null
+  const promise = (async (): Promise<string | null> => {
+    const resolved = await resolveSoundCloudTrack(rawId)
+    if (!resolved || !resolved.raw) return null
 
-  const transcoding = getBestSoundCloudTranscoding(resolved.raw)
-  if (!transcoding?.url) return null
+    const transcoding = getBestSoundCloudTranscoding(resolved.raw)
+    if (!transcoding?.url) return null
 
-  let clientId = await getSoundCloudClientId()
-  let resolveUrl = `${transcoding.url}?client_id=${clientId}`
+    let clientId = await getSoundCloudClientId()
+    let resolveUrl = `${transcoding.url}?client_id=${clientId}`
 
-  try {
-    let res = await fetchWithTimeout(
-      resolveUrl,
-      {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          Accept: 'application/json',
-        },
-      },
-      6000
-    )
-
-    // Invalidate client_id and retry once if SoundCloud revoked it (401 or 403)
-    if (!res.ok && (res.status === 401 || res.status === 403)) {
-      console.warn(`[SoundCloud] resolve stream returned ${res.status}, refreshing client_id...`)
-      cachedClientId = null
-      clientIdExpiresAt = 0
-      clientId = await getSoundCloudClientId(true)
-      resolveUrl = `${transcoding.url}?client_id=${clientId}`
-      res = await fetchWithTimeout(
+    try {
+      let res = await fetchWithTimeout(
         resolveUrl,
         {
           headers: {
@@ -692,26 +680,54 @@ export async function resolveSoundCloudStreamUrl(
         },
         6000
       )
+
+      // Invalidate client_id and retry once if SoundCloud revoked it (401 or 403)
+      if (!res.ok && (res.status === 401 || res.status === 403)) {
+        console.warn(`[SoundCloud] resolve stream returned ${res.status}, refreshing client_id...`)
+        cachedClientId = null
+        clientIdExpiresAt = 0
+        clientId = await getSoundCloudClientId(true)
+        resolveUrl = `${transcoding.url}?client_id=${clientId}`
+        res = await fetchWithTimeout(
+          resolveUrl,
+          {
+            headers: {
+              'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+              Accept: 'application/json',
+            },
+          },
+          6000
+        )
+      }
+
+      if (!res.ok) return null
+
+      const data = await res.json()
+      const streamUrl = data.url || null
+
+      if (streamUrl) {
+        // Cache stream URL in memory for 15 minutes (900s)
+        streamUrlCache.set(rawId, {
+          url: streamUrl,
+          expiresAt: Date.now() + 15 * 60 * 1000,
+        })
+      }
+
+      return streamUrl
+    } catch (err) {
+      console.error(`[SoundCloud] Failed to resolve stream for ${trackId}:`, err)
+      return null
+    } finally {
+      inFlightSoundCloudStream.delete(rawId)
     }
+  })()
 
-    if (!res.ok) return null
-
-    const data = await res.json()
-    const streamUrl = data.url || null
-
-    if (streamUrl) {
-      // Cache stream URL in memory for 15 minutes (900s)
-      streamUrlCache.set(rawId, {
-        url: streamUrl,
-        expiresAt: Date.now() + 15 * 60 * 1000,
-      })
-    }
-
-    return streamUrl
-  } catch (err) {
-    console.error(`[SoundCloud] Failed to resolve stream for ${trackId}:`, err)
-    return null
+  if (!bypassCache) {
+    inFlightSoundCloudStream.set(rawId, promise)
   }
+
+  return promise
 }
 
 /**

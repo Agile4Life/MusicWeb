@@ -22,6 +22,13 @@ const nctResolveCache = new Map<string, {
   coverUrl: string | null
   expiresAt: number
 }>()
+const inFlightNctResolve = new Map<string, Promise<{
+  url: string
+  title: string
+  artist: string
+  duration: number | null
+  coverUrl: string | null
+} | null>>()
 const NCT_RESOLVE_CACHE_TTL = 5 * 60 * 1000
 
 async function resolveNctStreamUrlCached(id: string): Promise<{
@@ -39,42 +46,60 @@ async function resolveNctStreamUrlCached(id: string): Promise<{
     return { url: cached.url, title: cached.title, artist: cached.artist, duration: cached.duration, coverUrl: cached.coverUrl }
   }
 
-  try {
-    // Retry once with fast backoff to fail-fast on cold start
-    const songRes = await fetchWithRetry(
-      () =>
-        fetch(getNctSongUrl(trimmed), {
-          cache: 'no-store',
-          headers: { Accept: 'application/json' },
-          signal: AbortSignal.timeout(3800),
-        }),
-      {
-        retries: 1,
-        baseDelayMs: 150,
-        maxDelayMs: 400,
-        retryOn: (outcome) =>
-          outcome instanceof Response ? isTransientError(outcome) : isNetworkError(outcome),
-      }
-    )
-    if (!songRes.ok) return null
-
-    const payload: unknown = await songRes.json()
-    const song = normalizeNhacCuaTuiSongResponse(payload)
-    if (!song || !song.audioUrl) return null
-
-    const entry = {
-      url: song.audioUrl,
-      title: song.title,
-      artist: song.artist,
-      duration: song.duration ?? null,
-      coverUrl: song.coverUrl || null,
-      expiresAt: Date.now() + NCT_RESOLVE_CACHE_TTL,
-    }
-    nctResolveCache.set(trimmed, entry)
-    return { url: entry.url, title: entry.title, artist: entry.artist, duration: entry.duration, coverUrl: entry.coverUrl }
-  } catch {
-    return null
+  const existingInFlight = inFlightNctResolve.get(trimmed)
+  if (existingInFlight) {
+    return existingInFlight
   }
+
+  const promise = (async (): Promise<{
+    url: string
+    title: string
+    artist: string
+    duration: number | null
+    coverUrl: string | null
+  } | null> => {
+    try {
+      // Retry once with fast backoff to fail-fast on cold start
+      const songRes = await fetchWithRetry(
+        () =>
+          fetch(getNctSongUrl(trimmed), {
+            cache: 'no-store',
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(3800),
+          }),
+        {
+          retries: 1,
+          baseDelayMs: 150,
+          maxDelayMs: 400,
+          retryOn: (outcome) =>
+            outcome instanceof Response ? isTransientError(outcome) : isNetworkError(outcome),
+        }
+      )
+      if (!songRes.ok) return null
+
+      const payload: unknown = await songRes.json()
+      const song = normalizeNhacCuaTuiSongResponse(payload)
+      if (!song || !song.audioUrl) return null
+
+      const entry = {
+        url: song.audioUrl,
+        title: song.title,
+        artist: song.artist,
+        duration: song.duration ?? null,
+        coverUrl: song.coverUrl || null,
+        expiresAt: Date.now() + NCT_RESOLVE_CACHE_TTL,
+      }
+      nctResolveCache.set(trimmed, entry)
+      return { url: entry.url, title: entry.title, artist: entry.artist, duration: entry.duration, coverUrl: entry.coverUrl }
+    } catch {
+      return null
+    } finally {
+      inFlightNctResolve.delete(trimmed)
+    }
+  })()
+
+  inFlightNctResolve.set(trimmed, promise)
+  return promise
 }
 
 function applyCorsHeaders(headers: Headers) {

@@ -19,6 +19,7 @@ function getNctSongUrl(id: string): URL {
 // window; misses are cached briefly to avoid hammering YouTube with
 // unmatchable songs on every play attempt.
 const matchCache = new Map<string, { videoId: string | null; expiresAt: number }>()
+const inFlightMatch = new Map<string, Promise<string | null>>()
 const MATCH_CACHE_TTL = 7 * 24 * 60 * 60 * 1000
 const MISS_CACHE_TTL = 10 * 60 * 1000
 
@@ -26,53 +27,65 @@ async function resolveYouTubeVideoIdForNctSong(id: string): Promise<string | nul
   const cached = matchCache.get(id)
   if (cached && Date.now() < cached.expiresAt) return cached.videoId
 
-  let videoId: string | null = null
-  try {
-    const songRes = await fetchWithRetry(
-      () =>
-        fetch(getNctSongUrl(id), {
-          cache: 'no-store',
-          headers: { Accept: 'application/json' },
-          signal: AbortSignal.timeout(5000),
-        }),
-      {
-        retries: 1,
-        baseDelayMs: 200,
-        maxDelayMs: 400,
-        retryOn: (outcome) =>
-          outcome instanceof Response ? isTransientError(outcome) : isNetworkError(outcome),
-      }
-    )
-    if (songRes.ok) {
-      const song = normalizeNhacCuaTuiSongMetadata(await songRes.json())
-      if (song) {
-        let candidates = await searchYouTubeTracks(`${song.title} ${song.artist}`.trim(), 10)
-        // Strict scoring only — no "first result" fallback. A wrong match would be
-        // cached into the worker's permanent R2 bucket, so missing is better than wrong.
-        // Each picked video is also verified extractable from THIS server: YouTube
-        // refuses some videos (LOGIN_REQUIRED) on datacenter IPs, and the worker can
-        // only stream what this origin's proxy is able to resolve.
-        for (let attempt = 0; attempt < 3; attempt++) {
-          const best = findBestYouTubeMatch(candidates, song.title, song.artist, song.duration)
-          if (!best?.youtube_id) break
-          const resolved = await resolveYouTubeAudioStreamAndroid(best.youtube_id)
-          if (resolved?.url) {
-            videoId = best.youtube_id
-            break
-          }
-          candidates = candidates.filter((c) => c.youtube_id !== best.youtube_id)
-        }
-      }
-    }
-  } catch {
-    /* resolution failed -> cache a short-lived miss below */
+  const existingInFlight = inFlightMatch.get(id)
+  if (existingInFlight) {
+    return existingInFlight
   }
 
-  matchCache.set(id, {
-    videoId,
-    expiresAt: Date.now() + (videoId ? MATCH_CACHE_TTL : MISS_CACHE_TTL),
-  })
-  return videoId
+  const promise = (async (): Promise<string | null> => {
+    let videoId: string | null = null
+    try {
+      const songRes = await fetchWithRetry(
+        () =>
+          fetch(getNctSongUrl(id), {
+            cache: 'no-store',
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(5000),
+          }),
+        {
+          retries: 1,
+          baseDelayMs: 200,
+          maxDelayMs: 400,
+          retryOn: (outcome) =>
+            outcome instanceof Response ? isTransientError(outcome) : isNetworkError(outcome),
+        }
+      )
+      if (songRes.ok) {
+        const song = normalizeNhacCuaTuiSongMetadata(await songRes.json())
+        if (song) {
+          let candidates = await searchYouTubeTracks(`${song.title} ${song.artist}`.trim(), 10)
+          // Strict scoring only — no "first result" fallback. A wrong match would be
+          // cached into the worker's permanent R2 bucket, so missing is better than wrong.
+          // Each picked video is also verified extractable from THIS server: YouTube
+          // refuses some videos (LOGIN_REQUIRED) on datacenter IPs, and the worker can
+          // only stream what this origin's proxy is able to resolve.
+          for (let attempt = 0; attempt < 3; attempt++) {
+            const best = findBestYouTubeMatch(candidates, song.title, song.artist, song.duration)
+            if (!best?.youtube_id) break
+            const resolved = await resolveYouTubeAudioStreamAndroid(best.youtube_id)
+            if (resolved?.url) {
+              videoId = best.youtube_id
+              break
+            }
+            candidates = candidates.filter((c) => c.youtube_id !== best.youtube_id)
+          }
+        }
+      }
+    } catch {
+      /* resolution failed -> cache a short-lived miss below */
+    } finally {
+      inFlightMatch.delete(id)
+    }
+
+    matchCache.set(id, {
+      videoId,
+      expiresAt: Date.now() + (videoId ? MATCH_CACHE_TTL : MISS_CACHE_TTL),
+    })
+    return videoId
+  })()
+
+  inFlightMatch.set(id, promise)
+  return promise
 }
 
 function applyCorsHeaders(headers: Headers) {

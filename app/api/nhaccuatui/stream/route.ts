@@ -19,6 +19,7 @@ function getNctSongUrl(id: string): URL {
 // Signed NCT stream URLs are reused within a short window to avoid hitting the
 // external API on every track switch (that call is the slow part of loading).
 const nctAudioUrlCache = new Map<string, { audioUrl: string; expiresAt: number }>()
+const inFlightNctAudioUrl = new Map<string, Promise<string | null>>()
 const NCT_CACHE_TTL = 8 * 60 * 1000
 
 async function resolveNctAudioUrlCached(id: string): Promise<string | null> {
@@ -30,34 +31,46 @@ async function resolveNctAudioUrlCached(id: string): Promise<string | null> {
     return cached.audioUrl
   }
 
-  try {
-    // Retry once with quick backoff to fail-fast if external NCT upstream is cold/unresponsive
-    const songRes = await fetchWithRetry(
-      () =>
-        fetch(getNctSongUrl(trimmed), {
-          cache: 'no-store',
-          headers: { Accept: 'application/json' },
-          signal: AbortSignal.timeout(3800),
-        }),
-      {
-        retries: 1,
-        baseDelayMs: 150,
-        maxDelayMs: 400,
-        retryOn: (outcome) =>
-          outcome instanceof Response ? isTransientError(outcome) : isNetworkError(outcome),
-      }
-    )
-    if (!songRes.ok) return null
-
-    const payload: unknown = await songRes.json()
-    const song = normalizeNhacCuaTuiSongResponse(payload)
-    if (!song || !song.audioUrl) return null
-
-    nctAudioUrlCache.set(trimmed, { audioUrl: song.audioUrl, expiresAt: Date.now() + NCT_CACHE_TTL })
-    return song.audioUrl
-  } catch {
-    return null
+  const existingInFlight = inFlightNctAudioUrl.get(trimmed)
+  if (existingInFlight) {
+    return existingInFlight
   }
+
+  const promise = (async (): Promise<string | null> => {
+    try {
+      // Retry once with quick backoff to fail-fast if external NCT upstream is cold/unresponsive
+      const songRes = await fetchWithRetry(
+        () =>
+          fetch(getNctSongUrl(trimmed), {
+            cache: 'no-store',
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(3800),
+          }),
+        {
+          retries: 1,
+          baseDelayMs: 150,
+          maxDelayMs: 400,
+          retryOn: (outcome) =>
+            outcome instanceof Response ? isTransientError(outcome) : isNetworkError(outcome),
+        }
+      )
+      if (!songRes.ok) return null
+
+      const payload: unknown = await songRes.json()
+      const song = normalizeNhacCuaTuiSongResponse(payload)
+      if (!song || !song.audioUrl) return null
+
+      nctAudioUrlCache.set(trimmed, { audioUrl: song.audioUrl, expiresAt: Date.now() + NCT_CACHE_TTL })
+      return song.audioUrl
+    } catch {
+      return null
+    } finally {
+      inFlightNctAudioUrl.delete(trimmed)
+    }
+  })()
+
+  inFlightNctAudioUrl.set(trimmed, promise)
+  return promise
 }
 
 function applyCorsHeaders(headers: Headers) {
@@ -93,6 +106,7 @@ export async function HEAD(request: Request): Promise<Response> {
     // Cached URL may have expired upstream — re-resolve once before giving up
     if (!upstream.ok) {
       nctAudioUrlCache.delete(id.trim())
+      inFlightNctAudioUrl.delete(id.trim())
       audioUrl = await resolveNctAudioUrlCached(id.trim())
       if (!audioUrl) return new Response(null, { status: 502 })
       upstream = await fetch(audioUrl, {
@@ -149,6 +163,7 @@ export async function GET(request: Request): Promise<Response> {
     // Cached URL may have expired upstream — re-resolve once before giving up
     if (!upstream.ok) {
       nctAudioUrlCache.delete(id.trim())
+      inFlightNctAudioUrl.delete(id.trim())
       audioUrl = await resolveNctAudioUrlCached(id.trim())
       if (!audioUrl) {
         return NextResponse.json({ error: 'Song stream unavailable' }, { status: 502 })
