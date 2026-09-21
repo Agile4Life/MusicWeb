@@ -6,8 +6,8 @@ export const dynamic = 'force-dynamic'
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
-    const fileId = searchParams.get('id') || searchParams.get('fileId')
-    const titleParam = searchParams.get('filename') || searchParams.get('title') || ''
+    const fileId = (searchParams.get('id') || searchParams.get('fileId') || '').trim()
+    const titleParam = (searchParams.get('filename') || searchParams.get('title') || '').trim()
     const isProxy = searchParams.get('proxy') === 'true'
 
     if (!fileId) {
@@ -101,8 +101,8 @@ export async function OPTIONS() {
 export async function HEAD(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
-    const fileId = searchParams.get('id') || searchParams.get('fileId')
-    const titleParam = searchParams.get('filename') || searchParams.get('title') || ''
+    const fileId = (searchParams.get('id') || searchParams.get('fileId') || '').trim()
+    const titleParam = (searchParams.get('filename') || searchParams.get('title') || '').trim()
 
     if (!fileId) {
       return new NextResponse(null, { status: 400 })

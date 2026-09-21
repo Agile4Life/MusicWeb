@@ -36,7 +36,7 @@ describe('Lyrics Debug Tests', () => {
       youtubeId: 'W8rP_F9S-n4', // example YouTube video ID
     })
     console.log('LRCLIB/YT Fallback Result for J97:', result ? { source: result.artistName, plainLyricsLen: result.plainLyrics?.length } : null)
-  })
+  }, 15000)
 
   it('should find lyrics by searching YouTube Music for audio track when MV videoId has no lyrics', async () => {
     const query = 'Sơn Tùng M-TP Lạc Trôi audio'

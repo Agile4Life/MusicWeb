@@ -3,7 +3,7 @@ import { resolveSoundCloudStreamUrl } from '@/lib/soundcloudClient'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Range, Authorization',
 }
 
@@ -11,9 +11,43 @@ export async function OPTIONS() {
   return new NextResponse(null, { headers: CORS_HEADERS })
 }
 
+export async function HEAD(req: NextRequest) {
+  const { searchParams } = new URL(req.url)
+  const id = (searchParams.get('id') || searchParams.get('url') || '').trim()
+  const refresh = searchParams.get('refresh') === '1'
+
+  if (!id) {
+    return new NextResponse(null, { status: 400, headers: CORS_HEADERS })
+  }
+
+  const workerUrl = process.env.NEXT_PUBLIC_SOUNDCLOUD_WORKER_URL?.trim()
+  const isNumericId = /^\d+$/.test(id.replace(/^sc-/, ''))
+  if (workerUrl && isNumericId) {
+    const refreshQuery = refresh ? '&refresh=1' : ''
+    const target = `${workerUrl.replace(/\/+$/, '')}/stream?id=${encodeURIComponent(id)}${refreshQuery}`
+    return NextResponse.redirect(target, 307)
+  }
+
+  try {
+    const streamUrl = await resolveSoundCloudStreamUrl(id, refresh)
+    if (!streamUrl) {
+      return new NextResponse(null, { status: 404, headers: CORS_HEADERS })
+    }
+
+    const res = NextResponse.redirect(streamUrl, 307)
+    for (const [k, v] of Object.entries(CORS_HEADERS)) {
+      res.headers.set(k, v)
+    }
+    res.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0')
+    return res
+  } catch {
+    return new NextResponse(null, { status: 500, headers: CORS_HEADERS })
+  }
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
-  const id = searchParams.get('id') || searchParams.get('url')
+  const id = (searchParams.get('id') || searchParams.get('url') || '').trim()
   const format = searchParams.get('format') // 'json' or redirect
   const refresh = searchParams.get('refresh') === '1'
 
