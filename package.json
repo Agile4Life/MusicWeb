@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:k6": "k6 run tests/k6/main_flows.js",
+    "test:k6:stress": "k6 run tests/k6/edge_cases_stress.js",
     "add-cursor": "node scripts/add-cursor.js"
   },
   "dependencies": {
