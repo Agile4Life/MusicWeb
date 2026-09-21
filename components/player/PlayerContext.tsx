@@ -1090,10 +1090,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // ── Step 2: Save youtube_id to localStorage for future plays ─────────────
     // Long TTL (24h) — YouTube video IDs are stable. This saves ~700ms on replay.
     try {
-      saveTrackResolution(
-        `${track.title.trim().toLowerCase()}___${(track.artist || '').trim().toLowerCase()}___${(track.album || '').trim().toLowerCase()}`,
-        { source: 'youtube', resolvedId: bestMatch.youtube_id, ttl: 24 * 60 * 60 * 1000, youtubeVideoId: bestMatch.youtube_id }
-      )
+      const dur = track.duration || 0
+      const keyWithDur = `${track.title.trim().toLowerCase()}___${(track.artist || '').trim().toLowerCase()}___${dur}___${(track.album || '').trim().toLowerCase()}`
+      const keyWithoutDur = `${track.title.trim().toLowerCase()}___${(track.artist || '').trim().toLowerCase()}___${(track.album || '').trim().toLowerCase()}`
+      const payload = { source: 'youtube', resolvedId: bestMatch.youtube_id, ttl: 24 * 60 * 60 * 1000, youtubeVideoId: bestMatch.youtube_id }
+      saveTrackResolution(keyWithDur, payload)
+      saveTrackResolution(keyWithoutDur, payload)
     } catch {
       // Best-effort — cache miss on next play is not critical
     }
