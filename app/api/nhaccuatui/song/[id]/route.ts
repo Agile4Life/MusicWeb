@@ -11,44 +11,86 @@ function getNctSongUrl(id: string): URL {
   return url
 }
 
+const nctSongCache = new Map<string, { data: any; expiresAt: number }>()
+const inFlightNctSong = new Map<string, Promise<any>>()
+const NCT_SONG_CACHE_TTL = 10 * 60 * 1000
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params
-  if (!id?.trim()) return NextResponse.json({ error: 'Missing song id' }, { status: 400 })
+  const trimmedId = (id || '').trim()
+  if (!trimmedId) return NextResponse.json({ error: 'Missing song id' }, { status: 400 })
 
-  try {
-    const upstream = await fetchWithRetry(
-      () =>
-        fetch(getNctSongUrl(id.trim()), {
-          cache: 'no-store',
-          headers: { Accept: 'application/json' },
-          signal: AbortSignal.timeout(8000),
-        }),
-      {
-        retries: 2,
-        baseDelayMs: 200,
-        maxDelayMs: 800,
-        retryOn: (outcome) =>
-          outcome instanceof Response ? isTransientError(outcome) : isNetworkError(outcome),
+  const cached = nctSongCache.get(trimmedId)
+  if (cached && Date.now() < cached.expiresAt) {
+    return NextResponse.json(cached.data, {
+      headers: { 'Cache-Control': 'public, max-age=600, s-maxage=600, stale-while-revalidate=120' },
+    })
+  }
+
+  const existingInFlight = inFlightNctSong.get(trimmedId)
+  if (existingInFlight) {
+    const data = await existingInFlight
+    if (!data) return NextResponse.json({ error: 'Song not found' }, { status: 404 })
+    return NextResponse.json(data, {
+      headers: { 'Cache-Control': 'public, max-age=600, s-maxage=600, stale-while-revalidate=120' },
+    })
+  }
+
+  const fetchPromise = (async () => {
+    try {
+      const upstream = await fetchWithRetry(
+        () =>
+          fetch(getNctSongUrl(trimmedId), {
+            cache: 'no-store',
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(8000),
+          }),
+        {
+          retries: 2,
+          baseDelayMs: 200,
+          maxDelayMs: 800,
+          retryOn: (outcome) =>
+            outcome instanceof Response ? isTransientError(outcome) : isNetworkError(outcome),
+        }
+      )
+      if (!upstream.ok) return null
+
+      const payload: unknown = await upstream.json()
+      const song = normalizeNhacCuaTuiSongResponse(payload)
+      if (!song) return null
+
+      const { audioUrl: _signedAudioUrl, ...publicSong } = song
+      const result = {
+        song: {
+          ...publicSong,
+          streamUrl: `/api/nhaccuatui/stream?id=${encodeURIComponent(song.id)}`,
+        },
       }
-    )
-    if (!upstream.ok) return NextResponse.json({ error: 'Song not found' }, { status: 404 })
 
-    const payload: unknown = await upstream.json()
-    const song = normalizeNhacCuaTuiSongResponse(payload)
-    if (!song) return NextResponse.json({ error: 'Song stream unavailable' }, { status: 502 })
+      nctSongCache.set(trimmedId, { data: result, expiresAt: Date.now() + NCT_SONG_CACHE_TTL })
+      return result
+    } catch {
+      return null
+    }
+  })()
 
-    const { audioUrl: _signedAudioUrl, ...publicSong } = song
+  inFlightNctSong.set(trimmedId, fetchPromise)
 
-    return NextResponse.json({
-      song: {
-        ...publicSong,
-        streamUrl: `/api/nhaccuatui/stream?id=${encodeURIComponent(song.id)}`,
-      },
-    }, { headers: { 'Cache-Control': 'no-store' } })
-  } catch {
+  let finalData = null
+  try {
+    finalData = await fetchPromise
+  } finally {
+    inFlightNctSong.delete(trimmedId)
+  }
+
+  if (!finalData) {
     return NextResponse.json({ error: 'Song stream unavailable' }, { status: 502 })
   }
+
+  return NextResponse.json(finalData, {
+    headers: { 'Cache-Control': 'public, max-age=600, s-maxage=600, stale-while-revalidate=120' },
+  })
 }
