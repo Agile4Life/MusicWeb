@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "test:k6": "k6 run tests/k6/main_flows.js",
     "add-cursor": "node scripts/add-cursor.js"
   },
   "dependencies": {
