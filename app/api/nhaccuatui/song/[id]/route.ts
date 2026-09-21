@@ -14,6 +14,14 @@ function getNctSongUrl(id: string): URL {
 const nctSongCache = new Map<string, { data: any; expiresAt: number }>()
 const inFlightNctSong = new Map<string, Promise<any>>()
 const NCT_SONG_CACHE_TTL = 10 * 60 * 1000
+const NCT_SONG_MAX_CACHE = 1000
+
+function evictNctSongIfFull(): void {
+  if (nctSongCache.size >= NCT_SONG_MAX_CACHE) {
+    const oldest = nctSongCache.keys().next().value
+    if (oldest !== undefined) nctSongCache.delete(oldest)
+  }
+}
 
 export async function GET(
   _request: Request,
@@ -70,6 +78,7 @@ export async function GET(
         },
       }
 
+      evictNctSongIfFull()
       nctSongCache.set(trimmedId, { data: result, expiresAt: Date.now() + NCT_SONG_CACHE_TTL })
       return result
     } catch {

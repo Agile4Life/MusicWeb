@@ -25,6 +25,18 @@ export async function GET(req: NextRequest) {
     }
 
     const range = req.headers.get('range')
+    if (range) {
+      const match = range.match(/^bytes=(\d+)-(\d+)$/)
+      if (match && parseInt(match[1], 10) > parseInt(match[2], 10)) {
+        return new Response(null, {
+          status: 416,
+          headers: {
+            'Content-Range': 'bytes */*',
+            'Access-Control-Allow-Origin': '*',
+          },
+        })
+      }
+    }
     const fetchUpstream = (url: string) => {
       const proxyHeaders: Record<string, string> = {
         'User-Agent':

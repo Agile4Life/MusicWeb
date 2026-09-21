@@ -21,6 +21,14 @@ function getNctSongUrl(id: string): URL {
 const nctAudioUrlCache = new Map<string, { audioUrl: string; expiresAt: number }>()
 const inFlightNctAudioUrl = new Map<string, Promise<string | null>>()
 const NCT_CACHE_TTL = 8 * 60 * 1000
+const NCT_AUDIO_MAX_CACHE = 1000
+
+function evictNctAudioIfFull(): void {
+  if (nctAudioUrlCache.size >= NCT_AUDIO_MAX_CACHE) {
+    const oldest = nctAudioUrlCache.keys().next().value
+    if (oldest !== undefined) nctAudioUrlCache.delete(oldest)
+  }
+}
 
 async function resolveNctAudioUrlCached(id: string): Promise<string | null> {
   const trimmed = id.trim()
@@ -60,6 +68,7 @@ async function resolveNctAudioUrlCached(id: string): Promise<string | null> {
       const song = normalizeNhacCuaTuiSongResponse(payload)
       if (!song || !song.audioUrl) return null
 
+      evictNctAudioIfFull()
       nctAudioUrlCache.set(trimmed, { audioUrl: song.audioUrl, expiresAt: Date.now() + NCT_CACHE_TTL })
       return song.audioUrl
     } catch {
@@ -151,7 +160,19 @@ export async function GET(request: Request): Promise<Response> {
       Accept: 'audio/mpeg,audio/*;q=0.9,*/*;q=0.8',
     })
     const range = request.headers.get('range')
-    if (range) upstreamHeaders.set('Range', range)
+    if (range) {
+      const match = range.match(/^bytes=(\d+)-(\d+)$/)
+      if (match && parseInt(match[1], 10) > parseInt(match[2], 10)) {
+        return new Response(null, {
+          status: 416,
+          headers: {
+            'Content-Range': 'bytes */*',
+            'Access-Control-Allow-Origin': '*',
+          },
+        })
+      }
+      upstreamHeaders.set('Range', range)
+    }
 
     let upstream = await fetch(audioUrl, {
       method: 'GET',

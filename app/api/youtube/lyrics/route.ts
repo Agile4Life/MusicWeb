@@ -141,6 +141,14 @@ const lyricsCache = new Map<string, { result: LyricsResult | null; expiresAt: nu
 const inFlightLyrics = new Map<string, Promise<LyricsResult | null>>()
 const LYRICS_TTL_MS = 60 * 60 * 1000 // 1 hour
 const LYRICS_MISS_TTL_MS = 3 * 60 * 1000 // 3 minutes for misses
+const LYRICS_MAX_CACHE = 1000
+
+function evictLyricsIfFull(): void {
+  if (lyricsCache.size >= LYRICS_MAX_CACHE) {
+    const oldest = lyricsCache.keys().next().value
+    if (oldest !== undefined) lyricsCache.delete(oldest)
+  }
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -217,6 +225,7 @@ export async function GET(req: NextRequest) {
       }
 
       if (!plainLyrics) {
+        evictLyricsIfFull()
         lyricsCache.set(cacheKey, { result: null, expiresAt: Date.now() + LYRICS_MISS_TTL_MS })
         return null
       }
@@ -231,6 +240,7 @@ export async function GET(req: NextRequest) {
         source: 'youtube_music',
       }
 
+      evictLyricsIfFull()
       lyricsCache.set(cacheKey, { result, expiresAt: Date.now() + LYRICS_TTL_MS })
       return result
     })()

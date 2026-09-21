@@ -427,37 +427,37 @@ export async function GET(request: NextRequest): Promise<Response> {
     evictL1IfFull()
     l1Cache.set(cacheKey, result)
 
-    // Store in L2 (Supabase) — upsert
+    // Store in L2 (Supabase) — non-blocking fire-and-forget so client gets streamUrl 50-150ms faster
     if (supabase) {
-      try {
-        const expiresAt = new Date(
-          Date.now() + (result.isMiss
-            ? MISS_TTL_HOURS * 60 * 60 * 1000
-            : HIT_TTL_DAYS * 24 * 60 * 60 * 1000)
-        ).toISOString()
+      const expiresAt = new Date(
+        Date.now() + (result.isMiss
+          ? MISS_TTL_HOURS * 60 * 60 * 1000
+          : HIT_TTL_DAYS * 24 * 60 * 60 * 1000)
+      ).toISOString()
 
-        await supabase
-          .from('stream_resolutions')
-          .upsert({
-            title_key: titleKey,
-            artist_key: artistKey,
-            duration_bucket: durBucket,
-            source: result.source,
-            resolved_id: result.resolvedId,
-            resolved_title: result.title || null,
-            resolved_artist: result.artist || null,
-            resolved_duration: result.duration || null,
-            resolved_cover_url: result.coverUrl || null,
-            is_miss: result.isMiss,
-            fail_count: 0,
-            updated_at: new Date().toISOString(),
-            expires_at: expiresAt,
-          }, {
-            onConflict: 'title_key,artist_key,duration_bucket',
-          })
-      } catch (e) {
-        console.warn('Failed to persist stream resolution:', e)
-      }
+      supabase
+        .from('stream_resolutions')
+        .upsert({
+          title_key: titleKey,
+          artist_key: artistKey,
+          duration_bucket: durBucket,
+          source: result.source,
+          resolved_id: result.resolvedId,
+          resolved_title: result.title || null,
+          resolved_artist: result.artist || null,
+          resolved_duration: result.duration || null,
+          resolved_cover_url: result.coverUrl || null,
+          is_miss: result.isMiss,
+          fail_count: 0,
+          updated_at: new Date().toISOString(),
+          expires_at: expiresAt,
+        }, {
+          onConflict: 'title_key,artist_key,duration_bucket',
+        })
+        .then(() => {})
+        .catch((e: any) => {
+          console.warn('Failed to persist stream resolution:', e)
+        })
     }
 
     return result
