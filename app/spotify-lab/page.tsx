@@ -1,7 +1,8 @@
 'use client'
 
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import Link from 'next/link'
+import { useSession } from 'next-auth/react'
 
 /* ─── types ─── */
 interface SpotifyTrack {
@@ -36,13 +37,92 @@ const CURATED_SEEDS = [
 
 /* ─── component ─── */
 export default function SpotifyLabPage() {
+  const { status: authStatus } = useSession()
   const [query, setQuery] = useState('')
   const [tracks, setTracks] = useState<SpotifyTrack[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [current, setCurrent] = useState<SpotifyTrack | null>(null)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [useIframeFallback, setUseIframeFallback] = useState(false)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const iframeApiRef = useRef<any>(null)
+  const controllerRef = useRef<any>(null)
+  const embedContainerRef = useRef<HTMLDivElement | null>(null)
+  const pendingTrackRef = useRef<SpotifyTrack | null>(null)
+
+  /* ─── load Spotify iFrame API ─── */
+  useEffect(() => {
+    const SCRIPT_ID = 'spotify-iframe-api'
+
+    ;(window as any).onSpotifyIframeApiReady = (IFrameAPI: any) => {
+      iframeApiRef.current = IFrameAPI
+
+      if (pendingTrackRef.current && embedContainerRef.current) {
+        const track = pendingTrackRef.current
+        pendingTrackRef.current = null
+        initControllerAndPlay(track)
+      }
+    }
+
+    if (!document.getElementById(SCRIPT_ID)) {
+      const script = document.createElement('script')
+      script.id = SCRIPT_ID
+      script.src = 'https://open.spotify.com/embed/iframe-api/v1'
+      script.async = true
+      document.body.appendChild(script)
+    } else if ((window as any).SpotifyIframeApi) {
+      iframeApiRef.current = (window as any).SpotifyIframeApi
+    }
+
+    // Fallback after 3s if script failed to load
+    const fallbackTimer = setTimeout(() => {
+      if (!iframeApiRef.current && !controllerRef.current) {
+        setUseIframeFallback(true)
+      }
+    }, 3000)
+
+    return () => {
+      clearTimeout(fallbackTimer)
+      if (controllerRef.current) {
+        try { controllerRef.current.destroy() } catch (_) {}
+        controllerRef.current = null
+      }
+    }
+  }, [])
+
+  /* ─── initialize controller and play ─── */
+  const initControllerAndPlay = useCallback((track: SpotifyTrack) => {
+    if (!iframeApiRef.current || !embedContainerRef.current) return
+    const uri = `spotify:track:${track.spotify_id}`
+
+    try {
+      iframeApiRef.current.createController(
+        embedContainerRef.current,
+        {
+          uri,
+          width: '100%',
+          height: 80,
+        },
+        (embedController: any) => {
+          controllerRef.current = embedController
+          embedController.addListener('playback_update', (e: any) => {
+            if (e?.data) {
+              setIsPlaying(!e.data.isPaused)
+            }
+          })
+          embedController.play()
+          setTimeout(() => {
+            try { embedController.play() } catch (_) {}
+          }, 300)
+        }
+      )
+    } catch (err) {
+      console.warn('Spotify iFrame API createController error:', err)
+      setUseIframeFallback(true)
+    }
+  }, [])
 
   /* ─── search ─── */
   const doSearch = useCallback(async (q: string) => {
@@ -92,8 +172,35 @@ export default function SpotifyLabPage() {
     setError(null)
   }
 
+  /* ─── play track with instant autoplay ─── */
   const playTrack = useCallback((track: SpotifyTrack) => {
     setCurrent(track)
+    setIsPlaying(true)
+    const uri = `spotify:track:${track.spotify_id}`
+
+    if (controllerRef.current) {
+      try {
+        controllerRef.current.loadUri(uri)
+        controllerRef.current.play()
+        setTimeout(() => {
+          try { controllerRef.current?.play() } catch (_) {}
+        }, 250)
+      } catch (err) {
+        console.warn('Error playing via controller:', err)
+      }
+    } else if (iframeApiRef.current) {
+      initControllerAndPlay(track)
+    } else {
+      pendingTrackRef.current = track
+    }
+  }, [initControllerAndPlay])
+
+  const handleClosePlayer = useCallback(() => {
+    if (controllerRef.current) {
+      try { controllerRef.current.pause() } catch (_) {}
+    }
+    setCurrent(null)
+    setIsPlaying(false)
   }, [])
 
   return (
@@ -203,8 +310,13 @@ export default function SpotifyLabPage() {
               <span className="slab-pulse-dot" style={styles.liveDot} /> DIRECT API AUDITION
             </span>
           </div>
-          <Link href="/" style={styles.returnLink} className="slab-mono">
-            <span>←</span> TRANG CHỦ
+          <Link
+            href={authStatus === 'authenticated' ? '/' : '/login'}
+            style={styles.returnLink}
+            className="slab-mono"
+            title={authStatus === 'authenticated' ? 'Quay về trang chủ MusicWeb' : 'Đăng nhập vào MusicWeb'}
+          >
+            <span>←</span> {authStatus === 'authenticated' ? 'TRANG CHỦ' : 'ĐĂNG NHẬP'}
           </Link>
         </div>
       </div>
@@ -440,51 +552,57 @@ export default function SpotifyLabPage() {
       </div>
 
       {/* ─── 7. AUDITION STATION / EMBED PLAYER DOCK ─── */}
-      {current && (
-        <aside style={styles.playerDock} aria-label="Spotify Player">
-          <div style={styles.playerDockInner}>
-            {/* Top Bar of the Audition Station */}
-            <div style={styles.playerMetaRow}>
-              <div style={styles.playerMetaLeft}>
-                <span className="slab-mono" style={styles.playerTag}>
-                  [ AUDITIONING ]
-                </span>
-                <span className="slab-serif" style={styles.playerTrackName}>
-                  {current.title}
-                </span>
-                <span style={styles.playerDot}>•</span>
-                <span style={styles.playerArtistName}>
-                  {current.artist}
-                </span>
-              </div>
-
-              <div style={styles.playerControls}>
-                {current.spotify_url && (
-                  <a
-                    href={current.spotify_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="slab-mono"
-                    style={styles.openSpotifyBtn}
-                    title="Mở toàn bộ bài hát trên ứng dụng Spotify"
-                  >
-                    MỞ SPOTIFY ↗
-                  </a>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setCurrent(null)}
-                  style={styles.closePlayerBtn}
-                  className="slab-mono"
-                  title="Đóng trình nghe thử"
-                >
-                  [ĐÓNG ✕]
-                </button>
-              </div>
+      <aside
+        style={{
+          ...styles.playerDock,
+          display: current ? 'block' : 'none',
+        }}
+        aria-label="Spotify Player"
+      >
+        <div style={styles.playerDockInner}>
+          {/* Top Bar of the Audition Station */}
+          <div style={styles.playerMetaRow}>
+            <div style={styles.playerMetaLeft}>
+              <span className="slab-mono" style={styles.playerTag}>
+                {isPlaying ? '[ AUDITIONING ]' : '[ READY ]'}
+              </span>
+              <span className="slab-serif" style={styles.playerTrackName}>
+                {current?.title || ''}
+              </span>
+              <span style={styles.playerDot}>•</span>
+              <span style={styles.playerArtistName}>
+                {current?.artist || ''}
+              </span>
             </div>
 
-            {/* Embedded Iframe */}
-            <div style={styles.iframeWrapper}>
+            <div style={styles.playerControls}>
+              {current?.spotify_url && (
+                <a
+                  href={current.spotify_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="slab-mono"
+                  style={styles.openSpotifyBtn}
+                  title="Mở toàn bộ bài hát trên ứng dụng Spotify"
+                >
+                  MỞ SPOTIFY ↗
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={handleClosePlayer}
+                style={styles.closePlayerBtn}
+                className="slab-mono"
+                title="Đóng trình nghe thử"
+              >
+                [ĐÓNG ✕]
+              </button>
+            </div>
+          </div>
+
+          {/* Embedded Player Container */}
+          <div style={styles.iframeWrapper}>
+            {useIframeFallback && current ? (
               <iframe
                 src={`https://open.spotify.com/embed/track/${current.spotify_id}?utm_source=generator&theme=0`}
                 width="100%"
@@ -494,10 +612,12 @@ export default function SpotifyLabPage() {
                 loading="lazy"
                 style={{ borderRadius: 8, border: 'none' }}
               />
-            </div>
+            ) : (
+              <div ref={embedContainerRef} id="spotify-embed-root" style={{ width: '100%', minHeight: 80 }} />
+            )}
           </div>
-        </aside>
-      )}
+        </div>
+      </aside>
     </div>
   )
 }
