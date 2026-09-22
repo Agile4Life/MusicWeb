@@ -75,8 +75,10 @@ export default function SpotifyLabPage() {
     setError(null)
     try {
       const res = await fetch(`/api/spotify/search?q=${encodeURIComponent(q)}&limit=20`)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}`)
+      }
       setTracks(data.tracks || [])
     } catch (e: any) {
       setError(e.message || 'Lỗi tìm kiếm')
