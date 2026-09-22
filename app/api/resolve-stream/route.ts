@@ -435,29 +435,29 @@ export async function GET(request: NextRequest): Promise<Response> {
           : HIT_TTL_DAYS * 24 * 60 * 60 * 1000)
       ).toISOString()
 
-      supabase
-        .from('stream_resolutions')
-        .upsert({
-          title_key: titleKey,
-          artist_key: artistKey,
-          duration_bucket: durBucket,
-          source: result.source,
-          resolved_id: result.resolvedId,
-          resolved_title: result.title || null,
-          resolved_artist: result.artist || null,
-          resolved_duration: result.duration || null,
-          resolved_cover_url: result.coverUrl || null,
-          is_miss: result.isMiss,
-          fail_count: 0,
-          updated_at: new Date().toISOString(),
-          expires_at: expiresAt,
-        }, {
-          onConflict: 'title_key,artist_key,duration_bucket',
-        })
-        .then(() => {})
-        .catch((e: any) => {
-          console.warn('Failed to persist stream resolution:', e)
-        })
+      Promise.resolve(
+        supabase
+          .from('stream_resolutions')
+          .upsert({
+            title_key: titleKey,
+            artist_key: artistKey,
+            duration_bucket: durBucket,
+            source: result.source,
+            resolved_id: result.resolvedId,
+            resolved_title: result.title || null,
+            resolved_artist: result.artist || null,
+            resolved_duration: result.duration || null,
+            resolved_cover_url: result.coverUrl || null,
+            is_miss: result.isMiss,
+            fail_count: 0,
+            updated_at: new Date().toISOString(),
+            expires_at: expiresAt,
+          }, {
+            onConflict: 'title_key,artist_key,duration_bucket',
+          })
+      ).catch((e: any) => {
+        console.warn('Failed to persist stream resolution:', e)
+      })
     }
 
     return result
