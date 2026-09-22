@@ -189,12 +189,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     currentTimeRef.current = time
     playbackProgressStore.setCurrentTime(time)
   }, [])
+  const durationRef = useRef<number>(0)
   const [duration, setDurationState] = useState<number>(0)
   const setDuration = useCallback((dur: number | ((prev: number) => number)) => {
     setDurationState((prev) => {
       const next = typeof dur === 'function' ? dur(prev) : dur
-      playbackProgressStore.setDuration(next)
+      durationRef.current = next
       return next
+    })
+    queueMicrotask(() => {
+      playbackProgressStore.setDuration(durationRef.current)
     })
   }, [])
   const [volume, setVolumeState] = useState<number>(0.8)
@@ -1019,6 +1023,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
     recordRequestIdFlag(fallbackInProgressRef.current, requestId)
     recordRequestIdFlag(fallbackAttemptedRef.current, requestId)
+    setIsBuffering(true)
 
     // ── Step 0: Check localStorage cache for YouTube video ID ───────────────
     // This is the fastest path — if we've resolved this track to YouTube before,
@@ -2167,10 +2172,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           return // Ignore play interruption silently
         }
         setIsPlaying(false)
-        setIsBuffering(false)
         if (err?.name === 'NotAllowedError' || String(err?.message || '').includes('not allowed')) {
           // Background autoplay / User gesture restriction: Keep stream loaded and resume on next user gesture or visibility restore
           console.warn('[Audio Autoplay Restricted] play() waiting for user activation:', err?.name || err?.message)
+          setIsBuffering(false)
           pendingResumeRef.current = true
           return
         }
@@ -2191,6 +2196,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         console.warn('HTML5 audio stream playback info:', err)
         if (!fallbackAttemptedRef.current.has(requestId)) {
           recordRequestIdFlag(fallbackAttemptedRef.current, requestId)
+          setIsBuffering(true)
           void fallbackToYouTube(activeTrack, requestId)
           return
         }
@@ -2559,9 +2565,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
         if (!isCurrentAudioOwnership()) return
         if (requestId !== playRequestRef.current) return
-        setIsBuffering(false)
         setIsPlaying(false)
         if (err?.name === 'NotAllowedError' || String(err?.message || '').includes('not allowed')) {
+          setIsBuffering(false)
           pendingResumeRef.current = true
         } else {
           console.warn('Quick-play audio failed, falling back to full resolve:', err?.message || err)
@@ -2569,6 +2575,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           if (track.nhaccuatui_id) {
             clearCachedNctStreamUrl(track.nhaccuatui_id)
           }
+          setIsBuffering(true)
           playTrack(track, undefined, targetIdx >= 0 ? targetIdx : undefined)
         }
       })
@@ -3046,6 +3053,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             ) {
               const fallbackUrl = `/api/nhaccuatui/stream?id=${encodeURIComponent(current.nhaccuatui_id)}`
               console.log('[NCT Auto-Retry] Worker stream failed, switching to native Next.js stream proxy (YouTube search running in parallel):', fallbackUrl)
+              setIsBuffering(true)
               audioRef.current.src = fallbackUrl
               audioRef.current.load()
 
@@ -3085,6 +3093,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
               if (!nctSucceeded && isCurrentAudioOwnership() && requestId === playRequestRef.current && !fallbackAttemptedRef.current.has(requestId)) {
                 console.log('[NCT Auto-Retry] NCT play failed or timed out, using pre-fetched YouTube result...')
+                setIsBuffering(true)
                 const preSearchedTrack = await searchPromise
                 void fallbackToYouTube(current, requestId, preSearchedTrack)
               }
@@ -3306,12 +3315,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const handleCanPlay = () => {
       clearAudioStallWatchdog()
       if (!isCurrentAudioOwnership()) return
-      setIsBuffering(false)
+      // If user requested playback and audio is still paused (waiting for audio.play() resolution),
+      // retain isBuffering: true so the play button does not flash to play icon before playing event fires.
+      if (desiredPlayStateRef.current === 'playing' && audioRef.current && audioRef.current.paused) {
+        // Keep buffering true until handlePlaying fires
+      } else {
+        setIsBuffering(false)
+      }
       // Retry a background play() that was rejected by iOS for lacking a fresh gesture
       if (pendingResumeRef.current && audioRef.current && audioRef.current.paused) {
         pendingResumeRef.current = false
         audioRef.current.play().then(() => {
           setIsPlaying(true)
+          setIsBuffering(false)
         }).catch(() => {
           pendingResumeRef.current = true
         })
