@@ -11,12 +11,8 @@ interface SpotifyTrack {
   duration: number
   cover_url: string | null
   spotify_id: string
-}
-
-interface ResolvedStream {
-  source: string
-  id: string
-  streamUrl?: string | null
+  preview_url: string | null
+  spotify_url: string | null
 }
 
 /* ─── helpers ─── */
@@ -26,33 +22,11 @@ function fmtDuration(s: number) {
   return `${m}:${sec.toString().padStart(2, '0')}`
 }
 
-function buildProxyUrl(source: string, id: string): string {
-  if (!id) return ''
-  switch (source) {
-    case 'nhaccuatui':
-      return `/api/nhaccuatui/stream?id=${encodeURIComponent(id)}`
-    case 'soundcloud':
-      return `/api/soundcloud/stream?id=${encodeURIComponent(id)}`
-    case 'drive': {
-      const match = id.match(/\/d\/([a-zA-Z0-9_-]+)/) || id.match(/id=([a-zA-Z0-9_-]+)/)
-      const fileId = match ? match[1] : id
-      return fileId.startsWith('http') || fileId.startsWith('/')
-        ? fileId
-        : `/api/drive-stream?fileId=${encodeURIComponent(fileId)}`
-    }
-    case 'youtube':
-      return `/api/yt-stream?id=${encodeURIComponent(id)}`
-    default:
-      return id
-  }
-}
-
 /* ─── component ─── */
 export default function SpotifyLabPage() {
   const [query, setQuery] = useState('')
   const [tracks, setTracks] = useState<SpotifyTrack[]>([])
   const [loading, setLoading] = useState(false)
-  const [resolving, setResolving] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // player state
@@ -62,8 +36,7 @@ export default function SpotifyLabPage() {
   const [progress, setProgress] = useState(0)
   const [audioDuration, setAudioDuration] = useState(0)
   const [volume, setVolume] = useState(0.8)
-  const [resolveSource, setResolveSource] = useState<string | null>(null)
-  const [resolveError, setResolveError] = useState<string | null>(null)
+  const [playError, setPlayError] = useState<string | null>(null)
 
   const audioRef = useRef<HTMLAudioElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -74,7 +47,7 @@ export default function SpotifyLabPage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/spotify/search?q=${encodeURIComponent(q)}&limit=20`)
+      const res = await fetch(`/api/spotify/search?q=${encodeURIComponent(q)}&limit=10`)
       const data = await res.json()
       if (!res.ok) {
         throw new Error(data.error || `HTTP ${res.status}`)
@@ -102,42 +75,20 @@ export default function SpotifyLabPage() {
   }
 
   /* ─── play track ─── */
-  const playTrack = useCallback(async (track: SpotifyTrack) => {
+  const playTrack = useCallback((track: SpotifyTrack) => {
     setCurrent(track)
-    setAudioSrc(null)
-    setResolving(track.id)
-    setResolveError(null)
-    setResolveSource(null)
+    setPlayError(null)
     setIsPlaying(false)
     setProgress(0)
     setAudioDuration(0)
 
-    try {
-      const params = new URLSearchParams({ title: track.title })
-      if (track.artist) params.set('artist', track.artist)
-      if (track.duration) params.set('duration', String(Math.round(track.duration)))
-
-      const res = await fetch(`/api/resolve-stream?${params.toString()}`)
-      if (!res.ok) throw new Error(`Resolve failed: ${res.status}`)
-
-      const data = await res.json()
-      if (data.miss) {
-        setResolveError('Không tìm được nguồn phát cho bài này')
-        setResolving(null)
-        return
-      }
-
-      const source = data.source || 'youtube'
-      const id = data.id || data.resolvedId || data.resolved_id || ''
-      const streamUrl = data.streamUrl || buildProxyUrl(source, id)
-
-      setResolveSource(source)
-      setAudioSrc(streamUrl)
-    } catch (e: any) {
-      setResolveError(e.message || 'Lỗi resolve stream')
-    } finally {
-      setResolving(null)
+    if (!track.preview_url) {
+      setAudioSrc(null)
+      setPlayError('Bài này không có preview từ Spotify')
+      return
     }
+
+    setAudioSrc(track.preview_url)
   }, [])
 
   /* ─── audio events ─── */
@@ -152,7 +103,7 @@ export default function SpotifyLabPage() {
     const onTime = () => setProgress(audio.currentTime)
     const onDur = () => setAudioDuration(audio.duration || 0)
     const onEnded = () => { setIsPlaying(false); setProgress(0) }
-    const onError = () => setResolveError('Lỗi phát nhạc — nguồn không khả dụng')
+    const onError = () => setPlayError('Lỗi phát nhạc — preview không khả dụng')
 
     audio.addEventListener('timeupdate', onTime)
     audio.addEventListener('loadedmetadata', onDur)
@@ -243,7 +194,7 @@ export default function SpotifyLabPage() {
       <div style={styles.results}>
         {tracks.map((t) => {
           const isCurrent = current?.id === t.id
-          const isThisResolving = resolving === t.id
+          const hasPreview = !!t.preview_url
 
           return (
             <button
@@ -253,8 +204,8 @@ export default function SpotifyLabPage() {
               style={{
                 ...styles.trackRow,
                 ...(isCurrent ? styles.trackRowActive : {}),
+                ...(!hasPreview ? { opacity: 0.5 } : {}),
               }}
-              disabled={isThisResolving}
             >
               {/* Cover */}
               <div style={styles.coverWrap}>
@@ -263,17 +214,12 @@ export default function SpotifyLabPage() {
                 ) : (
                   <div style={styles.coverPlaceholder}>♪</div>
                 )}
-                {isThisResolving && (
-                  <div style={styles.coverOverlay}>
-                    <div style={styles.spinner} />
-                  </div>
-                )}
               </div>
 
               {/* Info */}
               <div style={styles.trackInfo}>
                 <span style={styles.trackTitle}>{t.title}</span>
-                <span style={styles.trackArtist}>{t.artist}</span>
+                <span style={styles.trackArtist}>{t.artist}{!hasPreview ? ' — không có preview' : ''}</span>
               </div>
 
               {/* Meta */}
@@ -302,15 +248,13 @@ export default function SpotifyLabPage() {
               <span style={styles.playerTitle}>{current.title}</span>
               <span style={styles.playerArtist}>{current.artist}</span>
             </div>
-            {resolveSource && (
-              <span style={styles.sourceBadge}>{resolveSource}</span>
-            )}
+            <span style={styles.sourceBadge}>spotify</span>
           </div>
 
           {/* Controls */}
           <div style={styles.playerCenter}>
-            {resolveError ? (
-              <span style={styles.playerError}>{resolveError}</span>
+            {playError ? (
+              <span style={styles.playerError}>{playError}</span>
             ) : (
               <>
                 <button onClick={togglePlay} style={styles.playBtn} disabled={!audioSrc}>

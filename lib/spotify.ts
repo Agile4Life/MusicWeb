@@ -48,14 +48,15 @@ export async function getSpotifyAccessToken(): Promise<string | null> {
   return null
 }
 
-export async function searchSpotifyTracks(query: string, limit = 15): Promise<Track[]> {
+export async function searchSpotifyTracks(query: string, limit = 10): Promise<Track[]> {
   if (!query.trim()) return []
+  const safeLimit = Math.min(limit, 10)
 
   try {
     const token = await getSpotifyAccessToken()
     if (!token) return []
 
-    const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=${limit}`
+    const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=${safeLimit}`
     const res = await fetch(url, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -160,7 +161,8 @@ export async function getTopArtistSpotifyTracks(artists: string[], tracksPerArti
 
     const promises = artists.map(async (artist) => {
       try {
-        const url = `https://api.spotify.com/v1/search?q=artist:${encodeURIComponent(artist)}&type=track&limit=${tracksPerArtist}`
+        const safePerArtist = Math.min(tracksPerArtist, 10)
+        const url = `https://api.spotify.com/v1/search?q=artist:${encodeURIComponent(artist)}&type=track&limit=${safePerArtist}`
         const res = await fetch(url, {
           headers: { Authorization: `Bearer ${token}` },
         })
@@ -776,7 +778,7 @@ export async function searchSpotifyArtistExact(artistName: string): Promise<Spot
  * Fetch Top Tracks for a Spotify Artist ID
  * Tries market=VN, then market=US, and enriches with search if needed.
  */
-export async function getSpotifyArtistTopTracks(artistId: string, artistName?: string, limit = 20): Promise<Track[]> {
+export async function getSpotifyArtistTopTracks(artistId: string, artistName?: string, limit = 10): Promise<Track[]> {
   if (!artistId) return []
 
   try {
@@ -805,7 +807,7 @@ export async function getSpotifyArtistTopTracks(artistId: string, artistName?: s
     // 2. If fewer than 5 tracks found and artistName provided, search by artist name
     if (items.length < 5 && artistName) {
       const searchRes = await fetch(
-        `https://api.spotify.com/v1/search?q=artist:${encodeURIComponent(artistName)}&type=track&limit=${limit}&market=VN`,
+        `https://api.spotify.com/v1/search?q=artist:${encodeURIComponent(artistName)}&type=track&limit=${Math.min(limit, 10)}&market=VN`,
         {
           headers: { Authorization: `Bearer ${token}` },
           next: { revalidate: 3600 },
