@@ -62,7 +62,14 @@ async function resolveNctAudioUrlCached(id: string): Promise<string | null> {
             outcome instanceof Response ? isTransientError(outcome) : isNetworkError(outcome),
         }
       )
-      if (!songRes.ok) return null
+      if (!songRes.ok) {
+        // Distinguish permanent 404 (song deleted) from transient errors:
+        // Store a sentinel value so the route handler can return 404 instead of 502
+        if (songRes.status === 404) {
+          return '__NCT_NOT_FOUND__'
+        }
+        return null
+      }
 
       const payload: unknown = await songRes.json()
       const song = normalizeNhacCuaTuiSongResponse(payload)
@@ -104,6 +111,7 @@ export async function HEAD(request: Request): Promise<Response> {
 
   try {
     let audioUrl = await resolveNctAudioUrlCached(id.trim())
+    if (audioUrl === '__NCT_NOT_FOUND__') return new Response(null, { status: 404 })
     if (!audioUrl) return new Response(null, { status: 502 })
 
     let upstream = await fetch(audioUrl, {
@@ -117,6 +125,7 @@ export async function HEAD(request: Request): Promise<Response> {
       nctAudioUrlCache.delete(id.trim())
       inFlightNctAudioUrl.delete(id.trim())
       audioUrl = await resolveNctAudioUrlCached(id.trim())
+      if (audioUrl === '__NCT_NOT_FOUND__') return new Response(null, { status: 404 })
       if (!audioUrl) return new Response(null, { status: 502 })
       upstream = await fetch(audioUrl, {
         method: 'HEAD',
@@ -150,6 +159,9 @@ export async function GET(request: Request): Promise<Response> {
 
   try {
     let audioUrl = await resolveNctAudioUrlCached(id.trim())
+    if (audioUrl === '__NCT_NOT_FOUND__') {
+      return NextResponse.json({ error: 'Song not found on NhacCuaTui' }, { status: 404 })
+    }
     if (!audioUrl) {
       return NextResponse.json({ error: 'Song stream unavailable' }, { status: 502 })
     }
@@ -186,6 +198,9 @@ export async function GET(request: Request): Promise<Response> {
       nctAudioUrlCache.delete(id.trim())
       inFlightNctAudioUrl.delete(id.trim())
       audioUrl = await resolveNctAudioUrlCached(id.trim())
+      if (audioUrl === '__NCT_NOT_FOUND__') {
+        return NextResponse.json({ error: 'Song not found on NhacCuaTui' }, { status: 404 })
+      }
       if (!audioUrl) {
         return NextResponse.json({ error: 'Song stream unavailable' }, { status: 502 })
       }

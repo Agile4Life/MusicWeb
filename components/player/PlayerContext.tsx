@@ -310,6 +310,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const html5EngineRef = useRef<Html5AudioEngine>(new Html5AudioEngine())
   const ytEngineRef = useRef<YouTubeIframeEngine>(new YouTubeIframeEngine())
   const consecutiveSkipRef = useRef<number>(0)
+  const lastErrorAutoAdvanceRef = useRef<number>(0)
 
   const currentTrackRef = useRef<Track | null>(null)
   const queueRef = useRef<Track[]>([])
@@ -3091,7 +3092,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 ])
               } catch {}
 
-              if (!nctSucceeded && isCurrentAudioOwnership() && requestId === playRequestRef.current && !fallbackAttemptedRef.current.has(requestId)) {
+              if (!nctSucceeded && isCurrentAudioOwnership() && requestId === playRequestRef.current && !fallbackInProgressRef.current.has(requestId)) {
                 console.log('[NCT Auto-Retry] NCT play failed or timed out, using pre-fetched YouTube result...')
                 setIsBuffering(true)
                 const preSearchedTrack = await searchPromise
@@ -3117,8 +3118,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             audioUrlCacheRef.current.delete(current.id)
             const freshUrl = await getAudioUrl(current, true)
             if (!isCurrentAudioOwnership()) return
+            if (!freshUrl) {
+              // SoundCloud returned 404 (Go+ paywall) or no stream available
+              // → Skip retry entirely and fall through to YouTube fallback immediately
+              console.log('[SoundCloud Auto-Retry] No stream available (likely Go+/paywall), fast-bailing to YouTube fallback...')
+              void fallbackToYouTube(current, requestId)
+              return
+            }
             if (
-              freshUrl &&
               audioRef.current &&
               isCurrentPlayback({
                 requestId,
@@ -3161,6 +3168,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
         if (!isCurrentAudioOwnership()) return
         if (requestId !== playRequestRef.current) return
+
+        // 🛡️ Debounce rapid consecutive error events (800ms cooldown)
+        // Prevents rapid mount/unmount of Three.js canvas that exhausts GPU resources
+        const now = Date.now()
+        if (now - lastErrorAutoAdvanceRef.current < 800) {
+          console.log(`[Error Debounce] Suppressing rapid error event (${now - lastErrorAutoAdvanceRef.current}ms since last)`)
+          return
+        }
+        lastErrorAutoAdvanceRef.current = now
+
         consecutiveSkipRef.current += 1
         setIsPlaying(false)
         setIsBuffering(false)
@@ -3196,13 +3213,23 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         const current = currentTrackRef.current
         if (!current) return
 
+        const activeRequestId = playRequestRef.current
+
+        // 🛡️ If a fallback is already in progress or completed for this request,
+        // do NOT touch the <audio> element — the fallback owns it now.
+        // This prevents the watchdog from overwriting the fallback's audio.src
+        // and causing AbortError ("play() interrupted by a new load request").
+        if (fallbackInProgressRef.current.has(activeRequestId) || fallbackAttemptedRef.current.has(activeRequestId)) {
+          console.log(`[Audio Watchdog] Skipping — fallback already active/completed for request ${activeRequestId}`)
+          return
+        }
+
         const isSoundCloud = Boolean(
           current.source === 'soundcloud' ||
           current.soundcloud_id ||
           current.id?.startsWith('sc-')
         )
 
-        const activeRequestId = playRequestRef.current
         if (isSoundCloud && !scStallRecoveredRef.current.has(activeRequestId)) {
           console.warn(`[SoundCloud Watchdog] Playback stalled for >${AUDIO_STALL_WATCHDOG_TIMEOUT_MS}ms, auto-refreshing stream URL...`)
           recordRequestIdFlag(scStallRecoveredRef.current, activeRequestId)

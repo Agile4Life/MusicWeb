@@ -360,6 +360,17 @@ export function isOriginalTrackOnly(
   return true
 }
 
+/**
+ * Strips Vietnamese and Latin diacritics via NFD decomposition + Đ/đ handling.
+ */
+export function stripDiacritics(text: string | null | undefined): string {
+  if (!text) return ''
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[Đđ]/g, 'd')
+}
+
 export function normalizeTitle(text: string): string {
   if (!text) return ''
   return text
@@ -397,25 +408,33 @@ export function findBestYouTubeMatch(
   const cleanTargetAlbum = normalizeTitle(targetAlbum || '')
   const targetDur = targetDuration || 0
 
+  const unaccentedTargetTitle = stripDiacritics(cleanTargetTitle)
+  const unaccentedTargetArtist = stripDiacritics(cleanTargetArtist)
+  const unaccentedTargetAlbum = stripDiacritics(cleanTargetAlbum)
+
   const isQueryAskingForLong =
-    LONG_COMPILATION_KEYWORDS.some((kw) => cleanTargetTitle.includes(kw)) ||
+    LONG_COMPILATION_KEYWORDS.some((kw) => cleanTargetTitle.includes(kw) || unaccentedTargetTitle.includes(kw)) ||
     (targetDur > 900)
 
   // Identify negative keywords that are explicitly requested by target title (e.g. if original IS a remix)
-  const requestedNegativeKeywords = NEGATIVE_KEYWORDS.filter((kw) =>
-    cleanTargetTitle.includes(kw)
-  )
+  const requestedNegativeKeywords = NEGATIVE_KEYWORDS.filter((kw) => {
+    const unaccentedKw = stripDiacritics(kw)
+    return cleanTargetTitle.includes(kw) || unaccentedTargetTitle.includes(unaccentedKw)
+  })
 
   let bestMatch: Track | null = null
   let highestScore = 30 // Threshold score for valid match
 
   const titleWords = cleanTargetTitle.split(/\s+/).filter((w) => w.length > 1)
+  const unaccentedTitleWords = unaccentedTargetTitle.split(/\s+/).filter((w) => w.length > 1)
 
   for (const candidate of candidates) {
     if (!candidate.youtube_id) continue
 
     const candidateTitleNorm = normalizeTitle(candidate.title || '')
     const candidateArtistNorm = normalizeTitle(candidate.artist || '')
+    const unaccentedCandidateTitle = stripDiacritics(candidateTitleNorm)
+    const unaccentedCandidateArtist = stripDiacritics(candidateArtistNorm)
     const candidateDuration = candidate.duration || 0
 
     // 1. HARD FILTER: Eliminate long compilations / loops > 20 mins when target is a single track
@@ -435,16 +454,22 @@ export function findBestYouTubeMatch(
     // 2. HARD FILTER: Eliminate negative keywords (cover, karaoke, reaction, etc.) unless target explicitly asks for it
     const hasUnwantedNegativeKeyword = NEGATIVE_KEYWORDS.some((kw) => {
       if (requestedNegativeKeywords.includes(kw)) return false
-      return candidateTitleNorm.includes(kw)
+      const unaccentedKw = stripDiacritics(kw)
+      return candidateTitleNorm.includes(kw) || unaccentedCandidateTitle.includes(unaccentedKw)
     })
     if (hasUnwantedNegativeKeyword) {
       continue
     }
 
-    // 3. TITLE MATCH RATIO & SUBSTRING CHECK
+    // 3. TITLE MATCH RATIO & SUBSTRING CHECK (with diacritic-aware fallback)
     let matchedWordsCount = 0
-    for (const word of titleWords) {
-      if (candidateTitleNorm.includes(word)) {
+    for (let i = 0; i < titleWords.length; i++) {
+      const word = titleWords[i]
+      const uword = unaccentedTitleWords[i] || stripDiacritics(word)
+      if (
+        candidateTitleNorm.includes(word) ||
+        unaccentedCandidateTitle.includes(uword)
+      ) {
         matchedWordsCount++
       }
     }
@@ -452,7 +477,9 @@ export function findBestYouTubeMatch(
     const matchRatio = titleWords.length > 0 ? matchedWordsCount / titleWords.length : 0
     const hasSubstringMatch =
       (cleanTargetTitle.length >= 3 && candidateTitleNorm.includes(cleanTargetTitle)) ||
-      (candidateTitleNorm.length >= 3 && cleanTargetTitle.includes(candidateTitleNorm))
+      (candidateTitleNorm.length >= 3 && cleanTargetTitle.includes(candidateTitleNorm)) ||
+      (unaccentedTargetTitle.length >= 3 && unaccentedCandidateTitle.includes(unaccentedTargetTitle)) ||
+      (unaccentedCandidateTitle.length >= 3 && unaccentedTargetTitle.includes(unaccentedCandidateTitle))
 
     if (matchRatio < 0.35 && !hasSubstringMatch) {
       continue
@@ -465,7 +492,14 @@ export function findBestYouTubeMatch(
 
     // 4. ALBUM MATCH BONUS (+500 points) - Strong signal for official releases
     if (cleanTargetAlbum && cleanTargetAlbum.length > 2) {
-      if (candidateTitleNorm.includes(cleanTargetAlbum) || candidateArtistNorm.includes(cleanTargetAlbum)) {
+      if (
+        candidateTitleNorm.includes(cleanTargetAlbum) ||
+        candidateArtistNorm.includes(cleanTargetAlbum) ||
+        (unaccentedTargetAlbum && (
+          unaccentedCandidateTitle.includes(unaccentedTargetAlbum) ||
+          unaccentedCandidateArtist.includes(unaccentedTargetAlbum)
+        ))
+      ) {
         score += 500
       }
     }
@@ -501,9 +535,17 @@ export function findBestYouTubeMatch(
     // 6. ARTIST MATCHING BONUS
     if (cleanTargetArtist) {
       const artistWords = cleanTargetArtist.split(/\s+/).filter((w) => w.length > 1)
+      const unaccentedArtistWords = unaccentedTargetArtist.split(/\s+/).filter((w) => w.length > 1)
       let artistMatch = false
-      for (const word of artistWords) {
-        if (candidateTitleNorm.includes(word) || candidateArtistNorm.includes(word)) {
+      for (let i = 0; i < artistWords.length; i++) {
+        const word = artistWords[i]
+        const uword = unaccentedArtistWords[i] || stripDiacritics(word)
+        if (
+          candidateTitleNorm.includes(word) ||
+          candidateArtistNorm.includes(word) ||
+          unaccentedCandidateTitle.includes(uword) ||
+          unaccentedCandidateArtist.includes(uword)
+        ) {
           score += 30
           artistMatch = true
         }

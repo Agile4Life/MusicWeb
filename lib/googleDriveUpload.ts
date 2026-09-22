@@ -82,6 +82,7 @@ export function isPreviewUrl(filePath: string): boolean {
   if (!filePath) return false
   const lower = filePath.toLowerCase()
   return (
+    lower.startsWith('skd:') ||
     lower.includes('preview') ||
     lower.includes('audio-ssl.itunes.apple.com') ||
     lower.includes('is1-ssl.mzstatic.com') ||

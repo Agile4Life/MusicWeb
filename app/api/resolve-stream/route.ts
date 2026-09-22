@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { normalizeTrackKey, normalizeTrackField, durationBucket } from '@/lib/normalizeTrackKey'
-import { normalizeTitle } from '@/lib/youtube'
+import { normalizeTitle, stripDiacritics } from '@/lib/youtube'
 import { searchYouTubeTracks, findBestYouTubeMatch } from '@/lib/youtube'
 import {
   normalizeNhacCuaTuiSearchResponse,
@@ -170,8 +170,23 @@ async function resolveStream(
         if (!lt.file_path || isPreviewUrl(lt.file_path)) continue
         const ltTitle = normalizeTitle(lt.title)
         const ltArtist = normalizeTitle(lt.artist || '')
-        const titleMatches = ltTitle.includes(cleanTitle) || cleanTitle.includes(ltTitle)
-        const artistMatches = !cleanArtist || ltArtist.includes(cleanArtist) || cleanArtist.includes(ltArtist) || ltArtist.includes(cleanPrimaryArtist)
+        const uLtTitle = stripDiacritics(ltTitle)
+        const uCleanTitle = stripDiacritics(cleanTitle)
+        const uLtArtist = stripDiacritics(ltArtist)
+        const uCleanArtist = stripDiacritics(cleanArtist)
+        const uCleanPrimaryArtist = stripDiacritics(cleanPrimaryArtist)
+
+        const titleMatches =
+          ltTitle.includes(cleanTitle) ||
+          cleanTitle.includes(ltTitle) ||
+          (uLtTitle && uCleanTitle && (uLtTitle.includes(uCleanTitle) || uCleanTitle.includes(uLtTitle)))
+        const artistMatches =
+          !cleanArtist ||
+          ltArtist.includes(cleanArtist) ||
+          cleanArtist.includes(ltArtist) ||
+          ltArtist.includes(cleanPrimaryArtist) ||
+          (uLtArtist && uCleanArtist && (uLtArtist.includes(uCleanArtist) || uCleanArtist.includes(uLtArtist))) ||
+          (uLtArtist && uCleanPrimaryArtist && uLtArtist.includes(uCleanPrimaryArtist))
         if (!titleMatches || !artistMatches) continue
 
         const driveId = lt.drive_file_id || extractDriveFileId(lt.file_path)
@@ -266,7 +281,11 @@ async function resolveStream(
       const match = candidates.find((c) => {
         const cTitle = (c.title || '').toLowerCase()
         const targetClean = (cleanTitle || title).toLowerCase()
-        const matchesTitle = targetClean && (cTitle.includes(targetClean) || targetClean.includes(cTitle))
+        const uCTitle = stripDiacritics(cTitle)
+        const uTarget = stripDiacritics(targetClean)
+        const matchesTitle =
+          (targetClean && (cTitle.includes(targetClean) || targetClean.includes(cTitle))) ||
+          (uTarget && (uCTitle.includes(uTarget) || uTarget.includes(uCTitle)))
         if (!matchesTitle) return false
         if (!c.duration || !duration) return true
         return Math.abs(c.duration - duration) <= 30

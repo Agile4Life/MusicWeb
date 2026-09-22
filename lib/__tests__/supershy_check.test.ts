@@ -3,7 +3,7 @@ import { searchYouTubeTracks, findBestYouTubeMatch } from '../youtube'
 import { searchDeezerTracks } from '../deezer'
 import { searchSoundCloudTracks } from '../soundcloudClient'
 import { searchNhacCuaTuiDirect } from '../nhaccuatui'
-import { getSyncedLyrics } from '../lrclib'
+import { fetchLyricsFromLrclib } from '../lrclib'
 
 describe('Super Shy - NewJeans Catalog & Stream & Lyrics Test', () => {
   it('1. YouTube Search: finds official Super Shy track', async () => {
@@ -53,7 +53,12 @@ describe('Super Shy - NewJeans Catalog & Stream & Lyrics Test', () => {
   }, 15000)
 
   it('4. LRCLIB Synced Lyrics: retrieves synced lyrics for Super Shy by NewJeans', async () => {
-    const lyrics = await getSyncedLyrics('Super Shy', 'NewJeans', 'Get Up', 154)
+    const lyrics = await fetchLyricsFromLrclib({
+      title: 'Super Shy',
+      artist: 'NewJeans',
+      album: 'Get Up',
+      duration: 154,
+    })
     console.log('LRCLIB Lyrics found:', {
       hasSynced: !!lyrics?.syncedLyrics,
       hasPlain: !!lyrics?.plainLyrics,
