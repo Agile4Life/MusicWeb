@@ -2,19 +2,6 @@ import { describe, it, expect, vi } from 'vitest'
 import { Track } from '@/types'
 
 describe('NCT Playback Race Guards & Concurrency Isolation', () => {
-  const mockTrack = (id: string, title: string, source: 'nhaccuatui' | 'youtube' = 'nhaccuatui'): Track => ({
-    id,
-    title,
-    artist: 'Test Artist',
-    duration: 180,
-    source,
-    nhaccuatui_id: source === 'nhaccuatui' ? id : undefined,
-    user_id: 'user-1',
-    file_path: '',
-    cover_url: null,
-    created_at: new Date().toISOString(),
-  })
-
   it('prevents duplicate concurrent fallbackToYouTube calls for the exact same requestId (Mutex Guard)', async () => {
     const fallbackInProgress = new Set<number>()
     let executionCount = 0
