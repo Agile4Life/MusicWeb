@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useCallback, useEffect } from 'react'
+import React, { useState, useRef, useCallback } from 'react'
 
 /* ─── types ─── */
 interface SpotifyTrack {
@@ -28,17 +28,8 @@ export default function SpotifyLabPage() {
   const [tracks, setTracks] = useState<SpotifyTrack[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  // player state
   const [current, setCurrent] = useState<SpotifyTrack | null>(null)
-  const [audioSrc, setAudioSrc] = useState<string | null>(null)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [audioDuration, setAudioDuration] = useState(0)
-  const [volume, setVolume] = useState(0.8)
-  const [playError, setPlayError] = useState<string | null>(null)
 
-  const audioRef = useRef<HTMLAudioElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   /* ─── search ─── */
@@ -74,76 +65,16 @@ export default function SpotifyLabPage() {
     doSearch(query)
   }
 
-  /* ─── play track ─── */
+  /* ─── play track via Spotify embed ─── */
   const playTrack = useCallback((track: SpotifyTrack) => {
     setCurrent(track)
-    setPlayError(null)
-    setIsPlaying(false)
-    setProgress(0)
-    setAudioDuration(0)
-
-    if (!track.preview_url) {
-      setAudioSrc(null)
-      setPlayError('Bài này không có preview từ Spotify')
-      return
-    }
-
-    setAudioSrc(track.preview_url)
   }, [])
-
-  /* ─── audio events ─── */
-  useEffect(() => {
-    const audio = audioRef.current
-    if (!audio || !audioSrc) return
-
-    audio.src = audioSrc
-    audio.volume = volume
-    audio.play().then(() => setIsPlaying(true)).catch(() => {})
-
-    const onTime = () => setProgress(audio.currentTime)
-    const onDur = () => setAudioDuration(audio.duration || 0)
-    const onEnded = () => { setIsPlaying(false); setProgress(0) }
-    const onError = () => setPlayError('Lỗi phát nhạc — preview không khả dụng')
-
-    audio.addEventListener('timeupdate', onTime)
-    audio.addEventListener('loadedmetadata', onDur)
-    audio.addEventListener('ended', onEnded)
-    audio.addEventListener('error', onError)
-
-    return () => {
-      audio.removeEventListener('timeupdate', onTime)
-      audio.removeEventListener('loadedmetadata', onDur)
-      audio.removeEventListener('ended', onEnded)
-      audio.removeEventListener('error', onError)
-    }
-  }, [audioSrc, volume])
-
-  const togglePlay = () => {
-    const audio = audioRef.current
-    if (!audio) return
-    if (isPlaying) { audio.pause(); setIsPlaying(false) }
-    else { audio.play().then(() => setIsPlaying(true)).catch(() => {}) }
-  }
-
-  const seek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const t = Number(e.target.value)
-    setProgress(t)
-    if (audioRef.current) audioRef.current.currentTime = t
-  }
-
-  const changeVolume = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = Number(e.target.value)
-    setVolume(v)
-    if (audioRef.current) audioRef.current.volume = v
-  }
 
   /* ─── render ─── */
   return (
     <div style={styles.page}>
-      <audio ref={audioRef} preload="auto" />
-      {/* Minimal CSS for animations & hover that inline styles can't do */}
+      {/* Minimal CSS for hover */}
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg) } }
         .slab-row:hover { background: #27272a !important }
         .slab-row:active { background: #3f3f46 !important }
         .slab-input:focus { border-color: #1DB954 !important }
@@ -154,7 +85,7 @@ export default function SpotifyLabPage() {
         <h1 style={styles.title}>
           <span style={styles.spotifyDot}>●</span> Spotify Lab
         </h1>
-        <p style={styles.subtitle}>Search-only — dùng Spotify API tìm bài, resolve stream để phát</p>
+        <p style={styles.subtitle}>Search & nghe preview qua Spotify Embed Player</p>
       </header>
 
       {/* Search */}
@@ -194,7 +125,6 @@ export default function SpotifyLabPage() {
       <div style={styles.results}>
         {tracks.map((t) => {
           const isCurrent = current?.id === t.id
-          const hasPreview = !!t.preview_url
 
           return (
             <button
@@ -204,7 +134,6 @@ export default function SpotifyLabPage() {
               style={{
                 ...styles.trackRow,
                 ...(isCurrent ? styles.trackRowActive : {}),
-                ...(!hasPreview ? { opacity: 0.5 } : {}),
               }}
             >
               {/* Cover */}
@@ -219,7 +148,7 @@ export default function SpotifyLabPage() {
               {/* Info */}
               <div style={styles.trackInfo}>
                 <span style={styles.trackTitle}>{t.title}</span>
-                <span style={styles.trackArtist}>{t.artist}{!hasPreview ? ' — không có preview' : ''}</span>
+                <span style={styles.trackArtist}>{t.artist}</span>
               </div>
 
               {/* Meta */}
@@ -236,58 +165,18 @@ export default function SpotifyLabPage() {
         )}
       </div>
 
-      {/* Player Bar */}
+      {/* Spotify Embed Player */}
       {current && (
         <div style={styles.playerBar}>
-          {/* Track info */}
-          <div style={styles.playerLeft}>
-            {current.cover_url && (
-              <img src={current.cover_url} alt="" style={styles.playerCover} />
-            )}
-            <div style={styles.playerInfo}>
-              <span style={styles.playerTitle}>{current.title}</span>
-              <span style={styles.playerArtist}>{current.artist}</span>
-            </div>
-            <span style={styles.sourceBadge}>spotify</span>
-          </div>
-
-          {/* Controls */}
-          <div style={styles.playerCenter}>
-            {playError ? (
-              <span style={styles.playerError}>{playError}</span>
-            ) : (
-              <>
-                <button onClick={togglePlay} style={styles.playBtn} disabled={!audioSrc}>
-                  {isPlaying ? '⏸' : '▶'}
-                </button>
-                <span style={styles.timeLabel}>{fmtDuration(progress)}</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={audioDuration || 1}
-                  step={0.1}
-                  value={progress}
-                  onChange={seek}
-                  style={styles.seekBar}
-                />
-                <span style={styles.timeLabel}>{fmtDuration(audioDuration)}</span>
-              </>
-            )}
-          </div>
-
-          {/* Volume */}
-          <div style={styles.playerRight}>
-            <span style={styles.volIcon}>🔊</span>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={volume}
-              onChange={changeVolume}
-              style={styles.volBar}
-            />
-          </div>
+          <iframe
+            src={`https://open.spotify.com/embed/track/${current.spotify_id}?utm_source=generator&theme=0`}
+            width="100%"
+            height="80"
+            frameBorder="0"
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            loading="lazy"
+            style={{ borderRadius: 12, border: 'none' }}
+          />
         </div>
       )}
     </div>
@@ -433,67 +322,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 20,
     color: '#52525b',
   },
-  coverOverlay: {
-    position: 'absolute',
-    inset: 0,
-    background: 'rgba(0,0,0,0.6)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  spinner: {
-    width: 20,
-    height: 20,
-    border: '2px solid rgba(255,255,255,0.2)',
-    borderTopColor: '#1DB954',
-    borderRadius: '50%',
-    animation: 'spin 0.6s linear infinite',
-  },
-
-  /* track info */
-  trackInfo: {
-    flex: 1,
-    minWidth: 0,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 2,
-  },
-  trackTitle: {
-    fontSize: 14,
-    fontWeight: 500,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  trackArtist: {
-    fontSize: 12,
-    color: '#a1a1aa',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-
-  /* track meta */
-  trackMeta: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-    gap: 2,
-    flexShrink: 0,
-  },
-  trackAlbum: {
-    fontSize: 12,
-    color: '#71717a',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    maxWidth: 160,
-  },
-  trackDuration: {
-    fontSize: 12,
-    color: '#52525b',
-    fontVariantNumeric: 'tabular-nums',
-  },
 
   empty: {
     textAlign: 'center',
@@ -502,121 +330,16 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '32px 0',
   },
 
-  /* player bar */
+  /* player bar — hosts Spotify embed iframe */
   playerBar: {
     position: 'fixed',
     bottom: 0,
     left: 0,
     right: 0,
-    height: 72,
     background: '#18181b',
     borderTop: '1px solid #27272a',
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0 20px',
-    gap: 16,
+    padding: '8px 16px',
     zIndex: 50,
   },
-  playerLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    minWidth: 0,
-    flex: '0 1 280px',
-  },
-  playerCover: {
-    width: 48,
-    height: 48,
-    borderRadius: 6,
-    objectFit: 'cover',
-    flexShrink: 0,
-  },
-  playerInfo: {
-    display: 'flex',
-    flexDirection: 'column',
-    minWidth: 0,
-  },
-  playerTitle: {
-    fontSize: 13,
-    fontWeight: 600,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  playerArtist: {
-    fontSize: 11,
-    color: '#a1a1aa',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  sourceBadge: {
-    fontSize: 10,
-    padding: '2px 6px',
-    borderRadius: 4,
-    background: '#1DB95422',
-    color: '#1DB954',
-    fontWeight: 600,
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
-    flexShrink: 0,
-  },
-
-  /* player center */
-  playerCenter: {
-    flex: 1,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    justifyContent: 'center',
-  },
-  playBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: '50%',
-    border: 'none',
-    background: '#e4e4e7',
-    color: '#0a0a0a',
-    fontSize: 14,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  timeLabel: {
-    fontSize: 11,
-    color: '#71717a',
-    fontVariantNumeric: 'tabular-nums',
-    minWidth: 36,
-    textAlign: 'center',
-  },
-  seekBar: {
-    flex: 1,
-    maxWidth: 360,
-    height: 4,
-    accentColor: '#1DB954',
-    cursor: 'pointer',
-  },
-  playerError: {
-    fontSize: 12,
-    color: '#f87171',
-  },
-
-  /* volume */
-  playerRight: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    flex: '0 0 auto',
-  },
-  volIcon: {
-    fontSize: 14,
-  },
-  volBar: {
-    width: 80,
-    height: 4,
-    accentColor: '#1DB954',
-    cursor: 'pointer',
-  },
 }
+
