@@ -31,6 +31,7 @@ import {
 } from '@/lib/trackSourceClassifier'
 import { Html5AudioEngine, YouTubeIframeEngine } from './engines'
 import { buildYouTubeStreamUrl } from '@/lib/youtubeStreamUrl'
+import { toast } from '@/components/ui/ToastContext'
 
 export { isBackgroundPlayableTrack, isFullYouTubeQueue, inferTrackSource }
 export type RepeatMode = 'off' | 'all' | 'one'
@@ -201,6 +202,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [mvIntroOffset, setMvIntroOffset] = useState<number>(0)
   const [isNowPlayingOpen, setIsNowPlayingOpen] = useState<boolean>(false)
   const frequencyData = React.useMemo(() => new Uint8Array(16), [])
+
+  useEffect(() => {
+    if (playbackError) {
+      toast(playbackError, 'error')
+    }
+  }, [playbackError])
 
   const toggleNowPlayingOverlay = useCallback(() => setIsNowPlayingOpen((prev) => !prev), [])
   const openNowPlayingOverlay = useCallback(() => setIsNowPlayingOpen(true), [])
@@ -1007,7 +1014,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     preSearchedTrack?: Track | null
   ) => {
     // 🛡️ Concurrency Mutex: Guard against duplicate concurrent fallback executions for the same request
-    if (fallbackInProgressRef.current.has(requestId) || fallbackAttemptedRef.current.has(requestId)) {
+    if (fallbackInProgressRef.current.has(requestId)) {
       return
     }
     recordRequestIdFlag(fallbackInProgressRef.current, requestId)
@@ -1032,11 +1039,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // ── Step 1: YouTube Data API search (if no cached ID) ────────────────────
+    // ── Step 1: Fallback search (NCT direct stream first, then YouTube) ──────
     if (!bestMatch) {
       try {
         const query = `${track.title} ${track.artist || ''}`.trim()
-        const data = await fetchUnifiedSearch(query, 'youtube')
+        const data = await fetchUnifiedSearch(query, 'all')
         if (!isCurrentAudioOwnership()) return
         if (!isCurrentPlayback({
           requestId,
@@ -1044,6 +1051,33 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           trackId: track.id,
           currentTrackId: currentTrackRef.current?.id,
         })) return
+
+        // 1a. Try NhacCuaTui direct stream if available
+        const nctCandidate = (data.nhaccuatui || []).find((t: Track) => t.nhaccuatui_id)
+        if (nctCandidate?.nhaccuatui_id && audioRef.current) {
+          console.log('[fallbackToYouTube] Recovering via NhacCuaTui audio stream:', nctCandidate.nhaccuatui_id)
+          const fallbackUrl = `/api/nhaccuatui/stream?id=${encodeURIComponent(nctCandidate.nhaccuatui_id)}`
+          const updatedTrack: Track = {
+            ...track,
+            source: 'nhaccuatui',
+            nhaccuatui_id: nctCandidate.nhaccuatui_id,
+          }
+          currentTrackRef.current = updatedTrack
+          setCurrentTrack(updatedTrack)
+          audioRef.current.src = fallbackUrl
+          audioRef.current.load()
+          audioRef.current.play().then(() => {
+            if (!isCurrentAudioOwnership()) return
+            setIsPlaying(true)
+            setIsBuffering(false)
+            setPlaybackError(null)
+          }).catch((err) => {
+            console.warn('[fallbackToYouTube] NCT playback failed:', err)
+          })
+          return
+        }
+
+        // 1b. Fallback to YouTube candidate
         const ytList: Track[] = data.youtube || []
         bestMatch = findBestYouTubeMatch(ytList, track.title, track.artist, track.duration, track.album)
       } catch {
@@ -2142,15 +2176,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
         if (audioRef.current) {
           try {
-            await invalidateCurrentResolution()
             trackResolutionCacheRef.current.delete(activeTrack.id)
             audioUrlCacheRef.current.delete(activeTrack.id)
             if (activeTrack.nhaccuatui_id) {
               clearCachedNctStreamUrl(activeTrack.nhaccuatui_id)
             }
-            audioRef.current.pause()
-            audioRef.current.removeAttribute('src')
+            if (audioRef.current.src === url) {
+              audioRef.current.pause()
+              audioRef.current.removeAttribute('src')
+            }
           } catch {}
+          void invalidateCurrentResolution()
         }
         console.warn('HTML5 audio stream playback info:', err)
         if (!fallbackAttemptedRef.current.has(requestId)) {
