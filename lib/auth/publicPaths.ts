@@ -8,7 +8,8 @@ export function isPublicAuthPath(pathname: string): boolean {
     pathname.startsWith('/login') ||
     pathname.startsWith('/register') ||
     pathname.startsWith('/reset-password') ||
-    pathname.startsWith('/sso')
+    pathname.startsWith('/sso') ||
+    pathname.startsWith('/spotify-lab')
   )
 }
 

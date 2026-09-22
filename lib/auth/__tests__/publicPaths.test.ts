@@ -6,6 +6,7 @@ describe('isPublicAuthPath', () => {
   test('allows the hoilauchay SSO complete hop', () => {
     expect(isPublicAuthPath('/sso/complete')).toBe(true)
     expect(isPublicAuthPath('/login')).toBe(true)
+    expect(isPublicAuthPath('/spotify-lab')).toBe(true)
     expect(isPublicAuthPath('/')).toBe(false)
     expect(isPublicAuthPath('/albums')).toBe(false)
   })
