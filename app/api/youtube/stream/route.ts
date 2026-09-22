@@ -10,7 +10,7 @@ export const maxDuration = 300
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
-    const videoId = searchParams.get('id') || searchParams.get('videoId')
+    const videoId = (searchParams.get('id') || searchParams.get('videoId') || '').trim()
 
     if (!videoId) {
       return NextResponse.json({ error: 'Missing YouTube video ID parameter' }, { status: 400 })
@@ -25,6 +25,18 @@ export async function GET(req: NextRequest) {
     }
 
     const range = req.headers.get('range')
+    if (range) {
+      const match = range.match(/^bytes=(\d+)-(\d+)$/)
+      if (match && parseInt(match[1], 10) > parseInt(match[2], 10)) {
+        return new Response(null, {
+          status: 416,
+          headers: {
+            'Content-Range': 'bytes */*',
+            'Access-Control-Allow-Origin': '*',
+          },
+        })
+      }
+    }
     const fetchUpstream = (url: string) => {
       const proxyHeaders: Record<string, string> = {
         'User-Agent':
@@ -90,7 +102,7 @@ export async function OPTIONS() {
 export async function HEAD(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
-    const videoId = searchParams.get('id') || searchParams.get('videoId')
+    const videoId = (searchParams.get('id') || searchParams.get('videoId') || '').trim()
 
     if (!videoId) {
       return new NextResponse(null, { status: 400 })

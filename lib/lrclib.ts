@@ -362,8 +362,15 @@ export async function fetchLyricsFromLrclib({
           if (cleanTitle) ytParams.append('title', cleanTitle)
           if (cleanArtist) ytParams.append('artist', cleanArtist)
 
-          const ytRes = await fetch(`/api/youtube/lyrics?${ytParams.toString()}`)
-          if (ytRes.ok) {
+          let ytRes: Response | null = null
+          if (typeof window !== 'undefined') {
+            ytRes = await fetch(`/api/youtube/lyrics?${ytParams.toString()}`)
+          } else {
+            const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+            ytRes = await fetch(`${baseUrl}/api/youtube/lyrics?${ytParams.toString()}`).catch(() => null)
+          }
+
+          if (ytRes && ytRes.ok) {
             const ytData = await ytRes.json()
             if (ytData && ytData.plainLyrics) {
               const ytResponse: LrclibResponse = {

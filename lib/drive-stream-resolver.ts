@@ -19,7 +19,13 @@ function evictOldestCacheEntries(targetSize: number) {
 }
 
 // Track in-flight validation promises for cleanup
-const inFlightValidations = new Map<string, { controller: AbortController; timeout: ReturnType<typeof setTimeout> }>()
+interface InFlightValidationEntry {
+  controller: AbortController
+  timeout: ReturnType<typeof setTimeout>
+  createdAt: number
+}
+const inFlightValidations = new Map<string, InFlightValidationEntry>()
+const inFlightDriveResolutions = new Map<string, Promise<{ url: string; contentType: string; fromCache: boolean } | null>>()
 const MAX_CONCURRENT_VALIDATIONS = 10
 
 // Cleanup old validation entries periodically
@@ -27,7 +33,7 @@ setInterval(() => {
   const now = Date.now()
   for (const [key, entry] of inFlightValidations.entries()) {
     // Cleanup entries older than 5 seconds
-    if (now - (entry.timeout as any)._createdAt > 5000) {
+    if (now - entry.createdAt > 5000) {
       entry.controller.abort()
       clearTimeout(entry.timeout)
       inFlightValidations.delete(key)
@@ -137,7 +143,7 @@ export async function getCachedCdnUrl(
     try {
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 2000) as ReturnType<typeof setTimeout>
-      ;(timeout as any)._createdAt = Date.now()
+      const createdAt = Date.now()
 
       // Cleanup old entry for this fileId if exists
       const existingEntry = inFlightValidations.get(fileId)
@@ -148,7 +154,7 @@ export async function getCachedCdnUrl(
 
       // Limit concurrent validations
       if (inFlightValidations.size < MAX_CONCURRENT_VALIDATIONS) {
-        inFlightValidations.set(fileId, { controller, timeout })
+        inFlightValidations.set(fileId, { controller, timeout, createdAt })
       } else {
         // Skip this validation if too many are running
         controller.abort()
@@ -312,8 +318,15 @@ export async function resolveDriveStreamUrl(
     }
   }
 
-  const UA_HEADER =
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+  // ⚡ In-flight request deduplication
+  const existingInFlight = inFlightDriveResolutions.get(fileId)
+  if (existingInFlight) {
+    return existingInFlight
+  }
+
+  const resolvePromise = (async (): Promise<{ url: string; contentType: string; fromCache: boolean } | null> => {
+    const UA_HEADER =
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
 
   // 🚀 2. Parallel Probe: Check high-speed CDN URLs in parallel (100-200ms)
   const candidateCdnUrls = [
@@ -443,4 +456,12 @@ export async function resolveDriveStreamUrl(
   }
 
   return null
+  })()
+
+  inFlightDriveResolutions.set(fileId, resolvePromise)
+  try {
+    return await resolvePromise
+  } finally {
+    inFlightDriveResolutions.delete(fileId)
+  }
 }

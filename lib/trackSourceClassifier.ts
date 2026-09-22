@@ -135,6 +135,7 @@ export function classifyTrack(track: Track, isIOS = false): TrackClassification 
     Boolean(normalized.spotify_id) ||
     Boolean(normalized.itunes_id) ||
     (fp && (
+      fp.startsWith('skd:') ||
       fp.startsWith('spotify:') ||
       fp.startsWith('itunes:') ||
       fp.startsWith('deezer:') ||
@@ -142,7 +143,8 @@ export function classifyTrack(track: Track, isIOS = false): TrackClassification 
       fp.includes('p.scdn.co') ||
       fp.includes('mzstatic.com') ||
       fp.includes('apple.com')
-    ))
+    )) ||
+    (audioUrl && audioUrl.startsWith('skd:'))
   )
 
   const driveId = normalized.drive_file_id || extractDriveFileId(fp) || undefined

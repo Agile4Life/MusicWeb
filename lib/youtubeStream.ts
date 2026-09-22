@@ -18,6 +18,7 @@ export interface ResolvedYouTubeStream {
 }
 
 export const streamUrlCache = new Map<string, { url: string; mimeType: string; expiresAt: number }>()
+const inFlightYouTubeStream = new Map<string, Promise<ResolvedYouTubeStream | null>>()
 const STREAM_CACHE_TTL = 2.5 * 60 * 60 * 1000 // googlevideo URLs expire after ~6h
 
 export async function resolveYouTubeAudioStreamCached(videoId: string): Promise<ResolvedYouTubeStream | null> {
@@ -26,11 +27,25 @@ export async function resolveYouTubeAudioStreamCached(videoId: string): Promise<
     return { url: cached.url, mimeType: cached.mimeType }
   }
 
-  const resolved = await resolveYouTubeAudioStream(videoId)
-  if (resolved && resolved.url) {
-    streamUrlCache.set(videoId, { ...resolved, expiresAt: Date.now() + STREAM_CACHE_TTL })
+  const existingInFlight = inFlightYouTubeStream.get(videoId)
+  if (existingInFlight) {
+    return existingInFlight
   }
-  return resolved
+
+  const promise = (async (): Promise<ResolvedYouTubeStream | null> => {
+    try {
+      const resolved = await resolveYouTubeAudioStream(videoId)
+      if (resolved && resolved.url) {
+        streamUrlCache.set(videoId, { ...resolved, expiresAt: Date.now() + STREAM_CACHE_TTL })
+      }
+      return resolved
+    } finally {
+      inFlightYouTubeStream.delete(videoId)
+    }
+  })()
+
+  inFlightYouTubeStream.set(videoId, promise)
+  return promise
 }
 
 function findYtDlpBinary(): string | null {

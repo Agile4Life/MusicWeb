@@ -103,6 +103,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           return (
             <div
               key={t.id}
+              role="alert"
+              data-testid="toast-notification"
+              data-toast-type={t.type}
               className={`pointer-events-auto w-full glass-panel p-3.5 rounded-2xl shadow-2xl border flex items-center justify-between gap-3 transition-all duration-300 animate-in slide-in-from-top-5 fade-in select-none ${
                 isSuccess
                   ? 'bg-[#0a1815]/95 border-emerald-500/40 text-white shadow-emerald-950/40'

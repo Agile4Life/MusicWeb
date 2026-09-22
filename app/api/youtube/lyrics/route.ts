@@ -127,15 +127,39 @@ async function searchYouTubeVideoIds(query: string): Promise<string[]> {
   }
 }
 
+interface LyricsResult {
+  id: string
+  trackName: string
+  artistName: string
+  plainLyrics: string
+  syncedLyrics: string | null
+  instrumental: boolean
+  source: string
+}
+
+const lyricsCache = new Map<string, { result: LyricsResult | null; expiresAt: number }>()
+const inFlightLyrics = new Map<string, Promise<LyricsResult | null>>()
+const LYRICS_TTL_MS = 60 * 60 * 1000 // 1 hour
+const LYRICS_MISS_TTL_MS = 3 * 60 * 1000 // 3 minutes for misses
+const LYRICS_MAX_CACHE = 1000
+
+function evictLyricsIfFull(): void {
+  if (lyricsCache.size >= LYRICS_MAX_CACHE) {
+    const oldest = lyricsCache.keys().next().value
+    if (oldest !== undefined) lyricsCache.delete(oldest)
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
-    const directVideoId = searchParams.get('videoId') || searchParams.get('youtube_id') || ''
-    const title = searchParams.get('title') || ''
-    const artist = searchParams.get('artist') || ''
+    const directVideoId = (searchParams.get('videoId') || searchParams.get('youtube_id') || '').trim()
+    const title = (searchParams.get('title') || '').trim()
+    const artist = (searchParams.get('artist') || '').trim()
 
-    let plainLyrics: string | null = null
-    let successfulVideoId = directVideoId
+    if (!directVideoId && !title) {
+      return NextResponse.json({ error: 'Missing videoId or title parameter' }, { status: 400 })
+    }
 
     // Instrumental Guard: return 404 for beats and instrumentals
     const isInstrumental =
@@ -150,39 +174,92 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Instrumental tracks do not have lyrics' }, { status: 404 })
     }
 
-    // 1. Try direct videoId if provided
-    if (directVideoId) {
-      plainLyrics = await fetchLyricsFromYouTube(directVideoId)
+    const cacheKey = `${directVideoId}___${title.toLowerCase()}___${artist.toLowerCase()}`
+
+    // 1. Cache check
+    const cached = lyricsCache.get(cacheKey)
+    if (cached && Date.now() < cached.expiresAt) {
+      if (!cached.result) {
+        return NextResponse.json({ error: 'No lyrics found on YouTube Music' }, { status: 404 })
+      }
+      return NextResponse.json(cached.result, {
+        headers: { 'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=600' },
+      })
     }
 
-    // 2. If direct videoId failed or was missing, try searching YouTube Music audio tracks
-    if (!plainLyrics && (title || artist)) {
-      const searchQuery = `${title} ${artist} audio`.trim()
-      const candidateIds = await searchYouTubeVideoIds(searchQuery)
-      if (candidateIds.length > 0) {
-        // Only inspect the top 1 exact search candidate to prevent mismatching other songs
-        const topCandidate = candidateIds[0]
-        if (topCandidate !== directVideoId) {
-          plainLyrics = await fetchLyricsFromYouTube(topCandidate)
-          if (plainLyrics) {
-            successfulVideoId = topCandidate
+    // 2. In-flight coalescing
+    const existingInFlight = inFlightLyrics.get(cacheKey)
+    if (existingInFlight) {
+      const result = await existingInFlight
+      if (!result) {
+        return NextResponse.json({ error: 'No lyrics found on YouTube Music' }, { status: 404 })
+      }
+      return NextResponse.json(result, {
+        headers: { 'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=600' },
+      })
+    }
+
+    const fetchPromise = (async (): Promise<LyricsResult | null> => {
+      let plainLyrics: string | null = null
+      let successfulVideoId = directVideoId
+
+      // 1. Try direct videoId if provided
+      if (directVideoId) {
+        plainLyrics = await fetchLyricsFromYouTube(directVideoId)
+      }
+
+      // 2. If direct videoId failed or was missing, try searching YouTube Music audio tracks
+      if (!plainLyrics && (title || artist)) {
+        const searchQuery = `${title} ${artist} audio`.trim()
+        const candidateIds = await searchYouTubeVideoIds(searchQuery)
+        if (candidateIds.length > 0) {
+          // Only inspect the top 1 exact search candidate to prevent mismatching other songs
+          const topCandidate = candidateIds[0]
+          if (topCandidate !== directVideoId) {
+            plainLyrics = await fetchLyricsFromYouTube(topCandidate)
+            if (plainLyrics) {
+              successfulVideoId = topCandidate
+            }
           }
         }
       }
+
+      if (!plainLyrics) {
+        evictLyricsIfFull()
+        lyricsCache.set(cacheKey, { result: null, expiresAt: Date.now() + LYRICS_MISS_TTL_MS })
+        return null
+      }
+
+      const result: LyricsResult = {
+        id: `yt-${successfulVideoId}`,
+        trackName: title || 'YouTube Track',
+        artistName: artist || 'YouTube Artist',
+        plainLyrics,
+        syncedLyrics: null,
+        instrumental: false,
+        source: 'youtube_music',
+      }
+
+      evictLyricsIfFull()
+      lyricsCache.set(cacheKey, { result, expiresAt: Date.now() + LYRICS_TTL_MS })
+      return result
+    })()
+
+    inFlightLyrics.set(cacheKey, fetchPromise)
+
+    let finalResult: LyricsResult | null = null
+    try {
+      finalResult = await fetchPromise
+    } finally {
+      inFlightLyrics.delete(cacheKey)
     }
 
-    if (!plainLyrics) {
+    if (!finalResult) {
       return NextResponse.json({ error: 'No lyrics found on YouTube Music' }, { status: 404 })
     }
 
-    return NextResponse.json({
-      id: `yt-${successfulVideoId}`,
-      trackName: title || 'YouTube Track',
-      artistName: artist || 'YouTube Artist',
-      plainLyrics,
-      syncedLyrics: null,
-      instrumental: false,
-      source: 'youtube_music',
+    return NextResponse.json(finalResult, {
+      headers: { 'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=600' },
     })
   } catch (err: any) {
     console.error('YouTube lyrics route error:', err)

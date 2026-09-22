@@ -374,7 +374,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         return null
       })()}
       {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && !showMobileFullPlayer && (
-        <div className="lg:hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-[#0a0d14]/95 backdrop-blur-2xl border border-[var(--spotify-glow,#22d3ee)]/40 px-6 py-4 rounded-2xl shadow-2xl flex flex-col items-center justify-center gap-2.5 text-center pointer-events-none">
+        <div className="lg:hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-[#0a0d14]/95 backdrop-blur-2xl border border-[var(--spotify-glow,#22d3ee)]/40 px-6 py-4 rounded-2xl shadow-2xl flex flex-col items-center justify-center gap-2.5 text-center pointer-events-none transition-all duration-200">
           <div className="w-11 h-11 rounded-full bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/30 flex items-center justify-center shadow-lg">
             <Loader2 className="w-6 h-6 animate-spin text-[var(--spotify-glow,#22d3ee)]" />
           </div>
@@ -465,11 +465,16 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                 background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
                 boxShadow: '0 2px 10px var(--theme-glow-shadow, rgba(6,182,212,0.4))',
               }}
-              title={isPlaying ? t('pause') : t('play')}
+              title={isBuffering ? t('buffering') : isPlaying ? t('pause') : t('play')}
+              aria-label={isBuffering ? t('buffering') : isPlaying ? t('pause') : t('play')}
             >
-              {isPlaying
-                ? <Pause className="w-4 h-4 fill-current text-black" />
-                : <Play className="w-4 h-4 fill-current text-black ml-0.5" />}
+              {isBuffering ? (
+                <Loader2 className="w-4 h-4 animate-spin text-black shrink-0" />
+              ) : isPlaying ? (
+                <Pause className="w-4 h-4 fill-current text-black shrink-0" />
+              ) : (
+                <Play className="w-4 h-4 fill-current text-black ml-0.5 shrink-0" />
+              )}
             </button>
 
             <button
@@ -626,9 +631,16 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             <button
               onClick={togglePlay}
               className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center btn-3d-tactile border border-white/20 shrink-0 shadow-3d-raised"
-              title={isPlaying ? 'Tạm dừng' : 'Phát'}
+              title={isBuffering ? t('buffering') : isPlaying ? t('pause') : t('play')}
+              aria-label={isBuffering ? t('buffering') : isPlaying ? t('pause') : t('play')}
             >
-              {isPlaying ? <Pause className="w-7 h-7 sm:w-8 sm:h-8 fill-current" /> : <Play className="w-7 h-7 sm:w-8 sm:h-8 fill-current" />}
+              {isBuffering ? (
+                <Loader2 className="w-7 h-7 sm:w-8 sm:h-8 animate-spin text-black shrink-0" />
+              ) : isPlaying ? (
+                <Pause className="w-7 h-7 sm:w-8 sm:h-8 fill-current" />
+              ) : (
+                <Play className="w-7 h-7 sm:w-8 sm:h-8 fill-current ml-1" />
+              )}
             </button>
 
             <button

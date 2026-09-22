@@ -31,6 +31,7 @@ import {
 } from '@/lib/trackSourceClassifier'
 import { Html5AudioEngine, YouTubeIframeEngine } from './engines'
 import { buildYouTubeStreamUrl } from '@/lib/youtubeStreamUrl'
+import { toast } from '@/components/ui/ToastContext'
 
 export { isBackgroundPlayableTrack, isFullYouTubeQueue, inferTrackSource }
 export type RepeatMode = 'off' | 'all' | 'one'
@@ -188,12 +189,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     currentTimeRef.current = time
     playbackProgressStore.setCurrentTime(time)
   }, [])
+  const durationRef = useRef<number>(0)
   const [duration, setDurationState] = useState<number>(0)
   const setDuration = useCallback((dur: number | ((prev: number) => number)) => {
     setDurationState((prev) => {
       const next = typeof dur === 'function' ? dur(prev) : dur
-      playbackProgressStore.setDuration(next)
+      durationRef.current = next
       return next
+    })
+    queueMicrotask(() => {
+      playbackProgressStore.setDuration(durationRef.current)
     })
   }, [])
   const [volume, setVolumeState] = useState<number>(0.8)
@@ -201,6 +206,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [mvIntroOffset, setMvIntroOffset] = useState<number>(0)
   const [isNowPlayingOpen, setIsNowPlayingOpen] = useState<boolean>(false)
   const frequencyData = React.useMemo(() => new Uint8Array(16), [])
+
+  useEffect(() => {
+    if (playbackError) {
+      toast(playbackError, 'error')
+    }
+  }, [playbackError])
 
   const toggleNowPlayingOverlay = useCallback(() => setIsNowPlayingOpen((prev) => !prev), [])
   const openNowPlayingOverlay = useCallback(() => setIsNowPlayingOpen(true), [])
@@ -299,6 +310,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const html5EngineRef = useRef<Html5AudioEngine>(new Html5AudioEngine())
   const ytEngineRef = useRef<YouTubeIframeEngine>(new YouTubeIframeEngine())
   const consecutiveSkipRef = useRef<number>(0)
+  const lastErrorAutoAdvanceRef = useRef<number>(0)
 
   const currentTrackRef = useRef<Track | null>(null)
   const queueRef = useRef<Track[]>([])
@@ -1007,11 +1019,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     preSearchedTrack?: Track | null
   ) => {
     // 🛡️ Concurrency Mutex: Guard against duplicate concurrent fallback executions for the same request
-    if (fallbackInProgressRef.current.has(requestId) || fallbackAttemptedRef.current.has(requestId)) {
+    if (fallbackInProgressRef.current.has(requestId)) {
       return
     }
     recordRequestIdFlag(fallbackInProgressRef.current, requestId)
     recordRequestIdFlag(fallbackAttemptedRef.current, requestId)
+    setIsBuffering(true)
 
     // ── Step 0: Check localStorage cache for YouTube video ID ───────────────
     // This is the fastest path — if we've resolved this track to YouTube before,
@@ -1032,11 +1045,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // ── Step 1: YouTube Data API search (if no cached ID) ────────────────────
+    // ── Step 1: Fallback search (NCT direct stream first, then YouTube) ──────
     if (!bestMatch) {
       try {
         const query = `${track.title} ${track.artist || ''}`.trim()
-        const data = await fetchUnifiedSearch(query, 'youtube')
+        const data = await fetchUnifiedSearch(query, 'all')
         if (!isCurrentAudioOwnership()) return
         if (!isCurrentPlayback({
           requestId,
@@ -1044,6 +1057,33 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           trackId: track.id,
           currentTrackId: currentTrackRef.current?.id,
         })) return
+
+        // 1a. Try NhacCuaTui direct stream if available
+        const nctCandidate = (data.nhaccuatui || []).find((t: Track) => t.nhaccuatui_id)
+        if (nctCandidate?.nhaccuatui_id && audioRef.current) {
+          console.log('[fallbackToYouTube] Recovering via NhacCuaTui audio stream:', nctCandidate.nhaccuatui_id)
+          const fallbackUrl = `/api/nhaccuatui/stream?id=${encodeURIComponent(nctCandidate.nhaccuatui_id)}`
+          const updatedTrack: Track = {
+            ...track,
+            source: 'nhaccuatui',
+            nhaccuatui_id: nctCandidate.nhaccuatui_id,
+          }
+          currentTrackRef.current = updatedTrack
+          setCurrentTrack(updatedTrack)
+          audioRef.current.src = fallbackUrl
+          audioRef.current.load()
+          audioRef.current.play().then(() => {
+            if (!isCurrentAudioOwnership()) return
+            setIsPlaying(true)
+            setIsBuffering(false)
+            setPlaybackError(null)
+          }).catch((err) => {
+            console.warn('[fallbackToYouTube] NCT playback failed:', err)
+          })
+          return
+        }
+
+        // 1b. Fallback to YouTube candidate
         const ytList: Track[] = data.youtube || []
         bestMatch = findBestYouTubeMatch(ytList, track.title, track.artist, track.duration, track.album)
       } catch {
@@ -1090,10 +1130,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // ── Step 2: Save youtube_id to localStorage for future plays ─────────────
     // Long TTL (24h) — YouTube video IDs are stable. This saves ~700ms on replay.
     try {
-      saveTrackResolution(
-        `${track.title.trim().toLowerCase()}___${(track.artist || '').trim().toLowerCase()}___${(track.album || '').trim().toLowerCase()}`,
-        { source: 'youtube', resolvedId: bestMatch.youtube_id, ttl: 24 * 60 * 60 * 1000, youtubeVideoId: bestMatch.youtube_id }
-      )
+      const dur = track.duration || 0
+      const keyWithDur = `${track.title.trim().toLowerCase()}___${(track.artist || '').trim().toLowerCase()}___${dur}___${(track.album || '').trim().toLowerCase()}`
+      const keyWithoutDur = `${track.title.trim().toLowerCase()}___${(track.artist || '').trim().toLowerCase()}___${(track.album || '').trim().toLowerCase()}`
+      const payload = { source: 'youtube', resolvedId: bestMatch.youtube_id, ttl: 24 * 60 * 60 * 1000, youtubeVideoId: bestMatch.youtube_id }
+      saveTrackResolution(keyWithDur, payload)
+      saveTrackResolution(keyWithoutDur, payload)
     } catch {
       // Best-effort — cache miss on next play is not critical
     }
@@ -2131,28 +2173,31 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           return // Ignore play interruption silently
         }
         setIsPlaying(false)
-        setIsBuffering(false)
         if (err?.name === 'NotAllowedError' || String(err?.message || '').includes('not allowed')) {
           // Background autoplay / User gesture restriction: Keep stream loaded and resume on next user gesture or visibility restore
           console.warn('[Audio Autoplay Restricted] play() waiting for user activation:', err?.name || err?.message)
+          setIsBuffering(false)
           pendingResumeRef.current = true
           return
         }
         if (audioRef.current) {
           try {
-            await invalidateCurrentResolution()
             trackResolutionCacheRef.current.delete(activeTrack.id)
             audioUrlCacheRef.current.delete(activeTrack.id)
             if (activeTrack.nhaccuatui_id) {
               clearCachedNctStreamUrl(activeTrack.nhaccuatui_id)
             }
-            audioRef.current.pause()
-            audioRef.current.removeAttribute('src')
+            if (audioRef.current.src === url) {
+              audioRef.current.pause()
+              audioRef.current.removeAttribute('src')
+            }
           } catch {}
+          void invalidateCurrentResolution()
         }
         console.warn('HTML5 audio stream playback info:', err)
         if (!fallbackAttemptedRef.current.has(requestId)) {
           recordRequestIdFlag(fallbackAttemptedRef.current, requestId)
+          setIsBuffering(true)
           void fallbackToYouTube(activeTrack, requestId)
           return
         }
@@ -2521,9 +2566,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
         if (!isCurrentAudioOwnership()) return
         if (requestId !== playRequestRef.current) return
-        setIsBuffering(false)
         setIsPlaying(false)
         if (err?.name === 'NotAllowedError' || String(err?.message || '').includes('not allowed')) {
+          setIsBuffering(false)
           pendingResumeRef.current = true
         } else {
           console.warn('Quick-play audio failed, falling back to full resolve:', err?.message || err)
@@ -2531,6 +2576,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           if (track.nhaccuatui_id) {
             clearCachedNctStreamUrl(track.nhaccuatui_id)
           }
+          setIsBuffering(true)
           playTrack(track, undefined, targetIdx >= 0 ? targetIdx : undefined)
         }
       })
@@ -3008,6 +3054,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             ) {
               const fallbackUrl = `/api/nhaccuatui/stream?id=${encodeURIComponent(current.nhaccuatui_id)}`
               console.log('[NCT Auto-Retry] Worker stream failed, switching to native Next.js stream proxy (YouTube search running in parallel):', fallbackUrl)
+              setIsBuffering(true)
               audioRef.current.src = fallbackUrl
               audioRef.current.load()
 
@@ -3045,8 +3092,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 ])
               } catch {}
 
-              if (!nctSucceeded && isCurrentAudioOwnership() && requestId === playRequestRef.current && !fallbackAttemptedRef.current.has(requestId)) {
+              if (!nctSucceeded && isCurrentAudioOwnership() && requestId === playRequestRef.current && !fallbackInProgressRef.current.has(requestId)) {
                 console.log('[NCT Auto-Retry] NCT play failed or timed out, using pre-fetched YouTube result...')
+                setIsBuffering(true)
                 const preSearchedTrack = await searchPromise
                 void fallbackToYouTube(current, requestId, preSearchedTrack)
               }
@@ -3070,8 +3118,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             audioUrlCacheRef.current.delete(current.id)
             const freshUrl = await getAudioUrl(current, true)
             if (!isCurrentAudioOwnership()) return
+            if (!freshUrl) {
+              // SoundCloud returned 404 (Go+ paywall) or no stream available
+              // → Skip retry entirely and fall through to YouTube fallback immediately
+              console.log('[SoundCloud Auto-Retry] No stream available (likely Go+/paywall), fast-bailing to YouTube fallback...')
+              void fallbackToYouTube(current, requestId)
+              return
+            }
             if (
-              freshUrl &&
               audioRef.current &&
               isCurrentPlayback({
                 requestId,
@@ -3114,6 +3168,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
         if (!isCurrentAudioOwnership()) return
         if (requestId !== playRequestRef.current) return
+
+        // 🛡️ Debounce rapid consecutive error events (800ms cooldown)
+        // Prevents rapid mount/unmount of Three.js canvas that exhausts GPU resources
+        const now = Date.now()
+        if (now - lastErrorAutoAdvanceRef.current < 800) {
+          console.log(`[Error Debounce] Suppressing rapid error event (${now - lastErrorAutoAdvanceRef.current}ms since last)`)
+          return
+        }
+        lastErrorAutoAdvanceRef.current = now
+
         consecutiveSkipRef.current += 1
         setIsPlaying(false)
         setIsBuffering(false)
@@ -3149,13 +3213,23 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         const current = currentTrackRef.current
         if (!current) return
 
+        const activeRequestId = playRequestRef.current
+
+        // 🛡️ If a fallback is already in progress or completed for this request,
+        // do NOT touch the <audio> element — the fallback owns it now.
+        // This prevents the watchdog from overwriting the fallback's audio.src
+        // and causing AbortError ("play() interrupted by a new load request").
+        if (fallbackInProgressRef.current.has(activeRequestId) || fallbackAttemptedRef.current.has(activeRequestId)) {
+          console.log(`[Audio Watchdog] Skipping — fallback already active/completed for request ${activeRequestId}`)
+          return
+        }
+
         const isSoundCloud = Boolean(
           current.source === 'soundcloud' ||
           current.soundcloud_id ||
           current.id?.startsWith('sc-')
         )
 
-        const activeRequestId = playRequestRef.current
         if (isSoundCloud && !scStallRecoveredRef.current.has(activeRequestId)) {
           console.warn(`[SoundCloud Watchdog] Playback stalled for >${AUDIO_STALL_WATCHDOG_TIMEOUT_MS}ms, auto-refreshing stream URL...`)
           recordRequestIdFlag(scStallRecoveredRef.current, activeRequestId)
@@ -3268,12 +3342,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const handleCanPlay = () => {
       clearAudioStallWatchdog()
       if (!isCurrentAudioOwnership()) return
-      setIsBuffering(false)
+      // If user requested playback and audio is still paused (waiting for audio.play() resolution),
+      // retain isBuffering: true so the play button does not flash to play icon before playing event fires.
+      if (desiredPlayStateRef.current === 'playing' && audioRef.current && audioRef.current.paused) {
+        // Keep buffering true until handlePlaying fires
+      } else {
+        setIsBuffering(false)
+      }
       // Retry a background play() that was rejected by iOS for lacking a fresh gesture
       if (pendingResumeRef.current && audioRef.current && audioRef.current.paused) {
         pendingResumeRef.current = false
         audioRef.current.play().then(() => {
           setIsPlaying(true)
+          setIsBuffering(false)
         }).catch(() => {
           pendingResumeRef.current = true
         })

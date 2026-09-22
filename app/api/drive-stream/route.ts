@@ -6,8 +6,8 @@ export const dynamic = 'force-dynamic'
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
-    const fileId = searchParams.get('id') || searchParams.get('fileId')
-    const titleParam = searchParams.get('filename') || searchParams.get('title') || ''
+    const fileId = (searchParams.get('id') || searchParams.get('fileId') || '').trim()
+    const titleParam = (searchParams.get('filename') || searchParams.get('title') || '').trim()
     const isProxy = searchParams.get('proxy') === 'true'
 
     if (!fileId) {
@@ -28,6 +28,18 @@ export async function GET(req: NextRequest) {
     // 🚀 Proxy mode: stream audio body directly when requested (for strict CORS / Safari clients)
     if (isProxy) {
       const range = req.headers.get('range')
+      if (range) {
+        const match = range.match(/^bytes=(\d+)-(\d+)$/)
+        if (match && parseInt(match[1], 10) > parseInt(match[2], 10)) {
+          return new Response(null, {
+            status: 416,
+            headers: {
+              'Content-Range': 'bytes */*',
+              'Access-Control-Allow-Origin': '*',
+            },
+          })
+        }
+      }
       const proxyHeaders: Record<string, string> = {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -101,8 +113,8 @@ export async function OPTIONS() {
 export async function HEAD(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
-    const fileId = searchParams.get('id') || searchParams.get('fileId')
-    const titleParam = searchParams.get('filename') || searchParams.get('title') || ''
+    const fileId = (searchParams.get('id') || searchParams.get('fileId') || '').trim()
+    const titleParam = (searchParams.get('filename') || searchParams.get('title') || '').trim()
 
     if (!fileId) {
       return new NextResponse(null, { status: 400 })

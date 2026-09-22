@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { normalizeTrackKey, normalizeTrackField, durationBucket } from '@/lib/normalizeTrackKey'
-import { normalizeTitle } from '@/lib/youtube'
+import { normalizeTitle, stripDiacritics } from '@/lib/youtube'
 import { searchYouTubeTracks, findBestYouTubeMatch } from '@/lib/youtube'
 import {
   normalizeNhacCuaTuiSearchResponse,
@@ -28,6 +28,7 @@ interface L1Entry {
 }
 
 const l1Cache = new Map<string, L1Entry>()
+const inFlightResolutions = new Map<string, Promise<L1Entry>>()
 const L1_HIT_TTL = 10 * 60 * 1000    // 10 min for hits
 const L1_MISS_TTL = 60 * 1000         // 1 min for misses
 const L1_MAX_SIZE = 2000
@@ -169,8 +170,23 @@ async function resolveStream(
         if (!lt.file_path || isPreviewUrl(lt.file_path)) continue
         const ltTitle = normalizeTitle(lt.title)
         const ltArtist = normalizeTitle(lt.artist || '')
-        const titleMatches = ltTitle.includes(cleanTitle) || cleanTitle.includes(ltTitle)
-        const artistMatches = !cleanArtist || ltArtist.includes(cleanArtist) || cleanArtist.includes(ltArtist) || ltArtist.includes(cleanPrimaryArtist)
+        const uLtTitle = stripDiacritics(ltTitle)
+        const uCleanTitle = stripDiacritics(cleanTitle)
+        const uLtArtist = stripDiacritics(ltArtist)
+        const uCleanArtist = stripDiacritics(cleanArtist)
+        const uCleanPrimaryArtist = stripDiacritics(cleanPrimaryArtist)
+
+        const titleMatches =
+          ltTitle.includes(cleanTitle) ||
+          cleanTitle.includes(ltTitle) ||
+          (uLtTitle && uCleanTitle && (uLtTitle.includes(uCleanTitle) || uCleanTitle.includes(uLtTitle)))
+        const artistMatches =
+          !cleanArtist ||
+          ltArtist.includes(cleanArtist) ||
+          cleanArtist.includes(ltArtist) ||
+          ltArtist.includes(cleanPrimaryArtist) ||
+          (uLtArtist && uCleanArtist && (uLtArtist.includes(uCleanArtist) || uCleanArtist.includes(uLtArtist))) ||
+          (uLtArtist && uCleanPrimaryArtist && uLtArtist.includes(uCleanPrimaryArtist))
         if (!titleMatches || !artistMatches) continue
 
         const driveId = lt.drive_file_id || extractDriveFileId(lt.file_path)
@@ -209,8 +225,6 @@ async function resolveStream(
       if (nctCandidates.length === 0) return null
 
       const match = findBestNhacCuaTuiMatch(nctCandidates, { title, artist: primaryArtist || artist, duration })
-        || nctCandidates[0]
-
       if (!match?.id) return null
       return {
         source: 'nhaccuatui',
@@ -239,12 +253,9 @@ async function resolveStream(
 
       if (candidates.length === 0) return null
 
-      let best = findBestYouTubeMatch(candidates, title, primaryArtist || artist, duration)
-      if (!best && candidates.length > 0) {
-        best = candidates[0]
-      }
-
+      const best = findBestYouTubeMatch(candidates, title, primaryArtist || artist, duration)
       if (!best?.youtube_id) return null
+
       return {
         source: 'youtube',
         resolvedId: best.youtube_id,
@@ -268,9 +279,17 @@ async function resolveStream(
       if (candidates.length === 0) return null
 
       const match = candidates.find((c) => {
+        const cTitle = (c.title || '').toLowerCase()
+        const targetClean = (cleanTitle || title).toLowerCase()
+        const uCTitle = stripDiacritics(cTitle)
+        const uTarget = stripDiacritics(targetClean)
+        const matchesTitle =
+          (targetClean && (cTitle.includes(targetClean) || targetClean.includes(cTitle))) ||
+          (uTarget && (uCTitle.includes(uTarget) || uTarget.includes(uCTitle)))
+        if (!matchesTitle) return false
         if (!c.duration || !duration) return true
         return Math.abs(c.duration - duration) <= 30
-      }) || candidates[0]
+      })
 
       if (!match?.soundcloud_id && !match?.id) return null
       const scId = match.soundcloud_id ? String(match.soundcloud_id) : match.id.replace(/^sc-/, '')
@@ -343,6 +362,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       console.warn('Failed to invalidate stream_resolutions row:', e)
     }
     l1Cache.delete(cacheKey)
+    inFlightResolutions.delete(cacheKey)
     // Fall through to re-resolve
   }
 
@@ -405,47 +425,75 @@ export async function GET(request: NextRequest): Promise<Response> {
     }
   }
 
-  // ── Resolve (cold path) ───────────────────────────────────────────
-  const result = await resolveStream(title, artist, duration, supabase)
+  // ── In-Flight Request Deduplication (Thundering Herd / Stampede Protection) ──
+  if (!invalidate) {
+    const existingInFlight = inFlightResolutions.get(cacheKey)
+    if (existingInFlight) {
+      try {
+        const resolvedEntry = await existingInFlight
+        return respondWith(resolvedEntry)
+      } catch {
+        // Fall through to re-resolve if in-flight failed
+      }
+    }
+  }
 
-  // Store in L1
-  evictL1IfFull()
-  l1Cache.set(cacheKey, result)
+  // ── Resolve (cold path) with In-Flight Coalescing ───────────────────
+  const resolvePromise = (async (): Promise<L1Entry> => {
+    const result = await resolveStream(title, artist, duration, supabase)
 
-  // Store in L2 (Supabase) — upsert
-  if (supabase) {
-    try {
+    // Store in L1
+    evictL1IfFull()
+    l1Cache.set(cacheKey, result)
+
+    // Store in L2 (Supabase) — non-blocking fire-and-forget so client gets streamUrl 50-150ms faster
+    if (supabase) {
       const expiresAt = new Date(
         Date.now() + (result.isMiss
           ? MISS_TTL_HOURS * 60 * 60 * 1000
           : HIT_TTL_DAYS * 24 * 60 * 60 * 1000)
       ).toISOString()
 
-      await supabase
-        .from('stream_resolutions')
-        .upsert({
-          title_key: titleKey,
-          artist_key: artistKey,
-          duration_bucket: durBucket,
-          source: result.source,
-          resolved_id: result.resolvedId,
-          resolved_title: result.title || null,
-          resolved_artist: result.artist || null,
-          resolved_duration: result.duration || null,
-          resolved_cover_url: result.coverUrl || null,
-          is_miss: result.isMiss,
-          fail_count: 0,
-          updated_at: new Date().toISOString(),
-          expires_at: expiresAt,
-        }, {
-          onConflict: 'title_key,artist_key,duration_bucket',
-        })
-    } catch (e) {
-      console.warn('Failed to persist stream resolution:', e)
+      void (async () => {
+        try {
+          await supabase
+            .from('stream_resolutions')
+            .upsert({
+              title_key: titleKey,
+              artist_key: artistKey,
+              duration_bucket: durBucket,
+              source: result.source,
+              resolved_id: result.resolvedId,
+              resolved_title: result.title || null,
+              resolved_artist: result.artist || null,
+              resolved_duration: result.duration || null,
+              resolved_cover_url: result.coverUrl || null,
+              is_miss: result.isMiss,
+              fail_count: 0,
+              updated_at: new Date().toISOString(),
+              expires_at: expiresAt,
+            }, {
+              onConflict: 'title_key,artist_key,duration_bucket',
+            })
+        } catch (e: any) {
+          console.warn('Failed to persist stream resolution:', e)
+        }
+      })()
     }
+
+    return result
+  })()
+
+  if (!invalidate) {
+    inFlightResolutions.set(cacheKey, resolvePromise)
   }
 
-  return respondWith(result)
+  try {
+    const result = await resolvePromise
+    return respondWith(result)
+  } finally {
+    inFlightResolutions.delete(cacheKey)
+  }
 }
 
 function respondWith(entry: L1Entry): Response {

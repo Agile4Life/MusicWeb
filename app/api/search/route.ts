@@ -61,8 +61,12 @@ export async function GET(request: Request) {
       }
 
       if (inFlightRequests.has(cacheKey)) {
-        const data = await inFlightRequests.get(cacheKey)
-        return cachedJsonResponse(data)
+        try {
+          const data = await inFlightRequests.get(cacheKey)
+          return cachedJsonResponse(data)
+        } catch {
+          // Fall through if in-flight failed
+        }
       }
 
       const trendingPromise = (async () => {
