@@ -3,9 +3,9 @@ import { normalizeNhacCuaTuiSongResponse } from '@/lib/nhaccuatui'
 import { fetchWithRetry, isNetworkError, isTransientError } from '@/lib/fetchWithRetry'
 
 export const dynamic = 'force-dynamic'
-// Maximum execution time per invocation (Vercel Pro limit = 300s).
-// NCT stream resolution + CDN pipe can take 8-15s on cold path.
-export const maxDuration = 300
+// Maximum execution time per invocation.
+// NCT stream resolution + CDN pipe should not exceed 60s.
+export const maxDuration = 60
 
 const DEFAULT_NCT_API_BASE_URL = 'https://music-api.vanhuy2004h.io.vn'
 
@@ -258,12 +258,6 @@ export async function GET(request: Request): Promise<Response> {
       return new Response(null, { status: 499 })
     }
 
-    if (request.signal && upstream.body) {
-      request.signal.addEventListener('abort', () => {
-        try { upstream.body?.cancel().catch(() => {}) } catch {}
-      }, { once: true })
-    }
-
     const headers = new Headers()
     headers.set('Cache-Control', 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=600')
     applyCorsHeaders(headers)
@@ -277,7 +271,56 @@ export async function GET(request: Request): Promise<Response> {
     const contentRange = upstream.headers.get('content-range')
     if (contentRange) headers.set('Content-Range', contentRange)
 
-    return new Response(upstream.body, {
+    let activeReader: ReadableStreamDefaultReader<Uint8Array> | null = null
+
+    const cancelUpstream = async () => {
+      try {
+        if (activeReader) {
+          await activeReader.cancel().catch(() => {})
+        } else {
+          await upstream.body?.cancel().catch(() => {})
+        }
+      } catch {}
+    }
+
+    if (request.signal) {
+      request.signal.addEventListener('abort', cancelUpstream, { once: true })
+    }
+
+    const stream = new ReadableStream({
+      async start(controller) {
+        if (!upstream.body) {
+          controller.close()
+          return
+        }
+        const reader = upstream.body.getReader()
+        activeReader = reader
+        try {
+          while (true) {
+            if (request.signal?.aborted) {
+              await reader.cancel().catch(() => {})
+              break
+            }
+            const { done, value } = await reader.read()
+            if (done) {
+              controller.close()
+              break
+            }
+            controller.enqueue(value)
+          }
+        } catch {
+          try { controller.close() } catch {}
+          try { await reader.cancel().catch(() => {}) } catch {}
+        } finally {
+          activeReader = null
+        }
+      },
+      cancel() {
+        void cancelUpstream()
+      },
+    })
+
+    return new Response(stream, {
       status: upstream.status,
       headers,
     })
