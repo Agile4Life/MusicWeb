@@ -13,23 +13,13 @@ function getNctSongUrl(id: string): URL {
   return url
 }
 
-// Cache signed audio URLs for 8 minutes — mirrors the client-side TTL.
-const nctResolveCache = new Map<string, {
-  url: string
-  title: string
-  artist: string
-  duration: number | null
-  coverUrl: string | null
-  expiresAt: number
-}>()
-const inFlightNctResolve = new Map<string, Promise<{
-  url: string
-  title: string
-  artist: string
-  duration: number | null
-  coverUrl: string | null
-} | null>>()
-const NCT_RESOLVE_CACHE_TTL = 5 * 60 * 1000
+import {
+  getNctAudioCache,
+  setNctAudioCache,
+  getNctInFlight,
+  setNctInFlight,
+  deleteNctInFlight,
+} from '@/lib/nctCacheStore'
 
 async function resolveNctStreamUrlCached(id: string): Promise<{
   url: string
@@ -41,14 +31,28 @@ async function resolveNctStreamUrlCached(id: string): Promise<{
   const trimmed = id.trim()
   if (!trimmed) return null
 
-  const cached = nctResolveCache.get(trimmed)
-  if (cached && Date.now() < cached.expiresAt) {
-    return { url: cached.url, title: cached.title, artist: cached.artist, duration: cached.duration, coverUrl: cached.coverUrl }
+  const cached = getNctAudioCache(trimmed)
+  if (cached) {
+    return {
+      url: cached.audioUrl,
+      title: cached.title || '',
+      artist: cached.artist || '',
+      duration: cached.duration ?? null,
+      coverUrl: cached.coverUrl || null,
+    }
   }
 
-  const existingInFlight = inFlightNctResolve.get(trimmed)
+  const existingInFlight = getNctInFlight(trimmed)
   if (existingInFlight) {
-    return existingInFlight
+    const song = await existingInFlight
+    if (!song) return null
+    return {
+      url: song.audioUrl,
+      title: song.title || '',
+      artist: song.artist || '',
+      duration: song.duration ?? null,
+      coverUrl: song.coverUrl || null,
+    }
   }
 
   const promise = (async (): Promise<{
@@ -81,24 +85,42 @@ async function resolveNctStreamUrlCached(id: string): Promise<{
       const song = normalizeNhacCuaTuiSongResponse(payload)
       if (!song || !song.audioUrl) return null
 
-      const entry = {
+      setNctAudioCache(trimmed, {
+        audioUrl: song.audioUrl,
+        title: song.title,
+        artist: song.artist,
+        duration: song.duration ?? null,
+        coverUrl: song.coverUrl || null,
+      })
+
+      return {
         url: song.audioUrl,
         title: song.title,
         artist: song.artist,
         duration: song.duration ?? null,
         coverUrl: song.coverUrl || null,
-        expiresAt: Date.now() + NCT_RESOLVE_CACHE_TTL,
       }
-      nctResolveCache.set(trimmed, entry)
-      return { url: entry.url, title: entry.title, artist: entry.artist, duration: entry.duration, coverUrl: entry.coverUrl }
     } catch {
       return null
     } finally {
-      inFlightNctResolve.delete(trimmed)
+      deleteNctInFlight(trimmed)
     }
   })()
 
-  inFlightNctResolve.set(trimmed, promise)
+  // Adapt promise type for in-flight store
+  const cacheInFlightPromise = promise.then((res) =>
+    res
+      ? {
+          audioUrl: res.url,
+          title: res.title,
+          artist: res.artist,
+          duration: res.duration,
+          coverUrl: res.coverUrl,
+          expiresAt: Date.now() + 10 * 60 * 1000,
+        }
+      : null
+  )
+  setNctInFlight(trimmed, cacheInFlightPromise)
   return promise
 }
 

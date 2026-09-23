@@ -16,32 +16,28 @@ function getNctSongUrl(id: string): URL {
   return url
 }
 
-// Signed NCT stream URLs are reused within a short window to avoid hitting the
-// external API on every track switch (that call is the slow part of loading).
-const nctAudioUrlCache = new Map<string, { audioUrl: string; expiresAt: number }>()
-const inFlightNctAudioUrl = new Map<string, Promise<string | null>>()
-const NCT_CACHE_TTL = 8 * 60 * 1000
-const NCT_AUDIO_MAX_CACHE = 1000
-
-function evictNctAudioIfFull(): void {
-  if (nctAudioUrlCache.size >= NCT_AUDIO_MAX_CACHE) {
-    const oldest = nctAudioUrlCache.keys().next().value
-    if (oldest !== undefined) nctAudioUrlCache.delete(oldest)
-  }
-}
+import {
+  getNctAudioCache,
+  setNctAudioCache,
+  deleteNctAudioCache,
+  getNctInFlight,
+  setNctInFlight,
+  deleteNctInFlight,
+} from '@/lib/nctCacheStore'
 
 async function resolveNctAudioUrlCached(id: string): Promise<string | null> {
   const trimmed = id.trim()
   if (!trimmed) return null
 
-  const cached = nctAudioUrlCache.get(trimmed)
-  if (cached && Date.now() < cached.expiresAt) {
+  const cached = getNctAudioCache(trimmed)
+  if (cached && cached.audioUrl) {
     return cached.audioUrl
   }
 
-  const existingInFlight = inFlightNctAudioUrl.get(trimmed)
+  const existingInFlight = getNctInFlight(trimmed)
   if (existingInFlight) {
-    return existingInFlight
+    const res = await existingInFlight
+    return res?.audioUrl ?? null
   }
 
   const promise = (async (): Promise<string | null> => {
@@ -75,17 +71,31 @@ async function resolveNctAudioUrlCached(id: string): Promise<string | null> {
       const song = normalizeNhacCuaTuiSongResponse(payload)
       if (!song || !song.audioUrl) return null
 
-      evictNctAudioIfFull()
-      nctAudioUrlCache.set(trimmed, { audioUrl: song.audioUrl, expiresAt: Date.now() + NCT_CACHE_TTL })
+      setNctAudioCache(trimmed, {
+        audioUrl: song.audioUrl,
+        title: song.title,
+        artist: song.artist,
+        duration: song.duration ?? null,
+        coverUrl: song.coverUrl || null,
+      })
       return song.audioUrl
     } catch {
       return null
     } finally {
-      inFlightNctAudioUrl.delete(trimmed)
+      deleteNctInFlight(trimmed)
     }
   })()
 
-  inFlightNctAudioUrl.set(trimmed, promise)
+  // Track in-flight resolution in shared store
+  const cacheInFlightPromise = promise.then((audioUrl) =>
+    audioUrl && audioUrl !== '__NCT_NOT_FOUND__'
+      ? {
+          audioUrl,
+          expiresAt: Date.now() + 10 * 60 * 1000,
+        }
+      : null
+  )
+  setNctInFlight(trimmed, cacheInFlightPromise)
   return promise
 }
 
@@ -134,8 +144,7 @@ export async function HEAD(request: Request): Promise<Response> {
 
     // Cached URL may have expired upstream — re-resolve once before giving up
     if (!upstream.ok) {
-      nctAudioUrlCache.delete(id.trim())
-      inFlightNctAudioUrl.delete(id.trim())
+      deleteNctAudioCache(id.trim())
       audioUrl = await resolveNctAudioUrlCached(id.trim())
       if (audioUrl === '__NCT_NOT_FOUND__') return new Response(null, { status: 404 })
       if (!audioUrl) return new Response(null, { status: 502 })
@@ -215,8 +224,7 @@ export async function GET(request: Request): Promise<Response> {
 
     // Cached URL may have expired upstream — re-resolve once before giving up
     if (!upstream.ok) {
-      nctAudioUrlCache.delete(id.trim())
-      inFlightNctAudioUrl.delete(id.trim())
+      deleteNctAudioCache(id.trim())
       audioUrl = await resolveNctAudioUrlCached(id.trim())
       if (audioUrl === '__NCT_NOT_FOUND__') {
         return NextResponse.json({ error: 'Song not found on NhacCuaTui' }, { status: 404 })
