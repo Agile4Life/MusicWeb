@@ -1829,6 +1829,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // ⚡ FIX #1: snapshot engine của track SẮP BỊ THAY THẾ trước khi reset state.
     const previousTrackUsedYouTubeHtml5 = ytHtml5ModeRef.current
     const track = inferTrackSource(rawTrack)
+    const playStartTime = typeof performance !== 'undefined' ? performance.now() : Date.now()
+    console.log(`[Playback:Start] "${track.title}" by ${track.artist || 'Unknown'} (id: ${track.id}, source: ${track.source})`)
 
     consecutiveSkipRef.current = 0
     nextTrackEndPrewarmedRef.current = false // reset near-end prewarm guard for new track
@@ -1955,6 +1957,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         album: track.album || undefined,
       }
       audioUrlCacheRef.current.delete(track.id)
+      console.log(`[Playback:Resolve] Cached catalog match HIT for "${track.title}" in ${(performance.now() - playStartTime).toFixed(0)}ms (source: ${activeTrack.source})`)
       setCurrentTrack(activeTrack)
       syncQueueEntry(activeTrack)
     }
@@ -2035,6 +2038,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (requestId !== playRequestRef.current) return
 
       if (streamResult) {
+        console.log(`[Playback:Resolve] External catalog resolved for "${track.title}" in ${(performance.now() - playStartTime).toFixed(0)}ms (source: ${streamResult.source})`)
         resolutionIdentityRef.current = {
           trackId: track.id,
           title: track.title,
@@ -2134,6 +2138,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // ⚠️ Critical guard: if a newer track was clicked while resolving audio URL, drop this stale request immediately!
     if (requestId !== playRequestRef.current) return
 
+    console.log(`[Playback:AudioURL] Stream URL ready in ${(performance.now() - playStartTime).toFixed(0)}ms (${url ? 'FOUND' : 'NULL'})`)
+
     const audio = audioRef.current
 
     if (url && audio && requestId === playRequestRef.current) {
@@ -2164,6 +2170,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           audio.pause()
           return
         }
+        console.log(`[Playback:Ready] Audible playback started in ${(performance.now() - playStartTime).toFixed(0)}ms (TTFP)`)
         consecutiveSkipRef.current = 0
         setIsPlaying(true)
         setIsBuffering(false)

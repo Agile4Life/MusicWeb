@@ -370,6 +370,9 @@ export async function GET(request: NextRequest): Promise<Response> {
   if (!invalidate) {
     const l1 = l1Cache.get(cacheKey)
     if (l1 && Date.now() < l1.expiresAt) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[ResolveStream:L1] Cache HIT for "${title}" by "${artist}" (source: ${l1.source})`)
+      }
       return respondWith(l1)
     }
   }
@@ -418,6 +421,9 @@ export async function GET(request: NextRequest): Promise<Response> {
         evictL1IfFull()
         l1Cache.set(cacheKey, l1Entry)
 
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[ResolveStream:L2] Cache HIT (Supabase) for "${title}" by "${artist}" (source: ${l1Entry.source})`)
+        }
         return respondWith(l1Entry)
       }
     } catch {
@@ -440,7 +446,14 @@ export async function GET(request: NextRequest): Promise<Response> {
 
   // ── Resolve (cold path) with In-Flight Coalescing ───────────────────
   const resolvePromise = (async (): Promise<L1Entry> => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[ResolveStream:Cold] Starting upstream resolve for "${title}" by "${artist}"`)
+    }
+    const tCold = Date.now()
     const result = await resolveStream(title, artist, duration, supabase)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[ResolveStream:Cold] Completed in ${Date.now() - tCold}ms: source=${result.source}, id=${result.resolvedId}`)
+    }
 
     // Store in L1
     evictL1IfFull()

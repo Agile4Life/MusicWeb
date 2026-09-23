@@ -31,17 +31,26 @@ async function resolveNctAudioUrlCached(id: string): Promise<string | null> {
 
   const cached = getNctAudioCache(trimmed)
   if (cached && cached.audioUrl) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[NCT:Stream] Cache HIT for id: ${trimmed}`)
+    }
     return cached.audioUrl
   }
 
   const existingInFlight = getNctInFlight(trimmed)
   if (existingInFlight) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[NCT:Stream] Coalescing in-flight request for id: ${trimmed}`)
+    }
     const res = await existingInFlight
     return res?.audioUrl ?? null
   }
 
   const promise = (async (): Promise<string | null> => {
     try {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[NCT:Stream] Cache MISS for id: ${trimmed} — fetching upstream NCT API`)
+      }
       // Retry once with quick backoff to fail-fast if external NCT upstream is cold/unresponsive
       const songRes = await fetchWithRetry(
         () =>
