@@ -1049,7 +1049,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (!bestMatch) {
       try {
         const query = `${track.title} ${track.artist || ''}`.trim()
-        const data = await fetchUnifiedSearch(query, 'all')
+        const fallbackSource = track.source === 'nhaccuatui' || track.nhaccuatui_id ? 'youtube' : 'all'
+        const data = await fetchUnifiedSearch(query, fallbackSource)
         if (!isCurrentAudioOwnership()) return
         if (!isCurrentPlayback({
           requestId,
@@ -1058,10 +1059,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           currentTrackId: currentTrackRef.current?.id,
         })) return
 
-        // 1a. Try NhacCuaTui direct stream if available
-        const nctCandidate = (data.nhaccuatui || []).find((t: Track) => t.nhaccuatui_id)
+        // 1a. Try alternative NhacCuaTui direct stream if available and not the same failing ID
+        const nctCandidate = (data.nhaccuatui || []).find((t: Track) => t.nhaccuatui_id && t.nhaccuatui_id !== track.nhaccuatui_id)
         if (nctCandidate?.nhaccuatui_id && audioRef.current) {
-          console.log('[fallbackToYouTube] Recovering via NhacCuaTui audio stream:', nctCandidate.nhaccuatui_id)
+          console.log('[fallbackToYouTube] Recovering via alternative NhacCuaTui audio stream:', nctCandidate.nhaccuatui_id)
           const fallbackUrl = `/api/nhaccuatui/stream?id=${encodeURIComponent(nctCandidate.nhaccuatui_id)}`
           const updatedTrack: Track = {
             ...track,
