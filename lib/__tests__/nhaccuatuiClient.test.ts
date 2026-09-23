@@ -1,9 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getNhacCuaTuiStreamUrl, resolveNhacCuaTuiAudio, resolveNhacCuaTuiSong, resolveNhacCuaTuiTrack, searchNhacCuaTui } from '../nhaccuatuiClient'
+import {
+  clearAllCachedNctSongs,
+  getNhacCuaTuiStreamUrl,
+  resolveNhacCuaTuiAudio,
+  resolveNhacCuaTuiSong,
+  resolveNhacCuaTuiTrack,
+  searchNhacCuaTui,
+} from '../nhaccuatuiClient'
 
 describe('NhacCuaTui browser client', () => {
   afterEach(() => {
     vi.restoreAllMocks()
+    clearAllCachedNctSongs()
     delete process.env.NEXT_PUBLIC_NCT_STREAM_CACHE_URL
   })
 
@@ -125,5 +133,36 @@ describe('NhacCuaTui browser client', () => {
     await prewarmNctStreamUrl('test-1')
     // Must return the proxy URL /api/nhaccuatui/stream?id=test-1 to avoid CORS failure with crossOrigin="anonymous"
     expect(getCachedNctStreamUrl('test-1')).toBe('/api/nhaccuatui/stream?id=test-1')
+  })
+
+  it('coalesces concurrent requests for the same song ID into a single network call', async () => {
+    let fetchCount = 0
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+      fetchCount++
+      await new Promise((r) => setTimeout(r, 20))
+      return new Response(JSON.stringify({
+        song: {
+          id: 'dedup-song-1',
+          title: 'Coalesced Song',
+          artist: 'Artist',
+          streamUrl: '/api/nhaccuatui/stream?id=dedup-song-1',
+        },
+      }), { status: 200 })
+    })
+
+    // Fire 5 parallel calls for the exact same song ID
+    const results = await Promise.all([
+      resolveNhacCuaTuiSong('dedup-song-1'),
+      resolveNhacCuaTuiSong('dedup-song-1'),
+      resolveNhacCuaTuiSong('dedup-song-1'),
+      resolveNhacCuaTuiSong('dedup-song-1'),
+      resolveNhacCuaTuiSong('dedup-song-1'),
+    ])
+
+    expect(results).toHaveLength(5)
+    expect(results[0]?.title).toBe('Coalesced Song')
+    expect(results[4]?.title).toBe('Coalesced Song')
+    // Should coalesce all 5 calls into exactly 1 network fetch
+    expect(fetchCount).toBe(1)
   })
 })

@@ -62,22 +62,67 @@ export async function searchNhacCuaTui(query: string): Promise<NhacCuaTuiSearchI
   }
 }
 
+// In-flight and short-term cache for song metadata (coalesces duplicate bursts on track switch)
+const inFlightSongRequests = new Map<string, Promise<NhacCuaTuiSong | null>>()
+const songMetadataCache = new Map<string, { song: NhacCuaTuiSong; ts: number }>()
+const SONG_METADATA_CACHE_TTL = 3 * 60 * 1000 // 3 minutes
+const SONG_METADATA_MAX_ENTRIES = 300
+
+export function clearCachedNctSong(id: string): void {
+  const trimmed = id.trim()
+  if (!trimmed) return
+  songMetadataCache.delete(trimmed)
+  inFlightSongRequests.delete(trimmed)
+}
+
+export function clearAllCachedNctSongs(): void {
+  songMetadataCache.clear()
+  inFlightSongRequests.clear()
+}
+
 export async function resolveNhacCuaTuiSong(id: string): Promise<NhacCuaTuiSong | null> {
   const trimmedId = id.trim()
   if (!trimmedId) return null
 
-  try {
-    const response = await fetch(`/api/nhaccuatui/song/${encodeURIComponent(trimmedId)}`, {
-      cache: 'no-store',
-    })
-    const payload = await readJson(response)
-    if (!payload || typeof payload !== 'object') return null
-
-    const song = (payload as { song?: unknown }).song
-    return normalizePublicNhacCuaTuiSongResponse(song || payload)
-  } catch {
-    return null
+  // 1. Check in-memory metadata cache
+  const cached = songMetadataCache.get(trimmedId)
+  if (cached && Date.now() - cached.ts < SONG_METADATA_CACHE_TTL) {
+    return cached.song
   }
+
+  // 2. Coalesce in-flight requests for the same song ID
+  const existingInFlight = inFlightSongRequests.get(trimmedId)
+  if (existingInFlight) {
+    return existingInFlight
+  }
+
+  const promise = (async (): Promise<NhacCuaTuiSong | null> => {
+    try {
+      const response = await fetch(`/api/nhaccuatui/song/${encodeURIComponent(trimmedId)}`, {
+        cache: 'no-store',
+      })
+      const payload = await readJson(response)
+      if (!payload || typeof payload !== 'object') return null
+
+      const song = (payload as { song?: unknown }).song
+      const normalized = normalizePublicNhacCuaTuiSongResponse(song || payload)
+      if (normalized) {
+        if (songMetadataCache.size >= SONG_METADATA_MAX_ENTRIES) {
+          const oldest = songMetadataCache.keys().next().value
+          if (oldest !== undefined) songMetadataCache.delete(oldest)
+        }
+        songMetadataCache.set(trimmedId, { song: normalized, ts: Date.now() })
+      }
+      return normalized
+    } catch {
+      return null
+    } finally {
+      inFlightSongRequests.delete(trimmedId)
+    }
+  })()
+
+  inFlightSongRequests.set(trimmedId, promise)
+  return promise
 }
 
 export async function resolveNhacCuaTuiAudio(
