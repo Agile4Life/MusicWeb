@@ -102,6 +102,13 @@ export async function OPTIONS() {
   return new Response(null, { status: 204, headers })
 }
 
+function createCompositeSignal(clientSignal?: AbortSignal, timeoutMs = 8000): AbortSignal {
+  const timeoutSignal = AbortSignal.timeout(timeoutMs)
+  if (!clientSignal) return timeoutSignal
+  if (clientSignal.aborted) return clientSignal
+  return AbortSignal.any([clientSignal, timeoutSignal])
+}
+
 export async function HEAD(request: Request): Promise<Response> {
   const url = new URL(request.url)
   const id = url.searchParams.get('id') || url.searchParams.get('key')
@@ -109,15 +116,20 @@ export async function HEAD(request: Request): Promise<Response> {
     return new Response(null, { status: 400 })
   }
 
+  if (request.signal?.aborted) {
+    return new Response(null, { status: 499 })
+  }
+
   try {
     let audioUrl = await resolveNctAudioUrlCached(id.trim())
     if (audioUrl === '__NCT_NOT_FOUND__') return new Response(null, { status: 404 })
     if (!audioUrl) return new Response(null, { status: 502 })
 
+    const signal = createCompositeSignal(request.signal, 4000)
     let upstream = await fetch(audioUrl, {
       method: 'HEAD',
       cache: 'no-store',
-      signal: AbortSignal.timeout(3500),
+      signal,
     })
 
     // Cached URL may have expired upstream — re-resolve once before giving up
@@ -130,7 +142,7 @@ export async function HEAD(request: Request): Promise<Response> {
       upstream = await fetch(audioUrl, {
         method: 'HEAD',
         cache: 'no-store',
-        signal: AbortSignal.timeout(3500),
+        signal: createCompositeSignal(request.signal, 4000),
       })
     }
 
@@ -145,7 +157,10 @@ export async function HEAD(request: Request): Promise<Response> {
     if (contentLength) headers.set('Content-Length', contentLength)
 
     return new Response(null, { status: upstream.status, headers })
-  } catch {
+  } catch (err: any) {
+    if (request.signal?.aborted || err?.name === 'AbortError') {
+      return new Response(null, { status: 499 })
+    }
     return new Response(null, { status: 502 })
   }
 }
@@ -155,6 +170,10 @@ export async function GET(request: Request): Promise<Response> {
   const id = url.searchParams.get('id') || url.searchParams.get('key')
   if (!id?.trim()) {
     return NextResponse.json({ error: 'Missing song id' }, { status: 400 })
+  }
+
+  if (request.signal?.aborted) {
+    return new Response(null, { status: 499 })
   }
 
   try {
@@ -186,11 +205,12 @@ export async function GET(request: Request): Promise<Response> {
       upstreamHeaders.set('Range', range)
     }
 
+    const signal = createCompositeSignal(request.signal, 8000)
     let upstream = await fetch(audioUrl, {
       method: 'GET',
       headers: upstreamHeaders,
       cache: 'no-store',
-      signal: AbortSignal.timeout(4500),
+      signal,
     })
 
     // Cached URL may have expired upstream — re-resolve once before giving up
@@ -208,12 +228,23 @@ export async function GET(request: Request): Promise<Response> {
         method: 'GET',
         headers: upstreamHeaders,
         cache: 'no-store',
-        signal: AbortSignal.timeout(4500),
+        signal: createCompositeSignal(request.signal, 8000),
       })
     }
 
     if (!upstream.ok) {
       return NextResponse.json({ error: 'Song stream unavailable' }, { status: 502 })
+    }
+
+    if (request.signal?.aborted) {
+      try { upstream.body?.cancel().catch(() => {}) } catch {}
+      return new Response(null, { status: 499 })
+    }
+
+    if (request.signal && upstream.body) {
+      request.signal.addEventListener('abort', () => {
+        try { upstream.body?.cancel().catch(() => {}) } catch {}
+      }, { once: true })
     }
 
     const headers = new Headers()
@@ -233,7 +264,10 @@ export async function GET(request: Request): Promise<Response> {
       status: upstream.status,
       headers,
     })
-  } catch {
+  } catch (err: any) {
+    if (request.signal?.aborted || err?.name === 'AbortError') {
+      return new Response(null, { status: 499 })
+    }
     return NextResponse.json({ error: 'Song stream unavailable' }, { status: 502 })
   }
 }
