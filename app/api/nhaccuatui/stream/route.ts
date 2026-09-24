@@ -223,13 +223,26 @@ export async function GET(request: Request): Promise<Response> {
       upstreamHeaders.set('Range', range)
     }
 
-    const signal = createCompositeSignal(request.signal, 8000)
-    let upstream = await fetch(audioUrl, {
-      method: 'GET',
-      headers: upstreamHeaders,
-      cache: 'no-store',
-      signal,
-    })
+    const connectController = new AbortController()
+    const connectTimer = setTimeout(() => connectController.abort(new Error('Connection timeout')), 10000)
+    const onAbort = () => {
+      try { connectController.abort(request.signal?.reason) } catch {}
+    }
+    if (request.signal) {
+      request.signal.addEventListener('abort', onAbort, { once: true })
+    }
+
+    let upstream: Response
+    try {
+      upstream = await fetch(audioUrl, {
+        method: 'GET',
+        headers: upstreamHeaders,
+        cache: 'no-store',
+        signal: connectController.signal,
+      })
+    } finally {
+      clearTimeout(connectTimer)
+    }
 
     // Cached URL may have expired upstream — re-resolve once before giving up
     if (!upstream.ok) {
@@ -241,12 +254,17 @@ export async function GET(request: Request): Promise<Response> {
       if (!audioUrl) {
         return NextResponse.json({ error: 'Song stream unavailable' }, { status: 502 })
       }
-      upstream = await fetch(audioUrl, {
-        method: 'GET',
-        headers: upstreamHeaders,
-        cache: 'no-store',
-        signal: createCompositeSignal(request.signal, 8000),
-      })
+      const retryTimer = setTimeout(() => connectController.abort(new Error('Connection timeout')), 10000)
+      try {
+        upstream = await fetch(audioUrl, {
+          method: 'GET',
+          headers: upstreamHeaders,
+          cache: 'no-store',
+          signal: connectController.signal,
+        })
+      } finally {
+        clearTimeout(retryTimer)
+      }
     }
 
     if (!upstream.ok) {

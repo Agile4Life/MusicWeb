@@ -38,7 +38,7 @@ export type RepeatMode = 'off' | 'all' | 'one'
 
 export const DEFAULT_VOLUME = 0.8
 export const MAX_CONSECUTIVE_SKIPS = 4
-export const AUDIO_STALL_WATCHDOG_TIMEOUT_MS = 6500
+export const AUDIO_STALL_WATCHDOG_TIMEOUT_MS = 12000
 
 export interface PlayerControlsContextType {
   playTrack: (
@@ -407,8 +407,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (audio) {
         try {
           audio.pause()
-          audio.removeAttribute('src')
-          audio.load()
         } catch (err: any) {
           if (err?.name !== 'AbortError') {
             // Silently absorb AbortError from interrupted play()
@@ -1022,6 +1020,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (fallbackInProgressRef.current.has(requestId)) {
       return
     }
+
+    // 🛡️ Active Playback Guard: Do not destroy or override audio if it is already playing
+    const currentAudio = audioRef.current
+    if (currentAudio && !currentAudio.paused && !currentAudio.ended && (currentAudio.currentTime > 0 || currentAudio.readyState >= 3)) {
+      console.log('[fallbackToYouTube] Audio is already actively playing, aborting redundant fallback')
+      return
+    }
+
     recordRequestIdFlag(fallbackInProgressRef.current, requestId)
     recordRequestIdFlag(fallbackAttemptedRef.current, requestId)
     setIsBuffering(true)
@@ -1836,6 +1842,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     nextTrackEndPrewarmedRef.current = false // reset near-end prewarm guard for new track
     hasPrewarmedNextTrackRef.current = false
     desiredPlayStateRef.current = 'playing'
+    setIsBuffering(true)
+    setIsPlaying(false)
     const requestId = beginNewPlaybackRequest(track)
 
     // 🚀 Push currentTrack onto true playback history stack when user changes track
@@ -2178,6 +2186,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         return
       } catch (err: any) {
         if (err?.name === 'AbortError' || String(err).includes('interrupted')) {
+          if (desiredPlayStateRef.current === 'paused') {
+            setIsBuffering(false)
+            setIsPlaying(false)
+          }
           return // Ignore play interruption silently
         }
         setIsPlaying(false)
@@ -3282,6 +3294,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
           void searchPromise.then((preSearchedTrack) => {
             if (isCurrentAudioOwnership() && playRequestRef.current === activeRequestId) {
+              const activeAudio = audioRef.current
+              if (activeAudio && !activeAudio.paused && !activeAudio.ended && (activeAudio.currentTime > 0 || activeAudio.readyState >= 3)) {
+                console.log('[Audio Watchdog] Stream recovered and audio is actively playing — skipping fallbackToYouTube')
+                setIsBuffering(false)
+                setIsPlaying(true)
+                return
+              }
               void fallbackToYouTube(current, activeRequestId, preSearchedTrack)
             }
           })
@@ -3935,11 +3954,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 playsInline
                 crossOrigin="anonymous"
                 {...({'webkit-playsinline': ''} as any)}
-                onWaiting={() => setIsBuffering(true)}
-                onStalled={() => setIsBuffering(true)}
-                onLoadStart={() => setIsBuffering(true)}
-                onCanPlay={() => setIsBuffering(false)}
-                onPlaying={() => setIsBuffering(false)}
               />
               {/* Hidden YouTube Player IFrame container (Must have non-zero dimensions to prevent YouTube SDK 4s auto-pause) */}
               <div className="fixed top-0 left-0 w-1 h-1 opacity-0 pointer-events-none overflow-hidden -z-50">

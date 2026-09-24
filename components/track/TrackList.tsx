@@ -35,7 +35,7 @@ export function TrackList({
   onBulkDeleted,
   isSearchResult = false,
 }: TrackListProps) {
-  const { currentTrack, isPlaying, playTrack, playSearchTrack, togglePlay, addToQueue } = usePlayer()
+  const { currentTrack, isPlaying, isBuffering, playTrack, playSearchTrack, togglePlay, addToQueue } = usePlayer()
   const supabase = createClient()
   const {
     containerRef: listContainerRef,
@@ -44,6 +44,7 @@ export function TrackList({
     handleContainerMouseLeave: handleListMouseLeave,
   } = useListGlideIndicator(52)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const lastPlayClickRef = React.useRef<{ id: string; time: number }>({ id: '', time: 0 })
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [bulkArtist, setBulkArtist] = useState('')
   const [bulkAlbum, setBulkAlbum] = useState('')
@@ -301,7 +302,15 @@ export function TrackList({
               isPlayingThis={isPlayingThis}
               onMouseEnterRow={handleRowMouseEnter}
               onPlayClick={() => {
+                const now = Date.now()
+                if (lastPlayClickRef.current.id === track.id && now - lastPlayClickRef.current.time < 400) {
+                  return
+                }
+                lastPlayClickRef.current = { id: track.id, time: now }
+
                 if (isCurrent) {
+                  // Guard against impatient click during initial buffering (prevents unintended pause & AbortError)
+                  if (isBuffering && !isPlaying) return
                   togglePlay()
                 } else if (isSearchResult) {
                   playSearchTrack(track)
