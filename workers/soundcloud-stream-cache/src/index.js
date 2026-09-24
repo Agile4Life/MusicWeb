@@ -68,7 +68,7 @@ function redirectResponse(targetUrl, maxAge = 900) {
 function isFullAudioTrack(raw) {
   if (!raw || typeof raw.id === 'undefined') return false
   if (raw.snippet === true) return false
-  if (raw.policy === 'SNIPPET' || raw.policy === 'BLOCK') return false
+  if (raw.policy === 'SNIPPET' || raw.policy === 'BLOCK' || raw.policy === 'SNIP') return false
   if (raw.monetization_model === 'SUB_HIGH_TIER') return false
   if (raw.access === 'blocked') return false
   if (raw.streamable === false) return false

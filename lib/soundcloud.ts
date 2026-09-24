@@ -55,7 +55,7 @@ export interface SoundCloudRawTrack {
 export function isSoundCloudFullAudio(track: SoundCloudRawTrack | any): boolean {
   if (!track || typeof track.id === 'undefined') return false
   if (track.snippet === true) return false
-  if (track.policy === 'SNIPPET' || track.policy === 'BLOCK') return false
+  if (track.policy === 'SNIPPET' || track.policy === 'BLOCK' || track.policy === 'SNIP') return false
   if (track.monetization_model === 'SUB_HIGH_TIER') return false
   if (track.access === 'blocked') return false
   if (track.streamable === false) return false

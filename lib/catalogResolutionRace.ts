@@ -1,6 +1,6 @@
 import { firstValidResult } from './firstValidResult'
 
-const DEFAULT_PREFERRED_HEAD_START_MS = 250
+const DEFAULT_PREFERRED_HEAD_START_MS = 800
 
 /**
  * Gives the preferred catalog source a brief head start, then returns the
