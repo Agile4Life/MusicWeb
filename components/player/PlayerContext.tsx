@@ -2186,7 +2186,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         return
       } catch (err: any) {
         if (err?.name === 'AbortError' || String(err).includes('interrupted')) {
-          if (desiredPlayStateRef.current === 'paused') {
+          if ((desiredPlayStateRef.current as 'playing' | 'paused' | null) === 'paused') {
             setIsBuffering(false)
             setIsPlaying(false)
           }

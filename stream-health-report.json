@@ -1,0 +1,63 @@
+{
+  "timestamp": "2026-09-24T04:31:17.943Z",
+  "total": 1000,
+  "playable": 1000,
+  "percentage": "100.00",
+  "statusCounts": {
+    "HEALTHY": 724,
+    "SLOW_COLD": 2,
+    "RECOVERABLE_VIA_FALLBACK": 274,
+    "DEAD": 0
+  },
+  "statsBySource": {
+    "spotify": {
+      "total": 166,
+      "playable": 166,
+      "totalLatency": 29659,
+      "countWithLatency": 166
+    },
+    "itunes": {
+      "total": 33,
+      "playable": 33,
+      "totalLatency": 4575,
+      "countWithLatency": 33
+    },
+    "youtube": {
+      "total": 349,
+      "playable": 349,
+      "totalLatency": 37804,
+      "countWithLatency": 349
+    },
+    "nhaccuatui": {
+      "total": 327,
+      "playable": 327,
+      "totalLatency": 108166,
+      "countWithLatency": 327
+    },
+    "drive": {
+      "total": 30,
+      "playable": 30,
+      "totalLatency": 67312,
+      "countWithLatency": 30
+    },
+    "direct_http": {
+      "total": 18,
+      "playable": 18,
+      "totalLatency": 21286,
+      "countWithLatency": 18
+    },
+    "local": {
+      "total": 17,
+      "playable": 17,
+      "totalLatency": 170,
+      "countWithLatency": 17
+    },
+    "soundcloud": {
+      "total": 60,
+      "playable": 60,
+      "totalLatency": 16217,
+      "countWithLatency": 60
+    }
+  },
+  "deadTracks": []
+}

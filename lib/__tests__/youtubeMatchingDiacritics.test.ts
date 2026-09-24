@@ -4,7 +4,7 @@ import { Track } from '@/types'
 
 describe('YouTube Matching: Vietnamese Diacritics & Unaccented Matching', () => {
   it('matches target with diacritics against unaccented YouTube candidate', () => {
-    const candidates: Track[] = [
+    const candidates = [
       {
         id: 'yt-1',
         title: 'Chung Ta Cua Tuong Lai - Son Tung M-TP (Official Audio)',
@@ -22,7 +22,7 @@ describe('YouTube Matching: Vietnamese Diacritics & Unaccented Matching', () => 
     ]
 
     const match = findBestYouTubeMatch(
-      candidates,
+      candidates as unknown as Track[],
       'Chúng Ta Của Tương Lai',
       'Sơn Tùng M-TP',
       250
@@ -33,7 +33,7 @@ describe('YouTube Matching: Vietnamese Diacritics & Unaccented Matching', () => 
   })
 
   it('handles Đ/đ conversion (e.g. Đừng Làm Trái Tim Anh Đau -> Dung Lam Trai Tim Anh Dau)', () => {
-    const candidates: Track[] = [
+    const candidates = [
       {
         id: 'yt-1',
         title: 'Dung Lam Trai Tim Anh Dau - Son Tung M-TP (Official MV)',
@@ -44,7 +44,7 @@ describe('YouTube Matching: Vietnamese Diacritics & Unaccented Matching', () => 
     ]
 
     const match = findBestYouTubeMatch(
-      candidates,
+      candidates as unknown as Track[],
       'Đừng Làm Trái Tim Anh Đau',
       'Sơn Tùng M-TP',
       330
@@ -55,7 +55,7 @@ describe('YouTube Matching: Vietnamese Diacritics & Unaccented Matching', () => 
   })
 
   it('matches unaccented target against candidate with diacritics (reverse case)', () => {
-    const candidates: Track[] = [
+    const candidates = [
       {
         id: 'yt-1',
         title: 'Chúng Ta Của Hiện Tại - Sơn Tùng M-TP (Official Music Video)',
@@ -66,7 +66,7 @@ describe('YouTube Matching: Vietnamese Diacritics & Unaccented Matching', () => 
     ]
 
     const match = findBestYouTubeMatch(
-      candidates,
+      candidates as unknown as Track[],
       'Chung Ta Cua Hien Tai',
       'Son Tung M-TP',
       300
@@ -77,7 +77,7 @@ describe('YouTube Matching: Vietnamese Diacritics & Unaccented Matching', () => 
   })
 
   it('matches "Để Mị Nói Cho Mà Nghe" (multiple tones and đ)', () => {
-    const candidates: Track[] = [
+    const candidates = [
       {
         id: 'yt-1',
         title: 'De Mi Noi Cho Ma Nghe - Hoang Thuy Linh',
@@ -88,7 +88,7 @@ describe('YouTube Matching: Vietnamese Diacritics & Unaccented Matching', () => 
     ]
 
     const match = findBestYouTubeMatch(
-      candidates,
+      candidates as unknown as Track[],
       'Để Mị Nói Cho Mà Nghe',
       'Hoàng Thùy Linh',
       200
