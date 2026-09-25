@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     pool: 'threads',
-    include: ['components/**/*.test.ts', 'lib/**/*.test.ts', 'app/**/*.test.ts', 'hooks/**/*.test.ts'],
+    include: ['components/**/*.test.ts', 'lib/**/*.test.ts', 'app/**/*.test.ts', 'hooks/**/*.test.ts', 'workers/**/*.test.ts'],
     exclude: ['**/node_modules/**', '**/.claude/**', '**/.worktrees/**', '**/.next/**'],
   },
   resolve: {

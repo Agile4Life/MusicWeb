@@ -148,30 +148,66 @@ async function handleStream(fileId, filenameHint, request, env, ctx) {
   const originContentLength = originRes.headers.get('content-length')
   if (originContentLength) headers.set('Content-Length', originContentLength)
 
-  const isPartial = originRes.status === 206 || !!originContentRange
-  if (isPartial) {
-    // ✅ Dùng đúng header thật từ origin và KHÔNG ghi dở dang vào R2
-    if (originContentRange) headers.set('Content-Range', originContentRange)
-    return new Response(originRes.body, { status: originRes.status || 206, headers })
+  // Determine if this response represents the complete file (either 200 OK or 206 bytes 0-(total-1)/total)
+  let isFullFile = originRes.status === 200 && !originContentRange
+  if (originContentRange) {
+    const match = originContentRange.match(/^bytes\s+0-(\d+)\/(\d+)$/)
+    if (match) {
+      const end = Number(match[1])
+      const total = Number(match[2])
+      if (Number.isFinite(end) && Number.isFinite(total) && end === total - 1) {
+        isFullFile = true
+      }
+    }
   }
 
-  // Full body -> Stream-tee ghi ngầm vào R2
-  const [clientBody, r2Body] = originRes.body.tee()
+  if (isFullFile) {
+    // Complete file from byte 0 to end -> Stream-tee directly into R2 while streaming to client!
+    const [clientBody, r2Body] = originRes.body.tee()
 
+    ctx.waitUntil(
+      (async () => {
+        try {
+          await env.AUDIO_BUCKET.put(r2Key, r2Body, {
+            httpMetadata: { contentType },
+          })
+        } catch (e) {
+          console.warn('R2 put failed for', fileId, e?.message || e)
+          await env.AUDIO_BUCKET.delete(r2Key).catch(() => {})
+        }
+      })()
+    )
+
+    if (originContentRange) headers.set('Content-Range', originContentRange)
+    return new Response(clientBody, { status: originRes.status, headers })
+  }
+
+  // If this is a partial slice (e.g. user seeking into uncached track, or Safari bytes=0-1 probe)
+  if (originContentRange) headers.set('Content-Range', originContentRange)
+
+  // In the background, trigger full file cache into R2 so future plays & seeks are instant
   ctx.waitUntil(
     (async () => {
       try {
-        await env.AUDIO_BUCKET.put(r2Key, r2Body, {
-          httpMetadata: { contentType },
+        const existing = await env.AUDIO_BUCKET.head(r2Key)
+        if (existing && existing.size > 0) return
+
+        const fullRes = await fetch(resolved.url, {
+          method: 'GET',
+          headers: { 'User-Agent': USER_AGENT },
         })
+        if (fullRes.ok && fullRes.body) {
+          await env.AUDIO_BUCKET.put(r2Key, fullRes.body, {
+            httpMetadata: { contentType },
+          })
+        }
       } catch (e) {
-        console.warn('R2 put failed for', fileId, e?.message || e)
-        await env.AUDIO_BUCKET.delete(r2Key).catch(() => {})
+        console.warn('Background R2 caching failed for', fileId, e?.message || e)
       }
     })()
   )
 
-  return new Response(clientBody, { status: 200, headers })
+  return new Response(originRes.body, { status: originRes.status, headers })
 }
 
 // ---------------------------------------------------------------- HEAD flow
