@@ -48,4 +48,69 @@ describe('MediaSession Safari Action Handlers', () => {
     expect(registeredHandlers.seekbackward).toBeNull()
     expect(registeredHandlers.seekforward).toBeNull()
   })
+
+  it('synchronizes desiredPlayStateRef intent when background lock-screen actions are dispatched', async () => {
+    const desiredPlayStateRef = { current: 'playing' as 'playing' | 'paused' | null }
+    const mockAudio = {
+      src: 'https://example.com/audio.mp3',
+      paused: false,
+      pause: vi.fn(() => {
+        mockAudio.paused = true
+      }),
+      play: vi.fn(async () => {
+        mockAudio.paused = false
+      }),
+    }
+
+    const prevTrack = vi.fn()
+    const nextTrack = vi.fn()
+
+    // Mimic the updated PlayerContext handlers
+    const onPlay = async () => {
+      desiredPlayStateRef.current = 'playing'
+      await mockAudio.play()
+    }
+    const onPause = () => {
+      desiredPlayStateRef.current = 'paused'
+      mockAudio.pause()
+    }
+    const onStop = () => {
+      desiredPlayStateRef.current = 'paused'
+      mockAudio.pause()
+    }
+    const onNext = () => {
+      desiredPlayStateRef.current = 'playing'
+      nextTrack()
+    }
+    const onPrev = () => {
+      desiredPlayStateRef.current = 'playing'
+      prevTrack()
+    }
+
+    navigator.mediaSession.setActionHandler('play', onPlay)
+    navigator.mediaSession.setActionHandler('pause', onPause)
+    navigator.mediaSession.setActionHandler('stop', onStop)
+    navigator.mediaSession.setActionHandler('nexttrack', onNext)
+    navigator.mediaSession.setActionHandler('previoustrack', onPrev)
+
+    // 1. User taps pause on lock screen
+    registeredHandlers.pause()
+    expect(mockAudio.pause).toHaveBeenCalled()
+    expect(desiredPlayStateRef.current).toBe('paused')
+
+    // 2. User taps play on lock screen
+    await registeredHandlers.play()
+    expect(mockAudio.play).toHaveBeenCalled()
+    expect(desiredPlayStateRef.current).toBe('playing')
+
+    // 3. User taps nexttrack
+    registeredHandlers.nexttrack()
+    expect(nextTrack).toHaveBeenCalled()
+    expect(desiredPlayStateRef.current).toBe('playing')
+
+    // 4. User taps stop
+    registeredHandlers.stop()
+    expect(desiredPlayStateRef.current).toBe('paused')
+  })
 })
+

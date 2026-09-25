@@ -3723,6 +3723,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       navigator.mediaSession.setActionHandler('play', () => {
         void (async () => {
+          desiredPlayStateRef.current = 'playing'
           // iOS HTML5 YouTube mode: audio element handles playback, no iframe needed
           if (isIOSYouTubeHtml5Mode()) {
             if (!audioRef.current) return
@@ -3749,9 +3750,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           }
 
           // All other audio sources (NCT, SoundCloud, Drive, local, etc.)
-          if (!audioRef.current) return
+          const audio = audioRef.current
+          if (!audio) return
+          if (!audio.src || audio.src === window.location.href || audio.error) {
+            if (currentTrackRef.current) {
+              await playTrack(currentTrackRef.current, queueRef.current, currentIndexRef.current, currentTimeRef.current)
+            }
+            return
+          }
           try {
-            await playAudioElement(audioRef.current)
+            await playAudioElement(audio)
             setIsPlaying(true)
           } catch (err) {
             setIsPlaying(false)
@@ -3761,6 +3769,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       })
 
       navigator.mediaSession.setActionHandler('pause', () => {
+        desiredPlayStateRef.current = 'paused'
         // iOS HTML5 YouTube mode: use audio element
         if (isIOSYouTubeHtml5Mode()) {
           if (audioRef.current) audioRef.current.pause()
@@ -3777,8 +3786,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         setIsPlaying(false)
       })
 
-      navigator.mediaSession.setActionHandler('previoustrack', () => prevTrackRef.current())
-      navigator.mediaSession.setActionHandler('nexttrack', () => nextTrackRef.current())
+      navigator.mediaSession.setActionHandler('previoustrack', () => {
+        desiredPlayStateRef.current = 'playing'
+        prevTrackRef.current()
+      })
+      navigator.mediaSession.setActionHandler('nexttrack', () => {
+        desiredPlayStateRef.current = 'playing'
+        nextTrackRef.current()
+      })
 
       // We deliberately DO NOT set 'seekto', 'seekbackward', or 'seekforward' handlers.
       // Setting 'seekto' causes Chrome on Android to replace the Next/Prev track buttons
@@ -3792,6 +3807,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       try {
         navigator.mediaSession.setActionHandler('stop', () => {
+          desiredPlayStateRef.current = 'paused'
           // iOS HTML5 YouTube mode: use audio element
           if (isIOSYouTubeHtml5Mode()) {
             if (audioRef.current) audioRef.current.pause()
@@ -3812,7 +3828,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.warn('MediaSession init error:', err)
     }
-  }, [currentTrack?.id, seek])
+  }, [currentTrack?.id, playTrack, seek])
 
   // Playback state — only re-run when play state changes (NOT every frame)
   useEffect(() => {
@@ -3833,7 +3849,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       try {
         const d = playbackProgressStore.getDuration() || (duration > 0 ? duration : (currentTrack?.duration || 0))
         const t = currentTimeRef.current || playbackProgressStore.getCurrentTime()
-        if (d > 0 && t >= 0) {
+        if (d > 0 && t >= 0 && Number.isFinite(d) && Number.isFinite(t)) {
           navigator.mediaSession.setPositionState({
             duration: Math.max(d, 0),
             playbackRate: 1,
