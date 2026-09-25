@@ -134,6 +134,7 @@ async function resolveStream(
   artist: string,
   duration: number | undefined,
   supabase: any,
+  meta?: { cacheKey: string; titleKey: string; artistKey: string; durBucket: number },
 ): Promise<L1Entry> {
   const primaryArtist = getPrimaryArtistName(artist) || artist
   const cleanTitle = normalizeTitle(title)
@@ -312,9 +313,42 @@ async function resolveStream(
   const driveResult = await tryDrive()
   if (driveResult) return driveResult
 
-  // 2. Give NCT a short preference window, then use the first valid source.
-  // This avoids a slow provider delaying playback after another source is ready.
-  const resolved = await resolveCatalogCandidates(tryNct, [tryYoutube, trySoundCloud])
+  // 2. Parallel priority race: NCT (preferred with 1000ms grace window) -> SoundCloud (preferred audio fallback) -> YouTube
+  const resolved = await resolveCatalogCandidates(
+    tryNct,
+    [trySoundCloud, tryYoutube],
+    1000,
+    (lateNctResult) => {
+      if (lateNctResult && !lateNctResult.isMiss && meta) {
+        // Upgrade cache to NCT for future plays
+        evictL1IfFull()
+        l1Cache.set(meta.cacheKey, lateNctResult)
+        if (supabase) {
+          const expiresAt = new Date(Date.now() + HIT_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString()
+          supabase
+            .from('stream_resolutions')
+            .upsert({
+              title_key: meta.titleKey,
+              artist_key: meta.artistKey,
+              duration_bucket: meta.durBucket,
+              source: lateNctResult.source,
+              resolved_id: lateNctResult.resolvedId,
+              resolved_title: lateNctResult.title || null,
+              resolved_artist: lateNctResult.artist || null,
+              resolved_duration: lateNctResult.duration || null,
+              resolved_cover_url: lateNctResult.coverUrl || null,
+              is_miss: false,
+              fail_count: 0,
+              updated_at: new Date().toISOString(),
+              expires_at: expiresAt,
+            }, {
+              onConflict: 'title_key,artist_key,duration_bucket',
+            })
+            .catch(() => {})
+        }
+      }
+    }
+  )
   if (resolved) return resolved
 
   // === Miss — Tất cả các nguồn đều không tìm được ===
@@ -450,7 +484,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       console.log(`[ResolveStream:Cold] Starting upstream resolve for "${title}" by "${artist}"`)
     }
     const tCold = Date.now()
-    const result = await resolveStream(title, artist, duration, supabase)
+    const result = await resolveStream(title, artist, duration, supabase, { cacheKey, titleKey, artistKey, durBucket })
     if (process.env.NODE_ENV !== 'production') {
       console.log(`[ResolveStream:Cold] Completed in ${Date.now() - tCold}ms: source=${result.source}, id=${result.resolvedId}`)
     }
