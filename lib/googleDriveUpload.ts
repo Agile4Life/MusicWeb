@@ -192,6 +192,7 @@ export function triggerDrivePrewarm(tracks: { file_path?: string }[]) {
 
   if (fileIds.length === 0) return
 
+  // 1. Prewarm Google Drive CDN links via Next.js resolver
   fetch('/api/drive-stream/prewarm', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -206,6 +207,16 @@ export function triggerDrivePrewarm(tracks: { file_path?: string }[]) {
       }
     })
     .catch(() => {})
+
+  // 2. Pre-heat Cloudflare R2 cache for the first 3 queued tracks
+  if (typeof window !== 'undefined' && DRIVE_STREAM_WORKER_BASE) {
+    fileIds.slice(0, 3).forEach((id) => {
+      fetch(`${DRIVE_STREAM_WORKER_BASE}/api/drive-stream?id=${encodeURIComponent(id)}&prewarm=true`, {
+        method: 'HEAD',
+        mode: 'cors',
+      }).catch(() => {})
+    })
+  }
 }
 
 export function extractDriveFolderId(input: string): string | null {

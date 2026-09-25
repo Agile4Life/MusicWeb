@@ -51,7 +51,7 @@ export default {
       const filenameHint = searchParams.get('filename') || searchParams.get('title') || ''
       if (!fileId) return json({ error: 'Missing fileId' }, 400)
       return method === 'HEAD'
-        ? handleHead(fileId, env)
+        ? handleHead(fileId, filenameHint, env, ctx, searchParams)
         : handleStream(fileId, filenameHint, request, env, ctx)
     }
 
@@ -212,7 +212,7 @@ async function handleStream(fileId, filenameHint, request, env, ctx) {
 
 // ---------------------------------------------------------------- HEAD flow
 
-async function handleHead(fileId, env) {
+async function handleHead(fileId, filenameHint, env, ctx, searchParams) {
   const r2Key = `drive-songs/${fileId}`
 
   try {
@@ -222,6 +222,34 @@ async function handleHead(fileId, env) {
       return new Response(null, { status: 200, headers })
     }
   } catch {}
+
+  // If prewarm is requested and file is not yet cached in R2, kick off background fetch
+  const isPrewarm = searchParams?.get('prewarm') === 'true'
+  if (isPrewarm && ctx && env.APP_RESOLVE_ORIGIN_URL) {
+    ctx.waitUntil(
+      (async () => {
+        try {
+          const resolved = await resolveViaApp(fileId, filenameHint, env)
+          if (!resolved || !resolved.url) return
+          let contentType = resolved.contentType || 'audio/mpeg'
+          if (contentType.includes('text/html') || contentType.includes('octet-stream')) {
+            contentType = detectAudioContentType(filenameHint)
+          }
+          const fullRes = await fetch(resolved.url, {
+            method: 'GET',
+            headers: { 'User-Agent': USER_AGENT },
+          })
+          if (fullRes.ok && fullRes.body) {
+            await env.AUDIO_BUCKET.put(r2Key, fullRes.body, {
+              httpMetadata: { contentType },
+            })
+          }
+        } catch (err) {
+          console.warn('Prewarm background fetch failed for', fileId, err?.message || err)
+        }
+      })()
+    )
+  }
 
   return new Response(null, {
     status: 200,

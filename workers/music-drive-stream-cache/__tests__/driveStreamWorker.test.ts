@@ -251,4 +251,49 @@ describe('music-drive-stream-cache Cloudflare Worker', () => {
 
     expect(env.AUDIO_BUCKET.delete).toHaveBeenCalledWith('drive-songs/corrupted-track')
   })
+
+  it('triggers background prewarm on HEAD with prewarm=true when not in R2', async () => {
+    const testAudio = new Uint8Array([1, 2, 3, 4, 5])
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes('/api/drive-resolve-origin')) {
+        return new Response(JSON.stringify({ url: 'https://drive.google.internal/download/prewarm-file', contentType: 'audio/mpeg' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      if (url.includes('drive.google.internal/download/prewarm-file')) {
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(testAudio)
+              controller.close()
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'audio/mpeg' } }
+        )
+      }
+      return new Response(null, { status: 404 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const req = new Request('https://worker.internal/api/drive-stream?id=prewarm-file&prewarm=true', {
+      method: 'HEAD',
+    })
+
+    const res = await worker.fetch(req, env, ctx)
+
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Accept-Ranges')).toBe('bytes')
+
+    // Wait for ctx.waitUntil background tasks to complete
+    await Promise.all(backgroundTasks)
+
+    expect(env.AUDIO_BUCKET.put).toHaveBeenCalledWith(
+      'drive-songs/prewarm-file',
+      expect.anything(),
+      expect.objectContaining({ httpMetadata: { contentType: 'audio/mpeg' } })
+    )
+    expect(mockR2Store.has('drive-songs/prewarm-file')).toBe(true)
+  })
 })
+
