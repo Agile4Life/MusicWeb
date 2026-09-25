@@ -16,6 +16,7 @@ import { ArtistLinks } from '@/components/common/ArtistLinks'
 import { getCachedResolvedAlbum, setCachedResolvedAlbum, isRealAlbumName } from '@/lib/albumCache'
 import { triggerDrivePrewarm } from '@/lib/googleDriveUpload'
 import { prewarmNctStreamUrl } from '@/lib/nhaccuatuiClient'
+import { resolveStreamCached } from '@/lib/resolveStreamClient'
 import { TrackContextMenu } from './TrackContextMenu'
 
 
@@ -122,7 +123,7 @@ function TrackRowComponent({
     onMouseEnterRow?.(e)
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
     hoverTimeoutRef.current = setTimeout(() => {
-      // Pre-warm NCT stream URL so play is instant when user clicks
+      // 1. Pre-warm NCT stream URL so play is instant when user clicks
       if (track.source === 'nhaccuatui' && track.nhaccuatui_id) {
         const id = track.nhaccuatui_id
         if (!recentlyPrewarmedRef.current.has(id)) {
@@ -132,8 +133,25 @@ function TrackRowComponent({
           setTimeout(() => recentlyPrewarmedRef.current.delete(id), 8 * 60 * 1000)
         }
       }
-      // Also pre-warm Drive for local tracks
+      // 2. Pre-warm Drive for local tracks
       triggerDrivePrewarm([track])
+
+      // 3. Pre-resolve external catalog tracks (Spotify / Deezer / iTunes) during hover
+      // so when the user clicks Play, stream is already in memory cache (0ms delay)
+      const isCatalog =
+        track.source === 'spotify' ||
+        track.source === 'itunes' ||
+        (track as any).source === 'deezer' ||
+        Boolean(track.spotify_id) ||
+        Boolean(track.itunes_id)
+      if (isCatalog && track.title) {
+        resolveStreamCached({
+          title: track.title,
+          artist: track.artist,
+          duration: track.duration,
+          album: track.album,
+        }).catch(() => {})
+      }
     }, 150)
   }
 

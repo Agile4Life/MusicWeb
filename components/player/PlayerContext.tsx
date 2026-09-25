@@ -1899,6 +1899,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    // ⚡ Prewarm upcoming 2-3 tracks in background for instant playback when transitioning
+    if (nextQueue.length > 0 && nextIndex >= 0 && nextIndex < nextQueue.length - 1) {
+      const upcoming = nextQueue.slice(nextIndex + 1, nextIndex + 4)
+      if (upcoming.length > 0) {
+        prewarmTrackBatch(upcoming).catch(() => {})
+      }
+    }
+
     const initialTime = typeof startFromTime === 'number' && startFromTime >= 0 ? startFromTime : 0
 
     // Apply a seek the user performed while the track was still resolving
@@ -2138,9 +2146,21 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // 🎵 1. Try SYNCHRONOUS URL cache hit first (Zero-await gap for unbroken iOS Safari background playback gesture chain)
     let url: string | null = audioUrlCacheRef.current.get(activeTrack.id)?.url || null
     if (!url) {
-      try {
-        url = await getAudioUrlCached(activeTrack)
-      } catch (error: any) {}
+      const driveFileId = activeTrack.drive_file_id || extractDriveFileId(activeTrack.file_path || '')
+      if (driveFileId && (activeTrack.source === 'local' || !activeTrack.source)) {
+        const ext =
+          activeTrack.file_ext ||
+          activeTrack.title?.match(/\.(flac|mp3|wav|m4a|aac|ogg|wma)(?:[?#]|$)/i)?.[1]?.toLowerCase() ||
+          ''
+        const filenameParam = ext ? `&filename=${encodeURIComponent(`stream.${ext}`)}` : ''
+        const baseUrl = buildDriveStreamUrl(driveFileId)
+        url = filenameParam ? `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}${filenameParam.slice(1)}` : baseUrl
+        audioUrlCacheRef.current.set(activeTrack.id, { url, ts: Date.now() })
+      } else {
+        try {
+          url = await getAudioUrlCached(activeTrack)
+        } catch (error: any) {}
+      }
     }
 
     // ⚠️ Critical guard: if a newer track was clicked while resolving audio URL, drop this stale request immediately!

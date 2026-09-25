@@ -27,11 +27,10 @@ export function setAudioSourceForPlayback(
   const srcChanged = !isSameAudioSource(audio.src, url)
   if (srcChanged) {
     audio.src = url
-    // Explicitly call load() to reset the audio element's internal state.
-    // This is critical when the element was in an error state (e.g. from an
-    // expired SoundCloud CDN URL) — simply assigning src may not fully reset
-    // the error flag on all browsers, causing the subsequent play() to fail.
-    if (typeof audio.load === 'function') {
+    // Only call load() if the audio element was in an error state to reset the error flag.
+    // Calling load() unconditionally forces the browser to abort its optimistic media pipeline,
+    // wasting 50-100ms on subsequent audio start.
+    if (audio.error && typeof audio.load === 'function') {
       audio.load()
     }
   }
