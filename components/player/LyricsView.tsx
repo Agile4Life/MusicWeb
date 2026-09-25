@@ -91,7 +91,7 @@ const LyricLineItem = memo(function LyricLineItem({
     <div
       ref={isActive ? activeLineRefSetter : undefined}
       onClick={() => onClick(line)}
-      className={`cursor-pointer rounded-2xl select-none origin-left group/line relative transform-gpu will-change-transform will-change-opacity transition-all duration-300 ease-out flex flex-col ${
+      className={`lyric-line-item cursor-pointer rounded-2xl select-none origin-left group/line relative transform-gpu will-change-transform will-change-opacity transition-all duration-300 ease-out flex flex-col ${
         isActive
           ? 'active-lyric-pill py-2.5 sm:py-3.5 px-4 sm:px-6 bg-white/[0.05] border border-white/10 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.35),0_0_20px_color-mix(in_srgb,var(--spotify-glow,#22d3ee)_12%,transparent)]'
           : 'py-1 sm:py-1.5 px-3 sm:px-5 bg-transparent border border-transparent hover:bg-white/[0.02] hover:border-white/[0.04]'
@@ -480,6 +480,9 @@ export const LyricsView = memo(function LyricsView({
     setErrorMessage(null)
     setActiveIndex(-1)
     setLyricOffset(0)
+    setParsedLyrics([])
+    setLyricsData(null)
+    setIsSynced(false)
     loadLyricsForTrack(
       currentTrack.title,
       currentTrack.artist,
@@ -602,7 +605,7 @@ export const LyricsView = memo(function LyricsView({
               <div className="flex items-center gap-2.5 min-w-0">
                 <OverflowMarqueeText
                   text={currentTrack.title}
-                  className="text-xs sm:text-sm md:text-base font-extrabold text-white tracking-tight flex-1 min-w-0"
+                  className="lyrics-title-text text-xs sm:text-sm md:text-base font-extrabold text-white tracking-tight flex-1 min-w-0"
                 />
                 {isSynced ? (
                   <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[var(--accent,#06b6d4)]/10 text-[var(--spotify-glow,#22d3ee)] border border-[var(--accent,#06b6d4)]/25 shrink-0 shadow-[0_0_12px_var(--theme-glow-shadow)] flex items-center gap-1.5 leading-none">
@@ -727,7 +730,14 @@ export const LyricsView = memo(function LyricsView({
               )
             })}
           </div>
-        ) : null}
+        ) : (
+          <div className="h-full flex flex-col items-center justify-center text-slate-400 py-20">
+            <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-4 shadow-xl shadow-black/40">
+              <Mic2 className="w-6 h-6 text-slate-500" />
+            </div>
+            <p className="text-sm font-bold text-slate-300 tracking-wide">Chưa có lời bài hát cho bản nhạc này</p>
+          </div>
+        )}
       </div>
 
       {/* 🎵 Bottom Glassmorphic Player Controls & Seekbar (Isolated 60FPS re-render) */}

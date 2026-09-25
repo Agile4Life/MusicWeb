@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getPrimaryLyrics } from '../lyricsFlow'
+import { getPrimaryLyrics, clearPrimaryLyricsCache } from '../lyricsFlow'
 import { resolveNhacCuaTuiSong } from '../nhaccuatuiClient'
 import { fetchLyricsFromLrclib } from '../lrclib'
 
@@ -17,6 +17,7 @@ const lrclibMock = vi.mocked(fetchLyricsFromLrclib)
 describe('primary lyrics flow', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    clearPrimaryLyricsCache()
   })
 
   it('prioritizes synced NCT lyrics even if both NCT and LRCLIB run in parallel', async () => {

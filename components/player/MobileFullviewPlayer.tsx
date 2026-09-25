@@ -217,6 +217,8 @@ export function MobileFullviewPlayer() {
 
     const reqId = ++lyricsReqIdRef.current
     setLyricsLoading(true)
+    setLyrics([])
+    setIsSynced(false)
 
     getPrimaryLyrics({
       title: currentTrack.title,

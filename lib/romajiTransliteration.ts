@@ -109,25 +109,45 @@ export function kanaToRomajiOffline(text: string): string {
 /**
  * Fetch full Romaji/Pinyin transliteration for lines from the API
  */
+const romajiCache = new Map<string, string[]>()
+const romajiInFlight = new Map<string, Promise<string[]>>()
+
 export async function fetchLyricsRomaji(lines: string[]): Promise<string[]> {
   if (!lines || lines.length === 0) return []
-
-  try {
-    const res = await fetch('/api/lyrics/romaji', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lines }),
-    })
-
-    if (!res.ok) throw new Error('Romaji API response not ok')
-    const data = await res.json()
-    if (Array.isArray(data.romaji) && data.romaji.length === lines.length) {
-      return data.romaji
-    }
-  } catch (err) {
-    console.warn('Failed to fetch online Romaji, falling back to offline Kana converter:', err)
+  const cacheKey = lines.join('\n')
+  if (romajiCache.has(cacheKey)) {
+    return romajiCache.get(cacheKey)!
+  }
+  if (romajiInFlight.has(cacheKey)) {
+    return romajiInFlight.get(cacheKey)!
   }
 
-  // Fallback to offline Kana converter
-  return lines.map((l) => kanaToRomajiOffline(l))
+  const fetchPromise = (async (): Promise<string[]> => {
+    try {
+      const res = await fetch('/api/lyrics/romaji', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lines }),
+      })
+
+      if (!res.ok) throw new Error('Romaji API response not ok')
+      const data = await res.json()
+      if (Array.isArray(data.romaji) && data.romaji.length === lines.length) {
+        romajiCache.set(cacheKey, data.romaji)
+        return data.romaji
+      }
+    } catch (err) {
+      console.warn('Failed to fetch online Romaji, falling back to offline Kana converter:', err)
+    } finally {
+      romajiInFlight.delete(cacheKey)
+    }
+
+    // Fallback to offline Kana converter
+    const fallback = lines.map((l) => kanaToRomajiOffline(l))
+    romajiCache.set(cacheKey, fallback)
+    return fallback
+  })()
+
+  romajiInFlight.set(cacheKey, fetchPromise)
+  return fetchPromise
 }

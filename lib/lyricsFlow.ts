@@ -106,41 +106,80 @@ export function isSoundCloudUgcOrRemix(title: string, artist?: string | null): b
   return false
 }
 
+const primaryLyricsCache = new Map<string, LrclibResponse | null>()
+const primaryLyricsInFlight = new Map<string, Promise<LrclibResponse | null>>()
+
+export function getTrackLyricsCacheKey(track: LyricsTrack): string {
+  const t = (track.title || '').trim().toLowerCase()
+  const a = (track.artist || '').trim().toLowerCase()
+  const s = track.source || 'std'
+  const id = track.nhaccuatui_id || track.youtube_id || track.id || ''
+  return `${s}__${id}__${t}__${a}`
+}
+
+export function clearPrimaryLyricsCache(): void {
+  primaryLyricsCache.clear()
+  primaryLyricsInFlight.clear()
+}
+
 export async function getPrimaryLyrics(
   track: LyricsTrack,
 ): Promise<LrclibResponse | null> {
+  const cacheKey = getTrackLyricsCacheKey(track)
+  if (primaryLyricsCache.has(cacheKey)) {
+    return primaryLyricsCache.get(cacheKey)!
+  }
+  if (primaryLyricsInFlight.has(cacheKey)) {
+    return primaryLyricsInFlight.get(cacheKey)!
+  }
+
   // If track is from SoundCloud and is a remix / UGC user upload, do NOT fetch lyrics from other songs
   if (track.source === 'soundcloud') {
     if (isSoundCloudUgcOrRemix(track.title, track.artist)) {
+      primaryLyricsCache.set(cacheKey, null)
       return null
     }
   }
 
-  // Run both NCT and LRCLIB queries concurrently in parallel to eliminate sequential latency
-  const [nctResult, lrclibResult] = await Promise.all([
-    fetchNctLyrics(track),
-    fetchLyricsFromLrclib({
-      title: track.title,
-      artist: track.artist,
-      album: track.album,
-      duration: track.duration,
-      youtubeId: track.youtube_id,
-      isSoundCloud: track.source === 'soundcloud',
-    }).catch(() => null),
-  ])
+  const fetchPromise = (async (): Promise<LrclibResponse | null> => {
+    try {
+      // Run both NCT and LRCLIB queries concurrently in parallel to eliminate sequential latency
+      const [nctResult, lrclibResult] = await Promise.all([
+        fetchNctLyrics(track),
+        fetchLyricsFromLrclib({
+          title: track.title,
+          artist: track.artist,
+          album: track.album,
+          duration: track.duration,
+          youtubeId: track.youtube_id,
+          isSoundCloud: track.source === 'soundcloud',
+        }).catch(() => null),
+      ])
 
-  // 1. Ưu tiên lyrics synced từ NCT nếu có
-  if (nctResult?.syncedLyrics) {
-    return nctResult
-  }
+      let finalResult: LrclibResponse | null = null
+      // 1. Ưu tiên lyrics synced từ NCT nếu có
+      if (nctResult?.syncedLyrics) {
+        finalResult = nctResult
+      } else if (lrclibResult?.syncedLyrics) {
+        // 2. Nếu NCT không có sync, ưu tiên lyrics synced từ LRCLIB
+        finalResult = lrclibResult
+      } else {
+        // 3. Nếu không bên nào có sync, fallback về text (plain lyrics)
+        finalResult = nctResult || lrclibResult || null
+      }
 
-  // 2. Nếu NCT không có sync, ưu tiên lyrics synced từ LRCLIB
-  if (lrclibResult?.syncedLyrics) {
-    return lrclibResult
-  }
+      primaryLyricsCache.set(cacheKey, finalResult)
+      return finalResult
+    } catch {
+      primaryLyricsCache.set(cacheKey, null)
+      return null
+    } finally {
+      primaryLyricsInFlight.delete(cacheKey)
+    }
+  })()
 
-  // 3. Nếu không bên nào có sync, fallback về text (plain lyrics)
-  return nctResult || lrclibResult || null
+  primaryLyricsInFlight.set(cacheKey, fetchPromise)
+  return fetchPromise
 }
 
 
