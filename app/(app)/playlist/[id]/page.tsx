@@ -12,7 +12,7 @@ import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
 import { toast } from '@/components/ui/ToastContext'
 import { Playlist, Track } from '@/types'
 import { TrackList } from '@/components/track/TrackList'
-import { usePlayer } from '@/components/player/PlayerContext'
+import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
 import { UploadForm } from '@/components/upload/UploadForm'
 import { normalizeTitle } from '@/lib/utils'
 import {
@@ -53,7 +53,8 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
     }
   }, [params])
   const supabase = createClient()
-  const { playTrack, isShuffle, toggleShuffle } = usePlayer()
+  const { isShuffle } = usePlayerTrack()
+  const { playTrack, toggleShuffle } = usePlayerControls()
   const { playlists: userPlaylists, createPlaylist } = usePlaylists()
 
   const { data: session } = useSession()

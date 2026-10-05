@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Track } from '@/types'
-import { usePlayer } from '@/components/player/PlayerContext'
+import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
 import { TrackRow } from '@/components/track/TrackRow'
 import { TrackListSkeleton, HeroCardSkeleton } from '@/components/common/SkeletonLoader'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
@@ -48,7 +48,8 @@ export default function ArtistPage() {
   const searchParams = useSearchParams()
   const artistName = searchParams.get('name') || ''
 
-  const { playTrack, currentTrack, isPlaying, isShuffle, toggleShuffle, addToQueue } = usePlayer()
+  const { currentTrack, isPlaying, isShuffle } = usePlayerTrack()
+  const { playTrack, toggleShuffle, addToQueue } = usePlayerControls()
 
   const { playlists } = usePlaylists()
   const {

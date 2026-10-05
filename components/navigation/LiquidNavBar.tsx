@@ -16,7 +16,7 @@ import {
   Pause,
 } from 'lucide-react'
 import { useLiquidNav, LiquidNavTab } from '@/hooks/useLiquidNav'
-import { usePlayer } from '@/components/player/PlayerContext'
+import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 
 // ─── NavBar state machine ───
@@ -234,7 +234,8 @@ export function LiquidNavBar({
   const router = useRouter()
   const pathname = usePathname()
   const filterId = useId()
-  const { currentTrack, isPlaying, togglePlay, openNowPlayingOverlay } = usePlayer()
+  const { currentTrack, isPlaying } = usePlayerTrack()
+  const { togglePlay, openNowPlayingOverlay } = usePlayerControls()
 
   // ─── Capsule / NavBar state machine ───
   const [navMode, setNavMode] = useState<NavBarMode>('expanded')

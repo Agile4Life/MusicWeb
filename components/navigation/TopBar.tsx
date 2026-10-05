@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { Search, X, Music, Play, Upload, User, Loader2, LogOut } from 'lucide-react'
 import { Track } from '@/types'
-import { usePlayer } from '@/components/player/PlayerContext'
+import { usePlayerControls } from '@/components/player/PlayerContext'
 import { useSearch } from '@/components/search/SearchContext'
 import { useSession, signOut } from 'next-auth/react'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
@@ -21,7 +21,7 @@ export function TopBar() {
   const router = useRouter()
   const pathname = usePathname()
   const isSoundCloudPage = pathname === '/soundcloud'
-  const { playTrack, playSearchTrack } = usePlayer()
+  const { playTrack, playSearchTrack } = usePlayerControls()
   const {
     searchQuery,
     setSearchQuery,

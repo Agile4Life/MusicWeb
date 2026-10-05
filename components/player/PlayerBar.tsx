@@ -10,6 +10,7 @@ import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import { OverflowMarqueeText } from '@/components/common/OverflowMarqueeText'
 import { ArtistLinks } from '@/components/common/ArtistLinks'
 import { setCachedResolvedAlbum, getCachedResolvedAlbum, isRealAlbumName } from '@/lib/albumCache'
+import { resolveAlbumDeduped } from '@/lib/albumResolveClient'
 import { AudioWaveformScrubber } from './AudioWaveformScrubber'
 import { MiniEqualizer } from './MiniEqualizer'
 import { PlayerBarGlowBorder } from './PlayerBarGlowBorder'
@@ -145,10 +146,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
       const artistToSearch = currentTrack.artist || ''
       const albumToSearch = hasRealAlbum ? currentTrack.album! : ''
 
-      fetch(
-        `/api/albums/resolve?title=${encodeURIComponent(titleToSearch)}&artist=${encodeURIComponent(artistToSearch)}&album=${encodeURIComponent(albumToSearch)}&track_id=${encodeURIComponent(currentTrack.id || '')}`
-      )
-        .then((res) => (res.ok ? res.json() : null))
+      resolveAlbumDeduped({ title: titleToSearch, artist: artistToSearch, album: albumToSearch, trackId: currentTrack.id || '' })
         .then((data) => {
           if (isCancelled) return
           setIsResolvingAlbumInfo(false)
@@ -226,11 +224,9 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
     try {
       setIsNavigatingAlbum(true)
 
-      const res = await fetch(
-        `/api/albums/resolve?title=${encodeURIComponent(titleToSearch)}&artist=${encodeURIComponent(artistToSearch)}&album=${encodeURIComponent(albumToSearch)}&track_id=${encodeURIComponent(currentTrack.id || '')}`
-      )
-      if (res.ok) {
-        const data = await res.json()
+      const resolved = await resolveAlbumDeduped({ title: titleToSearch, artist: artistToSearch, album: albumToSearch, trackId: currentTrack.id || '' })
+      if (resolved) {
+        const data = resolved
         if (data.albumId) {
           setResolvedAlbumInfo({ id: data.albumId, name: data.albumName || currentTrack.album || 'Album' })
           currentTrack.spotify_album_id = data.albumId

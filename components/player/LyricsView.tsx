@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useRef, useCallback, memo } from 'react'
-import { usePlayer, usePlaybackProgress } from './PlayerContext'
+import { usePlaybackProgress, usePlayerTrack, usePlayerControls } from './PlayerContext'
 import { Track } from '@/types'
 import { LrclibResponse } from '@/lib/lrclib'
 import { getPrimaryLyrics } from '@/lib/lyricsFlow'
@@ -143,21 +143,8 @@ const LyricLineItem = memo(function LyricLineItem({
    ========================================================================= */
 const LyricsBottomControls = memo(function LyricsBottomControls() {
   const { currentTime, duration } = usePlaybackProgress()
-  const {
-    currentTrack,
-    seek,
-    isPlaying,
-    togglePlay,
-    nextTrack,
-    prevTrack,
-    isShuffle,
-    toggleShuffle,
-    repeatMode,
-    toggleRepeat,
-    volume,
-    setVolume,
-    toggleFavoriteCurrentTrack,
-  } = usePlayer()
+  const { currentTrack, isPlaying, isShuffle, repeatMode, volume } = usePlayerTrack()
+  const { seek, togglePlay, nextTrack, prevTrack, toggleShuffle, toggleRepeat, setVolume, toggleFavoriteCurrentTrack } = usePlayerControls()
 
   const [prevVol, setPrevVol] = useState(0.8)
 
@@ -355,7 +342,8 @@ export const LyricsView = memo(function LyricsView({
   onToggleRomaji,
 }: LyricsViewProps) {
   const { currentTime } = usePlaybackProgress()
-  const { currentTrack, seek, mvIntroOffset } = usePlayer()
+  const { currentTrack, mvIntroOffset } = usePlayerTrack()
+  const { seek } = usePlayerControls()
 
   const [loading, setLoading] = useState(false)
   const [, setLyricsData] = useState<LrclibResponse | null>(null)

@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Track, Playlist } from '@/types'
-import { usePlayer } from '@/components/player/PlayerContext'
+import { usePlayerControls } from '@/components/player/PlayerContext'
 import { getValidUserId, getAllValidUserIds } from '@/lib/accessControl'
 import { resolveExternalTrackId, isExternalTrack, addTrackToPlaylist } from '@/lib/trackPersistence'
 import { fetchFavoriteTracks, inferTrackSource } from '@/lib/favoriteTracks'
@@ -21,7 +21,7 @@ export default function FavoritesPage() {
   const router = useRouter()
   const supabase = createClient()
   const { data: nextAuthSession } = useSession()
-  const { playTrack } = usePlayer()
+  const { playTrack } = usePlayerControls()
 
   const [tracks, setTracks] = useState<Track[]>(cachedFavorites)
   const [playlists, setPlaylists] = useState<Playlist[]>([])

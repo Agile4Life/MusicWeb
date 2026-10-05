@@ -6,7 +6,7 @@ import { TrackRow } from './TrackRow'
 import { Clock, CheckSquare, Pencil, Trash2, X, Loader2, User, Disc, Scissors, Eye } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { triggerDrivePrewarm } from '@/lib/googleDriveUpload'
-import { usePlayer } from '@/components/player/PlayerContext'
+import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
 import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
 import { useBatchViewCounts, getViewCountCacheKey } from '@/hooks/useBatchViewCounts'
 
@@ -35,7 +35,8 @@ export function TrackList({
   onBulkDeleted,
   isSearchResult = false,
 }: TrackListProps) {
-  const { currentTrack, isPlaying, isBuffering, playTrack, playSearchTrack, togglePlay, addToQueue } = usePlayer()
+  const { currentTrack, isPlaying, isBuffering } = usePlayerTrack()
+  const { playTrack, playSearchTrack, togglePlay, addToQueue } = usePlayerControls()
   const supabase = createClient()
   const {
     containerRef: listContainerRef,

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Track } from '@/types'
-import { usePlayer } from '@/components/player/PlayerContext'
+import { usePlayerTrack, usePlayerQueue } from '@/components/player/PlayerContext'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { useSession } from 'next-auth/react'
@@ -46,7 +46,8 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
   onClose,
   isPageMode = false,
 }) => {
-  const { currentTrack, queue } = usePlayer()
+  const { currentTrack } = usePlayerTrack()
+  const { queue } = usePlayerQueue()
   const { playlists } = usePlaylists()
   const { username } = useCurrentUser()
   const { data: nextAuthSession } = useSession()

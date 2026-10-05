@@ -4,7 +4,7 @@ import React, { lazy, Suspense, useRef, useEffect, useState } from 'react'
 import { useCanUse3D } from '@/hooks/useCanUse3D'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import { ArtistLinks } from '@/components/common/ArtistLinks'
-import { usePlayer, usePlaybackProgress } from './PlayerContext'
+import { usePlaybackProgress, usePlayerTrack, usePlayerQueue } from './PlayerContext'
 import { UpNextList } from './UpNextList'
 import { extractCoverAccent } from '@/lib/coverColor'
 import { useTheme } from '@/components/theme/ThemeContext'
@@ -38,7 +38,8 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
   const canUse3D = useCanUse3D()
   const { currentTheme } = useTheme()
   const { currentTime, duration } = usePlaybackProgress()
-  const { queue, currentIndex, currentTrack } = usePlayer()
+  const { currentTrack } = usePlayerTrack()
+  const { queue, currentIndex } = usePlayerQueue()
   const [derivedAccent, setDerivedAccent] = useState<string | null>(null)
 
   useEffect(() => {

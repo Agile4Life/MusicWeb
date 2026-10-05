@@ -13,7 +13,7 @@ import {
   Mic,
 } from 'lucide-react'
 import { Track } from '@/types'
-import { usePlayer } from '@/components/player/PlayerContext'
+import { usePlayerControls } from '@/components/player/PlayerContext'
 import { useSearch } from '@/components/search/SearchContext'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { useScrollContext } from '@/components/navigation/ScrollContext'
@@ -78,7 +78,7 @@ export function MobileScrollHeader() {
   const { t } = useLanguage()
   const pathname = usePathname()
   const router = useRouter()
-  const { playTrack, playSearchTrack } = usePlayer()
+  const { playTrack, playSearchTrack } = usePlayerControls()
   const {
     searchQuery,
     setSearchQuery,

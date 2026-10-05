@@ -4,7 +4,7 @@ import React, { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Track } from '@/types'
-import { usePlayer } from '@/components/player/PlayerContext'
+import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
 import { TrackRow } from '@/components/track/TrackRow'
 import { TrackListSkeleton, HeroCardSkeleton } from '@/components/common/SkeletonLoader'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
@@ -34,7 +34,8 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
   const { id: albumId } = use(params)
   const router = useRouter()
   const supabase = createClient()
-  const { playTrack, currentTrack, isPlaying, isShuffle, toggleShuffle, addToQueue } = usePlayer()
+  const { currentTrack, isPlaying, isShuffle } = usePlayerTrack()
+  const { playTrack, toggleShuffle, addToQueue } = usePlayerControls()
   const { playlists } = usePlaylists()
   const { data: session } = useSession()
   const {

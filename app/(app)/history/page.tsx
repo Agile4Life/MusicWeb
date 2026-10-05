@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Track } from '@/types'
-import { usePlayer } from '@/components/player/PlayerContext'
+import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
 import { useSession } from 'next-auth/react'
 import {
   History,
@@ -76,7 +76,8 @@ let cachedTotalPlays: Record<TopTimeframe, number> = {
 export default function HistoryPage() {
   const supabase = createClient()
   const { data: nextAuthSession } = useSession()
-  const { playTrack, currentTrack, isPlaying } = usePlayer()
+  const { currentTrack, isPlaying } = usePlayerTrack()
+  const { playTrack } = usePlayerControls()
 
   const [activeTab, setActiveTab] = useState<HistoryTab>('recent')
   const [timeframe, setTimeframe] = useState<TopTimeframe>('all')

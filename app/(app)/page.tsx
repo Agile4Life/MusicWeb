@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Track, Playlist } from '@/types'
 import { TrackList } from '@/components/track/TrackList'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
-import { usePlayer } from '@/components/player/PlayerContext'
+import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
 import { deduplicateQueueTracks } from '@/lib/utils'
 import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
 import { fetchUnifiedSearch, GlobalSearchTracks } from '@/lib/searchApi'
@@ -119,7 +119,8 @@ function processTrendingTracks(raw: GlobalSearchTracks, maxItems = 18): Track[] 
 
 export default function HomePage() {
   const supabase = createClient()
-  const { playTrack, currentTrack, isPlaying, isShuffle, toggleShuffle } = usePlayer()
+  const { currentTrack, isPlaying, isShuffle } = usePlayerTrack()
+  const { playTrack, toggleShuffle } = usePlayerControls()
   const { playlists } = usePlaylists()
   const albumGrid = useGridGlideIndicator()
   const playlistGrid = useGridGlideIndicator()

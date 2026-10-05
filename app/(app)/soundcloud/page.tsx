@@ -14,7 +14,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { Track, SoundCloudPlaylist } from '@/types'
-import { usePlayer } from '@/components/player/PlayerContext'
+import { usePlayerControls } from '@/components/player/PlayerContext'
 import { TrackList } from '@/components/track/TrackList'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
@@ -40,7 +40,7 @@ const GENRE_TABS = [
 ]
 
 export default function SoundCloudPage() {
-  const { playTrack } = usePlayer()
+  const { playTrack } = usePlayerControls()
   const { playlists: userPlaylists, refreshPlaylists } = usePlaylists()
   const { userEmail } = useCurrentUser()
   const { data: nextAuthSession } = useSession()

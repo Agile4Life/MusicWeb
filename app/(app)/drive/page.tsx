@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Track, Playlist } from '@/types'
-import { usePlayer } from '@/components/player/PlayerContext'
+import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
 import { getValidUserId } from '@/lib/accessControl'
 import { useSession } from 'next-auth/react'
 import { Cloud, Play, Shuffle, Music, Sparkles, Upload, FolderSync } from 'lucide-react'
@@ -20,7 +20,8 @@ export default function DrivePage() {
   const { t } = useLanguage()
   const supabase = createClient()
   const { data: nextAuthSession } = useSession()
-  const { playTrack, isShuffle, toggleShuffle } = usePlayer()
+  const { isShuffle } = usePlayerTrack()
+  const { playTrack, toggleShuffle } = usePlayerControls()
 
   const [driveTracks, setDriveTracks] = useState<Track[]>([])
   const [playlists, setPlaylists] = useState<Playlist[]>([])

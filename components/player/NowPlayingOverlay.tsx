@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { usePlayer, usePlaybackProgress } from './PlayerContext'
+import { usePlayer, usePlaybackProgress, usePlayerTrack } from './PlayerContext'
 import { NowPlayingStage } from './NowPlayingStage'
 import { LyricsView } from './LyricsView'
 import { MiniEqualizer } from './MiniEqualizer'
@@ -17,6 +17,7 @@ import {
   trackMetadataTitleClass,
 } from './trackMetadataLayout'
 import { setCachedResolvedAlbum, getCachedResolvedAlbum, isRealAlbumName } from '@/lib/albumCache'
+import { resolveAlbumDeduped } from '@/lib/albumResolveClient'
 import { LyricsShareModal } from './LyricsShareModal'
 import { getPrimaryLyrics } from '@/lib/lyricsFlow'
 import { parseLrc, parsePlainLyrics, LyricLine } from '@/lib/lrcParser'
@@ -58,7 +59,7 @@ const StageWithFrequencyData = React.memo(function StageWithFrequencyData({
   onArtistClick?: (artistName: string, e: React.MouseEvent) => void
   children?: React.ReactNode
 }) {
-  const { frequencyData } = usePlayer()
+  const { frequencyData } = usePlayerTrack()
   return (
     <NowPlayingStage
       analyserData={frequencyData}
@@ -191,10 +192,7 @@ export function NowPlayingOverlay() {
       const artistToSearch = currentTrack.artist || ''
       const albumToSearch = hasRealAlbum ? currentTrack.album! : ''
 
-      fetch(
-        `/api/albums/resolve?title=${encodeURIComponent(titleToSearch)}&artist=${encodeURIComponent(artistToSearch)}&album=${encodeURIComponent(albumToSearch)}&track_id=${encodeURIComponent(currentTrack.id || '')}`
-      )
-        .then((res) => (res.ok ? res.json() : null))
+      resolveAlbumDeduped({ title: titleToSearch, artist: artistToSearch, album: albumToSearch, trackId: currentTrack.id || '' })
         .then((data) => {
           if (isCancelled) return
           if (data && data.albumId) {
@@ -276,11 +274,9 @@ export function NowPlayingOverlay() {
     try {
       setIsNavigatingAlbum(true)
 
-      const res = await fetch(
-        `/api/albums/resolve?title=${encodeURIComponent(titleToSearch)}&artist=${encodeURIComponent(artistToSearch)}&album=${encodeURIComponent(albumToSearch)}&track_id=${encodeURIComponent(currentTrack.id || '')}`
-      )
-      if (res.ok) {
-        const data = await res.json()
+      const resolved = await resolveAlbumDeduped({ title: titleToSearch, artist: artistToSearch, album: albumToSearch, trackId: currentTrack.id || '' })
+      if (resolved) {
+        const data = resolved
         if (data.albumId) {
           setResolvedAlbumInfo({ id: data.albumId, name: data.albumName || currentTrack.album || 'Album' })
           currentTrack.spotify_album_id = data.albumId

@@ -14,6 +14,7 @@ import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import { ArtistLinks } from '@/components/common/ArtistLinks'
 import { getCachedResolvedAlbum, setCachedResolvedAlbum, isRealAlbumName } from '@/lib/albumCache'
+import { resolveAlbumDeduped } from '@/lib/albumResolveClient'
 import { triggerDrivePrewarm } from '@/lib/googleDriveUpload'
 import { prewarmNctStreamUrl } from '@/lib/nhaccuatuiClient'
 import { resolveStreamCached } from '@/lib/resolveStreamClient'
@@ -179,11 +180,9 @@ function TrackRowComponent({
     try {
       setIsResolvingAlbum(true)
 
-      const res = await fetch(
-        `/api/albums/resolve?title=${encodeURIComponent(titleToSearch)}&artist=${encodeURIComponent(artistToSearch)}&album=${encodeURIComponent(albumToSearch)}&track_id=${encodeURIComponent(track.id || '')}`
-      )
-      if (res.ok) {
-        const data = await res.json()
+      const resolved = await resolveAlbumDeduped({ title: titleToSearch, artist: artistToSearch, album: albumToSearch, trackId: track.id || '' })
+      if (resolved) {
+        const data = resolved
         if (data.albumId) {
           track.spotify_album_id = data.albumId
           if (data.albumName) {

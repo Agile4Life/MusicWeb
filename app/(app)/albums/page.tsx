@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { SpotifyAlbumItem } from '@/lib/spotify'
 import { Track } from '@/types'
-import { usePlayer } from '@/components/player/PlayerContext'
+import { usePlayerControls } from '@/components/player/PlayerContext'
 import { DiscAlbum, Sparkles, Music, Play, Search, X, Loader2 } from 'lucide-react'
 import { HeroCardSkeleton } from '@/components/common/SkeletonLoader'
 import { MediaCard } from '@/components/common/MediaCard'
@@ -19,7 +19,7 @@ interface AlbumCardProps {
 
 function AlbumCard({ album, index = 0 }: AlbumCardProps) {
   const router = useRouter()
-  const { playTrack } = usePlayer()
+  const { playTrack } = usePlayerControls()
   const albumDetailCacheRef = useRef<Map<string, { detail: { tracks: Track[] } | null; at: number }> | null>(null)
   if (!albumDetailCacheRef.current) {
     albumDetailCacheRef.current = new Map()

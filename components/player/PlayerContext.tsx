@@ -14,9 +14,13 @@ import { getSmartRecommendedTracks } from '@/lib/smartRecommend'
 import { NextQueueResponse, queueTrackToTrack } from '@/types/queue'
 import { getMusicOfftopicSegments, calculateIntroOffset } from '@/lib/sponsorblock'
 import { isIOSDevice, playAudioElement, shouldUseHtml5Audio } from '@/lib/audioPlayback'
-import { isCurrentPlayback } from '@/lib/playbackRaceGuards'
+import { isCurrentPlayback, resolveStartAction } from '@/lib/playbackRaceGuards'
 import { getNhacCuaTuiStreamUrl, resolveNhacCuaTuiSong, resolveNhacCuaTuiTrack, prewarmNctStreamUrl, getCachedNctStreamUrl, clearCachedNctStreamUrl } from '@/lib/nhaccuatuiClient'
+import { decideSmartFill, shouldRecordSkip } from '@/lib/playbackDecisions'
+import { mergeResolvedIntoQueue } from '@/lib/queueSync'
 import { prewarmTrackBatch } from '@/lib/prewarmTrackBatch'
+import { planUpcomingPrewarm, SupersedableRequest, isAbortError } from '@/lib/prewarmPlan'
+import { getAudioUrlCacheTtl, readFreshAudioUrl } from '@/lib/audioUrlCache'
 import { isFastConnection } from './prewarmAdaptive'
 import { toMinimalPersistedTrack, PlaybackPersistenceScheduler } from './playbackPersistenceScheduler'
 import { playbackProgressStore, usePlaybackProgressStore } from './PlaybackProgressStore'
@@ -174,6 +178,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const { data: nextAuthSession } = useSession()
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null)
   const [isPlaying, setIsPlaying] = useState<boolean>(false)
+  // Mirrors isPlaying so stable callbacks (togglePlay) can read it without re-creating on every change.
+  const isPlayingRef = useRef<boolean>(false)
+  isPlayingRef.current = isPlaying
   const [isBuffering, setIsBufferingState] = useState<boolean>(false)
   const isBufferingRef = useRef<boolean>(false)
   const setIsBuffering = useCallback((val: boolean | ((prev: boolean) => boolean)) => {
@@ -282,6 +289,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const ytReadyRef = useRef<boolean>(false)
   const ytStuckTimerRef = useRef<any>(null)
   const playRequestRef = useRef(0)
+  // Cancels the previous track's emergency search when the user skips (frees bandwidth for the new track).
+  const fallbackSearchRef = useRef(new SupersedableRequest())
   const ytLoadedIdRef = useRef<string | null>(null)
   const pendingYtPlayRef = useRef<{ videoId: string; startTime: number; requestId: number } | null>(null)
   const audioRequestRef = useRef(0)
@@ -314,6 +323,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const currentTrackRef = useRef<Track | null>(null)
   const queueRef = useRef<Track[]>([])
+  // Single write path for the playback queue: keeps queueRef in lockstep with state so rapid
+  // Next/Prev right after a queue change never reads a stale queue (the sync effect lags a render).
+  const commitQueue = useCallback((updater: (prev: Track[]) => Track[]) => {
+    // Compute from the LATEST queue (the ref) and publish it synchronously, then schedule state.
+    // Every queue writer must use this so ref and state can never diverge.
+    const next = updater(queueRef.current)
+    queueRef.current = next
+    setQueue(next)
+  }, [])
   const currentIndexRef = useRef<number>(-1)
   const volumeRef = useRef<number>(DEFAULT_VOLUME)
   const lastSavedTimeRef = useRef<number>(0)
@@ -455,7 +473,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const autoFetchSmartQueueRef = useRef(false)
+
+  // Seed id of the smart-fill currently in flight (null = idle). Newer seeds supersede older ones.
+  const smartFillSeedRef = useRef<string | null>(null)
+  const smartFillAbortRef = useRef(new SupersedableRequest())
   const activeQueueRequestIdRef = useRef(0)
 
   const recordListenEvent = useCallback((track: Track | null, completed: boolean, skipAtSeconds?: number) => {
@@ -472,10 +493,38 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }).catch(() => {})
   }, [])
 
+  // Reports an early exit from the CURRENT track as a skip. Shared by every navigation path
+  // (playTrack AND quick-play) so analytics/recommendations see all skips.
+  const recordSkipOfCurrent = useCallback(
+    (nextTrackId: string, previousUsedYouTubeHtml5: boolean) => {
+      const prev = currentTrackRef.current
+      if (!prev || prev.id === nextTrackId) return
+      let activeTime = currentTimeRef.current
+      if (prev.source === 'youtube' && !previousUsedYouTubeHtml5 && ytPlayerRef.current?.getCurrentTime) {
+        try { activeTime = ytPlayerRef.current.getCurrentTime() || currentTimeRef.current } catch {}
+      } else if (audioRef.current) {
+        activeTime = audioRef.current.currentTime || currentTimeRef.current
+      }
+      if (shouldRecordSkip({ activeTime, duration: prev.duration })) {
+        recordListenEvent(prev, false, activeTime)
+      }
+    },
+    [recordListenEvent]
+  )
+
   const triggerSmartQueueFill = useCallback(async (seedTrack: Track, currentQ: Track[]) => {
-    if (!seedTrack || autoFetchSmartQueueRef.current) return
-    if (repeatModeRef.current !== 'off') return
-    autoFetchSmartQueueRef.current = true
+    if (!seedTrack) return
+    if (
+      decideSmartFill({
+        inflightSeedId: smartFillSeedRef.current,
+        seedId: seedTrack.id,
+        repeatMode: repeatModeRef.current,
+      }) === 'skip'
+    ) {
+      return
+    }
+    smartFillSeedRef.current = seedTrack.id
+    const signal = smartFillAbortRef.current.begin() // aborts the previous (stale) fill's fetch
     const requestId = ++activeQueueRequestIdRef.current
     try {
       const seedId = seedTrack.id
@@ -487,7 +536,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       let url = `/api/queue/next?current_track_id=${encodeURIComponent(seedId)}&artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}&limit=12`
       if (isrc) url += `&isrc=${encodeURIComponent(isrc)}`
       if (historyIds) url += `&history_ids=${encodeURIComponent(historyIds)}`
-      const res = await fetch(url)
+      const res = await fetch(url, { signal })
       if (requestId !== activeQueueRequestIdRef.current) return
       if (currentTrackRef.current?.id !== seedId) return
       if (res.ok) {
@@ -495,21 +544,22 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (requestId !== activeQueueRequestIdRef.current) return
         if (data.tracks && data.tracks.length > 0) {
           const appTracks = data.tracks.map((qt) => queueTrackToTrack(qt))
-          setQueue((prev) => deduplicateQueueTracks([...prev, ...appTracks]))
+          commitQueue((prev) => deduplicateQueueTracks([...prev, ...appTracks]))
           return
         }
       }
       const recs = await getSmartRecommendedTracks(seedTrack, currentQ, 8)
       if (requestId !== activeQueueRequestIdRef.current) return
       if (recs && recs.length > 0) {
-        setQueue((prev) => deduplicateQueueTracks([...prev, ...recs]))
+        commitQueue((prev) => deduplicateQueueTracks([...prev, ...recs]))
       }
     } catch (err) {
-      console.warn('Smart queue auto-fill error:', err)
+      if (!isAbortError(err)) console.warn('Smart queue auto-fill error:', err)
     } finally {
-      autoFetchSmartQueueRef.current = false
+      // Only the latest request may clear the in-flight marker.
+      if (requestId === activeQueueRequestIdRef.current) smartFillSeedRef.current = null
     }
-  }, [])
+  }, [commitQueue])
 
   const supabase = createClient()
 
@@ -602,6 +652,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const beginNewPlaybackRequest = useCallback((track: Track): number => {
     const requestId = ++playRequestRef.current
     audioRequestRef.current = requestId
+    fallbackSearchRef.current.abort()
     clearPlaybackTimers()
     audioRetryCountRef.current = 0
 
@@ -821,8 +872,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     [supabase]
   )
 
-  // TTL for NCT stream URL cache (mirrors server-side NCT_RESOLVE_CACHE_TTL = 5 min)
-  const NCT_URL_CACHE_TTL = 5 * 60 * 1000
+  // Per-source URL cache TTLs live in '@/lib/audioUrlCache' (NCT mirrors server-side 5 min).
 
   const getAudioUrlCached = useCallback(
     async (track: Track): Promise<string | null> => {
@@ -864,8 +914,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       // 3. Check audioUrlCacheRef for all other sources / cold NCT
       // SoundCloud tokens expire in ~15-20 min, so limit in-memory cache to 10 min
-      const SC_URL_CACHE_TTL = 10 * 60 * 1000
-      const cacheTtl = isNct ? NCT_URL_CACHE_TTL : isSoundCloud ? SC_URL_CACHE_TTL : URL_CACHE_TTL
+      const cacheTtl = getAudioUrlCacheTtl(track)
       const cached = getBoundedRefreshed(
         audioUrlCacheRef.current,
         track.id,
@@ -1707,7 +1756,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           }
 
           setCurrentTrack(restoredTrack)
-          setQueue(dedupedQueue)
+          commitQueue(() => dedupedQueue)
           setCurrentIndex(restoredIndex)
           setCurrentTime(restoredTime)
           setDuration(restoredTrack.duration || 0)
@@ -1834,7 +1883,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   ) => {
     // ⚡ FIX #1: snapshot engine của track SẮP BỊ THAY THẾ trước khi reset state.
     const previousTrackUsedYouTubeHtml5 = ytHtml5ModeRef.current
-    const track = inferTrackSource(rawTrack)
+    const track = { ...inferTrackSource(rawTrack) }
     const playStartTime = typeof performance !== 'undefined' ? performance.now() : Date.now()
     console.log(`[Playback:Start] "${track.title}" by ${track.artist || 'Unknown'} (id: ${track.id}, source: ${track.source})`)
 
@@ -1846,23 +1895,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     setIsPlaying(false)
     const requestId = beginNewPlaybackRequest(track)
 
-    // 🚀 Push currentTrack onto true playback history stack when user changes track
-    if (currentTrackRef.current && currentTrackRef.current.id !== track.id) {
-      let activeTime = currentTimeRef.current
-      if (
-        currentTrackRef.current.source === 'youtube' &&
-        !previousTrackUsedYouTubeHtml5 &&
-        ytPlayerRef.current?.getCurrentTime
-      ) {
-        try { activeTime = ytPlayerRef.current.getCurrentTime() || currentTimeRef.current } catch {}
-      } else if (audioRef.current) {
-        activeTime = audioRef.current.currentTime || currentTimeRef.current
-      }
-      const trackDur = currentTrackRef.current.duration || 0
-      if (activeTime > 2 && (trackDur === 0 || activeTime < trackDur - 5)) {
-        recordListenEvent(currentTrackRef.current, false, activeTime)
-      }
-    }
+    // Report the track we're leaving as a skip if it ended early (shared with quick-play)
+    recordSkipOfCurrent(track.id, previousTrackUsedYouTubeHtml5)
 
     // ⚡ Reset engine state CHỈ SAU KHI đã dùng xong snapshot ở trên.
     ytHtml5ModeRef.current = false
@@ -1875,14 +1909,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     if (newQueue) {
       nextQueue = deduplicateQueueTracks(newQueue)
-      setQueue(nextQueue)
+      commitQueue(() => nextQueue)
       const index = nextQueue.findIndex((t) => t.id === track.id)
       nextIndex = index >= 0 ? index : 0
     } else if (typeof forceIndex === 'number') {
       nextIndex = forceIndex
     } else if (nextQueue.length === 0) {
       nextQueue = [track]
-      setQueue(nextQueue)
+      commitQueue(() => nextQueue)
       nextIndex = 0
     } else {
       const index = nextQueue.findIndex((t) => t.id === track.id)
@@ -1893,15 +1927,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         const updated = [...nextQueue]
         updated.splice(insertIdx, 0, track)
         nextQueue = deduplicateQueueTracks(updated)
-        setQueue(nextQueue)
+        commitQueue(() => nextQueue)
         const found = nextQueue.findIndex((t) => t.id === track.id)
         nextIndex = found >= 0 ? found : insertIdx
       }
     }
 
-    // ⚡ Prewarm upcoming 2-3 tracks in background for instant playback when transitioning
-    if (nextQueue.length > 0 && nextIndex >= 0 && nextIndex < nextQueue.length - 1) {
-      const upcoming = nextQueue.slice(nextIndex + 1, nextIndex + 4)
+    // ⚡ Prewarm upcoming tracks — deferred until THIS track is audibly playing so the batch
+    // never competes for bandwidth with resolving/loading the track the user just asked for.
+    const prewarmUpcoming = () => {
+      const upcoming = planUpcomingPrewarm(nextQueue, nextIndex, { fastConnection: isFastConnection() })
       if (upcoming.length > 0) {
         prewarmTrackBatch(upcoming).catch(() => {})
       }
@@ -1922,12 +1957,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // Keep the queue row in sync with the resolved track so PlayerBar, QueueDrawer
     // and track rows all show the title/artist/cover of the website actually playing.
     const syncQueueEntry = (resolvedTrack: Track) => {
-      if (nextIndex >= 0 && nextIndex < nextQueue.length) {
-        const synced = [...nextQueue]
-        synced[nextIndex] = { ...synced[nextIndex], ...resolvedTrack }
-        nextQueue = synced
-        setQueue(synced)
-      }
+      // Merge by id into the LATEST queue — never overwrite with the pre-await snapshot,
+      // which would drop tracks appended by smart-fill while we were resolving.
+      commitQueue((prev) => mergeResolvedIntoQueue(prev, { ...resolvedTrack, id: track.id }))
     }
 
     // ⚡ 2. UPDATE UI INSTANTLY (< 5ms) via commitNavigation
@@ -2009,7 +2041,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             .replace(/\s*feat(\.|\s).*$/i, '')
             .trim()
           const cleanQ = `${cleanTitleOnly || track.title} ${cleanArtistOnly || track.artist || ''}`.trim()
-          const fbRes = await fetch(`/api/search?q=${encodeURIComponent(cleanQ)}&source=all`)
+          const fbRes = await fetch(`/api/search?q=${encodeURIComponent(cleanQ)}&source=all`, {
+            signal: fallbackSearchRef.current.begin(),
+          })
           if (fbRes.ok) {
             const fbData = await fbRes.json()
             const nctMatch = fbData.nhaccuatui?.[0]
@@ -2046,7 +2080,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             }
           }
         } catch (fbErr) {
-          console.warn('Emergency search fallback error:', fbErr)
+          if (!isAbortError(fbErr)) console.warn('Emergency search fallback error:', fbErr)
         }
       }
 
@@ -2111,7 +2145,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             audio_url: undefined,
             file_path: '',
           }
-          rawTrack.youtube_id = streamResult.id
+          // NOTE: do not mutate the caller's rawTrack (it may be a live queue/state object);
+          // the resolved id travels on activeTrack and in the resolution cache instead.
           track.youtube_id = streamResult.id
         }
 
@@ -2144,7 +2179,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (requestId !== playRequestRef.current) return
 
     // 🎵 1. Try SYNCHRONOUS URL cache hit first (Zero-await gap for unbroken iOS Safari background playback gesture chain)
-    let url: string | null = audioUrlCacheRef.current.get(activeTrack.id)?.url || null
+    let url: string | null = readFreshAudioUrl(audioUrlCacheRef.current, activeTrack)
     if (!url) {
       const driveFileId = activeTrack.drive_file_id || extractDriveFileId(activeTrack.file_path || '')
       if (driveFileId && (activeTrack.source === 'local' || !activeTrack.source)) {
@@ -2192,10 +2227,28 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         audio.addEventListener('loadedmetadata', onMeta)
       }
 
+      if (
+        resolveStartAction({
+          requestId,
+          currentRequestId: playRequestRef.current,
+          desiredState: desiredPlayStateRef.current,
+        }) !== 'play'
+      ) {
+        setIsPlaying(false)
+        setIsBuffering(false)
+        return
+      }
+
       try {
         await playAudioElement(audio)
         if (requestId !== playRequestRef.current) {
           audio.pause()
+          return
+        }
+        if ((desiredPlayStateRef.current as 'playing' | 'paused' | null) === 'paused') {
+          audio.pause()
+          setIsPlaying(false)
+          setIsBuffering(false)
           return
         }
         console.log(`[Playback:Ready] Audible playback started in ${(performance.now() - playStartTime).toFixed(0)}ms (TTFP)`)
@@ -2203,6 +2256,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         setIsPlaying(true)
         setIsBuffering(false)
         recordHistory(track)
+        prewarmUpcoming()
         return
       } catch (err: any) {
         if (err?.name === 'AbortError' || String(err).includes('interrupted')) {
@@ -2266,6 +2320,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       const tryLoadYt = (retries = 25) => {
         if (requestId !== playRequestRef.current) return
+        if ((desiredPlayStateRef.current as 'playing' | 'paused' | null) === 'paused') {
+          pendingYtPlayRef.current = null
+          setIsPlaying(false)
+          setIsBuffering(false)
+          return
+        }
         if (ytPlayerRef.current && ytPlayerRef.current.loadVideoById) {
           pendingYtPlayRef.current = null
           try {
@@ -2292,6 +2352,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             setIsPlaying(true)
             setIsBuffering(false)
             recordHistory(track)
+            prewarmUpcoming()
           } catch (e) {
             console.warn('YT loadVideoById error:', e)
             if (requestId === playRequestRef.current) {
@@ -2326,11 +2387,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [
     beginNewPlaybackRequest,
     commitNavigation,
+    commitQueue,
     fallbackToYouTube,
     getAudioUrlCached,
     invalidateCurrentResolution,
     recordHistory,
     recordListenEvent,
+    recordSkipOfCurrent,
     resolveStreamCached,
     stopActivePlaybackEngines,
     triggerSmartQueueFill,
@@ -2383,7 +2446,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const isAudioPlaying = Boolean(audio && !audio.paused && !audio.ended && audio.readyState > 1)
     const isYtPlaying = Boolean(isYt && ytPlayerRef.current?.getPlayerState?.() === 1)
     const isCurrentlyActive =
-      (isPlaying || isAudioPlaying || isYtPlaying || desiredPlayStateRef.current === 'playing') &&
+      (isPlayingRef.current || isAudioPlaying || isYtPlaying || desiredPlayStateRef.current === 'playing') &&
       desiredPlayStateRef.current !== 'paused'
 
     if (isCurrentlyActive) {
@@ -2472,7 +2535,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       console.warn('audio.play() failed, re-loading track:', err)
       await playTrack(track, queueRef.current, currentIndexRef.current, currentTimeRef.current)
     }
-  }, [isPlaying, isYtIframeEngine, playTrack])
+  }, [isYtIframeEngine, playTrack])
 
   const seek = useCallback((time: number) => {
     setCurrentTime(time)
@@ -2553,7 +2616,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return false
     }
 
-    let cached = audioUrlCacheRef.current.get(track.id)?.url
+    let cached = readFreshAudioUrl(audioUrlCacheRef.current, track) || undefined
     if (!cached && track.source === 'nhaccuatui' && track.nhaccuatui_id) {
       cached = getCachedNctStreamUrl(track.nhaccuatui_id) || undefined
     }
@@ -2561,7 +2624,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (!cached || isPreviewUrl(cached) || !audioRef.current) return false
     const audio = audioRef.current
 
+    // Quick-play must report the skipped track too (previous engine mode is still intact here).
+    recordSkipOfCurrent(track.id, ytHtml5ModeRef.current)
     const requestId = beginNewPlaybackRequest(track)
+    desiredPlayStateRef.current = 'playing'
 
     const q = queueRef.current
     let targetIdx = typeof idx === 'number' && idx >= 0 ? idx : q.findIndex((t) => t.id === track.id)
@@ -2574,11 +2640,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     commitNavigation(track, targetIdx, q, 0)
 
     if (targetIdx >= 0 && targetIdx < q.length) {
-      setQueue((prevQ) => {
-        const synced = [...prevQ]
-        synced[targetIdx] = { ...synced[targetIdx], ...track }
-        return synced
-      })
+      commitQueue((prevQ) => mergeResolvedIntoQueue(prevQ, { ...track, id: rawTrack.id }))
     }
 
     stopActivePlaybackEngines('youtube')
@@ -2592,6 +2654,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
         if (requestId !== playRequestRef.current) {
           audio.pause()
+          return
+        }
+        if ((desiredPlayStateRef.current as 'playing' | 'paused' | null) === 'paused') {
+          audio.pause()
+          setIsPlaying(false)
+          setIsBuffering(false)
           return
         }
         setIsBuffering(false)
@@ -2622,7 +2690,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       })
 
     return true
-  }, [beginNewPlaybackRequest, commitNavigation, isCurrentAudioOwnership, playTrack, recordHistory, stopActivePlaybackEngines])
+  }, [beginNewPlaybackRequest, commitNavigation, commitQueue, isCurrentAudioOwnership, playTrack, recordHistory, stopActivePlaybackEngines])
 
   // Centralized playback controller for navigation convergence
   const playResolvedTrack = useCallback((track: Track, index: number) => {
@@ -2779,7 +2847,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   prevTrackRef.current = prevTrack
 
   const addToQueue = useCallback((track: Track) => {
-    setQueue((prev) => {
+    commitQueue((prev) => {
       const insertIdx = currentIndexRef.current >= 0 ? currentIndexRef.current + 1 : prev.length
       const newQ = [...prev]
       newQ.splice(insertIdx, 0, track)
@@ -2789,19 +2857,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (isFastConnection()) {
       triggerAdaptivePrewarm([track], -1)
     }
-  }, [triggerAdaptivePrewarm])
+  }, [commitQueue, triggerAdaptivePrewarm])
 
   const removeFromQueue = useCallback((indexToRemove: number) => {
     const activeIndex = currentIndexRef.current
     const isRemovingCurrent = indexToRemove === activeIndex
-    setQueue((prev) => prev.filter((_, idx) => idx !== indexToRemove))
+    commitQueue((prev) => prev.filter((_, idx) => idx !== indexToRemove))
 
     if (activeIndex > indexToRemove) {
       setCurrentIndex((prev) => prev - 1)
       currentIndexRef.current = currentIndexRef.current - 1
     } else if (isRemovingCurrent) {
       // Xoá đúng bài đang phát
-      const q = queueRef.current.filter((_, idx) => idx !== indexToRemove)
+      // queueRef already reflects the removal (commitQueue above is synchronous).
+      const q = queueRef.current
       if (q.length === 0) {
         setCurrentTrack(null)
         setCurrentIndex(-1)
@@ -2820,19 +2889,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
       }
     }
-  }, [playTrack, tryQuickPlayFromCache])
+  }, [commitQueue, playTrack, tryQuickPlayFromCache])
 
   const clearQueue = useCallback(() => {
     if (currentTrackRef.current) {
-      setQueue([currentTrackRef.current])
+      commitQueue(() => [currentTrackRef.current as Track])
       setCurrentIndex(0)
       currentIndexRef.current = 0
     } else {
-      setQueue([])
+      commitQueue(() => [])
       setCurrentIndex(-1)
       currentIndexRef.current = -1
     }
-  }, [])
+  }, [commitQueue])
 
   const clearNearEndWatchdog = useCallback(() => {
     if (nearEndWatchdogRef.current) {
@@ -3666,7 +3735,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     fetchViewCountForVideo(ytId).then((views) => {
       if (!cancelled && views != null) {
         setCurrentTrack((prev) => (prev && prev.youtube_id === ytId ? { ...prev, view_count: views } : prev))
-        setQueue((prevQueue) =>
+        commitQueue((prevQueue) =>
           prevQueue.map((t) => (t.youtube_id === ytId ? { ...t, view_count: views } : t))
         )
       }
