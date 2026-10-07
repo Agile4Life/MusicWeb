@@ -106,15 +106,18 @@ export function isSoundCloudUgcOrRemix(title: string, artist?: string | null): b
   return false
 }
 
-const primaryLyricsCache = new Map<string, LrclibResponse | null>()
+const MAX_PRIMARY_LYRICS_ENTRIES = 200
+const primaryLyricsCache = new Map<string, LrclibResponse>()
 const primaryLyricsInFlight = new Map<string, Promise<LrclibResponse | null>>()
 
 export function getTrackLyricsCacheKey(track: LyricsTrack): string {
   const t = (track.title || '').trim().toLowerCase()
   const a = (track.artist || '').trim().toLowerCase()
-  const s = track.source || 'std'
-  const id = track.nhaccuatui_id || track.youtube_id || track.id || ''
-  return `${s}__${id}__${t}__${a}`
+  return JSON.stringify([
+    track.source || 'std', track.id || '', t, a,
+    (track.album || '').trim().toLowerCase(), track.duration || 0,
+    track.nhaccuatui_id || '', track.youtube_id || '',
+  ])
 }
 
 export function clearPrimaryLyricsCache(): void {
@@ -127,7 +130,10 @@ export async function getPrimaryLyrics(
 ): Promise<LrclibResponse | null> {
   const cacheKey = getTrackLyricsCacheKey(track)
   if (primaryLyricsCache.has(cacheKey)) {
-    return primaryLyricsCache.get(cacheKey)!
+    const cached = primaryLyricsCache.get(cacheKey)!
+    primaryLyricsCache.delete(cacheKey)
+    primaryLyricsCache.set(cacheKey, cached)
+    return cached
   }
   if (primaryLyricsInFlight.has(cacheKey)) {
     return primaryLyricsInFlight.get(cacheKey)!
@@ -136,7 +142,6 @@ export async function getPrimaryLyrics(
   // If track is from SoundCloud and is a remix / UGC user upload, do NOT fetch lyrics from other songs
   if (track.source === 'soundcloud') {
     if (isSoundCloudUgcOrRemix(track.title, track.artist)) {
-      primaryLyricsCache.set(cacheKey, null)
       return null
     }
   }
@@ -168,10 +173,15 @@ export async function getPrimaryLyrics(
         finalResult = nctResult || lrclibResult || null
       }
 
-      primaryLyricsCache.set(cacheKey, finalResult)
+      // A provider miss can be temporary. Only retain usable successes.
+      if (finalResult && (finalResult.syncedLyrics?.trim() || finalResult.plainLyrics?.trim())) {
+        primaryLyricsCache.set(cacheKey, finalResult)
+        while (primaryLyricsCache.size > MAX_PRIMARY_LYRICS_ENTRIES) {
+          primaryLyricsCache.delete(primaryLyricsCache.keys().next().value!)
+        }
+      }
       return finalResult
     } catch {
-      primaryLyricsCache.set(cacheKey, null)
       return null
     } finally {
       primaryLyricsInFlight.delete(cacheKey)

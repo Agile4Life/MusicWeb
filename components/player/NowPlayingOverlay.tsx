@@ -100,7 +100,6 @@ export function NowPlayingOverlay() {
   } = usePlayer()
 
   const router = useRouter()
-  const [mobileTab, setMobileTab] = useState<'cover' | 'lyrics'>('cover')
   const [isNavigatingAlbum, setIsNavigatingAlbum] = useState(false)
   const [resolvedAlbumInfo, setResolvedAlbumInfo] = useState<{ id?: string; name?: string } | null>(null)
   const [showShareModal, setShowShareModal] = useState(false)
@@ -341,6 +340,8 @@ export function NowPlayingOverlay() {
 
       {/* 💻 Desktop Now Playing Overlay (>=1024px screens) */}
       <div
+        inert={!isNowPlayingOpen}
+        aria-hidden={!isNowPlayingOpen}
         className={`now-playing-overlay hidden lg:flex fixed inset-0 z-50 bg-[#07090e] text-white flex-col transition-transform duration-350 ease-[cubic-bezier(0.22,1,0.36,1)] select-none ${
           isNowPlayingOpen ? 'open translate-y-0' : 'translate-y-full pointer-events-none'
         }`}
@@ -364,6 +365,7 @@ export function NowPlayingOverlay() {
         {/* 🔝 Unified Top Header (Desktop) */}
         <div className="relative z-30 flex items-center justify-between h-16 px-6 border-b border-white/[0.08] shrink-0 bg-[#07090e]/90 backdrop-blur-xl">
           <button
+            aria-label="Thu nhỏ player (Esc)"
             onClick={closeNowPlayingOverlay}
             className="fullview-header-btn p-2 text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-all active:scale-95 flex items-center gap-1.5 text-xs font-semibold shrink-0 border border-white/10"
             title="Thu nhỏ player (Esc)"
@@ -540,6 +542,7 @@ export function NowPlayingOverlay() {
           <div className="flex flex-col items-center gap-1.5 w-2/4 max-w-xl">
             <div className="flex items-center gap-4">
               <button
+                aria-label={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
                 onClick={toggleShuffle}
                 style={
                   isShuffle
@@ -564,6 +567,7 @@ export function NowPlayingOverlay() {
               </button>
 
               <button
+                aria-label="Bài trước"
                 onClick={prevTrack}
                 className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-all duration-200 hover:scale-110 active:scale-95"
                 title="Bài trước"
@@ -572,6 +576,7 @@ export function NowPlayingOverlay() {
               </button>
 
               <button
+                aria-label={isPlaying ? 'Tạm dừng' : 'Phát'}
                 onClick={togglePlay}
                 style={{
                   background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
@@ -588,6 +593,7 @@ export function NowPlayingOverlay() {
               </button>
 
               <button
+                aria-label="Bài kế tiếp"
                 onClick={nextTrack}
                 className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-all duration-200 hover:scale-110 active:scale-95"
                 title="Bài kế tiếp"
@@ -596,6 +602,13 @@ export function NowPlayingOverlay() {
               </button>
 
               <button
+                aria-label={
+                  repeatMode === 'one'
+                    ? 'Lặp lại 1 bài'
+                    : repeatMode === 'all'
+                      ? 'Lặp lại toàn bộ danh sách'
+                      : 'Bật lặp lại bài hát'
+                }
                 onClick={toggleRepeat}
                 style={
                   repeatMode !== 'off'
@@ -665,6 +678,7 @@ export function NowPlayingOverlay() {
             </button>
 
             <button
+              aria-label="Chia sẻ câu hát (Lyrics Story)"
               onClick={handleOpenShare}
               className="p-2 rounded-xl transition-all text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/5"
               title="Chia sẻ câu hát (Lyrics Story)"
@@ -673,6 +687,7 @@ export function NowPlayingOverlay() {
             </button>
 
             <button
+              aria-label={currentTrack.is_favorite ? 'Bỏ khỏi bài hát yêu thích' : 'Thêm vào bài hát yêu thích'}
               onClick={handleFavoriteClick}
               className={`p-2 rounded-xl transition-all ${currentTrack.is_favorite
                 ? 'text-rose-500 bg-rose-500/15 border border-rose-500/30'
@@ -688,6 +703,7 @@ export function NowPlayingOverlay() {
 
             <div className="flex items-center gap-2.5 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1">
               <button
+                aria-label={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}
                 onClick={handleVolumeToggle}
                 className="text-slate-400 hover:text-white transition-colors p-0.5 shrink-0"
                 title={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}

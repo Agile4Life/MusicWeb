@@ -153,4 +153,53 @@ describe('primary lyrics flow', () => {
     expect(ugcResult2).toBeNull()
     expect(lrclibMock).not.toHaveBeenCalled()
   })
+
+  const lookupTrack = { id: 'retryable', title: 'Song', artist: 'Artist', album: 'Studio', duration: 180 }
+  const recoveredLyrics = {
+    id: 42, trackName: 'Song', artistName: 'Artist', albumName: 'Studio',
+    duration: 180, instrumental: false, plainLyrics: 'Recovered lyrics', syncedLyrics: null,
+  }
+
+  it('retries a transient provider miss on the next lookup', async () => {
+    lrclibMock.mockResolvedValueOnce(null).mockResolvedValueOnce(recoveredLyrics)
+    await expect(getPrimaryLyrics(lookupTrack)).resolves.toBeNull()
+    await expect(getPrimaryLyrics(lookupTrack)).resolves.toMatchObject({ plainLyrics: 'Recovered lyrics' })
+  })
+
+  it('retries after a provider throws', async () => {
+    lrclibMock.mockRejectedValueOnce(new Error('Provider unavailable')).mockResolvedValueOnce(recoveredLyrics)
+    await expect(getPrimaryLyrics(lookupTrack)).resolves.toBeNull()
+    await expect(getPrimaryLyrics(lookupTrack)).resolves.toMatchObject({ plainLyrics: 'Recovered lyrics' })
+  })
+
+  it.each([
+    { album: 'Live album' },
+    { duration: 240 },
+    { youtube_id: 'different-video', nhaccuatui_id: 'same-nct' },
+  ])('keeps distinct provider lookup metadata separate: %j', async (metadata) => {
+    lrclibMock.mockResolvedValueOnce(recoveredLyrics).mockResolvedValueOnce({ ...recoveredLyrics, plainLyrics: 'Other version' })
+    const original = { ...lookupTrack, youtube_id: 'original-video', nhaccuatui_id: 'same-nct' }
+    await getPrimaryLyrics(original)
+    await expect(getPrimaryLyrics({ ...original, ...metadata })).resolves.toMatchObject({ plainLyrics: 'Other version' })
+  })
+
+  it('deduplicates pending lookups and retains successful lyrics', async () => {
+    let finish!: (value: typeof recoveredLyrics) => void
+    lrclibMock.mockImplementation(() => new Promise((resolve) => { finish = resolve }))
+    const first = getPrimaryLyrics(lookupTrack)
+    const second = getPrimaryLyrics(lookupTrack)
+    finish(recoveredLyrics)
+    expect(await first).toEqual(recoveredLyrics)
+    expect(await second).toEqual(recoveredLyrics)
+    expect(await getPrimaryLyrics(lookupTrack)).toEqual(recoveredLyrics)
+    expect(lrclibMock).toHaveBeenCalledOnce()
+  })
+
+  it('evicts old successes after many distinct tracks instead of growing forever', async () => {
+    lrclibMock.mockResolvedValue(recoveredLyrics)
+    await getPrimaryLyrics(lookupTrack)
+    for (let i = 0; i < 500; i++) await getPrimaryLyrics({ ...lookupTrack, id: `bounded-${i}` })
+    lrclibMock.mockResolvedValue({ ...recoveredLyrics, plainLyrics: 'Refetched old track' })
+    await expect(getPrimaryLyrics(lookupTrack)).resolves.toMatchObject({ plainLyrics: 'Refetched old track' })
+  })
 })

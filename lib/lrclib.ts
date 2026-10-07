@@ -9,8 +9,18 @@ export interface LrclibResponse {
   syncedLyrics: string | null
 }
 
-const lyricsCache = new Map<string, LrclibResponse | null>()
+const MAX_LYRICS_ENTRIES = 200
+const lyricsCache = new Map<string, LrclibResponse>()
 const lyricsInFlight = new Map<string, Promise<LrclibResponse | null>>()
+
+function cacheLyrics(key: string, result: LrclibResponse | null): void {
+  if (!result || (!result.syncedLyrics?.trim() && !result.plainLyrics?.trim())) return
+  lyricsCache.delete(key)
+  lyricsCache.set(key, result)
+  while (lyricsCache.size > MAX_LYRICS_ENTRIES) {
+    lyricsCache.delete(lyricsCache.keys().next().value!)
+  }
+}
 
 /**
  * Smart Title, Artist & Album Normalizer for LRCLIB API lookup
@@ -302,11 +312,17 @@ export async function fetchLyricsFromLrclib({
   }
 
   const durRound = duration && duration > 0 ? Math.round(duration) : 0
-  const cacheKey = `${cleanTitle.toLowerCase()}__${cleanArtist.toLowerCase()}__${(cleanAlbum || '').toLowerCase()}__${durRound}__${isSoundCloud ? 'sc' : 'std'}`
+  const cacheKey = JSON.stringify([
+    cleanTitle.toLowerCase(), cleanArtist.toLowerCase(),
+    (cleanAlbum || '').toLowerCase(), durRound, isSoundCloud, youtubeId || '',
+  ])
 
   // 1. Check in-memory LRU cache
   if (lyricsCache.has(cacheKey)) {
-    return lyricsCache.get(cacheKey)!
+    const cached = lyricsCache.get(cacheKey)!
+    lyricsCache.delete(cacheKey)
+    lyricsCache.set(cacheKey, cached)
+    return cached
   }
 
   // 2. Check in-flight requests (deduplication)
@@ -322,7 +338,7 @@ export async function fetchLyricsFromLrclib({
       if (cleanAlbum && !isSoundCloud) {
         const data0 = await tryGetApi(cleanTitle, cleanArtist, cleanAlbum, durRound)
         if (data0?.syncedLyrics) {
-          lyricsCache.set(cacheKey, data0)
+          cacheLyrics(cacheKey, data0)
           return data0
         }
         if (data0) fallback = data0
@@ -331,7 +347,7 @@ export async function fetchLyricsFromLrclib({
       // Step B: Direct lookup without album
       const data1 = await tryGetApi(cleanTitle, cleanArtist, undefined, durRound)
       if (data1?.syncedLyrics) {
-        lyricsCache.set(cacheKey, data1)
+        cacheLyrics(cacheKey, data1)
         return data1
       }
       if (data1 && !fallback) fallback = data1
@@ -339,7 +355,7 @@ export async function fetchLyricsFromLrclib({
       // Step C: Try search API with title + artist
       const data2 = await trySearchApi(cleanTitle, cleanTitle, cleanArtist, cleanAlbum, durRound)
       if (data2?.syncedLyrics) {
-        lyricsCache.set(cacheKey, data2)
+        cacheLyrics(cacheKey, data2)
         return data2
       }
       if (data2 && !fallback) fallback = data2
@@ -348,7 +364,7 @@ export async function fetchLyricsFromLrclib({
       if (cleanArtist && !isSoundCloud) {
         const data3 = await trySearchApi(`${cleanTitle} ${cleanArtist}`, cleanTitle, cleanArtist, undefined, durRound)
         if (data3?.syncedLyrics) {
-          lyricsCache.set(cacheKey, data3)
+          cacheLyrics(cacheKey, data3)
           return data3
         }
         if (data3 && !fallback) fallback = data3
@@ -382,7 +398,7 @@ export async function fetchLyricsFromLrclib({
                 plainLyrics: ytData.plainLyrics,
                 syncedLyrics: null,
               }
-              lyricsCache.set(cacheKey, ytResponse)
+              cacheLyrics(cacheKey, ytResponse)
               return ytResponse
             }
           }
@@ -391,7 +407,7 @@ export async function fetchLyricsFromLrclib({
         }
       }
 
-      lyricsCache.set(cacheKey, fallback)
+      cacheLyrics(cacheKey, fallback)
       return fallback
     } finally {
       lyricsInFlight.delete(cacheKey)

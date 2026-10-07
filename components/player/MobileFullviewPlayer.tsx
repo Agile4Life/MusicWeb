@@ -3,22 +3,19 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { usePlayer, usePlaybackProgress } from './PlayerContext'
-import type { RepeatMode } from './PlayerContext'
 import { useTheme } from '../theme/ThemeContext'
 import { TrackCoverImage } from '../common/TrackCoverImage'
 import { LyricsShareModal } from './LyricsShareModal'
 import { MobileTabTransition } from './MobileTabTransition'
-import { getPrimaryLyrics } from '@/lib/lyricsFlow'
+import { getPrimaryLyrics, getTrackLyricsCacheKey } from '@/lib/lyricsFlow'
 import { parseLrc, parsePlainLyrics, findActiveLyricIndex, LyricLine } from '@/lib/lrcParser'
 import { fetchLyricsRomaji } from '@/lib/romajiTransliteration'
-import { isIOSDevice } from '@/lib/audioPlayback'
 import {
   Play,
   Pause,
   SkipBack,
   SkipForward,
   Star,
-  Heart,
   Shuffle,
   Repeat,
   Repeat1,
@@ -101,15 +98,7 @@ export function MobileFullviewPlayer() {
     })
   }, [])
 
-  // ===== iOS Device Detection =====
-  const [isIOS, setIsIOS] = useState(false)
-  useEffect(() => {
-    setIsIOS(isIOSDevice())
-  }, [])
-
   // ===== Unified iOS Drag to Dismiss Physics =====
-  const [dragY, setDragY] = useState(0)
-  const [isDragging, setIsDragging] = useState(false)
   const touchStartYRef = useRef(0)
   const touchStartXRef = useRef(0)
   const touchStartTimeRef = useRef(0)
@@ -128,14 +117,14 @@ export function MobileFullviewPlayer() {
 
   // ===== Lyrics State =====
   const [lyrics, setLyrics] = useState<ExtendedLyricLine[]>(() => {
-    if (currentTrack?.id && globalLyricsCache.has(currentTrack.id)) {
-      return globalLyricsCache.get(currentTrack.id)!.lyrics
+    if (currentTrack) {
+      return globalLyricsCache.get(getTrackLyricsCacheKey(currentTrack))?.lyrics || []
     }
     return []
   })
   const [isSynced, setIsSynced] = useState<boolean>(() => {
-    if (currentTrack?.id && globalLyricsCache.has(currentTrack.id)) {
-      return globalLyricsCache.get(currentTrack.id)!.isSynced
+    if (currentTrack) {
+      return globalLyricsCache.get(getTrackLyricsCacheKey(currentTrack))?.isSynced || false
     }
     return false
   })
@@ -179,9 +168,7 @@ export function MobileFullviewPlayer() {
         clearTimeout(dismissTimeoutRef.current)
         dismissTimeoutRef.current = null
       }
-      setDragY(0)
       dragYRef.current = 0
-      setIsDragging(false)
       isDraggingRef.current = false
       isClosingRef.current = false
       touchHistoryRef.current = []
@@ -199,36 +186,31 @@ export function MobileFullviewPlayer() {
 
   // ===== Fetch lyrics whenever currentTrack changes =====
   useEffect(() => {
+    const reqId = ++lyricsReqIdRef.current
+    const invalidate = () => { lyricsReqIdRef.current++ }
     if (!currentTrack) {
       setLyrics([])
       setIsSynced(false)
       setLyricsLoading(false)
-      return
+      return invalidate
     }
 
-    const trackId = currentTrack.id
-    const cached = globalLyricsCache.get(trackId)
+    const cacheKey = getTrackLyricsCacheKey(currentTrack)
+    const cached = globalLyricsCache.get(cacheKey)
     if (cached) {
       setLyrics(cached.lyrics)
       setIsSynced(cached.isSynced)
       setLyricsLoading(false)
-      return
+      globalLyricsCache.delete(cacheKey)
+      globalLyricsCache.set(cacheKey, cached)
+      return invalidate
     }
 
-    const reqId = ++lyricsReqIdRef.current
     setLyricsLoading(true)
     setLyrics([])
     setIsSynced(false)
 
-    getPrimaryLyrics({
-      title: currentTrack.title,
-      artist: currentTrack.artist,
-      album: currentTrack.album,
-      duration: currentTrack.duration,
-      youtube_id: currentTrack.youtube_id,
-      nhaccuatui_id: currentTrack.nhaccuatui_id,
-      source: currentTrack.source,
-    })
+    getPrimaryLyrics(currentTrack)
       .then(async (res) => {
         if (reqId !== lyricsReqIdRef.current) return
         if (!res || (!res.syncedLyrics && !res.plainLyrics)) {
@@ -251,7 +233,12 @@ export function MobileFullviewPlayer() {
         const validLyrics = parsed.filter((l) => l.text && l.text.trim().length > 0)
         setLyrics(validLyrics)
         setIsSynced(hasSynced)
-        globalLyricsCache.set(trackId, { lyrics: validLyrics, isSynced: hasSynced })
+        if (validLyrics.length > 0) {
+          globalLyricsCache.set(cacheKey, { lyrics: validLyrics, isSynced: hasSynced })
+          while (globalLyricsCache.size > 200) {
+            globalLyricsCache.delete(globalLyricsCache.keys().next().value!)
+          }
+        }
 
         if (validLyrics.length > 0) {
           try {
@@ -263,7 +250,7 @@ export function MobileFullviewPlayer() {
                 romaji: romajiResults[idx] || '',
               }))
               setLyrics(withRomaji)
-              globalLyricsCache.set(trackId, { lyrics: withRomaji, isSynced: hasSynced })
+              globalLyricsCache.set(cacheKey, { lyrics: withRomaji, isSynced: hasSynced })
             }
           } catch (err) {
             console.warn('Romaji transliteration error:', err)
@@ -282,6 +269,7 @@ export function MobileFullviewPlayer() {
           setLyricsLoading(false)
         }
       })
+    return invalidate
   }, [currentTrack])
 
   // Active lyric index calculation
@@ -608,11 +596,6 @@ export function MobileFullviewPlayer() {
   const isMinimal = themeStyle === 'minimal-flat'
   const isClassic = themeStyle === 'classic'
 
-  const dragProgress = Math.min(1, Math.max(0, dragY / 500))
-  const sheetScale = dragY > 0 ? Math.max(0.92, 1 - dragProgress * 0.08) : 1
-  const sheetRadius = dragY > 0 ? Math.min(36, 16 + dragY * 0.12) : 0
-  const sheetOpacity = dragY > 0 ? Math.max(0.35, 1 - dragProgress * 0.55) : 1
-
   // Queue: upcoming tracks after current
   const nextUpTracks = currentIndex >= 0 ? queue.slice(currentIndex + 1) : queue
 
@@ -623,6 +606,8 @@ export function MobileFullviewPlayer() {
   return (
     <div
       ref={containerRef}
+      inert={!isNowPlayingOpen}
+      aria-hidden={!isNowPlayingOpen}
       className={`mobile-fullview-overlay fixed inset-0 h-[100dvh] max-h-[100dvh] z-[100] flex flex-col select-none overflow-hidden touch-manipulation transition-all duration-350 ease-[cubic-bezier(0.32,0.72,0,1)] ${
         isNowPlayingOpen
           ? 'translate-y-0 opacity-100 pointer-events-auto'
@@ -696,6 +681,7 @@ export function MobileFullviewPlayer() {
           {/* Star + ⋯ */}
           <div className="flex items-center gap-2 shrink-0">
             <button
+              aria-label={currentTrack.is_favorite ? "Bỏ yêu thích" : "Thêm yêu thích"}
               type="button"
               onClick={toggleFavoriteCurrentTrack}
               className="p-1.5 active:scale-90 transition-transform cursor-pointer"
@@ -709,6 +695,7 @@ export function MobileFullviewPlayer() {
               />
             </button>
             <button
+              aria-label="Tùy chọn bài hát"
               type="button"
               onClick={() => setShowMenuSheet(true)}
               className="p-1.5 text-white/50 hover:text-white/80 active:scale-90 transition-all cursor-pointer"
@@ -759,6 +746,7 @@ export function MobileFullviewPlayer() {
               </div>
               <div className="flex items-center gap-2 shrink-0 mt-0.5">
                 <button
+                  aria-label={currentTrack.is_favorite ? "Bỏ yêu thích" : "Thêm yêu thích"}
                   type="button"
                   onClick={toggleFavoriteCurrentTrack}
                   className="p-1.5 active:scale-90 transition-transform cursor-pointer"
@@ -772,6 +760,7 @@ export function MobileFullviewPlayer() {
                   />
                 </button>
                 <button
+                  aria-label="Tùy chọn bài hát"
                   type="button"
                   onClick={() => setShowMenuSheet(true)}
                   className="p-1.5 text-white/45 hover:text-white/75 active:scale-90 transition-all cursor-pointer"
@@ -897,6 +886,7 @@ export function MobileFullviewPlayer() {
             {lyrics.length > 0 && (
               <div className="flex items-center justify-between px-2 py-2 shrink-0">
                 <button
+                  aria-label="Bật/Tắt phiên âm Romaji"
                   type="button"
                   onClick={() => setShowTranslation((prev) => {
                     const next = !prev
@@ -913,6 +903,7 @@ export function MobileFullviewPlayer() {
                 </button>
 
                 <button
+                  aria-label="Chia sẻ lời bài hát"
                   type="button"
                   onClick={() => setShowShareModal(true)}
                   className="p-2 rounded-full text-white/40 hover:text-white/60 transition-all cursor-pointer active:scale-95"
@@ -930,6 +921,7 @@ export function MobileFullviewPlayer() {
             {/* Control Pills: Shuffle / Repeat / Autoplay */}
             <div className="flex items-center gap-2 py-3 px-1 shrink-0">
               <button
+                aria-label={isShuffle ? "Tắt phát ngẫu nhiên" : "Bật phát ngẫu nhiên"}
                 type="button"
                 onClick={toggleShuffle}
                 className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer active:scale-95 ${
@@ -942,6 +934,7 @@ export function MobileFullviewPlayer() {
               </button>
 
               <button
+                aria-label="Chế độ lặp lại"
                 type="button"
                 onClick={toggleRepeat}
                 className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer active:scale-95 ${
@@ -1040,6 +1033,7 @@ export function MobileFullviewPlayer() {
         <div className="flex items-center justify-center gap-10 py-2.5">
           {/* Previous */}
           <button
+            aria-label="Bài trước"
             type="button"
             onClick={prevTrack}
             className="text-white active:scale-85 active:opacity-60 transition-all cursor-pointer p-2"
@@ -1049,6 +1043,7 @@ export function MobileFullviewPlayer() {
 
           {/* Play / Pause */}
           <button
+            aria-label={isPlaying ? "Tạm dừng" : "Phát"}
             type="button"
             onClick={togglePlay}
             className="text-white active:scale-85 active:opacity-60 transition-all cursor-pointer p-2"
@@ -1064,6 +1059,7 @@ export function MobileFullviewPlayer() {
 
           {/* Next */}
           <button
+            aria-label="Bài tiếp theo"
             type="button"
             onClick={nextTrack}
             className="text-white active:scale-85 active:opacity-60 transition-all cursor-pointer p-2"
@@ -1075,6 +1071,7 @@ export function MobileFullviewPlayer() {
         {/* ─── Volume Slider (Apple Music: thin bar only, no knob — supported on iOS via Web Audio GainNode) ─── */}
         <div className="flex items-center gap-3 px-0.5 pb-2">
           <button
+            aria-label={volume === 0 ? "Mở tiếng" : "Tắt tiếng"}
             type="button"
             onClick={handleVolumeToggle}
             className="text-white/35 active:scale-90 transition-all cursor-pointer shrink-0"
@@ -1125,6 +1122,7 @@ export function MobileFullviewPlayer() {
         <div className="flex items-center justify-center gap-16 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
           {/* Lyrics Tab */}
           <button
+            aria-label="Lời bài hát"
             type="button"
             onClick={() => switchTab(activeTab === 'lyrics' ? 'cover' : 'lyrics')}
             className={`p-2.5 rounded-full transition-all cursor-pointer active:scale-90 ${
@@ -1140,6 +1138,7 @@ export function MobileFullviewPlayer() {
 
           {/* Queue Tab */}
           <button
+            aria-label="Hàng đợi phát"
             type="button"
             onClick={() => switchTab(activeTab === 'queue' ? 'cover' : 'queue')}
             className={`p-2.5 rounded-full transition-all cursor-pointer active:scale-90 ${
@@ -1180,6 +1179,7 @@ export function MobileFullviewPlayer() {
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
                 <span className="text-sm font-bold">Tùy chọn bài hát</span>
                 <button
+                  aria-label="Đóng tùy chọn"
                   type="button"
                   onClick={() => setShowMenuSheet(false)}
                   className="p-1.5 text-white/40 hover:text-white rounded-full bg-white/5"
@@ -1189,6 +1189,7 @@ export function MobileFullviewPlayer() {
               </div>
 
               <button
+                aria-label="Chia sẻ trích dẫn lời bài hát"
                 type="button"
                 onClick={() => {
                   setShowMenuSheet(false)

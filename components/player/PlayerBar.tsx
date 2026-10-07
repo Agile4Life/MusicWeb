@@ -1,11 +1,9 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { usePlayer, usePlaybackProgress } from './PlayerContext'
 import { LyricsView } from './LyricsView'
-import { QueueDrawer } from './QueueDrawer'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import { OverflowMarqueeText } from '@/components/common/OverflowMarqueeText'
 import { ArtistLinks } from '@/components/common/ArtistLinks'
@@ -34,8 +32,6 @@ import {
   Volume2,
   VolumeX,
   Music,
-  Headphones,
-  ChevronDown,
   Mic2,
   Shuffle,
   Repeat,
@@ -46,13 +42,6 @@ import {
   DiscAlbum,
   Share2,
 } from 'lucide-react'
-
-function formatTime(seconds: number) {
-  if (isNaN(seconds) || seconds < 0) return '0:00'
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins}:${secs < 10 ? '0' : ''}${secs}`
-}
 
 export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
   const { t } = useLanguage()
@@ -202,13 +191,11 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
     }
 
     if (currentTrack.spotify_album_id && !currentTrack.spotify_album_id.includes('299152445') && !currentTrack.spotify_album_id.includes('296970753')) {
-      setShowMobileFullPlayer(false)
       router.push(`/album/${currentTrack.spotify_album_id}`)
       return
     }
 
     if (resolvedAlbumInfo?.id && !resolvedAlbumInfo.id.includes('299152445') && !resolvedAlbumInfo.id.includes('296970753')) {
-      setShowMobileFullPlayer(false)
       router.push(`/album/${resolvedAlbumInfo.id}`)
       return
     }
@@ -231,7 +218,6 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
           setResolvedAlbumInfo({ id: data.albumId, name: data.albumName || currentTrack.album || 'Album' })
           currentTrack.spotify_album_id = data.albumId
           if (data.albumName) currentTrack.album = data.albumName
-          setShowMobileFullPlayer(false)
           router.push(`/album/${data.albumId}`)
           return
         }
@@ -243,7 +229,6 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
     }
 
     const targetQuery = albumToSearch || titleToSearch
-    setShowMobileFullPlayer(false)
     router.push(targetQuery ? `/albums?q=${encodeURIComponent(targetQuery)}` : '/albums')
   }
 
@@ -254,12 +239,10 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
     }
     const name = artistName || currentTrack?.artist
     if (!name) return
-    setShowMobileFullPlayer(false)
     router.push(`/artist?name=${encodeURIComponent(name)}`)
   }
 
   const [prevVol, setPrevVol] = useState(0.8)
-  const [showMobileFullPlayer, setShowMobileFullPlayer] = useState(false)
   const [showLyricsModal, setShowLyricsModal] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
   const [shareLyrics, setShareLyrics] = useState<LyricLine[]>([])
@@ -301,9 +284,6 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
       setVolume(prevVol || 0.8)
     }
   }
-
-  const effectiveDuration = duration > 0 ? duration : (currentTrack?.duration || 0)
-  const progressPercent = effectiveDuration > 0 ? Math.min(100, Math.max(0, (currentTime / effectiveDuration) * 100)) : 0
 
   if (!currentTrack) {
     return (
@@ -365,11 +345,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
   return (
     <>
       {/* 📱 Mobile Centered Screen Loading Toast */}
-      {(() => {
-        const currentViews = currentTrack?.view_count ?? currentTrack?.play_count
-        return null
-      })()}
-      {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && !showMobileFullPlayer && (
+      {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && (
         <div className="lg:hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-[#0a0d14]/95 backdrop-blur-2xl border border-[var(--spotify-glow,#22d3ee)]/40 px-6 py-4 rounded-2xl shadow-2xl flex flex-col items-center justify-center gap-2.5 text-center pointer-events-none transition-all duration-200">
           <div className="w-11 h-11 rounded-full bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/30 flex items-center justify-center shadow-lg">
             <Loader2 className="w-6 h-6 animate-spin text-[var(--spotify-glow,#22d3ee)]" />
@@ -497,251 +473,6 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         </div>
       </div>
 
-      {/* 📱 FULL-SCREEN MOBILE PLAYER OVERLAY MODAL */}
-      {showMobileFullPlayer && (
-        <div className="lg:hidden fixed inset-0 z-50 bg-[#07090e] flex flex-col justify-between p-6 select-none overflow-y-auto pointer-events-auto">
-          {/* Header handle */}
-          <div className="flex items-center justify-between pb-4 border-b border-white/[0.05]">
-            <button
-              onClick={() => setShowMobileFullPlayer(false)}
-              className="p-2 bg-white/5 rounded-xl text-slate-300 border border-white/10"
-            >
-              <ChevronDown className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-white/[0.03] border border-white/[0.08]">
-              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[var(--primary-spotify,#06b6d4)]/20 to-[var(--theme-secondary,#ec4899)]/20 border border-[var(--primary-spotify,#06b6d4)]/30 flex items-center justify-center text-[var(--spotify-glow,#22d3ee)] shrink-0">
-                <Headphones className="w-3 h-3" />
-              </div>
-              <img
-                src="/phong-signature.png"
-                alt="Phong's Music Signature"
-                className="h-5 w-auto object-contain signature-img-invert translate-y-[0.5px]"
-              />
-            </div>
-
-            <button
-              onClick={() => {
-                setShowMobileFullPlayer(false)
-                setShowLyricsModal(true)
-              }}
-              className="p-2 bg-[var(--primary-spotify,#06b6d4)]/10 rounded-xl text-[var(--spotify-glow,#22d3ee)] border border-[var(--primary-spotify,#06b6d4)]/20"
-              title="Xem lời bài hát"
-            >
-              <Mic2 className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Large Album Artwork */}
-          <div className="flex-1 flex items-center justify-center my-8 relative">
-            <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-2xl bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden shadow-2xl relative">
-              <TrackCoverImage
-                src={currentTrack.cover_url}
-                alt={currentTrack.title}
-                fallbackIconClassName="w-20 h-20 text-slate-600"
-              />
-
-              {/* Centered Lossless Loading Overlay on Artwork */}
-              {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && (
-                <div className="absolute inset-0 bg-black/75 backdrop-blur-md flex flex-col items-center justify-center gap-2 p-4 text-center z-10">
-                  <Loader2 className="w-9 h-9 animate-spin text-[var(--spotify-glow,#22d3ee)]" />
-                  <span className="text-xs font-extrabold text-white tracking-wide">Đang tải bản Lossless...</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Track Info Header */}
-          <div className="flex items-center justify-between gap-3 mb-6">
-            <div className="flex flex-col items-start gap-1 min-w-0 flex-1">
-              <h2 className="text-lg font-bold text-white truncate w-full">{currentTrack.title}</h2>
-              <ArtistLinks
-                artist={currentTrack.artist}
-                className="text-xs text-slate-400 truncate w-full block"
-                linkClassName="hover:underline hover:text-slate-200 transition-colors cursor-pointer"
-                onArtistClick={(name, e) => handleOpenArtist(name, e)}
-              />
-              <div
-                onClick={handleOpenAlbum}
-                className="flex items-center gap-1.5 mt-1.5 text-xs truncate max-w-full cursor-pointer group bg-[var(--primary-spotify)]/10 border border-[var(--primary-spotify)]/20 px-2.5 py-1 rounded-lg hover:bg-[var(--primary-spotify)]/20 transition-all"
-              >
-                {isNavigatingAlbum ? (
-                  <Loader2 className="w-3.5 h-3.5 text-[var(--primary-spotify,#06b6d4)] animate-spin shrink-0" />
-                ) : (
-                  <DiscAlbum className="w-3.5 h-3.5 text-[var(--primary-spotify,#06b6d4)] shrink-0" />
-                )}
-                <span
-                  className="text-[var(--primary-spotify,#06b6d4)] font-semibold group-hover:underline truncate"
-                  title={displayAlbumName ? `Vào Album: ${displayAlbumName}` : 'Vào Album bài hát'}
-                >
-                  {displayAlbumName || 'Album'}
-                </span>
-              </div>
-
-              {/* end album pill */}
-            </div>
-            <button
-              onClick={toggleFavoriteCurrentTrack}
-              className="p-2.5 rounded-xl bg-white/5 text-slate-400 border border-white/10 shrink-0"
-            >
-              <Heart
-                className={`w-5 h-5 ${currentTrack.is_favorite ? 'text-rose-500 fill-current' : 'text-slate-400'
-                  }`}
-              />
-            </button>
-          </div>
-
-          {/* Waveform Scrubber (Mobile Modal View) */}
-          <div className="w-full mb-6">
-            <AudioWaveformScrubber
-              currentTime={currentTime}
-              duration={duration || currentTrack.duration || 0}
-              isPlaying={isPlaying}
-              trackId={currentTrack.id}
-              onSeek={seek}
-              barCount={44}
-            />
-          </div>
-
-          {/* Full Playback Controls */}
-          <div className="grid grid-cols-5 items-center justify-items-center w-full px-2 mb-8">
-            <button
-              onClick={toggleShuffle}
-              className={`p-3 rounded-full transition-all flex items-center justify-center btn-3d-tactile ${isShuffle
-                  ? 'text-[var(--primary-spotify,#06b6d4)] bg-[var(--primary-spotify,#06b6d4)]/20 border border-[var(--primary-spotify,#06b6d4)]/40 shadow-3d-raised'
-                  : 'text-slate-400 hover:text-white bg-white/5'
-                }`}
-              title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
-            >
-              <Shuffle className="w-5 h-5 sm:w-6 sm:h-6" />
-            </button>
-
-            <button
-              onClick={prevTrack}
-              className="p-3 text-slate-300 hover:text-white btn-3d-tactile rounded-full flex items-center justify-center"
-              title="Bài trước"
-            >
-              <SkipBack className="w-7 h-7 sm:w-8 sm:h-8" />
-            </button>
-
-            <button
-              onClick={togglePlay}
-              className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black flex items-center justify-center btn-3d-tactile border border-white/20 shrink-0 shadow-3d-raised"
-              title={isBuffering ? t('buffering') : isPlaying ? t('pause') : t('play')}
-              aria-label={isBuffering ? t('buffering') : isPlaying ? t('pause') : t('play')}
-            >
-              {isBuffering ? (
-                <Loader2 className="w-7 h-7 sm:w-8 sm:h-8 animate-spin text-black shrink-0" />
-              ) : isPlaying ? (
-                <Pause className="w-7 h-7 sm:w-8 sm:h-8 fill-current" />
-              ) : (
-                <Play className="w-7 h-7 sm:w-8 sm:h-8 fill-current ml-1" />
-              )}
-            </button>
-
-            <button
-              onClick={nextTrack}
-              className="p-3 text-slate-300 hover:text-white btn-3d-tactile rounded-full flex items-center justify-center"
-              title="Bài kế tiếp"
-            >
-              <SkipForward className="w-7 h-7 sm:w-8 sm:h-8" />
-            </button>
-
-            <button
-              onClick={toggleRepeat}
-              style={
-                repeatMode !== 'off'
-                  ? {
-                    color: 'var(--spotify-glow, #22d3ee)',
-                    backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
-                    borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
-                  }
-                  : undefined
-              }
-              className={`p-3 rounded-full border transition-all flex items-center justify-center btn-3d-tactile ${repeatMode !== 'off'
-                  ? 'border-[var(--spotify-glow)] shadow-3d-raised'
-                  : 'text-slate-400 hover:text-white bg-white/5 border-transparent'
-                }`}
-              title={
-                repeatMode === 'one'
-                  ? 'Lặp lại 1 bài'
-                  : repeatMode === 'all'
-                    ? 'Lặp lại danh sách'
-                    : 'Tắt lặp lại'
-              }
-            >
-              {repeatMode === 'one' ? <Repeat1 className="w-5 h-5 sm:w-6 sm:h-6" /> : <Repeat className="w-5 h-5 sm:w-6 sm:h-6" />}
-            </button>
-          </div>
-
-          {/* Volume Control Bar */}
-          <div className="flex items-center gap-3 px-4 py-3 bg-white/5 rounded-2xl border border-white/10 mb-4">
-            <button onClick={handleVolumeToggle} className="text-slate-400 hover:text-white">
-              {volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-            </button>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={volume}
-              onChange={(e) => setVolume(Number(e.target.value))}
-              style={{
-                background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${volume * 100}%, rgba(255,255,255,0.1) ${volume * 100}%)`,
-              }}
-              className="w-full h-1.5 rounded-lg appearance-none cursor-pointer outline-none"
-            />
-          </div>
-
-          {/* Extra Mobile Actions: Lyrics, Share & Queue */}
-          <div className="flex items-center justify-around px-4 mb-4 gap-2">
-            <button
-              onClick={() => {
-                setShowMobileFullPlayer(false)
-                setShowLyricsModal(true)
-              }}
-              className="p-3 text-slate-300 hover:text-white rounded-full bg-white/5 border border-white/10 flex items-center gap-2 text-xs font-semibold"
-            >
-              <Mic2 style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
-              <span>Lời bài hát</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setShowMobileFullPlayer(false)
-                handleOpenShare()
-              }}
-              className="p-3 text-slate-300 hover:text-white rounded-full bg-white/5 border border-white/10 flex items-center gap-2 text-xs font-semibold"
-            >
-              <Share2 style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
-              <span>Chia sẻ</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setShowMobileFullPlayer(false)
-                toggleQueue()
-              }}
-              style={
-                isQueueOpen
-                  ? {
-                    color: 'var(--spotify-glow, #22d3ee)',
-                    backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
-                    borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
-                  }
-                  : undefined
-              }
-              className={`p-3 rounded-full border transition-all flex items-center gap-2 text-xs font-semibold ${isQueueOpen
-                  ? 'shadow-lg'
-                  : 'text-slate-300 hover:text-white bg-white/5 border-white/10'
-                }`}
-            >
-              <ListMusic style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
-              <span>Hàng đợi</span>
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* 💻 DESKTOP PLAYER BAR (Visible on >= 768px screens) */}
       <footer
