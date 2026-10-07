@@ -22,7 +22,6 @@ const STORAGE_KEY = 'musicweb_playback_v2'
 const MAX_BYTES = 2 * 1024 * 1024 // 2MB — leaves room for other localStorage data
 const STREAM_URL_TTL = 5 * 60 * 1000 // 5 min — short TTL for signed stream URLs
 const STREAM_URL_MAX_ENTRIES = 200
-const QUEUE_MAX_ENTRIES = 500
 
 // ── Serialization helpers ─────────────────────────────────────────────────────
 
@@ -69,96 +68,61 @@ function safeRead<T>(key: string, fallback: T): T {
   }
 }
 
-function safeWrite(key: string, data: unknown): boolean {
-  if (typeof window === 'undefined') return false
-  try {
-    const serialized = JSON.stringify(data)
-    // LRU eviction if too large
-    if (serialized.length > MAX_BYTES) {
-      const evicted = evictLRU(key, serialized)
-      if (!evicted) return false
-    }
-    localStorage.setItem(key, serialized)
-    return true
-  } catch {
-    // localStorage full — try evicting and retrying
-    evictToMakeSpace(key, data)
-    return false
-  }
+/** Retain a contiguous queue window around the selected track. */
+function trimQueue(state: PlaybackState, limit: number): void {
+  const index = state.currentIndex
+  const validIndex = index >= 0 && index < state.queue.length
+  const start = validIndex
+    ? Math.max(0, Math.min(index - Math.floor(limit / 2), state.queue.length - limit))
+    : 0
+  state.queue = state.queue.slice(start, start + limit)
+  state.currentIndex = validIndex ? index - start : -1
 }
 
-function evictToMakeSpace(key: string, data: unknown): void {
-  if (typeof window === 'undefined') return
-  try {
-    const serialized = JSON.stringify(data)
-    // Remove oldest stream URLs and resolutions until it fits
-    const state = safeRead<PlaybackState>(STORAGE_KEY, {
-      queue: [], currentIndex: -1, currentTime: 0,
-      currentTrack: null, streamUrls: {}, resolutions: {}, savedAt: 0
-    })
-
-    // Sort stream URLs by expiry, remove oldest
-    const sortedUrls = Object.entries(state.streamUrls)
-      .sort(([, a], [, b]) => a.expiresAt - b.expiresAt)
-
-    while (sortedUrls.length > 10) {
-      const [k] = sortedUrls.shift()!
-      delete state.streamUrls[k]
-    }
-
-    // Sort resolutions by expiry, remove oldest
-    const sortedRes = Object.entries(state.resolutions)
-      .sort(([, a], [, b]) => a.expiresAt - b.expiresAt)
-
-    while (sortedRes.length > 50) {
-      const [k] = sortedRes.shift()!
-      delete state.resolutions[k]
-    }
-
-    // Truncate queue if still too big
-    if (JSON.stringify(state).length > MAX_BYTES * 0.8) {
-      state.queue = state.queue.slice(0, 50)
-    }
-
-    localStorage.setItem(key, JSON.stringify(state))
-  } catch {
-    // Last resort: clear everything
-    localStorage.removeItem(key)
-  }
-}
-
-function evictLRU(key: string, serialized: string): boolean {
+function safeWrite(key: string, data: PlaybackState): boolean {
   if (typeof window === 'undefined') return false
   try {
-    const state = safeRead<PlaybackState>(key, {
-      queue: [], currentIndex: -1, currentTime: 0,
-      currentTrack: null, streamUrls: {}, resolutions: {}, savedAt: 0
-    })
-
-    // Remove expired entries first
+    // Eviction must operate on the incoming snapshot, without mutating live playback.
+    const state: PlaybackState = {
+      ...data,
+      queue: [...data.queue],
+      streamUrls: { ...data.streamUrls },
+      resolutions: { ...data.resolutions },
+    }
     const now = Date.now()
-    for (const [k, v] of Object.entries(state.streamUrls)) {
-      if (v.expiresAt < now) delete state.streamUrls[k]
+    for (const [id, entry] of Object.entries(state.streamUrls)) {
+      if (entry.expiresAt <= now) delete state.streamUrls[id]
     }
-    for (const [k, v] of Object.entries(state.resolutions)) {
-      if (v.expiresAt < now) delete state.resolutions[k]
+    for (const [id, entry] of Object.entries(state.resolutions)) {
+      if (entry.expiresAt <= now) delete state.resolutions[id]
     }
-
-    // If still too large, truncate queue and remove oldest stream URLs
-    if (JSON.stringify(state).length > MAX_BYTES) {
-      state.queue = state.queue.slice(0, 50)
-    }
-    if (JSON.stringify(state).length > MAX_BYTES) {
-      const entries = Object.entries(state.streamUrls)
-        .sort(([, a], [, b]) => b.ts - a.ts) // newest first
-      while (entries.length > 50 && JSON.stringify(state).length > MAX_BYTES) {
-        const [k] = entries.pop()!
-        delete state.streamUrls[k]
+    const cacheEntries = [
+      ...Object.entries(state.streamUrls).map(([id, entry]) => ({ id, ts: entry.ts, kind: 'url' as const })),
+      ...Object.entries(state.resolutions).map(([id, entry]) => ({ id, ts: entry.ts, kind: 'resolution' as const })),
+    ].sort((a, b) => a.ts - b.ts)
+    const encoder = new TextEncoder()
+    let cacheIndex = 0
+    while (true) {
+      const serialized = JSON.stringify(state)
+      if (encoder.encode(serialized).byteLength <= MAX_BYTES) {
+        try {
+          localStorage.setItem(key, serialized)
+          return true
+        } catch {
+          // A browser quota may be smaller than our budget. Retry the new snapshot.
+        }
+      }
+      const entry = cacheEntries[cacheIndex++]
+      if (entry) {
+        if (entry.kind === 'url') delete state.streamUrls[entry.id]
+        else delete state.resolutions[entry.id]
+      } else if (state.queue.length > 1) {
+        trimQueue(state, Math.max(1, Math.floor(state.queue.length / 2)))
+      } else {
+        // Keep the previous valid save if the selected track itself cannot fit.
+        return false
       }
     }
-
-    localStorage.setItem(key, JSON.stringify(state))
-    return true
   } catch {
     return false
   }

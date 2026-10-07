@@ -12,7 +12,8 @@ export function isSameAudioSource(currentSrc: string, newUrl: string): boolean {
     const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost'
     const parsedCurrent = new URL(currentSrc, currentOrigin)
     const parsedNew = new URL(newUrl, currentOrigin)
-    return parsedCurrent.pathname === parsedNew.pathname && parsedCurrent.search === parsedNew.search
+    return parsedCurrent.origin === parsedNew.origin &&
+      parsedCurrent.pathname === parsedNew.pathname && parsedCurrent.search === parsedNew.search
   } catch {
     return currentSrc === newUrl
   }

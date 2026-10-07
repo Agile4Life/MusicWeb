@@ -1,4 +1,5 @@
 import type { Track } from '@/types'
+import { hasCatalogArtistEvidence, hasIncompatiblePlaybackVariant } from './catalogMatching'
 
 export interface NhacCuaTuiSearchItem {
   id: string
@@ -25,19 +26,6 @@ export interface NhacCuaTuiMatchTarget {
   album?: string | null
   duration?: number | null
 }
-
-const NEGATIVE_MARKERS = [
-  'remix',
-  'cover',
-  'karaoke',
-  'nightcore',
-  'sped up',
-  'slowed',
-  '8d',
-  'instrumental',
-  'beat',
-  'live version',
-]
 
 function asText(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
@@ -295,13 +283,8 @@ export function findBestNhacCuaTuiMatch(
     const artist = normalizeNhacCuaTuiText(candidate.artist)
     if (!title || !artist) continue
 
-    // Check negative markers on the RAW title too — normalized text strips
-    // parenthesized markers (e.g. "(Cukak Remix)") which would bypass the filter.
-    const rawTitle = ` ${(candidate.title || '').toLowerCase()} `
-    const candidateHasNegativeMarker = NEGATIVE_MARKERS.some(
-      (marker) => title.includes(marker) || rawTitle.includes(` ${marker} `)
-    )
-    if (candidateHasNegativeMarker) continue
+    if (!hasCatalogArtistEvidence(candidate, target.artist)) continue
+    if (hasIncompatiblePlaybackVariant(candidate.title, target.title)) continue
 
     const titleOverlap = tokenOverlap(targetTitle, title)
     const artistOverlap = targetArtist ? tokenOverlap(targetArtist, artist) : 0

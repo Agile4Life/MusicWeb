@@ -1,4 +1,5 @@
 import { Track } from '@/types'
+import { hasCatalogArtistEvidence, hasIncompatiblePlaybackVariant } from './catalogMatching'
 
 /**
  * Extract 11-character YouTube Video ID from any input or URL
@@ -416,12 +417,6 @@ export function findBestYouTubeMatch(
     LONG_COMPILATION_KEYWORDS.some((kw) => cleanTargetTitle.includes(kw) || unaccentedTargetTitle.includes(kw)) ||
     (targetDur > 900)
 
-  // Identify negative keywords that are explicitly requested by target title (e.g. if original IS a remix)
-  const requestedNegativeKeywords = NEGATIVE_KEYWORDS.filter((kw) => {
-    const unaccentedKw = stripDiacritics(kw)
-    return cleanTargetTitle.includes(kw) || unaccentedTargetTitle.includes(unaccentedKw)
-  })
-
   let bestMatch: Track | null = null
   let highestScore = 30 // Threshold score for valid match
 
@@ -430,6 +425,7 @@ export function findBestYouTubeMatch(
 
   for (const candidate of candidates) {
     if (!candidate.youtube_id) continue
+    if (!hasCatalogArtistEvidence(candidate, targetArtist)) continue
 
     const candidateTitleNorm = normalizeTitle(candidate.title || '')
     const candidateArtistNorm = normalizeTitle(candidate.artist || '')
@@ -451,12 +447,10 @@ export function findBestYouTubeMatch(
       }
     }
 
-    // 2. HARD FILTER: Eliminate negative keywords (cover, karaoke, reaction, etc.) unless target explicitly asks for it
-    const hasUnwantedNegativeKeyword = NEGATIVE_KEYWORDS.some((kw) => {
-      if (requestedNegativeKeywords.includes(kw)) return false
-      const unaccentedKw = stripDiacritics(kw)
-      return candidateTitleNorm.includes(kw) || unaccentedCandidateTitle.includes(unaccentedKw)
-    })
+    // 2. HARD FILTER: Preserve requested versions and reject unrequested variants.
+    const hasUnwantedNegativeKeyword = hasIncompatiblePlaybackVariant(
+      candidate.title, targetTitle, [...NEGATIVE_KEYWORDS, 'beat'],
+    )
     if (hasUnwantedNegativeKeyword) {
       continue
     }
