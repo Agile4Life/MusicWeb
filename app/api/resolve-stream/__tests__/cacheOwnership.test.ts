@@ -41,36 +41,38 @@ describe('resolve-stream server cache ownership', () => {
     writeIds = []
     pendingWrite = undefined
     pendingRead = undefined
-    // Supabase builders implement PromiseLike, without a .catch() method.
+    let remoteGeneration = BigInt(0)
+    let transaction: Promise<unknown> = Promise.resolve()
     mocks.createClient.mockReturnValue({
-      from(table: string) {
-        let operation = 'select'
-        let payload: Record<string, unknown>
-        const builder = {
-          select: () => builder,
-          or: () => builder,
-          limit: () => builder,
-          eq: () => builder,
-          delete: () => { operation = 'delete'; return builder },
-          upsert: (data: Record<string, unknown>) => { operation = 'upsert'; payload = data; return builder },
-          single: async () => ({ data: pendingRead ? await pendingRead : dbRow }),
-          then(onFulfilled: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) {
-            const execute = async () => {
-              if (table === 'tracks') return { data: [] }
-              if (operation === 'delete') dbRow = null
-              if (operation === 'upsert') {
-                writeIds.push(String(payload.resolved_id))
-                const barrier = pendingWrite
-                pendingWrite = undefined
-                if (barrier) await barrier
-                dbRow = payload
-              }
-              return { data: null }
-            }
-            return execute().then(onFulfilled, onRejected)
-          },
-        }
+      from() {
+        const builder = { select: () => builder, or: () => builder, limit: () => Promise.resolve({ data: [] }) }
         return builder
+      },
+      rpc(name: string, args: Record<string, unknown>) {
+        const readBarrier = name === 'read_stream_resolution_cache' && !args.p_invalidate ? pendingRead : undefined
+        if (readBarrier) pendingRead = undefined
+        const execute = transaction.then(async () => {
+          if (name === 'read_stream_resolution_cache') {
+            if (args.p_invalidate) { remoteGeneration++; dbRow = null }
+            return { data: { generation: String(remoteGeneration), entry: dbRow, expiresAt: Date.now() + 600000 }, error: null }
+          }
+          if (name !== 'write_stream_resolution_cache') throw new Error('Unexpected RPC ' + name)
+          if (String(args.p_generation) !== String(remoteGeneration)) {
+            return { data: { accepted: false, generation: String(remoteGeneration) }, error: null }
+          }
+          const payload = args.p_entry as Record<string, unknown>
+          writeIds.push(String(payload.resolvedId))
+          const barrier = pendingWrite
+          pendingWrite = undefined
+          if (barrier) await barrier
+          dbRow = payload
+          return { data: { accepted: true, generation: String(remoteGeneration) }, error: null }
+        })
+        transaction = execute.then(() => {}, () => {})
+        // Simulate a delayed HTTP response after the SQL read transaction finished.
+        return execute.then(async (result) => readBarrier
+          ? { data: { ...result.data, entry: await readBarrier, expiresAt: Date.now() + 600000 }, error: null }
+          : result)
       },
     })
   })
@@ -86,7 +88,7 @@ describe('resolve-stream server cache ownership', () => {
     })
   })
 
-  it('keeps L1 hits fast while preventing browser and CDN response caching', async () => {
+  it('reuses a validated L1 hit without resolving upstream again', async () => {
     mocks.race.mockResolvedValue(entry('fresh'))
     const { GET } = await import('../route')
     await GET(request())
@@ -115,7 +117,7 @@ describe('resolve-stream server cache ownership', () => {
     expect((await (await coalesced).json()).id).toBe('fresh')
     await flush()
     expect((await (await GET(request())).json()).id).toBe('fresh')
-    expect(dbRow?.resolved_id).toBe('fresh')
+    expect(dbRow?.resolvedId).toBe('fresh')
     expect(writeIds).toEqual(['fresh'])
   })
 
@@ -127,7 +129,7 @@ describe('resolve-stream server cache ownership', () => {
     const oldRequest = GET(request())
     await flush()
     await GET(request(true))
-    oldRead.resolve({ source: 'youtube', resolved_id: 'stale-l2', expires_at: new Date(Date.now() + 600000).toISOString() })
+    oldRead.resolve(entry('stale-l2'))
     await oldRequest
     pendingRead = undefined
     expect((await (await GET(request())).json()).id).toBe('fresh')
@@ -142,7 +144,7 @@ describe('resolve-stream server cache ownership', () => {
     expect((await (await GET(request())).json()).id).toBe('fallback')
     await flush()
     expect((await (await GET(request())).json()).id).toBe('preferred')
-    expect(dbRow?.resolved_id).toBe('preferred')
+    expect(dbRow?.resolvedId).toBe('preferred')
     expect(writeIds).toEqual(['fallback', 'preferred'])
   })
 
@@ -158,7 +160,7 @@ describe('resolve-stream server cache ownership', () => {
     promote(entry('stale-preferred', 'nhaccuatui'))
     await flush()
     expect((await (await GET(request())).json()).id).toBe('fresh')
-    expect(dbRow?.resolved_id).toBe('fresh')
+    expect(dbRow?.resolvedId).toBe('fresh')
     expect(writeIds).not.toContain('stale-preferred')
   })
 
@@ -167,15 +169,16 @@ describe('resolve-stream server cache ownership', () => {
     pendingWrite = writeBarrier.promise
     mocks.race.mockResolvedValueOnce(entry('old')).mockResolvedValueOnce(entry('fresh'))
     const { GET } = await import('../route')
-    await GET(request())
+    const oldRequest = GET(request())
     await flush()
     expect(writeIds).toEqual(['old'])
     const refreshed = GET(request(true))
     await flush()
     writeBarrier.resolve()
+    await oldRequest
     await refreshed
     await flush()
-    expect(dbRow?.resolved_id).toBe('fresh')
+    expect(dbRow?.resolvedId).toBe('fresh')
     expect(writeIds).toEqual(['old', 'fresh'])
   })
 

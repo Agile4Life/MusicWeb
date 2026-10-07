@@ -12,6 +12,10 @@ import { findMemoryDriveTrack } from '@/lib/driveTracksMap'
 import { searchSoundCloudTracks } from '@/lib/soundcloudClient'
 import { resolveCatalogCandidates } from '@/lib/catalogResolutionRace'
 import { isSoundCloudCatalogMatch } from '@/lib/catalogMatching'
+import {
+  readSharedResolution, writeSharedResolution,
+  type ResolutionCacheIdentity,
+} from '@/lib/serverStreamResolutionCache'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,13 +29,15 @@ interface L1Entry {
   coverUrl?: string | null
   isMiss: boolean
   expiresAt: number
+  sharedGeneration?: string
 }
 
 const l1Cache = new Map<string, L1Entry>()
-const inFlightResolutions = new Map<string, { generation: number; promise: Promise<L1Entry> }>()
+const inFlightResolutions = new Map<string, { generation: number; sharedGeneration?: string; promise: Promise<L1Entry> }>()
 const cacheGenerations = new Map<string, number>()
+const observedSharedGenerations = new Map<string, string>()
 // A generation check cannot revoke a DB write already on the wire. Serialize
-// writes and deletes per key so invalidation always follows those older writes.
+// publications per key; the DB generation guard coordinates other instances.
 const cacheMutations = new Map<string, Promise<void>>()
 const L1_HIT_TTL = 10 * 60 * 1000    // 10 min for hits
 const L1_MISS_TTL = 60 * 1000         // 1 min for misses
@@ -70,31 +76,18 @@ function mutateCache(key: string, generation: number, mutation: () => PromiseLik
 
 function persistResolution(
   supabase: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
-  meta: { cacheKey: string; titleKey: string; artistKey: string; durBucket: number; generation: number },
+  meta: ResolutionCacheIdentity & { cacheKey: string; generation: number; sharedGeneration: string },
   result: L1Entry,
-): void {
-  void mutateCache(meta.cacheKey, meta.generation, () => supabase
-    .from('stream_resolutions')
-    .upsert({
-      title_key: meta.titleKey,
-      artist_key: meta.artistKey,
-      duration_bucket: meta.durBucket,
-      source: result.source,
-      resolved_id: result.resolvedId,
-      resolved_title: result.title || null,
-      resolved_artist: result.artist || null,
-      resolved_duration: result.duration || null,
-      resolved_cover_url: result.coverUrl || null,
-      is_miss: result.isMiss,
-      fail_count: 0,
-      updated_at: new Date().toISOString(),
-      expires_at: new Date(Date.now() + (result.isMiss
-        ? MISS_TTL_HOURS * 60 * 60 * 1000
-        : HIT_TTL_DAYS * 24 * 60 * 60 * 1000)).toISOString(),
-    }, { onConflict: 'title_key,artist_key,duration_bucket' }))
+): Promise<void> {
+  return mutateCache(meta.cacheKey, meta.generation, async () => {
+    const published = await writeSharedResolution(supabase, meta, meta.sharedGeneration, result)
+    if (published?.accepted && published.generation === meta.sharedGeneration) {
+      storeL1(meta.cacheKey, meta.generation, { ...result, sharedGeneration: meta.sharedGeneration })
+    }
+  })
 }
 
-// ── Supabase client (service role for upserts) ──────────────────────
+// ── Supabase client (service role for cache RPCs) ────────────────────
 function getSupabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -103,7 +96,7 @@ function getSupabaseAdmin() {
   if (!serviceKey) {
     console.warn(
       'SUPABASE_SERVICE_ROLE_KEY missing — resolve-stream falling back to anon key; ' +
-      'L2 cache writes to stream_resolutions may silently fail under RLS.'
+      'shared resolution caching is disabled; direct track lookup remains available.'
     )
   }
   return createClient(url, key, { auth: { persistSession: false } })
@@ -360,8 +353,6 @@ async function resolveStream(
 }
 
 // ── Route handler ───────────────────────────────────────────────────
-const HIT_TTL_DAYS = 30
-const MISS_TTL_HOURS = 1
 
 export async function GET(request: NextRequest): Promise<Response> {
   const url = new URL(request.url)
@@ -381,7 +372,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   const cacheKey = normalizeTrackKey(title, artist, duration)
 
   const supabase = getSupabaseAdmin()
-  const generation = generationFor(cacheKey) + (invalidate ? 1 : 0)
+  let generation = generationFor(cacheKey) + (invalidate ? 1 : 0)
   if (invalidate) {
     // Revoke ownership synchronously, before waiting on any network mutation.
     cacheGenerations.set(cacheKey, generation)
@@ -390,20 +381,39 @@ export async function GET(request: NextRequest): Promise<Response> {
   }
 
   // ── Invalidate path ───────────────────────────────────────────────
-  if (invalidate && supabase) {
-    await mutateCache(cacheKey, generation, () => supabase
-        .from('stream_resolutions')
-        .delete()
-        .eq('title_key', titleKey)
-        .eq('artist_key', artistKey)
-        .eq('duration_bucket', durBucket))
-    // Fall through to re-resolve
+  const identity = { titleKey, artistKey, durBucket }
+  // Every instance must consult the shared version before using its own cache.
+  // An unavailable protocol never falls back to unversioned L2 writes/reads.
+  const sharedClient = supabase && process.env.SUPABASE_SERVICE_ROLE_KEY ? supabase : null
+  let shared = sharedClient ? await readSharedResolution(sharedClient, identity, invalidate) : null
+  const previouslyObserved = observedSharedGenerations.get(cacheKey)
+  if (shared && previouslyObserved && BigInt(shared.generation) < BigInt(previouslyObserved)) {
+    // A delayed read response must not roll this instance back to an older epoch.
+    shared = await readSharedResolution(sharedClient!, identity, false)
+  }
+  const latestObserved = observedSharedGenerations.get(cacheKey)
+  if (shared && latestObserved && BigInt(shared.generation) < BigInt(latestObserved)) shared = null
+  if (shared) {
+    const observed = observedSharedGenerations.get(cacheKey)
+    if (observed && observed !== shared.generation) {
+      generation = generationFor(cacheKey) + 1
+      cacheGenerations.set(cacheKey, generation)
+      l1Cache.delete(cacheKey)
+      inFlightResolutions.delete(cacheKey)
+    } else {
+      generation = generationFor(cacheKey)
+    }
+    observedSharedGenerations.set(cacheKey, shared.generation)
   }
 
   // ── L1 check ──────────────────────────────────────────────────────
   if (!invalidate) {
     const l1 = l1Cache.get(cacheKey)
-    if (l1 && Date.now() < l1.expiresAt) {
+    if (l1 && Date.now() < l1.expiresAt &&
+        (shared ? l1.sharedGeneration === shared.generation && shared.entry !== null &&
+          l1.source === shared.entry.source && l1.resolvedId === shared.entry.resolvedId &&
+          l1.isMiss === shared.entry.isMiss
+          : !supabase && !l1.sharedGeneration)) {
       if (process.env.NODE_ENV !== 'production') {
         console.log(`[ResolveStream:L1] Cache HIT for "${title}" by "${artist}" (source: ${l1.source})`)
       }
@@ -411,7 +421,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     }
   }
 
-  // ⚡ ── Instant In-Memory Drive Cache Check (<0.01ms, zero DB latency) ────
+  // ── Direct Drive mapping (after shared version validation) ──────────
   const memDrive = findMemoryDriveTrack(title, artist)
   if (memDrive) {
     const driveEntry: L1Entry = {
@@ -424,51 +434,28 @@ export async function GET(request: NextRequest): Promise<Response> {
       isMiss: false,
       expiresAt: Date.now() + L1_HIT_TTL,
     }
-    storeL1(cacheKey, generation, driveEntry)
+    // Drive memory mappings are direct source metadata, not an L2 match.
+    if (!supabase) storeL1(cacheKey, generation, driveEntry)
     return respondWith(driveEntry)
   }
 
   // ── L2 check (Supabase) ───────────────────────────────────────────
-  if (supabase && !invalidate) {
-    try {
-      // Reads must follow a pending invalidation or cache write for this key.
-      await cacheMutations.get(cacheKey)
-      const { data: row } = await supabase
-        .from('stream_resolutions')
-        .select('*')
-        .eq('title_key', titleKey)
-        .eq('artist_key', artistKey)
-        .eq('duration_bucket', durBucket)
-        .single()
-
-      if (row && new Date(row.expires_at) > new Date()) {
-        // Promote to L1
-        const l1Entry: L1Entry = {
-          source: row.source,
-          resolvedId: row.resolved_id,
-          title: row.resolved_title,
-          artist: row.resolved_artist,
-          duration: row.resolved_duration,
-          coverUrl: row.resolved_cover_url,
-          isMiss: row.is_miss,
-          expiresAt: Date.now() + L1_HIT_TTL,
-        }
-        storeL1(cacheKey, generation, l1Entry)
-
-        if (process.env.NODE_ENV !== 'production') {
-          console.log(`[ResolveStream:L2] Cache HIT (Supabase) for "${title}" by "${artist}" (source: ${l1Entry.source})`)
-        }
-        return respondWith(l1Entry)
-      }
-    } catch {
-      // L2 miss or Supabase error — continue to resolve
+  if (shared?.entry && !invalidate) {
+    const sharedEntry: L1Entry = {
+      ...shared.entry,
+      sharedGeneration: shared.generation,
+      expiresAt: Math.min(shared.entry.expiresAt, Date.now() + (shared.entry.isMiss ? L1_MISS_TTL : L1_HIT_TTL)),
     }
+    storeL1(cacheKey, generation, sharedEntry)
+    return respondWith(sharedEntry)
   }
 
   // ── In-Flight Request Deduplication (Thundering Herd / Stampede Protection) ──
   if (!invalidate) {
     const existingInFlight = inFlightResolutions.get(cacheKey)
-    if (existingInFlight?.generation === generation) {
+    if (existingInFlight?.generation === generation &&
+        (shared ? existingInFlight.sharedGeneration === shared.generation
+          : !supabase && !existingInFlight.sharedGeneration)) {
       try {
         const resolvedEntry = await existingInFlight.promise
         return respondWith(resolvedEntry)
@@ -484,33 +471,36 @@ export async function GET(request: NextRequest): Promise<Response> {
       console.log(`[ResolveStream:Cold] Starting upstream resolve for "${title}" by "${artist}"`)
     }
     const tCold = Date.now()
-    const meta = { cacheKey, titleKey, artistKey, durBucket, generation }
+    const meta = { cacheKey, titleKey, artistKey, durBucket, generation, sharedGeneration: shared?.generation }
     let initialStored = false
     let latePreferred: L1Entry | undefined
-    const publish = (entry: L1Entry) => {
+    const publish = async (entry: L1Entry): Promise<void> => {
       if (generationFor(cacheKey) !== generation) return
-      storeL1(cacheKey, generation, entry)
-      if (supabase) persistResolution(supabase, meta, entry)
+      if (sharedClient && meta.sharedGeneration !== undefined) {
+        await persistResolution(sharedClient, { ...meta, sharedGeneration: meta.sharedGeneration }, entry)
+      } else if (!supabase) {
+        storeL1(cacheKey, generation, entry)
+      }
     }
     const result = await resolveStream(title, artist, duration, supabase, (preferred) => {
       // The callback can run in the microtask gap before this await resumes.
       // Store the initial winner first, then the preferred upgrade in order.
       latePreferred = preferred
-      if (initialStored) publish(preferred)
+      if (initialStored) void publish(preferred)
     })
     if (process.env.NODE_ENV !== 'production') {
       console.log(`[ResolveStream:Cold] Completed in ${Date.now() - tCold}ms: source=${result.source}, id=${result.resolvedId}`)
     }
 
-    publish(result)
+    await publish(result)
     initialStored = true
-    if (latePreferred) publish(latePreferred)
+    if (latePreferred) await publish(latePreferred)
 
     return result
   })()
 
   if (generationFor(cacheKey) === generation) {
-    inFlightResolutions.set(cacheKey, { promise: resolvePromise, generation })
+    inFlightResolutions.set(cacheKey, { promise: resolvePromise, generation, sharedGeneration: shared?.generation })
   }
 
   try {

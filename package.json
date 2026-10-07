@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "test:playback-db": "node --v8-pool-size=1 --liftoff-only --no-wasm-tier-up --wasm-num-compilation-tasks=1 node_modules/vitest/vitest.mjs run lib/__tests__/serverStreamResolutionCache.test.ts --maxWorkers=1 --pool=forks --execArgv=--v8-pool-size=1 --execArgv=--liftoff-only --execArgv=--no-wasm-tier-up --execArgv=--wasm-num-compilation-tasks=1",
     "test:k6": "k6 run tests/k6/main_flows.js",
     "test:k6:stress": "k6 run tests/k6/edge_cases_stress.js",
     "test:e2e": "playwright test",
@@ -35,6 +36,7 @@
     "three": "^0.185.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
