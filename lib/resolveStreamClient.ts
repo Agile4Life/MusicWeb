@@ -162,10 +162,15 @@ export async function resolveStreamCached(
       if (duration) params.set('duration', String(Math.round(duration)))
       if (forceRefresh) params.set('invalidate', '1')
 
-      const res = await fetch(`/api/resolve-stream?${params.toString()}`)
+      // Explicit memory/disk caches own TTL and invalidation. Browser caching
+      // could otherwise reuse an older normal or invalidate=1 response.
+      const res = await fetch(`/api/resolve-stream?${params.toString()}`, { cache: 'no-store' })
       if (!res.ok) return null
 
       const data = await res.json()
+      // Memory and disk share the same ownership boundary. Discard responses
+      // that crossed invalidation before saving either a hit or a miss.
+      if (generation !== getGeneration(key)) return null
       if (data.miss) {
         cacheResult(key, null, Date.now() + MISS_CACHE_TTL, generation)
         // Persist miss too (short TTL) so we don't re-resolve failed tracks repeatedly
@@ -236,7 +241,7 @@ export async function invalidateStreamResolution(
     const params = new URLSearchParams({ title, invalidate: '1' })
     if (artist) params.set('artist', artist)
     if (duration) params.set('duration', String(Math.round(duration)))
-    await fetch(`/api/resolve-stream?${params.toString()}`)
+    await fetch(`/api/resolve-stream?${params.toString()}`, { cache: 'no-store' })
   } catch {
     // The forced-refresh marker above keeps the next resolve correct.
   }

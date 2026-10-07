@@ -1,5 +1,69 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resolveCatalogCandidates } from '../catalogResolutionRace'
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((done) => { resolve = done })
+  return { promise, resolve }
+}
+
+describe('catalog candidates after the preference window', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it('returns newly ready YouTube while SoundCloud is still pending', async () => {
+    vi.useFakeTimers()
+    const nct = deferred<string | null>()
+    const sc = deferred<string | null>()
+    const yt = deferred<string | null>()
+    let winner: string | null | undefined
+    const result = resolveCatalogCandidates(() => nct.promise, [() => sc.promise, () => yt.promise], 1000)
+    void result.then((value) => { winner = value })
+    await vi.advanceTimersByTimeAsync(1000)
+    yt.resolve('youtube')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(winner).toBe('youtube')
+    sc.resolve(null)
+    nct.resolve(null)
+    await result
+  })
+
+  it('lets late NCT win while all fallbacks are pending without promoting it', async () => {
+    vi.useFakeTimers()
+    const nct = deferred<string | null>()
+    const sc = deferred<string | null>()
+    const onLate = vi.fn()
+    let winner: string | null | undefined
+    const result = resolveCatalogCandidates(() => nct.promise, [() => sc.promise], 1000, onLate)
+    void result.then((value) => { winner = value })
+    await vi.advanceTimersByTimeAsync(1000)
+    nct.resolve('nhaccuatui')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(winner).toBe('nhaccuatui')
+    expect(onLate).not.toHaveBeenCalled()
+    sc.resolve('soundcloud')
+    await result
+  })
+
+  it('starts all providers immediately and promotes NCT only after a fallback wins', async () => {
+    vi.useFakeTimers()
+    const nct = deferred<string | null>()
+    const sc = deferred<string | null>()
+    const starts: string[] = []
+    const onLate = vi.fn()
+    const result = resolveCatalogCandidates(
+      () => { starts.push('nct'); return nct.promise },
+      [() => { starts.push('sc'); return sc.promise }], 1000, onLate,
+    )
+    expect(starts).toEqual(['nct', 'sc'])
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(onLate).not.toHaveBeenCalled()
+    sc.resolve('soundcloud')
+    await expect(result).resolves.toBe('soundcloud')
+    nct.resolve('nhaccuatui')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(onLate).toHaveBeenCalledExactlyOnceWith('nhaccuatui')
+  })
+})
 
 describe('resolveCatalogCandidates Priority Race Engine', () => {
   it('returns preferred source (NCT) immediately when it resolves within head start window', async () => {

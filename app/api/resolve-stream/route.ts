@@ -5,13 +5,13 @@ import { normalizeTitle, stripDiacritics } from '@/lib/youtube'
 import { searchYouTubeTracks, findBestYouTubeMatch } from '@/lib/youtube'
 import {
   normalizeNhacCuaTuiSearchResponse,
-  normalizeNhacCuaTuiSongResponse,
   findBestNhacCuaTuiMatch,
 } from '@/lib/nhaccuatui'
 import { getPrimaryArtistName } from '@/lib/artistParser'
 import { findMemoryDriveTrack } from '@/lib/driveTracksMap'
 import { searchSoundCloudTracks } from '@/lib/soundcloudClient'
 import { resolveCatalogCandidates } from '@/lib/catalogResolutionRace'
+import { isSoundCloudCatalogMatch } from '@/lib/catalogMatching'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,7 +28,11 @@ interface L1Entry {
 }
 
 const l1Cache = new Map<string, L1Entry>()
-const inFlightResolutions = new Map<string, Promise<L1Entry>>()
+const inFlightResolutions = new Map<string, { generation: number; promise: Promise<L1Entry> }>()
+const cacheGenerations = new Map<string, number>()
+// A generation check cannot revoke a DB write already on the wire. Serialize
+// writes and deletes per key so invalidation always follows those older writes.
+const cacheMutations = new Map<string, Promise<void>>()
 const L1_HIT_TTL = 10 * 60 * 1000    // 10 min for hits
 const L1_MISS_TTL = 60 * 1000         // 1 min for misses
 const L1_MAX_SIZE = 2000
@@ -38,6 +42,56 @@ function evictL1IfFull(): void {
     const oldest = l1Cache.keys().next().value
     if (oldest !== undefined) l1Cache.delete(oldest)
   }
+}
+
+function generationFor(key: string): number {
+  return cacheGenerations.get(key) || 0
+}
+
+function storeL1(key: string, generation: number, entry: L1Entry): void {
+  if (generationFor(key) !== generation) return
+  evictL1IfFull()
+  l1Cache.set(key, entry)
+}
+
+function mutateCache(key: string, generation: number, mutation: () => PromiseLike<unknown>): Promise<void> {
+  const previous = cacheMutations.get(key) || Promise.resolve()
+  const pending = previous.then(async () => {
+    if (generationFor(key) === generation) await mutation()
+  }).catch((error: unknown) => {
+    console.warn('Failed to update stream resolution cache:', error)
+  })
+  cacheMutations.set(key, pending)
+  void pending.then(() => {
+    if (cacheMutations.get(key) === pending) cacheMutations.delete(key)
+  })
+  return pending
+}
+
+function persistResolution(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
+  meta: { cacheKey: string; titleKey: string; artistKey: string; durBucket: number; generation: number },
+  result: L1Entry,
+): void {
+  void mutateCache(meta.cacheKey, meta.generation, () => supabase
+    .from('stream_resolutions')
+    .upsert({
+      title_key: meta.titleKey,
+      artist_key: meta.artistKey,
+      duration_bucket: meta.durBucket,
+      source: result.source,
+      resolved_id: result.resolvedId,
+      resolved_title: result.title || null,
+      resolved_artist: result.artist || null,
+      resolved_duration: result.duration || null,
+      resolved_cover_url: result.coverUrl || null,
+      is_miss: result.isMiss,
+      fail_count: 0,
+      updated_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + (result.isMiss
+        ? MISS_TTL_HOURS * 60 * 60 * 1000
+        : HIT_TTL_DAYS * 24 * 60 * 60 * 1000)).toISOString(),
+    }, { onConflict: 'title_key,artist_key,duration_bucket' }))
 }
 
 // ── Supabase client (service role for upserts) ──────────────────────
@@ -74,23 +128,6 @@ async function searchNctServer(query: string) {
     return normalizeNhacCuaTuiSearchResponse(payload)
   } catch {
     return []
-  }
-}
-
-async function fetchNctSong(id: string) {
-  try {
-    const base = process.env.NCT_API_BASE_URL || DEFAULT_NCT_API_BASE_URL
-    const url = new URL(base)
-    url.pathname = `/api/song/${encodeURIComponent(id)}`
-    const res = await fetch(url.toString(), {
-      cache: 'no-store',
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(1800),
-    })
-    if (!res.ok) return null
-    return normalizeNhacCuaTuiSongResponse(await res.json())
-  } catch {
-    return null
   }
 }
 
@@ -133,8 +170,8 @@ async function resolveStream(
   title: string,
   artist: string,
   duration: number | undefined,
-  supabase: any,
-  meta?: { cacheKey: string; titleKey: string; artistKey: string; durBucket: number },
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  onLatePreferredResult?: (result: L1Entry) => void,
 ): Promise<L1Entry> {
   const primaryArtist = getPrimaryArtistName(artist) || artist
   const cleanTitle = normalizeTitle(title)
@@ -167,7 +204,7 @@ async function resolveStream(
         .limit(10)
       if (!localMatches || localMatches.length === 0) return null
 
-      for (const lt of localMatches as any[]) {
+      for (const lt of localMatches) {
         if (!lt.file_path || isPreviewUrl(lt.file_path)) continue
         const ltTitle = normalizeTitle(lt.title)
         const ltArtist = normalizeTitle(lt.artist || '')
@@ -279,18 +316,9 @@ async function resolveStream(
       const candidates = await searchSoundCloudTracks(scQuery, 5).catch(() => [])
       if (candidates.length === 0) return null
 
-      const match = candidates.find((c) => {
-        const cTitle = (c.title || '').toLowerCase()
-        const targetClean = (cleanTitle || title).toLowerCase()
-        const uCTitle = stripDiacritics(cTitle)
-        const uTarget = stripDiacritics(targetClean)
-        const matchesTitle =
-          (targetClean && (cTitle.includes(targetClean) || targetClean.includes(cTitle))) ||
-          (uTarget && (uCTitle.includes(uTarget) || uTarget.includes(uCTitle)))
-        if (!matchesTitle) return false
-        if (!c.duration || !duration) return true
-        return Math.abs(c.duration - duration) <= 30
-      })
+      const match = candidates.find((candidate) => isSoundCloudCatalogMatch(candidate, {
+        title: cleanTitle || title, artist: primaryArtist || artist, duration,
+      }))
 
       if (!match?.soundcloud_id && !match?.id) return null
       const scId = match.soundcloud_id ? String(match.soundcloud_id) : match.id.replace(/^sc-/, '')
@@ -318,36 +346,7 @@ async function resolveStream(
     tryNct,
     [trySoundCloud, tryYoutube],
     1000,
-    (lateNctResult) => {
-      if (lateNctResult && !lateNctResult.isMiss && meta) {
-        // Upgrade cache to NCT for future plays
-        evictL1IfFull()
-        l1Cache.set(meta.cacheKey, lateNctResult)
-        if (supabase) {
-          const expiresAt = new Date(Date.now() + HIT_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString()
-          supabase
-            .from('stream_resolutions')
-            .upsert({
-              title_key: meta.titleKey,
-              artist_key: meta.artistKey,
-              duration_bucket: meta.durBucket,
-              source: lateNctResult.source,
-              resolved_id: lateNctResult.resolvedId,
-              resolved_title: lateNctResult.title || null,
-              resolved_artist: lateNctResult.artist || null,
-              resolved_duration: lateNctResult.duration || null,
-              resolved_cover_url: lateNctResult.coverUrl || null,
-              is_miss: false,
-              fail_count: 0,
-              updated_at: new Date().toISOString(),
-              expires_at: expiresAt,
-            }, {
-              onConflict: 'title_key,artist_key,duration_bucket',
-            })
-            .catch(() => {})
-        }
-      }
-    }
+    onLatePreferredResult,
   )
   if (resolved) return resolved
 
@@ -382,21 +381,22 @@ export async function GET(request: NextRequest): Promise<Response> {
   const cacheKey = normalizeTrackKey(title, artist, duration)
 
   const supabase = getSupabaseAdmin()
+  const generation = generationFor(cacheKey) + (invalidate ? 1 : 0)
+  if (invalidate) {
+    // Revoke ownership synchronously, before waiting on any network mutation.
+    cacheGenerations.set(cacheKey, generation)
+    l1Cache.delete(cacheKey)
+    inFlightResolutions.delete(cacheKey)
+  }
 
   // ── Invalidate path ───────────────────────────────────────────────
   if (invalidate && supabase) {
-    try {
-      await supabase
+    await mutateCache(cacheKey, generation, () => supabase
         .from('stream_resolutions')
         .delete()
         .eq('title_key', titleKey)
         .eq('artist_key', artistKey)
-        .eq('duration_bucket', durBucket)
-    } catch (e) {
-      console.warn('Failed to invalidate stream_resolutions row:', e)
-    }
-    l1Cache.delete(cacheKey)
-    inFlightResolutions.delete(cacheKey)
+        .eq('duration_bucket', durBucket))
     // Fall through to re-resolve
   }
 
@@ -424,14 +424,15 @@ export async function GET(request: NextRequest): Promise<Response> {
       isMiss: false,
       expiresAt: Date.now() + L1_HIT_TTL,
     }
-    evictL1IfFull()
-    l1Cache.set(cacheKey, driveEntry)
+    storeL1(cacheKey, generation, driveEntry)
     return respondWith(driveEntry)
   }
 
   // ── L2 check (Supabase) ───────────────────────────────────────────
   if (supabase && !invalidate) {
     try {
+      // Reads must follow a pending invalidation or cache write for this key.
+      await cacheMutations.get(cacheKey)
       const { data: row } = await supabase
         .from('stream_resolutions')
         .select('*')
@@ -452,8 +453,7 @@ export async function GET(request: NextRequest): Promise<Response> {
           isMiss: row.is_miss,
           expiresAt: Date.now() + L1_HIT_TTL,
         }
-        evictL1IfFull()
-        l1Cache.set(cacheKey, l1Entry)
+        storeL1(cacheKey, generation, l1Entry)
 
         if (process.env.NODE_ENV !== 'production') {
           console.log(`[ResolveStream:L2] Cache HIT (Supabase) for "${title}" by "${artist}" (source: ${l1Entry.source})`)
@@ -468,9 +468,9 @@ export async function GET(request: NextRequest): Promise<Response> {
   // ── In-Flight Request Deduplication (Thundering Herd / Stampede Protection) ──
   if (!invalidate) {
     const existingInFlight = inFlightResolutions.get(cacheKey)
-    if (existingInFlight) {
+    if (existingInFlight?.generation === generation) {
       try {
-        const resolvedEntry = await existingInFlight
+        const resolvedEntry = await existingInFlight.promise
         return respondWith(resolvedEntry)
       } catch {
         // Fall through to re-resolve if in-flight failed
@@ -484,62 +484,42 @@ export async function GET(request: NextRequest): Promise<Response> {
       console.log(`[ResolveStream:Cold] Starting upstream resolve for "${title}" by "${artist}"`)
     }
     const tCold = Date.now()
-    const result = await resolveStream(title, artist, duration, supabase, { cacheKey, titleKey, artistKey, durBucket })
+    const meta = { cacheKey, titleKey, artistKey, durBucket, generation }
+    let initialStored = false
+    let latePreferred: L1Entry | undefined
+    const publish = (entry: L1Entry) => {
+      if (generationFor(cacheKey) !== generation) return
+      storeL1(cacheKey, generation, entry)
+      if (supabase) persistResolution(supabase, meta, entry)
+    }
+    const result = await resolveStream(title, artist, duration, supabase, (preferred) => {
+      // The callback can run in the microtask gap before this await resumes.
+      // Store the initial winner first, then the preferred upgrade in order.
+      latePreferred = preferred
+      if (initialStored) publish(preferred)
+    })
     if (process.env.NODE_ENV !== 'production') {
       console.log(`[ResolveStream:Cold] Completed in ${Date.now() - tCold}ms: source=${result.source}, id=${result.resolvedId}`)
     }
 
-    // Store in L1
-    evictL1IfFull()
-    l1Cache.set(cacheKey, result)
-
-    // Store in L2 (Supabase) — non-blocking fire-and-forget so client gets streamUrl 50-150ms faster
-    if (supabase) {
-      const expiresAt = new Date(
-        Date.now() + (result.isMiss
-          ? MISS_TTL_HOURS * 60 * 60 * 1000
-          : HIT_TTL_DAYS * 24 * 60 * 60 * 1000)
-      ).toISOString()
-
-      void (async () => {
-        try {
-          await supabase
-            .from('stream_resolutions')
-            .upsert({
-              title_key: titleKey,
-              artist_key: artistKey,
-              duration_bucket: durBucket,
-              source: result.source,
-              resolved_id: result.resolvedId,
-              resolved_title: result.title || null,
-              resolved_artist: result.artist || null,
-              resolved_duration: result.duration || null,
-              resolved_cover_url: result.coverUrl || null,
-              is_miss: result.isMiss,
-              fail_count: 0,
-              updated_at: new Date().toISOString(),
-              expires_at: expiresAt,
-            }, {
-              onConflict: 'title_key,artist_key,duration_bucket',
-            })
-        } catch (e: any) {
-          console.warn('Failed to persist stream resolution:', e)
-        }
-      })()
-    }
+    publish(result)
+    initialStored = true
+    if (latePreferred) publish(latePreferred)
 
     return result
   })()
 
-  if (!invalidate) {
-    inFlightResolutions.set(cacheKey, resolvePromise)
+  if (generationFor(cacheKey) === generation) {
+    inFlightResolutions.set(cacheKey, { promise: resolvePromise, generation })
   }
 
   try {
     const result = await resolvePromise
     return respondWith(result)
   } finally {
-    inFlightResolutions.delete(cacheKey)
+    if (inFlightResolutions.get(cacheKey)?.promise === resolvePromise) {
+      inFlightResolutions.delete(cacheKey)
+    }
   }
 }
 
@@ -575,6 +555,7 @@ function respondWith(entry: L1Entry): Response {
     streamUrl,
   }, {
     status: 200,
-    headers: { 'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600' },
+    // L1/L2 caches own invalidation. HTTP caches cannot coordinate that state.
+    headers: { 'Cache-Control': 'no-store' },
   })
 }

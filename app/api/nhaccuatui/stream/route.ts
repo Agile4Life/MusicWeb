@@ -175,8 +175,8 @@ export async function HEAD(request: Request): Promise<Response> {
     if (contentLength) headers.set('Content-Length', contentLength)
 
     return new Response(null, { status: upstream.status, headers })
-  } catch (err: any) {
-    if (request.signal?.aborted || err?.name === 'AbortError') {
+  } catch (err: unknown) {
+    if (request.signal?.aborted || (err instanceof Error && err.name === 'AbortError')) {
       return new Response(null, { status: 499 })
     }
     return new Response(null, { status: 502 })
@@ -194,6 +194,8 @@ export async function GET(request: Request): Promise<Response> {
     return new Response(null, { status: 499 })
   }
 
+  let releaseConnection: (() => void) | undefined
+  let bodyOwnsConnection = false
   try {
     let audioUrl = await resolveNctAudioUrlCached(id.trim())
     if (audioUrl === '__NCT_NOT_FOUND__') {
@@ -231,6 +233,9 @@ export async function GET(request: Request): Promise<Response> {
     if (request.signal) {
       request.signal.addEventListener('abort', onAbort, { once: true })
     }
+    releaseConnection = () => request.signal?.removeEventListener('abort', onAbort)
+    // The client may have cancelled during URL resolution, before listener setup.
+    if (request.signal?.aborted) onAbort()
 
     let upstream: Response
     try {
@@ -246,6 +251,7 @@ export async function GET(request: Request): Promise<Response> {
 
     // Cached URL may have expired upstream — re-resolve once before giving up
     if (!upstream.ok) {
+      await upstream.body?.cancel().catch(() => {})
       deleteNctAudioCache(id.trim())
       audioUrl = await resolveNctAudioUrlCached(id.trim())
       if (audioUrl === '__NCT_NOT_FOUND__') {
@@ -268,6 +274,7 @@ export async function GET(request: Request): Promise<Response> {
     }
 
     if (!upstream.ok) {
+      await upstream.body?.cancel().catch(() => {})
       return NextResponse.json({ error: 'Song stream unavailable' }, { status: 502 })
     }
 
@@ -290,6 +297,7 @@ export async function GET(request: Request): Promise<Response> {
     if (contentRange) headers.set('Content-Range', contentRange)
 
     let activeReader: ReadableStreamDefaultReader<Uint8Array> | null = null
+    let downstreamController: ReadableStreamDefaultController<Uint8Array> | undefined
 
     const cancelUpstream = async () => {
       try {
@@ -301,14 +309,22 @@ export async function GET(request: Request): Promise<Response> {
       } catch {}
     }
 
-    if (request.signal) {
-      request.signal.addEventListener('abort', cancelUpstream, { once: true })
+    const onBodyAbort = () => {
+      try { downstreamController?.error(request.signal.reason || new DOMException('Aborted', 'AbortError')) } catch {}
+      void cancelUpstream()
     }
+    const releaseBody = () => {
+      request.signal?.removeEventListener('abort', onBodyAbort)
+      releaseConnection?.()
+    }
+    request.signal?.addEventListener('abort', onBodyAbort, { once: true })
 
-    const stream = new ReadableStream({
+    const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
+        downstreamController = controller
         if (!upstream.body) {
           controller.close()
+          releaseBody()
           return
         }
         const reader = upstream.body.getReader()
@@ -316,8 +332,7 @@ export async function GET(request: Request): Promise<Response> {
         try {
           while (true) {
             if (request.signal?.aborted) {
-              await reader.cancel().catch(() => {})
-              break
+              throw request.signal.reason || new DOMException('Aborted', 'AbortError')
             }
             const { done, value } = await reader.read()
             if (done) {
@@ -326,26 +341,34 @@ export async function GET(request: Request): Promise<Response> {
             }
             controller.enqueue(value)
           }
-        } catch {
-          try { controller.close() } catch {}
+        } catch (error) {
+          // A broken CDN connection must remain an error downstream. Closing
+          // normally makes partial audio look like a successful cached response.
+          try { controller.error(error) } catch {}
           try { await reader.cancel().catch(() => {}) } catch {}
         } finally {
+          reader.releaseLock()
           activeReader = null
+          releaseBody()
         }
       },
       cancel() {
+        releaseBody()
         void cancelUpstream()
       },
     })
 
+    bodyOwnsConnection = true
     return new Response(stream, {
       status: upstream.status,
       headers,
     })
-  } catch (err: any) {
-    if (request.signal?.aborted || err?.name === 'AbortError') {
+  } catch (err: unknown) {
+    if (request.signal?.aborted || (err instanceof Error && err.name === 'AbortError')) {
       return new Response(null, { status: 499 })
     }
     return NextResponse.json({ error: 'Song stream unavailable' }, { status: 502 })
+  } finally {
+    if (!bodyOwnsConnection) releaseConnection?.()
   }
 }

@@ -92,4 +92,21 @@ describe('NhacCuaTui audio stream route', () => {
     expect(response.status).toBe(502)
     await expect(response.json()).resolves.toEqual({ error: 'Song stream unavailable' })
   })
+
+  it('rejects downstream body reads when the CDN truncates audio', async () => {
+    const failure = new Error('CDN connection reset')
+    let bodyController!: ReadableStreamDefaultController<Uint8Array>
+    const upstreamBody = new ReadableStream<Uint8Array>({
+      start(controller) { bodyController = controller; controller.enqueue(new Uint8Array([1, 2])) },
+    })
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(Response.json({ id: 'nct-truncated', title: 'Song', artist: 'Artist', audioUrl: 'https://stream.nct.vn/truncated.mp3' }))
+      .mockResolvedValueOnce(new Response(upstreamBody, { headers: { 'Content-Length': '8' } }))
+    const response = await GET(new Request('https://music.test/api/nhaccuatui/stream?id=nct-truncated'))
+    const reader = response.body!.getReader()
+    expect((await reader.read()).value).toEqual(new Uint8Array([1, 2]))
+    bodyController.error(failure)
+    await expect(reader.read()).rejects.toThrow('CDN connection reset')
+    expect(upstreamBody.locked).toBe(false)
+  })
 })
