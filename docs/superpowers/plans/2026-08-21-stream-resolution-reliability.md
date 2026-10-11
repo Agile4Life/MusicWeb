@@ -8,6 +8,22 @@
 
 **Tech Stack:** TypeScript, Next.js 16 route handlers, React 19, Vitest 4.
 
+## Current status — 2026-10-11
+
+This is the original implementation plan; the unchecked steps below are retained
+as the original procedure, not a list of missing production features. Tasks 1–4
+are already implemented: response-aware NCT retries (`6e7c063`), first valid
+Piped stream (`950b79e`), catalog race (`b2192c4`, subsequently corrected in
+`aca4194`), and bounded prewarm concurrency (`d54b9b7`). These changes were
+present in the pulled baseline and were not implemented a second time.
+
+Subsequent ownership/mobile/shared-cache work and deployment verification are
+tracked in [the remaining-work plan](2026-10-07-playback-remaining-limitations.md)
+and [verification report](../../reviews/2026-10-07-playback-follow-up-verification.md).
+The clean production build passes; repo-wide lint retains documented baseline
+errors. Supabase rollout and real-device checks remain external deployment steps.
+iOS fixes are explicitly deferred by the user.
+
 ## Global Constraints
 
 - Preserve existing playback request-id guards and source response schemas.

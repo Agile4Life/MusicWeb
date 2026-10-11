@@ -4,6 +4,13 @@ Ngày kiểm tra: 2026-10-07. Bản audit đầu dựa trên `ca59264`; sau khi 
 pull, baseline chuyển sang `825184a`. Báo cáo này thay thế kết luận cũ.
 Nhánh sửa: `fix/playback-reliability-recheck`.
 
+Cập nhật tiếp theo: cache nhiều instance đã có migration/RPC và được kiểm thử
+local trong `f857515`; xem [hướng dẫn Supabase](2026-10-07-supabase-playback-rollout.md).
+Database thật chưa được migrate. Kết quả browser và kiểm thử mới được ghi trong
+[báo cáo tiếp tục](2026-10-07-playback-follow-up-verification.md).
+Ngày 2026-10-11: build production sạch pass, 579 test deterministic pass,
+browser 14 pass/4 skip; các sửa iOS được hoãn theo yêu cầu.
+
 ## Kết quả đối chiếu
 
 Bản vừa pull đã sửa đồng bộ queue và TTL URL ở đường phát nhanh; đã gọi
@@ -20,7 +27,7 @@ iPhone/Android thật.
 | B02: Pause khi đang resolve/recover | Đã sửa đường chính, còn đường recovery | Giữ ý định Pause ở fallback, retry, iframe watchdog và play rejection |
 | B03: OS Pause rồi tự phát khi foreground | Đã sửa intent nhưng còn pending resume | Pause/Stop hủy pending resume, pending iframe và timers; completion OS Play không ghi đè Pause đến sau |
 | B04: NCT stream bị cắt | Timer headers đã sửa, body error vẫn thành EOF thường | Propagate body error tới downstream, hủy reader và dọn listener; slow body không bị timeout headers cắt |
-| B05: request cũ phục hồi cache đã invalidated | Còn lỗi | Fence client persistence và server L1/L2 theo generation; serialize DB writes/deletes trong cùng process; xem giới hạn nhiều instance bên dưới |
+| B05: request cũ phục hồi cache đã invalidated | Đã sửa trong code, cần rollout DB | Fence client/server; RPC khóa row và kiểm tra version chung trước khi ghi hoặc tái dùng cache |
 | B06: repeat-one chỉ lặp một lần | Còn lỗi | Reset completion guard khi bắt đầu vòng tiếp theo, kể cả Pause khi replay đang pending rồi Resume |
 | B07: xóa bài hiện tại làm queue trùng | Đã sửa trong pull | Giữ `commitQueue` và merge theo ID trên queue mới nhất |
 | B08: cache URL bỏ qua TTL | Đã sửa trong pull | Giữ `readFreshAudioUrl` ở cả đường chính và quick-play |
@@ -88,7 +95,7 @@ engine API vẫn là cải thiện tiếp theo, chưa nằm trong các sửa nà
 - Storage: [playbackPersistence](../../lib/playbackPersistence.ts),
   [boundary tests](../../lib/__tests__/playbackPersistence.test.ts).
 
-## Kiểm chứng
+## Kiểm chứng ở đợt sửa ban đầu
 
 - Suite deterministic cuối: **87 file, 521 test pass**, exit 0.
 
@@ -112,10 +119,11 @@ engine API vẫn là cải thiện tiếp theo, chưa nằm trong các sửa nà
 
 ## Giới hạn còn lại và hướng cải thiện
 
-**B05 chưa giải quyết hoàn toàn giữa nhiều server instance.** Generation và
-mutation queue bảo vệ cùng một process. Hai instance vẫn có thể ghi cùng row L2
-theo thứ tự khác nhau. Cần generation/version lưu trong DB và conditional upsert
-hoặc RPC/transaction để xử lý phân tán; nhánh này không deploy hay migrate DB.
+**B05 đã có giải pháp giữa nhiều server instance trong code.** Migration mới giữ
+version ở DB; RPC khóa row và từ chối publication cũ. Resolver xác minh version
+trước L1/in-flight, bỏ cache khi RPC lỗi và có deadline 1.5 giây. Đã kiểm thử hai
+module production với SQL local; chưa kiểm tra contention bằng các session DB
+độc lập hoặc áp dụng lên Supabase thật. Cần rollout theo hướng dẫn đã liên kết.
 
 Matcher chủ động từ chối metadata không có bằng chứng đủ tên nghệ sĩ. Alias/channel
 không mang tên nghệ sĩ có thể giảm số match; nên bổ sung alias bằng dữ liệu xác thực,
@@ -138,6 +146,9 @@ test gọi production như các regression mới.
 | `5dd9fb2` | Lyrics mobile, retry miss và dọn overlay không chạy |
 | `7ab01a8` | Playback ownership, Pause/Resume, repeat/seek và gain |
 | `aca4194` | Priority race, cache invalidation/HTTP cache và NCT transport |
+| `f857515` | Cache version/RPC Supabase nhiều instance, timeout và migration |
+| `fbb5f13` | HTML audio thực trên desktop/mobile/WebKit và cách ly fixture |
 
 Giữ nguyên các thay đổi có sẵn của người dùng trong test-results và
-`tests/e2e/search_flow.spec.ts`. Không push, deploy hay thay đổi dịch vụ ngoài.
+`tests/e2e/search_flow.spec.ts`. Không push, deploy hay migrate Supabase thật.
+Lượt gọi RPC từ test browser và việc khóa môi trường test được ghi trong báo cáo tiếp tục.
