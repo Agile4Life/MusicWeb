@@ -3049,6 +3049,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [triggerTrackCompletion])
 
   const isTabHiddenRef = useRef<boolean>(false)
+  const backgroundCompletionWorkerRef = useRef<Worker | null>(null)
 
   // HTML5 Audio Event Listeners
   useEffect(() => {
@@ -3574,6 +3575,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const handleVisibilityChange = () => {
       const isHidden = typeof document !== 'undefined' && document.hidden
       isTabHiddenRef.current = isHidden
+      backgroundCompletionWorkerRef.current?.postMessage(isHidden ? 'start' : 'stop')
 
       if (typeof document !== 'undefined') {
         if (isHidden) {
@@ -3753,7 +3755,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Background tab heartbeat: actively rescues playback if stuck in the last second while tab is hidden
-    const backgroundHeartbeat = setInterval(() => {
+    const checkBackgroundCompletion = () => {
       if (!isTabHiddenRef.current) return
       if (desiredPlayStateRef.current !== 'playing') return
 
@@ -3766,14 +3768,37 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      if (isCurrentYouTubeVideo()) {
+      if (isYtIframeEngine() && isCurrentYouTubeVideo()) {
         const ytTime = ytPlayerRef.current?.getCurrentTime?.() || 0
         const ytDur = ytPlayerRef.current?.getDuration?.() || 0
         if (ytDur > 5 && ytTime >= 3 && (ytDur - ytTime <= 1.0)) {
           triggerTrackCompletion('youtube-background-heartbeat-eof', true)
         }
       }
-    }, 1500)
+    }
+    const backgroundHeartbeat = setInterval(checkBackgroundCompletion, 1500)
+
+    // Window timers can be delayed in hidden tabs after audio becomes silent.
+    // Worker messages give EOF recovery another wake-up source; always inspect
+    // the current engine time and ownership instead of estimating from ticks.
+    try {
+      if (typeof Worker !== 'undefined') {
+        const worker = new Worker('/backgroundCompletionWorker.js')
+        backgroundCompletionWorkerRef.current = worker
+        worker.onmessage = (event: MessageEvent) => {
+          if (event.data === 'tick') checkBackgroundCompletion()
+        }
+        worker.onerror = () => {
+          worker.terminate()
+          if (backgroundCompletionWorkerRef.current === worker) {
+            backgroundCompletionWorkerRef.current = null
+          }
+        }
+        worker.postMessage(isTabHiddenRef.current ? 'start' : 'stop')
+      }
+    } catch {
+      // Keep the existing heartbeat as fallback when workers are unavailable.
+    }
 
     audio.addEventListener('play', handlePlay)
     audio.addEventListener('pause', handlePause)
@@ -3794,6 +3819,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       clearInterval(backgroundHeartbeat)
+      const worker = backgroundCompletionWorkerRef.current
+      backgroundCompletionWorkerRef.current = null
+      if (worker) {
+        worker.onmessage = null
+        worker.onerror = null
+        worker.terminate()
+      }
       clearNearEndWatchdog()
       stopActivePlaybackEngines('all')
       clearAudioStallWatchdog()

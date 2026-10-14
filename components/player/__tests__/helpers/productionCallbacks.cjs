@@ -27,7 +27,7 @@ function setup() {
     const e = vm.createContext({ console: { log() { }, warn() { } }, performance, Date, window: { location: { href: 'https://app.test', origin: 'https://app.test' } }, setTimeout, clearTimeout,
         MAX_CONSECUTIVE_SKIPS: 4, DEFAULT_VOLUME: 0.8, TRACK_RESOLUTION_TTL: 1800000, TRACK_RESOLUTION_MAX_ENTRIES: 200,
         isPlaying: false, isBuffering: false, savedQueue: [], audioRef: ref(audio), audioContextRef: ref(null), ytPlayerRef: ref(null), ytHtml5ModeRef: ref(false), ytReadyRef: ref(false), ytLoadedIdRef: ref(null), pendingYtPlayRef: ref(null),
-        playRequestRef: ref(0), audioRequestRef: ref(0), audioGenerationRef: ref(0), audioOwnershipRef: ref({ generation: 0, requestId: 0, trackId: null }), resolutionIdentityRef: ref(null),
+        playRequestRef: ref(0), audioRequestRef: ref(0), audioGenerationRef: ref(0), audioOwnershipRef: ref({ generation: 0, requestId: 0, trackId: null }), resolutionIdentityRef: ref(null), backgroundCompletionWorkerRef: ref(null),
         consecutiveSkipRef: ref(0), nextTrackEndPrewarmedRef: ref(false), hasPrewarmedNextTrackRef: ref(false), desiredPlayStateRef: ref(null),
         currentTrackRef: ref(null), currentTimeRef: ref(0), currentIndexRef: ref(-1), queueRef: ref([]), volumeRef: ref(0.8), durationRef: ref(0), pendingSeekRef: ref(null), pendingResumeRef: ref(false), toggleActionIdRef: ref(0),
         playedHistoryStackRef: ref([]), forwardHistoryStackRef: ref([]), isPrevNextActionRef: ref(false), isBackwardActionRef: ref(false),
@@ -92,4 +92,17 @@ function iframeHandler(name, env) {
         throw Error(name);
     return vm.runInContext(ts.transpileModule('(' + found + ')', { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, env);
 }
-module.exports = { setup, callback, track, deferred, ref, mediaHandler, iframeHandler };
+function audioEffect(env) {
+    let found;
+    function walk(n) {
+        if (ts.isCallExpression(n) && n.expression.getText(ast) === 'useEffect' &&
+            n.arguments[0]?.getText(ast).includes("audio.addEventListener('ended', handleEnded)")) {
+            found = n.arguments[0].getText(ast);
+        }
+        ts.forEachChild(n, walk);
+    }
+    walk(ast);
+    if (!found) throw Error('HTML5 audio effect');
+    return vm.runInContext(ts.transpileModule('(' + found + ')', { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, env)();
+}
+module.exports = { setup, callback, track, deferred, ref, mediaHandler, iframeHandler, audioEffect };
