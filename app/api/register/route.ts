@@ -1,11 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import nodemailer from 'nodemailer'
+import { isAdmin } from '@/lib/accessControl'
 
 const ADMIN_PERSONAL_EMAIL = process.env.ADMIN_PERSONAL_EMAIL || process.env.SMTP_USER || ''
 
+const RESERVED_USERNAMES = new Set([
+  'admin',
+  'administrator',
+  'root',
+  'system',
+  'support',
+  'moderator',
+  'owner',
+  'musicweb',
+  'security',
+  'staff',
+  'official',
+  'help',
+])
+
+const registerRateLimitMap = new Map<string, { count: number; resetAt: number }>()
+const REGISTER_WINDOW_MS = 15 * 60 * 1000
+const REGISTER_MAX_PER_WINDOW = 5
+
+function isRegisterRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const entry = registerRateLimitMap.get(ip)
+  if (!entry || now > entry.resetAt) {
+    registerRateLimitMap.set(ip, { count: 1, resetAt: now + REGISTER_WINDOW_MS })
+    return false
+  }
+  entry.count += 1
+  return entry.count > REGISTER_MAX_PER_WINDOW
+}
+
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 export async function POST(req: NextRequest) {
   try {
+    const clientIp =
+      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      req.headers.get('x-real-ip') ||
+      'unknown'
+
+    if (isRegisterRateLimited(clientIp)) {
+      return NextResponse.json(
+        { ok: false, error: 'Quá nhiều yêu cầu đăng ký từ địa chỉ mạng này. Vui lòng thử lại sau 15 phút.' },
+        { status: 429 }
+      )
+    }
+
     const body = await req.json()
     const username: string = String(body?.username || '').trim()
     const password: string = String(body?.password || '')
@@ -21,6 +73,21 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       )
     }
+
+    const normalizedUsername = username.toLowerCase()
+    const authEmail = `${normalizedUsername}@musicweb.com`
+
+    if (
+      RESERVED_USERNAMES.has(normalizedUsername) ||
+      isAdmin(authEmail) ||
+      (realEmail && isAdmin(realEmail))
+    ) {
+      return NextResponse.json(
+        { ok: false, error: 'Tên tài khoản hoặc email này thuộc quyền quản trị hệ thống và không thể đăng ký công khai!' },
+        { status: 403 }
+      )
+    }
+
     if (password.length < 6) {
       return NextResponse.json({ ok: false, error: 'Mật khẩu phải có ít nhất 6 ký tự' }, { status: 400 })
     }
@@ -38,9 +105,6 @@ export async function POST(req: NextRequest) {
     }
 
     const adminClient = createClient(url, serviceKey, { auth: { persistSession: false } })
-
-    // Internal Supabase email for this username
-    const authEmail = `${username.toLowerCase()}@musicweb.com`
 
     // --- Check if username already taken (case-insensitive) ---
     const existingRes = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 })
@@ -94,9 +158,9 @@ export async function POST(req: NextRequest) {
     // --- Upsert into roles table ---
     await adminClient
       .from('roles')
-      .upsert({ email: authEmail, role: 'user', roleApproved: true }, { onConflict: 'email' })
+      .upsert({ email: authEmail, role: 'user', roleApproved: true }, { onConflict: 'email', ignoreDuplicates: true })
 
-    // --- Nostify admin (awaited with 4.5s internal timeout) ---
+    // --- Notify admin (awaited with 4.5s internal timeout) ---
     await notifyAdmin(username, authEmail, realEmail).catch((err) => {
       console.warn('[REGISTER NOTIFY] Error sending notification email:', err?.message || err)
     })
@@ -125,6 +189,9 @@ async function notifyAdmin(username: string, authEmail: string, realEmail?: stri
   })
 
   const now = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
+  const safeUsername = escapeHtml(username)
+  const safeRealEmail = realEmail ? escapeHtml(realEmail) : ''
+  const safeAdminEmail = escapeHtml(targetAdminEmail)
 
   await Promise.race([
     transporter.sendMail({
@@ -136,12 +203,12 @@ async function notifyAdmin(username: string, authEmail: string, realEmail?: stri
           <h1 style="color:#1DB954;font-size:20px;font-weight:800;margin:0 0 16px;">🎵 Tài Khoản Mới Đăng Ký</h1>
           <div style="background:#141a24;padding:18px;border-radius:12px;border:1px solid #1e293b;">
             <table style="width:100%;border-collapse:collapse;font-size:14px;">
-              <tr><td style="padding:8px 0;border-bottom:1px solid #1e293b;color:#94a3b8;width:160px;">Tên tài khoản:</td><td style="padding:8px 0;border-bottom:1px solid #1e293b;color:#1DB954;font-weight:700;font-family:monospace;">${username}</td></tr>
-              ${realEmail ? `<tr><td style="padding:8px 0;border-bottom:1px solid #1e293b;color:#94a3b8;">Gmail liên kết:</td><td style="padding:8px 0;border-bottom:1px solid #1e293b;color:#38bdf8;font-family:monospace;">${realEmail}</td></tr>` : ''}
+              <tr><td style="padding:8px 0;border-bottom:1px solid #1e293b;color:#94a3b8;width:160px;">Tên tài khoản:</td><td style="padding:8px 0;border-bottom:1px solid #1e293b;color:#1DB954;font-weight:700;font-family:monospace;">${safeUsername}</td></tr>
+              ${safeRealEmail ? `<tr><td style="padding:8px 0;border-bottom:1px solid #1e293b;color:#94a3b8;">Gmail liên kết:</td><td style="padding:8px 0;border-bottom:1px solid #1e293b;color:#38bdf8;font-family:monospace;">${safeRealEmail}</td></tr>` : ''}
               <tr><td style="padding:8px 0;color:#94a3b8;">Thời gian:</td><td style="padding:8px 0;color:#e2e8f0;">${now}</td></tr>
             </table>
           </div>
-          <p style="color:#64748b;font-size:12px;text-align:center;margin:16px 0 0;">Thông báo tự động từ <strong>MusicWeb Studio System</strong> gửi tới <strong>${targetAdminEmail}</strong></p>
+          <p style="color:#64748b;font-size:12px;text-align:center;margin:16px 0 0;">Thông báo tự động từ <strong>MusicWeb Studio System</strong> gửi tới <strong>${safeAdminEmail}</strong></p>
         </div>
       `,
     }),

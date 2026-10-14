@@ -1,8 +1,19 @@
-import { describe, it, expect } from 'vitest'
-import { GET, POST } from '../route'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
+const mockGetServerSession = vi.fn()
+
+vi.mock('next-auth', () => ({
+  getServerSession: (...args: any[]) => mockGetServerSession(...args),
+}))
+
+import { GET, POST } from '../route'
+
 describe('Announcement API Route', () => {
+  beforeEach(() => {
+    mockGetServerSession.mockReset()
+  })
+
   it('GET returns default announcement successfully', async () => {
     const req = new NextRequest('http://localhost:3000/api/announcement')
     const res = await GET(req)
@@ -14,12 +25,15 @@ describe('Announcement API Route', () => {
   })
 
   it('POST rejects unauthorized non-admin user with 403', async () => {
+    mockGetServerSession.mockResolvedValueOnce({
+      user: { email: 'nonadmin@test.com' },
+    })
     const req = new NextRequest('http://localhost:3000/api/announcement', {
       method: 'POST',
       body: JSON.stringify({
         title: 'New title',
         content: 'New content',
-        senderEmail: 'nonadmin@test.com',
+        senderEmail: 'admin@musicweb.com',
       }),
     })
     const res = await POST(req)
@@ -28,14 +42,16 @@ describe('Announcement API Route', () => {
     expect(json.success).toBe(false)
   })
 
-  it('POST allows admin user to update announcement', async () => {
+  it('POST allows authenticated admin user to update announcement', async () => {
+    mockGetServerSession.mockResolvedValueOnce({
+      user: { email: 'admin@musicweb.com' },
+    })
     const req = new NextRequest('http://localhost:3000/api/announcement', {
       method: 'POST',
       body: JSON.stringify({
         badge: 'Cập nhật hệ thống',
         title: 'Bảo trì máy chủ',
         content: 'Hệ thống cập nhật tính năng mới.',
-        senderEmail: 'tranphong16012006@gmail.com',
         is_enabled: true,
       }),
     })

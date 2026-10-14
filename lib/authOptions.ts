@@ -22,6 +22,15 @@ function validateRequiredEnv(): void {
 // Validate env on module load (only once per server instance)
 validateRequiredEnv()
 
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 async function sendNewGoogleLoginNotification(email: string, name?: string | null) {
   try {
     const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com'
@@ -42,6 +51,9 @@ async function sendNewGoogleLoginNotification(email: string, name?: string | nul
     })
 
     const nowFormatted = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
+    const safeEmail = escapeHtml(email)
+    const safeName = name ? escapeHtml(name) : ''
+    const safeAdminEmail = escapeHtml(targetAdminEmail)
 
     await Promise.race([
       transporter.sendMail({
@@ -58,14 +70,14 @@ async function sendNewGoogleLoginNotification(email: string, name?: string | nul
             <div style="background:#141a24;padding:20px;border-radius:14px;border:1px solid #1e293b;margin-bottom:20px;">
               <div style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);padding:14px 18px;border-radius:12px;margin-bottom:16px;">
                 <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;font-weight:700;letter-spacing:0.05em;margin-bottom:6px;">Gmail Đăng Nhập:</div>
-                <div style="font-size:18px;color:#38bdf8;font-weight:800;font-family:monospace;">${email}</div>
+                <div style="font-size:18px;color:#38bdf8;font-weight:800;font-family:monospace;">${safeEmail}</div>
               </div>
 
               <table style="width:100%;border-collapse:collapse;font-size:14px;">
-                ${name ? `
+                ${safeName ? `
                 <tr>
                   <td style="padding:10px 0;border-bottom:1px solid #1e293b;color:#94a3b8;font-weight:700;width:170px;">Tên Hiển Thị:</td>
-                  <td style="padding:10px 0;border-bottom:1px solid #1e293b;color:#e2e8f0;font-weight:600;">${name}</td>
+                  <td style="padding:10px 0;border-bottom:1px solid #1e293b;color:#e2e8f0;font-weight:600;">${safeName}</td>
                 </tr>` : ''}
                 <tr>
                   <td style="padding:10px 0;border-bottom:1px solid #1e293b;color:#94a3b8;font-weight:700;">Phương Thức:</td>
@@ -79,7 +91,7 @@ async function sendNewGoogleLoginNotification(email: string, name?: string | nul
             </div>
 
             <p style="color:#64748b;font-size:12px;text-align:center;margin:0;">
-              Thông báo tự động từ <strong>MusicWeb Studio System</strong> gửi tới <strong>${targetAdminEmail}</strong>.
+              Thông báo tự động từ <strong>MusicWeb Studio System</strong> gửi tới <strong>${safeAdminEmail}</strong>.
             </p>
           </div>
         `,

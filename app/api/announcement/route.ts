@@ -1,6 +1,9 @@
 // app/api/announcement/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/authOptions'
+import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
 import { DEFAULT_ANNOUNCEMENT, validateAnnouncementPayload, AnnouncementData } from '@/lib/announcement'
 import { isAdmin } from '@/lib/accessControl'
 
@@ -11,6 +14,25 @@ function getSupabaseServerClient() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
   if (!url || !key) return null
   return createClient(url, key)
+}
+
+async function getAuthenticatedUserEmail(): Promise<string> {
+  try {
+    const session = await getServerSession(authOptions)
+    if (session?.user?.email) {
+      return session.user.email.trim().toLowerCase()
+    }
+  } catch {}
+
+  try {
+    const supabase = await createSupabaseServerClient()
+    const { data } = await supabase.auth.getUser()
+    if (data?.user?.email) {
+      return data.user.email.trim().toLowerCase()
+    }
+  } catch {}
+
+  return ''
 }
 
 export async function GET(_req: NextRequest) {
@@ -49,11 +71,11 @@ export async function GET(_req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const email = body.senderEmail || req.headers.get('x-user-email') || ''
+    const email = await getAuthenticatedUserEmail()
 
-    if (!isAdmin(email)) {
+    if (!email || !isAdmin(email)) {
       return NextResponse.json(
-        { success: false, error: 'Chỉ tài khoản Admin mới có quyền chỉnh sửa thông báo.' },
+        { success: false, error: 'Chỉ tài khoản Admin đã đăng nhập mới có quyền chỉnh sửa thông báo.' },
         { status: 403 }
       )
     }
