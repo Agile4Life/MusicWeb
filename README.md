@@ -1,46 +1,103 @@
 <div align="center">
 
-# 🎵 MusicWeb — Nền Tảng Nghe Nhạc Trực Tuyến Đa Nguồn & Cá Nhân Hóa
+<img src="public/icon-192.png" alt="MusicWeb Logo" width="88" height="88" />
 
-Một ứng dụng web nghe nhạc hiện đại, mượt mà được xây dựng trên **Next.js 16 (App Router)**, **React 19**, **Supabase**, **Cloudflare Workers** và **Three.js**. Hỗ trợ phát nhạc từ nhiều nguồn (Local Upload, Google Drive, YouTube, SoundCloud, NhacCuaTui), đồng bộ lời bài hát thời gian thực, giao diện Glassmorphism cao cấp cùng hệ thống hiệu ứng & con trỏ chuột độc đáo.
+# 🎵 MusicWeb
+
+### Nền Tảng Nghe Nhạc Trực Tuyến Đa Nguồn & Cá Nhân Hóa Thế Hệ Mới
+
+Một ứng dụng web nghe nhạc hiện đại được xây dựng trên **Next.js 16 (App Router)**, **React 19**, **Supabase**, **Cloudflare Workers (R2/KV)** và **Three.js**. Hợp nhất trải nghiệm phát nhạc từ nhiều nguồn (**SoundCloud, YouTube, NhacCuaTui, Google Drive Lossless, Local Upload**) cùng lời bài hát đồng bộ thời gian thực, hóa đơn âm nhạc **Receiptify**, hệ thống giao diện **Liquid Glass** và bộ sưu tập con trỏ chuột hoạt họa độc quyền.
 
 [![Next.js](https://img.shields.io/badge/Next.js-16.2-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19.2-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4.0-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![Supabase](https://img.shields.io/badge/Supabase-Database%20%26%20Auth-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
-[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers%20%26%20R2-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
-[![Three.js](https://img.shields.io/badge/Three.js-3D%20Visuals-black?style=for-the-badge&logo=three.js&logoColor=white)](https://threejs.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL_%26_Auth-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
+[![Cloudflare](https://img.shields.io/badge/Cloudflare-Workers_%26_R2-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
+[![Three.js](https://img.shields.io/badge/Three.js-3D_Stage-black?style=for-the-badge&logo=three.js&logoColor=white)](https://threejs.org/)
+
+<br />
+
+[**📸 Giao Diện Chính**](#-giao-diện-chính-screen-showcase) •
+[**✨ Tính Năng Nổi Bật**](#-tính-năng-nổi-bật-key-features) •
+[**🏗 Kiến Trúc**](#-kiến-trúc-hệ-thống-system-architecture) •
+[**🛠 Công Nghệ**](#-công-nghệ-sử-dụng-tech-stack) •
+[**🚀 Cài Đặt**](#-hướng-dẫn-cài-đặt-getting-started)
 
 </div>
 
 ---
 
-## 🌟 Điểm Nổi Bật (Key Features)
+## 📸 Giao Diện Chính (Screen Showcase)
 
-### 🎧 1. Phát Nhạc Đa Nguồn (Multi-Source Streaming)
-* **Kho Nhạc Cá Nhân (Local Upload):** Tải lên các tệp âm thanh (`.mp3`, `.wav`, `.m4a`, `.flac`) trực tiếp lên Supabase Storage. Tự động trích xuất metadata (tên bài hát, nghệ sĩ, album, ảnh bìa ID3, thời lượng) ngay tại trình duyệt với `music-metadata-browser`.
-* **Google Drive Streaming & Import:** Phát trực tiếp từ Google Drive hoặc nhập cả thư mục nhạc mà không lo giới hạn băng thông nhờ cơ chế stream qua Cloudflare R2 cache.
-* **Tích Hợp YouTube & SoundCloud:** Tìm kiếm và phát trực tiếp âm thanh chất lượng cao từ YouTube (hỗ trợ Invidious fallback) và SoundCloud.
-* **Tích Hợp NhacCuaTui (NCT):** Tự động tìm kiếm, đồng bộ thông tin bài hát và phát nhạc với cơ chế Fallback thông minh.
+> 💡 *Nhấn vào bất kỳ hình ảnh nào để xem ở độ phân giải gốc (Retina 2880×1800).*
 
-### 🎨 2. Giao Diện Hiện Đại & Trải Nghiệm Mượt Mà (UI/UX)
-* **Phong Cách Glassmorphism & Liquid Ambient:** Lấy cảm hứng từ Spotify và Apple Music với nền hiệu ứng phát sáng động theo màu ảnh bìa bài hát.
-* **Mobile Fullview Player:** Trình phát toàn màn hình trên điện thoại với cử chỉ vuốt mượt mà (Swipe-to-dismiss), hiệu ứng phóng to ảnh đĩa nhạc và thanh điều khiển tối ưu.
-* **Visualizer & Waveform Scrubber:** Thanh tua nhạc dạng sóng âm thanh trực quan, mini equalizer và sân khấu đồ họa 3D hiệu ứng hạt (Three.js / React Three Fiber).
-* **Con Trỏ Chuột Tùy Biến (Custom Cursors):** Bộ sưu tập con trỏ chuột hoạt họa và tĩnh độc đáo (Anime, Gaming), có kèm CLI script để thêm nhân vật mới dễ dàng.
-* **Chủ Đề Phong Phú (Themes):** Chuyển đổi giao diện linh hoạt (Summer, Cyberpunk, Gaming Mode, Neon...).
+### 1. Trang Chủ Khám Phá & Sân Khấu Lời Bài Hát 3D
 
-### 📜 3. Tính Năng Nghe Nhạc & Cá Nhân Hóa Toàn Diện
-* **Lời Bài Hát Đồng Bộ (Real-time Synced Lyrics):** Hiển thị lời bài hát cuộn mượt theo thời gian thực (định dạng LRC), hỗ trợ chế độ Karaoke và tạo ảnh chia sẻ trích dẫn lời bài hát (Lyrics Share Card).
-* **Hóa Đơn Âm Nhạc (Receiptify / Music Receipt):** Tự động tổng hợp và in "biên lai hóa đơn" thống kê top bài hát, nghệ sĩ và thời lượng nghe nhạc của bạn.
-* **Quản Lý Danh Phát (Playlists & Favorites):** Tạo, đổi tên, sắp xếp và chia sẻ playlist qua liên kết/mã chia sẻ; quản lý danh sách yêu thích và lịch sử nghe nhạc.
-* **Hàng Đợi & Điều Khiển Nâng Cao:** Quản lý danh sách phát tiếp theo (Queue Drawer), chế độ phát ngẫu nhiên (Shuffle), lặp lại (Repeat One/All), và chuyển bài mượt mà.
+| 🏠 Trang Chủ & Khám Phá Đa Nguồn (`Home Dashboard`) | 🎤 Sân Khấu 3D & Lời Bài Hát Đồng Bộ (`Now Playing & Synced Lyrics`) |
+| :---: | :---: |
+| <img src="docs/screenshots/home-dashboard.png" alt="Trang Chủ MusicWeb" width="100%" /> | <img src="docs/screenshots/lyrics-synced.png" alt="Sân Khấu 3D và Lời Bài Hát Đồng Bộ" width="100%" /> |
+| *Bảng xếp hạng Trending đa khu vực (Nhạc Việt, US-UK, K-Pop, C-Pop, J-Pop), tìm kiếm hợp nhất và thanh điều khiển PlayerBar.* | *Hiệu ứng hạt không gian 3D, đĩa nhạc xoay phát sáng, danh sách phát tiếp theo (Up Next) và lời bài hát LRC tự động cuộn kèm phiên âm Romaji.* |
 
-### 🔒 4. Bảo Mật & Hệ Thống Quản Trị
-* **Supabase Auth & RLS:** Xác thực an toàn với cơ chế phân quyền Row Level Security (RLS) bảo vệ quyền riêng tư tuyệt đối cho từng người dùng.
-* **Admin Approval Workflow:** Hệ thống gửi thông báo phê duyệt tài khoản mới hoặc yêu cầu Passkey qua SMTP Email (Nodemailer) tới Admin.
+---
+
+### 2. Không Gian Âm Nhạc Đa Nền Tảng & Tiện Ích Độc Quyền
+
+| 💿 Thư Viện Albums (`Albums Explorer`) | ☁️ Không Gian SoundCloud (`SoundCloud Hub`) |
+| :---: | :---: |
+| <img src="docs/screenshots/albums-hub.png" alt="Thư Viện Albums" width="100%" /> | <img src="docs/screenshots/soundcloud-hub.png" alt="Không Gian SoundCloud" width="100%" /> |
+| *Khám phá và tìm kiếm hơn 60+ album phát hành mới nhất từ Spotify, Deezer & iTunes với hiệu ứng thẻ 3D nghiêng (TiltCard).* | *Khám phá Top Playlists, bản Remix, Indie, Vinahouse/EDM, Lofi & Phonk trực tiếp từ SoundCloud hoặc dán link phát ngay.* |
+| **📂 Kho Nhạc Đám Mây (`Google Drive Sync`)** | **🧾 Hóa Đơn Âm Nhạc (`Receiptify Studio`)** |
+| <img src="docs/screenshots/google-drive.png" alt="Kho Nhạc Google Drive" width="100%" /> | <img src="docs/screenshots/receiptify.png" alt="Hóa Đơn Âm Nhạc Receiptify" width="100%" /> |
+| *Đồng bộ và stream trực tiếp kho nhạc Lossless / High-Quality từ Google Drive qua hệ thống đệm Cloudflare R2 Edge Cache.* | *Tạo, tùy chỉnh chủ đề giấy in (Giấy nhiệt cổ điển, Đêm Neon, Vintage Kraft) và tải ảnh PNG biên lai thống kê bài hát.* |
+
+---
+
+### 3. Cá Nhân Hóa Giao Diện, Con Trỏ Hoạt Họa & Bảo Mật
+
+| 🎨 Phong Cách Giao Diện & Chủ Đề (`Interface Style Engine`) | 🖱️ Con Trỏ Chuột Nhân Vật & Đa Ngôn Ngữ (`Custom Cursors`) |
+| :---: | :---: |
+| <img src="docs/screenshots/settings-themes.png" alt="Cài Đặt Chủ Đề" width="100%" /> | <img src="docs/screenshots/custom-cursors.png" alt="Bộ Sưu Tập Con Trỏ Chuột" width="100%" /> |
+| *Chuyển đổi 3 kiến trúc giao diện (**Liquid Glass Vision**, **Classic Dark**, **Minimal Editorial**) và hơn 14 bảng màu cảm xúc.* | *Bộ sưu tập con trỏ chuột Anime/Gaming (Lottie Synth, Hatsune Miku, Furina, Haru Urara, Albedo, Hu Tao, Spider-Man) và cài đặt đa ngôn ngữ.* |
+
+<details>
+<summary><b>🔐 Xem thêm: Giao Diện Đăng Nhập & Xác Thực Đa Lớp (Login & Passkey Auth)</b></summary>
+<br />
+<div align="center">
+  <img src="docs/screenshots/login-auth.png" alt="Màn Hình Đăng Nhập" width="85%" />
+  <p><i>Giao diện đăng nhập nghệ thuật hỗ trợ Tài khoản mật khẩu, Google OAuth 2.0, WebAuthn Passkey và luồng phê duyệt Admin qua SMTP.</i></p>
+</div>
+</details>
+
+---
+
+## ✨ Tính Năng Nổi Bật (Key Features)
+
+### 🎧 1. Phát Nhạc Đa Nguồn & Xử Lý Âm Thanh Thông Minh
+* **Tìm Kiếm & Phát Hợp Nhất (Unified Multi-Source):** Kết hợp danh mục và luồng âm thanh từ **Spotify / Deezer / iTunes** (metadata & bảng xếp hạng), **SoundCloud**, **NhacCuaTui (NCT)** và **YouTube / Invidious**.
+* **Google Drive Lossless Sync:** Đồng bộ thư mục nhạc cá nhân từ Google Drive, vượt giới hạn băng thông và giảm độ trễ nhờ cơ chế proxy & prewarm qua **Cloudflare Workers + R2/KV**.
+* **Kho Nhạc Tải Lên (Local Upload):** Hỗ trợ tải lên `.mp3`, `.flac`, `.wav`, `.m4a` trực tiếp lên Supabase Storage, tự động bóc tách thẻ ID3 (tên bài, nghệ sĩ, album, ảnh bìa) ngay tại trình duyệt.
+* **Tối Ưu Hóa Phát Nhạc:** Tự động bỏ qua đoạn giới thiệu/ngoài lề MV qua **SponsorBlock**, tự động điền hàng đợi thông minh (*Smart Fill Recommendation*) và đệm trước bài tiếp theo (*Adaptive Prewarm*).
+
+### 🎨 2. Hệ Thống Giao Diện Đa Phong Cách (UI/UX Engine)
+* **3 Phong Cách Thiết Kế (Interface Style Engine):**
+  * **Liquid Glass (Vision):** Hiệu ứng kính lỏng khúc xạ đa lớp với nền chuyển động `LiquidAmbientCanvas`.
+  * **Classic Dark:** Giao diện tối hiện đại với viền phát sáng neon theo chủ đề.
+  * **Minimal Editorial (Vinyl):** Phong cách tạp chí cổ điển, ấm áp và tối giản.
+* **14+ Chủ Đề Màu Sắc & Bộ Con Trỏ Chuột Độc Quyền:** Tùy chọn bảng màu (*Aurora Glass, Emerald Synth, Neon Gold, Sakura Cyber...*) và con trỏ chuột hoạt họa tự động tích hợp qua CLI (`npm run add-cursor`).
+* **Chế Độ Chơi Game (Gaming Mode):** Tự động thu gọn toàn bộ DOM và hiệu ứng đồ họa để giải phóng RAM/GPU khi người dùng vừa nghe nhạc vừa chơi game.
+
+### 🎤 3. Lời Bài Hát Đồng Bộ & Công Cụ Sáng Tạo
+* **Lời Bài Hát Thời Gian Thực (Real-time Synced Lyrics):** Tự động tìm kiếm lời bài hát chuẩn `.lrc` từ LRCLIB, làm nổi bật câu đang hát với hiệu ứng trượt mượt mà và cho phép nhấn vào từng câu để tua nhạc.
+* **Phiên Âm Tự Động (Romaji Transliteration):** Hỗ trợ hiển thị phiên âm Romaji cho các bài hát tiếng Nhật/Hàn/Trung ngay dưới dòng lời gốc.
+* **Thẻ Chia Sẻ Lời Bài Hát (Lyrics Share Card):** Chọn các câu tâm đắc và xuất thành hình ảnh thẻ trích dẫn nghệ thuật để chia sẻ lên mạng xã hội.
+* **Hóa Đơn Âm Nhạc (Receiptify Studio):** Tổng hợp Top 5 / 10 / 15 / 20 bài hát từ Bảng xếp hạng, Lịch sử nghe hoặc Yêu thích thành biên lai siêu thị in nhiệt cổ điển với mã vạch và thời gian thực.
+* **Nhập Playlist Đa Nền Tảng (1-Click Import):** Nhập toàn bộ danh sách phát từ **Spotify**, **YouTube Playlist** hoặc **SoundCloud Set** về thư viện cá nhân chỉ bằng một đường dẫn.
+
+### 🛡️ 4. Bảo Mật, Đa Ngôn Ngữ & Quản Trị
+* **Xác Thực Đa Phương Thức:** Hỗ trợ đăng nhập bằng Email/Username, **Google OAuth (NextAuth)** và **WebAuthn Passkey**, kết hợp phân quyền **Supabase Row Level Security (RLS)**.
+* **Luồng Phê Duyệt Admin & Thông Báo Hệ Thống:** Gửi email phê duyệt tài khoản mới qua SMTP (`Nodemailer`) và trình chỉnh sửa thông báo chào mừng trực tiếp cho Admin.
+* **Đa Ngôn Ngữ (i18n):** Hỗ trợ chuyển đổi tức thì giữa Tiếng Việt, Tiếng Anh và các ngôn ngữ quốc tế.
 
 ---
 
@@ -48,134 +105,143 @@ Một ứng dụng web nghe nhạc hiện đại, mượt mà được xây dự
 
 ```mermaid
 flowchart TD
-    User["📱 Trình Duyệt / Mobile Client\n(Next.js 16 + React 19 + Framer Motion)"]
+    Client["💻 Trình Duyệt / Mobile Client\n(Next.js 16 + React 19 + PlayerEngine)"]
 
-    subgraph App_Server ["Vercel / Next.js App Router"]
-        API_Routes["Next.js API Routes\n(/api/tracks, /api/lyrics, /api/search...)"]
-        Auth_Middleware["Auth Middleware & SSR Session"]
-        SMTP_Service["SMTP Email Service (Nodemailer)"]
+    subgraph NextServer ["⚡ Next.js App Router (Serverless API)"]
+        Auth["Auth Middleware\n(Supabase SSR + NextAuth + Passkey)"]
+        SearchAPI["Unified Search & Metadata\n(/api/search, /api/albums, /api/lyrics)"]
+        StreamResolver["Stream Resolver & Prewarm\n(/api/resolve-stream, /api/drive-stream)"]
     end
 
-    subgraph Backend_Cloud ["Supabase Cloud"]
-        Postgres_DB[("PostgreSQL\n(User Profiles, Tracks, Playlists, History)")]
-        Supabase_Storage["Supabase Storage\n(Audio Files & Custom Covers)"]
-        Supabase_Auth["Supabase Auth"]
+    subgraph CloudBackend ["🗄️ Supabase Cloud"]
+        Postgres[("PostgreSQL Database\n(Tracks, Playlists, Favorites, History, Settings)")]
+        Storage["Supabase Storage\n(Uploaded Audio & Cover Art)"]
     end
 
-    subgraph Edge_Caching ["Cloudflare Edge (Workers & R2)"]
-        CF_Worker["Audio Stream Cache Worker"]
-        KV_Cache["Cloudflare KV\n(Short-lived Stream Tokens)"]
-        R2_Bucket[("Cloudflare R2\n(Permanent Audio Cache)")]
+    subgraph EdgeNetwork ["🌐 Cloudflare Edge"]
+        Worker["Audio Stream Worker"]
+        KV["Cloudflare KV\n(Signed URL & Token Cache)"]
+        R2[("Cloudflare R2\n(Permanent Audio Cache)")]
     end
 
-    subgraph External_Sources ["Dịch Vụ Ngoại Vi"]
-        GoogleDrive["Google Drive API"]
-        YouTube_API["YouTube / Invidious"]
-        SoundCloud_API["SoundCloud Stream"]
-        NCT_API["NhacCuaTui API"]
+    subgraph ExternalProviders ["🎵 Nguồn Nhạc & Dịch Vụ Ngoại Vi"]
+        GDrive["Google Drive API"]
+        SC["SoundCloud API"]
+        NCT["NhacCuaTui"]
+        YT["YouTube / Invidious + SponsorBlock"]
+        LRCLIB["LRCLIB (Synced Lyrics)"]
     end
 
-    User -->|"1. Đăng nhập / Truy vấn dữ liệu"| Auth_Middleware
-    Auth_Middleware --> Supabase_Auth
-    API_Routes --> Postgres_DB
-    User -->|"2. Upload tệp nhạc"| Supabase_Storage
-    User -->|"3. Gửi thông báo phê duyệt"| SMTP_Service
-
-    User -->|"4. Yêu cầu Stream Audio"| CF_Worker
-    CF_Worker -->|"Tầng 1: Lookup Cache"| KV_Cache
-    CF_Worker -->|"Tầng 2: Cache R2"| R2_Bucket
-    CF_Worker -->|"Tầng 3: Fetch Origin"| External_Sources
+    Client -->|"1. Xác thực & Đồng bộ cá nhân"| Auth
+    Auth --> Postgres
+    Client -->|"2. Tìm kiếm & Lấy lời bài hát"| SearchAPI
+    SearchAPI --> LRCLIB
+    SearchAPI --> ExternalProviders
+    Client -->|"3. Tải nhạc lên"| Storage
+    Client -->|"4. Phát nhạc & Prewarm"| Worker
+    Worker -->|"Tầng 1: Tra cứu nhanh"| KV
+    Worker -->|"Tầng 2: Đọc/Ghi Cache"| R2
+    Worker -->|"Tầng 3: Fetch nguồn gốc"| StreamResolver
+    StreamResolver --> GDrive & SC & NCT & YT
 ```
 
 ---
 
 ## 🛠 Công Nghệ Sử Dụng (Tech Stack)
 
-| Lớp (Layer) | Công nghệ | Mục đích |
-|---|---|---|
-| **Frontend Framework** | [Next.js 16 (App Router)](https://nextjs.org/) + [React 19](https://react.dev/) | SSR, Server Components, Streaming UI |
-| **Ngôn Ngữ** | [TypeScript 5](https://www.typescriptlang.org/) | Type-safety tuyệt đối cho toàn bộ dự án |
-| **Styling & Icons** | [Tailwind CSS v4](https://tailwindcss.com/), [Lucide React](https://lucide.dev/) | Hệ thống giao diện hiện đại, responsive, icon tối giản |
-| **Hiệu Ứng & 3D** | [Framer Motion](https://www.framer.com/motion/), [Three.js](https://threejs.org/), `@react-three/fiber`, Lottie | Animation mượt mà, Visualizer 3D |
-| **Cơ Sở Dữ Liệu & Auth** | [Supabase (PostgreSQL)](https://supabase.com/) | Quản lý bảng dữ liệu, Row Level Security (RLS) |
-| **Lưu Trữ File** | Supabase Storage & Cloudflare R2 | Lưu trữ bài hát upload và cache streaming |
-| **Edge Cache & Proxy** | [Cloudflare Workers](https://workers.cloudflare.com/) + KV | Tối ưu hóa độ trễ phát nhạc và bypass rate limit |
-| **Xử Lý Âm Thanh** | `music-metadata-browser`, `@breezystack/lamejs`, Web Audio API | Đọc thẻ ID3/Cover Art, chuyển đổi MP3 client-side |
-| **Email & Notifications** | [Nodemailer](https://nodemailer.com/) | Gửi email phê duyệt đăng ký & mã passkey |
-| **Kiểm Thử** | [Vitest](https://vitest.dev/) | Unit testing & component testing |
+| Tầng (Layer) | Công Nghệ Chính | Vai Trò Trong Hệ Thống |
+| :--- | :--- | :--- |
+| **Framework & UI** | [Next.js 16.2 (App Router)](https://nextjs.org/), [React 19.2](https://react.dev/), [TypeScript 5](https://www.typescriptlang.org/) | Kiến trúc Server/Client Components, định tuyến SPA mượt mà, kiểm tra kiểu tĩnh |
+| **Styling & Hiệu Ứng** | [Tailwind CSS v4](https://tailwindcss.com/), [Framer Motion](https://www.framer.com/motion/), [Lucide React](https://lucide.dev/) | Thiết kế Liquid Glass, chuyển cảnh trang, hiệu ứng nghiêng 3D & nút bấm xúc giác |
+| **Đồ Họa 3D & Hoạt Họa** | [Three.js](https://threejs.org/), `@react-three/fiber`, `lottie-web`, HTML5 Canvas | Sân khấu hạt 3D phản ứng theo tần số âm thanh, in biên lai Receiptify, con trỏ Lottie |
+| **Xử Lý Âm Thanh** | Web Audio API, `music-metadata-browser`, `@breezystack/lamejs` | Phân tích phổ âm (Visualizer), đọc thẻ ID3 client-side, điều khiển đa luồng HTML5/YouTube |
+| **Cơ Sở Dữ Liệu & Auth** | [Supabase (PostgreSQL & Storage)](https://supabase.com/), [NextAuth.js](https://next-auth.js.org/) | Lưu trữ dữ liệu người dùng với RLS, xác thực Google OAuth & Passkey |
+| **Edge Caching** | [Cloudflare Workers](https://workers.cloudflare.com/), Cloudflare R2, Cloudflare KV | Tăng tốc độ phát nhạc đám mây, lưu đệm tệp âm thanh và giảm tải băng thông |
+| **Kiểm Thử (Testing)** | [Vitest](https://vitest.dev/), [Playwright](https://playwright.dev/), [k6](https://k6.io/) | Unit test logic phát nhạc, kiểm thử tự động trình duyệt E2E và kiểm thử tải (Load testing) |
 
 ---
 
 ## 📂 Cấu Trúc Thư Mục (Project Structure)
 
+<details>
+<summary><b>📁 Nhấn để xem chi tiết cây thư mục dự án</b></summary>
+
 ```plaintext
 MusicWeb/
-├── app/                          # Next.js App Router
-│   ├── (app)/                    # Route nhóm ứng dụng chính (có Sidebar & PlayerBar)
-│   │   ├── album/ & albums/      # Trang chi tiết & danh sách album
-│   │   ├── artist/               # Trang nghệ sĩ
-│   │   ├── drive/                # Trình quản lý & nhập file từ Google Drive
+├── app/                          # Next.js 16 App Router
+│   ├── (app)/                    # Nhóm trang chính (dùng chung Sidebar, TopBar, PlayerBar)
+│   │   ├── album/[id]/ & albums/ # Khám phá & xem chi tiết Album
+│   │   ├── artist/               # Trang thông tin Nghệ sĩ
+│   │   ├── drive/                # Kho nhạc đám mây Google Drive Sync
 │   │   ├── favorites/            # Danh sách bài hát yêu thích
-│   │   ├── history/              # Lịch sử nghe nhạc
-│   │   ├── lyrics/               # Trình xem lời bài hát toàn màn hình
-│   │   ├── playlist/             # Chi tiết & tạo danh sách phát
-│   │   ├── receipt/              # Trình tạo biên lai âm nhạc (Receiptify)
-│   │   ├── settings/             # Cài đặt cá nhân & tài khoản
-│   │   ├── soundcloud/           # Khám phá nhạc từ SoundCloud
-│   │   ├── upload/               # Trang tải nhạc lên
-│   │   └── page.tsx              # Trang chủ / Khám phá
-│   ├── api/                      # Next.js Serverless API routes
-│   │   ├── auth/ & register/     # API xác thực người dùng
-│   │   ├── drive-stream/         # API resolve & stream Google Drive
-│   │   ├── lyrics/               # API tìm kiếm và trích xuất lyrics
-│   │   ├── youtube/ & soundcloud/# API proxy & stream nhạc ngoại vi
+│   │   ├── history/              # Lịch sử nghe nhạc cá nhân
+│   │   ├── lyrics/               # Trình xem lời bài hát đồng bộ
+│   │   ├── playlist/[id]/        # Quản lý và phát Playlist cá nhân
+│   │   ├── receipt/              # Studio tạo Hóa đơn âm nhạc (Receiptify)
+│   │   ├── settings/             # Cài đặt giao diện, con trỏ, ngôn ngữ & âm thanh
+│   │   ├── soundcloud/           # Không gian khám phá nhạc SoundCloud
+│   │   ├── upload/               # Trang tải nhạc lên hệ thống (Admin)
+│   │   └── page.tsx              # Trang chủ & Bảng xếp hạng Trending
+│   ├── api/                      # Hệ thống Serverless API Routes
+│   │   ├── albums/ & artist/     # Truy vấn thông tin đĩa nhạc & nghệ sĩ
+│   │   ├── auth/ & passkey/      # Xác thực NextAuth, Supabase & Passkey
+│   │   ├── drive-stream/         # Giải mã & stream nhạc từ Google Drive
+│   │   ├── import-*/             # Nhập playlist từ Spotify, YouTube, SoundCloud
+│   │   ├── lyrics/               # Tìm kiếm lời bài hát LRC & phiên âm Romaji
+│   │   ├── resolve-stream/       # Bộ điều phối nguồn phát nhạc hợp nhất
 │   │   └── ...
-│   ├── login/ & register/        # Trang đăng nhập & đăng ký
-│   └── globals.css               # Định nghĩa token CSS, Glassmorphism & Themes
-├── components/                   # React Components tái sử dụng
-│   ├── auth/                     # Form xác thực, phê duyệt email
-│   ├── common/                   # Modal, button, input dùng chung
-│   ├── navigation/               # Topbar, header điều hướng
-│   ├── player/                   # Trình phát nhạc (PlayerBar, Fullview, Visualizer, Scrubber)
-│   ├── playlist/                 # Thẻ playlist, danh sách bài hát
-│   ├── sidebar/                  # Sidebar điều hướng desktop
-│   ├── theme/                    # Trình chọn theme & Custom Cursor
-│   └── track/                    # Danh sách và dòng bài hát (TrackRow, TrackCard)
-├── lib/                          # Tiện ích, client Supabase, helper functions
-├── public/                       # Assets tĩnh (icon, cursor, lottie, logo)
-├── scripts/                      # CLI Scripts (add-cursor.js, auth helpers)
-├── supabase/                     # Schema SQL, migration & RLS policies
-├── workers/ & worker/            # Cloudflare Workers mã nguồn (R2 Stream Cache)
-├── vitest.config.ts              # Cấu hình kiểm thử Vitest
-└── package.json                  # Dependencies & scripts
+│   ├── login/ & register/        # Giao diện Đăng nhập, Đăng ký & Khôi phục mật khẩu
+│   └── globals.css               # Hệ thống biến CSS, Theme Tokens & Liquid Glass
+├── components/                   # Các thành phần giao diện tái sử dụng
+│   ├── auth/                     # AuthGuard, AuthForm, CurrentUserContext
+│   ├── common/                   # MediaCard, TiltCard, SkeletonLoader, MarqueeText
+│   ├── i18n/                     # Đa ngôn ngữ (LanguageContext, LanguageSelector)
+│   ├── modals/                   # Hộp thoại thông báo hệ thống (WelcomeAnnouncementModal)
+│   ├── navigation/               # TopBar, MobileHeaderNav, ScrollContext
+│   ├── player/                   # PlayerContext, PlayerBar, NowPlayingOverlay, LyricsView, ReceiptifyView
+│   ├── playlist/                 # Quản lý Playlist & Modal nhập Playlist đa nguồn
+│   ├── sidebar/                  # Thanh điều hướng bên trái (Sidebar)
+│   ├── theme/                    # ThemeContext, ThemeSelector, LiquidAmbientCanvas, CustomCursor
+│   └── track/                    # Danh sách bài hát (TrackList, TrackRow)
+├── docs/                         # Tài liệu kiến trúc & ảnh chụp màn hình (docs/screenshots/)
+├── lib/                          # Thư viện xử lý logic, bộ nhớ đệm, API clients & tiện ích
+├── public/                       # Tài nguyên tĩnh (icons, cursors, manifest)
+├── scripts/                      # Công cụ dòng lệnh (add-cursor.js, kiểm tra dữ liệu)
+├── supabase/                     # Lược đồ cơ sở dữ liệu SQL (schema.sql) & RLS policies
+├── tests/                        # Bộ kiểm thử E2E (Playwright) và kiểm thử hiệu năng (k6)
+└── workers/ & worker/            # Mã nguồn Cloudflare Workers (Audio Stream & R2 Cache)
 ```
+
+</details>
 
 ---
 
-## 🚀 Hướng Dẫn Cài Đặt & Chạy Cục Bộ (Getting Started)
+## 🚀 Hướng Dẫn Cài Đặt (Getting Started)
 
-### 1. Yêu Cầu Tiên Quyết
-* **Node.js**: Phiên bản `18.x` hoặc `20.x` trở lên
-* **Trình quản lý gói**: `npm`, `yarn`, `pnpm` hoặc `bun`
-* **Tài khoản Supabase**: Tạo project miễn phí tại [supabase.com](https://supabase.com/)
+### 1. Yêu Cầu Hệ Thống
+* **Node.js**: Phiên bản `20.x` trở lên
+* **Trình quản lý gói**: `npm` (hoặc `pnpm` / `yarn` / `bun`)
+* **Tài khoản Supabase**: Khởi tạo project miễn phí tại [supabase.com](https://supabase.com/)
 
-### 2. Clone Repository & Cài Đặt Dependencies
+### 2. Sao Chép Mã Nguồn & Cài Đặt Gói Phụ Thuộc
 
 ```bash
 git clone https://github.com/PhongTCT/MusicWeb.git
 cd MusicWeb
 
-# Cài đặt các gói phụ thuộc
 npm install
 ```
 
-### 3. Cấu Hình Biến Môi Trường (`.env.local`)
+### 3. Thiết Lập Biến Môi Trường (`.env.local`)
 
-Tạo tệp `.env.local` tại thư mục gốc của dự án và điền các thông tin:
+Tạo tệp `.env.local` ở thư mục gốc dự án.
+
+<details>
+<summary><b>⚙️ Nhấn để xem mẫu cấu hình <code>.env.local</code> đầy đủ</b></summary>
 
 ```env
 # ==============================================================================
-# SUPABASE CONFIGURATION
+# 1. SUPABASE CONFIGURATION
 # ==============================================================================
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
@@ -183,7 +249,15 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
 SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 
 # ==============================================================================
-# SMTP EMAIL CONFIGURATION (Dùng cho thông báo Admin & Passkey)
+# 2. AUTHENTICATION & GOOGLE OAUTH (NEXTAUTH)
+# ==============================================================================
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-random-secret-key
+GOOGLE_CLIENT_ID=your-google-oauth-client-id
+GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
+
+# ==============================================================================
+# 3. SMTP EMAIL (Dùng cho phê duyệt đăng ký & thông báo Admin)
 # ==============================================================================
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -192,98 +266,88 @@ SMTP_PASS=your-gmail-app-password
 ADMIN_PERSONAL_EMAIL=admin-receiver@gmail.com
 
 # ==============================================================================
-# AUTH & SECURITY
+# 4. EXTERNAL STREAMING & CLOUDFLARE WORKERS (Tùy chọn)
 # ==============================================================================
-NEXTAUTH_SECRET=your-random-generated-secret
-
-# ==============================================================================
-# EXTERNAL APIS & WORKERS
-# ==============================================================================
-NEXT_PUBLIC_YOUTUBE_API_KEY=your-youtube-v3-api-key # (Tùy chọn)
+NEXT_PUBLIC_YOUTUBE_API_KEY=your-youtube-v3-api-key
 NEXT_PUBLIC_DRIVE_STREAM_WORKER_URL=https://your-drive-worker.workers.dev
 NEXT_PUBLIC_SOUNDCLOUD_WORKER_URL=https://your-soundcloud-worker.workers.dev
-INTERNAL_RESOLVE_SECRET=your-secure-internal-secret
+INTERNAL_RESOLVE_SECRET=your-internal-secret
 ```
 
-### 4. Thiết Lập Cơ Sở Dữ Liệu (Supabase SQL)
+</details>
 
-1. Truy cập vào **Supabase Dashboard** > Chọn Project của bạn > **SQL Editor**.
-2. Mở file [supabase/schema.sql](supabase/schema.sql), sao chép toàn bộ nội dung và dán vào SQL Editor.
-3. Nhấn **RUN** để khởi tạo các bảng (`user_profiles`, `tracks`, `playlists`, `playlist_tracks`, `favorite_tracks`, `listening_history`, `user_settings`).
-4. Truy cập **Storage** > Tạo bucket mới tên là `music-files` (chế độ Public hoặc Private với signed URLs).
+### 4. Khởi Tạo Cơ Sở Dữ Liệu Supabase
+1. Mở **Supabase Dashboard** → **SQL Editor**.
+2. Sao chép nội dung tệp [`supabase/schema.sql`](supabase/schema.sql) và nhấn **RUN** để tạo các bảng (`user_profiles`, `tracks`, `playlists`, `playlist_tracks`, `favorite_tracks`, `listening_history`, `user_settings`) cùng các chính sách bảo mật RLS.
+3. Trong mục **Storage**, tạo bucket tên `music-files` để lưu trữ nhạc tải lên.
 
 ### 5. Khởi Chạy Ứng Dụng
 
 ```bash
-# Chạy môi trường phát triển (Development)
+# Chạy máy chủ phát triển (http://localhost:3000)
 npm run dev
 
-# Hoặc build và chạy bản Production
+# Build và khởi chạy bản Production
 npm run build
 npm run start
 ```
 
-Mở trình duyệt và truy cập: [http://localhost:3000](http://localhost:3000)
-
 ---
 
-## ⚡ Thiết Lập Cloudflare Stream Workers (Tùy Chọn - Tối Ưu Băng Thông)
+## 🧰 Công Cụ Mở Rộng & Kiểm Thử
 
-Để giảm tải cho server chính và stream audio dung lượng lớn từ Google Drive / NCT / SoundCloud siêu mượt:
+<details>
+<summary><b>⚡ Triển khai Cloudflare Audio Stream Worker (Tùy chọn)</b></summary>
+
+Để tăng tốc độ phát nhạc từ Google Drive / SoundCloud thông qua bộ nhớ đệm biên (Edge Cache):
 
 ```bash
 cd worker
 
-# 1. Tạo KV Namespace
+# Khởi tạo KV Namespace & R2 Bucket
 npx wrangler kv namespace create STREAM_URL_KV
-
-# 2. Tạo R2 Bucket để lưu cache bài hát
 npx wrangler r2 bucket create music-audio-cache
 
-# 3. Chạy thử nghiệm cục bộ hoặc Deploy lên Cloudflare
+# Chạy thử nghiệm hoặc triển khai lên Cloudflare
 npx wrangler dev
 npx wrangler deploy
 ```
 
----
+</details>
 
-## 🖱️ Thêm Con Trỏ Chuột Tùy Chỉnh (Custom Cursor CLI)
+<details>
+<summary><b>🖱️ Thêm nhân vật con trỏ chuột mới (Custom Cursor CLI)</b></summary>
 
-MusicWeb tích hợp sẵn bộ công cụ thêm con trỏ chuột hoạt họa tự động:
+Dự án đi kèm công cụ dòng lệnh giúp tự động quét, chuẩn hóa kích thước và đăng ký bộ con trỏ chuột mới (`.ani`, `.cur`, `.png`) vào hệ thống:
 
 ```bash
-# Chạy công cụ thêm con trỏ chuột
 npm run add-cursor
 ```
-Script sẽ tự động quét, tối ưu hóa kích thước và đăng ký cấu hình con trỏ vào theme hệ thống.
 
----
+</details>
 
-## 🧪 Kiểm Thử (Testing)
-
-Dự án sử dụng **Vitest** để thực hiện kiểm thử tự động cho các thành phần âm thanh và tương tác người dùng:
+<details>
+<summary><b>🧪 Chạy bộ kiểm thử tự động (Unit & E2E Tests)</b></summary>
 
 ```bash
-# Chạy toàn bộ test suite
+# Chạy Unit Tests với Vitest
 npm test
+
+# Chạy kiểm thử tự động trình duyệt E2E với Playwright
+npm run test:e2e
 ```
 
----
-
-## 🚢 Hướng Dẫn Triển Khai (Deployment)
-
-### Triển khai trên Vercel
-1. Đẩy mã nguồn lên kho chứa GitHub / GitLab cá nhân.
-2. Đăng nhập [Vercel](https://vercel.com/) và import project `MusicWeb`.
-3. Trong mục **Settings > Environment Variables**, thêm toàn bộ các biến môi trường từ `.env.local`.
-4. Nhấn **Deploy** và trải nghiệm ứng dụng.
+</details>
 
 ---
 
 ## 📜 Giấy Phép (License)
 
-Dự án được phân phối dưới giấy phép mã nguồn mở **MIT License**. Chi tiết xem tại tệp [LICENSE](LICENSE).
+Dự án được phân phối dưới giấy phép **MIT License**. Xem chi tiết tại tệp [LICENSE](LICENSE).
 
 <div align="center">
-  <sub>Được xây dựng với niềm đam mê âm nhạc ❤️ bởi <a href="https://github.com/PhongTCT">PhongTCT</a></sub>
+  <br />
+  <img src="public/phong-signature.png" alt="PhongTCT Signature" height="42" />
+  <br />
+  <sub>Được thiết kế và phát triển với niềm đam mê âm nhạc ❤️ bởi <a href="https://github.com/PhongTCT"><b>PhongTCT</b></a></sub>
 </div>
