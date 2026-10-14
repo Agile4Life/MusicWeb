@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { normalizeNhacCuaTuiSongResponse } from '@/lib/nhaccuatui'
+import { getNhacCuaTuiStreamUrl } from '@/lib/nhaccuatuiClient'
+import { getNctAudioCache, getNctInFlight, setNctAudioCache } from '@/lib/nctCacheStore'
 import { fetchWithRetry, isNetworkError, isTransientError } from '@/lib/fetchWithRetry'
 
 const DEFAULT_NCT_API_BASE_URL = 'https://music-api.vanhuy2004h.io.vn'
@@ -9,6 +11,30 @@ function getNctSongUrl(id: string): URL {
   url.pathname = `/api/song/${encodeURIComponent(id)}`
   url.search = ''
   return url
+}
+
+function buildPublicSongPayload(
+  id: string,
+  entry: {
+    title: string
+    artist: string
+    coverUrl?: string | null
+    duration?: number | null
+    lyric?: string | null
+  },
+) {
+  return {
+    song: {
+      id,
+      title: entry.title,
+      artist: entry.artist,
+      coverUrl: entry.coverUrl ?? null,
+      duration: entry.duration ?? null,
+      lyric: entry.lyric ?? null,
+      streamUrl:
+        getNhacCuaTuiStreamUrl(id) || `/api/nhaccuatui/stream?id=${encodeURIComponent(id)}`,
+    },
+  }
 }
 
 const nctSongCache = new Map<string, { data: any; expiresAt: number }>()
@@ -31,11 +57,42 @@ export async function GET(
   const trimmedId = (id || '').trim()
   if (!trimmedId) return NextResponse.json({ error: 'Missing song id' }, { status: 400 })
 
+  const sharedCached = getNctAudioCache(trimmedId)
+  if (sharedCached?.title && sharedCached?.artist) {
+    const data = buildPublicSongPayload(trimmedId, {
+      title: sharedCached.title,
+      artist: sharedCached.artist,
+      coverUrl: sharedCached.coverUrl,
+      duration: sharedCached.duration,
+      lyric: sharedCached.lyric,
+    })
+    return NextResponse.json(data, {
+      headers: { 'Cache-Control': 'public, max-age=600, s-maxage=600, stale-while-revalidate=120' },
+    })
+  }
+
   const cached = nctSongCache.get(trimmedId)
   if (cached && Date.now() < cached.expiresAt) {
     return NextResponse.json(cached.data, {
       headers: { 'Cache-Control': 'public, max-age=600, s-maxage=600, stale-while-revalidate=120' },
     })
+  }
+
+  const sharedInFlight = getNctInFlight(trimmedId)
+  if (sharedInFlight) {
+    const sharedSong = await sharedInFlight
+    if (sharedSong?.title && sharedSong?.artist) {
+      const data = buildPublicSongPayload(trimmedId, {
+        title: sharedSong.title,
+        artist: sharedSong.artist,
+        coverUrl: sharedSong.coverUrl,
+        duration: sharedSong.duration,
+        lyric: sharedSong.lyric,
+      })
+      return NextResponse.json(data, {
+        headers: { 'Cache-Control': 'public, max-age=600, s-maxage=600, stale-while-revalidate=120' },
+      })
+    }
   }
 
   const existingInFlight = inFlightNctSong.get(trimmedId)
@@ -70,13 +127,18 @@ export async function GET(
       const song = normalizeNhacCuaTuiSongResponse(payload)
       if (!song) return null
 
-      const { audioUrl: _signedAudioUrl, ...publicSong } = song
-      const result = {
-        song: {
-          ...publicSong,
-          streamUrl: `/api/nhaccuatui/stream?id=${encodeURIComponent(song.id)}`,
-        },
+      if (song.audioUrl) {
+        setNctAudioCache(trimmedId, {
+          audioUrl: song.audioUrl,
+          title: song.title,
+          artist: song.artist,
+          duration: song.duration ?? null,
+          coverUrl: song.coverUrl || null,
+          lyric: song.lyric ?? null,
+        })
       }
+
+      const result = buildPublicSongPayload(song.id, song)
 
       evictNctSongIfFull()
       nctSongCache.set(trimmedId, { data: result, expiresAt: Date.now() + NCT_SONG_CACHE_TTL })

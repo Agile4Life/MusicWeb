@@ -86,6 +86,7 @@ async function resolveNctAudioUrlCached(id: string): Promise<string | null> {
         artist: song.artist,
         duration: song.duration ?? null,
         coverUrl: song.coverUrl || null,
+        lyric: song.lyric ?? null,
       })
       return song.audioUrl
     } catch {

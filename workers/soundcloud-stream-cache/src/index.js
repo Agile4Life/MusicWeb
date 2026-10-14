@@ -70,11 +70,20 @@ function isFullAudioTrack(raw) {
   if (raw.snippet === true) return false
   if (raw.policy === 'SNIPPET' || raw.policy === 'BLOCK' || raw.policy === 'SNIP') return false
   if (raw.monetization_model === 'SUB_HIGH_TIER') return false
-  if (raw.access === 'blocked') return false
+  if (raw.access === 'blocked' || raw.access === 'preview') return false
   if (raw.streamable === false) return false
+  if (
+    typeof raw.full_duration === 'number' &&
+    typeof raw.duration === 'number' &&
+    raw.full_duration > 45000 &&
+    raw.duration <= 35000 &&
+    raw.full_duration - raw.duration > 15000
+  ) {
+    return false
+  }
   const transcodings = raw?.media?.transcodings
   if (!Array.isArray(transcodings) || transcodings.length === 0) return false
-  return transcodings.some((t) => typeof t?.url === 'string' && t.url.includes('/stream/'))
+  return transcodings.some((t) => typeof t?.url === 'string' && t.url.includes('/stream/') && !t.snipped)
 }
 
 function getCurrentFallbackClientId() {

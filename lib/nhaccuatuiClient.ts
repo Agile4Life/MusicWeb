@@ -26,12 +26,18 @@ function getNhacCuaTuiStreamProxyBase(): string | null {
 }
 
 export function getNhacCuaTuiStreamUrl(
-  track: Pick<Track, 'source' | 'nhaccuatui_id'>,
+  trackOrId: string | Pick<Track, 'source' | 'nhaccuatui_id'>,
 ): string | null {
-  if (track.source !== 'nhaccuatui' || !track.nhaccuatui_id) return null
+  const nctId =
+    typeof trackOrId === 'string'
+      ? trackOrId.trim()
+      : trackOrId?.source === 'nhaccuatui'
+        ? trackOrId.nhaccuatui_id?.trim()
+        : null
+  if (!nctId) return null
   const proxyBase = getNhacCuaTuiStreamProxyBase()
   const endpoint = proxyBase ?? '/api/nhaccuatui/stream'
-  return `${endpoint}?id=${encodeURIComponent(track.nhaccuatui_id)}`
+  return `${endpoint}?id=${encodeURIComponent(nctId)}`
 }
 
 async function readJson(response: Response): Promise<unknown | null> {
@@ -183,14 +189,40 @@ export async function prewarmNctStreamUrl(nhaccuatuiId: string): Promise<void> {
         { cache: 'no-store' }
       )
       if (!res.ok) return null
-      const data = await res.json() as { url?: string }
+      const data = await res.json() as {
+        url?: string
+        title?: string
+        artist?: string
+        duration?: number | null
+        coverUrl?: string | null
+        lyric?: string | null
+      }
       if (!data?.url) return null
 
       // Store the CORS-safe proxy URL (not the raw signed CDN URL which lacks CORS headers)
       const proxyUrl = getNhacCuaTuiStreamUrl({ source: 'nhaccuatui', nhaccuatui_id: trimmedId }) || data.url
       // Only cache if this prewarm request was not superseded or invalidated while in-flight
       if (nctPrewarmGeneration.get(trimmedId) === currentGen) {
-        nctStreamUrlCache.set(trimmedId, { url: proxyUrl, ts: Date.now() })
+        const now = Date.now()
+        nctStreamUrlCache.set(trimmedId, { url: proxyUrl, ts: now })
+        if (data.title && data.artist) {
+          if (songMetadataCache.size >= SONG_METADATA_MAX_ENTRIES && !songMetadataCache.has(trimmedId)) {
+            const oldest = songMetadataCache.keys().next().value
+            if (oldest !== undefined) songMetadataCache.delete(oldest)
+          }
+          songMetadataCache.set(trimmedId, {
+            song: {
+              id: trimmedId,
+              title: data.title,
+              artist: data.artist,
+              duration: data.duration ?? null,
+              coverUrl: data.coverUrl ?? null,
+              lyric: data.lyric ?? null,
+              streamUrl: proxyUrl,
+            },
+            ts: now,
+          })
+        }
       }
       return proxyUrl
     } catch {

@@ -27,6 +27,7 @@ async function resolveNctStreamUrlCached(id: string): Promise<{
   artist: string
   duration: number | null
   coverUrl: string | null
+  lyric?: string | null
 } | null> {
   const trimmed = id.trim()
   if (!trimmed) return null
@@ -39,6 +40,7 @@ async function resolveNctStreamUrlCached(id: string): Promise<{
       artist: cached.artist || '',
       duration: cached.duration ?? null,
       coverUrl: cached.coverUrl || null,
+      lyric: cached.lyric ?? null,
     }
   }
 
@@ -52,6 +54,7 @@ async function resolveNctStreamUrlCached(id: string): Promise<{
       artist: song.artist || '',
       duration: song.duration ?? null,
       coverUrl: song.coverUrl || null,
+      lyric: song.lyric ?? null,
     }
   }
 
@@ -61,6 +64,7 @@ async function resolveNctStreamUrlCached(id: string): Promise<{
     artist: string
     duration: number | null
     coverUrl: string | null
+    lyric?: string | null
   } | null> => {
     try {
       // Retry once with fast backoff to fail-fast on cold start
@@ -91,6 +95,7 @@ async function resolveNctStreamUrlCached(id: string): Promise<{
         artist: song.artist,
         duration: song.duration ?? null,
         coverUrl: song.coverUrl || null,
+        lyric: song.lyric ?? null,
       })
 
       return {
@@ -99,6 +104,7 @@ async function resolveNctStreamUrlCached(id: string): Promise<{
         artist: song.artist,
         duration: song.duration ?? null,
         coverUrl: song.coverUrl || null,
+        lyric: song.lyric ?? null,
       }
     } catch {
       return null
@@ -116,6 +122,7 @@ async function resolveNctStreamUrlCached(id: string): Promise<{
           artist: res.artist,
           duration: res.duration,
           coverUrl: res.coverUrl,
+          lyric: res.lyric ?? null,
           expiresAt: Date.now() + 10 * 60 * 1000,
         }
       : null

@@ -481,7 +481,18 @@ export async function searchSoundCloudTracks(
     // Strict Full Audio Filter
     const fullAudioTracks = rawTracks.filter(isSoundCloudFullAudio)
 
-    return fullAudioTracks.slice(0, limit).map(soundCloudTrackToAppTrack)
+    const now = Date.now()
+    return fullAudioTracks.slice(0, limit).map((raw) => {
+      const appTrack = soundCloudTrackToAppTrack(raw)
+      if (raw?.id) {
+        trackMetadataCache.set(String(raw.id), {
+          track: appTrack,
+          raw,
+          expiresAt: now + 60 * 60 * 1000,
+        })
+      }
+      return appTrack
+    })
   } catch (err) {
     console.error('[SoundCloud] Search error:', err)
     return []
@@ -726,6 +737,57 @@ export async function resolveSoundCloudStreamUrl(
   }
 
   return promise
+}
+
+/**
+ * Verifies that a SoundCloud track candidate can actually be resolved and played
+ * (including via the configured SoundCloud Worker if enabled).
+ * Rejects geo-blocked / Go+ / snippet tracks that pass initial search metadata
+ * in one region but fail when the Worker or stream resolver attempts playback.
+ */
+export async function verifySoundCloudTrackPlayable(
+  trackId: string | number,
+  timeoutMs = 3000,
+): Promise<boolean> {
+  const cleanId = String(trackId || '').trim().replace(/^sc-/, '')
+  if (!cleanId) return false
+
+  const cachedStream = streamUrlCache.get(cleanId)
+  if (cachedStream && Date.now() < cachedStream.expiresAt && cachedStream.url) {
+    return true
+  }
+
+  const workerUrl = process.env.NEXT_PUBLIC_SOUNDCLOUD_WORKER_URL?.trim()
+  const isNumericId = /^\d+$/.test(cleanId)
+  if (workerUrl && isNumericId) {
+    try {
+      const target = `${workerUrl.replace(/\/+$/, '')}/stream?id=${encodeURIComponent(cleanId)}&format=json`
+      const res = await fetchWithTimeout(
+        target,
+        { headers: { Accept: 'application/json' }, cache: 'no-store' },
+        timeoutMs,
+      )
+      if (res.status === 404 || res.status === 403 || res.status === 400) {
+        return false
+      }
+      if (res.ok) {
+        const data = await res.json().catch(() => null)
+        if (data && typeof data.url === 'string' && data.url.startsWith('https://')) {
+          streamUrlCache.set(cleanId, {
+            url: data.url,
+            expiresAt: Date.now() + 15 * 60 * 1000,
+          })
+          return true
+        }
+        return false
+      }
+    } catch {
+      // Fall through to direct stream resolution if Worker probe timed out
+    }
+  }
+
+  const directUrl = await resolveSoundCloudStreamUrl(cleanId)
+  return Boolean(directUrl)
 }
 
 /**

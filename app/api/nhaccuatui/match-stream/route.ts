@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { normalizeNhacCuaTuiSongMetadata } from '@/lib/nhaccuatui'
+import { normalizeNhacCuaTuiSongMetadata, normalizeNhacCuaTuiSongResponse } from '@/lib/nhaccuatui'
+import { getNctAudioCache, setNctAudioCache } from '@/lib/nctCacheStore'
 import { findBestYouTubeMatch, searchYouTubeTracks } from '@/lib/youtube'
 import { resolveYouTubeAudioStreamAndroid } from '@/lib/youtubeStream'
 import { fetchWithRetry, isNetworkError, isTransientError } from '@/lib/fetchWithRetry'
@@ -35,40 +36,65 @@ async function resolveYouTubeVideoIdForNctSong(id: string): Promise<string | nul
   const promise = (async (): Promise<string | null> => {
     let videoId: string | null = null
     try {
-      const songRes = await fetchWithRetry(
-        () =>
-          fetch(getNctSongUrl(id), {
-            cache: 'no-store',
-            headers: { Accept: 'application/json' },
-            signal: AbortSignal.timeout(5000),
-          }),
-        {
-          retries: 1,
-          baseDelayMs: 200,
-          maxDelayMs: 400,
-          retryOn: (outcome) =>
-            outcome instanceof Response ? isTransientError(outcome) : isNetworkError(outcome),
-        }
-      )
-      if (songRes.ok) {
-        const song = normalizeNhacCuaTuiSongMetadata(await songRes.json())
-        if (song) {
-          let candidates = await searchYouTubeTracks(`${song.title} ${song.artist}`.trim(), 10)
-          // Strict scoring only — no "first result" fallback. A wrong match would be
-          // cached into the worker's permanent R2 bucket, so missing is better than wrong.
-          // Each picked video is also verified extractable from THIS server: YouTube
-          // refuses some videos (LOGIN_REQUIRED) on datacenter IPs, and the worker can
-          // only stream what this origin's proxy is able to resolve.
-          for (let attempt = 0; attempt < 3; attempt++) {
-            const best = findBestYouTubeMatch(candidates, song.title, song.artist, song.duration)
-            if (!best?.youtube_id) break
-            const resolved = await resolveYouTubeAudioStreamAndroid(best.youtube_id)
-            if (resolved?.url) {
-              videoId = best.youtube_id
-              break
-            }
-            candidates = candidates.filter((c) => c.youtube_id !== best.youtube_id)
+      const cachedNct = getNctAudioCache(id)
+      let song = cachedNct?.title && cachedNct?.artist
+        ? {
+            id,
+            title: cachedNct.title,
+            artist: cachedNct.artist,
+            duration: cachedNct.duration ?? null,
           }
+        : null
+
+      if (!song) {
+        const songRes = await fetchWithRetry(
+          () =>
+            fetch(getNctSongUrl(id), {
+              cache: 'no-store',
+              headers: { Accept: 'application/json' },
+              signal: AbortSignal.timeout(5000),
+            }),
+          {
+            retries: 1,
+            baseDelayMs: 200,
+            maxDelayMs: 400,
+            retryOn: (outcome) =>
+              outcome instanceof Response ? isTransientError(outcome) : isNetworkError(outcome),
+          }
+        )
+        if (songRes.ok) {
+          const payload: unknown = await songRes.json()
+          const fullSong = normalizeNhacCuaTuiSongResponse(payload)
+          if (fullSong?.audioUrl) {
+            setNctAudioCache(id, {
+              audioUrl: fullSong.audioUrl,
+              title: fullSong.title,
+              artist: fullSong.artist,
+              duration: fullSong.duration ?? null,
+              coverUrl: fullSong.coverUrl || null,
+              lyric: fullSong.lyric ?? null,
+            })
+          }
+          song = normalizeNhacCuaTuiSongMetadata(payload)
+        }
+      }
+
+      if (song) {
+        let candidates = await searchYouTubeTracks(`${song.title} ${song.artist}`.trim(), 10)
+        // Strict scoring only — no "first result" fallback. A wrong match would be
+        // cached into the worker's permanent R2 bucket, so missing is better than wrong.
+        // Each picked video is also verified extractable from THIS server: YouTube
+        // refuses some videos (LOGIN_REQUIRED) on datacenter IPs, and the worker can
+        // only stream what this origin's proxy is able to resolve.
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const best = findBestYouTubeMatch(candidates, song.title, song.artist, song.duration)
+          if (!best?.youtube_id) break
+          const resolved = await resolveYouTubeAudioStreamAndroid(best.youtube_id)
+          if (resolved?.url) {
+            videoId = best.youtube_id
+            break
+          }
+          candidates = candidates.filter((c) => c.youtube_id !== best.youtube_id)
         }
       }
     } catch {

@@ -32,6 +32,7 @@ export interface SoundCloudRawTrack {
   title: string
   description?: string | null
   duration: number // duration in ms
+  full_duration?: number // full track duration in ms when duration is a 30s preview
   genre?: string | null
   created_at?: string
   tag_list?: string
@@ -57,15 +58,24 @@ export function isSoundCloudFullAudio(track: SoundCloudRawTrack | any): boolean 
   if (track.snippet === true) return false
   if (track.policy === 'SNIPPET' || track.policy === 'BLOCK' || track.policy === 'SNIP') return false
   if (track.monetization_model === 'SUB_HIGH_TIER') return false
-  if (track.access === 'blocked') return false
+  if (track.access === 'blocked' || track.access === 'preview') return false
   if (track.streamable === false) return false
+  if (
+    typeof track.full_duration === 'number' &&
+    typeof track.duration === 'number' &&
+    track.full_duration > 45000 &&
+    track.duration <= 35000 &&
+    track.full_duration - track.duration > 15000
+  ) {
+    return false
+  }
 
   const transcodings = track.media?.transcodings
   if (!Array.isArray(transcodings) || transcodings.length === 0) return false
 
-  // Must contain at least one full stream transcoding (with /stream/ instead of /preview/)
+  // Must contain at least one full stream transcoding (with /stream/ instead of /preview/ and not snipped)
   const hasFullStream = transcodings.some(
-    (t) => typeof t?.url === 'string' && t.url.includes('/stream/')
+    (t) => typeof t?.url === 'string' && t.url.includes('/stream/') && !t.snipped
   )
 
   return hasFullStream

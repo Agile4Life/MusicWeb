@@ -1,4 +1,5 @@
 import { findMemoryDriveTrack } from './driveTracksMap'
+import { getNhacCuaTuiStreamUrl } from './nhaccuatuiClient'
 import { saveTrackResolution, getTrackResolution, deleteTrackResolution } from './playbackPersistence'
 
 export interface ResolvedStreamResult {
@@ -15,7 +16,7 @@ export function buildStableProxyStreamUrl(source: string, id: string): string {
   if (!id) return ''
   switch (source) {
     case 'nhaccuatui':
-      return `/api/nhaccuatui/stream?id=${encodeURIComponent(id)}`
+      return getNhacCuaTuiStreamUrl(id) || `/api/nhaccuatui/stream?id=${encodeURIComponent(id)}`
     case 'soundcloud':
       return `/api/soundcloud/stream?id=${encodeURIComponent(id)}`
     case 'drive': {

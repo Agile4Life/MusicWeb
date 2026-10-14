@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { normalizeNhacCuaTuiSearchResponse } from '@/lib/nhaccuatui'
+import { getNctSearchCache, setNctSearchCache } from '@/lib/nctCacheStore'
 
 const DEFAULT_NCT_API_BASE_URL = 'https://music-api.vanhuy2004h.io.vn'
 
@@ -15,6 +16,13 @@ export async function GET(request: Request) {
   const query = new URL(request.url).searchParams.get('q')?.trim() || ''
   if (!query) return NextResponse.json({ error: 'Missing query' }, { status: 400 })
 
+  const cachedItems = getNctSearchCache(query)
+  if (cachedItems) {
+    return NextResponse.json({ items: cachedItems }, {
+      headers: { 'Cache-Control': 'no-store' },
+    })
+  }
+
   try {
     const upstream = await fetch(getNctUrl('/api/search', query), {
       cache: 'no-store',
@@ -26,7 +34,11 @@ export async function GET(request: Request) {
     }
 
     const payload: unknown = await upstream.json()
-    return NextResponse.json({ items: normalizeNhacCuaTuiSearchResponse(payload) }, {
+    const items = normalizeNhacCuaTuiSearchResponse(payload)
+    if (items.length > 0) {
+      setNctSearchCache(query, items)
+    }
+    return NextResponse.json({ items }, {
       headers: { 'Cache-Control': 'no-store' },
     })
   } catch {

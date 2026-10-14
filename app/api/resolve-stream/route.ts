@@ -4,13 +4,13 @@ import { normalizeTrackKey, normalizeTrackField, durationBucket } from '@/lib/no
 import { normalizeTitle, stripDiacritics } from '@/lib/youtube'
 import { searchYouTubeTracks, findBestYouTubeMatch } from '@/lib/youtube'
 import {
-  normalizeNhacCuaTuiSearchResponse,
   findBestNhacCuaTuiMatch,
 } from '@/lib/nhaccuatui'
-import { resolveNctSongDetailCached } from '@/lib/nctCacheStore'
+import { getNhacCuaTuiStreamUrl } from '@/lib/nhaccuatuiClient'
+import { resolveNctSongDetailCached, searchNctCached } from '@/lib/nctCacheStore'
 import { getPrimaryArtistName } from '@/lib/artistParser'
 import { findMemoryDriveTrack } from '@/lib/driveTracksMap'
-import { searchSoundCloudTracks } from '@/lib/soundcloudClient'
+import * as soundcloudClient from '@/lib/soundcloudClient'
 import { resolveCatalogCandidates } from '@/lib/catalogResolutionRace'
 import {
   findBestSoundCloudMatch,
@@ -107,26 +107,9 @@ function getSupabaseAdmin() {
   return createClient(url, key, { auth: { persistSession: false } })
 }
 
-// ── NCT API helpers (server-side, no round-trip via our own search route) ──
-const DEFAULT_NCT_API_BASE_URL = 'https://music-api.vanhuy2004h.io.vn'
-
+// ── NCT API helpers (server-side, deduplicated & cached via nctCacheStore) ──
 async function searchNctServer(query: string) {
-  try {
-    const base = process.env.NCT_API_BASE_URL || DEFAULT_NCT_API_BASE_URL
-    const url = new URL(base)
-    url.pathname = '/api/search'
-    url.searchParams.set('q', query)
-    const res = await fetch(url.toString(), {
-      cache: 'no-store',
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(1800),
-    })
-    if (!res.ok) return []
-    const payload: unknown = await res.json()
-    return normalizeNhacCuaTuiSearchResponse(payload)
-  } catch {
-    return []
-  }
+  return searchNctCached(query, 2800)
 }
 
 // ── Drive file ID extraction (mirrors PlayerContext logic) ──────────
@@ -253,7 +236,7 @@ async function resolveStream(
         })
         if (!match?.id) break
 
-        const detail = await resolveNctSongDetailCached(match.id, 1800)
+        const detail = await resolveNctSongDetailCached(match.id, 2500)
         if (detail?.audioUrl) {
           return {
             source: 'nhaccuatui',
@@ -305,31 +288,52 @@ async function resolveStream(
     }
   }
 
-  // === 4. SoundCloud: Fast Full-Length Audio Fallback ===
+  // === 4. SoundCloud: Fast Full-Length Audio Fallback + Playability Verification ===
   async function trySoundCloud(): Promise<L1Entry | null> {
     try {
       const scQuery = `${cleanTitle || title} ${cleanPrimaryArtist || primaryArtist}`.trim()
-      const candidates = await searchSoundCloudTracks(scQuery, 5).catch(() => [])
+      const candidates = await soundcloudClient.searchSoundCloudTracks(scQuery, 5).catch(() => [])
       if (candidates.length === 0) return null
 
-      const match = findBestSoundCloudMatch(candidates, {
-        title,
-        artist: primaryArtist || artist,
-        duration,
-      })
+      const verifyPlayable = (
+        soundcloudClient as {
+          verifySoundCloudTrackPlayable?: (id: string, timeoutMs?: number) => Promise<boolean>
+        }
+      ).verifySoundCloudTrackPlayable
 
-      if (!match?.soundcloud_id && !match?.id) return null
-      const scId = match.soundcloud_id ? String(match.soundcloud_id) : match.id.replace(/^sc-/, '')
-      return {
-        source: 'soundcloud',
-        resolvedId: scId,
-        title: match.title,
-        artist: match.artist,
-        duration: match.duration,
-        coverUrl: match.cover_url || null,
-        isMiss: false,
-        expiresAt: Date.now() + L1_HIT_TTL,
+      let remaining = candidates
+      for (let attempt = 0; attempt < 2 && remaining.length > 0; attempt++) {
+        const match = findBestSoundCloudMatch(remaining, {
+          title,
+          artist: primaryArtist || artist,
+          duration,
+        })
+
+        if (!match?.soundcloud_id && !match?.id) break
+        const scId = match.soundcloud_id ? String(match.soundcloud_id) : match.id.replace(/^sc-/, '')
+
+        const playable =
+          typeof verifyPlayable === 'function' ? await verifyPlayable(scId, 2500) : true
+        if (playable) {
+          return {
+            source: 'soundcloud',
+            resolvedId: scId,
+            title: match.title,
+            artist: match.artist,
+            duration: match.duration,
+            coverUrl: match.cover_url || null,
+            isMiss: false,
+            expiresAt: Date.now() + L1_HIT_TTL,
+          }
+        }
+
+        remaining = remaining.filter(
+          (c) =>
+            c !== match &&
+            String(c.soundcloud_id || c.id) !== String(match.soundcloud_id || match.id),
+        )
       }
+      return null
     } catch {
       return null
     }
@@ -339,11 +343,11 @@ async function resolveStream(
   const driveResult = await tryDrive()
   if (driveResult) return driveResult
 
-  // 2. Parallel priority race: NCT (preferred with 1000ms grace window) -> SoundCloud (preferred audio fallback) -> YouTube
+  // 2. Parallel priority race: NCT (preferred with 2200ms window to cover 2-step search + detail validation) -> SoundCloud -> YouTube
   const resolved = await resolveCatalogCandidates(
     tryNct,
     [trySoundCloud, tryYoutube],
-    1000,
+    2200,
     onLatePreferredResult,
   )
   if (resolved) return resolved
@@ -421,7 +425,7 @@ export async function GET(request: NextRequest): Promise<Response> {
         (shared ? l1.sharedGeneration === shared.generation && shared.entry !== null &&
           l1.source === shared.entry.source && l1.resolvedId === shared.entry.resolvedId &&
           l1.isMiss === shared.entry.isMiss
-          : !supabase && !l1.sharedGeneration)) {
+          : !sharedClient && !l1.sharedGeneration)) {
       if (process.env.NODE_ENV !== 'production') {
         console.log(`[ResolveStream:L1] Cache HIT for "${title}" by "${artist}" (source: ${l1.source})`)
       }
@@ -443,7 +447,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       expiresAt: Date.now() + L1_HIT_TTL,
     }
     // Drive memory mappings are direct source metadata, not an L2 match.
-    if (!supabase) storeL1(cacheKey, generation, driveEntry)
+    if (!sharedClient) storeL1(cacheKey, generation, driveEntry)
     return respondWith(driveEntry)
   }
 
@@ -463,7 +467,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     const existingInFlight = inFlightResolutions.get(cacheKey)
     if (existingInFlight?.generation === generation &&
         (shared ? existingInFlight.sharedGeneration === shared.generation
-          : !supabase && !existingInFlight.sharedGeneration)) {
+          : !sharedClient && !existingInFlight.sharedGeneration)) {
       try {
         const resolvedEntry = await existingInFlight.promise
         return respondWith(resolvedEntry)
@@ -486,7 +490,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       if (generationFor(cacheKey) !== generation) return
       if (sharedClient && meta.sharedGeneration !== undefined) {
         await persistResolution(sharedClient, { ...meta, sharedGeneration: meta.sharedGeneration }, entry)
-      } else if (!supabase) {
+      } else if (!sharedClient) {
         storeL1(cacheKey, generation, entry)
       }
     }
@@ -532,7 +536,9 @@ function respondWith(entry: L1Entry): Response {
   const resolvedId = entry.resolvedId || ''
   let streamUrl: string | null = null
   if (entry.source === 'nhaccuatui') {
-    streamUrl = `/api/nhaccuatui/stream?id=${encodeURIComponent(resolvedId)}`
+    streamUrl =
+      getNhacCuaTuiStreamUrl(resolvedId) ||
+      `/api/nhaccuatui/stream?id=${encodeURIComponent(resolvedId)}`
   } else if (entry.source === 'soundcloud') {
     streamUrl = `/api/soundcloud/stream?id=${encodeURIComponent(resolvedId)}`
   } else if (entry.source === 'drive') {

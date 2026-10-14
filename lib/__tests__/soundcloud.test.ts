@@ -100,9 +100,60 @@ describe('SoundCloud Helper & Full Audio Filter Unit Tests', () => {
       },
     }
 
+    const timelessPreviewTrack: SoundCloudRawTrack = {
+      id: 1924619450,
+      title: 'Timeless (with Playboi Carti)',
+      duration: 30000,
+      full_duration: 256026,
+      streamable: true,
+      policy: 'ALLOW',
+      media: {
+        transcodings: [
+          {
+            url: 'https://api-v2.soundcloud.com/media/soundcloud:tracks:1924619450/stream/hls',
+            format: { protocol: 'hls', mime_type: 'audio/mpeg' },
+            snipped: true,
+          },
+        ],
+      },
+    }
+
     expect(isSoundCloudFullAudio(snippetTrack1)).toBe(false)
     expect(isSoundCloudFullAudio(snippetTrack2)).toBe(false)
     expect(isSoundCloudFullAudio(snippetTrack3)).toBe(false)
+    expect(isSoundCloudFullAudio(timelessPreviewTrack)).toBe(false)
+  })
+
+  it('verifySoundCloudTrackPlayable rejects tracks when SoundCloud Worker returns 404', async () => {
+    const { verifySoundCloudTrackPlayable } = await import('../soundcloudClient')
+    const prevWorkerUrl = process.env.NEXT_PUBLIC_SOUNDCLOUD_WORKER_URL
+    process.env.NEXT_PUBLIC_SOUNDCLOUD_WORKER_URL = 'https://soundcloud-stream-cache.test'
+    const originalFetch = globalThis.fetch
+    try {
+      globalThis.fetch = async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('id=1924619450')) {
+          return new Response(
+            JSON.stringify({ error: 'Track is not full audio (blocked, snippet, or Go+ only)' }),
+            { status: 404, headers: { 'Content-Type': 'application/json' } },
+          )
+        }
+        return new Response(
+          JSON.stringify({ url: 'https://cf-media.sndcdn.com/valid-track.128.mp3' }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+
+      await expect(verifySoundCloudTrackPlayable(1924619450, 1500)).resolves.toBe(false)
+      await expect(verifySoundCloudTrackPlayable(123456789, 1500)).resolves.toBe(true)
+    } finally {
+      globalThis.fetch = originalFetch
+      if (prevWorkerUrl === undefined) {
+        delete process.env.NEXT_PUBLIC_SOUNDCLOUD_WORKER_URL
+      } else {
+        process.env.NEXT_PUBLIC_SOUNDCLOUD_WORKER_URL = prevWorkerUrl
+      }
+    }
   })
 
   it('isSoundCloudFullAudio should return false when streamable is false', () => {

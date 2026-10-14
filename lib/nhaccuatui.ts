@@ -46,7 +46,30 @@ function asDuration(value: unknown): number | null {
   return null
 }
 
+function formatMsToLrcTag(ms: number): string {
+  const totalSeconds = Math.max(0, ms / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds - minutes * 60
+  const mm = String(minutes).padStart(2, '0')
+  const ss = seconds.toFixed(2).padStart(5, '0')
+  return `[${mm}:${ss}]`
+}
+
 export function normalizeNhacCuaTuiLyrics(value: unknown): string | null {
+  if (Array.isArray(value)) {
+    const lines = value
+      .map((entry) => {
+        if (!entry || typeof entry !== 'object') return null
+        const rec = entry as Record<string, unknown>
+        const text = typeof rec.text === 'string' ? rec.text.trim() : ''
+        const time = typeof rec.time === 'number' && Number.isFinite(rec.time) ? rec.time : null
+        if (!text) return null
+        return time !== null ? `${formatMsToLrcTag(time)} ${text}` : text
+      })
+      .filter((line): line is string => Boolean(line))
+    return lines.length > 0 ? lines.join('\n') : null
+  }
+
   if (typeof value !== 'string') return null
 
   const normalized = value
@@ -236,7 +259,9 @@ export function normalizeNhacCuaTuiSongResponse(value: unknown): NhacCuaTuiSong 
     artist,
     coverUrl: asText(item.coverUrl || item.cover_url || item.thumbnail) || null,
     duration: asDuration(item.duration),
-    lyric: normalizeNhacCuaTuiLyrics(item.lyric || item.lyrics || item.lyricText),
+    lyric:
+      normalizeNhacCuaTuiLyrics(item.timedLyric || item.timed_lyric) ||
+      normalizeNhacCuaTuiLyrics(item.lyric || item.lyrics || item.lyricText),
     audioUrl,
   }
 }
@@ -258,7 +283,9 @@ export function normalizePublicNhacCuaTuiSongResponse(value: unknown): NhacCuaTu
     artist,
     coverUrl: asText(item.coverUrl || item.cover_url || item.thumbnail) || null,
     duration: asDuration(item.duration),
-    lyric: normalizeNhacCuaTuiLyrics(item.lyric || item.lyrics || item.lyricText),
+    lyric:
+      normalizeNhacCuaTuiLyrics(item.timedLyric || item.timed_lyric) ||
+      normalizeNhacCuaTuiLyrics(item.lyric || item.lyrics || item.lyricText),
     streamUrl,
   }
 }
