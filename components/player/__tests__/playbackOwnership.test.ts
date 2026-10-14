@@ -288,4 +288,140 @@ describe('production playback ownership', () => {
       '/api/soundcloud/stream?id=sc-998877',
     )
   })
+
+  it('pre-resolves iTunes 30s preview tracks in triggerAdaptivePrewarm instead of treating apple.com preview URL as direct playable', async () => {
+    const e = setup()
+    e.isFastConnection = () => true
+    e.isPreviewUrl = (u: string) => Boolean(u && (u.includes('apple.com') || u.includes('preview')))
+    const itunesPreviewNext = {
+      id: 'itunes-track-2',
+      title: 'Love Story',
+      artist: 'Taylor Swift',
+      duration: 235,
+      source: 'itunes',
+      itunes_id: 'it-111',
+      file_path: 'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/mzaf_123.plus.aac.p.m4a',
+    }
+    let resolveCalled = 0
+    e.resolveStreamCached = async () => {
+      resolveCalled++
+      return {
+        source: 'nhaccuatui',
+        id: 'nct-love-story',
+        title: 'Love Story',
+        artist: 'Taylor Swift',
+        duration: 235,
+      }
+    }
+    e.getAudioUrlCached = async (t: { id: string; nhaccuatui_id?: string }) => {
+      const url = `/api/nhaccuatui/stream?id=${t.nhaccuatui_id}`
+      e.audioUrlCacheRef.current.set(t.id, { url, ts: Date.now() })
+      return url
+    }
+
+    callback('triggerAdaptivePrewarm', e)([track('A'), itunesPreviewNext], 0)
+    await new Promise(setImmediate)
+
+    expect(resolveCalled).toBe(1)
+    const cachedRes = e.trackResolutionCacheRef.current.get('itunes-track-2')
+    expect(cachedRes?.activeTrack).toMatchObject({
+      id: 'itunes-track-2',
+      source: 'nhaccuatui',
+      nhaccuatui_id: 'nct-love-story',
+      file_path: '',
+    })
+    expect(e.audioUrlCacheRef.current.get('itunes-track-2')?.url).toBe(
+      '/api/nhaccuatui/stream?id=nct-love-story',
+    )
+  })
+
+  it('synchronously quick-plays pre-resolved tracks in background/iOS when audioUrlCacheRef misses, resets nextTrackEndPrewarmedRef, and chains triggerAdaptivePrewarm', async () => {
+    const e = setup()
+    e.isIOSDevice = () => true
+    e.isTabHiddenRef.current = true
+    e.nextTrackEndPrewarmedRef.current = true
+    const t1 = track('song-1')
+    const t2 = {
+      id: 'song-2',
+      title: 'Song 2',
+      artist: 'Artist 2',
+      duration: 200,
+      source: 'itunes',
+      itunes_id: 'it-2',
+      file_path: 'https://audio-ssl.itunes.apple.com/preview.m4a',
+    }
+    const t3 = track('song-3')
+    e.queueRef.current = [t1, t2, t3]
+    e.currentTrackRef.current = t1
+    e.currentIndexRef.current = 0
+
+    // Pre-resolved in trackResolutionCacheRef (e.g. to NCT), but audioUrlCacheRef is empty/cold
+    e.trackResolutionCacheRef.current.set('song-2', {
+      activeTrack: {
+        ...t2,
+        source: 'nhaccuatui',
+        nhaccuatui_id: 'nct-song-2',
+        file_path: '',
+      },
+      resolvedAt: Date.now(),
+    })
+
+    let adaptivePrewarmIndex = -1
+    e.triggerAdaptivePrewarm = (_q: unknown, idx: number) => {
+      adaptivePrewarmIndex = idx
+    }
+
+    const tryQuickPlay = callback('tryQuickPlayFromCache', e)
+    const ok = tryQuickPlay(t2, 1, [t1, t2, t3])
+
+    expect(ok).toBe(true)
+    expect(e.nextTrackEndPrewarmedRef.current).toBe(false)
+    expect(e.audioRef.current.src).toBe('/api/nhaccuatui/stream?id=nct-song-2')
+    expect(e.audioRef.current.playCalls).toBe(1)
+
+    await Promise.resolve()
+    expect(adaptivePrewarmIndex).toBe(1)
+  })
+
+  it('resumes WebKit interrupted AudioContext state in ensureWebAudioGain', () => {
+    const e = setup()
+    let resumeCalls = 0
+    e.audioContextRef.current = {
+      state: 'interrupted',
+      resume() {
+        resumeCalls++
+        this.state = 'running'
+        return Promise.resolve()
+      },
+    }
+    e.gainNodeRef = ref({ gain: { value: 0.8 } })
+    e.isWebAudioConnectedRef = ref(true)
+
+    callback('ensureWebAudioGain', e)()
+    expect(resumeCalls).toBe(1)
+  })
+
+  it('advances track when Safari fires pause at EOF before or instead of ended in background', () => {
+    const e = setup()
+    const t = track('safari-eof')
+    e.currentTrackRef.current = t
+    e.playRequestRef.current = 1
+    e.desiredPlayStateRef.current = 'playing'
+    e.audioOwnershipRef.current = { generation: 0, requestId: 1, trackId: t.id }
+    Object.assign(e.audioRef.current, {
+      src: 'https://app.test/song.mp3',
+      duration: 200,
+      currentTime: 199.8,
+      ended: false,
+      paused: true,
+    })
+
+    let completionReason = ''
+    e.triggerTrackCompletion = (reason: string) => {
+      completionReason = reason
+    }
+
+    callback('handlePause', e)()
+    expect(completionReason).toBe('html5-pause-at-eof')
+  })
 })

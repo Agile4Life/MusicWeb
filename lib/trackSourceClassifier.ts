@@ -67,6 +67,11 @@ export function inferTrackSource(track: Track): Track {
     return { ...track, source: 'youtube', youtube_id: ytId }
   }
 
+  const driveId = track.drive_file_id || extractDriveFileId(fp)
+  if (driveId) {
+    return { ...track, source: 'local', drive_file_id: driveId }
+  }
+
   if (
     track.spotify_id ||
     track.source === 'spotify' ||
@@ -109,11 +114,6 @@ export function inferTrackSource(track: Track): Track {
     return { ...track, source: 'audius' }
   }
 
-  const driveId = track.drive_file_id || extractDriveFileId(fp)
-  if (driveId) {
-    return { ...track, source: 'local', drive_file_id: driveId }
-  }
-
   return track
 }
 
@@ -126,15 +126,16 @@ export function classifyTrack(track: Track, isIOS = false): TrackClassification 
   const fp = normalized.file_path || ''
   const audioUrl = normalized.audio_url || ''
 
-  const isPreview = Boolean(
-    (audioUrl && isPreviewUrl(audioUrl)) ||
-    (fp && isPreviewUrl(fp)) ||
-    normalized.source === 'spotify' ||
-    normalized.source === 'itunes' ||
-    (normalized as any).source === 'deezer' ||
-    Boolean(normalized.spotify_id) ||
-    Boolean(normalized.itunes_id) ||
+  const driveId = normalized.drive_file_id || extractDriveFileId(fp) || undefined
+  const ytId = normalized.youtube_id || (normalized.source === 'youtube' ? extractYouTubeVideoId(fp) : undefined) || (normalized.id?.startsWith('yt-') ? normalized.id.replace('yt-', '') : undefined) || undefined
+  const nctId = normalized.nhaccuatui_id || (normalized.source === 'nhaccuatui' && !normalized.id?.startsWith('local-') ? normalized.id : undefined) || undefined
+  const scId = normalized.soundcloud_id ? String(normalized.soundcloud_id) : (normalized.id?.startsWith('sc-') ? normalized.id.replace('sc-', '') : undefined) || undefined
+  const hasResolvedStreamProvider = Boolean(nctId || scId || ytId || driveId)
+
+  const hasPreviewUrl = Boolean(
+    (audioUrl && (isPreviewUrl(audioUrl) || audioUrl.startsWith('skd:'))) ||
     (fp && (
+      isPreviewUrl(fp) ||
       fp.startsWith('skd:') ||
       fp.startsWith('spotify:') ||
       fp.startsWith('itunes:') ||
@@ -143,14 +144,16 @@ export function classifyTrack(track: Track, isIOS = false): TrackClassification 
       fp.includes('p.scdn.co') ||
       fp.includes('mzstatic.com') ||
       fp.includes('apple.com')
-    )) ||
-    (audioUrl && audioUrl.startsWith('skd:'))
+    ))
   )
 
-  const driveId = normalized.drive_file_id || extractDriveFileId(fp) || undefined
-  const ytId = normalized.youtube_id || (normalized.source === 'youtube' ? extractYouTubeVideoId(fp) : undefined) || (normalized.id?.startsWith('yt-') ? normalized.id.replace('yt-', '') : undefined) || undefined
-  const nctId = normalized.nhaccuatui_id || (normalized.source === 'nhaccuatui' && !normalized.id?.startsWith('local-') ? normalized.id : undefined) || undefined
-  const scId = normalized.soundcloud_id ? String(normalized.soundcloud_id) : (normalized.id?.startsWith('sc-') ? normalized.id.replace('sc-', '') : undefined) || undefined
+  const isPreview = hasPreviewUrl || (!hasResolvedStreamProvider && Boolean(
+    normalized.source === 'spotify' ||
+    normalized.source === 'itunes' ||
+    (normalized as any).source === 'deezer' ||
+    Boolean(normalized.spotify_id) ||
+    Boolean(normalized.itunes_id)
+  ))
 
   let source: TrackSourceKind = 'unknown'
   if (nctId || normalized.source === 'nhaccuatui') {
@@ -184,15 +187,14 @@ export function classifyTrack(track: Track, isIOS = false): TrackClassification 
   )
 
   // Needs full external stream resolver (Spotify / iTunes / Deezer / Preview DRM)
-  const needsCatalogResolution = (!isDirectPlayable || isPreview) && (
+  const needsCatalogResolution = !hasResolvedStreamProvider && (!isDirectPlayable || isPreview) && (
     source === 'spotify' ||
     source === 'itunes' ||
     source === 'deezer' ||
     Boolean(normalized.spotify_id) ||
     Boolean(normalized.itunes_id) ||
-    isPreview ||
-    (!ytId && !nctId && (Boolean(normalized.spotify_id) || Boolean(normalized.itunes_id)))
-  ) && !ytId && !(source === 'nhaccuatui' && Boolean(nctId))
+    isPreview
+  )
 
   // Can play in background (iOS lock-screen / Safari background audio)
   const isBackgroundPlayable = Boolean(

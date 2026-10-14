@@ -467,11 +467,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (!audioContextRef.current) {
         const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext
         if (!AudioCtxClass) return
-        audioContextRef.current = new AudioCtxClass()
+        const createdCtx: AudioContext = new AudioCtxClass()
+        try {
+          createdCtx.onstatechange = () => {
+            const st = createdCtx.state as string
+            if (desiredPlayStateRef.current === 'playing' && (st === 'suspended' || st === 'interrupted')) {
+              createdCtx.resume().catch(() => {})
+            }
+          }
+        } catch {}
+        audioContextRef.current = createdCtx
       }
 
       const ctx = audioContextRef.current
-      if (ctx && ctx.state === 'suspended') {
+      if (ctx && (ctx.state === 'suspended' || (ctx.state as string) === 'interrupted')) {
         ctx.resume().catch(() => {})
       }
 
@@ -980,9 +989,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     (q: Track[], idx: number) => {
       // Gate 1: Network-first check (0ms)
       if (!isFastConnection()) return
-      if (!q || q.length === 0 || idx < -1 || idx >= q.length - 1) return
+      if (!q || q.length === 0 || idx < -1) return
+      if (idx >= q.length - 1 && !(repeatModeRef.current === 'all' && q.length > 1)) return
 
-      const targetIdx = idx >= 0 ? idx + 1 : 0
+      const targetIdx = idx >= 0 ? (idx + 1 < q.length ? idx + 1 : 0) : 0
       const nextTr = q[targetIdx]
       if (!nextTr || !nextTr.id) return
 
@@ -1003,16 +1013,30 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      const hasDirectPlayable = Boolean(
+      const isCatalogOrPreview = Boolean(
+        nextTr.source === 'spotify' ||
+        nextTr.source === 'itunes' ||
+        (nextTr as any).source === 'deezer' ||
+        (nextTr.spotify_id && !nextTr.nhaccuatui_id && !nextTr.soundcloud_id && !nextTr.youtube_id && !isDrive) ||
+        (nextTr.itunes_id && !nextTr.nhaccuatui_id && !nextTr.soundcloud_id && !nextTr.youtube_id && !isDrive) ||
+        (nextTr.audio_url && isPreviewUrl(nextTr.audio_url)) ||
+        (nextTr.file_path && (
+          isPreviewUrl(nextTr.file_path) ||
+          nextTr.file_path.includes('spotify.com') ||
+          nextTr.file_path.includes('p.scdn.co') ||
+          nextTr.file_path.includes('apple.com') ||
+          nextTr.file_path.includes('mzstatic.com') ||
+          nextTr.file_path.includes('dzcdn.net')
+        ))
+      )
+
+      const hasDirectPlayable = !isCatalogOrPreview && Boolean(
         nextTr.audio_url ||
         nextTr.youtube_id ||
         nextTr.source === 'soundcloud' ||
         Boolean(nextTr.soundcloud_id) ||
         (nextTr.file_path && (
           nextTr.file_path.includes('.mp3') ||
-          nextTr.file_path.includes('preview') ||
-          nextTr.file_path.includes('dzcdn.net') ||
-          nextTr.file_path.includes('apple.com') ||
           nextTr.file_path.includes('drive-stream') ||
           nextTr.file_path.includes('audius')
         ))
@@ -1039,16 +1063,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             if (!resolved) return
             let updatedTrack: Track | null = null
             if (resolved.source === 'nhaccuatui') {
-              updatedTrack = { source: 'nhaccuatui', nhaccuatui_id: resolved.id } as Partial<Track> as Track
+              updatedTrack = { source: 'nhaccuatui', nhaccuatui_id: resolved.id, file_path: '' } as Partial<Track> as Track
               if (!getCachedNctStreamUrl(resolved.id)) {
                 prewarmNctStreamUrl(resolved.id).catch(() => {})
               }
             } else if (resolved.source === 'drive') {
               updatedTrack = { source: 'local' as const, file_path: resolved.id } as Partial<Track> as Track
             } else if (resolved.source === 'soundcloud') {
-              updatedTrack = { source: 'soundcloud' as const, soundcloud_id: resolved.id } as Partial<Track> as Track
+              updatedTrack = { source: 'soundcloud' as const, soundcloud_id: resolved.id, file_path: '' } as Partial<Track> as Track
             } else if (resolved.source === 'youtube') {
-              updatedTrack = { source: 'youtube' as const, youtube_id: resolved.id } as Partial<Track> as Track
+              updatedTrack = { source: 'youtube' as const, youtube_id: resolved.id, file_path: '' } as Partial<Track> as Track
             }
             if (!updatedTrack) return
             const mergedTrack: Track = {
@@ -1072,6 +1096,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 { url: resolved.streamUrl, ts: Date.now() },
                 AUDIO_URL_MAX_ENTRIES
               )
+            } else if (resolved.source === 'nhaccuatui') {
+              const nctUrl = getNhacCuaTuiStreamUrl(mergedTrack)
+              if (nctUrl) {
+                setBounded(
+                  audioUrlCacheRef.current,
+                  targetTrackId,
+                  { url: nctUrl, ts: Date.now() },
+                  AUDIO_URL_MAX_ENTRIES
+                )
+              }
             } else if (resolved.source === 'drive') {
               triggerDrivePrewarm([mergedTrack])
               if (!audioUrlCacheRef.current.has(targetTrackId)) {
@@ -2133,7 +2167,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     ytHtml5ModeRef.current = false
 
     // ⚡ 1. PAUSE & STOP ALL PREVIOUS AUDIO ENGINES IMMEDIATELY (ZERO DELAY OVERLAP)
-    stopActivePlaybackEngines('all')
+    // On iOS Safari or in a hidden background tab (or when the previous track already ended),
+    // avoid tearing down the <audio> element's active media session upfront unless switching to YouTube IFrame.
+    const preserveHtml5Session =
+      isIOSDevice() || Boolean(isTabHiddenRef.current) || Boolean(audioRef.current?.ended)
+    const nextUsesYtIframe =
+      (track.source === 'youtube' || Boolean(track.youtube_id)) && !isIOSDevice()
+    stopActivePlaybackEngines(preserveHtml5Session && !nextUsesYtIframe ? 'youtube' : 'all')
     ensureWebAudioGain()
 
     let nextQueue = queueRef.current
@@ -2172,6 +2212,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (upcoming.length > 0) {
         prewarmTrackBatch(upcoming).catch(() => {})
       }
+      if (isIOSDevice() || Boolean(isTabHiddenRef.current)) {
+        hasPrewarmedNextTrackRef.current = true
+        triggerAdaptivePrewarm(nextQueue, nextIndex)
+      }
     }
 
     const initialTime = typeof startFromTime === 'number' && startFromTime >= 0 ? startFromTime : 0
@@ -2208,16 +2252,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const classification = classifyTrack(track, isIOSDevice())
     const shouldResolveExternalCatalog = classification.needsCatalogResolution
 
-    // For catalog tracks (Spotify / Deezer / iTunes) that need external stream resolution:
-    // Ensure previous audio is stopped and show buffering while resolving full stream
-    if (shouldResolveExternalCatalog && audioRef.current) {
-      try {
-        audioRef.current.pause()
-        audioRef.current.removeAttribute('src')
-      } catch {}
-      setIsBuffering(true)
-    }
-
     // ⚡ Fast path: reuse a previously resolved catalog match for this track.id
     const cachedResolution = shouldResolveExternalCatalog
       ? getBoundedRefreshed(
@@ -2227,6 +2261,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         )
       : undefined
     const useCachedResolution = Boolean(cachedResolution)
+
+    // For catalog tracks (Spotify / Deezer / iTunes) that need external stream resolution:
+    // Ensure previous audio is stopped and show buffering while resolving full stream,
+    // UNLESS we already have a cached resolution or are preserving the background/iOS HTML5 audio session.
+    if (shouldResolveExternalCatalog && !useCachedResolution && !preserveHtml5Session && audioRef.current) {
+      try {
+        audioRef.current.pause()
+        audioRef.current.removeAttribute('src')
+      } catch {}
+      setIsBuffering(true)
+    }
     if (cachedResolution && requestId === playRequestRef.current) {
       activeTrack = cachedResolution.activeTrack
       resolutionIdentityRef.current = {
@@ -2877,7 +2922,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // ⚡ Fast-path: play a track synchronously from the URL cache
+  // ⚡ Fast-path: play a track synchronously from the URL cache or deterministic proxy URL
   const tryQuickPlayFromCache = useCallback((rawTrack: Track, idx?: number): boolean => {
     if (!rawTrack || typeof window === 'undefined') return false
 
@@ -2887,19 +2932,65 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       rawTrack.id,
       (entry) => Date.now() >= entry.expiresAt
     )
-    const track = cachedRes?.activeTrack || rawTrack
+    const track = { ...inferTrackSource(cachedRes?.activeTrack || rawTrack) }
 
-    const classification = classifyTrack(track, isIOSDevice())
+    const isIOS = isIOSDevice()
+    const classification = classifyTrack(track, isIOS)
     if (classification.needsCatalogResolution && !classification.isDirectPlayable) {
+      return false
+    }
+    if (classification.engine === 'youtube') {
       return false
     }
 
     let cached = readFreshAudioUrl(audioUrlCacheRef.current, track) || undefined
     if (!cached && track.source === 'nhaccuatui' && track.nhaccuatui_id) {
-      cached = getCachedNctStreamUrl(track.nhaccuatui_id) || undefined
+      cached = getCachedNctStreamUrl(track.nhaccuatui_id) || getNhacCuaTuiStreamUrl(track) || undefined
+    }
+    if (!cached) {
+      const driveFileId = track.drive_file_id || extractDriveFileId(track.file_path || '')
+      if (driveFileId && (track.source === 'local' || !track.source)) {
+        const ext =
+          track.file_ext ||
+          track.title?.match(/\.(flac|mp3|wav|m4a|aac|ogg|wma)(?:[?#]|$)/i)?.[1]?.toLowerCase() ||
+          ''
+        const filenameParam = ext ? `&filename=${encodeURIComponent(`stream.${ext}`)}` : ''
+        const baseUrl = buildDriveStreamUrl(driveFileId)
+        cached = filenameParam ? `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}${filenameParam.slice(1)}` : baseUrl
+      } else if (isIOS && (track.source === 'youtube' || Boolean(track.youtube_id))) {
+        const ytId = track.youtube_id || extractYouTubeVideoId(track.file_path || '')
+        if (ytId) {
+          cached = buildYouTubeStreamUrl(ytId)
+        }
+      } else if (
+        (isIOS || Boolean(isTabHiddenRef.current)) &&
+        (track.source === 'soundcloud' || Boolean(track.soundcloud_id) || track.id?.startsWith('sc-'))
+      ) {
+        const scTarget =
+          track.soundcloud_id ||
+          (track.file_path?.startsWith('soundcloud:') ? track.file_path.replace('soundcloud:', '') : '') ||
+          (track.id?.startsWith('sc-') ? track.id.replace(/^sc-/, '') : '')
+        if (scTarget) {
+          const workerUrl = process.env.NEXT_PUBLIC_SOUNDCLOUD_WORKER_URL?.trim()
+          cached = workerUrl
+            ? `${workerUrl.replace(/\/+$/, '')}/stream?id=${encodeURIComponent(scTarget)}`
+            : `/api/soundcloud/stream?id=${encodeURIComponent(scTarget)}`
+        }
+      } else if (track.audio_url && track.audio_url.startsWith('http') && !isPreviewUrl(track.audio_url)) {
+        cached = track.audio_url
+      } else if (
+        track.file_path &&
+        track.file_path.startsWith('http') &&
+        !isPreviewUrl(track.file_path) &&
+        track.source !== 'spotify' &&
+        track.source !== 'itunes'
+      ) {
+        cached = track.file_path
+      }
     }
 
     if (!cached || isPreviewUrl(cached) || !audioRef.current) return false
+    setBounded(audioUrlCacheRef.current, track.id, { url: cached, ts: Date.now() }, AUDIO_URL_MAX_ENTRIES)
     const audio = audioRef.current
 
     // Quick-play must report the skipped track too (previous engine mode is still intact here).
@@ -2911,8 +3002,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     let targetIdx = typeof idx === 'number' && idx >= 0 ? idx : q.findIndex((t) => t.id === track.id)
     if (targetIdx < 0) targetIdx = -1
 
+    nextTrackEndPrewarmedRef.current = false
     hasPrewarmedNextTrackRef.current = false
-    ytHtml5ModeRef.current = isIOSDevice() && (track.source === 'youtube' || Boolean(track.youtube_id))
+    ytHtml5ModeRef.current = isIOS && (track.source === 'youtube' || Boolean(track.youtube_id))
 
     // Commit navigation state synchronously
     commitNavigation(track, targetIdx, q, 0)
@@ -2939,6 +3031,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         audioRetryCountRef.current = 0
         consecutiveSkipRef.current = 0
         recordHistory(track)
+        if (targetIdx >= 0 && q.length > 1) {
+          const upcoming = planUpcomingPrewarm(q, targetIdx, { fastConnection: isFastConnection() })
+          if (upcoming.length > 0) {
+            prewarmTrackBatch(upcoming).catch(() => {})
+          }
+          if (isIOSDevice() || Boolean(isTabHiddenRef.current)) {
+            hasPrewarmedNextTrackRef.current = true
+            triggerAdaptivePrewarm(q, targetIdx)
+          }
+        }
       })
       .catch((err: any) => {
         if (err?.name === 'AbortError' || String(err?.message || '').includes('interrupted')) {
@@ -2966,7 +3068,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       })
 
     return true
-  }, [beginNewPlaybackRequest, commitNavigation, commitQueue, ensureWebAudioGain, isCurrentAudioOwnership, playTrack, recordHistory, recordSkipOfCurrent, stopActivePlaybackEngines])
+  }, [beginNewPlaybackRequest, commitNavigation, commitQueue, ensureWebAudioGain, isCurrentAudioOwnership, playTrack, recordHistory, recordSkipOfCurrent, stopActivePlaybackEngines, triggerAdaptivePrewarm])
 
   // Centralized playback controller for navigation convergence
   const playResolvedTrack = useCallback((track: Track, index: number) => {
@@ -3331,8 +3433,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
         // ⚡ Task 3: Trigger single next-track prewarm only after 5s stable play
         if (!hasPrewarmedNextTrackRef.current && time >= 5 && !isBufferingRef.current) {
-          hasPrewarmedNextTrackRef.current = true
-          triggerAdaptivePrewarm(queueRef.current, currentIndexRef.current)
+          const q = queueRef.current
+          const idx = currentIndexRef.current
+          if (q.length > idx + 1 || (repeatModeRef.current === 'all' && q.length > 1)) {
+            hasPrewarmedNextTrackRef.current = true
+            triggerAdaptivePrewarm(q, idx)
+          }
         }
 
         // ── Near-end prewarm: 30s before track ends, warm next track URL ─────────
@@ -3341,8 +3447,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         // handleEnded fires — async resolution triggers NotAllowedError because
         // iOS requires the play() call to happen within the user-gesture chain.
         if (!nextTrackEndPrewarmedRef.current && isFastConnection()) {
-          const dur = audio.duration
-          if (dur && !isNaN(dur) && dur > 0 && dur !== Infinity) {
+          const rawDur = audio.duration
+          const dur =
+            rawDur && !isNaN(rawDur) && rawDur > 0 && rawDur !== Infinity
+              ? rawDur
+              : (currentTrackRef.current?.duration || 0)
+          if (dur > 0) {
             const remaining = dur - time
             if (remaining <= 30 && remaining >= 0) {
               nextTrackEndPrewarmedRef.current = true
@@ -3359,7 +3469,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                     (entry) => Date.now() >= entry.expiresAt
                   )
                   const nextTr = cachedRes?.activeTrack || rawNextTr
-                  if (nextTr.source === 'nhaccuatui' && nextTr.nhaccuatui_id) {
+                  const nextClass = classifyTrack(nextTr, isIOSDevice())
+                  if (!cachedRes && nextClass.needsCatalogResolution) {
+                    triggerAdaptivePrewarm(q, idx)
+                  } else if (nextTr.source === 'nhaccuatui' && nextTr.nhaccuatui_id) {
                     // Refresh NCT stream URL cache (5-min TTL — may have expired since track start)
                     prewarmNctStreamUrl(nextTr.nhaccuatui_id).catch(() => {})
                   } else if (isIOSDevice() && (nextTr.source === 'youtube' || Boolean(nextTr.youtube_id))) {
@@ -3755,6 +3868,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const handlePause = () => {
       if (!isCurrentAudioOwnership()) return
       if (!isYtIframeEngine()) {
+        const dur = audio.duration
+        const isAtEof =
+          audio.ended ||
+          (dur && !isNaN(dur) && dur > 3 && dur !== Infinity && audio.currentTime >= 3 && dur - audio.currentTime <= 0.5)
+        if (desiredPlayStateRef.current === 'playing' && isAtEof) {
+          triggerTrackCompletion('html5-pause-at-eof', false)
+          return
+        }
         setIsPlaying(false)
       }
     }
@@ -3789,6 +3910,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const handleCanPlay = () => {
       clearAudioStallWatchdog()
       if (!isCurrentAudioOwnership()) return
+      if (
+        desiredPlayStateRef.current === 'playing' &&
+        audioContextRef.current &&
+        (audioContextRef.current.state === 'suspended' || (audioContextRef.current.state as string) === 'interrupted')
+      ) {
+        audioContextRef.current.resume().catch(() => {})
+      }
       // If user requested playback and audio is still paused (waiting for audio.play() resolution),
       // retain isBuffering: true so the play button does not flash to play icon before playing event fires.
       if (desiredPlayStateRef.current === 'playing' && audioRef.current && audioRef.current.paused) {
@@ -3816,6 +3944,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         audio.pause()
         return
       }
+      if (
+        audioContextRef.current &&
+        (audioContextRef.current.state === 'suspended' || (audioContextRef.current.state as string) === 'interrupted')
+      ) {
+        audioContextRef.current.resume().catch(() => {})
+      }
       setIsBuffering(false)
       setIsPlaying(true)
       audioRetryCountRef.current = 0
@@ -3841,6 +3975,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           } else {
             persistenceScheduler.flushPending()
           }
+          // Immediately prewarm the next track when Safari enters background / lock screen
+          if (desiredPlayStateRef.current === 'playing' && !hasPrewarmedNextTrackRef.current) {
+            const q = queueRef.current
+            const idx = currentIndexRef.current
+            if (q.length > idx + 1 || (repeatModeRef.current === 'all' && q.length > 1)) {
+              hasPrewarmedNextTrackRef.current = true
+              triggerAdaptivePrewarm(q, idx)
+            }
+          }
         } else {
           document.documentElement.removeAttribute('data-tab-hidden')
         }
@@ -3864,8 +4007,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // 1. Wake up Web Audio AudioContext if suspended by the browser while hidden
-        if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+        // 1. Wake up Web Audio AudioContext if suspended or interrupted by the browser while hidden
+        if (
+          audioContextRef.current &&
+          (audioContextRef.current.state === 'suspended' || (audioContextRef.current.state as string) === 'interrupted')
+        ) {
           audioContextRef.current.resume().catch((e) => {
             console.warn('[WebAudio] Visibility resume error:', e)
           })
@@ -3964,7 +4110,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const ytActive = isYtIframeEngine()
       pendingResumeRef.current = false
 
-      if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+      if (
+        audioContextRef.current &&
+        (audioContextRef.current.state === 'suspended' || (audioContextRef.current.state as string) === 'interrupted')
+      ) {
         audioContextRef.current.resume().catch(() => {})
       }
 
@@ -4011,15 +4160,24 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (activeAudio && isCurrentAudioOwnership() && !isYtIframeEngine()) {
         const time = activeAudio.currentTime || 0
         const dur = activeAudio.duration || 0
-        if (dur > 3 && time >= 3 && (dur - time <= 1.0 || activeAudio.ended)) {
+        if (!hasPrewarmedNextTrackRef.current && time >= 5 && !Boolean(isBufferingRef.current)) {
+          const q = queueRef.current
+          const idx = currentIndexRef.current
+          if (q.length > idx + 1 || (repeatModeRef.current === 'all' && q.length > 1)) {
+            hasPrewarmedNextTrackRef.current = true
+            triggerAdaptivePrewarm(q, idx)
+          }
+        }
+        if ((activeAudio.ended && time >= 3) || (dur > 3 && time >= 3 && (dur - time <= 1.0 || activeAudio.ended))) {
           triggerTrackCompletion('html5-background-heartbeat-eof', false)
         }
       }
 
       if (isYtIframeEngine() && isCurrentYouTubeVideo()) {
+        const ytState = ytPlayerRef.current?.getPlayerState?.()
         const ytTime = ytPlayerRef.current?.getCurrentTime?.() || 0
         const ytDur = ytPlayerRef.current?.getDuration?.() || 0
-        if (ytDur > 5 && ytTime >= 3 && (ytDur - ytTime <= 1.0)) {
+        if (ytState === 0 || (ytDur > 5 && ytTime >= 3 && (ytDur - ytTime <= 1.0))) {
           triggerTrackCompletion('youtube-background-heartbeat-eof', true)
         }
       }
@@ -4291,14 +4449,18 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [currentTrack?.id, ensureWebAudioGain, playOwnedAudio, playTrack, seek])
 
   // Playback state — only re-run when play state changes (NOT every frame)
+  // Keep MediaSession 'playing' while buffering a track transition when desiredPlayStateRef is 'playing'
+  // so iOS/macOS Safari does not interpret inter-track resolution/buffering as an intentional pause
+  // and suspend the background audio session.
   useEffect(() => {
     if (typeof window === 'undefined' || !('mediaSession' in navigator) || !currentTrack) return
     try {
-      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused'
+      const shouldReportPlaying = isPlaying || (isBuffering && desiredPlayStateRef.current === 'playing')
+      navigator.mediaSession.playbackState = shouldReportPlaying ? 'playing' : 'paused'
     } catch (err) {
       // silently ignore
     }
-  }, [currentTrack, isPlaying])
+  }, [currentTrack, isPlaying, isBuffering])
 
   // MediaSession position — poll via 1s interval to avoid 60fps useEffect overhead
   useEffect(() => {

@@ -56,11 +56,17 @@ function setup() {
     e.isCurrentPlayback = ({ requestId, currentRequestId, trackId, currentTrackId }) => requestId === currentRequestId && trackId === currentTrackId;
     e.extractDriveFileId = () => null;
     e.isPlayingRef = ref(false);
+    e.isBufferingRef = ref(false);
+    e.isTabHiddenRef = ref(false);
     e.fallbackSearchRef = ref({ abort() { } });
     e.recordSkipOfCurrent = () => { };
     e.isFastConnection = () => false;
     e.planUpcomingPrewarm = () => [];
     e.prewarmTrackBatch = async () => { };
+    e.triggerAdaptivePrewarm = () => { };
+    e.getNhacCuaTuiStreamUrl = t => t?.source === 'nhaccuatui' && t?.nhaccuatui_id ? '/api/nhaccuatui/stream?id=' + encodeURIComponent(t.nhaccuatui_id) : null;
+    e.buildDriveStreamUrl = id => '/api/drive-stream?id=' + encodeURIComponent(id);
+    e.buildYouTubeStreamUrl = id => '/api/youtube/stream?id=' + encodeURIComponent(id);
     e.readFreshAudioUrl = (m, t) => { const v = m.get(t.id); return v && Date.now() - v.ts < 300000 ? v.url : null; };
     e.resolveStartAction = ({ requestId, currentRequestId, desiredState }) => requestId !== currentRequestId ? 'drop' : desiredState === 'paused' ? 'load-paused' : 'play';
     e.mergeResolvedIntoQueue = (q, t) => q.map(x => x.id === t.id ? { ...x, ...t } : x);

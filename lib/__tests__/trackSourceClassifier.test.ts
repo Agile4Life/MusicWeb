@@ -75,4 +75,46 @@ describe('trackSourceClassifier', () => {
     ]
     expect(isFullYouTubeQueue(mixedQ)).toBe(false)
   })
+
+  it('marks Spotify/iTunes tracks resolved to SoundCloud, Drive, NCT, or YouTube as resolved (needsCatalogResolution = false)', () => {
+    const resolvedToSoundCloud: Track = {
+      ...baseTrack,
+      source: 'soundcloud',
+      spotify_id: 'sp_keep_1',
+      soundcloud_id: 'sc_999',
+      file_path: '',
+    }
+    const scClass = classifyTrack(resolvedToSoundCloud, true)
+    expect(scClass.source).toBe('soundcloud')
+    expect(scClass.needsCatalogResolution).toBe(false)
+    expect(scClass.isPreview).toBe(false)
+    expect(scClass.isDirectPlayable).toBe(true)
+
+    const resolvedToDrive: Track = {
+      ...baseTrack,
+      source: 'spotify',
+      spotify_id: 'sp_keep_2',
+      file_path: 'https://drive.google.com/file/d/1sT-kP6Z9ABCDEF1234567890/view',
+    }
+    const driveInferred = inferTrackSource(resolvedToDrive)
+    expect(driveInferred.source).toBe('local')
+    expect(driveInferred.drive_file_id).toBe('1sT-kP6Z9ABCDEF1234567890')
+    const driveClass = classifyTrack(driveInferred, true)
+    expect(driveClass.source).toBe('drive')
+    expect(driveClass.needsCatalogResolution).toBe(false)
+    expect(driveClass.isPreview).toBe(false)
+    expect(driveClass.isDirectPlayable).toBe(true)
+
+    const resolvedToNct: Track = {
+      ...baseTrack,
+      source: 'nhaccuatui',
+      itunes_id: 'it_keep_3',
+      nhaccuatui_id: 'nct_777',
+      file_path: '',
+    }
+    const nctClass = classifyTrack(resolvedToNct, true)
+    expect(nctClass.source).toBe('nhaccuatui')
+    expect(nctClass.needsCatalogResolution).toBe(false)
+    expect(nctClass.isPreview).toBe(false)
+  })
 })
