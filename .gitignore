@@ -17,6 +17,8 @@
 
 # Testing & Coverage
 /coverage/
+/test-results/
+/playwright-report/
 
 # Local Worktrees & Environments
 /.worktrees/

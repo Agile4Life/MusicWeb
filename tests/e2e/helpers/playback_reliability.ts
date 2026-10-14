@@ -160,7 +160,9 @@ export async function setup(page: Page, options: { repeat?: string; resolveA?: R
 }
 
 export async function playRow(page: Page, letter: 'A' | 'B') {
-  await page.locator('.song-row').filter({ hasText: `Reliability ${letter}` }).first().click()
+  const row = page.locator('.song-row').filter({ hasText: `Reliability ${letter}` }).first()
+  await row.hover()
+  await row.getByRole('button', { name: 'Phát', exact: true }).click()
 }
 
 export async function playing(page: Page, letter: 'A' | 'B') {
