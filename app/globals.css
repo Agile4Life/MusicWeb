@@ -201,7 +201,10 @@ body::before {
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
     inset 0 -1px 0 rgba(0, 0, 0, 0.15),
     0 6px 18px rgba(0, 0, 0, 0.22) !important;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    transform 200ms var(--ease-out-quint),
+    border-color 200ms var(--ease-out-quint),
+    box-shadow 200ms var(--ease-out-quint);
 }
 
 .sidebar-logo-plaque::before {
@@ -212,13 +215,272 @@ body::before {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), transparent 35%);
 }
 
-.sidebar-logo-plaque:hover {
-  transform: translateY(-0.5px);
-  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 22%, rgba(255, 255, 255, 0.12)) !important;
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.2),
-    0 8px 20px rgba(0, 0, 0, 0.28) !important;
+@media (hover: hover) and (pointer: fine) {
+  .sidebar-logo-plaque:hover {
+    transform: translateY(-0.5px);
+    border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 22%, rgba(255, 255, 255, 0.12)) !important;
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.2),
+      0 8px 20px rgba(0, 0, 0, 0.28) !important;
+  }
 }
+
+.sidebar-logo-icon-enter {
+  opacity: 0;
+  transform: scale(0.92);
+  animation: introIconPopIn 480ms var(--ease-out-quint) 80ms forwards;
+}
+
+.sidebar-logo-text-enter {
+  opacity: 0;
+  clip-path: inset(0 100% 0 0);
+  transform: translate3d(-8px, 0, 0) scale(0.97);
+  animation: introSignatureReveal 640ms var(--ease-out-quint) 220ms forwards;
+}
+
+/* === Web Intro Splash Animation (GPU-Composited Entrance & Exit) === */
+.intro-splash-backdrop {
+  background-color: var(--bg-space, #07090e);
+  background-image:
+    linear-gradient(145deg, var(--bg-space, #07090e) 0%, var(--bg-space-end, #12172b) 100%);
+  opacity: 1;
+  transition: opacity 380ms var(--ease-out-quint);
+}
+
+.intro-splash-backdrop[data-phase='exiting'] {
+  opacity: 0;
+}
+
+.intro-splash-ambient {
+  background:
+    radial-gradient(520px circle at 50% 48%, color-mix(in srgb, var(--spotify-glow, #22d3ee) 16%, transparent) 0%, transparent 70%),
+    radial-gradient(360px circle at 45% 54%, color-mix(in srgb, var(--primary-spotify, #06b6d4) 12%, transparent) 0%, transparent 65%);
+  opacity: 0;
+  transform: scale(0.94);
+  animation: introAmbientFadeIn 650ms var(--ease-out-quint) forwards;
+}
+
+.intro-splash-plaque {
+  overflow: hidden;
+  background: linear-gradient(135deg,
+      color-mix(in srgb, var(--spotify-glow, #22d3ee) 10%, rgba(20, 24, 36, 0.85)),
+      rgba(12, 16, 26, 0.78));
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 24%, rgba(255, 255, 255, 0.14));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.25),
+    0 24px 60px -12px rgba(0, 0, 0, 0.75),
+    0 0 40px -8px color-mix(in srgb, var(--spotify-glow, #22d3ee) 28%, transparent);
+  opacity: 0;
+  transform: translate3d(0, 10px, 0) scale(0.94);
+  animation: introPlaqueEnter 460ms var(--ease-out-quint) forwards;
+  transition:
+    opacity 380ms var(--ease-out-quint),
+    transform 380ms var(--ease-out-quint);
+}
+
+.intro-splash-plaque[data-phase='exiting'] {
+  animation: none;
+  opacity: 0;
+  transform: translate3d(0, -8px, 0) scale(0.97);
+}
+
+.intro-plaque-shimmer {
+  background: linear-gradient(
+    110deg,
+    transparent 20%,
+    color-mix(in srgb, var(--spotify-glow, #22d3ee) 14%, rgba(255, 255, 255, 0.14)) 50%,
+    transparent 80%
+  );
+  transform: translate3d(-120%, 0, 0);
+  animation: introPlaqueShimmer 950ms var(--ease-in-out-cubic) 220ms forwards;
+}
+
+.intro-icon-badge {
+  opacity: 0;
+  transform: scale(0.92);
+  animation: introIconPopIn 440ms var(--ease-out-quint) 60ms forwards;
+}
+
+.intro-icon-halo {
+  background: radial-gradient(circle, color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, transparent) 0%, transparent 72%);
+  opacity: 0;
+  transform: scale(0.92);
+  animation: introHaloPulse 1100ms var(--ease-out-quint) 120ms forwards;
+}
+
+.intro-logo-arc {
+  stroke-dasharray: 34;
+  stroke-dashoffset: 34;
+  animation: introArcDraw 520ms var(--ease-out-quint) 100ms forwards;
+}
+
+.intro-logo-earcup {
+  opacity: 0;
+  transform-origin: center;
+  transform: scale(0.92);
+  animation: introIconPopIn 360ms var(--ease-out-quint) 220ms forwards;
+}
+
+.intro-logo-wave {
+  transform-origin: center;
+  animation: introWaveEq 620ms var(--ease-in-out-cubic) infinite alternate;
+}
+
+.intro-logo-wave-1 {
+  animation-delay: 140ms;
+}
+
+.intro-logo-wave-2 {
+  animation-delay: 240ms;
+}
+
+.intro-logo-wave-3 {
+  animation-delay: 340ms;
+}
+
+.intro-plaque-divider {
+  opacity: 0;
+  transform: scaleY(0.4);
+  animation: introDividerIn 400ms var(--ease-out-quint) 180ms forwards;
+}
+
+.intro-signature-wrap {
+  opacity: 0;
+  clip-path: inset(0 100% 0 0);
+  transform: translate3d(-10px, 0, 0) scale(0.96);
+  animation: introSignatureReveal 660ms var(--ease-out-quint) 200ms forwards;
+}
+
+.intro-progress-fill {
+  background: linear-gradient(90deg, var(--primary-spotify, #06b6d4), var(--spotify-glow, #22d3ee));
+  box-shadow: 0 0 10px var(--spotify-glow, #22d3ee);
+  transform-origin: left center;
+  transform: scaleX(0);
+  animation: introProgressFill 1050ms var(--ease-out-quint) 100ms forwards;
+}
+
+@keyframes introAmbientFadeIn {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes introPlaqueEnter {
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes introIconPopIn {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes introHaloPulse {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  45% {
+    opacity: 0.9;
+    transform: scale(1.06);
+  }
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+}
+
+@keyframes introArcDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes introWaveEq {
+  0% {
+    transform: scaleY(0.55);
+  }
+  100% {
+    transform: scaleY(1.22);
+  }
+}
+
+@keyframes introDividerIn {
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes introSignatureReveal {
+  to {
+    opacity: 1;
+    clip-path: inset(0 0% 0 0);
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes introPlaqueShimmer {
+  to {
+    transform: translate3d(120%, 0, 0);
+  }
+}
+
+@keyframes introProgressFill {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-splash-backdrop {
+    transition: opacity 200ms ease;
+  }
+
+  .intro-splash-ambient,
+  .intro-splash-plaque,
+  .intro-icon-badge,
+  .intro-logo-earcup,
+  .intro-plaque-divider,
+  .intro-signature-wrap,
+  .sidebar-logo-icon-enter,
+  .sidebar-logo-text-enter {
+    animation: introReducedFade 200ms ease forwards !important;
+    clip-path: none !important;
+    transform: none !important;
+  }
+
+  .intro-logo-arc {
+    animation: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+
+  .intro-logo-wave,
+  .intro-icon-halo,
+  .intro-plaque-shimmer {
+    animation: none !important;
+  }
+
+  .intro-progress-fill {
+    animation: none !important;
+    transform: scaleX(1) !important;
+  }
+}
+
+@keyframes introReducedFade {
+  to {
+    opacity: 1;
+  }
+}
+
 
 /* === Elevation 2: Sidebar (Theme-Aware Medium Glass) === */
 .app-sidebar {

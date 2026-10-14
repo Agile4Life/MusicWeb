@@ -19,6 +19,7 @@ import { useLanguage } from '@/components/i18n/LanguageContext'
 import { useScrollContext } from '@/components/navigation/ScrollContext'
 import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
+import { AppLogoIcon } from '@/components/ui/AppLogoIcon'
 import {
   shouldCommitGlobalSearch,
   shouldKeepSearchOpenOnScroll,
@@ -353,7 +354,7 @@ export function MobileScrollHeader() {
               clearSearch()
               window.dispatchEvent(new Event('musicweb-tab-home'))
             }}
-            className="pointer-events-auto flex items-center justify-center px-3 py-1.5 rounded-[14px] group cursor-pointer transition-all active:scale-95"
+            className="pointer-events-auto flex items-center justify-center gap-2 px-3 py-1.5 rounded-[14px] group cursor-pointer transition-all active:scale-95"
             style={{
               background: 'rgba(255,255,255,0.06)',
               border: '1px solid rgba(255,255,255,0.12)',
@@ -363,10 +364,14 @@ export function MobileScrollHeader() {
             }}
             title="MusicWeb"
           >
+            <AppLogoIcon
+              animated
+              className="sidebar-logo-icon-enter w-4 h-4 text-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_0_8px_var(--theme-glow-shadow,rgba(34,211,238,0.75))] shrink-0"
+            />
             <img
               src="/phong-signature.png"
               alt="MusicWeb Logo"
-              className="h-6 w-auto object-contain signature-img-invert group-hover:scale-[1.03] transition-transform"
+              className="sidebar-logo-text-enter h-6 w-auto object-contain signature-img-invert group-hover:scale-[1.03] transition-transform"
             />
           </Link>
         </div>

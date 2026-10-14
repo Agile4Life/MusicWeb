@@ -1,6 +1,12 @@
 import React from 'react'
 
-export function AppLogoIcon({ className = 'w-5 h-5 text-[var(--spotify-glow,#22d3ee)]' }: { className?: string }) {
+export function AppLogoIcon({
+  className = 'w-5 h-5 text-[var(--spotify-glow,#22d3ee)]',
+  animated = false,
+}: {
+  className?: string
+  animated?: boolean
+}) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -12,15 +18,41 @@ export function AppLogoIcon({ className = 'w-5 h-5 text-[var(--spotify-glow,#22d
       className={className}
     >
       {/* Headphones Arc */}
-      <path d="M3 14v-3a9 9 0 0 1 18 0v3" />
+      <path
+        d="M3 14v-3a9 9 0 0 1 18 0v3"
+        className={animated ? 'intro-logo-arc' : undefined}
+      />
       {/* Left Earcup */}
-      <path d="M2 14a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4z" fill="currentColor" fillOpacity="0.2" />
+      <path
+        d="M2 14a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4z"
+        fill="currentColor"
+        fillOpacity="0.2"
+        className={animated ? 'intro-logo-earcup' : undefined}
+      />
       {/* Right Earcup */}
-      <path d="M17 14a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-4z" fill="currentColor" fillOpacity="0.2" />
+      <path
+        d="M17 14a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-4z"
+        fill="currentColor"
+        fillOpacity="0.2"
+        className={animated ? 'intro-logo-earcup' : undefined}
+      />
       {/* Center Soundwave Equalizer Lines */}
-      <path d="M9 12.5v2" strokeWidth="2.5" />
-      <path d="M12 10.5v6" strokeWidth="2.5" />
-      <path d="M15 12.5v2" strokeWidth="2.5" />
+      <path
+        d="M9 12.5v2"
+        strokeWidth="2.5"
+        className={animated ? 'intro-logo-wave intro-logo-wave-1' : undefined}
+      />
+      <path
+        d="M12 10.5v6"
+        strokeWidth="2.5"
+        className={animated ? 'intro-logo-wave intro-logo-wave-2' : undefined}
+      />
+      <path
+        d="M15 12.5v2"
+        strokeWidth="2.5"
+        className={animated ? 'intro-logo-wave intro-logo-wave-3' : undefined}
+      />
     </svg>
   )
 }
+

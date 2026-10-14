@@ -35,6 +35,7 @@ import { ImportSpotifyModal } from '@/components/playlist/ImportSpotifyModal'
 import { ImportYouTubePlaylistModal } from '@/components/playlist/ImportYouTubePlaylistModal'
 import { ImportSoundCloudModal } from '@/components/playlist/ImportSoundCloudModal'
 import { YoutubeIcon } from '@/components/icons/YoutubeIcon'
+import { AppLogoIcon } from '@/components/ui/AppLogoIcon'
 import { shouldCloseProfileMenu, shouldToggleProfileMenu } from './profileMenuInteraction'
 import { LiquidNavBar } from './LiquidNavBar'
 import { getNextPlaylistRoute } from './playlistNavigation'
@@ -226,14 +227,18 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
               clearSearch()
               window.dispatchEvent(new Event('musicweb-tab-home'))
             }}
-            className="sidebar-logo-plaque pointer-events-auto flex items-center justify-center px-3.5 py-1.5 rounded-2xl group cursor-pointer bg-white/[0.025] border border-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md"
+            className="sidebar-logo-plaque pointer-events-auto flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-2xl group cursor-pointer bg-white/[0.025] border border-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md"
             title="MusicWeb"
           >
-            <div className="flex items-center justify-center h-7.5 xs:h-8 shrink-0">
+            <AppLogoIcon
+              animated
+              className="sidebar-logo-icon-enter w-4 h-4 text-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_0_8px_var(--theme-glow-shadow,rgba(34,211,238,0.75))] shrink-0"
+            />
+            <div className="sidebar-logo-text-enter flex items-center justify-center h-7.5 xs:h-8 shrink-0">
               <img
                 src="/phong-signature.png"
                 alt="MusicWeb Logo"
-                className="h-7.5 xs:h-8 w-auto object-contain signature-img-invert group-hover:scale-[1.03] transition-transform"
+                className="h-7 xs:h-7.5 w-auto object-contain signature-img-invert group-hover:scale-[1.03] transition-transform"
               />
             </div>
           </Link>
@@ -285,12 +290,20 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
         >
           <div className="flex flex-col gap-5">
             <div className="flex items-center justify-between border-b border-white/[0.05] pb-4">
-              <div className="sidebar-logo-plaque flex items-center justify-start px-3 py-1.5 rounded-2xl bg-white/[0.025] border border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
+              <div className="sidebar-logo-plaque flex items-center justify-start gap-2.5 px-3 py-1.5 rounded-2xl bg-white/[0.025] border border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[var(--spotify-glow,#22d3ee)] via-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#6366f1)] p-[1px] shrink-0">
+                  <div className="w-full h-full bg-[#080c14]/90 rounded-[7px] flex items-center justify-center">
+                    <AppLogoIcon
+                      animated
+                      className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_0_8px_var(--theme-glow-shadow,rgba(34,211,238,0.75))]"
+                    />
+                  </div>
+                </div>
                 <div className="flex items-center justify-start h-7.5 shrink-0">
                   <img
                     src="/phong-signature.png"
                     alt="MusicWeb Logo"
-                    className="h-7.5 w-auto object-contain signature-img-invert"
+                    className="h-7 w-auto object-contain signature-img-invert"
                   />
                 </div>
               </div>

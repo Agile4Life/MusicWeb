@@ -7,6 +7,7 @@ import { ThemeProvider } from '@/components/theme/ThemeContext'
 import { LanguageProvider } from '@/components/i18n/LanguageContext'
 import { CustomCursor } from '@/components/theme/CustomCursor'
 import { LiquidGlassFilterDefs } from '@/components/theme/LiquidGlassFilterDefs'
+import { WebIntroSplash } from '@/components/ui/WebIntroSplash'
 
 const spaceGrotesk = Space_Grotesk({
   variable: '--font-space-grotesk',
@@ -95,6 +96,7 @@ export default function RootLayout({
           <LanguageProvider>
             <ThemeProvider>
               <LiquidGlassFilterDefs />
+              <WebIntroSplash />
               <CustomCursor />
               {children}
             </ThemeProvider>

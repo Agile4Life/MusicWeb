@@ -32,6 +32,7 @@ import { ImportSpotifyModal } from '@/components/playlist/ImportSpotifyModal'
 import { ImportYouTubePlaylistModal } from '@/components/playlist/ImportYouTubePlaylistModal'
 import { ImportSoundCloudModal } from '@/components/playlist/ImportSoundCloudModal'
 import { YoutubeIcon } from '@/components/icons/YoutubeIcon'
+import { AppLogoIcon } from '@/components/ui/AppLogoIcon'
 
 import { useGlideIndicator } from '@/hooks/useGlideIndicator'
 
@@ -169,14 +170,22 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
             clearSearch()
             window.dispatchEvent(new Event('musicweb-tab-home'))
           }}
-          className="sidebar-logo-plaque w-full flex items-center justify-start px-3.5 py-2 lg:py-2.5 rounded-2xl group cursor-pointer"
+          className="sidebar-logo-plaque w-full flex items-center justify-start gap-2.5 px-3.5 py-2 lg:py-2.5 rounded-2xl group cursor-pointer"
           title="MusicWeb"
         >
-          <div className="flex items-center justify-start h-8 lg:h-9 shrink-0">
+          <div className="sidebar-logo-icon-enter w-8 h-8 lg:w-9 lg:h-9 rounded-xl bg-gradient-to-tr from-[var(--spotify-glow,#22d3ee)] via-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#6366f1)] p-[1px] shadow-[0_4px_12px_rgba(0,0,0,0.35)] shrink-0 group-hover:scale-105 transition-transform duration-200">
+            <div className="w-full h-full bg-[#080c14]/90 rounded-[11px] flex items-center justify-center relative overflow-hidden">
+              <AppLogoIcon
+                animated
+                className="w-4 h-4 lg:w-4.5 lg:h-4.5 text-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_0_8px_var(--theme-glow-shadow,rgba(34,211,238,0.75))]"
+              />
+            </div>
+          </div>
+          <div className="sidebar-logo-text-enter flex items-center justify-start h-8 lg:h-9 shrink-0">
             <img
               src="/phong-signature.png"
               alt="MusicWeb Logo"
-              className="h-8 lg:h-9 w-auto object-contain signature-img-invert group-hover:scale-[1.03] transition-transform"
+              className="h-7 lg:h-8 w-auto object-contain signature-img-invert group-hover:scale-[1.03] transition-transform"
             />
           </div>
         </Link>
