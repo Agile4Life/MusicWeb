@@ -143,14 +143,20 @@ export async function GET(req: NextRequest) {
             .from('tracks')
             .update(updatePayload)
             .eq('id', trackId)
+            .is('spotify_album_id', null)
 
           if (trackUpdateErr && updatePayload.spotify_album_id) {
-            await supabase.from('tracks').update({ album: albumName }).eq('id', trackId)
+            await supabase
+              .from('tracks')
+              .update({ album: albumName })
+              .eq('id', trackId)
+              .is('album', null)
           }
         } else if (finalCleanTitle && finalCleanArtist) {
           const { data: matched } = await supabase
             .from('tracks')
             .select('id, title')
+            .is('spotify_album_id', null)
             .ilike('artist', `%${(effectiveArtist || artist).trim() || ''}%`)
             .limit(20)
 
@@ -164,9 +170,14 @@ export async function GET(req: NextRequest) {
                 .from('tracks')
                 .update(updatePayload)
                 .in('id', targetIds)
+                .is('spotify_album_id', null)
 
               if (batchErr && updatePayload.spotify_album_id) {
-                await supabase.from('tracks').update({ album: albumName }).in('id', targetIds)
+                await supabase
+                  .from('tracks')
+                  .update({ album: albumName })
+                  .in('id', targetIds)
+                  .is('album', null)
               }
             }
           }

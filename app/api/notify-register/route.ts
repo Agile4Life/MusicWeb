@@ -3,14 +3,47 @@ import nodemailer from 'nodemailer'
 
 const ADMIN_PERSONAL_EMAIL = process.env.ADMIN_PERSONAL_EMAIL || process.env.SMTP_USER || ''
 
+const notifyRateLimitMap = new Map<string, { count: number; resetAt: number }>()
+const NOTIFY_WINDOW_MS = 15 * 60 * 1000
+const NOTIFY_MAX_ATTEMPTS = 5
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const entry = notifyRateLimitMap.get(ip)
+  if (!entry || now > entry.resetAt) {
+    notifyRateLimitMap.set(ip, { count: 1, resetAt: now + NOTIFY_WINDOW_MS })
+    return false
+  }
+  entry.count += 1
+  return entry.count > NOTIFY_MAX_ATTEMPTS
+}
+
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 export async function POST(req: NextRequest) {
   try {
+    const clientIp =
+      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      req.headers.get('x-real-ip') ||
+      'unknown'
+
+    if (isRateLimited(clientIp)) {
+      return NextResponse.json({ ok: false, error: 'rate_limited' }, { status: 429 })
+    }
+
     const body = await req.json()
     const email = String(body?.email || '').trim().toLowerCase()
-    const username = String(body?.username || '').trim()
+    const username = String(body?.username || '').trim().slice(0, 60)
 
-    if (!email) {
-      return NextResponse.json({ ok: false, error: 'missing_email' }, { status: 400 })
+    if (!email || !/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(email)) {
+      return NextResponse.json({ ok: false, error: 'invalid_email' }, { status: 400 })
     }
 
     const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com'
@@ -35,6 +68,9 @@ export async function POST(req: NextRequest) {
 
     const nowFormatted = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
     const displayName = username || email
+    const safeEmail = escapeHtml(email)
+    const safeUsername = username ? escapeHtml(username) : ''
+    const safeAdminEmail = escapeHtml(ADMIN_PERSONAL_EMAIL)
 
     await Promise.race([
       transporter.sendMail({
@@ -51,14 +87,14 @@ export async function POST(req: NextRequest) {
             <div style="background:#141a24;padding:20px;border-radius:14px;border:1px solid #1e293b;margin-bottom:20px;">
               <div style="background:rgba(29,185,84,0.1);border:1px solid rgba(29,185,84,0.3);padding:14px 18px;border-radius:12px;margin-bottom:16px;">
                 <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;font-weight:700;letter-spacing:0.05em;margin-bottom:6px;">Email Đăng Ký:</div>
-                <div style="font-size:18px;color:#1DB954;font-weight:800;font-family:monospace;">${email}</div>
+                <div style="font-size:18px;color:#1DB954;font-weight:800;font-family:monospace;">${safeEmail}</div>
               </div>
 
               <table style="width:100%;border-collapse:collapse;font-size:14px;">
-                ${username ? `
+                ${safeUsername ? `
                 <tr>
                   <td style="padding:10px 0;border-bottom:1px solid #1e293b;color:#94a3b8;font-weight:700;width:170px;">Tên Tài Khoản:</td>
-                  <td style="padding:10px 0;border-bottom:1px solid #1e293b;color:#e2e8f0;font-weight:600;">${username}</td>
+                  <td style="padding:10px 0;border-bottom:1px solid #1e293b;color:#e2e8f0;font-weight:600;">${safeUsername}</td>
                 </tr>` : ''}
                 <tr>
                   <td style="padding:10px 0;border-bottom:1px solid #1e293b;color:#94a3b8;font-weight:700;">Phương Thức:</td>
@@ -72,7 +108,7 @@ export async function POST(req: NextRequest) {
             </div>
 
             <p style="color:#64748b;font-size:12px;text-align:center;margin:0;">
-              Thông báo tự động từ <strong>MusicWeb Studio System</strong> gửi tới <strong>${ADMIN_PERSONAL_EMAIL}</strong>.
+              Thông báo tự động từ <strong>MusicWeb Studio System</strong> gửi tới <strong>${safeAdminEmail}</strong>.
             </p>
           </div>
         `,
