@@ -25,20 +25,13 @@ BEGIN
   END IF;
 END $$;
 
--- Backfill: approve every Gmail that is already in the config allowlist.
+-- Backfill: approve default system accounts (add personal accounts via Supabase Dashboard or env).
 INSERT INTO public.roles (email, role, roleApproved)
 SELECT lower(TRIM(e)), 'user', true
 FROM (
   SELECT UNNEST(ARRAY[
-    'admin@gmail.com',
     'admin@musicweb.com',
-    'tranphong16012006@gmail.com',
-    'pnnd2006@gmail.com',
-    'hoangletran50@gmail.com',
-    'hoangletran1231203@gmail.com',
-    'user@musicweb.com',
-    'listener@gmail.com',
-    'tuanphong@homeviet.com'
+    'user@musicweb.com'
   ]) AS e
 ) src
 ON CONFLICT (email) DO UPDATE SET roleApproved = true;

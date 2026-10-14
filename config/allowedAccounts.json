@@ -1,7 +1,6 @@
 {
   "allowAllAsListeners": false,
   "adminEmails": [
-    "admin@gmail.com",
     "admin@musicweb.com"
   ],
   "allowedEmails": [
@@ -10,31 +9,7 @@
       "role": "admin"
     },
     {
-      "email": "tranphong16012006@gmail.com",
-      "role": "admin"
-    },
-    {
-      "email": "pnnd2006@gmail.com",
-      "role": "listener"
-    },
-    {
-      "email": "hoangletran50@gmail.com",
-      "role": "listener"
-    },
-    {
-      "email": "hoangletran1231203@gmail.com",
-      "role": "listener"
-    },
-    {
       "email": "user@musicweb.com",
-      "role": "listener"
-    },
-    {
-      "email": "listener@gmail.com",
-      "role": "listener"
-    },
-    {
-      "email": "tuanphong@homeviet.com",
       "role": "listener"
     }
   ]

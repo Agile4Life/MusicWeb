@@ -10,4 +10,5 @@ bucket_name = "music-audio-cache-drive"
 
 [vars]
 APP_RESOLVE_ORIGIN_URL = "https://phongtctmusic.vercel.app/api/drive-resolve-origin"
-INTERNAL_RESOLVE_SECRET = "musicweb_internal_drive_stream_secret_2026"
+# Set INTERNAL_RESOLVE_SECRET via Cloudflare secret (never commit plaintext):
+# npx wrangler secret put INTERNAL_RESOLVE_SECRET

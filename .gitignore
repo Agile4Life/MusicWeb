@@ -36,6 +36,7 @@ next-env.d.ts
 
 # Scratch & Temporary Debug Files
 /scratch/
+/public/screenshots/
 test_smtp.js
 
 # Executables & Binary Artifacts

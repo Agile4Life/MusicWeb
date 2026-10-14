@@ -2,14 +2,34 @@ import allowedConfig from '@/config/allowedAccounts.json'
 
 export type UserRole = 'admin' | 'listener'
 
+function getEnvAdminEmails(): string[] {
+  const raw = [
+    process.env.NEXT_PUBLIC_ADMIN_EMAILS,
+    process.env.ADMIN_EMAILS,
+    process.env.ADMIN_PERSONAL_EMAIL,
+  ]
+    .filter(Boolean)
+    .join(',')
+  if (!raw) return []
+  return raw
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+}
+
 /**
- * Evaluates the user role based on email address configured in config/allowedAccounts.json.
- * Defaults to 'listener' for non-admin accounts.
+ * Evaluates the user role based on email address configured in environment variables
+ * or config/allowedAccounts.json. Defaults to 'listener' for non-admin accounts.
  */
 export function getUserRole(email?: string | null): UserRole {
   if (!email) return 'listener'
 
   const normalizedEmail = email.trim().toLowerCase()
+
+  // 0. Check environment variable admin emails
+  if (getEnvAdminEmails().includes(normalizedEmail)) {
+    return 'admin'
+  }
 
   // 1. Check direct adminEmails list
   if (Array.isArray(allowedConfig.adminEmails)) {
@@ -42,6 +62,10 @@ export function isAllowedToLogin(email?: string | null): boolean {
   if (allowedConfig.allowAllAsListeners) return true
 
   const normalizedEmail = email.trim().toLowerCase()
+
+  if (getEnvAdminEmails().includes(normalizedEmail)) {
+    return true
+  }
 
   if (Array.isArray(allowedConfig.adminEmails)) {
     if (allowedConfig.adminEmails.some((e) => e.trim().toLowerCase() === normalizedEmail)) {

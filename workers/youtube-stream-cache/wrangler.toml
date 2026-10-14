@@ -15,5 +15,5 @@ bucket_name = "music-audio-cache-yt"
 [vars]
 # URL of the Vercel /api/youtube/resolve endpoint (last-resort fallback)
 APP_YT_RESOLVE_URL = "https://phongtctmusic.vercel.app/api/youtube/resolve"
-# Must match INTERNAL_YT_RESOLVE_SECRET in Vercel env vars
-INTERNAL_YT_RESOLVE_SECRET = "musicweb_internal_yt_resolve_secret_2026"
+# Set INTERNAL_YT_RESOLVE_SECRET via Cloudflare secret (must match Vercel env var):
+# npx wrangler secret put INTERNAL_YT_RESOLVE_SECRET

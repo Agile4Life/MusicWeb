@@ -6,10 +6,10 @@ export const dynamic = 'force-dynamic'
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
 
-  // Internal-only guard — reject any call without the shared secret.
+  // Internal-only guard — reject any call without the configured shared secret.
   const secret = searchParams.get('secret')
-  const internalSecret = process.env.INTERNAL_RESOLVE_SECRET || 'musicweb_internal_drive_stream_secret_2026'
-  if (!secret || secret !== internalSecret) {
+  const internalSecret = process.env.INTERNAL_RESOLVE_SECRET?.trim()
+  if (!internalSecret || !secret || secret !== internalSecret) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

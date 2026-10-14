@@ -36,9 +36,9 @@ Dự án Next.js App Router này đã được cấu hình tối ưu và sẵn s
 
    | Key | Value |
    | --- | --- |
-   | `NEXT_PUBLIC_SUPABASE_URL` | `https://mjpibwmproussfevtqbp.supabase.co` |
-   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `sb_publishable_mT97L0yZZOXReH-6ToCWGg_cpryfNgs` |
-   | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_mT97L0yZZOXReH-6ToCWGg_cpryfNgs` |
+   | `NEXT_PUBLIC_SUPABASE_URL` | `https://your-project-id.supabase.co` |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `your_supabase_anon_key_here` |
+   | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `your_supabase_publishable_key_here` |
 
 4. **Nhấn Deploy**:
    Vercel sẽ tự động chạy `npm run build` và cấp link website chính thức dạng `https://musicweb-xxx.vercel.app`.

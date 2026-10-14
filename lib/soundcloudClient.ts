@@ -527,12 +527,11 @@ export async function resolveSoundCloudTrack(
   if (UUID_REGEX.test(rawId)) {
     try {
       const { createClient } = await import('@supabase/supabase-js')
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mjpibwmproussfevtqbp.supabase.co'
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
       const supabaseKey =
         process.env.SUPABASE_SERVICE_ROLE_KEY ||
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-        'sb_publishable_mT97L0yZZOXReH-6ToCWGg_cpryfNgs'
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
       if (supabaseUrl && supabaseKey) {
         const supabase = createClient(supabaseUrl, supabaseKey)
         const { data: dbTrack } = await supabase.from('tracks').select('file_path, source_url').eq('id', rawId).single()
@@ -621,12 +620,11 @@ export async function resolveSoundCloudStreamUrl(
   if (UUID_REGEX.test(rawId)) {
     try {
       const { createClient } = await import('@supabase/supabase-js')
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mjpibwmproussfevtqbp.supabase.co'
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
       const supabaseKey =
         process.env.SUPABASE_SERVICE_ROLE_KEY ||
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-        'sb_publishable_mT97L0yZZOXReH-6ToCWGg_cpryfNgs'
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
       if (supabaseUrl && supabaseKey) {
         const supabase = createClient(supabaseUrl, supabaseKey)
         const { data: dbTrack } = await supabase.from('tracks').select('file_path, source_url').eq('id', rawId).single()

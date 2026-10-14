@@ -8,10 +8,15 @@ import passkeysConfig from '@/config/passkeys.json'
 // Admin's personal email to receive Passkey notifications (configurable via env)
 const ADMIN_PERSONAL_EMAIL = process.env.ADMIN_PERSONAL_EMAIL || process.env.SMTP_USER || ''
 
-// Helper to get valid Passkeys (dynamically read from disk + static import + fallback list)
+// Helper to get valid Passkeys (from VALID_PASSKEYS env var + config/passkeys.json)
 function getValidPasskeys(): string[] {
+  const envKeys = (process.env.VALID_PASSKEYS || '')
+    .split(',')
+    .map((k) => k.trim())
+    .filter(Boolean)
+
   let jsonKeys: string[] = []
-  
+
   // 1. Try reading passkeys.json dynamically from disk
   try {
     const configPath = path.join(process.cwd(), 'config', 'passkeys.json')
@@ -29,23 +34,48 @@ function getValidPasskeys(): string[] {
   // 2. Static import fallback
   const importedKeys = Array.isArray(passkeysConfig?.validPasskeys) ? passkeysConfig.validPasskeys : []
 
-  // 3. Built-in fallback passkeys
-  const defaultKeys = [
-    'MUSICWEB2026',
-    'PASSKEY2026',
-    'ADMIN2026',
-    'PHONGTCT',
-    'MUSICWEB-PASSKEY',
-    'PHONGTCT2026',
-    'PASSKEY',
-    'ADMIN',
-  ]
+  return Array.from(new Set([...envKeys, ...jsonKeys, ...importedKeys]))
+}
 
-  return Array.from(new Set([...jsonKeys, ...importedKeys, ...defaultKeys]))
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+// Simple in-memory rate limiter per IP / email (5 attempts per 10 minutes)
+const passkeyAttemptMap = new Map<string, { count: number; resetAt: number }>()
+const PASSKEY_WINDOW_MS = 10 * 60 * 1000
+const PASSKEY_MAX_ATTEMPTS = 5
+
+function isRateLimited(key: string): boolean {
+  const now = Date.now()
+  const entry = passkeyAttemptMap.get(key)
+  if (!entry || now > entry.resetAt) {
+    passkeyAttemptMap.set(key, { count: 1, resetAt: now + PASSKEY_WINDOW_MS })
+    return false
+  }
+  entry.count += 1
+  return entry.count > PASSKEY_MAX_ATTEMPTS
 }
 
 export async function POST(req: NextRequest) {
   try {
+    const clientIp =
+      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      req.headers.get('x-real-ip') ||
+      'unknown'
+
+    if (isRateLimited(`ip:${clientIp}`)) {
+      return NextResponse.json(
+        { error: 'Bạn đã thử quá nhiều lần. Vui lòng đợi 10 phút trước khi thử lại.' },
+        { status: 429 }
+      )
+    }
+
     const body = await req.json()
     const { email, passkey } = body
 
@@ -68,31 +98,32 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 1. Strict Passkey Verification with intelligent alphanumeric normalization
+    if (isRateLimited(`email:${cleanEmail}`)) {
+      return NextResponse.json(
+        { error: 'Email này đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau ít phút.' },
+        { status: 429 }
+      )
+    }
+
+    // 1. Strict Passkey Verification with alphanumeric normalization
     const validPasskeys = getValidPasskeys()
     const cleanAlphaNumericPasskey = cleanPasskey.replace(/[^a-z0-9]/g, '')
 
-    console.log('[PASSKEY DEBUG] Input passkey raw:', JSON.stringify(passkey))
-    console.log('[PASSKEY DEBUG] cleanPasskey:', JSON.stringify(cleanPasskey))
-    console.log('[PASSKEY DEBUG] cleanAlphaNumericPasskey:', JSON.stringify(cleanAlphaNumericPasskey))
-    console.log('[PASSKEY DEBUG] validPasskeys list:', JSON.stringify(validPasskeys))
-
-    const isValidPasskey = validPasskeys.some((pk) => {
-      const normalizedPk = String(pk).trim().toLowerCase().replace(/[^a-z0-9]/g, '')
-      const match = (
-        normalizedPk === cleanAlphaNumericPasskey ||
-        normalizedPk === cleanPasskey ||
-        String(pk).trim().toLowerCase() === String(passkey).trim().toLowerCase()
-      )
-      if (match) console.log('[PASSKEY DEBUG] Matched with pk:', JSON.stringify(pk))
-      return match
-    })
-
-    console.log('[PASSKEY DEBUG] isValidPasskey:', isValidPasskey)
+    const isValidPasskey =
+      cleanAlphaNumericPasskey.length > 0 &&
+      validPasskeys.some((pk) => {
+        const normalizedPk = String(pk).trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+        return (
+          normalizedPk.length > 0 &&
+          (normalizedPk === cleanAlphaNumericPasskey ||
+            normalizedPk === cleanPasskey ||
+            String(pk).trim().toLowerCase() === String(passkey).trim().toLowerCase())
+        )
+      })
 
     if (!isValidPasskey) {
       return NextResponse.json(
-        { error: `Mã Passkey "${passkey}" không hợp lệ. Vui lòng kiểm tra lại hoặc liên hệ Admin để nhận mã Passkey chính xác!` },
+        { error: 'Mã Passkey không hợp lệ. Vui lòng kiểm tra lại hoặc liên hệ Admin để nhận mã Passkey chính xác!' },
         { status: 401 }
       )
     }
@@ -161,6 +192,9 @@ export async function POST(req: NextRequest) {
           })
 
           const nowFormatted = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
+          const safeEmail = escapeHtml(cleanEmail)
+          const safePasskey = escapeHtml(cleanPasskey)
+          const safeAdminEmail = escapeHtml(targetAdminEmail)
 
           // Primary email: Admin Notification
           const adminMailPromise = transporter.sendMail({
@@ -177,13 +211,13 @@ export async function POST(req: NextRequest) {
                 <div style="background-color: #141a24; padding: 20px; border-radius: 12px; border: 1px solid #1e293b; margin-bottom: 20px;">
                   <div style="background-color: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); padding: 12px 16px; border-radius: 10px; margin-bottom: 16px;">
                     <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; font-weight: bold; margin-bottom: 4px;">Gmail Người Dùng Đăng Ký Passkey:</div>
-                    <div style="font-size: 18px; color: #38bdf8; font-weight: bold; font-family: monospace;">${cleanEmail}</div>
+                    <div style="font-size: 18px; color: #38bdf8; font-weight: bold; font-family: monospace;">${safeEmail}</div>
                   </div>
 
                   <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
                     <tr>
                       <td style="padding: 10px 0; border-bottom: 1px solid #1e293b; color: #94a3b8; font-weight: bold; width: 170px;">Mã Passkey đã dùng:</td>
-                      <td style="padding: 10px 0; border-bottom: 1px solid #1e293b; font-family: monospace; color: #f59e0b; font-weight: bold;">${cleanPasskey}</td>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #1e293b; font-family: monospace; color: #f59e0b; font-weight: bold;">${safePasskey}</td>
                     </tr>
                     <tr>
                       <td style="padding: 10px 0; border-bottom: 1px solid #1e293b; color: #94a3b8; font-weight: bold;">Trạng Thái Quyền:</td>
@@ -191,7 +225,7 @@ export async function POST(req: NextRequest) {
                     </tr>
                     <tr>
                       <td style="padding: 10px 0; border-bottom: 1px solid #1e293b; color: #94a3b8; font-weight: bold;">Phương Thức Đăng Nhập:</td>
-                      <td style="padding: 10px 0; border-bottom: 1px solid #1e293b; color: #e2e8f0; font-weight: 600;">Google OAuth (Gmail: ${cleanEmail})</td>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #1e293b; color: #e2e8f0; font-weight: 600;">Google OAuth (Gmail: ${safeEmail})</td>
                     </tr>
                     <tr>
                       <td style="padding: 10px 0; color: #94a3b8; font-weight: bold;">Thời Gian Thực Hiện:</td>
@@ -201,7 +235,7 @@ export async function POST(req: NextRequest) {
                 </div>
 
                 <div style="text-align: center; color: #64748b; font-size: 12px; line-height: 1.5;">
-                  <p style="margin: 0;">Email tự động gửi từ <strong>MusicWeb Studio System</strong> tới Gmail Admin (${targetAdminEmail}).</p>
+                  <p style="margin: 0;">Email tự động gửi từ <strong>MusicWeb Studio System</strong> tới Gmail Admin (${safeAdminEmail}).</p>
                 </div>
               </div>
             `,
@@ -219,9 +253,9 @@ export async function POST(req: NextRequest) {
                 html: `
                   <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 550px; margin: 0 auto; padding: 24px; background-color: #0b0e14; color: #ffffff; border-radius: 16px; border: 1px solid rgba(29, 185, 84, 0.3);">
                     <h2 style="color: #1DB954; font-size: 20px; text-align: center; margin-bottom: 12px;">🎉 Xác Thực Passkey Thành Công!</h2>
-                    <p style="color: #e2e8f0; font-size: 14px; line-height: 1.6;">Xin chào <strong>${cleanEmail}</strong>,</p>
+                    <p style="color: #e2e8f0; font-size: 14px; line-height: 1.6;">Xin chào <strong>${safeEmail}</strong>,</p>
                     <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">
-                      Yêu cầu truy cập bằng Mã Passkey của bạn đã được xác thực thành công. Tài khoản của bạn đã được cập nhật quyền truy cập MusicWeb Studio và thông báo đã được chuyển tới Admin (<strong>${targetAdminEmail}</strong>).
+                      Yêu cầu truy cập bằng Mã Passkey của bạn đã được xác thực thành công. Tài khoản của bạn đã được cập nhật quyền truy cập MusicWeb Studio và thông báo đã được chuyển tới Admin (<strong>${safeAdminEmail}</strong>).
                     </p>
                     <div style="text-align: center; margin: 24px 0;">
                       <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}" style="background-color: #1DB954; color: #000000; font-weight: bold; text-decoration: none; padding: 12px 28px; border-radius: 9999px; font-size: 14px; display: inline-block;">Truy Cấp MusicWeb Ngay</a>

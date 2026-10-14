@@ -3,10 +3,14 @@ const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 
-// Configuration
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mjpibwmproussfevtqbp.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qcGlid21wcm91c3NmZXZ0cWJwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NTc2MDgzNCwiZXhwIjoyMTAxMzM2ODM0fQ.oWkPs0jCxdYDD5sqzud9oEABw7IlU4f_AUbYbNAIhPY';
-const LOCAL_API = 'http://localhost:3000';
+// Configuration (load from environment variables — never hardcode service_role key)
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables.');
+  process.exit(1);
+}
+const LOCAL_API = process.env.LOCAL_API_URL || 'http://localhost:3000';
 const CONCURRENCY = 12;
 const TIMEOUT_MS = 12000;
 

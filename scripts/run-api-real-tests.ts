@@ -533,8 +533,11 @@ async function runAllTests() {
 
   // Save json artifact for inspection
   const fs = await import('fs')
+  const path = await import('path')
+  const scratchDir = path.join(process.cwd(), 'scratch')
+  fs.mkdirSync(scratchDir, { recursive: true })
   fs.writeFileSync(
-    'C:/Users/User/.gemini/antigravity-ide/brain/0ee8db8f-3e12-465f-8762-d11abb53661b/scratch/api_test_results.json',
+    path.join(scratchDir, 'api_test_results.json'),
     JSON.stringify(results, null, 2),
     'utf-8'
   )
