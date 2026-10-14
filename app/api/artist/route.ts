@@ -5,6 +5,7 @@ import { getPrimaryArtistName } from '@/lib/artistParser'
 import { fetchArtistAudienceCount } from '@/lib/artistAudience'
 import { searchYouTubeTracks } from '@/lib/youtube'
 import { searchNhacCuaTuiDirect } from '@/lib/nhaccuatui'
+import { isRealAlbumName } from '@/lib/albumCache'
 import { Track } from '@/types'
 
 function normalizeTitleForDedup(title: string): string {
@@ -110,25 +111,32 @@ export async function GET(request: NextRequest) {
 
       rawDeezerTracks = items
         .filter((item: any) => item && item.id && (item.title || item.title_short))
-        .map((item: any) => ({
-          id: `deezer-${item.id}`,
-          user_id: '00000000-0000-4000-a000-000000000001',
-          title: item.title || item.title_short || 'Untitled Track',
-          artist: extractDeezerArtistName(item, artist.name),
-          album: item.album?.title || undefined,
-          duration: Math.round(item.duration || 0),
-          file_path: item.preview || item.link || `deezer:${item.id}`,
-          audio_url: item.preview || undefined,
-          cover_url:
-            item.album?.cover_xl ||
-            item.album?.cover_big ||
-            item.album?.cover_medium ||
-            item.album?.cover ||
-            null,
-          created_at: new Date().toISOString(),
-          source: 'spotify' as const,
-          spotify_id: String(item.id),
-        }))
+        .map((item: any) => {
+          const trackTitle = item.title || item.title_short || 'Untitled Track'
+          const albumTitle = item.album?.title || undefined
+          const hasRealNonSingleAlbum =
+            item.album?.id && albumTitle && isRealAlbumName(albumTitle, trackTitle)
+          return {
+            id: `deezer-${item.id}`,
+            user_id: '00000000-0000-4000-a000-000000000001',
+            title: trackTitle,
+            artist: extractDeezerArtistName(item, artist.name),
+            album: albumTitle,
+            spotify_album_id: hasRealNonSingleAlbum ? String(item.album.id) : undefined,
+            duration: Math.round(item.duration || 0),
+            file_path: item.preview || item.link || `deezer:${item.id}`,
+            audio_url: item.preview || undefined,
+            cover_url:
+              item.album?.cover_xl ||
+              item.album?.cover_big ||
+              item.album?.cover_medium ||
+              item.album?.cover ||
+              null,
+            created_at: new Date().toISOString(),
+            source: 'spotify' as const,
+            spotify_id: String(item.id),
+          }
+        })
     }
 
     // 4. Combine tracks with NhacCuaTui (NCT) as PRIORITY #1, followed by Spotify & Deezer

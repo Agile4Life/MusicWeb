@@ -11,6 +11,7 @@ import { DiscAlbum, Sparkles, Music, Play, Search, X, Loader2 } from 'lucide-rea
 import { HeroCardSkeleton } from '@/components/common/SkeletonLoader'
 import { MediaCard } from '@/components/common/MediaCard'
 import { useGridGlideIndicator } from '@/components/common/useGlideIndicator'
+import { isKnownBadFallback, isRealAlbumName } from '@/lib/albumCache'
 
 interface AlbumCardProps {
   album: SpotifyAlbumItem
@@ -39,15 +40,15 @@ function AlbumCard({ album, index = 0 }: AlbumCardProps) {
       const detail =
         cached && Date.now() - cached.at < 10 * 60 * 1000
           ? cached.detail
-          : await fetch(`/api/albums/${album.id}`).then((r) => (r.ok ? r.json() : null))
+          : await fetch(`/api/albums/${encodeURIComponent(album.id)}`).then((r) => (r.ok ? r.json() : null))
       if (detail && Array.isArray(detail.tracks) && detail.tracks.length > 0) {
         albumDetailCacheRef.current!.set(album.id, { detail, at: Date.now() })
         playTrack(detail.tracks[0], detail.tracks)
       } else {
-        router.push(`/album/${album.id}`)
+        router.push(`/album/${encodeURIComponent(album.id)}`)
       }
     } catch {
-      router.push(`/album/${album.id}`)
+      router.push(`/album/${encodeURIComponent(album.id)}`)
     }
   }
 
@@ -60,7 +61,7 @@ function AlbumCard({ album, index = 0 }: AlbumCardProps) {
       type={album.album_type === 'single' ? 'single' : 'album'}
       badgeLabel={album.album_type === 'single' ? 'Single / EP' : 'Album'}
       metaText={metaText}
-      href={`/album/${album.id}`}
+      href={`/album/${encodeURIComponent(album.id)}`}
       onPlay={handlePlayAlbum}
       index={index}
       fallbackIcon="album"
@@ -117,12 +118,15 @@ export default function AlbumsPage() {
           .from('spotify_albums')
           .select('*')
           .order('release_date', { ascending: false })
-          .limit(30)
+          .limit(40)
 
         if (!error && myAlbums) {
           const uniqueAlbums: SpotifyAlbumItem[] = []
           const seenKeys = new Set<string>()
           for (const alb of myAlbums) {
+            if (!alb || !alb.id || isKnownBadFallback(String(alb.id)) || !isRealAlbumName(alb.name)) {
+              continue
+            }
             const key = `${(alb.name || '').trim().toLowerCase()}::${(alb.artist || '').trim().toLowerCase()}`
             if (!seenKeys.has(key)) {
               seenKeys.add(key)

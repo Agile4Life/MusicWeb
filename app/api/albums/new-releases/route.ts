@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server'
 import { fetchDeezerNewReleases } from '@/lib/deezer'
 import { fetchSpotifyNewReleases } from '@/lib/spotify'
 import { getTrendingITunesAlbums } from '@/lib/itunes'
+import {
+  cleanDisplayAlbumName,
+  normalizeAlbumText,
+  stripAlbumEditionSuffix,
+} from '@/lib/albumMatching'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,12 +23,8 @@ interface TrendingAlbum {
 const MAX_ALBUMS = 60
 
 function normalizeAlbumKey(name: string, artist: string): string {
-  const cleanName = (name || '')
-    .toLowerCase()
-    .replace(/[\(\[].*?[\)\]]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-  const cleanArtist = (artist || '').toLowerCase().replace(/\s+/g, ' ').trim()
+  const cleanName = stripAlbumEditionSuffix(name) || normalizeAlbumText(name)
+  const cleanArtist = normalizeAlbumText(artist)
   return `${cleanName}::${cleanArtist}`
 }
 
@@ -50,9 +51,12 @@ export async function GET() {
         const item = list[i]
         if (!item || !item.name) continue
         const key = normalizeAlbumKey(item.name, item.artist)
-        if (seenKeys.has(key)) continue
+        if (!key || key === '::' || seenKeys.has(key)) continue
         seenKeys.add(key)
-        merged.push(item)
+        merged.push({
+          ...item,
+          name: cleanDisplayAlbumName(item.name) || item.name,
+        })
         if (merged.length >= MAX_ALBUMS) break
       }
     }
