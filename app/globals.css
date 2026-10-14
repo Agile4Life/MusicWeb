@@ -238,82 +238,165 @@ body::before {
   animation: introSignatureReveal 640ms var(--ease-out-quint) 220ms forwards;
 }
 
-/* === Web Intro Splash Animation (GPU-Composited Entrance & Exit) === */
+/* === Web Intro Splash: a short, coordinated musical entrance === */
 .intro-splash-backdrop {
-  background-color: var(--bg-space, #07090e);
-  background-image:
-    linear-gradient(145deg, var(--bg-space, #07090e) 0%, var(--bg-space-end, #12172b) 100%);
+  position: fixed;
+  inset: 0;
+  z-index: 9995;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  isolation: isolate;
+  user-select: none;
+  background: linear-gradient(145deg, var(--bg-space, #07090e), var(--bg-space-end, #12172b));
   opacity: 1;
-  transition: opacity 550ms var(--ease-out-quint);
+  transition: opacity var(--intro-exit-duration) var(--ease-out-quint);
+}
+
+.intro-splash-backdrop::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.11;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.35) 0.6px, transparent 0.6px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(ellipse at center, #000, transparent 65%);
 }
 
 .intro-splash-backdrop[data-phase='exiting'] {
   opacity: 0;
+  pointer-events: none;
 }
 
 .intro-splash-ambient {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
   background:
-    radial-gradient(520px circle at 50% 48%, color-mix(in srgb, var(--spotify-glow, #22d3ee) 16%, transparent) 0%, transparent 70%),
-    radial-gradient(360px circle at 45% 54%, color-mix(in srgb, var(--primary-spotify, #06b6d4) 12%, transparent) 0%, transparent 65%);
+    radial-gradient(ellipse 340px 260px at 46% 47%, color-mix(in srgb, var(--spotify-glow, #22d3ee) 18%, transparent), transparent 75%),
+    radial-gradient(ellipse 300px 240px at 57% 53%, color-mix(in srgb, var(--theme-secondary, #6366f1) 13%, transparent), transparent 75%);
+  animation: introAmbientFadeIn 1000ms var(--ease-out-quint) both;
+}
+
+.intro-splash-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  max-width: calc(100vw - 40px);
+  transition:
+    opacity var(--intro-exit-duration) var(--ease-out-quint),
+    transform var(--intro-exit-duration) var(--ease-out-quint);
+}
+
+.intro-splash-backdrop[data-phase='exiting'] .intro-splash-content {
   opacity: 0;
-  transform: scale(0.94);
-  animation: introAmbientFadeIn 900ms var(--ease-out-quint) 100ms forwards;
+  transform: translate3d(0, -8px, 0) scale(1.015);
+}
+
+.intro-splash-orbits {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(78vw, 420px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -57%);
+  pointer-events: none;
+}
+
+.intro-splash-orbit {
+  position: absolute;
+  inset: 0;
+  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 11%, transparent);
+  border-radius: 50%;
+  background: radial-gradient(circle, transparent 65%, color-mix(in srgb, var(--spotify-glow, #22d3ee) 3%, transparent));
+  animation: introOrbitReveal 1100ms var(--ease-out-quint) 80ms both;
+}
+
+.intro-splash-orbit-outer {
+  inset: -48px;
+  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 5%, transparent);
+  background: none;
+  animation-delay: 160ms;
 }
 
 .intro-splash-plaque {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  width: 344px;
+  max-width: 100%;
+  padding: 24px 28px;
+  border-radius: 26px;
   overflow: hidden;
   background: linear-gradient(135deg,
-      color-mix(in srgb, var(--spotify-glow, #22d3ee) 10%, rgba(20, 24, 36, 0.85)),
-      rgba(12, 16, 26, 0.78));
-  backdrop-filter: blur(22px) saturate(150%);
-  -webkit-backdrop-filter: blur(22px) saturate(150%);
-  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 24%, rgba(255, 255, 255, 0.14));
+    color-mix(in srgb, var(--spotify-glow, #22d3ee) 9%, #141824),
+    rgba(12, 16, 26, 0.95));
+  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 26%, rgba(255, 255, 255, 0.12));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.25),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.25),
-    0 24px 60px -12px rgba(0, 0, 0, 0.75),
-    0 0 40px -8px color-mix(in srgb, var(--spotify-glow, #22d3ee) 28%, transparent);
-  opacity: 0;
-  transform: translate3d(0, 12px, 0) scale(0.94);
-  animation: introPlaqueEnter 750ms var(--ease-out-quint) 150ms forwards;
-  transition:
-    opacity 550ms var(--ease-out-quint),
-    transform 550ms var(--ease-out-quint);
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+    0 24px 64px -20px rgba(0, 0, 0, 0.65),
+    0 0 48px -16px color-mix(in srgb, var(--spotify-glow, #22d3ee) 24%, transparent);
+  animation: introPlaqueEnter 650ms var(--ease-out-quint) 60ms both;
 }
 
-.intro-splash-plaque[data-phase='exiting'] {
-  animation: none;
-  opacity: 0;
-  transform: translate3d(0, -10px, 0) scale(0.96);
+.intro-plaque-highlight {
+  position: absolute;
+  top: 0;
+  left: 28px;
+  right: 28px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
 }
 
 .intro-plaque-shimmer {
-  background: linear-gradient(
-    110deg,
-    transparent 20%,
-    color-mix(in srgb, var(--spotify-glow, #22d3ee) 16%, rgba(255, 255, 255, 0.16)) 50%,
-    transparent 80%
-  );
-  transform: translate3d(-120%, 0, 0);
-  animation: introPlaqueShimmer 1450ms var(--ease-in-out-cubic) 650ms forwards;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 25%, rgba(255, 255, 255, 0.1) 50%, transparent 75%);
+  animation: introPlaqueShimmer 1100ms var(--ease-in-out-cubic) 420ms both;
 }
 
 .intro-icon-badge {
-  opacity: 0;
-  transform: scale(0.92);
-  animation: introIconPopIn 700ms var(--ease-out-quint) 250ms forwards;
+  position: relative;
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  animation: introIconPopIn 520ms var(--ease-out-quint) 140ms both;
+}
+
+.intro-icon-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 1px;
+  overflow: hidden;
+  border-radius: 19px;
+  background: linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--theme-secondary, #6366f1));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 .intro-favicon-img {
-  transform-origin: center;
-  animation: introFaviconFloat 1600ms var(--ease-in-out-cubic) 350ms infinite alternate;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 18px;
+  background: #080c14;
 }
 
 .intro-icon-halo {
-  background: radial-gradient(circle, color-mix(in srgb, var(--spotify-glow, #22d3ee) 38%, transparent) 0%, transparent 72%);
-  opacity: 0;
-  transform: scale(0.92);
-  animation: introHaloPulse 1800ms var(--ease-out-quint) 300ms forwards;
+  position: absolute;
+  inset: -12px;
+  border-radius: 28px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--spotify-glow, #22d3ee) 38%, transparent), transparent 70%);
+  pointer-events: none;
+  animation: introHaloPulse 1400ms var(--ease-out-quint) 180ms both;
 }
 
 .intro-logo-arc {
@@ -347,27 +430,128 @@ body::before {
 }
 
 .intro-plaque-divider {
-  opacity: 0;
-  transform: scaleY(0.4);
-  animation: introDividerIn 600ms var(--ease-out-quint) 450ms forwards;
+  flex-shrink: 0;
+  width: 1px;
+  height: 44px;
+  background: linear-gradient(transparent, rgba(255, 255, 255, 0.24), transparent);
+  animation: introDividerIn 480ms var(--ease-out-quint) 220ms both;
 }
 
 .intro-signature-wrap {
-  opacity: 0;
-  clip-path: inset(0 100% 0 0);
-  transform: translate3d(-12px, 0, 0) scale(0.96);
-  animation: introSignatureReveal 1150ms var(--ease-out-quint) 550ms forwards;
+  position: relative;
+  min-width: 0;
+  animation: introSignatureReveal 780ms var(--ease-out-quint) 280ms both;
+}
+
+.intro-signature-img {
+  display: block;
+  width: auto;
+  height: 50px;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+/* A luminous segment keeps traveling while auth is pending; it never fills and stalls. */
+.intro-progress-track {
+  position: absolute;
+  bottom: 0;
+  left: 24px;
+  right: 24px;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--spotify-glow, #22d3ee) 10%, transparent);
 }
 
 .intro-progress-fill {
-  background: linear-gradient(90deg, var(--primary-spotify, #06b6d4), var(--spotify-glow, #22d3ee));
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--spotify-glow, #22d3ee), transparent);
+  opacity: 0.3;
+  transform-origin: center;
+  animation: introProgressFill 700ms var(--ease-out-quint) 180ms both;
+}
+
+.intro-progress-runner {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 32%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, var(--spotify-glow, #22d3ee) 55%, #fff 78%, transparent);
   box-shadow: 0 0 10px var(--spotify-glow, #22d3ee);
-  transform-origin: left center;
-  transform: scaleX(0);
-  animation: introProgressFill 2250ms var(--ease-out-quint) 220ms forwards;
+  animation: introBorderTravel 1250ms linear infinite;
+}
+
+.intro-sound-signal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  height: 24px;
+  animation: introSignalEnter 500ms var(--ease-out-quint) 460ms both;
+}
+
+.intro-sound-rule {
+  width: 36px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--spotify-glow, #22d3ee) 32%, transparent));
+}
+
+.intro-sound-rule:last-child {
+  transform: rotate(180deg);
+}
+
+.intro-equalizer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+}
+
+.intro-equalizer-bar {
+  width: 2px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--spotify-glow, #22d3ee);
+  transform-origin: center;
+  animation: introEqualizerBeat 800ms var(--ease-in-out-cubic) infinite alternate;
+}
+
+.intro-equalizer-bar:nth-child(3n + 1) { animation-delay: -260ms; height: 10px; }
+.intro-equalizer-bar:nth-child(3n + 2) { animation-delay: -520ms; height: 16px; }
+.intro-equalizer-bar:nth-child(4n) { animation-delay: -680ms; height: 22px; }
+.intro-equalizer-bar:first-child,
+.intro-equalizer-bar:last-child { height: 6px; }
+
+@keyframes introOrbitReveal {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes introBorderTravel {
+  from { transform: translate3d(-100%, 0, 0); }
+  to { transform: translate3d(312.5%, 0, 0); }
+}
+
+@keyframes introSignalEnter {
+  from { opacity: 0; transform: translate3d(0, 6px, 0); }
+  to { opacity: 0.7; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes introEqualizerBeat {
+  from { opacity: 0.45; transform: scaleY(0.4); }
+  to { opacity: 1; transform: scaleY(1); }
+}
+
+@media (max-width: 420px) {
+  .intro-splash-plaque { width: 300px; padding: 22px; gap: 18px; border-radius: 24px; }
+  .intro-icon-badge { width: 56px; height: 56px; }
+  .intro-signature-img { height: 44px; }
+  .intro-splash-orbit-outer { inset: -32px; }
 }
 
 @keyframes introAmbientFadeIn {
+  from { opacity: 0; transform: scale(0.94); }
   to {
     opacity: 1;
     transform: scale(1);
@@ -375,6 +559,7 @@ body::before {
 }
 
 @keyframes introPlaqueEnter {
+  from { opacity: 0; transform: translate3d(0, 14px, 0) scale(0.96); }
   to {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
@@ -382,18 +567,10 @@ body::before {
 }
 
 @keyframes introIconPopIn {
+  from { opacity: 0; transform: scale(0.92); }
   to {
     opacity: 1;
     transform: scale(1);
-  }
-}
-
-@keyframes introFaviconFloat {
-  0% {
-    transform: scale(0.96);
-  }
-  100% {
-    transform: scale(1.04);
   }
 }
 
@@ -428,6 +605,7 @@ body::before {
 }
 
 @keyframes introDividerIn {
+  from { opacity: 0; transform: scaleY(0.4); }
   to {
     opacity: 1;
     transform: scaleY(1);
@@ -435,6 +613,7 @@ body::before {
 }
 
 @keyframes introSignatureReveal {
+  from { opacity: 0; clip-path: inset(0 100% 0 0); transform: translate3d(-8px, 0, 0) scale(0.97); }
   to {
     opacity: 1;
     clip-path: inset(0 0% 0 0);
@@ -443,31 +622,40 @@ body::before {
 }
 
 @keyframes introPlaqueShimmer {
+  from { transform: translate3d(-120%, 0, 0); }
   to {
     transform: translate3d(120%, 0, 0);
   }
 }
 
 @keyframes introProgressFill {
+  from { transform: scaleX(0.3); }
   to {
     transform: scaleX(1);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .intro-splash-backdrop {
-    transition: opacity 250ms ease;
+  .intro-splash-backdrop,
+  .intro-splash-content {
+    transition: opacity var(--intro-reduced-duration) ease;
+  }
+
+  .intro-splash-backdrop[data-phase='exiting'] .intro-splash-content {
+    transform: none;
   }
 
   .intro-splash-ambient,
+  .intro-splash-orbit,
   .intro-splash-plaque,
   .intro-icon-badge,
   .intro-logo-earcup,
   .intro-plaque-divider,
   .intro-signature-wrap,
+  .intro-sound-signal,
   .sidebar-logo-icon-enter,
   .sidebar-logo-text-enter {
-    animation: introReducedFade 250ms ease forwards !important;
+    animation: introReducedFade var(--intro-reduced-duration, 180ms) ease both !important;
     clip-path: none !important;
     transform: none !important;
   }
@@ -480,17 +668,25 @@ body::before {
   .intro-logo-wave,
   .intro-favicon-img,
   .intro-icon-halo,
-  .intro-plaque-shimmer {
+  .intro-plaque-shimmer,
+  .intro-progress-runner {
     animation: none !important;
   }
 
+  .intro-plaque-shimmer,
+  .intro-progress-runner {
+    opacity: 0;
+  }
+
+  .intro-equalizer-bar,
   .intro-progress-fill {
     animation: none !important;
-    transform: scaleX(1) !important;
+    transform: none !important;
   }
 }
 
 @keyframes introReducedFade {
+  from { opacity: 0; }
   to {
     opacity: 1;
   }

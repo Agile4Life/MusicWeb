@@ -1,7 +1,13 @@
+/* eslint-disable @next/next/no-img-element -- Local brand assets render immediately at their intrinsic aspect ratios. */
 'use client'
 
-import React, { useEffect, useState } from 'react'
-import { getIntroSplashTimings, shouldBypassIntroSplash } from './webIntroTiming'
+import React, { useEffect, useState, type CSSProperties } from 'react'
+import {
+  INTRO_EXIT_DURATION_MS,
+  INTRO_REDUCED_MOTION_DURATION_MS,
+  getIntroSplashTimings,
+  shouldBypassIntroSplash,
+} from './webIntroTiming'
 
 declare global {
   interface Window {
@@ -9,25 +15,40 @@ declare global {
   }
 }
 
+const introStyle = {
+  '--intro-exit-duration': `${INTRO_EXIT_DURATION_MS}ms`,
+  '--intro-reduced-duration': `${INTRO_REDUCED_MOTION_DURATION_MS}ms`,
+} as CSSProperties
+
 export function WebIntroSplash() {
   const [phase, setPhase] = useState<'entering' | 'exiting' | 'done'>('entering')
 
   useEffect(() => {
-    const hasSeenOnboardingFlag =
-      window.localStorage.getItem('has_seen_onboarding') === 'true'
-    const isGamingMode =
-      window.localStorage.getItem('musicweb_gaming_mode') === 'true'
+    let hasSeenOnboardingFlag = false
+    let isGamingMode = false
+
+    try {
+      hasSeenOnboardingFlag = window.localStorage.getItem('has_seen_onboarding') === 'true'
+      isGamingMode = (
+        window.localStorage.getItem('musicweb-gaming-mode') ??
+        window.localStorage.getItem('musicweb_gaming_mode')
+      ) === 'true'
+    } catch {
+      // Storage can be unavailable in private or embedded browsing contexts.
+    }
+
+    const completeIntro = () => {
+      setPhase('done')
+      window.dispatchEvent(new CustomEvent('musicweb:intro-complete'))
+    }
 
     if (shouldBypassIntroSplash({ hasSeenOnboardingFlag, isGamingMode })) {
-      const skipTimer = setTimeout(() => setPhase('done'), 0)
+      const skipTimer = setTimeout(completeIntro, 0)
       return () => clearTimeout(skipTimer)
     }
 
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const timings = getIntroSplashTimings({
-      reducedMotion,
-      skipIntro: false,
-    })
+    const timings = getIntroSplashTimings({ reducedMotion, skipIntro: false })
 
     let minHoldDone = false
     let authDone =
@@ -43,10 +64,7 @@ export function WebIntroSplash() {
       if (exitStarted || !minHoldDone || !authDone) return
       exitStarted = true
       setPhase('exiting')
-      exitTimer = setTimeout(() => {
-        setPhase('done')
-        window.dispatchEvent(new CustomEvent('musicweb:intro-complete'))
-      }, timings.exitDurationMs)
+      exitTimer = setTimeout(completeIntro, timings.exitDurationMs)
     }
 
     const holdTimer = setTimeout(() => {
@@ -54,7 +72,7 @@ export function WebIntroSplash() {
       tryStartExit()
     }, timings.holdDurationMs)
 
-    // Safety fallback so the splash never blocks indefinitely even on slow networks
+    // Even if authentication never responds, the intro must release the page.
     const maxWaitTimer = setTimeout(() => {
       authDone = true
       minHoldDone = true
@@ -82,59 +100,62 @@ export function WebIntroSplash() {
     <div
       data-phase={phase}
       aria-hidden="true"
-      className={`intro-splash-backdrop fixed inset-0 z-[9995] flex flex-col items-center justify-center select-none overflow-hidden ${
-        phase === 'exiting' ? 'pointer-events-none' : ''
-      }`}
+      className="intro-splash-backdrop"
+      style={introStyle}
     >
-      {/* Ambient theme glow behind the central logo plaque */}
-      <div className="intro-splash-ambient pointer-events-none absolute inset-0" />
+      <div className="intro-splash-ambient" />
 
-      {/* Center Brand Logo Plaque (modeled after .sidebar-logo-plaque) */}
-      <div
-        data-phase={phase}
-        className="intro-splash-plaque relative flex items-center gap-4 sm:gap-5 px-6 sm:px-8 py-4 sm:py-5 rounded-[24px]"
-      >
-        {/* Top specular highlight arc */}
-        <span
-          className="pointer-events-none absolute top-0 left-6 right-6 h-px"
-          style={{
-            background:
-              'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%)',
-          }}
-        />
+      {/* Exit belongs to this wrapper so entrance keyframes can settle naturally. */}
+      <div className="intro-splash-content">
+        <div className="intro-splash-orbits">
+          <span className="intro-splash-orbit" />
+          <span className="intro-splash-orbit intro-splash-orbit-outer" />
+        </div>
 
-        {/* Diagonal specular shimmer across the plaque */}
-        <span className="intro-plaque-shimmer pointer-events-none absolute inset-0" />
+        <div className="intro-splash-plaque">
+          <span className="intro-plaque-highlight" />
+          <span className="intro-plaque-shimmer" />
 
-        {/* 1. Web Favicon Emblem (/favicon.ico) */}
-        <div className="intro-icon-badge relative shrink-0">
-          <span className="intro-icon-halo pointer-events-none absolute -inset-1.5 rounded-2xl" />
-          <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-[var(--spotify-glow,#22d3ee)] via-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#6366f1)] p-[1.5px] shadow-[0_8px_24px_rgba(0,0,0,0.45)]">
-            <div className="w-full h-full bg-[#080c14] rounded-[14.5px] flex items-center justify-center relative overflow-hidden">
+          <div className="intro-icon-badge">
+            <span className="intro-icon-halo" />
+            <div className="intro-icon-frame">
               <img
                 src="/favicon.ico"
-                alt="MusicWeb Favicon"
-                className="intro-favicon-img w-full h-full object-cover rounded-[14px] drop-shadow-[0_0_10px_var(--theme-glow-shadow,rgba(34,211,238,0.8))]"
+                alt=""
+                width={192}
+                height={192}
+                className="intro-favicon-img"
               />
             </div>
           </div>
+
+          <div className="intro-plaque-divider" />
+
+          <div className="intro-signature-wrap">
+            <img
+              src="/phong-signature.png"
+              alt=""
+              width={780}
+              height={282}
+              className="intro-signature-img signature-img-invert"
+            />
+          </div>
+
+          {/* An ongoing light sweep, rather than a loading bar that stops full. */}
+          <div className="intro-progress-track">
+            <span className="intro-progress-fill" />
+            <span className="intro-progress-runner" />
+          </div>
         </div>
 
-        {/* Subtle vertical glass divider */}
-        <div className="intro-plaque-divider w-px h-9 sm:h-10 bg-gradient-to-b from-transparent via-white/20 to-transparent shrink-0" />
-
-        {/* 2. Logo Signature Text ("MuSic" from /phong-signature.png) */}
-        <div className="intro-signature-wrap relative flex items-center justify-start pr-1">
-          <img
-            src="/phong-signature.png"
-            alt="MuSic Logo"
-            className="intro-signature-img h-10 sm:h-12 w-auto object-contain signature-img-invert"
-          />
-        </div>
-
-        {/* Bottom sleek soundwave progress line */}
-        <div className="intro-progress-track pointer-events-none absolute bottom-0 left-6 right-6 h-[2px] overflow-hidden rounded-full bg-white/[0.06]">
-          <div className="intro-progress-fill h-full w-full rounded-full" />
+        <div className="intro-sound-signal">
+          <span className="intro-sound-rule" />
+          <div className="intro-equalizer">
+            {Array.from({ length: 9 }, (_, index) => (
+              <span key={index} className="intro-equalizer-bar" />
+            ))}
+          </div>
+          <span className="intro-sound-rule" />
         </div>
       </div>
     </div>

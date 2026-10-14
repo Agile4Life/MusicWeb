@@ -49,4 +49,14 @@ describe('webIntroTiming', () => {
     expect(timings.exitDurationMs).toBe(0)
     expect(timings.totalDurationMs).toBe(0)
   })
+
+  test('keeps the complete reveal within a short startup budget', () => {
+    const normal = getIntroSplashTimings({ reducedMotion: false, skipIntro: false })
+    const reduced = getIntroSplashTimings({ reducedMotion: true, skipIntro: false })
+
+    expect(normal.totalDurationMs).toBeLessThanOrEqual(2500)
+    expect(normal.exitDurationMs).toBeLessThanOrEqual(300)
+    expect(reduced.totalDurationMs).toBeLessThanOrEqual(400)
+    expect(reduced.totalDurationMs).toBeLessThan(normal.totalDurationMs)
+  })
 })

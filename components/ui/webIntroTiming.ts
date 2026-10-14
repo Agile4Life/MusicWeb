@@ -1,6 +1,6 @@
-export const INTRO_ENTER_DURATION_MS = 2600
-export const INTRO_EXIT_DURATION_MS = 550
-export const INTRO_REDUCED_MOTION_DURATION_MS = 350
+export const INTRO_ENTER_DURATION_MS = 2100
+export const INTRO_EXIT_DURATION_MS = 280
+export const INTRO_REDUCED_MOTION_DURATION_MS = 180
 
 export interface IntroBypassInput {
   hasSeenOnboardingFlag: boolean
