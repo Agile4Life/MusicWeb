@@ -1232,9 +1232,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           nctAlternates.map((t) => ({
             id: t.nhaccuatui_id!,
             title: t.title,
-            artist: t.artist,
+            artist: t.artist || '',
             duration: t.duration,
-            thumbnail: t.cover_url,
+            thumbnail: t.cover_url || undefined,
           })),
           { title: track.title, artist: track.artist, duration: track.duration, album: track.album },
         )
@@ -1817,9 +1817,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                     nctAlternates.map((t) => ({
                       id: t.nhaccuatui_id!,
                       title: t.title,
-                      artist: t.artist,
+                      artist: t.artist || '',
                       duration: t.duration,
-                      thumbnail: t.cover_url,
+                      thumbnail: t.cover_url || undefined,
                     })),
                     { title: active.title, artist: active.artist, duration: active.duration, album: active.album },
                   )
@@ -2325,9 +2325,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               nctCandidates.map((t) => ({
                 id: t.nhaccuatui_id!,
                 title: t.title,
-                artist: t.artist,
+                artist: t.artist || '',
                 duration: t.duration,
-                thumbnail: t.cover_url,
+                thumbnail: t.cover_url || undefined,
               })),
               { title: track.title, artist: track.artist, duration: track.duration, album: track.album },
             )
@@ -2359,7 +2359,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 source: 'nhaccuatui',
                 id: nctMatch.nhaccuatui_id,
                 title: nctMatch.title,
-                artist: nctMatch.artist,
+                artist: nctMatch.artist || undefined,
                 duration: nctMatch.duration,
                 coverUrl: nctMatch.cover_url,
               }
@@ -2368,7 +2368,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 source: 'youtube',
                 id: ytMatch.youtube_id,
                 title: ytMatch.title,
-                artist: ytMatch.artist,
+                artist: ytMatch.artist || undefined,
                 duration: ytMatch.duration,
                 coverUrl: ytMatch.cover_url,
               }
@@ -2378,7 +2378,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 source: 'soundcloud',
                 id: scId,
                 title: scMatch.title,
-                artist: scMatch.artist,
+                artist: scMatch.artist || undefined,
                 duration: scMatch.duration,
                 coverUrl: scMatch.cover_url,
               }

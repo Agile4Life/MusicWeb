@@ -11,7 +11,7 @@ export interface NhacCuaTuiSearchItem {
   id: string
   title: string
   artist: string
-  thumbnail?: string
+  thumbnail?: string | null
   duration?: number | null
 }
 
