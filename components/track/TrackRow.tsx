@@ -13,7 +13,13 @@ import { useSession } from 'next-auth/react'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import { ArtistLinks } from '@/components/common/ArtistLinks'
-import { getCachedResolvedAlbum, setCachedResolvedAlbum, isRealAlbumName } from '@/lib/albumCache'
+import {
+  getCachedResolvedAlbum,
+  setCachedResolvedAlbum,
+  isRealAlbumName,
+  isKnownBadFallback,
+  makeAlbumCacheKey,
+} from '@/lib/albumCache'
 import { resolveAlbumDeduped } from '@/lib/albumResolveClient'
 import { triggerDrivePrewarm } from '@/lib/googleDriveUpload'
 import { prewarmNctStreamUrl } from '@/lib/nhaccuatuiClient'
@@ -87,16 +93,31 @@ function TrackRowComponent({
     }
 
     const cached = getCachedResolvedAlbum(track.title, track.artist, track.album)
-    if (cached?.albumName) setLiveAlbum(cached.albumName)
+    if (cached?.albumName) {
+      setLiveAlbum(cached.albumName)
+      if (cached.albumId && !track.spotify_album_id) {
+        track.spotify_album_id = cached.albumId
+      }
+    }
 
+    const expectedKey = makeAlbumCacheKey(track.title, track.artist)
     const handleAlbumResolved = (e: any) => {
       const detail = e.detail
       if (detail && detail.album?.albumName) {
-        const isTitleMatch = detail.title && track.title && detail.title.toLowerCase().trim() === track.title.toLowerCase().trim()
-        const isArtistMatch = detail.artist && track.artist && detail.artist.toLowerCase().trim() === track.artist.toLowerCase().trim()
-        if (isTitleMatch && isArtistMatch) {
+        const isKeyMatch = detail.key && detail.key === expectedKey
+        const isDirectMatch =
+          detail.title &&
+          track.title &&
+          detail.title.toLowerCase().trim() === track.title.toLowerCase().trim() &&
+          detail.artist &&
+          track.artist &&
+          detail.artist.toLowerCase().trim() === track.artist.toLowerCase().trim()
+        if (isKeyMatch || isDirectMatch) {
           if (!isRealAlbumName(track.album, track.title)) {
             setLiveAlbum(detail.album.albumName)
+            if (detail.album.albumId && !track.spotify_album_id) {
+              track.spotify_album_id = detail.album.albumId
+            }
           }
         }
       }
@@ -164,14 +185,23 @@ function TrackRowComponent({
     e.preventDefault()
     e.stopPropagation()
 
-    if (track.spotify_album_id && !track.spotify_album_id.includes('299152445') && !track.spotify_album_id.includes('296970753')) {
+    if (track.spotify_album_id && !isKnownBadFallback(track.spotify_album_id)) {
       router.push(`/album/${track.spotify_album_id}`)
       return
     }
 
-    const hasRealAlbum =
-      track.album &&
-      !['Google Drive', 'Google Drive Sync', 'YouTube Music', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album'].includes(track.album.trim())
+    const cached = getCachedResolvedAlbum(track.title, track.artist, track.album)
+    if (cached?.albumId && !isKnownBadFallback(cached.albumId)) {
+      track.spotify_album_id = cached.albumId
+      if (cached.albumName) {
+        track.album = cached.albumName
+        setLiveAlbum(cached.albumName)
+      }
+      router.push(`/album/${cached.albumId}`)
+      return
+    }
+
+    const hasRealAlbum = isRealAlbumName(track.album, track.title)
 
     const titleToSearch = track.title || ''
     const artistToSearch = track.artist || ''
@@ -183,7 +213,7 @@ function TrackRowComponent({
       const resolved = await resolveAlbumDeduped({ title: titleToSearch, artist: artistToSearch, album: albumToSearch, trackId: track.id || '' })
       if (resolved) {
         const data = resolved
-        if (data.albumId) {
+        if (data.albumId && !isKnownBadFallback(data.albumId)) {
           track.spotify_album_id = data.albumId
           if (data.albumName) {
             track.album = data.albumName
@@ -207,10 +237,7 @@ function TrackRowComponent({
 
   const currentAlbumDisplay = liveAlbum || track.album
 
-  const hasRealAlbumDisplay = Boolean(
-    currentAlbumDisplay &&
-    !['Google Drive', 'Google Drive Sync', 'Apple Music Top Hits', 'iTunes Global', 'Spotify Album', 'YouTube Music', 'Unknown Album'].includes(currentAlbumDisplay.trim())
-  )
+  const hasRealAlbumDisplay = isRealAlbumName(currentAlbumDisplay)
 
   const [mounted, setMounted] = useState(false)
 

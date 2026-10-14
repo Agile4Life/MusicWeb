@@ -271,6 +271,8 @@ describe('isRealAlbumName', () => {
     expect(isRealAlbumName('SoundCloud Single')).toBe(false)
     expect(isRealAlbumName('SoundCloud')).toBe(false)
     expect(isRealAlbumName('soundcloud track')).toBe(false)
+    expect(isRealAlbumName('Album')).toBe(false)
+    expect(isRealAlbumName('My Spot')).toBe(false)
   })
 
   it('returns true for real album names', () => {
@@ -282,5 +284,10 @@ describe('isRealAlbumName', () => {
   it('returns false when album name equals track title (single fallback)', () => {
     expect(isRealAlbumName('hate that i made you love me', 'hate that i made you love me')).toBe(false)
     expect(isRealAlbumName('Midnights', 'Anti-Hero')).toBe(true)
+  })
+
+  it('matches Vietnamese Đ/đ in expectedAlbum comparison', () => {
+    setCachedResolvedAlbum('Bài Này Chill Phết', 'Đen', { albumId: 'd1', albumName: 'Đông Vui' })
+    expect(getCachedResolvedAlbum('Bài Này Chill Phết', 'Đen', 'Dong Vui')?.albumId).toBe('d1')
   })
 })

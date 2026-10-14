@@ -33,6 +33,8 @@ const GENERIC_PLACEHOLDERS = new Set([
   'unknown album',
   'single',
   'ep',
+  'album',
+  'my spot',
 ])
 
 export function isRealAlbumName(name?: string | null, title?: string | null): boolean {
@@ -83,7 +85,7 @@ function touchLRU(key: string, value: ResolvedAlbum): void {
  * Artist: lowercased, only "feat."/"ft." collaboration suffixes stripped.
  *   Compound names like "Earth, Wind & Fire" are preserved intact.
  */
-function makeKey(title?: string | null, artist?: string | null): string {
+export function makeAlbumCacheKey(title?: string | null, artist?: string | null): string {
   const cleanT = (title || '')
     .trim()
     .toLowerCase()
@@ -104,7 +106,7 @@ function makeKey(title?: string | null, artist?: string | null): string {
 // ── Album name normalization ────────────────────────────
 /**
  * Normalize an album name for comparison:
- * lowercase, trim, strip accents, collapse whitespace.
+ * lowercase, trim, strip accents (including Vietnamese Đ/đ), collapse whitespace.
  */
 function normalizeAlbumName(name: string): string {
   return name
@@ -112,6 +114,7 @@ function normalizeAlbumName(name: string): string {
     .trim()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[Đđ]/g, 'd')
     .replace(/\s+/g, ' ')
 }
 
@@ -127,7 +130,7 @@ export function getCachedResolvedAlbum(
   artist?: string | null,
   expectedAlbum?: string | null
 ): ResolvedAlbum | undefined {
-  const key = makeKey(title, artist)
+  const key = makeAlbumCacheKey(title, artist)
   const cached = resolvedAlbumCache.get(key)
   if (!cached) return undefined
 
@@ -161,9 +164,9 @@ export function setCachedResolvedAlbum(
   artist: string | null | undefined,
   album: ResolvedAlbum
 ) {
-  if (!album || !album.albumId) return
+  if (!album || !album.albumId || isKnownBadFallback(album.albumId)) return
 
-  const key = makeKey(title, artist)
+  const key = makeAlbumCacheKey(title, artist)
 
   // Skip if exact same data is already cached (avoid duplicate events)
   const existing = resolvedAlbumCache.get(key)
@@ -197,7 +200,7 @@ export function invalidateCachedAlbum(
   title?: string | null,
   artist?: string | null
 ): void {
-  const key = makeKey(title, artist)
+  const key = makeAlbumCacheKey(title, artist)
   resolvedAlbumCache.delete(key)
 }
 

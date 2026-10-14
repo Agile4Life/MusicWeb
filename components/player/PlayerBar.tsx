@@ -7,7 +7,7 @@ import { LyricsView } from './LyricsView'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import { OverflowMarqueeText } from '@/components/common/OverflowMarqueeText'
 import { ArtistLinks } from '@/components/common/ArtistLinks'
-import { setCachedResolvedAlbum, getCachedResolvedAlbum, isRealAlbumName } from '@/lib/albumCache'
+import { setCachedResolvedAlbum, getCachedResolvedAlbum, isRealAlbumName, isKnownBadFallback } from '@/lib/albumCache'
 import { resolveAlbumDeduped } from '@/lib/albumResolveClient'
 import { AudioWaveformScrubber } from './AudioWaveformScrubber'
 import { MiniEqualizer } from './MiniEqualizer'
@@ -110,15 +110,15 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
     )
 
     const cached = getCachedResolvedAlbum(currentTrack.title, currentTrack.artist, currentTrack.album)
-    if (cached?.albumId && !cached.albumId.includes('299152445') && !cached.albumId.includes('296970753')) {
+    if (cached?.albumId && !isKnownBadFallback(cached.albumId)) {
       setResolvedAlbumInfo({
         id: cached.albumId,
         name: cached.albumName,
       })
-      if (cached.albumId) return
+      return
     }
 
-    if (hasRealAlbum && currentTrack.spotify_album_id && currentTrack.album !== 'My Spot' && !currentTrack.spotify_album_id.includes('299152445') && !currentTrack.spotify_album_id.includes('296970753')) {
+    if (hasRealAlbum && currentTrack.spotify_album_id && !isKnownBadFallback(currentTrack.spotify_album_id)) {
       setResolvedAlbumInfo({
         id: currentTrack.spotify_album_id,
         name: currentTrack.album!,
@@ -139,7 +139,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         .then((data) => {
           if (isCancelled) return
           setIsResolvingAlbumInfo(false)
-          if (data && data.albumId) {
+          if (data && data.albumId && !isKnownBadFallback(data.albumId)) {
             const finalAlbumName = data.albumName || (hasRealAlbum ? currentTrack.album! : 'Album')
             setResolvedAlbumInfo({
               id: data.albumId,
@@ -176,7 +176,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
   }, [currentTrack?.id, currentTrack?.title, currentTrack?.artist, currentTrack?.album, currentTrack?.spotify_album_id])
 
   const displayAlbumName = resolvedAlbumInfo?.name || (
-    currentTrack?.album && isRealAlbumName(currentTrack.album, currentTrack.title)
+    currentTrack?.album && isRealAlbumName(currentTrack.album)
       ? currentTrack.album
       : undefined
   )
@@ -190,13 +190,21 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
       return
     }
 
-    if (currentTrack.spotify_album_id && !currentTrack.spotify_album_id.includes('299152445') && !currentTrack.spotify_album_id.includes('296970753')) {
+    if (currentTrack.spotify_album_id && !isKnownBadFallback(currentTrack.spotify_album_id)) {
       router.push(`/album/${currentTrack.spotify_album_id}`)
       return
     }
 
-    if (resolvedAlbumInfo?.id && !resolvedAlbumInfo.id.includes('299152445') && !resolvedAlbumInfo.id.includes('296970753')) {
+    if (resolvedAlbumInfo?.id && !isKnownBadFallback(resolvedAlbumInfo.id)) {
       router.push(`/album/${resolvedAlbumInfo.id}`)
+      return
+    }
+
+    const cached = getCachedResolvedAlbum(currentTrack.title, currentTrack.artist, currentTrack.album)
+    if (cached?.albumId && !isKnownBadFallback(cached.albumId)) {
+      currentTrack.spotify_album_id = cached.albumId
+      if (cached.albumName) currentTrack.album = cached.albumName
+      router.push(`/album/${cached.albumId}`)
       return
     }
 
@@ -214,10 +222,16 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
       const resolved = await resolveAlbumDeduped({ title: titleToSearch, artist: artistToSearch, album: albumToSearch, trackId: currentTrack.id || '' })
       if (resolved) {
         const data = resolved
-        if (data.albumId) {
+        if (data.albumId && !isKnownBadFallback(data.albumId)) {
           setResolvedAlbumInfo({ id: data.albumId, name: data.albumName || currentTrack.album || 'Album' })
           currentTrack.spotify_album_id = data.albumId
-          if (data.albumName) currentTrack.album = data.albumName
+          if (data.albumName) {
+            currentTrack.album = data.albumName
+            setCachedResolvedAlbum(currentTrack.title, currentTrack.artist, {
+              albumId: data.albumId,
+              albumName: data.albumName,
+            })
+          }
           router.push(`/album/${data.albumId}`)
           return
         }
