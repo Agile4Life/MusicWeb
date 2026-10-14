@@ -187,4 +187,60 @@ describe('production playback ownership', () => {
     callback('ensureWebAudioGain', e)()
     expect(e.audioRef.current.volume * gain.gain.value).toBe(.5)
   })
+
+  it('preserves playback position on fallback only when candidate duration matches within 8s', async () => {
+    const e = setup(), t = { ...track('A'), duration: 200 }
+    e.currentTrackRef.current = t; e.playRequestRef.current = 1; e.desiredPlayStateRef.current = 'playing'
+    e.audioOwnershipRef.current = { generation: 0, requestId: 1, trackId: t.id }
+    e.currentTimeRef.current = 72
+    e.getCachedYouTubeId = () => null; e.saveTrackResolution = () => {}
+    e.setBounded = (m: Map<string, unknown>, k: string, v: unknown) => m.set(k, v)
+    e.buildYouTubeStreamUrl = (id: string) => '/api/youtube/stream?id=' + id; e.isIOSDevice = () => false
+    let loadedArgs: unknown = null
+    e.ytPlayerRef.current = {
+      loadVideoById: (args: unknown) => { loadedArgs = args },
+      playVideo: () => {},
+      unMute: () => {},
+      setVolume: () => {},
+    }
+
+    await callback('fallbackToYouTube', e)(t, 1, { youtube_id: 'matchDur123', duration: 203 })
+    expect(loadedArgs).toEqual({ videoId: 'matchDur123', startSeconds: 72 })
+
+    e.fallbackInProgressRef.current.clear()
+    await callback('fallbackToYouTube', e)(t, 1, { youtube_id: 'longMvId123', duration: 260 })
+    expect(loadedArgs).toEqual({ videoId: 'longMvId123' })
+  })
+
+  it('skips redundant 4s NCT local-proxy retry when audio.src is already on local proxy', async () => {
+    const e = setup()
+    const t = { ...track('nct1'), source: 'nhaccuatui', nhaccuatui_id: 'nct123' }
+    e.currentTrackRef.current = t; e.playRequestRef.current = 1; e.desiredPlayStateRef.current = 'playing'
+    e.audioOwnershipRef.current = { generation: 0, requestId: 1, trackId: t.id }
+    e.audioRef.current.src = 'https://app.test/api/nhaccuatui/stream?id=nct123'
+    let fallbackCalled = 0
+    e.fallbackToYouTube = async () => { fallbackCalled++ }
+
+    await callback('handleError', e)()
+    expect(fallbackCalled).toBe(1)
+    expect(e.nctRetriedRef.current.has(1)).toBe(true)
+    expect(e.nctRetryAbortedRef.current.has(1)).toBe(true)
+  })
+
+  it('preserves consecutiveSkipRef across error auto-skip while resetting on manual navigation', () => {
+    const e = setup()
+    e.queueRef.current = [track('A'), track('B')]
+    e.currentIndexRef.current = 0
+    e.playResolvedTrack = () => {}
+    const nextTrack = callback('nextTrack', e)
+
+    e.consecutiveSkipRef.current = 2
+    e.isErrorAutoSkipRef.current = true
+    nextTrack()
+    expect(e.consecutiveSkipRef.current).toBe(2)
+
+    e.isErrorAutoSkipRef.current = false
+    nextTrack()
+    expect(e.consecutiveSkipRef.current).toBe(0)
+  })
 })

@@ -28,7 +28,7 @@ import { toMinimalPersistedTrack, PlaybackPersistenceScheduler } from './playbac
 import { playbackProgressStore, usePlaybackProgressStore } from './PlaybackProgressStore'
 import { resolveStreamCached, invalidateStreamResolution } from '@/lib/resolveStreamClient'
 import { saveStreamUrl, getStreamUrl, saveTrackResolution, getCachedYouTubeId } from '@/lib/playbackPersistence'
-import { setAudioSourceForPlayback } from './audioSourceSwitch'
+import { setAudioSourceForPlayback, isSameAudioSource } from './audioSourceSwitch'
 import {
   classifyTrack,
   inferTrackSource,
@@ -321,6 +321,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const html5EngineRef = useRef<Html5AudioEngine>(new Html5AudioEngine())
   const ytEngineRef = useRef<YouTubeIframeEngine>(new YouTubeIframeEngine())
   const consecutiveSkipRef = useRef<number>(0)
+  const isErrorAutoSkipRef = useRef<boolean>(false)
   const lastErrorAutoAdvanceRef = useRef<number>(0)
 
   const currentTrackRef = useRef<Track | null>(null)
@@ -1116,6 +1117,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     recordRequestIdFlag(fallbackAttemptedRef.current, requestId)
     setIsBuffering(true)
     try {
+    const rawSavedTime = currentTimeRef.current || audioRef.current?.currentTime || 0
+    const resolveFallbackResumeTime = (candidateDur?: number | null): number => {
+      if (rawSavedTime < 3) return 0
+      const targetDur = track.duration || durationRef.current || 0
+      const candDur = candidateDur || 0
+      if (targetDur > 0 && candDur > 0 && Math.abs(candDur - targetDur) > 8) {
+        return 0
+      }
+      if (candDur > 0 && rawSavedTime >= candDur - 2) {
+        return 0
+      }
+      return Math.floor(rawSavedTime)
+    }
 
     // ── Step 0: Check localStorage cache for YouTube video ID ───────────────
     // This is the fastest path — if we've resolved this track to YouTube before,
@@ -1175,11 +1189,21 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             source: 'nhaccuatui',
             nhaccuatui_id: nctCandidate.nhaccuatui_id,
           }
+          const nctResumeTime = resolveFallbackResumeTime(nctCandidate.duration)
           currentTrackRef.current = updatedTrack
           setCurrentTrack(updatedTrack)
-          audioRef.current.src = fallbackUrl
-          audioRef.current.load()
-          playOwnedAudio(audioRef.current, requestId).then((played) => {
+          const audioEl = audioRef.current
+          setAudioSourceForPlayback(audioEl, fallbackUrl, volumeRef.current ?? 0.8, nctResumeTime)
+          if (nctResumeTime > 0 && audioEl.currentTime === 0) {
+            const onMeta = () => {
+              audioEl.removeEventListener('loadedmetadata', onMeta)
+              if (!ownsRequest()) return
+              try { audioEl.currentTime = nctResumeTime } catch {}
+            }
+            audioEl.addEventListener('loadedmetadata', onMeta)
+          }
+          audioEl.load()
+          playOwnedAudio(audioEl, requestId).then((played) => {
             if (!played) {
               if (ownsRequest()) setIsBuffering(false)
               return
@@ -1252,7 +1276,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // fetch(streamUrl, { headers: { Range: 'bytes=0-0' } }).catch(() => {}) // Disabled
 
     // Invalidate the broken stream resolution so subsequent plays don't re-fetch the dead stream
-    await invalidateCurrentResolution()
+    let invTimer: ReturnType<typeof setTimeout> | null = null
+    try {
+      await Promise.race([
+        invalidateCurrentResolution(),
+        new Promise<void>((resolve) => {
+          invTimer = setTimeout(resolve, 300)
+        }),
+      ])
+    } finally {
+      if (invTimer) clearTimeout(invTimer)
+    }
     if (!ownsRequest()) return
     // ── Step 2: Save youtube_id to localStorage for future plays ─────────────
     // Long TTL (24h) — YouTube video IDs are stable. This saves ~700ms on replay.
@@ -1283,15 +1317,25 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     setCurrentTrack(activeTrack)
     currentTrackRef.current = activeTrack
     setPlaybackError(null)
+    const ytResumeTime = resolveFallbackResumeTime(bestMatch.duration)
 
     if (isIOSDevice()) {
       // iOS: Play YouTube through HTML5 stream proxy so it continues in background / lock screen
       ytHtml5ModeRef.current = true
       if (audioRef.current) {
-        setAudioSourceForPlayback(audioRef.current, streamUrl, volumeRef.current ?? 0.8, 0)
+        const audioEl = audioRef.current
+        setAudioSourceForPlayback(audioEl, streamUrl, volumeRef.current ?? 0.8, ytResumeTime)
+        if (ytResumeTime > 0 && audioEl.currentTime === 0) {
+          const onMeta = () => {
+            audioEl.removeEventListener('loadedmetadata', onMeta)
+            if (!ownsRequest()) return
+            try { audioEl.currentTime = ytResumeTime } catch {}
+          }
+          audioEl.addEventListener('loadedmetadata', onMeta)
+        }
         ensureWebAudioGain()
         try {
-          if (!await playOwnedAudio(audioRef.current, requestId)) {
+          if (!await playOwnedAudio(audioEl, requestId)) {
             if (ownsRequest()) setIsBuffering(false)
             return
           }
@@ -1333,9 +1377,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           if (ytPlayerRef.current.setVolume) {
             ytPlayerRef.current.setVolume(currentVol * 100)
           }
-          ytPlayerRef.current.loadVideoById({
-            videoId: bestMatch.youtube_id,
-          })
+          ytPlayerRef.current.loadVideoById(
+            ytResumeTime > 0
+              ? { videoId: bestMatch.youtube_id, startSeconds: ytResumeTime }
+              : { videoId: bestMatch.youtube_id }
+          )
           if (ytPlayerRef.current.playVideo) {
             try { ytPlayerRef.current.playVideo() } catch {}
           }
@@ -1657,7 +1703,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               const isEmbedError = errorCode === 150 || errorCode === 101 || errorCode === 100
 
               if (active && isEmbedError) {
-                await invalidateCurrentResolution()
+                let invTimer: ReturnType<typeof setTimeout> | null = null
+                try {
+                  await Promise.race([
+                    invalidateCurrentResolution(),
+                    new Promise<void>((resolve) => {
+                      invTimer = setTimeout(resolve, 300)
+                    }),
+                  ])
+                } finally {
+                  if (invTimer) clearTimeout(invTimer)
+                }
                 if (!ownsRequest() || (desiredPlayStateRef.current as string | null) === 'paused') return
                 trackResolutionCacheRef.current.delete(active.id)
               }
@@ -1667,7 +1723,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 recordRequestIdFlag(ytRetriedRef.current, requestId)
                 try {
                   const queryStr = `${active.title} ${active.artist || ''}`.trim()
-                  const searchRes = await fetchUnifiedSearch(queryStr, 'youtube')
+                  const searchRes = await fetchUnifiedSearch(queryStr, 'all')
                   if (!ownsRequest() || (desiredPlayStateRef.current as string | null) === 'paused') return
                   if (!isCurrentPlayback({
                     requestId,
@@ -1692,6 +1748,70 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                       }
                     }
                   }
+
+                  // Cross-source fallback (NCT -> SoundCloud) when no alternative YouTube video is playable
+                  const nctAlternates: Track[] = (searchRes?.nhaccuatui || []).filter(
+                    (t: Track) => Boolean(t?.nhaccuatui_id),
+                  )
+                  const nctMatchedItem = findBestNhacCuaTuiMatch(
+                    nctAlternates.map((t) => ({
+                      id: t.nhaccuatui_id!,
+                      title: t.title,
+                      artist: t.artist,
+                      duration: t.duration,
+                      thumbnail: t.cover_url,
+                    })),
+                    { title: active.title, artist: active.artist, duration: active.duration, album: active.album },
+                  )
+                  const nctCandidate = nctMatchedItem
+                    ? nctAlternates.find((t) => t.nhaccuatui_id === nctMatchedItem.id)
+                    : undefined
+                  if (nctCandidate?.nhaccuatui_id && audioRef.current) {
+                    console.log('[YouTube Fallback] Recovering via cross-source NhacCuaTui stream:', nctCandidate.nhaccuatui_id)
+                    const fallbackUrl = `/api/nhaccuatui/stream?id=${encodeURIComponent(nctCandidate.nhaccuatui_id)}`
+                    const updatedTrack: Track = {
+                      ...active,
+                      source: 'nhaccuatui',
+                      nhaccuatui_id: nctCandidate.nhaccuatui_id,
+                      youtube_id: undefined,
+                    }
+                    stopActivePlaybackEngines('youtube')
+                    currentTrackRef.current = updatedTrack
+                    setCurrentTrack(updatedTrack)
+                    setAudioSourceForPlayback(audioRef.current, fallbackUrl, volumeRef.current ?? DEFAULT_VOLUME, 0)
+                    audioRef.current.load()
+                    playOwnedAudio(audioRef.current, requestId).then((played) => {
+                      if (!played) return
+                      setIsPlaying(true)
+                      setIsBuffering(false)
+                      setPlaybackError(null)
+                    }).catch(() => {})
+                    return
+                  }
+
+                  const scCandidates: Track[] = searchRes?.soundcloud || []
+                  const scMatch = findBestSoundCloudMatch(scCandidates, {
+                    title: active.title,
+                    artist: active.artist,
+                    duration: active.duration,
+                  })
+                  if (scMatch && (scMatch.soundcloud_id || scMatch.id)) {
+                    const scId = scMatch.soundcloud_id ? String(scMatch.soundcloud_id) : scMatch.id.replace(/^sc-/, '')
+                    console.log('[YouTube Fallback] Recovering via cross-source SoundCloud stream:', scId)
+                    const updatedTrack: Track = {
+                      ...active,
+                      source: 'soundcloud',
+                      soundcloud_id: scId,
+                      youtube_id: undefined,
+                    }
+                    isErrorAutoSkipRef.current = true
+                    try {
+                      void playTrackRef.current(updatedTrack, undefined, currentIndexRef.current >= 0 ? currentIndexRef.current : undefined)
+                    } finally {
+                      isErrorAutoSkipRef.current = false
+                    }
+                    return
+                  }
                 } catch (fallbackErr) {
                   console.warn('YouTube fallback retry error:', fallbackErr)
                 }
@@ -1715,6 +1835,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                     ? 'Video này không còn tồn tại trên YouTube. Vui lòng chọn bài khác.'
                     : 'Không thể phát video YouTube này'
               )
+              if (queueRef.current.length > 1 && (autoPlayNextRef.current || repeatModeRef.current === 'all')) {
+                if (pendingAutoSkipTimeoutRef.current) clearTimeout(pendingAutoSkipTimeoutRef.current)
+                pendingAutoSkipTimeoutRef.current = setTimeout(() => {
+                  pendingAutoSkipTimeoutRef.current = null
+                  if (requestId !== playRequestRef.current || desiredPlayStateRef.current === 'paused') return
+                  isErrorAutoSkipRef.current = true
+                  try {
+                    nextTrackRef.current()
+                  } finally {
+                    isErrorAutoSkipRef.current = false
+                  }
+                }, 1200)
+              }
             },
           },
         })
@@ -1957,7 +2090,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const playStartTime = typeof performance !== 'undefined' ? performance.now() : Date.now()
     console.log(`[Playback:Start] "${track.title}" by ${track.artist || 'Unknown'} (id: ${track.id}, source: ${track.source})`)
 
-    consecutiveSkipRef.current = 0
+    if (!isErrorAutoSkipRef.current) {
+      consecutiveSkipRef.current = 0
+    }
     nextTrackEndPrewarmedRef.current = false // reset near-end prewarm guard for new track
     hasPrewarmedNextTrackRef.current = false
     desiredPlayStateRef.current = 'playing'
@@ -2816,7 +2951,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [tryQuickPlayFromCache, playTrack])
 
   const nextTrack = useCallback(() => {
-    consecutiveSkipRef.current = 0
+    if (!isErrorAutoSkipRef.current) {
+      consecutiveSkipRef.current = 0
+    }
     isPrevNextActionRef.current = true
     isBackwardActionRef.current = false
 
@@ -3240,7 +3377,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (!current) return
 
         // Invalidate broken stream resolution from caches immediately
-        await invalidateCurrentResolution()
+        let invTimer: ReturnType<typeof setTimeout> | null = null
+        try {
+          await Promise.race([
+            invalidateCurrentResolution(),
+            new Promise<void>((resolve) => {
+              invTimer = setTimeout(resolve, 300)
+            }),
+          ])
+        } finally {
+          if (invTimer) clearTimeout(invTimer)
+        }
         if (requestId !== playRequestRef.current || !isCurrentAudioOwnership()) return
         if (desiredPlayStateRef.current === 'paused') {
           setIsBuffering(false)
@@ -3257,8 +3404,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           current?.nhaccuatui_id
         )
         if (isNct && current && current.nhaccuatui_id) {
+          const fallbackUrl = `/api/nhaccuatui/stream?id=${encodeURIComponent(current.nhaccuatui_id)}`
+          const isTransportSwitch = Boolean(
+            audioRef.current && !isSameAudioSource(audioRef.current.src, fallbackUrl)
+          )
           if (nctRetriedRef.current.has(requestId)) {
             // NCT retry stream has also failed -> mark aborted early so any waiting loop unlocks immediately
+            recordRequestIdFlag(nctRetryAbortedRef.current, requestId)
+          } else if (!isTransportSwitch) {
+            // Already on the local Next.js proxy — skip redundant 4s same-URL retry and fall through to YouTube fallback
+            recordRequestIdFlag(nctRetriedRef.current, requestId)
             recordRequestIdFlag(nctRetryAbortedRef.current, requestId)
           } else {
             recordRequestIdFlag(nctRetriedRef.current, requestId)
@@ -3285,11 +3440,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 currentTrackId: currentTrackRef.current?.id,
               })
             ) {
-              const fallbackUrl = `/api/nhaccuatui/stream?id=${encodeURIComponent(current.nhaccuatui_id)}`
               console.log('[NCT Auto-Retry] Worker stream failed, switching to native Next.js stream proxy (YouTube search running in parallel):', fallbackUrl)
+              const savedTime = currentTimeRef.current || audioRef.current.currentTime || 0
               setIsBuffering(true)
               audioRef.current.src = fallbackUrl
               audioRef.current.load()
+              if (savedTime >= 3) {
+                try { audioRef.current.currentTime = savedTime } catch {}
+              }
 
               // Race: wait for NCT play OR timeout. If NCT fails → use pre-searched YouTube result.
               let nctSucceeded = false
@@ -3434,6 +3592,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             mediaError?.message || 'không đọc được file'
           }`
         )
+        if (queueRef.current.length > 1 && (autoPlayNextRef.current || repeatModeRef.current === 'all')) {
+          if (pendingAutoSkipTimeoutRef.current) clearTimeout(pendingAutoSkipTimeoutRef.current)
+          pendingAutoSkipTimeoutRef.current = setTimeout(() => {
+            pendingAutoSkipTimeoutRef.current = null
+            if (requestId !== playRequestRef.current || desiredPlayStateRef.current === 'paused') return
+            isErrorAutoSkipRef.current = true
+            try {
+              nextTrackRef.current()
+            } finally {
+              isErrorAutoSkipRef.current = false
+            }
+          }, 1200)
+        }
       }
     }
 

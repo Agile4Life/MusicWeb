@@ -1,3 +1,5 @@
+import { normalizeNhacCuaTuiSongResponse } from './nhaccuatui'
+
 export interface NctCachedSong {
   audioUrl: string
   title?: string
@@ -9,6 +11,7 @@ export interface NctCachedSong {
 
 const GLOBAL_NCT_CACHE_KEY = Symbol.for('__musicweb_nct_audio_cache__')
 const GLOBAL_NCT_INFLIGHT_KEY = Symbol.for('__musicweb_nct_inflight__')
+const DEFAULT_NCT_API_BASE_URL = 'https://music-api.vanhuy2004h.io.vn'
 
 export const NCT_CACHE_TTL_MS = 10 * 60 * 1000 // 10 minutes (signed URLs valid ~15-20 min)
 export const NCT_CACHE_MAX_ENTRIES = 2000
@@ -90,4 +93,59 @@ export function deleteNctInFlight(id: string): void {
   const trimmed = id?.trim()
   if (!trimmed) return
   getInFlightMap().delete(trimmed)
+}
+
+function getNctSongApiUrl(id: string): URL {
+  const url = new URL(process.env.NCT_API_BASE_URL || DEFAULT_NCT_API_BASE_URL)
+  url.pathname = `/api/song/${encodeURIComponent(id)}`
+  url.search = ''
+  return url
+}
+
+/**
+ * Resolve and validate an NCT song's playable audioUrl with bounded timeout,
+ * in-flight deduplication, and automatic shared cache warming.
+ */
+export async function resolveNctSongDetailCached(
+  id: string,
+  timeoutMs = 1800,
+): Promise<NctCachedSong | null> {
+  const trimmed = id?.trim()
+  if (!trimmed) return null
+
+  const cached = getNctAudioCache(trimmed)
+  if (cached?.audioUrl) return cached
+
+  const existing = getNctInFlight(trimmed)
+  if (existing) return existing
+
+  const promise = (async (): Promise<NctCachedSong | null> => {
+    try {
+      const res = await fetch(getNctSongApiUrl(trimmed).toString(), {
+        cache: 'no-store',
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(timeoutMs),
+      })
+      if (!res.ok) return null
+      const payload: unknown = await res.json()
+      const song = normalizeNhacCuaTuiSongResponse(payload)
+      if (!song?.audioUrl) return null
+
+      setNctAudioCache(trimmed, {
+        audioUrl: song.audioUrl,
+        title: song.title,
+        artist: song.artist,
+        duration: song.duration ?? null,
+        coverUrl: song.coverUrl || null,
+      })
+      return getNctAudioCache(trimmed)
+    } catch {
+      return null
+    } finally {
+      deleteNctInFlight(trimmed)
+    }
+  })()
+
+  setNctInFlight(trimmed, promise)
+  return promise
 }

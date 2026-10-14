@@ -7,6 +7,7 @@ import {
   normalizeNhacCuaTuiSearchResponse,
   findBestNhacCuaTuiMatch,
 } from '@/lib/nhaccuatui'
+import { resolveNctSongDetailCached } from '@/lib/nctCacheStore'
 import { getPrimaryArtistName } from '@/lib/artistParser'
 import { findMemoryDriveTrack } from '@/lib/driveTracksMap'
 import { searchSoundCloudTracks } from '@/lib/soundcloudClient'
@@ -233,7 +234,7 @@ async function resolveStream(
     }
   }
 
-  // === 2. NCT: Search NhacCuaTui (Single Fast Search Round-Trip <600ms) ===
+  // === 2. NCT: Search NhacCuaTui + Validate Playable Audio URL ===
   async function tryNct(): Promise<L1Entry | null> {
     try {
       let nctCandidates = await searchNctServer(queryStr)
@@ -242,18 +243,33 @@ async function resolveStream(
       }
       if (nctCandidates.length === 0) return null
 
-      const match = findBestNhacCuaTuiMatch(nctCandidates, { title, artist: primaryArtist || artist, duration, album })
-      if (!match?.id) return null
-      return {
-        source: 'nhaccuatui',
-        resolvedId: match.id,
-        title: match.title,
-        artist: match.artist,
-        duration: match.duration ?? undefined,
-        coverUrl: match.thumbnail || null,
-        isMiss: false,
-        expiresAt: Date.now() + L1_HIT_TTL,
+      let remaining = nctCandidates
+      for (let attempt = 0; attempt < 2 && remaining.length > 0; attempt++) {
+        const match = findBestNhacCuaTuiMatch(remaining, {
+          title,
+          artist: primaryArtist || artist,
+          duration,
+          album,
+        })
+        if (!match?.id) break
+
+        const detail = await resolveNctSongDetailCached(match.id, 1800)
+        if (detail?.audioUrl) {
+          return {
+            source: 'nhaccuatui',
+            resolvedId: match.id,
+            title: detail.title || match.title,
+            artist: detail.artist || match.artist,
+            duration: detail.duration ?? match.duration ?? undefined,
+            coverUrl: detail.coverUrl || match.thumbnail || null,
+            isMiss: false,
+            expiresAt: Date.now() + L1_HIT_TTL,
+          }
+        }
+
+        remaining = remaining.filter((c) => c.id !== match.id)
       }
+      return null
     } catch (e) {
       return null
     }
