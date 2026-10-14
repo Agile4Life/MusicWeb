@@ -25,23 +25,24 @@ function setup() {
         pause() { this.paused = true; this.pauseCalls++; }, removeAttribute() { this.src = ''; }, load() { }, addEventListener() { }, removeEventListener() { },
         play() { this.playCalls++; this.paused = false; return Promise.resolve(); } };
     const e = vm.createContext({ console: { log() { }, warn() { } }, performance, Date, window: { location: { href: 'https://app.test', origin: 'https://app.test' } }, setTimeout, clearTimeout, audio,
-        MAX_CONSECUTIVE_SKIPS: 4, DEFAULT_VOLUME: 0.8, TRACK_RESOLUTION_TTL: 1800000, TRACK_RESOLUTION_MAX_ENTRIES: 200,
+        MAX_CONSECUTIVE_SKIPS: 4, DEFAULT_VOLUME: 0.8, TRACK_RESOLUTION_TTL: 1800000, TRACK_RESOLUTION_MAX_ENTRIES: 200, AUDIO_URL_MAX_ENTRIES: 200,
         isPlaying: false, isBuffering: false, savedQueue: [], audioRef: ref(audio), audioContextRef: ref(null), ytPlayerRef: ref(null), ytHtml5ModeRef: ref(false), ytReadyRef: ref(false), ytLoadedIdRef: ref(null), pendingYtPlayRef: ref(null),
         playRequestRef: ref(0), audioRequestRef: ref(0), audioGenerationRef: ref(0), audioOwnershipRef: ref({ generation: 0, requestId: 0, trackId: null }), resolutionIdentityRef: ref(null), backgroundCompletionWorkerRef: ref(null),
         consecutiveSkipRef: ref(0), isErrorAutoSkipRef: ref(false), lastErrorAutoAdvanceRef: ref(0), pendingAutoSkipTimeoutRef: ref(null), nextTrackEndPrewarmedRef: ref(false), hasPrewarmedNextTrackRef: ref(false), desiredPlayStateRef: ref(null),
         currentTrackRef: ref(null), currentTimeRef: ref(0), currentIndexRef: ref(-1), queueRef: ref([]), volumeRef: ref(0.8), durationRef: ref(0), pendingSeekRef: ref(null), pendingResumeRef: ref(false), toggleActionIdRef: ref(0),
         playedHistoryStackRef: ref([]), forwardHistoryStackRef: ref([]), isPrevNextActionRef: ref(false), isBackwardActionRef: ref(false),
-        trackResolutionCacheRef: ref(new Map()), audioUrlCacheRef: ref(new Map()), fallbackAttemptedRef: ref(new Set()), fallbackInProgressRef: ref(new Set()), ytRetriedRef: ref(new Set()), nctRetriedRef: ref(new Set()), nctRetryAbortedRef: ref(new Set()), scRetriedRef: ref(new Set()), scStallRecoveredRef: ref(new Set()), audioRetryCountRef: ref(0),
+        trackResolutionCacheRef: ref(new Map()), audioUrlCacheRef: ref(new Map()), resolvingTrackIdsRef: ref(new Set()), fallbackAttemptedRef: ref(new Set()), fallbackInProgressRef: ref(new Set()), ytRetriedRef: ref(new Set()), nctRetriedRef: ref(new Set()), nctRetryAbortedRef: ref(new Set()), scRetriedRef: ref(new Set()), scStallRecoveredRef: ref(new Set()), audioRetryCountRef: ref(0),
         audioStallWatchdogRef: ref(null), nearEndWatchdogRef: ref(null), trackCompletionHandledRef: ref(null), repeatModeRef: ref('off'), autoPlayNextRef: ref(false), isShuffleRef: ref(false),
         clearPlaybackTimers() { }, clearAudioStallWatchdog() { }, stopActivePlaybackEngines() { audio.pause(); audio.src = ''; }, recordListenEvent() { }, recordHistory() { }, triggerSmartQueueFill() { },
         inferTrackSource: t => t, isIOSDevice: () => false, classifyTrack: () => ({ needsCatalogResolution: false }), deduplicateQueueTracks: q => q, isFullYouTubeQueue: () => false, isBackgroundPlayableTrack: () => true,
+        setBounded: (m, k, v) => m.set(k, v),
         getBoundedRefreshed: (m, k, expired) => { const v = m.get(k); if (v && expired(v)) {
             m.delete(k);
             return;
         } return v; },
         isCurrentYouTubeVideo: () => false, isYtIframeEngine: () => false, ensureWebAudioGain() { }, savePlayerStateToStorage() { }, clearNearEndWatchdog() { },
         isSameAudioSource: (a, b) => { if (!a || !b) return false; if (a === b) return true; try { const u1 = new URL(a, 'https://app.test'); const u2 = new URL(b, 'https://app.test'); return u1.origin === u2.origin && u1.pathname === u2.pathname && u1.search === u2.search; } catch { return a === b; } },
-        setAudioSourceForPlayback(a, url, vol, time) { a.src = url; a.currentTime = time; }, playAudioElement: a => a.play(), clearCachedNctStreamUrl() { }, invalidateCurrentResolution: async () => { },
+        setAudioSourceForPlayback(a, url, vol, time) { a.src = url; a.currentTime = time; }, playAudioElement: a => a.play(), clearCachedNctStreamUrl() { }, getCachedNctStreamUrl: () => null, prewarmNctStreamUrl: async () => { }, triggerDrivePrewarm() { }, getAudioUrlCached: async () => null, invalidateCurrentResolution: async () => { },
         findBestNhacCuaTuiMatch: c => c?.[0] || null, findBestYouTubeMatch: c => c?.[0] || null, findBestSoundCloudMatch: c => c?.[0] || null, stripNonIdentityAnnotations: s => s || '',
         fallbackToYouTube: async () => { }, isPreviewUrl: () => false, resolveStreamCached: async () => null, extractYouTubeVideoId: () => null, recordRequestIdFlag: (s, id) => s.add(id), nextTrackRef: ref(() => { }), playTrackRef: ref(async () => { }) });
     e.setIsPlaying = v => { e.isPlaying = v; e.isPlayingRef.current = v; };

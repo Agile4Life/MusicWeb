@@ -990,6 +990,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const isDrive = Boolean(nextTr.drive_file_id || extractDriveFileId(nextTr.file_path || ''))
       if (isDrive) {
         triggerDrivePrewarm([nextTr])
+        if (!audioUrlCacheRef.current.has(nextTr.id)) {
+          getAudioUrlCached(nextTr).catch(() => {})
+        }
         return
       }
 
@@ -1042,11 +1045,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               }
             } else if (resolved.source === 'drive') {
               updatedTrack = { source: 'local' as const, file_path: resolved.id } as Partial<Track> as Track
+            } else if (resolved.source === 'soundcloud') {
+              updatedTrack = { source: 'soundcloud' as const, soundcloud_id: resolved.id } as Partial<Track> as Track
             } else if (resolved.source === 'youtube') {
               updatedTrack = { source: 'youtube' as const, youtube_id: resolved.id } as Partial<Track> as Track
             }
             if (!updatedTrack) return
-            const mergedTrack = { ...nextTr, ...updatedTrack }
+            const mergedTrack: Track = {
+              ...nextTr,
+              ...updatedTrack,
+              audio_url: undefined,
+            }
             setBounded(
               trackResolutionCacheRef.current,
               targetTrackId,
@@ -1056,6 +1065,23 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               },
               TRACK_RESOLUTION_MAX_ENTRIES
             )
+            if (resolved.streamUrl) {
+              setBounded(
+                audioUrlCacheRef.current,
+                targetTrackId,
+                { url: resolved.streamUrl, ts: Date.now() },
+                AUDIO_URL_MAX_ENTRIES
+              )
+            } else if (resolved.source === 'drive') {
+              triggerDrivePrewarm([mergedTrack])
+              if (!audioUrlCacheRef.current.has(targetTrackId)) {
+                getAudioUrlCached(mergedTrack).catch(() => {})
+              }
+            } else if (resolved.source === 'soundcloud') {
+              if (!audioUrlCacheRef.current.has(targetTrackId)) {
+                getAudioUrlCached(mergedTrack).catch(() => {})
+              }
+            }
           })
           .catch(() => {})
           .finally(() => {
@@ -3325,8 +3351,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               // Only prewarm for sequential playback — shuffle order is unpredictable
               if (!isShuffleRef.current && idx >= 0 && q.length > 1) {
                 const nextIdx = repeatModeRef.current === 'one' ? idx : (idx + 1) % q.length
-                const nextTr = q[nextIdx]
-                if (nextTr && nextTr.id) {
+                const rawNextTr = q[nextIdx]
+                if (rawNextTr && rawNextTr.id) {
+                  const cachedRes = getBoundedRefreshed(
+                    trackResolutionCacheRef.current,
+                    rawNextTr.id,
+                    (entry) => Date.now() >= entry.expiresAt
+                  )
+                  const nextTr = cachedRes?.activeTrack || rawNextTr
                   if (nextTr.source === 'nhaccuatui' && nextTr.nhaccuatui_id) {
                     // Refresh NCT stream URL cache (5-min TTL — may have expired since track start)
                     prewarmNctStreamUrl(nextTr.nhaccuatui_id).catch(() => {})

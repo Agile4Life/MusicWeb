@@ -243,4 +243,49 @@ describe('production playback ownership', () => {
     nextTrack()
     expect(e.consecutiveSkipRef.current).toBe(0)
   })
+
+  it('caches SoundCloud catalog resolution and warms audioUrlCacheRef in triggerAdaptivePrewarm', async () => {
+    const e = setup()
+    e.isFastConnection = () => true
+    const catalogNext = {
+      id: 'spotify-track-2',
+      title: 'Midnight City',
+      artist: 'M83',
+      duration: 243,
+      source: 'spotify',
+      file_path: '',
+    }
+    let warmedTrack: unknown = null
+    e.resolveStreamCached = async () => ({
+      source: 'soundcloud',
+      id: 'sc-998877',
+      title: 'Midnight City',
+      artist: 'M83',
+      duration: 243,
+    })
+    e.getAudioUrlCached = async (t: { id: string; soundcloud_id?: string }) => {
+      warmedTrack = t
+      const url = `/api/soundcloud/stream?id=${t.soundcloud_id}`
+      e.audioUrlCacheRef.current.set(t.id, { url, ts: Date.now() })
+      return url
+    }
+
+    callback('triggerAdaptivePrewarm', e)([track('A'), catalogNext], 0)
+    await new Promise(setImmediate)
+
+    const cachedRes = e.trackResolutionCacheRef.current.get('spotify-track-2')
+    expect(cachedRes?.activeTrack).toMatchObject({
+      id: 'spotify-track-2',
+      source: 'soundcloud',
+      soundcloud_id: 'sc-998877',
+    })
+    expect(warmedTrack).toMatchObject({
+      id: 'spotify-track-2',
+      source: 'soundcloud',
+      soundcloud_id: 'sc-998877',
+    })
+    expect(e.audioUrlCacheRef.current.get('spotify-track-2')?.url).toBe(
+      '/api/soundcloud/stream?id=sc-998877',
+    )
+  })
 })
