@@ -68,4 +68,25 @@ describe('client resolution persistence ownership', () => {
       expect(fetchMock).toHaveBeenCalledTimes(3)
     },
   )
+
+  it('clears both 4-part and 3-part YouTube ID aliases upon invalidateStreamResolution', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ miss: true })))
+    const { invalidateStreamResolution } = await import('../resolveStreamClient')
+    const { saveTrackResolution, getCachedYouTubeId } = await import('../playbackPersistence')
+
+    saveTrackResolution('hello___adele___240___25', {
+      source: 'youtube',
+      resolvedId: 'dead-yt-id',
+      youtubeVideoId: 'dead-yt-id',
+    })
+    saveTrackResolution('hello___adele___25', {
+      source: 'youtube',
+      resolvedId: 'dead-yt-id',
+      youtubeVideoId: 'dead-yt-id',
+    })
+
+    expect(getCachedYouTubeId('Hello', 'Adele', '25', 240)).toBe('dead-yt-id')
+    await invalidateStreamResolution({ title: 'Hello', artist: 'Adele', duration: 240, album: '25' })
+    expect(getCachedYouTubeId('Hello', 'Adele', '25', 240)).toBeNull()
+  })
 })

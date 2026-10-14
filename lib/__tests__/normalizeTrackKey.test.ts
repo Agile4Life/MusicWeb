@@ -94,4 +94,20 @@ describe('normalizeTrackKey', () => {
     const key = normalizeTrackKey('Hello', 'Adele')
     expect(key).toContain('___0')
   })
+
+  it('separates original and remix/live/acoustic/radio-edit versions even with identical duration', () => {
+    const original = normalizeTrackKey('Hello', 'Adele', 240)
+    const remix = normalizeTrackKey('Hello (Remix)', 'Adele', 240)
+    const live = normalizeTrackKey('Hello (Live)', 'Adele', 240)
+    const radioEdit = normalizeTrackKey('Hello (Radio Edit)', 'Adele', 240)
+    expect(original).not.toBe(remix)
+    expect(original).not.toBe(live)
+    expect(original).not.toBe(radioEdit)
+  })
+
+  it('includes normalized album when provided', () => {
+    const studioAlbum = normalizeTrackKey('Hello', 'Adele', 240, '25')
+    const liveAlbum = normalizeTrackKey('Hello', 'Adele', 240, 'Live at the Royal Albert Hall')
+    expect(studioAlbum).not.toBe(liveAlbum)
+  })
 })

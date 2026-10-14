@@ -169,6 +169,7 @@ async function resolveStream(
   duration: number | undefined,
   supabase: ReturnType<typeof getSupabaseAdmin>,
   onLatePreferredResult?: (result: L1Entry) => void,
+  album?: string,
 ): Promise<L1Entry> {
   const primaryArtist = getPrimaryArtistName(artist) || artist
   const cleanTitle = normalizeTitle(title)
@@ -241,7 +242,7 @@ async function resolveStream(
       }
       if (nctCandidates.length === 0) return null
 
-      const match = findBestNhacCuaTuiMatch(nctCandidates, { title, artist: primaryArtist || artist, duration })
+      const match = findBestNhacCuaTuiMatch(nctCandidates, { title, artist: primaryArtist || artist, duration, album })
       if (!match?.id) return null
       return {
         source: 'nhaccuatui',
@@ -270,7 +271,7 @@ async function resolveStream(
 
       if (candidates.length === 0) return null
 
-      const best = findBestYouTubeMatch(candidates, title, primaryArtist || artist, duration)
+      const best = findBestYouTubeMatch(candidates, title, primaryArtist || artist, duration, album)
       if (!best?.youtube_id) return null
 
       return {
@@ -346,6 +347,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   const url = new URL(request.url)
   const title = (url.searchParams.get('title') || '').trim()
   const artist = (url.searchParams.get('artist') || '').trim()
+  const album = (url.searchParams.get('album') || '').trim() || undefined
   const durationStr = url.searchParams.get('duration')
   const duration = durationStr ? parseInt(durationStr, 10) : undefined
   const invalidate = url.searchParams.get('invalidate') === '1'
@@ -355,9 +357,11 @@ export async function GET(request: NextRequest): Promise<Response> {
   }
 
   const titleKey = normalizeTrackField(title)
-  const artistKey = normalizeTrackField(artist)
+  const albumKey = normalizeTrackField(album)
+  const baseArtistKey = normalizeTrackField(artist)
+  const artistKey = albumKey ? `${baseArtistKey}___${albumKey}` : baseArtistKey
   const durBucket = durationBucket(duration)
-  const cacheKey = normalizeTrackKey(title, artist, duration)
+  const cacheKey = normalizeTrackKey(title, artist, duration, album)
 
   const supabase = getSupabaseAdmin()
   let generation = generationFor(cacheKey) + (invalidate ? 1 : 0)
@@ -475,7 +479,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       // Store the initial winner first, then the preferred upgrade in order.
       latePreferred = preferred
       if (initialStored) void publish(preferred)
-    })
+    }, album)
     if (process.env.NODE_ENV !== 'production') {
       console.log(`[ResolveStream:Cold] Completed in ${Date.now() - tCold}ms: source=${result.source}, id=${result.resolvedId}`)
     }

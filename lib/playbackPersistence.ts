@@ -17,6 +17,7 @@
  */
 
 import type { Track } from '@/types'
+import { normalizeTrackKey } from './normalizeTrackKey'
 
 const STORAGE_KEY = 'musicweb_playback_v2'
 const MAX_BYTES = 2 * 1024 * 1024 // 2MB — leaves room for other localStorage data
@@ -262,14 +263,57 @@ export function saveTrackResolution(
   safeWrite(STORAGE_KEY, state)
 }
 
-/** Delete a saved track resolution from persistence (e.g., when invalidated). */
+export function getTrackResolutionKeyAliases(track: {
+  title: string
+  artist?: string | null
+  duration?: number | null
+  album?: string | null
+}): string[] {
+  const t = (track.title || '').trim().toLowerCase()
+  const a = (track.artist || '').trim().toLowerCase()
+  const al = (track.album || '').trim().toLowerCase()
+  const d = track.duration || 0
+  return Array.from(
+    new Set([
+      `${t}___${a}___${d}___${al}`,
+      `${t}___${a}___0___${al}`,
+      `${t}___${a}___${al}`,
+      normalizeTrackKey(track.title, track.artist, track.duration, track.album),
+      normalizeTrackKey(track.title, track.artist, 0, track.album),
+      normalizeTrackKey(track.title, track.artist, track.duration),
+      normalizeTrackKey(track.title, track.artist, 0),
+    ]),
+  )
+}
+
+/** Delete a saved track resolution from persistence (including legacy 3-part/4-part aliases). */
 export function deleteTrackResolution(key: string): void {
   const state = safeRead<PlaybackState>(STORAGE_KEY, {
     queue: [], currentIndex: -1, currentTime: 0,
     currentTrack: null, streamUrls: {}, resolutions: {}, savedAt: 0
   })
-  if (state.resolutions[key]) {
-    delete state.resolutions[key]
+  const keysToDelete = new Set<string>([key])
+  const parts = key.split('___')
+  if (parts.length === 4) {
+    const [t, a, dStr, al] = parts
+    const d = Number(dStr) || 0
+    for (const alias of getTrackResolutionKeyAliases({ title: t, artist: a, duration: d, album: al })) {
+      keysToDelete.add(alias)
+    }
+  } else if (parts.length === 3) {
+    const [t, a, third] = parts
+    keysToDelete.add(`${t}___${a}___0___${third}`)
+    keysToDelete.add(`${t}___${a}___${third}`)
+  }
+
+  let modified = false
+  for (const candidateKey of keysToDelete) {
+    if (state.resolutions[candidateKey]) {
+      delete state.resolutions[candidateKey]
+      modified = true
+    }
+  }
+  if (modified) {
     safeWrite(STORAGE_KEY, state)
   }
 }
@@ -299,21 +343,30 @@ export function getTrackResolution(key: string): { source: string; resolvedId: s
 }
 
 /**
- * Get cached YouTube video ID for a track (title + artist + album key).
+ * Get cached YouTube video ID for a track (checks normalized and legacy keys).
  * Returns null if not cached or expired. This lets fallbackToYouTube skip the
  * YouTube Data API search and go straight to InnerTube, saving ~700ms.
  */
 export function getCachedYouTubeId(
   title: string,
   artist?: string | null,
-  album?: string | null
+  album?: string | null,
+  duration?: number | null,
 ): string | null {
-  const key = makeResolutionKey(title, artist, album)
-  const entry = getTrackResolution(key)
-  return entry?.youtubeVideoId ?? null
+  const keys = [
+    normalizeTrackKey(title, artist, duration, album),
+    makeResolutionKey(title, artist, album),
+    `${(title || '').trim().toLowerCase()}___${(artist || '').trim().toLowerCase()}___${duration || 0}___${(album || '').trim().toLowerCase()}`,
+  ]
+  for (const key of keys) {
+    const entry = getTrackResolution(key)
+    if (entry?.youtubeVideoId) return entry.youtubeVideoId
+    if (entry?.source === 'youtube' && entry.resolvedId) return entry.resolvedId
+  }
+  return null
 }
 
-/** Build the same resolution key used by resolveStreamClient.ts */
+/** Build the legacy 3-part resolution key */
 function makeResolutionKey(title: string, artist?: string | null, album?: string | null): string {
   return `${title.trim().toLowerCase()}___${(artist || '').trim().toLowerCase()}___${(album || '').trim().toLowerCase()}`
 }

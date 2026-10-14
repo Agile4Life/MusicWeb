@@ -160,6 +160,7 @@ export async function resolveStreamCached(
       const params = new URLSearchParams({ title })
       if (artist) params.set('artist', artist)
       if (duration) params.set('duration', String(Math.round(duration)))
+      if (album) params.set('album', album)
       if (forceRefresh) params.set('invalidate', '1')
 
       // Explicit memory/disk caches own TTL and invalidation. Browser caching
@@ -241,6 +242,7 @@ export async function invalidateStreamResolution(
     const params = new URLSearchParams({ title, invalidate: '1' })
     if (artist) params.set('artist', artist)
     if (duration) params.set('duration', String(Math.round(duration)))
+    if (album) params.set('album', album)
     await fetch(`/api/resolve-stream?${params.toString()}`, { cache: 'no-store' })
   } catch {
     // The forced-refresh marker above keeps the next resolve correct.
