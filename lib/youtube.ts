@@ -1,5 +1,11 @@
 import { Track } from '@/types'
-import { hasCatalogArtistEvidence, hasIncompatiblePlaybackVariant } from './catalogMatching'
+import {
+  containsPhrase,
+  hasCatalogArtistEvidence,
+  hasCatalogTitleEvidence,
+  hasIncompatiblePlaybackVariant,
+  measureIdentityTokenOverlap,
+} from './catalogMatching'
 
 /**
  * Extract 11-character YouTube Video ID from any input or URL
@@ -455,43 +461,35 @@ export function findBestYouTubeMatch(
       continue
     }
 
-    // 3. TITLE MATCH RATIO & SUBSTRING CHECK (with diacritic-aware fallback)
-    let matchedWordsCount = 0
-    for (let i = 0; i < titleWords.length; i++) {
-      const word = titleWords[i]
-      const uword = unaccentedTitleWords[i] || stripDiacritics(word)
-      if (
-        candidateTitleNorm.includes(word) ||
-        unaccentedCandidateTitle.includes(uword)
-      ) {
-        matchedWordsCount++
-      }
-    }
+    // 3. TITLE MATCH RATIO & PHRASE EVIDENCE (word-boundary aware)
+    const accentedOverlap = measureIdentityTokenOverlap(cleanTargetTitle, candidateTitleNorm)
+    const unaccentedOverlap = measureIdentityTokenOverlap(unaccentedTargetTitle, unaccentedCandidateTitle)
+    const matchRatio = Math.max(accentedOverlap, unaccentedOverlap)
+    const hasPhraseMatch =
+      hasCatalogTitleEvidence(candidate.title, targetTitle) ||
+      (cleanTargetTitle.length >= 3 && containsPhrase(candidateTitleNorm, cleanTargetTitle)) ||
+      (unaccentedTargetTitle.length >= 3 && containsPhrase(unaccentedCandidateTitle, unaccentedTargetTitle))
 
-    const matchRatio = titleWords.length > 0 ? matchedWordsCount / titleWords.length : 0
-    const hasSubstringMatch =
-      (cleanTargetTitle.length >= 3 && candidateTitleNorm.includes(cleanTargetTitle)) ||
-      (candidateTitleNorm.length >= 3 && cleanTargetTitle.includes(candidateTitleNorm)) ||
-      (unaccentedTargetTitle.length >= 3 && unaccentedCandidateTitle.includes(unaccentedTargetTitle)) ||
-      (unaccentedCandidateTitle.length >= 3 && unaccentedTargetTitle.includes(unaccentedCandidateTitle))
-
-    if (matchRatio < 0.35 && !hasSubstringMatch) {
+    const minMatchRatio = unaccentedTitleWords.length <= 2 ? 1 : 0.65
+    if (!hasPhraseMatch && matchRatio < minMatchRatio) {
       continue
     }
 
     let score = matchRatio * 120
-    if (hasSubstringMatch) {
+    if (hasPhraseMatch) {
       score += 80
     }
 
-    // 4. ALBUM MATCH BONUS (+500 points) - Strong signal for official releases
-    if (cleanTargetAlbum && cleanTargetAlbum.length > 2) {
+    const hasStrongTitleIdentity = hasPhraseMatch || matchRatio >= 0.85
+
+    // 4. ALBUM MATCH BONUS (+500 points) - Only when title identity is confirmed
+    if (hasStrongTitleIdentity && cleanTargetAlbum && cleanTargetAlbum.length > 2) {
       if (
-        candidateTitleNorm.includes(cleanTargetAlbum) ||
-        candidateArtistNorm.includes(cleanTargetAlbum) ||
+        containsPhrase(candidateTitleNorm, cleanTargetAlbum) ||
+        containsPhrase(candidateArtistNorm, cleanTargetAlbum) ||
         (unaccentedTargetAlbum && (
-          unaccentedCandidateTitle.includes(unaccentedTargetAlbum) ||
-          unaccentedCandidateArtist.includes(unaccentedTargetAlbum)
+          containsPhrase(unaccentedCandidateTitle, unaccentedTargetAlbum) ||
+          containsPhrase(unaccentedCandidateArtist, unaccentedTargetAlbum)
         ))
       ) {
         score += 500
@@ -499,31 +497,34 @@ export function findBestYouTubeMatch(
     }
 
     // 5. PRIORITY FOR DIGITAL AUDIO RELEASE ("- TOPIC" & "OFFICIAL AUDIO") OVER MV
+    const rawCandidateTitleLower = (candidate.title || '').toLowerCase()
     const isTopicChannel =
       candidateArtistNorm.endsWith('topic') ||
-      candidateArtistNorm.includes('topic')
+      containsPhrase(candidateArtistNorm, 'topic')
     const isOfficialAudio =
-      candidateTitleNorm.includes('official audio') ||
-      candidateTitleNorm.includes('audio official') ||
-      candidateTitleNorm.includes('audio') ||
-      candidateTitleNorm.includes('lyric')
+      rawCandidateTitleLower.includes('official audio') ||
+      rawCandidateTitleLower.includes('audio official') ||
+      containsPhrase(candidateTitleNorm, 'audio') ||
+      rawCandidateTitleLower.includes('lyric')
     const isOfficialMV =
-      candidateTitleNorm.includes('official music video') ||
-      candidateTitleNorm.includes('official video') ||
-      candidateTitleNorm.includes('music video') ||
-      candidateTitleNorm.includes('mv')
+      rawCandidateTitleLower.includes('official music video') ||
+      rawCandidateTitleLower.includes('official video') ||
+      rawCandidateTitleLower.includes('music video') ||
+      /\bmv\b/i.test(rawCandidateTitleLower)
     const isVevoOrOfficialChannel =
       candidateArtistNorm.includes('vevo') ||
-      candidateArtistNorm.includes('official')
+      containsPhrase(candidateArtistNorm, 'official')
 
-    if (isTopicChannel) {
-      score += 400 // Direct studio audio release from Spotify/Apple Music provider
-    } else if (isOfficialAudio) {
-      score += 300 // Priority #1: Official Audio clean studio track
-    } else if (isOfficialMV) {
-      score += 100 // Priority #2: Official Music Video
-    } else if (isVevoOrOfficialChannel) {
-      score += 150
+    if (hasStrongTitleIdentity) {
+      if (isTopicChannel) {
+        score += 400 // Direct studio audio release from Spotify/Apple Music provider
+      } else if (isOfficialAudio) {
+        score += 300 // Priority #1: Official Audio clean studio track
+      } else if (isOfficialMV) {
+        score += 100 // Priority #2: Official Music Video
+      } else if (isVevoOrOfficialChannel) {
+        score += 150
+      }
     }
 
     // 6. ARTIST MATCHING BONUS
@@ -535,10 +536,10 @@ export function findBestYouTubeMatch(
         const word = artistWords[i]
         const uword = unaccentedArtistWords[i] || stripDiacritics(word)
         if (
-          candidateTitleNorm.includes(word) ||
-          candidateArtistNorm.includes(word) ||
-          unaccentedCandidateTitle.includes(uword) ||
-          unaccentedCandidateArtist.includes(uword)
+          containsPhrase(candidateTitleNorm, word) ||
+          containsPhrase(candidateArtistNorm, word) ||
+          containsPhrase(unaccentedCandidateTitle, uword) ||
+          containsPhrase(unaccentedCandidateArtist, uword)
         ) {
           score += 30
           artistMatch = true

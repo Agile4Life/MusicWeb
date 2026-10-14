@@ -11,7 +11,11 @@ import { getPrimaryArtistName } from '@/lib/artistParser'
 import { findMemoryDriveTrack } from '@/lib/driveTracksMap'
 import { searchSoundCloudTracks } from '@/lib/soundcloudClient'
 import { resolveCatalogCandidates } from '@/lib/catalogResolutionRace'
-import { isSoundCloudCatalogMatch } from '@/lib/catalogMatching'
+import {
+  findBestSoundCloudMatch,
+  isCatalogTrackMatch,
+  stripNonIdentityAnnotations,
+} from '@/lib/catalogMatching'
 import {
   readSharedResolution, writeSharedResolution,
   type ResolutionCacheIdentity,
@@ -170,11 +174,12 @@ async function resolveStream(
   const cleanTitle = normalizeTitle(title)
   const cleanPrimaryArtist = normalizeTitle(primaryArtist)
   const cleanArtist = normalizeTitle(artist)
-  const queryStr = `${title.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').trim()} ${primaryArtist}`.trim()
+  const searchableTitle = stripNonIdentityAnnotations(title) || cleanTitle || title
+  const queryStr = `${searchableTitle} ${primaryArtist}`.trim()
 
   // === 1. Drive: Fast Local In-Memory & DB Check (<1ms) ===
   async function tryDrive(): Promise<L1Entry | null> {
-    const memTrack = findMemoryDriveTrack(title, artist)
+    const memTrack = findMemoryDriveTrack(title, artist, duration)
     if (memTrack) {
       return {
         source: 'drive',
@@ -199,26 +204,7 @@ async function resolveStream(
 
       for (const lt of localMatches) {
         if (!lt.file_path || isPreviewUrl(lt.file_path)) continue
-        const ltTitle = normalizeTitle(lt.title)
-        const ltArtist = normalizeTitle(lt.artist || '')
-        const uLtTitle = stripDiacritics(ltTitle)
-        const uCleanTitle = stripDiacritics(cleanTitle)
-        const uLtArtist = stripDiacritics(ltArtist)
-        const uCleanArtist = stripDiacritics(cleanArtist)
-        const uCleanPrimaryArtist = stripDiacritics(cleanPrimaryArtist)
-
-        const titleMatches =
-          ltTitle.includes(cleanTitle) ||
-          cleanTitle.includes(ltTitle) ||
-          (uLtTitle && uCleanTitle && (uLtTitle.includes(uCleanTitle) || uCleanTitle.includes(uLtTitle)))
-        const artistMatches =
-          !cleanArtist ||
-          ltArtist.includes(cleanArtist) ||
-          cleanArtist.includes(ltArtist) ||
-          ltArtist.includes(cleanPrimaryArtist) ||
-          (uLtArtist && uCleanArtist && (uLtArtist.includes(uCleanArtist) || uCleanArtist.includes(uLtArtist))) ||
-          (uLtArtist && uCleanPrimaryArtist && uLtArtist.includes(uCleanPrimaryArtist))
-        if (!titleMatches || !artistMatches) continue
+        if (!isCatalogTrackMatch(lt, { title, artist: primaryArtist || artist, duration })) continue
 
         const driveId = lt.drive_file_id || extractDriveFileId(lt.file_path)
         const isPlayableDrive = driveId || (
@@ -309,9 +295,11 @@ async function resolveStream(
       const candidates = await searchSoundCloudTracks(scQuery, 5).catch(() => [])
       if (candidates.length === 0) return null
 
-      const match = candidates.find((candidate) => isSoundCloudCatalogMatch(candidate, {
-        title: cleanTitle || title, artist: primaryArtist || artist, duration,
-      }))
+      const match = findBestSoundCloudMatch(candidates, {
+        title,
+        artist: primaryArtist || artist,
+        duration,
+      })
 
       if (!match?.soundcloud_id && !match?.id) return null
       const scId = match.soundcloud_id ? String(match.soundcloud_id) : match.id.replace(/^sc-/, '')
@@ -422,7 +410,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   }
 
   // ── Direct Drive mapping (after shared version validation) ──────────
-  const memDrive = findMemoryDriveTrack(title, artist)
+  const memDrive = findMemoryDriveTrack(title, artist, duration)
   if (memDrive) {
     const driveEntry: L1Entry = {
       source: 'drive',

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { hasCatalogArtistEvidence, hasIncompatiblePlaybackVariant, isSoundCloudCatalogMatch } from '../catalogMatching'
+import {
+  findBestSoundCloudMatch,
+  hasCatalogArtistEvidence,
+  hasIncompatiblePlaybackVariant,
+  isSoundCloudCatalogMatch,
+} from '../catalogMatching'
+import { findMemoryDriveTrack } from '../driveTracksMap'
 
 describe('catalog artist evidence', () => {
   it.each([
@@ -8,6 +14,7 @@ describe('catalog artist evidence', () => {
     ['Sơn Tùng M-TP', 'Son Tung M TP'],
     ['Adele', 'AdeleVEVO'],
     ['방탄소년단', '방탄소년단'],
+    ['RPT MCK', 'MCK'],
   ])('accepts credited artist %s from uploader %s', (targetArtist, artist) => {
     expect(hasCatalogArtistEvidence({ artist }, targetArtist)).toBe(true)
   })
@@ -73,5 +80,43 @@ describe('SoundCloud catalog matches', () => {
 
   it('does not treat a partial title word as a title match', () => {
     expect(isSoundCloudCatalogMatch({ title: 'Hello', artist: 'Lionel Richie' }, { ...target, title: 'Hell' })).toBe(false)
+  })
+
+  it('rejects a short 1-word candidate title contained inside a long target title', () => {
+    expect(
+      isSoundCloudCatalogMatch(
+        { title: 'Anh', artist: 'Soobin Hoàng Sơn', duration: 240 },
+        { title: 'Anh Da Quen Voi Co Don', artist: 'Soobin Hoàng Sơn', duration: 240 },
+      ),
+    ).toBe(false)
+  })
+
+  it('ranks the closest duration and exact title match first in findBestSoundCloudMatch', () => {
+    const best = findBestSoundCloudMatch(
+      [
+        { id: 'sc-loose', title: 'Lionel Richie - Hello (Official Audio)', artist: 'Lionel Richie', duration: 262 },
+        { id: 'sc-exact', title: 'Hello', artist: 'Lionel Richie', duration: 241 },
+      ],
+      target,
+    )
+    expect(best?.id).toBe('sc-exact')
+  })
+})
+
+describe('Static Drive track matching (findMemoryDriveTrack)', () => {
+  it('rejects same-titled songs by other artists instead of matching MCK', () => {
+    expect(findMemoryDriveTrack('Baby', 'Justin Bieber')).toBeNull()
+    expect(findMemoryDriveTrack('Cảm Ơn', 'Wanbi Tuấn Anh')).toBeNull()
+    expect(findMemoryDriveTrack('IDK', 'Other Artist')).toBeNull()
+  })
+
+  it('rejects unrequested remix/live variants of MCK tracks', () => {
+    expect(findMemoryDriveTrack('Baby (Remix)', 'MCK')).toBeNull()
+  })
+
+  it('matches genuine MCK tracks including RPT MCK alias and featured credits', () => {
+    expect(findMemoryDriveTrack('Baby', 'MCK')?.artist).toBe('MCK')
+    expect(findMemoryDriveTrack('Xa Xôi', 'RPT MCK')?.artist).toBe('MCK')
+    expect(findMemoryDriveTrack('Mắt Môi Tay Chân', 'MCK, Tage')?.artist).toBe('MCK')
   })
 })

@@ -113,7 +113,7 @@ export async function resolveStreamCached(
   const forceRefresh = forceRefreshGeneration.get(key) === generation
 
   // ⚡ Instant Client-side Static Drive Check (0ms, zero network fetch)
-  const memDrive = findMemoryDriveTrack(title, artist)
+  const memDrive = findMemoryDriveTrack(title, artist, duration)
   if (memDrive && !forceRefresh) {
     const directResult: ResolvedStreamResult = {
       source: 'drive',

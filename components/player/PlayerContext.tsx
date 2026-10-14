@@ -16,6 +16,8 @@ import { getMusicOfftopicSegments, calculateIntroOffset } from '@/lib/sponsorblo
 import { isIOSDevice, playAudioElement, shouldUseHtml5Audio } from '@/lib/audioPlayback'
 import { isCurrentPlayback, resolveStartAction } from '@/lib/playbackRaceGuards'
 import { getNhacCuaTuiStreamUrl, resolveNhacCuaTuiSong, resolveNhacCuaTuiTrack, prewarmNctStreamUrl, getCachedNctStreamUrl, clearCachedNctStreamUrl } from '@/lib/nhaccuatuiClient'
+import { findBestNhacCuaTuiMatch } from '@/lib/nhaccuatui'
+import { findBestSoundCloudMatch, stripNonIdentityAnnotations } from '@/lib/catalogMatching'
 import { decideSmartFill, shouldRecordSkip } from '@/lib/playbackDecisions'
 import { mergeResolvedIntoQueue } from '@/lib/queueSync'
 import { prewarmTrackBatch } from '@/lib/prewarmTrackBatch'
@@ -1148,8 +1150,23 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           currentTrackId: currentTrackRef.current?.id,
         })) return
 
-        // 1a. Try alternative NhacCuaTui direct stream if available and not the same failing ID
-        const nctCandidate = (data.nhaccuatui || []).find((t: Track) => t.nhaccuatui_id && t.nhaccuatui_id !== track.nhaccuatui_id)
+        // 1a. Try alternative NhacCuaTui direct stream if available, validated by catalog matching, and not the same failing ID
+        const nctAlternates: Track[] = (data.nhaccuatui || []).filter(
+          (t: Track) => t.nhaccuatui_id && t.nhaccuatui_id !== track.nhaccuatui_id,
+        )
+        const nctMatchedItem = findBestNhacCuaTuiMatch(
+          nctAlternates.map((t) => ({
+            id: t.nhaccuatui_id!,
+            title: t.title,
+            artist: t.artist,
+            duration: t.duration,
+            thumbnail: t.cover_url,
+          })),
+          { title: track.title, artist: track.artist, duration: track.duration, album: track.album },
+        )
+        const nctCandidate = nctMatchedItem
+          ? nctAlternates.find((t) => t.nhaccuatui_id === nctMatchedItem.id)
+          : undefined
         if (nctCandidate?.nhaccuatui_id && audioRef.current) {
           console.log('[fallbackToYouTube] Recovering via alternative NhacCuaTui audio stream:', nctCandidate.nhaccuatui_id)
           const fallbackUrl = `/api/nhaccuatui/stream?id=${encodeURIComponent(nctCandidate.nhaccuatui_id)}`
@@ -2086,10 +2103,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       let streamResult = resolved
       if (!streamResult) {
         try {
-          const cleanTitleOnly = track.title
-            .replace(/[\(\[\{].*?[\)\]\}]/g, '')
-            .replace(/\s*-\s*.*?\b(remaster(ed)?|live|bonus track|single version|mono|stereo|official\s+(audio|video|mv))\b.*/i, '')
-            .trim()
+          const cleanTitleOnly = stripNonIdentityAnnotations(track.title) || track.title.trim()
           const cleanArtistOnly = (track.artist || '')
             .replace(/[\(\[\{].*?[\)\]\}]/g, '')
             .replace(/\s*feat(\.|\s).*$/i, '')
@@ -2100,9 +2114,40 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           })
           if (fbRes.ok) {
             const fbData = await fbRes.json()
-            const nctMatch = fbData.nhaccuatui?.[0]
-            const ytMatch = fbData.youtube?.[0] || fbData.spotify?.find((s: any) => s.youtube_id)
-            const scMatch = fbData.soundcloud?.[0]
+            const nctCandidates: Track[] = (fbData.nhaccuatui || []).filter((t: Track) => Boolean(t?.nhaccuatui_id))
+            const nctMatchedItem = findBestNhacCuaTuiMatch(
+              nctCandidates.map((t) => ({
+                id: t.nhaccuatui_id!,
+                title: t.title,
+                artist: t.artist,
+                duration: t.duration,
+                thumbnail: t.cover_url,
+              })),
+              { title: track.title, artist: track.artist, duration: track.duration, album: track.album },
+            )
+            const nctMatch = nctMatchedItem
+              ? nctCandidates.find((t) => t.nhaccuatui_id === nctMatchedItem.id)
+              : undefined
+
+            const ytCandidates: Track[] = [
+              ...(fbData.youtube || []),
+              ...((fbData.spotify || []).filter((s: Track) => Boolean(s?.youtube_id))),
+            ]
+            const ytMatch = findBestYouTubeMatch(
+              ytCandidates,
+              track.title,
+              track.artist,
+              track.duration,
+              track.album,
+            )
+
+            const scCandidates: Track[] = fbData.soundcloud || []
+            const scMatch = findBestSoundCloudMatch(scCandidates, {
+              title: track.title,
+              artist: track.artist,
+              duration: track.duration,
+            })
+
             if (nctMatch?.nhaccuatui_id) {
               streamResult = {
                 source: 'nhaccuatui',

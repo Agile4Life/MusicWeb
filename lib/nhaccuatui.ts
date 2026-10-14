@@ -1,5 +1,11 @@
 import type { Track } from '@/types'
-import { hasCatalogArtistEvidence, hasIncompatiblePlaybackVariant } from './catalogMatching'
+import {
+  hasCatalogArtistEvidence,
+  hasCatalogTitleEvidence,
+  hasIncompatiblePlaybackVariant,
+  measureIdentityTokenOverlap,
+  stripNonIdentityAnnotations,
+} from './catalogMatching'
 
 export interface NhacCuaTuiSearchItem {
   id: string
@@ -78,9 +84,10 @@ export function normalizeNhacCuaTuiText(value: string | null | undefined): strin
   return (value || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[Đđ]/g, 'd')
     .toLowerCase()
     .replace(/\b(?:feat|ft)\.?\b/g, ' ')
-    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .trim()
     .replace(/\s+/g, ' ')
 }
@@ -257,21 +264,14 @@ export function normalizePublicNhacCuaTuiSongResponse(value: unknown): NhacCuaTu
 }
 
 function tokenOverlap(target: string, candidate: string): number {
-  const targetTokens = new Set(target.split(' ').filter((token) => token.length > 1))
-  if (targetTokens.size === 0) return 0
-  const candidateTokens = new Set(candidate.split(' '))
-  let matched = 0
-  for (const token of targetTokens) {
-    if (candidateTokens.has(token) || candidate.includes(token)) matched++
-  }
-  return matched / targetTokens.size
+  return measureIdentityTokenOverlap(target, candidate)
 }
 
 export function findBestNhacCuaTuiMatch(
   candidates: NhacCuaTuiSearchItem[],
   target: NhacCuaTuiMatchTarget,
 ): NhacCuaTuiSearchItem | null {
-  const targetTitle = normalizeNhacCuaTuiText(target.title)
+  const targetTitle = stripNonIdentityAnnotations(target.title) || normalizeNhacCuaTuiText(target.title)
   const targetArtist = normalizeNhacCuaTuiText(target.artist)
   if (!targetTitle) return null
 
@@ -279,7 +279,7 @@ export function findBestNhacCuaTuiMatch(
   let bestScore = 34
 
   for (const candidate of candidates) {
-    const title = normalizeNhacCuaTuiText(candidate.title)
+    const title = stripNonIdentityAnnotations(candidate.title) || normalizeNhacCuaTuiText(candidate.title)
     const artist = normalizeNhacCuaTuiText(candidate.artist)
     if (!title || !artist) continue
 
@@ -287,12 +287,18 @@ export function findBestNhacCuaTuiMatch(
     if (hasIncompatiblePlaybackVariant(candidate.title, target.title)) continue
 
     const titleOverlap = tokenOverlap(targetTitle, title)
+    const hasPhraseEvidence = hasCatalogTitleEvidence(candidate.title, target.title)
+    const targetWordCount = targetTitle.split(' ').filter(Boolean).length
+    const minOverlap = targetWordCount <= 2 ? 1 : 0.6
+
+    // Hard Title Gate: never accept a candidate solely on artist score when title doesn't match
+    if (!hasPhraseEvidence && titleOverlap < minOverlap) continue
+
     const artistOverlap = targetArtist ? tokenOverlap(targetArtist, artist) : 0
     const exactTitle = title === targetTitle
-    const titleContains = title.includes(targetTitle) || targetTitle.includes(title)
     let score = titleOverlap * 45 + artistOverlap * 35
     if (exactTitle) score += 25
-    else if (titleContains) score += 12
+    else if (hasPhraseEvidence) score += 12
 
     if (target.duration && candidate.duration) {
       const durationDifference = Math.abs(target.duration - candidate.duration)

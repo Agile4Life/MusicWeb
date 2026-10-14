@@ -41,6 +41,7 @@ function setup() {
         } return v; },
         isCurrentYouTubeVideo: () => false, isYtIframeEngine: () => false, ensureWebAudioGain() { }, savePlayerStateToStorage() { }, clearNearEndWatchdog() { },
         setAudioSourceForPlayback(a, url, vol, time) { a.src = url; a.currentTime = time; }, playAudioElement: a => a.play(), clearCachedNctStreamUrl() { }, invalidateCurrentResolution: async () => { },
+        findBestNhacCuaTuiMatch: c => c?.[0] || null, findBestYouTubeMatch: c => c?.[0] || null, findBestSoundCloudMatch: c => c?.[0] || null, stripNonIdentityAnnotations: s => s || '',
         fallbackToYouTube: async () => { }, isPreviewUrl: () => false, resolveStreamCached: async () => null, extractYouTubeVideoId: () => null, recordRequestIdFlag: (s, id) => s.add(id), nextTrackRef: ref(() => { }), playTrackRef: ref(async () => { }) });
     e.setIsPlaying = v => { e.isPlaying = v; e.isPlayingRef.current = v; };
     e.setIsBuffering = v => e.isBuffering = v;

@@ -83,4 +83,25 @@ describe('findBestNhacCuaTuiMatch', () => {
       { title: 'Xương Rồng', artist: 'Dangrangto', duration: 254 },
     )).toBeNull()
   })
+
+  it('rejects a different song by the same artist even when duration matches', () => {
+    expect(findBestNhacCuaTuiMatch(
+      [{ id: 'wrong-title', title: 'Blank Space', artist: 'Taylor Swift', duration: 240 }],
+      { title: 'Love Story', artist: 'Taylor Swift', duration: 240 },
+    )).toBeNull()
+  })
+
+  it('folds Vietnamese Đ/đ to d and preserves non-Latin titles during matching', () => {
+    const vnMatch = findBestNhacCuaTuiMatch(
+      [{ id: 'dom-dom', title: 'Đom Đóm', artist: 'Jack', duration: 230 }],
+      { title: 'Dom Dom', artist: 'Jack', duration: 230 },
+    )
+    expect(vnMatch?.id).toBe('dom-dom')
+
+    const cjkMatch = findBestNhacCuaTuiMatch(
+      [{ id: 'cjk-1', title: '阿斯嘉', artist: '방탄소년단', duration: 210 }],
+      { title: '阿斯嘉', artist: '방탄소년단', duration: 210 },
+    )
+    expect(cjkMatch?.id).toBe('cjk-1')
+  })
 })

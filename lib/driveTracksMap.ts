@@ -1,4 +1,5 @@
 import { normalizeTrackField } from './normalizeTrackKey'
+import { isCatalogTrackMatch } from './catalogMatching'
 
 export interface PreloadedDriveTrack {
   id: string
@@ -307,39 +308,29 @@ STATIC_DRIVE_TRACKS.forEach(indexTrack)
 
 /**
  * Instant in-memory check for Drive tracks (< 0.1ms)
- * Checks both Title and Artist compatibility so same-titled songs by different artists aren't mixed up.
+ * Checks Title, Artist, Variant, and Duration compatibility so same-titled songs by different artists aren't mixed up.
  */
-export function findMemoryDriveTrack(title: string, artist?: string | null): PreloadedDriveTrack | null {
+export function findMemoryDriveTrack(
+  title: string,
+  artist?: string | null,
+  duration?: number | null,
+): PreloadedDriveTrack | null {
   const normTitle = normalizeTrackField(title)
   if (!normTitle) return null
 
   const normArtist = normalizeTrackField(artist || '')
 
-  // 1. Exact match Title + Artist (e.g., "Tây Thi" + "MCK")
+  // 1. Fast index check with full identity + variant verification
   if (normArtist) {
     const combined = driveIndex.get(`${normTitle}___${normArtist}`)
-    if (combined) return combined
+    if (combined && isCatalogTrackMatch(combined, { title, artist, duration })) {
+      return combined
+    }
   }
 
-  // 2. Smart Fuzzy Match for Title and Artist variations (e.g. "MCK, Obito", "RPT MCK", "MCK ft. Tage")
+  // 2. Validated match across static Drive tracks (handles feat. credits and RPT MCK alias safely)
   for (const t of STATIC_DRIVE_TRACKS) {
-    const tTitle = normalizeTrackField(t.title)
-    const tArtist = normalizeTrackField(t.artist)
-
-    const titleMatch = tTitle === normTitle || tTitle.includes(normTitle) || normTitle.includes(tTitle)
-    if (!titleMatch) continue
-
-    if (normArtist) {
-      const artistMatch =
-        tArtist === normArtist ||
-        tArtist.includes(normArtist) ||
-        normArtist.includes(tArtist) ||
-        normArtist.includes('mck') ||
-        tArtist.includes('mck')
-
-      if (artistMatch) return t
-    } else {
-      // If no artist is provided, match by title
+    if (isCatalogTrackMatch(t, { title, artist, duration })) {
       return t
     }
   }

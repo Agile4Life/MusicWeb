@@ -62,3 +62,26 @@ describe.each(['NCT', 'YouTube'] as const)('%s catalog identity', (provider) => 
     expect(match('Hello (Karaoke)', 'Lionel Richie')).toBeNull()
   })
 })
+
+describe('YouTube Topic bonus title gate', () => {
+  it('does not let a Topic channel candidate with a wrong title beat the right title', () => {
+    const candidates: Track[] = [
+      {
+        id: 'yt-wrong-topic',
+        youtube_id: 'wrongtopic1',
+        title: 'Love Is Here',
+        artist: 'Taylor Swift - Topic',
+        duration: 240,
+      } as Track,
+      {
+        id: 'yt-right-title',
+        youtube_id: 'righttitle1',
+        title: 'Love Story',
+        artist: 'Taylor Swift',
+        duration: 240,
+      } as Track,
+    ]
+    const best = findBestYouTubeMatch(candidates, 'Love Story', 'Taylor Swift', 240)
+    expect(best?.youtube_id).toBe('righttitle1')
+  })
+})
