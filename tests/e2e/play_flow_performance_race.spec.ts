@@ -113,6 +113,11 @@ test('E2E Performance & Anti-Race-Condition Audit for Play Flow', async ({ page 
   const track1Title = (await track1.textContent())?.replace(/\s+/g, ' ').trim()
   const track2Title = (await track2.textContent())?.replace(/\s+/g, ' ').trim()
   const track3Title = (await track3.textContent())?.replace(/\s+/g, ' ').trim()
+  const expectedTrack3Name = (
+    (await track3.locator('p').first().textContent().catch(() => '')) ||
+    track3Title?.replace(/^\d+/, '') ||
+    ''
+  ).trim().toLowerCase()
 
   log(`Target rapid sequence: Track 1 ("${track1Title?.slice(0, 30)}") -> 120ms -> Track 2 ("${track2Title?.slice(0, 30)}") -> 120ms -> Track 3 ("${track3Title?.slice(0, 30)}")`)
 
@@ -134,9 +139,9 @@ test('E2E Performance & Anti-Race-Condition Audit for Play Flow', async ({ page 
   const barText = (await playerBar.textContent().catch(() => ''))?.replace(/\s+/g, ' ').trim()
   log(`PlayerBar active title: "${barText?.slice(0, 80)}"`)
 
-  // Verify PlayerBar displays the destination track ("OMG")
-  log('Verifying destination track "OMG" is playing in player bar...')
-  expect(barText?.toLowerCase()).toContain('omg')
+  // Verify PlayerBar displays the destination track (Track 3)
+  log(`Verifying destination track "${expectedTrack3Name}" is playing in player bar...`)
+  expect(barText?.toLowerCase()).toContain(expectedTrack3Name)
 
   log('\n=== PLAYWRIGHT PERFORMANCE & RACE AUDIT SUMMARY ===')
   log(`Total resolve-stream calls intercepted: ${Object.keys(resolveStreamTimings).length}`)
