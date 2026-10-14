@@ -244,7 +244,7 @@ body::before {
   background-image:
     linear-gradient(145deg, var(--bg-space, #07090e) 0%, var(--bg-space-end, #12172b) 100%);
   opacity: 1;
-  transition: opacity 380ms var(--ease-out-quint);
+  transition: opacity 550ms var(--ease-out-quint);
 }
 
 .intro-splash-backdrop[data-phase='exiting'] {
@@ -257,7 +257,7 @@ body::before {
     radial-gradient(360px circle at 45% 54%, color-mix(in srgb, var(--primary-spotify, #06b6d4) 12%, transparent) 0%, transparent 65%);
   opacity: 0;
   transform: scale(0.94);
-  animation: introAmbientFadeIn 650ms var(--ease-out-quint) forwards;
+  animation: introAmbientFadeIn 900ms var(--ease-out-quint) 100ms forwards;
 }
 
 .intro-splash-plaque {
@@ -274,41 +274,46 @@ body::before {
     0 24px 60px -12px rgba(0, 0, 0, 0.75),
     0 0 40px -8px color-mix(in srgb, var(--spotify-glow, #22d3ee) 28%, transparent);
   opacity: 0;
-  transform: translate3d(0, 10px, 0) scale(0.94);
-  animation: introPlaqueEnter 460ms var(--ease-out-quint) forwards;
+  transform: translate3d(0, 12px, 0) scale(0.94);
+  animation: introPlaqueEnter 750ms var(--ease-out-quint) 150ms forwards;
   transition:
-    opacity 380ms var(--ease-out-quint),
-    transform 380ms var(--ease-out-quint);
+    opacity 550ms var(--ease-out-quint),
+    transform 550ms var(--ease-out-quint);
 }
 
 .intro-splash-plaque[data-phase='exiting'] {
   animation: none;
   opacity: 0;
-  transform: translate3d(0, -8px, 0) scale(0.97);
+  transform: translate3d(0, -10px, 0) scale(0.96);
 }
 
 .intro-plaque-shimmer {
   background: linear-gradient(
     110deg,
     transparent 20%,
-    color-mix(in srgb, var(--spotify-glow, #22d3ee) 14%, rgba(255, 255, 255, 0.14)) 50%,
+    color-mix(in srgb, var(--spotify-glow, #22d3ee) 16%, rgba(255, 255, 255, 0.16)) 50%,
     transparent 80%
   );
   transform: translate3d(-120%, 0, 0);
-  animation: introPlaqueShimmer 950ms var(--ease-in-out-cubic) 220ms forwards;
+  animation: introPlaqueShimmer 1450ms var(--ease-in-out-cubic) 650ms forwards;
 }
 
 .intro-icon-badge {
   opacity: 0;
   transform: scale(0.92);
-  animation: introIconPopIn 440ms var(--ease-out-quint) 60ms forwards;
+  animation: introIconPopIn 700ms var(--ease-out-quint) 250ms forwards;
+}
+
+.intro-favicon-img {
+  transform-origin: center;
+  animation: introFaviconFloat 1600ms var(--ease-in-out-cubic) 350ms infinite alternate;
 }
 
 .intro-icon-halo {
-  background: radial-gradient(circle, color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, transparent) 0%, transparent 72%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--spotify-glow, #22d3ee) 38%, transparent) 0%, transparent 72%);
   opacity: 0;
   transform: scale(0.92);
-  animation: introHaloPulse 1100ms var(--ease-out-quint) 120ms forwards;
+  animation: introHaloPulse 1800ms var(--ease-out-quint) 300ms forwards;
 }
 
 .intro-logo-arc {
@@ -344,14 +349,14 @@ body::before {
 .intro-plaque-divider {
   opacity: 0;
   transform: scaleY(0.4);
-  animation: introDividerIn 400ms var(--ease-out-quint) 180ms forwards;
+  animation: introDividerIn 600ms var(--ease-out-quint) 450ms forwards;
 }
 
 .intro-signature-wrap {
   opacity: 0;
   clip-path: inset(0 100% 0 0);
-  transform: translate3d(-10px, 0, 0) scale(0.96);
-  animation: introSignatureReveal 660ms var(--ease-out-quint) 200ms forwards;
+  transform: translate3d(-12px, 0, 0) scale(0.96);
+  animation: introSignatureReveal 1150ms var(--ease-out-quint) 550ms forwards;
 }
 
 .intro-progress-fill {
@@ -359,7 +364,7 @@ body::before {
   box-shadow: 0 0 10px var(--spotify-glow, #22d3ee);
   transform-origin: left center;
   transform: scaleX(0);
-  animation: introProgressFill 1050ms var(--ease-out-quint) 100ms forwards;
+  animation: introProgressFill 2250ms var(--ease-out-quint) 220ms forwards;
 }
 
 @keyframes introAmbientFadeIn {
@@ -383,6 +388,15 @@ body::before {
   }
 }
 
+@keyframes introFaviconFloat {
+  0% {
+    transform: scale(0.96);
+  }
+  100% {
+    transform: scale(1.04);
+  }
+}
+
 @keyframes introHaloPulse {
   0% {
     opacity: 0;
@@ -390,10 +404,10 @@ body::before {
   }
   45% {
     opacity: 0.9;
-    transform: scale(1.06);
+    transform: scale(1.08);
   }
   100% {
-    opacity: 0.45;
+    opacity: 0.5;
     transform: scale(1);
   }
 }
@@ -442,7 +456,7 @@ body::before {
 
 @media (prefers-reduced-motion: reduce) {
   .intro-splash-backdrop {
-    transition: opacity 200ms ease;
+    transition: opacity 250ms ease;
   }
 
   .intro-splash-ambient,
@@ -453,7 +467,7 @@ body::before {
   .intro-signature-wrap,
   .sidebar-logo-icon-enter,
   .sidebar-logo-text-enter {
-    animation: introReducedFade 200ms ease forwards !important;
+    animation: introReducedFade 250ms ease forwards !important;
     clip-path: none !important;
     transform: none !important;
   }
@@ -464,6 +478,7 @@ body::before {
   }
 
   .intro-logo-wave,
+  .intro-favicon-img,
   .intro-icon-halo,
   .intro-plaque-shimmer {
     animation: none !important;

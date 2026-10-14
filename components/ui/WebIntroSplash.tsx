@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { AppLogoIcon } from './AppLogoIcon'
 import { getIntroSplashTimings, shouldBypassIntroSplash } from './webIntroTiming'
 
 declare global {
@@ -60,7 +59,7 @@ export function WebIntroSplash() {
       authDone = true
       minHoldDone = true
       tryStartExit()
-    }, Math.max(timings.holdDurationMs + 900, 2100))
+    }, Math.max(timings.holdDurationMs + 1000, 3600))
 
     const handleAuthReady = () => {
       authDone = true
@@ -91,7 +90,10 @@ export function WebIntroSplash() {
       <div className="intro-splash-ambient pointer-events-none absolute inset-0" />
 
       {/* Center Brand Logo Plaque (modeled after .sidebar-logo-plaque) */}
-      <div data-phase={phase} className="intro-splash-plaque relative flex items-center gap-4 sm:gap-5 px-6 sm:px-8 py-4 sm:py-5 rounded-[24px]">
+      <div
+        data-phase={phase}
+        className="intro-splash-plaque relative flex items-center gap-4 sm:gap-5 px-6 sm:px-8 py-4 sm:py-5 rounded-[24px]"
+      >
         {/* Top specular highlight arc */}
         <span
           className="pointer-events-none absolute top-0 left-6 right-6 h-px"
@@ -104,21 +106,15 @@ export function WebIntroSplash() {
         {/* Diagonal specular shimmer across the plaque */}
         <span className="intro-plaque-shimmer pointer-events-none absolute inset-0" />
 
-        {/* 1. Web Icon Emblem (AppLogoIcon) */}
+        {/* 1. Web Favicon Emblem (/favicon.ico) */}
         <div className="intro-icon-badge relative shrink-0">
           <span className="intro-icon-halo pointer-events-none absolute -inset-1.5 rounded-2xl" />
           <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-[var(--spotify-glow,#22d3ee)] via-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#6366f1)] p-[1.5px] shadow-[0_8px_24px_rgba(0,0,0,0.45)]">
-            <div className="w-full h-full bg-[#080c14]/95 rounded-[14.5px] flex items-center justify-center relative overflow-hidden">
-              <div
-                className="pointer-events-none absolute inset-0 opacity-30"
-                style={{
-                  background:
-                    'radial-gradient(circle at 30% 25%, var(--spotify-glow, #22d3ee), transparent 70%)',
-                }}
-              />
-              <AppLogoIcon
-                animated
-                className="w-6 h-6 sm:w-7 sm:h-7 text-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_0_10px_var(--theme-glow-shadow,rgba(34,211,238,0.8))] relative z-10"
+            <div className="w-full h-full bg-[#080c14] rounded-[14.5px] flex items-center justify-center relative overflow-hidden">
+              <img
+                src="/favicon.ico"
+                alt="MusicWeb Favicon"
+                className="intro-favicon-img w-full h-full object-cover rounded-[14px] drop-shadow-[0_0_10px_var(--theme-glow-shadow,rgba(34,211,238,0.8))]"
               />
             </div>
           </div>

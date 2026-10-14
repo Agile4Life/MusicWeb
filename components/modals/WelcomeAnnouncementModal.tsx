@@ -80,7 +80,7 @@ export function WelcomeAnnouncementModal() {
           if (dismissedVer !== currentVer) {
             const timer = setTimeout(() => {
               setIsOpen(true)
-            }, 1650)
+            }, 3300)
             return () => clearTimeout(timer)
           }
         } else {
@@ -89,7 +89,7 @@ export function WelcomeAnnouncementModal() {
           if (!dismissedLegacy) {
             const timer = setTimeout(() => {
               setIsOpen(true)
-            }, 1650)
+            }, 3300)
             return () => clearTimeout(timer)
           }
         }
@@ -99,7 +99,7 @@ export function WelcomeAnnouncementModal() {
         if (!dismissedLegacy) {
           const timer = setTimeout(() => {
             setIsOpen(true)
-          }, 1650)
+          }, 3300)
           return () => clearTimeout(timer)
         }
       })
