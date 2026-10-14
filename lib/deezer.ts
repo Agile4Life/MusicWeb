@@ -98,12 +98,15 @@ export async function searchDeezerAlbums(query: string, limit = 30): Promise<Dee
   return []
 }
 
+import { stripAlbumIdPrefix, sortAlbumTracks } from '@/lib/albumId'
+import { isRealAlbumName } from '@/lib/albumCache'
+
 /**
  * Fetch metadata for a specific album from Deezer API
  */
 export async function fetchDeezerAlbumMeta(albumId: string): Promise<DeezerAlbumItem | null> {
   try {
-    const cleanId = albumId.replace(/^(deezer|spotify)-/, '')
+    const cleanId = stripAlbumIdPrefix(albumId)
     if (!cleanId || !/^\d+$/.test(cleanId)) return null
 
     const res = await fetch(`https://api.deezer.com/album/${encodeURIComponent(cleanId)}`, {
@@ -142,7 +145,7 @@ export async function fetchDeezerAlbumMeta(albumId: string): Promise<DeezerAlbum
  */
 export async function fetchDeezerAlbumTracks(albumId: string): Promise<{ meta: DeezerAlbumItem; tracks: Track[] } | null> {
   try {
-    const cleanId = albumId.replace(/^(deezer|spotify)-/, '')
+    const cleanId = stripAlbumIdPrefix(albumId)
     if (!cleanId || !/^\d+$/.test(cleanId)) return null
 
     const res = await fetch(`https://api.deezer.com/album/${encodeURIComponent(cleanId)}`, {
@@ -158,19 +161,9 @@ export async function fetchDeezerAlbumTracks(albumId: string): Promise<{ meta: D
     const data = await res.json()
     if (!data || data.error || !data.title) return null
 
-    const meta: DeezerAlbumItem = {
-      id: String(data.id),
-      name: data.title,
-      artist: data.artist?.name || 'Nghệ sĩ chưa xác định',
-      cover_url: data.cover_xl || data.cover_big || data.cover_medium || data.cover || null,
-      release_date: data.release_date || '',
-      total_tracks: data.nb_tracks || 0,
-      album_type: data.record_type || 'album',
-    }
-
     // Fetch tracks (if not in initial album response or if paginated)
     let rawTracks: any[] = data.tracks?.data || []
-    if (rawTracks.length < (data.nb_tracks || 0) && data.nb_tracks > 25) {
+    if (rawTracks.length < (data.nb_tracks || 0)) {
       try {
         const tracksRes = await fetch(`https://api.deezer.com/album/${encodeURIComponent(cleanId)}/tracks?limit=100`, {
           next: { revalidate: 3600 },
@@ -186,25 +179,37 @@ export async function fetchDeezerAlbumTracks(albumId: string): Promise<{ meta: D
       }
     }
 
+    const meta: DeezerAlbumItem = {
+      id: String(data.id),
+      name: data.title,
+      artist: data.artist?.name || 'Nghệ sĩ chưa xác định',
+      cover_url: data.cover_xl || data.cover_big || data.cover_medium || data.cover || null,
+      release_date: data.release_date || '',
+      total_tracks: rawTracks.length || data.nb_tracks || 0,
+      album_type: data.record_type || 'album',
+    }
+
     const systemUserId = '00000000-0000-4000-a000-000000000001'
 
-    const tracks: Track[] = rawTracks.map((item: any, idx: number) => ({
-      id: `deezer-${item.id}`,
-      user_id: systemUserId,
-      title: item.title || item.title_short || 'Untitled Track',
-      artist: item.artist?.name || meta.artist,
-      album: meta.name,
-      spotify_album_id: meta.id,
-      disc_number: item.disk_number || 1,
-      track_number: item.track_position || idx + 1,
-      duration: Math.round(item.duration || 0),
-      file_path: item.preview || item.link || `deezer:${item.id}`,
-      audio_url: item.preview || undefined,
-      cover_url: meta.cover_url,
-      created_at: new Date().toISOString(),
-      source: 'spotify', // Seamless audio engine handling
-      spotify_id: String(item.id),
-    }))
+    const tracks: Track[] = sortAlbumTracks(
+      rawTracks.map((item: any, idx: number) => ({
+        id: `deezer-${item.id}`,
+        user_id: systemUserId,
+        title: item.title || item.title_short || 'Untitled Track',
+        artist: extractDeezerArtistName(item, meta.artist),
+        album: meta.name,
+        spotify_album_id: meta.id,
+        disc_number: item.disk_number || 1,
+        track_number: item.track_position || idx + 1,
+        duration: Math.round(item.duration || 0),
+        file_path: item.preview || item.link || `deezer:${item.id}`,
+        audio_url: item.preview || undefined,
+        cover_url: meta.cover_url,
+        created_at: new Date().toISOString(),
+        source: 'spotify' as const, // Seamless audio engine handling
+        spotify_id: String(item.id),
+      })),
+    )
 
     return { meta, tracks }
   } catch (err) {
@@ -233,20 +238,27 @@ export async function getTrendingDeezerTracks(limit = 16): Promise<Track[]> {
 
     return items
       .filter((item: any) => item && item.id && (item.title || item.title_short))
-      .map((item: any) => ({
-        id: `deezer-${item.id}`,
-        user_id: systemUserId,
-        title: item.title || item.title_short || 'Untitled Track',
-        artist: item.artist?.name || 'Nghệ sĩ chưa xác định',
-        album: item.album?.title || undefined,
-        duration: Math.round(item.duration || 0),
-        file_path: item.preview || item.link || `deezer:${item.id}`,
-        audio_url: item.preview || undefined,
-        cover_url: item.album?.cover_xl || item.album?.cover_big || item.album?.cover_medium || item.album?.cover || null,
-        created_at: new Date().toISOString(),
-        source: 'spotify', // Seamless audio engine handling
-        spotify_id: String(item.id),
-      }))
+      .map((item: any) => {
+        const trackTitle = item.title || item.title_short || 'Untitled Track'
+        const albumTitle = item.album?.title || undefined
+        const hasRealNonSingleAlbum =
+          item.album?.id && albumTitle && isRealAlbumName(albumTitle, trackTitle)
+        return {
+          id: `deezer-${item.id}`,
+          user_id: systemUserId,
+          title: trackTitle,
+          artist: extractDeezerArtistName(item),
+          album: albumTitle,
+          spotify_album_id: hasRealNonSingleAlbum ? String(item.album.id) : undefined,
+          duration: Math.round(item.duration || 0),
+          file_path: item.preview || item.link || `deezer:${item.id}`,
+          audio_url: item.preview || undefined,
+          cover_url: item.album?.cover_xl || item.album?.cover_big || item.album?.cover_medium || item.album?.cover || null,
+          created_at: new Date().toISOString(),
+          source: 'spotify', // Seamless audio engine handling
+          spotify_id: String(item.id),
+        }
+      })
   } catch (err) {
     console.warn('Deezer trending fetch error:', err)
     return []
@@ -278,20 +290,27 @@ export async function searchDeezerTracks(query: string, limit = 15): Promise<Tra
 
     return items
       .filter((item: any) => item && item.id && (item.title || item.title_short))
-      .map((item: any) => ({
-        id: `deezer-${item.id}`,
-        user_id: systemUserId,
-        title: item.title || item.title_short || 'Untitled Track',
-        artist: extractDeezerArtistName(item),
-        album: item.album?.title || undefined,
-        duration: Math.round(item.duration || 0),
-        file_path: item.preview || item.link || `deezer:${item.id}`,
-        audio_url: item.preview || undefined,
-        cover_url: item.album?.cover_xl || item.album?.cover_big || item.album?.cover_medium || item.album?.cover || null,
-        created_at: new Date().toISOString(),
-        source: 'spotify', // Seamless audio engine handling
-        spotify_id: String(item.id),
-      }))
+      .map((item: any) => {
+        const trackTitle = item.title || item.title_short || 'Untitled Track'
+        const albumTitle = item.album?.title || undefined
+        const hasRealNonSingleAlbum =
+          item.album?.id && albumTitle && isRealAlbumName(albumTitle, trackTitle)
+        return {
+          id: `deezer-${item.id}`,
+          user_id: systemUserId,
+          title: trackTitle,
+          artist: extractDeezerArtistName(item),
+          album: albumTitle,
+          spotify_album_id: hasRealNonSingleAlbum ? String(item.album.id) : undefined,
+          duration: Math.round(item.duration || 0),
+          file_path: item.preview || item.link || `deezer:${item.id}`,
+          audio_url: item.preview || undefined,
+          cover_url: item.album?.cover_xl || item.album?.cover_big || item.album?.cover_medium || item.album?.cover || null,
+          created_at: new Date().toISOString(),
+          source: 'spotify', // Seamless audio engine handling
+          spotify_id: String(item.id),
+        }
+      })
   } catch (err) {
     console.warn('Deezer search error:', err)
     return []

@@ -377,75 +377,162 @@ async function getFallbackCachedAlbums(): Promise<SpotifyAlbumItem[]> {
   return []
 }
 
-export async function fetchSpotifyAlbumMeta(albumId: string): Promise<SpotifyAlbumItem | null> {
+async function fetchSpotifyEmbedAlbumData(
+  albumId: string,
+): Promise<{ meta: SpotifyAlbumItem; tracks: any[] } | null> {
   try {
-    const token = await getSpotifyAccessToken()
-    if (!token) return null
-
-    const res = await fetch(`https://api.spotify.com/v1/albums/${albumId}`, {
-      headers: { Authorization: `Bearer ${token}` },
+    const embedUrl = `https://open.spotify.com/embed/album/${encodeURIComponent(albumId)}`
+    const res = await fetch(embedUrl, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9,vi;q=0.8',
+      },
       next: { revalidate: 3600 },
     })
 
-    if (!res.ok) {
-      console.warn('Spotify album meta fetch status:', res.status)
-      return null
+    if (!res.ok) return null
+
+    const html = await res.text()
+    const matchData =
+      html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/) ||
+      html.match(/<script id="resource" type="application\/json">([\s\S]*?)<\/script>/)
+
+    if (!matchData || !matchData[1]) return null
+
+    const json = JSON.parse(matchData[1])
+    const entity =
+      json?.props?.pageProps?.state?.data?.entity ||
+      json?.props?.pageProps?.entity ||
+      json?.props?.pageProps ||
+      {}
+
+    const metaName = entity.name || entity.title
+    const rawTrackList: any[] = entity.trackList || []
+    if (!metaName || rawTrackList.length === 0) return null
+
+    const coverUrl =
+      entity.coverArt?.sources?.[0]?.url ||
+      entity.images?.[0]?.url ||
+      entity.visualIdentity?.image?.[0]?.url ||
+      null
+
+    const albumArtist =
+      entity.subtitle ||
+      entity.artists?.map((a: any) => a.name).join(', ') ||
+      rawTrackList[0]?.subtitle ||
+      'Nghệ sĩ chưa xác định'
+
+    const releaseDate = entity.releaseDate?.isoString
+      ? String(entity.releaseDate.isoString).split('T')[0]
+      : entity.release_date || ''
+
+    const tracks = rawTrackList.map((item: any, idx: number) => {
+      const rawUri = item.uri || ''
+      const spotifyId = rawUri.replace('spotify:track:', '') || item.uid || `${albumId}-${idx + 1}`
+      const artistStr = item.subtitle || albumArtist
+      return {
+        id: spotifyId,
+        name: item.title || item.name || 'Untitled Track',
+        artists: artistStr.split(/,\s*/).map((name: string) => ({ name })),
+        disc_number: item.disc_number || 1,
+        track_number: item.track_number || idx + 1,
+        duration_ms: item.duration || item.duration_ms || 0,
+        preview_url: item.audioPreview?.url || item.preview_url || null,
+        external_urls: { spotify: `https://open.spotify.com/track/${spotifyId}` },
+      }
+    })
+
+    const meta: SpotifyAlbumItem = {
+      id: entity.id || albumId,
+      name: metaName,
+      artist: albumArtist,
+      cover_url: coverUrl,
+      release_date: releaseDate,
+      total_tracks: tracks.length,
+      album_type: tracks.length === 1 ? 'single' : 'album',
     }
 
-    const item = await res.json()
-    return {
-      id: item.id,
-      name: item.name,
-      artist: item.artists?.map((a: any) => a.name).join(', ') || 'Nghệ sĩ chưa xác định',
-      cover_url: item.images?.[0]?.url || item.images?.[1]?.url || null,
-      release_date: item.release_date || '',
-      total_tracks: item.total_tracks || 0,
-      album_type: item.album_type || 'album',
+    return { meta, tracks }
+  } catch (err) {
+    console.warn('Spotify Embed album scraper warning:', err)
+    return null
+  }
+}
+
+export async function fetchSpotifyAlbumMeta(albumId: string): Promise<SpotifyAlbumItem | null> {
+  try {
+    const token = await getSpotifyAccessToken()
+    if (token) {
+      const res = await fetch(`https://api.spotify.com/v1/albums/${albumId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        next: { revalidate: 3600 },
+      })
+
+      if (res.ok) {
+        const item = await res.json()
+        return {
+          id: item.id,
+          name: item.name,
+          artist: item.artists?.map((a: any) => a.name).join(', ') || 'Nghệ sĩ chưa xác định',
+          cover_url: item.images?.[0]?.url || item.images?.[1]?.url || null,
+          release_date: item.release_date || '',
+          total_tracks: item.total_tracks || 0,
+          album_type: item.album_type || 'album',
+        }
+      }
+      console.warn('Spotify album meta fetch status:', res.status)
     }
   } catch (err) {
     console.error('Spotify album meta fetch error:', err)
-    return null
   }
+
+  const embedFallback = await fetchSpotifyEmbedAlbumData(albumId)
+  return embedFallback?.meta || null
 }
 
 export async function fetchFullAlbumTracks(albumId: string): Promise<any[]> {
   try {
     const token = await getSpotifyAccessToken()
-    if (!token) return []
+    if (token) {
+      let allTracks: any[] = []
+      const limit = 50
+      let offset = 0
+      let total = 1
 
-    let allTracks: any[] = []
-    const limit = 50
-    let offset = 0
-    let total = 1
+      while (offset < total) {
+        const res = await fetch(
+          `https://api.spotify.com/v1/albums/${albumId}/tracks?limit=${limit}&offset=${offset}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            next: { revalidate: 3600 },
+          }
+        )
 
-    while (offset < total) {
-      const res = await fetch(
-        `https://api.spotify.com/v1/albums/${albumId}/tracks?limit=${limit}&offset=${offset}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          next: { revalidate: 3600 },
+        if (!res.ok) {
+          console.warn('Spotify album tracks fetch status:', res.status)
+          break
         }
-      )
 
-      if (!res.ok) {
-        console.warn('Spotify album tracks fetch status:', res.status)
-        break
+        const data = await res.json()
+        const items = data.items || []
+        total = data.total || items.length
+        allTracks = allTracks.concat(items)
+
+        if (items.length === 0) break
+        offset += limit
       }
 
-      const data = await res.json()
-      const items = data.items || []
-      total = data.total || items.length
-      allTracks = allTracks.concat(items)
-
-      if (items.length === 0) break
-      offset += limit
+      if (allTracks.length > 0) {
+        return allTracks
+      }
     }
-
-    return allTracks
   } catch (err) {
     console.error('Spotify album tracks fetch error:', err)
-    return []
   }
+
+  const embedFallback = await fetchSpotifyEmbedAlbumData(albumId)
+  return embedFallback?.tracks || []
 }
 
 /**

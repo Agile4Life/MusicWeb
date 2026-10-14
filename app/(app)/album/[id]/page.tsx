@@ -10,8 +10,11 @@ import { TrackListSkeleton, HeroCardSkeleton } from '@/components/common/Skeleto
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { useSession } from 'next-auth/react'
 import { addTrackToPlaylist } from '@/lib/trackPersistence'
-import { getValidUserId } from '@/lib/accessControl'
-import { stripAlbumIdPrefix } from '@/lib/albumId'
+import {
+  stripAlbumIdPrefix,
+  sortAlbumTracks,
+  validateAndNormalizeCachedAlbum,
+} from '@/lib/albumId'
 import { toast } from '@/components/ui/ToastContext'
 import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
 import { resolveStreamCached } from '@/lib/resolveStreamClient'
@@ -64,7 +67,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
         const cleanId = stripAlbumIdPrefix(albumId)
         const idVariants = Array.from(new Set([albumId, cleanId, `deezer-${cleanId}`, `itunes-${cleanId}`]))
 
-        // 1. Try Supabase DB cache first
+        // 1. Try Supabase DB cache first (only accept complete, validated album tracklists)
         const { data: cachedList } = await supabase
           .from('spotify_albums')
           .select('*, tracks:tracks!spotify_album_id(*)')
@@ -72,31 +75,10 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
           .limit(1)
 
         const cached = cachedList && cachedList.length > 0 ? cachedList[0] : null
+        const validatedCached = validateAndNormalizeCachedAlbum(cached)
 
-        if (
-          cached &&
-          cached.tracks &&
-          Array.isArray(cached.tracks) &&
-          cached.tracks.length > 0 &&
-          cached.tracks.length >= (cached.total_tracks || 1)
-        ) {
-          cached.tracks.sort((a: any, b: any) => {
-            if ((a.disc_number || 1) !== (b.disc_number || 1)) {
-              return (a.disc_number || 1) - (b.disc_number || 1)
-            }
-            return (a.track_number || 1) - (b.track_number || 1)
-          })
-
-          setAlbum({
-            ...cached,
-            tracks: cached.tracks.map((t: any) => ({
-              ...t,
-              album: cached.name || t.album,
-              spotify_album_id: cached.id || t.spotify_album_id,
-              cover_url: t.cover_url || cached.cover_url || null,
-              source: t.source || 'spotify',
-            })),
-          })
+        if (validatedCached) {
+          setAlbum(validatedCached)
           setLoading(false)
           return
         }
@@ -105,15 +87,17 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
         const res = await fetch(`/api/albums/${encodeURIComponent(albumId)}`)
         if (res.ok) {
           const data = await res.json()
-          if (data && Array.isArray(data.tracks)) {
+          if (data && Array.isArray(data.tracks) && data.tracks.length > 0) {
+            const sortedTracks = sortAlbumTracks(data.tracks).map((t: any) => ({
+              ...t,
+              album: data.name || t.album,
+              spotify_album_id: data.id || t.spotify_album_id,
+              cover_url: t.cover_url || data.cover_url || null,
+            }))
             setAlbum({
               ...data,
-              tracks: data.tracks.map((t: any) => ({
-                ...t,
-                album: data.name || t.album,
-                spotify_album_id: data.id || t.spotify_album_id,
-                cover_url: t.cover_url || data.cover_url || null,
-              })),
+              total_tracks: sortedTracks.length || data.total_tracks || 0,
+              tracks: sortedTracks,
             })
             setLoading(false)
             return
@@ -211,7 +195,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
             <span>BỘ SƯU TẬP ALBUM</span>
           </p>
 
-        <h1 className="text-xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-tight">
+          <h1 className="text-xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-tight">
             {album.name}
           </h1>
 
@@ -229,7 +213,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
             {album.release_date && <span>•</span>}
             <span className="flex items-center gap-1">
               <Music className="w-3.5 h-3.5 text-slate-500" />
-              {album.total_tracks} bài hát
+              {album.tracks.length || album.total_tracks} bài hát
             </span>
           </div>
         </div>
@@ -294,52 +278,54 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
           <div className="w-8 sm:w-16 shrink-0" />
         </div>
 
-        {sortedDiscs.map(([discNum, discTracks]) => (
-          <div key={discNum} className="flex flex-col gap-2">
-            {hasMultipleDiscs && (
-              <div className="flex items-center gap-2 px-3 py-1 text-xs font-mono text-cyan-400 uppercase tracking-widest border-b border-white/[0.08] mb-1">
-                <Disc className="w-3.5 h-3.5" />
-                <span>Đĩa {discNum} (Disc {discNum})</span>
-              </div>
-            )}
+        <div
+          ref={listContainerRef}
+          onMouseLeave={handleListMouseLeave}
+          className="flex flex-col gap-6 relative"
+        >
+          <div
+            className="track-glide-indicator"
+            style={{
+              transform: `translateY(${trackIndicator.top}px) scaleY(${trackIndicator.scaleY})`,
+              height: `${trackIndicator.height}px`,
+              opacity: trackIndicator.opacity,
+            }}
+          />
+          {sortedDiscs.map(([discNum, discTracks]) => (
+            <div key={discNum} className="flex flex-col gap-2">
+              {hasMultipleDiscs && (
+                <div className="flex items-center gap-2 px-3 py-1 text-xs font-mono text-cyan-400 uppercase tracking-widest border-b border-white/[0.08] mb-1">
+                  <Disc className="w-3.5 h-3.5" />
+                  <span>Đĩa {discNum} (Disc {discNum})</span>
+                </div>
+              )}
 
-            <div
-              ref={listContainerRef}
-              onMouseLeave={handleListMouseLeave}
-              className="flex flex-col gap-1 relative"
-            >
-              <div
-                className="track-glide-indicator"
-                style={{
-                  transform: `translateY(${trackIndicator.top}px) scaleY(${trackIndicator.scaleY})`,
-                  height: `${trackIndicator.height}px`,
-                  opacity: trackIndicator.opacity,
-                }}
-              />
-              {discTracks.map((track, idx) => {
-                const isCurrent = currentTrack?.id === track.id
-                const isPlayingThis = isCurrent && isPlaying
-                const viewCacheKey = getViewCountCacheKey(track)
-                return (
-                  <TrackRow
-                    key={track.id || `track-${discNum}-${idx}`}
-                    track={track}
-                    index={idx}
-                    isCurrent={isCurrent}
-                    isPlayingThis={isPlayingThis}
-                    onMouseEnterRow={handleRowMouseEnter}
-                    playlistTracks={album.tracks}
-                    userPlaylists={playlists}
-                    onAddToPlaylist={handleAddToPlaylist}
-                    onAddToQueue={() => addToQueue(track)}
-                    onPlayClick={() => playTrack(track, album.tracks)}
-                    batchViewCount={batchViews.get(viewCacheKey)}
-                  />
-                )
-              })}
+              <div className="flex flex-col gap-1">
+                {discTracks.map((track, idx) => {
+                  const isCurrent = currentTrack?.id === track.id
+                  const isPlayingThis = isCurrent && isPlaying
+                  const viewCacheKey = getViewCountCacheKey(track)
+                  return (
+                    <TrackRow
+                      key={track.id || `track-${discNum}-${idx}`}
+                      track={track}
+                      index={idx}
+                      isCurrent={isCurrent}
+                      isPlayingThis={isPlayingThis}
+                      onMouseEnterRow={handleRowMouseEnter}
+                      playlistTracks={album.tracks}
+                      userPlaylists={playlists}
+                      onAddToPlaylist={handleAddToPlaylist}
+                      onAddToQueue={() => addToQueue(track)}
+                      onPlayClick={() => playTrack(track, album.tracks)}
+                      batchViewCount={batchViews.get(viewCacheKey)}
+                    />
+                  )
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   )

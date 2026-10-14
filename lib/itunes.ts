@@ -99,6 +99,8 @@ interface ITunesLookupResult extends ITunesSearchResult {
   trackName?: string
   trackTimeMillis?: number
   previewUrl?: string
+  discNumber?: number
+  trackNumber?: number
 }
 
 function mapITunesRssAlbums(entries: ITunesRssEntry[]): ITunesAlbumItem[] {
@@ -150,31 +152,63 @@ export async function fetchITunesAlbumTracks(albumId: string): Promise<ITunesAlb
   const cleanId = albumId.replace(/^itunes(-rss)?-/, '')
   if (!/^\d+$/.test(cleanId)) return null
   try {
-    const res = await fetch(
-      `https://itunes.apple.com/lookup?id=${cleanId}&entity=song&limit=200`,
-      { signal: AbortSignal.timeout(8000), next: { revalidate: 3600 } }
-    )
-    if (!res.ok) return null
-    const data = await res.json()
-    const results: ITunesLookupResult[] = data.results || []
-    const albumInfo = results.find((r) => r.wrapperType === 'collection')
-    if (!albumInfo) return null
-    const songItems = results.filter((r) => r.wrapperType === 'track')
+    const lookupByStore = async (country?: string): Promise<ITunesLookupResult[]> => {
+      const countryParam = country ? `&country=${encodeURIComponent(country)}` : ''
+      const res = await fetch(
+        `https://itunes.apple.com/lookup?id=${cleanId}&entity=song&limit=200${countryParam}`,
+        { signal: AbortSignal.timeout(8000), next: { revalidate: 3600 } }
+      )
+      if (!res.ok) return []
+      const data = await res.json()
+      return data.results || []
+    }
+
+    let results = await lookupByStore()
+    let albumInfo = results.find((r) => r.wrapperType === 'collection')
+    let songItems = results.filter((r) => r.wrapperType === 'track')
+
+    // Fallback to VN store if US store lookup returned no collection or tracks
+    if (!albumInfo || songItems.length === 0) {
+      const vnResults = await lookupByStore('vn')
+      const vnAlbum = vnResults.find((r) => r.wrapperType === 'collection')
+      const vnSongs = vnResults.filter((r) => r.wrapperType === 'track')
+      if (vnAlbum && vnSongs.length > 0) {
+        albumInfo = vnAlbum
+        songItems = vnSongs
+      }
+    }
+
+    if (!albumInfo || songItems.length === 0) return null
+
+    songItems.sort((a, b) => {
+      const discDiff = (a.discNumber || 1) - (b.discNumber || 1)
+      if (discDiff !== 0) return discDiff
+      return (a.trackNumber || 1) - (b.trackNumber || 1)
+    })
+
+    const cleanCollectionName = (albumInfo.collectionName || '').replace(/\s*-\s*(?:Single|EP)\s*$/i, '').trim() || albumInfo.collectionName || ''
 
     return {
       id: `itunes-${albumInfo.collectionId}`,
-      name: albumInfo.collectionName || '',
+      name: cleanCollectionName,
       artist: albumInfo.artistName || 'Nghệ sĩ chưa xác định',
       cover_url: cleanArtworkUrl(albumInfo.artworkUrl100),
       release_date: String(albumInfo.releaseDate || '').split('T')[0] || '',
-      total_tracks: albumInfo.trackCount || songItems.length,
-      album_type: String(albumInfo.collectionType || 'album').toLowerCase() === 'single' ? 'single' : 'album',
+      total_tracks: songItems.length || albumInfo.trackCount || 0,
+      album_type:
+        String(albumInfo.collectionType || 'album').toLowerCase() === 'single' ||
+        /\s-\s*single\s*$/i.test(albumInfo.collectionName || '') ||
+        songItems.length === 1
+          ? 'single'
+          : 'album',
       tracks: songItems.map((item, idx) => ({
         id: `itunes-${item.trackId || idx}`,
         user_id: '00000000-0000-4000-a000-000000000001',
         title: item.trackName || '',
         artist: item.artistName || albumInfo.artistName || 'Nghệ sĩ chưa xác định',
-        album: albumInfo.collectionName || '',
+        album: cleanCollectionName,
+        disc_number: item.discNumber || 1,
+        track_number: item.trackNumber || idx + 1,
         duration: Math.round((item.trackTimeMillis || 0) / 1000),
         file_path: item.previewUrl || '',
         audio_url: item.previewUrl || undefined,
