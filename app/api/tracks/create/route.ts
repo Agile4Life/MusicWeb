@@ -36,6 +36,18 @@ export async function POST(req: NextRequest) {
     if (typeof body?.cover_url === 'string' && body.cover_url.trim()) {
       insertPayload.cover_url = body.cover_url.trim()
     }
+    if (typeof body?.source === 'string' && body.source.trim()) {
+      insertPayload.source = body.source.trim()
+    }
+    if (typeof body?.youtube_id === 'string' && body.youtube_id.trim()) {
+      insertPayload.youtube_id = body.youtube_id.trim()
+    }
+    if (typeof body?.spotify_id === 'string' && body.spotify_id.trim()) {
+      insertPayload.spotify_id = body.spotify_id.trim()
+    }
+    if (typeof body?.nhaccuatui_id === 'string' && body.nhaccuatui_id.trim()) {
+      insertPayload.nhaccuatui_id = body.nhaccuatui_id.trim()
+    }
 
     const { data: trackData, error: dbError } = await adminClient
       .from('tracks')

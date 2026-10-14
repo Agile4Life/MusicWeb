@@ -193,6 +193,23 @@ export async function resolveExternalTrackId(
   if (!error && inserted && inserted.id) return inserted.id
 
   if (error) {
+    // When RLS is enabled on `tracks`, client-side anon inserts for NextAuth (Google OAuth)
+    // sessions are blocked by RLS. Delegate to the authenticated server endpoint.
+    if (typeof window !== 'undefined' && typeof fetch === 'function') {
+      try {
+        const res = await fetch('/api/tracks/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(insertPayload),
+        })
+        if (res.ok) {
+          const json = await res.json().catch(() => null)
+          if (json?.track?.id) return json.track.id
+        }
+      } catch {
+        // fall through to lookup recovery
+      }
+    }
     console.warn('Track insert warning:', error.message || error)
   }
 
