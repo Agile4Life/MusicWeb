@@ -511,10 +511,10 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       let insertedTrackId: string | null = null
       const originalExt = uploadFile.name.includes('.') ? uploadFile.name.split('.').pop()!.toLowerCase() : ''
 
-      const { data: trackData, error: dbError } = await supabase
-        .from('tracks')
-        .insert({
-          user_id: userId,
+      const createRes = await fetch('/api/tracks/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           title: cleanTitle,
           artist: item.artist || null,
           album: item.album || null,
@@ -523,52 +523,15 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
           file_size: uploadFile.size,
           file_ext: originalExt,
           drive_file_id: driveFileId,
-        })
-        .select('id')
-        .single()
+          playlist_id: playlistId || undefined,
+        }),
+      })
 
-      if (trackData?.id) {
-        insertedTrackId = trackData.id
-      }
-
-      if (dbError) {
-        // Fallback: If foreign key constraint violates auth.users, try sample Admin UUID or retry without file_size
-        const fallbackUserId = 'a1b2c3d4-e5f6-7890-abcd-111111111111'
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('tracks')
-          .insert({
-            user_id: fallbackUserId,
-            title: cleanTitle,
-            artist: item.artist || null,
-            album: item.album || null,
-            duration: item.duration || 0,
-            file_path: filePath,
-            file_size: uploadFile.size,
-            file_ext: originalExt,
-            drive_file_id: driveFileId,
-          })
-          .select('id')
-          .single()
-
-        if (fallbackData?.id) {
-          insertedTrackId = fallbackData.id
-        } else if (fallbackError) {
-          throw new Error(`Lỗi lưu DB: ${dbError.message}`)
-        }
-      }
-
-      // If uploading directly into a playlist, add track to playlist
-      if (playlistId && insertedTrackId) {
-        try {
-          await Promise.resolve(
-            supabase.rpc('fn_add_track_to_playlist', {
-              p_playlist_id: playlistId,
-              p_track_id: insertedTrackId,
-            })
-          )
-        } catch (plErr) {
-          console.warn('Could not add track to playlist:', plErr)
-        }
+      const createJson = await createRes.json().catch(() => null)
+      if (createRes.ok && createJson?.track?.id) {
+        insertedTrackId = createJson.track.id
+      } else {
+        throw new Error(`Lỗi lưu DB: ${createJson?.error || createRes.statusText}`)
       }
 
       // Refresh DB tracks list after successful insert
@@ -724,35 +687,23 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
     try {
       const streamUrl = buildDriveStreamUrl(fileId)
 
-      let { data, error } = await supabase.from('tracks').insert({
-        user_id: userId,
-        title: driveTitle.trim(),
-        artist: driveArtist.trim() || 'Chưa rõ nghệ sĩ',
-        album: driveAlbum.trim() || null,
-        duration: 0,
-        file_path: streamUrl,
-        drive_file_id: fileId,
-        created_at: new Date().toISOString(),
-      }).select().single()
-
-      if (error) {
-        // Fallback for foreign key constraint or auth user mismatch
-        const fallbackUserId = 'a1b2c3d4-e5f6-7890-abcd-111111111111'
-        const { data: fbData, error: fbError } = await supabase.from('tracks').insert({
-          user_id: fallbackUserId,
+      const createRes = await fetch('/api/tracks/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           title: driveTitle.trim(),
           artist: driveArtist.trim() || 'Chưa rõ nghệ sĩ',
           album: driveAlbum.trim() || null,
           duration: 0,
           file_path: streamUrl,
           drive_file_id: fileId,
-          created_at: new Date().toISOString(),
-        }).select().single()
+        }),
+      })
 
-        if (fbError) {
-          alert('Lỗi lưu bài hát: ' + (fbError.message || error.message))
-          return
-        }
+      const createJson = await createRes.json().catch(() => null)
+      if (!createRes.ok || !createJson?.ok) {
+        alert('Lỗi lưu bài hát: ' + (createJson?.error || createRes.statusText))
+        return
       }
 
       alert('✅ Đã thêm bài hát từ Google Drive vào thư viện thành công!')
@@ -882,33 +833,21 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
         }
 
         const streamUrl = buildDriveStreamUrl(item.fileId)
-        let { error } = await supabase.from('tracks').insert({
-          user_id: userId,
-          title: title,
-          artist: artist,
-          album: null,
-          duration: 0,
-          file_path: streamUrl,
-          drive_file_id: item.fileId,
-          created_at: new Date().toISOString(),
-        })
-
-        if (error) {
-          const fallbackUserId = 'a1b2c3d4-e5f6-7890-abcd-111111111111'
-          const { error: fbErr } = await supabase.from('tracks').insert({
-            user_id: fallbackUserId,
+        const createRes = await fetch('/api/tracks/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
             title: title,
             artist: artist,
             album: null,
             duration: 0,
             file_path: streamUrl,
             drive_file_id: item.fileId,
-            created_at: new Date().toISOString(),
-          })
-          error = fbErr
-        }
+          }),
+        })
+        const createJson = await createRes.json().catch(() => null)
 
-        if (!error) {
+        if (createRes.ok && createJson?.ok) {
           addedCount++
           existingFilePaths.add(item.fileId)
         }
