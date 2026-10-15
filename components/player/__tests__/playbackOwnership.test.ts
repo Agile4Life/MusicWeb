@@ -424,4 +424,129 @@ describe('production playback ownership', () => {
     callback('handlePause', e)()
     expect(completionReason).toBe('html5-pause-at-eof')
   })
+
+  it('does not trigger a premature 1200ms auto-skip in handleError when playTrack catch has already started fallbackToYouTube', async () => {
+    const e = setup()
+    const invalid = deferred()
+    const search = deferred()
+    const t1 = { ...track('ditto'), source: 'nhaccuatui', nhaccuatui_id: 'nct-ditto' }
+    const t2 = track('next-song')
+    e.queueRef.current = [t1, t2]
+    e.currentIndexRef.current = 0
+    e.autoPlayNextRef.current = true
+    e.invalidateCurrentResolution = () => invalid.promise
+    e.getCachedYouTubeId = () => null
+    e.saveTrackResolution = () => {}
+    e.fetchUnifiedSearch = () => search.promise
+    e.fallbackToYouTube = callback('fallbackToYouTube', e)
+
+    let nextTrackCalled = 0
+    e.nextTrackRef.current = () => { nextTrackCalled++ }
+    const scheduledTimers: Array<() => void> = []
+    e.setTimeout = (fn: () => void) => {
+      scheduledTimers.push(fn)
+      return scheduledTimers.length
+    }
+
+    // Simulate audio.play() rejecting AND <audio> dispatching handleError concurrently
+    e.getAudioUrlCached = async () => 'https://nct-stream-cache.test/stream?id=nct-ditto'
+    e.audioRef.current.play = () => Promise.reject(new Error('502 Bad Gateway'))
+
+    const playPromise = e.playTrack(t1, [t1, t2], 0)
+    await new Promise(setImmediate)
+
+    // handleError fires right as playTrack catch triggers fallbackToYouTube
+    const errPromise = callback('handleError', e)()
+    invalid.resolve()
+    await errPromise
+    await playPromise
+
+    // Flush any timers scheduled during handleError (e.g. the old 1200ms auto-skip timer)
+    scheduledTimers.forEach((fn) => fn())
+
+    // Must NOT have auto-skipped while fallbackToYouTube search is still in-flight!
+    expect(nextTrackCalled).toBe(0)
+    expect(e.consecutiveSkipRef.current).toBe(0)
+    expect(e.fallbackInProgressRef.current.has(e.playRequestRef.current)).toBe(true)
+
+    // Now let fallbackToYouTube finish and load the YouTube IFrame Player
+    let loadedYtId: unknown = null
+    e.ytPlayerRef.current = {
+      loadVideoById: (arg: { videoId: string }) => { loadedYtId = arg.videoId },
+      playVideo: () => {},
+      unMute: () => {},
+      setVolume: () => {},
+    }
+    search.resolve({ youtube: [{ ...t1, youtube_id: 'pSUydWEqKwE', duration: 185 }] })
+    await new Promise(setImmediate)
+
+    expect(loadedYtId).toBe('pSUydWEqKwE')
+    expect(e.isPlaying).toBe(true)
+    expect(nextTrackCalled).toBe(0)
+  })
+
+  it('falls through to YouTube IFrame Player on iOS when /api/yt-stream fails in fallbackToYouTube and clears stale provider IDs', async () => {
+    const e = setup()
+    e.isIOSDevice = () => true
+    const t = {
+      ...track('birds'),
+      source: 'soundcloud',
+      soundcloud_id: '1822834458',
+      nhaccuatui_id: 'stale-nct',
+    }
+    e.currentTrackRef.current = t
+    e.playRequestRef.current = 1
+    e.desiredPlayStateRef.current = 'playing'
+    e.audioOwnershipRef.current = { generation: 0, requestId: 1, trackId: t.id }
+    e.getCachedYouTubeId = () => 'V9PVRfjEBTI'
+    e.saveTrackResolution = () => {}
+    e.audioRef.current.play = () => Promise.reject(new Error('502 Bad Gateway from /api/yt-stream'))
+
+    let loadedVideoId: string | null = null
+    e.ytPlayerRef.current = {
+      loadVideoById: (arg: { videoId: string }) => { loadedVideoId = arg.videoId },
+      playVideo: () => {},
+      unMute: () => {},
+      setVolume: () => {},
+    }
+
+    await callback('fallbackToYouTube', e)(t, 1)
+
+    expect(loadedVideoId).toBe('V9PVRfjEBTI')
+    expect(e.ytHtml5ModeRef.current).toBe(false)
+    expect(e.isPlaying).toBe(true)
+    expect(e.isBuffering).toBe(false)
+    expect(e.currentTrackRef.current.source).toBe('youtube')
+    expect(e.currentTrackRef.current.youtube_id).toBe('V9PVRfjEBTI')
+    expect(e.currentTrackRef.current.soundcloud_id).toBeUndefined()
+    expect(e.currentTrackRef.current.nhaccuatui_id).toBeUndefined()
+  })
+
+  it('falls through to YouTube IFrame Player in playTrack on iOS when direct YouTube HTML5 stream proxy fails', async () => {
+    const e = setup()
+    e.isIOSDevice = () => true
+    const ytTrack = {
+      ...track('yt-direct'),
+      source: 'youtube',
+      youtube_id: 'dQw4w9WgXcQ',
+      file_path: '',
+    }
+    e.getAudioUrlCached = async () => '/api/yt-stream?id=dQw4w9WgXcQ'
+    e.audioRef.current.play = () => Promise.reject(new Error('502 Bad Gateway'))
+
+    let loadedVideoId: string | null = null
+    e.ytPlayerRef.current = {
+      loadVideoById: (arg: { videoId: string }) => { loadedVideoId = arg.videoId },
+      playVideo: () => {},
+      unMute: () => {},
+      setVolume: () => {},
+    }
+
+    await e.playTrack(ytTrack, [ytTrack], 0)
+
+    expect(loadedVideoId).toBe('dQw4w9WgXcQ')
+    expect(e.ytHtml5ModeRef.current).toBe(false)
+    expect(e.isPlaying).toBe(true)
+    expect(e.isBuffering).toBe(false)
+  })
 })

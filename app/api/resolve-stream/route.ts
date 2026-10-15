@@ -453,13 +453,39 @@ export async function GET(request: NextRequest): Promise<Response> {
 
   // ── L2 check (Supabase) ───────────────────────────────────────────
   if (shared?.entry && !invalidate) {
-    const sharedEntry: L1Entry = {
-      ...shared.entry,
-      sharedGeneration: shared.generation,
-      expiresAt: Math.min(shared.entry.expiresAt, Date.now() + (shared.entry.isMiss ? L1_MISS_TTL : L1_HIT_TTL)),
+    if (
+      shared.entry.source === 'soundcloud' &&
+      shared.entry.resolvedId &&
+      typeof verifySoundCloudTrackPlayable === 'function'
+    ) {
+      const playable = await verifySoundCloudTrackPlayable(shared.entry.resolvedId, 2500)
+      if (!playable) {
+        if (sharedClient) {
+          const bumped = await readSharedResolution(sharedClient, identity, true)
+          if (bumped) {
+            shared = bumped
+            generation = generationFor(cacheKey) + 1
+            cacheGenerations.set(cacheKey, generation)
+            l1Cache.delete(cacheKey)
+            inFlightResolutions.delete(cacheKey)
+            observedSharedGenerations.set(cacheKey, bumped.generation)
+          } else {
+            shared = { ...shared, entry: null }
+          }
+        } else {
+          shared = { ...shared, entry: null }
+        }
+      }
     }
-    storeL1(cacheKey, generation, sharedEntry)
-    return respondWith(sharedEntry)
+    if (shared?.entry) {
+      const sharedEntry: L1Entry = {
+        ...shared.entry,
+        sharedGeneration: shared.generation,
+        expiresAt: Math.min(shared.entry.expiresAt, Date.now() + (shared.entry.isMiss ? L1_MISS_TTL : L1_HIT_TTL)),
+      }
+      storeL1(cacheKey, generation, sharedEntry)
+      return respondWith(sharedEntry)
+    }
   }
 
   // ── In-Flight Request Deduplication (Thundering Herd / Stampede Protection) ──
@@ -544,8 +570,6 @@ function respondWith(entry: L1Entry): Response {
   } else if (entry.source === 'drive') {
     const fileId = extractDriveFileId(resolvedId) || resolvedId
     streamUrl = fileId.startsWith('http') || fileId.startsWith('/') ? fileId : `/api/drive-stream?fileId=${encodeURIComponent(fileId)}`
-  } else if (entry.source === 'youtube') {
-    streamUrl = `/api/yt-stream?id=${encodeURIComponent(resolvedId)}`
   }
 
   return NextResponse.json({

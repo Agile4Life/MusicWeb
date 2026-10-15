@@ -73,9 +73,18 @@ export function isSoundCloudFullAudio(track: SoundCloudRawTrack | any): boolean 
   const transcodings = track.media?.transcodings
   if (!Array.isArray(transcodings) || transcodings.length === 0) return false
 
-  // Must contain at least one full stream transcoding (with /stream/ instead of /preview/ and not snipped)
+  // Must contain at least one full stream transcoding (with /stream/ instead of /preview/, not snipped, and not DRM /cbcs/)
   const hasFullStream = transcodings.some(
-    (t) => typeof t?.url === 'string' && t.url.includes('/stream/') && !t.snipped
+    (t) =>
+      typeof t?.url === 'string' &&
+      t.url.includes('/stream/') &&
+      !t.url.includes('/cbcs/') &&
+      !t.snipped &&
+      (t.format?.protocol === 'progressive' ||
+        (t.format?.protocol === 'hls' &&
+          t.preset !== 'abr_sq' &&
+          t.format?.mime_type !== 'audio/mpegurl' &&
+          t.format?.mime_type !== 'application/vnd.apple.mpegurl'))
   )
 
   return hasFullStream
@@ -90,7 +99,7 @@ export function getSoundCloudHighResArtwork(url?: string | null): string | null 
 }
 
 /**
- * Picks the best playable transcoding for the audio player (prefer progressive MP3 for universal HTML5 playback)
+ * Picks the best playable transcoding for the audio player (prefer progressive MP3, then 160k/96k AAC/MP3 HLS)
  */
 export function getBestSoundCloudTranscoding(track: SoundCloudRawTrack | any): SoundCloudTranscoding | null {
   const transcodings: SoundCloudTranscoding[] = track?.media?.transcodings || []
@@ -98,25 +107,40 @@ export function getBestSoundCloudTranscoding(track: SoundCloudRawTrack | any): S
 
   // 1. First choice: Progressive MP3 stream (full audio, universally supported by HTML5 <audio> on all browsers)
   const progressiveStream = transcodings.find(
-    (t) => t.format?.protocol === 'progressive' && t.url?.includes('/stream/')
+    (t) => t.format?.protocol === 'progressive' && t.url?.includes('/stream/') && !t.snipped
   )
   if (progressiveStream) return progressiveStream
 
-  // 2. Second choice: Any progressive stream (full audio)
-  const anyProgressive = transcodings.find((t) => t.format?.protocol === 'progressive')
+  // 2. Second choice: High-quality unencrypted fMP4 AAC (aac_160k or aac_96k) or MP3 HLS stream (stitched by Worker/API)
+  const aac160Stream = transcodings.find(
+    (t) =>
+      t.format?.protocol === 'hls' &&
+      t.url?.includes('/stream/') &&
+      !t.url?.includes('/cbcs/') &&
+      !t.snipped &&
+      t.preset === 'aac_160k'
+  )
+  if (aac160Stream) return aac160Stream
+
+  const hlsAudioStream = transcodings.find(
+    (t) =>
+      t.format?.protocol === 'hls' &&
+      t.url?.includes('/stream/') &&
+      !t.url?.includes('/cbcs/') &&
+      !t.snipped &&
+      t.preset !== 'abr_sq' &&
+      (t.format?.mime_type?.includes('audio/mp4') || t.format?.mime_type?.includes('audio/mpeg')) &&
+      t.format?.mime_type !== 'audio/mpegurl'
+  )
+  if (hlsAudioStream) return hlsAudioStream
+
+  // 3. Third choice: Any non-snipped progressive stream
+  const anyProgressive = transcodings.find(
+    (t) => t.format?.protocol === 'progressive' && !t.snipped && !t.url?.includes('/preview/')
+  )
   if (anyProgressive) return anyProgressive
 
-  // 3. Third choice: HLS stream (full audio)
-  const hlsStream = transcodings.find(
-    (t) => t.format?.protocol === 'hls' && t.url?.includes('/stream/')
-  )
-  if (hlsStream) return hlsStream
-
-  // 4. Fallback: Any transcoding with /stream/
-  const anyStream = transcodings.find((t) => t.url?.includes('/stream/'))
-  if (anyStream) return anyStream
-
-  return transcodings[0] || null
+  return null
 }
 
 /**

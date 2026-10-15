@@ -1,10 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { resolveSoundCloudStreamUrl } from '@/lib/soundcloudClient'
+import { resolveSoundCloudStreamUrl, parseSoundCloudHlsManifest } from '@/lib/soundcloudClient'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Range, Authorization',
+}
+
+function createStitchedHlsResponse(
+  hlsInfo: { contentType: string; urls: string[] },
+  signal?: AbortSignal,
+): NextResponse {
+  const { readable, writable } = new TransformStream()
+  const writer = writable.getWriter()
+
+  ;(async () => {
+    try {
+      for (const segUrl of hlsInfo.urls) {
+        if (signal?.aborted) break
+        const segRes = await fetch(segUrl, { signal })
+        if (!segRes.ok || !segRes.body) break
+        const reader = segRes.body.getReader()
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          if (value && value.byteLength > 0) {
+            await writer.write(value)
+          }
+        }
+      }
+    } catch {
+      // Client disconnected
+    } finally {
+      try {
+        await writer.close()
+      } catch {}
+    }
+  })()
+
+  return new NextResponse(readable, {
+    status: 200,
+    headers: {
+      ...CORS_HEADERS,
+      'Content-Type': hlsInfo.contentType || 'audio/mp4',
+      'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+      'Accept-Ranges': 'none',
+    },
+  })
 }
 
 export async function OPTIONS() {
@@ -34,6 +76,21 @@ export async function HEAD(req: NextRequest) {
       return new NextResponse(null, { status: 404, headers: CORS_HEADERS })
     }
 
+    if (streamUrl.includes('.m3u8')) {
+      const hlsInfo = await parseSoundCloudHlsManifest(streamUrl)
+      if (!hlsInfo) {
+        return new NextResponse(null, { status: 404, headers: CORS_HEADERS })
+      }
+      return new NextResponse(null, {
+        status: 200,
+        headers: {
+          ...CORS_HEADERS,
+          'Content-Type': hlsInfo.contentType || 'audio/mp4',
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+        },
+      })
+    }
+
     const res = NextResponse.redirect(streamUrl, 307)
     for (const [k, v] of Object.entries(CORS_HEADERS)) {
       res.headers.set(k, v)
@@ -48,7 +105,7 @@ export async function HEAD(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const id = (searchParams.get('id') || searchParams.get('url') || '').trim()
-  const format = searchParams.get('format') // 'json' or redirect
+  const format = searchParams.get('format') // 'json' or redirect/stream
   const refresh = searchParams.get('refresh') === '1'
 
   if (!id) {
@@ -77,14 +134,31 @@ export async function GET(req: NextRequest) {
     }
 
     const cacheControl = 'no-cache, no-store, must-revalidate, max-age=0'
+    const isHls = streamUrl.includes('.m3u8')
 
     if (format === 'json') {
-      const res = NextResponse.json({ url: streamUrl }, { headers: CORS_HEADERS })
+      const publicUrl = isHls
+        ? workerUrl && isNumericId
+          ? `${workerUrl.replace(/\/+$/, '')}/stream?id=${encodeURIComponent(id.replace(/^sc-/, ''))}`
+          : `/api/soundcloud/stream?id=${encodeURIComponent(id)}`
+        : streamUrl
+      const res = NextResponse.json({ url: publicUrl }, { headers: CORS_HEADERS })
       res.headers.set('Cache-Control', refresh ? cacheControl : 'public, max-age=300, s-maxage=300, stale-while-revalidate=60')
       return res
     }
 
-    // Default: Redirect browser/audio element directly to the resolved stream CDN with no-cache so reconnection fetches fresh URLs
+    if (isHls) {
+      const hlsInfo = await parseSoundCloudHlsManifest(streamUrl)
+      if (!hlsInfo) {
+        return NextResponse.json(
+          { error: 'Encrypted or unplayable HLS stream' },
+          { status: 404, headers: CORS_HEADERS }
+        )
+      }
+      return createStitchedHlsResponse(hlsInfo, req.signal)
+    }
+
+    // Default: Redirect browser/audio element directly to the resolved progressive stream CDN
     const res = NextResponse.redirect(streamUrl, 307)
     for (const [k, v] of Object.entries(CORS_HEADERS)) {
       res.headers.set(k, v)

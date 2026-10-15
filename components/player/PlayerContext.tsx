@@ -930,6 +930,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
 
       const isNct = track.source === 'nhaccuatui'
+      const isYouTube = Boolean(track.source === 'youtube' || track.youtube_id)
       const isSoundCloud = Boolean(
         track.source === 'soundcloud' ||
         track.soundcloud_id ||
@@ -939,8 +940,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       )
 
       // 1. Check localStorage persistence (cross-session, survives app restart)
-      // Only for permanent/stable URLs (skip ephemeral signed tokens from SoundCloud/NCT)
-      if (!isSoundCloud && !isNct) {
+      // Only for permanent/stable URLs (skip ephemeral signed tokens from SoundCloud/NCT and YouTube stream proxy URLs)
+      if (!isSoundCloud && !isNct && !isYouTube) {
         const persisted = getStreamUrl(track.id)
         if (persisted?.url) {
           return persisted.url
@@ -971,8 +972,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       const url = await getAudioUrl(track)
       if (url && !isPreviewUrl(url)) {
-        // Persist to localStorage for cross-session restore (skip ephemeral signed SoundCloud/NCT URLs)
-        if (!isSoundCloud && !isNct) {
+        // Persist to localStorage for cross-session restore (skip ephemeral signed SoundCloud/NCT/YouTube proxy URLs)
+        if (!isSoundCloud && !isNct && !isYouTube) {
           saveStreamUrl(track.id, url, {
             youtube_id: track.youtube_id,
           })
@@ -1063,16 +1064,40 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             if (!resolved) return
             let updatedTrack: Track | null = null
             if (resolved.source === 'nhaccuatui') {
-              updatedTrack = { source: 'nhaccuatui', nhaccuatui_id: resolved.id, file_path: '' } as Partial<Track> as Track
+              updatedTrack = {
+                source: 'nhaccuatui',
+                nhaccuatui_id: resolved.id,
+                soundcloud_id: undefined,
+                youtube_id: undefined,
+                file_path: '',
+              } as Partial<Track> as Track
               if (!getCachedNctStreamUrl(resolved.id)) {
                 prewarmNctStreamUrl(resolved.id).catch(() => {})
               }
             } else if (resolved.source === 'drive') {
-              updatedTrack = { source: 'local' as const, file_path: resolved.id } as Partial<Track> as Track
+              updatedTrack = {
+                source: 'local' as const,
+                file_path: resolved.id,
+                nhaccuatui_id: undefined,
+                soundcloud_id: undefined,
+                youtube_id: undefined,
+              } as Partial<Track> as Track
             } else if (resolved.source === 'soundcloud') {
-              updatedTrack = { source: 'soundcloud' as const, soundcloud_id: resolved.id, file_path: '' } as Partial<Track> as Track
+              updatedTrack = {
+                source: 'soundcloud' as const,
+                soundcloud_id: resolved.id,
+                nhaccuatui_id: undefined,
+                youtube_id: undefined,
+                file_path: '',
+              } as Partial<Track> as Track
             } else if (resolved.source === 'youtube') {
-              updatedTrack = { source: 'youtube' as const, youtube_id: resolved.id, file_path: '' } as Partial<Track> as Track
+              updatedTrack = {
+                source: 'youtube' as const,
+                youtube_id: resolved.id,
+                nhaccuatui_id: undefined,
+                soundcloud_id: undefined,
+                file_path: '',
+              } as Partial<Track> as Track
             }
             if (!updatedTrack) return
             const mergedTrack: Track = {
@@ -1089,7 +1114,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               },
               TRACK_RESOLUTION_MAX_ENTRIES
             )
-            if (resolved.streamUrl) {
+            if (resolved.streamUrl && resolved.source !== 'youtube') {
               setBounded(
                 audioUrlCacheRef.current,
                 targetTrackId,
@@ -1176,6 +1201,40 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     recordRequestIdFlag(fallbackInProgressRef.current, requestId)
     recordRequestIdFlag(fallbackAttemptedRef.current, requestId)
     setIsBuffering(true)
+
+    const handleUnrecoverableFallbackFailure = () => {
+      if (!isCurrentAudioOwnership()) return
+      if (requestId !== playRequestRef.current) return
+      if ((desiredPlayStateRef.current as string | null) === 'paused') {
+        setIsPlaying(false)
+        setIsBuffering(false)
+        return
+      }
+      consecutiveSkipRef.current += 1
+      setIsPlaying(false)
+      setIsBuffering(false)
+      if (consecutiveSkipRef.current >= MAX_CONSECUTIVE_SKIPS) {
+        setPlaybackError(
+          `Đã dừng tự động chuyển bài do có ${consecutiveSkipRef.current} bài hát liên tiếp gặp sự cố kết nối/nguồn phát. Vui lòng chọn bài khác.`
+        )
+        return
+      }
+      setPlaybackError(`Không thể phát bài hát "${track.title}". Vui lòng chọn bài khác.`)
+      if (queueRef.current.length > 1 && (autoPlayNextRef.current || repeatModeRef.current === 'all')) {
+        if (pendingAutoSkipTimeoutRef.current) clearTimeout(pendingAutoSkipTimeoutRef.current)
+        pendingAutoSkipTimeoutRef.current = setTimeout(() => {
+          pendingAutoSkipTimeoutRef.current = null
+          if (requestId !== playRequestRef.current || desiredPlayStateRef.current === 'paused') return
+          isErrorAutoSkipRef.current = true
+          try {
+            nextTrackRef.current()
+          } finally {
+            isErrorAutoSkipRef.current = false
+          }
+        }, 1200)
+      }
+    }
+
     try {
     const rawSavedTime = currentTimeRef.current || audioRef.current?.currentTime || 0
     const resolveFallbackResumeTime = (candidateDur?: number | null): number => {
@@ -1248,6 +1307,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             ...track,
             source: 'nhaccuatui',
             nhaccuatui_id: nctCandidate.nhaccuatui_id,
+            soundcloud_id: undefined,
+            youtube_id: undefined,
           }
           const nctResumeTime = resolveFallbackResumeTime(nctCandidate.duration)
           currentTrackRef.current = updatedTrack
@@ -1263,18 +1324,21 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             audioEl.addEventListener('loadedmetadata', onMeta)
           }
           audioEl.load()
-          playOwnedAudio(audioEl, requestId).then((played) => {
+          try {
+            const played = await playOwnedAudio(audioEl, requestId)
             if (!played) {
               if (ownsRequest()) setIsBuffering(false)
               return
             }
+            consecutiveSkipRef.current = 0
             setIsPlaying(true)
             setIsBuffering(false)
             setPlaybackError(null)
-          }).catch((err) => {
-            console.warn('[fallbackToYouTube] NCT playback failed:', err)
-          })
-          return
+            return
+          } catch (err) {
+            console.warn('[fallbackToYouTube] NCT playback failed, continuing to YouTube candidate:', err)
+            if (!ownsRequest()) return
+          }
         }
 
         // 1b. Fallback to YouTube candidate
@@ -1286,20 +1350,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (!bestMatch) {
-      if (!isCurrentAudioOwnership()) return
-      if (requestId !== playRequestRef.current) return
-      setIsPlaying(false)
-      setIsBuffering(false)
-      setPlaybackError(`Không thể phát bài hát "${track.title}". Vui lòng chọn bài khác.`)
+      handleUnrecoverableFallbackFailure()
       return
     }
 
     if (!bestMatch.youtube_id) {
-      if (!isCurrentAudioOwnership()) return
-      if (requestId !== playRequestRef.current) return
-      setIsPlaying(false)
-      setIsBuffering(false)
-      setPlaybackError(`Không thể phát bài hát "${track.title}". Vui lòng chọn bài khác.`)
+      handleUnrecoverableFallbackFailure()
       return
     }
 
@@ -1307,33 +1363,24 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const isTargetShort = !track.duration || track.duration < 900
     if (isTargetShort && candidateDuration > 1200) {
       // Target is a short track but YouTube match is > 2min — reject (likely wrong match)
-      if (!isCurrentAudioOwnership()) return
-      if (requestId !== playRequestRef.current) return
-      setIsPlaying(false)
-      setIsBuffering(false)
-      setPlaybackError(`Không thể phát bài hát "${track.title}". Vui lòng chọn bài khác.`)
+      handleUnrecoverableFallbackFailure()
       return
     }
 
     const activeTrack: Track = {
       ...track,
       youtube_id: bestMatch.youtube_id,
+      nhaccuatui_id: undefined,
+      soundcloud_id: undefined,
+      audio_url: undefined,
+      file_path: '',
       source: 'youtube',
     }
     if (!ownsRequest()) return
 
 
     // ── Step 3: Background R2 population trigger ────────────────────────────
-    // ⚠️ Disabled for YouTube — YouTube streams are less stable and the
-    // Range pre-warm can cause the browser to reload playback when the
-    // InnerTube resolution completes. The actual audio.play() below triggers
-    // InnerTube naturally. R2 population will happen as a side-effect of
-    // normal playback, making the NEXT play instant.
-    //
-    // If you want to re-enable, ensure the Range request doesn't interfere
-    // with the browser's audio element by using a different mechanism.
     const streamUrl = buildYouTubeStreamUrl(bestMatch.youtube_id)
-    // fetch(streamUrl, { headers: { Range: 'bytes=0-0' } }).catch(() => {}) // Disabled
 
     // Invalidate the broken stream resolution so subsequent plays don't re-fetch the dead stream
     let invTimer: ReturnType<typeof setTimeout> | null = null
@@ -1379,81 +1426,98 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     setPlaybackError(null)
     const ytResumeTime = resolveFallbackResumeTime(bestMatch.duration)
 
-    if (isIOSDevice()) {
-      // iOS: Play YouTube through HTML5 stream proxy so it continues in background / lock screen
+    if (isIOSDevice() && audioRef.current) {
+      // iOS: Try HTML5 stream proxy first so it continues in background / lock screen;
+      // if the proxy fails (e.g. 502), fall through to the YouTube IFrame Player.
       ytHtml5ModeRef.current = true
-      if (audioRef.current) {
-        const audioEl = audioRef.current
-        setAudioSourceForPlayback(audioEl, streamUrl, volumeRef.current ?? 0.8, ytResumeTime)
-        if (ytResumeTime > 0 && audioEl.currentTime === 0) {
-          const onMeta = () => {
-            audioEl.removeEventListener('loadedmetadata', onMeta)
-            if (!ownsRequest()) return
-            try { audioEl.currentTime = ytResumeTime } catch {}
-          }
-          audioEl.addEventListener('loadedmetadata', onMeta)
+      const audioEl = audioRef.current
+      setAudioSourceForPlayback(audioEl, streamUrl, volumeRef.current ?? 0.8, ytResumeTime)
+      if (ytResumeTime > 0 && audioEl.currentTime === 0) {
+        const onMeta = () => {
+          audioEl.removeEventListener('loadedmetadata', onMeta)
+          if (!ownsRequest()) return
+          try { audioEl.currentTime = ytResumeTime } catch {}
         }
-        ensureWebAudioGain()
-        try {
-          if (!await playOwnedAudio(audioEl, requestId)) {
-            if (ownsRequest()) setIsBuffering(false)
-            return
-          }
-          setIsPlaying(true)
-          setIsBuffering(false)
-          return
-        } catch (iosPlayErr) {
-          if (!ownsRequest() || (desiredPlayStateRef.current as string | null) === 'paused') return
-          console.warn('iOS YouTube fallback stream playback error:', iosPlayErr)
-        }
+        audioEl.addEventListener('loadedmetadata', onMeta)
       }
-    } else {
-      // Desktop / Android: Play through YouTube iframe engine
-      ytHtml5ModeRef.current = false
-      if (audioRef.current) {
+      ensureWebAudioGain()
+      try {
+        if (!await playOwnedAudio(audioEl, requestId)) {
+          if (ownsRequest()) setIsBuffering(false)
+          return
+        }
+        consecutiveSkipRef.current = 0
+        setIsPlaying(true)
+        setIsBuffering(false)
+        return
+      } catch (iosPlayErr) {
+        if (!ownsRequest() || (desiredPlayStateRef.current as string | null) === 'paused') {
+          if (ownsRequest()) setIsBuffering(false)
+          return
+        }
+        console.warn('iOS YouTube fallback stream playback error, switching to YouTube IFrame Player:', iosPlayErr)
         try {
-          audioRef.current.pause()
-          audioRef.current.removeAttribute('src')
+          audioEl.pause()
+          audioEl.removeAttribute('src')
         } catch {}
       }
-      const tryLoadYt = (retries = 5) => {
-        if (requestId !== playRequestRef.current) return
-        if (desiredPlayStateRef.current === 'paused') {
-          setIsBuffering(false)
-          setIsPlaying(false)
-          return
+    }
+
+    // Desktop / Android (or iOS when stream proxy is unavailable): Play through YouTube iframe engine
+    ytHtml5ModeRef.current = false
+    if (audioRef.current) {
+      try {
+        audioRef.current.pause()
+        audioRef.current.removeAttribute('src')
+      } catch {}
+    }
+    pendingYtPlayRef.current = { videoId: bestMatch.youtube_id, startTime: ytResumeTime, requestId }
+    const tryLoadYt = (retries = 25) => {
+      if (requestId !== playRequestRef.current) return
+      if (desiredPlayStateRef.current === 'paused') {
+        pendingYtPlayRef.current = null
+        setIsBuffering(false)
+        setIsPlaying(false)
+        return
+      }
+      if (ytPlayerRef.current?.loadVideoById) {
+        pendingYtPlayRef.current = null
+        ytLoadedIdRef.current = bestMatch.youtube_id || null
+        const currentVol = volumeRef.current ?? DEFAULT_VOLUME
+        if (currentVol > 0) {
+          if (ytPlayerRef.current.unMute) ytPlayerRef.current.unMute()
+          if (ytPlayerRef.current.isMuted && ytPlayerRef.current.isMuted()) {
+            ytPlayerRef.current.unMute()
+          }
+        } else {
+          if (ytPlayerRef.current.mute) ytPlayerRef.current.mute()
         }
-        if (ytPlayerRef.current?.loadVideoById) {
-          ytLoadedIdRef.current = bestMatch.youtube_id || null
-          const currentVol = volumeRef.current ?? DEFAULT_VOLUME
-          if (currentVol > 0) {
-            if (ytPlayerRef.current.unMute) ytPlayerRef.current.unMute()
-            if (ytPlayerRef.current.isMuted && ytPlayerRef.current.isMuted()) {
-              ytPlayerRef.current.unMute()
-            }
-          } else {
-            if (ytPlayerRef.current.mute) ytPlayerRef.current.mute()
-          }
-          if (ytPlayerRef.current.setVolume) {
-            ytPlayerRef.current.setVolume(currentVol * 100)
-          }
-          ytPlayerRef.current.loadVideoById(
-            ytResumeTime > 0
-              ? { videoId: bestMatch.youtube_id, startSeconds: ytResumeTime }
-              : { videoId: bestMatch.youtube_id }
-          )
-          if (ytPlayerRef.current.playVideo) {
-            try { ytPlayerRef.current.playVideo() } catch {}
-          }
-          setIsPlaying(true)
+        if (ytPlayerRef.current.setVolume) {
+          ytPlayerRef.current.setVolume(currentVol * 100)
+        }
+        ytPlayerRef.current.loadVideoById(
+          ytResumeTime > 0
+            ? { videoId: bestMatch.youtube_id, startSeconds: ytResumeTime }
+            : { videoId: bestMatch.youtube_id }
+        )
+        if (ytPlayerRef.current.playVideo) {
+          try { ytPlayerRef.current.playVideo() } catch {}
+        }
+        consecutiveSkipRef.current = 0
+        setIsPlaying(true)
+        setIsBuffering(false)
+      } else if (retries > 0) {
+        setTimeout(() => tryLoadYt(retries - 1), 150)
+      } else {
+        pendingYtPlayRef.current = null
+        if (requestId === playRequestRef.current) {
+          setIsPlaying(false)
           setIsBuffering(false)
-        } else if (retries > 0) {
-          setTimeout(() => tryLoadYt(retries - 1), 150)
+          setPlaybackError(`Không thể kết nối đến trình phát YouTube cho bài hát "${activeTrack.title}".`)
         }
       }
-      tryLoadYt()
-      return
     }
+    tryLoadYt()
     } finally {
       fallbackInProgressRef.current.delete(requestId)
     }
@@ -2410,6 +2474,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             ...track,
             source: 'nhaccuatui',
             nhaccuatui_id: streamResult.id,
+            soundcloud_id: undefined,
+            youtube_id: undefined,
             audio_url: undefined,
             file_path: '',
             title: streamResult.title || track.title,
@@ -2422,6 +2488,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             ...track,
             source: 'local' as const,
             file_path: streamResult.id,
+            nhaccuatui_id: undefined,
+            soundcloud_id: undefined,
+            youtube_id: undefined,
             audio_url: undefined,
             title: streamResult.title || track.title,
             artist: streamResult.artist || track.artist,
@@ -2435,6 +2504,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             ...track,
             source: 'soundcloud' as const,
             soundcloud_id: streamResult.id,
+            nhaccuatui_id: undefined,
+            youtube_id: undefined,
             audio_url: undefined,
             file_path: '',
             title: streamResult.title || track.title,
@@ -2446,6 +2517,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           activeTrack = {
             ...track,
             youtube_id: streamResult.id,
+            nhaccuatui_id: undefined,
+            soundcloud_id: undefined,
             source: 'youtube',
             audio_url: undefined,
             file_path: '',
@@ -2455,7 +2528,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           track.youtube_id = streamResult.id
         }
 
-        if (streamResult.streamUrl) {
+        if (streamResult.streamUrl && streamResult.source !== 'youtube') {
           audioUrlCacheRef.current.set(activeTrack.id, {
             url: streamResult.streamUrl,
             ts: Date.now(),
@@ -2484,7 +2557,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (requestId !== playRequestRef.current) return
 
     // 🎵 1. Try SYNCHRONOUS URL cache hit first (Zero-await gap for unbroken iOS Safari background playback gesture chain)
-    let url: string | null = readFreshAudioUrl(audioUrlCacheRef.current, activeTrack)
+    const isNonIosYouTube = (activeTrack.source === 'youtube' || Boolean(activeTrack.youtube_id)) && !isIOSDevice()
+    let url: string | null = isNonIosYouTube ? null : readFreshAudioUrl(audioUrlCacheRef.current, activeTrack)
     if (!url) {
       const driveFileId = activeTrack.drive_file_id || extractDriveFileId(activeTrack.file_path || '')
       if (driveFileId && (activeTrack.source === 'local' || !activeTrack.source)) {
@@ -2496,7 +2570,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         const baseUrl = buildDriveStreamUrl(driveFileId)
         url = filenameParam ? `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}${filenameParam.slice(1)}` : baseUrl
         audioUrlCacheRef.current.set(activeTrack.id, { url, ts: Date.now() })
-      } else {
+      } else if (!isNonIosYouTube) {
         try {
           url = await getAudioUrlCached(activeTrack)
         } catch (error: any) {}
@@ -2583,33 +2657,53 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           pendingResumeRef.current = true
           return
         }
-        if (audioRef.current) {
-          try {
-            trackResolutionCacheRef.current.delete(activeTrack.id)
-            audioUrlCacheRef.current.delete(activeTrack.id)
-            if (activeTrack.nhaccuatui_id) {
-              clearCachedNctStreamUrl(activeTrack.nhaccuatui_id)
-            }
-            if (audioRef.current.src === url) {
-              audioRef.current.pause()
-              audioRef.current.removeAttribute('src')
-            }
-          } catch {}
-          void invalidateCurrentResolution()
-        }
-        console.warn('HTML5 audio stream playback info:', err)
-        if (!fallbackAttemptedRef.current.has(requestId)) {
-          recordRequestIdFlag(fallbackAttemptedRef.current, requestId)
-          setIsBuffering(true)
-          void fallbackToYouTube(activeTrack, requestId)
+        const directYtId = activeTrack.youtube_id || (activeTrack.source === 'youtube' ? extractYouTubeVideoId(activeTrack.file_path || '') : null)
+        if (directYtId) {
+          // iOS YouTube HTML5 stream proxy failed (e.g. 502): clear <audio> and fall through to YouTube IFrame Player below!
+          console.warn('HTML5 YouTube stream proxy failed, switching to YouTube IFrame Player:', err)
+          audioUrlCacheRef.current.delete(activeTrack.id)
+          ytHtml5ModeRef.current = false
+          if (audioRef.current) {
+            try {
+              if (audioRef.current.src === url) {
+                audioRef.current.pause()
+                audioRef.current.removeAttribute('src')
+              }
+            } catch {}
+          }
+        } else {
+          if (audioRef.current) {
+            try {
+              trackResolutionCacheRef.current.delete(activeTrack.id)
+              audioUrlCacheRef.current.delete(activeTrack.id)
+              if (activeTrack.nhaccuatui_id) {
+                clearCachedNctStreamUrl(activeTrack.nhaccuatui_id)
+              }
+              if (audioRef.current.src === url) {
+                audioRef.current.pause()
+                audioRef.current.removeAttribute('src')
+              }
+            } catch {}
+            void invalidateCurrentResolution()
+          }
+          console.warn('HTML5 audio stream playback info:', err)
+          if (fallbackInProgressRef.current.has(requestId)) {
+            return
+          }
+          if (!fallbackAttemptedRef.current.has(requestId)) {
+            setIsBuffering(true)
+            const fbPromise = fallbackToYouTube(activeTrack, requestId)
+            recordRequestIdFlag(fallbackAttemptedRef.current, requestId)
+            void fbPromise
+            return
+          }
+          if (requestId === playRequestRef.current) {
+            setIsPlaying(false)
+            setIsBuffering(false)
+            setPlaybackError(`Không thể phát bài hát "${activeTrack.title}". Vui lòng chọn bài khác.`)
+          }
           return
         }
-        if (requestId === playRequestRef.current) {
-          setIsPlaying(false)
-          setIsBuffering(false)
-          setPlaybackError(`Không thể phát bài hát "${activeTrack.title}". Vui lòng chọn bài khác.`)
-        }
-        return
       }
     }
 
@@ -2658,6 +2752,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             if (ytPlayerRef.current.playVideo) {
               try { ytPlayerRef.current.playVideo() } catch {}
             }
+            consecutiveSkipRef.current = 0
             setIsPlaying(true)
             setIsBuffering(false)
             recordHistory(track)
@@ -2687,9 +2782,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         setIsBuffering(false)
         return
       }
+      if (fallbackInProgressRef.current.has(requestId)) {
+        return
+      }
       if (!fallbackAttemptedRef.current.has(requestId)) {
+        const fbPromise = fallbackToYouTube(activeTrack, requestId)
         recordRequestIdFlag(fallbackAttemptedRef.current, requestId)
-        void fallbackToYouTube(activeTrack, requestId)
+        void fbPromise
         return
       }
       if (requestId === playRequestRef.current) {
@@ -3059,11 +3158,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         } else {
           console.warn('Quick-play audio failed, falling back to full resolve:', err?.message || err)
           audioUrlCacheRef.current.delete(track.id)
+          audioUrlCacheRef.current.delete(rawTrack.id)
+          trackResolutionCacheRef.current.delete(track.id)
+          trackResolutionCacheRef.current.delete(rawTrack.id)
           if (track.nhaccuatui_id) {
             clearCachedNctStreamUrl(track.nhaccuatui_id)
           }
           setIsBuffering(true)
-          playTrack(track, undefined, targetIdx >= 0 ? targetIdx : undefined)
+          playTrack(rawTrack, undefined, targetIdx >= 0 ? targetIdx : undefined)
         }
       })
 
@@ -3517,6 +3619,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (!audio.src || audio.src === window.location.href) return
       if (!isCurrentAudioOwnership()) return
       const requestId = playRequestRef.current
+      const hadFallbackBeforeError = fallbackAttemptedRef.current.has(requestId)
+      if (fallbackInProgressRef.current.has(requestId)) return
       if (!isYtIframeEngine()) {
         const current = currentTrackRef.current
         if (!current) return
@@ -3538,15 +3642,83 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           setIsBuffering(false)
           return
         }
+        if (
+          isYtIframeEngine() ||
+          fallbackInProgressRef.current.has(requestId) ||
+          (!hadFallbackBeforeError && fallbackAttemptedRef.current.has(requestId)) ||
+          (!audio.paused && !audio.ended && audio.readyState >= 3)
+        ) {
+          return
+        }
         trackResolutionCacheRef.current.delete(current.id)
         audioUrlCacheRef.current.delete(current.id)
+
+        // If iOS HTML5 YouTube stream proxy failed, switch immediately to YouTube IFrame Player
+        const directYtId = current.youtube_id || (current.source === 'youtube' ? extractYouTubeVideoId(current.file_path || '') : null)
+        if (ytHtml5ModeRef.current && directYtId) {
+          console.warn('[YouTube HTML5 Auto-Switch] Stream proxy failed in handleError, switching to YouTube IFrame Player:', directYtId)
+          ytHtml5ModeRef.current = false
+          const resumeTime = Math.floor(currentTimeRef.current || audio.currentTime || 0)
+          try {
+            audio.pause()
+            audio.removeAttribute('src')
+          } catch {}
+          pendingYtPlayRef.current = { videoId: directYtId, startTime: resumeTime, requestId }
+          const tryLoadYtFromError = (retries = 25) => {
+            if (requestId !== playRequestRef.current) return
+            if (desiredPlayStateRef.current === 'paused') {
+              pendingYtPlayRef.current = null
+              setIsBuffering(false)
+              setIsPlaying(false)
+              return
+            }
+            if (ytPlayerRef.current?.loadVideoById) {
+              pendingYtPlayRef.current = null
+              ytLoadedIdRef.current = directYtId
+              const currentVol = volumeRef.current ?? DEFAULT_VOLUME
+              if (currentVol > 0) {
+                if (ytPlayerRef.current.unMute) ytPlayerRef.current.unMute()
+                if (ytPlayerRef.current.isMuted && ytPlayerRef.current.isMuted()) {
+                  ytPlayerRef.current.unMute()
+                }
+              } else if (ytPlayerRef.current.mute) {
+                ytPlayerRef.current.mute()
+              }
+              if (ytPlayerRef.current.setVolume) {
+                ytPlayerRef.current.setVolume(currentVol * 100)
+              }
+              ytPlayerRef.current.loadVideoById(
+                resumeTime >= 3
+                  ? { videoId: directYtId, startSeconds: resumeTime }
+                  : { videoId: directYtId }
+              )
+              if (ytPlayerRef.current.playVideo) {
+                try { ytPlayerRef.current.playVideo() } catch {}
+              }
+              consecutiveSkipRef.current = 0
+              setIsPlaying(true)
+              setIsBuffering(false)
+              setPlaybackError(null)
+            } else if (retries > 0) {
+              setTimeout(() => tryLoadYtFromError(retries - 1), 150)
+            } else {
+              pendingYtPlayRef.current = null
+              if (requestId === playRequestRef.current) {
+                setIsPlaying(false)
+                setIsBuffering(false)
+              }
+            }
+          }
+          tryLoadYtFromError()
+          return
+        }
 
         // ── Parallel: NCT retry + YouTube search simultaneously ─────────────────
         // This saves ~700ms because YouTube search runs while NCT retry is pending.
         // If NCT succeeds → cancel YouTube search. If NCT fails → use pre-fetched result.
         const isNct = Boolean(
           current?.source === 'nhaccuatui' ||
-          current?.nhaccuatui_id
+          (current?.nhaccuatui_id && current?.source !== 'youtube' && current?.source !== 'soundcloud')
         )
         if (isNct && current && current.nhaccuatui_id) {
           const fallbackUrl = `/api/nhaccuatui/stream?id=${encodeURIComponent(current.nhaccuatui_id)}`
@@ -3602,6 +3774,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               playOwnedAudio(audioRef.current, requestId).then((played) => {
                 if (!played) return
                 nctSucceeded = true
+                consecutiveSkipRef.current = 0
                 setIsPlaying(true)
                 setIsBuffering(false)
                 setPlaybackError(null)
@@ -3646,8 +3819,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         // Self-healing for SoundCloud: If signed stream token expired (403), auto re-resolve with bypass cache ONCE
         const isSoundCloud = Boolean(
           current?.source === 'soundcloud' ||
-          current?.soundcloud_id ||
-          current?.id?.startsWith('sc-')
+          ((current?.soundcloud_id || current?.id?.startsWith('sc-')) && current?.source !== 'youtube' && current?.source !== 'nhaccuatui')
         )
         if (isSoundCloud && current && !scRetriedRef.current.has(requestId)) {
           console.log('[SoundCloud Auto-Retry] Audio playback error, requesting fresh stream URL with bypass cache...')
@@ -3658,6 +3830,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             if (requestId !== playRequestRef.current || !isCurrentAudioOwnership()) return
             if ((desiredPlayStateRef.current as 'playing' | 'paused' | null) === 'paused') {
               setIsBuffering(false)
+              return
+            }
+            if (
+              isYtIframeEngine() ||
+              fallbackInProgressRef.current.has(requestId) ||
+              (!hadFallbackBeforeError && fallbackAttemptedRef.current.has(requestId))
+            ) {
               return
             }
             if (!freshUrl) {
@@ -3684,6 +3863,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               }
               playOwnedAudio(audioRef.current, requestId).then((played) => {
                 if (!played) return
+                consecutiveSkipRef.current = 0
                 setIsPlaying(true)
                 setIsBuffering(false)
                 setPlaybackError(null)
@@ -3700,16 +3880,24 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (!isCurrentAudioOwnership()) return
+        if (
+          isYtIframeEngine() ||
+          fallbackInProgressRef.current.has(requestId) ||
+          (!hadFallbackBeforeError && fallbackAttemptedRef.current.has(requestId))
+        ) {
+          return
+        }
 
         // Fallback to YouTube for ANY failed audio track (NCT, SoundCloud, Drive, Local, Catalog)
         if (!fallbackAttemptedRef.current.has(requestId)) {
-          recordRequestIdFlag(fallbackAttemptedRef.current, requestId)
           await fallbackToYouTube(current, requestId)
+          recordRequestIdFlag(fallbackAttemptedRef.current, requestId)
           return
         }
 
         if (!isCurrentAudioOwnership()) return
         if (requestId !== playRequestRef.current) return
+        if (isYtIframeEngine() || fallbackInProgressRef.current.has(requestId)) return
 
         // 🛡️ Debounce rapid consecutive error events (800ms cooldown)
         // Prevents rapid mount/unmount of Three.js canvas that exhausts GPU resources

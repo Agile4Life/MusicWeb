@@ -4,19 +4,9 @@
  * - L1 Cache: Cloudflare Cache API (caches.default) — Sub-5ms worldwide edge response
  * - L2 Cache: Cloudflare KV (SOUNDCLOUD_STREAM_KV) — Persistent global cache
  * - Dynamic Edge Client ID resolution & scraping with in-memory TTL
- * - Automatic Next.js fallback if direct edge resolution encounters edge-case tracks
- *
- * v2.3.0 — bug-fix pass:
- *   [FIX #1] resolveDirectlyFromEdge() now applies the SAME "full audio only"
- *            checks as lib/soundcloud.ts (isSoundCloudFullAudio) instead of
- *            only checking transcodings.length > 0. Previously a blocked /
- *            Go+ snippet-only track could still be streamed via the Worker
- *            even though the main Next.js app would refuse it.
- *   [FIX #3] Fallback client_id candidates now rotate on failure instead of
- *            always using FALLBACK_CLIENT_IDS[0].
- *   [FIX #4] Added in-flight de-duplication for client_id resolution at the
- *            edge, matching the app's inFlightClientIdPromise behaviour, to
- *            avoid a thundering-herd of soundcloud.com scrapes on cache miss.
+ * - Seamless fMP4 / MP3 HLS stitching into progressive audio/mp4 or audio/mpeg streams
+ *   for universal HTML5 <audio> compatibility across Chrome, Edge, Firefox, and Safari
+ * - Strict rejection of Go+ 30s previews, SNIP tracks, and FairPlay /cbcs/ DRM tracks
  */
 
 const CORS_HEADERS = {
@@ -37,10 +27,7 @@ const SC_USER_AGENT =
 // In-worker isolate memory cache for dynamic client ID (15-minute TTL)
 let cachedEdgeClientId = null
 let edgeClientIdExpiresAt = 0
-// [FIX #4] In-flight de-dupe so concurrent cache-miss requests on the same
-// isolate don't each independently scrape soundcloud.com.
 let inFlightEdgeClientIdPromise = null
-// [FIX #3] Rotating index into FALLBACK_CLIENT_IDS.
 let fallbackClientIdIndex = 0
 
 function corsResponse(body, init = {}) {
@@ -61,9 +48,7 @@ function redirectResponse(targetUrl, maxAge = 900) {
 }
 
 /**
- * [FIX #1] Mirrors isSoundCloudFullAudio() from lib/soundcloud.ts. Keep this
- * in sync with that function — it's duplicated here because the Worker runs
- * in a separate deploy/runtime and can't import the Next.js app's TS module.
+ * Mirrors isSoundCloudFullAudio() from lib/soundcloud.ts.
  */
 function isFullAudioTrack(raw) {
   if (!raw || typeof raw.id === 'undefined') return false
@@ -83,7 +68,18 @@ function isFullAudioTrack(raw) {
   }
   const transcodings = raw?.media?.transcodings
   if (!Array.isArray(transcodings) || transcodings.length === 0) return false
-  return transcodings.some((t) => typeof t?.url === 'string' && t.url.includes('/stream/') && !t.snipped)
+  return transcodings.some(
+    (t) =>
+      typeof t?.url === 'string' &&
+      t.url.includes('/stream/') &&
+      !t.url.includes('/cbcs/') &&
+      !t.snipped &&
+      (t.format?.protocol === 'progressive' ||
+        (t.format?.protocol === 'hls' &&
+          t.preset !== 'abr_sq' &&
+          t.format?.mime_type !== 'audio/mpegurl' &&
+          t.format?.mime_type !== 'application/vnd.apple.mpegurl'))
+  )
 }
 
 function getCurrentFallbackClientId() {
@@ -125,11 +121,6 @@ async function scrapeEdgeClientId() {
   return null
 }
 
-/**
- * Dynamically resolves or extracts a working SoundCloud Client ID directly
- * at the Cloudflare Edge. forceRefresh bypasses the TTL cache (e.g. after a
- * 401/403 from SoundCloud) and rotates the fallback candidate.
- */
 async function getEdgeSoundCloudClientId(env, forceRefresh = false) {
   if (env && env.SOUNDCLOUD_CLIENT_ID) {
     return env.SOUNDCLOUD_CLIENT_ID.trim()
@@ -138,7 +129,6 @@ async function getEdgeSoundCloudClientId(env, forceRefresh = false) {
   if (!forceRefresh && cachedEdgeClientId && now < edgeClientIdExpiresAt) {
     return cachedEdgeClientId
   }
-  // [FIX #4] De-dupe concurrent resolutions within this isolate.
   if (!forceRefresh && inFlightEdgeClientIdPromise) {
     return inFlightEdgeClientIdPromise
   }
@@ -154,7 +144,6 @@ async function getEdgeSoundCloudClientId(env, forceRefresh = false) {
       fallbackClientIdIndex = 0
       return cachedEdgeClientId
     }
-    // [FIX #3] Rotate through fallback candidates instead of always [0].
     const fallback = getCurrentFallbackClientId()
     cachedEdgeClientId = fallback
     edgeClientIdExpiresAt = Date.now() + 15 * 60 * 1000
@@ -169,9 +158,88 @@ async function getEdgeSoundCloudClientId(env, forceRefresh = false) {
 }
 
 /**
+ * Fetches and validates an HLS .m3u8 playlist.
+ * Rejects DRM-encrypted (#EXT-X-KEY / /cbcs/) playlists and extracts init.mp4 + media segments.
+ */
+async function parseAndValidateHlsPlaylist(m3u8Url) {
+  try {
+    if (!m3u8Url || m3u8Url.includes('/cbcs/')) {
+      return { encrypted: true }
+    }
+    const res = await fetch(m3u8Url, {
+      headers: { 'User-Agent': SC_USER_AGENT },
+    })
+    if (!res.ok) return null
+    const text = await res.text()
+    if (!text || text.includes('#EXT-X-KEY') || text.includes('/cbcs/')) {
+      return { encrypted: true }
+    }
+    const mapMatch = text.match(/#EXT-X-MAP:URI="([^"]+)"/)
+    const mapUrl = mapMatch ? mapMatch[1] : null
+    const segmentUrls = text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.startsWith('http://') || line.startsWith('https://'))
+    if (segmentUrls.length === 0) return null
+    return {
+      encrypted: false,
+      contentType: mapUrl ? 'audio/mp4' : 'audio/mpeg',
+      urls: mapUrl ? [mapUrl, ...segmentUrls] : segmentUrls,
+    }
+  } catch (err) {
+    console.warn('[SoundCloud Worker] HLS manifest parse error:', err)
+    return null
+  }
+}
+
+/**
+ * Streams an unencrypted fMP4 or MP3 HLS segment list as a single continuous progressive audio response.
+ */
+function streamHlsSegments(hlsInfo, requestSignal) {
+  const { readable, writable } = new TransformStream()
+  const writer = writable.getWriter()
+
+  ;(async () => {
+    try {
+      for (const segUrl of hlsInfo.urls) {
+        if (requestSignal?.aborted) break
+        const segRes = await fetch(segUrl, {
+          headers: { 'User-Agent': SC_USER_AGENT },
+          signal: requestSignal,
+        })
+        if (!segRes.ok || !segRes.body) {
+          break
+        }
+        const reader = segRes.body.getReader()
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          if (value && value.byteLength > 0) {
+            await writer.write(value)
+          }
+        }
+      }
+    } catch {
+      // Client disconnected or aborted
+    } finally {
+      try {
+        await writer.close()
+      } catch {}
+    }
+  })()
+
+  return corsResponse(readable, {
+    status: 200,
+    headers: {
+      'Content-Type': hlsInfo.contentType || 'audio/mp4',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Accept-Ranges': 'none',
+    },
+  })
+}
+
+/**
  * Direct Edge Resolver: Resolves stream URL straight from SoundCloud API.
- * [FIX #1] Now rejects non-full-audio tracks (blocked/snippet/Go+) instead
- * of returning any transcoding URL it can find.
  */
 async function resolveDirectlyFromEdge(cleanId, clientId) {
   try {
@@ -184,8 +252,6 @@ async function resolveDirectlyFromEdge(cleanId, clientId) {
     }
     const raw = await trackRes.json()
 
-    // [FIX #1] Reject blocked / snippet-only / Go+ tracks at the edge, same
-    // as the main app does via isSoundCloudFullAudio().
     if (!isFullAudioTrack(raw)) {
       return { status: 403, url: null, reason: 'not_full_audio' }
     }
@@ -193,27 +259,69 @@ async function resolveDirectlyFromEdge(cleanId, clientId) {
     const transcodings = raw?.media?.transcodings || []
     if (transcodings.length === 0) return { status: 404, url: null }
 
-    const progressiveStream =
+    // Candidate order:
+    // 1. Progressive MP3 stream
+    // 2. Unencrypted fMP4 AAC 160k HLS stream
+    // 3. Unencrypted fMP4 AAC 96k / MP3 HLS stream
+    const candidates = [
       transcodings.find(
         (t) =>
           t.format?.protocol === 'progressive' &&
           t.url?.includes('/stream/') &&
+          !t.snipped &&
           (t.format?.mime_type?.includes('audio/mpeg') || t.preset?.includes('mp3'))
-      ) ||
-      transcodings.find((t) => t.format?.protocol === 'progressive' && t.url?.includes('/stream/')) ||
-      transcodings.find((t) => t.format?.protocol === 'progressive') ||
-      transcodings[0]
+      ),
+      transcodings.find((t) => t.format?.protocol === 'progressive' && t.url?.includes('/stream/') && !t.snipped),
+      transcodings.find(
+        (t) =>
+          t.format?.protocol === 'hls' &&
+          t.url?.includes('/stream/') &&
+          !t.url?.includes('/cbcs/') &&
+          !t.snipped &&
+          t.preset === 'aac_160k'
+      ),
+      transcodings.find(
+        (t) =>
+          t.format?.protocol === 'hls' &&
+          t.url?.includes('/stream/') &&
+          !t.url?.includes('/cbcs/') &&
+          !t.snipped &&
+          t.preset !== 'abr_sq' &&
+          (t.format?.mime_type?.includes('audio/mp4') || t.format?.mime_type?.includes('audio/mpeg')) &&
+          t.format?.mime_type !== 'audio/mpegurl'
+      ),
+    ].filter(Boolean)
 
-    if (!progressiveStream?.url) return { status: 404, url: null }
-
-    const mediaRes = await fetch(`${progressiveStream.url}?client_id=${clientId}`, {
-      headers: { 'User-Agent': SC_USER_AGENT, Accept: 'application/json' },
-    })
-    if (!mediaRes.ok) {
-      return { status: mediaRes.status, url: null }
+    if (candidates.length === 0) {
+      return { status: 403, url: null, reason: 'not_full_audio' }
     }
-    const mediaData = await mediaRes.json()
-    return { status: 200, url: mediaData?.url || null }
+
+    for (const candidate of candidates) {
+      const mediaRes = await fetch(`${candidate.url}?client_id=${clientId}`, {
+        headers: { 'User-Agent': SC_USER_AGENT, Accept: 'application/json' },
+      })
+      if (!mediaRes.ok) {
+        if (mediaRes.status === 401 || mediaRes.status === 403) {
+          return { status: mediaRes.status, url: null }
+        }
+        continue
+      }
+      const mediaData = await mediaRes.json()
+      const resolvedUrl = mediaData?.url || null
+      if (!resolvedUrl || resolvedUrl.includes('/cbcs/')) {
+        continue
+      }
+      if (resolvedUrl.includes('.m3u8')) {
+        const hlsInfo = await parseAndValidateHlsPlaylist(resolvedUrl)
+        if (!hlsInfo || hlsInfo.encrypted) {
+          continue
+        }
+        return { status: 200, url: resolvedUrl, isHls: true, hlsInfo }
+      }
+      return { status: 200, url: resolvedUrl, isHls: false }
+    }
+
+    return { status: 403, url: null, reason: 'not_full_audio' }
   } catch (e) {
     console.warn('[SoundCloud Worker] Direct resolve error:', e)
     return { status: 500, url: null }
@@ -230,13 +338,14 @@ export default {
 
     if (url.pathname === '/' || url.pathname === '/health') {
       return corsResponse(
-        JSON.stringify({ status: 'ok', service: 'soundcloud-stream-cache', version: '2.3.0' }),
+        JSON.stringify({ status: 'ok', service: 'soundcloud-stream-cache', version: '2.4.0' }),
         { headers: { 'Content-Type': 'application/json' } }
       )
     }
 
     if (url.pathname === '/stream') {
       const id = url.searchParams.get('id')
+      const format = url.searchParams.get('format')
       const refresh = url.searchParams.get('refresh') === '1'
       if (!id) {
         return corsResponse(JSON.stringify({ error: 'Missing track id' }), {
@@ -245,107 +354,112 @@ export default {
         })
       }
       const cleanId = id.replace(/^sc-/, '')
-      const kvKey = `sc_stream_${cleanId}`
-      const edgeCache = caches.default
-      const cacheKey = new Request(url.toString(), { method: 'GET', headers: request.headers })
+      const kvKey = `sc_stream_v3_${cleanId}`
+      const selfStreamUrl = `${url.origin}/stream?id=${encodeURIComponent(cleanId)}`
 
-      if (!refresh) {
+      if (!refresh && env.SOUNDCLOUD_STREAM_KV) {
         try {
-          const cachedEdgeResponse = await edgeCache.match(cacheKey)
-          if (cachedEdgeResponse) return cachedEdgeResponse
-        } catch (cacheReadErr) {
-          console.warn('L1 Edge Cache read error:', cacheReadErr)
-        }
-        if (env.SOUNDCLOUD_STREAM_KV) {
-          try {
-            const cachedUrl = await env.SOUNDCLOUD_STREAM_KV.get(kvKey)
-            if (cachedUrl) {
-              const res = redirectResponse(cachedUrl, 900)
-              ctx.waitUntil(edgeCache.put(cacheKey, res.clone()))
-              return res
+          const cachedRaw = await env.SOUNDCLOUD_STREAM_KV.get(kvKey)
+          if (cachedRaw) {
+            const parsed = JSON.parse(cachedRaw)
+            if (parsed && parsed.url) {
+              if (format === 'json') {
+                const publicUrl = parsed.isHls ? selfStreamUrl : parsed.url
+                return corsResponse(JSON.stringify({ url: publicUrl }), {
+                  status: 200,
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'public, max-age=600, s-maxage=600, stale-while-revalidate=120',
+                  },
+                })
+              }
+              if (!parsed.isHls) {
+                return redirectResponse(parsed.url, 600)
+              }
+              const hlsInfo = await parseAndValidateHlsPlaylist(parsed.url)
+              if (hlsInfo && !hlsInfo.encrypted) {
+                if (request.method === 'HEAD') {
+                  return corsResponse(null, {
+                    status: 200,
+                    headers: { 'Content-Type': hlsInfo.contentType || 'audio/mp4' },
+                  })
+                }
+                return streamHlsSegments(hlsInfo, request.signal)
+              }
             }
-          } catch (e) {
-            console.warn('L2 KV read error:', e)
           }
+        } catch (e) {
+          console.warn('L2 KV read error:', e)
         }
       }
 
       const isNumericId = /^\d+$/.test(cleanId)
-      let streamUrl = null
+      let resolved = null
 
       if (isNumericId) {
         const clientId = await getEdgeSoundCloudClientId(env)
         let result = await resolveDirectlyFromEdge(cleanId, clientId)
-        streamUrl = result.url
 
-        // Retry once with a rotated/forced-refresh client_id on auth failure.
-        if (!streamUrl && (result.status === 401 || result.status === 403) && result.reason !== 'not_full_audio') {
+        if (!result.url && (result.status === 401 || result.status === 403) && result.reason !== 'not_full_audio') {
           const freshClientId = await getEdgeSoundCloudClientId(env, true)
           if (freshClientId && freshClientId !== clientId) {
             result = await resolveDirectlyFromEdge(cleanId, freshClientId)
-            streamUrl = result.url
           }
         }
 
-        // [FIX #1] If the track was explicitly rejected as non-full-audio,
-        // don't fall through to the Next.js app (which would reject it too) —
-        // fail fast with a clear 404 instead of an extra round trip.
-        if (!streamUrl && result.reason === 'not_full_audio') {
+        if (!result.url && result.reason === 'not_full_audio') {
           return corsResponse(
             JSON.stringify({ error: 'Track is not full audio (blocked, snippet, or Go+ only)' }),
             { status: 404, headers: { 'Content-Type': 'application/json' } }
           )
         }
-      }
 
-      if (!streamUrl) {
-        try {
-          const appUrl = (env.NEXT_APP_URL || 'https://phongtctmusic.vercel.app').replace(/\/+$/, '')
-          const refreshQuery = refresh ? '&refresh=1' : ''
-          const resolveApi = `${appUrl}/api/soundcloud/stream?id=${encodeURIComponent(cleanId)}&format=json${refreshQuery}`
-          const res = await fetch(resolveApi, { headers: { Accept: 'application/json' } })
-          if (res.ok) {
-            const data = await res.json()
-            streamUrl = data?.url || null
-          }
-        } catch (err) {
-          console.warn('App fallback resolution error:', err)
+        if (result.url) {
+          resolved = result
         }
       }
 
-      if (!streamUrl) {
+      if (!resolved || !resolved.url) {
         return corsResponse(JSON.stringify({ error: 'Stream URL not available or track is unplayable' }), {
           status: 404,
           headers: { 'Content-Type': 'application/json' },
         })
       }
 
-      const format = url.searchParams.get('format')
+      if (env.SOUNDCLOUD_STREAM_KV) {
+        ctx.waitUntil(
+          env.SOUNDCLOUD_STREAM_KV.put(
+            kvKey,
+            JSON.stringify({ url: resolved.url, isHls: Boolean(resolved.isHls) }),
+            { expirationTtl: 600 }
+          )
+        )
+      }
+
       if (format === 'json') {
-        const jsonRes = corsResponse(JSON.stringify({ url: streamUrl }), {
+        const publicUrl = resolved.isHls ? selfStreamUrl : resolved.url
+        return corsResponse(JSON.stringify({ url: publicUrl }), {
           status: 200,
           headers: {
             'Content-Type': 'application/json',
-            'Cache-Control': 'public, max-age=900, s-maxage=900, stale-while-revalidate=300',
+            'Cache-Control': refresh
+              ? 'no-cache, no-store, must-revalidate'
+              : 'public, max-age=600, s-maxage=600, stale-while-revalidate=120',
           },
         })
-        ctx.waitUntil(edgeCache.put(cacheKey, jsonRes.clone()))
-        if (env.SOUNDCLOUD_STREAM_KV) {
-          ctx.waitUntil(
-            env.SOUNDCLOUD_STREAM_KV.put(kvKey, streamUrl, {
-              expirationTtl: 900,
-            })
-          )
-        }
-        return jsonRes
       }
 
-      const redirectRes = redirectResponse(streamUrl, 900)
-      ctx.waitUntil(edgeCache.put(cacheKey, redirectRes.clone()))
-      if (env.SOUNDCLOUD_STREAM_KV) {
-        ctx.waitUntil(env.SOUNDCLOUD_STREAM_KV.put(kvKey, streamUrl, { expirationTtl: 900 }))
+      if (resolved.isHls && resolved.hlsInfo) {
+        if (request.method === 'HEAD') {
+          return corsResponse(null, {
+            status: 200,
+            headers: { 'Content-Type': resolved.hlsInfo.contentType || 'audio/mp4' },
+          })
+        }
+        return streamHlsSegments(resolved.hlsInfo, request.signal)
       }
-      return redirectRes
+
+      return redirectResponse(resolved.url, 600)
     }
 
     return corsResponse(JSON.stringify({ error: 'Not Found' }), {

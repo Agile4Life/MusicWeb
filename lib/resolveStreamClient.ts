@@ -191,7 +191,7 @@ export async function resolveStreamCached(
         artist: data.artist,
         duration: data.duration,
         coverUrl: data.coverUrl,
-        streamUrl: data.streamUrl || buildStableProxyStreamUrl(data.source, resultId),
+        streamUrl: data.streamUrl || (data.source === 'youtube' ? null : buildStableProxyStreamUrl(data.source, resultId)),
       }
 
       cacheResult(key, result, Date.now() + CLIENT_CACHE_TTL, generation)

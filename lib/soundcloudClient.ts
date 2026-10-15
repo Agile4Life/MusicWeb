@@ -713,15 +713,23 @@ export async function resolveSoundCloudStreamUrl(
       if (!res.ok) return null
 
       const data = await res.json()
-      const streamUrl = data.url || null
-
-      if (streamUrl) {
-        // Cache stream URL in memory for 15 minutes (900s)
-        streamUrlCache.set(rawId, {
-          url: streamUrl,
-          expiresAt: Date.now() + 15 * 60 * 1000,
-        })
+      const streamUrl: string | null = data.url || null
+      if (!streamUrl || streamUrl.includes('/cbcs/') || streamUrl.includes('/preview/')) {
+        return null
       }
+
+      if (streamUrl.includes('.m3u8')) {
+        const hlsInfo = await parseSoundCloudHlsManifest(streamUrl)
+        if (!hlsInfo) {
+          return null
+        }
+      }
+
+      // Cache stream URL in memory for 15 minutes (900s)
+      streamUrlCache.set(rawId, {
+        url: streamUrl,
+        expiresAt: Date.now() + 15 * 60 * 1000,
+      })
 
       return streamUrl
     } catch (err) {
@@ -739,12 +747,55 @@ export async function resolveSoundCloudStreamUrl(
   return promise
 }
 
+export async function parseSoundCloudHlsManifest(
+  m3u8Url: string,
+  timeoutMs = 4000,
+): Promise<{ contentType: string; urls: string[] } | null> {
+  try {
+    if (!m3u8Url || m3u8Url.includes('/cbcs/')) return null
+    const res = await fetchWithTimeout(
+      m3u8Url,
+      { headers: { 'User-Agent': SC_USER_AGENT } },
+      timeoutMs,
+    )
+    if (!res.ok) return null
+    const text = await res.text()
+    if (!text || text.includes('#EXT-X-KEY') || text.includes('/cbcs/')) {
+      return null
+    }
+    const mapMatch = text.match(/#EXT-X-MAP:URI="([^"]+)"/)
+    const mapUrl = mapMatch ? mapMatch[1] : null
+    const segmentUrls = text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.startsWith('http://') || line.startsWith('https://'))
+    if (segmentUrls.length === 0) return null
+    return {
+      contentType: mapUrl ? 'audio/mp4' : 'audio/mpeg',
+      urls: mapUrl ? [mapUrl, ...segmentUrls] : segmentUrls,
+    }
+  } catch {
+    return null
+  }
+}
+
 /**
  * Verifies that a SoundCloud track candidate can actually be resolved and played
  * (including via the configured SoundCloud Worker if enabled).
- * Rejects geo-blocked / Go+ / snippet tracks that pass initial search metadata
+ * Rejects geo-blocked / Go+ / snippet / DRM tracks that pass initial search metadata
  * in one region but fail when the Worker or stream resolver attempts playback.
  */
+function isPlayableSoundCloudDirectUrl(url?: string | null): url is string {
+  if (typeof url !== 'string' || (!url.startsWith('https://') && !url.startsWith('/api/soundcloud/stream'))) {
+    return false
+  }
+  const lower = url.toLowerCase()
+  if (lower.includes('/cbcs/') || lower.includes('/preview/')) {
+    return false
+  }
+  return true
+}
+
 export async function verifySoundCloudTrackPlayable(
   trackId: string | number,
   timeoutMs = 3000,
@@ -753,7 +804,7 @@ export async function verifySoundCloudTrackPlayable(
   if (!cleanId) return false
 
   const cachedStream = streamUrlCache.get(cleanId)
-  if (cachedStream && Date.now() < cachedStream.expiresAt && cachedStream.url) {
+  if (cachedStream && Date.now() < cachedStream.expiresAt && isPlayableSoundCloudDirectUrl(cachedStream.url)) {
     return true
   }
 
@@ -772,7 +823,7 @@ export async function verifySoundCloudTrackPlayable(
       }
       if (res.ok) {
         const data = await res.json().catch(() => null)
-        if (data && typeof data.url === 'string' && data.url.startsWith('https://')) {
+        if (isPlayableSoundCloudDirectUrl(data?.url) && !String(data.url).toLowerCase().includes('.m3u8')) {
           streamUrlCache.set(cleanId, {
             url: data.url,
             expiresAt: Date.now() + 15 * 60 * 1000,
@@ -787,7 +838,7 @@ export async function verifySoundCloudTrackPlayable(
   }
 
   const directUrl = await resolveSoundCloudStreamUrl(cleanId)
-  return Boolean(directUrl)
+  return isPlayableSoundCloudDirectUrl(directUrl)
 }
 
 /**
