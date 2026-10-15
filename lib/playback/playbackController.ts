@@ -615,7 +615,7 @@ export function createPlaybackController(
       return;
     }
     if (
-      activeEngine === 'youtube' ||
+      (activeEngine as string) === 'youtube' ||
       recovery.isFallbackInProgress(owner.requestId) ||
       (!hadFallbackBeforeError && recovery.hasAttemptedFallback(owner.requestId)) ||
       deps.transport.read().playing
@@ -659,7 +659,7 @@ export function createPlaybackController(
       store.patch({ isBuffering: true });
 
       let nctSucceeded = false;
-      let cancelTimeout: Cancel | null = null;
+      let cancelTimeout: Cancel | undefined;
       try {
         await Promise.race([
           executePreparedPlayback(

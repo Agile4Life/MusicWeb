@@ -79,7 +79,7 @@ function createTestHarness() {
     resolveImmediate: vi.fn().mockReturnValue(null),
     resolvePlayable: vi.fn(async (req) => ({
       track: req.track,
-      engine: 'html5',
+      engine: 'html5' as const,
       target: `https://cdn.example/${req.track.id}.mp3`,
       initialTime: req.initialTime ?? 0,
     })),

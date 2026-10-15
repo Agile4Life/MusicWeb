@@ -1,4 +1,6 @@
 import { useSyncExternalStore } from 'react'
+import type { PlaybackController } from '@/lib/playback/controllerTypes'
+import type { Cancel } from '@/lib/playback/ports'
 
 export interface PlaybackProgressState {
   currentTime: number
@@ -77,6 +79,28 @@ export class PlaybackProgressStore {
 }
 
 export const playbackProgressStore = new PlaybackProgressStore()
+
+export function bindPlaybackProgressStore(
+  controller: PlaybackController,
+  targetStore: PlaybackProgressStore = playbackProgressStore
+): Cancel {
+  const sync = () => {
+    const prog = controller.getProgress()
+    const snap = controller.getSnapshot()
+    const effectiveDur =
+      prog.duration > 0 ? prog.duration : snap.currentTrack?.duration || 0
+    targetStore.setProgress(prog.currentTime, effectiveDur)
+  }
+
+  sync()
+  const unsubProgress = controller.subscribeProgress(sync)
+  const unsubState = controller.subscribe(sync)
+
+  return () => {
+    unsubProgress()
+    unsubState()
+  }
+}
 
 export function usePlaybackProgressStore(): PlaybackProgressState {
   return useSyncExternalStore(

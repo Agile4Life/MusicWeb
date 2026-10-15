@@ -155,9 +155,12 @@ export function createRecoveryPolicy(
         const fallbackUrl = `/api/nhaccuatui/stream?id=${encodeURIComponent(
           track.nhaccuatui_id
         )}`;
-        const isTransportSwitch = Boolean(
-          currentSrc && !isSameAudioSource(currentSrc, fallbackUrl)
+        const isAlreadyLocalProxy = Boolean(
+          currentSrc &&
+            (isSameAudioSource(currentSrc, fallbackUrl) ||
+              currentSrc.includes(fallbackUrl))
         );
+        const isTransportSwitch = Boolean(currentSrc && !isAlreadyLocalProxy);
         if (nctRetried.has(requestId)) {
           recordBounded(nctRetryAborted, requestId);
         } else if (!isTransportSwitch) {

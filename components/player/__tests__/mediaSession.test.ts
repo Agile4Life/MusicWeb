@@ -1,116 +1,186 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
+import { describe, expect, it, vi } from 'vitest';
+import { bindMediaSession } from '@/components/player/runtime/mediaSessionBinding';
+import { createPlaybackController } from '@/lib/playback/playbackController';
+import type { PlaybackSourceService } from '@/lib/playback/playbackSourceService';
+import type {
+  PlaybackPersistencePort,
+  PlaybackTransport,
+  PlaybackUserEffects,
+} from '@/lib/playback/ports';
+import { makeTrack } from '@/lib/playback/__tests__/fixtures';
+
+function createMediaSessionHarness() {
+  let playing = false;
+  const transport: PlaybackTransport = {
+    start: vi.fn(async (_target, _owner, _vol, mode) => {
+      playing = mode === 'play';
+    }),
+    pause: vi.fn(() => {
+      playing = false;
+    }),
+    resume: vi.fn(async () => {
+      playing = true;
+    }),
+    stop: vi.fn(() => {
+      playing = false;
+    }),
+    seek: vi.fn(),
+    setVolume: vi.fn(),
+    read: () => ({ time: 10, duration: 180, playing }),
+    subscribe: () => () => {},
+    dispose: vi.fn(),
+  };
+
+  const sources: PlaybackSourceService = {
+    resolveImmediate: vi.fn((req) => ({
+      track: req.track,
+      engine: 'html5' as const,
+      target: `https://cdn.example/${req.track.id}.mp3`,
+      initialTime: 0,
+    })),
+    resolvePlayable: vi.fn().mockResolvedValue(null),
+    resolveFallback: vi.fn().mockResolvedValue(null),
+    resolveYouTubeAlternate: vi.fn().mockResolvedValue(null),
+    refreshStream: vi.fn().mockResolvedValue(null),
+    searchYouTubeCandidate: vi.fn().mockResolvedValue(null),
+    invalidateTrack: vi.fn().mockResolvedValue(undefined),
+    prewarmUpcoming: vi.fn(),
+    prewarmNextAdaptive: vi.fn(),
+    prewarmNearEnd: vi.fn(),
+    hydrateRestoredTrack: vi.fn().mockResolvedValue(null),
+    dispose: vi.fn(),
+  };
+
+  const persistence: PlaybackPersistencePort = {
+    restore: () => null,
+    save: vi.fn(),
+    updateTime: vi.fn(),
+    flush: vi.fn(),
+    getRepeat: () => 'off',
+    setRepeat: vi.fn(),
+    dispose: vi.fn(),
+  };
+
+  const userEffects: PlaybackUserEffects = {
+    recordHistory: vi.fn(),
+    recordListen: vi.fn(),
+    setFavorite: vi.fn().mockResolvedValue(undefined),
+    recommend: vi.fn().mockResolvedValue([]),
+    dispose: vi.fn(),
+  };
+
+  const clock = {
+    now: () => 1000,
+    after: () => () => {},
+    every: () => () => {},
+  };
+
+  const controller = createPlaybackController({
+    clock,
+    transport,
+    sources,
+    persistence,
+    userEffects,
+  });
+
+  const registeredHandlers: Record<
+    string,
+    ((details?: MediaSessionActionDetails) => void) | null
+  > = {};
+  const mockMediaSession = {
+    metadata: null as unknown,
+    playbackState: 'none' as MediaSessionPlaybackState,
+    setActionHandler: vi.fn(
+      (
+        action: string,
+        handler: ((details?: MediaSessionActionDetails) => void) | null
+      ) => {
+        registeredHandlers[action] = handler;
+      }
+    ),
+    setPositionState: vi.fn(),
+  };
+
+  const unbind = bindMediaSession(controller, {
+    clock,
+    mediaSession: mockMediaSession,
+    createMetadata: (init) => init,
+  });
+
+  return {
+    controller,
+    transport,
+    mockMediaSession,
+    registeredHandlers,
+    unbind,
+  };
+}
 
 describe('MediaSession Safari Action Handlers', () => {
-  let registeredHandlers: Record<string, any> = {}
+  it('registers nexttrack and previoustrack while keeping seekforward and seekbackward null for Safari compatibility', async () => {
+    const { controller, mockMediaSession, registeredHandlers, unbind } =
+      createMediaSessionHarness();
 
-  beforeEach(() => {
-    registeredHandlers = {}
-    const mockMediaSession = {
-      metadata: null,
-      playbackState: 'none',
-      setActionHandler: vi.fn((action: string, handler: any) => {
-        registeredHandlers[action] = handler
-      }),
-      setPositionState: vi.fn(),
-    }
+    const t1 = makeTrack('1');
+    await controller.playTrack(t1, [t1], 0);
 
-    Object.defineProperty(globalThis.navigator, 'mediaSession', {
-      value: mockMediaSession,
-      configurable: true,
-      writable: true,
-    })
-  })
+    expect(mockMediaSession.setActionHandler).toHaveBeenCalledWith(
+      'nexttrack',
+      expect.any(Function)
+    );
+    expect(mockMediaSession.setActionHandler).toHaveBeenCalledWith(
+      'previoustrack',
+      expect.any(Function)
+    );
+    expect(mockMediaSession.setActionHandler).toHaveBeenCalledWith(
+      'seekbackward',
+      null
+    );
+    expect(mockMediaSession.setActionHandler).toHaveBeenCalledWith(
+      'seekforward',
+      null
+    );
 
-  afterEach(() => {
-    // @ts-ignore
-    delete globalThis.navigator.mediaSession
-  })
+    expect(typeof registeredHandlers.nexttrack).toBe('function');
+    expect(typeof registeredHandlers.previoustrack).toBe('function');
+    expect(registeredHandlers.seekbackward).toBeNull();
+    expect(registeredHandlers.seekforward).toBeNull();
 
-  it('registers nexttrack and previoustrack while keeping seekforward and seekbackward null for Safari compatibility', () => {
-    const prevTrack = vi.fn()
-    const nextTrack = vi.fn()
-
-    // Mimic the PlayerContext MediaSession registration
-    navigator.mediaSession.setActionHandler('play', vi.fn())
-    navigator.mediaSession.setActionHandler('pause', vi.fn())
-    navigator.mediaSession.setActionHandler('previoustrack', prevTrack)
-    navigator.mediaSession.setActionHandler('nexttrack', nextTrack)
-    navigator.mediaSession.setActionHandler('seekbackward', null)
-    navigator.mediaSession.setActionHandler('seekforward', null)
-
-    expect(navigator.mediaSession.setActionHandler).toHaveBeenCalledWith('nexttrack', nextTrack)
-    expect(navigator.mediaSession.setActionHandler).toHaveBeenCalledWith('previoustrack', prevTrack)
-    expect(navigator.mediaSession.setActionHandler).toHaveBeenCalledWith('seekbackward', null)
-    expect(navigator.mediaSession.setActionHandler).toHaveBeenCalledWith('seekforward', null)
-
-    expect(registeredHandlers.nexttrack).toBe(nextTrack)
-    expect(registeredHandlers.previoustrack).toBe(prevTrack)
-    expect(registeredHandlers.seekbackward).toBeNull()
-    expect(registeredHandlers.seekforward).toBeNull()
-  })
+    unbind();
+  });
 
   it('synchronizes desiredPlayStateRef intent when background lock-screen actions are dispatched', async () => {
-    const desiredPlayStateRef = { current: 'playing' as 'playing' | 'paused' | null }
-    const mockAudio = {
-      src: 'https://example.com/audio.mp3',
-      paused: false,
-      pause: vi.fn(() => {
-        mockAudio.paused = true
-      }),
-      play: vi.fn(async () => {
-        mockAudio.paused = false
-      }),
-    }
+    const { controller, transport, registeredHandlers, unbind } =
+      createMediaSessionHarness();
 
-    const prevTrack = vi.fn()
-    const nextTrack = vi.fn()
-
-    // Mimic the updated PlayerContext handlers
-    const onPlay = async () => {
-      desiredPlayStateRef.current = 'playing'
-      await mockAudio.play()
-    }
-    const onPause = () => {
-      desiredPlayStateRef.current = 'paused'
-      mockAudio.pause()
-    }
-    const onStop = () => {
-      desiredPlayStateRef.current = 'paused'
-      mockAudio.pause()
-    }
-    const onNext = () => {
-      desiredPlayStateRef.current = 'playing'
-      nextTrack()
-    }
-    const onPrev = () => {
-      desiredPlayStateRef.current = 'playing'
-      prevTrack()
-    }
-
-    navigator.mediaSession.setActionHandler('play', onPlay)
-    navigator.mediaSession.setActionHandler('pause', onPause)
-    navigator.mediaSession.setActionHandler('stop', onStop)
-    navigator.mediaSession.setActionHandler('nexttrack', onNext)
-    navigator.mediaSession.setActionHandler('previoustrack', onPrev)
+    const t1 = makeTrack('1');
+    const t2 = makeTrack('2');
+    await controller.playTrack(t1, [t1, t2], 0);
+    expect(controller.getSnapshot().isPlaying).toBe(true);
 
     // 1. User taps pause on lock screen
-    registeredHandlers.pause()
-    expect(mockAudio.pause).toHaveBeenCalled()
-    expect(desiredPlayStateRef.current).toBe('paused')
+    registeredHandlers.pause?.();
+    await new Promise(setImmediate);
+    expect(transport.pause).toHaveBeenCalled();
+    expect(controller.getSnapshot().isPlaying).toBe(false);
 
     // 2. User taps play on lock screen
-    await registeredHandlers.play()
-    expect(mockAudio.play).toHaveBeenCalled()
-    expect(desiredPlayStateRef.current).toBe('playing')
+    registeredHandlers.play?.();
+    await new Promise(setImmediate);
+    expect(transport.resume).toHaveBeenCalled();
+    expect(controller.getSnapshot().isPlaying).toBe(true);
 
-    // 3. User taps nexttrack
-    registeredHandlers.nexttrack()
-    expect(nextTrack).toHaveBeenCalled()
-    expect(desiredPlayStateRef.current).toBe('playing')
+    // 3. User taps nexttrack on lock screen
+    registeredHandlers.nexttrack?.();
+    await new Promise(setImmediate);
+    expect(controller.getSnapshot().currentTrack?.id).toBe('2');
+    expect(controller.getSnapshot().isPlaying).toBe(true);
 
-    // 4. User taps stop
-    registeredHandlers.stop()
-    expect(desiredPlayStateRef.current).toBe('paused')
-  })
-})
+    // 4. User taps stop on lock screen
+    registeredHandlers.stop?.();
+    await new Promise(setImmediate);
+    expect(controller.getSnapshot().isPlaying).toBe(false);
 
+    unbind();
+  });
+});

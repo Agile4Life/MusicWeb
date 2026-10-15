@@ -1,288 +1,336 @@
-import { describe, expect, it } from 'vitest'
-import { Track } from '@/types'
+import { describe, expect, it, vi } from 'vitest';
+import { YouTubeIframeEngine } from '@/components/player/engines';
+import {
+  PlaybackPersistenceScheduler,
+  STORAGE_KEY_PLAYER_STATE,
+} from '@/components/player/playbackPersistenceScheduler';
+import { createPlaybackController } from '@/lib/playback/playbackController';
+import { createPlaybackOwnership } from '@/lib/playback/playbackOwnership';
+import type { PlaybackSourceService } from '@/lib/playback/playbackSourceService';
+import type {
+  PlaybackEvent,
+  PlaybackOwner,
+  PlaybackPersistencePort,
+  PlaybackTransport,
+  PlaybackUserEffects,
+} from '@/lib/playback/ports';
+import {
+  createRecoveryPolicy,
+  MAX_CONSECUTIVE_SKIPS,
+} from '@/lib/playback/recoveryPolicy';
+import { makeTrack } from '@/lib/playback/__tests__/fixtures';
+import type { Track } from '@/types';
+
+function createSafetyControllerHarness() {
+  const scheduledTimers: Array<{ ms: number; fn: () => void; active: boolean }> =
+    [];
+  const clock = {
+    now: () => 10_000,
+    after: (ms: number, fn: () => void) => {
+      const entry = { ms, fn, active: true };
+      scheduledTimers.push(entry);
+      return () => {
+        entry.active = false;
+      };
+    },
+    every: () => () => {},
+  };
+
+  let activeOwner: PlaybackOwner | null = null;
+  let playing = false;
+  let resumePromise: Promise<void> = Promise.resolve();
+  const listeners = new Set<(event: PlaybackEvent) => void>();
+
+  const transport: PlaybackTransport & {
+    emit(e: PlaybackEvent): void;
+    getActiveOwner(): PlaybackOwner | null;
+    setResumePromise(p: Promise<void>): void;
+    setPlaying(v: boolean): void;
+  } = {
+    start: vi.fn(async (_target, owner, _vol, mode) => {
+      activeOwner = { ...owner };
+      playing = mode === 'play';
+    }),
+    pause: vi.fn(() => {
+      playing = false;
+    }),
+    resume: vi.fn(async () => {
+      await resumePromise;
+      playing = true;
+    }),
+    stop: vi.fn(),
+    seek: vi.fn(),
+    setVolume: vi.fn(),
+    read: () => ({ time: 0, duration: 180, playing }),
+    subscribe: (l) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+    dispose: vi.fn(),
+    emit: (e) => {
+      for (const l of listeners) l(e);
+    },
+    getActiveOwner: () => activeOwner,
+    setResumePromise: (p) => {
+      resumePromise = p;
+    },
+    setPlaying: (v) => {
+      playing = v;
+    },
+  };
+
+  const sources: PlaybackSourceService = {
+    resolveImmediate: vi.fn((req) => ({
+      track: req.track,
+      engine: 'html5' as const,
+      target: `https://cdn.example/${req.track.id}.mp3`,
+      initialTime: req.initialTime ?? 0,
+    })),
+    resolvePlayable: vi.fn().mockResolvedValue(null),
+    resolveFallback: vi.fn(async (track) => ({
+      track: { ...track, source: 'youtube', youtube_id: 'yt-watchdog-1' },
+      engine: 'youtube' as const,
+      target: 'yt-watchdog-1',
+      initialTime: 0,
+    })),
+    resolveYouTubeAlternate: vi.fn().mockResolvedValue(null),
+    refreshStream: vi.fn().mockResolvedValue(null),
+    searchYouTubeCandidate: vi.fn().mockResolvedValue(null),
+    invalidateTrack: vi.fn().mockResolvedValue(undefined),
+    prewarmUpcoming: vi.fn(),
+    prewarmNextAdaptive: vi.fn(),
+    prewarmNearEnd: vi.fn(),
+    hydrateRestoredTrack: vi.fn(async (track, initialTime) => ({
+      track,
+      engine: 'html5' as const,
+      target: `https://cdn.example/${track.id}.mp3`,
+      initialTime,
+    })),
+    dispose: vi.fn(),
+  };
+
+  let restoredState: ReturnType<PlaybackPersistencePort['restore']> = null;
+  const persistence: PlaybackPersistencePort & {
+    setRestoredState(val: ReturnType<PlaybackPersistencePort['restore']>): void;
+  } = {
+    restore: () => restoredState,
+    save: vi.fn(),
+    updateTime: vi.fn(),
+    flush: vi.fn(),
+    getRepeat: () => 'off',
+    setRepeat: vi.fn(),
+    dispose: vi.fn(),
+    setRestoredState: (val) => {
+      restoredState = val;
+    },
+  };
+
+  const userEffects: PlaybackUserEffects = {
+    recordHistory: vi.fn(),
+    recordListen: vi.fn(),
+    setFavorite: vi.fn().mockResolvedValue(undefined),
+    recommend: vi.fn().mockResolvedValue([]),
+    dispose: vi.fn(),
+  };
+
+  const controller = createPlaybackController({
+    clock,
+    transport,
+    sources,
+    persistence,
+    userEffects,
+  });
+
+  return {
+    controller,
+    transport,
+    sources,
+    persistence,
+    scheduledTimers,
+  };
+}
 
 describe('Player Safety Mechanisms & Edge Guards', () => {
   it('correctly windows large queues (>150 items) around currentIndex to prevent index overflow', () => {
-    const queueLength = 300
-    const mockTracks: Track[] = Array.from({ length: queueLength }, (_, i) => ({
-      id: `track-${i}`,
-      title: `Track ${i}`,
-      artist: `Artist ${i}`,
-      duration: 180,
-      source: 'local' as const,
-      user_id: 'user-1',
-      file_path: `/music/${i}.mp3`,
-      cover_url: null,
-      created_at: new Date().toISOString(),
-    }))
+    const mockStorage: Record<string, string> = {};
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => mockStorage[key] || null,
+      setItem: (key: string, val: string) => {
+        mockStorage[key] = val;
+      },
+      removeItem: (key: string) => {
+        delete mockStorage[key];
+      },
+      clear: () => {},
+    });
 
-    const maxItems = 150
-    const targetIndex = 200
+    const mockTracks: Track[] = Array.from({ length: 300 }, (_, i) =>
+      makeTrack(`track-${i}`, { title: `Track ${i}` })
+    );
 
-    const safeIndex = Math.max(0, targetIndex)
-    const start = Math.max(0, Math.min(safeIndex - 20, mockTracks.length - maxItems))
-    const end = Math.min(mockTracks.length, start + maxItems)
-    const windowedQueue = mockTracks.slice(start, end)
-    const persistedIndex = safeIndex >= 0 ? safeIndex - start : -1
+    const scheduler = new PlaybackPersistenceScheduler();
+    scheduler.saveImmediate({
+      track: mockTracks[200],
+      currentTime: 12,
+      queue: mockTracks,
+      currentIndex: 200,
+      volume: 0.8,
+    });
 
-    expect(windowedQueue.length).toBe(150)
-    expect(persistedIndex).toBe(50)
-    expect(windowedQueue[persistedIndex].id).toBe('track-200')
-    expect(persistedIndex).toBeGreaterThanOrEqual(0)
-    expect(persistedIndex).toBeLessThan(windowedQueue.length)
-  })
+    const parsed = JSON.parse(mockStorage[STORAGE_KEY_PLAYER_STATE]);
+    expect(parsed.queue).toHaveLength(150);
+    expect(parsed.currentIndex).toBe(50);
+    expect(parsed.queue[parsed.currentIndex].id).toBe('track-200');
+    expect(parsed.currentIndex).toBeGreaterThanOrEqual(0);
+    expect(parsed.currentIndex).toBeLessThan(parsed.queue.length);
+    vi.unstubAllGlobals();
+  });
 
   it('correctly verifies YouTube video matching with fallback to ytLoadedIdRef', () => {
-    const activeTrack = { id: 't1', title: 'Song 1', youtube_id: 'vid-123' }
-    let actualVideoId: string | null = null
-    const ytLoadedId = 'vid-123'
+    const engine = new YouTubeIframeEngine();
+    engine.setLoadedVideoId('vid-123');
+    engine.setPlayerInstance({
+      getVideoData: () => ({ video_id: undefined }),
+    });
 
-    // When actualVideoId from API is null (e.g. immediately after loadVideoById),
-    // matching against ytLoadedIdRef must return true.
-    const isMatchedWithFallback =
-      (actualVideoId !== null && actualVideoId === activeTrack.youtube_id) ||
-      (ytLoadedId === activeTrack.youtube_id)
+    expect(engine.matchesVideo('vid-123')).toBe(true);
+    expect(engine.matchesVideo('other-vid')).toBe(false);
 
-    expect(isMatchedWithFallback).toBe(true)
-
-    // When both actualVideoId and ytLoadedId differ from active track
-    actualVideoId = 'other-vid'
-    const wrongLoadedId = 'other-vid'
-    const isCompletelyMismatched =
-      (actualVideoId !== null && actualVideoId === activeTrack.youtube_id) ||
-      (wrongLoadedId === activeTrack.youtube_id)
-
-    expect(isCompletelyMismatched).toBe(false)
-  })
+    engine.setLoadedVideoId('other-vid');
+    engine.setPlayerInstance({
+      getVideoData: () => ({ video_id: 'other-vid' }),
+    });
+    expect(engine.matchesVideo('vid-123')).toBe(false);
+  });
 
   it('circuit breaker prevents infinite skip loop when consecutive errors reach MAX_CONSECUTIVE_SKIPS (4)', () => {
-    const MAX_CONSECUTIVE_SKIPS = 4
-    let consecutiveSkips = 0
-    let autoAdvanceBlocked = false
+    const policy = createRecoveryPolicy(MAX_CONSECUTIVE_SKIPS);
 
-    // Simulate 3 consecutive track failures
     for (let i = 0; i < 3; i++) {
-      consecutiveSkips += 1
-      if (consecutiveSkips >= MAX_CONSECUTIVE_SKIPS) {
-        autoAdvanceBlocked = true
-      }
+      const outcome = policy.recordUnrecoverableFailure({
+        trackTitle: `Song ${i}`,
+        queueLength: 10,
+        autoPlayNext: true,
+        repeatMode: 'off',
+      });
+      expect(outcome.circuitBroken).toBe(false);
+      expect(outcome.shouldAutoSkip).toBe(true);
     }
-    expect(consecutiveSkips).toBe(3)
-    expect(autoAdvanceBlocked).toBe(false)
+    expect(policy.getConsecutiveSkips()).toBe(3);
 
-    // 4th consecutive failure triggers circuit breaker
-    consecutiveSkips += 1
-    if (consecutiveSkips >= MAX_CONSECUTIVE_SKIPS) {
-      autoAdvanceBlocked = true
-    }
-    expect(consecutiveSkips).toBe(4)
-    expect(autoAdvanceBlocked).toBe(true)
+    const fourth = policy.recordUnrecoverableFailure({
+      trackTitle: 'Song 4',
+      queueLength: 10,
+      autoPlayNext: true,
+      repeatMode: 'off',
+    });
+    expect(policy.getConsecutiveSkips()).toBe(4);
+    expect(fourth.circuitBroken).toBe(true);
+    expect(fourth.shouldAutoSkip).toBe(false);
 
-    // User manual play / successful play resets the counter
-    consecutiveSkips = 0
-    autoAdvanceBlocked = false
-    expect(consecutiveSkips).toBe(0)
-    expect(autoAdvanceBlocked).toBe(false)
-  })
+    policy.resetConsecutiveSkips();
+    expect(policy.getConsecutiveSkips()).toBe(0);
+  });
 
-  it('ensures restored player state on mount initializes audio ownership token matching the restored track ID', () => {
-    const restoredTrack: Track = {
-      id: 'song-restored-456',
+  it('ensures restored player state on mount initializes audio ownership token matching the restored track ID', async () => {
+    const { controller, transport, persistence } = createSafetyControllerHarness();
+    const restoredTrack = makeTrack('song-restored-456', {
       title: 'Restored Song',
-      artist: 'Restored Artist',
-      duration: 210,
       source: 'nhaccuatui',
-      user_id: 'user-1',
-      file_path: '',
-      cover_url: null,
-      created_at: '2026-01-01T00:00:00Z',
-    }
+    });
+    persistence.setRestoredState({
+      track: restoredTrack,
+      currentTime: 45,
+      queue: [restoredTrack],
+      currentIndex: 0,
+      volume: 0.7,
+    });
 
-    const audioGenerationRef = { current: 0 }
-    const playRequestRef = { current: 0 }
-    const restoreRequestId = playRequestRef.current
-    const currentTrackRef = { current: restoredTrack }
+    await controller.restoreFromPersistence();
 
-    const audioOwnershipRef = {
-      current: {
-        generation: audioGenerationRef.current,
-        requestId: restoreRequestId,
-        trackId: restoredTrack.id,
-      },
-    }
+    const owner = transport.getActiveOwner();
+    expect(owner?.trackId).toBe('song-restored-456');
+    expect(controller.getSnapshot().currentTrack?.id).toBe('song-restored-456');
+  });
 
-    const isCurrentAudioOwnership = () => {
-      const token = audioOwnershipRef.current
-      const activeId = currentTrackRef.current?.id
-      if (!activeId || !token.trackId) return false
-      return (
-        token.generation === audioGenerationRef.current &&
-        token.requestId === playRequestRef.current &&
-        token.trackId === activeId
-      )
-    }
-
-    // Ownership check must be immediately valid after mount restore
-    expect(isCurrentAudioOwnership()).toBe(true)
-  })
-
-  it('ensures togglePlay resume keeps ownership token aligned when resuming pre-loaded audio', () => {
-    const activeTrack: Track = {
-      id: 'song-789',
-      title: 'Active Track',
-      duration: 190,
-      source: 'local',
-      user_id: 'user-1',
-      file_path: '',
-      cover_url: null,
-      created_at: '2026-01-01T00:00:00Z',
-    }
-
-    const audioGenerationRef = { current: 1 }
-    const playRequestRef = { current: 1 }
-    const currentTrackRef = { current: activeTrack }
-
-    // Simulating resume where ownership token is synchronized with current track
-    const audioOwnershipRef = {
-      current: {
-        generation: audioGenerationRef.current,
-        requestId: playRequestRef.current,
-        trackId: activeTrack.id,
-      },
-    }
-
-    const isCurrentAudioOwnership = () => {
-      const token = audioOwnershipRef.current
-      const activeId = currentTrackRef.current?.id
-      if (!activeId || !token.trackId) return false
-      return (
-        token.generation === audioGenerationRef.current &&
-        token.requestId === playRequestRef.current &&
-        token.trackId === activeId
-      )
-    }
-
-    expect(isCurrentAudioOwnership()).toBe(true)
-  })
+  it('ensures togglePlay resume keeps ownership token aligned when resuming pre-loaded audio', async () => {
+    const ownership = createPlaybackOwnership();
+    const restoredOwner = ownership.restoreOwner('song-789');
+    expect(ownership.isCurrentOwner(restoredOwner, 'song-789')).toBe(true);
+  });
 
   it('prevents play/pause spam race conditions by serializing action IDs and desired play state', async () => {
-    let isPlaying = false
-    const toggleActionIdRef = { current: 0 }
-    const desiredPlayStateRef = { current: null as 'playing' | 'paused' | null }
+    const { controller, transport } = createSafetyControllerHarness();
+    const track = makeTrack('spam-1');
+    await controller.playTrack(track, [track], 0);
+    await controller.togglePlay(); // Now paused
+    expect(controller.getSnapshot().isPlaying).toBe(false);
 
-    const mockAudio = {
-      paused: true,
-      pause: () => {
-        mockAudio.paused = true
-      },
-      play: () =>
-        new Promise<void>((resolve) => {
-          setTimeout(() => {
-            mockAudio.paused = false
-            resolve()
-          }, 50)
-        }),
-    }
+    let resolveResume!: () => void;
+    transport.setResumePromise(
+      new Promise<void>((res) => {
+        resolveResume = res;
+      })
+    );
 
-    const togglePlay = async () => {
-      const actionId = ++toggleActionIdRef.current
-      const isCurrentlyActive =
-        (isPlaying || !mockAudio.paused || desiredPlayStateRef.current === 'playing') &&
-        desiredPlayStateRef.current !== 'paused'
+    // 1. User clicks PLAY (in-flight resume)
+    const p1 = controller.togglePlay();
+    // 2. User immediately clicks PAUSE before resume resolves
+    const p2 = controller.togglePlay();
 
-      if (isCurrentlyActive) {
-        desiredPlayStateRef.current = 'paused'
-        mockAudio.pause()
-        isPlaying = false
-        return
-      }
+    resolveResume();
+    await Promise.all([p1, p2]);
 
-      desiredPlayStateRef.current = 'playing'
-      try {
-        await mockAudio.play()
-        if (actionId !== toggleActionIdRef.current || (desiredPlayStateRef.current as any) === 'paused') {
-          mockAudio.pause()
-          isPlaying = false
-          return
-        }
-        isPlaying = true
-      } catch {}
-    }
-
-    // 1. User clicks PLAY (action 1)
-    const p1 = togglePlay()
-    expect(desiredPlayStateRef.current).toBe('playing')
-
-    // 2. User quickly clicks PAUSE (action 2) while action 1 play() is in-flight (after 10ms)
-    await new Promise((r) => setTimeout(r, 10))
-    const p2 = togglePlay()
-    expect(desiredPlayStateRef.current).toBe('paused')
-    expect(isPlaying).toBe(false)
-    expect(mockAudio.paused).toBe(true)
-
-    // Await both promises to complete
-    await Promise.all([p1, p2])
-
-    // After action 1 resolves, the guard must prevent action 1 from setting isPlaying = true
-    expect(isPlaying).toBe(false)
-    expect(mockAudio.paused).toBe(true)
-  })
+    expect(controller.getSnapshot().isPlaying).toBe(false);
+    expect(transport.pause).toHaveBeenCalled();
+  });
 
   it('Universal audio stall watchdog triggers YouTube fallback for Drive/local tracks when stalled > 6500ms', async () => {
-    const AUDIO_STALL_WATCHDOG_TIMEOUT_MS = 6500
-    const fallbackAttempted = new Set<number>()
-    let fallbackCalled = false
-    let isPlaying = true
-    let isBuffering = true
-    const currentTrack = { id: 'drive-1', title: 'Drive Song', source: 'local' as const }
-    const activeRequestId = 10
+    const { controller, transport, sources, scheduledTimers } =
+      createSafetyControllerHarness();
+    const track = makeTrack('drive-1', { title: 'Drive Song', source: 'local' });
+    await controller.playTrack(track, [track], 0);
+    const owner = transport.getActiveOwner()!;
 
-    const triggerWatchdogLogic = (track: typeof currentTrack, requestId: number) => {
-      if (!fallbackAttempted.has(requestId)) {
-        fallbackAttempted.add(requestId)
-        fallbackCalled = true
-        return
-      }
-      // If already attempted, circuit breaker trips and halts
-      isPlaying = false
-      isBuffering = false
-    }
+    transport.setPlaying(false);
+    transport.emit({ type: 'buffering', owner, value: true });
 
-    // First stall timeout
-    triggerWatchdogLogic(currentTrack, activeRequestId)
-    expect(fallbackCalled).toBe(true)
-    expect(fallbackAttempted.has(activeRequestId)).toBe(true)
+    const watchdog = scheduledTimers.find((t) => t.ms === 12000 && t.active);
+    expect(watchdog).toBeDefined();
+    watchdog!.active = false;
+    watchdog!.fn();
+    await new Promise(setImmediate);
 
-    // If stream stalls again on the SAME request (fallback failed or second stall)
-    fallbackCalled = false
-    triggerWatchdogLogic(currentTrack, activeRequestId)
-    expect(fallbackCalled).toBe(false) // Must not trigger infinite fallback loop
-    expect(isPlaying).toBe(false)
-    expect(isBuffering).toBe(false)
-  })
+    expect(sources.resolveFallback).toHaveBeenCalledTimes(1);
 
-  it('Circuit breaker counter resets cleanly to 0 when playback becomes stable', () => {
-    let consecutiveSkips = 3 // Had 3 errors previously
+    // Second stall on the same request does not trigger an infinite fallback loop
+    transport.emit({ type: 'buffering', owner, value: true });
+    const secondWatchdog = scheduledTimers.find(
+      (t) => t.ms === 12000 && t.active
+    );
+    secondWatchdog?.fn();
+    await new Promise(setImmediate);
 
-    // When playing becomes active (handlePlaying fires)
-    const handlePlaying = () => {
-      consecutiveSkips = 0
-    }
+    expect(sources.resolveFallback).toHaveBeenCalledTimes(1);
+  });
 
-    handlePlaying()
-    expect(consecutiveSkips).toBe(0)
+  it('Circuit breaker counter resets cleanly to 0 when playback becomes stable', async () => {
+    const { controller, transport, sources } = createSafetyControllerHarness();
+    const failing = makeTrack('fail-1');
+    const working = makeTrack('work-1');
 
-    // Also when currentTime >= 3s
-    consecutiveSkips = 2
-    const handleTimeUpdate = (currentTime: number) => {
-      if (currentTime >= 3 && consecutiveSkips > 0) {
-        consecutiveSkips = 0
-      }
-    }
+    // Simulate failure on first track
+    vi.mocked(sources.resolveImmediate).mockReturnValueOnce(null);
+    vi.mocked(sources.resolveFallback).mockResolvedValueOnce(null);
+    await controller.playTrack(failing, [failing, working], 0);
+    expect(controller.getSnapshot().playbackError).toBeTruthy();
 
-    handleTimeUpdate(4)
-    expect(consecutiveSkips).toBe(0)
-  })
-})
+    // Playing a working track and reaching stable playback resets error/skip state
+    await controller.playTrack(working, [failing, working], 1);
+    const owner = transport.getActiveOwner()!;
+    transport.emit({ type: 'time', owner, time: 4, duration: 180 });
 
-
+    expect(controller.getSnapshot().playbackError).toBeNull();
+    expect(controller.getSnapshot().isPlaying).toBe(true);
+  });
+});

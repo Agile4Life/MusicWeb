@@ -14,17 +14,21 @@ export interface PlaybackSourceDeps {
   signStoragePath(filePath: string): Promise<string | null>;
   loadPersistedUrl(trackId: string): { url: string; youtube_id?: string } | null;
   savePersistedUrl(trackId: string, url: string, meta?: { youtube_id?: string }): void;
-  getCachedYouTubeId(title: string, artist?: string, album?: string): string | null;
+  getCachedYouTubeId(
+    title: string,
+    artist?: string | null,
+    album?: string | null
+  ): string | null;
   saveCachedYouTubeId(track: Track, youtubeId: string): void;
   getNctStreamUrl(track: Track): string | null;
   getCachedNctUrl(songId: string): string | null;
-  prewarmNctUrl(songId: string): Promise<string | null>;
+  prewarmNctUrl(songId: string): Promise<string | null | void>;
   clearCachedNctUrl(songId: string): void;
   resolveNctSong(songId: string): Promise<{
     title?: string;
     artist?: string;
     coverUrl?: string | null;
-    duration?: number;
+    duration?: number | null;
   } | null>;
   triggerDrivePrewarm(tracks: Track[]): void;
   prewarmTrackBatch(tracks: Track[]): Promise<void>;

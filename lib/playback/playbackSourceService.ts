@@ -956,7 +956,7 @@ export function createPlaybackSourceService(
       duration: track.duration,
       album: track.album,
     };
-    let cancelTimer: (() => void) | null = null;
+    let cancelTimer: (() => void) | undefined;
     try {
       await Promise.race([
         deps.resolution.invalidate(identity),
