@@ -90,3 +90,21 @@ describe('client resolution persistence ownership', () => {
     expect(getCachedYouTubeId('Hello', 'Adele', '25', 240)).toBeNull()
   })
 })
+
+it('imports the default facade without starting timers, network, or storage', async () => {
+  vi.resetModules()
+  const interval = vi.spyOn(globalThis, 'setInterval')
+  const request = vi.fn()
+  const read = vi.fn()
+  vi.stubGlobal('fetch', request)
+  vi.stubGlobal('localStorage', { getItem: read })
+  try {
+    await import('../resolveStreamClient')
+    expect(interval).not.toHaveBeenCalled()
+    expect(request).not.toHaveBeenCalled()
+    expect(read).not.toHaveBeenCalled()
+  } finally {
+    interval.mockRestore()
+    vi.unstubAllGlobals()
+  }
+})
