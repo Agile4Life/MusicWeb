@@ -1,7 +1,10 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { fetchUnifiedSearch, GlobalSearchTracks } from '@/lib/searchApi'
+import type { GlobalSearchTracks } from '@/lib/searchApi'
+import { createSearchRequests } from '@/lib/search/searchRequests'
+import type { SearchService } from '@/lib/search/searchService'
+import { createBrowserSearchService } from './searchComposition'
 
 interface SearchContextType {
   searchQuery: string
@@ -29,7 +32,14 @@ const emptyResults: GlobalSearchTracks = {
 
 const SearchContext = createContext<SearchContextType | undefined>(undefined)
 
-export function SearchProvider({ children }: { children: React.ReactNode }) {
+export function SearchProvider({
+  children,
+  service,
+}: {
+  children: React.ReactNode
+  service?: SearchService
+}) {
+  const searchService = useMemo(() => service ?? createBrowserSearchService(), [service])
   const [searchQuery, setSearchQuery] = useState('')
   const [globalTracks, setGlobalTracks] = useState<GlobalSearchTracks>(emptyResults)
   const [searchingGlobal, setSearchingGlobal] = useState(false)
@@ -39,87 +49,110 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
   const [trendingTracks, setTrendingTracks] = useState<GlobalSearchTracks>(emptyResults)
   const [loadingTrending, setLoadingTrending] = useState(true)
 
-  const activeSearchRef = useRef<number>(0)
-  const activeSuggestionRef = useRef<number>(0)
+  const requestsRef = useRef(createSearchRequests())
 
   // Fetch Trending Tracks once on initial mount
   useEffect(() => {
-    let active = true
-    setLoadingTrending(true)
+    const requests = requestsRef.current
+    const token = requests.issue('trending')
+    queueMicrotask(() => {
+      if (requests.isCurrent('trending', token)) {
+        setLoadingTrending(true)
+      }
+    })
 
-    fetchUnifiedSearch('', 'all', true)
+    searchService
+      .loadTrending()
       .then((data) => {
-        if (active) {
+        if (requests.isCurrent('trending', token)) {
           setTrendingTracks(data)
         }
       })
       .finally(() => {
-        if (active) setLoadingTrending(false)
+        if (requests.isCurrent('trending', token)) {
+          setLoadingTrending(false)
+        }
       })
 
     return () => {
-      active = false
+      requests.invalidate('trending')
     }
-  }, [])
+  }, [searchService])
 
   // Global search is committed separately from the text currently being typed.
   useEffect(() => {
+    const requests = requestsRef.current
     const trimmed = searchQuery.trim()
-    if (trimmed) {
-      setSearchingGlobal(true)
-    }
+    const currentSearchId = requests.issue('global')
 
-    const currentSearchId = ++activeSearchRef.current
+    if (trimmed) {
+      queueMicrotask(() => {
+        if (requests.isCurrent('global', currentSearchId)) {
+          setSearchingGlobal(true)
+        }
+      })
+    }
 
     const timer = setTimeout(async () => {
       if (!trimmed) {
-        setGlobalTracks(emptyResults)
-        setSearchingGlobal(false)
+        if (requests.isCurrent('global', currentSearchId)) {
+          setGlobalTracks(emptyResults)
+          setSearchingGlobal(false)
+        }
         return
       }
       try {
         // Single unified request — server handles all sources internally
-        const data = await fetchUnifiedSearch(trimmed, 'all', false)
+        const data = await searchService.searchGlobal(trimmed)
 
-        if (activeSearchRef.current === currentSearchId) {
+        if (requests.isCurrent('global', currentSearchId)) {
           setGlobalTracks(data)
         }
-      } catch (err) {
-        if (activeSearchRef.current === currentSearchId) {
+      } catch {
+        if (requests.isCurrent('global', currentSearchId)) {
           setGlobalTracks(emptyResults)
         }
       } finally {
-        if (activeSearchRef.current === currentSearchId) {
+        if (requests.isCurrent('global', currentSearchId)) {
           setSearchingGlobal(false)
         }
       }
     }, 250)
 
     return () => clearTimeout(timer)
-  }, [searchQuery])
+  }, [searchQuery, searchService])
 
   // Quick suggestions are isolated from global result state and never change the homepage result list.
   useEffect(() => {
+    const requests = requestsRef.current
     const trimmed = suggestionQuery.trim()
-    const currentSearchId = ++activeSuggestionRef.current
+    const currentSearchId = requests.issue('suggestion')
 
     if (!trimmed) {
-      setSuggestionTracks(emptyResults)
-      setSearchingSuggestions(false)
+      queueMicrotask(() => {
+        if (requests.isCurrent('suggestion', currentSearchId)) {
+          setSuggestionTracks(emptyResults)
+          setSearchingSuggestions(false)
+        }
+      })
       return
     }
 
-    setSearchingSuggestions(true)
+    queueMicrotask(() => {
+      if (requests.isCurrent('suggestion', currentSearchId)) {
+        setSearchingSuggestions(true)
+      }
+    })
     const timer = setTimeout(async () => {
       try {
         // Single unified request — reuses client-side cache from global search
-        const data = await fetchUnifiedSearch(trimmed, 'all', false)
-        if (activeSuggestionRef.current === currentSearchId) {
+        const data = await searchService.searchSuggestions(trimmed)
+        if (requests.isCurrent('suggestion', currentSearchId)) {
           setSuggestionTracks(data)
           setSearchingSuggestions(false)
         }
       } catch {
-        if (activeSuggestionRef.current === currentSearchId) {
+        if (requests.isCurrent('suggestion', currentSearchId)) {
           setSuggestionTracks(emptyResults)
           setSearchingSuggestions(false)
         }
@@ -127,9 +160,11 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
     }, 350)
 
     return () => clearTimeout(timer)
-  }, [suggestionQuery])
+  }, [suggestionQuery, searchService])
 
   const clearSearch = useCallback(() => {
+    requestsRef.current.invalidate('global')
+    requestsRef.current.invalidate('suggestion')
     setSearchQuery('')
     setSuggestionQuery('')
     setGlobalTracks(emptyResults)
