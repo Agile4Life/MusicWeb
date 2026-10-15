@@ -1,19 +1,36 @@
 import { PlaybackEngine } from './types'
 
+export interface YouTubePlayerLike {
+  getVideoData?: () => { video_id?: string } | null
+  unMute?: () => void
+  isMuted?: () => boolean
+  mute?: () => void
+  setVolume?: (volume: number) => void
+  loadVideoById?: (arg: { videoId: string; startSeconds?: number } | string, startSeconds?: number) => void
+  playVideo?: () => void
+  cueVideoById?: (arg: { videoId: string; startSeconds?: number } | string, startSeconds?: number) => void
+  pauseVideo?: () => void
+  stopVideo?: () => void
+  seekTo?: (seconds: number, allowSeekAhead?: boolean) => void
+  getCurrentTime?: () => number
+  getDuration?: () => number
+  getPlayerState?: () => number
+}
+
 export class YouTubeIframeEngine implements PlaybackEngine {
   readonly id = 'youtube' as const
-  private player: any = null
+  private player: YouTubePlayerLike | null = null
   private loadedVideoId: string | null = null
 
-  constructor(playerInstance?: any) {
+  constructor(playerInstance?: YouTubePlayerLike | null) {
     this.player = playerInstance || null
   }
 
-  setPlayerInstance(player: any) {
+  setPlayerInstance(player: YouTubePlayerLike | null) {
     this.player = player
   }
 
-  getPlayerInstance(): any {
+  getPlayerInstance(): YouTubePlayerLike | null {
     return this.player
   }
 
@@ -77,6 +94,14 @@ export class YouTubeIframeEngine implements PlaybackEngine {
       console.warn('[YouTube Engine] loadAndPlay error:', e)
       throw e
     }
+  }
+
+  loadPaused(videoId: string, initialTime = 0, volume = 0.8): void {
+    if (!this.player?.cueVideoById) throw new Error('YouTube Player is not ready')
+    this.pause()
+    this.loadedVideoId = videoId
+    this.setVolume(volume)
+    this.player.cueVideoById({ videoId, startSeconds: initialTime })
   }
 
   cueVideo(videoId: string, initialTime = 0): void {

@@ -24,6 +24,12 @@ export class Html5AudioEngine implements PlaybackEngine {
     await playAudioElement(this.audio)
   }
 
+  loadPaused(url: string, initialTime = 0, volume = 0.8): void {
+    if (!this.audio) return
+    this.pause()
+    setAudioSourceForPlayback(this.audio, url, volume, initialTime)
+  }
+
   pause(): void {
     if (!this.audio) return
     try {

@@ -33,101 +33,101 @@ export interface PersistStatePayload {
   volume: number
 }
 
+export interface PersistenceSchedulerDeps {
+  now(): number
+  write(key: string, value: string): void
+  after(ms: number, callback: () => void): () => void
+  onIdle(callback: () => void): () => void
+}
+
+const defaultDeps: PersistenceSchedulerDeps = {
+  now: () => Date.now(),
+  write: (key, value) => { if (typeof localStorage !== 'undefined') localStorage.setItem(key, value) },
+  after: (ms, callback) => { const id = setTimeout(callback, ms); return () => clearTimeout(id) },
+  onIdle: callback => {
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const id = window.requestIdleCallback(callback, { timeout: 2000 })
+      return () => { if ('cancelIdleCallback' in window) window.cancelIdleCallback(id) }
+    }
+    callback()
+    return () => {}
+  },
+}
+
 export class PlaybackPersistenceScheduler {
   private pendingPayload: PersistStatePayload | null = null
-  private timer: any = null
-  private idleCallbackId: any = null
+  private cancelTimer: (() => void) | null = null
+  private cancelIdle: (() => void) | null = null
+  private generation = 0
+  private disposed = false
 
-  /**
-   * Immediately saves state to localStorage without delay.
-   * Clears any pending debounced timers.
-   */
+  constructor(private readonly deps: PersistenceSchedulerDeps = defaultDeps) {}
+
   public saveImmediate(payload: PersistStatePayload): void {
+    if (this.disposed) return
     this.cancelScheduled()
     this.pendingPayload = null
     this.writeToStorage(payload)
   }
 
-  /**
-   * Schedules a debounced persistence write (default 15s).
-   * Batches frequent timeupdate calls and defers actual write via requestIdleCallback.
-   */
   public scheduleDebounced(payload: PersistStatePayload): void {
-    this.pendingPayload = payload
-
-    if (this.timer !== null) return
-
-    this.timer = setTimeout(() => {
-      this.timer = null
-      this.runOnIdle(() => {
+    if (this.disposed) return
+    this.pendingPayload = { ...payload }
+    if (this.cancelTimer || this.cancelIdle) return
+    const generation = this.generation
+    this.cancelTimer = this.deps.after(PERSISTENCE_DEBOUNCE_MS, () => {
+      if (generation !== this.generation || this.disposed) return
+      this.cancelTimer = null
+      let completed = false
+      const cancel = this.deps.onIdle(() => {
+        completed = true
+        if (generation !== this.generation || this.disposed) return
+        this.cancelIdle = null
         if (this.pendingPayload) {
-          const toSave = this.pendingPayload
+          const payload = this.pendingPayload
           this.pendingPayload = null
-          this.writeToStorage(toSave)
+          this.writeToStorage(payload)
         }
       })
-    }, PERSISTENCE_DEBOUNCE_MS)
+      if (!completed) this.cancelIdle = cancel
+    })
   }
 
-  /**
-   * Updates the currentTime on any pending save payload without resetting the timer.
-   * Useful when time advances continuously before a flush.
-   */
   public updatePendingTime(currentTime: number): void {
-    if (this.pendingPayload) {
-      this.pendingPayload.currentTime = currentTime
-    }
+    if (this.pendingPayload && !this.disposed) this.pendingPayload.currentTime = currentTime
   }
 
-  /**
-   * Flushes any pending debounced write immediately.
-   * Essential for window.pagehide, document.visibilitychange ('hidden'), and beforeunload on iOS Safari.
-   */
   public flushPending(): void {
+    if (this.disposed) return
     this.cancelScheduled()
     if (this.pendingPayload) {
-      const toSave = this.pendingPayload
+      const payload = this.pendingPayload
       this.pendingPayload = null
-      this.writeToStorage(toSave)
+      this.writeToStorage(payload)
     }
   }
 
-  /**
-   * Cancels any pending timers or idle callbacks.
-   */
   public cancelScheduled(): void {
-    if (this.timer !== null) {
-      clearTimeout(this.timer)
-      this.timer = null
-    }
-    if (this.idleCallbackId !== null) {
-      if (typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
-        window.cancelIdleCallback(this.idleCallbackId)
-      }
-      this.idleCallbackId = null
-    }
+    this.generation++
+    this.cancelTimer?.()
+    this.cancelIdle?.()
+    this.cancelTimer = null
+    this.cancelIdle = null
   }
 
-  private runOnIdle(action: () => void): void {
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      this.idleCallbackId = window.requestIdleCallback(
-        () => {
-          this.idleCallbackId = null
-          action()
-        },
-        { timeout: 2000 }
-      )
-    } else {
-      action()
-    }
+  /** Disposal intentionally discards pending state; callers flush before teardown if needed. */
+  public dispose(): void {
+    if (this.disposed) return
+    this.disposed = true
+    this.cancelScheduled()
+    this.pendingPayload = null
   }
 
   private writeToStorage(payload: PersistStatePayload): void {
-    if (typeof localStorage === 'undefined' || !payload.track) return
+    if (!payload.track) return
     try {
       let windowedQueue = payload.queue
       let persistedIndex = payload.currentIndex
-
       if (payload.queue.length > MAX_PERSISTED_TRACKS) {
         const safeIndex = Math.max(0, payload.currentIndex)
         const start = Math.max(0, Math.min(safeIndex - 20, payload.queue.length - MAX_PERSISTED_TRACKS))
@@ -135,20 +135,11 @@ export class PlaybackPersistenceScheduler {
         windowedQueue = payload.queue.slice(start, end)
         persistedIndex = safeIndex >= 0 ? safeIndex - start : -1
       }
-
-      localStorage.setItem(
-        STORAGE_KEY_PLAYER_STATE,
-        JSON.stringify({
-          track: toMinimalPersistedTrack(payload.track),
-          currentTime: payload.currentTime,
-          queue: windowedQueue.map(toMinimalPersistedTrack),
-          currentIndex: persistedIndex,
-          volume: payload.volume,
-          savedAt: Date.now(),
-        })
-      )
-    } catch {
-      // ignore storage error
-    }
+      this.deps.write(STORAGE_KEY_PLAYER_STATE, JSON.stringify({
+        track: toMinimalPersistedTrack(payload.track), currentTime: payload.currentTime,
+        queue: windowedQueue.map(toMinimalPersistedTrack), currentIndex: persistedIndex,
+        volume: payload.volume, savedAt: this.deps.now(),
+      }))
+    } catch { /* Storage quota/security errors must not interrupt playback. */ }
   }
 }

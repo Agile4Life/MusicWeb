@@ -5,7 +5,7 @@ export interface PlaybackEngineEvents {
   onTimeUpdate?: (time: number) => void
   onDurationChange?: (duration: number) => void
   onEnded?: () => void
-  onError?: (error: any) => void
+  onError?: (error: unknown) => void
   onNeedResumeGesture?: () => void
 }
 
