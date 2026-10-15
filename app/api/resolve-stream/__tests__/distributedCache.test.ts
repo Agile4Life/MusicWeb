@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({ race: vi.fn(), client: vi.fn() }))
 vi.mock('@supabase/supabase-js', () => ({ createClient: mocks.client }))
 vi.mock('@/lib/catalogResolutionRace', () => ({ resolveCatalogCandidates: mocks.race }))
 vi.mock('@/lib/driveTracksMap', () => ({ findMemoryDriveTrack: () => null }))
-vi.mock('@/lib/soundcloudClient', () => ({ searchSoundCloudTracks: vi.fn() }))
+vi.mock('@/lib/soundcloudClient', () => ({ searchSoundCloudTracks: vi.fn(), verifySoundCloudTrackPlayable: vi.fn(async () => true) }))
 
 type Entry = { source: string; resolvedId: string; isMiss: boolean; expiresAt: number }
 const entry = (id: string, source = 'youtube'): Entry => ({
