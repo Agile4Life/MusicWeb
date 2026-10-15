@@ -162,7 +162,12 @@ export async function setup(page: Page, options: { repeat?: string; resolveA?: R
 export async function playRow(page: Page, letter: 'A' | 'B') {
   const row = page.locator('.song-row').filter({ hasText: `Reliability ${letter}` }).first()
   await row.hover()
-  await row.getByRole('button', { name: 'Phát', exact: true }).click()
+  const playButton = row.getByRole('button', { name: 'Phát', exact: true })
+  if (await playButton.isVisible()) {
+    await playButton.click()
+  } else {
+    await row.getByText(`Reliability ${letter}`, { exact: true }).click()
+  }
 }
 
 export async function playing(page: Page, letter: 'A' | 'B') {

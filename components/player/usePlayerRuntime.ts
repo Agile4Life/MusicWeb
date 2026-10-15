@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useSession } from 'next-auth/react';
 import { toast } from '@/components/ui/ToastContext';
 import type { PlaybackController } from '@/lib/playback/controllerTypes';
@@ -26,6 +26,7 @@ export function usePlayerRuntime(
   const [ownedRuntime] = useState<PlayerRuntime | null>(() =>
     !options.runtime && !options.controller ? createPlayerRuntime() : null
   );
+  const disposeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeRuntime = options.runtime ?? ownedRuntime;
   const controller = options.controller ?? activeRuntime!.controller;
@@ -67,8 +68,16 @@ export function usePlayerRuntime(
   }, [activeRuntime, viewStore]);
 
   useEffect(() => {
+    if (!ownedRuntime) return;
+    if (disposeTimerRef.current !== null) {
+      clearTimeout(disposeTimerRef.current);
+      disposeTimerRef.current = null;
+    }
     return () => {
-      ownedRuntime?.dispose();
+      disposeTimerRef.current = setTimeout(() => {
+        disposeTimerRef.current = null;
+        ownedRuntime.dispose();
+      }, 0);
     };
   }, [ownedRuntime]);
 

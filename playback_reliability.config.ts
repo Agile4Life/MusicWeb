@@ -27,7 +27,7 @@ export default defineConfig({
   timeout: 90_000,
   expect: { timeout: 12_000 },
   webServer: {
-    command: 'node node_modules/next/dist/bin/next dev --webpack --port 3002 --hostname 127.0.0.1',
+    command: 'node node_modules/next/dist/bin/next dev --port 3002 --hostname 127.0.0.1',
     url: 'http://127.0.0.1:3002',
     reuseExistingServer: false,
     timeout: 180_000,

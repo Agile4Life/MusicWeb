@@ -269,6 +269,8 @@ export function createPlayerRuntime(): PlayerRuntime {
     }
   });
 
+  let hasRestoredFromPersistence = false;
+
   return {
     controller,
     setActiveUserEmail(email) {
@@ -311,7 +313,10 @@ export function createPlayerRuntime(): PlayerRuntime {
         })
         .catch(() => {});
 
-      void controller.restoreFromPersistence();
+      if (!hasRestoredFromPersistence) {
+        hasRestoredFromPersistence = true;
+        void controller.restoreFromPersistence();
+      }
 
       return () => {
         active = false;
