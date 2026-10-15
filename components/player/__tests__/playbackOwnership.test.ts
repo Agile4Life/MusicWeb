@@ -43,7 +43,7 @@ function emptySearchResponse(youtube: Track[] = []) {
 }
 
 function createFakeAudio() {
-  const handlers = new Map<string, Set<() => void>>();
+  const handlers = new Map<string, Set<(event: Event) => void>>();
   let srcVal = '';
   const audio = {
     paused: true,

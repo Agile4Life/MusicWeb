@@ -1,16 +1,17 @@
 # IoC test coverage map
 
-Baseline: cc5b3d3. Original suites stay in place during P00?P03.
+Baseline: `cc5b3d3` (P00 recorded in `212d3af`). Updated after P01–P06 implementation on branch `refactor/ioc-p04-p07`.
 
-Classification: AST/VM executes extracted production callbacks; static checks inspect source; runtime executes exported production APIs; some legacy tests simulate patterns. Passing a simulation is weaker evidence than testing the real implementation.
-
-Coverage limitations are explicit: simulations/export checks do not prove React wiring. Existing runtime cache/ownership cases protect extraction; new instance/lifecycle contracts receive red/green tests in P01?P03. P04/P05 must replace AST/simulation cases before removing helpers. P00 makes no production changes to close unrelated wiring gaps.
+Classification after P01–P06 migration:
+- All former AST/VM suites that relied on `components/player/__tests__/helpers/productionCallbacks.cjs` (`playbackOwnership.test.ts`, `backgroundCompletion.test.ts`) have been migrated to behavioral runtime tests against the real `createPlaybackController`, `createPlaybackSourceService`, `createBrowserTransport`, `bindBrowserLifecycle`, `bindYouTubeIframe`, and `createWebAudioGainManager` implementations, and `productionCallbacks.cjs` has been removed.
+- Former static regex / local simulation suites (`playbackInvariants.test.ts`, `nctPlaybackRaceGuards.test.ts`, `playerSafetyGuards.test.ts`, `mediaSession.test.ts`, `searchQueueIsolation.test.ts`, `controlsContextStability.test.ts`, `playerPrewarmThrottling.test.ts`) now execute the real production `createPlaybackController`, `createPlaybackSourceService`, `createPlayerViewStore`, and `bindMediaSession` modules with deterministic ports.
+- Dedicated unit suites were added for P01 (`lib/stream-resolution/server/__tests__/**`, `app/api/resolve-stream/__tests__/httpContract.test.ts`), P02 (`lib/stream-resolution/client/__tests__/clientResolutionService.test.ts`), P03 (`components/player/adapters/__tests__/**`), P04 (`lib/playback/__tests__/**`), P05 (`components/player/runtime/__tests__/**`), and P06 (`lib/search/__tests__/searchRequests.test.ts`, `lib/playlist/__tests__/playlistRepository.test.ts`).
 
 ## P04/P05 request ownership
 
 ### `components/player/__tests__/playbackOwnership.test.ts`
 
-Method: AST/VM of extracted production callbacks with fake dependencies. Destination: P04/P05 request ownership.
+Method: Behavioral runtime execution of `createPlaybackController`, `createPlaybackSourceService`, `createBrowserTransport`, `bindYouTubeIframe`, and `createWebAudioGainManager` with deterministic clock/transport/source ports (replaced `productionCallbacks.cjs` AST/VM extraction). Destination: P04/P05 request ownership.
 
 - keeps paused state and source if the pending play rejects
 - does not restart a paused iframe on a late buffering event
@@ -41,7 +42,7 @@ Method: AST/VM of extracted production callbacks with fake dependencies. Destina
 
 ### `components/player/__tests__/playbackInvariants.test.ts`
 
-Method: Static source assertions, no playback execution. Destination: P04/P05 request ownership.
+Method: Behavioral runtime execution of `createPlaybackController` and `createPlayerViewStore` (replaced static source assertions). Destination: P04/P05 request ownership.
 
 - only commitQueue calls setQueue (ref and state can never diverge)
 - removeFromQueue does not filter the already-filtered queue a second time
@@ -51,7 +52,7 @@ Method: Static source assertions, no playback execution. Destination: P04/P05 re
 
 ### `components/player/__tests__/nctPlaybackRaceGuards.test.ts`
 
-Method: First three cases simulate algorithms; final invalidation case exercises production nhaccuatuiClient. Destination: P04/P05 request ownership.
+Method: Behavioral runtime execution of `createPlaybackController` (first three cases) and `nhaccuatuiClient` (final case). Destination: P04/P05 request ownership.
 
 - prevents duplicate concurrent fallbackToYouTube calls for the exact same requestId (Mutex Guard)
 - aborts the 4000ms NCT retry waiting period early (<100ms) when the retry stream fails immediately
@@ -60,7 +61,7 @@ Method: First three cases simulate algorithms; final invalidation case exercises
 
 ### `components/player/__tests__/playerSafetyGuards.test.ts`
 
-Method: Local guard simulations, no production PlayerProvider execution. Destination: P04/P05 request ownership.
+Method: Behavioral runtime execution of `createPlaybackController`, `createPlaybackSourceService`, and `PlaybackPersistenceScheduler` (replaced local guard simulations). Destination: P04/P05 request ownership.
 
 - correctly windows large queues (>150 items) around currentIndex to prevent index overflow
 - correctly verifies YouTube video matching with fallback to ytLoadedIdRef
@@ -75,7 +76,7 @@ Method: Local guard simulations, no production PlayerProvider execution. Destina
 
 ### `components/player/__tests__/backgroundCompletion.test.ts`
 
-Method: AST/VM of extracted production lifecycle/completion callbacks. Destination: P04/P05 completion and OS.
+Method: Behavioral runtime execution of `createPlaybackController` and `bindBrowserLifecycle` with deterministic worker/timer/DOM stubs (replaced `productionCallbacks.cjs` AST/VM extraction). Destination: P04/P05 completion and OS.
 
 - advances at EOF through worker messages even when window timers and ended are delayed
 - does not advance after %s
@@ -89,13 +90,13 @@ Method: AST/VM of extracted production lifecycle/completion callbacks. Destinati
 
 ### `components/player/__tests__/backgroundCompletionWorker.test.ts`
 
-Method: Full production worker executed in runInNewContext with fake timers. Destination: P04/P05 completion and OS.
+Method: Full production worker executed in `runInNewContext` with fake timers. Destination: P04/P05 completion and OS.
 
 - ticks only while hidden, avoids duplicate timers, and restarts after becoming hidden again
 
 ### `components/player/__tests__/mediaSession.test.ts`
 
-Method: Local handler-registration/intent simulation, not production provider. Destination: P04/P05 completion and OS.
+Method: Behavioral runtime execution of `bindMediaSession` + `createPlaybackController` (replaced local handler simulation). Destination: P04/P05 completion and OS.
 
 - registers nexttrack and previoustrack while keeping seekforward and seekbackward null for Safari compatibility
 - synchronizes desiredPlayStateRef intent when background lock-screen actions are dispatched
@@ -104,7 +105,7 @@ Method: Local handler-registration/intent simulation, not production provider. D
 
 ### `components/player/__tests__/searchQueueIsolation.test.ts`
 
-Method: Local queue algorithm simulation, not production playSearchTrack. Destination: P04 queue.
+Method: Behavioral runtime execution of `controller.playSearchTrack` on `createPlaybackController` (replaced local queue simulation). Destination: P04 queue.
 
 - initializes a single-track queue when searching on an empty queue
 - inserts searched track after the currently playing song without wiping existing playlist
@@ -147,22 +148,22 @@ Method: Runtime exported recommendation helpers with fixtures. Destination: P04 
 
 ### `components/player/__tests__/controlsContextStability.test.ts`
 
-Method: Static regex; unrecognized callbacks return early; does not prove runtime identity. Destination: P05 context and progress.
+Method: Behavioral runtime identity assertions on `createPlayerViewStore` + `createPlaybackController` across track, queue, and progress transitions (replaced static regex). Destination: P05 context and progress.
 
 - finds the controls members
-- `playTrack does not depend on volatile state` (generated static case)
-- `playSearchTrack does not depend on volatile state` (generated static case)
-- `togglePlay does not depend on volatile state` (generated static case)
-- `seek does not depend on volatile state` (generated static case)
-- `setVolume does not depend on volatile state` (generated static case)
-- `nextTrack does not depend on volatile state` (generated static case)
-- `prevTrack does not depend on volatile state` (generated static case)
-- `toggleShuffle does not depend on volatile state` (generated static case)
-- `toggleRepeat does not depend on volatile state` (generated static case)
-- `toggleFavoriteCurrentTrack does not depend on volatile state` (generated static case)
-- `addToQueue does not depend on volatile state` (generated static case)
-- `removeFromQueue does not depend on volatile state` (generated static case)
-- `clearQueue does not depend on volatile state` (generated static case)
+- `playTrack does not depend on volatile state` (behavioral identity check)
+- `playSearchTrack does not depend on volatile state` (behavioral identity check)
+- `togglePlay does not depend on volatile state` (behavioral identity check)
+- `seek does not depend on volatile state` (behavioral identity check)
+- `setVolume does not depend on volatile state` (behavioral identity check)
+- `nextTrack does not depend on volatile state` (behavioral identity check)
+- `prevTrack does not depend on volatile state` (behavioral identity check)
+- `toggleShuffle does not depend on volatile state` (behavioral identity check)
+- `toggleRepeat does not depend on volatile state` (behavioral identity check)
+- `toggleFavoriteCurrentTrack does not depend on volatile state` (behavioral identity check)
+- `addToQueue does not depend on volatile state` (behavioral identity check)
+- `removeFromQueue does not depend on volatile state` (behavioral identity check)
+- `clearQueue does not depend on volatile state` (behavioral identity check)
 
 ### `components/player/__tests__/playerProgressDecoupling.test.ts`
 
@@ -217,7 +218,7 @@ Method: Runtime production TTL helpers. Destination: P03/P05 persistence.
 
 ### `components/player/__tests__/playerPrewarmThrottling.test.ts`
 
-Method: Production network gate helper; scheduling case simulates next-track selection. Destination: P04 prewarm.
+Method: Behavioral runtime execution of `isFastConnection`, `createPlaybackSourceService`, and `createPlaybackController` (5s stable playback gate + single next track prewarm). Destination: P04 prewarm.
 
 - Network Gate: rejects prewarming if saveData is enabled
 - Network Gate: rejects prewarming on slow connections (2g, 3g, slow-2g)
@@ -306,3 +307,35 @@ Method: Production helpers and actual SQL functions in embedded PGlite. Destinat
 - enables RLS and allows the service role only through the privileged RPCs
 - refreshes another instance L1 after a real SQL invalidation
 - rejects old in-flight and late preferred writes through actual SQL
+
+## New IoC unit suites added in P01–P06
+
+### P01 Server Resolution (`lib/stream-resolution/server/__tests__/**`, `app/api/resolve-stream/__tests__/httpContract.test.ts`)
+- `lib/stream-resolution/server/__tests__/catalogResolver.test.ts` (4 tests): NCT preferred + YouTube fallback, late NCT promotion, SoundCloud primary + fallback, YouTube streamUrl construction.
+- `lib/stream-resolution/server/__tests__/serverResolutionService.test.ts` (12 tests): L1/shared/L2 coordination, SoundCloud L2 revalidation, generation ownership, invalidation, late promotion.
+- `app/api/resolve-stream/__tests__/httpContract.test.ts` (7 tests): HTTP query parsing, validation, Cache-Control headers, status codes.
+
+### P02 Client Resolution (`lib/stream-resolution/client/__tests__/clientResolutionService.test.ts`)
+- `lib/stream-resolution/client/__tests__/clientResolutionService.test.ts` (7 tests): L1/localStorage cache, SoundCloud `/api/soundcloud/stream` revalidation, generation supersession, 3-part & 4-part YouTube alias invalidation, batch prewarm.
+
+### P03 Playback Adapters (`components/player/adapters/__tests__/**`)
+- `components/player/adapters/__tests__/browserTransport.test.ts` (9 tests): HTML5 and YouTube engine routing, stale owner suppression, cleanup symmetry.
+- `components/player/adapters/__tests__/browserPersistence.test.ts` (3 tests): restore/save/flush/repeat delegation.
+- `components/player/adapters/__tests__/browserUserEffects.test.ts` (7 tests): history/listen recording, favorite optimistic rollback, AbortSignal recommendation supersession.
+- `components/player/adapters/__tests__/persistenceScheduler.test.ts` (2 tests): debounce timer and immediate flush cancellation.
+
+### P04 Playback Core (`lib/playback/__tests__/**`)
+- `lib/playback/__tests__/playbackSourceService.test.ts` (5 tests): direct/cached immediate resolution, playable resolution, YouTube fallback, adaptive prewarm, restored track hydration.
+- `lib/playback/__tests__/queueController.test.ts` (4 tests): playSearchTrack insertion, queue windowing (>150 items), removeFromQueue, mergeResolvedIntoQueue.
+- `lib/playback/__tests__/completionCoordinator.test.ts` (3 tests): repeat-one deduplication, repeat-all wrap, normal completion.
+- `lib/playback/__tests__/recoveryPolicy.test.ts` (3 tests): circuit breaker (`MAX_CONSECUTIVE_SKIPS = 4`), NCT retry decision, fallback position preservation within 8s duration delta.
+- `lib/playback/__tests__/playbackController.test.ts` (4 tests): quick-play, request supersession, pause during resolution, duplicate completion suppression.
+
+### P05 React & Browser Runtime (`components/player/runtime/__tests__/**`)
+- `components/player/runtime/__tests__/runtimeLifecycle.test.ts` (1 test): symmetric registration and cleanup of document/window/worker/timer listeners.
+- `components/player/runtime/__tests__/mediaSessionBinding.test.ts` (1 test): MediaSession action handler registration, Safari null seekbackward/seekforward, cleanup.
+- `components/player/runtime/__tests__/playerViewStore.test.ts` (1 test): controls reference stability and slice isolation across progress/track/queue updates.
+
+### P06 Search & Playlist (`lib/search/__tests__/**`, `lib/playlist/__tests__/**`)
+- `lib/search/__tests__/searchRequests.test.ts` (3 tests): empty query cancellation, superseded request abortion, clean state on latest success.
+- `lib/playlist/__tests__/playlistRepository.test.ts` (4 tests): unauthenticated guard, playlist hydration, duplicate track check, cover update on first track.

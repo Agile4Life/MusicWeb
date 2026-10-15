@@ -89,10 +89,10 @@ Bàn giao diff, test evidence, thay đổi contract và các giới hạn còn l
 ## Trạng thái
 
 - [x] P00 baseline (failures/limits recorded in baseline report).
-- [ ] P01 server resolver.
-- [ ] P02 client resolver.
-- [ ] P03 playback adapters.
-- [ ] P04 playback core.
-- [ ] P05 React/browser integration.
-- [ ] P06 Search/Playlist (mở rộng).
-- [ ] P07 nghiệm thu tích hợp.
+- [x] P01 server resolver (`lib/stream-resolution/server/**`, `app/api/resolve-stream/route.ts`).
+- [x] P02 client resolver (`lib/stream-resolution/client/**`, `lib/resolveStreamClient.ts`).
+- [x] P03 playback adapters (`lib/playback/ports.ts`, `components/player/adapters/**`, `components/player/engines/**`).
+- [x] P04 playback core (`lib/playback/**`, `components/player/adapters/browserSourceDependencies.ts`).
+- [x] P05 React/browser integration (`components/player/PlayerContext.tsx`, `usePlayerRuntime.ts`, `playerViewStore.ts`, `components/player/runtime/**`, behavioral test migration).
+- [x] P06 Search/Playlist (`lib/search/**`, `lib/playlist/**`, `components/search/**`, `components/playlist/**`).
+- [x] P07 nghiệm thu tích hợp (`docs/reviews/2026-10-15-ioc-verification.md`).

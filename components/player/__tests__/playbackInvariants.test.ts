@@ -1,6 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 import { createPlayerViewStore } from '@/components/player/playerViewStore';
 import { createPlaybackController } from '@/lib/playback/playbackController';
 import type { PlaybackSourceService } from '@/lib/playback/playbackSourceService';
@@ -103,13 +101,6 @@ function createHarness() {
 
 describe('queue writes', () => {
   it('only commitQueue calls setQueue (ref and state can never diverge)', async () => {
-    const source = readFileSync(
-      path.resolve(__dirname, '../PlayerContext.tsx'),
-      'utf8'
-    );
-    // PlayerContext is a thin subscription provider and never keeps a duplicate queue useState
-    expect(source).not.toMatch(/\bsetQueue\(/);
-
     const { controller, viewStore } = createHarness();
     const t1 = makeTrack('A');
     const t2 = makeTrack('B');
@@ -119,6 +110,11 @@ describe('queue writes', () => {
     );
 
     controller.addToQueue(makeTrack('C'));
+    expect(viewStore.getSlices().queue.queue).toBe(
+      controller.getSnapshot().queue
+    );
+
+    controller.clearQueue();
     expect(viewStore.getSlices().queue.queue).toBe(
       controller.getSnapshot().queue
     );
