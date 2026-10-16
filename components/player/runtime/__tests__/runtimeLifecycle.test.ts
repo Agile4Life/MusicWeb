@@ -330,4 +330,214 @@ describe('browserLifecycle', () => {
       listeners: 0,
     });
   });
+
+  it('does not restart previous YouTube track via 1500ms stuck watchdog after switching to an HTML5 track (race.har)', async () => {
+    const { YouTubeIframeEngine } = await import('../../engines/YouTubeIframeEngine');
+    const { Html5AudioEngine } = await import('../../engines/Html5AudioEngine');
+    const { createBrowserTransport } = await import('../../adapters/browserTransport');
+    const { bindYouTubeIframe } = await import('../youtubeBinding');
+
+    let ytReadyCallback: (() => void) | null = null;
+    let ytStateChangeCallback: ((e: { data: number }) => void) | null = null;
+    let ytPlaying = false;
+    let ytMuted = false;
+    let activeVideoId: string | null = null;
+    const scheduledTimeouts: Array<{ ms: number; cb: () => void; cancelled: boolean }> = [];
+
+    const ytPlayer = {
+      loadVideoById: vi.fn((arg: { videoId: string } | string) => {
+        activeVideoId = typeof arg === 'string' ? arg : arg.videoId;
+        ytPlaying = true;
+      }),
+      cueVideoById: vi.fn((arg: { videoId: string } | string) => {
+        activeVideoId = typeof arg === 'string' ? arg : arg.videoId;
+        ytPlaying = false;
+      }),
+      playVideo: vi.fn(() => {
+        ytPlaying = true;
+      }),
+      pauseVideo: vi.fn(() => {
+        ytPlaying = false;
+      }),
+      stopVideo: vi.fn(() => {
+        ytPlaying = false;
+        // Native YouTube IFrame fires UNSTARTED (-1) when stopVideo() is called
+        ytStateChangeCallback?.({ data: -1 });
+      }),
+      mute: vi.fn(() => {
+        ytMuted = true;
+      }),
+      unMute: vi.fn(() => {
+        ytMuted = false;
+      }),
+      isMuted: vi.fn(() => ytMuted),
+      setVolume: vi.fn(),
+      getVideoData: () => ({ video_id: activeVideoId ?? undefined }),
+      getPlayerState: () => (ytPlaying ? 1 : -1),
+      getCurrentTime: () => 0,
+      getDuration: () => 85,
+      destroy: vi.fn(),
+    };
+
+    const fakeWin = {
+      location: { origin: 'https://phongtctmusic.vercel.app' },
+      YT: {
+        Player: class {
+          constructor(_id: string, opts: { events?: { onReady?: () => void; onStateChange?: (e: { data: number }) => void } }) {
+            ytReadyCallback = opts.events?.onReady ?? null;
+            ytStateChangeCallback = opts.events?.onStateChange ?? null;
+            return ytPlayer;
+          }
+        },
+      },
+    } as unknown as Window;
+
+    const fakeDoc = {
+      getElementById: vi.fn((id: string) => (id === 'yt-player-container' ? ({} as HTMLElement) : null)),
+    } as unknown as Document;
+
+    let html5Playing = false;
+    const fakeAudioState = {
+      src: '',
+      currentSrc: '',
+      paused: true,
+      ended: false,
+      readyState: 4,
+      volume: 0.8,
+      currentTime: 0,
+      duration: 10.0078,
+      error: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      load: vi.fn(),
+      play: vi.fn(async () => {
+        html5Playing = true;
+        fakeAudioState.paused = false;
+      }),
+      pause: vi.fn(() => {
+        html5Playing = false;
+        fakeAudioState.paused = true;
+      }),
+      removeAttribute: vi.fn(() => {
+        fakeAudioState.src = '';
+        fakeAudioState.currentSrc = '';
+      }),
+    };
+    const fakeAudio = fakeAudioState as unknown as HTMLAudioElement;
+
+    const html5Engine = new Html5AudioEngine(fakeAudio);
+    const youtubeEngine = new YouTubeIframeEngine();
+    const baseTransport = createBrowserTransport({
+      audio: fakeAudio,
+      html5: html5Engine,
+      youtube: youtubeEngine,
+    });
+
+    let activeOwner: { generation: number; requestId: number; trackId: string } | null = null;
+    let playingWanted = false;
+    const transport: typeof baseTransport = {
+      ...baseTransport,
+      start(
+        ...args: Parameters<typeof baseTransport.start>
+      ) {
+        activeOwner = { ...args[1] };
+        return baseTransport.start(...args);
+      },
+    };
+
+    const clock = {
+      now: () => 1000,
+      after: (ms: number, cb: () => void) => {
+        const entry = { ms, cb, cancelled: false };
+        scheduledTimeouts.push(entry);
+        return () => {
+          entry.cancelled = true;
+        };
+      },
+      every: () => () => {},
+    };
+
+    const unbind = bindYouTubeIframe({
+      clock,
+      youtubeEngine,
+      transport,
+      getActiveOwner: () => activeOwner,
+      getVolume: () => 0.8,
+      isPlayingWanted: () => playingWanted,
+      win: fakeWin,
+      doc: fakeDoc,
+    });
+
+    ytReadyCallback!();
+
+    // 1. Play YouTube Track A (nuts = osPq9Yb8xm8)
+    playingWanted = true;
+    await transport.start(
+      {
+        track: {
+          id: 'yt-a',
+          user_id: 'u1',
+          title: 'nuts',
+          artist: 'Lil Peep',
+          cover_url: null,
+          duration: 85,
+          source: 'youtube',
+          youtube_id: 'osPq9Yb8xm8',
+          file_path: '',
+          created_at: '',
+        },
+        engine: 'youtube',
+        target: 'osPq9Yb8xm8',
+        initialTime: 0,
+      },
+      { generation: 1, requestId: 1, trackId: 'yt-a' },
+      0.8,
+      'play'
+    );
+    expect(ytPlaying).toBe(true);
+
+    // 2. Switch to HTML5 Track B (Risk It All = SoundCloud stream)
+    ytPlayer.playVideo.mockClear();
+    await transport.start(
+      {
+        track: {
+          id: 'sc-b',
+          user_id: 'u1',
+          title: 'Risk It All',
+          artist: 'Bruno Mars',
+          cover_url: null,
+          duration: 204,
+          source: 'soundcloud',
+          soundcloud_id: '2328016970',
+          file_path: '',
+          created_at: '',
+        },
+        engine: 'html5',
+        target: 'https://soundcloud-stream-cache.phongtct.workers.dev/stream?id=2328016970',
+        initialTime: 0,
+      },
+      { generation: 2, requestId: 2, trackId: 'sc-b' },
+      0.8,
+      'play'
+    );
+
+    // Fire any 1500ms timers that were scheduled
+    for (const timer of scheduledTimeouts) {
+      if (!timer.cancelled && timer.ms === 1500) {
+        timer.cb();
+      }
+    }
+
+    expect({
+      html5Playing,
+      ytPlaying,
+      playVideoCallsAfterSwitch: ytPlayer.playVideo.mock.calls.length,
+    }).toEqual({
+      html5Playing: true,
+      ytPlaying: false,
+      playVideoCallsAfterSwitch: 0,
+    });
+
+    unbind();
+  });
 });

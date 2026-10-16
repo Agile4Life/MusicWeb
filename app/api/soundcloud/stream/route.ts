@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { resolveSoundCloudStreamUrl, parseSoundCloudHlsManifest } from '@/lib/soundcloudClient'
+import {
+  resolveSoundCloudStreamUrl,
+  parseSoundCloudHlsManifest,
+  patchInitMp4Duration,
+  stripFmp4SegmentIndexBoxes,
+  type SoundCloudHlsManifestInfo,
+} from '@/lib/soundcloudClient'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -8,7 +14,7 @@ const CORS_HEADERS = {
 }
 
 function createStitchedHlsResponse(
-  hlsInfo: { contentType: string; urls: string[] },
+  hlsInfo: SoundCloudHlsManifestInfo,
   signal?: AbortSignal,
 ): NextResponse {
   const { readable, writable } = new TransformStream()
@@ -16,16 +22,99 @@ function createStitchedHlsResponse(
 
   ;(async () => {
     try {
-      for (const segUrl of hlsInfo.urls) {
+      const isFmp4 =
+        Boolean(hlsInfo.hasInitMap) || hlsInfo.contentType === 'audio/mp4'
+      for (let i = 0; i < hlsInfo.urls.length; i++) {
+        const segUrl = hlsInfo.urls[i]
         if (signal?.aborted) break
         const segRes = await fetch(segUrl, { signal })
         if (!segRes.ok || !segRes.body) break
+
+        if (isFmp4 && i === 0) {
+          const initBytes = new Uint8Array(await segRes.arrayBuffer())
+          const patched = patchInitMp4Duration(
+            initBytes,
+            hlsInfo.durationSeconds || 0,
+          )
+          if (patched.byteLength > 0) {
+            await writer.write(patched)
+          }
+          continue
+        }
+
         const reader = segRes.body.getReader()
+        let stripLeadingBoxes = isFmp4 && i > 0
+        let pendingHeader: Uint8Array | null = null
+
         while (true) {
           const { done, value } = await reader.read()
-          if (done) break
-          if (value && value.byteLength > 0) {
+          if (done) {
+            if (pendingHeader && pendingHeader.byteLength > 0) {
+              const stripped = stripFmp4SegmentIndexBoxes(pendingHeader)
+              if (stripped.byteLength > 0) {
+                await writer.write(stripped)
+              }
+              pendingHeader = null
+            }
+            break
+          }
+          if (!value || value.byteLength === 0) continue
+
+          if (!stripLeadingBoxes) {
             await writer.write(value)
+            continue
+          }
+
+          let headerBuf: Uint8Array
+          if (!pendingHeader) {
+            headerBuf = value
+          } else {
+            const combined = new Uint8Array(
+              pendingHeader.byteLength + value.byteLength,
+            )
+            combined.set(pendingHeader, 0)
+            combined.set(value, pendingHeader.byteLength)
+            headerBuf = combined
+          }
+          pendingHeader = headerBuf
+
+          const view = new DataView(
+            headerBuf.buffer,
+            headerBuf.byteOffset,
+            headerBuf.byteLength,
+          )
+          let offset = 0
+          let needMore = false
+          while (offset + 8 <= headerBuf.byteLength) {
+            const size = view.getUint32(offset, false)
+            const type = String.fromCharCode(
+              headerBuf[offset + 4],
+              headerBuf[offset + 5],
+              headerBuf[offset + 6],
+              headerBuf[offset + 7],
+            )
+            if (type === 'styp' || type === 'sidx') {
+              if (size < 8) break
+              if (offset + size > headerBuf.byteLength) {
+                needMore = true
+                break
+              }
+              offset += size
+              continue
+            }
+            break
+          }
+
+          if (offset + 8 > headerBuf.byteLength || needMore) {
+            continue
+          }
+
+          const remainder =
+            offset > 0 ? headerBuf.subarray(offset) : headerBuf
+          pendingHeader = null
+          stripLeadingBoxes = false
+          if (remainder.byteLength > 0) {
+            await writer.write(remainder)
           }
         }
       }

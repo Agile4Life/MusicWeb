@@ -136,11 +136,15 @@ export function bindYouTubeIframe(options: YouTubeBindingOptions): Cancel {
 
   youtubeEngine.pause = () => {
     cancelPendingCall();
+    clearStuckWatchdog();
+    stopPollTimer();
     origPause();
   };
 
   youtubeEngine.stop = () => {
     cancelPendingCall();
+    clearStuckWatchdog();
+    stopPollTimer();
     youtubeEngine.setLoadedVideoId(null);
     origStop();
   };
@@ -164,7 +168,8 @@ export function bindYouTubeIframe(options: YouTubeBindingOptions): Cancel {
     cancelPollTimer = clock.every(250, () => {
       if (disposed) return;
       const owner = getActiveOwner();
-      if (!owner) return;
+      const loadedVideoId = youtubeEngine.getLoadedVideoId();
+      if (!owner || !loadedVideoId) return;
       const time = youtubeEngine.getCurrentTime();
       const duration = youtubeEngine.getDuration();
       transport.handleYouTubeEvent({
@@ -176,8 +181,12 @@ export function bindYouTubeIframe(options: YouTubeBindingOptions): Cancel {
     });
   };
 
-  const armStuckWatchdog = (expectedOwner: PlaybackOwner) => {
+  const armStuckWatchdog = (
+    expectedOwner: PlaybackOwner,
+    expectedVideoId: string
+  ) => {
     clearStuckWatchdog();
+    if (!expectedVideoId) return;
     if (isPlayingWanted && !isPlayingWanted()) return;
     cancelStuckWatchdog = clock.after(1500, () => {
       cancelStuckWatchdog = null;
@@ -186,8 +195,9 @@ export function bindYouTubeIframe(options: YouTubeBindingOptions): Cancel {
       const curOwner = getActiveOwner();
       if (
         !curOwner ||
-        curOwner.requestId !== expectedOwner.requestId ||
-        curOwner.trackId !== expectedOwner.trackId
+        !isSameOwner(curOwner, expectedOwner) ||
+        youtubeEngine.getLoadedVideoId() !== expectedVideoId ||
+        !youtubeEngine.matchesVideo(expectedVideoId)
       ) {
         return;
       }
@@ -255,7 +265,19 @@ export function bindYouTubeIframe(options: YouTubeBindingOptions): Cancel {
           onStateChange: (event: { data: number }) => {
             if (disposed) return;
             const owner = getActiveOwner();
-            if (!owner) return;
+            const loadedVideoId = youtubeEngine.getLoadedVideoId();
+            if (
+              !owner ||
+              !loadedVideoId ||
+              !youtubeEngine.matchesVideo(loadedVideoId)
+            ) {
+              clearStuckWatchdog();
+              stopPollTimer();
+              if (event.data === 1) {
+                origStop();
+              }
+              return;
+            }
 
             if (event.data === 1) {
               clearStuckWatchdog();
@@ -285,7 +307,7 @@ export function bindYouTubeIframe(options: YouTubeBindingOptions): Cancel {
                 owner,
                 value: true,
               });
-              armStuckWatchdog(owner);
+              armStuckWatchdog(owner, loadedVideoId);
             } else if (event.data === 2) {
               clearStuckWatchdog();
               stopPollTimer();
@@ -306,7 +328,7 @@ export function bindYouTubeIframe(options: YouTubeBindingOptions): Cancel {
                 owner,
               });
             } else if (event.data === -1 || event.data === 5) {
-              armStuckWatchdog(owner);
+              armStuckWatchdog(owner, loadedVideoId);
             }
           },
           onError: (event: { data?: number }) => {
@@ -314,7 +336,8 @@ export function bindYouTubeIframe(options: YouTubeBindingOptions): Cancel {
             clearStuckWatchdog();
             stopPollTimer();
             const owner = getActiveOwner();
-            if (!owner) return;
+            const loadedVideoId = youtubeEngine.getLoadedVideoId();
+            if (!owner || !loadedVideoId) return;
             transport.handleYouTubeEvent({
               type: 'error',
               owner,

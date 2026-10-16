@@ -349,4 +349,87 @@ describe('playbackController', () => {
     expect(controller.getSnapshot().playbackError).toBeNull();
     expect(controller.getSnapshot().currentTrack?.youtube_id).toBe('yt-candidate-1');
   });
+
+  it('deduplicates recovery when HTML5 start() rejects and transport also emits an error event (race.har)', async () => {
+    const { controller, sources, transport } = createTestHarness();
+    const track = makeTrack('yt-ios-track', {
+      source: 'youtube',
+      youtube_id: 'osPq9Yb8xm8',
+      title: 'nuts',
+      artist: 'Lil Peep',
+      duration: 85,
+    });
+
+    // Simulate iOS YouTube HTML5 proxy failing with 502:
+    // Both transport.start() rejects AND <audio> emits { type: 'error' }
+    vi.mocked(sources.resolveImmediate).mockReturnValueOnce({
+      track,
+      engine: 'html5',
+      target: 'https://youtube-stream-cache.phongtct.workers.dev/api/yt-stream?id=osPq9Yb8xm8',
+      initialTime: 0,
+    });
+
+    let capturedOwner: PlaybackOwner | null = null;
+    vi.mocked(transport.start)
+      .mockImplementationOnce(async (_target, owner) => {
+        capturedOwner = owner;
+        queueMicrotask(() => {
+          transport.emit({
+            type: 'error',
+            owner,
+            error: { code: 4, message: 'MEDIA_ERR_SRC_NOT_SUPPORTED' },
+          });
+        });
+        throw new Error('Failed to load because no supported source was found');
+      })
+      .mockImplementation(async (_target, _owner, _vol, mode) => {
+        transport.setReadState({ playing: mode === 'play' });
+      });
+
+    await controller.playTrack(track, [track], 0);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(capturedOwner).not.toBeNull();
+    // Should start once on HTML5 (which fails) and once on YouTube IFrame — NOT twice on YouTube IFrame
+    const youtubeStarts = vi
+      .mocked(transport.start)
+      .mock.calls.filter(([t]) => t.engine === 'youtube');
+    expect(youtubeStarts).toHaveLength(1);
+    expect(youtubeStarts[0][0].target).toBe('osPq9Yb8xm8');
+  });
+
+  it('does not overwrite known full track duration (>45s) with a 10s fMP4 fragment duration or prematurely end at 10s', async () => {
+    const { controller, sources, transport } = createTestHarness();
+    const trackA = makeTrack('sc-risk-it-all', {
+      source: 'soundcloud',
+      soundcloud_id: '2328016970',
+      title: 'Risk It All',
+      artist: 'Bruno Mars',
+      duration: 204,
+    });
+    const trackB = makeTrack('next-track', {
+      title: 'Next Track',
+      duration: 180,
+    });
+
+    const scPrepared: PreparedPlayback = {
+      track: trackA,
+      engine: 'html5',
+      target: 'https://soundcloud-stream-cache.phongtct.workers.dev/stream?id=2328016970',
+      initialTime: 0,
+    };
+    vi.mocked(sources.resolveImmediate).mockReturnValueOnce(scPrepared);
+
+    await controller.playTrack(trackA, [trackA, trackB], 0);
+    const owner = transport.getLastStarted()!.owner;
+
+    // Browser FFmpegDemuxer reports first fMP4 sidx subsegment duration (10.0078s)
+    transport.setReadState({ time: 9.7, duration: 10.0078, playing: true });
+    transport.emit({ type: 'time', owner, time: 9.7, duration: 10.0078 });
+
+    // Must keep the known full track duration (204s) and NOT trigger completion at 9.7s
+    expect(controller.getProgress().duration).toBe(204);
+    expect(controller.getSnapshot().currentTrack?.id).toBe('sc-risk-it-all');
+  });
 });

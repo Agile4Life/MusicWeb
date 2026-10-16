@@ -105,7 +105,7 @@ export function createBrowserTransport({ audio, html5, youtube }: BrowserTranspo
         return guard(youtube.loadAndPlay(target.target, target.initialTime, volume), captured)
       } catch (error) { return Promise.reject(error) }
     },
-    pause() { if (binding && !disposed) engine().pause() },
+    pause() { if (!disposed) { html5.pause(); youtube.pause() } },
     resume() {
       if (!binding || disposed) return Promise.reject(new Error('No active playback'))
       const captured = binding

@@ -180,12 +180,16 @@ export function createPlayerRuntime(): PlayerRuntime {
   const transport: BrowserTransport = {
     ...baseTransport,
     start(target, owner, volume, mode) {
-      activeOwner = { ...owner };
+      activeOwner = target.engine === 'youtube' ? { ...owner } : null;
       const p = baseTransport.start(target, owner, volume, mode);
       if (target.engine === 'html5' && mode === 'play') {
         webAudioGain.ensureGain(volume);
       }
       return p;
+    },
+    stop() {
+      activeOwner = null;
+      baseTransport.stop();
     },
     setVolume(volume) {
       baseTransport.setVolume(volume);

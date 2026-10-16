@@ -747,10 +747,138 @@ export async function resolveSoundCloudStreamUrl(
   return promise
 }
 
+export interface SoundCloudHlsManifestInfo {
+  contentType: string
+  urls: string[]
+  hasInitMap?: boolean
+  durationSeconds?: number
+}
+
+export function patchInitMp4Duration(
+  initBytes: Uint8Array,
+  durationSeconds: number,
+): Uint8Array {
+  if (
+    !(initBytes instanceof Uint8Array) ||
+    initBytes.byteLength < 16 ||
+    !Number.isFinite(durationSeconds) ||
+    durationSeconds <= 0
+  ) {
+    return initBytes
+  }
+
+  const out = new Uint8Array(initBytes)
+  const view = new DataView(out.buffer, out.byteOffset, out.byteLength)
+  let mvhdTimescale = 1000
+
+  function walkBoxes(start: number, end: number): void {
+    let offset = start
+    while (offset + 8 <= end) {
+      const size = view.getUint32(offset, false)
+      const type = String.fromCharCode(
+        out[offset + 4],
+        out[offset + 5],
+        out[offset + 6],
+        out[offset + 7],
+      )
+      const boxEnd = size === 0 ? end : offset + size
+      if (size < 8 || boxEnd > end) break
+
+      if (type === 'moov' || type === 'trak' || type === 'mdia') {
+        walkBoxes(offset + 8, boxEnd)
+      } else if (type === 'mvhd') {
+        const version = out[offset + 8]
+        if (version === 0 && offset + 28 <= boxEnd) {
+          const timescale = view.getUint32(offset + 20, false)
+          if (timescale > 0) {
+            mvhdTimescale = timescale
+            view.setUint32(offset + 24, Math.round(durationSeconds * timescale), false)
+          }
+        } else if (version === 1 && offset + 36 <= boxEnd) {
+          const timescale = view.getUint32(offset + 28, false)
+          if (timescale > 0) {
+            mvhdTimescale = timescale
+            view.setBigUint64(
+              offset + 32,
+              BigInt(Math.round(durationSeconds * timescale)),
+              false,
+            )
+          }
+        }
+      } else if (type === 'tkhd') {
+        const version = out[offset + 8]
+        if (version === 0 && offset + 32 <= boxEnd) {
+          view.setUint32(
+            offset + 28,
+            Math.round(durationSeconds * mvhdTimescale),
+            false,
+          )
+        } else if (version === 1 && offset + 44 <= boxEnd) {
+          view.setBigUint64(
+            offset + 36,
+            BigInt(Math.round(durationSeconds * mvhdTimescale)),
+            false,
+          )
+        }
+      } else if (type === 'mdhd') {
+        const version = out[offset + 8]
+        if (version === 0 && offset + 28 <= boxEnd) {
+          const timescale = view.getUint32(offset + 20, false)
+          if (timescale > 0) {
+            view.setUint32(offset + 24, Math.round(durationSeconds * timescale), false)
+          }
+        } else if (version === 1 && offset + 36 <= boxEnd) {
+          const timescale = view.getUint32(offset + 28, false)
+          if (timescale > 0) {
+            view.setBigUint64(
+              offset + 32,
+              BigInt(Math.round(durationSeconds * timescale)),
+              false,
+            )
+          }
+        }
+      }
+
+      offset = boxEnd
+    }
+  }
+
+  walkBoxes(0, out.byteLength)
+  return out
+}
+
+export function stripFmp4SegmentIndexBoxes(segmentBytes: Uint8Array): Uint8Array {
+  if (!(segmentBytes instanceof Uint8Array) || segmentBytes.byteLength < 8) {
+    return segmentBytes
+  }
+  const view = new DataView(
+    segmentBytes.buffer,
+    segmentBytes.byteOffset,
+    segmentBytes.byteLength,
+  )
+  let offset = 0
+  while (offset + 8 <= segmentBytes.byteLength) {
+    const size = view.getUint32(offset, false)
+    if (size < 8 || offset + size > segmentBytes.byteLength) break
+    const type = String.fromCharCode(
+      segmentBytes[offset + 4],
+      segmentBytes[offset + 5],
+      segmentBytes[offset + 6],
+      segmentBytes[offset + 7],
+    )
+    if (type === 'styp' || type === 'sidx') {
+      offset += size
+      continue
+    }
+    break
+  }
+  return offset > 0 ? segmentBytes.subarray(offset) : segmentBytes
+}
+
 export async function parseSoundCloudHlsManifest(
   m3u8Url: string,
   timeoutMs = 4000,
-): Promise<{ contentType: string; urls: string[] } | null> {
+): Promise<SoundCloudHlsManifestInfo | null> {
   try {
     if (!m3u8Url || m3u8Url.includes('/cbcs/')) return null
     const res = await fetchWithTimeout(
@@ -765,6 +893,13 @@ export async function parseSoundCloudHlsManifest(
     }
     const mapMatch = text.match(/#EXT-X-MAP:URI="([^"]+)"/)
     const mapUrl = mapMatch ? mapMatch[1] : null
+    let durationSeconds = 0
+    for (const match of text.matchAll(/#EXTINF:([0-9]+(?:\.[0-9]+)?)/g)) {
+      const segDur = Number.parseFloat(match[1])
+      if (Number.isFinite(segDur) && segDur > 0) {
+        durationSeconds += segDur
+      }
+    }
     const segmentUrls = text
       .split(/\r?\n/)
       .map((line) => line.trim())
@@ -773,6 +908,8 @@ export async function parseSoundCloudHlsManifest(
     return {
       contentType: mapUrl ? 'audio/mp4' : 'audio/mpeg',
       urls: mapUrl ? [mapUrl, ...segmentUrls] : segmentUrls,
+      hasInitMap: Boolean(mapUrl),
+      durationSeconds,
     }
   } catch {
     return null

@@ -37,6 +37,29 @@ function isNotAllowedError(err: unknown): boolean {
   return name === 'NotAllowedError' || msg.includes('not allowed');
 }
 
+function resolveEffectiveDuration(
+  reportedDuration: number,
+  trackDuration: number | undefined,
+  fallbackDuration: number
+): number {
+  if (!(reportedDuration > 0 && Number.isFinite(reportedDuration))) {
+    return fallbackDuration;
+  }
+  const knownTrackDuration =
+    typeof trackDuration === 'number' && Number.isFinite(trackDuration)
+      ? trackDuration
+      : 0;
+  // Guard against fragmented MP4 (fMP4) streams whose initial sidx box reports
+  // only the first ~10s segment duration for a full-length track (>45s).
+  if (
+    knownTrackDuration > 45 &&
+    reportedDuration < Math.min(35, knownTrackDuration * 0.5)
+  ) {
+    return Math.max(reportedDuration, knownTrackDuration, fallbackDuration);
+  }
+  return reportedDuration;
+}
+
 export function createPlaybackController(
   deps: PlaybackControllerDeps
 ): PlaybackController {
@@ -53,6 +76,7 @@ export function createPlaybackController(
   let activeTargetUrl = '';
   let activeTransportOwner: PlaybackOwner | null = null;
   let ytHtml5Mode = false;
+  let inFlightErrorRequestId: number | null = null;
   let pendingSeek: number | null = null;
   let pendingResume = false;
   let isErrorAutoSkip = false;
@@ -606,12 +630,22 @@ export function createPlaybackController(
     if (
       !current ||
       !ownership.isCurrentOwner(owner, current.id) ||
-      recovery.isFallbackInProgress(owner.requestId)
+      recovery.isFallbackInProgress(owner.requestId) ||
+      inFlightErrorRequestId === owner.requestId
     ) {
       return;
     }
 
     if (activeEngine === 'youtube') {
+      // Ignore late HTML5 MediaError objects that arrive after switching to YouTube IFrame
+      if (
+        typeof rawError === 'object' &&
+        rawError !== null &&
+        'message' in rawError &&
+        !('data' in rawError)
+      ) {
+        return;
+      }
       const errorCode =
         typeof rawError === 'number'
           ? rawError
@@ -667,103 +701,10 @@ export function createPlaybackController(
       return;
     }
 
-    const hadFallbackBeforeError = recovery.hasAttemptedFallback(owner.requestId);
-    await deps.sources.invalidateTrack(current);
-    if (
-      disposed ||
-      !ownership.isCurrentOwner(owner, store.getSnapshot().currentTrack?.id)
-    ) {
-      return;
-    }
-    if (ownership.getDesiredState() === 'paused') {
-      store.patch({ isBuffering: false });
-      return;
-    }
-    if (
-      (activeEngine as string) === 'youtube' ||
-      recovery.isFallbackInProgress(owner.requestId) ||
-      (!hadFallbackBeforeError && recovery.hasAttemptedFallback(owner.requestId)) ||
-      deps.transport.read().playing
-    ) {
-      return;
-    }
-
-    const decision = recovery.decideHtml5Error({
-      requestId: owner.requestId,
-      track: current,
-      currentSrc: activeTargetUrl,
-      isIosYouTubeProxy: ytHtml5Mode,
-    });
-
-    if (decision.type === 'ignore') return;
-
-    if (decision.type === 'switch-to-youtube-iframe') {
-      ytHtml5Mode = false;
-      const resumeTime = Math.floor(getActiveTime());
-      try {
-        await executePreparedPlayback(
-          {
-            track: current,
-            engine: 'youtube',
-            target: decision.videoId,
-            initialTime: resumeTime >= 3 ? resumeTime : 0,
-          },
-          owner,
-          current,
-          { isFallback: true }
-        );
-      } catch {
-        handleUnrecoverableFailure(owner, current, { isYouTube: true });
-      }
-      return;
-    }
-
-    if (decision.type === 'retry-nct-proxy') {
-      const searchPromise = deps.sources.searchYouTubeCandidate(current);
-      const savedTime = getActiveTime();
-      store.patch({ isBuffering: true });
-
-      let nctSucceeded = false;
-      let cancelTimeout: Cancel | undefined;
-      try {
-        await Promise.race([
-          executePreparedPlayback(
-            {
-              track: current,
-              engine: 'html5',
-              target: decision.fallbackUrl,
-              initialTime: savedTime >= 3 ? savedTime : 0,
-            },
-            owner,
-            current,
-            { isFallback: true }
-          ).then((ok) => {
-            nctSucceeded = ok;
-          }),
-          new Promise<void>((resolve) => {
-            cancelTimeout = deps.clock.after(NCT_RETRY_RACE_TIMEOUT_MS, resolve);
-          }),
-        ]);
-      } catch {
-        recovery.markNctRetryAborted(owner.requestId);
-      } finally {
-        cancelTimeout?.();
-      }
-
-      if (
-        !nctSucceeded &&
-        ownership.getDesiredState() === 'playing' &&
-        ownership.isCurrentOwner(owner, store.getSnapshot().currentTrack?.id) &&
-        !recovery.isFallbackInProgress(owner.requestId)
-      ) {
-        const preSearched = await searchPromise;
-        await runFallbackToYouTube(current, owner, preSearched);
-      }
-      return;
-    }
-
-    if (decision.type === 'retry-soundcloud-fresh') {
-      const fresh = await deps.sources.refreshStream(current, getActiveTime());
+    inFlightErrorRequestId = owner.requestId;
+    try {
+      const hadFallbackBeforeError = recovery.hasAttemptedFallback(owner.requestId);
+      await deps.sources.invalidateTrack(current);
       if (
         disposed ||
         !ownership.isCurrentOwner(owner, store.getSnapshot().currentTrack?.id)
@@ -774,37 +715,137 @@ export function createPlaybackController(
         store.patch({ isBuffering: false });
         return;
       }
-      if (!fresh) {
+      if (
+        (activeEngine as string) === 'youtube' ||
+        recovery.isFallbackInProgress(owner.requestId) ||
+        (!hadFallbackBeforeError && recovery.hasAttemptedFallback(owner.requestId)) ||
+        deps.transport.read().playing
+      ) {
+        return;
+      }
+
+      const decision = recovery.decideHtml5Error({
+        requestId: owner.requestId,
+        track: current,
+        currentSrc: activeTargetUrl,
+        isIosYouTubeProxy: ytHtml5Mode,
+      });
+
+      if (decision.type === 'ignore') return;
+
+      if (decision.type === 'switch-to-youtube-iframe') {
+        ytHtml5Mode = false;
+        const resumeTime = Math.floor(getActiveTime());
+        try {
+          await executePreparedPlayback(
+            {
+              track: current,
+              engine: 'youtube',
+              target: decision.videoId,
+              initialTime: resumeTime >= 3 ? resumeTime : 0,
+            },
+            owner,
+            current,
+            { isFallback: true }
+          );
+        } catch {
+          handleUnrecoverableFailure(owner, current, { isYouTube: true });
+        }
+        return;
+      }
+
+      if (decision.type === 'retry-nct-proxy') {
+        const searchPromise = deps.sources.searchYouTubeCandidate(current);
+        const savedTime = getActiveTime();
+        store.patch({ isBuffering: true });
+
+        let nctSucceeded = false;
+        let cancelTimeout: Cancel | undefined;
+        try {
+          await Promise.race([
+            executePreparedPlayback(
+              {
+                track: current,
+                engine: 'html5',
+                target: decision.fallbackUrl,
+                initialTime: savedTime >= 3 ? savedTime : 0,
+              },
+              owner,
+              current,
+              { isFallback: true }
+            ).then((ok) => {
+              nctSucceeded = ok;
+            }),
+            new Promise<void>((resolve) => {
+              cancelTimeout = deps.clock.after(NCT_RETRY_RACE_TIMEOUT_MS, resolve);
+            }),
+          ]);
+        } catch {
+          recovery.markNctRetryAborted(owner.requestId);
+        } finally {
+          cancelTimeout?.();
+        }
+
+        if (
+          !nctSucceeded &&
+          ownership.getDesiredState() === 'playing' &&
+          ownership.isCurrentOwner(owner, store.getSnapshot().currentTrack?.id) &&
+          !recovery.isFallbackInProgress(owner.requestId)
+        ) {
+          const preSearched = await searchPromise;
+          await runFallbackToYouTube(current, owner, preSearched);
+        }
+        return;
+      }
+
+      if (decision.type === 'retry-soundcloud-fresh') {
+        const fresh = await deps.sources.refreshStream(current, getActiveTime());
+        if (
+          disposed ||
+          !ownership.isCurrentOwner(owner, store.getSnapshot().currentTrack?.id)
+        ) {
+          return;
+        }
+        if (ownership.getDesiredState() === 'paused') {
+          store.patch({ isBuffering: false });
+          return;
+        }
+        if (!fresh) {
+          await runFallbackToYouTube(current, owner);
+          return;
+        }
+        try {
+          await executePreparedPlayback(fresh, owner, current, {
+            isFallback: true,
+          });
+        } catch {
+          if (ownership.isCurrentOwner(owner, store.getSnapshot().currentTrack?.id)) {
+            await runFallbackToYouTube(current, owner);
+          }
+        }
+        return;
+      }
+
+      if (decision.type === 'fallback-to-youtube') {
         await runFallbackToYouTube(current, owner);
         return;
       }
-      try {
-        await executePreparedPlayback(fresh, owner, current, {
-          isFallback: true,
-        });
-      } catch {
-        if (ownership.isCurrentOwner(owner, store.getSnapshot().currentTrack?.id)) {
-          await runFallbackToYouTube(current, owner);
-        }
+
+      if (recovery.shouldSuppressRapidError(deps.clock.now())) {
+        return;
       }
-      return;
-    }
 
-    if (decision.type === 'fallback-to-youtube') {
-      await runFallbackToYouTube(current, owner);
-      return;
+      const mediaErr = rawError as { code?: number; message?: string } | null;
+      const errText = `Audio lỗi${mediaErr?.code ? ` (mã ${mediaErr.code})` : ''}: ${
+        mediaErr?.message || 'không đọc được file'
+      }`;
+      store.setProgress({ duration: 0 });
+      handleUnrecoverableFailure(owner, current, { errorMessage: errText });
+    } finally {
+      if (inFlightErrorRequestId === owner.requestId) {
+        inFlightErrorRequestId = null;
+      }
     }
-
-    if (recovery.shouldSuppressRapidError(deps.clock.now())) {
-      return;
-    }
-
-    const mediaErr = rawError as { code?: number; message?: string } | null;
-    const errText = `Audio lỗi${mediaErr?.code ? ` (mã ${mediaErr.code})` : ''}: ${
-      mediaErr?.message || 'không đọc được file'
-    }`;
-    store.setProgress({ duration: 0 });
-    handleUnrecoverableFailure(owner, current, { errorMessage: errText });
   };
 
   const handleTransportEvent = (event: PlaybackEvent) => {
@@ -831,7 +872,13 @@ export function createPlaybackController(
         });
         const live = deps.transport.read();
         if (live.duration > 0) {
-          store.setProgress({ duration: live.duration }, { silent: tabHidden });
+          const prevProg = store.getProgress();
+          const effectiveDur = resolveEffectiveDuration(
+            live.duration,
+            snap.currentTrack?.duration,
+            prevProg.duration
+          );
+          store.setProgress({ duration: effectiveDur }, { silent: tabHidden });
         }
         return;
       }
@@ -842,7 +889,11 @@ export function createPlaybackController(
           const prog = store.getProgress();
           const live = deps.transport.read();
           const time = live.time || prog.currentTime;
-          const duration = live.duration || prog.duration;
+          const duration = resolveEffectiveDuration(
+            live.duration,
+            snap.currentTrack?.duration,
+            prog.duration
+          );
           if (
             completion.shouldCompleteOnHtml5Pause({
               desiredState: ownership.getDesiredState(),
@@ -872,10 +923,11 @@ export function createPlaybackController(
 
       case 'time': {
         const prevProg = store.getProgress();
-        const nextDur =
-          event.duration > 0 && Number.isFinite(event.duration)
-            ? event.duration
-            : prevProg.duration;
+        const nextDur = resolveEffectiveDuration(
+          event.duration,
+          snap.currentTrack?.duration,
+          prevProg.duration
+        );
         store.setProgress(
           {
             currentTime: event.time,
@@ -1122,12 +1174,21 @@ export function createPlaybackController(
         store.patch({ isPlaying: false, isBuffering: false });
         return;
       }
+      if (
+        inFlightErrorRequestId === owner.requestId ||
+        recovery.isFallbackInProgress(owner.requestId) ||
+        recovery.hasAttemptedFallback(owner.requestId) ||
+        (prepared.engine === 'html5' && activeEngine === 'youtube')
+      ) {
+        return;
+      }
 
       const directYtId =
         prepared.track.youtube_id ||
         (prepared.track.source === 'youtube' ? prepared.target : null);
       if (prepared.engine === 'html5' && directYtId) {
         ytHtml5Mode = false;
+        inFlightErrorRequestId = owner.requestId;
         try {
           await executePreparedPlayback(
             {
@@ -1143,12 +1204,23 @@ export function createPlaybackController(
         } catch {
           handleUnrecoverableFailure(owner, prepared.track, { isYouTube: true });
           return;
+        } finally {
+          if (inFlightErrorRequestId === owner.requestId) {
+            inFlightErrorRequestId = null;
+          }
         }
       }
 
-      await deps.sources.invalidateTrack(prepared.track);
-      if (disposed || !ownership.isCurrentRequest(owner.requestId)) return;
-      await runFallbackToYouTube(prepared.track, owner);
+      inFlightErrorRequestId = owner.requestId;
+      try {
+        await deps.sources.invalidateTrack(prepared.track);
+        if (disposed || !ownership.isCurrentRequest(owner.requestId)) return;
+        await runFallbackToYouTube(prepared.track, owner);
+      } finally {
+        if (inFlightErrorRequestId === owner.requestId) {
+          inFlightErrorRequestId = null;
+        }
+      }
     }
   };
 
@@ -1214,7 +1286,11 @@ export function createPlaybackController(
       if (
         disposed ||
         !ownership.isCurrentRequest(owner.requestId) ||
-        ownership.getDesiredState() === 'paused'
+        ownership.getDesiredState() === 'paused' ||
+        inFlightErrorRequestId === owner.requestId ||
+        recovery.isFallbackInProgress(owner.requestId) ||
+        recovery.hasAttemptedFallback(owner.requestId) ||
+        activeEngine === 'youtube'
       ) {
         return;
       }

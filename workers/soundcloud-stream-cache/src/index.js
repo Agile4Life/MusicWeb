@@ -157,6 +157,124 @@ async function getEdgeSoundCloudClientId(env, forceRefresh = false) {
   }
 }
 
+function patchInitMp4Duration(initBytes, durationSeconds) {
+  if (
+    !(initBytes instanceof Uint8Array) ||
+    initBytes.byteLength < 16 ||
+    !Number.isFinite(durationSeconds) ||
+    durationSeconds <= 0
+  ) {
+    return initBytes
+  }
+
+  const out = new Uint8Array(initBytes)
+  const view = new DataView(out.buffer, out.byteOffset, out.byteLength)
+  let mvhdTimescale = 1000
+
+  function walkBoxes(start, end) {
+    let offset = start
+    while (offset + 8 <= end) {
+      const size = view.getUint32(offset, false)
+      const type = String.fromCharCode(
+        out[offset + 4],
+        out[offset + 5],
+        out[offset + 6],
+        out[offset + 7]
+      )
+      const boxEnd = size === 0 ? end : offset + size
+      if (size < 8 || boxEnd > end) break
+
+      if (type === 'moov' || type === 'trak' || type === 'mdia') {
+        walkBoxes(offset + 8, boxEnd)
+      } else if (type === 'mvhd') {
+        const version = out[offset + 8]
+        if (version === 0 && offset + 28 <= boxEnd) {
+          const timescale = view.getUint32(offset + 20, false)
+          if (timescale > 0) {
+            mvhdTimescale = timescale
+            view.setUint32(offset + 24, Math.round(durationSeconds * timescale), false)
+          }
+        } else if (version === 1 && offset + 36 <= boxEnd) {
+          const timescale = view.getUint32(offset + 28, false)
+          if (timescale > 0) {
+            mvhdTimescale = timescale
+            view.setBigUint64(
+              offset + 32,
+              BigInt(Math.round(durationSeconds * timescale)),
+              false
+            )
+          }
+        }
+      } else if (type === 'tkhd') {
+        const version = out[offset + 8]
+        if (version === 0 && offset + 32 <= boxEnd) {
+          view.setUint32(
+            offset + 28,
+            Math.round(durationSeconds * mvhdTimescale),
+            false
+          )
+        } else if (version === 1 && offset + 44 <= boxEnd) {
+          view.setBigUint64(
+            offset + 36,
+            BigInt(Math.round(durationSeconds * mvhdTimescale)),
+            false
+          )
+        }
+      } else if (type === 'mdhd') {
+        const version = out[offset + 8]
+        if (version === 0 && offset + 28 <= boxEnd) {
+          const timescale = view.getUint32(offset + 20, false)
+          if (timescale > 0) {
+            view.setUint32(offset + 24, Math.round(durationSeconds * timescale), false)
+          }
+        } else if (version === 1 && offset + 36 <= boxEnd) {
+          const timescale = view.getUint32(offset + 28, false)
+          if (timescale > 0) {
+            view.setBigUint64(
+              offset + 32,
+              BigInt(Math.round(durationSeconds * timescale)),
+              false
+            )
+          }
+        }
+      }
+
+      offset = boxEnd
+    }
+  }
+
+  walkBoxes(0, out.byteLength)
+  return out
+}
+
+function stripFmp4SegmentIndexBoxes(segmentBytes) {
+  if (!(segmentBytes instanceof Uint8Array) || segmentBytes.byteLength < 8) {
+    return segmentBytes
+  }
+  const view = new DataView(
+    segmentBytes.buffer,
+    segmentBytes.byteOffset,
+    segmentBytes.byteLength
+  )
+  let offset = 0
+  while (offset + 8 <= segmentBytes.byteLength) {
+    const size = view.getUint32(offset, false)
+    if (size < 8 || offset + size > segmentBytes.byteLength) break
+    const type = String.fromCharCode(
+      segmentBytes[offset + 4],
+      segmentBytes[offset + 5],
+      segmentBytes[offset + 6],
+      segmentBytes[offset + 7]
+    )
+    if (type === 'styp' || type === 'sidx') {
+      offset += size
+      continue
+    }
+    break
+  }
+  return offset > 0 ? segmentBytes.subarray(offset) : segmentBytes
+}
+
 /**
  * Fetches and validates an HLS .m3u8 playlist.
  * Rejects DRM-encrypted (#EXT-X-KEY / /cbcs/) playlists and extracts init.mp4 + media segments.
@@ -176,6 +294,13 @@ async function parseAndValidateHlsPlaylist(m3u8Url) {
     }
     const mapMatch = text.match(/#EXT-X-MAP:URI="([^"]+)"/)
     const mapUrl = mapMatch ? mapMatch[1] : null
+    let durationSeconds = 0
+    for (const match of text.matchAll(/#EXTINF:([0-9]+(?:\.[0-9]+)?)/g)) {
+      const segDur = Number.parseFloat(match[1])
+      if (Number.isFinite(segDur) && segDur > 0) {
+        durationSeconds += segDur
+      }
+    }
     const segmentUrls = text
       .split(/\r?\n/)
       .map((line) => line.trim())
@@ -185,6 +310,8 @@ async function parseAndValidateHlsPlaylist(m3u8Url) {
       encrypted: false,
       contentType: mapUrl ? 'audio/mp4' : 'audio/mpeg',
       urls: mapUrl ? [mapUrl, ...segmentUrls] : segmentUrls,
+      hasInitMap: Boolean(mapUrl),
+      durationSeconds,
     }
   } catch (err) {
     console.warn('[SoundCloud Worker] HLS manifest parse error:', err)
@@ -201,7 +328,10 @@ function streamHlsSegments(hlsInfo, requestSignal) {
 
   ;(async () => {
     try {
-      for (const segUrl of hlsInfo.urls) {
+      const isFmp4 =
+        Boolean(hlsInfo.hasInitMap) || hlsInfo.contentType === 'audio/mp4'
+      for (let i = 0; i < hlsInfo.urls.length; i++) {
+        const segUrl = hlsInfo.urls[i]
         if (requestSignal?.aborted) break
         const segRes = await fetch(segUrl, {
           headers: { 'User-Agent': SC_USER_AGENT },
@@ -210,12 +340,90 @@ function streamHlsSegments(hlsInfo, requestSignal) {
         if (!segRes.ok || !segRes.body) {
           break
         }
+
+        if (isFmp4 && i === 0) {
+          const initBytes = new Uint8Array(await segRes.arrayBuffer())
+          const patched = patchInitMp4Duration(
+            initBytes,
+            hlsInfo.durationSeconds || 0
+          )
+          if (patched.byteLength > 0) {
+            await writer.write(patched)
+          }
+          continue
+        }
+
         const reader = segRes.body.getReader()
+        let stripLeadingBoxes = isFmp4 && i > 0
+        let pendingHeader = null
+
         while (true) {
           const { done, value } = await reader.read()
-          if (done) break
-          if (value && value.byteLength > 0) {
+          if (done) {
+            if (pendingHeader && pendingHeader.byteLength > 0) {
+              const stripped = stripFmp4SegmentIndexBoxes(pendingHeader)
+              if (stripped.byteLength > 0) {
+                await writer.write(stripped)
+              }
+              pendingHeader = null
+            }
+            break
+          }
+          if (!value || value.byteLength === 0) continue
+
+          if (!stripLeadingBoxes) {
             await writer.write(value)
+            continue
+          }
+
+          if (!pendingHeader) {
+            pendingHeader = value
+          } else {
+            const combined = new Uint8Array(
+              pendingHeader.byteLength + value.byteLength
+            )
+            combined.set(pendingHeader, 0)
+            combined.set(value, pendingHeader.byteLength)
+            pendingHeader = combined
+          }
+
+          const view = new DataView(
+            pendingHeader.buffer,
+            pendingHeader.byteOffset,
+            pendingHeader.byteLength
+          )
+          let offset = 0
+          let needMore = false
+          while (offset + 8 <= pendingHeader.byteLength) {
+            const size = view.getUint32(offset, false)
+            const type = String.fromCharCode(
+              pendingHeader[offset + 4],
+              pendingHeader[offset + 5],
+              pendingHeader[offset + 6],
+              pendingHeader[offset + 7]
+            )
+            if (type === 'styp' || type === 'sidx') {
+              if (size < 8) break
+              if (offset + size > pendingHeader.byteLength) {
+                needMore = true
+                break
+              }
+              offset += size
+              continue
+            }
+            break
+          }
+
+          if (offset + 8 > pendingHeader.byteLength || needMore) {
+            continue
+          }
+
+          const remainder =
+            offset > 0 ? pendingHeader.subarray(offset) : pendingHeader
+          pendingHeader = null
+          stripLeadingBoxes = false
+          if (remainder.byteLength > 0) {
+            await writer.write(remainder)
           }
         }
       }
