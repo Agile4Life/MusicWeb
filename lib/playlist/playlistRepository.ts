@@ -32,7 +32,12 @@ export function createPlaylistRepository(
   return {
     async list() {
       const res = await fetchFn('/api/playlists');
-      if (!res.ok) return [];
+      if (!res.ok) {
+        throw new PlaylistRequestError(
+          res.statusText || 'Failed to fetch playlists',
+          res.status
+        );
+      }
       const data = await res.json();
       return data.playlists || [];
     },

@@ -5,21 +5,29 @@ import {
 } from '@/lib/playlist/playlistRepository';
 
 describe('playlistRepository', () => {
-  it('lists playlists from /api/playlists and returns empty array on non-ok response', async () => {
+  it('lists playlists from /api/playlists and throws PlaylistRequestError on non-ok response (P2)', async () => {
     const fetchFn = vi
       .fn()
       .mockResolvedValueOnce({
         ok: true,
+        status: 200,
         json: async () => ({ playlists: [{ id: 'pl-1', name: 'Chill' }] }),
       })
       .mockResolvedValueOnce({
         ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
       });
 
     const repo = createPlaylistRepository({ fetchFn: fetchFn as unknown as typeof fetch });
 
     await expect(repo.list()).resolves.toEqual([{ id: 'pl-1', name: 'Chill' }]);
-    await expect(repo.list()).resolves.toEqual([]);
+    await expect(repo.list()).rejects.toEqual(
+      expect.objectContaining({
+        name: 'PlaylistRequestError',
+        status: 500,
+      })
+    );
   });
 
   it('creates a playlist and throws PlaylistRequestError(401) when unauthorized', async () => {

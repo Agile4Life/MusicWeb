@@ -255,4 +255,98 @@ describe('playbackController', () => {
     expect(progressListener).not.toHaveBeenCalled();
     expect(controller.getProgress().currentTime).toBe(4);
   });
+
+  it('stops previous HTML5 track before awaiting unresolved B and runs fallback when B resolves null (P1)', async () => {
+    const { controller, sources, transport } = createTestHarness();
+    const trackA = makeTrack('track-a', { title: 'Track A' });
+    const trackB = makeTrack('track-b', { title: 'Track B' });
+
+    // Start Track A playing on HTML5
+    await controller.playTrack(trackA, [trackA, trackB], 0);
+    expect(transport.read().playing).toBe(true);
+    expect(controller.getSnapshot().isPlaying).toBe(true);
+    vi.mocked(transport.stop).mockClear();
+
+    // Select unresolved Track B whose primary resolution returns null
+    const pendingB = deferred<PreparedPlayback | null>();
+    vi.mocked(sources.resolvePlayable).mockReturnValueOnce(pendingB.promise);
+    vi.mocked(sources.resolveFallback).mockResolvedValueOnce({
+      track: { ...trackB, source: 'youtube', youtube_id: 'yt-b-fallback' },
+      engine: 'youtube',
+      target: 'yt-b-fallback',
+      initialTime: 0,
+    });
+
+    const playBPromise = controller.playTrack(trackB, [trackA, trackB], 1);
+
+    // Immediately after selecting unresolved B, A must no longer be playing on transport
+    expect(controller.getSnapshot().currentTrack?.id).toBe('track-b');
+    expect(transport.read().playing).toBe(false);
+    expect(transport.stop).toHaveBeenCalledTimes(1);
+
+    // Resolve B as null -> fallback must execute and start B on YouTube
+    pendingB.resolve(null);
+    await playBPromise;
+
+    expect(sources.resolveFallback).toHaveBeenCalledTimes(1);
+    expect(controller.getSnapshot().isBuffering).toBe(false);
+    expect(controller.getSnapshot().isPlaying).toBe(true);
+    expect(controller.getSnapshot().playbackError).toBeNull();
+    expect(transport.getLastStarted()?.target.target).toBe('yt-b-fallback');
+  });
+
+  it('continues from failed alternate NCT fallback candidate to YouTube fallback candidate (P2)', async () => {
+    const { controller, sources, transport } = createTestHarness();
+    const track = makeTrack('sp-track', {
+      source: 'spotify',
+      title: 'Fallback Song',
+      artist: 'Fallback Artist',
+      duration: 200,
+    });
+
+    // Primary resolution returns null
+    vi.mocked(sources.resolvePlayable).mockResolvedValueOnce(null);
+
+    // First resolveFallback returns alternate NCT stream; second returns YouTube candidate
+    const nctPrepared: PreparedPlayback = {
+      track: {
+        ...track,
+        source: 'nhaccuatui',
+        nhaccuatui_id: 'nct-alt-1',
+      },
+      engine: 'html5',
+      target: '/api/nhaccuatui/stream?id=nct-alt-1',
+      initialTime: 0,
+    };
+    const ytPrepared: PreparedPlayback = {
+      track: {
+        ...track,
+        source: 'youtube',
+        youtube_id: 'yt-candidate-1',
+      },
+      engine: 'youtube',
+      target: 'yt-candidate-1',
+      initialTime: 0,
+    };
+
+    vi.mocked(sources.resolveFallback)
+      .mockResolvedValueOnce(nctPrepared)
+      .mockResolvedValueOnce(ytPrepared);
+
+    // Transport rejects NCT stream, accepts YouTube candidate
+    vi.mocked(transport.start)
+      .mockRejectedValueOnce(new Error('NCT stream failed'))
+      .mockImplementationOnce(async (target, owner, volume, mode) => {
+        transport.setReadState({ playing: mode === 'play' });
+      });
+
+    await controller.playTrack(track, [track], 0);
+
+    expect(sources.resolveFallback).toHaveBeenCalledTimes(2);
+    expect(transport.start).toHaveBeenCalledTimes(2);
+    expect(controller.getSnapshot().isPlaying).toBe(true);
+    expect(controller.getSnapshot().isBuffering).toBe(false);
+    expect(controller.getSnapshot().playbackError).toBeNull();
+    expect(controller.getSnapshot().currentTrack?.youtube_id).toBe('yt-candidate-1');
+  });
 });

@@ -225,4 +225,69 @@ describe('playbackSourceService', () => {
       album: 'Original Album',
     });
   });
+
+  it('preserves the YouTube fallback match from search when an alternate NCT candidate is tried first (P2)', async () => {
+    const searchMock = vi.fn().mockResolvedValue({
+      nhaccuatui: [
+        makeTrack('nct-match', {
+          source: 'nhaccuatui',
+          nhaccuatui_id: 'nct-777',
+          title: 'Exact Song',
+          artist: 'Exact Artist',
+          duration: 200,
+        }),
+      ],
+      local: [],
+      youtube: [
+        makeTrack('yt-match', {
+          source: 'youtube',
+          youtube_id: 'yt777video1',
+          title: 'Exact Song',
+          artist: 'Exact Artist',
+          duration: 200,
+        }),
+      ],
+      audius: [],
+      itunes: [],
+      spotify: [],
+      deezer: [],
+      soundcloud: [],
+    });
+
+    const deps = createFakeDeps({ search: searchMock });
+    const service = createPlaybackSourceService(deps);
+
+    const track = makeTrack('sp-exact', {
+      source: 'spotify',
+      title: 'Exact Song',
+      artist: 'Exact Artist',
+      duration: 200,
+    });
+
+    const firstCandidate = await service.resolveFallback(track, 0);
+    expect(firstCandidate).toEqual({
+      track: expect.objectContaining({
+        id: 'sp-exact',
+        source: 'nhaccuatui',
+        nhaccuatui_id: 'nct-777',
+      }),
+      engine: 'html5',
+      target: '/api/nhaccuatui/stream?id=nct-777',
+      initialTime: 0,
+    });
+
+    // If NCT playback rejects, resolving fallback for the updated NCT track returns the YouTube match without losing it
+    const secondCandidate = await service.resolveFallback(firstCandidate!.track, 0);
+    expect(secondCandidate).toEqual({
+      track: expect.objectContaining({
+        id: 'sp-exact',
+        source: 'youtube',
+        youtube_id: 'yt777video1',
+      }),
+      engine: 'youtube',
+      target: 'yt777video1',
+      initialTime: 0,
+    });
+    expect(searchMock).toHaveBeenCalledTimes(1);
+  });
 });

@@ -63,9 +63,9 @@ export class YouTubeIframeEngine implements PlaybackEngine {
     try {
       const safeVol = typeof volume === 'number' && !isNaN(volume) ? Math.max(0, Math.min(1, volume)) : 0.8
       if (safeVol > 0) {
-        if (this.player.unMute) this.player.unMute()
-        if (this.player.isMuted && this.player.isMuted()) {
-          this.player.unMute()
+        this.player.unMute?.()
+        if (this.player.isMuted?.()) {
+          this.player.unMute?.()
         }
       } else {
         if (this.player.mute) this.player.mute()
@@ -132,6 +132,7 @@ export class YouTubeIframeEngine implements PlaybackEngine {
   }
 
   stop(): void {
+    this.loadedVideoId = null
     if (!this.player) return
     try {
       if (this.player.mute) this.player.mute()

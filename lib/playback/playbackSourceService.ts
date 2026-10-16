@@ -207,6 +207,7 @@ export function createPlaybackSourceService(
 ): PlaybackSourceService {
   const audioUrlCache = new Map<string, { url: string; ts: number }>();
   const trackResolutionCache = new Map<string, { activeTrack: Track; expiresAt: number }>();
+  const pendingYoutubeFallbackByTrackId = new Map<string, Track>();
   const resolutionIdentities = new Map<
     string,
     { title: string; artist?: string | null; duration?: number | null; album?: string | null }
@@ -679,6 +680,11 @@ export function createPlaybackSourceService(
 
     let bestMatch = preSearched ?? null;
 
+    if (!bestMatch && pendingYoutubeFallbackByTrackId.has(track.id)) {
+      bestMatch = pendingYoutubeFallbackByTrackId.get(track.id) ?? null;
+      pendingYoutubeFallbackByTrackId.delete(track.id);
+    }
+
     if (!bestMatch) {
       const cachedYtId = deps.getCachedYouTubeId(
         track.title,
@@ -701,6 +707,15 @@ export function createPlaybackSourceService(
         const fallbackSource =
           track.source === 'nhaccuatui' || track.nhaccuatui_id ? 'youtube' : 'all';
         const data = await deps.search(query, fallbackSource);
+
+        const ytList: Track[] = data.youtube || [];
+        const searchedYtMatch = findBestYouTubeMatch(
+          ytList,
+          track.title,
+          track.artist,
+          track.duration,
+          track.album
+        );
 
         const nctAlternates: Track[] = (data.nhaccuatui || []).filter(
           (t: Track) => t.nhaccuatui_id && t.nhaccuatui_id !== track.nhaccuatui_id
@@ -725,6 +740,14 @@ export function createPlaybackSourceService(
           : undefined;
 
         if (nctCandidate?.nhaccuatui_id) {
+          if (searchedYtMatch?.youtube_id) {
+            setBounded(
+              pendingYoutubeFallbackByTrackId,
+              track.id,
+              searchedYtMatch,
+              TRACK_RESOLUTION_MAX_ENTRIES
+            );
+          }
           const fallbackUrl = `/api/nhaccuatui/stream?id=${encodeURIComponent(
             nctCandidate.nhaccuatui_id
           )}`;
@@ -743,14 +766,7 @@ export function createPlaybackSourceService(
           };
         }
 
-        const ytList: Track[] = data.youtube || [];
-        bestMatch = findBestYouTubeMatch(
-          ytList,
-          track.title,
-          track.artist,
-          track.duration,
-          track.album
-        );
+        bestMatch = searchedYtMatch;
       } catch {
         // Search failed
       }
@@ -1199,6 +1215,7 @@ export function createPlaybackSourceService(
       disposed = true;
       audioUrlCache.clear();
       trackResolutionCache.clear();
+      pendingYoutubeFallbackByTrackId.clear();
       resolutionIdentities.clear();
       resolvingTrackIds.clear();
     },

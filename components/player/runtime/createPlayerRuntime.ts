@@ -320,16 +320,21 @@ export function createPlayerRuntime(): PlayerRuntime {
 
       return () => {
         active = false;
+        transport.stop();
         unbindYouTube();
         unbindMediaSession();
         unbindLifecycle();
-        html5Engine.setAudioElement(fallbackAudio);
-        currentAudioElement = fallbackAudio;
+        if (currentAudioElement === audio) {
+          html5Engine.setAudioElement(fallbackAudio);
+          currentAudioElement = fallbackAudio;
+        }
       };
     },
     dispose() {
       unsubscribeTrackMetadataEffects();
       controller.dispose();
+      html5Engine.setAudioElement(fallbackAudio);
+      currentAudioElement = fallbackAudio;
     },
   };
 }

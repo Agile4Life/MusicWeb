@@ -120,4 +120,214 @@ describe('browserLifecycle', () => {
     expect(terminate).toHaveBeenCalledTimes(1);
     expect(attrs.has('data-tab-hidden')).toBe(false);
   });
+
+  it('invalidates a pending cold-start YouTube request when switching to an HTML5 track before iframe onReady (P1)', async () => {
+    const { YouTubeIframeEngine } = await import('../../engines/YouTubeIframeEngine');
+    const { Html5AudioEngine } = await import('../../engines/Html5AudioEngine');
+    const { createBrowserTransport } = await import('../../adapters/browserTransport');
+    const { bindYouTubeIframe } = await import('../youtubeBinding');
+
+    const loads: string[] = [];
+    let youtubePlaying = false;
+    let html5Playing = false;
+    let onReadyCallback: (() => void) | null = null;
+
+    const fakeYtPlayer = {
+      loadVideoById: vi.fn((arg: { videoId: string } | string) => {
+        const videoId = typeof arg === 'string' ? arg : arg.videoId;
+        loads.push(videoId);
+        youtubePlaying = true;
+      }),
+      playVideo: vi.fn(() => {
+        youtubePlaying = true;
+      }),
+      pauseVideo: vi.fn(() => {
+        youtubePlaying = false;
+      }),
+      stopVideo: vi.fn(() => {
+        youtubePlaying = false;
+      }),
+      mute: vi.fn(),
+      unMute: vi.fn(),
+      isMuted: vi.fn(() => false),
+      setVolume: vi.fn(),
+    };
+
+    const fakeWin = {
+      location: { origin: 'http://localhost' },
+      YT: {
+        Player: function (_id: string, opts: { events?: { onReady?: () => void } }) {
+          onReadyCallback = opts.events?.onReady ?? null;
+          return fakeYtPlayer;
+        },
+      },
+    } as unknown as Window;
+
+    const fakeDoc = {
+      getElementById: vi.fn(() => ({})),
+    } as unknown as Document;
+
+    const fakeAudioState = {
+      src: '',
+      currentSrc: '',
+      paused: true,
+      ended: false,
+      currentTime: 0,
+      duration: 180,
+      volume: 0.8,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      load: vi.fn(),
+      play: vi.fn(async () => {
+        html5Playing = true;
+        fakeAudioState.paused = false;
+      }),
+      pause: vi.fn(() => {
+        html5Playing = false;
+        fakeAudioState.paused = true;
+      }),
+      removeAttribute: vi.fn(),
+    };
+    const fakeAudio = fakeAudioState as unknown as HTMLAudioElement;
+
+    const html5 = new Html5AudioEngine(fakeAudio);
+    const youtube = new YouTubeIframeEngine();
+    const transport = createBrowserTransport({ audio: fakeAudio, html5, youtube });
+
+    let activeOwner = { requestId: 1, generation: 1, trackId: 'yt-a' };
+    const unbind = bindYouTubeIframe({
+      clock: {
+        now: () => 1000,
+        after: () => () => {},
+        every: () => () => {},
+      },
+      youtubeEngine: youtube,
+      transport,
+      getActiveOwner: () => activeOwner,
+      getVolume: () => 0.8,
+      isPlayingWanted: () => true,
+      win: fakeWin,
+      doc: fakeDoc,
+    });
+
+    // 1. Start YouTube A before iframe onReady fires
+    const startA = transport.start(
+      {
+        track: {
+          id: 'yt-a',
+          user_id: 'u-1',
+          title: 'YT A',
+          artist: 'A',
+          cover_url: null,
+          duration: 120,
+          file_path: '',
+          created_at: '',
+        },
+        engine: 'youtube',
+        target: 'videoA',
+        initialTime: 0,
+      },
+      activeOwner,
+      0.8,
+      'play'
+    );
+    void startA.catch(() => {});
+
+    // 2. Switch to HTML5 B before YT iframe onReady fires
+    activeOwner = { requestId: 2, generation: 2, trackId: 'html5-b' };
+    await transport.start(
+      {
+        track: {
+          id: 'html5-b',
+          user_id: 'u-1',
+          title: 'HTML5 B',
+          artist: 'B',
+          cover_url: null,
+          duration: 120,
+          file_path: '',
+          created_at: '',
+        },
+        engine: 'html5',
+        target: 'https://cdn.example/b.mp3',
+        initialTime: 0,
+      },
+      activeOwner,
+      0.8,
+      'play'
+    );
+
+    // 3. Now YT iframe becomes ready — stale videoA must NOT load or play
+    expect(onReadyCallback).toBeTypeOf('function');
+    onReadyCallback!();
+
+    expect({ loads, html5Playing, youtubePlaying }).toEqual({
+      loads: [],
+      html5Playing: true,
+      youtubePlaying: false,
+    });
+
+    unbind();
+  });
+
+  it('stops and removes listeners from the mounted audio element when detaching and disposing runtime (P2)', async () => {
+    const { createPlayerRuntime } = await import('../createPlayerRuntime');
+
+    const activeListeners = new Set<string>();
+    const fakeAudioState = {
+      src: '',
+      currentSrc: '',
+      paused: true,
+      ended: false,
+      currentTime: 0,
+      duration: 180,
+      volume: 0.8,
+      muted: false,
+      addEventListener: vi.fn((type: string, cb: EventListener) => {
+        activeListeners.add(`${type}:${String(cb)}`);
+      }),
+      removeEventListener: vi.fn((type: string, cb: EventListener) => {
+        activeListeners.delete(`${type}:${String(cb)}`);
+      }),
+      load: vi.fn(),
+      play: vi.fn(async () => {
+        fakeAudioState.paused = false;
+      }),
+      pause: vi.fn(() => {
+        fakeAudioState.paused = true;
+      }),
+      removeAttribute: vi.fn(() => {
+        fakeAudioState.src = '';
+        fakeAudioState.currentSrc = '';
+      }),
+    };
+    const fakeAudio = fakeAudioState as unknown as HTMLAudioElement;
+
+    const runtime = createPlayerRuntime();
+    const detach = runtime.attachAudioElement(fakeAudio);
+
+    await runtime.controller.playTrack({
+      id: 'local-1',
+      user_id: 'u-1',
+      title: 'Mounted Audio Track',
+      artist: 'Tester',
+      cover_url: null,
+      duration: 180,
+      source: 'local',
+      drive_file_id: 'drv-1',
+      file_path: '',
+      created_at: '',
+    });
+
+    expect(fakeAudioState.paused).toBe(false);
+    expect(activeListeners.size).toBeGreaterThan(0);
+
+    // React unmount order: detachAudio() runs first, then runtime.dispose()
+    detach();
+    runtime.dispose();
+
+    expect({ paused: fakeAudioState.paused, listeners: activeListeners.size }).toEqual({
+      paused: true,
+      listeners: 0,
+    });
+  });
 });

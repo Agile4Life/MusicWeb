@@ -51,6 +51,7 @@ export function createPlaybackController(
   let tabHidden = false;
   let activeEngine: 'html5' | 'youtube' = 'html5';
   let activeTargetUrl = '';
+  let activeTransportOwner: PlaybackOwner | null = null;
   let ytHtml5Mode = false;
   let pendingSeek: number | null = null;
   let pendingResume = false;
@@ -252,6 +253,7 @@ export function createPlaybackController(
 
     activeEngine = prepared.engine;
     activeTargetUrl = prepared.target;
+    activeTransportOwner = { ...nextOwner };
     ytHtml5Mode =
       prepared.engine === 'html5' &&
       (syncedTrack.source === 'youtube' || Boolean(syncedTrack.youtube_id));
@@ -352,7 +354,12 @@ export function createPlaybackController(
     }
 
     const transportState = deps.transport.read();
-    if (transportState.playing && activeEngine === 'html5') {
+    if (
+      transportState.playing &&
+      activeEngine === 'html5' &&
+      activeTransportOwner !== null &&
+      ownership.isCurrentOwner(activeTransportOwner, track.id)
+    ) {
       return;
     }
 
@@ -377,6 +384,31 @@ export function createPlaybackController(
         return;
       }
 
+      const tryIosHtml5ToYoutubeFallback = async (
+        candidate: PreparedPlayback
+      ): Promise<boolean> => {
+        const ytId = candidate.track.youtube_id;
+        if (candidate.engine === 'html5' && ytId) {
+          try {
+            await executePreparedPlayback(
+              {
+                track: candidate.track,
+                engine: 'youtube',
+                target: ytId,
+                initialTime: candidate.initialTime,
+              },
+              owner,
+              track,
+              { isFallback: true }
+            );
+            return true;
+          } catch {
+            return false;
+          }
+        }
+        return false;
+      };
+
       try {
         await executePreparedPlayback(fallbackPrepared, owner, track, {
           isFallback: true,
@@ -388,25 +420,58 @@ export function createPlaybackController(
         ) {
           return;
         }
-        // If iOS HTML5 YouTube proxy failed during fallback, try YouTube IFrame directly
-        const ytId = fallbackPrepared.track.youtube_id;
-        if (fallbackPrepared.engine === 'html5' && ytId) {
-          try {
-            await executePreparedPlayback(
-              {
-                track: fallbackPrepared.track,
-                engine: 'youtube',
-                target: ytId,
-                initialTime: fallbackPrepared.initialTime,
-              },
-              owner,
-              track,
-              { isFallback: true }
-            );
+        if (ownership.getDesiredState() === 'paused') {
+          store.patch({ isPlaying: false, isBuffering: false });
+          return;
+        }
+
+        // If an alternate NCT fallback stream failed, continue to the YouTube candidate
+        if (
+          fallbackPrepared.track.source === 'nhaccuatui' ||
+          Boolean(fallbackPrepared.track.nhaccuatui_id)
+        ) {
+          const ytFallback = await deps.sources.resolveFallback(
+            fallbackPrepared.track,
+            getActiveTime(),
+            preSearched
+          );
+          if (
+            disposed ||
+            !ownership.isCurrentOwner(owner, store.getSnapshot().currentTrack?.id)
+          ) {
             return;
-          } catch {
-            // Fall through to unrecoverable failure
           }
+          if (ownership.getDesiredState() === 'paused') {
+            store.patch({ isPlaying: false, isBuffering: false });
+            return;
+          }
+          if (ytFallback) {
+            try {
+              await executePreparedPlayback(ytFallback, owner, track, {
+                isFallback: true,
+              });
+              return;
+            } catch {
+              if (
+                disposed ||
+                !ownership.isCurrentOwner(
+                  owner,
+                  store.getSnapshot().currentTrack?.id
+                )
+              ) {
+                return;
+              }
+              if (await tryIosHtml5ToYoutubeFallback(ytFallback)) {
+                return;
+              }
+            }
+          }
+          handleUnrecoverableFailure(owner, track);
+          return;
+        }
+
+        if (await tryIosHtml5ToYoutubeFallback(fallbackPrepared)) {
+          return;
         }
         handleUnrecoverableFailure(owner, track);
       }
@@ -1012,6 +1077,20 @@ export function createPlaybackController(
       preserveGesture: false,
       tabHidden,
     });
+
+    if (!immediate) {
+      ytHtml5Mode = false;
+      activeTransportOwner = null;
+      activeTargetUrl = '';
+      if (
+        !tabHidden ||
+        activeEngine === 'youtube' ||
+        track.source === 'youtube' ||
+        Boolean(track.youtube_id)
+      ) {
+        deps.transport.stop();
+      }
+    }
 
     const prepared =
       immediate ??

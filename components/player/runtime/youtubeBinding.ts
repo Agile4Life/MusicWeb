@@ -53,6 +53,7 @@ export function bindYouTubeIframe(options: YouTubeBindingOptions): Cancel {
   let cancelStuckWatchdog: Cancel | null = null;
   let pendingCall: {
     mode: 'play' | 'paused';
+    owner: PlaybackOwner | null;
     videoId: string;
     initialTime: number;
     volume: number;
@@ -60,20 +61,50 @@ export function bindYouTubeIframe(options: YouTubeBindingOptions): Cancel {
     reject: (err: unknown) => void;
   } | null = null;
 
-  // Wrap loadAndPlay and loadPaused so cold-start calls before YT.Player is ready
-  // queue cleanly and execute as soon as onReady fires.
+  const abortedError = () =>
+    Object.assign(new Error('Playback ownership changed'), { name: 'AbortError' });
+
+  const isSameOwner = (
+    a: PlaybackOwner | null | undefined,
+    b: PlaybackOwner | null | undefined
+  ): boolean => {
+    if (!a && !b) return true;
+    if (!a || !b) return false;
+    return (
+      a.requestId === b.requestId &&
+      a.generation === b.generation &&
+      a.trackId === b.trackId
+    );
+  };
+
+  const cancelPendingCall = () => {
+    if (!pendingCall) return;
+    const prev = pendingCall;
+    pendingCall = null;
+    if (prev.mode === 'play') {
+      prev.reject(abortedError());
+    }
+  };
+
+  // Wrap loadAndPlay, loadPaused, pause, and stop so cold-start calls before YT.Player is ready
+  // queue with ownership and are invalidated on switch/pause/stop.
   const origLoadAndPlay = youtubeEngine.loadAndPlay.bind(youtubeEngine);
   const origLoadPaused = youtubeEngine.loadPaused.bind(youtubeEngine);
+  const origPause = youtubeEngine.pause.bind(youtubeEngine);
+  const origStop = youtubeEngine.stop.bind(youtubeEngine);
 
   youtubeEngine.loadAndPlay = (videoId: string, initialTime = 0, volume = 0.8) => {
+    cancelPendingCall();
     if (youtubeEngine.getPlayerInstance()?.loadVideoById) {
-      pendingCall = null;
       return origLoadAndPlay(videoId, initialTime, volume);
     }
+    const currentOwner = getActiveOwner();
+    const capturedOwner = currentOwner ? { ...currentOwner } : null;
     youtubeEngine.setLoadedVideoId(videoId);
     return new Promise<void>((resolve, reject) => {
       pendingCall = {
         mode: 'play',
+        owner: capturedOwner,
         videoId,
         initialTime,
         volume,
@@ -84,20 +115,34 @@ export function bindYouTubeIframe(options: YouTubeBindingOptions): Cancel {
   };
 
   youtubeEngine.loadPaused = (videoId: string, initialTime = 0, volume = 0.8) => {
+    cancelPendingCall();
     if (youtubeEngine.getPlayerInstance()?.cueVideoById) {
-      pendingCall = null;
       origLoadPaused(videoId, initialTime, volume);
       return;
     }
+    const currentOwner = getActiveOwner();
+    const capturedOwner = currentOwner ? { ...currentOwner } : null;
     youtubeEngine.setLoadedVideoId(videoId);
     pendingCall = {
       mode: 'paused',
+      owner: capturedOwner,
       videoId,
       initialTime,
       volume,
       resolve: () => {},
       reject: () => {},
     };
+  };
+
+  youtubeEngine.pause = () => {
+    cancelPendingCall();
+    origPause();
+  };
+
+  youtubeEngine.stop = () => {
+    cancelPendingCall();
+    youtubeEngine.setLoadedVideoId(null);
+    origStop();
   };
 
   const clearStuckWatchdog = () => {
@@ -182,8 +227,17 @@ export function bindYouTubeIframe(options: YouTubeBindingOptions): Cancel {
             if (pendingCall) {
               const call = pendingCall;
               pendingCall = null;
-              try {
+              if (
+                !isSameOwner(call.owner, getActiveOwner()) ||
+                youtubeEngine.getLoadedVideoId() !== call.videoId
+              ) {
                 if (call.mode === 'play') {
+                  call.reject(abortedError());
+                }
+                return;
+              }
+              try {
+                if (call.mode === 'play' && (!isPlayingWanted || isPlayingWanted())) {
                   void origLoadAndPlay(
                     call.videoId,
                     call.initialTime,
@@ -299,11 +353,13 @@ export function bindYouTubeIframe(options: YouTubeBindingOptions): Cancel {
 
   return () => {
     disposed = true;
-    pendingCall = null;
+    cancelPendingCall();
     clearStuckWatchdog();
     stopPollTimer();
     youtubeEngine.loadAndPlay = origLoadAndPlay;
     youtubeEngine.loadPaused = origLoadPaused;
+    youtubeEngine.pause = origPause;
+    youtubeEngine.stop = origStop;
     try {
       playerInstance?.destroy?.();
     } catch {
