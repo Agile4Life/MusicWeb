@@ -392,7 +392,6 @@ import { CURSOR_CONFIGS } from '@/lib/cursors'
 import { RefractionMode } from '@/lib/theme/liquidGlassFilters'
 
 export type CursorStyle = string
-export type { ThemeStyle } from '@/lib/theme/themeStyles'
 
 export interface LiquidGlassAberrationTargets {
   playerBar: boolean

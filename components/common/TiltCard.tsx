@@ -42,7 +42,7 @@ export function TiltCard({
     motionMatch.addEventListener?.('change', handleMotionChange)
 
     const syncThemeStyle = () => {
-      setIsMinimalFlat(isMinimalTheme(document.documentElement.getAttribute('data-theme-style')))
+      setIsMinimalFlat(document.documentElement.getAttribute('data-theme-style') === 'minimal-flat')
     }
     syncThemeStyle()
     const observer = new MutationObserver(syncThemeStyle)
@@ -65,7 +65,7 @@ export function TiltCard({
         isReducedMotion ||
         isMinimalFlat ||
         (typeof document !== 'undefined' &&
-          isMinimalTheme(document.documentElement.getAttribute('data-theme-style')))
+          document.documentElement.getAttribute('data-theme-style') === 'minimal-flat')
       ) {
         return
       }
