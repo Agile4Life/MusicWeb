@@ -233,12 +233,12 @@ export function ThemeSelector() {
               <div
                 className={`absolute right-6 -bottom-4 w-36 h-36 rounded-full blur-xl pointer-events-none transition-all duration-500 ${
                   liquidGlassConfig?.refractionMode === 'prominent'
-                    ? 'bg-cyan-400/70 scale-125'
+                    ? 'bg-[var(--spotify-glow,#22d3ee)]/70 scale-125'
                     : liquidGlassConfig?.refractionMode === 'shader'
                     ? 'bg-pink-500/70 scale-120'
                     : liquidGlassConfig?.refractionMode === 'polar'
-                    ? 'bg-indigo-500/70'
-                    : 'bg-purple-500/40'
+                    ? 'bg-[var(--theme-secondary,#6366f1)]/70'
+                    : 'bg-[var(--theme-secondary,#6366f1)]/40'
                 }`}
               />
 
@@ -246,7 +246,7 @@ export function ThemeSelector() {
               <div
                 className={`relative z-10 w-full flex items-center justify-between p-3.5 rounded-xl border transition-all duration-300 ${
                   liquidGlassConfig?.chromaticAberration !== false
-                    ? 'border-t-white/90 border-l-rose-500/80 border-r-cyan-400/80 border-b-white/20 bg-white/[0.14] shadow-[0_16px_40px_rgba(0,0,0,0.8),inset_0_2px_0_rgba(255,255,255,0.9),inset_3px_0_0_rgba(244,63,94,0.6),inset_-3px_0_0_rgba(6,182,212,0.6)]'
+                    ? 'border-t-white/90 border-l-rose-500/80 border-r-[var(--spotify-glow,#22d3ee)]/80 border-b-white/20 bg-white/[0.14] shadow-[0_16px_40px_rgba(0,0,0,0.8),inset_0_2px_0_rgba(255,255,255,0.9),inset_3px_0_0_rgba(244,63,94,0.6),inset_-3px_0_0_var(--theme-glow-shadow,rgba(6,182,212,0.6))]'
                     : 'border-white/30 bg-white/[0.08] shadow-[0_10px_28px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.5)]'
                 }`}
                 style={{
@@ -265,7 +265,7 @@ export function ThemeSelector() {
                   <div
                     className={`w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-md border transition-all duration-300 ${
                       liquidGlassConfig?.chromaticAberration !== false
-                        ? 'bg-gradient-to-br from-rose-500 to-cyan-500 border-white/40 shadow-rose-500/30'
+                        ? 'bg-gradient-to-br from-rose-500 to-[var(--primary-spotify,#06b6d4)] border-white/40 shadow-rose-500/30'
                         : 'bg-white/20 border-white/30'
                     }`}
                   >
@@ -274,7 +274,7 @@ export function ThemeSelector() {
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="font-black text-xs text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] tracking-wide">
-                        KIỂU KHÚC XẠ: <span className="text-cyan-300 uppercase">{liquidGlassConfig?.refractionMode || 'standard'}</span>
+                        KIỂU KHÚC XẠ: <span className="text-[var(--spotify-glow,#22d3ee)] uppercase">{liquidGlassConfig?.refractionMode || 'standard'}</span>
                       </p>
                       {liquidGlassConfig?.chromaticAberration !== false ? (
                         <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-500/25 text-rose-300 border border-rose-400/50 shadow-sm animate-pulse">
@@ -303,7 +303,7 @@ export function ThemeSelector() {
                     type="checkbox"
                     checked={liquidGlassConfig?.chromaticAberration !== false}
                     onChange={(e) => setLiquidGlassConfig({ chromaticAberration: e.target.checked })}
-                    className="rounded accent-cyan-400"
+                    className="rounded accent-[var(--primary-spotify,#22d3ee)]"
                   />
                   <span className="font-semibold text-white">Sắc sai viền kính (Aberration)</span>
                 </label>
@@ -313,7 +313,7 @@ export function ThemeSelector() {
                     type="checkbox"
                     checked={liquidGlassConfig?.elasticInteraction !== false}
                     onChange={(e) => setLiquidGlassConfig({ elasticInteraction: e.target.checked })}
-                    className="rounded accent-cyan-400"
+                    className="rounded accent-[var(--primary-spotify,#22d3ee)]"
                   />
                   <span>Tương tác đàn hồi (Elastic Motion)</span>
                 </label>
@@ -322,7 +322,7 @@ export function ThemeSelector() {
               {/* Granular Aberration Component Targets */}
               {liquidGlassConfig?.chromaticAberration !== false && (
                 <div className="flex flex-col gap-2 p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs mt-1">
-                  <span className="text-[11px] font-semibold text-cyan-300">
+                  <span className="text-[11px] font-semibold text-[var(--spotify-glow,#22d3ee)]">
                     Vị trí áp dụng sắc sai viền kính:
                   </span>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-slate-200">
@@ -341,7 +341,7 @@ export function ThemeSelector() {
                             },
                           })
                         }
-                        className="rounded accent-cyan-400"
+                        className="rounded accent-[var(--primary-spotify,#22d3ee)]"
                       />
                       <span>🎛️ Player Bar</span>
                     </label>
@@ -361,7 +361,7 @@ export function ThemeSelector() {
                             },
                           })
                         }
-                        className="rounded accent-cyan-400"
+                        className="rounded accent-[var(--primary-spotify,#22d3ee)]"
                       />
                       <span>🔍 Tìm kiếm</span>
                     </label>
@@ -381,7 +381,7 @@ export function ThemeSelector() {
                             },
                           })
                         }
-                        className="rounded accent-cyan-400"
+                        className="rounded accent-[var(--primary-spotify,#22d3ee)]"
                       />
                       <span>🏷️ Logo Plaque</span>
                     </label>
@@ -401,7 +401,7 @@ export function ThemeSelector() {
                             },
                           })
                         }
-                        className="rounded accent-cyan-400"
+                        className="rounded accent-[var(--primary-spotify,#22d3ee)]"
                       />
                       <span>🌟 Hero Banner</span>
                     </label>
@@ -421,7 +421,7 @@ export function ThemeSelector() {
                             },
                           })
                         }
-                        className="rounded accent-cyan-400"
+                        className="rounded accent-[var(--primary-spotify,#22d3ee)]"
                       />
                       <span>🃏 Thẻ Album/Playlist</span>
                     </label>
