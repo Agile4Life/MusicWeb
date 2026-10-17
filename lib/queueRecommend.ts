@@ -1,10 +1,15 @@
 import { QueueTrack, NextQueueResponse } from '@/types/queue'
-import { getDeezerArtistRadio, getDeezerRelatedArtistsTopTracks, getDeezerArtistTopTracks } from './deezer'
+import { getDeezerArtistRadio, getDeezerRelatedArtistsTopTracks, getDeezerArtistTopTracks, searchDeezerTracks } from './deezer'
 import { searchSpotifyTracks } from './spotify'
 import { searchNhacCuaTuiDirect } from './nhaccuatui'
 import { searchSoundCloudTracks } from './soundcloudClient'
-import { removeDiacritics } from './smartRecommend'
-import { analyzeTrackMetadata } from './smartRecommend'
+import {
+  classifyTrack,
+  getStyleCompatibilityScore,
+  isTrackStyleCompatible,
+  removeDiacritics,
+  type TrackStyleProfile,
+} from './trackClassifier'
 import { adminClient } from '@/lib/serverUser'
 import { isOriginalTrackOnly, GENRE_ALLOWED_KEYWORDS } from './youtube'
 
@@ -43,9 +48,6 @@ export function getTrackIdentityVariants(track: Partial<QueueTrack>): string[] {
   if (track.id) variants.add(track.id)
 
   if (track.source_id) {
-    // Only add prefixed variants that match this track's actual source.
-    // Raw numeric source_ids are NOT added for external sources to completely
-    // eliminate false collisions (e.g. SoundCloud 4521 ≠ Deezer 4521).
     switch (track.source) {
       case 'spotify':
         variants.add(`spotify-${track.source_id}`)
@@ -69,49 +71,68 @@ export function getTrackIdentityVariants(track: Partial<QueueTrack>): string[] {
 
 /**
  * Fetch Internal Collaborative Candidates from Supabase
- * Users who listened to seedTrack also listened to...
+ * Filtered by Region & Genre compatibility with seedTrack so old unrelated history never pollutes the queue.
  */
 export async function getInternalCollaborativeCandidates(
   seedTrackId: string,
   seedArtist: string,
-  userId?: string
-): Promise<QueueTrack[]> {
+  userId?: string,
+  seedTitle?: string
+): Promise<{ tracks: QueueTrack[]; preferredArtists: Set<string> }> {
+  const preferredArtists = new Set<string>()
   try {
+    const seedProfile = classifyTrack({
+      id: seedTrackId,
+      title: seedTitle || '',
+      artist: seedArtist,
+    })
     const supabase = adminClient
     const { data, error } = await supabase.rpc('fn_get_collaborative_candidates', {
       p_track_id: seedTrackId,
       p_user_id: userId || null,
-      p_limit: 15,
+      p_limit: 20,
     })
     let candidateRows: { track_id: string; play_count?: number }[] = []
     if (!error && data && data.length > 0) {
       candidateRows = data
         .filter((item: any) => item.track_id)
         .map((item: any) => ({ track_id: item.track_id, play_count: item.play_count || 1 }))
-    } else if (userId) {
+    }
+
+    if (userId) {
       const { data: userEvents } = await supabase
         .from('listen_events')
-        .select('track_id')
+        .select('track_id, artist')
         .eq('user_id', userId)
         .eq('completed', true)
         .order('played_at', { ascending: false })
-        .limit(20)
+        .limit(40)
       if (userEvents && userEvents.length > 0) {
-        const seen = new Set<string>()
+        const seen = new Set<string>(candidateRows.map((r) => r.track_id))
         for (const e of userEvents) {
-          if (e.track_id !== seedTrackId && !seen.has(e.track_id)) {
+          if (e.artist) {
+            const artistProf = classifyTrack({ title: '', artist: e.artist })
+            if (isTrackStyleCompatible(seedProfile, artistProf)) {
+              const normA = normalizeString(e.artist)
+              if (normA) preferredArtists.add(normA)
+            }
+          }
+          if (e.track_id && e.track_id !== seedTrackId && !seen.has(e.track_id)) {
             seen.add(e.track_id)
             candidateRows.push({ track_id: e.track_id, play_count: 1 })
           }
         }
       }
     }
-    if (candidateRows.length === 0) return []
+
+    if (candidateRows.length === 0) {
+      return { tracks: [], preferredArtists }
+    }
 
     const candidateTrackIds = candidateRows.map((r) => r.track_id)
     const { data: dbTracks } = await supabase
       .from('tracks')
-      .select('id, title, artist, album, cover_url, duration, spotify_id')
+      .select('id, title, artist, album, genre, cover_url, duration, spotify_id')
       .in('id', candidateTrackIds)
     const metaMap = new Map<string, any>()
     if (dbTracks) {
@@ -119,35 +140,43 @@ export async function getInternalCollaborativeCandidates(
     }
 
     const maxCount = Math.max(...candidateRows.map((r) => r.play_count || 1), 1)
+    const filteredTracks: QueueTrack[] = []
 
-    return candidateRows.slice(0, 10).map(({ track_id: tId, play_count }) => {
+    for (const { track_id: tId, play_count } of candidateRows) {
       const realMeta = metaMap.get(tId)
-      const title = realMeta?.title || undefined
-      const knownArtist = realMeta?.artist || undefined // KHÔNG fallback về seedArtist
-      const cover_url = realMeta?.cover_url || null
-      const duration = realMeta?.duration || 200
-      const reasons = ['internal_collaborative_filtering']
-      if (!knownArtist) reasons.push('artist_unknown')
-      return {
+      if (!realMeta || !realMeta.title) continue
+      const knownArtist = realMeta.artist || undefined
+      if (!knownArtist || knownArtist === 'Nghệ sĩ chưa xác định') continue
+
+      // Strictly check Region & Genre compatibility before admitting historical track
+      if (!isTrackStyleCompatible(seedProfile, realMeta)) {
+        continue
+      }
+
+      const normA = normalizeString(knownArtist)
+      if (normA) preferredArtists.add(normA)
+
+      filteredTracks.push({
         id: tId,
-        title: title || `Track ${tId}`,
-        artist: knownArtist || 'Nghệ sĩ chưa xác định',
-        album: realMeta?.album || undefined,
-        cover_url,
-        duration,
+        title: realMeta.title,
+        artist: knownArtist,
+        album: realMeta.album || undefined,
+        cover_url: realMeta.cover_url || null,
+        duration: realMeta.duration || 200,
         source: 'internal_history' as const,
-        source_id: realMeta?.spotify_id || tId,
-        // Điểm CF giờ tỉ lệ theo play_count thay vì cố định 1.2
-        score: 1.0 + 0.5 * ((play_count || 1) / maxCount),
-        score_reasons: reasons,
-        // Đánh dấu để bước scoring biết không nên cộng same_artist_bonus khi artist không xác định
-        ...(knownArtist ? {} : { _artistUnknown: true }),
-      } as QueueTrack
-    })
+        source_id: realMeta.spotify_id || tId,
+        score: 1.0 + 0.3 * ((play_count || 1) / maxCount),
+        score_reasons: ['internal_collaborative_filtering'],
+      })
+
+      if (filteredTracks.length >= 10) break
+    }
+
+    return { tracks: filteredTracks, preferredArtists }
   } catch (err) {
     console.warn('getInternalCollaborativeCandidates error:', err)
   }
-  return []
+  return { tracks: [], preferredArtists }
 }
 
 /**
@@ -169,7 +198,6 @@ export async function getFrequentlySkippedTrackIds(userId?: string): Promise<Set
         if (item.track_id) skippedSet.add(item.track_id)
       }
     } else {
-      // Fallback query
       const { data: rawEvents } = await supabase
         .from('listen_events')
         .select('track_id, skip_at_seconds')
@@ -197,15 +225,29 @@ export async function getFrequentlySkippedTrackIds(userId?: string): Promise<Set
 }
 
 /**
- * Spotify Search Fallback Generator
+ * Spotify Search Fallback Generator (queries both artist and genre/region query terms)
  */
-async function maybeSpotifySearchFallback(seedTrack: QueueTrack, limit = 10): Promise<QueueTrack[]> {
+async function maybeSpotifySearchFallback(
+  seedTrack: QueueTrack,
+  seedProfile: TrackStyleProfile,
+  limit = 10
+): Promise<QueueTrack[]> {
   try {
-    const query = seedTrack.artist && seedTrack.artist !== 'Nghệ sĩ chưa xác định'
-      ? `artist:"${seedTrack.artist}"`
-      : seedTrack.title
+    const queries: string[] = []
+    if (seedTrack.artist && seedTrack.artist !== 'Nghệ sĩ chưa xác định') {
+      queries.push(`artist:"${seedTrack.artist}"`)
+    }
+    if (seedProfile.relatedArtists.length > 0) {
+      queries.push(seedProfile.relatedArtists[0])
+    }
+    if (seedProfile.queryTerms.length > 0) {
+      queries.push(seedProfile.queryTerms[seedProfile.queryTerms.length - 2] || seedProfile.queryTerms[0])
+    }
 
-    const tracks = await searchSpotifyTracks(query, limit)
+    const settled = await Promise.allSettled(
+      queries.slice(0, 2).map((q) => searchSpotifyTracks(q, limit))
+    )
+    const tracks = settled.flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
     return tracks.map((t) => ({
       id: t.id,
       title: t.title,
@@ -213,10 +255,10 @@ async function maybeSpotifySearchFallback(seedTrack: QueueTrack, limit = 10): Pr
       album: t.album || undefined,
       cover_url: t.cover_url,
       duration: t.duration,
-      source: 'spotify',
+      source: 'spotify' as const,
       source_id: t.spotify_id || t.id.replace('spotify-', ''),
       preview_url: t.audio_url,
-      score: 0.6, // Fallback priority
+      score: 1.0,
       score_reasons: ['spotify_search_fallback'],
     }))
   } catch (err) {
@@ -227,11 +269,8 @@ async function maybeSpotifySearchFallback(seedTrack: QueueTrack, limit = 10): Pr
 
 /**
  * Deduplicate candidates by ISRC or Title + Artist.
- * Uses a Map<key, QueueTrack> for O(1) reverse lookup on merge instead of
- * findIndex O(n) per duplicate, keeping the overall complexity at O(n).
  */
 export function dedupCandidates(candidates: QueueTrack[]): QueueTrack[] {
-  // keyMap allows O(1) access to the already-inserted track by dedup key
   const keyMap = new Map<string, QueueTrack>()
   const result: QueueTrack[] = []
 
@@ -239,17 +278,19 @@ export function dedupCandidates(candidates: QueueTrack[]): QueueTrack[] {
     const key = getDedupKey(track)
     const existing = keyMap.get(key)
     if (!existing) {
-      keyMap.set(key, track)
-      result.push(track)
+      keyMap.set(key, {
+        ...track,
+        score_reasons: [...(track.score_reasons || [])],
+      })
+      result.push(keyMap.get(key)!)
     } else {
-      // Merge enrichment fields from the duplicate into the already-kept track
       if (!existing.isrc && track.isrc) {
         existing.isrc = track.isrc
       }
       if (!existing.preview_url && track.preview_url) {
         existing.preview_url = track.preview_url
       }
-      for (const reason of track.score_reasons) {
+      for (const reason of track.score_reasons || []) {
         if (!existing.score_reasons.includes(reason)) {
           existing.score_reasons.push(reason)
         }
@@ -296,7 +337,6 @@ export function injectExplorationSlots(ranked: QueueTrack[], options = { explore
   for (let i = 0; i < familiar.length; i++) {
     result.push(familiar[i])
 
-    // Every 4th position, inject an exploration track if available
     if ((i + 1) % 4 === 0 && expIdx < exploration.length) {
       const expTrack = { ...exploration[expIdx] }
       expTrack.score_reasons = [...expTrack.score_reasons, 'exploration_slot_injection']
@@ -305,7 +345,6 @@ export function injectExplorationSlots(ranked: QueueTrack[], options = { explore
     }
   }
 
-  // Append remaining exploration tracks
   while (expIdx < exploration.length) {
     result.push(exploration[expIdx])
     expIdx++
@@ -314,9 +353,183 @@ export function injectExplorationSlots(ranked: QueueTrack[], options = { explore
   return result
 }
 
+export interface FilterAndScoreOptions {
+  sessionHistory?: QueueTrack[]
+  skippedSet?: Set<string>
+  userPreferredArtists?: Set<string>
+}
+
+/**
+ * 🎯 Strict Region & Genre Gate + Style-First Multi-Factor Scoring
+ */
+export function filterAndScoreCandidates(
+  seedTrack: QueueTrack,
+  rawCandidates: QueueTrack[],
+  options: FilterAndScoreOptions = {}
+): QueueTrack[] {
+  const sessionHistory = options.sessionHistory || []
+  const skippedSet = options.skippedSet || new Set<string>()
+  const userPreferredArtists = options.userPreferredArtists || new Set<string>()
+
+  const candidates = dedupCandidates(rawCandidates)
+  const seedProfile = classifyTrack(seedTrack)
+  const normSeedArtist = normalizeString(seedTrack.artist)
+  const seedNormTitle = normalizeString(seedTrack.title)
+  const relatedSeedArtistsNorm = new Set(
+    seedProfile.relatedArtists.map((a) => normalizeString(a)).filter(Boolean)
+  )
+
+  const sessionDedupKeys = new Set<string>()
+  sessionDedupKeys.add(getDedupKey(seedTrack))
+  const sessionRawIds = new Set<string>()
+  sessionRawIds.add(seedTrack.id)
+  for (const track of sessionHistory) {
+    if (track.title || track.artist) {
+      sessionDedupKeys.add(getDedupKey(track))
+    }
+    if (track.id) {
+      sessionRawIds.add(track.id)
+    }
+  }
+
+  const filterAllowedKeywords: string[] = GENRE_ALLOWED_KEYWORDS[seedProfile.genre] || []
+
+  const scored: QueueTrack[] = []
+
+  for (const c of candidates) {
+    if (!isOriginalTrackOnly(c.title, filterAllowedKeywords)) continue
+    if (sessionRawIds.has(c.id)) continue
+    if (sessionDedupKeys.has(getDedupKey(c))) continue
+
+    const candidateNormTitle = normalizeString(c.title)
+    const candidateNormArtist = normalizeString(c.artist)
+    const artistUnknown =
+      Boolean((c as any)._artistUnknown) ||
+      !candidateNormArtist ||
+      c.artist === 'Nghệ sĩ chưa xác định'
+    const isSameArtist = !artistUnknown && Boolean(normSeedArtist) && candidateNormArtist === normSeedArtist
+
+    if (isSameArtist && seedNormTitle && candidateNormTitle && seedNormTitle.length > 2) {
+      if (candidateNormTitle.includes(seedNormTitle) || seedNormTitle.includes(candidateNormTitle)) {
+        continue
+      }
+    }
+
+    if (skippedSet.size > 0) {
+      const variants = getTrackIdentityVariants(c)
+      if (variants.some((v) => skippedSet.has(v))) continue
+    }
+
+    const candProfile = classifyTrack(c)
+    const trustedArtistContext =
+      isSameArtist ||
+      relatedSeedArtistsNorm.has(candidateNormArtist) ||
+      c.score_reasons?.includes('deezer_artist_radio') ||
+      c.score_reasons?.includes('deezer_related_artist_top')
+
+    const compat = getStyleCompatibilityScore(seedProfile, candProfile, {
+      allowLowConfidenceRegion: Boolean(trustedArtistContext),
+    })
+
+    // Strict Gate: reject candidates that fail Region or Genre compatibility
+    if (compat < 0.45) {
+      continue
+    }
+
+    // Style-First Multi-Factor Scoring
+    let score = 1.0 + compat * 0.6
+    const reasons = [...(c.score_reasons || [])]
+    if (!reasons.includes('genre_region_match')) {
+      reasons.push('genre_region_match')
+    }
+
+    const isRelatedArtist = !isSameArtist && relatedSeedArtistsNorm.has(candidateNormArtist)
+    if (isSameArtist) {
+      score += 0.3
+      if (!reasons.includes('same_artist_bonus')) reasons.push('same_artist_bonus')
+    } else if (isRelatedArtist) {
+      score += 0.25
+      if (!reasons.includes('related_style_artist_bonus')) reasons.push('related_style_artist_bonus')
+    }
+
+    const isUserPreferred =
+      (!artistUnknown && userPreferredArtists.has(candidateNormArtist)) ||
+      c.source === 'internal_history'
+    if (isUserPreferred) {
+      score += 0.35
+      if (!reasons.includes('user_taste_artist_match')) reasons.push('user_taste_artist_match')
+    }
+
+    // Moderate source tie-breaker bonus for instant HTML5 streaming
+    if (c.source === 'nhaccuatui') score += 0.15
+    else if (c.source === 'soundcloud') score += 0.12
+    else if (c.source === 'deezer') score += 0.1
+    else if (c.source === 'spotify') score += 0.05
+
+    const copy: QueueTrack = {
+      ...c,
+      score: parseFloat((Number.isFinite(score) ? score : 1.0).toFixed(3)),
+      score_reasons: reasons,
+    }
+    delete (copy as any)._artistUnknown
+    scored.push(copy)
+  }
+
+  scored.sort((a, b) => b.score - a.score)
+  return scored
+}
+
+function mapNativeTrackToQueueTrack(
+  t: any,
+  fallbackArtist: string,
+  source: 'nhaccuatui' | 'soundcloud' | 'deezer',
+  reason: string
+): QueueTrack {
+  if (source === 'nhaccuatui') {
+    return {
+      id: t.id,
+      title: t.title,
+      artist: t.artist || fallbackArtist,
+      cover_url: t.cover_url,
+      duration: t.duration,
+      source: 'nhaccuatui',
+      source_id: t.nhaccuatui_id || t.id.replace('nct-', ''),
+      score: 1.0,
+      score_reasons: [reason],
+    }
+  }
+  if (source === 'soundcloud') {
+    return {
+      id: t.id,
+      title: t.title,
+      artist: t.artist || fallbackArtist,
+      cover_url: t.cover_url,
+      duration: t.duration,
+      source: 'soundcloud',
+      source_id: String(t.soundcloud_id || t.id.replace('sc-', '')),
+      score: 1.0,
+      score_reasons: [reason],
+    }
+  }
+  const sourceId = String(t.spotify_id || t.id.replace('deezer-', ''))
+  return {
+    id: t.id.startsWith('deezer-') ? t.id : `deezer-${sourceId}`,
+    title: t.title,
+    artist: t.artist || fallbackArtist,
+    album: t.album || undefined,
+    cover_url: t.cover_url,
+    duration: t.duration,
+    source: 'deezer',
+    source_id: sourceId,
+    preview_url: t.audio_url || undefined,
+    score: 1.0,
+    score_reasons: [reason],
+  }
+}
+
 /**
  * 🚀 Main Auto-Queue Builder Algorithm
- * Combines Deezer Radio, Deezer Related Artists, Internal CF & Spotify Fallback
+ * Combines Genre & Region-Aware Peer Queries, Deezer Radio/Related, Filtered Internal CF & Spotify Fallback
  */
 export async function buildNextQueue(
   seedTrack: QueueTrack,
@@ -327,217 +540,152 @@ export async function buildNextQueue(
   const sourcesUsed: string[] = []
   const sourcesFailed: string[] = []
 
-  // 1. Parallel primary candidate generation (Prioritizing native HTML5 streaming: NhacCuaTui & SoundCloud)
-  const artistQuery = seedTrack.artist && seedTrack.artist !== 'Nghệ sĩ chưa xác định' ? seedTrack.artist : ''
+  const seedProfile = classifyTrack(seedTrack)
+  const artistQuery =
+    seedProfile.artistCanonical &&
+    seedProfile.artistCanonical !== 'Nghệ sĩ chưa xác định' &&
+    seedProfile.artistCanonical !== 'Chưa rõ nghệ sĩ'
+      ? seedProfile.artistCanonical
+      : ''
   const searchSeedQuery = artistQuery || seedTrack.title || ''
+  const peerArtists = seedProfile.relatedArtists.slice(0, 2)
+  const genreRegionTopicQuery =
+    seedProfile.queryTerms[seedProfile.queryTerms.length - 2] ||
+    seedProfile.queryTerms[0] ||
+    searchSeedQuery
+
+  // Only query NhacCuaTui when the seed track is Vietnamese or Global
+  const shouldUseNct = seedProfile.region === 'vn' || seedProfile.region === 'global'
 
   const [
-    nctRes,
-    scRes,
+    nctSeedRes,
+    nctPeersRes,
+    scSeedRes,
+    scPeersRes,
     deezerRadioRes,
     deezerRelatedRes,
+    deezerTopicRes,
     internalCFRes,
-  ] = await Promise.allSettled([
-    searchSeedQuery ? searchNhacCuaTuiDirect(searchSeedQuery, 20) : Promise.resolve([]),
-    searchSeedQuery ? searchSoundCloudTracks(searchSeedQuery, 20) : Promise.resolve([]),
-    getDeezerArtistRadio(seedTrack.artist, 30),
-    getDeezerRelatedArtistsTopTracks(seedTrack.artist, 30),
-    getInternalCollaborativeCandidates(seedTrack.id, seedTrack.artist, userId),
+    skippedSet,
+  ] = await Promise.all([
+    shouldUseNct && searchSeedQuery
+      ? searchNhacCuaTuiDirect(searchSeedQuery, 12).catch(() => [])
+      : Promise.resolve([]),
+    shouldUseNct && peerArtists.length > 0
+      ? Promise.all(peerArtists.map((peer) => searchNhacCuaTuiDirect(peer, 8).catch(() => []))).then((arr) =>
+          arr.flat()
+        )
+      : shouldUseNct && genreRegionTopicQuery
+        ? searchNhacCuaTuiDirect(genreRegionTopicQuery, 10).catch(() => [])
+        : Promise.resolve([]),
+    searchSeedQuery ? searchSoundCloudTracks(searchSeedQuery, 12).catch(() => []) : Promise.resolve([]),
+    peerArtists.length > 0
+      ? Promise.all(peerArtists.map((peer) => searchSoundCloudTracks(peer, 6).catch(() => []))).then((arr) =>
+          arr.flat()
+        )
+      : Promise.resolve([]),
+    getDeezerArtistRadio(artistQuery || seedTrack.artist, 25).catch(() => []),
+    getDeezerRelatedArtistsTopTracks(artistQuery || seedTrack.artist, 25).catch(() => []),
+    genreRegionTopicQuery ? searchDeezerTracks(genreRegionTopicQuery, 12).catch(() => []) : Promise.resolve([]),
+    getInternalCollaborativeCandidates(seedTrack.id, seedTrack.artist, userId, seedTrack.title),
+    getFrequentlySkippedTrackIds(userId),
   ])
 
+  const nctCombined = [...nctSeedRes, ...nctPeersRes]
   let nctTracks: QueueTrack[] = []
-  if (nctRes.status === 'fulfilled' && nctRes.value.length > 0) {
-    nctTracks = nctRes.value.map((t) => ({
-      id: t.id,
-      title: t.title,
-      artist: t.artist || seedTrack.artist,
-      cover_url: t.cover_url,
-      duration: t.duration,
-      source: 'nhaccuatui' as const,
-      source_id: t.nhaccuatui_id || t.id.replace('nct-', ''),
-      score: 1.4,
-      score_reasons: ['nhaccuatui_native_priority'],
-    }))
+  if (nctCombined.length > 0) {
+    nctTracks = nctCombined.map((t) =>
+      mapNativeTrackToQueueTrack(t, seedTrack.artist, 'nhaccuatui', 'nhaccuatui_native_priority')
+    )
     sourcesUsed.push('nhaccuatui')
-  } else {
+  } else if (shouldUseNct) {
     sourcesFailed.push('nhaccuatui')
   }
 
+  const scCombined = [...scSeedRes, ...scPeersRes]
   let soundCloudTracks: QueueTrack[] = []
-  if (scRes.status === 'fulfilled' && scRes.value.length > 0) {
-    soundCloudTracks = scRes.value.map((t) => ({
-      id: t.id,
-      title: t.title,
-      artist: t.artist || seedTrack.artist,
-      cover_url: t.cover_url,
-      duration: t.duration,
-      source: 'soundcloud' as const,
-      source_id: String(t.soundcloud_id || t.id.replace('sc-', '')),
-      score: 1.35,
-      score_reasons: ['soundcloud_native_priority'],
-    }))
+  if (scCombined.length > 0) {
+    soundCloudTracks = scCombined.map((t) =>
+      mapNativeTrackToQueueTrack(t, seedTrack.artist, 'soundcloud', 'soundcloud_native_priority')
+    )
     sourcesUsed.push('soundcloud')
   } else {
     sourcesFailed.push('soundcloud')
   }
 
   let deezerRadioTracks: QueueTrack[] = []
-  if (deezerRadioRes.status === 'fulfilled' && deezerRadioRes.value.length > 0) {
-    deezerRadioTracks = deezerRadioRes.value
+  if (deezerRadioRes.length > 0) {
+    deezerRadioTracks = deezerRadioRes
     sourcesUsed.push('deezer_radio')
   } else {
     sourcesFailed.push('deezer_radio')
   }
 
   let deezerRelatedTracks: QueueTrack[] = []
-  if (deezerRelatedRes.status === 'fulfilled' && deezerRelatedRes.value.length > 0) {
-    deezerRelatedTracks = deezerRelatedRes.value
+  if (deezerRelatedRes.length > 0) {
+    deezerRelatedTracks = deezerRelatedRes
     sourcesUsed.push('deezer_related')
   } else {
     sourcesFailed.push('deezer_related')
   }
 
-  let internalCFTracks: QueueTrack[] = []
-  if (internalCFRes.status === 'fulfilled' && internalCFRes.value.length > 0) {
-    internalCFTracks = internalCFRes.value
+  const deezerTopicTracks: QueueTrack[] = (deezerTopicRes || []).map((t) =>
+    mapNativeTrackToQueueTrack(t, seedTrack.artist, 'deezer', 'deezer_genre_region_topic')
+  )
+
+  const internalCFTracks = internalCFRes.tracks
+  const userPreferredArtists = internalCFRes.preferredArtists
+  if (internalCFTracks.length > 0) {
     sourcesUsed.push('internal_cf')
   } else {
     sourcesFailed.push('internal_cf')
   }
 
-  // Fallback to Deezer Artist Top Tracks if radio returned nothing
-  if (deezerRadioTracks.length === 0) {
-    const topTracks = await getDeezerArtistTopTracks(seedTrack.artist, 15)
+  if (deezerRadioTracks.length === 0 && artistQuery) {
+    const topTracks = await getDeezerArtistTopTracks(artistQuery, 15).catch(() => [])
     if (topTracks.length > 0) {
       deezerRadioTracks = topTracks
       sourcesUsed.push('deezer_top_fallback')
     }
   }
 
-  let candidates: QueueTrack[] = [
+  const rawPool: QueueTrack[] = [
     ...nctTracks,
     ...soundCloudTracks,
     ...internalCFTracks,
     ...deezerRadioTracks,
     ...deezerRelatedTracks,
+    ...deezerTopicTracks,
   ]
 
-  // 2. Deduplication (ISRC primary, title+artist secondary)
-  candidates = dedupCandidates(candidates)
+  let candidates = filterAndScoreCandidates(seedTrack, rawPool, {
+    sessionHistory,
+    skippedSet,
+    userPreferredArtists,
+  })
 
-  // Khai báo sớm để dùng chung cho filter + scoring
-  const normSeedArtist = normalizeString(seedTrack.artist)
-  const seedNormTitle = normalizeString(seedTrack.title)
-
-  // Dedup theo session: gồm seed track + TOÀN BỘ lịch sử được truyền vào
-  const sessionDedupKeys = new Set<string>()
-  sessionDedupKeys.add(getDedupKey(seedTrack))
-  const sessionRawIds = new Set<string>()
-  sessionRawIds.add(seedTrack.id)
-  for (const track of sessionHistory) {
-    sessionDedupKeys.add(getDedupKey(track))
-    sessionRawIds.add(track.id)
-  }
-
-  // 3. Detect seed genre to build allowedKeywords so filterCandidate doesn't
-  //    incorrectly discard candidates that match the seed's own genre.
-  //    e.g. seed is a remix -> we should NOT filter out remix candidates.
-  const seedTrackAsTrack = {
-    id: seedTrack.id,
-    user_id: 'system',
-    title: seedTrack.title,
-    artist: seedTrack.artist,
-    duration: seedTrack.duration,
-    file_path: '',
-    cover_url: null,
-    created_at: new Date().toISOString(),
-  }
-  const seedAnalysis = analyzeTrackMetadata(seedTrackAsTrack)
-  // Keywords that are allowed for this seed's genre (won't be filtered out)
-  const filterAllowedKeywords: string[] = GENRE_ALLOWED_KEYWORDS[seedAnalysis.genre] || []
-
-  const filterCandidate = (c: QueueTrack) => {
-    // Pass genre-aware allowed keywords so remix candidates survive when seed is a remix
-    if (!isOriginalTrackOnly(c.title, filterAllowedKeywords)) return false
-    if (sessionRawIds.has(c.id)) return false // Chặn trùng theo ID thô
-    if (sessionDedupKeys.has(getDedupKey(c))) return false
-    const candidateNormTitle = normalizeString(c.title)
-    const candidateNormArtist = normalizeString(c.artist)
-    const isSameArtist = candidateNormArtist && candidateNormArtist === normSeedArtist
-    if (isSameArtist && seedNormTitle && candidateNormTitle && seedNormTitle.length > 2) {
-      if (candidateNormTitle.includes(seedNormTitle) || seedNormTitle.includes(candidateNormTitle)) {
-        return false
-      }
-    }
-    return true
-  }
-
-  candidates = candidates.filter(filterCandidate)
-
-  // 4. Filter out user's frequently skipped tracks using identity variants
-  const skippedSet = await getFrequentlySkippedTrackIds(userId)
-  if (skippedSet.size > 0) {
-    candidates = candidates.filter((c) => {
-      const variants = getTrackIdentityVariants(c)
-      return !variants.some((v) => skippedSet.has(v))
-    })
-  }
-
-  // 5. Check UNIQUE filtered candidate count before triggering Spotify fallback
-  // Snapshot count BEFORE async call to prevent race condition
+  // Trigger Spotify fallback if fewer than 5 compatible candidates survived
   const MIN_CANDIDATES_BEFORE_SPOTIFY = 5
-  const candidateCountBeforeSpotify = candidates.length
-  if (candidateCountBeforeSpotify < MIN_CANDIDATES_BEFORE_SPOTIFY) {
-    const spotifyFallbackTracks = await maybeSpotifySearchFallback(seedTrack, 15)
+  if (candidates.length < MIN_CANDIDATES_BEFORE_SPOTIFY) {
+    const spotifyFallbackTracks = await maybeSpotifySearchFallback(seedTrack, seedProfile, 15)
     if (spotifyFallbackTracks.length > 0) {
       sourcesUsed.push('spotify_fallback')
-      // Merge, re-dedup and re-filter Spotify candidates
-      const merged = dedupCandidates([...candidates, ...spotifyFallbackTracks])
-      candidates = merged.filter(filterCandidate)
-      if (skippedSet.size > 0) {
-        candidates = candidates.filter((c) => {
-          const variants = getTrackIdentityVariants(c)
-          return !variants.some((v) => skippedSet.has(v))
-        })
-      }
+      candidates = filterAndScoreCandidates(
+        seedTrack,
+        [...rawPool, ...spotifyFallbackTracks],
+        {
+          sessionHistory,
+          skippedSet,
+          userPreferredArtists,
+        }
+      )
     } else {
       sourcesFailed.push('spotify_fallback')
     }
   }
 
-  // 6. Multi-factor Scoring (Giving strong boost to NhacCuaTui & SoundCloud native streams)
-  for (const c of candidates) {
-    // Base weight by source (NCT & SoundCloud have highest priority for universal instant HTML5 playback)
-    let score = c.score || 1.0
-    if (c.source === 'nhaccuatui') score += 0.4
-    if (c.source === 'soundcloud') score += 0.35
-    if (c.source === 'internal_history') score += 0.2
-    if (c.source === 'deezer') score += 0.1
-    if (c.source === 'spotify') score += 0.05
-
-    // Same Artist bonus (+0.3)
-    const normCandidateArtist = normalizeString(c.artist)
-    const artistUnknown = Boolean((c as any)._artistUnknown)
-    // Không cộng same_artist_bonus khi artist thực sự không xác định (tránh false positive)
-    if (!artistUnknown && normCandidateArtist && normCandidateArtist === normSeedArtist) {
-      score += 0.3
-      if (!c.score_reasons.includes('same_artist_bonus')) {
-        c.score_reasons.push('same_artist_bonus')
-      }
-    }
-
-    const numericScore = Number.isFinite(score) ? score : 1.0
-    c.score = parseFloat(numericScore.toFixed(3))
-    delete (c as any)._artistUnknown
-  }
-
-  // Sort descending by score
-  candidates.sort((a, b) => b.score - a.score)
-
-  // 7. Diversity constraint: Max 2 tracks per artist in batch
+  // Enforce diversity constraint (Max 2 tracks per artist) & exploration slot injection
   let ranked = diversify(candidates, { maxPerArtist: 2 })
-
-  // 8. Inject Exploration Slots (20% ratio)
   ranked = injectExplorationSlots(ranked, { exploreRatio: 0.2 })
 
   const finalBatch = ranked.slice(0, limit)

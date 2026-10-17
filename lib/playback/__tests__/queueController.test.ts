@@ -138,4 +138,66 @@ describe('queueController', () => {
       currentIndex: 0,
     });
   });
+
+  it('prunes incompatible trailing tracks in prepareSearchTrack when switching region/genre', () => {
+    const qc = createQueueController();
+    const us1 = makeTrack('us-1', { title: 'Blinding Lights', artist: 'The Weeknd' });
+    const us2 = makeTrack('us-2', { title: 'Cruel Summer', artist: 'Taylor Swift' });
+    const us3 = makeTrack('us-3', { title: 'Starboy', artist: 'The Weeknd' });
+    const vnBallad = makeTrack('vn-1', { title: 'Hẹn Một Mai', artist: 'Bùi Anh Tuấn' });
+    const vnBallad2 = makeTrack('vn-2', { title: 'Trót Yêu', artist: 'Trung Quân' });
+
+    const plan = qc.prepareSearchTrack({
+      track: vnBallad,
+      queue: [us1, us2, us3, vnBallad2],
+      currentIndex: 0,
+    });
+
+    // Prefix (us1) is kept, vnBallad is inserted at index 1, incompatible trailing US tracks (us2, us3) are pruned, compatible vnBallad2 is kept
+    expect(plan.forceIndex).toBe(1);
+    expect(plan.newQueue?.map((t) => t.id)).toEqual(['us-1', 'vn-1', 'vn-2']);
+  });
+
+  it('prefers style-compatible tracks during shuffle when queue contains mixed regions/genres', () => {
+    const qc = createQueueController({ random: () => 0 });
+    const currentVnBallad = makeTrack('vn-cur', {
+      title: 'Hẹn Một Mai',
+      artist: 'Bùi Anh Tuấn',
+      source: 'nhaccuatui',
+      nhaccuatui_id: 'nct-cur',
+    });
+    const usPop = makeTrack('us-pop', {
+      title: 'Cruel Summer',
+      artist: 'Taylor Swift',
+      source: 'soundcloud',
+      soundcloud_id: 111,
+    });
+    const vnRemix = makeTrack('vn-remix', {
+      title: 'Bay Lắc (Vinahouse Remix)',
+      artist: 'DJ Việt',
+      source: 'nhaccuatui',
+      nhaccuatui_id: 'nct-remix',
+    });
+    const vnBalladPeer = makeTrack('vn-peer', {
+      title: 'Trót Yêu',
+      artist: 'Trung Quân',
+      source: 'nhaccuatui',
+      nhaccuatui_id: 'nct-peer',
+    });
+
+    const decision = qc.selectNext({
+      queue: [currentVnBallad, usPop, vnRemix, vnBalladPeer],
+      currentIndex: 0,
+      currentTrack: currentVnBallad,
+      isShuffle: true,
+    });
+
+    expect(decision).toEqual({
+      action: 'play',
+      track: vnBalladPeer,
+      index: 3,
+      shouldSmartFill: true,
+    });
+  });
 });
+

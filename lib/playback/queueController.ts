@@ -1,5 +1,6 @@
 import type { Track } from '@/types';
 import { mergeResolvedIntoQueue } from '@/lib/queueSync';
+import { isTrackStyleCompatible } from '@/lib/trackClassifier';
 import {
   isBackgroundPlayableTrack,
   isFullYouTubeQueue,
@@ -171,8 +172,11 @@ export function createQueueController(
       }
 
       const insertIdx = currentIndex >= 0 ? currentIndex + 1 : queue.length;
-      const updatedQueue = [...queue];
-      updatedQueue.splice(insertIdx, 0, track);
+      const prefix = queue.slice(0, insertIdx);
+      const compatibleTrailing = queue
+        .slice(insertIdx)
+        .filter((item) => isTrackStyleCompatible(track, item));
+      const updatedQueue = [...prefix, track, ...compatibleTrailing];
       const deduped = deduplicateQueueTracks(updatedQueue);
       const targetIdx = deduped.findIndex((t) => t.id === track.id);
 
@@ -214,6 +218,7 @@ export function createQueueController(
 
       let nextIdx = 0;
       const preserveOrder = isFullYouTubeQueue(queue);
+      const seedForShuffle = currentTrack ?? queue[idx] ?? null;
       if (isShuffle && queue.length > 1) {
         if (preserveOrder) {
           let guard = 0;
@@ -223,6 +228,7 @@ export function createQueueController(
           } while (nextIdx === idx && guard < 16);
           if (nextIdx === idx) nextIdx = (idx + 1) % queue.length;
         } else {
+          const styleMatchedCandidates: { track: Track; index: number }[] = [];
           const candidates: { track: Track; index: number }[] = [];
           const fallbackCandidates: { track: Track; index: number }[] = [];
 
@@ -231,10 +237,19 @@ export function createQueueController(
             fallbackCandidates.push({ track: t, index: i });
             if (isBackgroundPlayableTrack(t)) {
               candidates.push({ track: t, index: i });
+              if (!seedForShuffle || isTrackStyleCompatible(seedForShuffle, t)) {
+                styleMatchedCandidates.push({ track: t, index: i });
+              }
             }
           });
 
-          if (candidates.length > 0) {
+          if (styleMatchedCandidates.length > 0) {
+            const chosen =
+              styleMatchedCandidates[
+                Math.floor(random() * styleMatchedCandidates.length)
+              ];
+            nextIdx = chosen.index;
+          } else if (candidates.length > 0) {
             const chosen =
               candidates[Math.floor(random() * candidates.length)];
             nextIdx = chosen.index;

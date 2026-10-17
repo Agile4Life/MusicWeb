@@ -3,124 +3,40 @@ import { searchYouTubeTracks, NEGATIVE_KEYWORDS, normalizeTitle } from './youtub
 import { searchNhacCuaTuiDirect } from './nhaccuatui'
 import { searchSoundCloudTracks } from './soundcloudClient'
 import { deduplicateQueueTracks } from './utils'
+import {
+  classifyTrack,
+  getStyleCompatibilityScore,
+  isTrackStyleCompatible,
+  removeDiacritics,
+  type TrackGenre,
+  type TrackRegion,
+} from './trackClassifier'
+
+export { removeDiacritics }
 
 export interface TrackMetadataAnalysis {
-  region: 'vn' | 'kr' | 'jp' | 'us' | 'global'
-  genre: 'pop' | 'ballad' | 'rap' | 'remix' | 'indie' | 'general'
+  region: TrackRegion
+  genre: TrackGenre | 'general'
   queryTerms: string[]
-}
-
-/**
- * Helper to remove Vietnamese diacritics / accents from text
- */
-export function removeDiacritics(str: string): string {
-  if (!str) return ''
-  return str
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'D')
-    .toLowerCase()
-    .trim()
+  relatedArtists?: string[]
 }
 
 /**
  * 🧠 Detect Region (Country/Language) and Genre of a Track
  */
-export function analyzeTrackMetadata(track: Track): TrackMetadataAnalysis {
-  const title = (track.title || '').toLowerCase()
-  const artist = (track.artist || '').toLowerCase()
-  const text = `${title} ${artist}`
-  const textNorm = removeDiacritics(text)
-
-  // 1. Detect Region / Country (Structured if ... else if chain)
-  let region: TrackMetadataAnalysis['region'] = 'global'
-
-  // Korean Hangul (가-힣) or K-Pop artists
-  const koreanRegex = /[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f]/
-  const kpopArtists = ['bts', 'blackpink', 'newjeans', 'twice', 'iu', 'seventeen', 'exo', 'stray kids', 'le sserafim', 'aespa', 'bigbang', 'red velvet', 'ive', 'nct', 'txt', 'itzy']
-
-  // Japanese (Kanji / Hiragana / Katakana) or J-Pop artists
-  const japaneseRegex = /[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/
-  const jpopArtists = ['yoasobi', 'kenshi yonezu', 'ado', 'aimer', 'radwimps', 'hige dandism', 'lisa', 'one ok rock', 'evelyn', 'eve', 'vaundy']
-
-  // Vietnamese diacritics or V-Pop artists (both accented and unaccented)
-  const vietnameseRegex = /[áàảãạâấầẩẫậăắằẳẵặéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵđ]/i
-  const vpopArtists = [
-    'mck', 'sơn tùng', 'son tung', 'hieuthuhai', 'hngle', 'vũ', 'vu', 'đen', 'den',
-    'hoàng thùy linh', 'hoang thuy linh', 'grey d', 'tlinh', 'bảo anh', 'bao anh',
-    'hồ quang hiếu', 'ho quang hieu', 'phan mạnh quỳnh', 'phan manh quynh',
-    'bùi anh tuấn', 'bui anh tuan', 'mr siro', 'soobin', 'vũ phụng tiên',
-    'đạt g', 'dat g', 'trịnh thăng bình', 'trinh thang binh', 'dương hoàng yến',
-    'rhyder', 'captain', 'wxrdie', '24k.right', 'mono', 'phương phương thảo',
-    'trung quân', 'trung quan', 'văn mai hương', 'van mai huong', 'đức phúc', 'duc phuc',
-    'erik', 'hoà minzy', 'hoa minzy', 'jack', 'j97', 'k-icm', 'bích phương', 'bich phuong'
-  ]
-
-  const westernArtists = ['taylor swift', 'ariana grande', 'drake', 'the weeknd', 'justin bieber', 'bruno mars', 'ed sheeran', 'billie eilish', 'post malone', 'dua lipa', 'coldplay', 'maroon 5', 'katy perry', 'rihanna', 'beyonce', 'lady gaga', 'sza', 'travis scott', 'kanye west', 'eminem']
-
-  if (koreanRegex.test(text) || kpopArtists.some((a) => textNorm.includes(a))) {
-    region = 'kr'
-  } else if (japaneseRegex.test(text) || jpopArtists.some((a) => textNorm.includes(a))) {
-    region = 'jp'
-  } else if (
-    vietnameseRegex.test(text) ||
-    vpopArtists.some((a) => textNorm.includes(removeDiacritics(a)))
-  ) {
-    region = 'vn'
-  } else if (westernArtists.some((a) => textNorm.includes(a))) {
-    region = 'us'
-  } else if (/^[a-z0-9\s.,'?!()-]+$/i.test(text)) {
-    // If text is ASCII only, check if artist looks Western vs default Global/VN
-    region = 'us'
+export function analyzeTrackMetadata(track: Partial<Track> & { title?: string; artist?: string | null }): TrackMetadataAnalysis {
+  const profile = classifyTrack(track)
+  return {
+    region: profile.region,
+    genre: profile.genre,
+    queryTerms: profile.queryTerms,
+    relatedArtists: profile.relatedArtists,
   }
-
-  // 2. Detect Genre / Style
-  let genre: TrackMetadataAnalysis['genre'] = 'pop'
-  if (/\b(remix|house|edm|vinahouse|dj|club|bounce|dance|dubstep)\b/i.test(textNorm)) {
-    genre = 'remix'
-  } else if (/\b(rap|hiphop|hip-hop|trap|r&b|rnb|drill)\b/i.test(textNorm)) {
-    genre = 'rap'
-  } else if (/\b(ballad|lofi|chill|acoustic|piano|sad|buon|tam trang)\b/i.test(textNorm)) {
-    genre = 'ballad'
-  } else if (/\b(indie|alternative|rock|band)\b/i.test(textNorm)) {
-    genre = 'indie'
-  }
-
-  // 3. Generate query terms for recommendation search
-  const queryTerms: string[] = []
-  const cleanArtist = (track.artist || '').replace(/[\(\[\{].*?[\)\]\}]/g, '').trim()
-
-  if (cleanArtist && cleanArtist !== 'Nghệ sĩ chưa xác định' && cleanArtist !== 'YouTube Artist') {
-    queryTerms.push(`${cleanArtist} hit songs`)
-  }
-
-  const regionNames: Record<string, string> = {
-    vn: 'Vpop Nhạc Việt Hay Nhất',
-    kr: 'Kpop Top Hits Trending',
-    jp: 'Jpop Anime Top Hits',
-    us: 'USUK Top Billboard Hits',
-    global: 'Global Top Trending Hits',
-  }
-
-  const genreKeywords: Record<string, string> = {
-    remix: 'Remix House Vinahouse',
-    rap: 'Rap Hiphop Chill',
-    ballad: 'Ballad Lofi Nhạc Trẻ Tâm Trạng',
-    indie: 'Indie Chill Acoustic',
-    pop: 'Pop Hits',
-    general: 'Hits',
-  }
-
-  queryTerms.push(`${regionNames[region]} ${genreKeywords[genre]}`)
-  queryTerms.push(`${regionNames[region]}`)
-
-  return { region, genre, queryTerms }
 }
 
 /**
  * 🚀 Fetch Smart Recommended Related Tracks matching region & genre
- * 🌟 Prioritizes NhacCuaTui & SoundCloud native tracks for instant HTML5 background playback,
+ * 🌟 Prioritizes NhacCuaTui & SoundCloud native tracks that pass strict Region & Genre compatibility,
  * with YouTube as secondary fallback.
  */
 export async function getSmartRecommendedTracks(
@@ -130,45 +46,62 @@ export async function getSmartRecommendedTracks(
 ): Promise<Track[]> {
   if (!seedTrack) return []
 
-  const analysis = analyzeTrackMetadata(seedTrack)
+  const seedProfile = classifyTrack(seedTrack)
   const existingIds = new Set(existingQueue.map((t) => t.id))
   existingIds.add(seedTrack.id)
 
-  const cleanArtist = (seedTrack.artist || '').replace(/[\(\[\{].*?[\)\]\}]/g, '').trim()
-  const searchQuery = cleanArtist && cleanArtist !== 'Nghệ sĩ chưa xác định' ? cleanArtist : seedTrack.title
+  const cleanArtist =
+    seedProfile.artistCanonical &&
+    seedProfile.artistCanonical !== 'Nghệ sĩ chưa xác định' &&
+    seedProfile.artistCanonical !== 'Chưa rõ nghệ sĩ'
+      ? seedProfile.artistCanonical
+      : ''
 
-  const recommended: Track[] = []
+  const primaryQuery = cleanArtist || seedTrack.title
+  const relatedQueries = seedProfile.relatedArtists.slice(0, 2)
+  const topicQuery = seedProfile.queryTerms[seedProfile.queryTerms.length - 2] || seedProfile.queryTerms[0] || primaryQuery
+
+  const scoredCandidates: { track: Track; score: number }[] = []
 
   try {
-    // 1. Fetch NhacCuaTui & SoundCloud candidates FIRST in parallel
-    const [nctRes, scRes] = await Promise.allSettled([
-      searchQuery ? searchNhacCuaTuiDirect(searchQuery, 12) : Promise.resolve([]),
-      searchQuery ? searchSoundCloudTracks(searchQuery, 12) : Promise.resolve([]),
+    // 1. Fetch NhacCuaTui (only for VN/Global) & SoundCloud candidates for seed + related artists + genre topic
+    const shouldQueryNct = seedProfile.region === 'vn' || seedProfile.region === 'global'
+    const nctQueries = shouldQueryNct
+      ? [primaryQuery, ...relatedQueries.slice(0, 1), topicQuery].filter(Boolean)
+      : []
+    const scQueries = [primaryQuery, ...relatedQueries.slice(0, 1), topicQuery].filter(Boolean)
+
+    const [nctSettled, scSettled] = await Promise.all([
+      Promise.allSettled(nctQueries.map((q) => searchNhacCuaTuiDirect(q, 10))),
+      Promise.allSettled(scQueries.map((q) => searchSoundCloudTracks(q, 10))),
     ])
 
-    // Prioritize NhacCuaTui tracks
-    if (nctRes.status === 'fulfilled' && Array.isArray(nctRes.value)) {
-      for (const tr of nctRes.value) {
-        if (!existingIds.has(tr.id) && recommended.length < limit) {
-          existingIds.add(tr.id)
-          recommended.push(tr)
-        }
+    const rawCandidates: Track[] = []
+    for (const res of nctSettled) {
+      if (res.status === 'fulfilled' && Array.isArray(res.value)) {
+        rawCandidates.push(...res.value)
+      }
+    }
+    for (const res of scSettled) {
+      if (res.status === 'fulfilled' && Array.isArray(res.value)) {
+        rawCandidates.push(...res.value)
       }
     }
 
-    // Prioritize SoundCloud tracks
-    if (scRes.status === 'fulfilled' && Array.isArray(scRes.value)) {
-      for (const tr of scRes.value) {
-        if (!existingIds.has(tr.id) && recommended.length < limit) {
-          existingIds.add(tr.id)
-          recommended.push(tr)
-        }
-      }
+    for (const tr of rawCandidates) {
+      if (!tr || existingIds.has(tr.id)) continue
+      if (!isTrackStyleCompatible(seedProfile, tr)) continue
+      const compat = getStyleCompatibilityScore(seedProfile, tr)
+      existingIds.add(tr.id)
+      scoredCandidates.push({
+        track: tr,
+        score: compat + (tr.source === 'nhaccuatui' ? 0.15 : 0.12),
+      })
     }
 
     // 2. If we still need more tracks to reach the limit, fetch YouTube candidates as fallback
-    if (recommended.length < limit) {
-      const ytTasks = analysis.queryTerms.map((query) =>
+    if (scoredCandidates.length < limit) {
+      const ytTasks = seedProfile.queryTerms.map((query) =>
         searchYouTubeTracks(query, 8)
           .then((results) =>
             results.filter((tr) => {
@@ -182,10 +115,11 @@ export async function getSmartRecommendedTracks(
       const ytResultsArray = await Promise.all(ytTasks)
       for (const ytResults of ytResultsArray) {
         for (const tr of ytResults) {
-          if (!existingIds.has(tr.id) && recommended.length < limit) {
-            existingIds.add(tr.id)
-            recommended.push(tr)
-          }
+          if (!tr || existingIds.has(tr.id)) continue
+          if (!isTrackStyleCompatible(seedProfile, tr, { allowLowConfidenceRegion: true })) continue
+          const compat = getStyleCompatibilityScore(seedProfile, tr, { allowLowConfidenceRegion: true })
+          existingIds.add(tr.id)
+          scoredCandidates.push({ track: tr, score: compat })
         }
       }
     }
@@ -193,6 +127,7 @@ export async function getSmartRecommendedTracks(
     console.warn('getSmartRecommendedTracks warning:', err)
   }
 
-  const deduplicated = deduplicateQueueTracks(recommended)
+  scoredCandidates.sort((a, b) => b.score - a.score)
+  const deduplicated = deduplicateQueueTracks(scoredCandidates.map((item) => item.track))
   return deduplicated.slice(0, limit)
 }

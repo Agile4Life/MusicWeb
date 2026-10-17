@@ -9,6 +9,7 @@ import { triggerDrivePrewarm } from '@/lib/googleDriveUpload'
 import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
 import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
 import { useBatchViewCounts, getViewCountCacheKey } from '@/hooks/useBatchViewCounts'
+import { buildStyleCoherentQueue } from '@/lib/trackClassifier'
 
 interface TrackListProps {
   tracks: Track[]
@@ -21,6 +22,7 @@ interface TrackListProps {
   onBulkUpdated?: (trackIds: string[], updates: Partial<Track>) => void
   onBulkDeleted?: (trackIds: string[]) => void
   isSearchResult?: boolean
+  preserveQueueOrder?: boolean
 }
 
 export function TrackList({
@@ -34,6 +36,7 @@ export function TrackList({
   onBulkUpdated,
   onBulkDeleted,
   isSearchResult = false,
+  preserveQueueOrder = false,
 }: TrackListProps) {
   const { currentTrack, isPlaying, isBuffering } = usePlayerTrack()
   const { playTrack, playSearchTrack, togglePlay, addToQueue } = usePlayerControls()
@@ -316,7 +319,10 @@ export function TrackList({
                 } else if (isSearchResult) {
                   playSearchTrack(track)
                 } else {
-                  playTrack(track, tracks)
+                  playTrack(
+                    track,
+                    preserveQueueOrder ? tracks : buildStyleCoherentQueue(track, tracks)
+                  )
                 }
               }}
               onAddToQueue={() => addToQueue(track)}

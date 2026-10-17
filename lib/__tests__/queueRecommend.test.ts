@@ -6,6 +6,7 @@ import {
   dedupCandidates,
   diversify,
   injectExplorationSlots,
+  filterAndScoreCandidates,
 } from '../queueRecommend'
 import { isOriginalTrackOnly } from '../youtube'
 import { QueueTrack, trackToQueueTrack, queueTrackToTrack } from '@/types/queue'
@@ -306,4 +307,96 @@ describe('queueRecommend logic unit tests', () => {
       expect(explorationItems.length).toBeGreaterThan(0)
     })
   })
+
+  describe('filterAndScoreCandidates — Genre & Region Gate + Style-First Scoring', () => {
+    it('strictly filters out mismatched regions and incompatible genres even from high-priority sources', () => {
+      const seed: QueueTrack = {
+        id: 'nct-seed',
+        title: 'Hẹn Một Mai',
+        artist: 'Bùi Anh Tuấn',
+        cover_url: null,
+        duration: 240,
+        source: 'nhaccuatui',
+        source_id: 'seed',
+        score: 1.0,
+        score_reasons: ['seed'],
+      }
+
+      const candidates: QueueTrack[] = [
+        {
+          id: 'nct-us-pop',
+          title: 'Cruel Summer',
+          artist: 'Taylor Swift',
+          cover_url: null,
+          duration: 180,
+          source: 'nhaccuatui',
+          source_id: 'us1',
+          score: 1.4,
+          score_reasons: ['nhaccuatui_native_priority'],
+        },
+        {
+          id: 'sc-vn-remix',
+          title: 'Bay Lắc Đêm Nay (Vinahouse Remix)',
+          artist: 'DJ Thái Hoàng',
+          cover_url: null,
+          duration: 210,
+          source: 'soundcloud',
+          source_id: 'sc1',
+          score: 1.35,
+          score_reasons: ['soundcloud_native_priority'],
+        },
+        {
+          id: 'sc-vn-rap',
+          title: 'Tại Vì Sao',
+          artist: 'RPT MCK',
+          cover_url: null,
+          duration: 195,
+          source: 'soundcloud',
+          source_id: 'sc2',
+          score: 1.35,
+          score_reasons: ['soundcloud_native_priority'],
+        },
+        {
+          id: 'deezer-vn-ballad',
+          title: 'Trót Yêu',
+          artist: 'Trung Quân',
+          cover_url: null,
+          duration: 230,
+          source: 'deezer',
+          source_id: 'dz1',
+          score: 1.0,
+          score_reasons: ['deezer_artist_radio'],
+        },
+        {
+          id: 'nct-vn-pop',
+          title: 'Chạy Ngay Đi',
+          artist: 'Sơn Tùng M-TP',
+          cover_url: null,
+          duration: 215,
+          source: 'nhaccuatui',
+          source_id: 'nct2',
+          score: 1.0,
+          score_reasons: ['nhaccuatui_native_priority'],
+        },
+      ]
+
+      const ranked = filterAndScoreCandidates(seed, candidates, {
+        userPreferredArtists: new Set(['trungquan']),
+      })
+
+      const ids = ranked.map((t) => t.id)
+      // US Pop, VN Remix, and VN Rap must be rejected for a VN Ballad seed
+      expect(ids).not.toContain('nct-us-pop')
+      expect(ids).not.toContain('sc-vn-remix')
+      expect(ids).not.toContain('sc-vn-rap')
+
+      // VN Ballad (Trung Quân, related artist + exact genre + user preferred) must rank #1 above generic VN Pop
+      expect(ids).toContain('deezer-vn-ballad')
+      expect(ids).toContain('nct-vn-pop')
+      expect(ranked[0].id).toBe('deezer-vn-ballad')
+      expect(ranked[0].score_reasons).toContain('genre_region_match')
+      expect(ranked[0].score_reasons).toContain('user_taste_artist_match')
+    })
+  })
 })
+

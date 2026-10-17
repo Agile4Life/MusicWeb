@@ -329,8 +329,9 @@ export const NEGATIVE_KEYWORDS = [
 export const GENRE_ALLOWED_KEYWORDS: Record<string, string[]> = {
   remix:   ['remix', 'mashup'],
   ballad:  ['lofi', 'lo-fi', 'acoustic version', 'piano version'],
-  rap:     ['remix'],
-  indie:   ['acoustic version'],
+  rnb:     ['lofi', 'lo-fi', 'acoustic version'],
+  rap:     [],
+  indie:   ['acoustic version', 'lofi', 'lo-fi'],
   pop:     [],
   general: [],
 }
