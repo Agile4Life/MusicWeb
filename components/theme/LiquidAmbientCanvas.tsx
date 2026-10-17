@@ -60,7 +60,6 @@ export function LiquidAmbientCanvas() {
 
     // Extra chromatic colors for prominent / shader modes
     const cRed = '#f43f5e'
-    const cCyan = '#06b6d4'
     const cPurple = '#a855f7'
 
     const orbs: Orb[] = [
@@ -68,7 +67,7 @@ export function LiquidAmbientCanvas() {
       { x: width * 0.8, y: height * 0.35, vx: -0.4, vy: 0.5, radius: 400, color: c2 },
       { x: width * 0.5, y: height * 0.75, vx: 0.35, vy: -0.45, radius: 360, color: c3 },
       { x: width * 0.15, y: height * 0.85, vx: -0.3, vy: -0.3, radius: 280, color: refractionMode === 'prominent' ? cRed : c1 },
-      { x: width * 0.85, y: height * 0.8, vx: -0.4, vy: 0.3, radius: 320, color: refractionMode === 'shader' ? cPurple : cCyan },
+      { x: width * 0.85, y: height * 0.8, vx: -0.4, vy: 0.3, radius: 320, color: refractionMode === 'shader' ? cPurple : c3 },
     ]
 
     let time = 0

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect } from 'react'
+export type ThemeStyle = 'classic' | 'liquid-glass' | 'minimal-flat'
 
 export type ThemeId =
   | 'slate'
@@ -391,7 +392,7 @@ import { CURSOR_CONFIGS } from '@/lib/cursors'
 import { RefractionMode } from '@/lib/theme/liquidGlassFilters'
 
 export type CursorStyle = string
-export type ThemeStyle = 'classic' | 'liquid-glass' | 'minimal-flat'
+export type { ThemeStyle } from '@/lib/theme/themeStyles'
 
 export interface LiquidGlassAberrationTargets {
   playerBar: boolean
@@ -464,10 +465,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
 
     const savedStyle = localStorage.getItem('musicweb-theme-style') as ThemeStyle
-    const initialStyle: ThemeStyle =
-      savedStyle === 'classic' || savedStyle === 'liquid-glass' || savedStyle === 'minimal-flat'
-        ? savedStyle
-        : 'classic'
+    const initialStyle: ThemeStyle = savedStyle === 'classic' || savedStyle === 'liquid-glass' || savedStyle === 'minimal-flat' ? savedStyle : 'classic'
     setThemeStyleState(initialStyle)
 
     const savedGlassConfig = localStorage.getItem('musicweb-liquid-config')
@@ -598,16 +596,41 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     })
   }
 
+function hexToRgbTuple(hex: string): string {
+  const cleaned = hex.replace('#', '').trim()
+  if (cleaned.length === 3) {
+    const r = parseInt(cleaned[0] + cleaned[0], 16)
+    const g = parseInt(cleaned[1] + cleaned[1], 16)
+    const b = parseInt(cleaned[2] + cleaned[2], 16)
+    if (!Number.isNaN(r) && !Number.isNaN(g) && !Number.isNaN(b)) {
+      return `${r}, ${g}, ${b}`
+    }
+  }
+  if (cleaned.length >= 6) {
+    const r = parseInt(cleaned.slice(0, 2), 16)
+    const g = parseInt(cleaned.slice(2, 4), 16)
+    const b = parseInt(cleaned.slice(4, 6), 16)
+    if (!Number.isNaN(r) && !Number.isNaN(g) && !Number.isNaN(b)) {
+      return `${r}, ${g}, ${b}`
+    }
+  }
+  return '34, 211, 238'
+}
+
   const applyTheme = (theme: ThemeConfig) => {
     const root = document.documentElement
     root.style.setProperty('--base-h', theme.baseH)
     root.style.setProperty('--base-s', theme.baseS)
     root.style.setProperty('--primary-spotify', theme.accentColor)
+    root.style.setProperty('--primary-spotify-rgb', hexToRgbTuple(theme.accentColor))
     root.style.setProperty('--spotify-green', theme.accentColor)
     root.style.setProperty('--spotify-glow', theme.glowColor)
+    root.style.setProperty('--spotify-glow-rgb', hexToRgbTuple(theme.glowColor))
     root.style.setProperty('--primary-glow', theme.glowColor)
     root.style.setProperty('--theme-secondary', theme.secondaryColor)
     root.style.setProperty('--bg-space', theme.bgSpace)
+    root.style.setProperty('--bg-page', theme.bgSpace)
+    root.style.setProperty('--bg-space-end', `color-mix(in srgb, ${theme.accentColor} 8%, ${theme.bgSpace})`)
     root.style.setProperty('--theme-glow-shadow', theme.glowShadow)
     root.style.setProperty('--theme-gradient-1', theme.gradient1)
     root.style.setProperty('--theme-gradient-2', theme.gradient2)
@@ -629,10 +652,30 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('musicweb-gaming-mode', enabled ? 'true' : 'false')
   }
 
+  const baseTheme = THEMES[themeId]
+  const currentTheme: ThemeConfig =
+    themeStyle === 'minimal-flat'
+      ? {
+          ...baseTheme,
+          baseH: '285',
+          baseS: '18%',
+          accentColor: '#E8A94F',
+          glowColor: '#E8A94F',
+          secondaryColor: '#C98A3D',
+          bgSpace: '#141017',
+          glowShadow: 'rgba(232, 169, 79, 0.3)',
+          gradient1: 'rgba(232, 169, 79, 0.18)',
+          gradient2: 'rgba(201, 138, 61, 0.12)',
+          gradient3: 'rgba(244, 236, 225, 0.05)',
+          neonFrom: '#F4ECE1',
+          neonTo: '#E8A94F',
+        }
+      : baseTheme
+
   return (
     <ThemeContext.Provider
       value={{
-        currentTheme: THEMES[themeId],
+        currentTheme,
         setTheme,
         cursorStyle,
         setCursorStyle,

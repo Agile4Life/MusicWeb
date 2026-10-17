@@ -62,7 +62,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="h-[100dvh] w-screen flex flex-col bg-[var(--bg-space,#07090e)] overflow-hidden font-sans p-0 sm:p-2 lg:p-3 relative">
+    <div className="h-[100dvh] w-screen flex flex-col bg-transparent overflow-hidden font-sans p-0 sm:p-2 lg:p-3 relative">
       {/* Automatic Background Route & Data Preloader */}
       <NavPreloader />
 

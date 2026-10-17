@@ -27,7 +27,7 @@
 }
 
 .signature-img-invert {
-  filter: invert(1) brightness(1.35) contrast(1.25) drop-shadow(0 0 10px rgba(34, 211, 238, 0.75));
+  filter: invert(1) brightness(1.35) contrast(1.25) drop-shadow(0 0 10px var(--spotify-glow, rgba(34, 211, 238, 0.75)));
   mix-blend-mode: screen;
 }
 
@@ -61,15 +61,20 @@
   --font-mono: var(--font-jetbrains-mono), 'JetBrains Mono', monospace;
   /* Aurora Glass default theme */
   --bg-space: #0a0e1a;
-  --bg-space-end: #12172b;
+  --bg-space-end: color-mix(in srgb, var(--primary-spotify, #22d3ee) 8%, var(--bg-space, #0a0e1a));
   --spotify-green: #22d3ee;
   --spotify-glow: #22d3ee;
   --primary-spotify: #22d3ee;
+  --primary-spotify-rgb: 34, 211, 238;
+  --spotify-glow-rgb: 34, 211, 238;
+  --primary-glow: #22d3ee;
   --theme-secondary: #6366f1;
   --theme-glow-shadow: rgba(34, 211, 238, 0.28);
   --theme-gradient-1: rgba(34, 211, 238, 0.18);
   --theme-gradient-2: rgba(99, 102, 241, 0.16);
   --theme-gradient-3: rgba(255, 255, 255, 0.05);
+  --theme-neon-from: #cffafe;
+  --theme-neon-to: #6366f1;
 
   --radius-sm: 8px;
   --radius-md: 14px;
@@ -82,7 +87,7 @@
   --accent-dim: color-mix(in srgb, var(--accent) 12%, transparent);
   --accent-dim-strong: color-mix(in srgb, var(--accent) 20%, transparent);
   --accent-gradient: linear-gradient(135deg, var(--accent), var(--accent-secondary, var(--accent)));
-  --bg-page: #0a0e1a;
+  --bg-page: var(--bg-space, #0a0e1a);
   --bg-surface-1: rgba(255, 255, 255, 0.06);
   --bg-surface-2: rgba(255, 255, 255, 0.10);
   --text-primary: #f8fafc;
@@ -117,8 +122,8 @@
   --glow-accent: 0 0 28px color-mix(in srgb, var(--accent) 45%, transparent);
 
   /* === Centralized HSL Elevation System Tokens === */
-  --base-h: 213;
-  --base-s: 74%;
+  --base-h: 224;
+  --base-s: 45%;
 
   --elevation-0-bg: hsl(var(--base-h) var(--base-s) 5%);
   --elevation-1-bg: hsl(var(--base-h) var(--base-s) 8%);
@@ -141,7 +146,7 @@
   --elev-3-shadow:
     0 -10px 36px rgba(0, 0, 0, 0.85),
     0 -1px 0 rgba(255, 255, 255, 0.16) inset,
-    0 0 24px rgba(34, 211, 238, 0.15);
+    0 0 24px color-mix(in srgb, var(--spotify-glow, #22d3ee) 15%, transparent);
 
   --glass-tint: var(--glass-surface-strong);
 
@@ -192,8 +197,8 @@ body::before {
   position: relative;
   overflow: hidden;
   background: linear-gradient(135deg,
-      color-mix(in srgb, var(--spotify-glow, #22d3ee) 8%, rgba(20, 24, 36, 0.75)),
-      rgba(14, 18, 28, 0.65)) !important;
+      color-mix(in srgb, var(--spotify-glow, #22d3ee) 8%, hsl(var(--base-h, 224) var(--base-s, 45%) 11% / 0.75)),
+      hsl(var(--base-h, 224) var(--base-s, 45%) 8% / 0.65)) !important;
   backdrop-filter: blur(16px) saturate(135%);
   -webkit-backdrop-filter: blur(16px) saturate(135%);
   border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 14%, rgba(255, 255, 255, 0.08)) !important;
@@ -334,8 +339,8 @@ body::before {
   border-radius: 26px;
   overflow: hidden;
   background: linear-gradient(135deg,
-    color-mix(in srgb, var(--spotify-glow, #22d3ee) 9%, #141824),
-    rgba(12, 16, 26, 0.95));
+    color-mix(in srgb, var(--spotify-glow, #22d3ee) 9%, hsl(var(--base-h, 224) var(--base-s, 45%) 11%)),
+    hsl(var(--base-h, 224) var(--base-s, 45%) 7% / 0.95));
   border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 26%, rgba(255, 255, 255, 0.12));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
@@ -699,8 +704,8 @@ body::before {
   z-index: 20;
   border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 14%, rgba(255, 255, 255, 0.1)) !important;
   background: linear-gradient(145deg,
-      color-mix(in srgb, var(--spotify-glow, #22d3ee) 5%, rgba(10, 14, 22, 0.9)),
-      rgba(8, 12, 18, 0.85)) !important;
+      color-mix(in srgb, var(--spotify-glow, #22d3ee) 5%, hsl(var(--base-h, 224) var(--base-s, 45%) 6% / 0.9)),
+      hsl(var(--base-h, 224) var(--base-s, 45%) 5% / 0.85)) !important;
   backdrop-filter: blur(22px) saturate(130%);
   -webkit-backdrop-filter: blur(22px) saturate(130%);
   box-shadow:
@@ -723,8 +728,8 @@ body::before {
   position: relative;
   border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 14%, rgba(255, 255, 255, 0.1)) !important;
   background: linear-gradient(145deg,
-      color-mix(in srgb, var(--spotify-glow, #22d3ee) 4%, rgba(16, 19, 28, 0.92)),
-      rgba(12, 15, 24, 0.88)) !important;
+      color-mix(in srgb, var(--spotify-glow, #22d3ee) 4%, hsl(var(--base-h, 224) var(--base-s, 45%) 9% / 0.92)),
+      hsl(var(--base-h, 224) var(--base-s, 45%) 7% / 0.88)) !important;
   backdrop-filter: blur(22px) saturate(130%);
   -webkit-backdrop-filter: blur(22px) saturate(130%);
   box-shadow:
@@ -764,8 +769,8 @@ body::before {
   position: relative;
   z-index: 25;
   background: linear-gradient(180deg,
-      color-mix(in srgb, var(--spotify-glow, #22d3ee) 6%, rgba(20, 25, 38, 0.9)) 0%,
-      rgba(14, 18, 28, 0.84) 100%) !important;
+      color-mix(in srgb, var(--spotify-glow, #22d3ee) 6%, hsl(var(--base-h, 224) var(--base-s, 45%) 11% / 0.9)) 0%,
+      hsl(var(--base-h, 224) var(--base-s, 45%) 8% / 0.84) 100%) !important;
   backdrop-filter: blur(24px) saturate(140%) !important;
   -webkit-backdrop-filter: blur(24px) saturate(140%) !important;
   border-bottom: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 15%, rgba(255, 255, 255, 0.1)) !important;
@@ -1042,7 +1047,7 @@ body {
 
 .glass-input:focus {
   border-color: var(--primary-spotify);
-  box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.2);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-spotify, #06b6d4) 20%, transparent);
 }
 
 /* Glassmorphism Fake-3D Login Card System */
@@ -1265,7 +1270,7 @@ input[type='range']:hover::-webkit-slider-thumb {
   transform: scale(1.3);
   opacity: 1;
   background: #ffffff;
-  box-shadow: 0 0 8px rgba(6, 182, 212, 0.6);
+  box-shadow: 0 0 8px var(--theme-glow-shadow, rgba(6, 182, 212, 0.6));
 }
 
 input[type='range']::-moz-range-track {
@@ -1285,7 +1290,7 @@ input[type='range']::-moz-range-thumb {
 
 input[type='range']:hover::-moz-range-thumb {
   transform: scale(1.3);
-  box-shadow: 0 0 8px rgba(6, 182, 212, 0.6);
+  box-shadow: 0 0 8px var(--theme-glow-shadow, rgba(6, 182, 212, 0.6));
 }
 
 /* Floating Music Notes Animation */
@@ -1326,9 +1331,9 @@ input[type='range']:hover::-moz-range-thumb {
   position: relative;
   overflow: hidden;
   background: linear-gradient(135deg,
-      color-mix(in srgb, var(--spotify-glow, #22d3ee) 5%, #0d111a) 0%,
-      #111622 55%,
-      #0d111a 100%) !important;
+      color-mix(in srgb, var(--spotify-glow, #22d3ee) 5%, hsl(var(--base-h, 224) var(--base-s, 45%) 8%)) 0%,
+      hsl(var(--base-h, 224) var(--base-s, 45%) 10%) 55%,
+      hsl(var(--base-h, 224) var(--base-s, 45%) 8%) 100%) !important;
   border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 10%, rgba(255, 255, 255, 0.08)) !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 12px 30px -10px rgba(0, 0, 0, 0.5) !important;
   border-radius: var(--radius-card);
@@ -1728,9 +1733,7 @@ tr.track-row:hover:not(.is-playing):not(.is-active):not(.active),
 }
 
 .progress-track-wrapper:hover .progress-thumb,
-.progress-track-wrapper.dragging .progress-thumb,
-.progress-track-wrapper:hover .progress-track,
-.progress-track-wrapper.dragging .progress-track {
+.progress-track-wrapper.dragging .progress-thumb {
   opacity: 1;
   transform: translate(-50%, -50%) scale(1);
 }
@@ -1886,8 +1889,8 @@ tr.track-row:hover:not(.is-playing):not(.is-active):not(.active),
   background: linear-gradient(90deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4)) !important;
   box-shadow:
     0 0 8px var(--spotify-glow, #22d3ee),
-    0 0 16px var(--theme-glow-shadow, rgba(6, 182, 212, 0.95)),
-    0 0 28px rgba(34, 211, 238, 0.7) !important;
+    0 0 16px var(--theme-glow-shadow, rgba(34, 211, 238, 0.5)),
+    0 0 28px color-mix(in srgb, var(--spotify-glow, #22d3ee) 70%, transparent) !important;
 }
 
 .scrubber-track:hover .scrubber-fill,
@@ -1895,8 +1898,8 @@ tr.track-row:hover:not(.is-playing):not(.is-active):not(.active),
   background: linear-gradient(90deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4)) !important;
   box-shadow:
     0 0 10px var(--spotify-glow, #22d3ee),
-    0 0 20px var(--theme-glow-shadow, rgba(6, 182, 212, 1)),
-    0 0 32px rgba(34, 211, 238, 0.85) !important;
+    0 0 20px var(--theme-glow-shadow, rgba(34, 211, 238, 0.6)),
+    0 0 32px color-mix(in srgb, var(--spotify-glow, #22d3ee) 85%, transparent) !important;
 }
 
 .scrubber-thumb {
@@ -1907,9 +1910,9 @@ tr.track-row:hover:not(.is-playing):not(.is-active):not(.active),
   border-radius: 50%;
   background: #ffffff;
   box-shadow:
-    0 0 0 3px rgba(6, 182, 212, 0.45),
+    0 0 0 3px color-mix(in srgb, var(--primary-spotify, #06b6d4) 45%, transparent),
     0 0 12px var(--spotify-glow, #22d3ee),
-    0 0 24px rgba(34, 211, 238, 0.8) !important;
+    0 0 24px color-mix(in srgb, var(--spotify-glow, #22d3ee) 80%, transparent) !important;
   transform: translate(-50%, -50%) scale(0.85);
   opacity: 0;
   transition: opacity 0.15s ease, transform 0.15s ease;
@@ -1921,9 +1924,9 @@ tr.track-row:hover:not(.is-playing):not(.is-active):not(.active),
   opacity: 1;
   transform: translate(-50%, -50%) scale(1.1);
   box-shadow:
-    0 0 0 3px rgba(6, 182, 212, 0.55),
+    0 0 0 3px color-mix(in srgb, var(--primary-spotify, #06b6d4) 55%, transparent),
     0 0 14px var(--spotify-glow, #22d3ee),
-    0 0 28px rgba(34, 211, 238, 0.95) !important;
+    0 0 28px color-mix(in srgb, var(--spotify-glow, #22d3ee) 95%, transparent) !important;
 }
 
 /* ================================================================
@@ -2221,7 +2224,7 @@ tr.track-row:hover:not(.is-playing):not(.is-active):not(.active),
 .media-card {
   position: relative;
   border-radius: var(--radius-card, 18px);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%), rgba(13, 18, 31, 0.8);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%), hsl(var(--base-h, 224) var(--base-s, 45%) 9% / 0.8);
   border: 1px solid rgba(255, 255, 255, 0.09);
   box-shadow:
     inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
@@ -2259,7 +2262,7 @@ tr.track-row:hover:not(.is-playing):not(.is-active):not(.active),
 }
 
 .media-card:hover {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.01) 100%), rgba(14, 19, 32, 0.88);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.01) 100%), hsl(var(--base-h, 224) var(--base-s, 45%) 10% / 0.88);
   border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 45%, rgba(255, 255, 255, 0.25));
   box-shadow:
     inset 0 1px 1px 0 rgba(255, 255, 255, 0.25),
@@ -2463,7 +2466,7 @@ tr.track-row:hover:not(.is-playing):not(.is-active):not(.active),
   padding: 4px 10px;
   min-height: 56px;
   box-sizing: border-box;
-  background: #0c101c;
+  background: hsl(var(--base-h, 224) var(--base-s, 45%) 8%);
   border-radius: 37px !important;
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.05);
@@ -2479,7 +2482,7 @@ nextjs-portal,
 
 .bottom-nav {
   padding-bottom: env(safe-area-inset-bottom);
-  background: #090d16;
+  background: hsl(var(--base-h, 224) var(--base-s, 45%) 6%);
   border-top: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7);
 }
@@ -2506,7 +2509,7 @@ nextjs-portal,
   bottom: 0;
   width: 85%;
   max-width: 320px;
-  background: rgba(9, 13, 22, 0.82);
+  background: hsl(var(--base-h, 224) var(--base-s, 45%) 6% / 0.82);
   backdrop-filter: blur(24px) saturate(160%);
   -webkit-backdrop-filter: blur(24px) saturate(160%);
   border-right: 1px solid rgba(255, 255, 255, 0.08);
@@ -2917,7 +2920,7 @@ html[data-cursor="default"][data-buffering="true"] * {
 
 /* Liquid Glass Dock (PlayerBar, Floating Nav) */
 .liquid-glass-dock {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(34, 211, 238, 0.08) 100%) !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.05) 50%, color-mix(in srgb, var(--spotify-glow, #22d3ee) 8%, transparent) 100%) !important;
   backdrop-filter: blur(32px) saturate(190%);
   -webkit-backdrop-filter: blur(32px) saturate(190%);
   border: 1px solid rgba(255, 255, 255, 0.24) !important;
@@ -2982,7 +2985,8 @@ html[data-cursor="default"][data-buffering="true"] * {
 
 /* 🎵 Liquid Glass Player Bar (Desktop & Mobile - Identical Logic) */
 [data-theme-style="liquid-glass"] .player-bar,
-[data-theme-style="liquid-glass"] .mini-player-bar {
+[data-theme-style="liquid-glass"] .mini-player-bar,
+[data-theme-style="liquid-glass"] .mini-player {
   background: rgba(255, 255, 255, 0.025) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
@@ -3020,7 +3024,7 @@ html[data-cursor="default"][data-buffering="true"] * {
   -webkit-backdrop-filter: blur(40px) saturate(220%) brightness(1.08) !important;
   border: 1px solid rgba(255,255,255,0.24) !important;
   border-top-color: rgba(255,255,255,0.45) !important;
-  box-shadow: 0 20px 60px -10px rgba(0,0,0,0.7), 0 0 50px -8px rgba(34,211,238,0.22), inset 0 1.5px 0 rgba(255,255,255,0.38) !important;
+  box-shadow: 0 20px 60px -10px rgba(0,0,0,0.7), 0 0 50px -8px color-mix(in srgb, var(--spotify-glow, #22d3ee) 22%, transparent), inset 0 1.5px 0 rgba(255,255,255,0.38) !important;
   border-radius: 37px !important;
 }
 
@@ -3053,7 +3057,8 @@ html[data-cursor="default"][data-buffering="true"] * {
 }
 
 /* 📱 Liquid Glass Mini Player Bar (Mobile) */
-[data-theme-style="liquid-glass"] .mini-player-bar {
+[data-theme-style="liquid-glass"] .mini-player-bar,
+[data-theme-style="liquid-glass"] .mini-player {
   position: relative;
   isolation: isolate;
   background: rgba(255, 255, 255, 0.035) !important;
@@ -3083,7 +3088,7 @@ html[data-cursor="default"][data-buffering="true"] * {
 
 [data-theme-style="liquid-glass"] .search-input:focus {
   background: color-mix(in srgb, var(--spotify-glow, #22d3ee) 8%, rgba(255, 255, 255, 0.08)) !important;
-  border-color: rgba(34, 211, 238, 0.45) !important;
+  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 45%, transparent) !important;
   box-shadow:
     0 8px 24px rgba(0, 0, 0, 0.35),
     inset 0 1.5px 0.5px rgba(255, 255, 255, 0.5),
@@ -3163,7 +3168,7 @@ html[data-cursor="default"][data-buffering="true"] * {
 
 [data-theme-style="liquid-glass"] .hero-banner .btn-outline-accent:hover {
   background: color-mix(in srgb, var(--spotify-glow, #22d3ee) 15%, rgba(255, 255, 255, 0.10)) !important;
-  border-color: rgba(34, 211, 238, 0.35) !important;
+  border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, transparent) !important;
   box-shadow:
     0 8px 24px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.35),
@@ -3415,22 +3420,22 @@ html[data-cursor="default"][data-buffering="true"] * {
 [data-theme-style="liquid-glass"][data-refraction-mode="polar"] .main-content-panel,
 [data-theme-style="liquid-glass"][data-refraction-mode="polar"] .liquid-glass-dock,
 [data-theme-style="liquid-glass"][data-refraction-mode="polar"] .liquid-glass-panel {
-  background: radial-gradient(ellipse at 50% 0%, rgba(34, 211, 238, 0.15) 0%, rgba(255, 255, 255, 0.08) 50%, rgba(10, 14, 26, 0.5) 100%) !important;
+  background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--spotify-glow, #22d3ee) 15%, transparent) 0%, rgba(255, 255, 255, 0.08) 50%, rgba(10, 14, 26, 0.5) 100%) !important;
   backdrop-filter: blur(28px) saturate(190%);
   -webkit-backdrop-filter: blur(28px) saturate(190%);
-  border: 1.5px solid rgba(34, 211, 238, 0.4) !important;
+  border: 1.5px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 40%, transparent) !important;
   box-shadow:
     0 24px 64px rgba(0, 0, 0, 0.6),
     inset 0 2px 1px rgba(255, 255, 255, 0.5),
-    inset 0 -2px 1px rgba(34, 211, 238, 0.3),
-    0 0 35px rgba(34, 211, 238, 0.25) !important;
+    inset 0 -2px 1px color-mix(in srgb, var(--spotify-glow, #22d3ee) 30%, transparent),
+    0 0 35px color-mix(in srgb, var(--spotify-glow, #22d3ee) 25%, transparent) !important;
 }
 
 [data-theme-style="liquid-glass"][data-refraction-mode="polar"] .player-bar {
-  background: radial-gradient(ellipse at 50% 0%, rgba(34, 211, 238, 0.08) 0%, rgba(255, 255, 255, 0.03) 50%, rgba(255, 255, 255, 0.01) 100%) !important;
+  background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--spotify-glow, #22d3ee) 8%, transparent) 0%, rgba(255, 255, 255, 0.03) 50%, rgba(255, 255, 255, 0.01) 100%) !important;
   backdrop-filter: blur(18px) saturate(160%) !important;
   -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
-  border: 1px solid rgba(34, 211, 238, 0.25) !important;
+  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 25%, transparent) !important;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
 }
 
@@ -3473,22 +3478,22 @@ html[data-cursor="default"][data-buffering="true"] * {
 [data-theme-style="liquid-glass"][data-refraction-mode="shader"] .main-content-panel,
 [data-theme-style="liquid-glass"][data-refraction-mode="shader"] .liquid-glass-dock,
 [data-theme-style="liquid-glass"][data-refraction-mode="shader"] .liquid-glass-panel {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(168, 85, 247, 0.12) 35%, rgba(6, 182, 212, 0.12) 70%, rgba(236, 72, 153, 0.10) 100%) !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, color-mix(in srgb, var(--theme-secondary, #a855f7) 12%, transparent) 35%, color-mix(in srgb, var(--primary-spotify, #06b6d4) 12%, transparent) 70%, rgba(236, 72, 153, 0.10) 100%) !important;
   backdrop-filter: blur(28px) saturate(200%);
   -webkit-backdrop-filter: blur(28px) saturate(200%);
-  border: 1.5px solid rgba(168, 85, 247, 0.4) !important;
+  border: 1.5px solid color-mix(in srgb, var(--theme-secondary, #a855f7) 40%, transparent) !important;
   box-shadow:
     0 24px 64px rgba(0, 0, 0, 0.6),
     inset 0 2px 0.5px rgba(255, 255, 255, 0.6),
-    inset 0 -1px 0.5px rgba(168, 85, 247, 0.3),
-    0 0 35px rgba(168, 85, 247, 0.28) !important;
+    inset 0 -1px 0.5px color-mix(in srgb, var(--theme-secondary, #a855f7) 30%, transparent),
+    0 0 35px color-mix(in srgb, var(--theme-secondary, #a855f7) 28%, transparent) !important;
 }
 
 [data-theme-style="liquid-glass"][data-refraction-mode="shader"] .player-bar {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(168, 85, 247, 0.03) 50%, rgba(6, 182, 212, 0.03) 100%) !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, color-mix(in srgb, var(--theme-secondary, #a855f7) 3%, transparent) 50%, color-mix(in srgb, var(--primary-spotify, #06b6d4) 3%, transparent) 100%) !important;
   backdrop-filter: blur(18px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(18px) saturate(180%) !important;
-  border: 1px solid rgba(168, 85, 247, 0.3) !important;
+  border: 1px solid color-mix(in srgb, var(--theme-secondary, #a855f7) 30%, transparent) !important;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
 }
 
@@ -3496,7 +3501,8 @@ html[data-cursor="default"][data-buffering="true"] * {
 
 /* PlayerBar Aberration */
 [data-theme-style="liquid-glass"][data-aberration-playerbar="true"] .player-bar,
-[data-theme-style="liquid-glass"][data-aberration-playerbar="true"] .mini-player-bar {
+[data-theme-style="liquid-glass"][data-aberration-playerbar="true"] .mini-player-bar,
+[data-theme-style="liquid-glass"][data-aberration-playerbar="true"] .mini-player {
   border-left: 2px solid rgba(244, 63, 94, 0.85) !important;
   border-right: 2px solid rgba(6, 182, 212, 0.85) !important;
   border-top: 1.5px solid rgba(255, 255, 255, 0.85) !important;
@@ -3510,7 +3516,8 @@ html[data-cursor="default"][data-buffering="true"] * {
 }
 
 [data-theme-style="liquid-glass"][data-aberration-playerbar="false"] .player-bar,
-[data-theme-style="liquid-glass"][data-aberration-playerbar="false"] .mini-player-bar {
+[data-theme-style="liquid-glass"][data-aberration-playerbar="false"] .mini-player-bar,
+[data-theme-style="liquid-glass"][data-aberration-playerbar="false"] .mini-player {
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45), inset 0 1.5px 0 rgba(255, 255, 255, 0.4) !important;
 }
@@ -3602,11 +3609,11 @@ html[data-cursor="default"][data-buffering="true"] * {
   background:
     radial-gradient(ellipse at 15% 80%, color-mix(in srgb, var(--spotify-glow, #22d3ee) 18%, transparent) 0%, transparent 45%),
     radial-gradient(ellipse at 85% 90%, color-mix(in srgb, var(--theme-gradient-1, rgba(168,85,247,0.5)) 20%, transparent) 0%, transparent 40%),
-    #07090e !important;
+    var(--bg-space, #07090e) !important;
 }
 
 [data-theme-style="liquid-glass"] .now-playing-overlay .up-next-list {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 60%, rgba(6, 182, 212, 0.06) 100%) !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 60%, color-mix(in srgb, var(--primary-spotify, #06b6d4) 6%, transparent) 100%) !important;
   backdrop-filter: blur(32px) saturate(200%);
   -webkit-backdrop-filter: blur(32px) saturate(200%);
   border: 1px solid rgba(255, 255, 255, 0.22) !important;
@@ -3624,13 +3631,13 @@ html[data-cursor="default"][data-buffering="true"] * {
 }
 
 [data-theme-style="liquid-glass"] .now-playing-overlay .up-next-list .queue-track-current {
-  background: linear-gradient(135deg, rgba(6, 182, 212, 0.25) 0%, rgba(255, 255, 255, 0.1) 100%) !important;
-  border: 1px solid rgba(34, 211, 238, 0.45) !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 15px rgba(34, 211, 238, 0.25) !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary-spotify, #06b6d4) 25%, transparent) 0%, rgba(255, 255, 255, 0.1) 100%) !important;
+  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 45%, transparent) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 15px color-mix(in srgb, var(--spotify-glow, #22d3ee) 25%, transparent) !important;
 }
 
 [data-theme-style="liquid-glass"] .active-lyric-pill {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(6, 182, 212, 0.12) 100%) !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.05) 50%, color-mix(in srgb, var(--primary-spotify, #06b6d4) 12%, transparent) 100%) !important;
   backdrop-filter: blur(32px) saturate(220%);
   -webkit-backdrop-filter: blur(32px) saturate(220%);
   border: 1.5px solid rgba(255, 255, 255, 0.4) !important;
@@ -3655,11 +3662,11 @@ html[data-cursor="default"][data-buffering="true"] * {
 }
 
 [data-theme-style="liquid-glass"] .fullview-header-badge {
-  background: linear-gradient(135deg, rgba(6, 182, 212, 0.25) 0%, rgba(255, 255, 255, 0.08) 100%) !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary-spotify, #06b6d4) 25%, transparent) 0%, rgba(255, 255, 255, 0.08) 100%) !important;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(34, 211, 238, 0.45) !important;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3), 0 0 18px rgba(34, 211, 238, 0.35) !important;
+  border: 1px solid color-mix(in srgb, var(--spotify-glow, #22d3ee) 45%, transparent) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3), 0 0 18px color-mix(in srgb, var(--spotify-glow, #22d3ee) 35%, transparent) !important;
 }
 
 [data-theme-style="liquid-glass"] .album-3d-card {
@@ -3715,8 +3722,12 @@ html[data-cursor="default"][data-buffering="true"] * {
   --accent-dim-strong: #E8A94F !important;
   --accent-gradient: #E8A94F !important;
 
-  --spotify-glow: rgba(232, 169, 79, 0.3) !important;
-  --theme-glow-shadow: rgba(232, 169, 79, 0.25) !important;
+  --spotify-glow: #E8A94F !important;
+  --theme-glow-shadow: rgba(232, 169, 79, 0.3) !important;
+  --theme-neon-from: #F4ECE1 !important;
+  --theme-neon-to: #E8A94F !important;
+  --primary-spotify-rgb: 232, 169, 79 !important;
+  --spotify-glow-rgb: 232, 169, 79 !important;
   --theme-gradient-1: transparent !important;
   --theme-gradient-2: transparent !important;
   --theme-gradient-3: transparent !important;
@@ -3781,7 +3792,11 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] h3,
 [data-theme-style="minimal-flat"] h4,
 [data-theme-style="minimal-flat"] h5,
-[data-theme-style="minimal-flat"] h6,
+[data-theme-style="minimal-flat"] h6 {
+  color: #F4ECE1 !important;
+  font-weight: 500;
+}
+
 [data-theme-style="minimal-flat"] .text-white,
 [data-theme-style="minimal-flat"] .text-slate-100,
 [data-theme-style="minimal-flat"] .text-zinc-100,
@@ -3789,7 +3804,6 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] .text-neutral-100,
 [data-theme-style="minimal-flat"] .text-stone-100 {
   color: #F4ECE1 !important;
-  font-weight: 500 !important;
 }
 
 [data-theme-style="minimal-flat"] .text-slate-200,
@@ -3803,7 +3817,6 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] .text-stone-200,
 [data-theme-style="minimal-flat"] .text-stone-300 {
   color: #B9AC9C !important;
-  font-weight: 400 !important;
 }
 
 [data-theme-style="minimal-flat"] .text-slate-400,
@@ -3823,7 +3836,6 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] .text-stone-600,
 [data-theme-style="minimal-flat"] .text-muted {
   color: #8B8090 !important;
-  font-weight: 400 !important;
 }
 
 /* Hide Glow & Spotlight effects */
@@ -3845,19 +3857,49 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] .main-content-panel {
   background: transparent !important;
   border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[data-theme-style="minimal-flat"] .main-content-panel::before {
+  display: none !important;
 }
 
 /* App Sidebar */
 [data-theme-style="minimal-flat"] .app-sidebar {
   background: linear-gradient(180deg, #1A1420, #150F18 70%) !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-bottom: none !important;
   border-right: 1px solid rgba(244, 236, 230, 0.08) !important;
   border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[data-theme-style="minimal-flat"] .app-sidebar::before {
+  display: none !important;
 }
 
 [data-theme-style="minimal-flat"] .sidebar-logo-plaque {
   background: transparent !important;
   border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   padding: 4px 8px !important;
+}
+
+[data-theme-style="minimal-flat"] .sidebar-logo-plaque::before {
+  display: none !important;
+}
+
+[data-theme-style="minimal-flat"] .btn-3d-tactile {
+  box-shadow: none !important;
+  background: transparent !important;
+  border-color: transparent !important;
 }
 
 [data-theme-style="minimal-flat"] .signature-img-invert {
@@ -4217,11 +4259,11 @@ html[data-theme-style="minimal-flat"] body {
 }
 
 [data-theme-style="minimal-flat"] .hero-vinyl-disc.is-spinning {
-  animation: spin-vinyl 10s linear infinite !important;
+  animation: spin-vinyl-premium 12s linear infinite !important;
 }
 
 [data-theme-style="minimal-flat"] .hero-vinyl-disc.is-paused {
-  animation: spin-vinyl 10s linear infinite !important;
+  animation: spin-vinyl-premium 12s linear infinite !important;
   animation-play-state: paused !important;
 }
 
@@ -4307,7 +4349,15 @@ html[data-theme-style="minimal-flat"] body {
   padding: 10px !important;
   background: linear-gradient(180deg, #251E29, #1D1720) !important;
   border: 1px solid rgba(244, 236, 230, 0.08) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   transition: transform 0.2s ease, border-color 0.2s ease !important;
+}
+
+[data-theme-style="minimal-flat"] .media-card::before,
+[data-theme-style="minimal-flat"] .tilt-card::before {
+  display: none !important;
 }
 
 [data-theme-style="minimal-flat"] .media-card:hover,
@@ -4408,7 +4458,8 @@ html[data-theme-style="minimal-flat"] body {
 
 /* Player Bar (Solid High-Fidelity Minimal Surface, No Bleed Through) */
 [data-theme-style="minimal-flat"] .player-bar,
-[data-theme-style="minimal-flat"] .mini-player-bar {
+[data-theme-style="minimal-flat"] .mini-player-bar,
+[data-theme-style="minimal-flat"] .mini-player {
   background: linear-gradient(180deg, rgba(29, 23, 32, 0.97) 0%, rgba(20, 16, 23, 0.98) 100%) !important;
   backdrop-filter: blur(24px) !important;
   -webkit-backdrop-filter: blur(24px) !important;
@@ -4435,6 +4486,7 @@ html[data-theme-style="minimal-flat"] body {
 
 [data-theme-style="minimal-flat"] .player-bar .player-cover,
 [data-theme-style="minimal-flat"] .mini-player-bar .player-cover,
+[data-theme-style="minimal-flat"] .mini-player .player-cover,
 [data-theme-style="minimal-flat"] .player-cover {
   border-radius: 50% !important;
   overflow: hidden !important;
@@ -4444,12 +4496,31 @@ html[data-theme-style="minimal-flat"] body {
 
 [data-theme-style="minimal-flat"] .player-bar .player-cover img,
 [data-theme-style="minimal-flat"] .mini-player-bar .player-cover img,
+[data-theme-style="minimal-flat"] .mini-player .player-cover img,
 [data-theme-style="minimal-flat"] .player-cover img {
   border-radius: 50% !important;
 }
 
-/* Central Play Button (Cream Paper Circle, High Tactility) */
+/* Player Controls & Volume */
+[data-theme-style="minimal-flat"] .player-bar button:not(.player-play-btn):not([aria-label*="Play"]):not([aria-label*="Pause"]):not([aria-label*="Phát"]):not([aria-label*="Tạm dừng"]):not([title*="Phát"]):not([title*="Tạm dừng"]):not(.text-rose-500):not([aria-pressed="true"]):not(.is-active),
+[data-theme-style="minimal-flat"] .mini-player-bar button:not(.player-play-btn):not([aria-label*="Play"]):not([aria-label*="Pause"]):not([aria-label*="Phát"]):not([aria-label*="Tạm dừng"]):not([title*="Phát"]):not([title*="Tạm dừng"]):not(.text-rose-500):not([aria-pressed="true"]):not(.is-active),
+[data-theme-style="minimal-flat"] .mini-player button:not(.player-play-btn):not([aria-label*="Play"]):not([aria-label*="Pause"]):not([aria-label*="Phát"]):not([aria-label*="Tạm dừng"]):not([title*="Phát"]):not([title*="Tạm dừng"]):not(.text-rose-500):not([aria-pressed="true"]):not(.is-active) {
+  color: #B9AC9C !important;
+  background: transparent !important;
+  border-radius: 8px !important;
+}
+
+[data-theme-style="minimal-flat"] .player-bar button:not(.player-play-btn):not([aria-label*="Play"]):not([aria-label*="Pause"]):not([aria-label*="Phát"]):not([aria-label*="Tạm dừng"]):not([title*="Phát"]):not([title*="Tạm dừng"]):hover,
+[data-theme-style="minimal-flat"] .mini-player-bar button:not(.player-play-btn):not([aria-label*="Play"]):not([aria-label*="Pause"]):not([aria-label*="Phát"]):not([aria-label*="Tạm dừng"]):not([title*="Phát"]):not([title*="Tạm dừng"]):hover,
+[data-theme-style="minimal-flat"] .mini-player button:not(.player-play-btn):not([aria-label*="Play"]):not([aria-label*="Pause"]):not([aria-label*="Phát"]):not([aria-label*="Tạm dừng"]):not([title*="Phát"]):not([title*="Tạm dừng"]):hover {
+  color: #F4ECE1 !important;
+  background: rgba(244, 236, 230, 0.06) !important;
+}
+
+/* Central Play Button (Warm Amber Circle, High Tactility) */
 [data-theme-style="minimal-flat"] .player-play-btn,
+[data-theme-style="minimal-flat"] .player-bar button[aria-label*="Play"],
+[data-theme-style="minimal-flat"] .player-bar button[aria-label*="Pause"],
 [data-theme-style="minimal-flat"] .player-bar button[aria-label*="Phát"],
 [data-theme-style="minimal-flat"] .player-bar button[aria-label*="Tạm dừng"],
 [data-theme-style="minimal-flat"] .player-bar button[title*="Phát"],
@@ -4457,13 +4528,16 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] .player-bar .w-10.h-10.rounded-full {
   width: 38px !important;
   height: 38px !important;
-  border-radius: 50% !important;
-  background: #F4ECE1 !important;
+  border-radius: 9999px !important;
+  background: #E8A94F !important;
   color: #141017 !important;
-  box-shadow: 0 10px 20px -8px rgba(244, 236, 230, 0.35) !important;
+  box-shadow: 0 10px 20px -8px rgba(232, 169, 79, 0.45) !important;
   border: none !important;
 }
 
+[data-theme-style="minimal-flat"] .player-play-btn svg,
+[data-theme-style="minimal-flat"] .player-bar button[aria-label*="Play"] svg,
+[data-theme-style="minimal-flat"] .player-bar button[aria-label*="Pause"] svg,
 [data-theme-style="minimal-flat"] .player-bar button[aria-label*="Phát"] svg,
 [data-theme-style="minimal-flat"] .player-bar button[aria-label*="Tạm dừng"] svg,
 [data-theme-style="minimal-flat"] .player-bar button[title*="Phát"] svg,
@@ -4471,20 +4545,6 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] .player-bar .w-10.h-10.rounded-full svg {
   color: #141017 !important;
   fill: #141017 !important;
-}
-
-/* Player Controls & Volume */
-[data-theme-style="minimal-flat"] .player-bar button,
-[data-theme-style="minimal-flat"] .mini-player-bar button {
-  color: #B9AC9C !important;
-  background: transparent !important;
-  border-radius: 8px !important;
-}
-
-[data-theme-style="minimal-flat"] .player-bar button:hover,
-[data-theme-style="minimal-flat"] .mini-player-bar button:hover {
-  color: #F4ECE1 !important;
-  background: rgba(244, 236, 230, 0.06) !important;
 }
 
 /* Track Row & Song Table (Minimal Flat Editorial Anti-Collision & Smooth Interactions) */
@@ -4801,11 +4861,11 @@ html[data-theme-style="minimal-flat"] body {
 }
 
 [data-theme-style="minimal-flat"] .album-3d-card.now-playing-cover.is-spinning {
-  animation: spin 40s linear infinite !important;
+  animation: spin-fullview 20s linear infinite !important;
 }
 
 [data-theme-style="minimal-flat"] .album-3d-card.now-playing-cover.is-paused {
-  animation: spin 40s linear infinite !important;
+  animation: spin-fullview 20s linear infinite !important;
   animation-play-state: paused !important;
 }
 
@@ -4880,6 +4940,10 @@ html[data-theme-style="minimal-flat"] body {
   border-left: 2px solid #E8A94F !important;
   border-radius: 0 8px 8px 0 !important;
   color: #F4ECE1 !important;
+}
+
+[data-theme-style="minimal-flat"] .up-next-list button.cv-auto.queue-track-current::before {
+  display: none !important;
 }
 
 [data-theme-style="minimal-flat"] .up-next-list button.cv-auto.queue-track-current p {
@@ -4976,7 +5040,7 @@ html[data-theme-style="minimal-flat"] body {
    ================================================================ */
 
 /* Smooth Scroll Behavior */
-[data-theme-style="minimal-flat"] html {
+html[data-theme-style="minimal-flat"] {
   scroll-behavior: smooth;
 }
 
@@ -5035,7 +5099,7 @@ html[data-theme-style="minimal-flat"] body {
 }
 
 /* Section Headers - Fraunces Medium */
-[data-theme-style="minimal-flat"] h2,
+[data-theme-style="minimal-flat"] h2:not(.flex):not(.line-clamp-1):not(.line-clamp-2):not(.fullview-track-title),
 [data-theme-style="minimal-flat"] .section-title,
 [data-theme-style="minimal-flat"] .section-heading {
   font-family: var(--font-fraunces), Georgia, serif !important;
@@ -5049,14 +5113,14 @@ html[data-theme-style="minimal-flat"] body {
 }
 
 @media (min-width: 768px) {
-  [data-theme-style="minimal-flat"] h2,
+  [data-theme-style="minimal-flat"] h2:not(.flex):not(.line-clamp-1):not(.line-clamp-2):not(.fullview-track-title),
   [data-theme-style="minimal-flat"] .section-title,
   [data-theme-style="minimal-flat"] .section-heading {
     font-size: 21px;
   }
 }
 
-[data-theme-style="minimal-flat"] h2::after,
+[data-theme-style="minimal-flat"] h2:not(.flex):not(.line-clamp-1):not(.line-clamp-2):not(.fullview-track-title)::after,
 [data-theme-style="minimal-flat"] .section-title::after {
   content: '';
   position: absolute;
@@ -5068,7 +5132,7 @@ html[data-theme-style="minimal-flat"] body {
   transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-[data-theme-style="minimal-flat"] h2:hover::after,
+[data-theme-style="minimal-flat"] h2:not(.flex):not(.line-clamp-1):not(.line-clamp-2):not(.fullview-track-title):hover::after,
 [data-theme-style="minimal-flat"] .section-title:hover::after {
   width: 100%;
 }
@@ -5864,7 +5928,7 @@ html[data-theme-style="minimal-flat"] body {
     animation: none !important;
   }
 
-  [data-theme-style="minimal-flat"] .vinyl-reflection::before {
+  [data-theme-style="minimal-flat"] .hero-vinyl-disc::before {
     animation: none !important;
   }
 }
@@ -5969,7 +6033,7 @@ html[data-theme-style="minimal-flat"] body {
 
 /* Primary Button */
 [data-theme-style="minimal-flat"] .btn-primary,
-[data-theme-style="minimal-flat"] button.bg-\[\\#E8A94F\] {
+[data-theme-style="minimal-flat"] button.bg-\[\#E8A94F\] {
   transition:
     background 0.25s ease,
     transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -5977,20 +6041,20 @@ html[data-theme-style="minimal-flat"] body {
 }
 
 [data-theme-style="minimal-flat"] .btn-primary:hover,
-[data-theme-style="minimal-flat"] button.bg-\[\\#E8A94F\]:hover {
+[data-theme-style="minimal-flat"] button.bg-\[\#E8A94F\]:hover {
   background: #F4ECE1 !important;
   transform: translateY(-2px);
   box-shadow: 0 8px 20px -4px rgba(232, 169, 79, 0.4) !important;
 }
 
 [data-theme-style="minimal-flat"] .btn-primary:active,
-[data-theme-style="minimal-flat"] button.bg-\[\\#E8A94F\]:active {
+[data-theme-style="minimal-flat"] button.bg-\[\#E8A94F\]:active {
   transform: translateY(0) scale(0.97);
 }
 
 /* Secondary Button */
 [data-theme-style="minimal-flat"] .btn-secondary,
-[data-theme-style="minimal-flat"] button[class*="bg-\\[var"] {
+[data-theme-style="minimal-flat"] button[class*="bg-[var"] {
   transition:
     background 0.25s ease,
     border-color 0.25s ease,
@@ -5999,7 +6063,7 @@ html[data-theme-style="minimal-flat"] body {
 }
 
 [data-theme-style="minimal-flat"] .btn-secondary:hover,
-[data-theme-style="minimal-flat"] button[class*="bg-\\[var"]:hover {
+[data-theme-style="minimal-flat"] button[class*="bg-[var"]:hover {
   background: rgba(244, 236, 230, 0.08) !important;
   transform: translateY(-1px);
 }
@@ -6333,6 +6397,17 @@ html[data-theme-style="minimal-flat"] body {
 [data-theme-style="minimal-flat"] #custom-cursor,
 [data-theme-style="minimal-flat"] .cursor-spotlight {
   display: none !important;
+}
+
+html[data-theme-style="minimal-flat"][data-cursor="lottie"],
+html[data-theme-style="minimal-flat"][data-cursor="lottie"] * {
+  cursor: auto !important;
+}
+
+html[data-theme-style="minimal-flat"][data-cursor="lottie"] a,
+html[data-theme-style="minimal-flat"][data-cursor="lottie"] button,
+html[data-theme-style="minimal-flat"][data-cursor="lottie"] [role="button"] {
+  cursor: pointer !important;
 }
 
 /* ================================================================
@@ -6924,7 +6999,7 @@ html[data-theme-style="minimal-flat"] body {
 
 @media (max-width: 1023px) {
   /* 1. Hero Banner Liquid Glass */
-  .hero-banner {
+  [data-theme-style="liquid-glass"] .hero-banner {
     background: rgba(255, 255, 255, 0.025) !important;
     backdrop-filter: blur(16px) saturate(150%) !important;
     -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
@@ -6933,15 +7008,15 @@ html[data-theme-style="minimal-flat"] body {
     border-radius: 20px !important;
   }
 
-  .hero-banner::before {
+  [data-theme-style="liquid-glass"] .hero-banner::before {
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 40%) !important;
   }
 
   /* 2. Search Inputs Liquid Glass */
-  .search-input-liquid,
-  input[type="text"][placeholder*="Tìm kiếm"],
-  input[type="text"][placeholder*="Search"],
-  input[type="search"] {
+  [data-theme-style="liquid-glass"] .search-input-liquid,
+  [data-theme-style="liquid-glass"] input[type="text"][placeholder*="Tìm kiếm"]:not(.mobile-scroll-header input),
+  [data-theme-style="liquid-glass"] input[type="text"][placeholder*="Search"]:not(.mobile-scroll-header input),
+  [data-theme-style="liquid-glass"] input[type="search"]:not(.mobile-scroll-header input) {
     background: rgba(255, 255, 255, 0.03) !important;
     backdrop-filter: blur(14px) saturate(140%) !important;
     -webkit-backdrop-filter: blur(14px) saturate(140%) !important;
@@ -6950,18 +7025,18 @@ html[data-theme-style="minimal-flat"] body {
     color: #ffffff !important;
   }
 
-  .search-input-liquid:focus,
-  input[type="text"][placeholder*="Tìm kiếm"]:focus,
-  input[type="text"][placeholder*="Search"]:focus,
-  input[type="search"]:focus {
+  [data-theme-style="liquid-glass"] .search-input-liquid:focus,
+  [data-theme-style="liquid-glass"] input[type="text"][placeholder*="Tìm kiếm"]:not(.mobile-scroll-header input):focus,
+  [data-theme-style="liquid-glass"] input[type="text"][placeholder*="Search"]:not(.mobile-scroll-header input):focus,
+  [data-theme-style="liquid-glass"] input[type="search"]:not(.mobile-scroll-header input):focus {
     background: rgba(255, 255, 255, 0.05) !important;
     border-color: color-mix(in srgb, var(--spotify-glow, #22d3ee) 50%, rgba(255, 255, 255, 0.2)) !important;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 0 20px var(--theme-glow-shadow, rgba(6, 182, 212, 0.25)) !important;
   }
 
   /* 3. Media & Album Cards Liquid Glass */
-  .media-card,
-  .tilt-card {
+  [data-theme-style="liquid-glass"] .media-card,
+  [data-theme-style="liquid-glass"] .tilt-card {
     background: rgba(255, 255, 255, 0.02) !important;
     backdrop-filter: blur(14px) saturate(140%) !important;
     -webkit-backdrop-filter: blur(14px) saturate(140%) !important;
@@ -6970,15 +7045,15 @@ html[data-theme-style="minimal-flat"] body {
     border-radius: 18px !important;
   }
 
-  .media-card:hover,
-  .media-card:active,
-  .tilt-card:active {
+  [data-theme-style="liquid-glass"] .media-card:hover,
+  [data-theme-style="liquid-glass"] .media-card:active,
+  [data-theme-style="liquid-glass"] .tilt-card:active {
     background: rgba(255, 255, 255, 0.04) !important;
     border-color: rgba(255, 255, 255, 0.12) !important;
   }
 
   /* 4. Logo Plaque Liquid Glass */
-  .sidebar-logo-plaque {
+  [data-theme-style="liquid-glass"] .sidebar-logo-plaque {
     background: rgba(255, 255, 255, 0.025) !important;
     backdrop-filter: blur(16px) saturate(150%) !important;
     -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
@@ -6986,13 +7061,13 @@ html[data-theme-style="minimal-flat"] body {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
   }
 
-  .sidebar-logo-plaque::before {
+  [data-theme-style="liquid-glass"] .sidebar-logo-plaque::before {
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 40%) !important;
   }
 
   /* 5. Playlist Items & Sheets on Mobile */
-  .playlist-card-liquid,
-  .playlist-item-mobile {
+  [data-theme-style="liquid-glass"] .playlist-card-liquid,
+  [data-theme-style="liquid-glass"] .playlist-item-mobile {
     background: rgba(255, 255, 255, 0.025) !important;
     backdrop-filter: blur(14px) saturate(140%) !important;
     -webkit-backdrop-filter: blur(14px) saturate(140%) !important;

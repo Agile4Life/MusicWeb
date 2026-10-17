@@ -17,7 +17,7 @@ interface LiquidGlassContainerProps extends React.HTMLAttributes<HTMLDivElement>
 export function LiquidGlassContainer({
   children,
   className = '',
-  refractionMode = 'standard',
+  refractionMode,
   cornerRadius = 20,
   enableElasticity = false,
   elasticity = 0.12,
@@ -61,10 +61,11 @@ export function LiquidGlassContainer({
       ? `translate3d(${mouseOffset.x}px, ${mouseOffset.y}px, 0)`
       : undefined
 
+  const resolvedMode = refractionMode ?? liquidGlassConfig?.refractionMode ?? 'standard'
   const filterId =
-    refractionMode === 'subtle'
+    resolvedMode === 'subtle'
       ? 'liquid-glass-subtle'
-      : `liquid-glass-${liquidGlassConfig?.refractionMode || refractionMode}`
+      : `liquid-glass-${resolvedMode}`
 
   return (
     <div
