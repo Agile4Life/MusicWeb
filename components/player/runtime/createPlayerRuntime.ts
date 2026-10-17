@@ -168,7 +168,10 @@ export function createPlayerRuntime(): PlayerRuntime {
   const webAudioGain = createWebAudioGainManager({
     getAudioElement: () =>
       currentAudioElement !== fallbackAudio ? currentAudioElement : null,
-    isPlaying: () => controller.getSnapshot().isPlaying,
+    isPlaying: () => {
+      const snap = controller.getSnapshot();
+      return snap.isPlaying || snap.isBuffering;
+    },
   });
 
   const baseTransport: BrowserTransport = createBrowserTransport({
@@ -184,6 +187,13 @@ export function createPlayerRuntime(): PlayerRuntime {
       const p = baseTransport.start(target, owner, volume, mode);
       if (target.engine === 'html5' && mode === 'play') {
         webAudioGain.ensureGain(volume);
+      }
+      return p;
+    },
+    resume() {
+      const p = baseTransport.resume();
+      if (!activeOwner) {
+        webAudioGain.ensureGain(controller.getSnapshot().volume);
       }
       return p;
     },

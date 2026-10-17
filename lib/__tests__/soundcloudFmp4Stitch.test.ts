@@ -97,3 +97,4 @@ describe('SoundCloud fMP4 HLS stitching helpers', () => {
     expect(firstBoxType).toBe('moof');
   });
 });
+

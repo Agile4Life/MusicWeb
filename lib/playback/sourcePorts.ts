@@ -17,7 +17,8 @@ export interface PlaybackSourceDeps {
   getCachedYouTubeId(
     title: string,
     artist?: string | null,
-    album?: string | null
+    album?: string | null,
+    duration?: number | null
   ): string | null;
   saveCachedYouTubeId(track: Track, youtubeId: string): void;
   getNctStreamUrl(track: Track): string | null;

@@ -432,4 +432,88 @@ describe('playbackController', () => {
     expect(controller.getProgress().duration).toBe(204);
     expect(controller.getSnapshot().currentTrack?.id).toBe('sc-risk-it-all');
   });
+
+  it('automatically resumes YouTube when browser/game occlusion emits paused while desiredState is playing, and switches to HTML5 stream if YouTube refuses to stay playing in background', async () => {
+    const { controller, sources, transport } = createTestHarness();
+    const ytTrack = makeTrack('yt-game-track', {
+      source: 'youtube',
+      youtube_id: 'gameVideo11',
+      title: 'Gaming Song',
+      artist: 'Gaming Artist',
+      duration: 210,
+    });
+
+    vi.mocked(sources.resolvePlayable).mockResolvedValueOnce({
+      track: ytTrack,
+      engine: 'youtube',
+      target: 'gameVideo11',
+      initialTime: 0,
+    });
+    vi.mocked(sources.resolveFallback).mockResolvedValueOnce({
+      track: { ...ytTrack, source: 'soundcloud', soundcloud_id: 'sc-game-11' },
+      engine: 'html5',
+      target: 'https://cdn.example/sc-game-11.mp3',
+      initialTime: 45,
+    });
+
+    await controller.playTrack(ytTrack, [ytTrack], 0);
+    const owner = transport.getLastStarted()!.owner;
+    transport.setReadState({ time: 45, duration: 210, playing: true });
+
+    // User switches to PC game -> tab becomes hidden
+    controller.handleVisibilityChange(true);
+
+    // 1st background auto-pause from YouTube IFrame -> must immediately call transport.resume()
+    transport.setReadState({ playing: false });
+    transport.emit({ type: 'paused', owner });
+    expect(transport.resume).toHaveBeenCalledTimes(1);
+    expect(controller.getSnapshot().isPlaying).toBe(true);
+
+    // 2nd background auto-pause -> retries transport.resume() a second time
+    transport.setReadState({ playing: false });
+    transport.emit({ type: 'paused', owner });
+    expect(transport.resume).toHaveBeenCalledTimes(2);
+
+    // 3rd background auto-pause -> switches to HTML5 stream at current time (45s)
+    transport.setReadState({ playing: false });
+    transport.emit({ type: 'paused', owner });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(sources.resolveFallback).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'yt-game-track' }),
+      45,
+      undefined,
+      { preferHtml5: true }
+    );
+    expect(transport.getLastStarted()?.target).toMatchObject({
+      engine: 'html5',
+      target: 'https://cdn.example/sc-game-11.mp3',
+      initialTime: 45,
+    });
+  });
+
+  it('resumes interrupted HTML5 playback when switching to a background tab/game or on background heartbeat while desiredState is playing', async () => {
+    const { controller, transport } = createTestHarness();
+    const track = makeTrack('html5-game-track', {
+      title: 'Background HTML5',
+      duration: 180,
+    });
+
+    await controller.playTrack(track, [track], 0);
+    const owner = transport.getLastStarted()!.owner;
+
+    // Simulate OS/window blur pausing audio right as user switches to a fullscreen game
+    transport.setReadState({ time: 30, duration: 180, playing: false });
+    transport.emit({ type: 'paused', owner });
+
+    // Visibility changes to hidden when game takes fullscreen -> should immediately resume instead of waiting for tab return
+    controller.handleVisibilityChange(true);
+    await Promise.resolve();
+
+    expect(transport.resume).toHaveBeenCalledTimes(1);
+    expect(controller.getSnapshot().isPlaying).toBe(true);
+  });
+
 });
+

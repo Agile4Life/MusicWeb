@@ -85,6 +85,8 @@ export function createPlaybackController(
   let lastSavedTime = 0;
   let smartFillSeedId: string | null = null;
   let activeQueueRequestId = 0;
+  let youtubeBgPauseRetries = 0;
+  let html5BgPauseRetries = 0;
 
   let cancelStallWatchdog: Cancel | null = null;
   let cancelAutoSkipTimer: Cancel | null = null;
@@ -449,10 +451,12 @@ export function createPlaybackController(
           return;
         }
 
-        // If an alternate NCT fallback stream failed, continue to the YouTube candidate
+        // If an alternate NCT or SoundCloud fallback stream failed, continue to the YouTube candidate
         if (
           fallbackPrepared.track.source === 'nhaccuatui' ||
-          Boolean(fallbackPrepared.track.nhaccuatui_id)
+          Boolean(fallbackPrepared.track.nhaccuatui_id) ||
+          fallbackPrepared.track.source === 'soundcloud' ||
+          Boolean(fallbackPrepared.track.soundcloud_id)
         ) {
           const ytFallback = await deps.sources.resolveFallback(
             fallbackPrepared.track,
@@ -499,6 +503,47 @@ export function createPlaybackController(
         }
         handleUnrecoverableFailure(owner, track);
       }
+    } finally {
+      recovery.endFallback(owner.requestId);
+    }
+  };
+
+  const switchYouTubeToHtml5InBackground = async (
+    owner: PlaybackOwner,
+    track: Track,
+    resumeTime: number
+  ): Promise<void> => {
+    if (
+      disposed ||
+      !ownership.isCurrentOwner(owner, store.getSnapshot().currentTrack?.id) ||
+      ownership.getDesiredState() !== 'playing' ||
+      recovery.isFallbackInProgress(owner.requestId)
+    ) {
+      return;
+    }
+    recovery.beginFallback(owner.requestId);
+    try {
+      const html5Prepared = await deps.sources.resolveFallback(
+        track,
+        resumeTime,
+        undefined,
+        { preferHtml5: true }
+      );
+      if (
+        disposed ||
+        !ownership.isCurrentOwner(owner, store.getSnapshot().currentTrack?.id) ||
+        ownership.getDesiredState() !== 'playing'
+      ) {
+        return;
+      }
+      if (html5Prepared && html5Prepared.engine === 'html5') {
+        await executePreparedPlayback(html5Prepared, owner, track, {
+          isFallback: true,
+        });
+      }
+    } catch {
+      // Keep current track state if background HTML5 switch fails;
+      // foreground visibility restore can still resume YouTube iframe.
     } finally {
       recovery.endFallback(owner.requestId);
     }
@@ -885,28 +930,81 @@ export function createPlaybackController(
 
       case 'paused': {
         clearStallWatchdog();
-        if (activeEngine === 'html5') {
-          const prog = store.getProgress();
-          const live = deps.transport.read();
-          const time = live.time || prog.currentTime;
-          const duration = resolveEffectiveDuration(
-            live.duration,
-            snap.currentTrack?.duration,
-            prog.duration
+        const prog = store.getProgress();
+        const live = deps.transport.read();
+        const time = live.time || prog.currentTime;
+        const duration = resolveEffectiveDuration(
+          live.duration,
+          snap.currentTrack?.duration,
+          prog.duration
+        );
+        if (
+          completion.shouldCompleteOnHtml5Pause({
+            desiredState: ownership.getDesiredState(),
+            time,
+            duration,
+          })
+        ) {
+          triggerCompletion(
+            activeEngine === 'youtube'
+              ? 'youtube-pause-at-eof'
+              : 'html5-pause-at-eof'
           );
-          if (
-            completion.shouldCompleteOnHtml5Pause({
-              desiredState: ownership.getDesiredState(),
-              time,
-              duration,
-            })
-          ) {
-            triggerCompletion('html5-pause-at-eof');
+          return;
+        }
+        if (
+          activeEngine === 'youtube' &&
+          ownership.getDesiredState() === 'playing'
+        ) {
+          if (youtubeBgPauseRetries < 2) {
+            youtubeBgPauseRetries += 1;
+            void deps.transport.resume().catch(() => {});
+            return;
+          }
+          youtubeBgPauseRetries = 0;
+          if (snap.currentTrack && tabHidden) {
+            void switchYouTubeToHtml5InBackground(
+              event.owner,
+              snap.currentTrack,
+              time
+            );
+            return;
+          }
+          if (tabHidden) {
             return;
           }
         }
-        if (tabHidden && activeEngine === 'youtube') {
-          return;
+        if (
+          tabHidden &&
+          activeEngine === 'html5' &&
+          ownership.getDesiredState() === 'playing' &&
+          !pendingResume
+        ) {
+          if (html5BgPauseRetries < 2) {
+            html5BgPauseRetries += 1;
+            void deps.transport
+              .resume()
+              .then(() => {
+                if (
+                  ownership.isCurrentOwner(
+                    event.owner,
+                    store.getSnapshot().currentTrack?.id
+                  )
+                ) {
+                  store.patch({ isPlaying: true, isBuffering: false });
+                }
+              })
+              .catch(() => {
+                if (
+                  ownership.isCurrentRequest(event.owner.requestId) &&
+                  ownership.getDesiredState() === 'playing'
+                ) {
+                  pendingResume = true;
+                  store.patch({ isPlaying: false, isBuffering: false });
+                }
+              });
+            return;
+          }
         }
         store.patch({ isPlaying: false, isBuffering: false });
         return;
@@ -937,8 +1035,14 @@ export function createPlaybackController(
         );
         deps.persistence.updateTime(event.time);
 
-        if (event.time >= 3 && recovery.getConsecutiveSkips() > 0) {
-          recovery.resetConsecutiveSkips();
+        if (event.time >= 3) {
+          if (recovery.getConsecutiveSkips() > 0) {
+            recovery.resetConsecutiveSkips();
+          }
+          if (deps.transport.read().playing) {
+            youtubeBgPauseRetries = 0;
+            html5BgPauseRetries = 0;
+          }
         }
 
         const triggered = completion.evaluateTimeUpdate({
@@ -1074,6 +1178,8 @@ export function createPlaybackController(
     hasPrewarmedNextTrack = false;
     pendingSeek = null;
     pendingResume = false;
+    youtubeBgPauseRetries = 0;
+    html5BgPauseRetries = 0;
     clearTimers();
     completion.reset();
 
@@ -1247,6 +1353,8 @@ export function createPlaybackController(
     hasPrewarmedNextTrack = false;
     pendingSeek = null;
     pendingResume = false;
+    youtubeBgPauseRetries = 0;
+    html5BgPauseRetries = 0;
 
     const prevSnap = store.getSnapshot();
     const transition = queueController.preparePlayTrack({
@@ -1418,7 +1526,8 @@ export function createPlaybackController(
         const nextOwner = ownership.setOwnerTrack(prepared.track.id) ?? owner;
         activeEngine = prepared.engine;
         activeTargetUrl = prepared.target;
-        store.patch({ currentTrack: prepared.track });
+        store.patch({ currentTrack: prepared.track }););
+        }
         await deps.transport.start(
           prepared,
           nextOwner,
@@ -1459,6 +1568,8 @@ export function createPlaybackController(
       if (isCurrentlyActive) {
         ownership.nextToggle('paused');
         pendingResume = false;
+        youtubeBgPauseRetries = 0;
+        html5BgPauseRetries = 0;
         clearTimers();
         deps.transport.pause();
         store.patch({ isPlaying: false, isBuffering: false });
@@ -1466,6 +1577,8 @@ export function createPlaybackController(
       }
 
       const actionId = ownership.nextToggle('playing');
+      youtubeBgPauseRetries = 0;
+      html5BgPauseRetries = 0;
       recovery.resetConsecutiveSkips();
       const currentOwner =
         ownership.getOwner() ?? ownership.issueRequest(snap.currentTrack.id);
@@ -1688,8 +1801,37 @@ export function createPlaybackController(
             );
           }
         }
+        const liveOnHide = deps.transport.read();
+        const ownerOnHide = ownership.getOwner();
+        if (
+          ownership.getDesiredState() === 'playing' &&
+          snap.currentTrack &&
+          ownerOnHide &&
+          !snap.isBuffering &&
+          !pendingResume &&
+          !liveOnHide.playing &&
+          inFlightErrorRequestId !== ownerOnHide.requestId &&
+          !recovery.isFallbackInProgress(ownerOnHide.requestId)
+        ) {
+          void deps.transport
+            .resume()
+            .then(() => {
+              if (
+                ownership.isCurrentOwner(
+                  ownerOnHide,
+                  store.getSnapshot().currentTrack?.id
+                )
+              ) {
+                store.patch({ isPlaying: true, isBuffering: false });
+              }
+            })
+            .catch(() => {});
+        }
         return;
       }
+
+      youtubeBgPauseRetries = 0;
+      html5BgPauseRetries = 0;
 
       const live = deps.transport.read();
       if (
@@ -1834,6 +1976,44 @@ export function createPlaybackController(
             ? 'youtube-background-heartbeat-eof'
             : 'html5-background-heartbeat-eof'
         );
+        return;
+      }
+
+      if (
+        !live.playing &&
+        !snap.isBuffering &&
+        !pendingResume &&
+        inFlightErrorRequestId !== owner.requestId &&
+        !recovery.isFallbackInProgress(owner.requestId)
+      ) {
+        if (activeEngine === 'youtube') {
+          if (youtubeBgPauseRetries < 2) {
+            youtubeBgPauseRetries += 1;
+            void deps.transport.resume().catch(() => {});
+          } else {
+            youtubeBgPauseRetries = 0;
+            void switchYouTubeToHtml5InBackground(
+              owner,
+              snap.currentTrack,
+              live.time || store.getProgress().currentTime
+            );
+          }
+        } else if (html5BgPauseRetries < 2) {
+          html5BgPauseRetries += 1;
+          void deps.transport
+            .resume()
+            .then(() => {
+              if (
+                ownership.isCurrentOwner(
+                  owner,
+                  store.getSnapshot().currentTrack?.id
+                )
+              ) {
+                store.patch({ isPlaying: true, isBuffering: false });
+              }
+            })
+            .catch(() => {});
+        }
       }
     },
 

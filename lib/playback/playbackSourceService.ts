@@ -172,7 +172,8 @@ export interface PlaybackSourceService {
   resolveFallback(
     track: Track,
     currentTime: number,
-    preSearched?: Track | null
+    preSearched?: Track | null,
+    options?: { preferHtml5?: boolean }
   ): Promise<PreparedPlayback | null>;
   resolveYouTubeAlternate(
     track: Track,
@@ -413,16 +414,6 @@ export function createPlaybackSourceService(
           coverUrl: nctMatch.cover_url,
         };
       }
-      if (ytMatch?.youtube_id) {
-        return {
-          source: 'youtube',
-          id: ytMatch.youtube_id,
-          title: ytMatch.title,
-          artist: ytMatch.artist || undefined,
-          duration: ytMatch.duration,
-          coverUrl: ytMatch.cover_url,
-        };
-      }
       if (scMatch?.soundcloud_id || scMatch?.id) {
         const scId = scMatch.soundcloud_id
           ? String(scMatch.soundcloud_id)
@@ -434,6 +425,16 @@ export function createPlaybackSourceService(
           artist: scMatch.artist || undefined,
           duration: scMatch.duration,
           coverUrl: scMatch.cover_url,
+        };
+      }
+      if (ytMatch?.youtube_id) {
+        return {
+          source: 'youtube',
+          id: ytMatch.youtube_id,
+          title: ytMatch.title,
+          artist: ytMatch.artist || undefined,
+          duration: ytMatch.duration,
+          coverUrl: ytMatch.cover_url,
         };
       }
     } catch (err) {
@@ -661,7 +662,8 @@ export function createPlaybackSourceService(
   const resolveFallback = async (
     track: Track,
     currentTime: number,
-    preSearched?: Track | null
+    preSearched?: Track | null,
+    options?: { preferHtml5?: boolean }
   ): Promise<PreparedPlayback | null> => {
     if (disposed || !track) return null;
 
@@ -680,35 +682,45 @@ export function createPlaybackSourceService(
 
     let bestMatch = preSearched ?? null;
 
-    if (!bestMatch && pendingYoutubeFallbackByTrackId.has(track.id)) {
+    if (!bestMatch && !options?.preferHtml5 && pendingYoutubeFallbackByTrackId.has(track.id)) {
       bestMatch = pendingYoutubeFallbackByTrackId.get(track.id) ?? null;
       pendingYoutubeFallbackByTrackId.delete(track.id);
     }
 
-    if (!bestMatch) {
-      const cachedYtId = deps.getCachedYouTubeId(
-        track.title,
-        track.artist,
-        track.album
-      );
-      if (cachedYtId) {
-        bestMatch = {
-          ...track,
-          youtube_id: cachedYtId,
-          source: 'youtube',
-          duration: track.duration || 0,
-        };
-      }
+    const cachedYtId = !bestMatch
+      ? deps.getCachedYouTubeId(
+          track.title,
+          track.artist,
+          track.album,
+          track.duration
+        )
+      : null;
+
+    if (!bestMatch && !options?.preferHtml5 && cachedYtId && cachedYtId !== track.youtube_id) {
+      bestMatch = {
+        ...track,
+        youtube_id: cachedYtId,
+        source: 'youtube',
+        duration: track.duration || 0,
+      };
     }
 
     if (!bestMatch) {
       try {
         const query = `${track.title} ${track.artist || ''}`.trim();
         const fallbackSource =
-          track.source === 'nhaccuatui' || track.nhaccuatui_id ? 'youtube' : 'all';
+          !options?.preferHtml5 &&
+          (track.source === 'nhaccuatui' ||
+            Boolean(track.nhaccuatui_id) ||
+            track.source === 'soundcloud' ||
+            Boolean(track.soundcloud_id))
+            ? 'youtube'
+            : 'all';
         const data = await deps.search(query, fallbackSource);
 
-        const ytList: Track[] = data.youtube || [];
+        const ytList: Track[] = (data.youtube || []).filter(
+          (t: Track) => t.youtube_id && (options?.preferHtml5 || t.youtube_id !== track.youtube_id)
+        );
         const searchedYtMatch = findBestYouTubeMatch(
           ytList,
           track.title,
@@ -766,9 +778,66 @@ export function createPlaybackSourceService(
           };
         }
 
+        const currentScId = track.soundcloud_id ? String(track.soundcloud_id) : '';
+        const scAlternates: Track[] = (data.soundcloud || []).filter((t: Track) => {
+          const id = t.soundcloud_id ? String(t.soundcloud_id) : t.id?.replace(/^sc-/, '');
+          return Boolean(id && id !== currentScId);
+        });
+        const scCandidate = findBestSoundCloudMatch(scAlternates, {
+          title: track.title,
+          artist: track.artist,
+          duration: track.duration,
+        });
+        if (scCandidate && (scCandidate.soundcloud_id || scCandidate.id)) {
+          if (searchedYtMatch?.youtube_id) {
+            setBounded(
+              pendingYoutubeFallbackByTrackId,
+              track.id,
+              searchedYtMatch,
+              TRACK_RESOLUTION_MAX_ENTRIES
+            );
+          }
+          const scId = scCandidate.soundcloud_id
+            ? String(scCandidate.soundcloud_id)
+            : scCandidate.id.replace(/^sc-/, '');
+          const updatedScTrack: Track = {
+            ...track,
+            source: 'soundcloud',
+            soundcloud_id: scId,
+            nhaccuatui_id: undefined,
+            youtube_id: undefined,
+          };
+          const scUrl =
+            (await getAudioUrlCached(updatedScTrack)) ||
+            (deps.getDeterministicSoundCloudUrl
+              ? deps.getDeterministicSoundCloudUrl(scId)
+              : `/api/soundcloud/stream?id=${encodeURIComponent(scId)}`);
+          return {
+            track: updatedScTrack,
+            engine: 'html5',
+            target: scUrl,
+            initialTime: resolveFallbackResumeTime(scCandidate.duration),
+          };
+        }
+
         bestMatch = searchedYtMatch;
       } catch {
         // Search failed
+      }
+    }
+
+    if (!bestMatch && options?.preferHtml5) {
+      const existingYtId =
+        track.youtube_id ||
+        extractYouTubeVideoId(track.file_path || '') ||
+        cachedYtId;
+      if (existingYtId) {
+        bestMatch = {
+          ...track,
+          youtube_id: existingYtId,
+          source: 'youtube',
+          duration: track.duration || 0,
+        };
       }
     }
 
@@ -805,7 +874,7 @@ export function createPlaybackSourceService(
     );
 
     const ytResumeTime = resolveFallbackResumeTime(bestMatch.duration);
-    if (deps.isIOS()) {
+    if (deps.isIOS() || options?.preferHtml5) {
       return {
         track: activeTrack,
         engine: 'html5',

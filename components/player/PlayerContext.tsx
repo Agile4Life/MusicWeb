@@ -120,8 +120,11 @@ export function PlayerProvider({
                 crossOrigin="anonymous"
                 {...({ 'webkit-playsinline': '' } as React.AudioHTMLAttributes<HTMLAudioElement>)}
               />
-              {/* Hidden YouTube Player IFrame container (Must have non-zero dimensions to prevent YouTube SDK 4s auto-pause) */}
-              <div className="fixed top-0 left-0 w-1 h-1 opacity-0 pointer-events-none overflow-hidden -z-50">
+              {/* Hidden YouTube Player IFrame container (Must have non-zero dimensions and non-zero opacity to prevent YouTube SDK / Blink background occlusion auto-pause) */}
+              <div
+                className="fixed top-0 left-0 w-1 h-1 pointer-events-none overflow-hidden -z-50"
+                style={{ opacity: 0.001 }}
+              >
                 <div id="yt-player-container" />
               </div>
             </PlaybackProgressContext.Provider>

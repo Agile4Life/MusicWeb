@@ -290,4 +290,135 @@ describe('playbackSourceService', () => {
     });
     expect(searchMock).toHaveBeenCalledTimes(1);
   });
+
+  it('prioritizes SoundCloud HTML5 streams ahead of YouTube IFrame in emergency catalog search and resolveFallback', async () => {
+    const searchMock = vi.fn().mockResolvedValue({
+      nhaccuatui: [],
+      local: [],
+      youtube: [
+        makeTrack('yt-1', {
+          source: 'youtube',
+          youtube_id: 'yt-video-99',
+          title: 'Starboy',
+          artist: 'The Weeknd',
+          duration: 230,
+        }),
+      ],
+      audius: [],
+      itunes: [],
+      spotify: [],
+      deezer: [],
+      soundcloud: [
+        makeTrack('sc-1', {
+          source: 'soundcloud',
+          soundcloud_id: 'sc-track-99',
+          title: 'Starboy',
+          artist: 'The Weeknd',
+          duration: 230,
+        }),
+      ],
+    });
+
+    const deps = createFakeDeps({
+      search: searchMock,
+      resolveSoundCloudUrl: vi.fn().mockResolvedValue('https://cdn.sc/starboy.mp3'),
+    });
+    const service = createPlaybackSourceService(deps);
+
+    const catalogTrack = makeTrack('sp-starboy', {
+      source: 'spotify',
+      spotify_id: 'sp-99',
+      title: 'Starboy',
+      artist: 'The Weeknd',
+      duration: 230,
+      file_path: '',
+    });
+
+    // 1. Emergency catalog search when primary resolution returns null
+    const playable = await service.resolvePlayable({ track: catalogTrack });
+    expect(playable).toEqual({
+      track: expect.objectContaining({
+        id: 'sp-starboy',
+        source: 'soundcloud',
+        soundcloud_id: 'sc-track-99',
+      }),
+      engine: 'html5',
+      target: 'https://cdn.sc/starboy.mp3',
+      initialTime: 0,
+    });
+
+    // 2. resolveFallback when NCT is absent -> picks SoundCloud HTML5 first, then YouTube if SoundCloud fails
+    const otherTrack = makeTrack('sp-starboy-2', {
+      source: 'spotify',
+      title: 'Starboy',
+      artist: 'The Weeknd',
+      duration: 230,
+    });
+    const fbFirst = await service.resolveFallback(otherTrack, 42);
+    expect(fbFirst).toEqual({
+      track: expect.objectContaining({
+        id: 'sp-starboy-2',
+        source: 'soundcloud',
+        soundcloud_id: 'sc-track-99',
+      }),
+      engine: 'html5',
+      target: 'https://cdn.sc/starboy.mp3',
+      initialTime: 42,
+    });
+
+    const fbSecond = await service.resolveFallback(fbFirst!.track, 42);
+    expect(fbSecond).toEqual({
+      track: expect.objectContaining({
+        id: 'sp-starboy-2',
+        source: 'youtube',
+        youtube_id: 'yt-video-99',
+      }),
+      engine: 'youtube',
+      target: 'yt-video-99',
+      initialTime: 42,
+    });
+  });
+
+  it('passes duration to getCachedYouTubeId, skips identical failing youtube_id, and supports preferHtml5 fallback', async () => {
+    const getCachedYtMock = vi.fn().mockReturnValue('sameFailingId');
+    const deps = createFakeDeps({
+      getCachedYouTubeId: getCachedYtMock,
+    });
+    const service = createPlaybackSourceService(deps);
+
+    const failingYtTrack = makeTrack('yt-fail', {
+      source: 'youtube',
+      youtube_id: 'sameFailingId',
+      title: 'Test Song',
+      artist: 'Test Artist',
+      album: 'Test Album',
+      duration: 195,
+    });
+
+    // Should pass duration and ignore cachedYtId when it equals the already-failing track.youtube_id
+    const fb = await service.resolveFallback(failingYtTrack, 30);
+    expect(getCachedYtMock).toHaveBeenCalledWith(
+      'Test Song',
+      'Test Artist',
+      'Test Album',
+      195
+    );
+    expect(fb).toBeNull();
+
+    // When preferHtml5 is true, routes YouTube track to HTML5 stream proxy
+    const html5Fb = await service.resolveFallback(failingYtTrack, 30, undefined, {
+      preferHtml5: true,
+    });
+    expect(html5Fb).toEqual({
+      track: expect.objectContaining({
+        id: 'yt-fail',
+        youtube_id: 'sameFailingId',
+      }),
+      engine: 'html5',
+      target: '/api/youtube/stream?id=sameFailingId',
+      initialTime: 30,
+    });
+  });
+
 });
+

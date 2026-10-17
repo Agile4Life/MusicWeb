@@ -103,8 +103,8 @@ export function createBrowserSourceDependencies(
     },
     loadPersistedUrl: (trackId) => getStreamUrl(trackId),
     savePersistedUrl: (trackId, url, meta) => saveStreamUrl(trackId, url, meta),
-    getCachedYouTubeId: (title, artist, album) =>
-      getCachedYouTubeId(title, artist, album),
+    getCachedYouTubeId: (title, artist, album, duration) =>
+      getCachedYouTubeId(title, artist, album, duration),
     saveCachedYouTubeId: (track: Track, youtubeId: string) => {
       try {
         const dur = track.duration || 0;
