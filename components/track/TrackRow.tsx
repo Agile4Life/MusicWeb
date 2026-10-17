@@ -336,6 +336,7 @@ function TrackRowComponent({
   }
 
   const handleCancelEdit = () => {
+    setEditTitle(track.title || '')
     setEditArtist(track.artist || '')
     setEditAlbum(track.album || '')
     setEditMode(false)
@@ -397,7 +398,7 @@ function TrackRowComponent({
     >
       {/* Active Left Accent Indicator Bar */}
       {isCurrent && (
-        <div className="absolute left-0 top-2 bottom-2 w-1 bg-[var(--spotify-glow,#22d3ee)] rounded-r-md shadow-[0_0_10px_rgba(34,211,238,0.8)]" />
+        <div className="absolute left-0 top-2 bottom-2 w-1 bg-[var(--spotify-glow,#22d3ee)] rounded-r-md shadow-[0_0_10px_var(--theme-glow-shadow)]" />
       )}
 
       {/* Left Slot: Checkbox (optional) + Index/Play + Cover + Metadata */}
@@ -409,7 +410,7 @@ function TrackRowComponent({
               type="checkbox"
               checked={isSelected}
               onChange={() => onToggleSelect?.()}
-              className="rounded accent-cyan-400 w-4 h-4 cursor-pointer"
+              className="rounded accent-[var(--spotify-glow,#22d3ee)] w-4 h-4 cursor-pointer"
             />
           </div>
         )}
@@ -543,7 +544,7 @@ function TrackRowComponent({
 
       {/* Views */}
       <div
-        className="hidden sm:flex items-center justify-end gap-1.5 w-24 md:w-28 shrink-0 text-[11px] font-mono text-slate-400 hover:text-cyan-400 transition-colors px-2"
+        className="hidden sm:flex items-center justify-end gap-1.5 w-24 md:w-28 shrink-0 text-[11px] font-mono text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] transition-colors px-2"
         title={displayViews ? `${displayViews.toLocaleString('vi-VN')} lượt xem trên YouTube` : undefined}
       >
         {displayViews != null && displayViews > 0 ? (

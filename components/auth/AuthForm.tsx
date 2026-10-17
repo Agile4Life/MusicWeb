@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 import { markEmailAsAllowed } from '@/lib/accessControl'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { LanguageSelector } from '@/components/i18n/LanguageSelector'
+import { useTheme } from '@/components/theme/ThemeContext'
 import { MiniEqualizer } from '@/components/player/MiniEqualizer'
 import { scheduleAuthRedirect } from './authNavigation'
 import { createPasswordSession } from './passwordSession'
@@ -65,6 +66,7 @@ function translateAuthError(err: any): string {
 
 export function AuthForm({ mode }: AuthFormProps) {
   const { t } = useLanguage()
+  const { themeStyle } = useTheme()
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
@@ -299,12 +301,14 @@ export function AuthForm({ mode }: AuthFormProps) {
 
   // 3D Tilt State
   const [tiltStyle, setTiltStyle] = useState<React.CSSProperties>({})
+  const isMinimalFlat = themeStyle === 'minimal-flat'
 
   const handleCardMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (
-      typeof window !== 'undefined' &&
-      (window.matchMedia('(pointer: coarse)').matches ||
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+      isMinimalFlat ||
+      (typeof window !== 'undefined' &&
+        (window.matchMedia('(pointer: coarse)').matches ||
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches))
     ) {
       return
     }
@@ -324,6 +328,7 @@ export function AuthForm({ mode }: AuthFormProps) {
   }
 
   const handleCardMouseLeave = () => {
+    if (isMinimalFlat) return
     setTiltStyle({
       transform: 'perspective(1200px) rotateX(0deg) rotateY(0deg)',
       transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -398,14 +403,26 @@ export function AuthForm({ mode }: AuthFormProps) {
         ref={cardRef}
         onMouseMove={handleCardMouseMove}
         onMouseLeave={handleCardMouseLeave}
-        style={{
-          ...tiltStyle,
-          background: 'linear-gradient(160deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 60%, hsla(213 74% 10% / 0.35) 100%)',
-          backdropFilter: 'blur(28px) saturate(200%) brightness(1.06)',
-          WebkitBackdropFilter: 'blur(28px) saturate(200%) brightness(1.06)',
-          border: '1px solid rgba(255,255,255,0.12)',
-          boxShadow: '0 40px 90px -20px rgba(0,0,0,0.6), 0 0 60px -12px color-mix(in srgb, var(--spotify-glow,#22d3ee) 35%, transparent), inset 0 1px 0 rgba(255,255,255,0.14)',
-        }}
+        style={
+          isMinimalFlat
+            ? {
+                background: 'var(--surface, #1D1720)',
+                backdropFilter: 'none',
+                WebkitBackdropFilter: 'none',
+                border: '1px solid var(--hair-strong, rgba(244, 236, 230, 0.16))',
+                boxShadow: '0 24px 60px rgba(0, 0, 0, 0.55)',
+              }
+            : {
+                ...tiltStyle,
+                background:
+                  'linear-gradient(160deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 60%, hsla(var(--base-h, 224), var(--base-s, 45%), 10%, 0.35) 100%)',
+                backdropFilter: 'blur(28px) saturate(200%) brightness(1.06)',
+                WebkitBackdropFilter: 'blur(28px) saturate(200%) brightness(1.06)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                boxShadow:
+                  '0 40px 90px -20px rgba(0,0,0,0.6), 0 0 60px -12px color-mix(in srgb, var(--spotify-glow,#22d3ee) 35%, transparent), inset 0 1px 0 rgba(255,255,255,0.14)',
+              }
+        }
         className="w-full max-w-[440px] rounded-[26px] relative z-10 overflow-hidden transition-transform duration-150 ease-out mt-20 lg:mt-0"
       >
         {/* Dynamic Card Internal Cursor Spotlight */}
@@ -478,7 +495,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         )}
 
         {successMsg && (
-          <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/30 text-[var(--spotify-glow,#22d3ee)] rounded-2xl text-xs flex items-center gap-2 relative z-10">
+          <div className="mb-4 p-3 bg-[var(--primary-spotify)]/10 border border-[var(--primary-spotify)]/30 text-[var(--spotify-glow,#22d3ee)] rounded-2xl text-xs flex items-center gap-2 relative z-10">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{successMsg}</span>
           </div>

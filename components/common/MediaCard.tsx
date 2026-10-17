@@ -85,7 +85,7 @@ export function MediaCard({
     >
       <Link href={href} onClick={handleCardClick} className="flex flex-col gap-2.5 sm:gap-3 h-full w-full outline-none">
         {/* 3D Elevated Cover Artwork Container */}
-        <div className="aspect-square w-full bg-[#0a0e17] rounded-xl sm:rounded-2xl overflow-hidden relative border border-white/10 flex items-center justify-center shadow-inner">
+        <div className="aspect-square w-full bg-[var(--elevation-1-bg,#0a0e17)] rounded-xl sm:rounded-2xl overflow-hidden relative border border-white/10 flex items-center justify-center shadow-inner">
           {coverUrl ? (
             <img
               src={coverUrl}

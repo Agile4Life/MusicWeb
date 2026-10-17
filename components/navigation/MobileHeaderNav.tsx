@@ -22,6 +22,7 @@ import {
   DiscAlbum,
   ChevronLeft,
   Sparkles,
+  FolderArchive,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Playlist } from '@/types'
@@ -354,8 +355,13 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
                 onClick={() => setIsDrawerOpen(false)}
                 className={`sidebar-item text-xs font-semibold ${pathname === '/drive' ? 'active' : ''}`}
               >
-                <Cloud className="w-4 h-4" />
-                <span>{t('drive')}</span>
+                <FolderArchive className="w-4 h-4 text-[#22c55e]" />
+                <div className="flex items-center justify-between flex-1">
+                  <span>{t('drive')}</span>
+                  <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-[#22c55e]/20 text-[#22c55e] border border-[#22c55e]/35">
+                    CLOUD
+                  </span>
+                </div>
               </Link>
 
               <Link
@@ -477,9 +483,9 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
                       <span className="truncate flex-1">{pl.name}</span>
                       <button
                         onClick={(e) => handleDeletePlaylist(e, pl.id, pl.name)}
-                        className="p-1 text-slate-500 hover:text-red-400 opacity-60"
+                        className="p-2 text-slate-500 hover:text-red-400 opacity-60"
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </Link>
                   ))}

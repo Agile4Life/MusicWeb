@@ -25,6 +25,10 @@ export function TiltCard({
   const [isReducedMotion, setIsReducedMotion] = useState(() =>
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   )
+  const [isMinimalFlat, setIsMinimalFlat] = useState(() =>
+    typeof document !== 'undefined' &&
+    document.documentElement.getAttribute('data-theme-style') === 'minimal-flat',
+  )
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -37,7 +41,18 @@ export function TiltCard({
     hoverMatch.addEventListener?.('change', handleHoverChange)
     motionMatch.addEventListener?.('change', handleMotionChange)
 
+    const syncThemeStyle = () => {
+      setIsMinimalFlat(isMinimalTheme(document.documentElement.getAttribute('data-theme-style')))
+    }
+    syncThemeStyle()
+    const observer = new MutationObserver(syncThemeStyle)
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme-style'],
+    })
+
     return () => {
+      observer.disconnect()
       hoverMatch.removeEventListener?.('change', handleHoverChange)
       motionMatch.removeEventListener?.('change', handleMotionChange)
     }
@@ -45,7 +60,15 @@ export function TiltCard({
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!isHoverCapable || isReducedMotion) return
+      if (
+        !isHoverCapable ||
+        isReducedMotion ||
+        isMinimalFlat ||
+        (typeof document !== 'undefined' &&
+          isMinimalTheme(document.documentElement.getAttribute('data-theme-style')))
+      ) {
+        return
+      }
       const card = cardRef.current
       if (!card) return
 
@@ -78,7 +101,7 @@ export function TiltCard({
         card.style.setProperty('--mouse-y', `${(((clientY - rect.top) / rect.height) * 100).toFixed(1)}%`)
       })
     },
-    [isHoverCapable, isReducedMotion, isHovering, maxTilt]
+    [isHoverCapable, isReducedMotion, isMinimalFlat, isHovering, maxTilt]
   )
 
   const handleMouseLeave = useCallback(() => {
@@ -110,7 +133,7 @@ export function TiltCard({
       onMouseLeave={handleMouseLeave}
       className={`group relative rounded-2xl overflow-hidden transition-all duration-300 ease-out motion-reduce:!transform-none tilt-card ${className}`}
       style={{
-        transform: isHovering && isHoverCapable && !isReducedMotion
+        transform: isHovering && isHoverCapable && !isReducedMotion && !isMinimalFlat
           ? 'perspective(1000px) rotateX(var(--rotate-x, 0deg)) rotateY(var(--rotate-y, 0deg)) scale3d(1.015, 1.015, 1.015)'
           : 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)',
         transition: isHovering ? 'transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease' : 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease',
@@ -123,7 +146,7 @@ export function TiltCard({
       </div>
 
       {/* Subtle Specular Highlight behind text for glassy shine without blurring letters */}
-      {isHoverCapable && !isReducedMotion && (
+      {isHoverCapable && !isReducedMotion && !isMinimalFlat && (
         <div
           className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300 motion-reduce:hidden z-0"
           style={{

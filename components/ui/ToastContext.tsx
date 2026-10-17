@@ -108,11 +108,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               data-toast-type={t.type}
               className={`pointer-events-auto w-full glass-panel p-3.5 rounded-2xl shadow-2xl border flex items-center justify-between gap-3 transition-all duration-300 animate-in slide-in-from-top-5 fade-in select-none ${
                 isSuccess
-                  ? 'bg-[#0a1815]/95 border-emerald-500/40 text-white shadow-emerald-950/40'
+                  ? 'bg-[var(--elevation-2-bg,#0a1815)]/95 border-[var(--primary-spotify,#10b981)]/40 text-white shadow-[var(--theme-glow-shadow)]'
                   : isError
                   ? 'bg-[#1c0d12]/95 border-rose-500/40 text-white shadow-rose-950/40'
                   : isInfo
-                  ? 'bg-[#0b1626]/95 border-[var(--spotify-glow,#22d3ee)]/40 text-white shadow-[var(--theme-glow-shadow)]'
+                  ? 'bg-[var(--elevation-2-bg,#0b1626)]/95 border-[var(--spotify-glow,#22d3ee)]/40 text-white shadow-[var(--theme-glow-shadow)]'
                   : 'bg-[#181308]/95 border-amber-500/40 text-white shadow-amber-950/40'
               }`}
             >
@@ -121,7 +121,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 <div
                   className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
                     isSuccess
-                      ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                      ? 'bg-[var(--primary-spotify,#10b981)]/20 border-[var(--primary-spotify,#10b981)]/40 text-[var(--spotify-glow,#34d399)]'
                       : isError
                       ? 'bg-rose-500/20 border-rose-500/40 text-rose-400'
                       : isInfo

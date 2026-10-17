@@ -9,7 +9,6 @@ import { triggerDrivePrewarm } from '@/lib/googleDriveUpload'
 import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
 import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
 import { useBatchViewCounts, getViewCountCacheKey } from '@/hooks/useBatchViewCounts'
-import { buildStyleCoherentQueue } from '@/lib/trackClassifier'
 
 interface TrackListProps {
   tracks: Track[]
@@ -22,7 +21,6 @@ interface TrackListProps {
   onBulkUpdated?: (trackIds: string[], updates: Partial<Track>) => void
   onBulkDeleted?: (trackIds: string[]) => void
   isSearchResult?: boolean
-  preserveQueueOrder?: boolean
 }
 
 export function TrackList({
@@ -36,7 +34,6 @@ export function TrackList({
   onBulkUpdated,
   onBulkDeleted,
   isSearchResult = false,
-  preserveQueueOrder = false,
 }: TrackListProps) {
   const { currentTrack, isPlaying, isBuffering } = usePlayerTrack()
   const { playTrack, playSearchTrack, togglePlay, addToQueue } = usePlayerControls()
@@ -80,7 +77,7 @@ export function TrackList({
 
   if (tracks.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-400 bg-[#181818]/60 border border-white/5 rounded-2xl">
+      <div className="empty-state text-center py-12 text-gray-400 bg-[var(--elevation-1-bg,#181818)]/60 border border-white/5 rounded-2xl">
         <p className="text-base font-semibold text-white">Chưa có bài hát nào</p>
       </div>
     )
@@ -255,7 +252,7 @@ export function TrackList({
                 type="checkbox"
                 checked={allSelected}
                 onChange={toggleSelectAll}
-                className="rounded accent-cyan-400 w-4 h-4 cursor-pointer"
+                className="rounded accent-[var(--spotify-glow,#22d3ee)] w-4 h-4 cursor-pointer"
               />
             </div>
           )}
@@ -319,10 +316,7 @@ export function TrackList({
                 } else if (isSearchResult) {
                   playSearchTrack(track)
                 } else {
-                  playTrack(
-                    track,
-                    preserveQueueOrder ? tracks : buildStyleCoherentQueue(track, tracks)
-                  )
+                  playTrack(track, tracks)
                 }
               }}
               onAddToQueue={() => addToQueue(track)}
@@ -343,7 +337,7 @@ export function TrackList({
 
       {/* 🚀 FLOATING BULK ACTION BAR (ADMIN ONLY) */}
       {isAdmin && selectedIds.size > 0 && (
-        <div className="fixed bottom-24 lg:bottom-8 left-1/2 -translate-x-1/2 z-[9990] bg-[#090d16]/95 backdrop-blur-2xl border border-[var(--spotify-glow,#22d3ee)]/40 text-white px-4 sm:px-5 py-2.5 sm:py-3 rounded-full shadow-2xl shadow-black flex items-center gap-2.5 sm:gap-3 animate-in fade-in slide-in-from-bottom-4 duration-200 select-none max-w-[92vw]">
+        <div className="fixed bottom-24 lg:bottom-8 left-1/2 -translate-x-1/2 z-[9990] bg-[var(--elevation-2-bg,#090d16)]/95 backdrop-blur-2xl border border-[var(--spotify-glow,#22d3ee)]/40 text-white px-4 sm:px-5 py-2.5 sm:py-3 rounded-full shadow-2xl shadow-black flex items-center gap-2.5 sm:gap-3 animate-in fade-in slide-in-from-bottom-4 duration-200 select-none max-w-[92vw]">
           <div className="flex items-center gap-2 pr-2 border-r border-white/10 text-xs font-bold text-[var(--spotify-glow,#22d3ee)]">
             <CheckSquare className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
             <span>Đã chọn {selectedIds.size} bài</span>
@@ -393,7 +387,7 @@ export function TrackList({
       {/* 🚀 BULK EDIT MODAL */}
       {showBulkModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="glass-panel w-full max-w-md p-6 rounded-3xl border border-[var(--spotify-glow,#22d3ee)]/30 bg-[#0b1019] shadow-2xl relative flex flex-col gap-5 my-auto animate-in zoom-in-95 duration-200">
+          <div className="glass-panel modal-content w-full max-w-md p-6 rounded-3xl border border-[var(--spotify-glow,#22d3ee)]/30 bg-[var(--elevation-2-bg,#0b1019)] shadow-2xl relative flex flex-col gap-5 my-auto animate-in zoom-in-95 duration-200">
             <button
               onClick={() => setShowBulkModal(false)}
               className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-xl hover:bg-white/10 transition-colors"
@@ -473,7 +467,7 @@ export function TrackList({
                 type="button"
                 disabled={saving}
                 onClick={handleExecuteBulkEdit}
-                className="bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-black font-extrabold text-xs px-5 py-2.5 rounded-full flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all disabled:opacity-50"
+                className="bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black font-extrabold text-xs px-5 py-2.5 rounded-full flex items-center gap-2 shadow-[0_4px_16px_var(--theme-glow-shadow)] transition-all disabled:opacity-50"
               >
                 {saving ? (
                   <>

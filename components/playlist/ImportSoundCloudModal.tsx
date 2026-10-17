@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import {
   X,
@@ -105,7 +106,7 @@ export function ImportSoundCloudModal({
     prevIsOpenRef.current = isOpen
   }, [isOpen, initialPlaylist, initialTracks, initialUrl])
 
-  if (!isOpen) return null
+  if (!isOpen || typeof document === 'undefined') return null
 
   // Step 1: Submit URL / Shortlink
   const handleFetchPlaylist = async (e?: React.FormEvent) => {
@@ -266,9 +267,9 @@ export function ImportSoundCloudModal({
     }
   }
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-gradient-to-b from-[var(--elevation-2-bg,#1c1512)] to-[var(--bg-space,#0f0e0d)] border border-[var(--spotify-glow,#ff5500)]/30 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="glass-panel modal-content relative w-full max-w-2xl bg-[var(--elevation-2-bg,#0f121a)] bg-gradient-to-b from-[var(--elevation-2-bg,#1c1512)] to-[var(--bg-space,#0f0e0d)] border border-[var(--spotify-glow,#ff5500)]/30 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Modal Top Header */}
         <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-white/[0.08] bg-white/[0.02]">
           <div className="flex items-center gap-2.5">
@@ -558,7 +559,7 @@ export function ImportSoundCloudModal({
           {/* STEP 5: Complete */}
           {step === 'complete' && (
             <div className="py-8 flex flex-col items-center justify-center gap-5 text-center">
-              <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-[0_0_25px_rgba(16,185,129,0.3)]">
+              <div className="w-16 h-16 rounded-full bg-[var(--primary-spotify,#06b6d4)]/20 border border-[var(--primary-spotify,#06b6d4)]/40 flex items-center justify-center text-[var(--spotify-glow,#22d3ee)] shadow-[0_0_25px_var(--theme-glow-shadow)]">
                 <CheckCircle2 className="w-8 h-8" />
               </div>
 
@@ -567,7 +568,7 @@ export function ImportSoundCloudModal({
                   Nhập Playlist thành công!
                 </h3>
                 <p className="text-xs text-slate-300 max-w-sm">
-                  Đã thêm thành công <strong className="text-emerald-400 font-bold">{importedTrackCount}</strong> bài hát vào playlist <strong className="text-white font-bold">"{playlistName}"</strong> của bạn.
+                  Đã thêm thành công <strong className="text-[var(--spotify-glow,#22d3ee)] font-bold">{importedTrackCount}</strong> bài hát vào playlist <strong className="text-white font-bold">"{playlistName}"</strong> của bạn.
                 </p>
               </div>
 
@@ -580,7 +581,7 @@ export function ImportSoundCloudModal({
                 </button>
                 <button
                   onClick={handleGoToPlaylist}
-                  className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-emerald-500 to-teal-600 shadow-[0_4px_15px_rgba(16,185,129,0.3)] hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                  className="px-6 py-2.5 rounded-xl text-xs font-bold text-black bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--primary-spotify,#06b6d4)] shadow-[0_4px_15px_var(--theme-glow-shadow)] hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
                 >
                   <ListMusic className="w-4 h-4" />
                   <span>Xem Playlist vừa tạo</span>
@@ -590,6 +591,7 @@ export function ImportSoundCloudModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

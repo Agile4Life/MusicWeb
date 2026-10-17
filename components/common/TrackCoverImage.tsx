@@ -85,7 +85,7 @@ function TrackCoverImageComponent({
 
   if (!currentSrc || hasError) {
     return (
-      <div className="w-full h-full bg-slate-800 border border-white/10 flex items-center justify-center">
+      <div className="w-full h-full bg-[var(--bg-surface-2,#1e293b)] border border-white/10 flex items-center justify-center">
         <Music className={fallbackIconClassName} />
       </div>
     )

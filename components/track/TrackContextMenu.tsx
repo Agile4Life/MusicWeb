@@ -97,10 +97,7 @@ export function TrackContextMenu({
     }
 
     const handleScrollOrResize = () => {
-      // Only close desktop dropdown on scroll/resize; mobile sheet has touch interactions
-      if (!isMobile) {
-        onClose()
-      }
+      onClose()
     }
 
     if (isMobile) {
@@ -110,9 +107,9 @@ export function TrackContextMenu({
     const timer = setTimeout(() => {
       window.addEventListener('pointerdown', handlePointerDownOutside)
       window.addEventListener('keydown', handleKeyDown)
+      window.addEventListener('resize', handleScrollOrResize)
       if (!isMobile) {
         window.addEventListener('scroll', handleScrollOrResize, true)
-        window.addEventListener('resize', handleScrollOrResize)
       }
     }, 0)
 
@@ -120,9 +117,9 @@ export function TrackContextMenu({
       clearTimeout(timer)
       window.removeEventListener('pointerdown', handlePointerDownOutside)
       window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('resize', handleScrollOrResize)
       if (!isMobile) {
         window.removeEventListener('scroll', handleScrollOrResize, true)
-        window.removeEventListener('resize', handleScrollOrResize)
       }
       if (isMobile) {
         document.body.style.overflow = ''
@@ -362,7 +359,7 @@ export function TrackContextMenu({
                   }`}
                 >
                   {isResolvingAlbum ? (
-                    <Loader2 className="w-3.5 h-3.5 text-purple-400 animate-spin" />
+                    <Loader2 className="w-3.5 h-3.5 text-[var(--theme-secondary,#818cf8)] animate-spin" />
                   ) : (
                     <DiscAlbum
                       className={`w-3.5 h-3.5 transition-transform group-hover:scale-110 ${
@@ -393,7 +390,7 @@ export function TrackContextMenu({
                   <div
                     className={`p-1 rounded-md flex items-center justify-center shrink-0 ${
                       isLiquid
-                        ? 'bg-sky-500/15 border border-sky-500/30'
+                        ? 'bg-[var(--primary-spotify,#06b6d4)]/15 border border-[var(--primary-spotify,#06b6d4)]/30'
                         : isMinimal
                         ? 'bg-[var(--accent-strong)]/10'
                         : ''
@@ -401,13 +398,13 @@ export function TrackContextMenu({
                   >
                     <Pencil
                       className={`w-3.5 h-3.5 ${
-                        isMinimal ? 'text-[var(--accent-strong,#E8A94F)]' : 'text-sky-400'
+                        isMinimal ? 'text-[var(--accent-strong,#E8A94F)]' : 'text-[var(--spotify-glow,#22d3ee)]'
                       }`}
                     />
                   </div>
                   <span
                     className={
-                      isMinimal ? 'text-[var(--accent-strong,#E8A94F)]' : 'text-sky-300'
+                      isMinimal ? 'text-[var(--accent-strong,#E8A94F)]' : 'text-[var(--spotify-glow,#22d3ee)]'
                     }
                   >
                     Sửa Tên / Nghệ sĩ / Album
@@ -435,7 +432,7 @@ export function TrackContextMenu({
                           className={`w-3.5 h-3.5 shrink-0 ${
                             isMinimal
                               ? 'text-[var(--sage,#7C9070)]'
-                              : 'text-emerald-400'
+                              : 'text-[var(--primary-spotify,#06b6d4)]'
                           }`}
                         />
                         <span className="truncate">{pl.name}</span>
@@ -666,7 +663,7 @@ export function TrackContextMenu({
                           ? 'bg-[var(--primary-spotify)]/20 border border-[var(--primary-spotify)]/30 shadow-[0_0_12px_var(--spotify-glow)]'
                           : isMinimal
                           ? 'bg-[var(--accent)]/15 border border-[var(--accent)]/30'
-                          : 'bg-cyan-500/10'
+                          : 'bg-[var(--primary-spotify,#06b6d4)]/10'
                       }`}
                     >
                       <ListMusic
@@ -704,11 +701,11 @@ export function TrackContextMenu({
                         ? 'bg-[var(--theme-secondary,#818cf8)]/20 border border-[var(--theme-secondary,#818cf8)]/30'
                         : isMinimal
                         ? 'bg-[var(--surface-3)]'
-                        : 'bg-purple-500/10'
+                        : 'bg-[var(--theme-secondary,#818cf8)]/10'
                     }`}
                   >
                     {isResolvingAlbum ? (
-                      <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
+                      <Loader2 className="w-4 h-4 text-[var(--theme-secondary,#818cf8)] animate-spin" />
                     ) : (
                       <DiscAlbum
                         className={`w-4 h-4 ${
@@ -735,17 +732,17 @@ export function TrackContextMenu({
                     <div
                       className={`p-2 rounded-xl flex items-center justify-center shrink-0 ${
                         isLiquid
-                          ? 'bg-sky-500/20 border border-sky-500/30'
+                          ? 'bg-[var(--primary-spotify,#06b6d4)]/20 border border-[var(--primary-spotify,#06b6d4)]/30'
                           : isMinimal
                           ? 'bg-[var(--accent-strong)]/15 border border-[var(--accent-strong)]/30'
-                          : 'bg-blue-500/10'
+                          : 'bg-[var(--primary-spotify,#06b6d4)]/10'
                       }`}
                     >
                       <Pencil
                         className={`w-4 h-4 ${
                           isMinimal
                             ? 'text-[var(--accent-strong,#E8A94F)]'
-                            : 'text-sky-400'
+                            : 'text-[var(--spotify-glow,#22d3ee)]'
                         }`}
                       />
                     </div>
@@ -753,7 +750,7 @@ export function TrackContextMenu({
                       className={
                         isMinimal
                           ? 'text-[var(--accent-strong,#E8A94F)] font-semibold'
-                          : 'text-sky-300 font-semibold'
+                          : 'text-[var(--spotify-glow,#22d3ee)] font-semibold'
                       }
                     >
                       Sửa Tên / Nghệ sĩ / Album
@@ -779,17 +776,17 @@ export function TrackContextMenu({
                           <div
                             className={`p-1.5 rounded-lg flex items-center justify-center shrink-0 ${
                               isLiquid
-                                ? 'bg-emerald-500/15 border border-emerald-500/25'
+                                ? 'bg-[var(--primary-spotify,#06b6d4)]/15 border border-[var(--primary-spotify,#06b6d4)]/25'
                                 : isMinimal
                                 ? 'bg-[var(--sage)]/15 border border-[var(--sage)]/30'
-                                : 'bg-emerald-500/10'
+                                : 'bg-[var(--primary-spotify,#06b6d4)]/10'
                             }`}
                           >
                             <Plus
                               className={`w-3.5 h-3.5 ${
                                 isMinimal
                                   ? 'text-[var(--sage,#7C9070)]'
-                                  : 'text-emerald-400'
+                                  : 'text-[var(--primary-spotify,#06b6d4)]'
                               }`}
                             />
                           </div>

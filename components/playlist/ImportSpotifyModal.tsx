@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import {
   X,
@@ -116,7 +117,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
     prevIsOpenRef.current = isOpen
   }, [isOpen])
 
-  if (!isOpen) return null
+  if (!isOpen || typeof document === 'undefined') return null
 
   // STAGE 4.1: Handle URL input submission
   const handleParseAndFetchMeta = async (e?: React.FormEvent) => {
@@ -390,9 +391,9 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
     return true
   })
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md p-0 sm:p-4 animate-in fade-in duration-200">
-      <div className="relative w-full max-sm:rounded-t-3xl max-sm:rounded-b-none sm:max-w-2xl max-h-[92vh] sm:max-h-[85vh] bg-[#0f121a] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-200 animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200">
+      <div className="glass-panel modal-content relative w-full max-sm:rounded-t-3xl max-sm:rounded-b-none sm:max-w-2xl max-h-[92vh] sm:max-h-[85vh] bg-[var(--elevation-2-bg,#0f121a)] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-200 animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200">
         
         {/* Mobile Drag Indicator Bar */}
         <div className="w-12 h-1 bg-white/20 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
@@ -834,14 +835,14 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
           {/* STEP 6: COMPLETE */}
           {step === 'complete' && (
             <div className="py-6 sm:py-8 space-y-5 sm:space-y-6 text-center">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mx-auto shadow-lg shadow-emerald-500/10">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/30 flex items-center justify-center text-[var(--spotify-glow,#22d3ee)] mx-auto shadow-lg shadow-[var(--theme-glow-shadow)]">
                 <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10" />
               </div>
 
               <div className="space-y-2">
                 <h3 className="text-lg sm:text-xl font-bold text-white">Nhập Playlist thành công!</h3>
                 <p className="text-xs text-slate-300 max-w-md mx-auto leading-relaxed">
-                  Đã thêm thành công <strong className="text-emerald-400">{importedTrackCount}</strong> bài hát vào playlist{' '}
+                  Đã thêm thành công <strong className="text-[var(--spotify-glow,#22d3ee)]">{importedTrackCount}</strong> bài hát vào playlist{' '}
                   <strong className="text-white">"{playlistName}"</strong>.
                 </p>
               </div>
@@ -859,7 +860,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
                       onClose()
                       router.push(`/playlist/${createdPlaylistId}`)
                     }}
-                    className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
+                    className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[var(--theme-glow-shadow)]"
                   >
                     <span>Mở Playlist ngay</span>
                     <ExternalLink className="w-4 h-4" />
@@ -875,7 +876,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
       {/* MANUAL MATCHING SUB-MODAL */}
       {manualMatchTrack && (
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="w-full max-sm:rounded-t-3xl max-sm:rounded-b-none sm:max-w-lg max-h-[85vh] bg-[#141824] border border-white/15 rounded-2xl p-4 sm:p-5 shadow-2xl space-y-4 text-slate-200 flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
+          <div className="glass-panel modal-content w-full max-sm:rounded-t-3xl max-sm:rounded-b-none sm:max-w-lg max-h-[85vh] bg-[var(--elevation-2-bg,#141824)] border border-white/15 rounded-2xl p-4 sm:p-5 shadow-2xl space-y-4 text-slate-200 flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
             
             {/* Mobile handle indicator */}
             <div className="w-10 h-1 bg-white/20 rounded-full mx-auto my-1 sm:hidden shrink-0" />
@@ -961,6 +962,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
           </div>
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   )
 }

@@ -62,7 +62,7 @@ export function CustomSelect({
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-full min-w-[200px] rounded-2xl bg-[var(--elevation-3-bg)] border border-white/10 shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-full min-w-[200px] rounded-2xl bg-[var(--elevation-3-bg)] border border-white/10 shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
           {options.map((opt) => {
             const isSelected = opt.value === value
             return (

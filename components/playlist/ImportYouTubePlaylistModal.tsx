@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import {
   X,
@@ -89,7 +90,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
     prevIsOpenRef.current = isOpen
   }, [isOpen])
 
-  if (!isOpen) return null
+  if (!isOpen || typeof document === 'undefined') return null
 
   // Step 1: Submit URL / ID
   const handleFetchPlaylist = async (e?: React.FormEvent) => {
@@ -242,9 +243,9 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
 
   const skippedTracksCount = (meta?.total_tracks || 0) - fetchedTracks.length
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="bg-[#0f172a] border border-white/10 max-sm:rounded-t-3xl max-sm:rounded-b-none sm:rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh] animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200">
+      <div className="glass-panel modal-content bg-[var(--elevation-2-bg,#0f172a)] border border-white/10 max-sm:rounded-t-3xl max-sm:rounded-b-none sm:rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh] animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200">
         {/* Mobile Drag Indicator Bar */}
         <div className="w-12 h-1 bg-white/20 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
 
@@ -433,6 +434,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
                   <input
                     type="checkbox"
                     checked={selectedTrackIds.size === fetchedTracks.length && fetchedTracks.length > 0}
+                    readOnly
                     className="rounded accent-[var(--primary-spotify,#06b6d4)] cursor-pointer"
                   />
                   <span>Chọn tất cả ({selectedTrackIds.size}/{fetchedTracks.length})</span>
@@ -457,6 +459,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
                       <input
                         type="checkbox"
                         checked={isChecked}
+                        readOnly
                         className="rounded accent-[var(--primary-spotify,#06b6d4)] cursor-pointer"
                       />
                       <span className="text-[11px] font-mono text-slate-500 w-6 shrink-0 text-center">{index + 1}</span>
@@ -526,7 +529,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
           {/* STEP 6: Complete */}
           {step === 'complete' && (
             <div className="flex flex-col items-center justify-center gap-5 sm:gap-6 py-6 sm:py-8 text-center">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-xl">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/30 flex items-center justify-center text-[var(--spotify-glow,#22d3ee)] shadow-xl">
                 <CheckCircle2 className="w-7 h-7 sm:w-8 sm:h-8" />
               </div>
               <div className="flex flex-col gap-1">
@@ -550,7 +553,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
                       onClose()
                       router.push(`/playlist/${createdPlaylistId}`)
                     }}
-                    className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-black shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all cursor-pointer"
+                    className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs font-bold bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black shadow-lg shadow-[var(--theme-glow-shadow)] flex items-center gap-2 transition-all cursor-pointer"
                   >
                     <span>Mở Playlist Mới</span>
                     <ArrowRight className="w-4 h-4" />
@@ -561,6 +564,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

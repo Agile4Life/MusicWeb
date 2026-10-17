@@ -17,6 +17,7 @@ import { usePlayerControls } from '@/components/player/PlayerContext'
 import { useSearch } from '@/components/search/SearchContext'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { useScrollContext } from '@/components/navigation/ScrollContext'
+import { useTheme } from '@/components/theme/ThemeContext'
 import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import {
@@ -76,6 +77,7 @@ function useScrollProgress(
  */
 export function MobileScrollHeader() {
   const { t } = useLanguage()
+  const { themeStyle } = useTheme()
   const pathname = usePathname()
   const router = useRouter()
   const { playTrack, playSearchTrack } = usePlayerControls()
@@ -355,13 +357,17 @@ export function MobileScrollHeader() {
               window.dispatchEvent(new Event('musicweb-tab-home'))
             }}
             className="pointer-events-auto flex items-center justify-center px-3 py-1.5 rounded-[14px] group cursor-pointer transition-all active:scale-95"
-            style={{
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.12)',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.14)',
-              backdropFilter: 'blur(12px) saturate(160%)',
-              WebkitBackdropFilter: 'blur(12px) saturate(160%)',
-            }}
+            style={
+              themeStyle === 'minimal-flat'
+                ? undefined
+                : {
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.14)',
+                    backdropFilter: 'blur(12px) saturate(160%)',
+                    WebkitBackdropFilter: 'blur(12px) saturate(160%)',
+                  }
+            }
             title="MusicWeb"
           >
             <img
@@ -416,15 +422,19 @@ export function MobileScrollHeader() {
           {/* Continuous Search Pill with rich Frosted Glass recipe */}
           <div
             className="relative flex items-center h-[52px] rounded-[37px] overflow-hidden select-none"
-            style={{
-              /* Frosted Liquid Glass Recipe */
-              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 40%, rgba(13, 17, 26, 0.72) 100%)',
-              backdropFilter: 'blur(32px) saturate(210%) brightness(1.08)',
-              WebkitBackdropFilter: 'blur(32px) saturate(210%) brightness(1.08)',
-              border: '1px solid rgba(255, 255, 255, 0.22)',
-              borderTopColor: 'rgba(255, 255, 255, 0.22)',
-              boxShadow: '0 12px 36px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 25px -4px rgba(34, 211, 238, 0.15)',
-            }}
+            style={
+              themeStyle === 'minimal-flat'
+                ? undefined
+                : {
+                    /* Frosted Liquid Glass Recipe */
+                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 40%, rgba(13, 17, 26, 0.72) 100%)',
+                    backdropFilter: 'blur(32px) saturate(210%) brightness(1.08)',
+                    WebkitBackdropFilter: 'blur(32px) saturate(210%) brightness(1.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.22)',
+                    borderTopColor: 'rgba(255, 255, 255, 0.22)',
+                    boxShadow: '0 12px 36px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 25px -4px var(--theme-glow-shadow, rgba(34, 211, 238, 0.15))',
+                  }
+            }
           >
             {/* Top specular highlight arc */}
             <span
@@ -534,15 +544,19 @@ export function MobileScrollHeader() {
           {showDropdown && (
             <div
               className="absolute top-full left-0 right-0 mt-2 rounded-2xl shadow-2xl z-50 overflow-hidden"
-              style={{
-                /* Liquid glass dropdown */
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 40%, hsla(213 74% 12% / 0.45) 100%)',
-                backdropFilter: 'blur(40px) saturate(220%) brightness(1.08)',
-                WebkitBackdropFilter: 'blur(40px) saturate(220%) brightness(1.08)',
-                border: '1px solid rgba(255,255,255,0.25)',
-                borderTopColor: 'rgba(255,255,255,0.25)',
-                boxShadow: '0 20px 50px -10px rgba(0,0,0,0.6), 0 0 40px -4px rgba(34,211,238,0.2), inset 0 1px 0 rgba(255,255,255,0.30)',
-              }}
+              style={
+                themeStyle === 'minimal-flat'
+                  ? undefined
+                  : {
+                      /* Liquid glass dropdown */
+                      background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 40%, hsla(var(--base-h, 224), var(--base-s, 45%), 12%, 0.45) 100%)',
+                      backdropFilter: 'blur(40px) saturate(220%) brightness(1.08)',
+                      WebkitBackdropFilter: 'blur(40px) saturate(220%) brightness(1.08)',
+                      border: '1px solid rgba(255,255,255,0.25)',
+                      borderTopColor: 'rgba(255,255,255,0.25)',
+                      boxShadow: '0 20px 50px -10px rgba(0,0,0,0.6), 0 0 40px -4px var(--theme-glow-shadow, rgba(34,211,238,0.2)), inset 0 1px 0 rgba(255,255,255,0.30)',
+                    }
+              }
             >
               <div className="p-2 max-h-72 overflow-y-auto flex flex-col gap-1 custom-slim-scrollbar">
                 {searchingSuggestions && suggestions.length === 0 ? (

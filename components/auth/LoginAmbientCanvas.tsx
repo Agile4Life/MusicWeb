@@ -56,20 +56,41 @@ export function LoginAmbientCanvas() {
     window.addEventListener('resize', handleResize)
 
     // Theme-aware palette — read CSS custom props or fallback
-    const rootStyle = getComputedStyle(document.documentElement)
-    const c1 = normalizeHex(rootStyle.getPropertyValue('--spotify-glow').trim() || '#22d3ee', '#22d3ee')
-    const c2 = normalizeHex(rootStyle.getPropertyValue('--primary-spotify').trim() || '#6366f1', '#6366f1')
-    const c3 = '#ec4899'
-    const bgSpace = rootStyle.getPropertyValue('--bg-space').trim() || '#07090e'
+    let bgSpace = '#07090e'
 
     const orbs: Orb[] = [
-      { x: width * 0.2, y: height * 0.15, vx: 0.4, vy: 0.3, radius: 420, color: c1 },
-      { x: width * 0.75, y: height * 0.25, vx: -0.35, vy: 0.4, radius: 480, color: c2 },
-      { x: width * 0.5, y: height * 0.65, vx: 0.3, vy: -0.35, radius: 400, color: c3 },
-      { x: width * 0.85, y: height * 0.8, vx: -0.25, vy: -0.25, radius: 350, color: c1 },
-      { x: width * 0.35, y: height * 0.5, vx: 0.2, vy: 0.3, radius: 380, color: c2 },
-      { x: width * 0.6, y: height * 0.4, vx: -0.3, vy: -0.2, radius: 320, color: c3 },
+      { x: width * 0.2, y: height * 0.15, vx: 0.4, vy: 0.3, radius: 420, color: '#22d3ee' },
+      { x: width * 0.75, y: height * 0.25, vx: -0.35, vy: 0.4, radius: 480, color: '#6366f1' },
+      { x: width * 0.5, y: height * 0.65, vx: 0.3, vy: -0.35, radius: 400, color: '#6366f1' },
+      { x: width * 0.85, y: height * 0.8, vx: -0.25, vy: -0.25, radius: 350, color: '#22d3ee' },
+      { x: width * 0.35, y: height * 0.5, vx: 0.2, vy: 0.3, radius: 380, color: '#6366f1' },
+      { x: width * 0.6, y: height * 0.4, vx: -0.3, vy: -0.2, radius: 320, color: '#6366f1' },
     ]
+
+    const syncThemeColors = () => {
+      const style = getComputedStyle(document.documentElement)
+      const c1 = normalizeHex(style.getPropertyValue('--spotify-glow').trim() || '#22d3ee', '#22d3ee')
+      const c2 = normalizeHex(style.getPropertyValue('--primary-spotify').trim() || '#6366f1', '#6366f1')
+      const c3 = normalizeHex(style.getPropertyValue('--theme-secondary').trim() || '#6366f1', '#6366f1')
+      bgSpace = style.getPropertyValue('--bg-space').trim() || '#07090e'
+
+      orbs[0].color = c1
+      orbs[1].color = c2
+      orbs[2].color = c3
+      orbs[3].color = c1
+      orbs[4].color = c2
+      orbs[5].color = c3
+    }
+
+    syncThemeColors()
+
+    const observer = new MutationObserver(() => {
+      syncThemeColors()
+    })
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['style', 'class', 'data-theme', 'data-theme-style'],
+    })
 
     let time = 0
     let isHidden = document.hidden
@@ -125,6 +146,7 @@ export function LoginAmbientCanvas() {
     render()
 
     return () => {
+      observer.disconnect()
       window.removeEventListener('resize', handleResize)
       document.removeEventListener('visibilitychange', handleVisibility)
       cancelAnimationFrame(animationFrameId)

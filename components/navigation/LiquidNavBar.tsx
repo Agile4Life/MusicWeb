@@ -689,7 +689,7 @@ export function LiquidNavBar({
                     inset: 0,
                     borderRadius: 28,
                     pointerEvents: 'none',
-                    background: 'linear-gradient(135deg, rgba(34,211,238,0.5) 0%, rgba(255,255,255,0.7) 30%, rgba(236,72,153,0.5) 70%, rgba(59,130,246,0.5) 100%)',
+                    background: 'linear-gradient(135deg, color-mix(in srgb, var(--spotify-glow, #22d3ee) 50%, transparent) 0%, rgba(255,255,255,0.7) 30%, color-mix(in srgb, var(--theme-secondary, #818cf8) 50%, transparent) 70%, color-mix(in srgb, var(--primary-spotify, #06b6d4) 50%, transparent) 100%)',
                     mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
                     WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
                     maskComposite: 'exclude',
@@ -812,7 +812,7 @@ export function LiquidNavBar({
                 className="flex-1 min-w-0 h-[46px] flex items-center gap-2 px-2.5 rounded-[16px] cursor-pointer select-none active:scale-[0.98] transition-transform"
                 style={{
                   background: currentTrack
-                    ? 'linear-gradient(135deg, rgba(var(--spotify-glow-rgb,34,211,238),0.14) 0%, rgba(255,255,255,0.05) 100%)'
+                    ? 'linear-gradient(135deg, color-mix(in srgb, var(--spotify-glow, #22d3ee) 14%, transparent) 0%, rgba(255,255,255,0.05) 100%)'
                     : 'rgba(255,255,255,0.03)',
                   border: '1px solid rgba(255,255,255,0.10)',
                   borderTopColor: 'rgba(255,255,255,0.10)',
@@ -849,7 +849,7 @@ export function LiquidNavBar({
                       className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
                       style={{
                         background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                        boxShadow: '0 2px 8px rgba(6,182,212,0.4)',
+                        boxShadow: '0 2px 8px var(--theme-glow-shadow, rgba(6,182,212,0.4))',
                         minWidth: 32,
                       }}
                       aria-label={isPlaying ? 'Tạm dừng' : 'Phát'}

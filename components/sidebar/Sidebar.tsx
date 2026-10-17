@@ -182,7 +182,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
         </Link>
       </div>
 
-      <div className="flex flex-col gap-2 min-h-0 flex-1 pb-28 xl:pb-32 overflow-y-auto no-scrollbar touch-pan-y">
+      <div className="flex flex-col gap-2 min-h-0 flex-1 overflow-y-auto no-scrollbar touch-pan-y">
         {/* Main Navigation List */}
         <nav
           ref={exploreNavRef}
