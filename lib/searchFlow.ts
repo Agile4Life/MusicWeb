@@ -1,4 +1,13 @@
 import type { Track } from '@/types'
+import {
+  containsPhrase,
+  extractArtistAliases,
+  hasIncompatiblePlaybackVariant,
+  measureIdentityTokenOverlap,
+  normalizeIdentity,
+  stripArtistFromCandidateTitle,
+  stripNonIdentityAnnotations,
+} from './catalogMatching'
 import { deduplicateQueueTracks } from './utils'
 import type { GlobalSearchTracks } from './searchApi'
 
@@ -39,8 +48,151 @@ export function combineCombinedSearchResults(
   }
 }
 
-export function flattenUnifiedSearchResults(results: GlobalSearchTracks): Track[] {
-  return deduplicateQueueTracks([
+function getSourceBaseScore(source?: Track['source']): number {
+  switch (source) {
+    case 'local':
+      return 28
+    case 'nhaccuatui':
+      return 26
+    case 'spotify':
+      return 22
+    case 'deezer':
+      return 18
+    case 'soundcloud':
+      return 14
+    case 'youtube':
+      return 12
+    case 'itunes':
+      return 10
+    case 'audius':
+      return 8
+    default:
+      return 10
+  }
+}
+
+/**
+ * Compute relevance score of a track against a user's search query.
+ * Rewards exact/core title matches, artist matches, combined title+artist queries,
+ * Vietnamese diacritic fidelity, and original studio tracks over unrequested remixes/covers.
+ */
+export function scoreTrackSearchRelevance(track: Track, rawQuery: string): number {
+  const normQuery = normalizeIdentity(rawQuery)
+  if (!normQuery) return getSourceBaseScore(track.source)
+
+  const rawTitle = track.title || ''
+  const rawArtist = track.artist || ''
+  const cleanTitle = stripNonIdentityAnnotations(rawTitle) || normalizeIdentity(rawTitle)
+  const normTitle = normalizeIdentity(rawTitle)
+  const normArtist = normalizeIdentity(rawArtist)
+  const coreTitle = stripArtistFromCandidateTitle(cleanTitle, normQuery, undefined, rawArtist)
+  const artistAliases = extractArtistAliases(rawArtist)
+  const combined = `${cleanTitle} ${normArtist} ${artistAliases.join(' ')}`.trim()
+
+  const queryTokens = normQuery.split(' ').filter(Boolean)
+  const titleTokens = coreTitle.split(' ').filter(Boolean)
+  const artistTokens = normArtist.split(' ').filter(Boolean)
+  const allTrackTokens = combined.split(' ').filter(Boolean)
+
+  let score = getSourceBaseScore(track.source)
+
+  // 1. Exact & phrase title / artist matches
+  if (coreTitle === normQuery || cleanTitle === normQuery || normTitle === normQuery) {
+    score += 130
+  } else if (
+    coreTitle.startsWith(`${normQuery} `) ||
+    cleanTitle.startsWith(`${normQuery} `)
+  ) {
+    score += 80
+  } else if (containsPhrase(coreTitle, normQuery) || containsPhrase(cleanTitle, normQuery)) {
+    score += 65
+  }
+
+  if (normArtist === normQuery || artistAliases.includes(normQuery)) {
+    score += 95
+  } else if (
+    containsPhrase(normArtist, normQuery) ||
+    artistAliases.some((a) => containsPhrase(a, normQuery))
+  ) {
+    score += 55
+  }
+
+  // 2. Combined title + artist query (e.g. "bình yên vũ" or "sơn tùng lạc trôi")
+  const queryCoverageInCombined = measureIdentityTokenOverlap(normQuery, combined)
+  const queryCoverageInTitle = measureIdentityTokenOverlap(normQuery, coreTitle)
+  const queryCoverageInArtist = measureIdentityTokenOverlap(normQuery, `${normArtist} ${artistAliases.join(' ')}`)
+
+  if (queryCoverageInCombined === 1) {
+    score += 65
+    if (queryCoverageInTitle > 0 && queryCoverageInArtist > 0) {
+      // User typed both song title and artist name!
+      const titleReverse = measureIdentityTokenOverlap(coreTitle, normQuery)
+      score += 55 + titleReverse * 35
+    }
+  } else if (queryCoverageInCombined > 0) {
+    score += queryCoverageInCombined * 45
+  } else {
+    // Check prefix match for partial typing in search bar suggestions
+    let prefixMatched = 0
+    for (const qToken of queryTokens) {
+      if (allTrackTokens.some((tToken) => tToken.startsWith(qToken))) {
+        prefixMatched++
+      }
+    }
+    const prefixRatio = queryTokens.length > 0 ? prefixMatched / queryTokens.length : 0
+    if (prefixRatio > 0) {
+      score += prefixRatio * 35
+    } else {
+      score -= 150
+    }
+  }
+
+  // 3. Precision bonus: prefer titles without excessive extra unrelated words
+  if (queryCoverageInTitle >= 0.75 && titleTokens.length > 0) {
+    const reverseTitleCoverage = measureIdentityTokenOverlap(coreTitle, normQuery)
+    score += reverseTitleCoverage * 25
+  } else if (artistTokens.length === 0 && queryCoverageInTitle === 0) {
+    score -= 40
+  }
+
+  // 4. Penalize unrequested playback variants (Remix, Cover, Karaoke, Slowed, Live)
+  if (hasIncompatiblePlaybackVariant(rawTitle, rawQuery)) {
+    score -= 45
+  }
+
+  // 5. Vietnamese diacritic exact match tie-breaker
+  const nfcQuery = rawQuery.trim().toLowerCase().normalize('NFC')
+  const nfcTitle = rawTitle.trim().toLowerCase().normalize('NFC')
+  const nfcArtist = rawArtist.trim().toLowerCase().normalize('NFC')
+  if (nfcQuery && (nfcTitle === nfcQuery || nfcTitle.includes(nfcQuery) || nfcArtist.includes(nfcQuery))) {
+    score += 12
+  }
+
+  // 6. Metadata completeness bonus
+  if (track.cover_url) score += 3
+  if (track.duration && track.duration >= 60 && track.duration <= 600) score += 3
+
+  return score
+}
+
+export function rankSearchTracks(tracks: Track[], query?: string): Track[] {
+  const trimmed = query?.trim()
+  if (!trimmed || tracks.length <= 1) return tracks
+  return tracks
+    .map((track, index) => ({
+      track,
+      index,
+      score: scoreTrackSearchRelevance(track, trimmed),
+    }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score
+      return a.index - b.index
+    })
+    .map((entry) => entry.track)
+}
+
+export function flattenUnifiedSearchResults(results: GlobalSearchTracks, query?: string): Track[] {
+  const deduped = deduplicateQueueTracks([
     ...(results.nhaccuatui || []),
     ...(results.local || []),
     ...(results.spotify || []),
@@ -50,4 +202,6 @@ export function flattenUnifiedSearchResults(results: GlobalSearchTracks): Track[
     ...(results.deezer || []),
     ...(results.soundcloud || []),
   ])
+  return rankSearchTracks(deduped, query)
 }
+

@@ -30,32 +30,77 @@ export function stripNonIdentityAnnotations(value: string | null | undefined): s
   return normalizeIdentity(
     value
       .replace(
-        /\s*[\(\[\{]\s*(?:official\s*(?:video|music\s*video|audio|mv|lyric\s*video|visualizer|clip)?|lyric\s*video|lyrics?|visualizer|audio|mv|hd|4k|m\/v|mv\s*hd|video|full\s*hd|vietsub|engsub|explicit|remaster(?:ed)?(?:\s+\d{4})?)\s*[\)\]\}]/gi,
+        /\s*[\(\[\{]\s*(?:official\s*(?:video|music\s*video|audio|mv|lyric\s*video|visualizer|clip)?|lyric\s*video|lyrics?|visualizer|audio|mv|hd|4k|m\/v|mv\s*hd|video|full\s*hd|vietsub|engsub|explicit|remaster(?:ed)?(?:\s+\d{4})?|prod\.?\s*(?:by\b)?[^)\]\}]*|ost\b[^)\]\}]*|from\s+["'][^)\]\}]*)\s*[\)\]\}]/gi,
         ' ',
       )
-      .replace(/\s*[\(\[\{]\s*(?:feat\.?|ft\.?|featuring)\s+[^)\]\}]+[\)\]\}]/gi, ' ')
-      .replace(/\s+(?:feat\.?|ft\.?|featuring)\s+.*/i, ' ')
+      .replace(/\s*[\(\[\{]\s*(?:feat\.?|ft\.?|featuring|prod\.?(?:\s+by)?)\s+[^)\]\}]+[\)\]\}]/gi, ' ')
+      .replace(/\s+(?:feat\.?|ft\.?|featuring|prod\.?\s+by)\s+.*/i, ' ')
+      .replace(
+        /\s*(?:\||\/|-\s+)(?:official\s*(?:music\s*video|lyric\s*video|video|audio|mv|visualizer|clip)?|music\s*video|lyric\s*video|lyrics?|visualizer|official\s+mv|m\/v|full\s*hd|vietsub|engsub)\b.*/i,
+        ' ',
+      )
       .replace(/\s*-\s*(?:\d{4}\s+)?remaster(?:ed)?(?:\s+\d{4})?\b.*/i, ' '),
   )
 }
 
+const ARTIST_ALIAS_GROUPS: ReadonlyArray<readonly string[]> = [
+  ['rpt mck', 'mck', 'nghiem vu hoang long', 'nger'],
+  ['son tung m tp', 'son tung mtp'],
+  ['den', 'den vau'],
+  ['soobin', 'soobin hoang son'],
+  ['tlinh', 't linh'],
+  ['low g', 'lowg'],
+  ['b ray', 'bray'],
+  ['grey d', 'greyd'],
+  ['hieuthuhai', 'hieu thu hai'],
+  ['justatee', 'justa tee'],
+  ['2pillz', '2 pillz'],
+  ['w n', 'wn'],
+  ['vu', 'hoang thai vu'],
+]
+
 function expandArtistAliases(normalizedArtist: string): string[] {
+  if (!normalizedArtist) return []
   const aliases = new Set<string>([normalizedArtist])
-  if (normalizedArtist === 'rpt mck' || normalizedArtist === 'mck' || normalizedArtist === 'nghiem vu hoang long') {
-    aliases.add('mck')
-    aliases.add('rpt mck')
+
+  for (const group of ARTIST_ALIAS_GROUPS) {
+    if (group.includes(normalizedArtist)) {
+      for (const member of group) aliases.add(member)
+    }
   }
+
+  const crewStripped = normalizedArtist
+    .replace(/^(?:rpt|gerdnang|dg\s+house|rz)\s+/i, '')
+    .trim()
+  if (crewStripped && crewStripped.length >= 3 && crewStripped !== normalizedArtist) {
+    aliases.add(crewStripped)
+  }
+
+  const tokens = normalizedArtist.split(' ').filter(Boolean)
+  if (tokens.length === 2 && (tokens[0].length <= 4 || tokens[1].length <= 3)) {
+    const compact = tokens.join('')
+    if (compact.length >= 3) {
+      aliases.add(compact)
+    }
+  }
+
   return Array.from(aliases)
+}
+
+export function extractArtistAliases(rawArtist?: string | null): string[] {
+  if (!rawArtist?.trim()) return []
+  return rawArtist
+    .replace(/[\(\[\{]\s*(?:feat\.?|ft\.?|featuring)\s+([^)\]\}]+)[\)\]\}]/gi, ' feat. $1 ')
+    .split(/\s+(?:feat\.?|ft\.?|featuring|x|with|vs\.?|prod\.?(?:\s+by)?)\s+|[,;&×]|\s+\/\s+/i)
+    .map(normalizeIdentity)
+    .filter(Boolean)
+    .flatMap(expandArtistAliases)
 }
 
 /** Require a complete credited name, including credits embedded in upload titles. */
 export function hasCatalogArtistEvidence(candidate: CatalogMetadata, targetArtist?: string | null): boolean {
   if (!targetArtist?.trim()) return true
-  const rawArtists = targetArtist
-    .split(/\s+(?:feat\.?|ft\.?|featuring|x)\s+|[,;&]|\s+\/\s+/i)
-    .map(normalizeIdentity)
-    .filter(Boolean)
-  const artists = rawArtists.flatMap(expandArtistAliases)
+  const artists = extractArtistAliases(targetArtist)
   const title = normalizeIdentity(candidate.title)
   const artist = normalizeIdentity(candidate.artist)
   return artists.some((name) => containsPhrase(title, name) || containsPhrase(artist, name))
@@ -101,29 +146,90 @@ export function measureIdentityTokenOverlap(targetNorm: string, candidateNorm: s
 }
 
 /**
+ * Strip credited artist names from a normalized candidate title when the upload
+ * embeds "Artist - Title" or "Title - Artist".
+ */
+export function stripArtistFromCandidateTitle(
+  cleanCandidate: string,
+  cleanTarget: string,
+  artistHint?: string | null,
+  candidateArtist?: string | null,
+): string {
+  if (!cleanCandidate || cleanCandidate === cleanTarget) return cleanCandidate
+  const aliases = Array.from(
+    new Set([...extractArtistAliases(artistHint), ...extractArtistAliases(candidateArtist)]),
+  ).sort((a, b) => b.length - a.length)
+
+  let stripped = cleanCandidate
+  for (const alias of aliases) {
+    if (!alias || alias === cleanTarget) continue
+    if (stripped.startsWith(`${alias} `)) {
+      const candidateRest = stripped.slice(alias.length).trim()
+      if (candidateRest) stripped = candidateRest
+    } else if (stripped.endsWith(` ${alias}`)) {
+      const candidateRest = stripped.slice(0, stripped.length - alias.length).trim()
+      if (candidateRest) stripped = candidateRest
+    }
+  }
+  return stripped || cleanCandidate
+}
+
+/**
  * Verify that candidate title genuinely represents the target title.
- * Prevents short 1-word candidates (e.g. "Anh") from matching long targets ("Anh Da Quen Voi Co Don").
+ * Prevents both:
+ *  - short 1-word candidates ("Anh") matching long targets ("Anh Da Quen Voi Co Don")
+ *  - long multi-word candidates ("Anh Da Quen Voi Co Don") matching short targets ("Anh")
  */
 export function hasCatalogTitleEvidence(
   candidateTitle: string | null | undefined,
   targetTitle: string | null | undefined,
+  artistHint?: string | null,
+  candidateArtist?: string | null,
 ): boolean {
   const cleanCandidate = stripNonIdentityAnnotations(candidateTitle) || normalizeIdentity(candidateTitle)
   const cleanTarget = stripNonIdentityAnnotations(targetTitle) || normalizeIdentity(targetTitle)
   if (!cleanCandidate || !cleanTarget) return false
 
   if (cleanCandidate === cleanTarget) return true
-  if (containsPhrase(cleanCandidate, cleanTarget)) return true
 
-  const candidateTokens = cleanCandidate.split(' ').filter(Boolean)
-  const overlap = measureIdentityTokenOverlap(cleanTarget, cleanCandidate)
+  const coreCandidate = stripArtistFromCandidateTitle(
+    cleanCandidate,
+    cleanTarget,
+    artistHint,
+    candidateArtist,
+  )
+  if (coreCandidate === cleanTarget) return true
+
+  // Check if raw candidateTitle is formatted as "Artist - Title" or "Title | Subtitle"
+  if (candidateTitle && /\s+[-–—|:]\s+/.test(candidateTitle)) {
+    const segments = candidateTitle
+      .split(/\s+[-–—|:]\s+/)
+      .map((seg) => stripNonIdentityAnnotations(seg) || normalizeIdentity(seg))
+      .filter(Boolean)
+    if (segments.some((seg) => seg === cleanTarget)) {
+      return true
+    }
+  }
+
+  const forwardOverlap = measureIdentityTokenOverlap(cleanTarget, coreCandidate)
+  const reverseOverlap = measureIdentityTokenOverlap(coreCandidate, cleanTarget)
+  const candidateTokens = coreCandidate.split(' ').filter(Boolean)
+  const targetTokens = cleanTarget.split(' ').filter(Boolean)
+
+  if (containsPhrase(coreCandidate, cleanTarget) && reverseOverlap >= 0.6) {
+    return true
+  }
 
   // Reverse phrase containment is only valid when candidate has >= 2 words and covers >= 60% of target tokens
   if (
-    containsPhrase(cleanTarget, cleanCandidate) &&
+    containsPhrase(cleanTarget, coreCandidate) &&
     candidateTokens.length >= 2 &&
-    overlap >= 0.6
+    forwardOverlap >= 0.6
   ) {
+    return true
+  }
+
+  if (targetTokens.length >= 3 && forwardOverlap >= 0.8 && reverseOverlap >= 0.65) {
     return true
   }
 
@@ -131,7 +237,7 @@ export function hasCatalogTitleEvidence(
 }
 
 export function isSoundCloudCatalogMatch(candidate: CatalogMetadata, target: CatalogMetadata): boolean {
-  if (!hasCatalogTitleEvidence(candidate.title, target.title)) return false
+  if (!hasCatalogTitleEvidence(candidate.title, target.title, target.artist, candidate.artist)) return false
   if (!hasCatalogArtistEvidence(candidate, target.artist)) return false
   if (hasIncompatiblePlaybackVariant(candidate.title, target.title)) return false
   return !candidate.duration || !target.duration || Math.abs(candidate.duration - target.duration) <= 30
@@ -150,9 +256,20 @@ export function findBestSoundCloudMatch<T extends CatalogMetadata>(
   for (const candidate of candidates) {
     if (!isSoundCloudCatalogMatch(candidate, target)) continue
     const cleanCandidate = stripNonIdentityAnnotations(candidate.title) || normalizeIdentity(candidate.title)
-    const exactTitle = cleanCandidate === cleanTarget
-    const overlap = measureIdentityTokenOverlap(cleanTarget, cleanCandidate)
-    let score = overlap * 60 + (exactTitle ? 35 : 0)
+    const coreCandidate = stripArtistFromCandidateTitle(
+      cleanCandidate,
+      cleanTarget,
+      target.artist,
+      candidate.artist,
+    )
+    const exactRawTitle = cleanCandidate === cleanTarget
+    const exactCoreTitle = coreCandidate === cleanTarget
+    const forwardOverlap = measureIdentityTokenOverlap(cleanTarget, coreCandidate)
+    const reverseOverlap = measureIdentityTokenOverlap(coreCandidate, cleanTarget)
+    let score =
+      forwardOverlap * 45 +
+      reverseOverlap * 15 +
+      (exactRawTitle ? 35 : exactCoreTitle ? 25 : 0)
 
     if (target.duration && candidate.duration) {
       const diff = Math.abs(target.duration - candidate.duration)
@@ -173,13 +290,19 @@ export function isCatalogTrackMatch(
   target: CatalogMetadata,
   maxDurationDiffSeconds = 45,
 ): boolean {
-  if (!hasCatalogTitleEvidence(candidate.title, target.title)) return false
+  if (!hasCatalogTitleEvidence(candidate.title, target.title, target.artist, candidate.artist)) return false
   if (target.artist?.trim()) {
     if (!hasCatalogArtistEvidence(candidate, target.artist)) return false
   } else {
     const cleanCandidate = stripNonIdentityAnnotations(candidate.title) || normalizeIdentity(candidate.title)
     const cleanTarget = stripNonIdentityAnnotations(target.title) || normalizeIdentity(target.title)
-    if (cleanCandidate !== cleanTarget) return false
+    const coreCandidate = stripArtistFromCandidateTitle(
+      cleanCandidate,
+      cleanTarget,
+      undefined,
+      candidate.artist,
+    )
+    if (cleanCandidate !== cleanTarget && coreCandidate !== cleanTarget) return false
   }
   if (hasIncompatiblePlaybackVariant(candidate.title, target.title)) return false
   if (target.duration && candidate.duration && Math.abs(candidate.duration - target.duration) > maxDurationDiffSeconds) {
@@ -187,3 +310,4 @@ export function isCatalogTrackMatch(
   }
   return true
 }
+

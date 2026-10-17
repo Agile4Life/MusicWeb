@@ -850,8 +850,8 @@ export default function HomePage() {
   }, [tracks])
 
   const searchResults: Track[] = useMemo(() => {
-    return flattenUnifiedSearchResults(globalTracks)
-  }, [globalTracks])
+    return flattenUnifiedSearchResults(globalTracks, searchQuery)
+  }, [globalTracks, searchQuery])
 
   const displayedTracks: Track[] = useMemo(() => {
     if (isSearching) {

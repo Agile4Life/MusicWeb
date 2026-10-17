@@ -4,6 +4,7 @@ import {
   hasCatalogTitleEvidence,
   hasIncompatiblePlaybackVariant,
   measureIdentityTokenOverlap,
+  stripArtistFromCandidateTitle,
   stripNonIdentityAnnotations,
 } from './catalogMatching'
 
@@ -313,18 +314,35 @@ export function findBestNhacCuaTuiMatch(
     if (!hasCatalogArtistEvidence(candidate, target.artist)) continue
     if (hasIncompatiblePlaybackVariant(candidate.title, target.title)) continue
 
-    const titleOverlap = tokenOverlap(targetTitle, title)
-    const hasPhraseEvidence = hasCatalogTitleEvidence(candidate.title, target.title)
+    const coreTitle = stripArtistFromCandidateTitle(
+      title,
+      targetTitle,
+      target.artist,
+      candidate.artist,
+    )
+    const titleOverlap = tokenOverlap(targetTitle, coreTitle)
+    const reverseTitleOverlap = tokenOverlap(coreTitle, targetTitle)
+    const hasPhraseEvidence = hasCatalogTitleEvidence(
+      candidate.title,
+      target.title,
+      target.artist,
+      candidate.artist,
+    )
     const targetWordCount = targetTitle.split(' ').filter(Boolean).length
     const minOverlap = targetWordCount <= 2 ? 1 : 0.6
 
-    // Hard Title Gate: never accept a candidate solely on artist score when title doesn't match
-    if (!hasPhraseEvidence && titleOverlap < minOverlap) continue
+    // Hard Title Gate: never accept a candidate solely on artist score when title doesn't match,
+    // and never let a short 1-2 word title match a long unrelated song title.
+    if (targetWordCount <= 2) {
+      if (!hasPhraseEvidence) continue
+    } else if (!hasPhraseEvidence && (titleOverlap < minOverlap || reverseTitleOverlap < 0.5)) {
+      continue
+    }
 
     const artistOverlap = targetArtist ? tokenOverlap(targetArtist, artist) : 0
-    const exactTitle = title === targetTitle
-    let score = titleOverlap * 45 + artistOverlap * 35
-    if (exactTitle) score += 25
+    const exactTitle = title === targetTitle || coreTitle === targetTitle
+    let score = titleOverlap * 40 + reverseTitleOverlap * 10 + artistOverlap * 35
+    if (exactTitle) score += 28
     else if (hasPhraseEvidence) score += 12
 
     if (target.duration && candidate.duration) {
@@ -341,3 +359,4 @@ export function findBestNhacCuaTuiMatch(
 
   return best
 }
+

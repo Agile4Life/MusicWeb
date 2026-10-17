@@ -1,7 +1,33 @@
 import { Track } from '@/types'
-import { normalizeTitle, isOriginalTrackOnly } from './youtube'
+import { hasCatalogArtistEvidence, hasIncompatiblePlaybackVariant, normalizeIdentity } from './catalogMatching'
+import { normalizeTitle } from './youtube'
 
 export { normalizeTitle }
+
+const DEDUPE_VARIANT_MARKERS = [
+  'remix',
+  'cover',
+  'live',
+  'karaoke',
+  'instrumental',
+  'slowed',
+  'sped up',
+  'speed up',
+  'nightcore',
+  'lofi',
+  'lo fi',
+  'acoustic',
+  'mashup',
+  'reverb',
+  '8d',
+]
+
+function extractVariantSignature(title?: string): string {
+  const norm = normalizeIdentity(title)
+  if (!norm) return ''
+  const padded = ` ${norm} `
+  return DEDUPE_VARIANT_MARKERS.filter((marker) => padded.includes(` ${marker} `)).join('|')
+}
 
 function extractDriveId(path?: string): string | null {
   if (!path) return null
@@ -18,6 +44,7 @@ export function extractCoreSongTitle(title?: string): string {
     .replace(/Đ/g, 'D')
     .toLowerCase()
     .replace(/[\(\[\{].*?[\)\]\}]/g, ' ')
+    .replace(/\s+(?:feat\.?|ft\.?|featuring)\s+.*/i, ' ')
     .replace(/\b(remix|reverb|slowed|speed up|sped up|lofi|lo-fi|lyrics?|lyric video|official video|official music video|official audio|official mv|mv|audio|full video|video|1\s*hour|1hour|30\s*min|loop|podcast|compilation|playlist|hot tiktok|tiktok|chu\u1ea9n hot|hay nhat|mashup|prod|beat)\b/gi, ' ')
     .replace(/\b(?:feat|ft)\.?\b/gi, ' ')
     .replace(/[\-\_\,\.\:\;\|\/\\]/g, ' ')
@@ -26,13 +53,24 @@ export function extractCoreSongTitle(title?: string): string {
 }
 
 /**
- * Sinh khoá dedupe từ title + artist đã chuẩn hoá
+ * Sinh khoá dedupe từ title + artist đã chuẩn hoá (kèm chữ ký biến thể phát)
  */
 function getDedupeKey(track: Track): string {
   const cleanTitle = extractCoreSongTitle(track.title || '')
   const cleanArtist = normalizeTitle(track.artist || '')
+  const variantSig = extractVariantSignature(track.title)
   if (!cleanTitle) return `id_${track.id}`
-  return `${cleanTitle}::${cleanArtist}`
+  return variantSig ? `${cleanTitle}::${cleanArtist}::${variantSig}` : `${cleanTitle}::${cleanArtist}`
+}
+
+function areArtistsCompatibleForDedupe(a: Track, b: Track): boolean {
+  const artistA = (a.artist || '').trim()
+  const artistB = (b.artist || '').trim()
+  if (!artistA || !artistB) return true
+  return (
+    hasCatalogArtistEvidence({ title: a.title, artist: a.artist }, b.artist) ||
+    hasCatalogArtistEvidence({ title: b.title, artist: b.artist }, a.artist)
+  )
 }
 
 /**
@@ -79,7 +117,7 @@ export function deduplicateQueueTracks(tracks: Track[]): Track[] {
 
   for (const track of tracks) {
     if (!track || !track.title) continue
-    if (!isOriginalTrackOnly(track.title)) continue
+    if (/\b(1\s*hour|1hour|30\s*min|podcast)\b/i.test(track.title)) continue
 
     const driveId = extractDriveId(track.file_path || '')
     if (driveId) {
@@ -89,31 +127,37 @@ export function deduplicateQueueTracks(tracks: Track[]): Track[] {
 
     const key = getDedupeKey(track)
     const coreTitle = extractCoreSongTitle(track.title)
+    const variantSig = extractVariantSignature(track.title)
+    const coreKey = coreTitle ? (variantSig ? `${coreTitle}::${variantSig}` : coreTitle) : ''
 
     const existingExact = seenMap.get(key)
     if (existingExact) {
       if (isBetterTrack(track, existingExact)) {
         seenMap.set(key, track)
-        if (coreTitle) seenCoreTitles.set(coreTitle, track)
+        if (coreKey) seenCoreTitles.set(coreKey, track)
       }
       continue
     }
 
-    // Check fuzzy core title deduplication if title is substantial (> 2 chars)
-    if (coreTitle && coreTitle.length > 2) {
-      const existingCore = seenCoreTitles.get(coreTitle)
-      if (existingCore) {
+    // Check fuzzy core title deduplication if title is substantial (> 2 chars) AND artists & variants are compatible
+    if (coreTitle && coreTitle.length > 2 && coreKey) {
+      const existingCore = seenCoreTitles.get(coreKey)
+      if (
+        existingCore &&
+        areArtistsCompatibleForDedupe(track, existingCore) &&
+        !hasIncompatiblePlaybackVariant(track.title, existingCore.title)
+      ) {
         if (isBetterTrack(track, existingCore)) {
           seenMap.delete(getDedupeKey(existingCore))
           seenMap.set(key, track)
-          seenCoreTitles.set(coreTitle, track)
+          seenCoreTitles.set(coreKey, track)
         }
         continue
       }
     }
 
     seenMap.set(key, track)
-    if (coreTitle) seenCoreTitles.set(coreTitle, track)
+    if (coreKey) seenCoreTitles.set(coreKey, track)
   }
 
   return Array.from(seenMap.values())

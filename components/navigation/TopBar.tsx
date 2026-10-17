@@ -63,8 +63,8 @@ export function TopBar() {
   }
 
   const suggestions: Track[] = React.useMemo(() => {
-    return flattenUnifiedSearchResults(suggestionTracks).slice(0, 6)
-  }, [suggestionTracks])
+    return flattenUnifiedSearchResults(suggestionTracks, suggestionQuery || inputQuery).slice(0, 6)
+  }, [suggestionTracks, suggestionQuery, inputQuery])
 
   useEffect(() => {
     setInputQuery(searchQuery)

@@ -5,6 +5,7 @@ import {
   hasCatalogTitleEvidence,
   hasIncompatiblePlaybackVariant,
   measureIdentityTokenOverlap,
+  stripArtistFromCandidateTitle,
 } from './catalogMatching'
 
 /**
@@ -382,10 +383,12 @@ export function normalizeTitle(text: string): string {
   if (!text) return ''
   return text
     .normalize('NFC')
-    .replace(/\s*[\(\[\{]\s*(?:official\s*(?:video|music\s*video|audio|mv|lyric\s*video|visualizer|clip)?|lyric\s*video|lyrics?|visualizer|audio|mv|hd|4k|m\/v|mv\s*hd|video|full\s*hd|karaoke|vietsub|engsub|kara|explicit)\s*[\)\]\}]/gi, ' ')
-    .replace(/\s*[\(\[\{]\s*(?:feat\.?|ft\.?)\s+[^)\]\}]+[\)\]\}]/gi, ' ')
+    .replace(/\s*[\(\[\{]\s*(?:official\s*(?:video|music\s*video|audio|mv|lyric\s*video|visualizer|clip)?|lyric\s*video|lyrics?|visualizer|audio|mv|hd|4k|m\/v|mv\s*hd|video|full\s*hd|karaoke|vietsub|engsub|kara|explicit|prod\.?\s*(?:by\b)?[^)\]\}]*)\s*[\)\]\}]/gi, ' ')
+    .replace(/\s*[\(\[\{]\s*(?:feat\.?|ft\.?|featuring)\s+[^)\]\}]+[\)\]\}]/gi, ' ')
+    .replace(/\s+(?:feat\.?|ft\.?|featuring)\s+.*/i, ' ')
+    .replace(/\s*(?:\||\/|-\s+)(?:official\s*(?:music\s*video|lyric\s*video|video|audio|mv|visualizer|clip)?|music\s*video|lyric\s*video|lyrics?|visualizer|official\s+mv|m\/v|full\s*hd|vietsub|engsub)\b.*/i, ' ')
     .replace(/\b(?:feat|ft)\.?\b/gi, ' ')
-    .replace(/[\-\_\,\.\:\;]/g, ' ')
+    .replace(/[\-\_\,\.\:\;\|]/g, ' ')
     .replace(/[\(\[\{\)\]\}]/g, ' ')
     .toLowerCase()
     .trim()
@@ -462,20 +465,34 @@ export function findBestYouTubeMatch(
     }
 
     // 3. TITLE MATCH RATIO & PHRASE EVIDENCE (word-boundary aware)
+    const coreUnaccentedCandidateTitle = stripArtistFromCandidateTitle(
+      unaccentedCandidateTitle,
+      unaccentedTargetTitle,
+      targetArtist,
+      candidate.artist,
+    )
     const accentedOverlap = measureIdentityTokenOverlap(cleanTargetTitle, candidateTitleNorm)
-    const unaccentedOverlap = measureIdentityTokenOverlap(unaccentedTargetTitle, unaccentedCandidateTitle)
+    const unaccentedOverlap = measureIdentityTokenOverlap(unaccentedTargetTitle, coreUnaccentedCandidateTitle)
+    const reverseOverlap = measureIdentityTokenOverlap(coreUnaccentedCandidateTitle, unaccentedTargetTitle)
     const matchRatio = Math.max(accentedOverlap, unaccentedOverlap)
     const hasPhraseMatch =
-      hasCatalogTitleEvidence(candidate.title, targetTitle) ||
-      (cleanTargetTitle.length >= 3 && containsPhrase(candidateTitleNorm, cleanTargetTitle)) ||
-      (unaccentedTargetTitle.length >= 3 && containsPhrase(unaccentedCandidateTitle, unaccentedTargetTitle))
+      hasCatalogTitleEvidence(candidate.title, targetTitle, targetArtist, candidate.artist) ||
+      (unaccentedTitleWords.length >= 3 &&
+        reverseOverlap >= 0.6 &&
+        (containsPhrase(candidateTitleNorm, cleanTargetTitle) ||
+          containsPhrase(unaccentedCandidateTitle, unaccentedTargetTitle)))
 
     const minMatchRatio = unaccentedTitleWords.length <= 2 ? 1 : 0.65
-    if (!hasPhraseMatch && matchRatio < minMatchRatio) {
+    if (unaccentedTitleWords.length <= 2) {
+      if (!hasPhraseMatch) continue
+    } else if (!hasPhraseMatch && (matchRatio < minMatchRatio || reverseOverlap < 0.5)) {
       continue
     }
 
-    let score = matchRatio * 120
+    const isExactCoreTitle =
+      unaccentedCandidateTitle === unaccentedTargetTitle ||
+      coreUnaccentedCandidateTitle === unaccentedTargetTitle
+    let score = matchRatio * 105 + reverseOverlap * 20 + (isExactCoreTitle ? 35 : 0)
     if (hasPhraseMatch) {
       score += 80
     }

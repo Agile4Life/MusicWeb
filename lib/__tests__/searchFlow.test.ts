@@ -79,4 +79,77 @@ describe('combineCombinedSearchResults', () => {
     expect(result.deezer).toHaveLength(1)
     expect(flattenUnifiedSearchResults(result)).toHaveLength(3)
   })
+
+  it('ranks exact query matches above unrelated primary source tracks when query is provided', () => {
+    const unrelatedNct = {
+      ...makeTrack('nct-unrelated', 'nhaccuatui', 'Nụ Cười Xinh'),
+      artist: 'Ca Sĩ A',
+    }
+    const exactSpotify = {
+      ...makeTrack('sp-exact', 'spotify', 'Die With A Smile'),
+      artist: 'Lady Gaga, Bruno Mars',
+    }
+    const remixNct = {
+      ...makeTrack('nct-remix', 'nhaccuatui', 'Die With A Smile (Remix)'),
+      artist: 'Lady Gaga, Bruno Mars',
+    }
+
+    const results: GlobalSearchTracks = {
+      ...emptyFallback,
+      nhaccuatui: [unrelatedNct, remixNct],
+      spotify: [exactSpotify],
+    }
+
+    const ranked = flattenUnifiedSearchResults(results, 'Die With A Smile')
+    expect(ranked[0].id).toBe('sp-exact')
+    expect(ranked[1].id).toBe('nct-remix')
+    expect(ranked[2].id).toBe('nct-unrelated')
+  })
+
+  it('preserves same-titled songs by different artists instead of collapsing them in deduplicateQueueTracks', () => {
+    const babyMck = {
+      ...makeTrack('drive-baby', 'local', 'Baby (feat. marzuz)'),
+      artist: 'MCK',
+    }
+    const babyJustin = {
+      ...makeTrack('sp-baby', 'spotify', 'Baby'),
+      artist: 'Justin Bieber',
+    }
+
+    const results: GlobalSearchTracks = {
+      ...emptyFallback,
+      local: [babyMck],
+      spotify: [babyJustin],
+    }
+
+    const flattened = flattenUnifiedSearchResults(results, 'Baby')
+    expect(flattened.map((t) => t.id)).toContain('drive-baby')
+    expect(flattened.map((t) => t.id)).toContain('sp-baby')
+  })
+
+  it('ranks combined title + artist queries accurately with Vietnamese diacritics and stage names', () => {
+    const otherVu = {
+      ...makeTrack('nct-lala', 'nhaccuatui', 'Lạ Lùng'),
+      artist: 'Vũ.',
+    }
+    const otherBinhYen = {
+      ...makeTrack('nct-by-other', 'nhaccuatui', 'Bình Yên Nơi Đâu'),
+      artist: 'Sơn Tùng M-TP',
+    }
+    const targetBinhYenVu = {
+      ...makeTrack('sp-by-vu', 'spotify', 'Bình Yên'),
+      artist: 'Vũ.',
+    }
+
+    const results: GlobalSearchTracks = {
+      ...emptyFallback,
+      nhaccuatui: [otherVu, otherBinhYen],
+      spotify: [targetBinhYenVu],
+    }
+
+    const ranked = flattenUnifiedSearchResults(results, 'bình yên vũ')
+    expect(ranked[0].id).toBe('sp-by-vu')
+  })
 })
+
+

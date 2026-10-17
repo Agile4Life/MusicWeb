@@ -119,4 +119,45 @@ describe('Static Drive track matching (findMemoryDriveTrack)', () => {
     expect(findMemoryDriveTrack('Xa Xôi', 'RPT MCK')?.artist).toBe('MCK')
     expect(findMemoryDriveTrack('Mắt Môi Tay Chân', 'MCK, Tage')?.artist).toBe('MCK')
   })
+
+  it('strips pipe/dash upload suffixes and prod credits in stripNonIdentityAnnotations and title matching', () => {
+    expect(
+      isSoundCloudCatalogMatch(
+        { title: 'Chúng Ta Của Tương Lai | Official Music Video', artist: 'Sơn Tùng M-TP', duration: 249 },
+        { title: 'Chúng Ta Của Tương Lai', artist: 'Sơn Tùng M-TP', duration: 249 },
+      ),
+    ).toBe(true)
+
+    expect(
+      isSoundCloudCatalogMatch(
+        { title: 'Bình Yên - Official Audio (Prod. by Kewtiie)', artist: 'Vũ.', duration: 215 },
+        { title: 'Bình Yên', artist: 'Vũ.', duration: 215 },
+      ),
+    ).toBe(true)
+  })
+
+  it('rejects a long candidate song title when the target title is a short 1-2 word prefix of a different song', () => {
+    expect(
+      isSoundCloudCatalogMatch(
+        { title: 'Anh Đã Quên Với Cô Đơn', artist: 'Soobin Hoàng Sơn', duration: 240 },
+        { title: 'Anh', artist: 'Soobin Hoàng Sơn', duration: 240 },
+      ),
+    ).toBe(false)
+
+    expect(
+      isSoundCloudCatalogMatch(
+        { title: 'Chúng Ta Của Hiện Tại', artist: 'Sơn Tùng M-TP', duration: 290 },
+        { title: 'Chúng Ta', artist: 'Sơn Tùng M-TP', duration: 290 },
+      ),
+    ).toBe(false)
+  })
+
+  it('recognizes common V-Pop stage name spacing and crew aliases in hasCatalogArtistEvidence', () => {
+    expect(hasCatalogArtistEvidence({ artist: 'Orijinn' }, 'RPT Orijinn')).toBe(true)
+    expect(hasCatalogArtistEvidence({ artist: 'LowG' }, 'Low G')).toBe(true)
+    expect(hasCatalogArtistEvidence({ artist: 'Sơn Tùng MTP' }, 'Sơn Tùng M-TP')).toBe(true)
+    expect(hasCatalogArtistEvidence({ artist: 'Đen Vâu' }, 'Đen')).toBe(true)
+    expect(hasCatalogArtistEvidence({ artist: 'HIEUTHUHAI' }, 'Hieu Thu Hai')).toBe(true)
+  })
 })
+

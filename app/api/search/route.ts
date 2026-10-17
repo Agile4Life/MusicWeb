@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { searchYouTubeTracks, findBestYouTubeMatch, isOriginalTrackOnly } from '@/lib/youtube'
+import { searchYouTubeTracks, findBestYouTubeMatch, isOriginalTrackOnly, NEGATIVE_KEYWORDS } from '@/lib/youtube'
 import { searchSpotifyTracks, getTrendingSpotifyTracks, getTopArtistSpotifyTracks, isCleanTrendingTrack } from '@/lib/spotify'
 import { getTrendingDeezerTracks, searchDeezerTracks } from '@/lib/deezer'
 import { searchSoundCloudTracks } from '@/lib/soundcloudClient'
 import { normalizeNhacCuaTuiChartResponse, nhacCuaTuiSearchItemToTrack, searchNhacCuaTuiDirect } from '@/lib/nhaccuatui'
+import { extractArtistAliases, isCatalogTrackMatch, measureIdentityTokenOverlap, normalizeIdentity } from '@/lib/catalogMatching'
+import { STATIC_DRIVE_TRACKS } from '@/lib/driveTracksMap'
+import { rankSearchTracks } from '@/lib/searchFlow'
 import { Track } from '@/types'
 
 // In-memory LRU search cache & in-flight request deduplication map
@@ -254,22 +257,51 @@ export async function GET(request: Request) {
       primaryPromises.push(Promise.resolve([]))
     }
 
-    // 1. Search local Supabase tracks
+    // 1. Search local Supabase tracks + preloaded Google Drive tracks (diacritic-insensitive)
     if (source === 'all' || source === 'local') {
       const supabase = await createClient()
       primaryPromises.push(
         (async () => {
+          const cleanQuery = q.trim().replace(/[,()%"\\]/g, ' ').replace(/\s+/g, ' ').trim()
+          if (!cleanQuery) return []
+
+          const normQ = normalizeIdentity(cleanQuery)
+          const staticMatches: Track[] = normQ
+            ? STATIC_DRIVE_TRACKS.filter((st) => {
+                const normTitle = normalizeIdentity(st.title)
+                const normArtist = normalizeIdentity(st.artist)
+                const normAlbum = normalizeIdentity(st.album)
+                const aliases = extractArtistAliases(st.artist)
+                const combined = `${normTitle} ${normArtist} ${normAlbum} ${aliases.join(' ')}`.trim()
+                return (
+                  combined.includes(normQ) ||
+                  measureIdentityTokenOverlap(normQ, combined) >= 0.75
+                )
+              }).map((st) => ({
+                id: st.id,
+                user_id: 'system',
+                title: st.title,
+                artist: st.artist,
+                album: st.album ?? null,
+                duration: st.duration ?? 0,
+                file_path: st.file_path,
+                cover_url: st.cover_url ?? null,
+                created_at: '2025-01-01T00:00:00.000Z',
+                source: 'local' as const,
+              }))
+            : []
+
           try {
-            const cleanQuery = q.trim().replace(/[,()%"\\]/g, ' ').replace(/\s+/g, ' ').trim()
-            if (!cleanQuery) return []
             const { data } = await supabase
               .from('tracks')
               .select('*')
               .or(`title.ilike.%${cleanQuery}%,artist.ilike.%${cleanQuery}%`)
               .limit(10)
-            return (data || []).map((t: any) => ({ ...t, source: 'local' }))
+            const dbTracks: Track[] = (data || []).map((t: any) => ({ ...t, source: 'local' as const }))
+            const seenIds = new Set(dbTracks.map((t) => t.id))
+            return [...dbTracks, ...staticMatches.filter((t) => !seenIds.has(t.id))]
           } catch {
-            return []
+            return staticMatches
           }
         })()
       )
@@ -292,7 +324,7 @@ export async function GET(request: Request) {
     }
 
     // 3. Search YouTube tracks (for stream ID matching)
-    if (source === 'all' || source === 'youtube' || source === 'spotify' || source === 'itunes') {
+    if (source === 'all' || source === 'youtube' || source === 'spotify' || source === 'deezer' || source === 'itunes') {
       primaryPromises.push(searchYouTubeTracks(q.trim(), 10).catch(() => []))
     } else {
       primaryPromises.push(Promise.resolve([]))
@@ -310,7 +342,7 @@ export async function GET(request: Request) {
     const itunesTracks: Track[] = []
     const audiusTracks: Track[] = []
 
-    // Pre-assign YouTube stream IDs for Spotify tracks using smart matching
+    // Pre-assign YouTube stream IDs for Spotify & Deezer tracks using smart matching
     const enhancedSpotify = spotifyTracks.map((sTrack: Track) => {
       if (sTrack.youtube_id) return sTrack
       const match = findBestYouTubeMatch(youtubeTracks, sTrack.title, sTrack.artist, sTrack.duration, sTrack.album)
@@ -319,37 +351,45 @@ export async function GET(request: Request) {
         : sTrack
     })
 
-    const enhancedITunes: Track[] = []
-
-    // Enrich YouTube tracks with high-res 1:1 Spotify/iTunes album artwork if available
-    const enhancedYouTube = youtubeTracks.map((yTrack: Track) => {
-      const normYTitle = (yTrack.title || '').toLowerCase().trim()
-      if (!normYTitle) return yTrack
-
-      const spMatch = spotifyTracks.find(
-        (s: Track) => s.cover_url && normYTitle.includes(s.title.toLowerCase().trim().slice(0, 5))
-      )
-      if (spMatch?.cover_url) return { ...yTrack, cover_url: spMatch.cover_url }
-
-      const itMatch = itunesTracks.find(
-        (i: Track) => i.cover_url && normYTitle.includes(i.title.toLowerCase().trim().slice(0, 5))
-      )
-      if (itMatch?.cover_url) return { ...yTrack, cover_url: itMatch.cover_url }
-
-      return yTrack
+    const enhancedDeezer = deezerTracks.map((dTrack: Track) => {
+      if (dTrack.youtube_id) return dTrack
+      const match = findBestYouTubeMatch(youtubeTracks, dTrack.title, dTrack.artist, dTrack.duration, dTrack.album)
+      return match?.youtube_id
+        ? { ...dTrack, youtube_id: match.youtube_id, view_count: dTrack.view_count || match.view_count }
+        : dTrack
     })
 
-    const isValidTrackFilter = (t: Track) => (!t.duration || t.duration >= 25) && isOriginalTrackOnly(t.title)
+    const enhancedITunes: Track[] = []
 
+    // Enrich YouTube tracks with high-res 1:1 Spotify/Deezer/iTunes album artwork when catalog identity matches
+    const catalogArtworkPool = [...spotifyTracks, ...deezerTracks, ...itunesTracks].filter((t) => Boolean(t.cover_url))
+    const enhancedYouTube = youtubeTracks.map((yTrack: Track) => {
+      if (!yTrack.title) return yTrack
+      const match = catalogArtworkPool.find((cTrack) =>
+        isCatalogTrackMatch(yTrack, {
+          title: cTrack.title,
+          artist: cTrack.artist,
+          duration: cTrack.duration,
+        })
+      )
+      return match?.cover_url ? { ...yTrack, cover_url: match.cover_url } : yTrack
+    })
+
+    const lowerQuery = q.toLowerCase().normalize('NFC')
+    const allowedNegativeKeywords = NEGATIVE_KEYWORDS.filter((kw) => lowerQuery.includes(kw))
+    const isValidTrackFilter = (t: Track) =>
+      (!t.duration || t.duration >= 25) && isOriginalTrackOnly(t.title, allowedNegativeKeywords)
+
+    const trimmedQuery = q.trim()
     const allResults = {
-      local: localTracks.filter(isValidTrackFilter),
-      nhaccuatui: (nctTracks || []).filter(isValidTrackFilter),
-      youtube: enhancedYouTube.filter(isValidTrackFilter),
-      audius: audiusTracks.filter(isValidTrackFilter),
-      itunes: enhancedITunes.filter(isValidTrackFilter),
-      spotify: enhancedSpotify.filter(isValidTrackFilter),
-      deezer: deezerTracks.filter(isValidTrackFilter),
-      soundcloud: (soundCloudTracks || []).filter(isValidTrackFilter),
+      local: rankSearchTracks(localTracks.filter(isValidTrackFilter), trimmedQuery),
+      nhaccuatui: rankSearchTracks((nctTracks || []).filter(isValidTrackFilter), trimmedQuery),
+      youtube: rankSearchTracks(enhancedYouTube.filter(isValidTrackFilter), trimmedQuery),
+      audius: rankSearchTracks(audiusTracks.filter(isValidTrackFilter), trimmedQuery),
+      itunes: rankSearchTracks(enhancedITunes.filter(isValidTrackFilter), trimmedQuery),
+      spotify: rankSearchTracks(enhancedSpotify.filter(isValidTrackFilter), trimmedQuery),
+      deezer: rankSearchTracks(enhancedDeezer.filter(isValidTrackFilter), trimmedQuery),
+      soundcloud: rankSearchTracks((soundCloudTracks || []).filter(isValidTrackFilter), trimmedQuery),
     }
 
     // Single-source mode: only return the requested source so the UI shows one source at a time

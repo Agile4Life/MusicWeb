@@ -104,8 +104,8 @@ export function MobileScrollHeader() {
   const searchRowRef = useRef<HTMLDivElement>(null)
 
   const suggestions: Track[] = React.useMemo(
-    () => flattenUnifiedSearchResults(suggestionTracks).slice(0, 6),
-    [suggestionTracks],
+    () => flattenUnifiedSearchResults(suggestionTracks, suggestionQuery || inputQuery).slice(0, 6),
+    [suggestionTracks, suggestionQuery, inputQuery],
   )
 
   const searchInputRef = useRef<HTMLInputElement>(null)
