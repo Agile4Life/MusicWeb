@@ -425,19 +425,28 @@ export default function ArtistPage() {
                 opacity: albumGrid.indicator.opacity,
               }}
             />
-            {artistAlbums.map((alb) => (
-              <MediaCard
+            {artistAlbums.map((alb, idx) => (
+              <div
                 key={alb.id}
-                title={alb.name}
-                subtitle={
-                  alb.release_date
-                    ? `${alb.release_date.slice(0, 4)} • ${alb.album_type === 'single' ? 'Single / EP' : 'Album'}`
-                    : alb.artist
-                }
-                coverUrl={alb.cover_url}
-                href={`/album/${encodeURIComponent(alb.id)}`}
                 onMouseEnter={albumGrid.handleItemMouseEnter}
-              />
+                className="relative z-[1] h-full"
+              >
+                <MediaCard
+                  id={alb.id}
+                  title={alb.name}
+                  subtitle={
+                    alb.release_date
+                      ? `${alb.release_date.slice(0, 4)} • ${alb.album_type === 'single' ? 'Single / EP' : 'Album'}`
+                      : alb.artist
+                  }
+                  coverUrl={alb.cover_url}
+                  type={alb.album_type === 'single' ? 'single' : 'album'}
+                  badgeLabel={alb.album_type === 'single' ? 'Single / EP' : 'Album'}
+                  href={`/album/${encodeURIComponent(alb.id)}`}
+                  index={idx}
+                  fallbackIcon="album"
+                />
+              </div>
             ))}
           </div>
         </div>

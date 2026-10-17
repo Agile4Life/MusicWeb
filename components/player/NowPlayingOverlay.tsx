@@ -16,7 +16,8 @@ import {
   trackMetadataProgressClass,
   trackMetadataTitleClass,
 } from './trackMetadataLayout'
-import { setCachedResolvedAlbum, getCachedResolvedAlbum, isRealAlbumName, isKnownBadFallback, makeAlbumCacheKey, cleanDisplayAlbumName } from '@/lib/albumCache'
+import { setCachedResolvedAlbum, getCachedResolvedAlbum, isRealAlbumName, isKnownBadFallback, makeAlbumCacheKey } from '@/lib/albumCache'
+import { cleanDisplayAlbumName } from '@/lib/albumMatching'
 import { resolveAlbumDeduped } from '@/lib/albumResolveClient'
 import { LyricsShareModal } from './LyricsShareModal'
 import { getPrimaryLyrics } from '@/lib/lyricsFlow'

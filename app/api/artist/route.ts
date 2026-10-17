@@ -165,8 +165,8 @@ export async function GET(request: NextRequest) {
         if (ytTracks && ytTracks.length > 0) {
           for (const yt of ytTracks) {
             const key = normalizeTitleForDedup(yt.title)
-            if (!key || seenTitles.has(key)) continue
-            seenTitles.add(key)
+            if (!key || seenByTitle.has(key)) continue
+            seenByTitle.set(key, topTracks.length)
             topTracks.push(yt)
           }
           if (!artist.picture_xl && ytTracks[0]?.cover_url) {
