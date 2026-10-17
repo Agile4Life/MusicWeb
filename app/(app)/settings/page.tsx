@@ -71,12 +71,12 @@ export default function SettingsPage() {
       </div>
 
       {/* Theme Selection Section */}
-      <div className="bg-[var(--elevation-1-bg)] p-4 sm:p-6 rounded-2xl border border-white/[0.06]">
+      <div className="glass-panel bg-[var(--elevation-1-bg)] p-4 sm:p-6 rounded-2xl border border-white/[0.06]">
         <ThemeSelector />
       </div>
 
       {/* Language Selection Section */}
-      <div className="bg-[var(--elevation-1-bg)] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-4">
+      <div className="glass-panel bg-[var(--elevation-1-bg)] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-4">
         <div className="flex items-center gap-2 text-sm font-bold text-white border-b border-white/[0.05] pb-3">
           <Globe className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
           <span>{t('language_title')}</span>
@@ -91,7 +91,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Playback Options */}
-      <div className="bg-[var(--elevation-1-bg)] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-5">
+      <div className="glass-panel bg-[var(--elevation-1-bg)] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-5">
         <div className="flex items-center gap-2 text-sm font-bold text-white border-b border-white/[0.05] pb-3">
           <Volume2 className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
           <span>{t('audio_playback_title')}</span>
@@ -122,7 +122,7 @@ export default function SettingsPage() {
       </div>
 
       {/* 🎮 Gaming Mode */}
-      <div className="bg-[var(--elevation-1-bg)] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-5">
+      <div className="glass-panel bg-[var(--elevation-1-bg)] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-5">
         <div className="flex items-center gap-2 text-sm font-bold text-white border-b border-white/[0.05] pb-3">
           <Gamepad2 className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
           <span>Gaming Mode</span>
@@ -168,14 +168,14 @@ export default function SettingsPage() {
       </div>
 
       {/* 🔔 Notifications / Thông báo từ Tác giả */}
-      <div className="bg-[var(--elevation-1-bg)] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-4 relative overflow-hidden">
+      <div className="glass-panel bg-[var(--elevation-1-bg)] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-4 relative overflow-hidden">
         <div className="flex items-center justify-between border-b border-white/[0.05] pb-3">
           <div className="flex items-center gap-2 text-sm font-bold text-white">
             <Bell className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
             <span>Notifications / Thông báo</span>
           </div>
           {checkIsAdmin(userEmail) && (
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-400/40">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[var(--primary-spotify,#06b6d4)]/20 text-[var(--spotify-glow,#22d3ee)] border border-[var(--spotify-glow,#22d3ee)]/40">
               Admin Mode
             </span>
           )}
@@ -212,9 +212,9 @@ export default function SettingsPage() {
             {/* Gmail Raw Text */}
             <a
               href="mailto:tranphong16012006@gmail.com"
-              className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-cyan-300 border border-white/10 text-xs font-mono transition-all flex items-center gap-2 hover:border-cyan-500/30"
+              className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[var(--spotify-glow,#22d3ee)] border border-white/10 text-xs font-mono transition-all flex items-center gap-2 hover:border-[var(--primary-spotify,#06b6d4)]/30"
             >
-              <Mail className="w-4 h-4 text-cyan-400" />
+              <Mail className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
               <span>tranphong16012006@gmail.com</span>
             </a>
           </div>
@@ -233,7 +233,7 @@ export default function SettingsPage() {
                       new CustomEvent('musicweb:open-welcome-modal', { detail: { editMode: true } })
                     )
                   }}
-                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-md shadow-cyan-500/20"
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-md shadow-[var(--theme-glow-shadow)]"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>✏️ Chỉnh sửa thông báo</span>

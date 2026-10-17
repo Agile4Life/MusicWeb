@@ -61,6 +61,7 @@ import { extractDriveFileId, parseFilenameToTitleArtist } from '@/lib/googleDriv
 import { STATIC_DRIVE_TRACKS } from '@/lib/driveTracksMap'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { useSearch } from '@/components/search/SearchContext'
+import { useScrollContext } from '@/components/navigation/ScrollContext'
 import { LONG_COMPILATION_KEYWORDS } from '@/lib/youtube'
 import { isCleanTrendingTrack } from '@/lib/spotify'
 
@@ -128,6 +129,7 @@ export default function HomePage() {
   const { currentTrack, isPlaying, isShuffle } = usePlayerTrack()
   const { playTrack, toggleShuffle } = usePlayerControls()
   const { playlists } = usePlaylists()
+  const { getScrollY } = useScrollContext()
   const albumGrid = useGridGlideIndicator()
   const playlistGrid = useGridGlideIndicator()
   const trendingGrid = useGridGlideIndicator()
@@ -171,7 +173,7 @@ export default function HomePage() {
   // Pull-to-refresh handlers
   const handleTouchStart = (e: React.TouchEvent) => {
     // Only activate when scrolled to top
-    if (scrollContainerRef.current && scrollContainerRef.current.scrollTop === 0) {
+    if (getScrollY() <= 0 && window.scrollY <= 0) {
       touchStartRef.current = e.touches[0].clientY
     }
   }
@@ -900,13 +902,13 @@ export default function HomePage() {
           style={{ opacity: Math.min(pullDistance / 60, 1) }}
         >
           <RefreshCw
-            className={`w-5 h-5 text-cyan-400 ${isRefreshing ? 'animate-spin' : ''}`}
+            className={`w-5 h-5 text-[var(--spotify-glow,#22d3ee)] ${isRefreshing ? 'animate-spin' : ''}`}
             style={{
               transform: isRefreshing ? 'rotate(360deg)' : `rotate(${Math.min(pullDistance, 180)}deg)`,
               transition: isRefreshing ? 'none' : 'transform 0.1s linear',
             }}
           />
-          <span className="text-[10px] text-cyan-400 font-semibold">
+          <span className="text-[10px] text-[var(--spotify-glow,#22d3ee)] font-semibold">
             {isRefreshing ? 'Đang tải...' : pullDistance > 60 ? 'Thả ra để làm mới' : 'Kéo xuống để làm mới'}
           </span>
         </div>
@@ -1002,7 +1004,7 @@ export default function HomePage() {
                     onClick={() => setSelectedCategory(cat.id)}
                     className={`flex-shrink-0 px-4 py-1.5 rounded-full text-[11px] font-semibold transition-all inline-flex items-center gap-1.5 ${
                       isActive
-                        ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-black border border-white/20 shadow-[0_2px_8px_rgba(6,182,212,0.4)]'
+                        ? 'bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--primary-spotify,#06b6d4)] text-black border border-white/20 shadow-[0_2px_8px_var(--theme-glow-shadow)]'
                         : 'bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10 hover:text-white'
                     }`}
                   >
@@ -1027,7 +1029,7 @@ export default function HomePage() {
                     onClick={() => setSelectedCategory(cat.id)}
                     className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all inline-flex items-center gap-1.5 ${
                       isActive
-                        ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-black border border-white/20 shadow-[0_2px_8px_rgba(6,182,212,0.4)]'
+                        ? 'bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--primary-spotify,#06b6d4)] text-black border border-white/20 shadow-[0_2px_8px_var(--theme-glow-shadow)]'
                         : 'bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10 hover:text-white'
                     }`}
                   >
@@ -1147,7 +1149,7 @@ export default function HomePage() {
                 </div>
                 <button
                   onClick={() => setSelectedCategory('all')}
-                  className="mt-1 px-4 py-1.5 rounded-full text-xs font-semibold bg-white/10 hover:bg-white/15 text-cyan-300 border border-cyan-500/30 transition-all shadow-[0_0_12px_rgba(6,182,212,0.15)]"
+                  className="mt-1 px-4 py-1.5 rounded-full text-xs font-semibold bg-white/10 hover:bg-white/15 text-[var(--spotify-glow,#22d3ee)] border border-[var(--primary-spotify,#06b6d4)]/30 transition-all shadow-[0_0_12px_var(--theme-glow-shadow)]"
                 >
                   Xem tất cả thể loại
                 </button>
@@ -1250,7 +1252,7 @@ export default function HomePage() {
               </div>
               <Link
                 href="/albums"
-                className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-all px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10 hover:border-cyan-500/40 hover:bg-white/[0.08]"
+                className="text-xs font-semibold text-[var(--spotify-glow,#22d3ee)] hover:brightness-110 flex items-center gap-1 transition-all px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10 hover:border-[var(--primary-spotify,#06b6d4)]/30 hover:bg-white/[0.08]"
               >
                 <span>Xem tất cả</span>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -1259,15 +1261,26 @@ export default function HomePage() {
 
             {/* Mobile: Horizontal scrollable row | Desktop: Grid */}
             {loadingAlbums ? (
-              <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse flex flex-col gap-2.5">
-                    <div className="aspect-square w-full bg-slate-800/80 rounded-xl" />
-                    <div className="h-3 bg-slate-700/80 rounded w-3/4" />
-                    <div className="h-2 bg-slate-800/80 rounded w-1/2" />
-                  </div>
-                ))}
-              </div>
+              <>
+                <div className="flex md:hidden gap-3 overflow-hidden pb-2 -mx-2.5 px-2.5">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="flex-shrink-0 w-[140px] bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse">
+                      <div className="aspect-square w-full bg-slate-800/80 rounded-xl" />
+                      <div className="h-3 bg-slate-700/80 rounded w-3/4 mt-2.5" />
+                      <div className="h-2 bg-slate-800/80 rounded w-1/2 mt-1" />
+                    </div>
+                  ))}
+                </div>
+                <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse flex flex-col gap-2.5">
+                      <div className="aspect-square w-full bg-slate-800/80 rounded-xl" />
+                      <div className="h-3 bg-slate-700/80 rounded w-3/4" />
+                      <div className="h-2 bg-slate-800/80 rounded w-1/2" />
+                    </div>
+                  ))}
+                </div>
+              </>
             ) : trendingAlbums.length > 0 ? (
               <>
                 {/* Mobile: Horizontal scroll */}
@@ -1350,7 +1363,7 @@ export default function HomePage() {
               </div>
               <Link
                 href="/drive"
-                className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-all px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10 hover:border-cyan-500/40 hover:bg-white/[0.08]"
+                className="text-xs font-semibold text-[var(--spotify-glow,#22d3ee)] hover:brightness-110 flex items-center gap-1 transition-all px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10 hover:border-[var(--primary-spotify,#06b6d4)]/30 hover:bg-white/[0.08]"
               >
                 <span>Xem tất cả ({driveTracks.length})</span>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -1428,8 +1441,8 @@ export default function HomePage() {
         <div className="flex flex-col gap-4">
           {!isSearching && (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
-              {/* Tabs: hidden on mobile, visible on md+ */}
-              <div className="hidden md:flex items-center gap-2 overflow-x-auto no-scrollbar touch-pan-x pr-2 py-0.5">
+              {/* Tabs: visible on mobile and desktop */}
+              <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar max-w-full pb-1 md:pb-0 touch-pan-x pr-2 py-0.5">
                 <button
                   onClick={() => setLibraryTab('recent')}
                   style={
@@ -1494,11 +1507,11 @@ export default function HomePage() {
               <button
                 onClick={handleCleanMissingDriveFiles}
                 disabled={cleaningDuplicates}
-                className="flex items-center gap-1.5 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 px-3.5 py-1.5 rounded-full transition-all disabled:opacity-50"
+                className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--spotify-glow,#22d3ee)] hover:brightness-110 bg-[var(--primary-spotify,#06b6d4)]/10 hover:bg-[var(--primary-spotify,#06b6d4)]/20 border border-[var(--primary-spotify,#06b6d4)]/30 px-3.5 py-1.5 rounded-full transition-all disabled:opacity-50"
                 title="Tự động kiểm tra và xóa khỏi CSDL các bài hát đã bị xóa khỏi Google Drive"
               >
                 {cleaningDuplicates ? (
-                  <span className="animate-spin w-3.5 h-3.5 border-2 border-cyan-400 border-t-transparent rounded-full inline-block" />
+                  <span className="animate-spin w-3.5 h-3.5 border-2 border-[var(--spotify-glow,#22d3ee)] border-t-transparent rounded-full inline-block" />
                 ) : (
                   <RotateCcw className="w-3.5 h-3.5" />
                 )}
@@ -1536,10 +1549,10 @@ export default function HomePage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
               <div className="flex items-center gap-3">
                 <h2 className="text-lg font-bold font-display text-white flex items-center gap-2">
-                  <Search className="w-5 h-5 text-cyan-400" />
+                  <Search className="w-5 h-5 text-[var(--spotify-glow,#22d3ee)]" />
                   Kết Quả Tìm Kiếm Toàn Cầu
                 </h2>
-                {searchingGlobal && <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />}
+                {searchingGlobal && <Loader2 className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)] animate-spin" />}
               </div>
             </div>
           )}
@@ -1547,8 +1560,8 @@ export default function HomePage() {
           {loading ? (
             <TrackListSkeleton count={8} />
           ) : isSearching && searchingGlobal && displayedTracks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-slate-400 bg-[#181818]/60 border border-white/5 rounded-2xl gap-3">
-              <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400 bg-[var(--elevation-1-bg)] border border-white/5 rounded-2xl gap-3">
+              <Loader2 className="w-6 h-6 animate-spin text-[var(--spotify-glow,#22d3ee)]" />
               <p className="text-sm font-medium text-white">Đang tìm kiếm bài hát...</p>
             </div>
           ) : (
@@ -1569,7 +1582,7 @@ export default function HomePage() {
                 <div className="flex justify-center pt-3 pb-2">
                   <button
                     onClick={() => setShowAllResults(true)}
-                    className="bg-white/5 hover:bg-white/10 text-cyan-400 hover:text-cyan-300 border border-white/10 text-xs font-bold px-6 py-2.5 rounded-full transition-all flex items-center gap-2 shadow-lg hover:scale-105"
+                    className="bg-white/5 hover:bg-white/10 text-[var(--spotify-glow,#22d3ee)] hover:brightness-110 border border-white/10 text-xs font-bold px-6 py-2.5 rounded-full transition-all flex items-center gap-2 shadow-lg hover:scale-105"
                   >
                     <span>Xem thêm {displayedTracks.length - 15} kết quả cho &quot;{searchQuery.trim()}&quot;</span>
                     <ChevronRight className="w-4 h-4" />

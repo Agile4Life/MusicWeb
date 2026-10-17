@@ -23,7 +23,6 @@ import {
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
 import { TopHistoryTrackItem } from '@/lib/listeningHistory'
-import { buildStyleCoherentQueue } from '@/lib/trackClassifier'
 
 interface HistoryEntry {
   id: string
@@ -305,7 +304,7 @@ export default function HistoryPage() {
   return (
     <div className="p-2.5 sm:p-4 md:p-6 lg:p-7 flex flex-col gap-3 sm:gap-4 md:gap-5 max-w-7xl mx-auto w-full pb-36 lg:pb-12 select-none">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-white/[0.06] p-3 sm:p-4 md:p-5 bg-[#0d1017] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+      <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.06] p-3 sm:p-4 md:p-5 bg-[var(--elevation-1-bg,#0d1017)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
         <div className="flex items-center gap-2.5 sm:gap-3.5">
           <div
             style={{
@@ -524,7 +523,7 @@ export default function HistoryPage() {
                 return (
                   <div
                     key={item.id}
-                    onClick={() => playTrack(track, buildStyleCoherentQueue(track, filteredRecentItems.map((i) => i.track)))}
+                    onClick={() => playTrack(track, filteredRecentItems.map((i) => i.track))}
                     onMouseEnter={handleHistoryMouseEnter}
                     className="history-track-row song-row recent-row flex items-center justify-between p-2.5 sm:p-3 rounded-xl transition-all group gap-2.5 sm:gap-4 cursor-pointer relative z-[1]"
                   >
@@ -535,7 +534,6 @@ export default function HistoryPage() {
 
                       {/* Play / Cover Thumbnail */}
                       <div
-                        onClick={() => playTrack(track, buildStyleCoherentQueue(track, filteredRecentItems.map((i) => i.track)))}
                         className="row-thumb w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center shrink-0 cursor-pointer relative overflow-hidden group/thumb"
                       >
                         {track.cover_url ? (
@@ -556,7 +554,6 @@ export default function HistoryPage() {
                       {/* Track Info */}
                       <div className="flex flex-col truncate flex-1 min-w-0">
                         <p
-                          onClick={() => playTrack(track, buildStyleCoherentQueue(track, filteredRecentItems.map((i) => i.track)))}
                           style={isCurrentPlaying ? { color: 'var(--spotify-glow, #22d3ee)' } : undefined}
                           className={`text-xs sm:text-sm font-bold truncate cursor-pointer hover:underline ${
                             isCurrentPlaying ? '' : 'text-white'
@@ -636,7 +633,7 @@ export default function HistoryPage() {
                 return (
                   <div
                     key={`${track.id}-${idx}`}
-                    onClick={() => playTrack(track, buildStyleCoherentQueue(track, filteredTopItems.map((i) => i.track)))}
+                    onClick={() => playTrack(track, filteredTopItems.map((i) => i.track))}
                     onMouseEnter={handleHistoryMouseEnter}
                     className="history-track-row song-row top-track-row flex items-center justify-between p-2.5 sm:p-3 rounded-xl transition-all group gap-2.5 sm:gap-4 cursor-pointer relative z-[1]"
                   >
@@ -673,7 +670,6 @@ export default function HistoryPage() {
 
                       {/* Play / Cover Thumbnail */}
                       <div
-                        onClick={() => playTrack(track, buildStyleCoherentQueue(track, filteredTopItems.map((i) => i.track)))}
                         className="row-thumb w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center shrink-0 cursor-pointer relative overflow-hidden group/thumb"
                       >
                         {track.cover_url ? (
@@ -694,7 +690,6 @@ export default function HistoryPage() {
                       {/* Track Info */}
                       <div className="flex flex-col truncate flex-1 min-w-0">
                         <p
-                          onClick={() => playTrack(track, buildStyleCoherentQueue(track, filteredTopItems.map((i) => i.track)))}
                           style={isCurrentPlaying ? { color: 'var(--spotify-glow, #22d3ee)' } : undefined}
                           className={`text-xs sm:text-sm font-bold truncate cursor-pointer hover:underline ${
                             isCurrentPlaying ? '' : 'text-white'

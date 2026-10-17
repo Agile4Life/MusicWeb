@@ -228,12 +228,12 @@ export default function ArtistPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 flex flex-col gap-6 md:gap-8 max-w-7xl mx-auto w-full">
+    <div className="p-4 md:p-6 lg:p-8 flex flex-col gap-6 md:gap-8 max-w-7xl mx-auto w-full pb-36 lg:pb-8">
       {/* Hero Section */}
       <div className="artist-hero relative flex flex-col sm:flex-row items-center sm:items-end gap-5 sm:gap-7 p-6 sm:p-8 rounded-2xl overflow-hidden">
         {/* Gradient Backdrop */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary-spotify,#06b6d4)]/20 via-[#07090e]/80 to-[#0f0b16] z-0" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#07090e] via-transparent to-transparent z-0" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary-spotify,#06b6d4)]/20 via-[var(--bg-space,#07090e)]/80 to-[var(--elevation-1-bg,#0f0b16)] z-0" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-space,#07090e)] via-transparent to-transparent z-0" />
 
         {/* Artist Avatar */}
         <div className="artist-avatar relative z-10 w-32 h-32 sm:w-36 sm:h-36 md:w-44 md:h-44 rounded-full overflow-hidden shrink-0 border-2 border-white/15 shadow-2xl">

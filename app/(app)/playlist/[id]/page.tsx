@@ -459,12 +459,12 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
   return (
     <div className="p-3.5 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6 lg:gap-8 max-w-7xl mx-auto w-full pb-36 lg:pb-8 select-none">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-white/[0.06] p-4 sm:p-6 md:p-8 bg-[#0d1017] flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
+      <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.06] p-4 sm:p-6 md:p-8 bg-[var(--elevation-1-bg,#0d1017)] flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
         <div className="w-28 h-28 sm:w-36 sm:h-36 bg-slate-800 rounded-xl flex items-center justify-center shrink-0 border border-white/10 overflow-hidden">
           {playlist.cover_url ? (
             <img src={playlist.cover_url} alt={playlist.name} className="w-full h-full object-cover" />
           ) : (
-            <ListMusic className="w-10 h-10 sm:w-12 sm:h-12 text-cyan-400/80" />
+            <ListMusic className="w-10 h-10 sm:w-12 sm:h-12 text-[var(--spotify-glow,#22d3ee)]" />
           )}
         </div>
 
@@ -479,7 +479,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
                 type="text"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                className="bg-white/10 text-white font-bold text-lg px-3 py-1 rounded-xl outline-none border border-cyan-400"
+                className="bg-white/10 text-white font-bold text-lg px-3 py-1 rounded-xl outline-none border border-[var(--spotify-glow,#22d3ee)]"
               />
               <input
                 type="text"
@@ -491,7 +491,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
               <div className="flex items-center gap-2 mt-1">
                 <button
                   onClick={handleUpdatePlaylist}
-                  className="bg-[var(--primary-spotify,#06b6d4)] text-black px-3.5 py-1 rounded-full text-xs font-bold flex items-center gap-1 hover:bg-cyan-300 transition-colors"
+                  className="bg-[var(--primary-spotify,#06b6d4)] text-black px-3.5 py-1 rounded-full text-xs font-bold flex items-center gap-1 hover:brightness-110 transition-colors"
                 >
                   <Check className="w-3.5 h-3.5" /> Lưu
                 </button>
@@ -599,7 +599,15 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
 
       {/* Playlist Track List or Empty State Actions */}
       {tracks.length > 0 ? (
-        <TrackList tracks={tracks} onDeleteTrack={handleRemoveTrackFromPlaylist} />
+        <TrackList
+          tracks={tracks}
+          userPlaylists={userPlaylists}
+          onAddToPlaylist={async (targetPlId, track) => {
+            const res = await addTrackToPlaylist(targetPlId, track)
+            toast(res.message, res.success ? 'success' : 'error', track.title)
+          }}
+          onDeleteTrack={handleRemoveTrackFromPlaylist}
+        />
       ) : (
         <div className="glass-panel p-10 rounded-3xl text-center border border-white/10 flex flex-col items-center gap-4 my-4">
           <div className="w-16 h-16 rounded-full bg-[var(--primary-spotify)]/10 flex items-center justify-center text-[var(--primary-spotify)] border border-[var(--primary-spotify)]/20 shadow-lg">
@@ -641,7 +649,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
           onClick={() => setShowPlaylistSelector(false)}
         >
           <div
-            className="w-full sm:max-w-md bg-[#0c121e] border-t sm:border border-white/15 rounded-t-3xl sm:rounded-3xl p-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pb-5 shadow-2xl flex flex-col gap-4 max-h-[85vh] animate-in slide-in-from-bottom duration-250"
+            className="glass-panel modal-content w-full sm:max-w-md bg-[var(--elevation-2-bg,#0c121e)] border-t sm:border border-white/15 rounded-t-3xl sm:rounded-3xl p-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pb-5 shadow-2xl flex flex-col gap-4 max-h-[85vh] animate-in slide-in-from-bottom duration-250"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Mobile drag handle */}
@@ -807,7 +815,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
                       </div>
 
                       {inPlaylist ? (
-                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 shrink-0 flex items-center gap-1">
+                        <span className="text-[10px] font-bold text-[var(--spotify-glow,#22d3ee)] bg-[var(--primary-spotify,#06b6d4)]/10 px-2.5 py-1 rounded-full border border-[var(--primary-spotify,#06b6d4)]/20 shrink-0 flex items-center gap-1">
                           <Check className="w-3 h-3" />
                           Đã thêm
                         </span>

@@ -261,11 +261,11 @@ export default function DrivePage() {
   return (
     <div className="p-3.5 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6 lg:gap-8 max-w-7xl mx-auto w-full select-none pb-36 lg:pb-8">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] p-4 sm:p-6 md:p-8 bg-gradient-to-r from-[#0b1320] via-[#0d1627] to-[#070b12] shadow-2xl">
+      <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.08] p-4 sm:p-6 md:p-8 bg-[var(--elevation-1-bg,#0b1320)] shadow-2xl">
         {/* Glow backdrop */}
         <div
           style={{
-            background: 'radial-gradient(400px circle at 80% 20%, rgba(34,211,238,0.15), transparent 70%)',
+            background: 'radial-gradient(400px circle at 80% 20%, color-mix(in srgb, var(--spotify-glow, #22d3ee) 15%, transparent), transparent 70%)',
           }}
           className="absolute inset-0 pointer-events-none"
         />

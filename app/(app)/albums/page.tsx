@@ -246,10 +246,10 @@ export default function AlbumsPage() {
           value={albumQuery}
           onChange={(e) => setAlbumQuery(e.target.value)}
           placeholder="Tìm kiếm Album theo tên đĩa nhạc, nghệ sĩ (Sơn Tùng, Taylor Swift, Coldplay...)"
-          className="w-full bg-[#0d111a] border border-white/10 focus:border-[var(--primary-spotify,#06b6d4)]/60 focus:bg-[#111724] rounded-full pl-11 pr-10 py-2 sm:py-2.5 text-xs text-white placeholder-slate-400 outline-none transition-all shadow-inner"
+          className="search-input w-full bg-[var(--elevation-1-bg,#0d111a)] border border-white/10 focus:border-[var(--primary-spotify,#06b6d4)]/60 rounded-full pl-11 pr-10 py-2 sm:py-2.5 text-xs text-white placeholder-slate-400 outline-none transition-all shadow-inner"
         />
         {searching ? (
-          <Loader2 className="w-4 h-4 text-cyan-400 animate-spin absolute right-3.5" />
+          <Loader2 className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)] animate-spin absolute right-3.5" />
         ) : albumQuery ? (
           <button
             onClick={() => setAlbumQuery('')}
@@ -273,7 +273,7 @@ export default function AlbumsPage() {
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                 Kết quả tìm kiếm cho:
               </span>
-              <span className="text-xs font-bold text-cyan-400 font-mono">
+              <span className="text-xs font-bold text-[var(--spotify-glow,#22d3ee)] font-mono">
                 &ldquo;{albumQuery}&rdquo;
               </span>
             </div>
@@ -326,7 +326,7 @@ export default function AlbumsPage() {
             <div className="flex flex-col gap-3.5 sm:gap-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-2 h-5 bg-cyan-400 rounded-full" />
+                  <div className="w-2 h-5 bg-[var(--primary-spotify,#06b6d4)] rounded-full" />
                   <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">
                     Album Đã Nghe
                   </h2>
@@ -367,7 +367,7 @@ export default function AlbumsPage() {
           <div className="flex flex-col gap-3.5 sm:gap-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-2 h-5 bg-pink-500 rounded-full" />
+                <div className="w-2 h-5 bg-[var(--theme-secondary,#ec4899)] rounded-full" />
                 <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">
                   Khám Phá Album Mới (Top Releases)
                 </h2>

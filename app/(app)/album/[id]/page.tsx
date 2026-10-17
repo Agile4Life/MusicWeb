@@ -197,22 +197,22 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="p-3.5 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6 lg:gap-8 max-w-7xl mx-auto w-full pb-36 lg:pb-8 select-none">
       {/* Album Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] p-4 sm:p-6 lg:p-8 bg-[#0c1017] flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
+      <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.08] p-4 sm:p-6 lg:p-8 bg-[var(--elevation-1-bg,#0c1017)] flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
         {/* Cover Art */}
         <div className="w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 bg-slate-900 rounded-2xl flex items-center justify-center shrink-0 border border-white/10 shadow-2xl overflow-hidden relative group">
           {album.cover_url ? (
             <img src={album.cover_url} alt={album.name} className="w-full h-full object-cover" />
           ) : (
-            <DiscAlbum className="w-16 h-16 text-cyan-400/80" />
+            <DiscAlbum className="w-16 h-16 text-[var(--spotify-glow,#22d3ee)]" />
           )}
-          <div className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[10px] font-mono text-cyan-300 uppercase tracking-wider">
+          <div className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[10px] font-mono text-[var(--spotify-glow,#22d3ee)] uppercase tracking-wider">
             {album.album_type === 'single' ? 'Single / EP' : 'Album'}
           </div>
         </div>
 
         {/* Album Meta */}
         <div className="flex-1 flex flex-col gap-2.5 min-w-0">
-          <p className="text-[11px] font-mono text-cyan-400 uppercase tracking-widest flex items-center gap-1.5">
+          <p className="text-[11px] font-mono text-[var(--spotify-glow,#22d3ee)] uppercase tracking-widest flex items-center gap-1.5">
             <Disc className="w-3.5 h-3.5" />
             <span>BỘ SƯU TẬP ALBUM</span>
           </p>
@@ -259,7 +259,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
           <>
             <button
               onClick={() => playTrack(album.tracks[0], album.tracks, 0)}
-              className="bg-[var(--primary-spotify,#06b6d4)] text-black font-extrabold px-6 py-3 rounded-full flex items-center gap-2 shadow-xl shadow-cyan-500/20 hover:scale-105 transition-all text-xs"
+              className="bg-[var(--primary-spotify,#06b6d4)] text-black font-extrabold px-6 py-3 rounded-full flex items-center gap-2 shadow-[0_8px_20px_var(--theme-glow-shadow)] hover:scale-105 transition-all text-xs"
             >
               <Play className="w-4 h-4 fill-current" />
               <span>Phát Album</span>
@@ -328,7 +328,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
           {sortedDiscs.map(([discNum, discTracks]) => (
             <div key={discNum} className="flex flex-col gap-2">
               {hasMultipleDiscs && (
-                <div className="flex items-center gap-2 px-3 py-1 text-xs font-mono text-cyan-400 uppercase tracking-widest border-b border-white/[0.08] mb-1">
+                <div className="flex items-center gap-2 px-3 py-1 text-xs font-mono text-[var(--spotify-glow,#22d3ee)] uppercase tracking-widest border-b border-white/[0.08] mb-1">
                   <Disc className="w-3.5 h-3.5" />
                   <span>Đĩa {discNum} (Disc {discNum})</span>
                 </div>

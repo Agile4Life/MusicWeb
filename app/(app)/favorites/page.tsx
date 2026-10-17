@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Track, Playlist } from '@/types'
 import { usePlayerControls } from '@/components/player/PlayerContext'
-import { getValidUserId, getAllValidUserIds } from '@/lib/accessControl'
+import { getValidUserId, getAllValidUserIds, isAdmin as checkIsAdmin } from '@/lib/accessControl'
 import { resolveExternalTrackId, isExternalTrack, addTrackToPlaylist } from '@/lib/trackPersistence'
 import { fetchFavoriteTracks, inferTrackSource } from '@/lib/favoriteTracks'
 import { toast } from '@/components/ui/ToastContext'
@@ -13,6 +13,7 @@ import { Heart, Play, Search, Music, Sparkles, Loader2, ChevronLeft } from 'luci
 import { useRouter } from 'next/navigation'
 import { TrackList } from '@/components/track/TrackList'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
+import { usePlaylists } from '@/components/playlist/PlaylistContext'
 
 let cachedFavorites: Track[] = []
 let favoritesFetchedAt = 0
@@ -22,9 +23,9 @@ export default function FavoritesPage() {
   const supabase = createClient()
   const { data: nextAuthSession } = useSession()
   const { playTrack } = usePlayerControls()
+  const { playlists } = usePlaylists()
 
   const [tracks, setTracks] = useState<Track[]>(cachedFavorites)
-  const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [loading, setLoading] = useState(cachedFavorites.length === 0)
   const [searchQuery, setSearchQuery] = useState('')
   const [supabaseUser, setSupabaseUser] = useState<any>(null)
@@ -97,12 +98,12 @@ export default function FavoritesPage() {
           email: nextAuthSession.user.email,
         }
       : null)
-  const isAdmin = user?.email === 'admin@musicweb.com'
+  const isAdmin = checkIsAdmin(user?.email)
 
   return (
     <div className="p-2.5 sm:p-4 md:p-6 lg:p-7 flex flex-col gap-3 sm:gap-4 md:gap-5 max-w-7xl mx-auto w-full pb-36 lg:pb-12 select-none">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-white/[0.06] p-3 sm:p-4 md:p-5 bg-[#0d1017] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+      <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.06] p-3 sm:p-4 md:p-5 bg-[var(--elevation-1-bg,#0d1017)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
         <div className="flex items-center gap-2.5 sm:gap-3.5">
           <button
             onClick={() => router.back()}
