@@ -1,10 +1,12 @@
 import { Track } from '@/types'
 import {
   containsPhrase,
+  extractArtistAliases,
   hasCatalogArtistEvidence,
   hasCatalogTitleEvidence,
   hasIncompatiblePlaybackVariant,
   measureIdentityTokenOverlap,
+  normalizeIdentity,
   stripArtistFromCandidateTitle,
 } from './catalogMatching'
 
@@ -383,10 +385,11 @@ export function normalizeTitle(text: string): string {
   if (!text) return ''
   return text
     .normalize('NFC')
-    .replace(/\s*[\(\[\{]\s*(?:official\s*(?:video|music\s*video|audio|mv|lyric\s*video|visualizer|clip)?|lyric\s*video|lyrics?|visualizer|audio|mv|hd|4k|m\/v|mv\s*hd|video|full\s*hd|karaoke|vietsub|engsub|kara|explicit|prod\.?\s*(?:by\b)?[^)\]\}]*)\s*[\)\]\}]/gi, ' ')
-    .replace(/\s*[\(\[\{]\s*(?:feat\.?|ft\.?|featuring)\s+[^)\]\}]+[\)\]\}]/gi, ' ')
+    .replace(/\s*[\(\[\{]\s*(?:official\s*(?:video|music\s*video|audio|mv|lyric\s*video|visualizer|clip)?|lyric\s*video|lyrics?|visualizer|audio|mv|hd|hq|high\s*quality|full\s*audio|original\s*audio|4k|m\/v|mv\s*hd|video|full\s*hd|karaoke|vietsub|engsub|kara|explicit|remaster(?:ed)?(?:\s+\d{4})?|prod\.?\s*(?:by\b)?[^)\]\}]*|ost\b[^)\]\}]*|from\s+[^)\]\}]*)\s*[\)\]\}]/gi, ' ')
+    .replace(/\s*[\(\[\{]\s*(?:feat\.?|ft\.?|featuring|with)\s+[^)\]\}]+[\)\]\}]/gi, ' ')
     .replace(/\s+(?:feat\.?|ft\.?|featuring)\s+.*/i, ' ')
-    .replace(/\s*(?:\||\/|-\s+)(?:official\s*(?:music\s*video|lyric\s*video|video|audio|mv|visualizer|clip)?|music\s*video|lyric\s*video|lyrics?|visualizer|official\s+mv|m\/v|full\s*hd|vietsub|engsub)\b.*/i, ' ')
+    .replace(/\s+[-–—]\s+from\s+(?:["'“”][^"'“”]+["'“”]|the\s+.*|.*?\b(?:soundtrack|album|motion\s+picture|film|series|ost)\b.*)/i, ' ')
+    .replace(/\s*(?:\||\/|-\s+)(?:official\s*(?:music\s*video|lyric\s*video|video|audio|mv|visualizer|clip)?|music\s*video|lyric\s*video|lyrics?|visualizer|official\s+mv|m\/v|full\s*hd|hq|high\s*quality|vietsub|engsub)\b.*/i, ' ')
     .replace(/\b(?:feat|ft)\.?\b/gi, ' ')
     .replace(/[\-\_\,\.\:\;\|]/g, ' ')
     .replace(/[\(\[\{\)\]\}]/g, ' ')
@@ -457,9 +460,17 @@ export function findBestYouTubeMatch(
     }
 
     // 2. HARD FILTER: Preserve requested versions and reject unrequested variants.
-    const hasUnwantedNegativeKeyword = hasIncompatiblePlaybackVariant(
-      candidate.title, targetTitle, [...NEGATIVE_KEYWORDS, 'beat'],
-    )
+    const hasUnwantedNegativeKeyword =
+      hasIncompatiblePlaybackVariant(
+        candidate.title,
+        targetTitle,
+        [...NEGATIVE_KEYWORDS, 'beat', 'edit', 'rework', 'bootleg', 'flip', 'rendition'],
+      ) ||
+      hasIncompatiblePlaybackVariant(
+        `${candidate.title || ''} ${candidate.artist || ''}`,
+        `${targetTitle || ''} ${targetArtist || ''}`,
+        [...NEGATIVE_KEYWORDS, 'beat', 'edit', 'rework', 'bootleg', 'flip', 'rendition'],
+      )
     if (hasUnwantedNegativeKeyword) {
       continue
     }
@@ -499,48 +510,72 @@ export function findBestYouTubeMatch(
 
     const hasStrongTitleIdentity = hasPhraseMatch || matchRatio >= 0.85
 
-    // 4. ALBUM MATCH BONUS (+500 points) - Only when title identity is confirmed
-    if (hasStrongTitleIdentity && cleanTargetAlbum && cleanTargetAlbum.length > 2) {
-      if (
-        containsPhrase(candidateTitleNorm, cleanTargetAlbum) ||
+    // 4. ALBUM MATCH BONUS - Only when title identity is confirmed
+    const hasAlbumTextMatch =
+      hasStrongTitleIdentity &&
+      Boolean(cleanTargetAlbum && cleanTargetAlbum.length > 2) &&
+      (containsPhrase(candidateTitleNorm, cleanTargetAlbum) ||
         containsPhrase(candidateArtistNorm, cleanTargetAlbum) ||
-        (unaccentedTargetAlbum && (
-          containsPhrase(unaccentedCandidateTitle, unaccentedTargetAlbum) ||
-          containsPhrase(unaccentedCandidateArtist, unaccentedTargetAlbum)
+        Boolean(
+          unaccentedTargetAlbum &&
+            (containsPhrase(unaccentedCandidateTitle, unaccentedTargetAlbum) ||
+              containsPhrase(unaccentedCandidateArtist, unaccentedTargetAlbum)),
         ))
-      ) {
-        score += 500
-      }
-    }
 
-    // 5. PRIORITY FOR DIGITAL AUDIO RELEASE ("- TOPIC" & "OFFICIAL AUDIO") OVER MV
+    // 5. PRIORITY FOR DIGITAL AUDIO RELEASE ("- TOPIC" & "OFFICIAL AUDIO") OVER MV & THIRD-PARTY LYRICS
     const rawCandidateTitleLower = (candidate.title || '').toLowerCase()
+    const candidateArtistIdentity = normalizeIdentity(candidate.artist)
+    const targetArtistAliases = extractArtistAliases(targetArtist)
+    const hasChannelArtistMatch = targetArtistAliases.some(
+      (alias) =>
+        candidateArtistIdentity === alias ||
+        candidateArtistIdentity === `${alias} official` ||
+        candidateArtistIdentity === `${alias} topic` ||
+        candidateArtistIdentity === `${alias} music` ||
+        candidateArtistIdentity === `${alias} channel`,
+    )
     const isTopicChannel =
       candidateArtistNorm.endsWith('topic') ||
       containsPhrase(candidateArtistNorm, 'topic')
+    const isVevoOrOfficialChannel =
+      candidateArtistNorm.includes('vevo') ||
+      containsPhrase(candidateArtistNorm, 'official') ||
+      (candidate.artist || '').toLowerCase().includes('vevo')
     const isOfficialAudio =
       rawCandidateTitleLower.includes('official audio') ||
       rawCandidateTitleLower.includes('audio official') ||
-      containsPhrase(candidateTitleNorm, 'audio') ||
-      rawCandidateTitleLower.includes('lyric')
+      /[\(\[\{]\s*(?:official\s+)?audio\s*[\)\]\}]/i.test(rawCandidateTitleLower) ||
+      (hasChannelArtistMatch && /\baudio\b/i.test(rawCandidateTitleLower) && !rawCandidateTitleLower.includes('lyric'))
+    const isOfficialLyric =
+      rawCandidateTitleLower.includes('official lyric') ||
+      rawCandidateTitleLower.includes('lyric video')
+    const isThirdPartyLyric =
+      !isOfficialLyric && /\blyrics?\b/i.test(rawCandidateTitleLower)
     const isOfficialMV =
       rawCandidateTitleLower.includes('official music video') ||
       rawCandidateTitleLower.includes('official video') ||
       rawCandidateTitleLower.includes('music video') ||
       /\bmv\b/i.test(rawCandidateTitleLower)
-    const isVevoOrOfficialChannel =
-      candidateArtistNorm.includes('vevo') ||
-      containsPhrase(candidateArtistNorm, 'official')
+
+    if (hasAlbumTextMatch) {
+      // Topic channels embed album metadata genuinely; non-Topic uploads with "[Album]" in the title/channel
+      // are often fan re-uploads and should not outscore the artist's own Official Audio / Official MV.
+      score += isTopicChannel ? 300 : 60
+    }
 
     if (hasStrongTitleIdentity) {
       if (isTopicChannel) {
         score += 400 // Direct studio audio release from Spotify/Apple Music provider
       } else if (isOfficialAudio) {
         score += 300 // Priority #1: Official Audio clean studio track
+      } else if (isOfficialLyric && (hasChannelArtistMatch || isVevoOrOfficialChannel)) {
+        score += 180 // Official Lyric Video on the artist's own channel
       } else if (isOfficialMV) {
-        score += 100 // Priority #2: Official Music Video
+        score += 140 // Priority #2: Official Music Video
       } else if (isVevoOrOfficialChannel) {
         score += 150
+      } else if (isOfficialLyric || isThirdPartyLyric) {
+        score += 40 // Fallback lyric upload (below official artist audio/MV)
       }
     }
 
@@ -563,6 +598,9 @@ export function findBestYouTubeMatch(
         }
       }
       if (artistMatch) score += 40
+      if (hasChannelArtistMatch) {
+        score += 150 // Strong bonus when the YouTube channel owner itself is the artist
+      }
     }
 
     // 7. DURATION PRECISION SCORING (Non-overlapping thresholds)
@@ -589,6 +627,7 @@ export function findBestYouTubeMatch(
 
   return bestMatch
 }
+
 
 interface VideoMeta {
   duration: number

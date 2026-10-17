@@ -36,12 +36,33 @@ export async function resolveCatalogCandidates<T>(
     })
   }
 
+  // If the preferred source failed/missed before its grace window expired, give the
+  // primary fallback (e.g. SoundCloud HTML5 stream) a chance to finish before falling
+  // back to lower-priority sources (e.g. YouTube IFrame).
+  if (
+    earlyPreferred === null &&
+    fallbackPromises.length > 1 &&
+    settledFallbacks[0] === undefined &&
+    preferredHeadStartMs > 0
+  ) {
+    let primaryFallbackTimer: ReturnType<typeof setTimeout> | undefined
+    const primaryFallbackDeadline = new Promise<typeof timeout>((resolve) => {
+      primaryFallbackTimer = setTimeout(() => resolve(timeout), preferredHeadStartMs)
+    })
+    const earlyPrimaryFallback = await Promise.race([fallbackPromises[0], primaryFallbackDeadline])
+    if (primaryFallbackTimer !== undefined) clearTimeout(primaryFallbackTimer)
+    if (earlyPrimaryFallback !== timeout && earlyPrimaryFallback !== null) {
+      return earlyPrimaryFallback
+    }
+  }
+
   for (const value of settledFallbacks) {
     if (value !== undefined && value !== null) {
       promoteAfterFallback()
       return value
     }
   }
+
 
   // Null results retire only their own candidate, never block another source.
   const pending = new Map<number, Promise<{ index: number; value: T | null }>>()

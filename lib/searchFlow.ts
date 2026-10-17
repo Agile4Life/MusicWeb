@@ -8,7 +8,7 @@ import {
   stripArtistFromCandidateTitle,
   stripNonIdentityAnnotations,
 } from './catalogMatching'
-import { deduplicateQueueTracks } from './utils'
+import { deduplicateQueueTracks, extractCoreSongTitle } from './utils'
 import type { GlobalSearchTracks } from './searchApi'
 
 export function mergePrimarySearchResults(
@@ -48,8 +48,9 @@ export function combineCombinedSearchResults(
   }
 }
 
-function getSourceBaseScore(source?: Track['source']): number {
-  switch (source) {
+function getSourceBaseScore(track: Track): number {
+  if (track.id?.startsWith('deezer-')) return 18
+  switch (track.source) {
     case 'local':
       return 28
     case 'nhaccuatui':
@@ -78,27 +79,43 @@ function getSourceBaseScore(source?: Track['source']): number {
  */
 export function scoreTrackSearchRelevance(track: Track, rawQuery: string): number {
   const normQuery = normalizeIdentity(rawQuery)
-  if (!normQuery) return getSourceBaseScore(track.source)
+  if (!normQuery) return getSourceBaseScore(track)
 
   const rawTitle = track.title || ''
   const rawArtist = track.artist || ''
   const cleanTitle = stripNonIdentityAnnotations(rawTitle) || normalizeIdentity(rawTitle)
+  const bareTitle = extractCoreSongTitle(rawTitle)
   const normTitle = normalizeIdentity(rawTitle)
   const normArtist = normalizeIdentity(rawArtist)
   const coreTitle = stripArtistFromCandidateTitle(cleanTitle, normQuery, undefined, rawArtist)
   const artistAliases = extractArtistAliases(rawArtist)
   const combined = `${cleanTitle} ${normArtist} ${artistAliases.join(' ')}`.trim()
+  const hasUnrequestedVariant =
+    hasIncompatiblePlaybackVariant(rawTitle, rawQuery) ||
+    hasIncompatiblePlaybackVariant(`${rawTitle} ${rawArtist}`, rawQuery)
 
   const queryTokens = normQuery.split(' ').filter(Boolean)
   const titleTokens = coreTitle.split(' ').filter(Boolean)
   const artistTokens = normArtist.split(' ').filter(Boolean)
   const allTrackTokens = combined.split(' ').filter(Boolean)
 
-  let score = getSourceBaseScore(track.source)
+  let score = getSourceBaseScore(track)
+
+  const isSingularPluralTitleMatch =
+    normQuery.length >= 4 &&
+    (coreTitle === `${normQuery}s` ||
+      cleanTitle === `${normQuery}s` ||
+      bareTitle === `${normQuery}s` ||
+      normQuery === `${coreTitle}s` ||
+      normQuery === `${cleanTitle}s`)
 
   // 1. Exact & phrase title / artist matches
   if (coreTitle === normQuery || cleanTitle === normQuery || normTitle === normQuery) {
     score += 130
+  } else if (isSingularPluralTitleMatch) {
+    score += 122
+  } else if (!hasUnrequestedVariant && bareTitle === normQuery) {
+    score += 118
   } else if (
     coreTitle.startsWith(`${normQuery} `) ||
     cleanTitle.startsWith(`${normQuery} `)
@@ -124,8 +141,8 @@ export function scoreTrackSearchRelevance(track: Track, rawQuery: string): numbe
 
   if (queryCoverageInCombined === 1) {
     score += 65
-    if (queryCoverageInTitle > 0 && queryCoverageInArtist > 0) {
-      // User typed both song title and artist name!
+    if (queryCoverageInTitle > 0 && queryCoverageInTitle < 1 && queryCoverageInArtist > 0) {
+      // User typed both song title and artist name (tokens beyond the title match the artist)!
       const titleReverse = measureIdentityTokenOverlap(coreTitle, normQuery)
       score += 55 + titleReverse * 35
     }
@@ -155,8 +172,8 @@ export function scoreTrackSearchRelevance(track: Track, rawQuery: string): numbe
     score -= 40
   }
 
-  // 4. Penalize unrequested playback variants (Remix, Cover, Karaoke, Slowed, Live)
-  if (hasIncompatiblePlaybackVariant(rawTitle, rawQuery)) {
+  // 4. Penalize unrequested playback variants (Remix, Cover, Karaoke, Slowed, Live, Guitar, Edit)
+  if (hasUnrequestedVariant) {
     score -= 45
   }
 

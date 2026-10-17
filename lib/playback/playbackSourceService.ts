@@ -108,10 +108,10 @@ function applyResolvedStreamToTrack(track: Track, streamResult: ResolvedStreamRe
       youtube_id: undefined,
       audio_url: undefined,
       file_path: '',
-      title: streamResult.title || track.title,
-      artist: streamResult.artist || track.artist,
-      duration: streamResult.duration || track.duration,
-      cover_url: streamResult.coverUrl || track.cover_url || null,
+      title: track.title || streamResult.title || '',
+      artist: track.artist || streamResult.artist || '',
+      duration: track.duration || streamResult.duration || 0,
+      cover_url: track.cover_url || streamResult.coverUrl || null,
     };
   }
   if (streamResult.source === 'drive') {
@@ -123,10 +123,10 @@ function applyResolvedStreamToTrack(track: Track, streamResult: ResolvedStreamRe
       soundcloud_id: undefined,
       youtube_id: undefined,
       audio_url: undefined,
-      title: streamResult.title || track.title,
-      artist: streamResult.artist || track.artist,
-      duration: streamResult.duration || track.duration,
-      cover_url: streamResult.coverUrl || track.cover_url || null,
+      title: track.title || streamResult.title || '',
+      artist: track.artist || streamResult.artist || '',
+      duration: track.duration || streamResult.duration || 0,
+      cover_url: track.cover_url || streamResult.coverUrl || null,
       album: track.album || null,
       spotify_album_id: track.spotify_album_id || null,
     };
@@ -140,10 +140,10 @@ function applyResolvedStreamToTrack(track: Track, streamResult: ResolvedStreamRe
       youtube_id: undefined,
       audio_url: undefined,
       file_path: '',
-      title: streamResult.title || track.title,
-      artist: streamResult.artist || track.artist,
-      duration: streamResult.duration || track.duration,
-      cover_url: streamResult.coverUrl || track.cover_url || null,
+      title: track.title || streamResult.title || '',
+      artist: track.artist || streamResult.artist || '',
+      duration: track.duration || streamResult.duration || 0,
+      cover_url: track.cover_url || streamResult.coverUrl || null,
     };
   }
   return {
@@ -710,7 +710,8 @@ export function createPlaybackSourceService(
 
     if (!bestMatch) {
       try {
-        const query = `${track.title} ${track.artist || ''}`.trim();
+        const cleanTitle = stripNonIdentityAnnotations(track.title) || track.title;
+        const query = `${cleanTitle} ${track.artist || ''}`.trim();
         const fallbackSource =
           !options?.preferHtml5 &&
           (track.source === 'nhaccuatui' ||
@@ -900,7 +901,8 @@ export function createPlaybackSourceService(
   ): Promise<PreparedPlayback | null> => {
     if (disposed || !track) return null;
     try {
-      const queryStr = `${track.title} ${track.artist || ''}`.trim();
+      const cleanTitle = stripNonIdentityAnnotations(track.title) || track.title;
+      const queryStr = `${cleanTitle} ${track.artist || ''}`.trim();
       const searchRes = await deps.search(queryStr, 'all');
 
       const candidates = (searchRes?.youtube || []).filter(
@@ -1016,7 +1018,8 @@ export function createPlaybackSourceService(
   const searchYouTubeCandidate = async (track: Track): Promise<Track | null> => {
     if (disposed || !track) return null;
     try {
-      const searchQuery = `${track.title} ${track.artist || ''}`.trim();
+      const cleanTitle = stripNonIdentityAnnotations(track.title) || track.title;
+      const searchQuery = `${cleanTitle} ${track.artist || ''}`.trim();
       const data = await deps.search(searchQuery, 'youtube');
       if (!data?.youtube?.length) return null;
       return findBestYouTubeMatch(

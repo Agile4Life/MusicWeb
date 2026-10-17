@@ -44,6 +44,7 @@ export function extractCoreSongTitle(title?: string): string {
     .replace(/Đ/g, 'D')
     .toLowerCase()
     .replace(/[\(\[\{].*?[\)\]\}]/g, ' ')
+    .replace(/\s+[-–—]\s+from\s+(?:["'“”][^"'“”]+["'“”]|the\s+.*|.*?\b(?:soundtrack|album|motion\s+picture|film|series|ost)\b.*)/i, ' ')
     .replace(/\s+(?:feat\.?|ft\.?|featuring)\s+.*/i, ' ')
     .replace(/\b(remix|reverb|slowed|speed up|sped up|lofi|lo-fi|lyrics?|lyric video|official video|official music video|official audio|official mv|mv|audio|full video|video|1\s*hour|1hour|30\s*min|loop|podcast|compilation|playlist|hot tiktok|tiktok|chu\u1ea9n hot|hay nhat|mashup|prod|beat)\b/gi, ' ')
     .replace(/\b(?:feat|ft)\.?\b/gi, ' ')
@@ -113,7 +114,21 @@ export function deduplicateQueueTracks(tracks: Track[]): Track[] {
 
   const seenMap = new Map<string, Track>()
   const seenDriveIds = new Set<string>()
-  const seenCoreTitles = new Map<string, Track>()
+  const seenCoreTitles = new Map<string, Track[]>()
+
+  const upsertCoreTitleTrack = (coreKey: string, nextTrack: Track, prevTrack?: Track) => {
+    const list = seenCoreTitles.get(coreKey) || []
+    if (prevTrack) {
+      const idx = list.indexOf(prevTrack)
+      if (idx !== -1) {
+        list[idx] = nextTrack
+        seenCoreTitles.set(coreKey, list)
+        return
+      }
+    }
+    list.push(nextTrack)
+    seenCoreTitles.set(coreKey, list)
+  }
 
   for (const track of tracks) {
     if (!track || !track.title) continue
@@ -134,34 +149,40 @@ export function deduplicateQueueTracks(tracks: Track[]): Track[] {
     if (existingExact) {
       if (isBetterTrack(track, existingExact)) {
         seenMap.set(key, track)
-        if (coreKey) seenCoreTitles.set(coreKey, track)
+        if (coreKey) upsertCoreTitleTrack(coreKey, track, existingExact)
       }
       continue
     }
 
     // Check fuzzy core title deduplication if title is substantial (> 2 chars) AND artists & variants are compatible
     if (coreTitle && coreTitle.length > 2 && coreKey) {
-      const existingCore = seenCoreTitles.get(coreKey)
-      if (
-        existingCore &&
-        areArtistsCompatibleForDedupe(track, existingCore) &&
-        !hasIncompatiblePlaybackVariant(track.title, existingCore.title)
-      ) {
+      const existingCoreList = seenCoreTitles.get(coreKey) || []
+      const existingCore = existingCoreList.find(
+        (candidate) =>
+          areArtistsCompatibleForDedupe(track, candidate) &&
+          !hasIncompatiblePlaybackVariant(track.title, candidate.title) &&
+          !hasIncompatiblePlaybackVariant(
+            `${track.title || ''} ${track.artist || ''}`,
+            `${candidate.title || ''} ${candidate.artist || ''}`,
+          ),
+      )
+      if (existingCore) {
         if (isBetterTrack(track, existingCore)) {
           seenMap.delete(getDedupeKey(existingCore))
           seenMap.set(key, track)
-          seenCoreTitles.set(coreKey, track)
+          upsertCoreTitleTrack(coreKey, track, existingCore)
         }
         continue
       }
     }
 
     seenMap.set(key, track)
-    if (coreKey) seenCoreTitles.set(coreKey, track)
+    if (coreKey) upsertCoreTitleTrack(coreKey, track)
   }
 
   return Array.from(seenMap.values())
 }
+
 
 /**
  * Format view count kiểu YouTube: 1.2K, 3.4M, 1.1B

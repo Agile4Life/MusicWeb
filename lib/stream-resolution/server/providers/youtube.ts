@@ -16,7 +16,7 @@ export function createYoutubeResolver(): SourceResolver {
             }
             if (candidates.length === 0)
                 return null;
-            const best = findBestYouTubeMatch(candidates, title, primaryArtist || artist, duration, album);
+            const best = findBestYouTubeMatch(candidates, title, artist || primaryArtist, duration, album);
             if (!best?.youtube_id)
                 return null;
             return {

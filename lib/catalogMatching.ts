@@ -30,13 +30,14 @@ export function stripNonIdentityAnnotations(value: string | null | undefined): s
   return normalizeIdentity(
     value
       .replace(
-        /\s*[\(\[\{]\s*(?:official\s*(?:video|music\s*video|audio|mv|lyric\s*video|visualizer|clip)?|lyric\s*video|lyrics?|visualizer|audio|mv|hd|4k|m\/v|mv\s*hd|video|full\s*hd|vietsub|engsub|explicit|remaster(?:ed)?(?:\s+\d{4})?|prod\.?\s*(?:by\b)?[^)\]\}]*|ost\b[^)\]\}]*|from\s+["'][^)\]\}]*)\s*[\)\]\}]/gi,
+        /\s*[\(\[\{]\s*(?:official\s*(?:video|music\s*video|audio|mv|lyric\s*video|visualizer|clip)?|lyric\s*video|lyrics?|visualizer|audio|mv|hd|hq|high\s*quality|full\s*audio|original\s*audio|4k|m\/v|mv\s*hd|video|full\s*hd|vietsub|engsub|explicit|remaster(?:ed)?(?:\s+\d{4})?|prod\.?\s*(?:by\b)?[^)\]\}]*|ost\b[^)\]\}]*|from\s+[^)\]\}]*)\s*[\)\]\}]/gi,
         ' ',
       )
-      .replace(/\s*[\(\[\{]\s*(?:feat\.?|ft\.?|featuring|prod\.?(?:\s+by)?)\s+[^)\]\}]+[\)\]\}]/gi, ' ')
+      .replace(/\s*[\(\[\{]\s*(?:feat\.?|ft\.?|featuring|with|prod\.?(?:\s+by)?)\s+[^)\]\}]+[\)\]\}]/gi, ' ')
       .replace(/\s+(?:feat\.?|ft\.?|featuring|prod\.?\s+by)\s+.*/i, ' ')
+      .replace(/\s+[-–—]\s+from\s+(?:["'“”][^"'“”]+["'“”]|the\s+.*|.*?\b(?:soundtrack|album|motion\s+picture|film|series|ost)\b.*)/i, ' ')
       .replace(
-        /\s*(?:\||\/|-\s+)(?:official\s*(?:music\s*video|lyric\s*video|video|audio|mv|visualizer|clip)?|music\s*video|lyric\s*video|lyrics?|visualizer|official\s+mv|m\/v|full\s*hd|vietsub|engsub)\b.*/i,
+        /\s*(?:\||\/|-\s+)(?:official\s*(?:music\s*video|lyric\s*video|video|audio|mv|visualizer|clip)?|music\s*video|lyric\s*video|lyrics?|visualizer|official\s+mv|m\/v|full\s*hd|hq|high\s*quality|vietsub|engsub)\b.*/i,
         ' ',
       )
       .replace(/\s*-\s*(?:\d{4}\s+)?remaster(?:ed)?(?:\s+\d{4})?\b.*/i, ' '),
@@ -97,19 +98,24 @@ export function extractArtistAliases(rawArtist?: string | null): string[] {
     .flatMap(expandArtistAliases)
 }
 
-/** Require a complete credited name, including credits embedded in upload titles. */
+/** Require a complete credited name, including main artist credits embedded in upload titles. */
 export function hasCatalogArtistEvidence(candidate: CatalogMetadata, targetArtist?: string | null): boolean {
   if (!targetArtist?.trim()) return true
   const artists = extractArtistAliases(targetArtist)
-  const title = normalizeIdentity(candidate.title)
+  const titleWithoutFeat = normalizeIdentity(
+    (candidate.title || '')
+      .replace(/[\(\[\{]\s*(?:feat\.?|ft\.?|featuring)\s+[^)\]\}]+[\)\]\}]/gi, ' ')
+      .replace(/\s+(?:feat\.?|ft\.?|featuring)\s+.*/i, ' '),
+  )
   const artist = normalizeIdentity(candidate.artist)
-  return artists.some((name) => containsPhrase(title, name) || containsPhrase(artist, name))
+  return artists.some((name) => containsPhrase(titleWithoutFeat, name) || containsPhrase(artist, name))
 }
 
 export const PLAYBACK_VARIANT_MARKERS = [
   'remix', 'cover', 'karaoke', 'nightcore', 'sped up', 'speed up', 'slowed',
   'reverb', '8d', 'instrumental', 'beat', 'live', 'lofi', 'lo-fi', 'mashup',
   'bass boosted', 'piano version', 'acoustic version', 'acoustic', 'radio edit',
+  'edit', 'rework', 'bootleg', 'flip', 'rendition', 'orchestral', 'phonk', 'guitar',
   'single version', 'demo', 'parody', 'nhac che', 'ai cover', 'guitar version',
   'nhac chuong', 'ringtone', 'tach loi', 'medley', 'lien khuc', 'reaction',
 ]
@@ -138,7 +144,12 @@ export function measureIdentityTokenOverlap(targetNorm: string, candidateNorm: s
   const candidateTokens = new Set(candidateNorm.split(' ').filter(Boolean))
   let matched = 0
   for (const token of targetTokens) {
-    if (candidateTokens.has(token) || (CJK_REGEX.test(token) && candidateNorm.includes(token))) {
+    if (
+      candidateTokens.has(token) ||
+      (CJK_REGEX.test(token) && candidateNorm.includes(token)) ||
+      (token.length >= 4 && candidateTokens.has(`${token}s`)) ||
+      (token.length >= 5 && token.endsWith('s') && candidateTokens.has(token.slice(0, -1)))
+    ) {
       matched++
     }
   }
@@ -239,7 +250,15 @@ export function hasCatalogTitleEvidence(
 export function isSoundCloudCatalogMatch(candidate: CatalogMetadata, target: CatalogMetadata): boolean {
   if (!hasCatalogTitleEvidence(candidate.title, target.title, target.artist, candidate.artist)) return false
   if (!hasCatalogArtistEvidence(candidate, target.artist)) return false
-  if (hasIncompatiblePlaybackVariant(candidate.title, target.title)) return false
+  if (
+    hasIncompatiblePlaybackVariant(candidate.title, target.title) ||
+    hasIncompatiblePlaybackVariant(
+      `${candidate.title || ''} ${candidate.artist || ''}`,
+      `${target.title || ''} ${target.artist || ''}`,
+    )
+  ) {
+    return false
+  }
   return !candidate.duration || !target.duration || Math.abs(candidate.duration - target.duration) <= 30
 }
 
@@ -270,6 +289,15 @@ export function findBestSoundCloudMatch<T extends CatalogMetadata>(
       forwardOverlap * 45 +
       reverseOverlap * 15 +
       (exactRawTitle ? 35 : exactCoreTitle ? 25 : 0)
+
+    if (target.artist?.trim()) {
+      if (hasCatalogArtistEvidence({ title: '', artist: candidate.artist }, target.artist)) {
+        score += 15
+      }
+      if (normalizeIdentity(candidate.artist) === normalizeIdentity(target.artist)) {
+        score += 10
+      }
+    }
 
     if (target.duration && candidate.duration) {
       const diff = Math.abs(target.duration - candidate.duration)
@@ -304,10 +332,19 @@ export function isCatalogTrackMatch(
     )
     if (cleanCandidate !== cleanTarget && coreCandidate !== cleanTarget) return false
   }
-  if (hasIncompatiblePlaybackVariant(candidate.title, target.title)) return false
+  if (
+    hasIncompatiblePlaybackVariant(candidate.title, target.title) ||
+    hasIncompatiblePlaybackVariant(
+      `${candidate.title || ''} ${candidate.artist || ''}`,
+      `${target.title || ''} ${target.artist || ''}`,
+    )
+  ) {
+    return false
+  }
   if (target.duration && candidate.duration && Math.abs(candidate.duration - target.duration) > maxDurationDiffSeconds) {
     return false
   }
   return true
 }
+
 

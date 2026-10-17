@@ -1,5 +1,5 @@
 const NON_IDENTITY_GROUP_PATTERN =
-  /^\s*(?:official\s*(?:video|music\s*video|audio|mv|lyric\s*video|visualizer|clip)?|lyric\s*video|lyrics?|visualizer|audio|mv|hd|4k|m\/v|mv\s*hd|video|full\s*hd|vietsub|engsub|explicit|clip|full|remaster(?:ed)?(?:\s+\d{4})?|\d{4}\s+remaster(?:ed)?)\s*$/i
+  /^\s*(?:official\s*(?:video|music\s*video|audio|mv|lyric\s*video|visualizer|clip)?|lyric\s*video|lyrics?|visualizer|audio|mv|hd|hq|high\s*quality|full\s*audio|original\s*audio|4k|m\/v|mv\s*hd|video|full\s*hd|vietsub|engsub|explicit|clip|full|remaster(?:ed)?(?:\s+\d{4})?|\d{4}\s+remaster(?:ed)?)\s*$/i
 
 const VERSION_MARKER_PATTERN =
   /\b(?:remix|mix|live|acoustic|unplugged|radio\s*edit|edit|single\s*version|extended|vip|club|dub|cover|karaoke|instrumental|beat|sped\s*up|speed\s*up|slowed|reverb|8d|nightcore|lofi|lo\s*fi|mashup|demo|piano|guitar|version|ver)\b/i
@@ -15,8 +15,8 @@ export function normalizeTrackField(text: string | null | undefined): string {
   return text
     .trim()
     .toLowerCase()
-    // Strip parenthetical feat./ft. credits
-    .replace(/[\(\[\{]\s*(?:feat\.?|ft\.?|featuring)\b[^\)\]\}]*[\)\]\}]/gi, ' ')
+    // Strip parenthetical feat./ft./with credits
+    .replace(/[\(\[\{]\s*(?:feat\.?|ft\.?|featuring|with)\b[^\)\]\}]*[\)\]\}]/gi, ' ')
     // Strip parenthetical/bracket suffixes only when they are non-identity annotations (keep Remix, Live, Acoustic, etc.)
     .replace(/[\(\[\{]([^\)\]\}]*)[\)\]\}]/g, (_match, inner: string) => {
       if (VERSION_MARKER_PATTERN.test(inner)) {
@@ -27,8 +27,9 @@ export function normalizeTrackField(text: string | null | undefined): string {
       }
       return ' '
     })
-    // Strip trailing feat./ft. and everything after
+    // Strip trailing feat./ft. and soundtrack attribution (- From "...")
     .replace(/\s*(?:feat\.?|ft\.?|featuring)\s+.*/i, '')
+    .replace(/\s+[-–—]\s+from\s+(?:["'“”][^"'“”]+["'“”]|the\s+.*|.*?\b(?:soundtrack|album|motion\s+picture|film|series|ost)\b.*)/i, ' ')
     // Remove Vietnamese diacritics via NFD decomposition
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
