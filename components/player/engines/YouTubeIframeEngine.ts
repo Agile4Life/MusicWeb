@@ -100,7 +100,7 @@ export class YouTubeIframeEngine implements PlaybackEngine {
     if (!this.player?.cueVideoById) throw new Error('YouTube Player is not ready')
     this.pause()
     this.loadedVideoId = videoId
-    this.setVolume(volume)
+    this.ensureUnmuted(volume)
     this.player.cueVideoById({ videoId, startSeconds: initialTime })
   }
 
@@ -127,6 +127,7 @@ export class YouTubeIframeEngine implements PlaybackEngine {
   async resume(): Promise<void> {
     if (!this.player) return
     try {
+      if (this.player.unMute) this.player.unMute()
       if (this.player.playVideo) this.player.playVideo()
     } catch {}
   }

@@ -1257,15 +1257,41 @@ export function createPlaybackSourceService(
       }
     }
 
-    const url = await getAudioUrl(playableTrack);
-    if (!url) return null;
+    const url = await getAudioUrlCached(playableTrack);
+    if (url) {
+      return {
+        track: playableTrack,
+        engine: 'html5',
+        target: url,
+        initialTime,
+      };
+    }
 
-    return {
+    const resolved = await resolvePlayable({
       track: playableTrack,
-      engine: 'html5',
-      target: url,
       initialTime,
-    };
+    });
+    if (
+      resolved &&
+      resolved.engine === 'html5' &&
+      resolved.track.source === 'nhaccuatui' &&
+      resolved.track.nhaccuatui_id &&
+      resolved.target.startsWith('/api/nhaccuatui/stream')
+    ) {
+      try {
+        await deps.resolveNctSong(resolved.track.nhaccuatui_id);
+        const directUrl = deps.getCachedNctUrl(resolved.track.nhaccuatui_id);
+        if (directUrl) {
+          return {
+            ...resolved,
+            target: directUrl,
+          };
+        }
+      } catch {
+        // Keep proxy stream URL
+      }
+    }
+    return resolved;
   };
 
   return {

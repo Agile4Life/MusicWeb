@@ -10,10 +10,11 @@ function restoreTrack(value: unknown): Track | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const row = value as Record<string, unknown>
   if (typeof row.id !== 'string' || !row.id) return null
-  for (const key of ['title', 'artist', 'cover_url', 'file_path', 'drive_file_id', 'nhaccuatui_id', 'youtube_id', 'audio_url', 'spotify_id', 'album']) {
+  for (const key of ['title', 'artist', 'cover_url', 'file_path', 'file_ext', 'drive_file_id', 'nhaccuatui_id', 'youtube_id', 'audio_url', 'source_url', 'soundcloud_permalink_url', 'spotify_id', 'spotify_album_id', 'album']) {
     if (row[key] != null && typeof row[key] !== 'string') return null
   }
   if (row.duration != null && (typeof row.duration !== 'number' || !Number.isFinite(row.duration))) return null
+  if (row.view_count != null && (typeof row.view_count !== 'number' || !Number.isFinite(row.view_count))) return null
   if (row.source != null && (typeof row.source !== 'string' || !sources.has(row.source))) return null
   if (row.is_favorite != null && typeof row.is_favorite !== 'boolean') return null
   for (const key of ['itunes_id', 'soundcloud_id']) {
@@ -24,9 +25,11 @@ function restoreTrack(value: unknown): Track | null {
   return inferTrackSource({
     id: row.id, user_id: '', created_at: '', title: minimal.title ?? '', artist: minimal.artist,
     cover_url: minimal.cover_url ?? null, duration: minimal.duration ?? 0, file_path: minimal.file_path ?? '',
-    source: minimal.source, drive_file_id: minimal.drive_file_id, nhaccuatui_id: minimal.nhaccuatui_id,
-    youtube_id: minimal.youtube_id, soundcloud_id: minimal.soundcloud_id, audio_url: minimal.audio_url,
-    spotify_id: minimal.spotify_id, itunes_id: minimal.itunes_id, album: minimal.album, is_favorite: minimal.is_favorite,
+    file_ext: minimal.file_ext, source: minimal.source, drive_file_id: minimal.drive_file_id,
+    nhaccuatui_id: minimal.nhaccuatui_id, youtube_id: minimal.youtube_id, soundcloud_id: minimal.soundcloud_id,
+    soundcloud_permalink_url: minimal.soundcloud_permalink_url, audio_url: minimal.audio_url,
+    source_url: minimal.source_url, spotify_id: minimal.spotify_id, spotify_album_id: minimal.spotify_album_id,
+    itunes_id: minimal.itunes_id, album: minimal.album, view_count: minimal.view_count, is_favorite: minimal.is_favorite,
   })
 }
 const finite = (value: unknown, fallback: number): number => typeof value === 'number' && Number.isFinite(value) ? value : fallback
@@ -45,8 +48,20 @@ export function createBrowserPersistence(): PlaybackPersistencePort {
         const track = restoreTrack(saved.track)
         if (!track) return null
         const queue = Array.isArray(saved.queue) ? saved.queue.map(restoreTrack).filter((track: Track | null): track is Track => track !== null) : []
-        return { track, currentTime: finite(saved.currentTime, 0), queue: deduplicateQueueTracks(queue.length ? queue : [track]),
-          currentIndex: finite(saved.currentIndex, 0), volume: finite(saved.volume, .8) }
+        const dedupedQueue = deduplicateQueueTracks(queue.length ? queue : [track])
+        const finalQueue = dedupedQueue.length ? dedupedQueue : [track]
+        const rawIndex = finite(saved.currentIndex, 0)
+        const matchedIndex = finalQueue.findIndex(item => item.id === track.id)
+        const reconciledIndex = matchedIndex >= 0
+          ? matchedIndex
+          : Math.max(0, Math.min(finalQueue.length - 1, rawIndex))
+        return {
+          track,
+          currentTime: Math.max(0, finite(saved.currentTime, 0)),
+          queue: finalQueue,
+          currentIndex: reconciledIndex,
+          volume: finite(saved.volume, .8),
+        }
       } catch { return null }
     },
     save(payload, immediate = false) {

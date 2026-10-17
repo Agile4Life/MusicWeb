@@ -420,5 +420,55 @@ describe('playbackSourceService', () => {
     });
   });
 
+  it('hydrates restored catalog tracks (Spotify/Deezer) on reload via resolvePlayable and uses cached CDN URLs for NCT tracks', async () => {
+    const cachedNctUrls = new Map<string, string>();
+    const deps = createFakeDeps({
+      resolveNctSong: vi.fn().mockImplementation(async (id: string) => {
+        cachedNctUrls.set(id, `https://cdn.nct.vn/${id}.mp3`);
+      }),
+      getCachedNctUrl: (id?: string | null) =>
+        id ? cachedNctUrls.get(id) ?? null : null,
+      resolution: {
+        resolve: vi.fn().mockResolvedValue({
+          source: 'nhaccuatui',
+          id: 'nct-restored-1',
+          title: 'Restored Song',
+          artist: 'Restored Artist',
+        }),
+        invalidate: vi.fn(),
+        dispose: vi.fn(),
+      },
+    });
+    const service = createPlaybackSourceService(deps);
+
+    const restoredSpotifyTrack = makeTrack('sp-reload-1', {
+      source: 'spotify',
+      spotify_id: 'sp-reload-1',
+      title: 'Restored Song',
+      artist: 'Restored Artist',
+      file_path: '',
+    });
+
+    const hydratedCatalog = await service.hydrateRestoredTrack(restoredSpotifyTrack, 73);
+    expect(hydratedCatalog).toEqual({
+      track: expect.objectContaining({
+        id: 'sp-reload-1',
+        source: 'nhaccuatui',
+        nhaccuatui_id: 'nct-restored-1',
+      }),
+      engine: 'html5',
+      target: 'https://cdn.nct.vn/nct-restored-1.mp3',
+      initialTime: 73,
+    });
+
+    const restoredNctTrack = makeTrack('nct-direct-1', {
+      source: 'nhaccuatui',
+      nhaccuatui_id: 'nct-direct-1',
+      file_path: '',
+    });
+    const hydratedNct = await service.hydrateRestoredTrack(restoredNctTrack, 48);
+    expect(hydratedNct?.target).toBe('https://cdn.nct.vn/nct-direct-1.mp3');
+    expect(hydratedNct?.initialTime).toBe(48);
+  });
 });
 

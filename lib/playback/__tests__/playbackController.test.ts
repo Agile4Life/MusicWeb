@@ -515,5 +515,60 @@ describe('playbackController', () => {
     expect(controller.getSnapshot().isPlaying).toBe(true);
   });
 
+  it('persists resolved track metadata after playTrack resolution, as well as volume and queue mutations', async () => {
+    const { controller, sources, persistence } = createTestHarness();
+    const rawCatalogTrack = makeTrack('sp-raw-1', {
+      source: 'spotify',
+      spotify_id: 'sp-raw-1',
+      title: 'Catalog Song',
+      artist: 'Catalog Artist',
+      file_path: '',
+    });
+    const resolvedNctTrack = {
+      ...rawCatalogTrack,
+      source: 'nhaccuatui' as const,
+      nhaccuatui_id: 'nct-resolved-1',
+    };
+    vi.mocked(sources.resolvePlayable).mockResolvedValueOnce({
+      track: resolvedNctTrack,
+      engine: 'html5',
+      target: 'https://cdn.nct.vn/nct-resolved-1.mp3',
+      initialTime: 0,
+    });
+
+    await controller.playTrack(rawCatalogTrack, [rawCatalogTrack], 0);
+
+    // Must save the resolved NCT track so a page reload does not lose the resolved stream identity
+    expect(persistence.save).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        track: expect.objectContaining({
+          id: 'sp-raw-1',
+          source: 'nhaccuatui',
+          nhaccuatui_id: 'nct-resolved-1',
+        }),
+      }),
+      true
+    );
+
+    vi.mocked(persistence.save).mockClear();
+    controller.setVolume(0.35);
+    expect(persistence.save).toHaveBeenCalledWith(
+      expect.objectContaining({ volume: 0.35 }),
+      false
+    );
+
+    vi.mocked(persistence.save).mockClear();
+    const extraTrack = makeTrack('extra-2', { title: 'Extra Song' });
+    controller.addToQueue(extraTrack);
+    expect(persistence.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queue: expect.arrayContaining([
+          expect.objectContaining({ id: 'sp-raw-1' }),
+          expect.objectContaining({ id: 'extra-2' }),
+        ]),
+      }),
+      false
+    );
+  });
 });
 

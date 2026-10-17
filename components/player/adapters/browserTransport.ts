@@ -12,6 +12,7 @@ export type BrowserTransport = PlaybackTransport & { handleYouTubeEvent(event: P
 interface Binding {
   owner: PlaybackOwner
   target: PreparedPlayback
+  initialTimePending: boolean
   cancelListeners: Cancel
   cancelPromises: Set<Cancel>
 }
@@ -70,14 +71,21 @@ export function createBrowserTransport({ audio, html5, youtube }: BrowserTranspo
         emit({ type, owner })
       })
     }
-    const time = () => emit({ type: 'time', owner, time: html5.getCurrentTime(), duration: html5.getDuration() })
+    const time = () => {
+      const rawTime = html5.getCurrentTime()
+      const effectiveTime = captured.initialTimePending && rawTime <= 0 ? captured.target.initialTime : rawTime
+      emit({ type: 'time', owner, time: effectiveTime, duration: html5.getDuration() })
+    }
     on('timeupdate', time); on('durationchange', time)
     on('waiting', () => emit({ type: 'buffering', owner, value: true }))
+    on('stalled', () => emit({ type: 'buffering', owner, value: true }))
     on('canplay', () => emit({ type: 'buffering', owner, value: false }))
     on('error', () => { if (audio.error) emit({ type: 'error', owner, error: audio.error }) })
-    let initialTimePending = captured.target.initialTime > 0
     on('loadedmetadata', () => {
-      if (initialTimePending) { initialTimePending = false; html5.seek(captured.target.initialTime) }
+      if (captured.initialTimePending) {
+        captured.initialTimePending = false
+        html5.seek(captured.target.initialTime)
+      }
     })
     captured.cancelListeners = () => { for (const [name, handler] of handlers) audio.removeEventListener(name, handler) }
   }
@@ -89,7 +97,13 @@ export function createBrowserTransport({ audio, html5, youtube }: BrowserTranspo
       // resource so ready-URL playback keeps its existing native fast path.
       if (target.engine === 'html5') { html5.pause(); youtube.stop() }
       else { html5.stop(); youtube.pause() }
-      const captured: Binding = { owner: { ...owner }, target: { ...target }, cancelListeners: () => {}, cancelPromises: new Set() }
+      const captured: Binding = {
+        owner: { ...owner },
+        target: { ...target },
+        initialTimePending: target.engine === 'html5' && target.initialTime > 0,
+        cancelListeners: () => {},
+        cancelPromises: new Set(),
+      }
       binding = captured
       try {
         if (target.engine === 'html5') {
@@ -112,12 +126,23 @@ export function createBrowserTransport({ audio, html5, youtube }: BrowserTranspo
       return guard(engine().resume(), captured)
     },
     stop() { detach(); html5.stop(); youtube.stop() },
-    seek(time) { if (binding && !disposed) engine().seek(time) },
+    seek(time) {
+      if (!binding || disposed) return
+      if (binding.target.engine === 'html5' && binding.initialTimePending) {
+        binding.target.initialTime = time
+      }
+      engine().seek(time)
+    },
     setVolume(volume) { if (binding && !disposed) engine().setVolume(volume) },
     read() {
       if (!binding || disposed) return { time: 0, duration: 0, playing: false }
       const current = engine()
-      return { time: current.getCurrentTime(), duration: current.getDuration(), playing: current.isPlaying() }
+      const rawTime = current.getCurrentTime()
+      const effectiveTime =
+        binding.target.engine === 'html5' && binding.initialTimePending && rawTime <= 0
+          ? binding.target.initialTime
+          : rawTime
+      return { time: effectiveTime, duration: current.getDuration(), playing: current.isPlaying() }
     },
     subscribe(listener) {
       if (!disposed) listeners.add(listener)

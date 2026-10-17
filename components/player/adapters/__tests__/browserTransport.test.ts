@@ -134,4 +134,34 @@ describe('browser transport', () => {
   expect(audio.src).toBe(''); expect(transport.read()).toEqual({ time: 0, duration: 0, playing: false })
   await expect(transport.start(target(), owner(), .8, 'play')).rejects.toThrow()
  })
+ it('emits buffering=true on stalled HTML5 audio events', async () => {
+  const { audio, transport } = setup(), events: PlaybackEvent[] = []
+  transport.subscribe(event => events.push(event))
+  await transport.start(target(), owner(), .8, 'play'); audio.currentSrc = audio.src
+  audio.dispatchEvent(new Event('stalled'))
+  audio.dispatchEvent(new Event('canplay'))
+  expect(events).toEqual([
+   { type: 'buffering', owner: owner(), value: true },
+   { type: 'buffering', owner: owner(), value: false },
+  ])
+ })
+ it('does not emit time=0 on early durationchange before loadedmetadata during reload, and updates pending initialTime on seek', async () => {
+  const { audio, player, transport } = setup(), events: PlaybackEvent[] = []
+  transport.subscribe(event => events.push(event))
+  await transport.start({ ...target(), initialTime: 85 }, owner(), .6, 'paused')
+  audio.currentSrc = audio.src
+  // Browser fires durationchange while currentTime is still 0 before loadedmetadata
+  audio.currentTime = 0; audio.duration = 210
+  audio.dispatchEvent(new Event('durationchange'))
+  expect(transport.read().time).toBe(85)
+  expect(events).toEqual([{ type: 'time', owner: owner(), time: 85, duration: 210 }])
+  // User seeks to 42s before loadedmetadata fires
+  transport.seek(42)
+  expect(transport.read().time).toBe(42)
+  audio.dispatchEvent(new Event('loadedmetadata'))
+  expect(audio.currentTime).toBe(42)
+  // YouTube loadPaused also ensures player is unmuted
+  await transport.start({ ...target('b', 'youtube'), initialTime: 30 }, owner('b', 2), .5, 'paused')
+  expect(player.unMute).toHaveBeenCalled()
+ })
 })

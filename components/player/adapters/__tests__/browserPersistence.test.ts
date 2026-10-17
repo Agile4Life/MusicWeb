@@ -34,4 +34,36 @@ describe('browser persistence', () => {
   a.flush(); expect(JSON.parse(values.get('musicweb_player_state')!).currentTime).toBe(9)
   vi.advanceTimersByTime(30000); expect(JSON.parse(values.get('musicweb_player_state')!).currentTime).toBe(9)
  })
+ it('reconciles currentIndex after queue deduplication and preserves extended track metadata on reload', () => {
+  const values = storage()
+  const persistence = createBrowserPersistence()
+  const dup1 = { ...track, id: 'dup-1', title: 'Same Song', artist: 'Same Artist', source: 'spotify' } as Track
+  const dup2 = { ...track, id: 'dup-2', title: 'Same Song (Official Video)', artist: 'Same Artist', source: 'nhaccuatui', nhaccuatui_id: 'nct-1' } as Track
+  const active = {
+   ...track,
+   id: 'active-3',
+   title: 'Active Song',
+   artist: 'Active Artist',
+   spotify_album_id: 'alb-99',
+   view_count: 123456,
+   source_url: 'https://open.spotify.com/track/active-3',
+   soundcloud_permalink_url: 'https://soundcloud.com/artist/active-3',
+   file_ext: 'flac',
+  } as Track
+  // Queue has duplicate before active track (saved currentIndex is 2, but after dedupe active track is at index 1)
+  persistence.save({ track: active, queue: [dup1, dup2, active], currentIndex: 2, currentTime: 55, volume: .75 }, true)
+  const restored = persistence.restore()
+  expect(restored).not.toBeNull()
+  expect(restored!.queue).toHaveLength(2)
+  expect(restored!.currentIndex).toBe(1)
+  expect(restored!.queue[restored!.currentIndex].id).toBe('active-3')
+  expect(restored!.track).toMatchObject({
+   id: 'active-3',
+   spotify_album_id: 'alb-99',
+   view_count: 123456,
+   source_url: 'https://open.spotify.com/track/active-3',
+   soundcloud_permalink_url: 'https://soundcloud.com/artist/active-3',
+   file_ext: 'flac',
+  })
+ })
 })

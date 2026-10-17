@@ -90,6 +90,9 @@ export function bindYouTubeIframe(options: YouTubeBindingOptions): Cancel {
   // queue with ownership and are invalidated on switch/pause/stop.
   const origLoadAndPlay = youtubeEngine.loadAndPlay.bind(youtubeEngine);
   const origLoadPaused = youtubeEngine.loadPaused.bind(youtubeEngine);
+  const origResume = youtubeEngine.resume.bind(youtubeEngine);
+  const origSeek = youtubeEngine.seek.bind(youtubeEngine);
+  const origSetVolume = youtubeEngine.setVolume.bind(youtubeEngine);
   const origPause = youtubeEngine.pause.bind(youtubeEngine);
   const origStop = youtubeEngine.stop.bind(youtubeEngine);
 
@@ -132,6 +135,37 @@ export function bindYouTubeIframe(options: YouTubeBindingOptions): Cancel {
       resolve: () => {},
       reject: () => {},
     };
+  };
+
+  youtubeEngine.resume = () => {
+    if (pendingCall && !youtubeEngine.getPlayerInstance()?.playVideo) {
+      const prev = pendingCall;
+      return new Promise<void>((resolve, reject) => {
+        pendingCall = {
+          ...prev,
+          mode: 'play',
+          resolve,
+          reject,
+        };
+      });
+    }
+    return origResume();
+  };
+
+  youtubeEngine.seek = (time: number) => {
+    if (pendingCall && !youtubeEngine.getPlayerInstance()?.seekTo) {
+      pendingCall.initialTime = time;
+      return;
+    }
+    origSeek(time);
+  };
+
+  youtubeEngine.setVolume = (volume: number) => {
+    if (pendingCall && !youtubeEngine.getPlayerInstance()?.setVolume) {
+      pendingCall.volume = volume;
+      return;
+    }
+    origSetVolume(volume);
   };
 
   youtubeEngine.pause = () => {

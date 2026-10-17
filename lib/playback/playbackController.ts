@@ -277,6 +277,13 @@ export function createPlaybackController(
           })()
         : prepared.initialTime;
 
+    lastSavedTime = targetStartTime;
+    saveState(true, {
+      track: syncedTrack,
+      currentTime: targetStartTime,
+      queue: syncedQueue,
+    });
+
     activeEngine = prepared.engine;
     activeTargetUrl = prepared.target;
     activeTransportOwner = { ...nextOwner };
@@ -1526,7 +1533,23 @@ export function createPlaybackController(
         const nextOwner = ownership.setOwnerTrack(prepared.track.id) ?? owner;
         activeEngine = prepared.engine;
         activeTargetUrl = prepared.target;
-        store.patch({ currentTrack: prepared.track }););
+        activeTransportOwner = { ...nextOwner };
+        const syncedQueue = queueController.mergeResolvedTrack(
+          store.getSnapshot().queue,
+          prepared.track
+        );
+        store.patch({ currentTrack: prepared.track, queue: syncedQueue });
+        if (
+          prepared.track.source !== restored.track.source ||
+          prepared.track.nhaccuatui_id !== restored.track.nhaccuatui_id ||
+          prepared.track.youtube_id !== restored.track.youtube_id ||
+          prepared.track.soundcloud_id !== restored.track.soundcloud_id
+        ) {
+          saveState(true, {
+            track: prepared.track,
+            currentTime: restored.currentTime,
+            queue: syncedQueue,
+          });
         }
         await deps.transport.start(
           prepared,
@@ -1571,8 +1594,10 @@ export function createPlaybackController(
         youtubeBgPauseRetries = 0;
         html5BgPauseRetries = 0;
         clearTimers();
+        const pausedTime = getActiveTime();
         deps.transport.pause();
         store.patch({ isPlaying: false, isBuffering: false });
+        saveState(true, { currentTime: pausedTime });
         return;
       }
 
@@ -1628,6 +1653,7 @@ export function createPlaybackController(
           : DEFAULT_PLAYBACK_VOLUME;
       store.patch({ volume: safeVol });
       deps.transport.setVolume(safeVol);
+      saveState(false, { volume: safeVol });
     },
 
     nextTrack,
@@ -1681,6 +1707,7 @@ export function createPlaybackController(
         track
       );
       store.patch({ queue: nextQueue });
+      saveState(false, { queue: nextQueue });
       deps.sources.prewarmNextAdaptive([track], -1, snap.repeatMode);
     },
 
@@ -1694,6 +1721,10 @@ export function createPlaybackController(
       );
       if (!result.removedCurrent) {
         store.patch({
+          queue: result.queue,
+          currentIndex: result.currentIndex,
+        });
+        saveState(false, {
           queue: result.queue,
           currentIndex: result.currentIndex,
         });
@@ -1726,6 +1757,10 @@ export function createPlaybackController(
       const snap = store.getSnapshot();
       const cleared = queueController.clearQueue(snap.currentTrack);
       store.patch(cleared);
+      saveState(false, {
+        queue: cleared.queue,
+        currentIndex: cleared.currentIndex,
+      });
     },
 
     toggleQueue() {
