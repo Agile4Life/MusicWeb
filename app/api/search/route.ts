@@ -344,12 +344,27 @@ export async function GET(request: Request) {
 
     // Enrich Spotify & Deezer tracks with NCT stream ID (when matched in batch) and YouTube view_count,
     // without setting youtube_id on unresolved catalog tracks (which would bypass NCT/SoundCloud resolution)
+    const nctSearchItems = nctTracks
+      .filter((t: Track) => Boolean(t.nhaccuatui_id))
+      .map((t: Track) => ({
+        id: t.nhaccuatui_id!,
+        title: t.title,
+        artist: t.artist || '',
+        duration: t.duration,
+        thumbnail: t.cover_url || undefined,
+      }))
+
     const enrichCatalogSearchTrack = (cTrack: Track): Track => {
-      const nctMatch = findBestNhacCuaTuiMatch(nctTracks, cTrack.title, cTrack.artist, cTrack.duration, cTrack.album)
+      const nctMatch = findBestNhacCuaTuiMatch(nctSearchItems, {
+        title: cTrack.title,
+        artist: cTrack.artist,
+        duration: cTrack.duration,
+        album: cTrack.album,
+      })
       const ytMatch = findBestYouTubeMatch(youtubeTracks, cTrack.title, cTrack.artist, cTrack.duration, cTrack.album)
       return {
         ...cTrack,
-        ...(nctMatch?.nhaccuatui_id ? { nhaccuatui_id: nctMatch.nhaccuatui_id } : {}),
+        ...(nctMatch?.id ? { nhaccuatui_id: nctMatch.id } : {}),
         ...(ytMatch?.view_count && !cTrack.view_count ? { view_count: ytMatch.view_count } : {}),
       }
     }

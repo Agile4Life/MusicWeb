@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-// @ts-expect-error Worker entry is plain ESM JavaScript
 import worker from '../src/index.js'
 
 function createMockEnv() {

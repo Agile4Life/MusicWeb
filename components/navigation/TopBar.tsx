@@ -25,6 +25,7 @@ export function TopBar() {
   const {
     searchQuery,
     setSearchQuery,
+    suggestionQuery,
     suggestionTracks,
     searchingSuggestions,
     setSuggestionQuery,

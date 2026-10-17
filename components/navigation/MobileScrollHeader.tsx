@@ -82,6 +82,7 @@ export function MobileScrollHeader() {
   const {
     searchQuery,
     setSearchQuery,
+    suggestionQuery,
     suggestionTracks,
     searchingSuggestions,
     setSuggestionQuery,
