@@ -1,5 +1,6 @@
 import type { Track } from '@/types';
 import { getValidUserId } from '@/lib/accessControl';
+import { isIOSDevice } from '@/lib/audioPlayback';
 import type { PlaybackController } from '@/lib/playback/controllerTypes';
 import { createPlaybackController } from '@/lib/playback/playbackController';
 import { createPlaybackSourceService } from '@/lib/playback/playbackSourceService';
@@ -45,6 +46,7 @@ export interface PlayerRuntime {
 export interface WebAudioGainManagerOptions {
   getAudioElement: () => HTMLAudioElement | null;
   isPlaying: () => boolean;
+  isIOS?: () => boolean;
   getAudioContextClass?: () => (new () => AudioContext) | undefined;
 }
 
@@ -57,6 +59,18 @@ export function createWebAudioGainManager(options: WebAudioGainManagerOptions) {
     ensureGain(volume: number) {
       const currentAudioElement = options.getAudioElement();
       if (!currentAudioElement) return;
+
+      // On iOS WebKit, routing <audio> through AudioContext.createMediaElementSource
+      // hijacks the native AVPlayer pipeline and causes background / Lock Screen audio
+      // to go silent when iOS interrupts AudioContext in the background.
+      if (options.isIOS?.()) {
+        try {
+          currentAudioElement.muted = volume === 0;
+        } catch {
+          // Ignore
+        }
+        return;
+      }
 
       try {
         if (!audioContext) {
@@ -172,6 +186,7 @@ export function createPlayerRuntime(): PlayerRuntime {
       const snap = controller.getSnapshot();
       return snap.isPlaying || snap.isBuffering;
     },
+    isIOS: () => isIOSDevice(),
   });
 
   const baseTransport: BrowserTransport = createBrowserTransport({

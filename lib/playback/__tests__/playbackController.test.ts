@@ -570,5 +570,39 @@ describe('playbackController', () => {
       false
     );
   });
+
+  it('does not call transport.stop() before async resolution when tab is hidden on HTML5 engine (preserving iOS AVAudioSession)', async () => {
+    const { controller, sources, transport } = createTestHarness();
+    const track1 = makeTrack('ios-html5-1', {
+      source: 'nhaccuatui',
+      nhaccuatui_id: 'nct-1',
+    });
+    const track2 = makeTrack('ios-yt-2', {
+      source: 'youtube',
+      youtube_id: 'yt-next-2',
+    });
+
+    await controller.playTrack(track1, [track1, track2], 0);
+    controller.handleVisibilityChange(true);
+    vi.mocked(transport.stop).mockClear();
+
+    // Simulate async resolution on iOS Lock Screen where resolveImmediate returns null
+    vi.mocked(sources.resolveImmediate).mockReturnValueOnce(null);
+    vi.mocked(sources.resolvePlayable).mockResolvedValueOnce({
+      track: track2,
+      engine: 'html5',
+      target: '/api/youtube/stream?id=yt-next-2',
+      initialTime: 0,
+    });
+
+    await controller.playTrack(track2, [track1, track2], 1);
+
+    // Must NOT stop the HTML5 audio element before resolvePlayable completes while hidden
+    expect(transport.stop).not.toHaveBeenCalled();
+    expect(transport.getLastStarted()?.target).toMatchObject({
+      engine: 'html5',
+      target: '/api/youtube/stream?id=yt-next-2',
+    });
+  });
 });
 

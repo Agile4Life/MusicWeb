@@ -159,28 +159,31 @@ export function bindMediaSession(
       // Ignore playbackState errors
     }
 
+    const syncPositionState = () => {
+      try {
+        const prog = controller.getProgress();
+        const curSnap = controller.getSnapshot();
+        const d =
+          prog.duration > 0
+            ? prog.duration
+            : curSnap.currentTrack?.duration || 0;
+        const t = prog.currentTime;
+        if (d > 0 && t >= 0 && Number.isFinite(d) && Number.isFinite(t)) {
+          mediaSession.setPositionState?.({
+            duration: Math.max(d, 0),
+            playbackRate: 1,
+            position: Math.min(Math.max(t, 0), d),
+          });
+        }
+      } catch {
+        // Ignore position state errors
+      }
+    };
+
     if (snap.isPlaying && typeof mediaSession.setPositionState === 'function') {
+      syncPositionState();
       if (!cancelPositionTimer) {
-        cancelPositionTimer = options.clock.every(1000, () => {
-          try {
-            const prog = controller.getProgress();
-            const curSnap = controller.getSnapshot();
-            const d =
-              prog.duration > 0
-                ? prog.duration
-                : curSnap.currentTrack?.duration || 0;
-            const t = prog.currentTime;
-            if (d > 0 && t >= 0 && Number.isFinite(d) && Number.isFinite(t)) {
-              mediaSession.setPositionState?.({
-                duration: Math.max(d, 0),
-                playbackRate: 1,
-                position: Math.min(Math.max(t, 0), d),
-              });
-            }
-          } catch {
-            // Ignore position state errors
-          }
-        });
+        cancelPositionTimer = options.clock.every(1000, syncPositionState);
       }
     } else {
       stopPositionTimer();

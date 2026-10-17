@@ -934,6 +934,34 @@ describe('production playback ownership', () => {
     expect(resumeCalls).toBe(1);
   });
 
+  it('skips AudioContext.createMediaElementSource on iOS devices so Lock Screen / background HTML5 audio is not interrupted by WebKit AudioContext suspension', () => {
+    const createMediaElementSource = vi.fn(() => ({ connect: vi.fn() }));
+    const fakeAudio = { volume: 1, muted: false } as unknown as HTMLAudioElement;
+
+    const iosManager = createWebAudioGainManager({
+      getAudioElement: () => fakeAudio,
+      isPlaying: () => true,
+      isIOS: () => true,
+      getAudioContextClass: () =>
+        function () {
+          return {
+            state: 'running',
+            resume: () => Promise.resolve(),
+            createGain: () => ({ gain: { value: 1 }, connect: vi.fn() }),
+            createMediaElementSource,
+            destination: {},
+          };
+        } as unknown as new () => AudioContext,
+    });
+
+    iosManager.ensureGain(0.5);
+    expect(createMediaElementSource).not.toHaveBeenCalled();
+    expect(fakeAudio.muted).toBe(false);
+
+    iosManager.ensureGain(0);
+    expect(fakeAudio.muted).toBe(true);
+  });
+
   it('advances track when Safari fires pause at EOF before or instead of ended in background', async () => {
     const h = createControllerHarness();
     const t1 = makeTrack('safari-eof', {

@@ -1247,12 +1247,7 @@ export function createPlaybackController(
       ytHtml5Mode = false;
       activeTransportOwner = null;
       activeTargetUrl = '';
-      if (
-        !tabHidden ||
-        activeEngine === 'youtube' ||
-        track.source === 'youtube' ||
-        Boolean(track.youtube_id)
-      ) {
+      if (!tabHidden || activeEngine === 'youtube') {
         deps.transport.stop();
       }
     }
@@ -1820,10 +1815,7 @@ export function createPlaybackController(
         } else {
           deps.persistence.flush();
         }
-        if (
-          ownership.getDesiredState() === 'playing' &&
-          !hasPrewarmedNextTrack
-        ) {
+        if (ownership.getDesiredState() === 'playing') {
           if (
             snap.queue.length > snap.currentIndex + 1 ||
             (snap.repeatMode === 'all' && snap.queue.length > 1)
@@ -1874,7 +1866,7 @@ export function createPlaybackController(
           engine: activeEngine,
           desiredState: ownership.getDesiredState(),
           time: live.time,
-          duration: live.duration,
+          duration: live.duration || store.getProgress().duration,
         })
       ) {
         triggerCompletion(

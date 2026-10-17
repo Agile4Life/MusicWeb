@@ -32,11 +32,12 @@ describe('browser transport', () => {
   expect(player.seekTo).toHaveBeenCalledWith(12, true); expect(player.setVolume).toHaveBeenLastCalledWith(30)
   expect(transport.read()).toEqual({ time: 7, duration: 100, playing: true })
  })
- it('preserves an already selected audio URL on the synchronous play path', async () => {
+ it('preserves an already selected audio URL on the synchronous play path without calling pause', async () => {
   const { audio, transport } = setup()
   audio.src = target().target; audio.currentSrc = audio.src
   const remove = vi.spyOn(audio, 'removeAttribute')
   const pending = transport.start(target(), owner(), .8, 'play')
+  expect(audio.pause).not.toHaveBeenCalled()
   expect(audio.play).toHaveBeenCalledTimes(1)
   expect(remove).not.toHaveBeenCalled()
   await pending

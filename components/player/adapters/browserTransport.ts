@@ -95,7 +95,7 @@ export function createBrowserTransport({ audio, html5, youtube }: BrowserTranspo
       detach()
       // Silence the previous session before binding. Retain a selected HTML5
       // resource so ready-URL playback keeps its existing native fast path.
-      if (target.engine === 'html5') { html5.pause(); youtube.stop() }
+      if (target.engine === 'html5') { if (mode === 'paused') html5.pause(); youtube.stop() }
       else { html5.stop(); youtube.pause() }
       const captured: Binding = {
         owner: { ...owner },

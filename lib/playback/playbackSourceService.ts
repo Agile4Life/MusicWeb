@@ -474,12 +474,15 @@ export function createPlaybackSourceService(
       };
     }
 
-    let cached = readFreshAudioUrl(audioUrlCache, track, deps.clock.now()) || undefined;
+    let cached: string | undefined;
+    if (track.source === 'nhaccuatui' && track.nhaccuatui_id) {
+      cached = deps.getCachedNctUrl(track.nhaccuatui_id) || undefined;
+    }
+    if (!cached) {
+      cached = readFreshAudioUrl(audioUrlCache, track, deps.clock.now()) || undefined;
+    }
     if (!cached && track.source === 'nhaccuatui' && track.nhaccuatui_id) {
-      cached =
-        deps.getCachedNctUrl(track.nhaccuatui_id) ||
-        deps.getNctStreamUrl(track) ||
-        undefined;
+      cached = deps.getNctStreamUrl(track) || undefined;
     }
     if (!cached) {
       const driveFileId =
@@ -1096,8 +1099,22 @@ export function createPlaybackSourceService(
     }
 
     const nextClass = classifyTrack(nextTr, deps.isIOS());
-    if (!nextClass.needsCatalogResolution && nextClass.isDirectPlayable) {
-      if (!audioUrlCache.has(nextTr.id)) {
+    if (!nextClass.needsCatalogResolution) {
+      if (deps.isIOS() && nextClass.youtubeId) {
+        if (!audioUrlCache.has(nextTr.id)) {
+          setBounded(
+            audioUrlCache,
+            nextTr.id,
+            {
+              url: deps.buildYouTubeStreamUrl(nextClass.youtubeId),
+              ts: deps.clock.now(),
+            },
+            AUDIO_URL_MAX_ENTRIES
+          );
+        }
+        return;
+      }
+      if (nextClass.isDirectPlayable && !audioUrlCache.has(nextTr.id)) {
         void getAudioUrlCached(nextTr).catch(() => {});
       }
       return;
@@ -1140,7 +1157,8 @@ export function createPlaybackSourceService(
           if (!deps.getCachedNctUrl(resolved.id)) {
             void deps.prewarmNctUrl(resolved.id).catch(() => {});
           }
-          const nctUrl = deps.getNctStreamUrl(mergedTrack);
+          const nctUrl =
+            deps.getCachedNctUrl(resolved.id) || deps.getNctStreamUrl(mergedTrack);
           if (nctUrl) {
             setBounded(
               audioUrlCache,
@@ -1155,9 +1173,31 @@ export function createPlaybackSourceService(
             void getAudioUrlCached(mergedTrack).catch(() => {});
           }
         } else if (resolved.source === 'soundcloud') {
-          if (!audioUrlCache.has(targetTrackId)) {
-            void getAudioUrlCached(mergedTrack).catch(() => {});
+          if (deps.isIOS() && !audioUrlCache.has(targetTrackId)) {
+            const scTarget = extractSoundCloudTarget(mergedTrack);
+            if (scTarget) {
+              const deterministicUrl = deps.getDeterministicSoundCloudUrl
+                ? deps.getDeterministicSoundCloudUrl(scTarget)
+                : `/api/soundcloud/stream?id=${encodeURIComponent(scTarget)}`;
+              setBounded(
+                audioUrlCache,
+                targetTrackId,
+                { url: deterministicUrl, ts: deps.clock.now() },
+                AUDIO_URL_MAX_ENTRIES
+              );
+            }
           }
+          void getAudioUrlCached(mergedTrack, true).catch(() => {});
+        } else if (resolved.source === 'youtube' && deps.isIOS() && resolved.id) {
+          setBounded(
+            audioUrlCache,
+            targetTrackId,
+            {
+              url: deps.buildYouTubeStreamUrl(resolved.id),
+              ts: deps.clock.now(),
+            },
+            AUDIO_URL_MAX_ENTRIES
+          );
         }
       })
       .catch(() => {})

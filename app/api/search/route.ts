@@ -4,7 +4,7 @@ import { searchYouTubeTracks, findBestYouTubeMatch, isOriginalTrackOnly, NEGATIV
 import { searchSpotifyTracks, getTrendingSpotifyTracks, getTopArtistSpotifyTracks, isCleanTrendingTrack } from '@/lib/spotify'
 import { getTrendingDeezerTracks, searchDeezerTracks } from '@/lib/deezer'
 import { searchSoundCloudTracks } from '@/lib/soundcloudClient'
-import { normalizeNhacCuaTuiChartResponse, nhacCuaTuiSearchItemToTrack, searchNhacCuaTuiDirect } from '@/lib/nhaccuatui'
+import { findBestNhacCuaTuiMatch, normalizeNhacCuaTuiChartResponse, nhacCuaTuiSearchItemToTrack, searchNhacCuaTuiDirect } from '@/lib/nhaccuatui'
 import { extractArtistAliases, isCatalogTrackMatch, measureIdentityTokenOverlap, normalizeIdentity } from '@/lib/catalogMatching'
 import { STATIC_DRIVE_TRACKS } from '@/lib/driveTracksMap'
 import { rankSearchTracks } from '@/lib/searchFlow'
@@ -342,22 +342,20 @@ export async function GET(request: Request) {
     const itunesTracks: Track[] = []
     const audiusTracks: Track[] = []
 
-    // Pre-assign YouTube stream IDs for Spotify & Deezer tracks using smart matching
-    const enhancedSpotify = spotifyTracks.map((sTrack: Track) => {
-      if (sTrack.youtube_id) return sTrack
-      const match = findBestYouTubeMatch(youtubeTracks, sTrack.title, sTrack.artist, sTrack.duration, sTrack.album)
-      return match?.youtube_id
-        ? { ...sTrack, youtube_id: match.youtube_id, view_count: sTrack.view_count || match.view_count }
-        : sTrack
-    })
+    // Enrich Spotify & Deezer tracks with NCT stream ID (when matched in batch) and YouTube view_count,
+    // without setting youtube_id on unresolved catalog tracks (which would bypass NCT/SoundCloud resolution)
+    const enrichCatalogSearchTrack = (cTrack: Track): Track => {
+      const nctMatch = findBestNhacCuaTuiMatch(nctTracks, cTrack.title, cTrack.artist, cTrack.duration, cTrack.album)
+      const ytMatch = findBestYouTubeMatch(youtubeTracks, cTrack.title, cTrack.artist, cTrack.duration, cTrack.album)
+      return {
+        ...cTrack,
+        ...(nctMatch?.nhaccuatui_id ? { nhaccuatui_id: nctMatch.nhaccuatui_id } : {}),
+        ...(ytMatch?.view_count && !cTrack.view_count ? { view_count: ytMatch.view_count } : {}),
+      }
+    }
 
-    const enhancedDeezer = deezerTracks.map((dTrack: Track) => {
-      if (dTrack.youtube_id) return dTrack
-      const match = findBestYouTubeMatch(youtubeTracks, dTrack.title, dTrack.artist, dTrack.duration, dTrack.album)
-      return match?.youtube_id
-        ? { ...dTrack, youtube_id: match.youtube_id, view_count: dTrack.view_count || match.view_count }
-        : dTrack
-    })
+    const enhancedSpotify = spotifyTracks.map(enrichCatalogSearchTrack)
+    const enhancedDeezer = deezerTracks.map(enrichCatalogSearchTrack)
 
     const enhancedITunes: Track[] = []
 

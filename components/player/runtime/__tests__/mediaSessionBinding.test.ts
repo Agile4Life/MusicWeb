@@ -81,10 +81,16 @@ describe('mediaSessionBinding', () => {
     expect(handlers.get('seekforward')).toBeNull();
     expect(handlers.get('seekto')).toBeNull();
 
-    // Transition to playing starts 1s position polling
+    // Transition to playing immediately syncs setPositionState AND starts 1s position polling
     snapshot = { ...snapshot, isPlaying: true, isBuffering: false };
     for (const l of listeners) l();
+    expect(setPositionState).toHaveBeenCalledWith({
+      duration: 240,
+      playbackRate: 1,
+      position: 35,
+    });
     expect(positionTick).toBeTypeOf('function');
+    setPositionState.mockClear();
     positionTick!();
     expect(setPositionState).toHaveBeenCalledWith({
       duration: 240,

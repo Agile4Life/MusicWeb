@@ -470,5 +470,107 @@ describe('playbackSourceService', () => {
     expect(hydratedNct?.target).toBe('https://cdn.nct.vn/nct-direct-1.mp3');
     expect(hydratedNct?.initialTime).toBe(48);
   });
+
+  it('prewarms iOS YouTube and SoundCloud next tracks into audioUrlCache for synchronous Lock Screen transitions', async () => {
+    let resolveSc!: (url: string) => void;
+    const scPromise = new Promise<string>((res) => {
+      resolveSc = res;
+    });
+    const resolveMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        source: 'youtube',
+        id: 'yt-ios-resolved',
+        title: 'iOS YT Song',
+        artist: 'iOS Artist',
+      })
+      .mockResolvedValueOnce({
+        source: 'soundcloud',
+        id: 'sc-ios-resolved',
+        title: 'iOS SC Song',
+        artist: 'iOS Artist',
+      });
+
+    const deps = createFakeDeps({
+      isIOS: () => true,
+      resolution: {
+        resolve: resolveMock,
+        invalidate: vi.fn(),
+        dispose: vi.fn(),
+      },
+      resolveSoundCloudUrl: vi.fn(() => scPromise),
+    });
+    const service = createPlaybackSourceService(deps);
+
+    const currentTrack = makeTrack('cur-1');
+    const catalogYtTrack = makeTrack('cat-yt-1', {
+      source: 'spotify',
+      spotify_id: 'sp-yt-1',
+      file_path: '',
+    });
+    const catalogScTrack = makeTrack('cat-sc-1', {
+      source: 'spotify',
+      spotify_id: 'sp-sc-1',
+      file_path: '',
+    });
+    const directYtTrack = makeTrack('direct-yt-1', {
+      source: 'youtube',
+      youtube_id: 'directYt111',
+      file_path: '',
+    });
+
+    // 1. Prewarm catalog track that resolves to YouTube on iOS
+    service.prewarmNextAdaptive([currentTrack, catalogYtTrack], 0, 'off');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(
+      service.resolveImmediate({ track: catalogYtTrack, tabHidden: true })
+    ).toEqual({
+      track: expect.objectContaining({
+        id: 'cat-yt-1',
+        source: 'youtube',
+        youtube_id: 'yt-ios-resolved',
+      }),
+      engine: 'html5',
+      target: '/api/youtube/stream?id=yt-ios-resolved',
+      initialTime: 0,
+    });
+
+    // 2. Prewarm catalog track that resolves to SoundCloud on iOS -> immediately seeds deterministic URL, then upgrades to CDN URL
+    service.prewarmNextAdaptive([currentTrack, catalogScTrack], 0, 'off');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(
+      service.resolveImmediate({ track: catalogScTrack, tabHidden: true })
+    ).toEqual({
+      track: expect.objectContaining({
+        id: 'cat-sc-1',
+        source: 'soundcloud',
+        soundcloud_id: 'sc-ios-resolved',
+      }),
+      engine: 'html5',
+      target: '/api/soundcloud/stream?id=sc-ios-resolved',
+      initialTime: 0,
+    });
+
+    resolveSc('https://cdn.sc/ios-resolved.mp3');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(
+      service.resolveImmediate({ track: catalogScTrack, tabHidden: true })
+    )?.toMatchObject({
+      engine: 'html5',
+      target: 'https://cdn.sc/ios-resolved.mp3',
+    });
+
+    // 3. Prewarm direct YouTube track on iOS -> does not call resolution.resolve
+    resolveMock.mockClear();
+    service.prewarmNextAdaptive([currentTrack, directYtTrack], 0, 'off');
+    await Promise.resolve();
+    expect(resolveMock).not.toHaveBeenCalled();
+  });
 });
 
