@@ -112,8 +112,8 @@ export function AudioWaveformScrubber({
         {/* Floating Time Preview Tooltip */}
         {hoverTime !== null && (
           <div
-            className="absolute -top-7 transform -translate-x-1/2 bg-slate-900/95 text-white text-[10px] sm:text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full border border-white/20 shadow-2xl backdrop-blur-md pointer-events-none transition-transform z-40"
-            style={{ left: `${hoverX}px` }}
+            className="absolute -top-7 transform -translate-x-1/2 bg-[var(--elevation-2-bg,#0f172a)]/95 text-white text-[10px] sm:text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full border border-white/20 shadow-2xl backdrop-blur-md pointer-events-none transition-transform z-40"
+            style={{ left: `${Math.max(24, Math.min(hoverX, (containerRef.current?.clientWidth || 200) - 24))}px` }}
           >
             <span>{formatTime(hoverTime)}</span>
           </div>
@@ -125,7 +125,7 @@ export function AudioWaveformScrubber({
             className="scrubber-fill"
             style={{
               background: 'linear-gradient(90deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-              boxShadow: '0 0 8px var(--spotify-glow, #22d3ee), 0 0 16px var(--theme-glow-shadow, rgba(6, 182, 212, 0.95)), 0 0 28px rgba(34, 211, 238, 0.7)',
+              boxShadow: '0 0 8px var(--spotify-glow, #22d3ee), 0 0 16px var(--theme-glow-shadow, rgba(6, 182, 212, 0.95)), 0 0 28px var(--theme-glow-shadow, rgba(34, 211, 238, 0.45))',
               width: `calc(${progressRatio * 100}%)`,
               transition: isDragging ? 'none' : 'width 0.25s linear',
             }}

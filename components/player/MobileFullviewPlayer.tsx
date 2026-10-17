@@ -15,7 +15,7 @@ import {
   Pause,
   SkipBack,
   SkipForward,
-  Star,
+  Heart,
   Shuffle,
   Repeat,
   Repeat1,
@@ -143,13 +143,14 @@ export function MobileFullviewPlayer({
     return false
   })
   const [lyricsLoading, setLyricsLoading] = useState(false)
-  const [showTranslation, setShowTranslation] = useState(() => {
-    if (typeof window !== 'undefined') {
+  const [showTranslation, setShowTranslation] = useState(true)
+
+  useEffect(() => {
+    try {
       const saved = localStorage.getItem('musicweb_show_romaji')
-      if (saved !== null) return saved === 'true'
-    }
-    return true
-  })
+      if (saved !== null) setShowTranslation(saved === 'true')
+    } catch {}
+  }, [])
   const [showMenuSheet, setShowMenuSheet] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
 
@@ -381,14 +382,12 @@ export function MobileFullviewPlayer({
       touchHistoryRef.current.shift()
     }
 
-    // Detect horizontal swipe for tab switching (uses cached isOverScrollableRef)
+    // Detect horizontal swipe for tab switching (allowed even inside .overflow-y-auto)
     if (!isDraggingRef.current && !isHorizontalSwipeRef.current) {
-      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 12) {
-        if (!isOverScrollableRef.current) {
-          isHorizontalSwipeRef.current = true
-          swipeDeltaXRef.current = deltaX
-          return
-        }
+      if (Math.abs(deltaX) > Math.abs(deltaY) * 1.2 && Math.abs(deltaX) > 12) {
+        isHorizontalSwipeRef.current = true
+        swipeDeltaXRef.current = deltaX
+        return
       }
     }
 
@@ -692,7 +691,7 @@ export function MobileFullviewPlayer({
               {currentTrack.artist || 'Nghệ sĩ chưa rõ'}
             </span>
           </div>
-          {/* Star + ⋯ */}
+          {/* Heart + ⋯ */}
           <div className="flex items-center gap-2 shrink-0">
             <button
               aria-label={currentTrack.is_favorite ? "Bỏ yêu thích" : "Thêm yêu thích"}
@@ -700,10 +699,10 @@ export function MobileFullviewPlayer({
               onClick={toggleFavoriteCurrentTrack}
               className="p-1.5 active:scale-90 transition-transform cursor-pointer"
             >
-              <Star
+              <Heart
                 className={`w-5 h-5 transition-all ${
                   currentTrack.is_favorite
-                    ? 'text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]'
+                    ? 'text-rose-500 fill-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]'
                     : 'text-white/50 hover:text-white/80'
                 }`}
               />
@@ -784,10 +783,10 @@ export function MobileFullviewPlayer({
                   onClick={toggleFavoriteCurrentTrack}
                   className="p-1.5 active:scale-90 transition-transform cursor-pointer"
                 >
-                  <Star
+                  <Heart
                     className={`w-[22px] h-[22px] transition-all ${
                       currentTrack.is_favorite
-                        ? 'text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]'
+                        ? 'text-rose-500 fill-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]'
                         : 'text-white/45 hover:text-white/75'
                     }`}
                   />
@@ -884,7 +883,7 @@ export function MobileFullviewPlayer({
                       <p
                         className={`leading-snug break-words break-normal whitespace-pre-wrap transition-all duration-300 pr-1 font-sans ${
                           isActive
-                            ? 'text-[clamp(1.35rem,5.5vw,1.85rem)] font-black text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]'
+                            ? 'text-[clamp(1.35rem,5.5vw,1.85rem)] font-black text-white bg-clip-text bg-gradient-to-r from-white via-[var(--theme-neon-from,#cffafe)] to-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]'
                             : 'text-[clamp(1.1rem,4.5vw,1.5rem)] font-bold text-white'
                         }`}
                       >
@@ -896,7 +895,7 @@ export function MobileFullviewPlayer({
                         <p
                           className={`text-xs sm:text-sm font-semibold mt-1 tracking-wide leading-normal break-words whitespace-pre-wrap transition-all duration-300 pr-1 ${
                             isActive
-                              ? 'text-white/70 drop-shadow-sm'
+                              ? 'text-[var(--spotify-glow,#22d3ee)] drop-shadow-sm'
                               : 'text-white/40'
                           }`}
                         >
@@ -959,7 +958,7 @@ export function MobileFullviewPlayer({
                 onClick={toggleShuffle}
                 className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer active:scale-95 ${
                   isShuffle
-                    ? 'bg-white/20 text-white border border-white/25'
+                    ? 'text-[var(--spotify-glow,#22d3ee)] bg-[var(--primary-spotify,#06b6d4)]/20 border border-[var(--primary-spotify,#06b6d4)]/35'
                     : 'bg-white/[0.06] text-white/55 border border-white/10 hover:bg-white/10'
                 }`}
               >
@@ -972,7 +971,7 @@ export function MobileFullviewPlayer({
                 onClick={toggleRepeat}
                 className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer active:scale-95 ${
                   isRepeatActive
-                    ? 'bg-white/20 text-white border border-white/25'
+                    ? 'text-[var(--spotify-glow,#22d3ee)] bg-[var(--primary-spotify,#06b6d4)]/20 border border-[var(--primary-spotify,#06b6d4)]/35'
                     : 'bg-white/[0.06] text-white/55 border border-white/10 hover:bg-white/10'
                 }`}
               >
@@ -1160,8 +1159,8 @@ export function MobileFullviewPlayer({
             onClick={() => switchTab(activeTab === 'lyrics' ? 'cover' : 'lyrics')}
             className={`p-2.5 rounded-full transition-all cursor-pointer active:scale-90 ${
               activeTab === 'lyrics'
-                ? 'bg-white/15 text-white'
-                : 'text-white/40 hover:text-white/60'
+                ? 'text-[var(--spotify-glow,#22d3ee)] bg-[var(--primary-spotify,#06b6d4)]/20 border border-[var(--primary-spotify,#06b6d4)]/35'
+                : 'text-white/40 hover:text-white/60 border border-transparent'
             }`}
             title="Lời bài hát"
           >
@@ -1176,8 +1175,8 @@ export function MobileFullviewPlayer({
             onClick={() => switchTab(activeTab === 'queue' ? 'cover' : 'queue')}
             className={`p-2.5 rounded-full transition-all cursor-pointer active:scale-90 ${
               activeTab === 'queue'
-                ? 'bg-white/15 text-white'
-                : 'text-white/40 hover:text-white/60'
+                ? 'text-[var(--spotify-glow,#22d3ee)] bg-[var(--primary-spotify,#06b6d4)]/20 border border-[var(--primary-spotify,#06b6d4)]/35'
+                : 'text-white/40 hover:text-white/60 border border-transparent'
             }`}
             title="Hàng đợi phát"
           >

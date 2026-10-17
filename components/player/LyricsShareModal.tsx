@@ -31,7 +31,8 @@ export interface LyricsShareModalProps {
   initialActiveIndex?: number
 }
 
-function getInitialThemeForApp(themeId?: string): string {
+function getInitialThemeForApp(themeId?: string, themeStyle?: string): string {
+  if (themeStyle === 'minimal-flat') return 'minimal-black'
   if (!themeId) return 'dominant'
   if (['minimal-flat', 'minimal', 'mono', 'clean'].includes(themeId)) return 'minimal-black'
   if (['slate', 'forest', 'mint', 'lime'].includes(themeId)) return 'emerald'
@@ -49,10 +50,10 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
   initialActiveIndex = 0,
 }) => {
   const [mounted, setMounted] = useState(false)
-  const { currentTheme } = useTheme()
+  const { currentTheme, themeStyle } = useTheme()
   const [selectedIndices, setSelectedIndices] = useState<number[]>([0])
   const [selectedThemeId, setSelectedThemeId] = useState<string>(() =>
-    getInitialThemeForApp(currentTheme?.id)
+    getInitialThemeForApp(currentTheme?.id, themeStyle)
   )
   const [themeCategoryFilter, setThemeCategoryFilter] = useState<'all' | 'cover' | 'gradient' | 'solid' | 'minimal'>('all')
   const [cardOnly, setCardOnly] = useState(false)
@@ -74,8 +75,8 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
     if (isOpen) {
       if (!initializedRef.current) {
         initializedRef.current = true
-        if (currentTheme?.id) {
-          setSelectedThemeId(getInitialThemeForApp(currentTheme.id))
+        if (currentTheme?.id || themeStyle) {
+          setSelectedThemeId(getInitialThemeForApp(currentTheme?.id, themeStyle))
         }
         if (lyrics.length > 0) {
           let initIndex = 0
@@ -96,7 +97,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
     } else {
       initializedRef.current = false
     }
-  }, [isOpen, lyrics])
+  }, [isOpen, lyrics, currentTheme?.id, themeStyle])
 
   // Update card preview whenever selected lines, theme, or cardOnly mode changes
   useEffect(() => {
@@ -290,7 +291,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
       aria-labelledby="lyrics-share-modal-title"
       className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-xl flex items-center justify-center p-0 sm:p-4 md:p-6 pb-4 sm:pb-6 animate-in fade-in duration-200"
     >
-      <div className="relative w-full max-w-5xl h-full sm:h-[86vh] max-h-none sm:max-h-[760px] bg-[#0b0f19] border-0 sm:border sm:border-white/10 rounded-none sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden text-slate-100 select-none">
+      <div className="relative w-full max-w-5xl h-full sm:h-[86vh] max-h-none sm:max-h-[760px] bg-[var(--elevation-1-bg,#0b0f19)] border-0 sm:border sm:border-white/10 rounded-none sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden text-slate-100 select-none">
         {/* Modal Top Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-white/[0.08] bg-black/50 backdrop-blur-2xl shrink-0">
           <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -351,7 +352,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
         </div>
 
             {/* Modal Content 2-Column Studio (Responsive Desktop + Mobile Tabs) */}
-            <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative">
+            <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative bg-[var(--bg-space,#07090e)]">
               {/* 🌟 Unified Ambient Glassmorphic Background across entire Studio (Desktop & Mobile) */}
               <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden select-none">
                 {track.cover_url ? (
@@ -361,9 +362,9 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
                     className="w-full h-full object-cover blur-3xl opacity-45 scale-125 transform-gpu transition-all duration-700"
                   />
                 ) : (
-                  <div className="w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[var(--theme-gradient-1,rgba(6,182,212,0.25))] via-[#0a0d14] to-[#07090e]" />
+                  <div className="w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[var(--theme-gradient-1,rgba(6,182,212,0.25))] via-[var(--bg-space,#07090e)] to-[var(--bg-space,#07090e)]" />
                 )}
-                <div className="absolute inset-0 bg-gradient-to-b from-[#07090e]/65 via-[#07090e]/80 to-[#07090e]" />
+                <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-space,#07090e)]/65 via-[var(--bg-space,#07090e)]/80 to-[var(--bg-space,#07090e)]" />
                 <div
                   className="absolute inset-0"
                   style={{
@@ -403,8 +404,8 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
             </div>
 
             {/* Top & Bottom Fade Overlays for smooth scrolling */}
-            <div className="pointer-events-none absolute inset-x-0 top-0 md:top-[53px] h-8 bg-gradient-to-b from-[#07090e] to-transparent z-10" />
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#07090e] to-transparent z-10" />
+            <div className="pointer-events-none absolute inset-x-0 top-0 md:top-[53px] h-8 bg-gradient-to-b from-[var(--bg-space,#07090e)] to-transparent z-10" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[var(--bg-space,#07090e)] to-transparent z-10" />
 
             {/* Scrollable Lyric Lines List (Immersive Typography & Touch Scroll) */}
             <div
@@ -679,7 +680,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
                   className="py-2.5 px-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] hover:-translate-y-0.5 active:scale-[0.96] text-xs font-bold text-white border border-white/10 flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md disabled:opacity-40 disabled:pointer-events-none"
                 >
                   {copied ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-400 animate-in zoom-in-75" />
+                    <Check className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)] animate-in zoom-in-75" />
                   ) : (
                     <Copy className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)]" />
                   )}

@@ -24,6 +24,7 @@ import { LyricsShareModal } from './LyricsShareModal'
 import { getPrimaryLyrics } from '@/lib/lyricsFlow'
 import { parseLrc, parsePlainLyrics, LyricLine } from '@/lib/lrcParser'
 import { useLanguage } from '@/components/i18n/LanguageContext'
+import { useTheme } from '@/components/theme/ThemeContext'
 import {
   Play,
   Pause,
@@ -45,6 +46,9 @@ import {
 
 export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
   const { t } = useLanguage()
+  const { themeStyle } = useTheme()
+  const isLiquidGlass = themeStyle === 'liquid-glass'
+  const isMinimalFlat = themeStyle === 'minimal-flat'
   const { currentTime, duration } = usePlaybackProgress()
   const {
     currentTrack,
@@ -68,7 +72,6 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
   } = usePlayer()
   const router = useRouter()
 
-  const [isLiquidGlass, setIsLiquidGlass] = useState(false)
   const [isNavCollapsed, setIsNavCollapsed] = useState(false)
 
   useEffect(() => {
@@ -80,15 +83,6 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
     }
     window.addEventListener('mweb:navbar-mode', handleNavMode)
     return () => window.removeEventListener('mweb:navbar-mode', handleNavMode)
-  }, [])
-
-  useEffect(() => {
-    const root = document.documentElement
-    const check = () => setIsLiquidGlass(root.getAttribute('data-theme-style') === 'liquid-glass')
-    check()
-    const observer = new MutationObserver(check)
-    observer.observe(root, { attributes: true, attributeFilter: ['data-theme-style'] })
-    return () => observer.disconnect()
   }, [])
 
   const [isNavigatingAlbum, setIsNavigatingAlbum] = useState(false)
@@ -344,12 +338,12 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
       <footer
         className={`player-bar hidden lg:flex h-20 rounded-[37px] px-6 items-center justify-between text-slate-400 select-none shrink-0 pointer-events-auto relative overflow-hidden ${isScrolled ? 'is-scrolled' : ''}`}
         style={isLiquidGlass ? {
-          background: 'linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 40%, hsla(213 74% 12% / 0.35) 100%)',
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 40%, hsla(var(--base-h, 224), var(--base-s, 45%), 12%, 0.35) 100%)',
           backdropFilter: 'blur(36px) saturate(220%) brightness(1.06)',
           WebkitBackdropFilter: 'blur(36px) saturate(220%) brightness(1.06)',
           border: '1px solid rgba(255,255,255,0.22)',
           borderTopColor: 'rgba(255,255,255,0.40)',
-          boxShadow: '0 20px 50px -10px rgba(0,0,0,0.6), 0 0 40px -4px rgba(34,211,238,0.2), inset 0 1px 0 rgba(255,255,255,0.30)',
+          boxShadow: '0 20px 50px -10px rgba(0,0,0,0.6), 0 0 40px -4px var(--theme-glow-shadow, rgba(34,211,238,0.2)), inset 0 1px 0 rgba(255,255,255,0.30)',
         } : undefined}
       >        {/* Inner glass specular gradient */}
         <span
@@ -414,11 +408,13 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         className={`${miniPlayerClassName} !rounded-[37px] rounded-[37px] select-none cursor-pointer active:scale-[0.98] transition-transform relative overflow-hidden`}
         style={{
           borderRadius: 37,
-          background: 'rgba(255, 255, 255, 0.025)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.12)',
-          backdropFilter: 'blur(16px) saturate(150%)',
-          WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+          ...(!isMinimalFlat ? {
+            background: 'rgba(255, 255, 255, 0.025)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.12)',
+            backdropFilter: 'blur(16px) saturate(150%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+          } : {}),
           transform: isNavCollapsed
             ? 'translate3d(0, 80px, 0) scale(0.88)'
             : 'translate3d(0, 0px, 0) scale(1)',
@@ -432,16 +428,18 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         aria-hidden={isNowPlayingOpen ? true : undefined}
       >
         {/* Inner glass specular gradient */}
-        <span
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            borderRadius: 37,
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 40%)',
-            pointerEvents: 'none',
-          }}
-        />
+        {!isMinimalFlat && (
+          <span
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: 37,
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 40%)',
+              pointerEvents: 'none',
+            }}
+          />
+        )}
         <PlayerBarGlowBorder duration={duration || currentTrack.duration} rx={34} />
         {/* Main row */}
         <div className="flex items-center gap-2.5 w-full h-[54px] px-3 sm:px-3.5 relative z-10">
@@ -486,7 +484,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
             <button
               onClick={(e) => { e.stopPropagation(); togglePlay() }}
-              className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 active:scale-90 transition-transform shadow-lg border border-white/20"
+              className="player-play-btn w-9 h-9 rounded-full flex items-center justify-center shrink-0 active:scale-90 transition-transform shadow-lg border border-white/20"
               style={{
                 background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
                 boxShadow: '0 2px 10px var(--theme-glow-shadow, rgba(6,182,212,0.4))',
@@ -513,7 +511,8 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
             <button
               onClick={(e) => { e.stopPropagation(); toggleFavoriteCurrentTrack() }}
-              className="w-8 h-8 flex items-center justify-center active:scale-90 transition-all rounded-full"
+              aria-pressed={Boolean(currentTrack.is_favorite)}
+              className={`w-8 h-8 flex items-center justify-center active:scale-90 transition-all rounded-full ${currentTrack.is_favorite ? 'is-active' : ''}`}
               title={currentTrack.is_favorite ? t('remove_favorite') : t('add_to_favorite')}
             >
               <Heart
@@ -533,12 +532,12 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         className={`player-bar hidden lg:flex h-[84px] xl:h-[96px] py-2.5 xl:py-3.5 rounded-[37px] px-4 lg:px-6 xl:px-8 items-center justify-between text-slate-300 select-none shrink-0 panel-theme-hover transition-all relative overflow-hidden ${isNowPlayingOpen ? 'pointer-events-none' : 'pointer-events-auto'} ${isScrolled ? 'is-scrolled' : ''}`}
         aria-hidden={isNowPlayingOpen ? true : undefined}
         style={isLiquidGlass ? {
-          background: 'linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 40%, hsla(213 74% 12% / 0.35) 100%)',
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 40%, hsla(var(--base-h, 224), var(--base-s, 45%), 12%, 0.35) 100%)',
           backdropFilter: 'blur(36px) saturate(220%) brightness(1.06)',
           WebkitBackdropFilter: 'blur(36px) saturate(220%) brightness(1.06)',
           border: '1px solid rgba(255,255,255,0.22)',
           borderTopColor: 'rgba(255,255,255,0.40)',
-          boxShadow: '0 20px 50px -10px rgba(0,0,0,0.6), 0 0 40px -4px rgba(34,211,238,0.2), inset 0 1px 0 rgba(255,255,255,0.30)',
+          boxShadow: '0 20px 50px -10px rgba(0,0,0,0.6), 0 0 40px -4px var(--theme-glow-shadow, rgba(34,211,238,0.2)), inset 0 1px 0 rgba(255,255,255,0.30)',
         } : undefined}
         onClick={(e) => {
           if (!isPlayerBarFeatureTarget(e.target as { closest?: (selector: string) => unknown })) {
@@ -560,7 +559,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             pointerEvents: 'none',
           }}
         />
-        <PlayerBarGlowBorder duration={duration || currentTrack.duration} rx={16} />
+        <PlayerBarGlowBorder duration={duration || currentTrack.duration} rx={37} />
         {/* Left: Track Metadata */}
         <div className="flex items-center gap-3 w-1/4 min-w-[250px] lg:min-w-[300px] xl:min-w-[360px] max-w-[420px]">
           <div onClick={openNowPlayingOverlay} className="relative group shrink-0 cursor-pointer" title="Mở Now Playing">
@@ -639,6 +638,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             <button
               onClick={(e) => { e.stopPropagation(); toggleShuffle() }}
               aria-label={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
+              aria-pressed={isShuffle}
               style={
                 isShuffle
                   ? {
@@ -648,7 +648,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                   }
                   : undefined
               }
-              className={`p-2 rounded-xl relative btn-3d-tactile ${isShuffle ? 'border shadow-md' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
+              className={`p-2 rounded-xl relative btn-3d-tactile ${isShuffle ? 'is-active border shadow-md' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
                 }`}
               title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
             >
@@ -677,7 +677,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                 background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.4), 0 0 10px var(--theme-glow-shadow, rgba(6,182,212,0.25))',
               }}
-              className="w-10 h-10 rounded-full btn-3d-tactile flex items-center justify-center text-black font-bold shrink-0 border border-white/20"
+              className="player-play-btn w-10 h-10 rounded-full btn-3d-tactile flex items-center justify-center text-black font-bold shrink-0 border border-white/20"
               title={isBuffering ? t('buffering') : isPlaying ? t('pause') : t('play')}
             >
               {isBuffering ? (
@@ -707,6 +707,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                     ? t('repeat_all')
                     : t('repeat_off')
               }
+              aria-pressed={repeatMode !== 'off'}
               style={
                 repeatMode !== 'off'
                   ? {
@@ -716,7 +717,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                   }
                   : undefined
               }
-              className={`p-2 rounded-xl relative btn-3d-tactile ${repeatMode !== 'off' ? 'border shadow-md' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
+              className={`p-2 rounded-xl relative btn-3d-tactile ${repeatMode !== 'off' ? 'is-active border shadow-md' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
                 }`}
               title={
                 repeatMode === 'one'
@@ -755,8 +756,9 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <button
             onClick={(e) => { e.stopPropagation(); toggleFavoriteCurrentTrack() }}
             aria-label={currentTrack.is_favorite ? t('remove_favorite') : t('add_to_favorite')}
+            aria-pressed={Boolean(currentTrack.is_favorite)}
             className={`p-2 rounded-xl transition-all btn-3d-tactile ${currentTrack.is_favorite
-                ? 'text-rose-500 bg-rose-500/15 border border-rose-500/30'
+                ? 'is-active text-rose-500 bg-rose-500/15 border border-rose-500/30'
                 : 'text-slate-400 hover:text-rose-400 hover:bg-white/5'
               }`}
             title={currentTrack.is_favorite ? t('remove_favorite') : t('add_to_favorite')}
@@ -770,8 +772,9 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <button
             onClick={(e) => { e.stopPropagation(); setShowLyricsModal(!showLyricsModal) }}
             aria-label={t('lyrics')}
+            aria-pressed={showLyricsModal}
             className={`p-2 rounded-xl transition-all btn-3d-tactile ${showLyricsModal
-                ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md font-bold'
+                ? 'is-active bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md font-bold'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
             title={t('lyrics')}
@@ -791,6 +794,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <button
             onClick={(e) => { e.stopPropagation(); toggleQueue() }}
             aria-label={t('queue')}
+            aria-pressed={isQueueOpen}
             style={
               isQueueOpen
                 ? {
@@ -800,7 +804,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                 }
                 : undefined
             }
-            className={`p-2 rounded-xl relative transition-all btn-3d-tactile ${isQueueOpen ? 'border shadow-md font-bold' : 'text-slate-400 hover:text-white hover:bg-white/5'
+            className={`p-2 rounded-xl relative transition-all btn-3d-tactile ${isQueueOpen ? 'is-active border shadow-md font-bold' : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
             title={t('queue')}
           >
@@ -850,7 +854,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             : 'opacity-0 pointer-events-none invisible scale-95'
           }`}
       >
-        <div className="w-full h-full max-w-5xl bg-[#090b10] rounded-2xl border border-white/[0.1] shadow-2xl overflow-hidden flex flex-col relative">
+        <div className="modal-content w-full h-full max-w-5xl bg-[var(--bg-space,#090b10)] rounded-2xl border border-white/[0.1] shadow-2xl overflow-hidden flex flex-col relative">
           <LyricsView onClose={() => setShowLyricsModal(false)} isModal={true} />
         </div>
       </div>

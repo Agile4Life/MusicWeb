@@ -589,8 +589,8 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
               >
                 {copied ? (
                   <>
-                    <Check className="w-4 h-4 text-emerald-400" />
-                    <span className="text-emerald-400 font-bold">Đã sao chép</span>
+                    <Check className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
+                    <span className="text-[var(--spotify-glow,#22d3ee)] font-bold">Đã sao chép</span>
                   </>
                 ) : (
                   <>

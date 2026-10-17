@@ -105,13 +105,14 @@ export function NowPlayingOverlay() {
   const [showShareModal, setShowShareModal] = useState(false)
   const [shareLyrics, setShareLyrics] = useState<LyricLine[]>([])
   const [isLiquidGlass, setIsLiquidGlass] = useState(false)
-  const [showRomaji, setShowRomaji] = useState(() => {
-    if (typeof window !== 'undefined') {
+  const [showRomaji, setShowRomaji] = useState(true)
+
+  useEffect(() => {
+    try {
       const saved = localStorage.getItem('musicweb_show_romaji')
-      if (saved !== null) return saved === 'true'
-    }
-    return true
-  })
+      if (saved !== null) setShowRomaji(saved === 'true')
+    } catch {}
+  }, [])
 
   const toggleRomaji = () => {
     setShowRomaji((prev) => {
@@ -435,31 +436,8 @@ export function NowPlayingOverlay() {
             <span className="hidden sm:inline">Thu nhỏ</span>
           </button>
 
-          {/* Right Header context badge & Romaji Toggle */}
+          {/* Right Header context badge */}
           <div className="flex items-center gap-2.5 shrink-0">
-            {/* Romaji Transliteration Toggle Button (Icon Only) */}
-            <button
-              onClick={toggleRomaji}
-              style={
-                showRomaji
-                  ? {
-                      backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.2))',
-                      borderColor: 'var(--spotify-glow, #22d3ee)',
-                      color: 'var(--spotify-glow, #22d3ee)',
-                      boxShadow: '0 0 12px var(--theme-glow-shadow)',
-                    }
-                  : {
-                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                      borderColor: 'rgba(255, 255, 255, 0.1)',
-                      color: 'rgba(255, 255, 255, 0.6)',
-                    }
-              }
-              className="p-2 rounded-full flex items-center justify-center border transition-all cursor-pointer hover:scale-110 active:scale-95 shadow-sm"
-              title="Bật/Tắt phiên âm Romaji / Pinyin"
-              aria-label="Bật/Tắt phiên âm Romaji"
-            >
-              <Languages className="w-4 h-4" />
-            </button>
 
             {currentTrack.source === 'soundcloud' ? (
               <span className="fullview-header-badge text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/40 flex items-center gap-1.5 shadow-[0_0_12px_rgba(255,85,0,0.3)]">
@@ -513,7 +491,7 @@ export function NowPlayingOverlay() {
 
         {/* 🎛️ DESKTOP FLOATING CONTROL BAR (>= 1024px) */}
         <div
-          className={`player-bar group/playerbar hidden lg:flex absolute bottom-2 sm:bottom-3 lg:bottom-4 inset-x-3 sm:inset-x-6 z-30 px-4 lg:px-6 xl:px-8 py-2 xl:py-3.5 h-[76px] lg:h-[84px] xl:h-[96px] items-center justify-between rounded-[37px] transition-all duration-300 select-none ${isLiquidGlass ? '' : 'overflow-hidden'}`}
+          className="player-bar group/playerbar hidden lg:flex absolute bottom-2 sm:bottom-3 lg:bottom-4 inset-x-3 sm:inset-x-6 z-30 px-4 lg:px-6 xl:px-8 py-2 xl:py-3.5 h-[76px] lg:h-[84px] xl:h-[96px] items-center justify-between rounded-[37px] transition-all duration-300 select-none overflow-hidden"
           style={isLiquidGlass ? {
             backdropFilter: 'blur(40px) saturate(220%) brightness(1.08)',
             WebkitBackdropFilter: 'blur(40px) saturate(220%) brightness(1.08)',

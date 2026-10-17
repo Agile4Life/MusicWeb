@@ -35,8 +35,9 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
   onArtistClick,
   children,
 }: NowPlayingStageProps) {
-  const canUse3D = useCanUse3D()
-  const { currentTheme } = useTheme()
+  const canUse3DHardware = useCanUse3D()
+  const { currentTheme, themeStyle, gamingMode } = useTheme()
+  const canUse3D = canUse3DHardware && themeStyle !== 'minimal-flat' && !gamingMode
   const { currentTime, duration } = usePlaybackProgress()
   const { currentTrack } = usePlayerTrack()
   const { queue, currentIndex } = usePlayerQueue()
@@ -79,7 +80,21 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
 
   // Attach global window pointermove listener (ZERO React re-renders, smooth tilt over entire overlay including PlayerBar)
   useEffect(() => {
-    if (!canUse3D) return
+    if (!canUse3D) {
+      if (cardRef.current) {
+        cardRef.current.classList.add('pointer-gone')
+        cardRef.current.style.setProperty('--tilt-x', '0deg')
+        cardRef.current.style.setProperty('--tilt-y', '0deg')
+      }
+      if (reflectionRef.current) {
+        reflectionRef.current.style.setProperty('--reflect-opacity', '0')
+      }
+      if (sceneLayerRef.current) {
+        sceneLayerRef.current.classList.add('reset')
+        sceneLayerRef.current.style.transform = 'translate3d(0, 0, 0)'
+      }
+      return
+    }
 
     const handlePointerMoveGlobal = (e: PointerEvent) => {
       const stage = stageRef.current
@@ -235,7 +250,7 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
                     strokeDasharray={2 * Math.PI * 48}
                     strokeDashoffset={2 * Math.PI * 48 * (1 - progressRatio)}
                     style={{
-                      filter: 'drop-shadow(0 0 4px var(--spotify-glow, #22d3ee)) drop-shadow(0 0 8px var(--theme-glow-shadow, rgba(6,182,212,0.95))) drop-shadow(0 0 16px rgba(34,211,238,0.7))',
+                      filter: 'drop-shadow(0 0 4px var(--spotify-glow, #22d3ee)) drop-shadow(0 0 8px var(--theme-glow-shadow, rgba(6,182,212,0.95))) drop-shadow(0 0 16px var(--theme-glow-shadow, rgba(34,211,238,0.7)))',
                     }}
                   />
                 </svg>

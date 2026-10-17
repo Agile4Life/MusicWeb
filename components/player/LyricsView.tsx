@@ -106,7 +106,7 @@ const LyricLineItem = memo(function LyricLineItem({
       <p
         className={`leading-snug transition-all duration-300 ease-out ${
           isActive
-            ? 'text-[clamp(1.25rem,3.2vh,2.65rem)] font-black text-white bg-clip-text bg-gradient-to-r from-white via-cyan-100 to-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]'
+            ? 'text-[clamp(1.25rem,3.2vh,2.65rem)] font-black text-white bg-clip-text bg-gradient-to-r from-white via-[var(--theme-neon-from,#cffafe)] to-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]'
             : distance === 1
               ? 'text-[clamp(1rem,2.2vh,1.65rem)] font-bold text-slate-100 group-hover/line:text-white'
               : distance === 2
@@ -210,8 +210,8 @@ const LyricsBottomControls = memo(function LyricsBottomControls() {
               isShuffle
                 ? {
                     color: 'var(--spotify-glow, #22d3ee)',
-                    backgroundColor: 'rgba(6,182,212,0.15)',
-                    borderColor: 'rgba(6,182,212,0.4)',
+                    backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                    borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.4))',
                   }
                 : undefined
             }
@@ -235,9 +235,9 @@ const LyricsBottomControls = memo(function LyricsBottomControls() {
             onClick={togglePlay}
             style={{
               background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-              boxShadow: '0 4px 18px rgba(6,182,212,0.45)',
+              boxShadow: '0 4px 18px var(--theme-glow-shadow, rgba(6,182,212,0.45))',
             }}
-            className="w-11 h-11 rounded-full hover:scale-[1.08] hover:shadow-[0_0_30px_rgba(6,182,212,0.45)] active:scale-95 transition-all flex items-center justify-center text-black font-extrabold shrink-0 border border-white/30"
+            className="w-11 h-11 rounded-full hover:scale-[1.08] hover:shadow-[0_0_30px_var(--theme-glow-shadow,rgba(6,182,212,0.45))] active:scale-95 transition-all flex items-center justify-center text-black font-extrabold shrink-0 border border-white/30"
             title={isPlaying ? 'Tạm dừng' : 'Phát'}
           >
             {isPlaying ? (
@@ -348,13 +348,15 @@ export const LyricsView = memo(function LyricsView({
   const [loading, setLoading] = useState(false)
   const [, setLyricsData] = useState<LrclibResponse | null>(null)
   const [parsedLyrics, setParsedLyrics] = useState<ExtendedLyricLine[]>([])
-  const [internalShowRomaji, setInternalShowRomaji] = useState(() => {
-    if (typeof window !== 'undefined') {
+  const [internalShowRomaji, setInternalShowRomaji] = useState(true)
+
+  useEffect(() => {
+    try {
       const saved = localStorage.getItem('musicweb_show_romaji')
-      if (saved !== null) return saved === 'true'
-    }
-    return true
-  })
+      if (saved !== null) setInternalShowRomaji(saved === 'true')
+    } catch {}
+  }, [])
+
   const showRomaji = showRomajiProp !== undefined ? showRomajiProp : internalShowRomaji
 
   const handleToggleRomaji = useCallback(() => {
@@ -551,7 +553,7 @@ export const LyricsView = memo(function LyricsView({
 
   if (!currentTrack) {
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center text-slate-400 p-8 text-center select-none bg-[#07080c]">
+      <div className="h-full w-full flex flex-col items-center justify-center text-slate-400 p-8 text-center select-none bg-[var(--bg-space,#07090e)]">
         <Headphones className="w-16 h-16 text-[var(--spotify-glow,#22d3ee)]/60 mb-4 animate-pulse" />
         <h3 className="text-lg font-bold text-slate-200">Chưa có bài hát đang phát</h3>
         <p className="text-xs text-slate-500 mt-1">Hãy chọn một bài hát từ thư viện để xem lời bài hát</p>
@@ -560,7 +562,7 @@ export const LyricsView = memo(function LyricsView({
   }
 
   return (
-    <div className={`relative w-full h-full flex flex-col overflow-hidden select-none touch-manipulation transform-gpu ${isModal ? 'bg-[#07090e] now-playing-bg' : 'bg-transparent'}`}>
+    <div className={`relative w-full h-full flex flex-col overflow-hidden select-none touch-manipulation transform-gpu ${isModal ? 'bg-[var(--bg-space,#07090e)] now-playing-bg' : 'bg-transparent'}`}>
       {/* 🌟 Rich Ambient Glassmorphic Background (only when standalone modal) */}
       {isModal && (
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
@@ -571,9 +573,9 @@ export const LyricsView = memo(function LyricsView({
               className="w-full h-full object-cover blur-3xl opacity-30 scale-125 transform-gpu transition-all duration-700"
             />
           ) : (
-            <div className="w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[var(--theme-gradient-1,rgba(6,182,212,0.25))] via-[#0a0d14] to-[#07090e]" />
+            <div className="w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[var(--theme-gradient-1,rgba(6,182,212,0.25))] via-[var(--bg-space,#07090e)] to-[var(--bg-space,#07090e)]" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-b from-[#07090e]/70 via-[#07090e]/85 to-[#07090e]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-space,#07090e)]/70 via-[var(--bg-space,#07090e)]/85 to-[var(--bg-space,#07090e)]" />
           <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 50% 30%, var(--accent-dim), transparent 70%)' }} />
         </div>
       )}

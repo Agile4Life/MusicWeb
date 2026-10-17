@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { usePlaybackProgress } from './PlayerContext'
+import { useTheme } from '@/components/theme/ThemeContext'
 
 interface PlayerBarGlowBorderProps {
   duration?: number
@@ -10,11 +11,12 @@ interface PlayerBarGlowBorderProps {
 }
 
 export function PlayerBarGlowBorder({ duration = 0, className = '', rx = 16 }: PlayerBarGlowBorderProps) {
+  const { themeStyle } = useTheme()
   const { currentTime, duration: contextDuration } = usePlaybackProgress()
   const effectiveDuration = duration || contextDuration || 0
   const progressRatio = effectiveDuration > 0 ? Math.min(1, Math.max(0, currentTime / effectiveDuration)) : 0
 
-  if (effectiveDuration <= 0 || progressRatio <= 0) return null
+  if (themeStyle === 'minimal-flat' || effectiveDuration <= 0 || progressRatio <= 0) return null
 
   return (
     <svg
@@ -42,7 +44,7 @@ export function PlayerBarGlowBorder({ duration = 0, className = '', rx = 16 }: P
         strokeDasharray="100"
         strokeDashoffset={100 * (1 - progressRatio)}
         style={{
-          filter: 'drop-shadow(0 0 6px var(--spotify-glow, #22d3ee)) drop-shadow(0 0 12px var(--theme-glow-shadow, rgba(6,182,212,0.9))) drop-shadow(0 0 20px rgba(34,211,238,0.55))',
+          filter: 'drop-shadow(0 0 6px var(--spotify-glow, #22d3ee)) drop-shadow(0 0 12px var(--theme-glow-shadow, rgba(6,182,212,0.9))) drop-shadow(0 0 20px var(--theme-glow-shadow, rgba(6,182,212,0.55)))',
           transition: 'stroke-dashoffset 0.25s linear',
         }}
       />

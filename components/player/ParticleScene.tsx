@@ -211,6 +211,14 @@ function Particles({ analyserData, isPlaying, accentColor: propAccent, glowColor
 
       updateThemeColors()
 
+      const observer = new MutationObserver(() => {
+        updateThemeColors()
+      })
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['style', 'data-theme-style'],
+      })
+
       const handlePointerMove = (e: PointerEvent) => {
         const nx = (e.clientX / window.innerWidth - 0.5) * 2
         const ny = (e.clientY / window.innerHeight - 0.5) * 2
@@ -222,6 +230,7 @@ function Particles({ analyserData, isPlaying, accentColor: propAccent, glowColor
       window.addEventListener('pointermove', handlePointerMove, { passive: true })
       window.addEventListener('mouseleave', handlePointerLeave)
       return () => {
+        observer.disconnect()
         window.removeEventListener('pointermove', handlePointerMove)
         window.removeEventListener('mouseleave', handlePointerLeave)
       }

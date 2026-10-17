@@ -6,7 +6,7 @@ import { TrackCoverImage } from '../common/TrackCoverImage'
 import { formatTime } from '@/lib/utils'
 
 export function UpNextList() {
-  const { queue, currentIndex, currentTrack, playTrack } = usePlayer()
+  const { queue, currentIndex, currentTrack, isPlaying, playTrack } = usePlayer()
 
   const [isLiquidGlass, setIsLiquidGlass] = useState(false)
 
@@ -35,14 +35,14 @@ export function UpNextList() {
         WebkitMaskImage: 'linear-gradient(to bottom, black 86%, transparent 100%)',
         maskImage: 'linear-gradient(to bottom, black 86%, transparent 100%)',
         ...(isLiquidGlass ? {
-          background: 'linear-gradient(135deg, rgba(255,255,255,0.11) 0%, rgba(255,255,255,0.035) 60%, rgba(6,182,212,0.06) 100%)',
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.11) 0%, rgba(255,255,255,0.035) 60%, var(--theme-gradient-1, rgba(6,182,212,0.06)) 100%)',
           backdropFilter: 'blur(36px) saturate(200%) brightness(1.05)',
           WebkitBackdropFilter: 'blur(36px) saturate(200%) brightness(1.05)',
           border: '1px solid rgba(255,255,255,0.22)',
           borderTopColor: 'rgba(255,255,255,0.42)',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.7), inset 0 1.5px 0 rgba(255,255,255,0.45), 0 0 36px rgba(34,211,238,0.18)',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.7), inset 0 1.5px 0 rgba(255,255,255,0.45), 0 0 36px var(--theme-glow-shadow, rgba(34,211,238,0.18))',
         } : {
-          backgroundColor: '#0d1020',
+          backgroundColor: 'var(--elevation-2-bg, #0d1020)',
           border: '1px solid rgba(255,255,255,0.15)',
         }),
       }}
@@ -57,7 +57,7 @@ export function UpNextList() {
           borderBottom: '1px solid rgba(255,255,255,0.12)',
           boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
         } : {
-          backgroundColor: '#0d1020',
+          backgroundColor: 'var(--elevation-2-bg, #0d1020)',
           borderBottom: '1px solid rgba(255,255,255,0.10)',
           boxShadow: '0 2px 4px rgba(0,0,0,0.4)',
         }}
@@ -88,17 +88,17 @@ export function UpNextList() {
               type="button"
               onClick={() => playTrack(track, queue, actualIndex)}
               aria-label={`Phát bài ${track.title} của ${track.artist || 'Nghệ sĩ'}`}
-              className="w-full cv-auto flex items-center gap-2.5 sm:gap-3 p-2 rounded-xl text-left transition-all duration-200 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-glow,#22d3ee)] border"
+              className={`w-full cv-auto flex items-center gap-2.5 sm:gap-3 p-2 rounded-xl text-left transition-all duration-200 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-glow,#22d3ee)] border ${isCurrent ? 'queue-track-current' : ''}`}
               style={isCurrent ? {
                 background: isLiquidGlass
-                  ? 'linear-gradient(135deg, rgba(6,182,212,0.22) 0%, rgba(255,255,255,0.08) 100%)'
-                  : 'rgba(6,182,212,0.15)',
-                borderColor: isLiquidGlass ? 'rgba(34,211,238,0.50)' : 'rgba(6,182,212,0.30)',
+                  ? 'linear-gradient(135deg, var(--theme-gradient-1, rgba(6,182,212,0.22)) 0%, rgba(255,255,255,0.08) 100%)'
+                  : 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
+                borderColor: isLiquidGlass ? 'var(--spotify-glow, rgba(34,211,238,0.50))' : 'var(--theme-glow-shadow, rgba(6,182,212,0.30))',
                 color: 'var(--spotify-glow,#22d3ee)',
                 ...(isLiquidGlass ? {
                   backdropFilter: 'blur(12px)',
                   WebkitBackdropFilter: 'blur(12px)',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.3), 0 0 18px rgba(34,211,238,0.28)',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.3), 0 0 18px var(--theme-glow-shadow, rgba(34,211,238,0.28))',
                 } : {
                   boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
                 }),
@@ -112,9 +112,18 @@ export function UpNextList() {
                 {isCurrent && (
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                     <div className="flex items-end justify-center gap-0.5 h-3">
-                      <span className="w-0.5 bg-[var(--spotify-glow,#22d3ee)] rounded-full eq-bar-1" />
-                      <span className="w-0.5 bg-[var(--spotify-glow,#22d3ee)] rounded-full eq-bar-2" />
-                      <span className="w-0.5 bg-[var(--spotify-glow,#22d3ee)] rounded-full eq-bar-3" />
+                      <span
+                        className="w-0.5 bg-[var(--spotify-glow,#22d3ee)] rounded-full eq-bar-1"
+                        style={!isPlaying ? { animationPlayState: 'paused' } : undefined}
+                      />
+                      <span
+                        className="w-0.5 bg-[var(--spotify-glow,#22d3ee)] rounded-full eq-bar-2"
+                        style={!isPlaying ? { animationPlayState: 'paused' } : undefined}
+                      />
+                      <span
+                        className="w-0.5 bg-[var(--spotify-glow,#22d3ee)] rounded-full eq-bar-3"
+                        style={!isPlaying ? { animationPlayState: 'paused' } : undefined}
+                      />
                     </div>
                   </div>
                 )}
@@ -125,13 +134,6 @@ export function UpNextList() {
                   <p className={`text-xs font-semibold truncate ${isCurrent ? 'text-[var(--spotify-glow,#22d3ee)] font-bold' : 'text-slate-200 group-hover:text-white'}`}>
                     {track.title}
                   </p>
-                  {isCurrent && (
-                    <div className="flex items-end justify-center gap-0.5 h-3 shrink-0 ml-0.5">
-                      <span className="w-0.5 bg-[var(--spotify-glow,#22d3ee)] rounded-full eq-bar-1" />
-                      <span className="w-0.5 bg-[var(--spotify-glow,#22d3ee)] rounded-full eq-bar-2" />
-                      <span className="w-0.5 bg-[var(--spotify-glow,#22d3ee)] rounded-full eq-bar-3" />
-                    </div>
-                  )}
                 </div>
                 <p className="text-[10px] text-slate-400 truncate mt-0.5">
                   {track.artist || track.artist_name || 'Nghệ sĩ chưa xác định'}
