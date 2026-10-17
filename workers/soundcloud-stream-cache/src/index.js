@@ -319,131 +319,265 @@ async function parseAndValidateHlsPlaylist(m3u8Url) {
   }
 }
 
-/**
- * Streams an unencrypted fMP4 or MP3 HLS segment list as a single continuous progressive audio response.
- */
-function streamHlsSegments(hlsInfo, requestSignal) {
-  const { readable, writable } = new TransformStream()
-  const writer = writable.getWriter()
+function parseFmp4SegmentSidx(segmentBytes) {
+  if (!(segmentBytes instanceof Uint8Array) || segmentBytes.byteLength < 24) {
+    return null
+  }
+  const view = new DataView(
+    segmentBytes.buffer,
+    segmentBytes.byteOffset,
+    segmentBytes.byteLength
+  )
+  let offset = 0
+  while (offset + 8 <= segmentBytes.byteLength) {
+    const size = view.getUint32(offset, false)
+    if (size < 8 || offset + size > segmentBytes.byteLength) break
+    const type = String.fromCharCode(
+      segmentBytes[offset + 4],
+      segmentBytes[offset + 5],
+      segmentBytes[offset + 6],
+      segmentBytes[offset + 7]
+    )
+    if (type === 'sidx' && size >= 24) {
+      const version = segmentBytes[offset + 8]
+      const timescale = view.getUint32(offset + 16, false)
+      const countOffset = offset + 20 + (version === 0 ? 8 : 16) + 2
+      if (countOffset + 2 > offset + size) return null
+      const refCount = view.getUint16(countOffset, false)
+      let totalDuration = 0
+      let refPos = countOffset + 2
+      for (let i = 0; i < refCount && refPos + 12 <= offset + size; i++) {
+        totalDuration += view.getUint32(refPos + 4, false)
+        refPos += 12
+      }
+      if (timescale > 0 && totalDuration > 0) {
+        return { subsegmentDuration: totalDuration, timescale }
+      }
+      return null
+    }
+    if (type === 'moof') break
+    offset += size
+  }
+  return null
+}
 
-  ;(async () => {
+function buildMasterFmp4SidxBox(segments, timescale = 44100) {
+  const count = segments.length
+  const safeTimescale = timescale > 0 ? timescale : 44100
+  const boxSize = 32 + count * 12
+  const out = new Uint8Array(boxSize)
+  const view = new DataView(out.buffer)
+  view.setUint32(0, boxSize, false)
+  out[4] = 0x73 // 's'
+  out[5] = 0x69 // 'i'
+  out[6] = 0x64 // 'd'
+  out[7] = 0x78 // 'x'
+  view.setUint32(8, 0, false) // version 0, flags 0
+  view.setUint32(12, 1, false) // reference_id = 1
+  view.setUint32(16, safeTimescale, false)
+  view.setUint32(20, 0, false) // earliest_presentation_time = 0
+  view.setUint32(24, 0, false) // first_offset = 0
+  view.setUint16(28, 0, false) // reserved = 0
+  view.setUint16(30, count, false)
+
+  let pos = 32
+  for (const seg of segments) {
+    view.setUint32(pos, seg.byteLength & 0x7fffffff, false)
+    view.setUint32(pos + 4, seg.durationTicks >>> 0, false)
+    view.setUint32(pos + 8, 0x90000000, false)
+    pos += 12
+  }
+  return out
+}
+
+const edgeHlsBufferCache = new Map()
+const edgeInFlightHlsBuffer = new Map()
+const EDGE_HLS_CACHE_MAX_ENTRIES = 8
+const EDGE_HLS_CACHE_TTL_MS = 10 * 60 * 1000
+
+async function assembleEdgeHlsMedia(cleanId, hlsInfo, bypassCache = false, requestSignal) {
+  const cacheKey = String(cleanId || '')
+  const now = Date.now()
+  if (bypassCache) {
+    edgeHlsBufferCache.delete(cacheKey)
+    edgeInFlightHlsBuffer.delete(cacheKey)
+  } else {
+    const cached = edgeHlsBufferCache.get(cacheKey)
+    if (cached && now < cached.expiresAt) {
+      edgeHlsBufferCache.delete(cacheKey)
+      edgeHlsBufferCache.set(cacheKey, cached)
+      return cached
+    }
+    const existing = edgeInFlightHlsBuffer.get(cacheKey)
+    if (existing) return existing
+  }
+
+  const promise = (async () => {
     try {
+      const buffers = await Promise.all(
+        hlsInfo.urls.map(async (segUrl) => {
+          const segRes = await fetch(segUrl, {
+            headers: { 'User-Agent': SC_USER_AGENT },
+            signal: requestSignal,
+          })
+          if (!segRes.ok) {
+            throw new Error(`Segment fetch failed: ${segRes.status}`)
+          }
+          return new Uint8Array(await segRes.arrayBuffer())
+        })
+      )
+
       const isFmp4 =
         Boolean(hlsInfo.hasInitMap) || hlsInfo.contentType === 'audio/mp4'
-      for (let i = 0; i < hlsInfo.urls.length; i++) {
-        const segUrl = hlsInfo.urls[i]
-        if (requestSignal?.aborted) break
-        const segRes = await fetch(segUrl, {
-          headers: { 'User-Agent': SC_USER_AGENT },
-          signal: requestSignal,
-        })
-        if (!segRes.ok || !segRes.body) {
-          break
+      let assembled
+      let contentType = hlsInfo.contentType || 'audio/mp4'
+
+      if (isFmp4 && buffers.length >= 2) {
+        let timescale = 44100
+        let totalDurationTicks = 0
+        const strippedSegments = []
+        const segMeta = []
+
+        for (let i = 1; i < buffers.length; i++) {
+          const sidxInfo = parseFmp4SegmentSidx(buffers[i])
+          if (sidxInfo && sidxInfo.timescale) {
+            timescale = sidxInfo.timescale
+          }
+          const stripped = stripFmp4SegmentIndexBoxes(buffers[i])
+          const durationTicks =
+            (sidxInfo && sidxInfo.subsegmentDuration) || Math.round(10 * timescale)
+          totalDurationTicks += durationTicks
+          strippedSegments.push(stripped)
+          segMeta.push({ byteLength: stripped.byteLength, durationTicks })
         }
 
-        if (isFmp4 && i === 0) {
-          const initBytes = new Uint8Array(await segRes.arrayBuffer())
-          const patched = patchInitMp4Duration(
-            initBytes,
-            hlsInfo.durationSeconds || 0
-          )
-          if (patched.byteLength > 0) {
-            await writer.write(patched)
-          }
-          continue
+        const exactDurationSeconds =
+          totalDurationTicks > 0 && timescale > 0
+            ? totalDurationTicks / timescale
+            : hlsInfo.durationSeconds || 0
+        const initPatched = patchInitMp4Duration(buffers[0], exactDurationSeconds)
+        const masterSidx = buildMasterFmp4SidxBox(segMeta, timescale)
+
+        let totalBytes = initPatched.byteLength + masterSidx.byteLength
+        for (const seg of strippedSegments) totalBytes += seg.byteLength
+
+        assembled = new Uint8Array(totalBytes)
+        let writeOffset = 0
+        assembled.set(initPatched, writeOffset)
+        writeOffset += initPatched.byteLength
+        assembled.set(masterSidx, writeOffset)
+        writeOffset += masterSidx.byteLength
+        for (const seg of strippedSegments) {
+          assembled.set(seg, writeOffset)
+          writeOffset += seg.byteLength
         }
-
-        const reader = segRes.body.getReader()
-        let stripLeadingBoxes = isFmp4 && i > 0
-        let pendingHeader = null
-
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) {
-            if (pendingHeader && pendingHeader.byteLength > 0) {
-              const stripped = stripFmp4SegmentIndexBoxes(pendingHeader)
-              if (stripped.byteLength > 0) {
-                await writer.write(stripped)
-              }
-              pendingHeader = null
-            }
-            break
-          }
-          if (!value || value.byteLength === 0) continue
-
-          if (!stripLeadingBoxes) {
-            await writer.write(value)
-            continue
-          }
-
-          if (!pendingHeader) {
-            pendingHeader = value
-          } else {
-            const combined = new Uint8Array(
-              pendingHeader.byteLength + value.byteLength
-            )
-            combined.set(pendingHeader, 0)
-            combined.set(value, pendingHeader.byteLength)
-            pendingHeader = combined
-          }
-
-          const view = new DataView(
-            pendingHeader.buffer,
-            pendingHeader.byteOffset,
-            pendingHeader.byteLength
-          )
-          let offset = 0
-          let needMore = false
-          while (offset + 8 <= pendingHeader.byteLength) {
-            const size = view.getUint32(offset, false)
-            const type = String.fromCharCode(
-              pendingHeader[offset + 4],
-              pendingHeader[offset + 5],
-              pendingHeader[offset + 6],
-              pendingHeader[offset + 7]
-            )
-            if (type === 'styp' || type === 'sidx') {
-              if (size < 8) break
-              if (offset + size > pendingHeader.byteLength) {
-                needMore = true
-                break
-              }
-              offset += size
-              continue
-            }
-            break
-          }
-
-          if (offset + 8 > pendingHeader.byteLength || needMore) {
-            continue
-          }
-
-          const remainder =
-            offset > 0 ? pendingHeader.subarray(offset) : pendingHeader
-          pendingHeader = null
-          stripLeadingBoxes = false
-          if (remainder.byteLength > 0) {
-            await writer.write(remainder)
-          }
+      } else {
+        contentType = hlsInfo.contentType || 'audio/mpeg'
+        let totalBytes = 0
+        for (const seg of buffers) totalBytes += seg.byteLength
+        assembled = new Uint8Array(totalBytes)
+        let writeOffset = 0
+        for (const seg of buffers) {
+          assembled.set(seg, writeOffset)
+          writeOffset += seg.byteLength
         }
       }
+
+      const entry = {
+        buffer: assembled,
+        contentType,
+        expiresAt: Date.now() + EDGE_HLS_CACHE_TTL_MS,
+      }
+      if (edgeHlsBufferCache.size >= EDGE_HLS_CACHE_MAX_ENTRIES) {
+        const oldestKey = edgeHlsBufferCache.keys().next().value
+        if (oldestKey !== undefined) edgeHlsBufferCache.delete(oldestKey)
+      }
+      edgeHlsBufferCache.set(cacheKey, entry)
+      return entry
     } catch {
-      // Client disconnected or aborted
+      return null
     } finally {
-      try {
-        await writer.close()
-      } catch {}
+      edgeInFlightHlsBuffer.delete(cacheKey)
     }
   })()
 
-  return corsResponse(readable, {
-    status: 200,
-    headers: {
-      'Content-Type': hlsInfo.contentType || 'audio/mp4',
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Accept-Ranges': 'none',
-    },
-  })
+  if (!bypassCache) {
+    edgeInFlightHlsBuffer.set(cacheKey, promise)
+  }
+  return promise
+}
+
+function parseByteRange(rangeHeader, totalSize) {
+  if (!rangeHeader || totalSize <= 0) return null
+  const match = /^bytes=(\d*)-(\d*)$/i.exec(rangeHeader.trim())
+  if (!match || (match[1] === '' && match[2] === '')) return null
+
+  let start
+  let end
+  if (match[1] === '') {
+    const suffixLength = Number.parseInt(match[2], 10)
+    if (!Number.isFinite(suffixLength) || suffixLength <= 0) return null
+    start = Math.max(0, totalSize - suffixLength)
+    end = totalSize - 1
+  } else {
+    start = Number.parseInt(match[1], 10)
+    if (!Number.isFinite(start) || start < 0) return null
+    end =
+      match[2] === ''
+        ? totalSize - 1
+        : Math.min(Number.parseInt(match[2], 10), totalSize - 1)
+  }
+
+  if (!Number.isFinite(end) || start >= totalSize || start > end) {
+    return { unsatisfiable: true }
+  }
+  return { start, end }
+}
+
+async function serveSeekableHlsResponse(cleanId, hlsInfo, request, bypassCache = false) {
+  const media = await assembleEdgeHlsMedia(cleanId, hlsInfo, bypassCache, request.signal)
+  if (!media) {
+    return corsResponse(JSON.stringify({ error: 'Failed to assemble HLS media' }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+  const total = media.buffer.byteLength
+  const isHead = request.method === 'HEAD'
+  const baseHeaders = {
+    'Content-Type': media.contentType || 'audio/mp4',
+    'Accept-Ranges': 'bytes',
+    'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges, ETag',
+    'Cache-Control': 'public, max-age=600, s-maxage=600, stale-while-revalidate=120',
+    ETag: `"sc-hls-${cleanId}-${total}"`,
+  }
+
+  const parsedRange = parseByteRange(request.headers.get('Range'), total)
+  if (parsedRange && parsedRange.unsatisfiable) {
+    return corsResponse(null, {
+      status: 416,
+      headers: { ...baseHeaders, 'Content-Range': `bytes */${total}` },
+    })
+  }
+
+  if (parsedRange) {
+    const { start, end } = parsedRange
+    const chunkLength = end - start + 1
+    const headers = {
+      ...baseHeaders,
+      'Content-Length': String(chunkLength),
+      'Content-Range': `bytes ${start}-${end}/${total}`,
+    }
+    if (isHead) return corsResponse(null, { status: 206, headers })
+    return corsResponse(media.buffer.subarray(start, end + 1), { status: 206, headers })
+  }
+
+  const headers = {
+    ...baseHeaders,
+    'Content-Length': String(total),
+  }
+  if (isHead) return corsResponse(null, { status: 200, headers })
+  return corsResponse(media.buffer, { status: 200, headers })
 }
 
 /**
@@ -586,13 +720,7 @@ export default {
               }
               const hlsInfo = await parseAndValidateHlsPlaylist(parsed.url)
               if (hlsInfo && !hlsInfo.encrypted) {
-                if (request.method === 'HEAD') {
-                  return corsResponse(null, {
-                    status: 200,
-                    headers: { 'Content-Type': hlsInfo.contentType || 'audio/mp4' },
-                  })
-                }
-                return streamHlsSegments(hlsInfo, request.signal)
+                return serveSeekableHlsResponse(cleanId, hlsInfo, request, false)
               }
             }
           }
@@ -658,13 +786,7 @@ export default {
       }
 
       if (resolved.isHls && resolved.hlsInfo) {
-        if (request.method === 'HEAD') {
-          return corsResponse(null, {
-            status: 200,
-            headers: { 'Content-Type': resolved.hlsInfo.contentType || 'audio/mp4' },
-          })
-        }
-        return streamHlsSegments(resolved.hlsInfo, request.signal)
+        return serveSeekableHlsResponse(cleanId, resolved.hlsInfo, request, refresh)
       }
 
       return redirectResponse(resolved.url, 600)

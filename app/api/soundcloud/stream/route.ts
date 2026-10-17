@@ -1,141 +1,100 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
   resolveSoundCloudStreamUrl,
-  parseSoundCloudHlsManifest,
-  patchInitMp4Duration,
-  stripFmp4SegmentIndexBoxes,
-  type SoundCloudHlsManifestInfo,
+  resolveSoundCloudHlsBuffer,
 } from '@/lib/soundcloudClient'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Range, Authorization',
+  'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges, ETag',
 }
 
-function createStitchedHlsResponse(
-  hlsInfo: SoundCloudHlsManifestInfo,
-  signal?: AbortSignal,
+function parseByteRange(
+  rangeHeader: string | null,
+  totalSize: number,
+): { start: number; end: number } | { unsatisfiable: true } | null {
+  if (!rangeHeader || totalSize <= 0) return null
+  const match = /^bytes=(\d*)-(\d*)$/i.exec(rangeHeader.trim())
+  if (!match || (match[1] === '' && match[2] === '')) return null
+
+  let start: number
+  let end: number
+  if (match[1] === '') {
+    const suffixLength = Number.parseInt(match[2], 10)
+    if (!Number.isFinite(suffixLength) || suffixLength <= 0) return null
+    start = Math.max(0, totalSize - suffixLength)
+    end = totalSize - 1
+  } else {
+    start = Number.parseInt(match[1], 10)
+    if (!Number.isFinite(start) || start < 0) return null
+    end =
+      match[2] === ''
+        ? totalSize - 1
+        : Math.min(Number.parseInt(match[2], 10), totalSize - 1)
+  }
+
+  if (!Number.isFinite(end) || start >= totalSize || start > end) {
+    return { unsatisfiable: true }
+  }
+  return { start, end }
+}
+
+function createSeekableHlsResponse(
+  media: { buffer: Uint8Array; contentType: string },
+  cleanId: string,
+  rangeHeader: string | null,
+  isHead = false,
 ): NextResponse {
-  const { readable, writable } = new TransformStream()
-  const writer = writable.getWriter()
+  const total = media.buffer.byteLength
+  const etag = `"sc-hls-${cleanId}-${total}"`
+  const baseHeaders: Record<string, string> = {
+    ...CORS_HEADERS,
+    'Content-Type': media.contentType || 'audio/mp4',
+    'Accept-Ranges': 'bytes',
+    'Cache-Control': 'public, max-age=600, s-maxage=600, stale-while-revalidate=120',
+    ETag: etag,
+  }
 
-  ;(async () => {
-    try {
-      const isFmp4 =
-        Boolean(hlsInfo.hasInitMap) || hlsInfo.contentType === 'audio/mp4'
-      for (let i = 0; i < hlsInfo.urls.length; i++) {
-        const segUrl = hlsInfo.urls[i]
-        if (signal?.aborted) break
-        const segRes = await fetch(segUrl, { signal })
-        if (!segRes.ok || !segRes.body) break
+  const parsedRange = parseByteRange(rangeHeader, total)
+  if (parsedRange && 'unsatisfiable' in parsedRange) {
+    return new NextResponse(null, {
+      status: 416,
+      headers: {
+        ...baseHeaders,
+        'Content-Range': `bytes */${total}`,
+      },
+    })
+  }
 
-        if (isFmp4 && i === 0) {
-          const initBytes = new Uint8Array(await segRes.arrayBuffer())
-          const patched = patchInitMp4Duration(
-            initBytes,
-            hlsInfo.durationSeconds || 0,
-          )
-          if (patched.byteLength > 0) {
-            await writer.write(patched)
-          }
-          continue
-        }
-
-        const reader = segRes.body.getReader()
-        let stripLeadingBoxes = isFmp4 && i > 0
-        let pendingHeader: Uint8Array | null = null
-
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) {
-            if (pendingHeader && pendingHeader.byteLength > 0) {
-              const stripped = stripFmp4SegmentIndexBoxes(pendingHeader)
-              if (stripped.byteLength > 0) {
-                await writer.write(stripped)
-              }
-              pendingHeader = null
-            }
-            break
-          }
-          if (!value || value.byteLength === 0) continue
-
-          if (!stripLeadingBoxes) {
-            await writer.write(value)
-            continue
-          }
-
-          let headerBuf: Uint8Array
-          if (!pendingHeader) {
-            headerBuf = value
-          } else {
-            const combined = new Uint8Array(
-              pendingHeader.byteLength + value.byteLength,
-            )
-            combined.set(pendingHeader, 0)
-            combined.set(value, pendingHeader.byteLength)
-            headerBuf = combined
-          }
-          pendingHeader = headerBuf
-
-          const view = new DataView(
-            headerBuf.buffer,
-            headerBuf.byteOffset,
-            headerBuf.byteLength,
-          )
-          let offset = 0
-          let needMore = false
-          while (offset + 8 <= headerBuf.byteLength) {
-            const size = view.getUint32(offset, false)
-            const type = String.fromCharCode(
-              headerBuf[offset + 4],
-              headerBuf[offset + 5],
-              headerBuf[offset + 6],
-              headerBuf[offset + 7],
-            )
-            if (type === 'styp' || type === 'sidx') {
-              if (size < 8) break
-              if (offset + size > headerBuf.byteLength) {
-                needMore = true
-                break
-              }
-              offset += size
-              continue
-            }
-            break
-          }
-
-          if (offset + 8 > headerBuf.byteLength || needMore) {
-            continue
-          }
-
-          const remainder =
-            offset > 0 ? headerBuf.subarray(offset) : headerBuf
-          pendingHeader = null
-          stripLeadingBoxes = false
-          if (remainder.byteLength > 0) {
-            await writer.write(remainder)
-          }
-        }
-      }
-    } catch {
-      // Client disconnected
-    } finally {
-      try {
-        await writer.close()
-      } catch {}
+  if (parsedRange) {
+    const { start, end } = parsedRange
+    const chunkLength = end - start + 1
+    const headers: Record<string, string> = {
+      ...baseHeaders,
+      'Content-Length': String(chunkLength),
+      'Content-Range': `bytes ${start}-${end}/${total}`,
     }
-  })()
+    if (isHead) {
+      return new NextResponse(null, { status: 206, headers })
+    }
+    const slice = media.buffer.subarray(start, end + 1)
+    const body = new Uint8Array(slice.byteLength)
+    body.set(slice)
+    return new NextResponse(body, { status: 206, headers })
+  }
 
-  return new NextResponse(readable, {
-    status: 200,
-    headers: {
-      ...CORS_HEADERS,
-      'Content-Type': hlsInfo.contentType || 'audio/mp4',
-      'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
-      'Accept-Ranges': 'none',
-    },
-  })
+  const headers: Record<string, string> = {
+    ...baseHeaders,
+    'Content-Length': String(total),
+  }
+  if (isHead) {
+    return new NextResponse(null, { status: 200, headers })
+  }
+  const body = new Uint8Array(media.buffer.byteLength)
+  body.set(media.buffer)
+  return new NextResponse(body, { status: 200, headers })
 }
 
 export async function OPTIONS() {
@@ -151,13 +110,7 @@ export async function HEAD(req: NextRequest) {
     return new NextResponse(null, { status: 400, headers: CORS_HEADERS })
   }
 
-  const workerUrl = process.env.NEXT_PUBLIC_SOUNDCLOUD_WORKER_URL?.trim()
-  const isNumericId = /^\d+$/.test(id.replace(/^sc-/, ''))
-  if (workerUrl && isNumericId) {
-    const refreshQuery = refresh ? '&refresh=1' : ''
-    const target = `${workerUrl.replace(/\/+$/, '')}/stream?id=${encodeURIComponent(id)}${refreshQuery}`
-    return NextResponse.redirect(target, 307)
-  }
+  const cleanId = id.replace(/^sc-/, '')
 
   try {
     const streamUrl = await resolveSoundCloudStreamUrl(id, refresh)
@@ -166,18 +119,16 @@ export async function HEAD(req: NextRequest) {
     }
 
     if (streamUrl.includes('.m3u8')) {
-      const hlsInfo = await parseSoundCloudHlsManifest(streamUrl)
-      if (!hlsInfo) {
+      const media = await resolveSoundCloudHlsBuffer(cleanId, streamUrl, refresh)
+      if (!media) {
         return new NextResponse(null, { status: 404, headers: CORS_HEADERS })
       }
-      return new NextResponse(null, {
-        status: 200,
-        headers: {
-          ...CORS_HEADERS,
-          'Content-Type': hlsInfo.contentType || 'audio/mp4',
-          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
-        },
-      })
+      return createSeekableHlsResponse(
+        media,
+        cleanId,
+        req.headers.get('range'),
+        true,
+      )
     }
 
     const res = NextResponse.redirect(streamUrl, 307)
@@ -204,14 +155,7 @@ export async function GET(req: NextRequest) {
     )
   }
 
-  // Check if Cloudflare Worker URL is configured (for clean numeric track IDs only)
-  const workerUrl = process.env.NEXT_PUBLIC_SOUNDCLOUD_WORKER_URL?.trim()
-  const isNumericId = /^\d+$/.test(id.replace(/^sc-/, ''))
-  if (workerUrl && !format && isNumericId) {
-    const refreshQuery = refresh ? '&refresh=1' : ''
-    const target = `${workerUrl.replace(/\/+$/, '')}/stream?id=${encodeURIComponent(id)}${refreshQuery}`
-    return NextResponse.redirect(target, 307)
-  }
+  const cleanId = id.replace(/^sc-/, '')
 
   try {
     const streamUrl = await resolveSoundCloudStreamUrl(id, refresh)
@@ -227,9 +171,7 @@ export async function GET(req: NextRequest) {
 
     if (format === 'json') {
       const publicUrl = isHls
-        ? workerUrl && isNumericId
-          ? `${workerUrl.replace(/\/+$/, '')}/stream?id=${encodeURIComponent(id.replace(/^sc-/, ''))}`
-          : `/api/soundcloud/stream?id=${encodeURIComponent(id)}`
+        ? `/api/soundcloud/stream?id=${encodeURIComponent(id)}`
         : streamUrl
       const res = NextResponse.json({ url: publicUrl }, { headers: CORS_HEADERS })
       res.headers.set('Cache-Control', refresh ? cacheControl : 'public, max-age=300, s-maxage=300, stale-while-revalidate=60')
@@ -237,14 +179,19 @@ export async function GET(req: NextRequest) {
     }
 
     if (isHls) {
-      const hlsInfo = await parseSoundCloudHlsManifest(streamUrl)
-      if (!hlsInfo) {
+      const media = await resolveSoundCloudHlsBuffer(cleanId, streamUrl, refresh)
+      if (!media) {
         return NextResponse.json(
           { error: 'Encrypted or unplayable HLS stream' },
           { status: 404, headers: CORS_HEADERS }
         )
       }
-      return createStitchedHlsResponse(hlsInfo, req.signal)
+      return createSeekableHlsResponse(
+        media,
+        cleanId,
+        req.headers.get('range'),
+        false,
+      )
     }
 
     // Default: Redirect browser/audio element directly to the resolved progressive stream CDN

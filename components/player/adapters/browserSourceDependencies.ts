@@ -35,13 +35,7 @@ export function createBrowserSourceDependencies(
     target: string | number,
     bypassCache = false
   ): string => {
-    const workerUrl = process.env.NEXT_PUBLIC_SOUNDCLOUD_WORKER_URL?.trim();
     const refreshQuery = bypassCache ? '&refresh=1' : '';
-    if (workerUrl) {
-      return `${workerUrl.replace(/\/+$/, '')}/stream?id=${encodeURIComponent(
-        target
-      )}${refreshQuery}`;
-    }
     return `/api/soundcloud/stream?id=${encodeURIComponent(target)}${refreshQuery}`;
   };
 
@@ -79,7 +73,15 @@ export function createBrowserSourceDependencies(
         const res = await fetch(endpoint);
         if (res.ok) {
           const data = await res.json();
-          if (data.url) return data.url;
+          if (data.url) {
+            const cleanWorkerOrigin = workerUrl ? workerUrl.replace(/\/+$/, '') : '';
+            if (cleanWorkerOrigin && String(data.url).startsWith(cleanWorkerOrigin)) {
+              return `/api/soundcloud/stream?id=${encodeURIComponent(
+                target
+              )}${refreshQuery}`;
+            }
+            return data.url;
+          }
         } else if (res.status === 404 || res.status === 403 || res.status === 502) {
           return null;
         }

@@ -276,4 +276,103 @@ describe('SoundCloud Helper & Full Audio Filter Unit Tests', () => {
     expect(result?.tracks.length).toBeGreaterThanOrEqual(30)
     expect(result?.tracks[0].source).toBe('soundcloud')
   })
+
+  it('assembles seekable fMP4 with a unified master sidx box and supports HTTP 206 Byte-Range seeking', async () => {
+    const {
+      parseFmp4SegmentSidx,
+      buildMasterFmp4SidxBox,
+      assembleSoundCloudHlsMedia,
+    } = await import('../soundcloudClient')
+
+    // Build a synthetic fMP4 segment with styp (24B) + sidx (44B, version 0, 1 ref) + moof (16B) + mdat (32B)
+    const makeSegment = (durationTicks: number, mdatFill: number) => {
+      const seg = new Uint8Array(24 + 44 + 16 + 32)
+      const v = new DataView(seg.buffer)
+      // styp (24B)
+      v.setUint32(0, 24, false)
+      seg.set([0x73, 0x74, 0x79, 0x70], 4)
+      // sidx (44B, version 0)
+      v.setUint32(24, 44, false)
+      seg.set([0x73, 0x69, 0x64, 0x78], 28)
+      v.setUint32(32, 0, false) // version 0
+      v.setUint32(36, 1, false) // ref_id = 1
+      v.setUint32(40, 44100, false) // timescale = 44100
+      v.setUint32(44, 0, false) // earliest_presentation_time
+      v.setUint32(48, 0, false) // first_offset
+      v.setUint16(52, 0, false) // reserved
+      v.setUint16(54, 1, false) // reference_count = 1
+      v.setUint32(56, 48, false) // referenced_size = 48 (moof 16 + mdat 32)
+      v.setUint32(60, durationTicks, false) // subsegment_duration
+      v.setUint32(64, 0x90000000, false) // SAP
+      // moof (16B)
+      v.setUint32(68, 16, false)
+      seg.set([0x6d, 0x6f, 0x6f, 0x66], 72)
+      // mdat (32B)
+      v.setUint32(84, 32, false)
+      seg.set([0x6d, 0x64, 0x61, 0x74], 88)
+      seg.fill(mdatFill, 92)
+      return seg
+    }
+
+    const seg0 = makeSegment(441000, 0xaa)
+    const seg1 = makeSegment(441000, 0xbb)
+    expect(parseFmp4SegmentSidx(seg0)).toEqual({
+      subsegmentDuration: 441000,
+      timescale: 44100,
+    })
+
+    const masterSidx = buildMasterFmp4SidxBox(
+      [
+        { byteLength: 48, durationTicks: 441000 },
+        { byteLength: 48, durationTicks: 441000 },
+      ],
+      44100,
+    )
+    expect(masterSidx.byteLength).toBe(32 + 2 * 12)
+    expect(parseFmp4SegmentSidx(masterSidx)).toEqual({
+      subsegmentDuration: 882000,
+      timescale: 44100,
+    })
+
+    // Minimal init.mp4 with ftyp (16B)
+    const initMp4 = new Uint8Array(16)
+    new DataView(initMp4.buffer).setUint32(0, 16, false)
+    initMp4.set([0x66, 0x74, 0x79, 0x70], 4)
+
+    const originalFetch = globalThis.fetch
+    try {
+      globalThis.fetch = async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('init.mp4')) return new Response(initMp4, { status: 200 })
+        if (url.includes('seg0.m4s')) return new Response(seg0, { status: 200 })
+        if (url.includes('seg1.m4s')) return new Response(seg1, { status: 200 })
+        return new Response(null, { status: 404 })
+      }
+
+      const assembled = await assembleSoundCloudHlsMedia({
+        contentType: 'audio/mp4',
+        hasInitMap: true,
+        durationSeconds: 20,
+        urls: [
+          'https://cdn.test/init.mp4',
+          'https://cdn.test/seg0.m4s',
+          'https://cdn.test/seg1.m4s',
+        ],
+      })
+
+      expect(assembled).not.toBeNull()
+      // 16 (init) + 56 (masterSidx) + 48 (seg0 stripped) + 48 (seg1 stripped) = 168 bytes
+      expect(assembled?.buffer.byteLength).toBe(168)
+      // At offset 16 + 56 + 48 = 120, seg1's moof box must start
+      const seg1MoofType = String.fromCharCode(
+        assembled!.buffer[124],
+        assembled!.buffer[125],
+        assembled!.buffer[126],
+        assembled!.buffer[127],
+      )
+      expect(seg1MoofType).toBe('moof')
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
 })

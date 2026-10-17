@@ -875,6 +875,244 @@ export function stripFmp4SegmentIndexBoxes(segmentBytes: Uint8Array): Uint8Array
   return offset > 0 ? segmentBytes.subarray(offset) : segmentBytes
 }
 
+export function parseFmp4SegmentSidx(
+  segmentBytes: Uint8Array,
+): { subsegmentDuration: number; timescale: number } | null {
+  if (!(segmentBytes instanceof Uint8Array) || segmentBytes.byteLength < 24) {
+    return null
+  }
+  const view = new DataView(
+    segmentBytes.buffer,
+    segmentBytes.byteOffset,
+    segmentBytes.byteLength,
+  )
+  let offset = 0
+  while (offset + 8 <= segmentBytes.byteLength) {
+    const size = view.getUint32(offset, false)
+    if (size < 8 || offset + size > segmentBytes.byteLength) break
+    const type = String.fromCharCode(
+      segmentBytes[offset + 4],
+      segmentBytes[offset + 5],
+      segmentBytes[offset + 6],
+      segmentBytes[offset + 7],
+    )
+    if (type === 'sidx' && size >= 24) {
+      const version = segmentBytes[offset + 8]
+      const timescale = view.getUint32(offset + 16, false)
+      const countOffset = offset + 20 + (version === 0 ? 8 : 16) + 2
+      if (countOffset + 2 > offset + size) return null
+      const refCount = view.getUint16(countOffset, false)
+      let totalDuration = 0
+      let refPos = countOffset + 2
+      for (let i = 0; i < refCount && refPos + 12 <= offset + size; i++) {
+        totalDuration += view.getUint32(refPos + 4, false)
+        refPos += 12
+      }
+      if (timescale > 0 && totalDuration > 0) {
+        return { subsegmentDuration: totalDuration, timescale }
+      }
+      return null
+    }
+    if (type === 'moof') break
+    offset += size
+  }
+  return null
+}
+
+export function buildMasterFmp4SidxBox(
+  segments: ReadonlyArray<{ byteLength: number; durationTicks: number }>,
+  timescale = 44100,
+): Uint8Array {
+  const count = segments.length
+  const safeTimescale = timescale > 0 ? timescale : 44100
+  const boxSize = 32 + count * 12
+  const out = new Uint8Array(boxSize)
+  const view = new DataView(out.buffer)
+  view.setUint32(0, boxSize, false)
+  out[4] = 0x73 // 's'
+  out[5] = 0x69 // 'i'
+  out[6] = 0x64 // 'd'
+  out[7] = 0x78 // 'x'
+  view.setUint32(8, 0, false) // version 0, flags 0
+  view.setUint32(12, 1, false) // reference_id = 1
+  view.setUint32(16, safeTimescale, false)
+  view.setUint32(20, 0, false) // earliest_presentation_time = 0
+  view.setUint32(24, 0, false) // first_offset = 0 (first moof immediately follows sidx)
+  view.setUint16(28, 0, false) // reserved = 0
+  view.setUint16(30, count, false)
+
+  let pos = 32
+  for (const seg of segments) {
+    view.setUint32(pos, seg.byteLength & 0x7fffffff, false)
+    view.setUint32(pos + 4, seg.durationTicks >>> 0, false)
+    view.setUint32(pos + 8, 0x90000000, false) // starts_with_SAP = 1, SAP_type = 1
+    pos += 12
+  }
+  return out
+}
+
+const HLS_BUFFER_CACHE_MAX_ENTRIES = 10
+const HLS_BUFFER_CACHE_TTL_MS = 10 * 60 * 1000
+const hlsMediaBufferCache = new Map<
+  string,
+  { buffer: Uint8Array; contentType: string; expiresAt: number }
+>()
+const inFlightHlsMediaBuffer = new Map<
+  string,
+  Promise<{ buffer: Uint8Array; contentType: string } | null>
+>()
+
+export async function assembleSoundCloudHlsMedia(
+  hlsInfo: SoundCloudHlsManifestInfo,
+  signal?: AbortSignal,
+): Promise<{ buffer: Uint8Array; contentType: string } | null> {
+  if (!hlsInfo || !Array.isArray(hlsInfo.urls) || hlsInfo.urls.length === 0) {
+    return null
+  }
+  try {
+    const buffers = await Promise.all(
+      hlsInfo.urls.map(async (segUrl) => {
+        const res = await fetchWithTimeout(
+          segUrl,
+          { headers: { 'User-Agent': SC_USER_AGENT }, signal },
+          10000,
+        )
+        if (!res.ok) {
+          throw new Error(`Segment fetch failed with status ${res.status}`)
+        }
+        return new Uint8Array(await res.arrayBuffer())
+      }),
+    )
+
+    const isFmp4 =
+      Boolean(hlsInfo.hasInitMap) || hlsInfo.contentType === 'audio/mp4'
+    if (isFmp4 && buffers.length >= 2) {
+      let timescale = 44100
+      let totalDurationTicks = 0
+      const strippedSegments: Uint8Array[] = []
+      const segMeta: { byteLength: number; durationTicks: number }[] = []
+
+      for (let i = 1; i < buffers.length; i++) {
+        const sidxInfo = parseFmp4SegmentSidx(buffers[i])
+        if (sidxInfo?.timescale) {
+          timescale = sidxInfo.timescale
+        }
+        const stripped = stripFmp4SegmentIndexBoxes(buffers[i])
+        const durationTicks =
+          sidxInfo?.subsegmentDuration || Math.round(10 * timescale)
+        totalDurationTicks += durationTicks
+        strippedSegments.push(stripped)
+        segMeta.push({
+          byteLength: stripped.byteLength,
+          durationTicks,
+        })
+      }
+
+      const exactDurationSeconds =
+        totalDurationTicks > 0 && timescale > 0
+          ? totalDurationTicks / timescale
+          : hlsInfo.durationSeconds || 0
+      const initPatched = patchInitMp4Duration(buffers[0], exactDurationSeconds)
+      const masterSidx = buildMasterFmp4SidxBox(segMeta, timescale)
+
+      let totalBytes = initPatched.byteLength + masterSidx.byteLength
+      for (const seg of strippedSegments) {
+        totalBytes += seg.byteLength
+      }
+
+      const assembled = new Uint8Array(totalBytes)
+      let writeOffset = 0
+      assembled.set(initPatched, writeOffset)
+      writeOffset += initPatched.byteLength
+      assembled.set(masterSidx, writeOffset)
+      writeOffset += masterSidx.byteLength
+      for (const seg of strippedSegments) {
+        assembled.set(seg, writeOffset)
+        writeOffset += seg.byteLength
+      }
+
+      return {
+        buffer: assembled,
+        contentType: hlsInfo.contentType || 'audio/mp4',
+      }
+    }
+
+    let totalBytes = 0
+    for (const seg of buffers) {
+      totalBytes += seg.byteLength
+    }
+    const assembled = new Uint8Array(totalBytes)
+    let writeOffset = 0
+    for (const seg of buffers) {
+      assembled.set(seg, writeOffset)
+      writeOffset += seg.byteLength
+    }
+    return {
+      buffer: assembled,
+      contentType: hlsInfo.contentType || 'audio/mpeg',
+    }
+  } catch {
+    return null
+  }
+}
+
+export async function resolveSoundCloudHlsBuffer(
+  trackId: string | number,
+  m3u8Url: string,
+  bypassCache = false,
+): Promise<{ buffer: Uint8Array; contentType: string } | null> {
+  const cleanId = String(trackId || '').trim().replace(/^sc-/, '')
+  const cacheKey = cleanId || m3u8Url
+  const now = Date.now()
+
+  if (bypassCache) {
+    hlsMediaBufferCache.delete(cacheKey)
+    inFlightHlsMediaBuffer.delete(cacheKey)
+  } else {
+    const cached = hlsMediaBufferCache.get(cacheKey)
+    if (cached && now < cached.expiresAt) {
+      // Refresh LRU insertion order
+      hlsMediaBufferCache.delete(cacheKey)
+      hlsMediaBufferCache.set(cacheKey, cached)
+      return { buffer: cached.buffer, contentType: cached.contentType }
+    }
+    const existing = inFlightHlsMediaBuffer.get(cacheKey)
+    if (existing) {
+      return existing
+    }
+  }
+
+  const promise = (async () => {
+    try {
+      const hlsInfo = await parseSoundCloudHlsManifest(m3u8Url)
+      if (!hlsInfo) return null
+      const assembled = await assembleSoundCloudHlsMedia(hlsInfo)
+      if (!assembled) return null
+
+      if (hlsMediaBufferCache.size >= HLS_BUFFER_CACHE_MAX_ENTRIES) {
+        const oldestKey = hlsMediaBufferCache.keys().next().value
+        if (oldestKey !== undefined) {
+          hlsMediaBufferCache.delete(oldestKey)
+        }
+      }
+      hlsMediaBufferCache.set(cacheKey, {
+        buffer: assembled.buffer,
+        contentType: assembled.contentType,
+        expiresAt: Date.now() + HLS_BUFFER_CACHE_TTL_MS,
+      })
+      return assembled
+    } finally {
+      inFlightHlsMediaBuffer.delete(cacheKey)
+    }
+  })()
+
+  if (!bypassCache) {
+    inFlightHlsMediaBuffer.set(cacheKey, promise)
+  }
+
+  return promise
+}
+
 export async function parseSoundCloudHlsManifest(
   m3u8Url: string,
   timeoutMs = 4000,

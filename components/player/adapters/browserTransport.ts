@@ -128,7 +128,8 @@ export function createBrowserTransport({ audio, html5, youtube }: BrowserTranspo
     stop() { detach(); html5.stop(); youtube.stop() },
     seek(time) {
       if (!binding || disposed) return
-      if (binding.target.engine === 'html5' && binding.initialTimePending) {
+      if (binding.target.engine === 'html5' && (binding.initialTimePending || audio.readyState === 0)) {
+        binding.initialTimePending = true
         binding.target.initialTime = time
       }
       engine().seek(time)
