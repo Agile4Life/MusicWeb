@@ -1,4 +1,24 @@
 import { Track } from '@/types'
+import { isRealAlbumName } from '@/lib/albumCache'
+
+/**
+ * Only lock a track's `spotify_album_id` if the Spotify album is a multi-track non-single album
+ * OR has a distinct real album name (different from the track title).
+ * This prevents 1-track singles from locking `spotify_album_id` prematurely and allows
+ * `/api/albums/resolve` to upgrade them to the parent studio album.
+ */
+export function resolveTrackSpotifyAlbumId(album: any, trackTitle?: string | null): string | undefined {
+  if (!album?.id) return undefined
+  const totalTracks = Number(album.total_tracks || 0)
+  const albumType = String(album.album_type || '').toLowerCase()
+  if (totalTracks > 1 && albumType !== 'single') {
+    return String(album.id)
+  }
+  if (album.name && isRealAlbumName(album.name, trackTitle)) {
+    return String(album.id)
+  }
+  return undefined
+}
 
 let cachedToken: { token: string; expiresAt: number } | null = null
 
@@ -77,7 +97,7 @@ export async function searchSpotifyTracks(query: string, limit = 10): Promise<Tr
       title: item.name,
       artist: item.artists?.map((a: any) => a.name).join(', ') || 'Nghệ sĩ chưa xác định',
       album: item.album?.name || '',
-      spotify_album_id: item.album?.id || undefined,
+      spotify_album_id: resolveTrackSpotifyAlbumId(item.album, item.name),
       duration: Math.round((item.duration_ms || 0) / 1000),
       file_path: item.external_urls?.spotify || item.preview_url || '',
       cover_url: item.album?.images?.[0]?.url || item.album?.images?.[1]?.url || null,
@@ -175,7 +195,7 @@ export async function getTopArtistSpotifyTracks(artists: string[], tracksPerArti
           title: item.name,
           artist: item.artists?.map((a: any) => a.name).join(', ') || artist,
           album: item.album?.name || '',
-          spotify_album_id: item.album?.id || undefined,
+          spotify_album_id: resolveTrackSpotifyAlbumId(item.album, item.name),
           duration: Math.round((item.duration_ms || 0) / 1000),
           file_path: item.external_urls?.spotify || item.preview_url || '',
           cover_url: item.album?.images?.[0]?.url || item.album?.images?.[1]?.url || null,
@@ -920,7 +940,7 @@ export async function getSpotifyArtistTopTracks(artistId: string, artistName?: s
         title: item.name || 'Untitled Track',
         artist: item.artists?.map((a: any) => a.name).join(', ') || artistName || 'Unknown Artist',
         album: item.album?.name || '',
-        spotify_album_id: item.album?.id || undefined,
+        spotify_album_id: resolveTrackSpotifyAlbumId(item.album, item.name),
         duration: Math.round((item.duration_ms || 0) / 1000),
         file_path: item.external_urls?.spotify || item.preview_url || '',
         audio_url: item.preview_url || undefined,

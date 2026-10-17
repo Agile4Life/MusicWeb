@@ -21,6 +21,7 @@ import { resolveStreamCached } from '@/lib/resolveStreamClient'
 import { prewarmNctStreamUrl } from '@/lib/nhaccuatuiClient'
 import { Play, DiscAlbum, Calendar, Music, Shuffle, Disc, Eye, Clock } from 'lucide-react'
 import { useBatchViewCounts, getViewCountCacheKey } from '@/hooks/useBatchViewCounts'
+import { ArtistLinks } from '@/components/common/ArtistLinks'
 
 interface AlbumDetail {
   id: string
@@ -161,6 +162,27 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
   // Check if album contains multiple discs
   const hasMultipleDiscs = album.tracks.some((t) => (t.disc_number || 1) > 1)
 
+  const totalSeconds = album.tracks.reduce((sum, t) => sum + (Number(t.duration) || 0), 0)
+  const totalHours = Math.floor(totalSeconds / 3600)
+  const totalMinutes = Math.floor((totalSeconds % 3600) / 60)
+  const totalDurationLabel =
+    totalSeconds > 0
+      ? totalHours > 0
+        ? `${totalHours} giờ ${totalMinutes} phút`
+        : `${Math.max(1, totalMinutes)} phút`
+      : null
+
+  const handleTrackUpdated = (trackId: string, updates: Partial<Track>) => {
+    setAlbum((prev) =>
+      prev
+        ? {
+            ...prev,
+            tracks: prev.tracks.map((t) => (t.id === trackId ? { ...t, ...updates } : t)),
+          }
+        : prev
+    )
+  }
+
   // Group tracks by disc number for multi-disc display
   const discMap = new Map<number, Track[]>()
   album.tracks.forEach((track) => {
@@ -199,11 +221,14 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
             {album.name}
           </h1>
 
-          <p className="text-sm font-semibold text-slate-300">
-            {album.artist}
-          </p>
+          <div className="text-sm font-semibold text-slate-300">
+            <ArtistLinks
+              artist={album.artist}
+              linkClassName="hover:text-cyan-400 hover:underline transition-colors cursor-pointer"
+            />
+          </div>
 
-          <div className="flex items-center gap-3 text-xs font-mono text-slate-400 mt-1">
+          <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-slate-400 mt-1">
             {album.release_date && (
               <span className="flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5 text-slate-500" />
@@ -215,6 +240,15 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
               <Music className="w-3.5 h-3.5 text-slate-500" />
               {album.tracks.length || album.total_tracks} bài hát
             </span>
+            {totalDurationLabel && (
+              <>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-slate-500" />
+                  {totalDurationLabel}
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -305,6 +339,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
                   const isCurrent = currentTrack?.id === track.id
                   const isPlayingThis = isCurrent && isPlaying
                   const viewCacheKey = getViewCountCacheKey(track)
+                  const globalIdx = album.tracks.findIndex((t) => t.id === track.id)
                   return (
                     <TrackRow
                       key={track.id || `track-${discNum}-${idx}`}
@@ -317,7 +352,8 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
                       userPlaylists={playlists}
                       onAddToPlaylist={handleAddToPlaylist}
                       onAddToQueue={() => addToQueue(track)}
-                      onPlayClick={() => playTrack(track, album.tracks)}
+                      onTrackUpdated={handleTrackUpdated}
+                      onPlayClick={() => playTrack(track, album.tracks, globalIdx >= 0 ? globalIdx : idx)}
                       batchViewCount={batchViews.get(viewCacheKey)}
                     />
                   )

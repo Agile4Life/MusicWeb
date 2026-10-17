@@ -23,7 +23,10 @@ export async function PATCH(
     const updateData: Record<string, any> = { updated_at: new Date().toISOString() }
     if (typeof title === 'string') updateData.title = title.trim()
     if (artist !== undefined) updateData.artist = typeof artist === 'string' ? artist.trim() || null : null
-    if (album !== undefined) updateData.album = typeof album === 'string' ? album.trim() || null : null
+    if (album !== undefined) {
+      updateData.album = typeof album === 'string' ? album.trim() || null : null
+      updateData.spotify_album_id = null
+    }
 
     const { data, error } = await adminClient
       .from('tracks')

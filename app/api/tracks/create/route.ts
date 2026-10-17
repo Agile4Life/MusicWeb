@@ -48,6 +48,12 @@ export async function POST(req: NextRequest) {
     if (typeof body?.nhaccuatui_id === 'string' && body.nhaccuatui_id.trim()) {
       insertPayload.nhaccuatui_id = body.nhaccuatui_id.trim()
     }
+    if (typeof body?.disc_number === 'number' && body.disc_number > 0) {
+      insertPayload.disc_number = Math.round(body.disc_number)
+    }
+    if (typeof body?.track_number === 'number' && body.track_number > 0) {
+      insertPayload.track_number = Math.round(body.track_number)
+    }
 
     const { data: trackData, error: dbError } = await adminClient
       .from('tracks')

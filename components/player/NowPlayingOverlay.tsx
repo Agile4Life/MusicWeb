@@ -16,7 +16,7 @@ import {
   trackMetadataProgressClass,
   trackMetadataTitleClass,
 } from './trackMetadataLayout'
-import { setCachedResolvedAlbum, getCachedResolvedAlbum, isRealAlbumName, isKnownBadFallback } from '@/lib/albumCache'
+import { setCachedResolvedAlbum, getCachedResolvedAlbum, isRealAlbumName, isKnownBadFallback, makeAlbumCacheKey, cleanDisplayAlbumName } from '@/lib/albumCache'
 import { resolveAlbumDeduped } from '@/lib/albumResolveClient'
 import { LyricsShareModal } from './LyricsShareModal'
 import { getPrimaryLyrics } from '@/lib/lyricsFlow'
@@ -223,17 +223,51 @@ export function NowPlayingOverlay() {
         })
     }, 1500)
 
+    const expectedKey = makeAlbumCacheKey(currentTrack.title, currentTrack.artist)
+    const handleAlbumResolved = (e: any) => {
+      const detail = e?.detail
+      if (!detail || !detail.album?.albumName) return
+      const isKeyMatch = detail.key && detail.key === expectedKey
+      const isDirectMatch =
+        detail.title &&
+        currentTrack.title &&
+        detail.title.toLowerCase().trim() === currentTrack.title.toLowerCase().trim() &&
+        detail.artist &&
+        currentTrack.artist &&
+        detail.artist.toLowerCase().trim() === currentTrack.artist.toLowerCase().trim()
+      if ((isKeyMatch || isDirectMatch) && !isKnownBadFallback(detail.album.albumId)) {
+        setResolvedAlbumInfo({
+          id: detail.album.albumId,
+          name: detail.album.albumName,
+        })
+        if (detail.album.albumId && !currentTrack.spotify_album_id) {
+          currentTrack.spotify_album_id = detail.album.albumId
+        }
+        if (detail.album.albumName && !hasRealAlbum) {
+          currentTrack.album = detail.album.albumName
+        }
+      }
+    }
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('album-resolved', handleAlbumResolved)
+    }
+
     return () => {
       isCancelled = true
       clearTimeout(timer)
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('album-resolved', handleAlbumResolved)
+      }
     }
   }, [currentTrack?.id, currentTrack?.title, currentTrack?.artist, currentTrack?.album, currentTrack?.spotify_album_id])
 
-  const displayAlbumName = resolvedAlbumInfo?.name || (
-    currentTrack?.album && isRealAlbumName(currentTrack.album)
+  const rawDisplayAlbumName = resolvedAlbumInfo?.name || (
+    currentTrack?.album && isRealAlbumName(currentTrack.album, currentTrack.title)
       ? currentTrack.album
       : undefined
   )
+  const displayAlbumName = rawDisplayAlbumName ? cleanDisplayAlbumName(rawDisplayAlbumName) : undefined
 
   const trackNum = (currentIndex >= 0 ? currentIndex : 0) + 1
   const totalTracks = queue?.length || 1
@@ -247,12 +281,6 @@ export function NowPlayingOverlay() {
     if (!currentTrack) {
       closeNowPlayingOverlay()
       router.push('/albums')
-      return
-    }
-
-    if (currentTrack.spotify_album_id && !isKnownBadFallback(currentTrack.spotify_album_id)) {
-      closeNowPlayingOverlay()
-      router.push(`/album/${currentTrack.spotify_album_id}`)
       return
     }
 
@@ -271,9 +299,16 @@ export function NowPlayingOverlay() {
       return
     }
 
-    const hasRealAlbum =
+    const hasRealAlbum = Boolean(
       currentTrack.album &&
       isRealAlbumName(currentTrack.album, currentTrack.title)
+    )
+
+    if (hasRealAlbum && currentTrack.spotify_album_id && !isKnownBadFallback(currentTrack.spotify_album_id)) {
+      closeNowPlayingOverlay()
+      router.push(`/album/${currentTrack.spotify_album_id}`)
+      return
+    }
 
     const titleToSearch = currentTrack.title || ''
     const artistToSearch = currentTrack.artist || ''
@@ -304,6 +339,12 @@ export function NowPlayingOverlay() {
       console.warn('Failed to resolve album ID:', err)
     } finally {
       setIsNavigatingAlbum(false)
+    }
+
+    if (currentTrack.spotify_album_id && !isKnownBadFallback(currentTrack.spotify_album_id)) {
+      closeNowPlayingOverlay()
+      router.push(`/album/${currentTrack.spotify_album_id}`)
+      return
     }
 
     const targetQuery = albumToSearch || titleToSearch
@@ -350,7 +391,12 @@ export function NowPlayingOverlay() {
     <>
       {/* 📱 Mobile Fullview Player (<1024px screens) - Persistent mount for zero-lag and non-freezing sync */}
       <div className="lg:hidden">
-        <MobileFullviewPlayer />
+        <MobileFullviewPlayer
+          displayAlbumName={displayAlbumName}
+          isNavigatingAlbum={isNavigatingAlbum}
+          onOpenAlbum={handleOpenAlbum}
+          onOpenArtist={(e) => handleOpenArtist(undefined, e)}
+        />
       </div>
 
       {/* 💻 Desktop Now Playing Overlay (>=1024px screens) */}

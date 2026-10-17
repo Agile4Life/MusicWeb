@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { stripAlbumIdPrefix, sortAlbumTracks, validateAndNormalizeCachedAlbum } from '../albumId'
+import { resolveTrackSpotifyAlbumId } from '../spotify'
+import { deduplicateQueueTracks, mergeTrackMetadata } from '../utils'
+import { Track } from '@/types'
 
 describe('stripAlbumIdPrefix', () => {
   it('strips itunes-rss- prefix correctly', () => {
@@ -94,5 +97,103 @@ describe('sortAlbumTracks', () => {
       { id: 'a', disc_number: 1, track_number: 1 },
     ])
     expect(sorted.map((t) => t.id)).toEqual(['a', 'b', 'c'])
+  })
+})
+
+describe('resolveTrackSpotifyAlbumId', () => {
+  it('does not lock spotify_album_id for 1-track self-titled singles', () => {
+    expect(
+      resolveTrackSpotifyAlbumId(
+        { id: 'single-123', name: 'Fortnight', album_type: 'single', total_tracks: 1 },
+        'Fortnight'
+      )
+    ).toBeUndefined()
+  })
+
+  it('preserves spotify_album_id for title tracks on multi-track studio albums', () => {
+    expect(
+      resolveTrackSpotifyAlbumId(
+        { id: 'album-lover', name: 'Lover', album_type: 'album', total_tracks: 18 },
+        'Lover'
+      )
+    ).toBe('album-lover')
+  })
+
+  it('preserves spotify_album_id when album name is distinct from track title', () => {
+    expect(
+      resolveTrackSpotifyAlbumId(
+        { id: 'album-midnights', name: 'Midnights' },
+        'Anti-Hero'
+      )
+    ).toBe('album-midnights')
+  })
+})
+
+describe('deduplicateQueueTracks album metadata enrichment', () => {
+  it('enriches surviving NhacCuaTui track with album and spotify_album_id from duplicate Spotify track', () => {
+    const nctTrack: Track = {
+      id: 'nct-1',
+      user_id: 'system',
+      title: 'Chúng Ta Của Tương Lai',
+      artist: 'Sơn Tùng M-TP',
+      album: null,
+      duration: 240,
+      file_path: 'nct:1',
+      cover_url: null,
+      created_at: '2026-01-01T00:00:00Z',
+      source: 'nhaccuatui',
+      nhaccuatui_id: 'abc123',
+    }
+    const spotifyTrack: Track = {
+      id: 'spotify-2',
+      user_id: 'spotify',
+      title: 'Chúng Ta Của Tương Lai',
+      artist: 'Sơn Tùng M-TP',
+      album: 'Sky Tour',
+      spotify_album_id: 'sp-alb-999',
+      duration: 240,
+      file_path: 'https://open.spotify.com/track/2',
+      cover_url: 'https://i.scdn.co/image/cover.jpg',
+      created_at: '2026-01-01T00:00:00Z',
+      source: 'spotify',
+      spotify_id: '2',
+    }
+
+    const deduped = deduplicateQueueTracks([nctTrack, spotifyTrack])
+    expect(deduped).toHaveLength(1)
+    expect(deduped[0].id).toBe('nct-1')
+    expect(deduped[0].source).toBe('nhaccuatui')
+    expect(deduped[0].album).toBe('Sky Tour')
+    expect(deduped[0].spotify_album_id).toBe('sp-alb-999')
+    expect(deduped[0].cover_url).toBe('https://i.scdn.co/image/cover.jpg')
+  })
+
+  it('merges real album over self-titled single album name via mergeTrackMetadata', () => {
+    const winner: Track = {
+      id: '1',
+      user_id: 'u',
+      title: 'Anti-Hero',
+      artist: 'Taylor Swift',
+      album: 'Anti-Hero',
+      duration: 200,
+      file_path: 'a',
+      cover_url: 'https://example.com/1.jpg',
+      created_at: '2026-01-01',
+    }
+    const loser: Track = {
+      id: '2',
+      user_id: 'u',
+      title: 'Anti-Hero',
+      artist: 'Taylor Swift',
+      album: 'Midnights',
+      spotify_album_id: 'alb-midnights',
+      duration: 200,
+      file_path: 'b',
+      cover_url: 'https://example.com/2.jpg',
+      created_at: '2026-01-01',
+    }
+    const merged = mergeTrackMetadata(winner, loser)
+    expect(merged.album).toBe('Midnights')
+    expect(merged.spotify_album_id).toBe('alb-midnights')
   })
 })

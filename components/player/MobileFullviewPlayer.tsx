@@ -30,6 +30,8 @@ import {
   X,
   MessageSquareQuote,
   GripVertical,
+  DiscAlbum,
+  User,
 } from 'lucide-react'
 
 interface ExtendedLyricLine extends LyricLine {
@@ -55,7 +57,19 @@ function formatNegativeTime(seconds: number) {
   return `-${mins}:${secs < 10 ? '0' : ''}${secs}`
 }
 
-export function MobileFullviewPlayer() {
+export interface MobileFullviewPlayerProps {
+  displayAlbumName?: string
+  isNavigatingAlbum?: boolean
+  onOpenAlbum?: (e: React.MouseEvent) => void
+  onOpenArtist?: (e: React.MouseEvent) => void
+}
+
+export function MobileFullviewPlayer({
+  displayAlbumName,
+  isNavigatingAlbum = false,
+  onOpenAlbum,
+  onOpenArtist,
+}: MobileFullviewPlayerProps = {}) {
   const { currentTime, duration } = usePlaybackProgress()
   const {
     currentTrack,
@@ -740,9 +754,28 @@ export function MobileFullviewPlayer() {
                 <h2 className="text-xl font-bold truncate leading-tight text-white">
                   {currentTrack.title}
                 </h2>
-                <p className="text-base truncate leading-tight mt-1 text-white/55">
+                <button
+                  type="button"
+                  onClick={onOpenArtist}
+                  className="text-base truncate leading-tight mt-1 text-white/55 hover:text-white/85 text-left transition-colors cursor-pointer"
+                >
                   {currentTrack.artist || 'Nghệ sĩ chưa rõ'}
-                </p>
+                </button>
+                {onOpenAlbum && (
+                  <button
+                    type="button"
+                    onClick={onOpenAlbum}
+                    disabled={isNavigatingAlbum}
+                    className="inline-flex items-center gap-1.5 mt-1.5 text-xs text-cyan-400/90 hover:text-cyan-300 truncate max-w-full text-left transition-colors cursor-pointer"
+                  >
+                    {isNavigatingAlbum ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                    ) : (
+                      <DiscAlbum className="w-3.5 h-3.5 shrink-0" />
+                    )}
+                    <span className="truncate">{displayAlbumName || 'Xem Album'}</span>
+                  </button>
+                )}
               </div>
               <div className="flex items-center gap-2 shrink-0 mt-0.5">
                 <button
@@ -1187,6 +1220,38 @@ export function MobileFullviewPlayer() {
                   <X className="w-4 h-4" />
                 </button>
               </div>
+
+              {onOpenAlbum && (
+                <button
+                  aria-label="Đi tới Album"
+                  type="button"
+                  onClick={(e) => {
+                    setShowMenuSheet(false)
+                    onOpenAlbum(e)
+                  }}
+                  className="flex items-center gap-3 p-3.5 rounded-2xl border border-white/8 bg-white/[0.04] text-xs font-semibold transition-all hover:bg-white/[0.08]"
+                >
+                  <DiscAlbum className="w-4 h-4 text-cyan-400" />
+                  <span className="truncate">
+                    Đi tới Album{displayAlbumName ? `: ${displayAlbumName}` : ''}
+                  </span>
+                </button>
+              )}
+
+              {onOpenArtist && currentTrack.artist && (
+                <button
+                  aria-label="Đi tới Nghệ sĩ"
+                  type="button"
+                  onClick={(e) => {
+                    setShowMenuSheet(false)
+                    onOpenArtist(e)
+                  }}
+                  className="flex items-center gap-3 p-3.5 rounded-2xl border border-white/8 bg-white/[0.04] text-xs font-semibold transition-all hover:bg-white/[0.08]"
+                >
+                  <User className="w-4 h-4 text-white/60" />
+                  <span className="truncate">Đi tới Nghệ sĩ: {currentTrack.artist}</span>
+                </button>
+              )}
 
               <button
                 aria-label="Chia sẻ trích dẫn lời bài hát"

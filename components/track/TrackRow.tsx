@@ -16,6 +16,7 @@ import { ArtistLinks } from '@/components/common/ArtistLinks'
 import {
   getCachedResolvedAlbum,
   setCachedResolvedAlbum,
+  invalidateCachedAlbum,
   isRealAlbumName,
   isKnownBadFallback,
   makeAlbumCacheKey,
@@ -185,7 +186,9 @@ function TrackRowComponent({
     e.preventDefault()
     e.stopPropagation()
 
-    if (track.spotify_album_id && !isKnownBadFallback(track.spotify_album_id)) {
+    const hasRealAlbum = isRealAlbumName(track.album, track.title)
+
+    if (hasRealAlbum && track.spotify_album_id && !isKnownBadFallback(track.spotify_album_id)) {
       router.push(`/album/${track.spotify_album_id}`)
       return
     }
@@ -200,8 +203,6 @@ function TrackRowComponent({
       router.push(`/album/${cached.albumId}`)
       return
     }
-
-    const hasRealAlbum = isRealAlbumName(track.album, track.title)
 
     const titleToSearch = track.title || ''
     const artistToSearch = track.artist || ''
@@ -231,13 +232,18 @@ function TrackRowComponent({
       setIsResolvingAlbum(false)
     }
 
+    if (track.spotify_album_id && !isKnownBadFallback(track.spotify_album_id)) {
+      router.push(`/album/${track.spotify_album_id}`)
+      return
+    }
+
     const targetQuery = albumToSearch || titleToSearch
     router.push(targetQuery ? `/albums?q=${encodeURIComponent(targetQuery)}` : '/albums')
   }
 
   const currentAlbumDisplay = liveAlbum || track.album
 
-  const hasRealAlbumDisplay = isRealAlbumName(currentAlbumDisplay)
+  const hasRealAlbumDisplay = isRealAlbumName(currentAlbumDisplay, track.title)
 
   const [mounted, setMounted] = useState(false)
 
@@ -301,10 +307,21 @@ function TrackRowComponent({
       })
 
       if (res.ok) {
+        const albumChanged = (newAlbum || '') !== (track.album || '')
+        invalidateCachedAlbum(track.title, track.artist)
+        invalidateCachedAlbum(newTitle, newArtist)
+        setLiveAlbum(newAlbum)
+        if (albumChanged) {
+          track.spotify_album_id = undefined
+        }
+        track.title = newTitle
+        track.artist = newArtist || undefined
+        track.album = newAlbum || undefined
         onTrackUpdated?.(track.id, {
           title: newTitle,
           artist: newArtist || undefined,
           album: newAlbum || undefined,
+          ...(albumChanged ? { spotify_album_id: undefined } : {}),
         })
         setEditMode(false)
       } else {

@@ -7,7 +7,7 @@ import { Track, Playlist } from '@/types'
 import { TrackList } from '@/components/track/TrackList'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
-import { deduplicateQueueTracks } from '@/lib/utils'
+import { deduplicateQueueTracks, mergeTrackMetadata } from '@/lib/utils'
 import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
 import { fetchUnifiedSearch, GlobalSearchTracks } from '@/lib/searchApi'
 import { resolveExternalTrackId, isExternalTrack, addTrackToPlaylist } from '@/lib/trackPersistence'
@@ -16,6 +16,7 @@ import { toast } from '@/components/ui/ToastContext'
 import { fetchListeningHistory, getRecentUniqueTracks } from '@/lib/listeningHistory'
 import { MediaCard } from '@/components/common/MediaCard'
 import { useGridGlideIndicator } from '@/components/common/useGlideIndicator'
+import { buildStyleCoherentQueue } from '@/lib/trackClassifier'
 
 function isTrackVisibleToUser(track: Track, userId: string | null): boolean {
   const fp = track.file_path || ''
@@ -55,7 +56,7 @@ import {
 import { SpotifyAlbumItem } from '@/lib/spotify'
 import { useSession } from 'next-auth/react'
 import { isAdmin as checkIsAdmin } from '@/lib/accessControl'
-import { useSearchParams, usePathname } from 'next/navigation'
+import { useSearchParams, usePathname, useRouter } from 'next/navigation'
 import { extractDriveFileId, parseFilenameToTitleArtist } from '@/lib/googleDriveUpload'
 import { STATIC_DRIVE_TRACKS } from '@/lib/driveTracksMap'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
@@ -76,7 +77,7 @@ function processTrendingTracks(raw: GlobalSearchTracks, maxItems = 18): Track[] 
     if (deezer[i]) rawList.push(deezer[i])
   }
 
-  const seenKeys = new Set<string>()
+  const seenKeyToIndex = new Map<string, number>()
   const result: Track[] = []
 
   for (const track of rawList) {
@@ -104,11 +105,16 @@ function processTrendingTracks(raw: GlobalSearchTracks, maxItems = 18): Track[] 
     const isCompilation = LONG_COMPILATION_KEYWORDS.some((kw) =>
       cleanTitle.includes(kw) || cleanArtist.includes(kw)
     )
+    if (isCompilation) continue
 
-    if (!isCompilation && !seenKeys.has(key)) {
-      seenKeys.add(key)
-      result.push(track)
+    const existingIdx = seenKeyToIndex.get(key)
+    if (existingIdx !== undefined) {
+      result[existingIdx] = mergeTrackMetadata(result[existingIdx], track)
+      continue
     }
+
+    seenKeyToIndex.set(key, result.length)
+    result.push({ ...track })
   }
 
   if (result.length >= maxItems) return result.slice(0, maxItems)
@@ -213,6 +219,7 @@ export default function HomePage() {
   }, [searchQuery])
 
   // Trending Albums state
+  const router = useRouter()
   const [trendingAlbums, setTrendingAlbums] = useState<SpotifyAlbumItem[]>([])
   const [loadingAlbums, setLoadingAlbums] = useState(true)
   const albumDetailCacheRef = useRef(new Map<string, { detail: { tracks: Track[] } | null; at: number }>())
@@ -225,15 +232,15 @@ export default function HomePage() {
       const detail =
         cached && Date.now() - cached.at < 10 * 60 * 1000
           ? cached.detail
-          : await fetch(`/api/albums/${album.id}`).then((r) => (r.ok ? r.json() : null))
+          : await fetch(`/api/albums/${encodeURIComponent(album.id)}`).then((r) => (r.ok ? r.json() : null))
       if (detail && Array.isArray(detail.tracks) && detail.tracks.length > 0) {
         albumDetailCacheRef.current.set(album.id, { detail, at: Date.now() })
-        playTrack(detail.tracks[0], detail.tracks)
+        playTrack(detail.tracks[0], detail.tracks, 0)
       } else {
-        window.location.href = `/album/${album.id}`
+        router.push(`/album/${encodeURIComponent(album.id)}`)
       }
     } catch {
-      window.location.href = `/album/${album.id}`
+      router.push(`/album/${encodeURIComponent(album.id)}`)
     }
   }
 
@@ -1079,7 +1086,7 @@ export default function HomePage() {
                         type="track"
                         badgeLabel="Hot"
                         href="#"
-                        onPlay={() => playTrack(t, currentCategoryTracks)}
+                        onPlay={() => playTrack(t, buildStyleCoherentQueue(t, currentCategoryTracks))}
                         isPlaying={currentTrack?.id === t.id && isPlaying}
                         index={idx}
                         fallbackIcon="track"
@@ -1116,7 +1123,7 @@ export default function HomePage() {
                         type="track"
                         badgeLabel="Hot"
                         href="#"
-                        onPlay={() => playTrack(t, currentCategoryTracks)}
+                        onPlay={() => playTrack(t, buildStyleCoherentQueue(t, currentCategoryTracks))}
                         isPlaying={currentTrack?.id === t.id && isPlaying}
                         index={idx}
                         fallbackIcon="track"
@@ -1372,7 +1379,7 @@ export default function HomePage() {
                       type="track"
                       badgeLabel="Drive"
                       href="/drive"
-                      onPlay={() => playTrack(t, driveTracks)}
+                      onPlay={() => playTrack(t, buildStyleCoherentQueue(t, driveTracks))}
                       isPlaying={currentTrack?.id === t.id && isPlaying}
                       index={idx}
                       fallbackIcon="track"
@@ -1405,7 +1412,7 @@ export default function HomePage() {
                       type="track"
                       badgeLabel="Drive"
                       href="/drive"
-                      onPlay={() => playTrack(t, driveTracks)}
+                      onPlay={() => playTrack(t, buildStyleCoherentQueue(t, driveTracks))}
                       isPlaying={currentTrack?.id === t.id && isPlaying}
                       index={idx}
                       fallbackIcon="track"

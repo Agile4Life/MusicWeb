@@ -6,6 +6,7 @@ import { fetchArtistAudienceCount } from '@/lib/artistAudience'
 import { searchYouTubeTracks } from '@/lib/youtube'
 import { searchNhacCuaTuiDirect } from '@/lib/nhaccuatui'
 import { isRealAlbumName } from '@/lib/albumCache'
+import { mergeTrackMetadata } from '@/lib/utils'
 import { Track } from '@/types'
 
 function normalizeTitleForDedup(title: string): string {
@@ -140,15 +141,21 @@ export async function GET(request: NextRequest) {
     }
 
     // 4. Combine tracks with NhacCuaTui (NCT) as PRIORITY #1, followed by Spotify & Deezer
+    // Merge album/cover/duration metadata from Spotify/Deezer into winning NCT tracks
     const combinedTracks: Track[] = [...nctTracks, ...spotifyTracks, ...rawDeezerTracks]
-    const seenTitles = new Set<string>()
+    const seenByTitle = new Map<string, number>()
     let topTracks: Track[] = []
 
     for (const tr of combinedTracks) {
       const key = normalizeTitleForDedup(tr.title)
-      if (!key || seenTitles.has(key)) continue
-      seenTitles.add(key)
-      topTracks.push(tr)
+      if (!key) continue
+      const existingIdx = seenByTitle.get(key)
+      if (existingIdx !== undefined) {
+        topTracks[existingIdx] = mergeTrackMetadata(topTracks[existingIdx], tr)
+        continue
+      }
+      seenByTitle.set(key, topTracks.length)
+      topTracks.push({ ...tr })
     }
 
     // 5. Fallback: If still no tracks found (e.g. niche/indie artists), search YouTube

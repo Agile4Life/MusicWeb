@@ -106,18 +106,37 @@ export async function resolveExternalTrackId(
   if (normalizedTrack.soundcloud_permalink_url) idLookups.push(`file_path.eq.${normalizedTrack.soundcloud_permalink_url}`)
   if (normalizedTrack.file_path) idLookups.push(`file_path.eq.${normalizedTrack.file_path}`)
 
+  const maybeBackfillAlbumMeta = (matchedRow: { id: string; album?: string | null; cover_url?: string | null }) => {
+    if (!matchedRow?.id) return
+    const updates: Record<string, any> = {}
+    if (!matchedRow.album && normalizedTrack.album) {
+      updates.album = normalizedTrack.album
+    }
+    if (!matchedRow.cover_url && normalizedTrack.cover_url) {
+      updates.cover_url = normalizedTrack.cover_url
+    }
+    if (Object.keys(updates).length > 0) {
+      supabase
+        .from('tracks')
+        .update(updates)
+        .eq('id', matchedRow.id)
+        .then(() => {}, () => {})
+    }
+  }
+
   if (idLookups.length > 0) {
     try {
       const { data: idMatches } = await supabase
         .from('tracks')
-        .select('id, user_id')
+        .select('id, user_id, album, cover_url')
         .or(idLookups.join(','))
         .limit(10)
       
       if (idMatches && idMatches.length > 0) {
         const userMatch = idMatches.find(m => m.user_id === userId)
-        if (userMatch) return userMatch.id
-        return idMatches[0].id
+        const chosen = userMatch || idMatches[0]
+        maybeBackfillAlbumMeta(chosen)
+        return chosen.id
       }
     } catch (e) {
       console.warn('ID lookup error:', e)
@@ -133,7 +152,7 @@ export async function resolveExternalTrackId(
     const artistVal = (normalizedTrack.artist || '').trim()
 
     try {
-      let query = supabase.from('tracks').select('id, user_id').eq('title', titleVal)
+      let query = supabase.from('tracks').select('id, user_id, album, cover_url').eq('title', titleVal)
       if (artistVal) {
         query = query.eq('artist', artistVal)
       }
@@ -141,8 +160,9 @@ export async function resolveExternalTrackId(
       const { data: titleMatches } = await query.limit(10)
       if (titleMatches && titleMatches.length > 0) {
         const userMatch = titleMatches.find(m => m.user_id === userId)
-        if (userMatch) return userMatch.id
-        return titleMatches[0].id
+        const chosen = userMatch || titleMatches[0]
+        maybeBackfillAlbumMeta(chosen)
+        return chosen.id
       }
     } catch (e) {
       console.warn('Title lookup error:', e)
@@ -181,6 +201,12 @@ export async function resolveExternalTrackId(
     youtube_id: normalizedTrack.youtube_id || null,
     spotify_id: normalizedTrack.spotify_id || null,
     nhaccuatui_id: normalizedTrack.nhaccuatui_id || null,
+    ...(typeof normalizedTrack.disc_number === 'number' && normalizedTrack.disc_number > 0
+      ? { disc_number: normalizedTrack.disc_number }
+      : {}),
+    ...(typeof normalizedTrack.track_number === 'number' && normalizedTrack.track_number > 0
+      ? { track_number: normalizedTrack.track_number }
+      : {}),
     created_at: new Date().toISOString(),
   }
 

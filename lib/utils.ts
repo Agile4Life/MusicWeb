@@ -105,9 +105,59 @@ function isBetterTrack(candidate: Track, current: Track): boolean {
 }
 
 /**
+ * Enriches the winning track with missing album / cover / duration metadata from a duplicate track.
+ * Crucial when NhacCuaTui or Local tracks win playback priority over Spotify/Deezer tracks
+ * that carry full album metadata.
+ */
+export function mergeTrackMetadata(winner: Track, loser: Track): Track {
+  if (!winner || !loser) return winner
+  let changed = false
+  const next: Track = { ...winner }
+
+  const winnerAlbum = (winner.album || '').trim()
+  const loserAlbum = (loser.album || '').trim()
+  const isRealNonSingle = (albumStr: string, titleStr?: string | null) => {
+    if (!albumStr) return false
+    const lower = albumStr.toLowerCase()
+    if (lower === 'single' || lower === 'ep' || lower === 'unknown album' || lower === 'album') return false
+    if (/\s[-–—]\s*(single|ep)\s*$/i.test(albumStr)) return false
+    if (titleStr && lower === titleStr.trim().toLowerCase()) return false
+    return true
+  }
+
+  const winnerHasRealAlbum = isRealNonSingle(winnerAlbum, winner.title)
+  const loserHasRealAlbum = isRealNonSingle(loserAlbum, loser.title)
+
+  if (!winnerHasRealAlbum && loserHasRealAlbum) {
+    next.album = loser.album
+    changed = true
+  } else if (!winnerAlbum && loserAlbum) {
+    next.album = loser.album
+    changed = true
+  }
+
+  if ((!winner.spotify_album_id || (!winnerHasRealAlbum && loserHasRealAlbum)) && loser.spotify_album_id) {
+    next.spotify_album_id = loser.spotify_album_id
+    changed = true
+  }
+
+  if (!winner.cover_url && loser.cover_url) {
+    next.cover_url = loser.cover_url
+    changed = true
+  }
+
+  if ((!winner.duration || winner.duration <= 0) && loser.duration && loser.duration > 0) {
+    next.duration = loser.duration
+    changed = true
+  }
+
+  return changed ? next : winner
+}
+
+/**
  * Smart queue & search track deduplication algorithm.
  * Normalizes title & artist to eliminate duplicate songs across Spotify, YouTube, iTunes & Drive,
- * while automatically keeping the highest quality official track.
+ * while automatically keeping the highest quality official track and merging album metadata.
  */
 export function deduplicateQueueTracks(tracks: Track[]): Track[] {
   if (!tracks || tracks.length <= 1) return tracks || []
@@ -148,8 +198,15 @@ export function deduplicateQueueTracks(tracks: Track[]): Track[] {
     const existingExact = seenMap.get(key)
     if (existingExact) {
       if (isBetterTrack(track, existingExact)) {
-        seenMap.set(key, track)
-        if (coreKey) upsertCoreTitleTrack(coreKey, track, existingExact)
+        const merged = mergeTrackMetadata(track, existingExact)
+        seenMap.set(key, merged)
+        if (coreKey) upsertCoreTitleTrack(coreKey, merged, existingExact)
+      } else {
+        const merged = mergeTrackMetadata(existingExact, track)
+        if (merged !== existingExact) {
+          seenMap.set(key, merged)
+          if (coreKey) upsertCoreTitleTrack(coreKey, merged, existingExact)
+        }
       }
       continue
     }
@@ -168,9 +225,16 @@ export function deduplicateQueueTracks(tracks: Track[]): Track[] {
       )
       if (existingCore) {
         if (isBetterTrack(track, existingCore)) {
+          const merged = mergeTrackMetadata(track, existingCore)
           seenMap.delete(getDedupeKey(existingCore))
-          seenMap.set(key, track)
-          upsertCoreTitleTrack(coreKey, track, existingCore)
+          seenMap.set(key, merged)
+          upsertCoreTitleTrack(coreKey, merged, existingCore)
+        } else {
+          const merged = mergeTrackMetadata(existingCore, track)
+          if (merged !== existingCore) {
+            seenMap.set(getDedupeKey(existingCore), merged)
+            upsertCoreTitleTrack(coreKey, merged, existingCore)
+          }
         }
         continue
       }

@@ -12,6 +12,9 @@ import { HeroCardSkeleton } from '@/components/common/SkeletonLoader'
 import { MediaCard } from '@/components/common/MediaCard'
 import { useGridGlideIndicator } from '@/components/common/useGlideIndicator'
 import { isKnownBadFallback, isRealAlbumName } from '@/lib/albumCache'
+import { cleanDisplayAlbumName, normalizeAlbumText, stripAlbumEditionSuffix } from '@/lib/albumMatching'
+
+const sharedAlbumDetailCache = new Map<string, { detail: { tracks: Track[] } | null; at: number }>()
 
 interface AlbumCardProps {
   album: SpotifyAlbumItem
@@ -21,10 +24,6 @@ interface AlbumCardProps {
 function AlbumCard({ album, index = 0 }: AlbumCardProps) {
   const router = useRouter()
   const { playTrack } = usePlayerControls()
-  const albumDetailCacheRef = useRef<Map<string, { detail: { tracks: Track[] } | null; at: number }> | null>(null)
-  if (!albumDetailCacheRef.current) {
-    albumDetailCacheRef.current = new Map()
-  }
 
   const releaseYear = album.release_date ? album.release_date.split('-')[0] : ''
   const metaParts: string[] = []
@@ -36,13 +35,13 @@ function AlbumCard({ album, index = 0 }: AlbumCardProps) {
     e.preventDefault()
     e.stopPropagation()
     try {
-      const cached = albumDetailCacheRef.current!.get(album.id)
+      const cached = sharedAlbumDetailCache.get(album.id)
       const detail =
         cached && Date.now() - cached.at < 10 * 60 * 1000
           ? cached.detail
           : await fetch(`/api/albums/${encodeURIComponent(album.id)}`).then((r) => (r.ok ? r.json() : null))
       if (detail && Array.isArray(detail.tracks) && detail.tracks.length > 0) {
-        albumDetailCacheRef.current!.set(album.id, { detail, at: Date.now() })
+        sharedAlbumDetailCache.set(album.id, { detail, at: Date.now() })
         playTrack(detail.tracks[0], detail.tracks)
       } else {
         router.push(`/album/${encodeURIComponent(album.id)}`)
@@ -127,10 +126,17 @@ export default function AlbumsPage() {
             if (!alb || !alb.id || isKnownBadFallback(String(alb.id)) || !isRealAlbumName(alb.name)) {
               continue
             }
-            const key = `${(alb.name || '').trim().toLowerCase()}::${(alb.artist || '').trim().toLowerCase()}`
+            const cleanName = cleanDisplayAlbumName(alb.name)
+            if (!cleanName || !isRealAlbumName(cleanName)) continue
+            const baseKey = normalizeAlbumText(stripAlbumEditionSuffix(cleanName)) || normalizeAlbumText(cleanName)
+            const artistKey = normalizeAlbumText((alb.artist || '').split(/[,&/]/)[0])
+            const key = `${baseKey}::${artistKey}`
             if (!seenKeys.has(key)) {
               seenKeys.add(key)
-              uniqueAlbums.push(alb)
+              uniqueAlbums.push({
+                ...alb,
+                name: cleanName,
+              })
             }
           }
           setListenedAlbums(uniqueAlbums)

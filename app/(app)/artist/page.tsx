@@ -10,10 +10,13 @@ import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { addTrackToPlaylist } from '@/lib/trackPersistence'
 import { toast } from '@/components/ui/ToastContext'
 import { deduplicateQueueTracks } from '@/lib/utils'
-import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
+import { useListGlideIndicator, useGridGlideIndicator } from '@/components/common/useGlideIndicator'
 import { resolveStreamCached } from '@/lib/resolveStreamClient'
 import { prewarmNctStreamUrl } from '@/lib/nhaccuatuiClient'
 import { useBatchViewCounts, getViewCountCacheKey } from '@/hooks/useBatchViewCounts'
+import { MediaCard } from '@/components/common/MediaCard'
+import { SpotifyAlbumItem } from '@/lib/spotify'
+import { isAlbumArtistMatch } from '@/lib/albumMatching'
 import {
   Play,
   Shuffle,
@@ -27,6 +30,7 @@ import {
   AlertTriangle,
   Eye,
   Clock,
+  DiscAlbum,
 } from 'lucide-react'
 
 interface ArtistInfo {
@@ -52,6 +56,7 @@ export default function ArtistPage() {
   const { playTrack, toggleShuffle, addToQueue } = usePlayerControls()
 
   const { playlists } = usePlaylists()
+  const albumGrid = useGridGlideIndicator()
   const {
     containerRef: listContainerRef,
     indicator: trackIndicator,
@@ -61,6 +66,7 @@ export default function ArtistPage() {
 
   const [artist, setArtist] = useState<ArtistInfo | null>(null)
   const [topTracks, setTopTracks] = useState<Track[]>([])
+  const [artistAlbums, setArtistAlbums] = useState<SpotifyAlbumItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAll, setShowAll] = useState(false)
@@ -73,6 +79,10 @@ export default function ArtistPage() {
   const handleAddToPlaylist = async (playlistId: string, track: Track) => {
     const result = await addTrackToPlaylist(playlistId, track)
     toast(result.message, result.success ? 'success' : 'error', track.title)
+  }
+
+  const handleTrackUpdated = (trackId: string, updates: Partial<Track>) => {
+    setTopTracks((prev) => prev.map((t) => (t.id === trackId ? { ...t, ...updates } : t)))
   }
 
   useEffect(() => {
@@ -88,6 +98,7 @@ export default function ArtistPage() {
       setLoading(true)
       setError(null)
       setShowAll(false)
+      setArtistAlbums([])
 
       try {
         const res = await fetch(`/api/artist?name=${encodeURIComponent(artistName)}`)
@@ -109,6 +120,16 @@ export default function ArtistPage() {
 
         setArtist(data.artist)
         setTopTracks(data.topTracks || [])
+
+        const resolvedName = data.artist?.name || artistName
+        fetch(`/api/albums/search?q=${encodeURIComponent(resolvedName)}`)
+          .then((r) => (r.ok ? r.json() : []))
+          .then((albums: SpotifyAlbumItem[]) => {
+            if (isCancelled || !Array.isArray(albums)) return
+            const matched = albums.filter((alb) => isAlbumArtistMatch(alb.artist, resolvedName))
+            setArtistAlbums((matched.length > 0 ? matched : albums).slice(0, 12))
+          })
+          .catch(() => {})
       } catch (err) {
         if (!isCancelled) {
           console.error('Failed to load artist:', err)
@@ -351,6 +372,7 @@ export default function ArtistPage() {
                   playTrack(track, dedupedQueue, queueIndex >= 0 ? queueIndex : index)
                 }}
                 onAddToQueue={() => addToQueue(track)}
+                onTrackUpdated={handleTrackUpdated}
                 userPlaylists={playlists}
                 onAddToPlaylist={(playlistId) => handleAddToPlaylist(playlistId, track)}
                 playlistTracks={showAll ? topTracks : topTracks.slice(0, INITIAL_COUNT)}
@@ -378,6 +400,46 @@ export default function ArtistPage() {
               )}
             </button>
           )}
+        </div>
+      )}
+
+      {/* Discography / Albums Section */}
+      {artistAlbums.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2 px-1">
+            <DiscAlbum className="w-4.5 h-4.5" style={{ color: 'var(--spotify-glow, #22d3ee)' }} />
+            Album & Đĩa đơn
+          </h2>
+
+          <div
+            ref={albumGrid.containerRef}
+            onMouseLeave={albumGrid.handleContainerMouseLeave}
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 relative"
+          >
+            <div
+              className="grid-glide-indicator"
+              style={{
+                transform: `translate3d(${albumGrid.indicator.left}px, ${albumGrid.indicator.top}px, 0)`,
+                width: `${albumGrid.indicator.width}px`,
+                height: `${albumGrid.indicator.height}px`,
+                opacity: albumGrid.indicator.opacity,
+              }}
+            />
+            {artistAlbums.map((alb) => (
+              <MediaCard
+                key={alb.id}
+                title={alb.name}
+                subtitle={
+                  alb.release_date
+                    ? `${alb.release_date.slice(0, 4)} • ${alb.album_type === 'single' ? 'Single / EP' : 'Album'}`
+                    : alb.artist
+                }
+                coverUrl={alb.cover_url}
+                href={`/album/${encodeURIComponent(alb.id)}`}
+                onMouseEnter={albumGrid.handleItemMouseEnter}
+              />
+            ))}
+          </div>
         </div>
       )}
 
