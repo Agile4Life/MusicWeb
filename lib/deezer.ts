@@ -218,13 +218,51 @@ export async function fetchDeezerAlbumTracks(albumId: string): Promise<{ meta: D
   }
 }
 
+const DEEZER_SPAM_KEYWORDS = [
+  'chansons enfants',
+  'chanson enfant',
+  'comptines',
+  'comptine',
+  'kids united',
+  'clipounets',
+  'bébés',
+  'nursery rhyme',
+  'cocomelon',
+  'baby shark',
+  'lullaby',
+  'nhạc thiếu nhi',
+  'karaoke',
+  'tribute to',
+  'made famous by',
+  'ringtone',
+  'compilation',
+  '1 hour',
+  '10 hours',
+]
+
+function isCleanDeezerTrendingItem(title?: string | null, artist?: string | null, album?: string | null): boolean {
+  const combined = `${title || ''} ${artist || ''} ${album || ''}`.toLowerCase()
+  return !DEEZER_SPAM_KEYWORDS.some((kw) => combined.includes(kw))
+}
+
+function normalizeDeezerArtistToken(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd')
+    .toLowerCase()
+    .replace(/[^a-z0-9\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]+/g, ' ')
+    .trim()
+}
+
 /**
  * 🔥 Fetch Deezer Global Chart Top Tracks (Trending)
  * GET https://api.deezer.com/chart/0/tracks
  */
 export async function getTrendingDeezerTracks(limit = 16): Promise<Track[]> {
   try {
-    const safeLimit = Math.min(limit, 50)
+    const safeLimit = Math.min(Math.max(limit + 8, 20), 50)
     const res = await fetch(`https://api.deezer.com/chart/0/tracks?limit=${safeLimit}`, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
       signal: AbortSignal.timeout(4000),
@@ -237,7 +275,14 @@ export async function getTrendingDeezerTracks(limit = 16): Promise<Track[]> {
     const systemUserId = '00000000-0000-4000-a000-000000000001'
 
     return items
-      .filter((item: any) => item && item.id && (item.title || item.title_short))
+      .filter((item: any) => {
+        if (!item || !item.id || !(item.title || item.title_short)) return false
+        const trackTitle = item.title || item.title_short || ''
+        const artistName = extractDeezerArtistName(item)
+        const albumTitle = item.album?.title || ''
+        return isCleanDeezerTrendingItem(trackTitle, artistName, albumTitle)
+      })
+      .slice(0, limit)
       .map((item: any) => {
         const trackTitle = item.title || item.title_short || 'Untitled Track'
         const albumTitle = item.album?.title || undefined
@@ -261,6 +306,53 @@ export async function getTrendingDeezerTracks(limit = 16): Promise<Track[]> {
       })
   } catch (err) {
     console.warn('Deezer trending fetch error:', err)
+    return []
+  }
+}
+
+/**
+ * Fetch top tracks for a list of artists from Deezer Search API with artist verification.
+ */
+export async function getTopArtistDeezerTracks(artists: string[], tracksPerArtist = 2): Promise<Track[]> {
+  try {
+    const safePerArtist = Math.min(Math.max(1, tracksPerArtist), 6)
+    const results = await Promise.all(
+      artists.map(async (artist) => {
+        try {
+          const candidates = await searchDeezerTracks(`artist:"${artist}"`, safePerArtist * 4)
+          const fallbackCandidates =
+            candidates.length > 0 ? candidates : await searchDeezerTracks(artist, safePerArtist * 4)
+          const targetNorm = normalizeDeezerArtistToken(artist)
+          const seenTitles = new Set<string>()
+          const matched: Track[] = []
+
+          for (const track of fallbackCandidates) {
+            if (!isCleanDeezerTrendingItem(track.title, track.artist, track.album)) continue
+            const trackArtistNorm = normalizeDeezerArtistToken(track.artist || '')
+            if (artist === 'LiSA' && !(track.artist || '').split(',').some((p) => p.trim() === 'LiSA')) {
+              continue
+            }
+            if (
+              targetNorm &&
+              !trackArtistNorm.split(',').some((part) => part.trim() === targetNorm) &&
+              !trackArtistNorm.includes(targetNorm)
+            ) {
+              continue
+            }
+            const titleKey = normalizeDeezerArtistToken(track.title || '')
+            if (titleKey && seenTitles.has(titleKey)) continue
+            if (titleKey) seenTitles.add(titleKey)
+            matched.push(track)
+            if (matched.length >= safePerArtist) break
+          }
+          return matched
+        } catch {
+          return []
+        }
+      })
+    )
+    return results.flat()
+  } catch {
     return []
   }
 }

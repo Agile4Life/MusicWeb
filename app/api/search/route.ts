@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { searchYouTubeTracks, findBestYouTubeMatch, isOriginalTrackOnly, NEGATIVE_KEYWORDS } from '@/lib/youtube'
 import { searchSpotifyTracks, getTrendingSpotifyTracks, getTopArtistSpotifyTracks, isCleanTrendingTrack } from '@/lib/spotify'
-import { getTrendingDeezerTracks, searchDeezerTracks } from '@/lib/deezer'
+import { getTrendingDeezerTracks, getTopArtistDeezerTracks, searchDeezerTracks } from '@/lib/deezer'
 import { searchSoundCloudTracks } from '@/lib/soundcloudClient'
 import { findBestNhacCuaTuiMatch, normalizeNhacCuaTuiChartResponse, nhacCuaTuiSearchItemToTrack, searchNhacCuaTuiDirect } from '@/lib/nhaccuatui'
 import { extractArtistAliases, isCatalogTrackMatch, measureIdentityTokenOverlap, normalizeIdentity } from '@/lib/catalogMatching'
@@ -26,7 +26,7 @@ async function getNhacCuaTuiTrending(limit = 20): Promise<Track[]> {
     const res = await fetch(nctUrl, {
       cache: 'no-store',
       headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(2500),
     })
     if (!res.ok) return []
     const payload: unknown = await res.json()
@@ -36,6 +36,25 @@ async function getNhacCuaTuiTrending(limit = 20): Promise<Track[]> {
   } catch {
     return []
   }
+}
+
+function deduplicateTrendingTracks(tracks: Track[]): Track[] {
+  const seen = new Set<string>()
+  const out: Track[] = []
+  for (const track of tracks) {
+    if (!track || !isCleanTrendingTrack(track.title, track.artist)) continue
+    const cleanTitle = (track.title || '')
+      .toLowerCase()
+      .replace(/\s*\([^)]*(?:feat|ft|with|remaster|version|ver\.|live|from)[^)]*\)/gi, '')
+      .replace(/\s*\[[^\]]*\]/g, '')
+    const normTitle = normalizeIdentity(cleanTitle)
+    const primaryArtist = normalizeIdentity((track.artist || '').split(',')[0] || '')
+    const key = normTitle ? `${normTitle}::${primaryArtist}` : track.id
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(track)
+  }
+  return out
 }
 
 function cachedJsonResponse(data: any, status = 200) {
@@ -75,14 +94,26 @@ export async function GET(request: Request) {
       const trendingPromise = (async () => {
         switch (category) {
           case 'vietnamese': {
+            const vpopArtists = [
+              'Sơn Tùng M-TP',
+              'Vũ.',
+              'HIEUTHUHAI',
+              'SOOBIN',
+              'Wren Evans',
+              'tlinh',
+              'MCK',
+              'MONO',
+              'Đen',
+              'Hoàng Thùy Linh',
+            ]
             const [nctTrending, spotifyVpop, deezerVpop] = await Promise.all([
               getNhacCuaTuiTrending(24).catch(() => []),
-              getTopArtistSpotifyTracks(['Sơn Tùng M-TP', 'Vũ.', 'HIEUTHUHAI', 'SOOBIN', 'Wren Evans', 'tlinh', 'MCK', 'MONO'], 3).catch(() => []),
-              searchDeezerTracks('Sơn Tùng M-TP Vũ HIEUTHUHAI', 16).catch(() => []),
+              getTopArtistSpotifyTracks(vpopArtists, 2).catch(() => []),
+              getTopArtistDeezerTracks(['Sơn Tùng M-TP', 'HIEUTHUHAI', 'SOOBIN', 'Wren Evans', 'tlinh', 'MONO'], 2).catch(() => []),
             ])
-            const cleanSpotify = [...spotifyVpop, ...deezerVpop].filter((t) => isCleanTrendingTrack(t.title, t.artist))
+            const cleanSpotify = deduplicateTrendingTracks([...spotifyVpop, ...deezerVpop])
             return {
-              nhaccuatui: nctTrending.filter((t) => isCleanTrendingTrack(t.title, t.artist)),
+              nhaccuatui: deduplicateTrendingTracks(nctTrending),
               local: [],
               youtube: [],
               audius: [],
@@ -112,7 +143,7 @@ export async function GET(request: Request) {
               ).catch(() => []),
               getTrendingDeezerTracks(20).catch(() => []),
             ])
-            const cleanSpotify = [...spotifyUsUkArtists, ...deezerUsUk].filter((t) => isCleanTrendingTrack(t.title, t.artist))
+            const cleanSpotify = deduplicateTrendingTracks([...spotifyUsUkArtists, ...deezerUsUk])
             return {
               nhaccuatui: [],
               local: [],
@@ -124,14 +155,23 @@ export async function GET(request: Request) {
             }
           }
           case 'korean': {
+            const kpopArtists = [
+              'NewJeans',
+              'aespa',
+              'BLACKPINK',
+              'BTS',
+              'LE SSERAFIM',
+              'IVE',
+              'TWICE',
+              'SEVENTEEN',
+              'ILLIT',
+              'Stray Kids',
+            ]
             const [spotifyKpopArtists, deezerKpop] = await Promise.all([
-              getTopArtistSpotifyTracks(
-                ['NewJeans', 'aespa', 'BLACKPINK', 'BTS', 'LE SSERAFIM', 'IVE', 'TWICE', 'SEVENTEEN', 'ILLIT', 'Stray Kids'],
-                2
-              ).catch(() => []),
-              searchDeezerTracks('NewJeans aespa BTS BLACKPINK', 16).catch(() => []),
+              getTopArtistSpotifyTracks(kpopArtists, 2).catch(() => []),
+              getTopArtistDeezerTracks(['NewJeans', 'aespa', 'BLACKPINK', 'BTS', 'LE SSERAFIM', 'IVE'], 2).catch(() => []),
             ])
-            const cleanSpotify = [...spotifyKpopArtists, ...deezerKpop].filter((t) => isCleanTrendingTrack(t.title, t.artist))
+            const cleanSpotify = deduplicateTrendingTracks([...spotifyKpopArtists, ...deezerKpop])
             return {
               nhaccuatui: [],
               local: [],
@@ -143,14 +183,21 @@ export async function GET(request: Request) {
             }
           }
           case 'chinese': {
+            const cpopArtists = [
+              'Jay Chou',
+              'JJ Lin',
+              'G.E.M.',
+              'Eric Chou',
+              'Mayday',
+              'Jolin Tsai',
+              'Eason Chan',
+              'A-Lin',
+            ]
             const [spotifyCpopArtists, deezerCpop] = await Promise.all([
-              getTopArtistSpotifyTracks(
-                ['Jay Chou', 'JJ Lin', 'G.E.M.', 'Eric Chou', 'Mayday', 'Jolin Tsai', 'Eason Chan', 'A-Lin'],
-                2
-              ).catch(() => []),
-              searchDeezerTracks('Jay Chou JJ Lin GEM', 16).catch(() => []),
+              getTopArtistSpotifyTracks(cpopArtists, 2).catch(() => []),
+              getTopArtistDeezerTracks(['Jay Chou', 'JJ Lin', 'G.E.M.', 'Eric Chou', 'Eason Chan'], 2).catch(() => []),
             ])
-            const cleanSpotify = [...spotifyCpopArtists, ...deezerCpop].filter((t) => isCleanTrendingTrack(t.title, t.artist))
+            const cleanSpotify = deduplicateTrendingTracks([...spotifyCpopArtists, ...deezerCpop])
             return {
               nhaccuatui: [],
               local: [],
@@ -162,14 +209,21 @@ export async function GET(request: Request) {
             }
           }
           case 'japanese': {
+            const jpopArtists = [
+              'YOASOBI',
+              'Ado',
+              'Kenshi Yonezu',
+              'LiSA',
+              'Fujii Kaze',
+              'Aimer',
+              'RADWIMPS',
+              'Official HIGE DANDISM',
+            ]
             const [spotifyJpopArtists, deezerJpop] = await Promise.all([
-              getTopArtistSpotifyTracks(
-                ['YOASOBI', 'Ado', 'Kenshi Yonezu', 'LiSA', 'Fujii Kaze', 'Aimer', 'RADWIMPS', 'Official HIGE DANDISM'],
-                2
-              ).catch(() => []),
-              searchDeezerTracks('YOASOBI Ado Kenshi Yonezu', 16).catch(() => []),
+              getTopArtistSpotifyTracks(jpopArtists, 2).catch(() => []),
+              getTopArtistDeezerTracks(['YOASOBI', 'Ado', 'Kenshi Yonezu', 'LiSA', 'Fujii Kaze', 'RADWIMPS'], 2).catch(() => []),
             ])
-            const cleanSpotify = [...spotifyJpopArtists, ...deezerJpop].filter((t) => isCleanTrendingTrack(t.title, t.artist))
+            const cleanSpotify = deduplicateTrendingTracks([...spotifyJpopArtists, ...deezerJpop])
             return {
               nhaccuatui: [],
               local: [],
@@ -185,15 +239,26 @@ export async function GET(request: Request) {
             const [nctTrending, spotifyGlobalArtists, deezerTrending] = await Promise.all([
               getNhacCuaTuiTrending(20).catch(() => []),
               getTopArtistSpotifyTracks(
-                ['Taylor Swift', 'The Weeknd', 'NewJeans', 'Bruno Mars', 'Billie Eilish', 'Sơn Tùng M-TP', 'YOASOBI', 'Sabrina Carpenter'],
+                [
+                  'Taylor Swift',
+                  'The Weeknd',
+                  'Bruno Mars',
+                  'Billie Eilish',
+                  'Sabrina Carpenter',
+                  'NewJeans',
+                  'BLACKPINK',
+                  'Sơn Tùng M-TP',
+                  'HIEUTHUHAI',
+                  'YOASOBI',
+                ],
                 2
               ).catch(() => []),
               getTrendingDeezerTracks(16).catch(() => []),
             ])
-            const cleanSpotify = [...spotifyGlobalArtists, ...deezerTrending].filter((t) => isCleanTrendingTrack(t.title, t.artist))
+            const cleanSpotify = deduplicateTrendingTracks([...spotifyGlobalArtists, ...deezerTrending])
 
             return {
-              nhaccuatui: nctTrending.filter((t) => isCleanTrendingTrack(t.title, t.artist)),
+              nhaccuatui: deduplicateTrendingTracks(nctTrending),
               local: [],
               youtube: [],
               audius: [],

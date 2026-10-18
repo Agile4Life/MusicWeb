@@ -139,12 +139,93 @@ export const SPAM_OR_COMPILATION_KEYWORDS = [
   '3 hour',
   '10 hours',
   'loop',
+  'chansons enfants',
+  'chanson enfant',
+  'comptines',
+  'comptine',
+  'kids united',
+  'clipounets',
+  'bébés',
+  'nursery rhyme',
+  'nursery rhymes',
+  'cocomelon',
+  'baby shark',
+  'lullaby',
+  'lullabies',
+  'nhạc thiếu nhi',
+  'thiếu nhi',
+  'karaoke',
+  'tribute to',
+  'made famous by',
+  'ringtone',
+  '8d audio',
+  'nightcore',
 ]
 
 export function isCleanTrendingTrack(title?: string | null, artist?: string | null): boolean {
   const t = (title || '').toLowerCase()
   const a = (artist || '').toLowerCase()
   return !SPAM_OR_COMPILATION_KEYWORDS.some((kw) => t.includes(kw) || a.includes(kw))
+}
+
+function normalizeArtistToken(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd')
+    .toLowerCase()
+    .replace(/[^a-z0-9\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]+/g, ' ')
+    .trim()
+}
+
+function normalizeTrackCoreTitle(title: string): string {
+  return (title || '')
+    .toLowerCase()
+    .replace(/\s*\([^)]*(?:feat|ft|with|remaster|version|ver\.|live|from)[^)]*\)/gi, '')
+    .replace(/\s*\[[^\]]*\]/g, '')
+    .replace(/[^a-z0-9\u00c0-\u024f\u1e00-\u1eff\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]+/gi, ' ')
+    .trim()
+}
+
+const ARTIST_SEARCH_QUERY_OVERRIDES: Record<string, string> = {
+  MCK: 'RPT MCK',
+  Mayday: '五月天',
+  'Đen': 'Đen Vâu',
+}
+
+function doesSpotifyArtistMatchTarget(
+  itemArtists: Array<{ name?: string }> | undefined,
+  targetArtist: string
+): boolean {
+  if (!Array.isArray(itemArtists) || itemArtists.length === 0) return false
+  if (targetArtist === 'LiSA') {
+    return itemArtists.some((a) => a?.name === 'LiSA')
+  }
+  if (targetArtist === 'SEVENTEEN') {
+    return itemArtists.some((a) => a?.name === 'SEVENTEEN')
+  }
+  const targetNorm = normalizeArtistToken(targetArtist)
+  if (!targetNorm) return false
+
+  return itemArtists.some((a) => {
+    const rawName = (a?.name || '').trim()
+    if (!rawName) return false
+    const candNorm = normalizeArtistToken(rawName)
+    if (candNorm === targetNorm) return true
+    if (targetArtist === 'MCK' && (candNorm === 'rpt mck' || candNorm.includes('mck'))) return true
+    if (targetArtist === 'Mayday' && (rawName.includes('五月天') || candNorm === 'mayday')) return true
+    if (targetArtist === 'Jolin Tsai' && (rawName.includes('蔡依林') || candNorm === 'jolin')) return true
+    if (targetArtist === 'Jay Chou' && rawName.includes('周杰倫')) return true
+    if (targetArtist === 'JJ Lin' && rawName.includes('林俊傑')) return true
+    if (targetArtist === 'G.E.M.' && (rawName.includes('鄧紫棋') || candNorm === 'g e m')) return true
+    if (targetArtist === 'Eric Chou' && rawName.includes('周興哲')) return true
+    if (targetArtist === 'Eason Chan' && rawName.includes('陳奕迅')) return true
+    if ((targetArtist === 'Đen' || targetArtist === 'Đen Vâu') && (candNorm === 'den' || candNorm === 'den vau')) {
+      return true
+    }
+    return false
+  })
 }
 
 export async function getTrendingSpotifyTracks(limit = 12): Promise<Track[]> {
@@ -173,6 +254,7 @@ export async function getTrendingSpotifyTracks(limit = 12): Promise<Track[]> {
 
 /**
  * Fetch top hit tracks for specified iconic artists using Spotify Search API
+ * with strict artist verification and title deduplication.
  */
 export async function getTopArtistSpotifyTracks(artists: string[], tracksPerArtist = 3): Promise<Track[]> {
   try {
@@ -181,28 +263,48 @@ export async function getTopArtistSpotifyTracks(artists: string[], tracksPerArti
 
     const promises = artists.map(async (artist) => {
       try {
-        const safePerArtist = Math.min(tracksPerArtist, 10)
-        const url = `https://api.spotify.com/v1/search?q=artist:${encodeURIComponent(artist)}&type=track&limit=${safePerArtist}`
+        const safePerArtist = Math.min(Math.max(1, tracksPerArtist), 10)
+        const searchQuery = ARTIST_SEARCH_QUERY_OVERRIDES[artist] || artist
+        const fetchLimit = Math.min(Math.max(safePerArtist * 5, 12), 25)
+        const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(searchQuery)}&type=track&limit=${fetchLimit}`
         const res = await fetch(url, {
           headers: { Authorization: `Bearer ${token}` },
         })
         if (!res.ok) return []
         const data = await res.json()
-        const items = data.tracks?.items || []
-        return items.map((item: any) => ({
-          id: `spotify-${item.id}`,
-          user_id: 'spotify',
-          title: item.name,
-          artist: item.artists?.map((a: any) => a.name).join(', ') || artist,
-          album: item.album?.name || '',
-          spotify_album_id: resolveTrackSpotifyAlbumId(item.album, item.name),
-          duration: Math.round((item.duration_ms || 0) / 1000),
-          file_path: item.external_urls?.spotify || item.preview_url || '',
-          cover_url: item.album?.images?.[0]?.url || item.album?.images?.[1]?.url || null,
-          created_at: new Date().toISOString(),
-          source: 'spotify' as const,
-          spotify_id: item.id,
-        }))
+        const items: any[] = data.tracks?.items || []
+        const seenTitles = new Set<string>()
+        const matchedTracks: Track[] = []
+
+        for (const item of items) {
+          if (!item?.id || !item?.name) continue
+          if (!doesSpotifyArtistMatchTarget(item.artists, artist)) continue
+          const joinedArtist = item.artists?.map((a: any) => a.name).join(', ') || artist
+          if (!isCleanTrendingTrack(item.name, joinedArtist)) continue
+
+          const coreTitle = normalizeTrackCoreTitle(item.name)
+          if (coreTitle && seenTitles.has(coreTitle)) continue
+          if (coreTitle) seenTitles.add(coreTitle)
+
+          matchedTracks.push({
+            id: `spotify-${item.id}`,
+            user_id: 'spotify',
+            title: item.name,
+            artist: joinedArtist,
+            album: item.album?.name || '',
+            spotify_album_id: resolveTrackSpotifyAlbumId(item.album, item.name),
+            duration: Math.round((item.duration_ms || 0) / 1000),
+            file_path: item.external_urls?.spotify || item.preview_url || '',
+            cover_url: item.album?.images?.[0]?.url || item.album?.images?.[1]?.url || null,
+            created_at: new Date().toISOString(),
+            source: 'spotify' as const,
+            spotify_id: item.id,
+          })
+
+          if (matchedTracks.length >= safePerArtist) break
+        }
+
+        return matchedTracks
       } catch {
         return []
       }

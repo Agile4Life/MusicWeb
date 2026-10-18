@@ -98,6 +98,9 @@ export function bindYouTubeIframe(options: YouTubeBindingOptions): Cancel {
 
   youtubeEngine.loadAndPlay = (videoId: string, initialTime = 0, volume = 0.8) => {
     cancelPendingCall();
+    if (!playerInstance && win.YT?.Player) {
+      initYouTubePlayer();
+    }
     if (youtubeEngine.getPlayerInstance()?.loadVideoById) {
       return origLoadAndPlay(videoId, initialTime, volume);
     }
@@ -119,6 +122,9 @@ export function bindYouTubeIframe(options: YouTubeBindingOptions): Cancel {
 
   youtubeEngine.loadPaused = (videoId: string, initialTime = 0, volume = 0.8) => {
     cancelPendingCall();
+    if (!playerInstance && win.YT?.Player) {
+      initYouTubePlayer();
+    }
     if (youtubeEngine.getPlayerInstance()?.cueVideoById) {
       origLoadPaused(videoId, initialTime, volume);
       return;
@@ -385,7 +391,7 @@ export function bindYouTubeIframe(options: YouTubeBindingOptions): Cancel {
     }
   };
 
-  if (!win.YT) {
+  if (!win.YT?.Player) {
     const existingScript = doc.querySelector?.(
       'script[src="https://www.youtube.com/iframe_api"]'
     );
@@ -415,6 +421,9 @@ export function bindYouTubeIframe(options: YouTubeBindingOptions): Cancel {
     stopPollTimer();
     youtubeEngine.loadAndPlay = origLoadAndPlay;
     youtubeEngine.loadPaused = origLoadPaused;
+    youtubeEngine.resume = origResume;
+    youtubeEngine.seek = origSeek;
+    youtubeEngine.setVolume = origSetVolume;
     youtubeEngine.pause = origPause;
     youtubeEngine.stop = origStop;
     try {

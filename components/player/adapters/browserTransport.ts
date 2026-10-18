@@ -96,7 +96,7 @@ export function createBrowserTransport({ audio, html5, youtube }: BrowserTranspo
       // Silence the previous session before binding. Retain a selected HTML5
       // resource so ready-URL playback keeps its existing native fast path.
       if (target.engine === 'html5') { if (mode === 'paused') html5.pause(); youtube.stop() }
-      else { html5.stop(); youtube.pause() }
+      else { html5.stop(); if (mode === 'paused') youtube.pause() }
       const captured: Binding = {
         owner: { ...owner },
         target: { ...target },
@@ -151,9 +151,13 @@ export function createBrowserTransport({ audio, html5, youtube }: BrowserTranspo
     },
     handleYouTubeEvent(event) {
       if (!binding || disposed || binding.target.engine !== 'youtube' || !sameOwner(event.owner, binding.owner)) return
-      // An actual video ID takes precedence over the engine's requested ID.
+      // An actual video ID takes precedence over the engine's requested ID, except for error events
+      // which may fire before getVideoData() replaces the previous video's metadata.
       const actual = youtube.getVideoDataId()
-      if (actual ? actual !== binding.target.target : !youtube.matchesVideo(binding.target.target)) return
+      const matches = event.type === 'error'
+        ? youtube.matchesVideo(binding.target.target)
+        : (actual ? actual === binding.target.target : youtube.matchesVideo(binding.target.target))
+      if (!matches) return
       emit({ ...event, owner: binding.owner })
     },
     dispose() {

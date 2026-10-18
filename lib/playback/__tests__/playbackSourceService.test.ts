@@ -572,5 +572,59 @@ describe('playbackSourceService', () => {
     await Promise.resolve();
     expect(resolveMock).not.toHaveBeenCalled();
   });
+
+  it('falls through from an unstreamable SoundCloud fallback candidate to the YouTube fallback candidate', async () => {
+    const scCandidate = makeTrack('sc-go-plus', {
+      source: 'soundcloud',
+      soundcloud_id: 'sc-dead-999',
+      title: 'Blocked SC Song',
+      artist: 'Artist',
+    });
+    const ytCandidate = makeTrack('yt-good', {
+      source: 'youtube',
+      youtube_id: 'ytGood12345',
+      title: 'Blocked SC Song',
+      artist: 'Artist',
+    });
+    const deps = createFakeDeps({
+      resolution: {
+        resolve: vi.fn().mockResolvedValue(null),
+        findFallback: vi.fn().mockResolvedValue(scCandidate),
+        invalidate: vi.fn().mockResolvedValue(undefined),
+        dispose: vi.fn(),
+      },
+      resolveSoundCloudUrl: vi.fn().mockResolvedValue(null),
+      search: vi.fn().mockResolvedValue({
+        nhaccuatui: [],
+        local: [],
+        youtube: [ytCandidate],
+        audius: [],
+        itunes: [],
+        spotify: [],
+        deezer: [],
+        soundcloud: [],
+      }),
+    });
+
+    const service = createPlaybackSourceService(deps);
+    const brokenNctTrack = makeTrack('nct-broken', {
+      source: 'nhaccuatui',
+      nhaccuatui_id: 'nct-530',
+      title: 'Blocked SC Song',
+      artist: 'Artist',
+    });
+
+    const fallback = await service.resolveFallback(brokenNctTrack, 12);
+    expect(fallback).toEqual({
+      track: expect.objectContaining({
+        id: 'nct-broken',
+        source: 'youtube',
+        youtube_id: 'ytGood12345',
+      }),
+      engine: 'youtube',
+      target: 'ytGood12345',
+      initialTime: 12,
+    });
+  });
 });
 

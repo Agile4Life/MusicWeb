@@ -87,6 +87,7 @@ export function createPlaybackController(
   let activeQueueRequestId = 0;
   let youtubeBgPauseRetries = 0;
   let html5BgPauseRetries = 0;
+  const ytHtml5FallbackAttempted = new Set<number>();
 
   let cancelStallWatchdog: Cancel | null = null;
   let cancelAutoSkipTimer: Cancel | null = null;
@@ -326,7 +327,9 @@ export function createPlaybackController(
         return false;
       }
       completion.reset();
-      recovery.resetConsecutiveSkips();
+      if (targetPlayback.engine === 'html5') {
+        recovery.resetConsecutiveSkips();
+      }
       pendingResume = false;
       store.patch({
         isPlaying: true,
@@ -365,6 +368,9 @@ export function createPlaybackController(
         pendingResume = true;
         store.patch({ isPlaying: false, isBuffering: false });
         return false;
+      }
+      if (activeTransportOwner?.requestId === nextOwner.requestId) {
+        activeTransportOwner = null;
       }
       throw err;
     }
@@ -742,6 +748,47 @@ export function createPlaybackController(
             if (started) return;
           } catch {
             // Fall through to failure
+          }
+        }
+      }
+
+      if (!ytHtml5FallbackAttempted.has(owner.requestId)) {
+        ytHtml5FallbackAttempted.add(owner.requestId);
+        if (ytHtml5FallbackAttempted.size > 50) {
+          const oldest = ytHtml5FallbackAttempted.values().next().value;
+          if (oldest !== undefined) ytHtml5FallbackAttempted.delete(oldest);
+        }
+        inFlightErrorRequestId = owner.requestId;
+        try {
+          const html5Fallback = await deps.sources.resolveFallback(
+            current,
+            getActiveTime(),
+            undefined,
+            { preferHtml5: true }
+          );
+          if (
+            disposed ||
+            !ownership.isCurrentOwner(owner, store.getSnapshot().currentTrack?.id) ||
+            ownership.getDesiredState() === 'paused'
+          ) {
+            return;
+          }
+          if (html5Fallback) {
+            try {
+              const started = await executePreparedPlayback(
+                html5Fallback,
+                owner,
+                current,
+                { isFallback: true }
+              );
+              if (started) return;
+            } catch {
+              // Fall through to failure
+            }
+          }
+        } finally {
+          if (inFlightErrorRequestId === owner.requestId) {
+            inFlightErrorRequestId = null;
           }
         }
       }
@@ -1392,7 +1439,7 @@ export function createPlaybackController(
       currentIndex: transition.currentIndex,
     });
 
-    void executePreparedPlayback(immediate, owner, rawTrack).catch(() => {
+    void executePreparedPlayback(immediate, owner, rawTrack).catch(async () => {
       if (
         disposed ||
         !ownership.isCurrentRequest(owner.requestId) ||
@@ -1404,12 +1451,45 @@ export function createPlaybackController(
       ) {
         return;
       }
-      void deps.sources.invalidateTrack(track);
-      void playTrack(
-        rawTrack,
-        undefined,
-        transition.currentIndex >= 0 ? transition.currentIndex : undefined
-      );
+
+      const directYtId =
+        track.youtube_id ||
+        (track.source === 'youtube' ? immediate.target : null);
+      if (immediate.engine === 'html5' && directYtId) {
+        ytHtml5Mode = false;
+        inFlightErrorRequestId = owner.requestId;
+        try {
+          await executePreparedPlayback(
+            {
+              track,
+              engine: 'youtube',
+              target: directYtId,
+              initialTime: immediate.initialTime,
+            },
+            owner,
+            rawTrack
+          );
+          return;
+        } catch {
+          handleUnrecoverableFailure(owner, track, { isYouTube: true });
+          return;
+        } finally {
+          if (inFlightErrorRequestId === owner.requestId) {
+            inFlightErrorRequestId = null;
+          }
+        }
+      }
+
+      inFlightErrorRequestId = owner.requestId;
+      try {
+        await deps.sources.invalidateTrack(track);
+        if (disposed || !ownership.isCurrentRequest(owner.requestId)) return;
+        await runFallbackToYouTube(track, owner);
+      } finally {
+        if (inFlightErrorRequestId === owner.requestId) {
+          inFlightErrorRequestId = null;
+        }
+      }
     });
 
     return true;

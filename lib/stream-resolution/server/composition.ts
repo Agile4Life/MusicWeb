@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { findMemoryDriveTrack } from '@/lib/driveTracksMap';
 import * as soundcloudClient from '@/lib/soundcloudClient';
+import * as nctCacheStore from '@/lib/nctCacheStore';
 import { createCatalogResolver } from './catalogResolver';
 import { createServerResolutionService } from './serverResolutionService';
 import { createSharedCacheAdapter } from './sharedCacheAdapter';
@@ -32,12 +33,24 @@ export function getServerResolutionService(): ServerResolutionService {
             lookupStaticDrive,
             sharedCache: client && process.env.SUPABASE_SERVICE_ROLE_KEY ? createSharedCacheAdapter(client) : null,
             async validateCachedEntry(entry) {
-                if (entry.source !== 'soundcloud' || !entry.resolvedId)
+                if (!entry.resolvedId)
                     return true;
-                const verify = (soundcloudClient as {
-                    verifySoundCloudTrackPlayable?: (id: string, timeoutMs: number) => Promise<boolean>;
-                }).verifySoundCloudTrackPlayable;
-                return typeof verify === 'function' ? verify(entry.resolvedId, 2500) : true;
+                if (entry.source === 'soundcloud') {
+                    const verify = (soundcloudClient as {
+                        verifySoundCloudTrackPlayable?: (id: string, timeoutMs: number) => Promise<boolean>;
+                    }).verifySoundCloudTrackPlayable;
+                    return typeof verify === 'function' ? verify(entry.resolvedId, 2500) : true;
+                }
+                if (entry.source === 'nhaccuatui') {
+                    const resolveDetail = (nctCacheStore as {
+                        resolveNctSongDetailCached?: (id: string, timeoutMs: number) => Promise<{ audioUrl?: string | null } | null>;
+                    }).resolveNctSongDetailCached;
+                    if (typeof resolveDetail !== 'function')
+                        return true;
+                    const detail = await resolveDetail(entry.resolvedId, 2500);
+                    return Boolean(detail?.audioUrl);
+                }
+                return true;
             },
             now: Date.now,
         });

@@ -604,5 +604,132 @@ describe('playbackController', () => {
       target: '/api/youtube/stream?id=yt-next-2',
     });
   });
+
+  it('halts consecutive error auto-skips at MAX_CONSECUTIVE_SKIPS even when tracks start or fall back to YouTube IFrame and fail with error 150', async () => {
+    const { controller, sources, transport, runTimers, advanceClock } = createTestHarness();
+    const queue = [
+      makeTrack('t1', { source: 'youtube', youtube_id: 'yt-1', title: 'Song 1' }),
+      makeTrack('t2', { source: 'youtube', youtube_id: 'yt-2', title: 'Song 2' }),
+      makeTrack('t3', { source: 'youtube', youtube_id: 'yt-3', title: 'Song 3' }),
+      makeTrack('t4', { source: 'youtube', youtube_id: 'yt-4', title: 'Song 4' }),
+      makeTrack('t5', { source: 'youtube', youtube_id: 'yt-5', title: 'Song 5' }),
+    ];
+
+    vi.mocked(sources.resolvePlayable).mockImplementation(async (req) => ({
+      track: req.track,
+      engine: 'youtube',
+      target: req.track.youtube_id || req.track.id,
+      initialTime: 0,
+    }));
+
+    // Start Track 1 on YouTube IFrame
+    await controller.playTrack(queue[0], queue, 0);
+
+    // Fail tracks 1..4 with YouTube embed error 150 before any playing event fires
+    for (let i = 0; i < 4; i++) {
+      const currentOwner = transport.getLastStarted()!.owner;
+      advanceClock(2000);
+      transport.emit({ type: 'error', owner: currentOwner, error: 150 });
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      runTimers();
+      await Promise.resolve();
+      await Promise.resolve();
+    }
+
+    // Circuit breaker must halt at Track 4 (index 3) and NOT skip to Track 5 (index 4)
+    expect(controller.getSnapshot().currentTrack?.id).toBe('t4');
+    expect(controller.getSnapshot().isPlaying).toBe(false);
+    expect(controller.getSnapshot().playbackError).toContain('Đã tạm dừng phát do có 4 bài hát liên tiếp');
+  });
+
+  it('recovers in-place to YouTube fallback when tryQuickPlayFromCache rejects instead of calling playTrack again', async () => {
+    const { controller, sources, transport } = createTestHarness();
+    const track1 = makeTrack('t1', { title: 'Track 1' });
+    const track2 = makeTrack('t2', {
+      source: 'nhaccuatui',
+      nhaccuatui_id: 'nct-dead-2',
+      title: 'Track 2',
+    });
+
+    await controller.playTrack(track1, [track1, track2], 0);
+
+    // Track 2 is in immediate cache with a dead NCT stream URL
+    vi.mocked(sources.resolveImmediate).mockReturnValueOnce({
+      track: track2,
+      engine: 'html5',
+      target: '/api/nhaccuatui/stream?id=nct-dead-2',
+      initialTime: 0,
+    });
+    vi.mocked(sources.resolveFallback).mockResolvedValueOnce({
+      track: { ...track2, source: 'youtube', youtube_id: 'yt-fallback-2' },
+      engine: 'youtube',
+      target: 'yt-fallback-2',
+      initialTime: 0,
+    });
+
+    // HTML5 start rejects for the dead NCT stream, succeeds for YouTube fallback
+    vi.mocked(transport.start).mockRejectedValueOnce(new Error('502 Bad Gateway'));
+
+    controller.nextTrack();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(sources.invalidateTrack).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 't2' })
+    );
+    expect(sources.resolveFallback).toHaveBeenCalledTimes(1);
+    expect(sources.resolvePlayable).toHaveBeenCalledTimes(1); // Only for track1, NOT re-called for track2
+    expect(transport.getLastStarted()?.target).toMatchObject({
+      engine: 'youtube',
+      target: 'yt-fallback-2',
+    });
+  });
+
+  it('attempts HTML5 stream fallback (preferHtml5: true) when YouTube IFrame fails and alternate video is unavailable', async () => {
+    const { controller, sources, transport } = createTestHarness();
+    const track = makeTrack('yt-embed-blocked', {
+      source: 'youtube',
+      youtube_id: 'blockedVid11',
+      title: 'Blocked Embed Song',
+    });
+
+    vi.mocked(sources.resolvePlayable).mockResolvedValueOnce({
+      track,
+      engine: 'youtube',
+      target: 'blockedVid11',
+      initialTime: 0,
+    });
+    vi.mocked(sources.resolveYouTubeAlternate).mockResolvedValueOnce(null);
+    vi.mocked(sources.resolveFallback).mockResolvedValueOnce({
+      track,
+      engine: 'html5',
+      target: '/api/youtube/stream?id=blockedVid11',
+      initialTime: 0,
+    });
+
+    await controller.playTrack(track, [track], 0);
+    const owner = transport.getLastStarted()!.owner;
+
+    transport.emit({ type: 'error', owner, error: 150 });
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(sources.resolveFallback).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'yt-embed-blocked' }),
+      0,
+      undefined,
+      { preferHtml5: true }
+    );
+    expect(transport.getLastStarted()?.target).toMatchObject({
+      engine: 'html5',
+      target: '/api/youtube/stream?id=blockedVid11',
+    });
+    expect(controller.getSnapshot().isPlaying).toBe(true);
+  });
 });
 

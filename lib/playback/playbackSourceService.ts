@@ -576,7 +576,11 @@ export function createPlaybackSourceService(
       if (streamResult) {
         audioUrlCache.delete(track.id);
         activeTrack = applyResolvedStreamToTrack(track, streamResult);
-        if (streamResult.streamUrl && streamResult.source !== 'youtube') {
+        if (
+          streamResult.streamUrl &&
+          streamResult.source !== 'youtube' &&
+          streamResult.source !== 'soundcloud'
+        ) {
           setBounded(
             audioUrlCache,
             activeTrack.id,
@@ -793,14 +797,6 @@ export function createPlaybackSourceService(
           duration: track.duration,
         });
         if (scCandidate && (scCandidate.soundcloud_id || scCandidate.id)) {
-          if (searchedYtMatch?.youtube_id) {
-            setBounded(
-              pendingYoutubeFallbackByTrackId,
-              track.id,
-              searchedYtMatch,
-              TRACK_RESOLUTION_MAX_ENTRIES
-            );
-          }
           const scId = scCandidate.soundcloud_id
             ? String(scCandidate.soundcloud_id)
             : scCandidate.id.replace(/^sc-/, '');
@@ -811,17 +807,23 @@ export function createPlaybackSourceService(
             nhaccuatui_id: undefined,
             youtube_id: undefined,
           };
-          const scUrl =
-            (await getAudioUrlCached(updatedScTrack)) ||
-            (deps.getDeterministicSoundCloudUrl
-              ? deps.getDeterministicSoundCloudUrl(scId)
-              : `/api/soundcloud/stream?id=${encodeURIComponent(scId)}`);
-          return {
-            track: updatedScTrack,
-            engine: 'html5',
-            target: scUrl,
-            initialTime: resolveFallbackResumeTime(scCandidate.duration),
-          };
+          const scUrl = await getAudioUrlCached(updatedScTrack);
+          if (scUrl) {
+            if (searchedYtMatch?.youtube_id) {
+              setBounded(
+                pendingYoutubeFallbackByTrackId,
+                track.id,
+                searchedYtMatch,
+                TRACK_RESOLUTION_MAX_ENTRIES
+              );
+            }
+            return {
+              track: updatedScTrack,
+              engine: 'html5',
+              target: scUrl,
+              initialTime: resolveFallbackResumeTime(scCandidate.duration),
+            };
+          }
         }
 
         bestMatch = searchedYtMatch;
@@ -1149,7 +1151,11 @@ export function createPlaybackSourceService(
           },
           TRACK_RESOLUTION_MAX_ENTRIES
         );
-        if (resolved.streamUrl && resolved.source !== 'youtube') {
+        if (
+          resolved.streamUrl &&
+          resolved.source !== 'youtube' &&
+          resolved.source !== 'soundcloud'
+        ) {
           setBounded(
             audioUrlCache,
             targetTrackId,
