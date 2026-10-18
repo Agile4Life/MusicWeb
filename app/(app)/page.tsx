@@ -473,10 +473,10 @@ export default function HomePage() {
     return processTrendingTracks(trendingTracks, 18)
   }, [trendingTracks])
 
-  // Fetch category trending tracks when a genre chip is clicked
+  // Fetch category trending tracks when a genre chip is clicked (or retry 'all' if initial trending was empty)
   useEffect(() => {
-    if (selectedCategory === 'all') return
-    if (categoryTracksMap[selectedCategory]) return
+    if (selectedCategory === 'all' && (loadingTrending || displayTrending.length > 0)) return
+    if (categoryTracksMap[selectedCategory] && categoryTracksMap[selectedCategory].length > 0) return
 
     let active = true
     setLoadingCategory(true)
@@ -485,18 +485,15 @@ export default function HomePage() {
       .then((data) => {
         if (!active) return
         const processed = processTrendingTracks(data, 18)
-        setCategoryTracksMap((prev) => ({
-          ...prev,
-          [selectedCategory]: processed,
-        }))
+        if (processed.length > 0) {
+          setCategoryTracksMap((prev) => ({
+            ...prev,
+            [selectedCategory]: processed,
+          }))
+        }
       })
       .catch((err) => {
         console.warn('Failed to fetch category trending:', err)
-        if (!active) return
-        setCategoryTracksMap((prev) => ({
-          ...prev,
-          [selectedCategory]: [],
-        }))
       })
       .finally(() => {
         if (active) setLoadingCategory(false)
@@ -505,10 +502,12 @@ export default function HomePage() {
     return () => {
       active = false
     }
-  }, [selectedCategory, categoryTracksMap])
+  }, [selectedCategory, categoryTracksMap, loadingTrending, displayTrending.length])
 
   const currentCategoryTracks: Track[] = useMemo(() => {
-    if (selectedCategory === 'all') return displayTrending
+    if (selectedCategory === 'all') {
+      return displayTrending.length > 0 ? displayTrending : (categoryTracksMap['all'] || [])
+    }
     return categoryTracksMap[selectedCategory] || []
   }, [selectedCategory, displayTrending, categoryTracksMap])
 

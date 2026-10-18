@@ -57,6 +57,89 @@ function deduplicateTrendingTracks(tracks: Track[]): Track[] {
   return out
 }
 
+async function getTopArtistITunesTracks(
+  artists: string[],
+  country = 'us',
+  tracksPerArtist = 2
+): Promise<Track[]> {
+  try {
+    const safePerArtist = Math.min(Math.max(1, tracksPerArtist), 4)
+    const systemUserId = '00000000-0000-4000-a000-000000000001'
+    const results = await Promise.all(
+      artists.slice(0, 8).map(async (artist) => {
+        try {
+          const url = `https://itunes.apple.com/search?term=${encodeURIComponent(artist)}&country=${encodeURIComponent(country)}&media=music&entity=song&limit=10`
+          const res = await fetch(url, {
+            signal: AbortSignal.timeout(3500),
+            cache: 'no-store',
+          })
+          if (!res.ok) return []
+          const data = await res.json()
+          const items: any[] = data?.results || []
+          const targetNorm = normalizeIdentity(artist)
+          const seenTitles = new Set<string>()
+          const matched: Track[] = []
+
+          for (const item of items) {
+            if (!item?.trackId || !item?.trackName || !item?.artistName) continue
+            const itemArtistNorm = normalizeIdentity(item.artistName)
+            if (artist === 'LiSA' && !String(item.artistName).includes('LiSA')) continue
+            if (
+              targetNorm &&
+              !itemArtistNorm.includes(targetNorm) &&
+              !(artist === 'Mayday' && String(item.artistName).includes('五月天')) &&
+              !(artist === 'Jay Chou' && String(item.artistName).includes('周杰倫')) &&
+              !(artist === 'JJ Lin' && String(item.artistName).includes('林俊傑')) &&
+              !(artist === 'G.E.M.' && String(item.artistName).includes('鄧紫棋'))
+            ) {
+              continue
+            }
+            if (!isCleanTrendingTrack(item.trackName, item.artistName)) continue
+            const titleKey = normalizeIdentity(item.trackName)
+            if (titleKey && seenTitles.has(titleKey)) continue
+            if (titleKey) seenTitles.add(titleKey)
+
+            const hiResCover = item.artworkUrl100
+              ? String(item.artworkUrl100).replace('100x100bb', '600x600bb')
+              : null
+
+            matched.push({
+              id: `itunes-${item.trackId}`,
+              user_id: systemUserId,
+              title: item.trackName,
+              artist: item.artistName,
+              album: item.collectionName || '',
+              duration: Math.round((item.trackTimeMillis || 0) / 1000),
+              file_path: item.previewUrl || item.trackViewUrl || `itunes:${item.trackId}`,
+              audio_url: item.previewUrl || undefined,
+              cover_url: hiResCover,
+              created_at: new Date().toISOString(),
+              source: 'spotify',
+              spotify_id: String(item.trackId),
+            })
+            if (matched.length >= safePerArtist) break
+          }
+          return matched
+        } catch {
+          return []
+        }
+      })
+    )
+    return results.flat()
+  } catch {
+    return []
+  }
+}
+
+function hasAnyTrendingTracks(data: any): boolean {
+  if (!data || typeof data !== 'object') return false
+  return (
+    (Array.isArray(data.nhaccuatui) && data.nhaccuatui.length > 0) ||
+    (Array.isArray(data.spotify) && data.spotify.length > 0) ||
+    (Array.isArray(data.deezer) && data.deezer.length > 0)
+  )
+}
+
 function cachedJsonResponse(data: any, status = 200) {
   return NextResponse.json(data, {
     status,
@@ -78,14 +161,16 @@ export async function GET(request: Request) {
     try {
       const cacheKey = `trending_${source}_${category}`
       const cached = searchCache.get(cacheKey)
-      if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL && hasAnyTrendingTracks(cached.data)) {
         return cachedJsonResponse(cached.data)
       }
 
       if (inFlightRequests.has(cacheKey)) {
         try {
           const data = await inFlightRequests.get(cacheKey)
-          return cachedJsonResponse(data)
+          if (hasAnyTrendingTracks(data)) {
+            return cachedJsonResponse(data)
+          }
         } catch {
           // Fall through if in-flight failed
         }
@@ -111,7 +196,11 @@ export async function GET(request: Request) {
               getTopArtistSpotifyTracks(vpopArtists, 2).catch(() => []),
               getTopArtistDeezerTracks(['Sơn Tùng M-TP', 'HIEUTHUHAI', 'SOOBIN', 'Wren Evans', 'tlinh', 'MONO'], 2).catch(() => []),
             ])
-            const cleanSpotify = deduplicateTrendingTracks([...spotifyVpop, ...deezerVpop])
+            let cleanSpotify = deduplicateTrendingTracks([...spotifyVpop, ...deezerVpop])
+            if (cleanSpotify.length < 12) {
+              const itunesFallback = await getTopArtistITunesTracks(vpopArtists, 'vn', 2)
+              cleanSpotify = deduplicateTrendingTracks([...cleanSpotify, ...itunesFallback])
+            }
             return {
               nhaccuatui: deduplicateTrendingTracks(nctTrending),
               local: [],
@@ -123,27 +212,29 @@ export async function GET(request: Request) {
             }
           }
           case 'usuk': {
+            const usukArtists = [
+              'Taylor Swift',
+              'The Weeknd',
+              'Billie Eilish',
+              'Bruno Mars',
+              'Sabrina Carpenter',
+              'Ariana Grande',
+              'Dua Lipa',
+              'Post Malone',
+              'Drake',
+              'Olivia Rodrigo',
+              'Lady Gaga',
+              'Kendrick Lamar',
+            ]
             const [spotifyUsUkArtists, deezerUsUk] = await Promise.all([
-              getTopArtistSpotifyTracks(
-                [
-                  'Taylor Swift',
-                  'The Weeknd',
-                  'Billie Eilish',
-                  'Bruno Mars',
-                  'Sabrina Carpenter',
-                  'Ariana Grande',
-                  'Dua Lipa',
-                  'Post Malone',
-                  'Drake',
-                  'Olivia Rodrigo',
-                  'Lady Gaga',
-                  'Kendrick Lamar',
-                ],
-                2
-              ).catch(() => []),
+              getTopArtistSpotifyTracks(usukArtists, 2).catch(() => []),
               getTrendingDeezerTracks(20).catch(() => []),
             ])
-            const cleanSpotify = deduplicateTrendingTracks([...spotifyUsUkArtists, ...deezerUsUk])
+            let cleanSpotify = deduplicateTrendingTracks([...spotifyUsUkArtists, ...deezerUsUk])
+            if (cleanSpotify.length < 12) {
+              const itunesFallback = await getTopArtistITunesTracks(usukArtists, 'us', 2)
+              cleanSpotify = deduplicateTrendingTracks([...cleanSpotify, ...itunesFallback])
+            }
             return {
               nhaccuatui: [],
               local: [],
@@ -171,7 +262,11 @@ export async function GET(request: Request) {
               getTopArtistSpotifyTracks(kpopArtists, 2).catch(() => []),
               getTopArtistDeezerTracks(['NewJeans', 'aespa', 'BLACKPINK', 'BTS', 'LE SSERAFIM', 'IVE'], 2).catch(() => []),
             ])
-            const cleanSpotify = deduplicateTrendingTracks([...spotifyKpopArtists, ...deezerKpop])
+            let cleanSpotify = deduplicateTrendingTracks([...spotifyKpopArtists, ...deezerKpop])
+            if (cleanSpotify.length < 12) {
+              const itunesFallback = await getTopArtistITunesTracks(kpopArtists, 'kr', 2)
+              cleanSpotify = deduplicateTrendingTracks([...cleanSpotify, ...itunesFallback])
+            }
             return {
               nhaccuatui: [],
               local: [],
@@ -197,7 +292,11 @@ export async function GET(request: Request) {
               getTopArtistSpotifyTracks(cpopArtists, 2).catch(() => []),
               getTopArtistDeezerTracks(['Jay Chou', 'JJ Lin', 'G.E.M.', 'Eric Chou', 'Eason Chan'], 2).catch(() => []),
             ])
-            const cleanSpotify = deduplicateTrendingTracks([...spotifyCpopArtists, ...deezerCpop])
+            let cleanSpotify = deduplicateTrendingTracks([...spotifyCpopArtists, ...deezerCpop])
+            if (cleanSpotify.length < 12) {
+              const itunesFallback = await getTopArtistITunesTracks(cpopArtists, 'tw', 2)
+              cleanSpotify = deduplicateTrendingTracks([...cleanSpotify, ...itunesFallback])
+            }
             return {
               nhaccuatui: [],
               local: [],
@@ -223,7 +322,11 @@ export async function GET(request: Request) {
               getTopArtistSpotifyTracks(jpopArtists, 2).catch(() => []),
               getTopArtistDeezerTracks(['YOASOBI', 'Ado', 'Kenshi Yonezu', 'LiSA', 'Fujii Kaze', 'RADWIMPS'], 2).catch(() => []),
             ])
-            const cleanSpotify = deduplicateTrendingTracks([...spotifyJpopArtists, ...deezerJpop])
+            let cleanSpotify = deduplicateTrendingTracks([...spotifyJpopArtists, ...deezerJpop])
+            if (cleanSpotify.length < 12) {
+              const itunesFallback = await getTopArtistITunesTracks(jpopArtists, 'jp', 2)
+              cleanSpotify = deduplicateTrendingTracks([...cleanSpotify, ...itunesFallback])
+            }
             return {
               nhaccuatui: [],
               local: [],
@@ -236,26 +339,28 @@ export async function GET(request: Request) {
           }
           case 'all':
           default: {
+            const globalArtists = [
+              'Taylor Swift',
+              'The Weeknd',
+              'Bruno Mars',
+              'Billie Eilish',
+              'Sabrina Carpenter',
+              'NewJeans',
+              'BLACKPINK',
+              'Sơn Tùng M-TP',
+              'HIEUTHUHAI',
+              'YOASOBI',
+            ]
             const [nctTrending, spotifyGlobalArtists, deezerTrending] = await Promise.all([
               getNhacCuaTuiTrending(20).catch(() => []),
-              getTopArtistSpotifyTracks(
-                [
-                  'Taylor Swift',
-                  'The Weeknd',
-                  'Bruno Mars',
-                  'Billie Eilish',
-                  'Sabrina Carpenter',
-                  'NewJeans',
-                  'BLACKPINK',
-                  'Sơn Tùng M-TP',
-                  'HIEUTHUHAI',
-                  'YOASOBI',
-                ],
-                2
-              ).catch(() => []),
+              getTopArtistSpotifyTracks(globalArtists, 2).catch(() => []),
               getTrendingDeezerTracks(16).catch(() => []),
             ])
-            const cleanSpotify = deduplicateTrendingTracks([...spotifyGlobalArtists, ...deezerTrending])
+            let cleanSpotify = deduplicateTrendingTracks([...spotifyGlobalArtists, ...deezerTrending])
+            if (cleanSpotify.length < 12) {
+              const itunesFallback = await getTopArtistITunesTracks(globalArtists, 'us', 2)
+              cleanSpotify = deduplicateTrendingTracks([...cleanSpotify, ...itunesFallback])
+            }
 
             return {
               nhaccuatui: deduplicateTrendingTracks(nctTrending),
@@ -274,13 +379,21 @@ export async function GET(request: Request) {
 
       try {
         const responseData = await trendingPromise
-        searchCache.set(cacheKey, { data: responseData, timestamp: Date.now() })
-        return cachedJsonResponse(responseData)
+        if (hasAnyTrendingTracks(responseData)) {
+          searchCache.set(cacheKey, { data: responseData, timestamp: Date.now() })
+          return cachedJsonResponse(responseData)
+        }
+        return NextResponse.json(responseData, {
+          headers: { 'Cache-Control': 'no-store' },
+        })
       } finally {
         inFlightRequests.delete(cacheKey)
       }
     } catch (err: any) {
-      return NextResponse.json({ nhaccuatui: [], local: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: [] })
+      return NextResponse.json(
+        { nhaccuatui: [], local: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: [] },
+        { headers: { 'Cache-Control': 'no-store' } }
+      )
     }
   }
 

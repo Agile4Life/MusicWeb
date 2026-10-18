@@ -266,11 +266,12 @@ export async function getTrendingDeezerTracks(limit = 16): Promise<Track[]> {
     const res = await fetch(`https://api.deezer.com/chart/0/tracks?limit=${safeLimit}`, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
       signal: AbortSignal.timeout(4000),
-      next: { revalidate: 3600 },
+      cache: 'no-store',
     })
     if (!res.ok) return []
 
     const data = await res.json()
+    if (data?.error) return []
     const items = data.data || []
     const systemUserId = '00000000-0000-4000-a000-000000000001'
 
@@ -317,16 +318,14 @@ export async function getTopArtistDeezerTracks(artists: string[], tracksPerArtis
   try {
     const safePerArtist = Math.min(Math.max(1, tracksPerArtist), 6)
     const results = await Promise.all(
-      artists.map(async (artist) => {
+      artists.slice(0, 6).map(async (artist) => {
         try {
-          const candidates = await searchDeezerTracks(`artist:"${artist}"`, safePerArtist * 4)
-          const fallbackCandidates =
-            candidates.length > 0 ? candidates : await searchDeezerTracks(artist, safePerArtist * 4)
+          const candidates = await searchDeezerTracks(artist, Math.min(safePerArtist * 4, 10))
           const targetNorm = normalizeDeezerArtistToken(artist)
           const seenTitles = new Set<string>()
           const matched: Track[] = []
 
-          for (const track of fallbackCandidates) {
+          for (const track of candidates) {
             if (!isCleanDeezerTrendingItem(track.title, track.artist, track.album)) continue
             const trackArtistNorm = normalizeDeezerArtistToken(track.artist || '')
             if (artist === 'LiSA' && !(track.artist || '').split(',').some((p) => p.trim() === 'LiSA')) {
@@ -371,12 +370,13 @@ export async function searchDeezerTracks(query: string, limit = 15): Promise<Tra
       {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
         signal: AbortSignal.timeout(4000),
-        next: { revalidate: 300 },
+        cache: 'no-store',
       }
     )
     if (!res.ok) return []
 
     const data = await res.json()
+    if (data?.error) return []
     const items = data.data || []
     const systemUserId = '00000000-0000-4000-a000-000000000001'
 

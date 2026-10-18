@@ -265,7 +265,7 @@ export async function getTopArtistSpotifyTracks(artists: string[], tracksPerArti
       try {
         const safePerArtist = Math.min(Math.max(1, tracksPerArtist), 10)
         const searchQuery = ARTIST_SEARCH_QUERY_OVERRIDES[artist] || artist
-        const fetchLimit = Math.min(Math.max(safePerArtist * 5, 12), 25)
+        const fetchLimit = Math.min(Math.max(safePerArtist * 4, 8), 10)
         const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(searchQuery)}&type=track&limit=${fetchLimit}`
         const res = await fetch(url, {
           headers: { Authorization: `Bearer ${token}` },
@@ -393,7 +393,7 @@ export async function fetchNewReleases(country = 'US', limit = 24): Promise<Spot
     try {
       const searchQuery = encodeURIComponent('year:2024-2026')
       const res3 = await fetch(
-        `https://api.spotify.com/v1/search?q=${searchQuery}&type=album&limit=${safeLimit}`,
+        `https://api.spotify.com/v1/search?q=${searchQuery}&type=album&limit=${Math.min(safeLimit, 10)}`,
         {
           headers: { Authorization: `Bearer ${token}` },
           cache: 'no-store',
@@ -430,7 +430,7 @@ export async function fetchSpotifyNewReleases(country = 'US', limit = 30): Promi
     // Spotify Search API first (reliable: browse/new-releases can 403 for some accounts)
     try {
       const res = await fetch(
-        `https://api.spotify.com/v1/search?q=${encodeURIComponent('year:2024-2026')}&type=album&limit=${safeLimit}`,
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent('year:2024-2026')}&type=album&limit=${Math.min(safeLimit, 10)}`,
         {
           headers: { Authorization: `Bearer ${token}` },
           cache: 'no-store',

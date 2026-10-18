@@ -48,7 +48,7 @@ export async function fetchUnifiedSearch(
   const fetchPromise = (async (): Promise<GlobalSearchTracks> => {
     try {
       const url = isTrending
-        ? `/api/search?trending=true&source=${encodeURIComponent(source)}&category=${encodeURIComponent(category)}`
+        ? `/api/search?trending=true&v=2&source=${encodeURIComponent(source)}&category=${encodeURIComponent(category)}`
         : `/api/search?q=${encodeURIComponent(query.trim())}&source=${encodeURIComponent(source)}`
 
       const res = await fetch(url)
@@ -68,12 +68,17 @@ export async function fetchUnifiedSearch(
         soundcloud: Array.isArray(data.soundcloud) ? data.soundcloud : [],
       }
 
-      // Evict oldest if cache exceeds 150 items
-      if (searchCache.size > 150) {
-        const oldestKey = searchCache.keys().next().value
-        if (oldestKey) searchCache.delete(oldestKey)
+      const hasTrendingItems =
+        result.nhaccuatui.length + result.spotify.length + result.deezer.length > 0
+
+      if (!isTrending || hasTrendingItems) {
+        // Evict oldest if cache exceeds 150 items
+        if (searchCache.size > 150) {
+          const oldestKey = searchCache.keys().next().value
+          if (oldestKey) searchCache.delete(oldestKey)
+        }
+        searchCache.set(cacheKey, { data: result, timestamp: Date.now() })
       }
-      searchCache.set(cacheKey, { data: result, timestamp: Date.now() })
 
       return result
     } catch (err) {
