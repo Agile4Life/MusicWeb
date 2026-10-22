@@ -21,6 +21,7 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
+import { ArtistLinks } from '@/components/common/ArtistLinks'
 import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
 import { TopHistoryTrackItem } from '@/lib/listeningHistory'
 
@@ -562,7 +563,7 @@ export default function HistoryPage() {
                           {track.title}
                         </p>
                         <p className="text-[11px] sm:text-xs text-slate-400 truncate">
-                          {track.artist || 'Nghệ sĩ chưa xác định'}
+                          <ArtistLinks artist={track.artist} fallbackText="Nghệ sĩ chưa xác định" className="text-[11px] sm:text-xs text-slate-400 truncate" />
                         </p>
                       </div>
                     </div>
@@ -698,7 +699,7 @@ export default function HistoryPage() {
                           {track.title}
                         </p>
                         <p className="text-[11px] sm:text-xs text-slate-400 truncate">
-                          {track.artist || 'Nghệ sĩ chưa xác định'}
+                          <ArtistLinks artist={track.artist} fallbackText="Nghệ sĩ chưa xác định" className="text-[11px] sm:text-xs text-slate-400 truncate" />
                         </p>
                       </div>
                     </div>

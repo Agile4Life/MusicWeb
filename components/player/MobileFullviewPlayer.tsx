@@ -5,6 +5,8 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { usePlayer, usePlaybackProgress } from './PlayerContext'
 import { useTheme } from '../theme/ThemeContext'
 import { TrackCoverImage } from '../common/TrackCoverImage'
+import { ArtistLinks } from '../common/ArtistLinks'
+import { getPrimaryArtistName } from '@/lib/artistParser'
 import { LyricsShareModal } from './LyricsShareModal'
 import { MobileTabTransition } from './MobileTabTransition'
 import { getPrimaryLyrics, getTrackLyricsCacheKey } from '@/lib/lyricsFlow'
@@ -61,7 +63,7 @@ export interface MobileFullviewPlayerProps {
   displayAlbumName?: string
   isNavigatingAlbum?: boolean
   onOpenAlbum?: (e: React.MouseEvent) => void
-  onOpenArtist?: (e: React.MouseEvent) => void
+  onOpenArtist?: (e: React.MouseEvent, artistName?: string) => void
 }
 
 export function MobileFullviewPlayer({
@@ -688,7 +690,7 @@ export function MobileFullviewPlayer({
               {currentTrack.title}
             </span>
             <span className="text-xs truncate leading-tight mt-0.5 text-white/55">
-              {currentTrack.artist || 'Nghệ sĩ chưa rõ'}
+              <ArtistLinks artist={currentTrack.artist} fallbackText="Nghệ sĩ chưa rõ" className="truncate leading-tight text-white/55" linkClassName="hover:underline hover:text-white/85 transition-colors cursor-pointer" separatorClassName="text-white/40 font-normal" onArtistClick={(name, e) => onOpenArtist ? onOpenArtist(e, name) : closeNowPlayingOverlay()} />
             </span>
           </div>
           {/* Heart + ⋯ */}
@@ -755,10 +757,10 @@ export function MobileFullviewPlayer({
                 </h2>
                 <button
                   type="button"
-                  onClick={onOpenArtist}
+                  onClick={(e) => onOpenArtist && onOpenArtist(e, getPrimaryArtistName(currentTrack.artist))}
                   className="text-base truncate leading-tight mt-1 text-white/55 hover:text-white/85 text-left transition-colors cursor-pointer"
                 >
-                  {currentTrack.artist || 'Nghệ sĩ chưa rõ'}
+                  <ArtistLinks artist={currentTrack.artist} fallbackText="Nghệ sĩ chưa rõ" className="truncate leading-tight text-white/55" linkClassName="hover:underline hover:text-white/85 transition-colors cursor-pointer" separatorClassName="text-white/40 font-normal" onArtistClick={(name, e) => onOpenArtist ? onOpenArtist(e, name) : closeNowPlayingOverlay()} />
                 </button>
                 {onOpenAlbum && (
                   <button
@@ -1243,7 +1245,7 @@ export function MobileFullviewPlayer({
                   type="button"
                   onClick={(e) => {
                     setShowMenuSheet(false)
-                    onOpenArtist(e)
+                    onOpenArtist(e, getPrimaryArtistName(currentTrack.artist))
                   }}
                   className="flex items-center gap-3 p-3.5 rounded-2xl border border-white/8 bg-white/[0.04] text-xs font-semibold transition-all hover:bg-white/[0.08]"
                 >

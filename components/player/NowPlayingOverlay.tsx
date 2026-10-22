@@ -397,7 +397,7 @@ export function NowPlayingOverlay() {
           displayAlbumName={displayAlbumName}
           isNavigatingAlbum={isNavigatingAlbum}
           onOpenAlbum={handleOpenAlbum}
-          onOpenArtist={(e) => handleOpenArtist(undefined, e)}
+          onOpenArtist={(e, artistName) => handleOpenArtist(artistName, e)}
         />
       </div>
 

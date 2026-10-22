@@ -3,6 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { TiltCard } from './TiltCard'
+import { ArtistLinks } from './ArtistLinks'
 import { Play, DiscAlbum, ListMusic, Music, Pause } from 'lucide-react'
 
 export interface MediaCardProps {
@@ -49,12 +50,23 @@ export function MediaCard({
           ? 'Bài hát'
           : 'Album')
 
+  const isArtistSubtitle = Boolean(
+    subtitle &&
+      type !== 'playlist' &&
+      id !== 'drive-folder' &&
+      !/^\d{4}\s*•/.test(subtitle) &&
+      !subtitle.includes('Google Drive')
+  )
+
   const handleCardClick = (e: React.MouseEvent) => {
     if (onClick) {
       if (href === '#' || !href) {
         e.preventDefault()
       }
       onClick(e)
+    } else if ((href === '#' || !href) && onPlay) {
+      e.preventDefault()
+      onPlay(e)
     }
   }
 
@@ -137,11 +149,19 @@ export function MediaCard({
           <h3 className="card-title text-xs sm:text-sm font-bold text-white truncate tracking-tight">
             {title}
           </h3>
-          {subtitle && (
-            <p className="card-artist text-[11px] sm:text-xs text-slate-400 group-hover:text-slate-300 truncate font-medium transition-colors">
-              {subtitle}
-            </p>
-          )}
+          {subtitle &&
+            (isArtistSubtitle ? (
+              <ArtistLinks
+                artist={subtitle}
+                className="card-artist text-[11px] sm:text-xs text-slate-400 group-hover:text-slate-300 truncate font-medium transition-colors block"
+                linkClassName="hover:underline hover:text-[var(--spotify-glow,#22d3ee)] transition-colors cursor-pointer"
+                separatorClassName="text-slate-500 font-normal"
+              />
+            ) : (
+              <p className="card-artist text-[11px] sm:text-xs text-slate-400 group-hover:text-slate-300 truncate font-medium transition-colors">
+                {subtitle}
+              </p>
+            ))}
           {metaText && (
             <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-500 mt-0.5">
               <span>{metaText}</span>

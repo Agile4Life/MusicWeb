@@ -447,7 +447,8 @@ export function normalizeArtistForComparison(name: string): string {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '') // remove diacritics
-    .replace(/[^a-z0-9]/g, '') // remove non-alphanumeric (spaces, hyphens, dots, etc.)
+    .replace(/[đĐ]/g, 'd')
+    .replace(/[^a-z0-9\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/g, '') // remove non-alphanumeric (spaces, hyphens, dots, etc.)
     .trim()
 }
 
@@ -456,7 +457,13 @@ export function normalizeArtistForComparison(name: string): string {
  * Fetches top 15 candidates and verifies exact or strict normalized name match.
  * Rejects fuzzy / unrelated artists to guarantee accuracy.
  */
-export async function searchDeezerArtist(artistName: string): Promise<{ id: number; name: string; nb_fan?: number } | null> {
+export async function searchDeezerArtist(artistName: string): Promise<{
+  id: number
+  name: string
+  picture_xl: string | null
+  picture_big: string | null
+  nb_fan: number
+} | null> {
   if (!artistName || !artistName.trim()) return null
   try {
     const cleanTarget = artistName.replace(/[\(\[\{].*?[\)\]\}]/g, '').trim()
@@ -465,6 +472,7 @@ export async function searchDeezerArtist(artistName: string): Promise<{ id: numb
 
     const res = await fetch(`https://api.deezer.com/search/artist?q=${encodeURIComponent(cleanTarget)}&limit=15`, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      signal: AbortSignal.timeout(2500),
       next: { revalidate: 86400 },
     })
 
@@ -488,6 +496,8 @@ export async function searchDeezerArtist(artistName: string): Promise<{ id: numb
         return {
           id: matched[0].id,
           name: matched[0].name,
+          picture_xl: matched[0].picture_xl || matched[0].picture_big || matched[0].picture_medium || null,
+          picture_big: matched[0].picture_big || matched[0].picture_xl || matched[0].picture_medium || null,
           nb_fan: matched[0].nb_fan || 0,
         }
       }

@@ -5,6 +5,7 @@ import { usePlayer } from './PlayerContext'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { X, Play, Music, History, Sparkles } from 'lucide-react'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
+import { ArtistLinks } from '@/components/common/ArtistLinks'
 import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
 import { createClient } from '@/lib/supabase/client'
 import { useSession } from 'next-auth/react'
@@ -152,7 +153,7 @@ export function QueueDrawer() {
                       {currentTrack.title}
                     </p>
                     <p className="text-[11px] text-slate-400 truncate mt-0.5">
-                      {currentTrack.artist || t('unknown_artist')}
+                      <ArtistLinks artist={currentTrack.artist} fallbackText={t('unknown_artist')} className="text-[11px] text-slate-400 truncate" />
                     </p>
                   </div>
                 </div>
@@ -213,7 +214,7 @@ export function QueueDrawer() {
                               {track.title}
                             </p>
                             <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                              {track.artist || t('unknown_artist')}
+                              <ArtistLinks artist={track.artist} fallbackText={t('unknown_artist')} className="text-[10px] text-slate-400 truncate" />
                             </p>
                           </div>
                         </div>
@@ -283,7 +284,7 @@ export function QueueDrawer() {
                         {track.title}
                       </p>
                       <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                        {track.artist || 'Nghệ sĩ chưa xác định'}
+                        <ArtistLinks artist={track.artist} fallbackText="Nghệ sĩ chưa xác định" className="text-[10px] text-slate-400 truncate" />
                       </p>
                     </div>
                   </div>

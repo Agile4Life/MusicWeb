@@ -126,8 +126,8 @@ export default function ArtistPage() {
           .then((r) => (r.ok ? r.json() : []))
           .then((albums: SpotifyAlbumItem[]) => {
             if (isCancelled || !Array.isArray(albums)) return
-            const matched = albums.filter((alb) => isAlbumArtistMatch(alb.artist, resolvedName))
-            setArtistAlbums((matched.length > 0 ? matched : albums).slice(0, 12))
+            const matched = albums.filter((alb) => isAlbumArtistMatch(alb.artist, resolvedName) || isAlbumArtistMatch(alb.artist, artistName))
+            setArtistAlbums(matched.slice(0, 12))
           })
           .catch(() => {})
       } catch (err) {

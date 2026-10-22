@@ -3,10 +3,13 @@
 import React, { useState, useEffect } from 'react'
 import { usePlayer } from './PlayerContext'
 import { TrackCoverImage } from '../common/TrackCoverImage'
+import { ArtistLinks } from '../common/ArtistLinks'
+import { useRouter } from 'next/navigation'
 import { formatTime } from '@/lib/utils'
 
 export function UpNextList() {
-  const { queue, currentIndex, currentTrack, isPlaying, playTrack } = usePlayer()
+  const { queue, currentIndex, currentTrack, isPlaying, playTrack, closeNowPlayingOverlay } = usePlayer()
+  const router = useRouter()
 
   const [isLiquidGlass, setIsLiquidGlass] = useState(false)
 
@@ -136,7 +139,7 @@ export function UpNextList() {
                   </p>
                 </div>
                 <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                  {track.artist || track.artist_name || 'Nghệ sĩ chưa xác định'}
+                  <ArtistLinks artist={track.artist || track.artist_name} fallbackText="Nghệ sĩ chưa xác định" className="text-[10px] text-slate-400 truncate" onArtistClick={(name) => { closeNowPlayingOverlay(); router.push(`/artist?name=${encodeURIComponent(name)}`) }} />
                 </p>
               </div>
 

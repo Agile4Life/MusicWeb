@@ -9,8 +9,8 @@ export interface ParsedArtist {
  * - Comma: "Artist A, Artist B"
  * - Feat / Ft: "Artist A feat. Artist B", "Artist A ft. Artist B", "Artist A (feat. Artist B)"
  * - Ampersand: "Artist A & Artist B"
- * - Cross: "Artist A x Artist B", "Artist A X Artist B"
- * - Slash: "Artist A / Artist B" (with spaces, so AC/DC remains intact)
+ * - Cross: "Artist A x Artist B", "Artist A X Artist B", "Artist A × Artist B"
+ * - Slash: "Artist A / Artist B" (with spaces, so AC/DC and W/N remain intact)
  * - Semicolon: "Artist A; Artist B"
  */
 export function parseArtists(rawArtist: string | null | undefined): ParsedArtist[] {
@@ -26,12 +26,13 @@ export function parseArtists(rawArtist: string | null | undefined): ParsedArtist
 
   // Delimiters with surrounding spaces or punctuation:
   // 1. ", " or ","
-  // 2. " feat. ", " ft. ", " feat ", " ft "
+  // 2. " feat. ", " ft. ", " feat ", " ft " (case-insensitive)
   // 3. " & "
-  // 4. " x " or " X " (surrounded by spaces to avoid names like DMX or The xx)
-  // 5. " / " (surrounded by spaces so AC/DC is not split)
+  // 4. " x ", " X ", " × " (surrounded by spaces to avoid names like DMX or The xx)
+  // 5. " / " (surrounded by spaces so AC/DC and W/N are not split)
   // 6. "; " or ";"
-  const tokenRegex = /(\s*(?:,\s*|\s+(?:feat\.?|ft\.?|&|[xX]|\/)\s+|;\s*))/g
+  const tokenRegex = /(\s*(?:,\s*|\s+(?:feat\.?|ft\.?|&|[xX×]|\/)\s+|;\s*))/i
+  const exactDelimiterRegex = /^\s*(?:,\s*|\s+(?:feat\.?|ft\.?|&|[xX×]|\/)\s+|;\s*)$/i
 
   const parts = str.split(tokenRegex)
   const result: ParsedArtist[] = []
@@ -41,7 +42,7 @@ export function parseArtists(rawArtist: string | null | undefined): ParsedArtist
     if (!part) continue
 
     // Check if this part is a delimiter
-    if (tokenRegex.test(part)) {
+    if (exactDelimiterRegex.test(part)) {
       if (result.length > 0) {
         result[result.length - 1].separator = part
       }

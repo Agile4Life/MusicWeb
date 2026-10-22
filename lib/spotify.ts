@@ -931,7 +931,8 @@ function normalizeArtistForMatch(name: string): string {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]/g, '')
+    .replace(/[đĐ]/g, 'd')
+    .replace(/[^a-z0-9\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/g, '')
     .trim()
 }
 
@@ -949,7 +950,8 @@ export async function searchSpotifyArtistExact(artistName: string): Promise<Spot
     const token = await getSpotifyAccessToken()
     if (!token) return null
 
-    const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(cleanTarget)}&type=artist&limit=10`, {
+    const searchQuery = ARTIST_SEARCH_QUERY_OVERRIDES[cleanTarget] || cleanTarget
+    const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(searchQuery)}&type=artist&limit=10`, {
       headers: { Authorization: `Bearer ${token}` },
       next: { revalidate: 86400 },
     })
@@ -963,11 +965,13 @@ export async function searchSpotifyArtistExact(artistName: string): Promise<Spot
       const cleanItem = i.name.trim()
       const isExact = cleanItem.toLowerCase() === cleanTarget.toLowerCase()
       const isNorm = normalizeArtistForMatch(cleanItem) === targetNorm
-      return isExact || isNorm
+      const isAlias = doesSpotifyArtistMatchTarget([{ name: cleanItem }], cleanTarget)
+      return isExact || isNorm || isAlias
     })
 
-    if (matched.length > 0) {
-      const top = matched[0]
+    const cjkFallback = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/.test(cleanTarget) ? items.find((i: any) => i?.id && i?.name) : null
+    if (matched.length > 0 || cjkFallback) {
+      const top = matched[0] || cjkFallback
       return {
         id: top.id,
         name: top.name,
@@ -1013,25 +1017,39 @@ export async function getSpotifyArtistTopTracks(artistId: string, artistName?: s
       items = data.tracks || []
     }
 
-    // 2. If fewer than 5 tracks found and artistName provided, search by artist name
+    // 2. If fewer than 5 tracks found and artistName provided, search by artist name with strict artist verification
     if (items.length < 5 && artistName) {
-      const searchRes = await fetch(
-        `https://api.spotify.com/v1/search?q=artist:${encodeURIComponent(artistName)}&type=track&limit=${Math.min(limit, 10)}&market=VN`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          next: { revalidate: 3600 },
-        }
-      )
-      if (searchRes.ok) {
-        const searchData = await searchRes.json()
-        const searchItems = searchData.tracks?.items || []
-        const seenIds = new Set(items.map((i: any) => i.id))
-        for (const item of searchItems) {
-          if (!seenIds.has(item.id)) {
-            seenIds.add(item.id)
-            items.push(item)
+      const searchQuery = ARTIST_SEARCH_QUERY_OVERRIDES[artistName] || artistName
+      const offsets = limit > 10 ? [0, 10] : [0]
+      const pageResults = await Promise.all(
+        offsets.map(async (offset) => {
+          try {
+            const r = await fetch(
+              `https://api.spotify.com/v1/search?q=${encodeURIComponent(searchQuery)}&type=track&limit=10&offset=${offset}`,
+              {
+                headers: { Authorization: `Bearer ${token}` },
+                next: { revalidate: 3600 },
+              }
+            )
+            if (!r.ok) return []
+            const d = await r.json()
+            return d.tracks?.items || []
+          } catch {
+            return []
           }
-        }
+        })
+      )
+      const searchItems = pageResults.flat()
+      const seenIds = new Set(items.map((i: any) => i.id))
+      for (const item of searchItems) {
+        if (!item?.id || !item?.name || seenIds.has(item.id)) continue
+        const matchesId = Array.isArray(item.artists) && item.artists.some((a: any) => a?.id === artistId)
+        const matchesName = doesSpotifyArtistMatchTarget(item.artists, artistName)
+        if (!matchesId && !matchesName) continue
+        const joinedArtist = item.artists?.map((a: any) => a.name).join(', ') || artistName
+        if (!isCleanTrendingTrack(item.name, joinedArtist)) continue
+        seenIds.add(item.id)
+        items.push(item)
       }
     }
 
