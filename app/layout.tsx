@@ -74,6 +74,7 @@ export default function RootLayout({
   return (
     <html
       lang="vi"
+      data-theme-style="minimal-flat"
       suppressHydrationWarning
       className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} ${fraunces.variable} ${ibmPlexMono.variable} font-sans h-full antialiased dark`}
     >
@@ -98,7 +99,7 @@ export default function RootLayout({
                 try {
                   var root = document.documentElement;
                   var savedStyle = localStorage.getItem('musicweb-theme-style');
-                  var style = ["classic","liquid-glass","minimal-flat"].indexOf(savedStyle) >= 0 ? savedStyle : 'classic';
+                  var style = ["classic","liquid-glass","minimal-flat"].indexOf(savedStyle) >= 0 ? savedStyle : 'minimal-flat';
                   root.setAttribute('data-theme-style', style);
                   var savedCursor = localStorage.getItem('musicweb-cursor-style');
                   if (savedCursor) root.setAttribute('data-cursor', savedCursor);

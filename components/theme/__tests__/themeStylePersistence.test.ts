@@ -139,18 +139,18 @@ describe('Liquid Glass Reload Persistence & Chromatic Aberration Sync', () => {
     expect(mockRoot.style.getPropertyValue('--liquid-aberration')).toBe('0')
   })
 
-  it('defaults to classic style and aurora theme for first-time visitors when localStorage is empty', () => {
+  it('defaults to minimal-flat style and aurora theme for first-time visitors when localStorage is empty', () => {
     const mockStorage = new Map<string, string>()
     const getSavedStyle = (storage: Map<string, string>): ThemeStyle => {
       const val = storage.get('musicweb-theme-style') as ThemeStyle
-      return val === 'classic' || val === 'liquid-glass' || val === 'minimal-flat' ? val : 'classic'
+      return val === 'classic' || val === 'liquid-glass' || val === 'minimal-flat' ? val : 'minimal-flat'
     }
     const getSavedTheme = (storage: Map<string, string>): string => {
       return storage.get('musicweb-theme') || 'aurora'
     }
 
     // 1. Empty storage -> defaults to classic & aurora
-    expect(getSavedStyle(mockStorage)).toBe('classic')
+    expect(getSavedStyle(mockStorage)).toBe('minimal-flat')
     expect(getSavedTheme(mockStorage)).toBe('aurora')
 
     // 2. User changes theme style to minimal-flat -> persisted

@@ -443,7 +443,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [themeId, setThemeId] = useState<ThemeId>('aurora')
   const [cursorStyle, setCursorStyleState] = useState<CursorStyle>('default')
-  const [themeStyle, setThemeStyleState] = useState<ThemeStyle>('classic')
+  const [themeStyle, setThemeStyleState] = useState<ThemeStyle>('minimal-flat')
   const [liquidGlassConfig, setLiquidGlassConfigState] = useState<LiquidGlassConfig>(DEFAULT_LIQUID_GLASS_CONFIG)
   const [gamingMode, setGamingModeState] = useState<boolean>(false)
 
@@ -464,7 +464,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
 
     const savedStyle = localStorage.getItem('musicweb-theme-style') as ThemeStyle
-    const initialStyle: ThemeStyle = savedStyle === 'classic' || savedStyle === 'liquid-glass' || savedStyle === 'minimal-flat' ? savedStyle : 'classic'
+    const initialStyle: ThemeStyle = savedStyle === 'classic' || savedStyle === 'liquid-glass' || savedStyle === 'minimal-flat' ? savedStyle : 'minimal-flat'
     setThemeStyleState(initialStyle)
 
     const savedGlassConfig = localStorage.getItem('musicweb-liquid-config')
