@@ -19,7 +19,7 @@
 .root h2 { display: block !important; }
 .root h2::after { display: none !important; }
 .root svg { flex-shrink: 0; }
-.shell { max-width: 1200px; margin: 0 auto; }
+.shell { max-width: 1400px; margin: 0 auto; }
 .masthead { height: 85px; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 1px solid var(--hair-strong); }
 .wordmark { display: flex; gap: 9px; align-items: center; font-size: 21px; font-weight: 650; letter-spacing: -.8px; }
 .wordmark svg { color: var(--accent-strong); }
@@ -127,7 +127,7 @@
 .matchHeading h2:focus { outline: none; }
 .matchHeading p { font-size: 12px; color: var(--paper-dim); margin: 10px 0 0; }
 .matchHeading p span { margin: 0 8px; color: var(--accent); }
-.matchGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 50px; max-width: 1100px; margin: 0 auto 45px; position: relative; }
+.matchGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; max-width: none; margin: 0 0 45px; position: relative; }
 .contestant { min-width: 0; }
 .contestantLabel { display: flex; justify-content: space-between; color: var(--muted); margin-bottom: 20px; font-size: 14px; }
 .contestantLabel span:last-child { color: var(--paper-dim); text-transform: uppercase; }
@@ -152,7 +152,7 @@
 .champion { text-align: center; padding: 30px 0; display: flex; flex-direction: column; align-items: center; }
 .championMedal { color: var(--accent-strong); margin-bottom: 10px; }
 .root .champion h2 { font-family: var(--font-fraunces), Georgia, serif; font-size: clamp(28px, 4vw, 44px) !important; font-weight: 400 !important; margin: 9px 0 27px; line-height: 1.2 !important; }
-.championArtwork { width: 230px; border-radius: 10px; overflow: hidden; border: 1px solid var(--hair-strong); }
+.championArtwork { width: 300px; border-radius: 10px; overflow: hidden; border: 1px solid var(--hair-strong); }
 .champion h3 { font-size: 24px; margin: 22px 0 4px; font-weight: 500; }
 .champion > p { color: var(--paper-dim); font-size: 13px; margin: 0; }
 .championActions { display: flex; gap: 10px; margin: 26px 0 16px; }
@@ -238,7 +238,7 @@
 .contestant { transition: transform 0.5s cubic-bezier(.4,0,.2,1), opacity 0.5s cubic-bezier(.4,0,.2,1), filter 0.5s ease, border-color 0.3s ease; }
 .contestantWinner { animation: winnerPulse 0.7s cubic-bezier(.4,0,.2,1) forwards; position: relative; z-index: 2; }
 .contestantLoser { animation: loserFade 0.6s cubic-bezier(.4,0,.2,1) forwards; }
-.contestantWinner .chooseButton { background: var(--accent-strong) !important; color: var(--accent-ink) !important; border-color: var(--accent-strong) !important; animation: buttonCelebrate 0.5s ease forwards; }
+.contestantWinner .chooseButton { background: var(--accent-strong) !important; color: var(--accent-ink) !important; border-color: var(--accent-strong) !important; animation: buttonCelebrate 0.5s ease forwards; box-shadow: 0 0 25px -5px var(--accent-strong); }
 .contestantWinner .contestantHeader { animation: headerGlow 0.7s ease forwards; }
 .matchGridChoosing .vs { animation: vsExit 0.4s ease forwards; }
 .vsExit { animation: vsExit 0.4s ease forwards; }
@@ -247,7 +247,7 @@
   0% { transform: scale(1); }
   30% { transform: scale(1.035); }
   60% { transform: scale(1.02); }
-  100% { transform: scale(1.01); box-shadow: 0 0 30px -5px var(--accent-strong), 0 0 60px -15px var(--accent); border-radius: 14px; }
+  100% { transform: scale(1.02); box-shadow: 0 0 50px -5px var(--accent-strong), 0 0 90px -15px var(--accent); border-radius: 16px; }
 }
 @keyframes loserFade {
   0% { opacity: 1; transform: scale(1); filter: none; }
@@ -255,17 +255,17 @@
 }
 @keyframes buttonCelebrate {
   0% { transform: scale(1); }
-  40% { transform: scale(1.06); }
+  40% { transform: scale(1.08); }
   100% { transform: scale(1); }
 }
 @keyframes headerGlow {
   0% { text-shadow: none; }
-  50% { text-shadow: 0 0 12px var(--accent-strong); }
-  100% { text-shadow: 0 0 6px color-mix(in srgb, var(--accent-strong) 40%, transparent); }
+  50% { text-shadow: 0 0 20px var(--accent-strong); }
+  100% { text-shadow: 0 0 10px color-mix(in srgb, var(--accent-strong) 40%, transparent); }
 }
 @keyframes vsExit {
   0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5) rotate(12deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(2) rotate(15deg); }
 }
 
 /* ── Champion celebration ── */
@@ -296,7 +296,7 @@
 
 /* ── Confetti ── */
 .championConfetti { position: absolute; top: 0; left: 50%; width: 0; height: 0; pointer-events: none; z-index: 0; }
-.confettiPiece { position: absolute; width: 8px; height: 8px; border-radius: 2px; animation: confettiFall 1.8s cubic-bezier(.25,.46,.45,.94) both; animation-delay: calc(var(--i) * 0.07s); }
+.confettiPiece { position: absolute; width: 12px; height: 12px; border-radius: 2px; animation: confettiFall 1.8s cubic-bezier(.25,.46,.45,.94) both; animation-delay: calc(var(--i) * 0.07s); }
 .confettiPiece:nth-child(1) { background: var(--accent-strong); }
 .confettiPiece:nth-child(2) { background: var(--paper); border-radius: 50%; }
 .confettiPiece:nth-child(3) { background: var(--accent); }
@@ -312,8 +312,8 @@
 
 @keyframes confettiFall {
   0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(0); }
-  15% { opacity: 1; transform: translate(calc((var(--i) - 6) * 25px), -80px) rotate(calc(var(--i) * 35deg)) scale(1); }
-  100% { opacity: 0; transform: translate(calc((var(--i) - 6) * 40px), 120px) rotate(calc(var(--i) * 120deg)) scale(0.5); }
+  15% { opacity: 1; transform: translate(calc((var(--i) - 6) * 40px), -100px) rotate(calc(var(--i) * 35deg)) scale(1.2); }
+  100% { opacity: 0; transform: translate(calc((var(--i) - 6) * 60px), 160px) rotate(calc(var(--i) * 120deg)) scale(0.6); }
 }
 
 /* ── Match entrance ── */
@@ -335,7 +335,7 @@
   .deckGrid { gap: 18px; }
   .deckCardCover { height: 160px; }
   .deckCard h3 { font-size: 21px; }
-  .matchGrid { gap: 35px; }
+  .matchGrid { gap: 28px; }
   .contestantMeta h3 { font-size: 28px; }
 }
 @media (max-width: 700px) {
