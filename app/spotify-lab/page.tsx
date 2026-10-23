@@ -144,7 +144,7 @@ export default function SpotifyLabPage() {
       {/* Hide masthead + hero + shared deck when in active battle */}
       {!inBattle && <>
         <nav className={styles.masthead} aria-label="Điều hướng Spotify Lab">
-          <Link href="/" className={styles.wordmark} onClick={navigateHome}><Disc3 size={21} aria-hidden="true" /> music<span>/ lab</span></Link>
+          <Link href="/" className={styles.wordmark} onClick={navigateHome}><Disc3 size={21} aria-hidden="true" /> ĐỌ NHẠC</Link>
           <span className={styles.mastheadNote}>A LITTLE LESS SCROLL. A LITTLE MORE SOUL.</span>
           <Link href="/" className={styles.backLink} onClick={navigateHome}><ArrowLeft size={15} aria-hidden="true" /> MusicWeb</Link>
         </nav>
