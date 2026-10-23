@@ -71,6 +71,14 @@ export function BattleView({ battle, currentId, onPreview, onChoose, onUndo, onR
             <div className={styles.contestantEmbed}>
               <iframe title={`Spotify: ${track.title}`} src={`https://open.spotify.com/embed/track/${encodeURIComponent(track.spotify_id)}?theme=0`} width="100%" height="280" allow="autoplay; encrypted-media" />
             </div>
+          ) : track.source === 'musicweb' && track.stream_url ? (
+            <div className={styles.contestantEmbed}>
+              <div className={styles.musicwebPlayer}>
+                <TrackArtwork track={track} large />
+                <audio controls autoPlay src={track.stream_url} aria-label={`Nghe ${track.title}`} />
+                <span className={styles.musicwebLabel}>MusicWeb · {track.nhaccuatui_id ? 'NhacCuaTui' : track.drive_file_id ? 'Drive' : 'Stream'}</span>
+              </div>
+            </div>
           ) : (
             <button type="button" className={styles.coverButton} onClick={() => onPreview(track)} aria-label={`Nghe thử ${track.title}`}>
               <TrackArtwork track={track} large />

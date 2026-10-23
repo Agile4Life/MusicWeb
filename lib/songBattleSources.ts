@@ -5,12 +5,18 @@ export interface BattleTrack {
   album: string
   cover_url: string | null
   duration: number
-  source: 'spotify' | 'youtube' | 'soundcloud'
+  source: 'spotify' | 'youtube' | 'soundcloud' | 'musicweb'
   spotify_id?: string
   youtube_id?: string
   soundcloud_id?: string
+  /** Drive file ID for MusicWeb-hosted tracks. */
+  drive_file_id?: string
+  /** NhacCuaTui song key for NCT-sourced tracks. */
+  nhaccuatui_id?: string
   preview_url: string | null
   source_url: string | null
+  /** Direct stream URL for MusicWeb tracks (resolved at import time or lazily). */
+  stream_url?: string
 }
 
 export function playlistEndpoint(input: string): string {
@@ -45,27 +51,68 @@ export function normalizeBattleTrack(value: unknown): BattleTrack | null {
   const spotifyId = string(raw.spotify_id)
   const youtubeId = string(raw.youtube_id)
   const soundcloudId = typeof raw.soundcloud_id === 'number' ? String(raw.soundcloud_id) : string(raw.soundcloud_id)
-  const source = raw.source === 'youtube' || (!spotifyId && youtubeId) ? 'youtube'
-    : raw.source === 'soundcloud' || (!spotifyId && soundcloudId) ? 'soundcloud' : 'spotify'
-  const sourceId = source === 'spotify' ? spotifyId : source === 'youtube' ? youtubeId : soundcloudId
-  if (!sourceId || !string(raw.title).trim()) return null
+  const driveFileId = string(raw.drive_file_id)
+  const filePath = string(raw.file_path)
+  const nctId = string(raw.nhaccuatui_id)
+  const title = string(raw.title).trim()
+  if (!title) return null
+
+  // Determine source: prefer external IDs, fallback to musicweb for local/drive tracks
+  let source: BattleTrack['source']
+  if (raw.source === 'youtube' || (!spotifyId && youtubeId)) source = 'youtube'
+  else if (raw.source === 'soundcloud' || (!spotifyId && soundcloudId)) source = 'soundcloud'
+  else if (spotifyId) source = 'spotify'
+  else if (driveFileId || nctId || filePath || raw.source === 'local' || raw.source === 'nhaccuatui' || raw.source === 'itunes' || raw.source === 'deezer' || raw.source === 'musicweb') source = 'musicweb'
+  else source = 'spotify' // legacy fallback
+
+  const sourceId = source === 'spotify' ? spotifyId
+    : source === 'youtube' ? youtubeId
+      : source === 'soundcloud' ? soundcloudId
+        : driveFileId || nctId || string(raw.id) || ''
+
+  // Must have either a source ID or be a musicweb track with a title
+  if (!sourceId && source !== 'musicweb') return null
+  if (source === 'musicweb' && !sourceId) return null
+
+  // Build stream URL for musicweb tracks
+  let streamUrl: string | undefined
+  if (source === 'musicweb') {
+    if (nctId) {
+      // NhacCuaTui tracks stream via proxy API
+      streamUrl = `/api/nhaccuatui/stream?id=${encodeURIComponent(nctId)}`
+    } else if (driveFileId) {
+      streamUrl = `/api/drive-stream?fileId=${encodeURIComponent(driveFileId)}&proxy=true`
+    } else if (filePath) {
+      if (filePath.startsWith('http')) {
+        // iTunes, Audius, or other direct HTTP URLs
+        streamUrl = filePath
+      } else {
+        // Assume it's a drive file ID
+        streamUrl = `/api/drive-stream?fileId=${encodeURIComponent(filePath)}&proxy=true`
+      }
+    }
+  }
+
   return {
-    id: string(raw.id) || `${source}-${sourceId}`, source, title: string(raw.title),
+    id: string(raw.id) || `${source}-${sourceId}`, source, title,
     artist: string(raw.artist) || string(raw.artist_name) || 'Chưa rõ nghệ sĩ',
-    album: string(raw.album), cover_url: webUrl(raw.cover_url),
+    album: string(raw.album) || string(raw.album_title) || '', cover_url: webUrl(raw.cover_url),
     duration: typeof raw.duration === 'number' && Number.isFinite(raw.duration) ? Math.max(0, raw.duration) : 0,
     spotify_id: spotifyId || undefined, youtube_id: youtubeId || undefined, soundcloud_id: soundcloudId || undefined,
+    drive_file_id: driveFileId || undefined, nhaccuatui_id: nctId || undefined,
     preview_url: webUrl(raw.preview_url),
+    stream_url: streamUrl || (typeof raw.stream_url === 'string' ? raw.stream_url : undefined),
     source_url: source === 'spotify' ? `https://open.spotify.com/track/${encodeURIComponent(spotifyId)}`
       : source === 'youtube' ? `https://www.youtube.com/watch?v=${encodeURIComponent(youtubeId)}`
-        : webUrl(raw.soundcloud_permalink_url) || webUrl(raw.source_url),
+        : source === 'musicweb' ? null
+          : webUrl(raw.soundcloud_permalink_url) || webUrl(raw.source_url),
   }
 }
 
 export function mergeBattleTracks(current: BattleTrack[], incoming: BattleTrack[]): BattleTrack[] {
   const seen = new Set<string>()
   return [...current, ...incoming].filter(track => {
-    const key = `${track.source}:${track.spotify_id || track.youtube_id || track.soundcloud_id || track.id}`
+    const key = `${track.source}:${track.spotify_id || track.youtube_id || track.soundcloud_id || track.drive_file_id || track.nhaccuatui_id || track.id}`
     if (seen.has(key)) return false
     seen.add(key)
     return true

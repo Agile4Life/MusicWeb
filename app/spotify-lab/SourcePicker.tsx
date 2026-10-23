@@ -92,28 +92,10 @@ export function SourcePicker({ selected, onAdd, onPreview }: {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Không mở được playlist.')
       const rawTracks: unknown[] = Array.isArray(data.tracks) ? data.tracks : []
-      const battleTracks = rawTracks.map((t: any) => {
-        // Convert MusicWeb Track to BattleTrack format
-        const source = t.source === 'youtube' ? 'youtube'
-          : t.source === 'soundcloud' ? 'soundcloud' : 'spotify'
-        const sourceId = source === 'youtube' ? (t.youtube_id || '')
-          : source === 'soundcloud' ? (t.soundcloud_id || '') : (t.spotify_id || '')
-        if (!sourceId && !t.title) return null
-        return normalizeBattleTrack({
-          id: sourceId ? `${source}-${sourceId}` : `musicweb-${t.id}`,
-          title: t.title || 'Không rõ tên',
-          artist: t.artist || t.artist_name || 'Chưa rõ nghệ sĩ',
-          album: t.album || t.album_title || '',
-          cover_url: t.cover_url || null,
-          duration: t.duration || 0,
-          source,
-          spotify_id: t.spotify_id || undefined,
-          youtube_id: t.youtube_id || undefined,
-          soundcloud_id: t.soundcloud_id || undefined,
-          preview_url: t.preview_url || null,
-          source_url: t.source_url || t.soundcloud_permalink_url || null,
-        })
-      }).filter((t): t is BattleTrack => t !== null)
+      // normalizeBattleTrack handles all source detection (spotify/youtube/soundcloud/musicweb)
+      const battleTracks = rawTracks
+        .map((t: any) => normalizeBattleTrack(t))
+        .filter((t): t is BattleTrack => t !== null)
 
       if (!battleTracks.length) { setNotice('Playlist này không có bài hát nào.'); return }
       const ids = new Set(selectedRef.current.map(track => track.id))
