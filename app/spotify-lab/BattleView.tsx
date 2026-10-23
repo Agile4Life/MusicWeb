@@ -80,10 +80,12 @@ export function BattleView({ battle, currentId, onPreview, onChoose, onUndo, onR
               </div>
             </div>
           ) : (
-            <button type="button" className={styles.coverButton} onClick={() => onPreview(track)} aria-label={`Nghe thử ${track.title}`}>
-              <TrackArtwork track={track} large />
-              <span className={styles.coverListen}><Headphones size={18} aria-hidden="true" /> {currentId === track.id ? 'Đang mở trình nghe' : 'Nghe thử'}</span>
-            </button>
+            <div className={styles.contestantEmbed}>
+              <button type="button" className={styles.coverButton} onClick={() => onPreview(track)} aria-label={`Nghe thử ${track.title}`}>
+                <TrackArtwork track={track} large />
+                <span className={styles.coverListen}><Headphones size={18} aria-hidden="true" /> {currentId === track.id ? 'Đang mở trình nghe' : 'Nghe thử'}</span>
+              </button>
+            </div>
           )}
           <button type="button" className={styles.chooseButton} disabled={!!choosingId} onClick={() => handleChoose(track.id, battle.history.length)} aria-label={`Chọn bài ${track.title}`}>
             {choosingId === track.id ? <><Sparkles size={17} aria-hidden="true" /> Đã chọn!</> : <>Chọn bài này <ArrowRight size={17} aria-hidden="true" /></>}
