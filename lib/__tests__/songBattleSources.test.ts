@@ -4,6 +4,16 @@ import { fetchBattleTracks, playlistEndpoint, normalizeBattleTrack, mergeBattleT
 afterEach(() => vi.restoreAllMocks())
 
 describe('battle playlist sources', () => {
+  it('loads YouTube search results as video tracks without mixing in Spotify results', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({
+      youtube: [{ id: 'yt-video', youtube_id: 'video', source: 'youtube', title: 'Music video' }],
+      spotify: [{ spotify_id: 'audio', title: 'Spotify audio' }],
+    }))
+    const tracks = await fetchBattleTracks('/api/search?q=music&source=youtube', new AbortController().signal)
+    expect(tracks).toHaveLength(1)
+    expect(tracks[0]).toMatchObject({ source: 'youtube', youtube_id: 'video', source_url: 'https://www.youtube.com/watch?v=video' })
+  })
+
   it('routes public playlists to the existing APIs', () => {
     expect(playlistEndpoint('https://open.spotify.com/playlist/abc123?si=test')).toBe('/api/spotify/playlist?id=abc123&type=tracks')
     expect(playlistEndpoint('https://www.youtube.com/watch?v=video&list=PL123')).toBe('/api/youtube/playlist?id=PL123')

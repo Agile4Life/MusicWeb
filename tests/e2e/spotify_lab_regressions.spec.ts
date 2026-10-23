@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('has_seen_onboarding', 'true'))
   await page.route('**/api/auth/session', route => route.fulfill({ json: {} }))
   await page.route('**/api/song-battles?**', route => route.fulfill({ json: { decks: [], total: 0, page: 1, pageSize: 12 } }))
-  await page.route('**/api/spotify/search?**', route => route.fulfill({ json: { tracks } }))
+  await page.route('**/api/search?**', route => route.fulfill({ json: { tracks } }))
   await page.route('https://open.spotify.com/**', route => route.abort())
   await page.route('**/api/drive-stream?**', route => route.fulfill({ status: 404 }))
   await page.goto('/spotify-lab')

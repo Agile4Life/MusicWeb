@@ -50,7 +50,7 @@ export function SourcePicker({ selected, onAdd, onPreview }: {
     request.current = controller
     setBusy(true)
     try {
-      const tracks = await fetchBattleTracks(`/api/spotify/search?q=${encodeURIComponent(value.trim())}&limit=10`, controller.signal)
+      const tracks = await fetchBattleTracks(`/api/search?q=${encodeURIComponent(value.trim())}&source=youtube`, controller.signal)
       if (controller.signal.aborted) return
       setResults(tracks)
       if (!tracks.length) setNotice('Không tìm thấy bài hát. Thử tên bài hoặc nghệ sĩ khác nhé.')
@@ -149,22 +149,23 @@ export function SourcePicker({ selected, onAdd, onPreview }: {
     setNotice(count ? `Đã thêm ${count} bài vào danh sách thi đấu.` : 'Các bài này đã có trong danh sách thi đấu.')
   }
   return <section className={styles.sourcePanel} aria-labelledby="source-title">
-    <div className={styles.sectionHeading}><span className={styles.eyebrow}>01 / TUYỂN CHỌN</span><h2 id="source-title">Bắt đầu từ gu nhạc của bạn.</h2></div>
+    <div className={styles.sectionHeading}><span className={styles.eyebrow}>02 / TUYỂN CHỌN</span><h2 id="source-title">Bắt đầu từ gu nhạc của bạn.</h2></div>
     <div className={styles.tabs} aria-label="Nguồn bài hát">
       <button type="button" aria-pressed={mode === 'search'} onClick={() => changeMode('search')}><Search size={16} aria-hidden="true" /> Tìm bài hát</button>
       <button type="button" aria-pressed={mode === 'playlist'} onClick={() => changeMode('playlist')}><Link2 size={16} aria-hidden="true" /> Nhập playlist</button>
       <button type="button" aria-pressed={mode === 'musicweb'} onClick={() => changeMode('musicweb')}><ListMusic size={16} aria-hidden="true" /> Từ MusicWeb</button>
     </div>
     {mode === 'search' ? <>
+      <p className={styles.description}>Tìm video nhạc trên YouTube để vừa nghe vừa xem khi đọ nhạc.</p>
       <form className={styles.inputRow} onSubmit={event => { event.preventDefault(); void search(query) }}>
         <label className={styles.srOnly} htmlFor="song-query">Tìm bài hát</label>
         <Search size={19} aria-hidden="true" />
-        <input id="song-query" value={query} onChange={event => changeQuery(event.target.value)} placeholder="Tên bài hát hoặc nghệ sĩ…" autoComplete="off" />
+        <input id="song-query" value={query} onChange={event => changeQuery(event.target.value)} placeholder="Tên bài hát, nghệ sĩ hoặc link video YouTube…" autoComplete="off" />
         <button type="submit" className={styles.smallButton} disabled={!query.trim()}>Tìm kiếm</button>
       </form>
       <div className={styles.seeds}><span>Thử nghe</span>{SEEDS.map(seed => <button key={seed} type="button" onClick={() => { setQuery(seed); void search(seed) }}>{seed}</button>)}</div>
     </> : mode === 'playlist' ? <>
-      <p className={styles.description}>Mang playlist yêu thích vào cuộc đấu. Hỗ trợ Spotify, YouTube và SoundCloud.</p>
+      <p className={styles.description}>Mang playlist YouTube yêu thích vào cuộc đấu để xem video. Hỗ trợ cả Spotify và SoundCloud.</p>
       <form className={styles.importForm} onSubmit={event => { event.preventDefault(); void importPlaylist() }}>
         <label htmlFor="playlist-link" className={styles.srOnly}>Link playlist</label>
         <input id="playlist-link" type="url" required value={url} onChange={event => setUrl(event.target.value)} placeholder="Dán link playlist công khai…" />
@@ -203,7 +204,7 @@ export function SourcePicker({ selected, onAdd, onPreview }: {
         const added = selectedIds.has(battleTrackKey(track))
         return <div key={track.id} className={styles.trackRow}>
           <TrackArtwork track={track} />
-          <div className={styles.trackInfo}><strong>{track.title}</strong><span>{track.artist}</span></div>
+          <div className={styles.trackInfo}><strong>{track.title}</strong><span>{track.artist} · YouTube</span></div>
           <button type="button" className={styles.iconButton} aria-label={`Nghe thử ${track.title}`} title="Nghe thử" onClick={() => onPreview(track)}><Headphones size={18} aria-hidden="true" /></button>
           <button type="button" className={styles.addButton} disabled={added} aria-label={`${added ? 'Đã thêm' : 'Thêm'} ${track.title}`} onClick={() => addResults([track])}>{added ? <Check size={17} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />}</button>
         </div>

@@ -58,8 +58,8 @@
 .heroCompact h1 br { display: none; }
 .heroCompact .heroAside { display: none; }
 .contentAnchor { scroll-margin-top: 20px; }
-.setupGrid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); border-top: 1px solid var(--hair-strong); border-bottom: 1px solid var(--hair-strong); }
-.sourcePanel { min-width: 0; padding: 32px 36px 32px 0; }
+.setupGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr); border-top: 1px solid var(--hair-strong); border-bottom: 1px solid var(--hair-strong); }
+.sourcePanel { min-width: 0; padding: 32px 0 32px 36px; border-left: 1px solid var(--hair-strong); }
 .root .sectionHeading h2, .root .poolTitle h2 { font-family: var(--font-fraunces), Georgia, serif; font-size: 24px !important; font-weight: 400 !important; letter-spacing: -.5px; line-height: 1.35; margin: 12px 0 25px; }
 .tabs { display: flex; gap: 26px; border-bottom: 1px solid var(--hair); margin-bottom: 24px; }
 .tabs button { background: none; color: var(--paper-dim); border: 0; border-bottom: 2px solid transparent; display: flex; align-items: center; gap: 8px; padding: 0 0 12px; font-size: 12px; }
@@ -107,7 +107,7 @@
 .iconButton:hover { color: var(--paper); background: var(--surface-3); }
 .addButton { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--hair-strong); border-radius: 6px; color: var(--accent-strong); background: var(--surface); flex-shrink: 0; }
 .addButton:disabled { opacity: .65 !important; border-color: transparent; background: transparent; }
-.poolPanel { padding: 32px 0 25px 32px; border-left: 1px solid var(--hair-strong); min-width: 0; }
+.poolPanel { padding: 32px 32px 25px 0; min-width: 0; }
 .poolHeading { display: flex; align-items: center; justify-content: space-between; color: var(--accent); }
 .poolTitle h2 { margin-bottom: 8px; }
 .poolTitle > span { display: block; font-size: 11px; color: var(--accent-strong); }
@@ -341,8 +341,8 @@
 @media (max-width: 1000px) {
   .root { padding: 0 28px; }
   .mastheadNote { display: none; }
-  .sourcePanel { padding-right: 24px; }
-  .poolPanel { padding-left: 24px; }
+  .sourcePanel { padding-left: 24px; }
+  .poolPanel { padding-right: 24px; }
   .heroAside { max-width: 280px; }
   .heroAside p { font-size: 12px; }
   .desktopBreak { display: none; }
@@ -365,10 +365,10 @@
   .heroAside p br { display: none; }
   .heroFootnote { font-size: 10px; }
   .setupGrid { grid-template-columns: minmax(0, 1fr); }
-  .sourcePanel { padding: 25px 0; }
+  .sourcePanel { padding: 25px 0; border-left: 0; border-top: 1px solid var(--hair-strong); }
   .root .sectionHeading h2, .root .poolTitle h2 { font-size: 23px !important; }
   .sourceEmpty { min-height: 200px; padding-top: 25px; }
-  .poolPanel { padding: 25px 0; border-left: 0; border-top: 1px solid var(--hair-strong); }
+  .poolPanel { padding: 25px 0; }
   .poolEmpty { min-height: 150px; }
   .sizeOptions { gap: 7px; }
   .sizeOptions button { min-height: 40px; padding: 6px 12px; }

@@ -186,9 +186,8 @@ export default function SpotifyLabPage() {
             onCreate={createDeck}
             onDeleted={id => { if (selectedDeck?.id === id) { setSelectedDeck(null); window.history.replaceState(null, '', '/spotify-lab') } }} />
           : <div className={styles.setupGrid}>
-            <SourcePicker selected={pool} onAdd={tracks => setPool(previous => mergeBattleTracks(previous, tracks))} onPreview={preview} />
             <aside className={styles.poolPanel} aria-labelledby="pool-title">
-              <div className={styles.poolHeading}><span className={styles.eyebrow}>02 / DANH SÁCH THI ĐẤU</span><ListMusic size={21} strokeWidth={1.4} aria-hidden="true" /></div>
+              <div className={styles.poolHeading}><span className={styles.eyebrow}>01 / DANH SÁCH THI ĐẤU</span><ListMusic size={21} strokeWidth={1.4} aria-hidden="true" /></div>
               <div className={styles.poolTitle}><h2 id="pool-title">Sân khấu của bạn.</h2><span>{pool.length} bài đã chọn</span></div>
               {pool.length ? <>
                 <div className={styles.poolActions}><span>Các bài trùng được tự động bỏ qua.</span><button type="button" onClick={() => { setCurrent(null); setClearedTracks(pool); setPool([]) }}>Xóa tất cả</button></div>
@@ -207,6 +206,7 @@ export default function SpotifyLabPage() {
                 <div className={styles.publishPrompt}><button type="button" className={styles.secondaryButton} disabled={pool.length < 2} onClick={() => setPublishOpen(true)}><Globe2 size={16} aria-hidden="true" /> {selectedDeck?.is_owner ? 'Cập nhật bộ bài' : 'Đăng bộ bài'}</button><p className={styles.finePrint}>{selectedDeck?.is_owner ? 'Lưu thay đổi để mọi người chơi phiên bản mới.' : 'Lưu gu nhạc của bạn để mọi người cùng chơi.'}</p></div>
               </div>
             </aside>
+            <SourcePicker selected={pool} onAdd={tracks => setPool(previous => mergeBattleTracks(previous, tracks))} onPreview={preview} />
           </div>}
       </div>
       <div ref={previewRef} className={styles.previewAnchor}>{current && <PreviewPlayer key={current.id} track={current} onClose={() => setCurrent(null)} />}</div>

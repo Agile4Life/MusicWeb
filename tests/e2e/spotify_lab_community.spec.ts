@@ -13,7 +13,7 @@ async function prepare(page: Page, owner = false) {
     if (route.request().method() === 'DELETE') return route.fulfill({ json: { success: true } })
     return route.fulfill({ json: { deck: { ...original, is_owner: owner } } })
   })
-  await page.route('**/api/spotify/search?**', route => route.fulfill({ json: { tracks } }))
+  await page.route('**/api/search?**', route => route.fulfill({ json: { tracks } }))
   await page.route('https://open.spotify.com/**', route => route.abort())
 }
 

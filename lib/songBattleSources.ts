@@ -141,7 +141,7 @@ export async function fetchBattleTracks(endpoint: string, signal: AbortSignal): 
     const res = await fetch(endpoint, { signal: AbortSignal.any([signal, timeout]) })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Không tải được bài hát. Vui lòng thử lại.')
-    const items: unknown[] = Array.isArray(data) ? data : Array.isArray(data.tracks) ? data.tracks : []
+    const items: unknown[] = Array.isArray(data) ? data : Array.isArray(data.tracks) ? data.tracks : Array.isArray(data.youtube) ? data.youtube : []
     return mergeBattleTracks([], items.map(normalizeBattleTrack).filter((track): track is BattleTrack => track !== null))
   } catch (error) {
     if (timeout.aborted && !signal.aborted) throw new Error('Nguồn nhạc phản hồi quá lâu. Vui lòng thử lại.')
