@@ -99,7 +99,7 @@ test('adding reports feedback and clearing can be undone on mobile', async ({ pa
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
-test('publish form explains local-source limits and prevents an invalid submission', async ({ page }) => {
+test('publish form allows MusicWeb tracks with valid stream URLs', async ({ page }) => {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { user: { name: 'Author', email: 'author@example.test' }, expires: '2099-01-01T00:00:00Z' } }))
   await page.reload()
   await page.getByRole('button', { name: 'Tạo cuộc đấu', exact: true }).click()
@@ -109,6 +109,6 @@ test('publish form explains local-source limits and prevents an invalid submissi
   await page.getByRole('button', { name: 'Thêm playlist Local songs' }).click()
   await page.getByRole('button', { name: 'Đăng bộ bài', exact: true }).click()
   await page.getByLabel('Tên bộ bài').fill('My deck')
-  await expect(page.getByRole('dialog').getByRole('alert')).toContainText('2 bài từ nguồn MusicWeb')
-  await expect(page.getByRole('button', { name: 'Đăng công khai', exact: true })).toBeDisabled()
+  await expect(page.getByRole('dialog').getByRole('alert')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Đăng công khai', exact: true })).toBeEnabled()
 })

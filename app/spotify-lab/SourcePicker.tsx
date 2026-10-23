@@ -5,6 +5,7 @@ import { Search, Link2, Plus, Check, Headphones, ArrowUpRight, Loader2, ListMusi
 import { fetchBattleTracks, playlistEndpoint, normalizeBattleTrack, mergeBattleTracks, battleTrackKey, type BattleTrack } from '@/lib/songBattleSources'
 import { communityRequest } from './communityClient'
 import { TrackArtwork } from './TrackArtwork'
+import { AlbumSourcePicker } from './AlbumSourcePicker'
 import styles from './lab.module.css'
 
 interface MusicWebPlaylist {
@@ -171,6 +172,7 @@ export function SourcePicker({ selected, onAdd, onPreview }: {
       </form>
       <p className={styles.finePrint}>Bài được thêm vào ván chơi này. Thư viện cá nhân của bạn không thay đổi.</p>
     </> : <>
+      <AlbumSourcePicker onAdd={onAdd} />
       <p className={styles.description}>Chọn playlist có sẵn trên MusicWeb để thêm tất cả bài vào cuộc đấu.</p>
       {loadingPlaylists ? <p role="status" className={styles.feedback}><Loader2 size={16} aria-hidden="true" /> Đang tải playlist…</p>
         : playlists.length ? <div className={styles.results}>

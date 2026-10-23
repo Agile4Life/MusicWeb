@@ -51,6 +51,29 @@ export function validateCommunityDeckInput(value: unknown): CommunityDeckInput {
     const normalized = normalizeBattleTrack(item)
     if (!normalized) throw new CommunityDeckValidationError('Bài hát không hợp lệ.')
     const { source } = normalized
+    if (source === 'musicweb') {
+      if (!/^[A-Za-z0-9_-]{1,160}$/.test(normalized.id)) throw new CommunityDeckValidationError('Mã bài hát không hợp lệ.')
+      const stream = normalized.stream_url
+      let safe = false
+      if (stream && stream.length <= 2048) {
+        try {
+          const url = new URL(stream, 'https://musicweb.invalid')
+          safe = stream.startsWith('https://') && !url.username && !url.password
+          if (stream.startsWith('/api/')) {
+            safe = ['/api/drive-stream', '/api/nhaccuatui/stream', '/api/soundcloud/stream'].includes(url.pathname)
+          }
+        } catch { /* Reject invalid playback URLs. */ }
+      }
+      if (!safe) throw new CommunityDeckValidationError('Bài từ MusicWeb cần có nguồn âm thanh hợp lệ để đăng công khai.')
+      const track: BattleTrack = {
+        id: normalized.id, source, title: text(normalized.title, 300, true), artist: text(normalized.artist, 300, true),
+        album: text(normalized.album, 300), duration: Math.min(normalized.duration, 86400),
+        cover_url: normalized.cover_url?.startsWith('https://') ? text(normalized.cover_url, 2048) : null,
+        preview_url: null, source_url: null, stream_url: stream,
+      }
+      if (!tracks.has(track.id)) tracks.set(track.id, track)
+      continue
+    }
     const sourceId = (source === 'spotify' ? normalized.spotify_id : source === 'youtube' ? normalized.youtube_id : normalized.soundcloud_id) || ''
     const pattern = source === 'spotify' ? /^[A-Za-z0-9]{1,64}$/ : source === 'youtube' ? /^[A-Za-z0-9_-]{1,64}$/ : /^[0-9]{1,30}$/
     if (!pattern.test(sourceId)) throw new CommunityDeckValidationError('Mã bài hát không hợp lệ.')

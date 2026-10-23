@@ -41,6 +41,17 @@ beforeEach(() => { state.user = null; state.rows = []; state.error = null })
 async function publish(user = 'owner', extra = {}) { state.user = user; const res = await POST(request('POST', { ...payload, ...extra })); expect(res.status).toBe(201); return (await res.json()).deck }
 
 describe('community deck HTTP contract', () => {
+  it('publishes album audio that guests can reopen and the owner can update', async () => {
+    const deck = await publish('owner', { tracks: [
+      { id: 'itunes-123', source: 'itunes', title: 'Album one', file_path: 'https://audio.example/one.m4a' },
+      { id: 'itunes-456', source: 'itunes', title: 'Album two', file_path: 'https://audio.example/two.m4a' },
+    ] })
+    state.user = null
+    const reopened = await (await detail(request('GET'), context(deck.id))).json()
+    expect(reopened.deck.tracks[0]).toMatchObject({ source: 'musicweb', stream_url: 'https://audio.example/one.m4a' })
+    state.user = 'owner'
+    expect((await PATCH(request('PATCH', { ...payload, tracks: reopened.deck.tracks, expectedUpdatedAt: deck.updated_at }), context(deck.id))).status).toBe(200)
+  })
   it('requires authentication to publish and ignores forged owner fields', async () => {
     expect((await POST(request('POST', payload))).status).toBe(401)
     expect((await PATCH(request('PATCH', payload), context(crypto.randomUUID()))).status).toBe(401)

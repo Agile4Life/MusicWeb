@@ -61,7 +61,8 @@ export function normalizeBattleTrack(value: unknown): BattleTrack | null {
   let source: BattleTrack['source']
   // Check if SoundCloud URL is in file_path (MusicWeb DB stores SC permalink there)
   const isSoundCloudUrl = filePath.includes('soundcloud.com')
-  if (raw.source === 'youtube' || (!spotifyId && youtubeId)) source = 'youtube'
+  if (raw.source === 'musicweb' || raw.source === 'itunes' || raw.source === 'deezer' || /^deezer-\d+$/.test(string(raw.id)) || /^\d+$/.test(spotifyId)) source = 'musicweb'
+  else if (raw.source === 'youtube' || (!spotifyId && youtubeId)) source = 'youtube'
   else if (soundcloudId) source = 'soundcloud'
   else if (spotifyId) source = 'spotify'
   else if (driveFileId || nctId || isSoundCloudUrl || filePath || raw.source === 'local' || raw.source === 'nhaccuatui' || raw.source === 'itunes' || raw.source === 'deezer' || raw.source === 'soundcloud' || raw.source === 'musicweb') source = 'musicweb'
@@ -103,7 +104,7 @@ export function normalizeBattleTrack(value: unknown): BattleTrack | null {
     artist: string(raw.artist) || string(raw.artist_name) || 'Chưa rõ nghệ sĩ',
     album: string(raw.album) || string(raw.album_title) || '', cover_url: webUrl(raw.cover_url),
     duration: typeof raw.duration === 'number' && Number.isFinite(raw.duration) ? Math.max(0, raw.duration) : 0,
-    spotify_id: spotifyId || undefined, youtube_id: youtubeId || undefined, soundcloud_id: soundcloudId || undefined,
+    spotify_id: source === 'musicweb' ? undefined : spotifyId || undefined, youtube_id: youtubeId || undefined, soundcloud_id: soundcloudId || undefined,
     drive_file_id: driveFileId || undefined, nhaccuatui_id: nctId || undefined,
     preview_url: webUrl(raw.preview_url),
     stream_url: streamUrl || (typeof raw.stream_url === 'string' ? raw.stream_url : undefined),

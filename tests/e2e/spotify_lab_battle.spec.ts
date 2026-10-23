@@ -27,6 +27,50 @@ test.beforeEach(async ({ page }) => {
   await page.getByRole('button', { name: 'Tạo cuộc đấu', exact: true }).click()
 })
 
+test('imports a main-site album, publishes its native audio and keeps portrait and landscape covers square', async ({ page }) => {
+  const albumTracks = [0, 1].map(i => ({ id: `itunes-${i + 123}`, source: 'itunes', title: `Album song ${i}`, artist: 'Artist', file_path: `https://audio.test/${i}.m4a`, cover_url: `https://covers.test/${i}.svg` }))
+  await page.route('**/api/albums/new-releases', route => route.fulfill({ json: [{ id: 'itunes-42', name: 'Main album', artist: 'Artist', cover_url: null }] }))
+  await page.route('**/api/albums/itunes-42', route => route.fulfill({ json: { tracks: albumTracks } }))
+  await page.route('**/api/playlists', route => route.fulfill({ json: { playlists: [] } }))
+  await page.route('https://covers.test/**', route => route.fulfill({ contentType: 'image/svg+xml', body: `<svg xmlns="http://www.w3.org/2000/svg" width="${route.request().url().includes('0.svg') ? 800 : 200}" height="400"><rect width="100%" height="100%" fill="red"/></svg>` }))
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { user: { id: 'owner', name: 'Album owner' }, expires: '2099-01-01' } }))
+  await page.reload()
+  await page.getByRole('button', { name: 'Tạo cuộc đấu', exact: true }).click()
+  await page.getByRole('button', { name: 'Từ MusicWeb', exact: true }).click()
+  await page.getByRole('button', { name: 'Thêm album Main album' }).click()
+  await expect(page.getByText('2 bài đã chọn', { exact: true })).toBeVisible()
+  let published: { tracks: { source: string; stream_url: string }[] } | undefined
+  await page.route('**/api/song-battles', async route => {
+    published = route.request().postDataJSON()
+    await route.fulfill({ status: 201, json: { deck: { ...published, id: '123e4567-e89b-42d3-a456-426614174000', is_owner: true, track_count: 2 } } })
+  })
+  await page.getByRole('button', { name: 'Đăng bộ bài', exact: true }).click()
+  await page.getByLabel('Tên bộ bài', { exact: true }).fill('Album battle')
+  await page.getByRole('button', { name: 'Đăng công khai', exact: true }).click()
+  await expect(page.getByText('Bộ bài đã được đăng công khai.', { exact: true })).toBeVisible()
+  expect(published?.tracks.map(track => track.source)).toEqual(['musicweb', 'musicweb'])
+  expect(published?.tracks[0].stream_url).toBe('https://audio.test/0.m4a')
+  await page.getByRole('button', { name: 'Bắt đầu đọ nhạc' }).click()
+  for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport)
+    const covers = page.locator('article audio').locator('..').locator('img')
+    await expect(covers).toHaveCount(2)
+    const sizes = await covers.evaluateAll(images => images.map(img => { const box = img.getBoundingClientRect(); return { width: box.width, height: box.height } }))
+    for (const size of sizes) {
+      expect(size.width).toBeGreaterThan(100)
+      expect(Math.abs(size.width - size.height)).toBeLessThan(1)
+    }
+    expect(sizes[0].width).toBe(sizes[1].width)
+  }
+})
+
+test('opens the builder with an album linked from the main site', async ({ page }) => {
+  await page.route('**/api/albums/itunes-42', route => route.fulfill({ json: { tracks: tracks.slice(0, 2) } }))
+  await page.goto('/spotify-lab?album=itunes-42')
+  await expect(page.getByText('2 bài đã chọn', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Đăng bộ bài', exact: true })).toBeEnabled()
+})
+
 test('imports a playlist, completes a bracket, undoes the final and plays again', async ({ page }) => {
   await page.screenshot({ path: 'scratch/spotify-lab-desktop.png', fullPage: true })
   await expect(page.getByRole('button', { name: 'Bắt đầu đọ nhạc' })).toBeDisabled()

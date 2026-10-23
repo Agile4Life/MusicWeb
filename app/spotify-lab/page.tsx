@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, ArrowRight, Disc3, Headphones, ListMusic, Music2, X, Shuffle, Globe2 } from 'lucide-react'
 import { createBattle, chooseWinner, undoChoice, type Battle } from '@/lib/songBattle'
-import { mergeBattleTracks, type BattleTrack } from '@/lib/songBattleSources'
+import { fetchBattleTracks, mergeBattleTracks, type BattleTrack } from '@/lib/songBattleSources'
 import { SourcePicker } from './SourcePicker'
 import { BattleView } from './BattleView'
 import { PreviewPlayer } from './PreviewPlayer'
@@ -71,7 +71,20 @@ export default function SpotifyLabPage() {
     queueMicrotask(() => {
       if (disposed) return
       const id = new URLSearchParams(window.location.search).get('deck')
+      const albumId = new URLSearchParams(window.location.search).get('album')
       if (id) void openDeck(id)
+      else if (albumId) {
+        const controller = new AbortController()
+        deckRequest.current = controller
+        setView('builder'); setOpeningId(albumId)
+        void fetchBattleTracks(`/api/albums/${encodeURIComponent(albumId)}`, controller.signal).then(tracks => {
+          if (controller.signal.aborted) return
+          setPool(tracks)
+          setCommunityNotice(tracks.length ? `Đã nhập ${tracks.length} bài từ album. Bạn có thể đăng bộ bài công khai.` : 'Album này chưa có bài hát có thể nhập.')
+        }).catch(error => {
+          if (!controller.signal.aborted) setCommunityError(error instanceof Error ? error.message : 'Không nhập được album.')
+        }).finally(() => { if (!controller.signal.aborted) setOpeningId(null) })
+      }
       else {
         try {
           const saved = sessionStorage.getItem('musicweb-song-battle-draft')

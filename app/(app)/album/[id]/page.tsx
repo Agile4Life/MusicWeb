@@ -264,6 +264,13 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
               <Play className="w-4 h-4 fill-current" />
               <span>Phát Album</span>
             </button>
+            <button
+              onClick={() => router.push(`/spotify-lab?album=${encodeURIComponent(albumId)}`)}
+              className="font-bold px-4 py-3 rounded-full flex items-center gap-2 text-xs border bg-white/10 hover:bg-white/20 text-white border-white/10"
+            >
+              <DiscAlbum className="w-4 h-4" />
+              <span>Tạo bộ bài đọ nhạc</span>
+            </button>
 
             <button
               onClick={() => {

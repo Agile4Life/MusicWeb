@@ -5,6 +5,21 @@ const track = (id: string, extra = {}) => ({ spotify_id: id, title: 'Song', arti
 const input = (tracks = [track('abc'), track('def')]) => ({ name: ' Deck ', description: '', creator_name: 'Alias', tracks })
 
 describe('community deck publication', () => {
+  it('publishes album audio and keeps it playable after normalizing the public snapshot', () => {
+    const result = validateCommunityDeckInput(input([
+      { id: 'itunes-123', source: 'itunes', title: 'Album song', file_path: 'https://audio.example/song.m4a', user_id: 'private' } as never,
+      { id: 'deezer-456', source: 'spotify', spotify_id: '456', title: 'Deezer song', file_path: 'https://audio.example/preview.mp3' } as never,
+    ]))
+    expect(result.tracks.map(t => t.source)).toEqual(['musicweb', 'musicweb'])
+    expect(result.tracks[0]).toMatchObject({ stream_url: 'https://audio.example/song.m4a', preview_url: null })
+    expect(result.tracks[0]).not.toHaveProperty('user_id')
+    expect(validateCommunityDeckInput({ ...input(), tracks: result.tracks }).tracks).toEqual(result.tracks)
+  })
+  it.each(['javascript:alert(1)', '//evil.test/audio', '/api/private?token=secret', 'https://user:password@example.com/audio'])('rejects unsafe MusicWeb stream %s', stream_url => {
+    expect(() => validateCommunityDeckInput(input([
+      { id: 'local-123', source: 'musicweb', title: 'Song', stream_url } as never, track('abc'),
+    ]))).toThrow()
+  })
   it('canonicalizes source identities and removes private fields, spoofed IDs and previews', () => {
     const result = validateCommunityDeckInput(input([
       track('abc', { id: 'collision', preview_url: 'https://secret.test/token', user_id: 'secret', youtube_id: 'forged' }),

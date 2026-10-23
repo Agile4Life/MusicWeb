@@ -29,6 +29,12 @@ describe('battle playlist sources', () => {
     expect(mergeBattleTracks([], [song, song])).toHaveLength(1)
   })
 
+  it('plays cached Deezer album rows as native audio instead of Spotify IDs', () => {
+    expect(normalizeBattleTrack({ id: 'db-track', source: 'spotify', spotify_id: '456', title: 'Album track', file_path: 'https://cdn.example/preview.mp3' })).toMatchObject({
+      source: 'musicweb', stream_url: 'https://cdn.example/preview.mp3', spotify_id: undefined,
+    })
+  })
+
   it('uses the selected provider identity when imported rows contain multiple IDs', () => {
     const first = normalizeBattleTrack({ id: 'db-1', source: 'youtube', spotify_id: 'same', youtube_id: 'one', title: 'One' })!
     const second = normalizeBattleTrack({ id: 'db-2', source: 'youtube', spotify_id: 'same', youtube_id: 'two', title: 'Two' })!
