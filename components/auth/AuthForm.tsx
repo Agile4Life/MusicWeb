@@ -11,7 +11,7 @@ import { useLanguage } from '@/components/i18n/LanguageContext'
 import { LanguageSelector } from '@/components/i18n/LanguageSelector'
 import { useTheme } from '@/components/theme/ThemeContext'
 import { MiniEqualizer } from '@/components/player/MiniEqualizer'
-import { scheduleAuthRedirect } from './authNavigation'
+import { safeAuthReturnTo, scheduleAuthRedirect } from './authNavigation'
 import { createPasswordSession } from './passwordSession'
 import { Lock, Mail, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, Info, Music } from 'lucide-react'
 
@@ -69,6 +69,7 @@ export function AuthForm({ mode }: AuthFormProps) {
   const { themeStyle } = useTheme()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const returnTo = safeAuthReturnTo(searchParams.get('returnTo'))
   const supabase = createClient()
   const cardRef = useRef<HTMLDivElement | null>(null)
 
@@ -199,7 +200,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         if (signInError || !signInData.session?.access_token) {
           setSuccessMsg('Đăng ký thành công! Hãy đăng nhập bằng tên tài khoản và mật khẩu vừa tạo.')
           setAuthMode('login')
-          setTimeout(() => router.push('/login'), 2200)
+          setTimeout(() => router.push(returnTo === '/spotify-lab' ? '/login?returnTo=%2Fspotify-lab' : '/login'), 2200)
           setLoading(false)
           return
         }
@@ -207,7 +208,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         markEmailAsAllowed(regData.authEmail)
         setSuccessMsg('Đăng ký thành công! Đang chuyển hướng...')
         await createPasswordSession(signIn, regData.authEmail, signInData.session.access_token)
-        scheduleAuthRedirect(router, 800)
+        scheduleAuthRedirect(router, 800, returnTo)
 
       } else {
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -242,7 +243,7 @@ export function AuthForm({ mode }: AuthFormProps) {
             if (retryData.session?.access_token) {
               setSuccessMsg('Đăng nhập thành công! Đang chuyển hướng...')
               await createPasswordSession(signIn, authEmail, retryData.session.access_token)
-              scheduleAuthRedirect(router, 800)
+              scheduleAuthRedirect(router, 800, returnTo)
               return
             }
           }
@@ -260,7 +261,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         }
 
         await createPasswordSession(signIn, authEmail, signInData.session.access_token)
-        scheduleAuthRedirect(router, 800)
+        scheduleAuthRedirect(router, 800, returnTo)
       }
 
     } catch (err: any) {
@@ -294,7 +295,7 @@ export function AuthForm({ mode }: AuthFormProps) {
     setError(null)
     setRawError(null)
     setSuccessMsg(null)
-    signIn('google', { callbackUrl: '/' })
+    signIn('google', { callbackUrl: returnTo })
   }
 
 

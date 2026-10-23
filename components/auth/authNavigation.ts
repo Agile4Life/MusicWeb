@@ -3,9 +3,13 @@ export type AuthRedirectRouter = {
   refresh: () => void
 }
 
-export function scheduleAuthRedirect(router: AuthRedirectRouter, delayMs: number) {
+export function safeAuthReturnTo(value?: string | null): '/' | '/spotify-lab' {
+  return value === '/spotify-lab' ? '/spotify-lab' : '/'
+}
+
+export function scheduleAuthRedirect(router: AuthRedirectRouter, delayMs: number, returnTo?: string | null) {
   return globalThis.setTimeout(() => {
-    router.replace('/')
+    router.replace(safeAuthReturnTo(returnTo))
     router.refresh()
   }, delayMs)
 }
