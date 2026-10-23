@@ -337,6 +337,9 @@
   0% { opacity: 0; transform: translateY(15px); }
   100% { opacity: 1; transform: translateY(0); }
 }
+
+.spin { animation: spinAnim 0.8s linear infinite; }
+@keyframes spinAnim { to { transform: rotate(360deg); } }
 @media (max-width: 1000px) {
   .root { padding: 0 28px; }
   .mastheadNote { display: none; }
