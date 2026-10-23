@@ -10,6 +10,21 @@
   isolation: isolate;
 }
 .root * { box-sizing: border-box; }
+.rootBattle { height: 100dvh; overflow: hidden; padding-bottom: 0; display: flex; flex-direction: column; }
+.rootBattle .shell { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.rootBattle .contentAnchor { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.rootBattle .battleSection { flex: 1; display: flex; flex-direction: column; min-height: 0; padding-top: 0; }
+.rootBattle .battleToolbar { flex-shrink: 0; }
+.rootBattle .progress { flex-shrink: 0; }
+.rootBattle .matchHeading { flex-shrink: 0; margin: 16px 0 14px; }
+.rootBattle .matchGrid { flex: 1; min-height: 0; margin-bottom: 0; }
+.rootBattle .contestant { display: flex; flex-direction: column; min-height: 0; }
+.rootBattle .contestantLabel { flex-shrink: 0; }
+.rootBattle .contestantHeader { flex-shrink: 0; }
+.rootBattle .contestantEmbed { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.rootBattle .contestantEmbed iframe { flex: 1; min-height: 0; height: auto; }
+.rootBattle .chooseButton { flex-shrink: 0; }
+.rootBattle .footer { flex-shrink: 0; padding: 12px 0; }
 .root button, .root input, .root textarea { font: inherit; }
 .root button { cursor: pointer; }
 .root button:disabled { cursor: not-allowed; opacity: .4; }

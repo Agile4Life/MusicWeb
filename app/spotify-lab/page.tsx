@@ -105,6 +105,14 @@ export default function SpotifyLabPage() {
     return () => window.removeEventListener('beforeunload', beforeUnload)
   }, [battle])
 
+  /* Lock body overflow when in active battle (full-viewport mode) */
+  useEffect(() => {
+    if (inBattle) {
+      document.body.style.overflow = 'hidden'
+      return () => { document.body.style.overflow = 'auto' }
+    }
+  }, [inBattle])
+
   function preview(track: BattleTrack) {
     setCurrent(previous => previous?.id === track.id ? null : track)
     requestAnimationFrame(() => previewRef.current?.scrollIntoView({ block: 'nearest', behavior: 'instant' }))
@@ -127,30 +135,33 @@ export default function SpotifyLabPage() {
     setExitDestination('/'); setExitPending(true)
   }
 
-  return <main className={styles.root} data-theme-style="minimal-flat">
+  return <main className={`${styles.root} ${inBattle ? styles.rootBattle : ''}`} data-theme-style="minimal-flat">
     <div className={styles.shell}>
-      <nav className={styles.masthead} aria-label="Điều hướng Spotify Lab">
-        <Link href="/" className={styles.wordmark} onClick={navigateHome}><Disc3 size={21} aria-hidden="true" /> music<span>/ lab</span></Link>
-        <span className={styles.mastheadNote}>A LITTLE LESS SCROLL. A LITTLE MORE SOUL.</span>
-        <Link href="/" className={styles.backLink} onClick={navigateHome}><ArrowLeft size={15} aria-hidden="true" /> MusicWeb</Link>
-      </nav>
-      <header className={battle ? styles.heroCompact : styles.hero}>
-        <div><span className={styles.eyebrow}><span className={styles.statusDot} /> SPOTIFY LAB / ĐỌ NHẠC</span>
-          <h1>Hai bài hát.<br />{' '}Một <em>lựa chọn.</em></h1>
-        </div>
-        <div className={styles.heroAside}><p>Đôi khi, gu nhạc chỉ cần một câu trả lời.<br />{' '}Nghe thử, chọn bài bạn yêu hơn và tìm ra<br className={styles.desktopBreak} /> ca khúc đứng đầu playlist của riêng mình.</p><span className={styles.heroFootnote}><Headphones size={14} aria-hidden="true" /> Đeo tai nghe. Tin cảm xúc.</span></div>
-      </header>
-      {!battle && <nav className={styles.modeNav} aria-label="Chế độ Spotify Lab">
-        <button type="button" aria-pressed={view === 'community'} onClick={() => { cancelDeckLoad(); setView('community'); setCurrent(null) }}><Globe2 size={16} aria-hidden="true" /> Bộ bài cộng đồng</button>
-        <button type="button" aria-pressed={view === 'builder'} onClick={() => { cancelDeckLoad(); setView('builder'); setCurrent(null) }}><Headphones size={16} aria-hidden="true" /> Tạo cuộc đấu</button>
-      </nav>}
-      {communityError && <p role="alert" className={styles.error}>{communityError}</p>}
-      {communityNotice && <p role="status" className={styles.notice}>{communityNotice}</p>}
-      {openingId && <p role="status" className={styles.feedback}>Đang mở bộ bài…</p>}
-      {selectedDeck && (view === 'builder' || battle) && <section className={styles.sharedDeck} aria-label="Bộ bài đang chơi">
-        <div><span className={styles.eyebrow}>BỘ BÀI CỘNG ĐỒNG</span><h2>{selectedDeck.name}</h2><p>bởi {selectedDeck.creator_name} · {selectedDeck.track_count} bài</p>{selectedDeck.description && <p>{selectedDeck.description}</p>}</div>
-        <DeckShare key={selectedDeck.id} id={selectedDeck.id} />
-      </section>}
+      {/* Hide masthead + hero + shared deck when in active battle */}
+      {!inBattle && <>
+        <nav className={styles.masthead} aria-label="Điều hướng Spotify Lab">
+          <Link href="/" className={styles.wordmark} onClick={navigateHome}><Disc3 size={21} aria-hidden="true" /> music<span>/ lab</span></Link>
+          <span className={styles.mastheadNote}>A LITTLE LESS SCROLL. A LITTLE MORE SOUL.</span>
+          <Link href="/" className={styles.backLink} onClick={navigateHome}><ArrowLeft size={15} aria-hidden="true" /> MusicWeb</Link>
+        </nav>
+        <header className={styles.hero}>
+          <div><span className={styles.eyebrow}><span className={styles.statusDot} /> SPOTIFY LAB / ĐỌ NHẠC</span>
+            <h1>Hai bài hát.<br />{' '}Một <em>lựa chọn.</em></h1>
+          </div>
+          <div className={styles.heroAside}><p>Đôi khi, gu nhạc chỉ cần một câu trả lời.<br />{' '}Nghe thử, chọn bài bạn yêu hơn và tìm ra<br className={styles.desktopBreak} /> ca khúc đứng đầu playlist của riêng mình.</p><span className={styles.heroFootnote}><Headphones size={14} aria-hidden="true" /> Đeo tai nghe. Tin cảm xúc.</span></div>
+        </header>
+        <nav className={styles.modeNav} aria-label="Chế độ Spotify Lab">
+          <button type="button" aria-pressed={view === 'community'} onClick={() => { cancelDeckLoad(); setView('community'); setCurrent(null) }}><Globe2 size={16} aria-hidden="true" /> Bộ bài cộng đồng</button>
+          <button type="button" aria-pressed={view === 'builder'} onClick={() => { cancelDeckLoad(); setView('builder'); setCurrent(null) }}><Headphones size={16} aria-hidden="true" /> Tạo cuộc đấu</button>
+        </nav>
+        {communityError && <p role="alert" className={styles.error}>{communityError}</p>}
+        {communityNotice && <p role="status" className={styles.notice}>{communityNotice}</p>}
+        {openingId && <p role="status" className={styles.feedback}>Đang mở bộ bài…</p>}
+        {selectedDeck && view === 'builder' && <section className={styles.sharedDeck} aria-label="Bộ bài đang chơi">
+          <div><span className={styles.eyebrow}>BỘ BÀI CỘNG ĐỒNG</span><h2>{selectedDeck.name}</h2><p>bởi {selectedDeck.creator_name} · {selectedDeck.track_count} bài</p>{selectedDeck.description && <p>{selectedDeck.description}</p>}</div>
+          <DeckShare key={selectedDeck.id} id={selectedDeck.id} />
+        </section>}
+      </>}
       <div ref={headingRef} className={styles.contentAnchor}>
         {battle ? <BattleView battle={battle} currentId={current?.id} onPreview={preview} onChoose={choose} onUndo={undo}
           onReplay={() => { setCurrent(null); setBattle(createBattle(battle.entrants, battle.entrants.length)) }} onExit={exit} />
@@ -179,7 +190,7 @@ export default function SpotifyLabPage() {
             </aside>
           </div>}
       </div>
-      <div ref={previewRef} className={styles.previewAnchor}>{current && <PreviewPlayer key={current.id} track={current} onClose={() => setCurrent(null)} />}</div>
+      {!inBattle && <div ref={previewRef} className={styles.previewAnchor}>{current && <PreviewPlayer key={current.id} track={current} onClose={() => setCurrent(null)} />}</div>}
       <footer className={styles.footer}><span>GOOD MUSIC. TOUGH CHOICES.</span><span>Made for your ears, by MusicWeb.</span></footer>
     </div>
     {publishOpen && <PublishDeckDialog tracks={pool} editing={selectedDeck?.is_owner ? selectedDeck : null} onClose={() => setPublishOpen(false)}
