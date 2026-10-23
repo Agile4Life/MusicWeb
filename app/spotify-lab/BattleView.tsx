@@ -65,11 +65,11 @@ export function BattleView({ battle, currentId, onPreview, onChoose, onUndo, onR
           </div>
           {track.source === 'youtube' && track.youtube_id ? (
             <div className={styles.contestantEmbed}>
-              <iframe title={`YouTube: ${track.title}`} src={`https://www.youtube.com/embed/${encodeURIComponent(track.youtube_id)}?rel=0`} width="100%" height="300" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowFullScreen />
+              <iframe title={`YouTube: ${track.title}`} src={`https://www.youtube.com/embed/${encodeURIComponent(track.youtube_id)}?rel=0`} width="100%" height="480" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowFullScreen />
             </div>
           ) : track.source === 'spotify' && track.spotify_id ? (
             <div className={styles.contestantEmbed}>
-              <iframe title={`Spotify: ${track.title}`} src={`https://open.spotify.com/embed/track/${encodeURIComponent(track.spotify_id)}?theme=0`} width="100%" height="180" allow="autoplay; encrypted-media" />
+              <iframe title={`Spotify: ${track.title}`} src={`https://open.spotify.com/embed/track/${encodeURIComponent(track.spotify_id)}?theme=0`} width="100%" height="280" allow="autoplay; encrypted-media" />
             </div>
           ) : (
             <button type="button" className={styles.coverButton} onClick={() => onPreview(track)} aria-label={`Nghe thử ${track.title}`}>
