@@ -9,8 +9,9 @@ export class DeckHttpError extends Error {
 export function json(value: unknown, status = 200): Response {
   return Response.json(value, { status, headers: { 'Cache-Control': 'private, no-store' } })
 }
-export function databaseError(error: { code?: string } | null): void {
+export function databaseError(error: { code?: string; message?: string; details?: string } | null): void {
   if (!error) return
+  console.error('[songBattle databaseError]', error)
   if (['42P01', 'PGRST205'].includes(error.code || '')) throw new DeckHttpError(503, 'Thư viện cộng đồng chưa được thiết lập. Bạn vẫn có thể tạo cuộc đấu và chơi ngay.')
   throw new DeckHttpError(500, 'Không thể tải hoặc lưu bộ bài. Vui lòng thử lại.')
 }
