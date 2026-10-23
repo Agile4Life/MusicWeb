@@ -29,6 +29,13 @@ describe('battle playlist sources', () => {
     expect(mergeBattleTracks([], [song, song])).toHaveLength(1)
   })
 
+  it('uses the selected provider identity when imported rows contain multiple IDs', () => {
+    const first = normalizeBattleTrack({ id: 'db-1', source: 'youtube', spotify_id: 'same', youtube_id: 'one', title: 'One' })!
+    const second = normalizeBattleTrack({ id: 'db-2', source: 'youtube', spotify_id: 'same', youtube_id: 'two', title: 'Two' })!
+    expect(mergeBattleTracks([], [first, second])).toHaveLength(2)
+    expect(mergeBattleTracks([first], [{ ...second, id: first.id }])).toHaveLength(1)
+  })
+
   it('bounds a stalled request and reports a retryable timeout', async () => {
     const deadline = new AbortController()
     const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(deadline.signal)

@@ -21,16 +21,19 @@ export function PublishDeckDialog({ tracks, editing, onClose, onSaved, onPreserv
   const saving = useRef(false)
   const [name, setName] = useState(editing?.name || '')
   const [description, setDescription] = useState(editing?.description || '')
-  const [creator, setCreator] = useState(editing?.creator_name || session?.user?.name || 'Thành viên MusicWeb')
+  const [creatorInput, setCreator] = useState<string | null>(null)
+  const creator = creatorInput ?? editing?.creator_name ?? session?.user?.name ?? 'Thành viên MusicWeb'
+  const localTracks = tracks.filter(track => track.source === 'musicweb').length
+  const canSave = tracks.length >= 2 && tracks.length <= 512 && !localTracks && Boolean(name.trim() && creator.trim())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   useEffect(() => { if (!dialog.current?.open) dialog.current?.showModal() }, [])
 
   async function save() {
-    if (saving.current) return
+    if (saving.current || !canSave || status !== 'authenticated') return
     saving.current = true; setBusy(true); setError('')
     try {
-      const { deck } = await saveCommunityDeck({ name, description, creator_name: creator, tracks }, editing)
+      const { deck } = await saveCommunityDeck({ name: name.trim(), description: description.trim(), creator_name: creator.trim(), tracks }, editing)
       onSaved(deck, Boolean(editing))
     } catch (err) { setError(err instanceof Error ? err.message : 'Không lưu được bộ bài.') }
     finally { saving.current = false; setBusy(false) }
@@ -48,8 +51,9 @@ export function PublishDeckDialog({ tracks, editing, onClose, onSaved, onPreserv
       <label htmlFor="deck-description">Mô tả bộ bài</label><textarea id="deck-description" maxLength={1000} value={description} onChange={event => setDescription(event.target.value)} placeholder="Một lời giới thiệu cho cuộc đấu của bạn…" rows={3} disabled={busy} />
       <label htmlFor="deck-creator">Tên hiển thị của bạn</label><input id="deck-creator" required maxLength={80} value={creator} onChange={event => setCreator(event.target.value)} disabled={busy} />
       {tracks.length > 512 && <p role="alert" className={styles.error}>Mỗi bộ bài tối đa 512 bài. Hãy bớt bài trước khi đăng.</p>}
+      {localTracks > 0 && <p role="alert" className={styles.error}>{localTracks} bài từ nguồn MusicWeb chỉ dùng để chơi tại đây. Để đăng công khai, hãy thay các bài này bằng bài từ Spotify, YouTube hoặc SoundCloud có mã bài hát.</p>}
       {error && <p role="alert" className={styles.error}>{error}</p>}
-      <div className={styles.publishActions}><button type="button" className={styles.secondaryButton} disabled={busy} onClick={onClose}>Hủy</button><button type="submit" className={styles.primaryButton} disabled={busy || tracks.length < 2 || tracks.length > 512}>{busy ? 'Đang lưu…' : editing ? 'Lưu thay đổi' : 'Đăng công khai'}</button></div>
+      <div className={styles.publishActions}><button type="button" className={styles.secondaryButton} disabled={busy} onClick={onClose}>Hủy</button><button type="submit" className={styles.primaryButton} disabled={busy || !canSave}>{busy ? 'Đang lưu…' : editing ? 'Lưu thay đổi' : 'Đăng công khai'}</button></div>
     </form>}
   </dialog>
 }

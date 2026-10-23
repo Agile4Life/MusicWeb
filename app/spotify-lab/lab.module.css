@@ -10,7 +10,7 @@
   isolation: isolate;
 }
 .root * { box-sizing: border-box; }
-.rootBattle { height: 100dvh; overflow: hidden; padding-bottom: 0; padding-left: 24px; padding-right: 24px; display: flex; flex-direction: column; }
+.rootBattle { min-height: 100dvh; padding-bottom: 0; padding-left: 24px; padding-right: 24px; display: flex; flex-direction: column; }
 .rootBattle .shell { flex: 1; display: flex; flex-direction: column; min-height: 0; max-width: none; }
 .rootBattle .contentAnchor { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .rootBattle .battleSection { flex: 1; display: flex; flex-direction: column; min-height: 0; padding-top: 0; }
@@ -258,37 +258,25 @@
 .publishDialog .publishActions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; }
 
 /* ── Battle choice animations ── */
-.contestant { transition: transform 0.5s cubic-bezier(.4,0,.2,1), opacity 0.5s cubic-bezier(.4,0,.2,1), filter 0.5s ease, border-color 0.3s ease; }
-.contestantWinner { animation: winnerPulse 0.7s cubic-bezier(.4,0,.2,1) forwards; position: relative; z-index: 2; }
-.contestantLoser { animation: loserFade 0.6s cubic-bezier(.4,0,.2,1) forwards; }
-.contestantWinner .chooseButton { background: var(--accent-strong) !important; color: var(--accent-ink) !important; border-color: var(--accent-strong) !important; animation: buttonCelebrate 0.5s ease forwards; box-shadow: 0 0 25px -5px var(--accent-strong); }
-.contestantWinner .contestantHeader { animation: headerGlow 0.7s ease forwards; }
-.matchGridChoosing .vs { animation: vsExit 0.4s ease forwards; }
-.vsExit { animation: vsExit 0.4s ease forwards; }
+.contestant { transition: transform 240ms cubic-bezier(.23,1,.32,1), opacity 200ms cubic-bezier(.23,1,.32,1); }
+.contestantWinner { transform: scale(1.015); position: relative; z-index: 2; }
+.contestantWinner::after { content: ''; position: absolute; inset: 0; border-radius: 16px; pointer-events: none; box-shadow: 0 0 40px -8px var(--accent-strong); animation: winnerGlow 240ms cubic-bezier(.23,1,.32,1) both; }
+.contestantLoser { opacity: 0.25; transform: scale(0.98); }
+.contestantWinner .chooseButton { background: var(--accent-strong) !important; color: var(--accent-ink) !important; border-color: var(--accent-strong) !important; animation: buttonCelebrate 160ms cubic-bezier(.23,1,.32,1) forwards; }
+.vsExit { animation: vsExit 160ms cubic-bezier(.23,1,.32,1) forwards; }
 
-@keyframes winnerPulse {
-  0% { transform: scale(1); }
-  30% { transform: scale(1.035); }
-  60% { transform: scale(1.02); }
-  100% { transform: scale(1.02); box-shadow: 0 0 50px -5px var(--accent-strong), 0 0 90px -15px var(--accent); border-radius: 16px; }
-}
-@keyframes loserFade {
-  0% { opacity: 1; transform: scale(1); filter: none; }
-  100% { opacity: 0.2; transform: scale(0.96); filter: grayscale(0.8) blur(1px); }
+@keyframes winnerGlow {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 @keyframes buttonCelebrate {
   0% { transform: scale(1); }
-  40% { transform: scale(1.08); }
+  40% { transform: scale(1.02); }
   100% { transform: scale(1); }
-}
-@keyframes headerGlow {
-  0% { text-shadow: none; }
-  50% { text-shadow: 0 0 20px var(--accent-strong); }
-  100% { text-shadow: 0 0 10px color-mix(in srgb, var(--accent-strong) 40%, transparent); }
 }
 @keyframes vsExit {
   0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(2) rotate(15deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
 }
 
 /* ── Champion celebration ── */
@@ -340,7 +328,7 @@
 }
 
 /* ── Match entrance ── */
-.matchGrid { animation: matchEnter 0.4s ease both; }
+.matchGrid { animation: matchEnter 200ms cubic-bezier(.23,1,.32,1) both; }
 @keyframes matchEnter {
   0% { opacity: 0; transform: translateY(15px); }
   100% { opacity: 1; transform: translateY(0); }
@@ -442,9 +430,12 @@
 @media (prefers-reduced-motion: reduce) {
   .contestant, .contestantWinner, .contestantLoser, .champion, .championMedal,
   .championArtwork, .matchGrid, .confettiPiece, .vs, .vsExit,
-  .contestantWinner .chooseButton, .contestantWinner .contestantHeader {
+  .contestantWinner .chooseButton, .contestantWinner::after,
+  .champion h3, .champion > p, .championActions {
     animation: none !important;
     transition: none !important;
   }
-  .contestantLoser { opacity: 0.25; filter: grayscale(0.8); }
+  .contestantWinner, .contestantLoser { transform: none; }
+  .confettiPiece { display: none; }
+  .vsExit { opacity: 0; }
 }

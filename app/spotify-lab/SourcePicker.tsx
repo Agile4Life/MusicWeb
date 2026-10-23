@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Search, Link2, Plus, Check, Headphones, ArrowUpRight, Loader2, ListMusic } from 'lucide-react'
-import { fetchBattleTracks, playlistEndpoint, normalizeBattleTrack, mergeBattleTracks, type BattleTrack } from '@/lib/songBattleSources'
+import { fetchBattleTracks, playlistEndpoint, normalizeBattleTrack, mergeBattleTracks, battleTrackKey, type BattleTrack } from '@/lib/songBattleSources'
+import { communityRequest } from './communityClient'
 import { TrackArtwork } from './TrackArtwork'
 import styles from './lab.module.css'
 
@@ -60,7 +61,8 @@ export function SourcePicker({ selected, onAdd, onPreview }: {
   function changeQuery(value: string) {
     setQuery(value)
     request.current?.abort()
-    setBusy(false)
+    setBusy(Boolean(value.trim()))
+    setResults([]); setError(''); setNotice('')
     if (debounce.current) clearTimeout(debounce.current)
     debounce.current = setTimeout(() => { void search(value) }, 400)
   }
@@ -68,43 +70,55 @@ export function SourcePicker({ selected, onAdd, onPreview }: {
   function changeMode(next: typeof mode) {
     request.current?.abort()
     if (debounce.current) clearTimeout(debounce.current)
-    setBusy(false); setMode(next); setError(''); setNotice('')
+    setBusy(false); setLoadingPlaylists(false); setImportingId(null); setMode(next); setError(''); setNotice('')
     if (next === 'musicweb' && !playlistsLoaded) void loadPlaylists()
   }
 
   async function loadPlaylists() {
+    request.current?.abort()
+    const controller = new AbortController()
+    request.current = controller
     setLoadingPlaylists(true); setError('')
     try {
-      const res = await fetch('/api/playlists')
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Không tải được danh sách playlist.')
+      const data = await communityRequest<{ playlists: MusicWebPlaylist[] }>('/api/playlists', { signal: controller.signal })
+      if (controller.signal.aborted) return
       setPlaylists(data.playlists || [])
       setPlaylistsLoaded(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không tải được playlist.')
-    } finally { setLoadingPlaylists(false) }
+      if (!controller.signal.aborted) setError(err instanceof Error ? err.message : 'Không tải được playlist.')
+    } finally { if (!controller.signal.aborted) setLoadingPlaylists(false) }
   }
 
   async function importMusicWebPlaylist(playlistId: string) {
+    request.current?.abort()
+    const controller = new AbortController()
+    request.current = controller
     setError(''); setNotice(''); setImportingId(playlistId)
     try {
-      const res = await fetch(`/api/playlists/${playlistId}`)
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Không mở được playlist.')
+      const data = await communityRequest<{ tracks: unknown[] }>(`/api/playlists/${encodeURIComponent(playlistId)}`, { signal: controller.signal })
+      if (controller.signal.aborted) return
       const rawTracks: unknown[] = Array.isArray(data.tracks) ? data.tracks : []
+      console.log('[MusicWeb Import] Raw tracks:', rawTracks.length, rawTracks.slice(0, 2))
       // normalizeBattleTrack handles all source detection (spotify/youtube/soundcloud/musicweb)
       const battleTracks = rawTracks
-        .map((t: any) => normalizeBattleTrack(t))
+        .map(t => {
+          const result = normalizeBattleTrack(t)
+          if (!result && t && typeof t === 'object') {
+            const raw = t as Record<string, unknown>
+            console.log('[MusicWeb Import] Filtered out:', raw.title, raw.source, raw.file_path)
+          }
+          return result
+        })
         .filter((t): t is BattleTrack => t !== null)
+      console.log('[MusicWeb Import] Battle tracks:', battleTracks.length)
 
       if (!battleTracks.length) { setNotice('Playlist này không có bài hát nào.'); return }
-      const ids = new Set(selectedRef.current.map(track => track.id))
-      const count = battleTracks.filter(track => !ids.has(track.id)).length
+      const count = mergeBattleTracks(selectedRef.current, battleTracks).length - selectedRef.current.length
       onAdd(battleTracks)
       setNotice(count ? `Đã thêm ${count} bài từ playlist.` : 'Các bài trong playlist này đã có trong danh sách.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không nhập được playlist.')
-    } finally { setImportingId(null) }
+      if (!controller.signal.aborted) setError(err instanceof Error ? err.message : 'Không nhập được playlist.')
+    } finally { if (!controller.signal.aborted) setImportingId(null) }
   }
 
   async function importPlaylist() {
@@ -119,8 +133,7 @@ export function SourcePicker({ selected, onAdd, onPreview }: {
       const tracks = await fetchBattleTracks(endpoint, controller.signal)
       if (controller.signal.aborted) return
       if (!tracks.length) throw new Error('Playlist không có bài phát được hoặc đang riêng tư. Thử playlist công khai khác.')
-      const ids = new Set(selectedRef.current.map(track => track.id))
-      const count = tracks.filter(track => !ids.has(track.id)).length
+      const count = mergeBattleTracks(selectedRef.current, tracks).length - selectedRef.current.length
       onAdd(tracks)
       setNotice(count ? `Đã thêm ${count} bài mới` : 'Các bài trong playlist này đã có trong danh sách.')
     } catch (err) {
@@ -128,7 +141,12 @@ export function SourcePicker({ selected, onAdd, onPreview }: {
     } finally { if (!controller.signal.aborted) setBusy(false) }
   }
 
-  const selectedIds = new Set(selected.map(track => track.id))
+  const selectedIds = new Set(selected.map(battleTrackKey))
+  function addResults(tracks: BattleTrack[]) {
+    const count = mergeBattleTracks(selectedRef.current, tracks).length - selectedRef.current.length
+    onAdd(tracks)
+    setNotice(count ? `Đã thêm ${count} bài vào danh sách thi đấu.` : 'Các bài này đã có trong danh sách thi đấu.')
+  }
   return <section className={styles.sourcePanel} aria-labelledby="source-title">
     <div className={styles.sectionHeading}><span className={styles.eyebrow}>01 / TUYỂN CHỌN</span><h2 id="source-title">Bắt đầu từ gu nhạc của bạn.</h2></div>
     <div className={styles.tabs} aria-label="Nguồn bài hát">
@@ -163,12 +181,12 @@ export function SourcePicker({ selected, onAdd, onPreview }: {
               {pl.cover_url ? <img src={pl.cover_url} alt="" loading="lazy" /> : <ListMusic size={20} aria-hidden="true" />}
             </div>
             <div className={styles.trackInfo}><strong>{pl.name}</strong><span>{pl.description || 'Playlist'}{pl.is_public ? '' : ' · Riêng tư'}</span></div>
-            <button type="button" className={styles.addButton} disabled={importingId === pl.id} onClick={() => void importMusicWebPlaylist(pl.id)} aria-label={`Thêm playlist ${pl.name}`}>
+            <button type="button" className={styles.addButton} disabled={Boolean(importingId)} onClick={() => void importMusicWebPlaylist(pl.id)} aria-label={`Thêm playlist ${pl.name}`}>
               {importingId === pl.id ? <Loader2 size={17} className={styles.spin} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />}
             </button>
           </div>)}
         </div>
-        : <div className={styles.sourceEmpty}>
+        : error ? <button type="button" className={styles.secondaryButton} onClick={() => void loadPlaylists()}>Thử tải lại playlist</button> : <div className={styles.sourceEmpty}>
           <ListMusic size={32} strokeWidth={1.2} aria-hidden="true" />
           <h3>Chưa có playlist nào.</h3>
           <p>Tạo playlist trên MusicWeb để sử dụng ở đây.<br />Hoặc dùng tab Nhập playlist để dán link.</p>
@@ -178,14 +196,14 @@ export function SourcePicker({ selected, onAdd, onPreview }: {
     {error && <p role="alert" className={styles.error}>{error}</p>}
     {notice && <p role="status" className={styles.notice}>{notice}</p>}
     {mode === 'search' && results.length > 0 ? <div className={styles.results} aria-label="Kết quả tìm kiếm" aria-busy={busy}>
-      <div className={styles.listHeading}><span>{results.length} KẾT QUẢ</span><button type="button" onClick={() => onAdd(results)}><Plus size={14} aria-hidden="true" /> Thêm tất cả</button></div>
+      <div className={styles.listHeading}><span>{results.length} KẾT QUẢ</span><button type="button" disabled={results.every(track => selectedIds.has(battleTrackKey(track)))} onClick={() => addResults(results)}><Plus size={14} aria-hidden="true" /> Thêm tất cả</button></div>
       {results.map(track => {
-        const added = selectedIds.has(track.id)
+        const added = selectedIds.has(battleTrackKey(track))
         return <div key={track.id} className={styles.trackRow}>
           <TrackArtwork track={track} />
           <div className={styles.trackInfo}><strong>{track.title}</strong><span>{track.artist}</span></div>
           <button type="button" className={styles.iconButton} aria-label={`Nghe thử ${track.title}`} title="Nghe thử" onClick={() => onPreview(track)}><Headphones size={18} aria-hidden="true" /></button>
-          <button type="button" className={styles.addButton} disabled={added} aria-label={`${added ? 'Đã thêm' : 'Thêm'} ${track.title}`} onClick={() => onAdd([track])}>{added ? <Check size={17} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />}</button>
+          <button type="button" className={styles.addButton} disabled={added} aria-label={`${added ? 'Đã thêm' : 'Thêm'} ${track.title}`} onClick={() => addResults([track])}>{added ? <Check size={17} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />}</button>
         </div>
       })}
     </div> : mode === 'search' && !busy && !error && !notice ? <div className={styles.sourceEmpty}>

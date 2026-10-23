@@ -7,7 +7,8 @@ import type { BattleTrack } from '@/lib/songBattleSources'
 import { TrackArtwork } from './TrackArtwork'
 import styles from './lab.module.css'
 
-const CHOOSE_DELAY = 750
+const CHOOSE_DELAY = 280
+const REDUCED_MOTION_CHOOSE_DELAY = 100
 
 export function BattleView({ battle, currentId, onPreview, onChoose, onUndo, onReplay, onExit }: {
   battle: Battle<BattleTrack>
@@ -20,21 +21,24 @@ export function BattleView({ battle, currentId, onPreview, onChoose, onUndo, onR
 }) {
   const pair = currentPair(battle)
   const total = battle.entrants.length - 1
-  const [choosingId, setChoosingId] = useState<string | null>(null)
+  const [choice, setChoice] = useState<{ id: string; turn: number } | null>(null)
+  const choosingId = choice?.turn === battle.history.length ? choice.id : null
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Clear choosing state when battle state changes (new pair appears)
+  // Cancel the previous turn's delayed choice when the match changes or unmounts.
   useEffect(() => {
-    setChoosingId(null)
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
   }, [battle.history.length])
 
   const handleChoose = useCallback((trackId: string, turn: number) => {
     if (choosingId) return // prevent double-click during animation
-    setChoosingId(trackId)
+    setChoice({ id: trackId, turn })
     timerRef.current = setTimeout(() => {
+      setChoice(null)
       onChoose(trackId, turn)
-    }, CHOOSE_DELAY)
+    }, window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? REDUCED_MOTION_CHOOSE_DELAY
+      : CHOOSE_DELAY)
   }, [choosingId, onChoose])
 
   function contestantClass(trackId: string) {
@@ -75,7 +79,11 @@ export function BattleView({ battle, currentId, onPreview, onChoose, onUndo, onR
             <div className={styles.contestantEmbed}>
               <div className={styles.musicwebPlayer}>
                 <TrackArtwork track={track} large />
-                <audio controls autoPlay src={track.stream_url} aria-label={`Nghe ${track.title}`} />
+                <audio controls preload="none" src={track.stream_url} aria-label={`Nghe ${track.title}`} onPlay={event => {
+                  event.currentTarget.closest('section')?.querySelectorAll('audio').forEach(audio => {
+                    if (audio !== event.currentTarget) audio.pause()
+                  })
+                }} />
                 <span className={styles.musicwebLabel}>MusicWeb · {track.nhaccuatui_id ? 'NhacCuaTui' : track.drive_file_id ? 'Drive' : 'Stream'}</span>
               </div>
             </div>

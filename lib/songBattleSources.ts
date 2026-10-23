@@ -114,12 +114,22 @@ export function normalizeBattleTrack(value: unknown): BattleTrack | null {
   }
 }
 
+export function battleTrackKey(track: BattleTrack): string {
+  const sourceId = track.source === 'spotify' ? track.spotify_id
+    : track.source === 'youtube' ? track.youtube_id
+      : track.source === 'soundcloud' ? track.soundcloud_id
+        : track.drive_file_id || track.nhaccuatui_id || track.id
+  return `${track.source}:${sourceId || track.id}`
+}
+
 export function mergeBattleTracks(current: BattleTrack[], incoming: BattleTrack[]): BattleTrack[] {
   const seen = new Set<string>()
+  const ids = new Set<string>()
   return [...current, ...incoming].filter(track => {
-    const key = `${track.source}:${track.spotify_id || track.youtube_id || track.soundcloud_id || track.drive_file_id || track.nhaccuatui_id || track.id}`
-    if (seen.has(key)) return false
+    const key = battleTrackKey(track)
+    if (seen.has(key) || ids.has(track.id)) return false
     seen.add(key)
+    ids.add(track.id)
     return true
   })
 }
