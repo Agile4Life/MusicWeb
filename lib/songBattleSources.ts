@@ -59,10 +59,12 @@ export function normalizeBattleTrack(value: unknown): BattleTrack | null {
 
   // Determine source: prefer external IDs, fallback to musicweb for local/drive tracks
   let source: BattleTrack['source']
+  // Check if SoundCloud URL is in file_path (MusicWeb DB stores SC permalink there)
+  const isSoundCloudUrl = filePath.includes('soundcloud.com')
   if (raw.source === 'youtube' || (!spotifyId && youtubeId)) source = 'youtube'
-  else if (raw.source === 'soundcloud' || (!spotifyId && soundcloudId)) source = 'soundcloud'
+  else if (soundcloudId) source = 'soundcloud'
   else if (spotifyId) source = 'spotify'
-  else if (driveFileId || nctId || filePath || raw.source === 'local' || raw.source === 'nhaccuatui' || raw.source === 'itunes' || raw.source === 'deezer' || raw.source === 'musicweb') source = 'musicweb'
+  else if (driveFileId || nctId || isSoundCloudUrl || filePath || raw.source === 'local' || raw.source === 'nhaccuatui' || raw.source === 'itunes' || raw.source === 'deezer' || raw.source === 'soundcloud' || raw.source === 'musicweb') source = 'musicweb'
   else source = 'spotify' // legacy fallback
 
   const sourceId = source === 'spotify' ? spotifyId
@@ -80,6 +82,9 @@ export function normalizeBattleTrack(value: unknown): BattleTrack | null {
     if (nctId) {
       // NhacCuaTui tracks stream via proxy API
       streamUrl = `/api/nhaccuatui/stream?id=${encodeURIComponent(nctId)}`
+    } else if (isSoundCloudUrl) {
+      // SoundCloud tracks without numeric ID — stream via SC proxy using permalink URL
+      streamUrl = `/api/soundcloud/stream?id=${encodeURIComponent(filePath)}`
     } else if (driveFileId) {
       streamUrl = `/api/drive-stream?fileId=${encodeURIComponent(driveFileId)}&proxy=true`
     } else if (filePath) {
