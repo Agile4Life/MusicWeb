@@ -233,6 +233,95 @@
 .publishDialog input, .publishDialog textarea { display: block; width: 100%; padding: 11px 13px; color: var(--paper); border: 1px solid var(--hair-strong); background: var(--void); border-radius: 7px; font-size: 13px; }
 .publishDialog textarea { resize: vertical; min-height: 85px; max-height: 220px; }
 .publishDialog .publishActions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; }
+
+/* ── Battle choice animations ── */
+.contestant { transition: transform 0.5s cubic-bezier(.4,0,.2,1), opacity 0.5s cubic-bezier(.4,0,.2,1), filter 0.5s ease, border-color 0.3s ease; }
+.contestantWinner { animation: winnerPulse 0.7s cubic-bezier(.4,0,.2,1) forwards; position: relative; z-index: 2; }
+.contestantLoser { animation: loserFade 0.6s cubic-bezier(.4,0,.2,1) forwards; }
+.contestantWinner .chooseButton { background: var(--accent-strong) !important; color: var(--accent-ink) !important; border-color: var(--accent-strong) !important; animation: buttonCelebrate 0.5s ease forwards; }
+.contestantWinner .contestantHeader { animation: headerGlow 0.7s ease forwards; }
+.matchGridChoosing .vs { animation: vsExit 0.4s ease forwards; }
+.vsExit { animation: vsExit 0.4s ease forwards; }
+
+@keyframes winnerPulse {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.035); }
+  60% { transform: scale(1.02); }
+  100% { transform: scale(1.01); box-shadow: 0 0 30px -5px var(--accent-strong), 0 0 60px -15px var(--accent); border-radius: 14px; }
+}
+@keyframes loserFade {
+  0% { opacity: 1; transform: scale(1); filter: none; }
+  100% { opacity: 0.2; transform: scale(0.96); filter: grayscale(0.8) blur(1px); }
+}
+@keyframes buttonCelebrate {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+@keyframes headerGlow {
+  0% { text-shadow: none; }
+  50% { text-shadow: 0 0 12px var(--accent-strong); }
+  100% { text-shadow: 0 0 6px color-mix(in srgb, var(--accent-strong) 40%, transparent); }
+}
+@keyframes vsExit {
+  0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5) rotate(12deg); }
+}
+
+/* ── Champion celebration ── */
+.champion { animation: championEntrance 0.8s cubic-bezier(.4,0,.2,1) both; position: relative; }
+.championMedal { animation: medalBounce 0.6s 0.3s cubic-bezier(.34,1.56,.64,1) both; }
+.championArtwork { animation: artworkReveal 0.7s 0.2s cubic-bezier(.4,0,.2,1) both; }
+.champion h3 { animation: fadeSlideUp 0.5s 0.45s ease both; }
+.champion > p { animation: fadeSlideUp 0.5s 0.55s ease both; }
+.championActions { animation: fadeSlideUp 0.5s 0.65s ease both; }
+
+@keyframes championEntrance {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes medalBounce {
+  0% { opacity: 0; transform: scale(0) rotate(-20deg); }
+  60% { transform: scale(1.3) rotate(5deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+@keyframes artworkReveal {
+  0% { opacity: 0; transform: scale(0.8); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes fadeSlideUp {
+  0% { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Confetti ── */
+.championConfetti { position: absolute; top: 0; left: 50%; width: 0; height: 0; pointer-events: none; z-index: 0; }
+.confettiPiece { position: absolute; width: 8px; height: 8px; border-radius: 2px; animation: confettiFall 1.8s cubic-bezier(.25,.46,.45,.94) both; animation-delay: calc(var(--i) * 0.07s); }
+.confettiPiece:nth-child(1) { background: var(--accent-strong); }
+.confettiPiece:nth-child(2) { background: var(--paper); border-radius: 50%; }
+.confettiPiece:nth-child(3) { background: var(--accent); }
+.confettiPiece:nth-child(4) { background: var(--accent-strong); width: 6px; height: 10px; }
+.confettiPiece:nth-child(5) { background: var(--paper-dim); border-radius: 50%; }
+.confettiPiece:nth-child(6) { background: var(--accent); width: 10px; height: 6px; }
+.confettiPiece:nth-child(7) { background: var(--accent-strong); }
+.confettiPiece:nth-child(8) { background: var(--paper); width: 6px; height: 10px; }
+.confettiPiece:nth-child(9) { background: var(--accent); border-radius: 50%; }
+.confettiPiece:nth-child(10) { background: var(--accent-strong); }
+.confettiPiece:nth-child(11) { background: var(--paper-dim); }
+.confettiPiece:nth-child(12) { background: var(--accent); width: 10px; height: 6px; }
+
+@keyframes confettiFall {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(0); }
+  15% { opacity: 1; transform: translate(calc((var(--i) - 6) * 25px), -80px) rotate(calc(var(--i) * 35deg)) scale(1); }
+  100% { opacity: 0; transform: translate(calc((var(--i) - 6) * 40px), 120px) rotate(calc(var(--i) * 120deg)) scale(0.5); }
+}
+
+/* ── Match entrance ── */
+.matchGrid { animation: matchEnter 0.4s ease both; }
+@keyframes matchEnter {
+  0% { opacity: 0; transform: translateY(15px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
 @media (max-width: 1000px) {
   .root { padding: 0 28px; }
   .mastheadNote { display: none; }
@@ -319,4 +408,15 @@
   .shareField { max-width: 100%; }
   .shareField input { flex: 1; width: 0; }
   .publishDialog input, .publishDialog textarea { font-size: 16px; }
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .contestant, .contestantWinner, .contestantLoser, .champion, .championMedal,
+  .championArtwork, .matchGrid, .confettiPiece, .vs, .vsExit,
+  .contestantWinner .chooseButton, .contestantWinner .contestantHeader {
+    animation: none !important;
+    transition: none !important;
+  }
+  .contestantLoser { opacity: 0.25; filter: grayscale(0.8); }
 }

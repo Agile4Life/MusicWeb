@@ -1,8 +1,13 @@
-import { Headphones, ArrowRight, Trophy, RotateCcw, Undo2, ArrowLeft } from 'lucide-react'
+'use client'
+
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Headphones, ArrowRight, Trophy, RotateCcw, Undo2, ArrowLeft, Sparkles } from 'lucide-react'
 import { currentPair, roundLabel, type Battle } from '@/lib/songBattle'
 import type { BattleTrack } from '@/lib/songBattleSources'
 import { TrackArtwork } from './TrackArtwork'
 import styles from './lab.module.css'
+
+const CHOOSE_DELAY = 750
 
 export function BattleView({ battle, currentId, onPreview, onChoose, onUndo, onReplay, onExit }: {
   battle: Battle<BattleTrack>
@@ -15,11 +20,34 @@ export function BattleView({ battle, currentId, onPreview, onChoose, onUndo, onR
 }) {
   const pair = currentPair(battle)
   const total = battle.entrants.length - 1
+  const [choosingId, setChoosingId] = useState<string | null>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Clear choosing state when battle state changes (new pair appears)
+  useEffect(() => {
+    setChoosingId(null)
+    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
+  }, [battle.history.length])
+
+  const handleChoose = useCallback((trackId: string, turn: number) => {
+    if (choosingId) return // prevent double-click during animation
+    setChoosingId(trackId)
+    timerRef.current = setTimeout(() => {
+      onChoose(trackId, turn)
+    }, CHOOSE_DELAY)
+  }, [choosingId, onChoose])
+
+  function contestantClass(trackId: string) {
+    if (!choosingId) return styles.contestant
+    if (trackId === choosingId) return `${styles.contestant} ${styles.contestantWinner}`
+    return `${styles.contestant} ${styles.contestantLoser}`
+  }
+
   return <section className={styles.battleSection} aria-label="Cuộc đấu âm nhạc">
     <div className={styles.battleToolbar}>
       <button type="button" className={styles.textButton} onClick={onExit}><ArrowLeft size={16} aria-hidden="true" /> Về danh sách</button>
       <span className={styles.eyebrow}>{battle.entrants.length} BÀI / {battle.history.length} TRÊN {total} LỰA CHỌN</span>
-      <button type="button" className={styles.textButton} disabled={!battle.history.length} onClick={onUndo} aria-label="Quay lại lựa chọn trước"><Undo2 size={16} aria-hidden="true" /> Chọn lại</button>
+      <button type="button" className={styles.textButton} disabled={!battle.history.length || !!choosingId} onClick={onUndo} aria-label="Quay lại lựa chọn trước"><Undo2 size={16} aria-hidden="true" /> Chọn lại</button>
     </div>
     <progress className={styles.progress} value={battle.history.length} max={total} aria-label="Tiến độ cuộc đấu" />
     {pair ? <>
@@ -28,8 +56,8 @@ export function BattleView({ battle, currentId, onPreview, onChoose, onUndo, onR
         <h2 tabIndex={-1} id="match-title">{roundLabel(battle.round.length)}</h2>
         <p>Trận {battle.match + 1} / {battle.round.length / 2} <span>·</span> Bài nào xứng đáng đi tiếp?</p>
       </header>
-      <div className={styles.matchGrid} key={battle.history.length}>
-        {pair.map((track, index) => <article className={styles.contestant} key={track.id}>
+      <div className={`${styles.matchGrid} ${choosingId ? styles.matchGridChoosing : ''}`} key={battle.history.length}>
+        {pair.map((track, index) => <article className={contestantClass(track.id)} key={track.id}>
           <div className={styles.contestantLabel}><span>LỰA CHỌN {index === 0 ? 'A' : 'B'}</span><span>{track.source}</span></div>
           <div className={styles.contestantHeader}>
             <TrackArtwork track={track} />
@@ -49,12 +77,17 @@ export function BattleView({ battle, currentId, onPreview, onChoose, onUndo, onR
               <span className={styles.coverListen}><Headphones size={18} aria-hidden="true" /> {currentId === track.id ? 'Đang mở trình nghe' : 'Nghe thử'}</span>
             </button>
           )}
-          <button type="button" className={styles.chooseButton} onClick={() => onChoose(track.id, battle.history.length)} aria-label={`Chọn bài ${track.title}`}>Chọn bài này <ArrowRight size={17} aria-hidden="true" /></button>
+          <button type="button" className={styles.chooseButton} disabled={!!choosingId} onClick={() => handleChoose(track.id, battle.history.length)} aria-label={`Chọn bài ${track.title}`}>
+            {choosingId === track.id ? <><Sparkles size={17} aria-hidden="true" /> Đã chọn!</> : <>Chọn bài này <ArrowRight size={17} aria-hidden="true" /></>}
+          </button>
         </article>)}
-        <span className={styles.vs} aria-hidden="true">vs.</span>
+        <span className={`${styles.vs} ${choosingId ? styles.vsExit : ''}`} aria-hidden="true">vs.</span>
       </div>
     </> : battle.champion ? <>
       <div className={styles.champion}>
+        <div className={styles.championConfetti} aria-hidden="true">
+          {Array.from({ length: 12 }, (_, i) => <span key={i} className={styles.confettiPiece} style={{ '--i': i } as React.CSSProperties} />)}
+        </div>
         <span className={styles.championMedal}><Trophy size={25} strokeWidth={1.4} aria-hidden="true" /></span>
         <span className={styles.eyebrow}>BÀI HÁT VÔ ĐỊCH</span>
         <h2 id="match-title" tabIndex={-1}>Gu nhạc đã lên tiếng.</h2>
