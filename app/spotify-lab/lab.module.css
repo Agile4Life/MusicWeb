@@ -127,7 +127,7 @@
 .matchHeading h2:focus { outline: none; }
 .matchHeading p { font-size: 12px; color: var(--paper-dim); margin: 10px 0 0; }
 .matchHeading p span { margin: 0 8px; color: var(--accent); }
-.matchGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; max-width: none; margin: 0 0 45px; position: relative; }
+.matchGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 100px; max-width: none; margin: 0 0 45px; position: relative; }
 .contestant { min-width: 0; }
 .contestantLabel { display: flex; justify-content: space-between; color: var(--muted); margin-bottom: 20px; font-size: 14px; }
 .contestantLabel span:last-child { color: var(--paper-dim); text-transform: uppercase; }
@@ -335,7 +335,7 @@
   .deckGrid { gap: 18px; }
   .deckCardCover { height: 160px; }
   .deckCard h3 { font-size: 21px; }
-  .matchGrid { gap: 28px; }
+  .matchGrid { gap: 60px; }
   .contestantMeta h3 { font-size: 28px; }
 }
 @media (max-width: 700px) {
