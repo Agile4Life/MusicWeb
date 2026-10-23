@@ -1,11 +1,12 @@
 .root {
-  min-height: 100dvh;
+  min-height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  user-select: text;
   background: var(--void, #141017);
   color: var(--paper, #f4ece1);
   font-family: var(--font-inter), sans-serif;
   font-size: 14px;
   line-height: 1.6;
-  padding: 0 40px;
+  padding: 0 40px 80px;
   isolation: isolate;
 }
 .root * { box-sizing: border-box; }
@@ -130,6 +131,13 @@
 .contestant { min-width: 0; }
 .contestantLabel { display: flex; justify-content: space-between; color: var(--muted); margin-bottom: 14px; font-size: 9px; }
 .contestantLabel span:last-child { color: var(--paper-dim); text-transform: uppercase; }
+.contestantHeader { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.contestantHeader .artwork { width: 48px; height: 48px; border-radius: 8px; flex-shrink: 0; }
+.contestantMeta { flex: 1; min-width: 0; }
+.contestantMeta h3 { font-size: 18px; font-weight: 600; letter-spacing: -.3px; line-height: 1.35; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.contestantMeta p { color: var(--paper-dim); font-size: 12px; margin: 3px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.contestantEmbed { border-radius: 10px; overflow: hidden; border: 1px solid var(--hair-strong); margin-bottom: 16px; }
+.contestantEmbed iframe { display: block; border: 0; }
 .coverButton { display: block; position: relative; padding: 0; width: 100%; border: 1px solid var(--hair-strong); border-radius: 12px; overflow: hidden; background: var(--surface); }
 .artworkLarge { aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; width: 100%; background: var(--surface-2); color: var(--accent); }
 .artworkLarge > svg { width: 35%; height: 35%; stroke-width: .5; }
@@ -279,6 +287,9 @@
   .matchHeading p { font-size: 11px; }
   .matchGrid { grid-template-columns: minmax(0, 1fr); gap: 32px; max-width: 350px; }
   .contestantLabel { margin-bottom: 10px; }
+  .contestantHeader { gap: 11px; margin-bottom: 12px; }
+  .contestantMeta h3 { font-size: 16px; }
+  .contestantEmbed iframe { height: 170px; }
   .contestantInfo { padding-top: 15px; min-height: 75px; }
   .contestantInfo h3 { font-size: 20px; }
   .vs { display: none; }

@@ -31,11 +31,24 @@ export function BattleView({ battle, currentId, onPreview, onChoose, onUndo, onR
       <div className={styles.matchGrid} key={battle.history.length}>
         {pair.map((track, index) => <article className={styles.contestant} key={track.id}>
           <div className={styles.contestantLabel}><span>LỰA CHỌN {index === 0 ? 'A' : 'B'}</span><span>{track.source}</span></div>
-          <button type="button" className={styles.coverButton} onClick={() => onPreview(track)} aria-label={`Nghe thử ${track.title}`}>
-            <TrackArtwork track={track} large />
-            <span className={styles.coverListen}><Headphones size={18} aria-hidden="true" /> {currentId === track.id ? 'Đang mở trình nghe' : 'Nghe thử'}</span>
-          </button>
-          <div className={styles.contestantInfo}><h3>{track.title}</h3><p>{track.artist}</p></div>
+          <div className={styles.contestantHeader}>
+            <TrackArtwork track={track} />
+            <div className={styles.contestantMeta}><h3>{track.title}</h3><p>{track.artist}</p></div>
+          </div>
+          {track.source === 'youtube' && track.youtube_id ? (
+            <div className={styles.contestantEmbed}>
+              <iframe title={`YouTube: ${track.title}`} src={`https://www.youtube.com/embed/${encodeURIComponent(track.youtube_id)}?rel=0`} width="100%" height="200" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowFullScreen />
+            </div>
+          ) : track.source === 'spotify' && track.spotify_id ? (
+            <div className={styles.contestantEmbed}>
+              <iframe title={`Spotify: ${track.title}`} src={`https://open.spotify.com/embed/track/${encodeURIComponent(track.spotify_id)}?theme=0`} width="100%" height="152" allow="autoplay; encrypted-media" />
+            </div>
+          ) : (
+            <button type="button" className={styles.coverButton} onClick={() => onPreview(track)} aria-label={`Nghe thử ${track.title}`}>
+              <TrackArtwork track={track} large />
+              <span className={styles.coverListen}><Headphones size={18} aria-hidden="true" /> {currentId === track.id ? 'Đang mở trình nghe' : 'Nghe thử'}</span>
+            </button>
+          )}
           <button type="button" className={styles.chooseButton} onClick={() => onChoose(track.id, battle.history.length)} aria-label={`Chọn bài ${track.title}`}>Chọn bài này <ArrowRight size={17} aria-hidden="true" /></button>
         </article>)}
         <span className={styles.vs} aria-hidden="true">vs.</span>

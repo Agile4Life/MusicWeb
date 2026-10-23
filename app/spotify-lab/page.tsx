@@ -21,6 +21,12 @@ import styles from './lab.module.css'
 const SIZES = [2, 4, 8, 16, 32, 64]
 
 export default function SpotifyLabPage() {
+  /* Override body overflow:hidden (set in globals.css for the (app) shell) so this standalone page scrolls. */
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'auto'
+    return () => { document.body.style.overflow = prev }
+  }, [])
   const router = useRouter()
   const [pool, setPool] = useState<BattleTrack[]>([])
   const [size, setSize] = useState(4)
