@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Disc3, Loader2, Plus, Search } from 'lucide-react'
 import { fetchBattleTracks, type BattleTrack } from '@/lib/songBattleSources'
 import { communityRequest } from './communityClient'
@@ -62,7 +62,7 @@ export function AlbumSourcePicker({ onAdd }: { onAdd: (tracks: BattleTrack[]) =>
       <button type="submit" className={styles.smallButton} disabled={busy}>Tìm album</button>
     </form>
     {busy ? <p role="status">Đang tải album…</p> : <div className={styles.results}>
-      {albums.map(album => <div key={album.id} className={styles.trackRow}>
+      {albums.map((album, index) => <div key={album.id} className={styles.trackRow} style={{ '--row-index': Math.min(index, 10) } as CSSProperties}>
         <div className={styles.artwork}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {album.cover_url ? <img src={album.cover_url} alt="" loading="lazy" /> : <Disc3 aria-hidden="true" />}

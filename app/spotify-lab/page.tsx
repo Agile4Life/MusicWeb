@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, ArrowRight, Disc3, Headphones, ListMusic, Music2, X, Shuffle, Globe2 } from 'lucide-react'
@@ -191,7 +191,7 @@ export default function SpotifyLabPage() {
               <div className={styles.poolTitle}><h2 id="pool-title">Sân khấu của bạn.</h2><span>{pool.length} bài đã chọn</span></div>
               {pool.length ? <>
                 <div className={styles.poolActions}><span>Các bài trùng được tự động bỏ qua.</span><button type="button" onClick={() => { setCurrent(null); setClearedTracks(pool); setPool([]) }}>Xóa tất cả</button></div>
-                <ol className={styles.poolList}>{pool.map((track, index) => <li key={track.id}>
+                <ol className={styles.poolList}>{pool.map((track, index) => <li key={track.id} style={{ '--row-index': Math.min(index, 10) } as CSSProperties}>
                   <span className={styles.poolIndex}>{String(index + 1).padStart(2, '0')}</span><TrackArtwork track={track} />
                   <div className={styles.trackInfo}><strong>{track.title}</strong><span>{track.artist} <small>· {track.source}</small></span></div>
                   <button type="button" className={styles.iconButton} aria-label={`Nghe bài đã chọn ${track.title}`} aria-pressed={current?.id === track.id} title="Nghe thử" onClick={() => preview(track)}><Headphones size={15} aria-hidden="true" /></button>

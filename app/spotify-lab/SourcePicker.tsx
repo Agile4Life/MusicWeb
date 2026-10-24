@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Search, Link2, Plus, Check, Headphones, ArrowUpRight, Loader2, ListMusic } from 'lucide-react'
 import { fetchBattleTracks, playlistEndpoint, normalizeBattleTrack, mergeBattleTracks, battleTrackKey, type BattleTrack } from '@/lib/songBattleSources'
 import { communityRequest } from './communityClient'
@@ -179,7 +179,7 @@ export function SourcePicker({ selected, onAdd, onPreview }: {
       {loadingPlaylists ? <p role="status" className={styles.feedback}><Loader2 size={16} aria-hidden="true" /> Đang tải playlist…</p>
         : playlists.length ? <div className={styles.results}>
           <div className={styles.listHeading}><span>{playlists.length} PLAYLIST</span><button type="button" onClick={() => { setPlaylistsLoaded(false); void loadPlaylists() }}>Tải lại</button></div>
-          {playlists.map(pl => <div key={pl.id} className={styles.trackRow}>
+          {playlists.map((pl, index) => <div key={pl.id} className={styles.trackRow} style={{ '--row-index': Math.min(index, 10) } as CSSProperties}>
             <div className={styles.artwork}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               {pl.cover_url ? <img src={pl.cover_url} alt="" loading="lazy" /> : <ListMusic size={20} aria-hidden="true" />}
@@ -202,9 +202,9 @@ export function SourcePicker({ selected, onAdd, onPreview }: {
     {notice && <p role="status" className={styles.notice}>{notice}</p>}
     {mode === 'search' && results.length > 0 ? <div className={styles.results} aria-label="Kết quả tìm kiếm" aria-busy={busy}>
       <div className={styles.listHeading}><span>{results.length} KẾT QUẢ</span><button type="button" disabled={results.every(track => selectedIds.has(battleTrackKey(track)))} onClick={() => addResults(results)}><Plus size={14} aria-hidden="true" /> Thêm tất cả</button></div>
-      {results.map(track => {
+      {results.map((track, index) => {
         const added = selectedIds.has(battleTrackKey(track))
-        return <div key={track.id} className={styles.trackRow}>
+        return <div key={track.id} className={styles.trackRow} style={{ '--row-index': Math.min(index, 10) } as CSSProperties}>
           <TrackArtwork track={track} />
           <div className={styles.trackInfo}><strong>{track.title}</strong><span>{track.artist} · YouTube</span></div>
           <button type="button" className={styles.iconButton} aria-label={`Nghe thử ${track.title}`} title="Nghe thử" onClick={() => onPreview(track)}><Headphones size={18} aria-hidden="true" /></button>

@@ -110,9 +110,9 @@
 .listHeading { display: flex; justify-content: space-between; align-items: center; color: var(--muted); padding: 0 0 9px; }
 .listHeading button { background: none; border: 0; display: flex; gap: 6px; align-items: center; font-size: 10px; color: var(--accent-strong); transition: transform var(--lab-dur-fast) var(--lab-ease-out), opacity var(--lab-dur-fast) ease; }
 .listHeading button:active:not(:disabled) { transform: scale(0.96); }
-.trackRow { display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--hair); padding: 12px 0; }
+.trackRow { display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--hair); padding: 12px 0; transition: background-color var(--lab-dur-fast) ease, padding-left var(--lab-dur-fast) var(--lab-ease-out), padding-right var(--lab-dur-fast) var(--lab-ease-out), border-radius var(--lab-dur-fast) ease; animation: rowEnter 180ms var(--lab-ease-out) both; animation-delay: calc(var(--row-index, 0) * 25ms); }
 .artwork { width: 42px; height: 42px; border-radius: 5px; overflow: hidden; display: grid; place-items: center; background: var(--surface-3); color: var(--muted); flex-shrink: 0; }
-.artwork img, .artworkLarge img { width: 100%; height: 100%; object-fit: cover; }
+.artwork img, .artworkLarge img { width: 100%; height: 100%; object-fit: cover; transition: transform var(--lab-dur-base) var(--lab-ease-out); }
 .artwork svg { width: 22px; height: 22px; }
 .trackInfo { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 2px; }
 .trackInfo strong { font-weight: 500; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -124,6 +124,7 @@
 .addButton { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--hair-strong); border-radius: 6px; color: var(--accent-strong); background: var(--surface); flex-shrink: 0; transition: transform var(--lab-dur-fast) var(--lab-ease-out), border-color var(--lab-dur-fast) ease, background-color var(--lab-dur-fast) ease, color var(--lab-dur-fast) ease; }
 .addButton:active:not(:disabled) { transform: scale(0.93); }
 .addButton:disabled { opacity: .65 !important; border-color: transparent; background: transparent; }
+.addButton:disabled svg { animation: checkPop 180ms var(--lab-ease-out) both; }
 .poolPanel { padding: 32px 32px 25px 0; min-width: 0; }
 .poolHeading { display: flex; align-items: center; justify-content: space-between; color: var(--accent); }
 .poolTitle h2 { margin-bottom: 8px; }
@@ -136,7 +137,7 @@
 .poolActions button { border: 0; background: transparent; font-size: 10px; color: var(--paper-dim); padding: 5px; white-space: nowrap; transition: color var(--lab-dur-fast) ease, transform var(--lab-dur-fast) var(--lab-ease-out); }
 .poolActions button:active:not(:disabled) { transform: scale(0.96); }
 .poolList { padding: 0; margin: 0 0 20px; list-style: none; max-height: 295px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--surface-3) transparent; }
-.poolList li { display: flex; align-items: center; gap: 9px; padding: 10px 0; border-bottom: 1px solid var(--hair); }
+.poolList li { display: flex; align-items: center; gap: 9px; padding: 10px 0; border-bottom: 1px solid var(--hair); transition: background-color var(--lab-dur-fast) ease, padding-left var(--lab-dur-fast) var(--lab-ease-out), padding-right var(--lab-dur-fast) var(--lab-ease-out), border-radius var(--lab-dur-fast) ease; animation: rowEnter 180ms var(--lab-ease-out) both; animation-delay: calc(var(--row-index, 0) * 25ms); }
 .poolList .artwork { width: 34px; height: 34px; }
 .poolIndex { font-family: var(--font-ibm-plex-mono), monospace; font-size: 9px; color: var(--muted); }
 .roundSetup { padding-top: 23px; border-top: 1px solid var(--hair); }
@@ -211,7 +212,7 @@
 .history small { font-size: 10px; color: var(--muted); overflow-wrap: anywhere; }
 .history strong { font-size: 12px; font-weight: 500; color: var(--paper); }
 .previewAnchor { scroll-margin: 20px; }
-.preview { margin: 28px 0 0; padding: 22px; border: 1px solid var(--hair-strong); background: var(--surface); border-radius: 12px; }
+.preview { margin: 28px 0 0; padding: 22px; border: 1px solid var(--hair-strong); background: var(--surface); border-radius: 12px; animation: previewEnter var(--lab-dur-base) var(--lab-ease-out) both; }
 .previewHeading { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; color: var(--accent-strong); }
 .previewHeading > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .previewHeading strong { font-size: 13px; font-weight: 500; color: var(--paper); overflow-wrap: anywhere; }
@@ -219,8 +220,9 @@
 .preview iframe { border: 0; border-radius: 8px; display: block; }
 .preview audio { width: 100%; display: block; }
 .soundcloudPlayer { width: 100%; display: grid; place-items: center; flex: 1; min-height: 0; }
-.soundcloudCover { position: relative; width: min(100%, 360px); aspect-ratio: 1; overflow: hidden; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--hair-strong); }
+.soundcloudCover { position: relative; width: min(100%, 360px); aspect-ratio: 1; overflow: hidden; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--hair-strong); transition: border-color var(--lab-dur-base) ease; }
 .soundcloudCover > .artworkLarge { width: 100%; height: 100%; }
+.soundcloudCover > .artworkLarge img { transition: transform 280ms var(--lab-ease-out); }
 .soundcloudBadge { position: absolute; top: 14px; left: 14px; padding: 5px 9px; border: 1px solid #ffffff30; border-radius: 5px; background: #141017a6; color: #fff; font-size: 9px; letter-spacing: 1.8px; }
 .soundcloudControls { position: absolute; inset: auto 0 0; padding: 48px 18px 12px; color: #fff; background: linear-gradient(transparent, #100b16c9 35%, #100b16f5); }
 .soundcloudTransport { display: flex; align-items: center; gap: 12px; }
@@ -243,8 +245,10 @@
 .previewLoading { font-size: 11px; color: var(--paper-dim); margin: 0 0 12px; }
 .previewHint { display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; color: var(--muted); font-size: 10px; line-height: 1.8; margin: 12px 0 0; }
 .previewHint a { color: var(--accent-strong); display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; transition: opacity var(--lab-dur-fast) ease; }
-.dialog { max-width: min(440px, calc(100vw - 32px)); margin: auto; background: var(--surface); color: var(--paper); border: 1px solid var(--hair-strong); border-radius: 14px; padding: 28px; }
+.dialog { max-width: min(440px, calc(100vw - 32px)); margin: auto; background: var(--surface); color: var(--paper); border: 1px solid var(--hair-strong); border-radius: 14px; padding: 28px; transform-origin: center; }
+.dialog[open] { animation: dialogEnter var(--lab-dur-base) var(--lab-ease-out) both; }
 .dialog::backdrop { background: rgba(0, 0, 0, .75); }
+.dialog[open]::backdrop { animation: backdropEnter var(--lab-dur-base) ease both; }
 .root .dialog h2 { font-family: var(--font-fraunces), Georgia, serif; font-size: 28px !important; margin: 0 0 15px; font-weight: 400 !important; }
 .dialog p { color: var(--paper-dim); margin-bottom: 25px; font-size: 13px; }
 .dialog > div { display: flex; justify-content: flex-end; gap: 10px; }
@@ -335,6 +339,10 @@
   .deckCard:hover .deckCardCover > img, .deckCard:hover .deckCardCover > svg { transform: scale(1.04); }
   .deckCard:hover .deckCardCover > span { border-color: var(--accent); }
   .deckCard:hover .deckCardActions .textButton:not(:disabled) svg { transform: translateX(3px); }
+  .trackRow:hover, .poolList li:hover { background: rgba(255, 255, 255, 0.025); border-radius: 6px; padding-left: 6px; padding-right: 6px; }
+  .trackRow:hover .artwork img, .poolList li:hover .artwork img { transform: scale(1.05); }
+  .soundcloudCover:hover { border-color: var(--accent); }
+  .soundcloudCover:hover > .artworkLarge img { transform: scale(1.025); }
 }
 
 /* ── View & Panel transitions ── */
@@ -349,6 +357,26 @@
 @keyframes cardStaggerEnter {
   0% { opacity: 0; transform: translateY(8px); }
   100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes rowEnter {
+  0% { opacity: 0; transform: translateY(5px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes checkPop {
+  0% { opacity: 0.4; transform: scale(0.85); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes previewEnter {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes dialogEnter {
+  0% { opacity: 0; transform: scale(0.96); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes backdropEnter {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 
 /* ── Battle choice animations ── */
