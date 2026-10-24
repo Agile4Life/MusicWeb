@@ -391,9 +391,10 @@
 
 /* ── Battle choice animations ── */
 .contestant { transition: opacity 250ms cubic-bezier(.23,1,.32,1); }
-.battleChoosing::before { content: ''; position: fixed; inset: 0; z-index: 20; background: #100d16; animation: choiceDim 2s linear both; touch-action: manipulation; }
-.matchGridChoosing { z-index: 21; animation: none !important; }
-.contestantWinner { position: relative; z-index: 2; animation: winnerFocus 2s both; touch-action: manipulation; }
+.battleChoosing::before { content: ''; position: fixed; inset: 0; z-index: 20; background: #100d16b3; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); animation: choiceDim 2s linear both; touch-action: manipulation; }
+/* Let the backdrop cover the losing card; only the winner rises above it. */
+.matchGridChoosing { z-index: auto; animation: none !important; }
+.contestantWinner { position: relative; z-index: 21; animation: winnerFocus 2s both; touch-action: manipulation; }
 .contestantLoser { opacity: .12; }
 .matchGridChoosing .contestantEmbed { pointer-events: none; }
 .matchGridChoosing .chooseButton { cursor: default; }

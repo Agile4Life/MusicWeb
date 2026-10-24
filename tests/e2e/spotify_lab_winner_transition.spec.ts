@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/albums/transition-test', route => route.fulfill({ json: { tracks: [1, 2, 3, 4].map(id => ({
     id: `musicweb-${id}`, title: `Song ${id}`, artist: 'Artist', source: 'musicweb', stream_url: `/api/test-audio?id=${id}`,
   })) } }))
-  await page.goto('/spotify-lab?album=transition-test')
+  await page.goto('/spotify-lab?album=transition-test', { waitUntil: 'domcontentloaded' })
   await page.getByRole('button', { name: 'Bắt đầu đọ nhạc' }).click()
   await expect(page.locator('article')).toHaveCount(2)
   // Freeze the clock only after entry animations and fonts have settled;
@@ -33,6 +33,14 @@ test('keeps the chosen song centered without glow then advances after two second
     return Math.abs(box.x + box.width / 2 - innerWidth / 2)
   })).toBeLessThan(3)
   expect(await winner.evaluate(element => getComputedStyle(element, '::after').boxShadow)).toBe('none')
+  const layers = await winner.evaluate(element => {
+    const backdrop = getComputedStyle(element.closest('section')!, '::before')
+    return { blur: backdrop.backdropFilter, gridLayer: getComputedStyle(element.parentElement!).zIndex, backdropLayer: Number(backdrop.zIndex), winnerLayer: Number(getComputedStyle(element).zIndex) }
+  })
+  expect(layers.blur).toContain('blur(')
+  // The grid must not trap the losing card above the full-screen blur.
+  expect(layers.gridLayer).toBe('auto')
+  expect(layers.winnerLayer).toBeGreaterThan(layers.backdropLayer)
   await page.clock.fastForward(1900)
   await expect(page.getByText('Trận 1 / 2', { exact: false })).toBeVisible()
   await page.clock.fastForward(100)
