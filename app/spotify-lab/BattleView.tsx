@@ -1,15 +1,15 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Headphones, ArrowRight, Trophy, RotateCcw, Undo2, ArrowLeft, Sparkles } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
+import { Headphones, ArrowRight, Trophy, RotateCcw, Undo2, ArrowLeft, Check } from 'lucide-react'
 import { currentPair, roundLabel, type Battle } from '@/lib/songBattle'
 import type { BattleTrack } from '@/lib/songBattleSources'
 import { TrackArtwork } from './TrackArtwork'
 import { WaveformCoverPlayer } from './WaveformCoverPlayer'
 import styles from './lab.module.css'
 
-const CHOOSE_DELAY = 280
-const REDUCED_MOTION_CHOOSE_DELAY = 100
+const CHOOSE_DELAY = 2000
+type Choice = { id: string; turn: number; x: number; y: number }
 
 export function BattleView({ battle, currentId, onPreview, onChoose, onUndo, onReplay, onExit }: {
   battle: Battle<BattleTrack>
@@ -22,25 +22,40 @@ export function BattleView({ battle, currentId, onPreview, onChoose, onUndo, onR
 }) {
   const pair = currentPair(battle)
   const total = battle.entrants.length - 1
-  const [choice, setChoice] = useState<{ id: string; turn: number } | null>(null)
+  const [choice, setChoice] = useState<Choice | null>(null)
   const choosingId = choice?.turn === battle.history.length ? choice.id : null
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingChoice = useRef<Choice | null>(null)
+  const lastClick = useRef<number | null>(null)
 
   // Cancel the previous turn's delayed choice when the match changes or unmounts.
   useEffect(() => {
-    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+      pendingChoice.current = null
+      lastClick.current = null
+    }
   }, [battle.history.length])
 
-  const handleChoose = useCallback((trackId: string, turn: number) => {
-    if (choosingId) return // prevent double-click during animation
-    setChoice({ id: trackId, turn })
-    timerRef.current = setTimeout(() => {
-      setChoice(null)
-      onChoose(trackId, turn)
-    }, window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      ? REDUCED_MOTION_CHOOSE_DELAY
-      : CHOOSE_DELAY)
-  }, [choosingId, onChoose])
+  const finishChoice = useCallback(() => {
+    const selected = pendingChoice.current
+    if (!selected) return
+    pendingChoice.current = null
+    lastClick.current = null
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = null
+    setChoice(null)
+    onChoose(selected.id, selected.turn)
+  }, [onChoose])
+
+  const handleChoose = useCallback((trackId: string, turn: number, event: MouseEvent<HTMLButtonElement>) => {
+    if (pendingChoice.current) return
+    const card = event.currentTarget.closest('article')!.getBoundingClientRect()
+    const selected = { id: trackId, turn, x: innerWidth / 2 - card.x - card.width / 2, y: innerHeight / 2 - card.y - card.height / 2 }
+    pendingChoice.current = selected
+    setChoice(selected)
+    timerRef.current = setTimeout(finishChoice, CHOOSE_DELAY)
+  }, [finishChoice])
 
   function contestantClass(trackId: string) {
     if (!choosingId) return styles.contestant
@@ -48,7 +63,18 @@ export function BattleView({ battle, currentId, onPreview, onChoose, onUndo, onR
     return `${styles.contestant} ${styles.contestantLoser}`
   }
 
-  return <section className={styles.battleSection} aria-label="Cuộc đấu âm nhạc">
+  return <section className={`${styles.battleSection} ${choosingId ? styles.battleChoosing : ''}`} aria-label="Cuộc đấu âm nhạc" onClickCapture={event => {
+    // Capture both clicks even when the card moves between taps. Consuming the
+    // second click prevents it from selecting a song in the following match.
+    const now = performance.now()
+    if (pendingChoice.current && lastClick.current !== null && now - lastClick.current < 350) {
+      event.preventDefault(); event.stopPropagation(); finishChoice()
+    } else lastClick.current = now
+  }}>
+    {choosingId && <div className={styles.choiceSkip}>
+      <span role="status">Đã chọn · Nhấp đúp để chuyển tiếp</span>
+      <button type="button" onClick={finishChoice} aria-label="Bỏ qua chuyển cảnh">Bỏ qua <ArrowRight size={14} aria-hidden="true" /></button>
+    </div>}
     <div className={styles.battleToolbar}>
       <button type="button" className={styles.textButton} onClick={onExit}><ArrowLeft size={16} aria-hidden="true" /> Về danh sách</button>
       <span className={styles.eyebrow}>{battle.entrants.length} BÀI / {battle.history.length} TRÊN {total} LỰA CHỌN</span>
@@ -62,7 +88,7 @@ export function BattleView({ battle, currentId, onPreview, onChoose, onUndo, onR
         <p>Trận {battle.match + 1} / {battle.round.length / 2} <span>·</span> Bài nào xứng đáng đi tiếp?</p>
       </header>
       <div className={`${styles.matchGrid} ${choosingId ? styles.matchGridChoosing : ''}`} key={battle.history.length}>
-        {pair.map((track, index) => <article className={contestantClass(track.id)} key={track.id}>
+        {pair.map((track, index) => <article className={contestantClass(track.id)} key={track.id} style={choosingId === track.id && choice ? { '--winner-x': `${choice.x}px`, '--winner-y': `${choice.y}px` } as CSSProperties : undefined}>
           <div className={styles.contestantLabel}><span>LỰA CHỌN {index === 0 ? 'A' : 'B'}</span><span>{track.source}</span></div>
           <div className={styles.contestantHeader}>
             <TrackArtwork track={track} />
@@ -88,8 +114,8 @@ export function BattleView({ battle, currentId, onPreview, onChoose, onUndo, onR
               </button>
             </div>
           )}
-          <button type="button" className={styles.chooseButton} disabled={!!choosingId} onClick={() => handleChoose(track.id, battle.history.length)} aria-label={`Chọn bài ${track.title}`}>
-            {choosingId === track.id ? <><Sparkles size={17} aria-hidden="true" /> Đã chọn!</> : <>Chọn bài này <ArrowRight size={17} aria-hidden="true" /></>}
+          <button type="button" className={styles.chooseButton} aria-disabled={!!choosingId} onClick={event => handleChoose(track.id, battle.history.length, event)} aria-label={`Chọn bài ${track.title}`}>
+            {choosingId === track.id ? <><Check size={17} aria-hidden="true" /> Đã chọn</> : <>Chọn bài này <ArrowRight size={17} aria-hidden="true" /></>}
           </button>
         </article>)}
         <span className={`${styles.vs} ${choosingId ? styles.vsExit : ''}`} aria-hidden="true">vs.</span>
