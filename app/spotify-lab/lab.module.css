@@ -198,6 +198,26 @@
 .previewHeading strong span { font-weight: 400; color: var(--paper-dim); }
 .preview iframe { border: 0; border-radius: 8px; display: block; }
 .preview audio { width: 100%; display: block; }
+.soundcloudPlayer { width: 100%; display: grid; place-items: center; flex: 1; min-height: 0; }
+.soundcloudCover { position: relative; width: min(100%, 360px); aspect-ratio: 1; overflow: hidden; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--hair-strong); }
+.soundcloudCover > .artworkLarge { width: 100%; height: 100%; }
+.soundcloudBadge { position: absolute; top: 14px; left: 14px; padding: 5px 9px; border: 1px solid #ffffff30; border-radius: 5px; background: #141017a6; color: #fff; font-size: 9px; letter-spacing: 1.8px; }
+.soundcloudControls { position: absolute; inset: auto 0 0; padding: 48px 18px 12px; color: #fff; background: linear-gradient(transparent, #100b16c9 35%, #100b16f5); }
+.soundcloudTransport { display: flex; align-items: center; gap: 12px; }
+.soundcloudPlay { display: grid; place-items: center; flex-shrink: 0; width: 46px; height: 46px; border-radius: 50%; background: var(--accent-strong, #ffb52e); color: var(--accent-ink, #23170a); border: 0; }
+.soundcloudPlay:hover { filter: brightness(1.12); }
+.soundcloudPlay:focus-visible, .soundcloudTransport a:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
+.soundcloudTime { font-family: var(--font-ibm-plex-mono), monospace; font-size: 12px; font-variant-numeric: tabular-nums; }
+.soundcloudTime span { color: #ffffffa8; }
+.soundcloudTransport a { margin-left: auto; color: #fff; display: grid; place-items: center; width: 44px; height: 44px; }
+.soundcloudWave { position: relative; height: 56px; margin-top: 10px; }
+.soundcloudWave svg { display: block; width: 100%; height: 100%; }
+.soundcloudWaveBase { fill: #ffffff65; }
+.soundcloudWavePlayed { fill: var(--accent-strong, #ffb52e); }
+.soundcloudWave input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: ew-resize; }
+.soundcloudWave:focus-within { outline: 2px solid var(--accent-strong, #ffb52e); outline-offset: 3px; border-radius: 3px; }
+.soundcloudStatus { min-height: 16px; margin: 5px 0 0; font-size: 10px; color: #ffffffb8; line-height: 1.6; }
+.soundcloudPlayer > audio, .preview .soundcloudPlayer > audio { display: none; }
 .spotifyHost { min-height: 152px; }
 .previewLoading { font-size: 11px; color: var(--paper-dim); margin: 0 0 12px; }
 .previewHint { display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; color: var(--muted); font-size: 10px; line-height: 1.8; margin: 12px 0 0; }

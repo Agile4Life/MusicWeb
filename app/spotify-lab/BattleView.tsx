@@ -5,6 +5,7 @@ import { Headphones, ArrowRight, Trophy, RotateCcw, Undo2, ArrowLeft, Sparkles }
 import { currentPair, roundLabel, type Battle } from '@/lib/songBattle'
 import type { BattleTrack } from '@/lib/songBattleSources'
 import { TrackArtwork } from './TrackArtwork'
+import { WaveformCoverPlayer } from './WaveformCoverPlayer'
 import styles from './lab.module.css'
 
 const CHOOSE_DELAY = 280
@@ -75,18 +76,10 @@ export function BattleView({ battle, currentId, onPreview, onChoose, onUndo, onR
             <div className={styles.contestantEmbed}>
               <iframe title={`Spotify: ${track.title}`} src={`https://open.spotify.com/embed/track/${encodeURIComponent(track.spotify_id)}?theme=0`} width="100%" height="280" allow="autoplay; encrypted-media" />
             </div>
+          ) : track.source === 'soundcloud' && track.soundcloud_id ? (
+            <div className={styles.contestantEmbed}><WaveformCoverPlayer track={track} /></div>
           ) : track.source === 'musicweb' && track.stream_url ? (
-            <div className={styles.contestantEmbed}>
-              <div className={styles.musicwebPlayer}>
-                <TrackArtwork track={track} large />
-                <audio controls preload="none" src={track.stream_url} aria-label={`Nghe ${track.title}`} onPlay={event => {
-                  event.currentTarget.closest('section')?.querySelectorAll('audio').forEach(audio => {
-                    if (audio !== event.currentTarget) audio.pause()
-                  })
-                }} />
-                <span className={styles.musicwebLabel}>MusicWeb · {track.nhaccuatui_id ? 'NhacCuaTui' : track.drive_file_id ? 'Drive' : 'Stream'}</span>
-              </div>
-            </div>
+            <div className={styles.contestantEmbed}><WaveformCoverPlayer track={track} /></div>
           ) : (
             <div className={styles.contestantEmbed}>
               <button type="button" className={styles.coverButton} onClick={() => onPreview(track)} aria-label={`Nghe thử ${track.title}`}>

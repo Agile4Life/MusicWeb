@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ExternalLink, X, Headphones } from 'lucide-react'
 import type { BattleTrack } from '@/lib/songBattleSources'
 import styles from './lab.module.css'
+import { WaveformCoverPlayer } from './WaveformCoverPlayer'
 
 interface SpotifyController { play(): void; pause(): void; destroy(): void; addListener(event: 'ready', listener: () => void): void }
 interface SpotifyApi {
@@ -91,12 +92,12 @@ export function PreviewPlayer({ track, onClose }: { track: BattleTrack; onClose:
       <div><span className={styles.eyebrow}>ĐANG NGHE THỬ / {track.source.toUpperCase()}</span><strong>{track.title} <span>— {track.artist}</span></strong></div>
       <button type="button" className={styles.iconButton} onClick={onClose} aria-label="Đóng trình nghe thử"><X size={19} aria-hidden="true" /></button>
     </div>
-    {audioUrl && !audioError ? <audio ref={audioRef} controls autoPlay src={audioUrl} onError={() => setAudioError(true)} aria-label={`Nghe thử ${track.title}`} />
+    {(track.source === 'soundcloud' && track.soundcloud_id) || (track.source === 'musicweb' && (track.stream_url || track.preview_url)) ? <WaveformCoverPlayer track={track} autoPlay />
+      : audioUrl && !audioError ? <audio ref={audioRef} controls autoPlay src={audioUrl} onError={() => setAudioError(true)} aria-label={`Nghe thử ${track.title}`} />
       : track.source === 'spotify' ? <SpotifyPreview track={track} />
         : track.source === 'youtube' ? <iframe title={`YouTube: ${track.title}`} src={`https://www.youtube.com/embed/${encodeURIComponent(track.youtube_id!)}?autoplay=1&rel=0&end=30`} width="100%" height="190" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowFullScreen />
-          : track.source === 'soundcloud' && track.soundcloud_id ? <iframe title={`SoundCloud: ${track.title}`} src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(`https://api.soundcloud.com/tracks/${track.soundcloud_id}`)}&auto_play=true&visual=false`} width="100%" height="166" allow="autoplay" />
-            : <p role="alert" className={styles.error}>Không phát được bài này. Nguồn nhạc có thể đã hết hạn hoặc cần quyền truy cập.</p>}
-    <p className={styles.previewHint}>Nhấn phát trong trình nghe nếu nhạc chưa bắt đầu. Đoạn nghe và khả năng phát tùy thuộc nguồn cung cấp.
+          : <p role="alert" className={styles.error}>Không phát được bài này. Nguồn nhạc có thể đã hết hạn hoặc cần quyền truy cập.</p>}
+    <p className={styles.previewHint}>{track.source === 'soundcloud' || track.source === 'musicweb' ? 'Nhấn phát trên ảnh bìa và kéo trên sóng để tua bài hát.' : 'Nhấn phát trong trình nghe nếu nhạc chưa bắt đầu. Đoạn nghe và khả năng phát tùy thuộc nguồn cung cấp.'}
       {track.source_url && <a href={track.source_url} target="_blank" rel="noopener noreferrer">Mở bản gốc <ExternalLink size={12} aria-hidden="true" /></a>}
     </p>
   </aside>
