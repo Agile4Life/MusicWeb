@@ -155,6 +155,7 @@ export function SourcePicker({ selected, onAdd, onPreview }: {
       <button type="button" aria-pressed={mode === 'playlist'} onClick={() => changeMode('playlist')}><Link2 size={16} aria-hidden="true" /> Nhập playlist</button>
       <button type="button" aria-pressed={mode === 'musicweb'} onClick={() => changeMode('musicweb')}><ListMusic size={16} aria-hidden="true" /> Từ MusicWeb</button>
     </div>
+    <div key={mode} className={styles.tabPanel}>
     {mode === 'search' ? <>
       <p className={styles.description}>Tìm video nhạc trên YouTube để vừa nghe vừa xem khi đọ nhạc.</p>
       <form className={styles.inputRow} onSubmit={event => { event.preventDefault(); void search(query) }}>
@@ -195,6 +196,7 @@ export function SourcePicker({ selected, onAdd, onPreview }: {
           <p>Tạo playlist trên MusicWeb để sử dụng ở đây.<br />Hoặc dùng tab Nhập playlist để dán link.</p>
         </div>}
     </>}
+    </div>
     {busy && <p role="status" className={styles.feedback}><Loader2 size={16} aria-hidden="true" /> {mode === 'search' ? 'Đang tìm bài hát…' : 'Đang lấy bài từ playlist…'}</p>}
     {error && <p role="alert" className={styles.error}>{error}</p>}
     {notice && <p role="status" className={styles.notice}>{notice}</p>}
