@@ -62,9 +62,12 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: '#141017',
+  colorScheme: 'dark',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({
@@ -137,6 +140,10 @@ export default function RootLayout({
                   root.style.setProperty('--base-s', t[5]);
                   root.style.setProperty('--primary-spotify-rgb', t[6]);
                   root.style.setProperty('--spotify-glow-rgb', t[7]);
+                  var metaTheme = document.querySelector('meta[name="theme-color"]');
+                  if (metaTheme) {
+                    metaTheme.setAttribute('content', style === 'minimal-flat' ? '#141017' : t[3]);
+                  }
                 } catch (e) {}
               })();
             `,
