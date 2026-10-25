@@ -4,11 +4,14 @@ import React, { useEffect, useState, useRef, useCallback, memo } from 'react'
 import { usePlaybackProgress, usePlayerTrack, usePlayerControls } from './PlayerContext'
 import { Track } from '@/types'
 import { LrclibResponse } from '@/lib/lrclib'
-import { getPrimaryLyrics } from '@/lib/lyricsFlow'
+import { getPrimaryLyrics, LYRICS_UPDATED_EVENT } from '@/lib/lyricsFlow'
 import { parseLrc, parsePlainLyrics, findActiveLyricIndex, LyricLine } from '@/lib/lrcParser'
 import { fetchLyricsRomaji } from '@/lib/romajiTransliteration'
 import { OverflowMarqueeText } from '@/components/common/OverflowMarqueeText'
+import { useCurrentUser } from '@/components/auth/CurrentUserContext'
+import { isAdmin } from '@/lib/accessControl'
 import { LyricsShareModal } from './LyricsShareModal'
+import { AdminLyricsEditorModal } from './AdminLyricsEditorModal'
 import {
   Headphones,
   RefreshCw,
@@ -29,6 +32,7 @@ import {
   Plus,
   Share2,
   Languages,
+  PenTool,
 } from 'lucide-react'
 
 interface ExtendedLyricLine extends LyricLine {
@@ -344,11 +348,14 @@ export const LyricsView = memo(function LyricsView({
   const { currentTime } = usePlaybackProgress()
   const { currentTrack, mvIntroOffset } = usePlayerTrack()
   const { seek } = usePlayerControls()
+  const { userEmail } = useCurrentUser()
+  const userIsAdmin = isAdmin(userEmail)
 
   const [loading, setLoading] = useState(false)
-  const [, setLyricsData] = useState<LrclibResponse | null>(null)
+  const [lyricsData, setLyricsData] = useState<LrclibResponse | null>(null)
   const [parsedLyrics, setParsedLyrics] = useState<ExtendedLyricLine[]>([])
   const [internalShowRomaji, setInternalShowRomaji] = useState(true)
+  const [showAdminEditor, setShowAdminEditor] = useState(false)
 
   useEffect(() => {
     try {
@@ -386,66 +393,68 @@ export const LyricsView = memo(function LyricsView({
   const lyricsReqIdRef = useRef(0)
   const lastLyricCheckRef = useRef(0)
 
-  const loadLyricsForTrack = useCallback(async (
-    title: string,
-    artist?: string | null,
-    album?: string | null,
-    duration?: number | null,
-    youtubeId?: string | null,
-    nhaccuatuiId?: string | null,
-    source?: Track['source'],
-  ) => {
+  const applyLyricsResponse = useCallback((data: LrclibResponse | null, reqId: number) => {
+    if (data) {
+      setLyricsData(data)
+      let parsed: ExtendedLyricLine[] = []
+      if (data.syncedLyrics && data.syncedLyrics.trim().length > 0) {
+        parsed = parseLrc(data.syncedLyrics)
+        setParsedLyrics(parsed)
+        setIsSynced(true)
+      } else if (data.plainLyrics && data.plainLyrics.trim().length > 0) {
+        parsed = parsePlainLyrics(data.plainLyrics)
+        setParsedLyrics(parsed)
+        setIsSynced(false)
+      } else {
+        setParsedLyrics([])
+        setIsSynced(false)
+      }
+
+      // Asynchronously fetch Romaji
+      if (parsed.length > 0) {
+        fetchLyricsRomaji(parsed.map((p) => p.text))
+          .then((romajiResults) => {
+            if (reqId === lyricsReqIdRef.current && romajiResults.length === parsed.length) {
+              setParsedLyrics(
+                parsed.map((line, idx) => ({
+                  ...line,
+                  romaji: romajiResults[idx] || '',
+                })),
+              )
+            }
+          })
+          .catch(() => {})
+      }
+    } else {
+      setLyricsData(null)
+      setParsedLyrics([])
+      setIsSynced(false)
+    }
+  }, [])
+
+  const loadLyricsForTrack = useCallback(async (track: Track) => {
     const reqId = ++lyricsReqIdRef.current
     setLoading(true)
     setErrorMessage(null)
 
     try {
       const data = await getPrimaryLyrics({
-        title,
-        artist,
-        album,
-        duration: duration || 0,
-        youtube_id: youtubeId || undefined,
-        nhaccuatui_id: nhaccuatuiId || undefined,
-        source: source || undefined,
+        id: track.id,
+        title: track.title,
+        artist: track.artist,
+        album: track.album,
+        duration: track.duration || 0,
+        youtube_id: track.youtube_id || undefined,
+        nhaccuatui_id: track.nhaccuatui_id || undefined,
+        soundcloud_id: track.soundcloud_id || undefined,
+        spotify_id: track.spotify_id || undefined,
+        file_path: track.file_path || undefined,
+        lyrics: track.lyrics || undefined,
+        source: track.source || undefined,
       })
 
       if (reqId !== lyricsReqIdRef.current) return
-
-      if (data) {
-        setLyricsData(data)
-        let parsed: ExtendedLyricLine[] = []
-        if (data.syncedLyrics && data.syncedLyrics.trim().length > 0) {
-          parsed = parseLrc(data.syncedLyrics)
-          setParsedLyrics(parsed)
-          setIsSynced(true)
-        } else if (data.plainLyrics && data.plainLyrics.trim().length > 0) {
-          parsed = parsePlainLyrics(data.plainLyrics)
-          setParsedLyrics(parsed)
-          setIsSynced(false)
-        } else {
-          setParsedLyrics([])
-          setIsSynced(false)
-        }
-
-        // Asynchronously fetch Romaji
-        if (parsed.length > 0) {
-          fetchLyricsRomaji(parsed.map((p) => p.text)).then((romajiResults) => {
-            if (reqId === lyricsReqIdRef.current && romajiResults.length === parsed.length) {
-              setParsedLyrics(
-                parsed.map((line, idx) => ({
-                  ...line,
-                  romaji: romajiResults[idx] || '',
-                }))
-              )
-            }
-          }).catch(() => {})
-        }
-      } else {
-        setLyricsData(null)
-        setParsedLyrics([])
-        setIsSynced(false)
-      }
+      applyLyricsResponse(data, reqId)
     } catch {
       if (reqId !== lyricsReqIdRef.current) return
       setErrorMessage('Không thể tải lời bài hát')
@@ -454,7 +463,7 @@ export const LyricsView = memo(function LyricsView({
     } finally {
       if (reqId === lyricsReqIdRef.current) setLoading(false)
     }
-  }, [])
+  }, [applyLyricsResponse])
 
   // 1. Fetch lyrics when currentTrack changes
   useEffect(() => {
@@ -473,15 +482,7 @@ export const LyricsView = memo(function LyricsView({
     setParsedLyrics([])
     setLyricsData(null)
     setIsSynced(false)
-    loadLyricsForTrack(
-      currentTrack.title,
-      currentTrack.artist,
-      currentTrack.album,
-      currentTrack.duration,
-      currentTrack.youtube_id,
-      currentTrack.nhaccuatui_id,
-      currentTrack.source,
-    )
+    loadLyricsForTrack(currentTrack)
   }, [
     currentTrack?.id,
     currentTrack?.title,
@@ -493,6 +494,23 @@ export const LyricsView = memo(function LyricsView({
     currentTrack?.source,
     loadLyricsForTrack,
   ])
+
+  // Listen for live custom lyrics updates from AdminLyricsEditorModal
+  useEffect(() => {
+    if (!currentTrack) return
+    const handleLyricsUpdated = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail
+      if (!detail) return
+      const reqId = ++lyricsReqIdRef.current
+      if (detail.data) {
+        applyLyricsResponse(detail.data as LrclibResponse, reqId)
+      } else {
+        loadLyricsForTrack(currentTrack)
+      }
+    }
+    window.addEventListener(LYRICS_UPDATED_EVENT, handleLyricsUpdated)
+    return () => window.removeEventListener(LYRICS_UPDATED_EVENT, handleLyricsUpdated)
+  }, [currentTrack, applyLyricsResponse, loadLyricsForTrack])
 
   // 2. High-Performance Active Lyric Finder (Throttled calculation, zero state churn)
   useEffect(() => {
@@ -651,6 +669,20 @@ export const LyricsView = memo(function LyricsView({
               <Languages className="w-4 h-4" />
             </button>
 
+            {userIsAdmin && (
+              <button
+                onClick={() => setShowAdminEditor(true)}
+                className="w-9 h-9 flex items-center justify-center bg-cyan-500/15 hover:bg-cyan-500/25 active:scale-95 text-cyan-300 rounded-full border border-cyan-500/35 transition-all shrink-0 shadow-md"
+                title={
+                  parsedLyrics.length > 0
+                    ? 'Chỉnh sửa lời bài hát (Admin)'
+                    : 'Viết lời bài hát (Admin)'
+                }
+              >
+                <PenTool className="w-3.5 h-3.5" />
+              </button>
+            )}
+
             <button
               onClick={() => setShowShareModal(true)}
               disabled={parsedLyrics.length === 0}
@@ -661,7 +693,7 @@ export const LyricsView = memo(function LyricsView({
             </button>
 
             <button
-              onClick={() => loadLyricsForTrack(currentTrack.title, currentTrack.artist, currentTrack.album, currentTrack.duration, currentTrack.youtube_id, currentTrack.nhaccuatui_id, currentTrack.source)}
+              onClick={() => loadLyricsForTrack(currentTrack)}
               disabled={loading}
               className="w-9 h-9 flex items-center justify-center bg-white/[0.06] hover:bg-white/15 active:scale-95 text-slate-200 rounded-full border border-white/10 transition-all shrink-0 shadow-md"
               title="Tải lại lời bài hát"
@@ -721,11 +753,21 @@ export const LyricsView = memo(function LyricsView({
             })}
           </div>
         ) : (
-          <div className="h-full flex flex-col items-center justify-center text-slate-400 py-20">
+          <div className="h-full flex flex-col items-center justify-center text-slate-400 py-20 text-center">
             <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-4 shadow-xl shadow-black/40">
               <Mic2 className="w-6 h-6 text-slate-500" />
             </div>
             <p className="text-sm font-bold text-slate-300 tracking-wide">Chưa có lời bài hát cho bản nhạc này</p>
+            {userIsAdmin && (
+              <button
+                type="button"
+                onClick={() => setShowAdminEditor(true)}
+                className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500/20 to-teal-500/20 hover:from-cyan-500/30 hover:to-teal-500/30 text-cyan-300 border border-cyan-400/40 shadow-[0_0_20px_rgba(34,211,238,0.18)] active:scale-95 transition-all text-xs font-extrabold cursor-pointer"
+              >
+                <PenTool className="w-3.5 h-3.5" />
+                <span>Viết lời bài hát (Admin)</span>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -733,17 +775,35 @@ export const LyricsView = memo(function LyricsView({
       {/* 🎵 Bottom Glassmorphic Player Controls & Seekbar (Isolated 60FPS re-render) */}
       {showControls && <LyricsBottomControls />}
 
-      {/* Floating Share Button when header is hidden */}
-      {!showHeader && parsedLyrics.length > 0 && (
-        <div className="absolute top-4 right-4 z-30">
-          <button
-            onClick={() => setShowShareModal(true)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 hover:bg-white/15 active:scale-95 text-slate-300 hover:text-white border border-white/15 backdrop-blur-xl shadow-lg transition-all text-xs font-bold"
-            title="Chia sẻ câu hát"
-          >
-            <Share2 className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)]" />
-            <span className="hidden sm:inline">Chia sẻ</span>
-          </button>
+      {/* Floating Share & Admin Edit Buttons when header is hidden */}
+      {!showHeader && (parsedLyrics.length > 0 || userIsAdmin) && (
+        <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
+          {userIsAdmin && (
+            <button
+              onClick={() => setShowAdminEditor(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-500/20 hover:bg-cyan-500/30 active:scale-95 text-cyan-300 border border-cyan-400/40 backdrop-blur-xl shadow-lg transition-all text-xs font-bold cursor-pointer"
+              title={
+                parsedLyrics.length > 0
+                  ? 'Chỉnh sửa lời bài hát (Admin)'
+                  : 'Viết lời bài hát (Admin)'
+              }
+            >
+              <PenTool className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">
+                {parsedLyrics.length > 0 ? 'Sửa lời' : 'Viết lời'}
+              </span>
+            </button>
+          )}
+          {parsedLyrics.length > 0 && (
+            <button
+              onClick={() => setShowShareModal(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 hover:bg-white/15 active:scale-95 text-slate-300 hover:text-white border border-white/15 backdrop-blur-xl shadow-lg transition-all text-xs font-bold"
+              title="Chia sẻ câu hát"
+            >
+              <Share2 className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)]" />
+              <span className="hidden sm:inline">Chia sẻ</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -755,6 +815,21 @@ export const LyricsView = memo(function LyricsView({
           track={currentTrack}
           lyrics={parsedLyrics}
           initialActiveIndex={activeIndex}
+        />
+      )}
+
+      {/* ✍️ Admin Custom Lyrics Editor Modal */}
+      {userIsAdmin && showAdminEditor && currentTrack && (
+        <AdminLyricsEditorModal
+          isOpen={showAdminEditor}
+          onClose={() => setShowAdminEditor(false)}
+          track={currentTrack}
+          initialLyrics={
+            lyricsData?.syncedLyrics ||
+            lyricsData?.plainLyrics ||
+            currentTrack.lyrics ||
+            ''
+          }
         />
       )}
     </div>

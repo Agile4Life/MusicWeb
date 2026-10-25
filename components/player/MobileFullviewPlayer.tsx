@@ -8,10 +8,14 @@ import { TrackCoverImage } from '../common/TrackCoverImage'
 import { ArtistLinks } from '../common/ArtistLinks'
 import { getPrimaryArtistName } from '@/lib/artistParser'
 import { LyricsShareModal } from './LyricsShareModal'
+import { AdminLyricsEditorModal } from './AdminLyricsEditorModal'
 import { MobileTabTransition } from './MobileTabTransition'
-import { getPrimaryLyrics, getTrackLyricsCacheKey } from '@/lib/lyricsFlow'
+import { getPrimaryLyrics, getTrackLyricsCacheKey, LYRICS_UPDATED_EVENT } from '@/lib/lyricsFlow'
+import { formatLrcTimestamp } from '@/lib/customLyrics'
 import { parseLrc, parsePlainLyrics, findActiveLyricIndex, LyricLine } from '@/lib/lrcParser'
 import { fetchLyricsRomaji } from '@/lib/romajiTransliteration'
+import { useCurrentUser } from '@/components/auth/CurrentUserContext'
+import { isAdmin } from '@/lib/accessControl'
 import {
   Play,
   Pause,
@@ -34,6 +38,7 @@ import {
   GripVertical,
   DiscAlbum,
   User,
+  PenTool,
 } from 'lucide-react'
 
 interface ExtendedLyricLine extends LyricLine {
@@ -153,8 +158,43 @@ export function MobileFullviewPlayer({
       if (saved !== null) setShowTranslation(saved === 'true')
     } catch {}
   }, [])
+  const { userEmail } = useCurrentUser()
+  const userIsAdmin = isAdmin(userEmail)
   const [showMenuSheet, setShowMenuSheet] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
+  const [showAdminLyricsEditor, setShowAdminLyricsEditor] = useState(false)
+
+  // Listen for live custom lyrics updates from AdminLyricsEditorModal
+  useEffect(() => {
+    if (!currentTrack) return
+    const handleLyricsUpdated = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail
+      if (!detail) return
+      const cacheKey = getTrackLyricsCacheKey(currentTrack)
+      const res = detail.data
+      if (!res || (!res.syncedLyrics && !res.plainLyrics)) {
+        globalLyricsCache.delete(cacheKey)
+        setLyrics([])
+        setIsSynced(false)
+        return
+      }
+      let parsed: ExtendedLyricLine[] = []
+      let hasSynced = false
+      if (res.syncedLyrics && res.syncedLyrics.trim().length > 0) {
+        parsed = parseLrc(res.syncedLyrics)
+        hasSynced = true
+      } else if (res.plainLyrics && res.plainLyrics.trim().length > 0) {
+        parsed = parsePlainLyrics(res.plainLyrics)
+        hasSynced = false
+      }
+      const validLyrics = parsed.filter((l) => l.text && l.text.trim().length > 0)
+      setLyrics(validLyrics)
+      setIsSynced(hasSynced)
+      globalLyricsCache.set(cacheKey, { lyrics: validLyrics, isSynced: hasSynced })
+    }
+    window.addEventListener(LYRICS_UPDATED_EVENT, handleLyricsUpdated)
+    return () => window.removeEventListener(LYRICS_UPDATED_EVENT, handleLyricsUpdated)
+  }, [currentTrack])
 
   // Auto-scroll management & timeouts
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -913,10 +953,20 @@ export function MobileFullviewPlayer({
                 <Sparkles className="w-8 h-8 stroke-[1.5] text-white/30" />
                 <p className="text-sm font-semibold text-white/70">Chưa có lời đồng bộ cho bài hát này</p>
                 <p className="text-xs text-white/40">Bạn có thể tự tìm kiếm hoặc thưởng thức giai điệu tuyệt vời</p>
+                {userIsAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminLyricsEditor(true)}
+                    className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/40 shadow-lg active:scale-95 transition-all text-xs font-extrabold cursor-pointer"
+                  >
+                    <PenTool className="w-3.5 h-3.5" />
+                    <span>Viết lời bài hát (Admin)</span>
+                  </button>
+                )}
               </div>
             )}
 
-            {/* Lyrics utility bar: Language toggle + Share */}
+            {/* Lyrics utility bar: Language toggle + Admin Edit + Share */}
             {lyrics.length > 0 && (
               <div className="flex items-center justify-between px-2 py-2 shrink-0">
                 <button
@@ -936,14 +986,27 @@ export function MobileFullviewPlayer({
                   <Languages className="w-5 h-5" />
                 </button>
 
-                <button
-                  aria-label="Chia sẻ lời bài hát"
-                  type="button"
-                  onClick={() => setShowShareModal(true)}
-                  className="p-2 rounded-full text-white/40 hover:text-white/60 transition-all cursor-pointer active:scale-95"
-                >
-                  <Sparkles className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                  {userIsAdmin && (
+                    <button
+                      aria-label="Chỉnh sửa lời bài hát (Admin)"
+                      type="button"
+                      onClick={() => setShowAdminLyricsEditor(true)}
+                      className="p-2 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/35 hover:bg-cyan-500/30 transition-all cursor-pointer active:scale-95"
+                    >
+                      <PenTool className="w-4 h-4" />
+                    </button>
+                  )}
+
+                  <button
+                    aria-label="Chia sẻ lời bài hát"
+                    type="button"
+                    onClick={() => setShowShareModal(true)}
+                    className="p-2 rounded-full text-white/40 hover:text-white/60 transition-all cursor-pointer active:scale-95"
+                  >
+                    <Sparkles className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -1266,6 +1329,25 @@ export function MobileFullviewPlayer({
                 <Share2 className="w-4 h-4 text-white/60" />
                 <span>Chia sẻ trích dẫn lời bài hát</span>
               </button>
+
+              {userIsAdmin && (
+                <button
+                  aria-label="Viết hoặc chỉnh sửa lời bài hát (Admin)"
+                  type="button"
+                  onClick={() => {
+                    setShowMenuSheet(false)
+                    setShowAdminLyricsEditor(true)
+                  }}
+                  className="flex items-center gap-3 p-3.5 rounded-2xl border border-cyan-400/30 bg-cyan-500/15 text-xs font-bold text-cyan-300 transition-all hover:bg-cyan-500/25"
+                >
+                  <PenTool className="w-4 h-4 text-cyan-300" />
+                  <span>
+                    {lyrics.length > 0
+                      ? 'Chỉnh sửa lời bài hát (Admin)'
+                      : 'Viết lời bài hát (Admin)'}
+                  </span>
+                </button>
+              )}
             </motion.div>
           </motion.div>
         )}
@@ -1280,6 +1362,26 @@ export function MobileFullviewPlayer({
           onClose={() => setShowShareModal(false)}
           track={currentTrack}
           lyrics={lyrics}
+        />
+      )}
+
+      {/* ✍️ Admin Custom Lyrics Editor Modal */}
+      {userIsAdmin && showAdminLyricsEditor && (
+        <AdminLyricsEditorModal
+          isOpen={showAdminLyricsEditor}
+          onClose={() => setShowAdminLyricsEditor(false)}
+          track={currentTrack}
+          initialLyrics={
+            lyrics.length > 0
+              ? lyrics
+                  .map((l) =>
+                    isSynced && l.time >= 0
+                      ? `${formatLrcTimestamp(l.time)} ${l.text}`
+                      : l.text,
+                  )
+                  .join('\n')
+              : currentTrack.lyrics || ''
+          }
         />
       )}
     </div>
