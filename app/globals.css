@@ -7086,6 +7086,44 @@ html[data-theme-style="minimal-flat"][data-cursor="lottie"] [role="button"] {
   font-family: var(--font-fraunces, Georgia, serif);
 }
 
+/* ================================================================
+   📱 iOS PWA STANDALONE & MINIMAL EDITORIAL MOBILE REFINEMENTS
+   ================================================================ */
+html,
+body {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (display-mode: standalone) {
+  body {
+    overscroll-behavior-y: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  input,
+  textarea,
+  [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
+[data-theme-style="minimal-flat"] .mobile-drawer {
+  background: #141017 !important;
+  border-right: 1px solid rgba(244, 236, 230, 0.12) !important;
+  box-shadow: 24px 0 60px rgba(0, 0, 0, 0.72) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[data-theme-style="minimal-flat"] .mini-player {
+  background: rgba(29, 23, 32, 0.96) !important;
+  border: 1px solid rgba(244, 236, 230, 0.14) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6) !important;
+}
+
 /* Classic Cyber Dark overrides for Mobile Fullview */
 [data-theme-style="classic"] .mobile-fullview-overlay {
   background-color: var(--bg-space, #07090e) !important;
