@@ -21,6 +21,7 @@ export function resolveTrackSpotifyAlbumId(album: any, trackTitle?: string | nul
 }
 
 let cachedToken: { token: string; expiresAt: number } | null = null
+let tokenInFlight: Promise<string | null> | null = null
 
 export async function getSpotifyAccessToken(): Promise<string | null> {
   const clientId = process.env.SPOTIFY_CLIENT_ID
@@ -35,6 +36,17 @@ export async function getSpotifyAccessToken(): Promise<string | null> {
     return cachedToken.token
   }
 
+  if (tokenInFlight) return tokenInFlight
+
+  tokenInFlight = fetchSpotifyAccessToken(clientId, clientSecret)
+  try {
+    return await tokenInFlight
+  } finally {
+    tokenInFlight = null
+  }
+}
+
+async function fetchSpotifyAccessToken(clientId: string, clientSecret: string): Promise<string | null> {
   try {
     const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
     const res = await fetch('https://accounts.spotify.com/api/token', {
