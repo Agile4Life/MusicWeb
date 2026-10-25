@@ -13,6 +13,7 @@ import { TrackArtwork } from './TrackArtwork'
 import { CommunityLibrary } from './CommunityLibrary'
 import { PublishDeckDialog } from './PublishDeckDialog'
 import { DeckShare } from './DeckShare'
+import { useBattlePlayback } from './useBattlePlayback'
 import { getCommunityDeck } from './communityClient'
 import { isDeckId, type CommunityDeck } from '@/lib/songBattleCommunity'
 import { normalizeBattleTrack } from '@/lib/songBattleSources'
@@ -48,6 +49,7 @@ export default function SpotifyLabPage() {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const matchVersion = battle?.history.length
   const inBattle = battle !== null
+  const playback = useBattlePlayback(battle, current)
 
   const openDeck = useCallback(async (id: string) => {
     deckRequest.current?.abort()
@@ -180,7 +182,7 @@ export default function SpotifyLabPage() {
         </section>}
       </>}
       <div ref={headingRef} className={styles.contentAnchor}>
-        {battle ? <BattleView battle={battle} currentId={current?.id} onPreview={preview} onChoose={choose} onUndo={undo}
+        {battle ? <BattleView battle={playback.battle!} currentId={current?.id} onPreview={preview} onChoose={choose} onUndo={undo}
           onReplay={() => { setCurrent(null); setBattle(createBattle(battle.entrants, battle.entrants.length)) }} onExit={exit} />
           : view === 'community' ? <CommunityLibrary openingId={openingId} onOpen={id => { void openDeck(id) }}
             onCreate={createDeck}
@@ -209,7 +211,9 @@ export default function SpotifyLabPage() {
             <SourcePicker selected={pool} onAdd={tracks => setPool(previous => mergeBattleTracks(previous, tracks))} onPreview={preview} />
           </div>}
       </div>
-      <div ref={previewRef} className={styles.previewAnchor}>{current && <PreviewPlayer key={current.id} track={current} onClose={() => setCurrent(null)} />}</div>
+      <div ref={previewRef} className={styles.previewAnchor}>{current && (playback.resolvingPreview
+        ? <p role="status" className={styles.previewLoading}>Đang tìm nguồn phát…</p>
+        : <PreviewPlayer key={current.id} track={playback.current!} onClose={() => setCurrent(null)} />)}</div>
       <footer className={styles.footer}><span>GOOD MUSIC. TOUGH CHOICES.</span><span>Made for your ears, by MusicWeb.</span></footer>
     </div>
     {publishOpen && <PublishDeckDialog tracks={pool} editing={selectedDeck?.is_owner ? selectedDeck : null} onClose={() => setPublishOpen(false)}
