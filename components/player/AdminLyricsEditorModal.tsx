@@ -185,7 +185,7 @@ export function AdminLyricsEditorModal({
     )
     setRawText(stripped)
     setSyncLines(parseEditableLyricLines(stripped))
-    toast.info('Đã xóa toàn bộ mốc thời gian LRC')
+    toast('Đã xóa toàn bộ mốc thời gian LRC', 'info')
   }, [activeTab, rawText, syncLines])
 
   const handleNudgeLine = useCallback((idx: number, delta: number) => {
@@ -218,7 +218,7 @@ export function AdminLyricsEditorModal({
         ).trim()
 
     if (!clearCustom && !finalLyrics) {
-      toast.error('Vui lòng nhập nội dung lời bài hát trước khi lưu.')
+      toast('Vui lòng nhập nội dung lời bài hát trước khi lưu.', 'error')
       return
     }
 
@@ -234,7 +234,7 @@ export function AdminLyricsEditorModal({
       })
       const json = await res.json().catch(() => null)
       if (!res.ok || !json?.success) {
-        toast.error(json?.error || 'Không thể lưu lời bài hát. Vui lòng thử lại.')
+        toast(json?.error || 'Không thể lưu lời bài hát. Vui lòng thử lại.', 'error')
         return
       }
 
@@ -258,15 +258,16 @@ export function AdminLyricsEditorModal({
         )
       }
 
-      toast.success(
+      toast(
         clearCustom
           ? 'Đã xóa lời tùy chỉnh và khôi phục chế độ tự động.'
           : 'Đã lưu lời bài hát thành công!',
+        'success',
       )
       onSaved?.(savedData, savedRaw)
       onClose()
     } catch {
-      toast.error('Lỗi kết nối khi lưu lời bài hát.')
+      toast('Lỗi kết nối khi lưu lời bài hát.', 'error')
     } finally {
       setIsSaving(false)
     }
