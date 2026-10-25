@@ -48,7 +48,23 @@ export function inferTrackSource(track: Track): Track {
     fp.startsWith('soundcloud:') ||
     track.id?.startsWith('sc-')
   ) {
-    return { ...track, source: 'soundcloud' }
+    let scId = track.soundcloud_id
+    if (!scId) {
+      if (fp.startsWith('soundcloud:')) {
+        scId = fp.slice('soundcloud:'.length).trim() || undefined
+      } else if (track.id?.startsWith('sc-')) {
+        scId = track.id.slice(3).trim() || undefined
+      }
+    }
+    const scPermalink =
+      track.soundcloud_permalink_url ||
+      (fp.includes('soundcloud.com') ? fp : undefined)
+    return {
+      ...track,
+      source: 'soundcloud',
+      ...(scId ? { soundcloud_id: scId } : {}),
+      ...(scPermalink ? { soundcloud_permalink_url: scPermalink } : {}),
+    }
   }
 
   if (
@@ -129,8 +145,22 @@ export function classifyTrack(track: Track, isIOS = false): TrackClassification 
   const driveId = normalized.drive_file_id || extractDriveFileId(fp) || undefined
   const ytId = normalized.youtube_id || (normalized.source === 'youtube' ? extractYouTubeVideoId(fp) : undefined) || (normalized.id?.startsWith('yt-') ? normalized.id.replace('yt-', '') : undefined) || undefined
   const nctId = normalized.nhaccuatui_id || (normalized.source === 'nhaccuatui' && !normalized.id?.startsWith('local-') ? normalized.id : undefined) || undefined
-  const scId = normalized.soundcloud_id ? String(normalized.soundcloud_id) : (normalized.id?.startsWith('sc-') ? normalized.id.replace('sc-', '') : undefined) || undefined
-  const hasResolvedStreamProvider = Boolean(nctId || scId || ytId || driveId)
+  const scId =
+    normalized.soundcloud_id
+      ? String(normalized.soundcloud_id)
+      : fp.startsWith('soundcloud:')
+        ? fp.slice('soundcloud:'.length).trim() || undefined
+        : normalized.id?.startsWith('sc-')
+          ? normalized.id.replace('sc-', '')
+          : undefined
+  const hasSoundCloudTarget = Boolean(
+    scId ||
+      fp.includes('soundcloud.com') ||
+      (normalized.source_url && normalized.source_url.includes('soundcloud.com')) ||
+      (normalized.soundcloud_permalink_url &&
+        normalized.soundcloud_permalink_url.includes('soundcloud.com'))
+  )
+  const hasResolvedStreamProvider = Boolean(nctId || hasSoundCloudTarget || ytId || driveId)
 
   const hasPreviewUrl = Boolean(
     (audioUrl && (isPreviewUrl(audioUrl) || audioUrl.startsWith('skd:'))) ||

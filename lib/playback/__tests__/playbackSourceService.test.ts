@@ -626,5 +626,50 @@ describe('playbackSourceService', () => {
       initialTime: 12,
     });
   });
+
+  it('does not treat a persisted SoundCloud permalink URL in file_path as a direct HTML5 audio stream in resolveImmediate', async () => {
+    const deps = createFakeDeps({
+      isIOS: () => false,
+      resolveSoundCloudUrl: vi.fn().mockResolvedValue('https://cf-media.sndcdn.com/stream.mp3'),
+    });
+    const service = createPlaybackSourceService(deps);
+
+    const historyScTrack = makeTrack('550e8400-e29b-41d4-a716-446655440000', {
+      source: 'soundcloud',
+      file_path: 'https://soundcloud.com/sontungmtp/making-my-way',
+      soundcloud_id: undefined,
+      audio_url: undefined,
+    });
+
+    // resolveImmediate on desktop must NOT return the SoundCloud HTML webpage URL
+    expect(
+      service.resolveImmediate({
+        track: historyScTrack,
+        initialTime: 0,
+        preserveGesture: false,
+        tabHidden: false,
+      })
+    ).toBeNull();
+
+    // resolvePlayable must resolve the SoundCloud target via resolveSoundCloudUrl
+    const playable = await service.resolvePlayable({
+      track: historyScTrack,
+      initialTime: 0,
+      tabHidden: false,
+    });
+    expect(deps.resolveSoundCloudUrl).toHaveBeenCalledWith(
+      'https://soundcloud.com/sontungmtp/making-my-way',
+      false
+    );
+    expect(playable).toEqual({
+      track: expect.objectContaining({
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        source: 'soundcloud',
+      }),
+      engine: 'html5',
+      target: 'https://cf-media.sndcdn.com/stream.mp3',
+      initialTime: 0,
+    });
+  });
 });
 

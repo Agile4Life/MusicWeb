@@ -24,6 +24,7 @@ import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 import { ArtistLinks } from '@/components/common/ArtistLinks'
 import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
 import { TopHistoryTrackItem } from '@/lib/listeningHistory'
+import { inferTrackSource } from '@/lib/trackSourceClassifier'
 
 interface HistoryEntry {
   id: string
@@ -112,7 +113,7 @@ export default function HistoryPage() {
       if (res.ok) {
         const { items } = await res.json()
         const validEntries: HistoryEntry[] = (items ?? []).flatMap((item: any) => {
-          const tr = item.track
+          const tr = item.track ? inferTrackSource(item.track) : null
           if (!tr) return []
           let source: Track['source'] = tr.source || 'local'
           let youtube_id = tr.youtube_id
@@ -170,15 +171,21 @@ export default function HistoryPage() {
       const res = await fetch(`/api/history/top?timeframe=${selectedTimeframe}&limit=50`)
       if (res.ok) {
         const { items, totalPlays: total } = await res.json()
-        const validItems: TopHistoryTrackItem[] = (items ?? []).map((item: any) => ({
-          track: {
-            ...item.track,
-            artist: item.track.artist || null,
-            album: item.track.album || null,
-          },
-          playCount: item.playCount || 1,
-          lastPlayedAt: item.lastPlayedAt || item.played_at,
-        }))
+        const validItems: TopHistoryTrackItem[] = (items ?? []).flatMap((item: TopHistoryTrackItem & { played_at?: string }) => {
+          const tr = item.track ? inferTrackSource(item.track) : null
+          if (!tr) return []
+          return [
+            {
+              track: {
+                ...tr,
+                artist: tr.artist || null,
+                album: tr.album || null,
+              },
+              playCount: item.playCount || 1,
+              lastPlayedAt: item.lastPlayedAt || item.played_at || '',
+            },
+          ]
+        })
 
         cachedTopMap[selectedTimeframe] = validItems
         cachedTotalPlays[selectedTimeframe] = total || 0

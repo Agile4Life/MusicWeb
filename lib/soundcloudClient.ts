@@ -545,15 +545,32 @@ export async function resolveSoundCloudTrack(
         process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
       if (supabaseUrl && supabaseKey) {
         const supabase = createClient(supabaseUrl, supabaseKey)
-        const { data: dbTrack } = await supabase.from('tracks').select('file_path, source_url').eq('id', rawId).single()
-        const fp = dbTrack?.source_url || dbTrack?.file_path || ''
-        if (fp) {
+        const { data: dbTrack } = await supabase
+          .from('tracks')
+          .select('file_path, title, artist')
+          .eq('id', rawId)
+          .single()
+        const fp = (dbTrack?.file_path || '').trim()
+        if (
+          fp &&
+          (fp.startsWith('soundcloud:') ||
+            fp.includes('soundcloud.com') ||
+            /^\d+$/.test(fp.replace(/^sc-/, '')))
+        ) {
           return resolveSoundCloudTrack(fp)
+        }
+        if (dbTrack?.title) {
+          const query = [dbTrack.title, dbTrack.artist].filter(Boolean).join(' ').trim()
+          const candidates = await searchSoundCloudTracks(query, 5)
+          if (candidates.length > 0 && candidates[0].soundcloud_id) {
+            return resolveSoundCloudTrack(candidates[0].soundcloud_id)
+          }
         }
       }
     } catch (dbErr) {
       console.warn('[SoundCloud] DB lookup for UUID track failed:', dbErr)
     }
+    return null
   }
 
   rawId = rawId.replace(/^sc-/, '')
@@ -638,15 +655,32 @@ export async function resolveSoundCloudStreamUrl(
         process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
       if (supabaseUrl && supabaseKey) {
         const supabase = createClient(supabaseUrl, supabaseKey)
-        const { data: dbTrack } = await supabase.from('tracks').select('file_path, source_url').eq('id', rawId).single()
-        const fp = dbTrack?.source_url || dbTrack?.file_path || ''
-        if (fp) {
+        const { data: dbTrack } = await supabase
+          .from('tracks')
+          .select('file_path, title, artist')
+          .eq('id', rawId)
+          .single()
+        const fp = (dbTrack?.file_path || '').trim()
+        if (
+          fp &&
+          (fp.startsWith('soundcloud:') ||
+            fp.includes('soundcloud.com') ||
+            /^\d+$/.test(fp.replace(/^sc-/, '')))
+        ) {
           return resolveSoundCloudStreamUrl(fp, bypassCache)
+        }
+        if (dbTrack?.title) {
+          const query = [dbTrack.title, dbTrack.artist].filter(Boolean).join(' ').trim()
+          const candidates = await searchSoundCloudTracks(query, 5)
+          if (candidates.length > 0 && candidates[0].soundcloud_id) {
+            return resolveSoundCloudStreamUrl(candidates[0].soundcloud_id, bypassCache)
+          }
         }
       }
     } catch (dbErr) {
       console.warn('[SoundCloud] DB lookup for UUID stream failed:', dbErr)
     }
+    return null
   }
 
   rawId = rawId.replace(/^sc-/, '')

@@ -76,7 +76,14 @@ function inferTrackSource(track: Track): Track {
     normalized.audius_id = normalized.id?.startsWith('audius-') ? normalized.id.slice(7) : normalized.id
   }
   if (!normalized.soundcloud_id && (normalized.id?.startsWith('sc-') || normalized.source === 'soundcloud')) {
-    normalized.soundcloud_id = normalized.id?.startsWith('sc-') ? normalized.id.slice(3) : normalized.id
+    const fp = normalized.file_path || ''
+    if (fp.startsWith('soundcloud:')) {
+      normalized.soundcloud_id = fp.slice('soundcloud:'.length).trim()
+    } else if (normalized.id?.startsWith('sc-')) {
+      normalized.soundcloud_id = normalized.id.slice(3)
+    } else if (normalized.id && !UUID_REGEX.test(normalized.id)) {
+      normalized.soundcloud_id = normalized.id
+    }
   }
 
   return normalized
@@ -176,12 +183,12 @@ export async function resolveExternalTrackId(
       ? `nct:${normalizedTrack.nhaccuatui_id}`
       : normalizedTrack.youtube_id
         ? `https://www.youtube.com/watch?v=${normalizedTrack.youtube_id}`
-        : normalizedTrack.spotify_id
-          ? `spotify:${normalizedTrack.spotify_id}`
+        : normalizedTrack.soundcloud_id
+          ? `soundcloud:${normalizedTrack.soundcloud_id}`
           : normalizedTrack.soundcloud_permalink_url
             ? normalizedTrack.soundcloud_permalink_url
-            : normalizedTrack.soundcloud_id
-              ? `soundcloud:${normalizedTrack.soundcloud_id}`
+            : normalizedTrack.spotify_id
+              ? `spotify:${normalizedTrack.spotify_id}`
               : normalizedTrack.itunes_id
                 ? `itunes:${normalizedTrack.itunes_id}`
                 : normalizedTrack.audius_id

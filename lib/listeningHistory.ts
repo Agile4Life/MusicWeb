@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ListeningHistoryItem, Track } from '@/types'
+import { inferTrackSource } from './trackSourceClassifier'
 
 export type { ListeningHistoryItem, Track }
 
@@ -87,7 +88,7 @@ export function getRecentUniqueTracks(items: ListeningHistoryItem[]): Track[] {
   for (const item of items) {
     if (!item.track || seen.has(item.track.id)) continue
     seen.add(item.track.id)
-    uniqueTracks.push(item.track)
+    uniqueTracks.push(inferTrackSource(item.track))
   }
 
   return uniqueTracks
@@ -122,7 +123,7 @@ export function aggregateTopTracks(
     } else {
       statsMap.set(trackId, {
         track: {
-          ...item.track,
+          ...inferTrackSource(item.track),
           play_count: 1,
         },
         playCount: 1,

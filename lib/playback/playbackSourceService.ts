@@ -98,6 +98,18 @@ function isSoundCloudTrack(track: Track): boolean {
   );
 }
 
+function isWebpageOrCatalogUrl(url: string | undefined | null): boolean {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return (
+    lower.includes('soundcloud.com') ||
+    lower.includes('youtube.com/watch') ||
+    lower.includes('youtu.be/') ||
+    lower.includes('open.spotify.com') ||
+    lower.includes('nhaccuatui.com')
+  );
+}
+
 function applyResolvedStreamToTrack(track: Track, streamResult: ResolvedStreamResult): Track {
   if (streamResult.source === 'nhaccuatui') {
     return {
@@ -508,15 +520,19 @@ export function createPlaybackSourceService(
       } else if (
         track.audio_url &&
         track.audio_url.startsWith('http') &&
-        !isPreviewUrl(track.audio_url)
+        !isPreviewUrl(track.audio_url) &&
+        !isWebpageOrCatalogUrl(track.audio_url)
       ) {
         cached = track.audio_url;
       } else if (
         track.file_path &&
         track.file_path.startsWith('http') &&
         !isPreviewUrl(track.file_path) &&
+        !isWebpageOrCatalogUrl(track.file_path) &&
+        !isSoundCloudTrack(track) &&
         track.source !== 'spotify' &&
-        track.source !== 'itunes'
+        track.source !== 'itunes' &&
+        track.source !== 'youtube'
       ) {
         cached = track.file_path;
       }

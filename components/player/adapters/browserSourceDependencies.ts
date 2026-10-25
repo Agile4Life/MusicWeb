@@ -62,24 +62,49 @@ export function createBrowserSourceDependencies(
     resolveSoundCloudUrl: async (target, bypassCache = false) => {
       const workerUrl = process.env.NEXT_PUBLIC_SOUNDCLOUD_WORKER_URL?.trim();
       const refreshQuery = bypassCache ? '&refresh=1' : '';
+      const cleanTarget = String(target)
+        .trim()
+        .replace(/^sc-/, '')
+        .replace(/^soundcloud:/, '');
+      const isNumericId = /^\d+$/.test(cleanTarget);
+      const effectiveTarget = isNumericId ? cleanTarget : target;
+      const localEndpoint = `/api/soundcloud/stream?id=${encodeURIComponent(
+        effectiveTarget
+      )}&format=json${refreshQuery}`;
       try {
-        const endpoint = workerUrl
-          ? `${workerUrl.replace(/\/+$/, '')}/stream?id=${encodeURIComponent(
-              target
-            )}&format=json${refreshQuery}`
-          : `/api/soundcloud/stream?id=${encodeURIComponent(
-              target
-            )}&format=json${refreshQuery}`;
-        const res = await fetch(endpoint);
+        // Cloudflare Worker only supports numeric SoundCloud IDs (/^\d+$/).
+        // Permalink URLs (https://soundcloud.com/...) and DB UUIDs from listening history
+        // must be resolved through /api/soundcloud/stream.
+        if (workerUrl && isNumericId) {
+          const cleanWorkerOrigin = workerUrl.replace(/\/+$/, '');
+          const workerEndpoint = `${cleanWorkerOrigin}/stream?id=${encodeURIComponent(
+            cleanTarget
+          )}&format=json${refreshQuery}`;
+          try {
+            const workerRes = await fetch(workerEndpoint);
+            if (workerRes.ok) {
+              const data = await workerRes.json();
+              if (data.url) {
+                if (String(data.url).startsWith(cleanWorkerOrigin)) {
+                  return `/api/soundcloud/stream?id=${encodeURIComponent(
+                    cleanTarget
+                  )}${refreshQuery}`;
+                }
+                return data.url;
+              }
+            }
+          } catch (workerErr) {
+            console.warn(
+              '[SoundCloud getAudioUrl] worker resolve error, falling back to local API:',
+              workerErr
+            );
+          }
+        }
+
+        const res = await fetch(localEndpoint);
         if (res.ok) {
           const data = await res.json();
           if (data.url) {
-            const cleanWorkerOrigin = workerUrl ? workerUrl.replace(/\/+$/, '') : '';
-            if (cleanWorkerOrigin && String(data.url).startsWith(cleanWorkerOrigin)) {
-              return `/api/soundcloud/stream?id=${encodeURIComponent(
-                target
-              )}${refreshQuery}`;
-            }
             return data.url;
           }
         } else if (res.status === 404 || res.status === 403 || res.status === 502) {
@@ -88,7 +113,7 @@ export function createBrowserSourceDependencies(
       } catch (e) {
         console.warn('[SoundCloud getAudioUrl] direct resolve error:', e);
       }
-      return getDeterministicSoundCloudUrl(target, bypassCache);
+      return getDeterministicSoundCloudUrl(effectiveTarget, bypassCache);
     },
     getDeterministicSoundCloudUrl,
     signStoragePath: async (filePath: string) => {

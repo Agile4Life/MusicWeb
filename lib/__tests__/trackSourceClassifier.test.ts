@@ -117,4 +117,27 @@ describe('trackSourceClassifier', () => {
     expect(nctClass.needsCatalogResolution).toBe(false)
     expect(nctClass.isPreview).toBe(false)
   })
+
+  it('infers soundcloud_id and soundcloud_permalink_url from persisted DB file_path', () => {
+    const dbScById: Track = {
+      ...baseTrack,
+      id: '550e8400-e29b-41d4-a716-446655440000',
+      source: 'soundcloud',
+      file_path: 'soundcloud:1822834458',
+    }
+    const inferredById = inferTrackSource(dbScById)
+    expect(inferredById.source).toBe('soundcloud')
+    expect(inferredById.soundcloud_id).toBe('1822834458')
+    expect(classifyTrack(dbScById).soundcloudId).toBe('1822834458')
+
+    const dbScByPermalink: Track = {
+      ...baseTrack,
+      id: '550e8400-e29b-41d4-a716-446655440001',
+      source: 'soundcloud',
+      file_path: 'https://soundcloud.com/artist/track-name',
+    }
+    const inferredByPermalink = inferTrackSource(dbScByPermalink)
+    expect(inferredByPermalink.source).toBe('soundcloud')
+    expect(inferredByPermalink.soundcloud_permalink_url).toBe('https://soundcloud.com/artist/track-name')
+  })
 })
