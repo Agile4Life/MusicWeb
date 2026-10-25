@@ -869,5 +869,58 @@ describe('playbackSourceService', () => {
       target: '/api/nhaccuatui/stream?id=nct-late-999',
     });
   });
+
+  it('synchronously resolves SoundCloud-tagged tracks with direct SoundCloud IDs via resolveImmediate on desktop foreground', () => {
+    const deps = createFakeDeps({ isIOS: () => false });
+    const service = createPlaybackSourceService(deps);
+
+    const scSearchTrack = makeTrack('sc-777888', {
+      source: 'soundcloud',
+      soundcloud_id: 777888,
+      audio_url: '/api/soundcloud/stream?id=777888',
+      file_path: '',
+    });
+
+    expect(
+      service.resolveImmediate({
+        track: scSearchTrack,
+        initialTime: 0,
+        preserveGesture: false,
+        tabHidden: false,
+      })
+    ).toEqual({
+      track: expect.objectContaining({
+        id: 'sc-777888',
+        source: 'soundcloud',
+        soundcloud_id: 777888,
+      }),
+      engine: 'html5',
+      target: '/api/soundcloud/stream?id=777888',
+      initialTime: 0,
+    });
+
+    const dbImportedScTrack = makeTrack('db-uuid-sc-1', {
+      source: 'local',
+      file_path: 'soundcloud:99887766',
+    });
+
+    expect(
+      service.resolveImmediate({
+        track: dbImportedScTrack,
+        initialTime: 5,
+        preserveGesture: false,
+        tabHidden: false,
+      })
+    ).toEqual({
+      track: expect.objectContaining({
+        id: 'db-uuid-sc-1',
+        source: 'soundcloud',
+        soundcloud_id: '99887766',
+      }),
+      engine: 'html5',
+      target: '/api/soundcloud/stream?id=99887766',
+      initialTime: 5,
+    });
+  });
 });
 

@@ -9,6 +9,7 @@ import { extractArtistAliases, isCatalogTrackMatch, measureIdentityTokenOverlap,
 import { STATIC_DRIVE_TRACKS } from '@/lib/driveTracksMap'
 import { rankSearchTracks } from '@/lib/searchFlow'
 import { isRetiredMusicTrack, normalizeRetiredMusicTrack } from '@/lib/retiredMusicSources'
+import { inferTrackSource } from '@/lib/trackSourceClassifier'
 import { Track } from '@/types'
 import { getDailyTrending, getDailyTrendingCacheControl } from '@/lib/dailyTrending'
 
@@ -128,7 +129,7 @@ export async function GET(request: Request) {
               .limit(10)
             const dbTracks: Track[] = (data || []).map((t: any) => {
               const normalized = normalizeRetiredMusicTrack(t)
-              return isRetiredMusicTrack(t) ? normalized : { ...normalized, source: 'local' as const }
+              return isRetiredMusicTrack(t) ? normalized : inferTrackSource({ ...normalized, source: 'local' as const })
             })
             const seenIds = new Set(dbTracks.map((t) => t.id))
             return [...dbTracks, ...staticMatches.filter((t) => !seenIds.has(t.id))]

@@ -236,3 +236,36 @@ export function isFullYouTubeQueue(q: Track[]): boolean {
     return c.source === 'youtube' || Boolean(c.youtubeId)
   })
 }
+
+export function isSoundCloudTrack(track?: Track | null): boolean {
+  if (!track) return false
+  return Boolean(
+    track.source === 'soundcloud' ||
+      track.soundcloud_id ||
+      track.id?.startsWith('sc-') ||
+      track.file_path?.includes('soundcloud.com') ||
+      track.file_path?.startsWith('soundcloud:') ||
+      track.audio_url?.startsWith('/api/soundcloud/stream')
+  )
+}
+
+export function extractSoundCloudTarget(track: Track): string | number {
+  if (track.soundcloud_id) return track.soundcloud_id
+  if (track.id && String(track.id).startsWith('sc-')) {
+    return String(track.id).replace(/^sc-/, '')
+  }
+  const fp = (track.file_path || '').trim()
+  if (fp.startsWith('soundcloud:')) {
+    return fp.replace('soundcloud:', '')
+  }
+  if (fp.includes('soundcloud.com')) {
+    return fp
+  }
+  if (track.soundcloud_permalink_url) {
+    return track.soundcloud_permalink_url
+  }
+  if (track.source_url && track.source_url.includes('soundcloud.com')) {
+    return track.source_url
+  }
+  return track.id
+}

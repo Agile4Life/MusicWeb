@@ -24,6 +24,8 @@ import {
 import { resolveAlbumDeduped } from '@/lib/albumResolveClient'
 import { triggerDrivePrewarm } from '@/lib/googleDriveUpload'
 import { prewarmNctStreamUrl } from '@/lib/nhaccuatuiClient'
+import { prewarmSoundCloudTrack } from '@/lib/prewarmTrackBatch'
+import { isSoundCloudTrack } from '@/lib/trackSourceClassifier'
 import { resolveStreamCached } from '@/lib/resolveStreamClient'
 import { TrackContextMenu } from './TrackContextMenu'
 
@@ -157,6 +159,9 @@ function TrackRowComponent({
         }
       }
       // 2. Pre-warm Drive for local tracks
+      if (isSoundCloudTrack(track)) {
+        prewarmSoundCloudTrack(track).catch(() => {})
+      }
       triggerDrivePrewarm([track])
 
       // 3. Pre-resolve external catalog tracks (Spotify / Deezer) during hover

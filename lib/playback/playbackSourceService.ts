@@ -630,8 +630,15 @@ export function createPlaybackSourceService(
           cached = deps.buildYouTubeStreamUrl(ytId);
         }
       } else if (
-        (isIOS || Boolean(req.tabHidden)) &&
-        isSoundCloudTrack(track)
+        isSoundCloudTrack(track) &&
+        (isIOS ||
+          Boolean(req.tabHidden) ||
+          Boolean(track.soundcloud_id) ||
+          Boolean(track.id && String(track.id).startsWith('sc-')) ||
+          Boolean(track.file_path && track.file_path.startsWith('soundcloud:')) ||
+          Boolean(
+            track.audio_url && track.audio_url.startsWith('/api/soundcloud/stream')
+          ))
       ) {
         const scTarget = extractSoundCloudTarget(track);
         if (scTarget) {
@@ -1386,7 +1393,7 @@ export function createPlaybackSourceService(
             void getAudioUrlCached(mergedTrack).catch(() => {});
           }
         } else if (resolved.source === 'soundcloud') {
-          if (deps.isIOS() && !audioUrlCache.has(targetTrackId)) {
+          if (!audioUrlCache.has(targetTrackId)) {
             const scTarget = extractSoundCloudTarget(mergedTrack);
             if (scTarget) {
               const deterministicUrl = deps.getDeterministicSoundCloudUrl
@@ -1400,7 +1407,18 @@ export function createPlaybackSourceService(
               );
             }
           }
-          void getAudioUrlCached(mergedTrack, true).catch(() => {});
+          void getAudioUrl(mergedTrack, false)
+            .then((resolvedUrl) => {
+              if (resolvedUrl && !isPreviewUrl(resolvedUrl) && !disposed) {
+                setBounded(
+                  audioUrlCache,
+                  targetTrackId,
+                  { url: resolvedUrl, ts: deps.clock.now() },
+                  AUDIO_URL_MAX_ENTRIES
+                );
+              }
+            })
+            .catch(() => {});
         } else if (resolved.source === 'youtube' && deps.isIOS() && resolved.id) {
           setBounded(
             audioUrlCache,

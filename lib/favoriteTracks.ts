@@ -1,13 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Track } from '@/types'
 import { normalizeRetiredMusicTrack } from './retiredMusicSources'
+import { inferTrackSource as classifyTrackSource } from './trackSourceClassifier'
 
 function toError(message: string | undefined, fallback: string): Error {
   return new Error(message || fallback)
 }
 
 export function inferTrackSource(track: Track): Track {
-  track = normalizeRetiredMusicTrack(track)
+  track = classifyTrackSource(normalizeRetiredMusicTrack(track))
   if (track.source && track.source !== 'local') return track
 
   const fp = track.file_path || ''

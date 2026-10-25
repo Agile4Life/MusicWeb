@@ -18,6 +18,7 @@ import { fetchListeningHistory, getRecentUniqueTracks } from '@/lib/listeningHis
 import { MediaCard } from '@/components/common/MediaCard'
 import { useGridGlideIndicator } from '@/components/common/useGlideIndicator'
 import { buildStyleCoherentQueue } from '@/lib/trackClassifier'
+import { inferTrackSource } from '@/lib/trackSourceClassifier'
 
 function isTrackVisibleToUser(track: Track, userId: string | null): boolean {
   const fp = track.file_path || ''
@@ -449,18 +450,16 @@ export default function HomePage() {
       if (mySeq !== fetchSeqRef.current) return
       setTracks(
         uniqueVisibleTracks.map((t: Track) => ({
-          ...t,
-          source: t.source || 'local',
+          ...inferTrackSource({ ...t, source: t.source || 'local' }),
           is_favorite: userFavSet.has(t.id),
         }))
       )
 
       // Process history from combined response
       try {
-        const recent = getRecentUniqueTracks(historyItems).map((tr) => ({
-          ...tr,
-          source: tr.source || 'local',
-        }))
+        const recent = getRecentUniqueTracks(historyItems).map((tr) =>
+          inferTrackSource({ ...tr, source: tr.source || 'local' })
+        )
         if (mySeq !== fetchSeqRef.current) return
         setRecentTracks(recent)
       } catch (hErr) {
