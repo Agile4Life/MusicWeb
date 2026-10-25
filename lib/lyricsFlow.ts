@@ -148,18 +148,18 @@ export async function getPrimaryLyrics(
 
   const fetchPromise = (async (): Promise<LrclibResponse | null> => {
     try {
-      // Run both NCT and LRCLIB queries concurrently in parallel to eliminate sequential latency
-      const [nctResult, lrclibResult] = await Promise.all([
-        fetchNctLyrics(track),
-        fetchLyricsFromLrclib({
+      // Synced NCT lyrics already satisfy the highest-priority result.
+      const nctResult = track.nhaccuatui_id ? await fetchNctLyrics(track) : null
+      const lrclibResult = nctResult?.syncedLyrics
+        ? null
+        : await fetchLyricsFromLrclib({
           title: track.title,
           artist: track.artist,
           album: track.album,
           duration: track.duration,
           youtubeId: track.youtube_id,
           isSoundCloud: track.source === 'soundcloud',
-        }).catch(() => null),
-      ])
+        }).catch(() => null)
 
       let finalResult: LrclibResponse | null = null
       // 1. Ưu tiên lyrics synced từ NCT nếu có

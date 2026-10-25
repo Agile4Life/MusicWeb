@@ -20,7 +20,7 @@ describe('primary lyrics flow', () => {
     clearPrimaryLyricsCache()
   })
 
-  it('prioritizes synced NCT lyrics even if both NCT and LRCLIB run in parallel', async () => {
+  it('returns synced NCT lyrics without calling LRCLIB', async () => {
     resolveNctMock.mockResolvedValue({
       id: 'nct-1',
       title: 'Xương Rồng',
@@ -46,7 +46,7 @@ describe('primary lyrics flow', () => {
     })
 
     expect(result?.syncedLyrics).toBe('[00:01.00]line one from NCT')
-    expect(lrclibMock).toHaveBeenCalledOnce()
+    expect(lrclibMock).not.toHaveBeenCalled()
     expect(resolveNctMock).toHaveBeenCalledOnce()
   })
 
