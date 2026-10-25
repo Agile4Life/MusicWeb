@@ -240,30 +240,6 @@ function doesSpotifyArtistMatchTarget(
   })
 }
 
-export async function getTrendingSpotifyTracks(limit = 12): Promise<Track[]> {
-  try {
-    const globalArtists = [
-      'Taylor Swift',
-      'The Weeknd',
-      'Billie Eilish',
-      'Bruno Mars',
-      'Sabrina Carpenter',
-      'Ariana Grande',
-      'Post Malone',
-      'Dua Lipa',
-      'Drake',
-      'Olivia Rodrigo',
-    ]
-    const perArtist = Math.max(1, Math.ceil(limit / globalArtists.length))
-    const tracks = await getTopArtistSpotifyTracks(globalArtists, perArtist)
-    const clean = tracks.filter((t) => isCleanTrendingTrack(t.title, t.artist))
-    return clean.slice(0, limit)
-  } catch (err) {
-    console.warn('Spotify trending fetch error:', err)
-  }
-  return []
-}
-
 /**
  * Fetch top hit tracks for specified iconic artists using Spotify Search API
  * with strict artist verification and title deduplication.
@@ -719,7 +695,7 @@ export interface SpotifyPlaylistMeta {
  * Lấy metadata & danh sách bài hát từ trang Spotify Embed public.
  * Hoạt động 100% tin cậy cho toàn bộ playlist Public mà không bị giới hạn bởi quyền Token Spotify API.
  */
-async function fetchSpotifyEmbedPlaylistData(playlistId: string): Promise<{ meta: SpotifyPlaylistMeta; tracks: SpotifyPlaylistTrack[] } | null> {
+async function fetchSpotifyEmbedPlaylistData(playlistId: string, options?: { fresh?: boolean }): Promise<{ meta: SpotifyPlaylistMeta; tracks: SpotifyPlaylistTrack[] } | null> {
   try {
     const embedUrl = `https://open.spotify.com/embed/playlist/${playlistId}`
     const res = await fetch(embedUrl, {
@@ -728,7 +704,9 @@ async function fetchSpotifyEmbedPlaylistData(playlistId: string): Promise<{ meta
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Accept-Language': 'en-US,en;q=0.9,vi;q=0.8',
       },
-      next: { revalidate: 60 },
+      ...(options?.fresh
+        ? { cache: 'no-store' as const, signal: AbortSignal.timeout(5000) }
+        : { next: { revalidate: 60 } }),
     })
 
     if (!res.ok) return null
@@ -853,7 +831,7 @@ export async function fetchSpotifyPlaylistMeta(playlistId: string): Promise<Spot
  * Lấy toàn bộ track trong playlist, tự động phân trang (Spotify trả tối đa 100 item/lần).
  * Bỏ qua local files và episode (podcast) nếu playlist có lẫn — chỉ giữ track nhạc thật.
  */
-export async function fetchSpotifyPlaylistTracks(playlistId: string): Promise<SpotifyPlaylistTrack[]> {
+export async function fetchSpotifyPlaylistTracks(playlistId: string, options?: { fresh?: boolean }): Promise<SpotifyPlaylistTrack[]> {
   if (typeof window !== 'undefined') {
     try {
       const res = await fetch(`/api/spotify/playlist?id=${encodeURIComponent(playlistId)}&type=tracks`)
@@ -866,7 +844,7 @@ export async function fetchSpotifyPlaylistTracks(playlistId: string): Promise<Sp
   }
 
   // 1. Try Spotify Embed Scraper (Fastest, 100% Reliable)
-  const embedData = await fetchSpotifyEmbedPlaylistData(playlistId)
+  const embedData = await fetchSpotifyEmbedPlaylistData(playlistId, options)
   if (embedData && embedData.tracks.length > 0) {
     return embedData.tracks
   }
@@ -884,7 +862,10 @@ export async function fetchSpotifyPlaylistTracks(playlistId: string): Promise<Sp
     while (offset < total) {
       const res = await fetch(
         `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=${limit}&offset=${offset}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          ...(options?.fresh ? { cache: 'no-store' as const, signal: AbortSignal.timeout(5000) } : {}),
+        }
       )
 
       if (!res.ok) {

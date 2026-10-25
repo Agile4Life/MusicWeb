@@ -5,8 +5,10 @@ const providers = vi.hoisted(() => ({
   nct: vi.fn(), spotify: vi.fn(), deezer: vi.fn(), youtube: vi.fn(), soundcloud: vi.fn(), local: vi.fn(),
 }))
 const trendingProviders = vi.hoisted(() => ({
-  spotifyArtists: vi.fn(), deezerArtists: vi.fn(), deezerChart: vi.fn(),
+  spotifyArtists: vi.fn(), deezerArtists: vi.fn(), deezerChart: vi.fn(), spotifyChart: vi.fn(),
 }))
+
+vi.mock('@/lib/trendingSources', () => ({ fetchDailySpotifyChartTracks: trendingProviders.spotifyChart }))
 
 vi.mock('@/lib/supabase/server', () => ({ createClient: providers.local }))
 vi.mock('@/lib/nhaccuatui', async (importOriginal) => ({
@@ -202,11 +204,31 @@ describe('search upstream provider budget', () => {
       const urls = vi.mocked(fetch).mock.calls.map(([url]) => new URL(String(url)))
       expect(urls.map((url) => url.pathname)).toEqual(category === 'vietnamese' || category === 'all' ? ['/api/chart'] : [])
       expect(result.spotify).toEqual([])
+      expect(trendingProviders.spotifyChart).toHaveBeenCalledOnce()
+      expect(trendingProviders.spotifyArtists).not.toHaveBeenCalled()
+      expect(trendingProviders.deezerArtists).not.toHaveBeenCalled()
       expect(result).not.toHaveProperty('itunes')
       expect(result).not.toHaveProperty('audius')
       expect(response.headers.get('Cache-Control')).toBe('no-store')
     },
   )
+
+  it('shares daily chart snapshots with the legacy route and ignores client date overrides', async () => {
+    trendingProviders.spotifyChart.mockResolvedValue([{ id: 'chart-current', title: 'Current Song', artist: 'Artist', source: 'spotify' } as Track])
+    const { GET } = await import('../route')
+    const { GET: legacyGET } = await import('../../trending/route')
+    const response = await GET(new Request('https://music.test/api/search?trending=true&category=usuk&date=1999-01-01'))
+    const data = await response.json()
+    const legacy = await legacyGET(new Request('https://music.test/api/trending?category=usuk'))
+    const legacyData = await legacy.json()
+    expect(data.spotify.map((track: Track) => track.id)).toEqual(['chart-current'])
+    expect(data.trending.date).not.toBe('1999-01-01')
+    expect(legacyData.tracks).toEqual(data.spotify)
+    expect(legacyData.trending).toEqual(data.trending)
+    expect(trendingProviders.spotifyChart).toHaveBeenCalledOnce()
+    expect(trendingProviders.spotifyArtists).not.toHaveBeenCalled()
+    expect(trendingProviders.deezerArtists).not.toHaveBeenCalled()
+  })
 
   it('returns only supported groups for an empty query without provider work', async () => {
     const { GET } = await import('../route')
