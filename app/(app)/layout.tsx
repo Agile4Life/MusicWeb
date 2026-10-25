@@ -21,6 +21,7 @@ import { LiquidAmbientCanvas } from '@/components/theme/LiquidAmbientCanvas'
 import { NavPreloader } from '@/components/navigation/NavPreloader'
 import { MobilePageTransition } from '@/components/navigation/MobilePageTransition'
 import { useGamingMode } from '@/components/theme/useGamingMode'
+import { IOSInstallPrompt } from '@/components/pwa/IOSInstallPrompt'
 
 /** Minimal shell shown when Gaming Mode is active — only audio engine runs */
 function GamingModeShell() {
@@ -99,6 +100,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
       <div className="fixed lg:absolute bottom-[calc(var(--bottom-nav-height,84px)+env(safe-area-inset-bottom,0px)+12px)] lg:bottom-3 left-4 sm:left-4 lg:left-3 right-4 sm:right-4 lg:right-3 z-40 pointer-events-none">
         <PlayerBar isScrolled={isScrolled} />
       </div>
+      <IOSInstallPrompt />
       <NowPlayingOverlay />
       <WelcomeAnnouncementModal />
     </div>
