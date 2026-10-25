@@ -1,5 +1,5 @@
-// MusicWeb Service Worker — iOS Standalone App Shell + Background Audio Caching
-// Keeps audio playing when app is minimized/screen locked on mobile and caches the PWA shell
+// MusicWeb Service Worker — PWA shell and eligible audio response caching.
+// Background playback and page lifetime are managed by the browser and OS.
 
 const SHELL_CACHE_NAME = 'musicweb-shell-v3'
 const AUDIO_CACHE_NAME = 'musicweb-audio-v2'
@@ -162,11 +162,10 @@ async function handleAudioFetch(request) {
   }
 }
 
-// Keep service worker alive during audio playback
-// This prevents the browser from killing the SW while music is playing
+// Reply to client liveness probes; this does not extend page or OS lifetime.
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'KEEP_ALIVE') {
-    // Acknowledge to keep the connection alive
+    // Acknowledge when the client supplied a reply port.
     if (event.ports && event.ports[0]) {
       event.ports[0].postMessage({ type: 'ALIVE' })
     }

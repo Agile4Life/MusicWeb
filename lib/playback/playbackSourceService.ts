@@ -17,7 +17,7 @@ import type { PlaybackSourceDeps } from './sourcePorts';
 const AUDIO_URL_MAX_ENTRIES = 200;
 const TRACK_RESOLUTION_MAX_ENTRIES = 200;
 const TRACK_RESOLUTION_TTL_MS = 30 * 60 * 1000;
-const IOS_CATALOG_FIRST_PLAY_TIMEOUT_MS = 1800;
+const IOS_CATALOG_LOOKUP_TIMEOUT_MS = 1800;
 
 function setBounded<K, V>(map: Map<K, V>, key: K, value: V, maxEntries: number): void {
   if (map.has(key)) map.delete(key);
@@ -531,8 +531,7 @@ export function createPlaybackSourceService(
     if (existing) return existing;
 
     const startGen = trackInvalidationGeneration.get(track.id) ?? 0;
-    let promise!: Promise<ResolvedStreamResult | null>;
-    promise = (async (): Promise<ResolvedStreamResult | null> => {
+    const promise = (async (): Promise<ResolvedStreamResult | null> => {
       try {
         rememberIdentity(track);
         const primary = await deps.resolution.resolve({
@@ -565,12 +564,12 @@ export function createPlaybackSourceService(
         return null;
       } catch {
         return null;
-      } finally {
-        if (inFlightIosCatalogByTrackId.get(track.id) === promise) {
-          inFlightIosCatalogByTrackId.delete(track.id);
-        }
       }
-    })();
+    })().finally(() => {
+      if (inFlightIosCatalogByTrackId.get(track.id) === promise) {
+        inFlightIosCatalogByTrackId.delete(track.id);
+      }
+    });
 
     inFlightIosCatalogByTrackId.set(track.id, promise);
     return promise;
@@ -605,6 +604,12 @@ export function createPlaybackSourceService(
       };
     }
 
+    // Start the native stream in the selecting gesture. Prepare a catalog
+    // alternative concurrently so a slow lookup cannot consume activation.
+    if (isIOS && track.source === 'youtube' && !cachedRes) {
+      void resolveIosCatalogCandidate(track);
+    }
+
     let cached: string | undefined;
     if (track.source === 'nhaccuatui' && track.nhaccuatui_id) {
       cached = deps.getCachedNctUrl(track.nhaccuatui_id) || undefined;
@@ -621,9 +626,6 @@ export function createPlaybackSourceService(
       if (driveFileId && (track.source === 'local' || !track.source)) {
         cached = extractDriveStreamWithExt(track, driveFileId, deps.buildDriveStreamUrl);
       } else if (isIOS && (track.source === 'youtube' || Boolean(track.youtube_id))) {
-        if (!cachedRes && !req.preserveGesture && !req.tabHidden) {
-          return null;
-        }
         const ytId =
           track.youtube_id || extractYouTubeVideoId(track.file_path || '');
         if (ytId) {
@@ -736,7 +738,7 @@ export function createPlaybackSourceService(
         catalogPromise,
         new Promise<'timeout'>((resolve) => {
           cancelRaceTimer = deps.clock.after(
-            IOS_CATALOG_FIRST_PLAY_TIMEOUT_MS,
+            IOS_CATALOG_LOOKUP_TIMEOUT_MS,
             () => {
               setTimeout(() => resolve('timeout'), 0);
             }
@@ -802,7 +804,7 @@ export function createPlaybackSourceService(
       (activeTrack.source === 'youtube'
         ? extractYouTubeVideoId(activeTrack.file_path || '')
         : null);
-    if (ytId) {
+    if (ytId && !isIOS) {
       return {
         track: activeTrack,
         engine: 'youtube',
@@ -889,14 +891,21 @@ export function createPlaybackSourceService(
         }
 
         const inFlightCatalog = inFlightIosCatalogByTrackId.get(track.id);
-        const resolvedCatalog = inFlightCatalog
-          ? await inFlightCatalog
-          : await deps.resolution.resolve({
-              title: track.title,
-              artist: track.artist,
-              duration: track.duration,
-              album: track.album,
-            });
+        let cancelCatalogTimer: (() => void) | undefined;
+        const resolvedCatalog = await Promise.race([
+          inFlightCatalog ?? deps.resolution.resolve({
+            title: track.title,
+            artist: track.artist,
+            duration: track.duration,
+            album: track.album,
+          }),
+          new Promise<null>((resolve) => {
+            cancelCatalogTimer = deps.clock.after(
+              IOS_CATALOG_LOOKUP_TIMEOUT_MS,
+              () => resolve(null)
+            );
+          }),
+        ]).finally(() => cancelCatalogTimer?.());
         if (
           resolvedCatalog &&
           (resolvedCatalog.source === 'nhaccuatui' ||
@@ -1132,8 +1141,10 @@ export function createPlaybackSourceService(
           };
           return {
             track: updatedTrack,
-            engine: 'youtube',
-            target: fallbackMatch.youtube_id,
+            engine: deps.isIOS() ? 'html5' : 'youtube',
+            target: deps.isIOS()
+              ? deps.buildYouTubeStreamUrl(fallbackMatch.youtube_id)
+              : fallbackMatch.youtube_id,
             initialTime: currentTime >= 3 ? Math.floor(currentTime) : 0,
           };
         }
@@ -1328,6 +1339,7 @@ export function createPlaybackSourceService(
             AUDIO_URL_MAX_ENTRIES
           );
         }
+        void resolveIosCatalogCandidate(nextTr);
         return;
       }
       if (nextClass.isDirectPlayable && !audioUrlCache.has(nextTr.id)) {
@@ -1485,7 +1497,7 @@ export function createPlaybackSourceService(
       deps.isIOS() &&
       (nextTr.source === 'youtube' || Boolean(nextTr.youtube_id))
     ) {
-      // Intentionally do not HEAD-prewarm YouTube on iOS
+      void resolveIosCatalogCandidate(nextTr);
     } else if (!audioUrlCache.has(nextTr.id)) {
       void getAudioUrlCached(nextTr).catch(() => {});
     }

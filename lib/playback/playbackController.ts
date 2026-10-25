@@ -69,6 +69,7 @@ export function createPlaybackController(
   const completion = createCompletionCoordinator(deps.clock);
   const recovery = createRecoveryPolicy(MAX_CONSECUTIVE_SKIPS);
   const smartFillAbort = new SupersedableRequest();
+  const canUseYouTubeIframe = () => deps.canUseYouTubeIframe?.() ?? true;
 
   let disposed = false;
   let tabHidden = false;
@@ -247,6 +248,11 @@ export function createPlaybackController(
     }
   };
 
+  const isPlaybackWanted = (owner: PlaybackOwner) =>
+    !disposed &&
+    ownership.getDesiredState() === 'playing' &&
+    ownership.isCurrentOwner(owner, store.getSnapshot().currentTrack?.id);
+
   const executePreparedPlayback = async (
     prepared: PreparedPlayback,
     owner: PlaybackOwner,
@@ -254,6 +260,9 @@ export function createPlaybackController(
     options?: { isFallback?: boolean }
   ): Promise<boolean> => {
     if (disposed || !ownership.isCurrentRequest(owner.requestId)) return false;
+    if (prepared.engine === 'youtube' && !canUseYouTubeIframe()) {
+      throw new Error('A native audio stream is required on this device');
+    }
 
     const syncedTrack: Track = {
       ...prepared.track,
@@ -361,10 +370,7 @@ export function createPlaybackController(
         store.patch({ isPlaying: false, isBuffering: false });
         return false;
       }
-      if (isInterruptionError(err)) {
-        return false;
-      }
-      if (isNotAllowedError(err)) {
+      if (isInterruptionError(err) || isNotAllowedError(err)) {
         pendingResume = true;
         store.patch({ isPlaying: false, isBuffering: false });
         return false;
@@ -663,7 +669,7 @@ export function createPlaybackController(
         void deps.transport
           .resume()
           .then(() => {
-            if (ownership.isCurrentOwner(owner, store.getSnapshot().currentTrack?.id)) {
+            if (isPlaybackWanted(owner)) {
               completion.reset();
               store.patch({ isPlaying: true });
             }
@@ -739,13 +745,13 @@ export function createPlaybackController(
         }
         if (alternate) {
           try {
-            const started = await executePreparedPlayback(
+            await executePreparedPlayback(
               alternate,
               owner,
               current,
               { isFallback: true }
             );
-            if (started) return;
+            return;
           } catch {
             // Fall through to failure
           }
@@ -775,13 +781,13 @@ export function createPlaybackController(
           }
           if (html5Fallback) {
             try {
-              const started = await executePreparedPlayback(
+              await executePreparedPlayback(
                 html5Fallback,
                 owner,
                 current,
                 { isFallback: true }
               );
-              if (started) return;
+              return;
             } catch {
               // Fall through to failure
             }
@@ -803,7 +809,9 @@ export function createPlaybackController(
     inFlightErrorRequestId = owner.requestId;
     try {
       const hadFallbackBeforeError = recovery.hasAttemptedFallback(owner.requestId);
-      await deps.sources.invalidateTrack(current);
+      // A failed YouTube proxy does not invalidate a different catalog source
+      // that was prepared concurrently for this track.
+      if (!ytHtml5Mode) await deps.sources.invalidateTrack(current);
       if (
         disposed ||
         !ownership.isCurrentOwner(owner, store.getSnapshot().currentTrack?.id)
@@ -860,13 +868,13 @@ export function createPlaybackController(
             (html5Alt.track.source === 'youtube' &&
               (html5Alt.track.youtube_id || decision.videoId) === decision.videoId);
           if (!isSameFailingYtProxy) {
-            const started = await executePreparedPlayback(
+            await executePreparedPlayback(
               html5Alt,
               owner,
               current,
               { isFallback: true }
             );
-            if (started) return;
+            return;
           }
         } catch {
           if (
@@ -1082,12 +1090,7 @@ export function createPlaybackController(
             void deps.transport
               .resume()
               .then(() => {
-                if (
-                  ownership.isCurrentOwner(
-                    event.owner,
-                    store.getSnapshot().currentTrack?.id
-                  )
-                ) {
+                if (isPlaybackWanted(event.owner)) {
                   store.patch({ isPlaying: true, isBuffering: false });
                 }
               })
@@ -1228,12 +1231,7 @@ export function createPlaybackController(
             void deps.transport
               .resume()
               .then(() => {
-                if (
-                  ownership.isCurrentOwner(
-                    event.owner,
-                    store.getSnapshot().currentTrack?.id
-                  )
-                ) {
+                if (isPlaybackWanted(event.owner)) {
                   store.patch({ isPlaying: true, isBuffering: false });
                 }
               })
@@ -1406,13 +1404,13 @@ export function createPlaybackController(
               (html5Alt.track.source === 'youtube' &&
                 (html5Alt.track.youtube_id || directYtId) === directYtId);
             if (!isSameFailingYtProxy) {
-              const started = await executePreparedPlayback(
+              await executePreparedPlayback(
                 html5Alt,
                 owner,
                 track,
                 { isFallback: true }
               );
-              if (started) return;
+              return;
             }
           } catch {
             if (disposed || !ownership.isCurrentRequest(owner.requestId)) return;
@@ -1551,13 +1549,13 @@ export function createPlaybackController(
               (html5Alt.track.source === 'youtube' &&
                 (html5Alt.track.youtube_id || directYtId) === directYtId);
             if (!isSameFailingYtProxy) {
-              const started = await executePreparedPlayback(
+              await executePreparedPlayback(
                 html5Alt,
                 owner,
                 rawTrack,
                 { isFallback: true }
               );
-              if (started) return;
+              return;
             }
           } catch {
             if (disposed || !ownership.isCurrentRequest(owner.requestId)) return;
@@ -1665,6 +1663,74 @@ export function createPlaybackController(
     }
   };
 
+  const pause = () => {
+    if (disposed || !store.getSnapshot().currentTrack) return;
+    ownership.nextToggle('paused');
+    pendingResume = false;
+    youtubeBgPauseRetries = 0;
+    html5BgPauseRetries = 0;
+    clearTimers();
+    const pausedTime = getActiveTime();
+    deps.transport.pause();
+    store.patch({ isPlaying: false, isBuffering: false });
+    saveState(true, { currentTime: pausedTime });
+  };
+
+  const play = async (): Promise<void> => {
+    if (disposed) return;
+    const snap = store.getSnapshot();
+    if (!snap.currentTrack) return;
+    if (
+      ownership.getDesiredState() === 'playing' &&
+      !pendingResume &&
+      (deps.transport.read().playing || snap.isBuffering)
+    ) {
+      return;
+    }
+
+    const actionId = ownership.nextToggle('playing');
+    pendingResume = false;
+    youtubeBgPauseRetries = 0;
+    html5BgPauseRetries = 0;
+    clearTimers();
+    recovery.resetConsecutiveSkips();
+    const currentOwner =
+      ownership.getOwner() ?? ownership.issueRequest(snap.currentTrack.id);
+    store.patch({ isBuffering: true, playbackError: null });
+
+    try {
+      await deps.transport.resume();
+      if (disposed || !ownership.isCurrentRequest(currentOwner.requestId)) return;
+      if (ownership.getDesiredState() === 'paused') {
+        deps.transport.pause();
+        store.patch({ isPlaying: false, isBuffering: false });
+        return;
+      }
+      if (!ownership.isCurrentToggle(actionId, 'playing')) return;
+      completion.reset();
+      store.patch({ isPlaying: true, isBuffering: false });
+    } catch (err) {
+      if (
+        disposed ||
+        !ownership.isCurrentRequest(currentOwner.requestId) ||
+        !ownership.isCurrentToggle(actionId, 'playing')
+      ) {
+        return;
+      }
+      if (isNotAllowedError(err) || isInterruptionError(err)) {
+        pendingResume = true;
+        store.patch({ isPlaying: false, isBuffering: false });
+        return;
+      }
+      await playTrack(
+        snap.currentTrack,
+        snap.queue,
+        snap.currentIndex,
+        store.getProgress().currentTime
+      );
+    }
+  };
+
   return {
     getSnapshot: () => store.getSnapshot(),
     getProgress: () => store.getProgress(),
@@ -1709,6 +1775,7 @@ export function createPlaybackController(
           return;
         }
         if (!prepared) return;
+        if (prepared.engine === 'youtube' && !canUseYouTubeIframe()) return;
 
         const nextOwner = ownership.setOwnerTrack(prepared.track.id) ?? owner;
         activeEngine = prepared.engine;
@@ -1743,6 +1810,8 @@ export function createPlaybackController(
     },
 
     playTrack,
+    play,
+    pause,
 
     async playSearchTrack(rawTrack: Track): Promise<void> {
       if (disposed) return;
@@ -1763,64 +1832,15 @@ export function createPlaybackController(
 
       const live = deps.transport.read();
       const isCurrentlyActive =
-        (snap.isPlaying ||
-          live.playing ||
-          ownership.getDesiredState() === 'playing') &&
+        !pendingResume &&
+        (snap.isPlaying || live.playing || snap.isBuffering) &&
         ownership.getDesiredState() !== 'paused';
 
       if (isCurrentlyActive) {
-        ownership.nextToggle('paused');
-        pendingResume = false;
-        youtubeBgPauseRetries = 0;
-        html5BgPauseRetries = 0;
-        clearTimers();
-        const pausedTime = getActiveTime();
-        deps.transport.pause();
-        store.patch({ isPlaying: false, isBuffering: false });
-        saveState(true, { currentTime: pausedTime });
+        pause();
         return;
       }
-
-      const actionId = ownership.nextToggle('playing');
-      youtubeBgPauseRetries = 0;
-      html5BgPauseRetries = 0;
-      recovery.resetConsecutiveSkips();
-      const currentOwner =
-        ownership.getOwner() ?? ownership.issueRequest(snap.currentTrack.id);
-
-      try {
-        await deps.transport.resume();
-        if (disposed || !ownership.isCurrentRequest(currentOwner.requestId)) {
-          return;
-        }
-        if (ownership.getDesiredState() === 'paused') {
-          deps.transport.pause();
-          store.patch({ isPlaying: false });
-          return;
-        }
-        if (!ownership.isCurrentToggle(actionId, 'playing')) return;
-        completion.reset();
-        store.patch({ isPlaying: true, isBuffering: false });
-      } catch (err) {
-        if (disposed || !ownership.isCurrentRequest(currentOwner.requestId)) {
-          return;
-        }
-        if (isInterruptionError(err)) {
-          if (ownership.getDesiredState() === 'paused') {
-            store.patch({ isPlaying: false });
-          }
-          return;
-        }
-        if (!ownership.isCurrentToggle(actionId, 'playing')) {
-          return;
-        }
-        await playTrack(
-          snap.currentTrack,
-          snap.queue,
-          snap.currentIndex,
-          store.getProgress().currentTime
-        );
-      }
+      await play();
     },
 
     seek,
@@ -2028,12 +2048,7 @@ export function createPlaybackController(
           void deps.transport
             .resume()
             .then(() => {
-              if (
-                ownership.isCurrentOwner(
-                  ownerOnHide,
-                  store.getSnapshot().currentTrack?.id
-                )
-              ) {
+              if (isPlaybackWanted(ownerOnHide)) {
                 store.patch({ isPlaying: true, isBuffering: false });
               }
             })
@@ -2079,13 +2094,7 @@ export function createPlaybackController(
         void deps.transport
           .resume()
           .then(() => {
-            if (
-              owner &&
-              ownership.isCurrentOwner(
-                owner,
-                store.getSnapshot().currentTrack?.id
-              )
-            ) {
+            if (owner && isPlaybackWanted(owner)) {
               store.patch({ isPlaying: true, isBuffering: false });
             }
           })
@@ -2112,26 +2121,7 @@ export function createPlaybackController(
       ) {
         return;
       }
-      pendingResume = false;
-      const owner = ownership.getOwner();
-      if (!owner) return;
-      void deps.transport
-        .resume()
-        .then(() => {
-          if (
-            ownership.isCurrentOwner(owner, store.getSnapshot().currentTrack?.id)
-          ) {
-            store.patch({ isPlaying: true, isBuffering: false });
-          }
-        })
-        .catch(() => {
-          if (
-            ownership.isCurrentRequest(owner.requestId) &&
-            ownership.getDesiredState() === 'playing'
-          ) {
-            pendingResume = true;
-          }
-        });
+      void play();
     },
 
     handlePageHide() {
@@ -2215,12 +2205,7 @@ export function createPlaybackController(
           void deps.transport
             .resume()
             .then(() => {
-              if (
-                ownership.isCurrentOwner(
-                  owner,
-                  store.getSnapshot().currentTrack?.id
-                )
-              ) {
+              if (isPlaybackWanted(owner)) {
                 store.patch({ isPlaying: true, isBuffering: false });
               }
             })

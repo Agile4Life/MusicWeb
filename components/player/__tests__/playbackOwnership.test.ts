@@ -630,7 +630,7 @@ describe('production playback ownership', () => {
 
     const t = makeTrack('A', { file_path: 'https://audio.test/A' });
     await h.controller.playTrack(t, [t], 0);
-    await h.controller.togglePlay();
+    h.controller.pause();
     h.audio.playCalls = 0;
 
     h.controller.handleVisibilityChange(false);

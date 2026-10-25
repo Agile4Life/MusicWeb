@@ -52,6 +52,25 @@ function createFakeDeps(overrides: Partial<PlaybackSourceDeps> = {}): PlaybackSo
 }
 
 describe('playbackSourceService', () => {
+  it('keeps alternate YouTube recovery on HTML5 audio on iOS', async () => {
+    const track = makeTrack('yt-original', {
+      source: 'youtube', youtube_id: 'dQw4w9WgXcQ', title: 'Test Song', artist: 'Test Artist',
+    });
+    const deps = createFakeDeps({ isIOS: () => true });
+    vi.mocked(deps.search).mockResolvedValue({
+      nhaccuatui: [], local: [], spotify: [], deezer: [], soundcloud: [],
+      youtube: [makeTrack('yt-alternate', {
+        source: 'youtube', youtube_id: 'M7lc1UVf-VE', title: 'Test Song', artist: 'Test Artist',
+      })],
+    });
+    const service = createPlaybackSourceService(deps);
+
+    expect(await service.resolveYouTubeAlternate(track, 35)).toMatchObject({
+      engine: 'html5', target: '/api/youtube/stream?id=M7lc1UVf-VE', initialTime: 35,
+    });
+    service.dispose();
+  });
+
   it.each(['resolvePlayable', 'resolveFallback', 'resolveYouTubeAlternate'] as const)(
     'limits %s recovery searches to playable providers', async (method) => {
       const deps = createFakeDeps();
@@ -581,11 +600,14 @@ describe('playbackSourceService', () => {
       target: 'https://cdn.sc/ios-resolved.mp3',
     });
 
-    // 3. Prewarm direct YouTube track on iOS -> does not call resolution.resolve
+    // 3. Direct YouTube prewarm also prepares a native catalog alternative.
     resolveMock.mockClear();
     service.prewarmNextAdaptive([currentTrack, directYtTrack], 0, 'off');
     await Promise.resolve();
-    expect(resolveMock).not.toHaveBeenCalled();
+    expect(resolveMock).toHaveBeenCalledOnce();
+    expect(service.resolveImmediate({ track: directYtTrack, tabHidden: true })).toMatchObject({
+      engine: 'html5', target: '/api/youtube/stream?id=directYt111',
+    });
   });
 
   it('falls through from an unstreamable SoundCloud fallback candidate to the YouTube fallback candidate', async () => {
@@ -684,7 +706,7 @@ describe('playbackSourceService', () => {
     });
   });
 
-  it('resolves iOS YouTube tracks to HTML5 catalog streams (NhacCuaTui/SoundCloud/Drive) on first play and deduplicates race conditions', async () => {
+  it('starts iOS YouTube synchronously and deduplicates concurrent HTML5 catalog preparation', async () => {
     let resolveCatalog!: (val: {
       source: 'nhaccuatui';
       id: string;
@@ -727,14 +749,14 @@ describe('playbackSourceService', () => {
       duration: 245,
     });
 
-    // 1. On foreground first play (cache miss), resolveImmediate returns null so playTrack enters resolvePlayable
+    // 1. Cold foreground playback keeps activation while preparing a catalog alternative.
     expect(
       service.resolveImmediate({
         track: ytTrack,
         preserveGesture: false,
         tabHidden: false,
       })
-    ).toBeNull();
+    ).toMatchObject({ engine: 'html5', target: '/api/youtube/stream?id=ytMusic1234' });
 
     // 2. Concurrent resolvePlayable and resolveFallback share the single in-flight catalog lookup
     const p1 = service.resolvePlayable({ track: ytTrack, initialTime: 0 });

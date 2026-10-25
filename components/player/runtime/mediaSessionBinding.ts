@@ -65,16 +65,10 @@ export function bindMediaSession(
   const registerActionHandlers = () => {
     try {
       mediaSession.setActionHandler('play', () => {
-        const snap = controller.getSnapshot();
-        if (!snap.isPlaying) {
-          void controller.togglePlay();
-        }
+        void controller.play();
       });
       mediaSession.setActionHandler('pause', () => {
-        const snap = controller.getSnapshot();
-        if (snap.isPlaying || snap.isBuffering) {
-          void controller.togglePlay();
-        }
+        controller.pause();
       });
       mediaSession.setActionHandler('previoustrack', () => {
         controller.prevTrack();
@@ -95,10 +89,7 @@ export function bindMediaSession(
 
       try {
         mediaSession.setActionHandler('stop', () => {
-          const snap = controller.getSnapshot();
-          if (snap.isPlaying || snap.isBuffering) {
-            void controller.togglePlay();
-          }
+          controller.pause();
         });
       } catch {
         // Ignore unsupported stop action
