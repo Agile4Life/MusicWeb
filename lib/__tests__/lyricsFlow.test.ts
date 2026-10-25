@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getPrimaryLyrics, clearPrimaryLyricsCache } from '../lyricsFlow'
+import {
+  getPrimaryLyrics,
+  clearPrimaryLyricsCache,
+  setCustomLyricsInPrimaryCache,
+} from '../lyricsFlow'
 import { resolveNhacCuaTuiSong } from '../nhaccuatuiClient'
 import { fetchLyricsFromLrclib } from '../lrclib'
 
@@ -201,5 +205,48 @@ describe('primary lyrics flow', () => {
     for (let i = 0; i < 500; i++) await getPrimaryLyrics({ ...lookupTrack, id: `bounded-${i}` })
     lrclibMock.mockResolvedValue({ ...recoveredLyrics, plainLyrics: 'Refetched old track' })
     await expect(getPrimaryLyrics(lookupTrack)).resolves.toMatchObject({ plainLyrics: 'Refetched old track' })
+  })
+
+  it('prioritizes Admin custom lyrics (including on SoundCloud UGC/remix tracks) without calling external providers', async () => {
+    const scRemixWithAdminLyrics = {
+      id: 'sc-999',
+      title: 'Chung Ta Cua Tuong Lai (Vinahouse Remix 2024)',
+      artist: 'DJ Duy Remix',
+      source: 'soundcloud' as const,
+      lyrics: '[00:02.50] Lời do Admin viết cho bản remix\n[00:06.00] Câu thứ hai',
+    }
+
+    const res = await getPrimaryLyrics(scRemixWithAdminLyrics)
+    expect(res?.syncedLyrics).toBe('[00:02.50] Lời do Admin viết cho bản remix\n[00:06.00] Câu thứ hai')
+    expect(lrclibMock).not.toHaveBeenCalled()
+    expect(resolveNctMock).not.toHaveBeenCalled()
+  })
+
+  it('updates and clears primary cache immediately via setCustomLyricsInPrimaryCache', async () => {
+    const customTrack = {
+      id: 'custom-1',
+      title: 'Bài Hát Hiếm',
+      artist: 'Nghệ Sĩ Độc Lập',
+      duration: 200,
+    }
+
+    setCustomLyricsInPrimaryCache(customTrack, {
+      id: 888888,
+      trackName: customTrack.title,
+      artistName: customTrack.artist,
+      duration: 200,
+      instrumental: false,
+      plainLyrics: 'Lời tự viết dạng văn bản',
+      syncedLyrics: null,
+    })
+
+    const cachedRes = await getPrimaryLyrics(customTrack)
+    expect(cachedRes?.plainLyrics).toBe('Lời tự viết dạng văn bản')
+    expect(lrclibMock).not.toHaveBeenCalled()
+
+    setCustomLyricsInPrimaryCache(customTrack, null)
+    lrclibMock.mockResolvedValueOnce(recoveredLyrics)
+    const fallbackRes = await getPrimaryLyrics(customTrack)
+    expect(fallbackRes?.plainLyrics).toBe('Recovered lyrics')
   })
 })
