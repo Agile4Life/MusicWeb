@@ -299,7 +299,7 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
       })
 
       const file = new File([blob], 'musicweb-receipt.png', { type: 'image/png' })
-      const shareUrl = typeof window !== 'undefined' ? window.location.origin : 'https://phongtctmusic.vercel.app'
+      const shareUrl = typeof window !== 'undefined' ? window.location.origin : 'https://bluesymphony.site'
 
       if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({

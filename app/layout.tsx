@@ -41,6 +41,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://bluesymphony.site'),
   title: 'Music',
   description: 'Trải nghiệm nghe nhạc high-quality cá nhân với giao diện hiện đại, mượt mà.',
   manifest: '/manifest.json',

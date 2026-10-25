@@ -587,7 +587,7 @@ export async function renderMinimalCardToCanvas(
     : 'rgba(255, 255, 255, 0.40)'
   ctx.font = '600 18px system-ui, -apple-system, sans-serif'
   ctx.textAlign = 'center'
-  ctx.fillText('phongtctmusic.vercel.app', centerX, footerY)
+  ctx.fillText('bluesymphony.site', centerX, footerY)
   ctx.restore()
 
   return canvas
@@ -970,7 +970,7 @@ export async function renderLyricCardToCanvas(
   ctx.fillStyle = 'rgba(255, 255, 255, 0.45)'
   ctx.font = '600 21px system-ui, -apple-system, sans-serif'
   ctx.textAlign = 'center'
-  ctx.fillText('phongtctmusic.vercel.app', centerX, footerY)
+  ctx.fillText('bluesymphony.site', centerX, footerY)
   ctx.restore()
 
   // Unclip Card Surface

@@ -9,6 +9,6 @@ binding = "AUDIO_BUCKET"
 bucket_name = "music-audio-cache-drive"
 
 [vars]
-APP_RESOLVE_ORIGIN_URL = "https://phongtctmusic.vercel.app/api/drive-resolve-origin"
+APP_RESOLVE_ORIGIN_URL = "https://bluesymphony.site/api/drive-resolve-origin"
 # Set INTERNAL_RESOLVE_SECRET via Cloudflare secret (never commit plaintext):
 # npx wrangler secret put INTERNAL_RESOLVE_SECRET

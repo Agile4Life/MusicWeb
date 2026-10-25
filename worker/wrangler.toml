@@ -33,4 +33,4 @@ NCT_API_BASE_URL = "https://music-api.vanhuy2004h.io.vn"
 # googlevideo URL. googlevideo URLs are IP-bound to the Vercel instance that
 # extracted them; fetching one directly from this Worker returns 403, while the
 # proxy re-serves the bytes from the resolving server, so it works from anywhere.
-MATCHING_SERVICE_URL = "https://phongtctmusic.vercel.app/api/nhaccuatui/match-stream"
+MATCHING_SERVICE_URL = "https://bluesymphony.site/api/nhaccuatui/match-stream"
