@@ -39,9 +39,12 @@ import { YoutubeIcon } from '@/components/icons/YoutubeIcon'
 import { shouldCloseProfileMenu, shouldToggleProfileMenu } from './profileMenuInteraction'
 import { LiquidNavBar } from './LiquidNavBar'
 import { getNextPlaylistRoute } from './playlistNavigation'
+import { useTheme } from '@/components/theme/ThemeContext'
 
 export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boolean }) {
   const { t } = useLanguage()
+  const { themeStyle } = useTheme()
+  const isMinimalFlat = themeStyle === 'minimal-flat'
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -275,18 +278,24 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
       />
 
       <div
-        className={`mobile-drawer lg:hidden z-[100] border-r border-white/10 ${isDrawerOpen ? 'open' : ''}`}
+        className={`mobile-drawer lg:hidden z-[100] border-r ${
+          isMinimalFlat ? 'border-[rgba(244,236,230,0.12)]' : 'border-white/10'
+        } ${isDrawerOpen ? 'open' : ''}`}
       >
         <div
           onClick={(e) => e.stopPropagation()}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          className="h-full p-5 flex flex-col justify-between overflow-y-auto select-none touch-pan-y"
+          className="h-full px-5 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] flex flex-col justify-between overflow-y-auto select-none touch-pan-y"
         >
           <div className="flex flex-col gap-5">
-            <div className="flex items-center justify-between border-b border-white/[0.05] pb-4">
-              <div className="sidebar-logo-plaque flex items-center justify-start px-3 py-1.5 rounded-2xl bg-white/[0.025] border border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
+            <div className={`flex items-center justify-between border-b pb-4 ${isMinimalFlat ? 'border-[rgba(244,236,230,0.08)]' : 'border-white/[0.05]'}`}>
+              <div className={`sidebar-logo-plaque flex items-center justify-start px-3 py-1.5 ${
+                isMinimalFlat
+                  ? 'rounded-[10px] bg-[#251E29] border border-[rgba(244,236,230,0.12)]'
+                  : 'rounded-2xl bg-white/[0.025] border border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
+              }`}>
                 <div className="flex items-center justify-start h-7.5 shrink-0">
                   <img
                     src="/phong-signature.png"
@@ -297,7 +306,11 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
               </div>
               <button
                 onClick={() => setIsDrawerOpen(false)}
-                className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] active:scale-95 transition-all"
+                className={`w-10 h-10 flex items-center justify-center active:scale-95 transition-all ${
+                  isMinimalFlat
+                    ? 'text-[#B9AC9C] hover:text-[#F4ECE1] rounded-[10px] bg-[#251E29] border border-[rgba(244,236,230,0.12)]'
+                    : 'text-slate-400 hover:text-white rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
+                }`}
                 title={t('close')}
               >
                 <X className="w-5 h-5" />
@@ -423,12 +436,16 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
             </nav>
 
               {/* Playlists in drawer */}
-              <div className="border-t border-white/[0.05] pt-4 flex flex-col gap-2">
+              <div className={`border-t pt-4 flex flex-col gap-2 ${isMinimalFlat ? 'border-[rgba(244,236,230,0.08)]' : 'border-white/[0.05]'}`}>
                 <div className="flex items-center justify-between px-1 mb-1">
-                  <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider font-bold">
+                  <span className={`text-[11px] font-mono uppercase tracking-wider font-bold ${isMinimalFlat ? 'text-[#8B8090]' : 'text-slate-400'}`}>
                     Playlist cá nhân
                   </span>
-                  <div className="flex items-center gap-0.5 bg-white/[0.03] border border-white/[0.08] p-0.5 rounded-xl shadow-inner">
+                  <div className={`flex items-center gap-0.5 p-0.5 rounded-xl ${
+                    isMinimalFlat
+                      ? 'bg-[#251E29] border border-[rgba(244,236,230,0.1)]'
+                      : 'bg-white/[0.03] border border-white/[0.08] shadow-inner'
+                  }`}>
                     <button
                       onClick={() => {
                         setIsDrawerOpen(false)
@@ -494,7 +511,7 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
             </div>
 
             {/* Footer user info */}
-            <div className="border-t border-white/[0.05] pt-4">
+            <div className={`border-t pt-4 ${isMinimalFlat ? 'border-[rgba(244,236,230,0.08)]' : 'border-white/[0.05]'}`}>
               {user ? (
                 <div className="relative">
                   <button
@@ -504,9 +521,15 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
                     aria-expanded={isProfileMenuOpen}
                     aria-controls="mobile-profile-menu"
                     aria-label="Mở menu tài khoản"
-                    className="w-full min-h-11 flex items-center gap-2.5 rounded-xl px-2 text-left hover:bg-white/[0.06] active:scale-[0.99] transition-all"
+                    className={`w-full min-h-11 flex items-center gap-2.5 rounded-xl px-2 text-left active:scale-[0.99] transition-all ${
+                      isMinimalFlat ? 'hover:bg-[#251E29]' : 'hover:bg-white/[0.06]'
+                    }`}
                   >
-                    <div className="w-7 h-7 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-[var(--spotify-glow,#22d3ee)] shrink-0 font-bold text-xs overflow-hidden">
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 font-bold text-xs overflow-hidden ${
+                      isMinimalFlat
+                        ? 'bg-[#251E29] border border-[rgba(244,236,230,0.14)] text-[#E8A94F]'
+                        : 'bg-white/10 border border-white/10 text-[var(--spotify-glow,#22d3ee)]'
+                    }`}>
                       {user.user_metadata?.avatar_url ? (
                         <img
                           src={user.user_metadata.avatar_url}
@@ -517,7 +540,7 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
                         <UserCheck className="w-3.5 h-3.5" />
                       )}
                     </div>
-                    <span className="text-xs font-bold text-white truncate">
+                    <span className={`text-xs font-bold truncate ${isMinimalFlat ? 'text-[#F4ECE1]' : 'text-white'}`}>
                       {user.user_metadata?.full_name || user.email?.split('@')[0]}
                     </span>
                   </button>
@@ -526,13 +549,17 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
                       ref={profileMenuRef}
                       id="mobile-profile-menu"
                       role="menu"
-                      className="absolute bottom-full left-0 right-0 mb-2 rounded-2xl border border-white/[0.14] bg-[var(--elevation-3-bg,#111827)]/95 p-2 shadow-2xl backdrop-blur-xl z-50"
+                      className={`absolute bottom-full left-0 right-0 mb-2 p-2 shadow-2xl z-50 ${
+                        isMinimalFlat
+                          ? 'rounded-[14px] border border-[rgba(244,236,230,0.14)] bg-[#1D1720]'
+                          : 'rounded-2xl border border-white/[0.14] bg-[var(--elevation-3-bg,#111827)]/95 backdrop-blur-xl'
+                      }`}
                     >
-                      <div className="px-3 py-2 border-b border-white/[0.08]">
-                        <p className="text-sm font-bold text-white truncate">
+                      <div className={`px-3 py-2 border-b ${isMinimalFlat ? 'border-[rgba(244,236,230,0.08)]' : 'border-white/[0.08]'}`}>
+                        <p className={`text-sm font-bold truncate ${isMinimalFlat ? 'text-[#F4ECE1]' : 'text-white'}`}>
                           {user.user_metadata?.full_name || user.email?.split('@')[0]}
                         </p>
-                        <p className="text-[11px] text-slate-300 truncate mt-0.5">{user.email}</p>
+                        <p className={`text-[11px] truncate mt-0.5 ${isMinimalFlat ? 'text-[#B9AC9C]' : 'text-slate-300'}`}>{user.email}</p>
                       </div>
                       <button
                         type="button"
@@ -550,7 +577,9 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
                 <Link
                   href="/login"
                   onClick={() => setIsDrawerOpen(false)}
-                  className="block text-center py-2 bg-[var(--primary-spotify,#06b6d4)] text-black text-xs font-bold rounded-xl"
+                  className={`block text-center py-2 text-xs font-bold rounded-xl ${
+                    isMinimalFlat ? 'bg-[#E8A94F] text-[#141017]' : 'bg-[var(--primary-spotify,#06b6d4)] text-black'
+                  }`}
                 >
                   Đăng nhập
                 </Link>

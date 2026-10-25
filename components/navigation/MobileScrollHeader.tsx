@@ -78,6 +78,7 @@ function useScrollProgress(
 export function MobileScrollHeader() {
   const { t } = useLanguage()
   const { themeStyle } = useTheme()
+  const isMinimalFlat = themeStyle === 'minimal-flat'
   const pathname = usePathname()
   const router = useRouter()
   const { playTrack, playSearchTrack } = usePlayerControls()
@@ -306,7 +307,13 @@ export function MobileScrollHeader() {
      */
     <header
       className="mobile-scroll-header lg:hidden sticky top-0 z-30 select-none w-full"
-      style={{ padding: '8px 14px', height: 60 }}
+      style={{
+        paddingTop: 'calc(8px + env(safe-area-inset-top, 0px))',
+        paddingBottom: '8px',
+        paddingLeft: '14px',
+        paddingRight: '14px',
+        height: 'calc(60px + env(safe-area-inset-top, 0px))',
+      }}
     >
       {/* ── Topbar row — fades & collapses on scroll, only search remains ── */}
       <div
@@ -332,7 +339,9 @@ export function MobileScrollHeader() {
                 window.history.length > 1 ? router.back() : router.push('/')
                 setTimeout(() => { navBackBusyRef.current = false }, 500)
               }}
-              className="p-2 text-white/55 hover:text-white active:scale-95 transition-all shrink-0 rounded-lg"
+              className={`p-2 active:scale-95 transition-all shrink-0 rounded-lg ${
+                isMinimalFlat ? 'text-[#B9AC9C] hover:text-[#F4ECE1]' : 'text-white/55 hover:text-white'
+              }`}
               title="Quay lại"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -341,14 +350,16 @@ export function MobileScrollHeader() {
           <button
             type="button"
             onClick={() => window.dispatchEvent(new CustomEvent('musicweb-toggle-drawer'))}
-            className="p-2 text-white/55 hover:text-white active:scale-95 transition-all shrink-0 rounded-lg"
+            className={`p-2 active:scale-95 transition-all shrink-0 rounded-lg ${
+              isMinimalFlat ? 'text-[#B9AC9C] hover:text-[#F4ECE1]' : 'text-white/55 hover:text-white'
+            }`}
             title="Menu"
           >
             <Menu className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Center: Logo glass pill — floats above the bg */}
+        {/* Center: Logo plaque — floats above the bg */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <Link
             href="/"
@@ -356,10 +367,16 @@ export function MobileScrollHeader() {
               clearSearch()
               window.dispatchEvent(new Event('musicweb-tab-home'))
             }}
-            className="pointer-events-auto flex items-center justify-center px-3 py-1.5 rounded-[14px] group cursor-pointer transition-all active:scale-95"
+            className={`pointer-events-auto flex items-center justify-center px-3 py-1.5 group cursor-pointer transition-all active:scale-95 ${
+              isMinimalFlat ? 'rounded-[12px]' : 'rounded-[14px]'
+            }`}
             style={
-              themeStyle === 'minimal-flat'
-                ? undefined
+              isMinimalFlat
+                ? {
+                    background: 'rgba(29, 23, 32, 0.92)',
+                    border: '1px solid rgba(244, 236, 230, 0.12)',
+                    boxShadow: 'none',
+                  }
                 : {
                     background: 'rgba(255,255,255,0.06)',
                     border: '1px solid rgba(255,255,255,0.12)',
@@ -388,11 +405,11 @@ export function MobileScrollHeader() {
             type="button"
             onClick={handleSearchIconClick}
             className="p-2 active:scale-95 transition-all rounded-lg"
-            style={searchQuery ? {
-              color: 'var(--spotify-glow, #22d3ee)',
-            } : {
-              color: 'rgba(255,255,255,0.55)',
-            }}
+            style={
+              searchQuery
+                ? { color: isMinimalFlat ? '#E8A94F' : 'var(--spotify-glow, #22d3ee)' }
+                : { color: isMinimalFlat ? '#B9AC9C' : 'rgba(255,255,255,0.55)' }
+            }
             title="Tìm kiếm"
           >
             <Search className="w-4 h-4" />
@@ -405,7 +422,7 @@ export function MobileScrollHeader() {
         ref={searchRowRef}
         className="absolute left-0 right-0"
         style={{
-          top: 8,
+          top: 'calc(8px + env(safe-area-inset-top, 0px))',
           paddingLeft: 14,
           paddingRight: 14,
           // Start HIDDEN — applyProgress or openSearch will reveal
@@ -419,12 +436,20 @@ export function MobileScrollHeader() {
         }}
       >
         <div className="relative pointer-events-auto w-full" ref={dropdownRef}>
-          {/* Continuous Search Pill with rich Frosted Glass recipe */}
+          {/* Continuous Search Pill: Minimal Editorial vs Frosted Glass recipe */}
           <div
-            className="relative flex items-center h-[52px] rounded-[37px] overflow-hidden select-none"
+            className={`relative flex items-center h-[50px] overflow-hidden select-none ${
+              isMinimalFlat ? 'rounded-[16px]' : 'rounded-[37px]'
+            }`}
             style={
-              themeStyle === 'minimal-flat'
-                ? undefined
+              isMinimalFlat
+                ? {
+                    background: '#1D1720',
+                    border: isSearchOpen
+                      ? '1px solid rgba(232, 169, 79, 0.55)'
+                      : '1px solid rgba(244, 236, 230, 0.16)',
+                    boxShadow: '0 10px 28px rgba(0, 0, 0, 0.55)',
+                  }
                 : {
                     /* Frosted Liquid Glass Recipe */
                     background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 40%, rgba(13, 17, 26, 0.72) 100%)',
@@ -436,46 +461,58 @@ export function MobileScrollHeader() {
                   }
             }
           >
-            {/* Top specular highlight arc */}
-            <span
-              aria-hidden="true"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 20,
-                right: 20,
-                height: '1px',
-                background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.45) 25%, rgba(255,255,255,0.8) 50%, rgba(255,255,255,0.45) 75%, transparent 100%)',
-                borderRadius: '50%',
-                pointerEvents: 'none',
-                zIndex: 10,
-              }}
-            />
+            {/* Top specular highlight arc (Glass mode only) */}
+            {!isMinimalFlat && (
+              <>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 20,
+                    right: 20,
+                    height: '1px',
+                    background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.45) 25%, rgba(255,255,255,0.8) 50%, rgba(255,255,255,0.45) 75%, transparent 100%)',
+                    borderRadius: '50%',
+                    pointerEvents: 'none',
+                    zIndex: 10,
+                  }}
+                />
 
-            {/* Inner glass specular gradient */}
-            <span
-              aria-hidden="true"
-              style={{
-                position: 'absolute',
-                inset: 0,
-                borderRadius: 37,
-                background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.02) 25%, transparent 50%)',
-                pointerEvents: 'none',
-              }}
-            />
+                {/* Inner glass specular gradient */}
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    borderRadius: 37,
+                    background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.02) 25%, transparent 50%)',
+                    pointerEvents: 'none',
+                  }}
+                />
+              </>
+            )}
 
             {isSearchOpen ? (
               <button
                 type="button"
                 onClick={closeSearch}
-                className="absolute left-3 p-1.5 text-white/70 hover:text-white active:scale-90 rounded-full hover:bg-white/10 transition-all z-20 cursor-pointer"
+                className={`absolute left-3 p-1.5 active:scale-90 rounded-full transition-all z-20 cursor-pointer ${
+                  isMinimalFlat
+                    ? 'text-[#B9AC9C] hover:text-[#F4ECE1] hover:bg-[#251E29]'
+                    : 'text-white/70 hover:text-white hover:bg-white/10'
+                }`}
                 title="Đóng tìm kiếm"
                 aria-label="Đóng tìm kiếm"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
             ) : (
-              <Search className="w-4 h-4 text-white/60 absolute left-4 pointer-events-none z-10" />
+              <Search
+                className={`w-4 h-4 absolute left-4 pointer-events-none z-10 ${
+                  isMinimalFlat ? 'text-[#8B8090]' : 'text-white/60'
+                }`}
+              />
             )}
 
             <input
@@ -503,7 +540,9 @@ export function MobileScrollHeader() {
                 if (inputQuery.trim()) setShowDropdown(true)
               }}
               placeholder="Tìm bài hát, nghệ sĩ, lời bài hát..."
-              className="w-full h-full pl-11 pr-11 text-sm text-white placeholder-white/50 outline-none bg-transparent relative z-10 border-none shadow-none focus:outline-none focus:ring-0"
+              className={`w-full h-full pl-11 pr-11 text-[16px] sm:text-sm outline-none bg-transparent relative z-10 border-none shadow-none focus:outline-none focus:ring-0 ${
+                isMinimalFlat ? 'text-[#F4ECE1] placeholder-[#8B8090]' : 'text-white placeholder-white/50'
+              }`}
               style={{
                 border: 'none',
                 background: 'transparent',
@@ -514,12 +553,20 @@ export function MobileScrollHeader() {
             />
 
             {searchingSuggestions ? (
-              <Loader2 className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)] animate-spin absolute right-4 z-10" />
+              <Loader2
+                className={`w-4 h-4 animate-spin absolute right-4 z-10 ${
+                  isMinimalFlat ? 'text-[#E8A94F]' : 'text-[var(--spotify-glow,#22d3ee)]'
+                }`}
+              />
             ) : inputQuery ? (
               <button
                 type="button"
                 onClick={handleClearSearch}
-                className="absolute right-3.5 p-1 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors z-10 active:scale-90 cursor-pointer"
+                className={`absolute right-3.5 p-1 rounded-full transition-colors z-10 active:scale-90 cursor-pointer ${
+                  isMinimalFlat
+                    ? 'text-[#8B8090] hover:text-[#F4ECE1] hover:bg-[#251E29]'
+                    : 'text-slate-400 hover:text-white hover:bg-white/10'
+                }`}
                 title="Xóa tìm kiếm"
                 aria-label="Xóa tìm kiếm"
               >
@@ -529,24 +576,38 @@ export function MobileScrollHeader() {
               <button
                 type="button"
                 onClick={closeSearch}
-                className="absolute right-3.5 p-1 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors z-10 active:scale-90 cursor-pointer"
+                className={`absolute right-3.5 p-1 rounded-full transition-colors z-10 active:scale-90 cursor-pointer ${
+                  isMinimalFlat
+                    ? 'text-[#8B8090] hover:text-[#F4ECE1] hover:bg-[#251E29]'
+                    : 'text-slate-400 hover:text-white hover:bg-white/10'
+                }`}
                 title="Đóng tìm kiếm"
                 aria-label="Đóng tìm kiếm"
               >
                 <X className="w-4 h-4" />
               </button>
             ) : (
-              <Mic className="w-4 h-4 text-white/40 absolute right-4 pointer-events-none z-10" />
+              <Mic
+                className={`w-4 h-4 absolute right-4 pointer-events-none z-10 ${
+                  isMinimalFlat ? 'text-[#8B8090]/75' : 'text-white/40'
+                }`}
+              />
             )}
           </div>
 
           {/* Autocomplete dropdown */}
           {showDropdown && (
             <div
-              className="absolute top-full left-0 right-0 mt-2 rounded-2xl shadow-2xl z-50 overflow-hidden"
+              className={`absolute top-full left-0 right-0 mt-2 shadow-2xl z-50 overflow-hidden ${
+                isMinimalFlat ? 'rounded-[16px]' : 'rounded-2xl'
+              }`}
               style={
-                themeStyle === 'minimal-flat'
-                  ? undefined
+                isMinimalFlat
+                  ? {
+                      background: '#1D1720',
+                      border: '1px solid rgba(244, 236, 230, 0.16)',
+                      boxShadow: '0 18px 42px rgba(0, 0, 0, 0.65)',
+                    }
                   : {
                       /* Liquid glass dropdown */
                       background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 40%, hsla(var(--base-h, 224), var(--base-s, 45%), 12%, 0.45) 100%)',
@@ -560,13 +621,25 @@ export function MobileScrollHeader() {
             >
               <div className="p-2 max-h-72 overflow-y-auto flex flex-col gap-1 custom-slim-scrollbar">
                 {searchingSuggestions && suggestions.length === 0 ? (
-                  <div className="p-4 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-[var(--spotify-glow,#22d3ee)]" />
+                  <div
+                    className={`p-4 text-center text-xs flex items-center justify-center gap-2 ${
+                      isMinimalFlat ? 'text-[#B9AC9C]' : 'text-slate-400'
+                    }`}
+                  >
+                    <Loader2
+                      className={`w-4 h-4 animate-spin ${
+                        isMinimalFlat ? 'text-[#E8A94F]' : 'text-[var(--spotify-glow,#22d3ee)]'
+                      }`}
+                    />
                     <span>Đang tìm kiếm...</span>
                   </div>
                 ) : suggestions.length > 0 ? (
                   <>
-                    <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider px-3 py-1">
+                    <p
+                      className={`text-[10px] font-mono uppercase tracking-wider px-3 py-1 ${
+                        isMinimalFlat ? 'text-[#8B8090]' : 'text-slate-400'
+                      }`}
+                    >
                       Gợi ý nhanh
                     </p>
                     {suggestions.map((track) => (
@@ -577,18 +650,44 @@ export function MobileScrollHeader() {
                           setShowDropdown(false)
                           closeSearch()
                         }}
-                        className="flex items-center gap-3 p-2 hover:bg-white/10 rounded-xl cursor-pointer transition-colors group"
+                        className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-colors group ${
+                          isMinimalFlat ? 'hover:bg-[#251E29]' : 'hover:bg-white/10'
+                        }`}
                       >
-                        <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 relative bg-slate-800 border border-white/10">
+                        <div
+                          className={`w-8 h-8 rounded-lg overflow-hidden shrink-0 relative ${
+                            isMinimalFlat
+                              ? 'bg-[#251E29] border border-[rgba(244,236,230,0.1)]'
+                              : 'bg-slate-800 border border-white/10'
+                          }`}
+                        >
                           <TrackCoverImage src={track.cover_url} alt={track.title} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-white group-hover:text-[var(--spotify-glow)] truncate transition-colors">
+                          <p
+                            className={`text-xs font-bold truncate transition-colors ${
+                              isMinimalFlat
+                                ? 'text-[#F4ECE1] group-hover:text-[#E8A94F]'
+                                : 'text-white group-hover:text-[var(--spotify-glow)]'
+                            }`}
+                          >
                             {track.title}
                           </p>
-                          <p className="text-[11px] text-slate-400 truncate mt-0.5">{track.artist}</p>
+                          <p
+                            className={`text-[11px] truncate mt-0.5 ${
+                              isMinimalFlat ? 'text-[#B9AC9C]' : 'text-slate-400'
+                            }`}
+                          >
+                            {track.artist}
+                          </p>
                         </div>
-                        <div className="w-7 h-7 rounded-full bg-white/5 group-hover:bg-[var(--primary-spotify)] text-slate-400 group-hover:text-black flex items-center justify-center shrink-0 transition-colors">
+                        <div
+                          className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                            isMinimalFlat
+                              ? 'bg-[#251E29] text-[#E8A94F] group-hover:bg-[#E8A94F] group-hover:text-[#141017]'
+                              : 'bg-white/5 group-hover:bg-[var(--primary-spotify)] text-slate-400 group-hover:text-black'
+                          }`}
+                        >
                           <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
                         </div>
                       </div>
@@ -596,14 +695,22 @@ export function MobileScrollHeader() {
                     <button
                       type="button"
                       onClick={handleSubmitSearch}
-                      className="mt-1 p-2 text-xs font-semibold text-[var(--spotify-glow,#22d3ee)] hover:text-white bg-white/[0.03] hover:bg-white/[0.08] rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-white/[0.06]"
+                      className={`mt-1 p-2 text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer border ${
+                        isMinimalFlat
+                          ? 'text-[#E8A94F] bg-[#251E29]/80 hover:bg-[#251E29] border-[rgba(232,169,79,0.28)]'
+                          : 'text-[var(--spotify-glow,#22d3ee)] hover:text-white bg-white/[0.03] hover:bg-white/[0.08] border-white/[0.06]'
+                      }`}
                     >
                       <Search className="w-3.5 h-3.5" />
                       <span>Xem tất cả kết quả cho &quot;{inputQuery.trim()}&quot;</span>
                     </button>
                   </>
                 ) : (
-                  <div className="p-4 text-center text-xs text-slate-400">
+                  <div
+                    className={`p-4 text-center text-xs ${
+                      isMinimalFlat ? 'text-[#8B8090]' : 'text-slate-400'
+                    }`}
+                  >
                     Không tìm thấy kết quả phù hợp
                   </div>
                 )}
