@@ -20,4 +20,21 @@ describe('daily chart source', () => {
     expect(playlist).toHaveBeenCalledWith(id, { fresh: true })
     expect(tracks[0]).toMatchObject({ id: 'spotify-song', title: 'Today', source: 'spotify', spotify_id: 'song' })
   })
+
+  it('strips generic Spotify chart banner URLs if present on chart tracks', async () => {
+    playlist.mockResolvedValue([
+      {
+        spotify_id: '2sFepQNyl1WjpROruP8bJ0',
+        title: 'Housewife',
+        artist: 'Tate McRae',
+        album: '',
+        duration: 209,
+        cover_url: 'https://charts-images.scdn.co/assets/locale_en/regional/daily/region_global_default.jpg',
+        isrc: null,
+      },
+    ])
+    const { fetchDailySpotifyChartTracks } = await import('../trendingSources')
+    const tracks = await fetchDailySpotifyChartTracks('all')
+    expect(tracks[0].cover_url).toBeNull()
+  })
 })

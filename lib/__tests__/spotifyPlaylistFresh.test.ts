@@ -33,4 +33,31 @@ describe('Spotify playlist freshness', () => {
     expect(request?.[1]).toMatchObject({ cache: 'no-store' })
     expect(request?.[1]).not.toHaveProperty('next')
   })
+
+  it('resolves individual track cover artwork via oEmbed instead of falling back to the Top 50 playlist cover', async () => {
+    const trackId = '2sFepQNyl1WjpROruP8bJ0'
+    const entity = {
+      name: 'Top 50 - Global',
+      coverArt: {
+        sources: [{ url: 'https://charts-images.scdn.co/assets/locale_en/regional/daily/region_global_default.jpg' }],
+      },
+      trackList: [
+        { uri: `spotify:track:${trackId}`, title: 'Housewife', subtitle: 'Tate McRae', duration: 208810 },
+      ],
+    }
+    const fetchMock = vi.fn<typeof fetch>(async (input) => {
+      const url = String(input)
+      if (url.includes('/oembed')) {
+        return Response.json({
+          thumbnail_url: 'https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e027c6236a76fbcee4f1b8ace08',
+        })
+      }
+      return new Response(`<script id="__NEXT_DATA__" type="application/json">${JSON.stringify({ props: { pageProps: { entity } } })}</script>`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const tracks = await fetchSpotifyPlaylistTracks('37i9dQZEVXbMDoHDwVN2tF', { fresh: true })
+    expect(tracks).toHaveLength(1)
+    expect(tracks[0].cover_url).toBe('https://image-cdn-ak.spotifycdn.com/image/ab67616d0000b2737c6236a76fbcee4f1b8ace08')
+  })
 })

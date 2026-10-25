@@ -20,7 +20,7 @@ export async function fetchDailySpotifyChartTracks(category: string): Promise<Tr
     artist: track.artist,
     album: track.album,
     duration: track.duration,
-    cover_url: track.cover_url,
+    cover_url: track.cover_url && !track.cover_url.includes('charts-images.scdn.co') ? track.cover_url : null,
     file_path: `https://open.spotify.com/track/${track.spotify_id}`,
     source: 'spotify',
     spotify_id: track.spotify_id,

@@ -691,6 +691,72 @@ export interface SpotifyPlaylistMeta {
   isPublic: boolean
 }
 
+const spotifyTrackCoverCache = new Map<string, string>()
+const spotifyTrackCoverInFlight = new Map<string, Promise<string | null>>()
+
+export function upgradeSpotifyCoverUrl(url: string | null | undefined): string | null {
+  if (!url) return null
+  if (url.includes('charts-images.scdn.co')) return null
+  if (url.includes('scdn.co') || url.includes('spotifycdn.com')) {
+    return url.replace(/ab67616d0000(?:1e02|4851)/g, 'ab67616d0000b273')
+  }
+  return url
+}
+
+export async function resolveSpotifyTrackCover(spotifyId: string): Promise<string | null> {
+  if (!/^[a-zA-Z0-9]{22}$/.test(spotifyId)) return null
+  const cached = spotifyTrackCoverCache.get(spotifyId)
+  if (cached) return cached
+
+  const existing = spotifyTrackCoverInFlight.get(spotifyId)
+  if (existing) return existing
+
+  const promise = (async (): Promise<string | null> => {
+    try {
+      const res = await fetch(
+        `https://open.spotify.com/oembed?url=${encodeURIComponent(`spotify:track:${spotifyId}`)}`,
+        { signal: AbortSignal.timeout(3500) }
+      )
+      if (!res.ok) return null
+      const data = await res.json()
+      const cover = upgradeSpotifyCoverUrl(typeof data?.thumbnail_url === 'string' ? data.thumbnail_url : null)
+      if (cover) {
+        if (spotifyTrackCoverCache.size >= 1000) {
+          const oldest = spotifyTrackCoverCache.keys().next().value
+          if (oldest) spotifyTrackCoverCache.delete(oldest)
+        }
+        spotifyTrackCoverCache.set(spotifyId, cover)
+      }
+      return cover
+    } catch {
+      return null
+    } finally {
+      spotifyTrackCoverInFlight.delete(spotifyId)
+    }
+  })()
+
+  spotifyTrackCoverInFlight.set(spotifyId, promise)
+  return promise
+}
+
+async function enrichSpotifyPlaylistTrackCovers(tracks: SpotifyPlaylistTrack[], maxToEnrich = 50): Promise<SpotifyPlaylistTrack[]> {
+  let enrichedCount = 0
+  return Promise.all(
+    tracks.map(async (track) => {
+      const cleanExisting = upgradeSpotifyCoverUrl(track.cover_url)
+      if (cleanExisting) {
+        return cleanExisting === track.cover_url ? track : { ...track, cover_url: cleanExisting }
+      }
+      if (enrichedCount >= maxToEnrich || !/^[a-zA-Z0-9]{22}$/.test(track.spotify_id)) {
+        return track.cover_url === null ? track : { ...track, cover_url: null }
+      }
+      enrichedCount++
+      const resolvedCover = await resolveSpotifyTrackCover(track.spotify_id)
+      return { ...track, cover_url: resolvedCover }
+    })
+  )
+}
+
 /**
  * Lấy metadata & danh sách bài hát từ trang Spotify Embed public.
  * Hoạt động 100% tin cậy cho toàn bộ playlist Public mà không bị giới hạn bởi quyền Token Spotify API.
@@ -759,7 +825,7 @@ async function fetchSpotifyEmbedPlaylistData(playlistId: string, options?: { fre
         artist,
         album,
         duration,
-        cover_url: item.coverArt?.sources?.[0]?.url || coverUrl,
+        cover_url: upgradeSpotifyCoverUrl(item.coverArt?.sources?.[0]?.url || item.images?.[0]?.url || item.album?.images?.[0]?.url || null),
         isrc: item.isrc || null,
       }
     })
@@ -846,7 +912,7 @@ export async function fetchSpotifyPlaylistTracks(playlistId: string, options?: {
   // 1. Try Spotify Embed Scraper (Fastest, 100% Reliable)
   const embedData = await fetchSpotifyEmbedPlaylistData(playlistId, options)
   if (embedData && embedData.tracks.length > 0) {
-    return embedData.tracks
+    return enrichSpotifyPlaylistTrackCovers(embedData.tracks)
   }
 
   // 2. Fallback: Official Spotify API via Token

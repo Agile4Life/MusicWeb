@@ -44,6 +44,11 @@ export function getHighResCoverUrl(url: string | null | undefined): string | nul
     highRes = highRes.replace(/_(120|200|300)x\1/g, '_600x600').replace(/_(120|200|300)\.jpg/g, '_600.jpg')
   }
 
+  // 5. Spotify: Upgrade 300x300 (1e02) / 64x64 (4851) to 640x640 (b273)
+  if (highRes.includes('scdn.co') || highRes.includes('spotifycdn.com')) {
+    highRes = highRes.replace(/ab67616d0000(?:1e02|4851)/g, 'ab67616d0000b273')
+  }
+
   return highRes
 }
 
