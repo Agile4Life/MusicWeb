@@ -545,12 +545,6 @@ export default function HomePage() {
     return categoryTracksMap[categoryCacheKey]?.tracks || []
   }, [selectedCategory, displayTrending, categoryTracksMap, categoryCacheKey])
 
-  const currentTrendingMetadata = selectedCategory === 'all'
-    ? trendingTracks.trending
-    : categoryTracksMap[categoryCacheKey]?.metadata
-  const trendingIsStale = currentTrendingMetadata && (
-    currentTrendingMetadata.stale || currentTrendingMetadata.date !== trendingDay
-  )
 
   // Fetch initial page data
   useEffect(() => {
@@ -1032,16 +1026,6 @@ export default function HomePage() {
               )}
             </div>
 
-            {currentTrendingMetadata && (
-              <p className="text-[11px] text-slate-400">
-                {currentTrendingMetadata.updatedAt ? (
-                  <>
-                    Cập nhật: <time dateTime={currentTrendingMetadata.date}>{currentTrendingMetadata.date.split('-').reverse().join('/')}</time>
-                    {trendingIsStale ? ' · Đang chờ bảng xếp hạng mới' : ' · Làm mới mỗi ngày'}
-                  </>
-                ) : 'Chưa tải được bảng xếp hạng · Sẽ tự động thử lại'}
-              </p>
-            )}
 
             {/* Category Chips - Mobile Only */}
             <div className="lg:hidden flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4"

@@ -56,7 +56,7 @@ export async function fetchUnifiedSearch(
   const fetchPromise = (async (): Promise<GlobalSearchTracks> => {
     try {
       const url = isTrending
-        ? `/api/search?trending=true&v=3&date=${day}&source=${encodeURIComponent(source)}&category=${encodeURIComponent(category)}`
+        ? `/api/search?trending=true&v=4&date=${day}&source=${encodeURIComponent(source)}&category=${encodeURIComponent(category)}`
         : `/api/search?q=${encodeURIComponent(query.trim())}&source=${encodeURIComponent(source)}`
 
       const res = await fetch(url)

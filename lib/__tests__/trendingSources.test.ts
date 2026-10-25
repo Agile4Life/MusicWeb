@@ -37,4 +37,51 @@ describe('daily chart source', () => {
     const tracks = await fetchDailySpotifyChartTracks('all')
     expect(tracks[0].cover_url).toBeNull()
   })
+
+  it('filters out non-Vietnamese tracks from the vietnamese regional chart', async () => {
+    playlist.mockResolvedValue([
+      {
+        spotify_id: '2HRgqmZQC0MC7GeNuDIXHN',
+        title: 'Seven (feat. Latto) (Explicit Ver.)',
+        artist: 'Jung Kook, Latto',
+        album: 'Golden',
+        duration: 184,
+        cover_url: 'https://i.scdn.co/image/seven',
+        isrc: null,
+      },
+      {
+        spotify_id: '6ELX356o21U28T73ZxruUj',
+        title: 'Tìm Em (feat. Bảo Anh)',
+        artist: 'Hngle, Bảo Anh',
+        album: 'Tìm Em',
+        duration: 210,
+        cover_url: 'https://i.scdn.co/image/tim-em',
+        isrc: null,
+      },
+      {
+        spotify_id: '6n2xOcqQrNOY0IfgATSwWs',
+        title: 'Wrong Times',
+        artist: 'YoungPuppy, Dangrangto',
+        album: 'Wrong Times',
+        duration: 195,
+        cover_url: 'https://i.scdn.co/image/wrong-times',
+        isrc: null,
+      },
+      {
+        spotify_id: '3bgnrHHwyYRtz3ykzAVImy',
+        title: 'Tarantino',
+        artist: 'LISA',
+        album: 'Alter Ego',
+        duration: 175,
+        cover_url: 'https://i.scdn.co/image/tarantino',
+        isrc: null,
+      },
+    ])
+    const { fetchDailySpotifyChartTracks } = await import('../trendingSources')
+    const tracks = await fetchDailySpotifyChartTracks('vietnamese')
+    expect(tracks.map((t) => t.title)).toEqual([
+      'Tìm Em (feat. Bảo Anh)',
+      'Wrong Times',
+    ])
+  })
 })

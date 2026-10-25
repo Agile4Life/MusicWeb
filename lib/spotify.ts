@@ -713,22 +713,27 @@ export async function resolveSpotifyTrackCover(spotifyId: string): Promise<strin
 
   const promise = (async (): Promise<string | null> => {
     try {
-      const res = await fetch(
-        `https://open.spotify.com/oembed?url=${encodeURIComponent(`spotify:track:${spotifyId}`)}`,
-        { signal: AbortSignal.timeout(3500) }
-      )
-      if (!res.ok) return null
-      const data = await res.json()
-      const cover = upgradeSpotifyCoverUrl(typeof data?.thumbnail_url === 'string' ? data.thumbnail_url : null)
-      if (cover) {
-        if (spotifyTrackCoverCache.size >= 1000) {
-          const oldest = spotifyTrackCoverCache.keys().next().value
-          if (oldest) spotifyTrackCoverCache.delete(oldest)
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const res = await fetch(
+            `https://open.spotify.com/oembed?url=${encodeURIComponent(`spotify:track:${spotifyId}`)}`,
+            { signal: AbortSignal.timeout(4500) }
+          )
+          if (!res.ok) continue
+          const data = await res.json()
+          const cover = upgradeSpotifyCoverUrl(typeof data?.thumbnail_url === 'string' ? data.thumbnail_url : null)
+          if (cover) {
+            if (spotifyTrackCoverCache.size >= 1000) {
+              const oldest = spotifyTrackCoverCache.keys().next().value
+              if (oldest) spotifyTrackCoverCache.delete(oldest)
+            }
+            spotifyTrackCoverCache.set(spotifyId, cover)
+            return cover
+          }
+        } catch {
+          // Retry once on transient network/timeout error
         }
-        spotifyTrackCoverCache.set(spotifyId, cover)
       }
-      return cover
-    } catch {
       return null
     } finally {
       spotifyTrackCoverInFlight.delete(spotifyId)
@@ -739,22 +744,35 @@ export async function resolveSpotifyTrackCover(spotifyId: string): Promise<strin
   return promise
 }
 
-async function enrichSpotifyPlaylistTrackCovers(tracks: SpotifyPlaylistTrack[], maxToEnrich = 50): Promise<SpotifyPlaylistTrack[]> {
-  let enrichedCount = 0
-  return Promise.all(
-    tracks.map(async (track) => {
-      const cleanExisting = upgradeSpotifyCoverUrl(track.cover_url)
-      if (cleanExisting) {
-        return cleanExisting === track.cover_url ? track : { ...track, cover_url: cleanExisting }
-      }
-      if (enrichedCount >= maxToEnrich || !/^[a-zA-Z0-9]{22}$/.test(track.spotify_id)) {
-        return track.cover_url === null ? track : { ...track, cover_url: null }
-      }
-      enrichedCount++
-      const resolvedCover = await resolveSpotifyTrackCover(track.spotify_id)
-      return { ...track, cover_url: resolvedCover }
-    })
-  )
+async function enrichSpotifyPlaylistTrackCovers(
+  tracks: SpotifyPlaylistTrack[],
+  maxToEnrich = 50,
+  concurrency = 10
+): Promise<SpotifyPlaylistTrack[]> {
+  const results = tracks.map((track) => {
+    const cleanExisting = upgradeSpotifyCoverUrl(track.cover_url)
+    return cleanExisting === track.cover_url ? track : { ...track, cover_url: cleanExisting }
+  })
+
+  const indicesToFetch: number[] = []
+  for (let i = 0; i < results.length && indicesToFetch.length < maxToEnrich; i++) {
+    if (!results[i].cover_url && /^[a-zA-Z0-9]{22}$/.test(results[i].spotify_id)) {
+      indicesToFetch.push(i)
+    }
+  }
+
+  if (indicesToFetch.length === 0) return results
+
+  let cursor = 0
+  const workers = Array.from({ length: Math.min(concurrency, indicesToFetch.length) }, async () => {
+    while (cursor < indicesToFetch.length) {
+      const idx = indicesToFetch[cursor++]
+      const resolvedCover = await resolveSpotifyTrackCover(results[idx].spotify_id)
+      results[idx] = { ...results[idx], cover_url: resolvedCover }
+    }
+  })
+  await Promise.all(workers)
+  return results
 }
 
 /**

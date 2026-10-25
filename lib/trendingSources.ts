@@ -1,5 +1,6 @@
 import type { Track } from '@/types'
 import { fetchSpotifyPlaylistTracks } from '@/lib/spotify'
+import { classifyTrack } from '@/lib/trackClassifier'
 
 // Public regional charts, fetched once per day by the shared snapshot service.
 const CHART_PLAYLISTS: Record<string, string> = {
@@ -11,9 +12,25 @@ const CHART_PLAYLISTS: Record<string, string> = {
   japanese: '37i9dQZEVXbKXQ4mDTEBXq',
 }
 
+function filterChartTracksByCategory(tracks: Track[], category: string): Track[] {
+  if (category !== 'vietnamese') return tracks
+  const classified = tracks.map((track) => ({
+    track,
+    profile: classifyTrack({ title: track.title, artist: track.artist, album: track.album, source: 'spotify' }),
+  }))
+  const hasConfirmedVietnamese = classified.some(({ profile }) => profile.region === 'vn')
+  return classified
+    .filter(({ profile }) => {
+      if (profile.region === 'kr' || profile.region === 'jp' || profile.region === 'cn') return false
+      if (hasConfirmedVietnamese) return profile.region === 'vn'
+      return true
+    })
+    .map(({ track }) => track)
+}
+
 export async function fetchDailySpotifyChartTracks(category: string): Promise<Track[]> {
   const tracks = await fetchSpotifyPlaylistTracks(CHART_PLAYLISTS[category] || CHART_PLAYLISTS.all, { fresh: true })
-  return tracks.filter(track => track.spotify_id && track.title).map(track => ({
+  const mapped: Track[] = tracks.filter(track => track.spotify_id && track.title).map(track => ({
     id: `spotify-${track.spotify_id}`,
     user_id: 'spotify',
     title: track.title,
@@ -26,4 +43,5 @@ export async function fetchDailySpotifyChartTracks(category: string): Promise<Tr
     spotify_id: track.spotify_id,
     created_at: new Date().toISOString(),
   }))
+  return filterChartTracksByCategory(mapped, category)
 }
