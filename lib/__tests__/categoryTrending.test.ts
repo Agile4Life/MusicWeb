@@ -10,6 +10,25 @@ describe('category trending search API', () => {
 
   afterEach(() => {
     global.fetch = originalFetch
+    vi.useRealTimers()
+  })
+
+  it('fetches a new trending snapshot after Vietnam midnight even within the normal search TTL', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-25T16:59:30Z'))
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ spotify: [{ id: 'before-midnight', title: 'Yesterday chart' }] }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ spotify: [{ id: 'after-midnight', title: 'Today chart' }] }) })
+    global.fetch = fetchMock
+
+    expect((await fetchUnifiedSearch('', 'all', true, 'all')).spotify[0].id).toBe('before-midnight')
+    vi.setSystemTime(new Date('2026-10-25T17:00:01Z'))
+    const result = await fetchUnifiedSearch('', 'all', true, 'all')
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(result.spotify[0].id).toBe('after-midnight')
+    expect(String(fetchMock.mock.calls[0][0])).toContain('date=2026-10-25')
+    expect(String(fetchMock.mock.calls[1][0])).toContain('date=2026-10-26')
   })
 
   it('sends the category parameter in the trending request URL', async () => {

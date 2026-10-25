@@ -1,6 +1,15 @@
 import { Track } from '@/types'
+import { getTrendingDay } from '@/lib/trendingDay'
+
+export interface TrendingMetadata {
+  date: string
+  updatedAt: string
+  nextRefreshAt: string
+  stale: boolean
+}
 
 export interface GlobalSearchTracks {
+  trending?: TrendingMetadata
   nhaccuatui: Track[]
   local: Track[]
   youtube: Track[]
@@ -25,7 +34,8 @@ export async function fetchUnifiedSearch(
   category = 'all'
 ): Promise<GlobalSearchTracks> {
   const trimmed = query.trim().toLowerCase()
-  const cacheKey = isTrending ? `trending_${source}_${category}` : `${trimmed}_${source}`
+  const day = getTrendingDay()
+  const cacheKey = isTrending ? `trending_${day}_${source}_${category}` : `${trimmed}_${source}`
 
   if (!isTrending && !trimmed) {
     return { nhaccuatui: [], local: [], youtube: [], spotify: [], deezer: [], soundcloud: [] }
@@ -46,7 +56,7 @@ export async function fetchUnifiedSearch(
   const fetchPromise = (async (): Promise<GlobalSearchTracks> => {
     try {
       const url = isTrending
-        ? `/api/search?trending=true&v=2&source=${encodeURIComponent(source)}&category=${encodeURIComponent(category)}`
+        ? `/api/search?trending=true&v=2&date=${day}&source=${encodeURIComponent(source)}&category=${encodeURIComponent(category)}`
         : `/api/search?q=${encodeURIComponent(query.trim())}&source=${encodeURIComponent(source)}`
 
       const res = await fetch(url)
@@ -62,6 +72,7 @@ export async function fetchUnifiedSearch(
         spotify: Array.isArray(data.spotify) ? data.spotify : [],
         deezer: Array.isArray(data.deezer) ? data.deezer : [],
         soundcloud: Array.isArray(data.soundcloud) ? data.soundcloud : [],
+        ...(isTrending && data.trending ? { trending: data.trending } : {}),
       }
 
       const hasTrendingItems =
