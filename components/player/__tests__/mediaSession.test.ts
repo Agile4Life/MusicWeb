@@ -150,8 +150,13 @@ describe('MediaSession Safari Action Handlers', () => {
   });
 
   it('synchronizes desiredPlayStateRef intent when background lock-screen actions are dispatched', async () => {
-    const { controller, transport, registeredHandlers, unbind } =
-      createMediaSessionHarness();
+    const {
+      controller,
+      transport,
+      mockMediaSession,
+      registeredHandlers,
+      unbind,
+    } = createMediaSessionHarness();
 
     const t1 = makeTrack('1');
     const t2 = makeTrack('2');
@@ -180,6 +185,19 @@ describe('MediaSession Safari Action Handlers', () => {
     registeredHandlers.stop?.();
     await new Promise(setImmediate);
     expect(controller.getSnapshot().isPlaying).toBe(false);
+
+    // 5. Re-registers nexttrack and previoustrack when playback resumes on the same track
+    mockMediaSession.setActionHandler.mockClear();
+    registeredHandlers.play?.();
+    await new Promise(setImmediate);
+    expect(mockMediaSession.setActionHandler).toHaveBeenCalledWith(
+      'nexttrack',
+      expect.any(Function)
+    );
+    expect(mockMediaSession.setActionHandler).toHaveBeenCalledWith(
+      'previoustrack',
+      expect.any(Function)
+    );
 
     unbind();
   });

@@ -683,5 +683,191 @@ describe('playbackSourceService', () => {
       initialTime: 0,
     });
   });
+
+  it('resolves iOS YouTube tracks to HTML5 catalog streams (NhacCuaTui/SoundCloud/Drive) on first play and deduplicates race conditions', async () => {
+    let resolveCatalog!: (val: {
+      source: 'nhaccuatui';
+      id: string;
+      title: string;
+      artist: string;
+      duration: number;
+      streamUrl: string;
+    }) => void;
+    const catalogPromise = new Promise<{
+      source: 'nhaccuatui';
+      id: string;
+      title: string;
+      artist: string;
+      duration: number;
+      streamUrl: string;
+    }>((res) => {
+      resolveCatalog = res;
+    });
+
+    const resolveMock = vi.fn(() => catalogPromise);
+    const deps = createFakeDeps({
+      isIOS: () => true,
+      clock: {
+        now: () => 1_000,
+        after: () => () => {},
+        every: () => () => {},
+      },
+      resolution: {
+        resolve: resolveMock,
+        invalidate: vi.fn().mockResolvedValue(undefined),
+        dispose: vi.fn(),
+      },
+    });
+    const service = createPlaybackSourceService(deps);
+    const ytTrack = makeTrack('yt-first-play-ios', {
+      source: 'youtube',
+      youtube_id: 'ytMusic1234',
+      title: 'Chúng Ta Của Tương Lai',
+      artist: 'Sơn Tùng M-TP',
+      duration: 245,
+    });
+
+    // 1. On foreground first play (cache miss), resolveImmediate returns null so playTrack enters resolvePlayable
+    expect(
+      service.resolveImmediate({
+        track: ytTrack,
+        preserveGesture: false,
+        tabHidden: false,
+      })
+    ).toBeNull();
+
+    // 2. Concurrent resolvePlayable and resolveFallback share the single in-flight catalog lookup
+    const p1 = service.resolvePlayable({ track: ytTrack, initialTime: 0 });
+    const p2 = service.resolveFallback(ytTrack, 0, undefined, { preferHtml5: true });
+
+    resolveCatalog({
+      source: 'nhaccuatui',
+      id: 'nct-ctctl-1',
+      title: 'Chúng Ta Của Tương Lai',
+      artist: 'Sơn Tùng M-TP',
+      duration: 245,
+      streamUrl: '/api/nhaccuatui/stream?id=nct-ctctl-1',
+    });
+
+    const [res1, res2] = await Promise.all([p1, p2]);
+    expect(resolveMock).toHaveBeenCalledTimes(1);
+    expect(res1).toEqual({
+      track: expect.objectContaining({
+        id: 'yt-first-play-ios',
+        source: 'nhaccuatui',
+        nhaccuatui_id: 'nct-ctctl-1',
+      }),
+      engine: 'html5',
+      target: '/api/nhaccuatui/stream?id=nct-ctctl-1',
+      initialTime: 0,
+    });
+    expect(res2?.target).toBe('/api/nhaccuatui/stream?id=nct-ctctl-1');
+
+    // 3. Subsequent resolveImmediate hits the warmed trackResolutionCache in 0ms
+    expect(
+      service.resolveImmediate({
+        track: ytTrack,
+        preserveGesture: false,
+        tabHidden: false,
+      })
+    ).toEqual({
+      track: expect.objectContaining({
+        id: 'yt-first-play-ios',
+        source: 'nhaccuatui',
+        nhaccuatui_id: 'nct-ctctl-1',
+      }),
+      engine: 'html5',
+      target: '/api/nhaccuatui/stream?id=nct-ctctl-1',
+      initialTime: 0,
+    });
+  });
+
+  it('falls back to YouTube HTML5 stream proxy if first-play catalog lookup exceeds 1800ms, then promotes late catalog result to cache', async () => {
+    let fireTimeout!: () => void;
+    let resolveLateCatalog!: (val: {
+      source: 'nhaccuatui';
+      id: string;
+      title: string;
+      artist: string;
+      duration: number;
+      streamUrl: string;
+    }) => void;
+    const lateCatalogPromise = new Promise<{
+      source: 'nhaccuatui';
+      id: string;
+      title: string;
+      artist: string;
+      duration: number;
+      streamUrl: string;
+    }>((res) => {
+      resolveLateCatalog = res;
+    });
+
+    const deps = createFakeDeps({
+      isIOS: () => true,
+      clock: {
+        now: () => 1_000,
+        after: (_ms, cb) => {
+          fireTimeout = cb;
+          return () => {};
+        },
+        every: () => () => {},
+      },
+      resolution: {
+        resolve: vi.fn(() => lateCatalogPromise),
+        invalidate: vi.fn().mockResolvedValue(undefined),
+        dispose: vi.fn(),
+      },
+    });
+    const service = createPlaybackSourceService(deps);
+    const ytTrack = makeTrack('yt-slow-network', {
+      source: 'youtube',
+      youtube_id: 'slowYt12345',
+      title: 'Slow Network Song',
+      artist: 'Artist',
+      duration: 200,
+    });
+
+    const playablePromise = service.resolvePlayable({ track: ytTrack, initialTime: 0 });
+    // Trigger the 1800ms race deadline before catalog finishes
+    fireTimeout();
+    const firstPlayResult = await playablePromise;
+
+    // Immediately falls back to HTML5 YouTube stream proxy without stalling
+    expect(firstPlayResult).toEqual({
+      track: expect.objectContaining({
+        id: 'yt-slow-network',
+        source: 'youtube',
+        youtube_id: 'slowYt12345',
+      }),
+      engine: 'html5',
+      target: '/api/youtube/stream?id=slowYt12345',
+      initialTime: 0,
+    });
+
+    // Now the late catalog resolution completes in the background
+    resolveLateCatalog({
+      source: 'nhaccuatui',
+      id: 'nct-late-999',
+      title: 'Slow Network Song',
+      artist: 'Artist',
+      duration: 200,
+      streamUrl: '/api/nhaccuatui/stream?id=nct-late-999',
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // Late promotion populated trackResolutionCache so subsequent resolveImmediate uses NCT HTML5 stream
+    expect(
+      service.resolveImmediate({
+        track: ytTrack,
+        preserveGesture: false,
+        tabHidden: false,
+      })
+    )?.toMatchObject({
+      engine: 'html5',
+      target: '/api/nhaccuatui/stream?id=nct-late-999',
+    });
+  });
 });
 

@@ -52,6 +52,7 @@ export function bindMediaSession(
 
   let lastTrackKey = '';
   let lastTrackId: string | null = null;
+  let wasPlaying = false;
   let cancelPositionTimer: Cancel | null = null;
 
   const stopPositionTimer = () => {
@@ -147,10 +148,11 @@ export function bindMediaSession(
       }
     }
 
-    if (track.id !== lastTrackId) {
+    if (track.id !== lastTrackId || (snap.isPlaying && !wasPlaying)) {
       lastTrackId = track.id;
       registerActionHandlers();
     }
+    wasPlaying = snap.isPlaying;
 
     try {
       const shouldReportPlaying = snap.isPlaying || snap.isBuffering;

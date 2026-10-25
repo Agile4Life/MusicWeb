@@ -833,15 +833,58 @@ export function createPlaybackController(
       if (decision.type === 'ignore') return;
 
       if (decision.type === 'switch-to-youtube-iframe') {
-        ytHtml5Mode = false;
         const resumeTime = Math.floor(getActiveTime());
+        const failedSrc = activeTargetUrl;
+        const safeResume = resumeTime >= 3 ? resumeTime : 0;
+        try {
+          const html5Alt = await deps.sources.resolveFallback(
+            current,
+            safeResume,
+            undefined,
+            { preferHtml5: true }
+          );
+          if (
+            disposed ||
+            !ownership.isCurrentOwner(owner, store.getSnapshot().currentTrack?.id)
+          ) {
+            return;
+          }
+          if (ownership.getDesiredState() === 'paused') {
+            store.patch({ isPlaying: false, isBuffering: false });
+            return;
+          }
+          const isSameFailingYtProxy =
+            !html5Alt ||
+            html5Alt.engine !== 'html5' ||
+            html5Alt.target === failedSrc ||
+            (html5Alt.track.source === 'youtube' &&
+              (html5Alt.track.youtube_id || decision.videoId) === decision.videoId);
+          if (!isSameFailingYtProxy) {
+            const started = await executePreparedPlayback(
+              html5Alt,
+              owner,
+              current,
+              { isFallback: true }
+            );
+            if (started) return;
+          }
+        } catch {
+          if (
+            disposed ||
+            !ownership.isCurrentOwner(owner, store.getSnapshot().currentTrack?.id)
+          ) {
+            return;
+          }
+        }
+
+        ytHtml5Mode = false;
         try {
           await executePreparedPlayback(
             {
               track: current,
               engine: 'youtube',
               target: decision.videoId,
-              initialTime: resumeTime >= 3 ? resumeTime : 0,
+              initialTime: safeResume,
             },
             owner,
             current,
@@ -1342,9 +1385,40 @@ export function createPlaybackController(
         prepared.track.youtube_id ||
         (prepared.track.source === 'youtube' ? prepared.target : null);
       if (prepared.engine === 'html5' && directYtId) {
-        ytHtml5Mode = false;
         inFlightErrorRequestId = owner.requestId;
         try {
+          try {
+            const html5Alt = await deps.sources.resolveFallback(
+              prepared.track,
+              prepared.initialTime,
+              undefined,
+              { preferHtml5: true }
+            );
+            if (disposed || !ownership.isCurrentRequest(owner.requestId)) return;
+            if (ownership.getDesiredState() === 'paused') {
+              store.patch({ isPlaying: false, isBuffering: false });
+              return;
+            }
+            const isSameFailingYtProxy =
+              !html5Alt ||
+              html5Alt.engine !== 'html5' ||
+              html5Alt.target === prepared.target ||
+              (html5Alt.track.source === 'youtube' &&
+                (html5Alt.track.youtube_id || directYtId) === directYtId);
+            if (!isSameFailingYtProxy) {
+              const started = await executePreparedPlayback(
+                html5Alt,
+                owner,
+                track,
+                { isFallback: true }
+              );
+              if (started) return;
+            }
+          } catch {
+            if (disposed || !ownership.isCurrentRequest(owner.requestId)) return;
+          }
+
+          ytHtml5Mode = false;
           await executePreparedPlayback(
             {
               track: prepared.track,
@@ -1456,9 +1530,40 @@ export function createPlaybackController(
         track.youtube_id ||
         (track.source === 'youtube' ? immediate.target : null);
       if (immediate.engine === 'html5' && directYtId) {
-        ytHtml5Mode = false;
         inFlightErrorRequestId = owner.requestId;
         try {
+          try {
+            const html5Alt = await deps.sources.resolveFallback(
+              track,
+              immediate.initialTime,
+              undefined,
+              { preferHtml5: true }
+            );
+            if (disposed || !ownership.isCurrentRequest(owner.requestId)) return;
+            if (ownership.getDesiredState() === 'paused') {
+              store.patch({ isPlaying: false, isBuffering: false });
+              return;
+            }
+            const isSameFailingYtProxy =
+              !html5Alt ||
+              html5Alt.engine !== 'html5' ||
+              html5Alt.target === immediate.target ||
+              (html5Alt.track.source === 'youtube' &&
+                (html5Alt.track.youtube_id || directYtId) === directYtId);
+            if (!isSameFailingYtProxy) {
+              const started = await executePreparedPlayback(
+                html5Alt,
+                owner,
+                rawTrack,
+                { isFallback: true }
+              );
+              if (started) return;
+            }
+          } catch {
+            if (disposed || !ownership.isCurrentRequest(owner.requestId)) return;
+          }
+
+          ytHtml5Mode = false;
           await executePreparedPlayback(
             {
               track,
