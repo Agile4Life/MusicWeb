@@ -103,11 +103,11 @@ export function BattleView({ battle, currentId, onPreview, onChoose, onUndo, onR
               <iframe title={`Spotify: ${track.title}`} src={`https://open.spotify.com/embed/track/${encodeURIComponent(track.spotify_id)}?theme=0`} width="100%" height="280" allow="autoplay; encrypted-media" />
             </div>
           ) : track.source === 'soundcloud' && track.soundcloud_id ? (
-            <div className={styles.contestantEmbed}><WaveformCoverPlayer track={track} /></div>
+            <div className={`${styles.contestantEmbed} ${styles.contestantCoverEmbed}`}><WaveformCoverPlayer track={track} /></div>
           ) : track.source === 'musicweb' && track.stream_url ? (
-            <div className={styles.contestantEmbed}><WaveformCoverPlayer track={track} /></div>
+            <div className={`${styles.contestantEmbed} ${styles.contestantCoverEmbed}`}><WaveformCoverPlayer track={track} /></div>
           ) : (
-            <div className={styles.contestantEmbed}>
+            <div className={`${styles.contestantEmbed} ${styles.contestantCoverEmbed}`}>
               <button type="button" className={styles.coverButton} onClick={() => onPreview(track)} aria-label={`Nghe thử ${track.title}`}>
                 <TrackArtwork track={track} large />
                 <span className={styles.coverListen}><Headphones size={18} aria-hidden="true" /> {currentId === track.id ? 'Đang mở trình nghe' : 'Nghe thử'}</span>

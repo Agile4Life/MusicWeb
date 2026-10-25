@@ -1,4 +1,7 @@
 .root {
+  --lab-cover-size: 720px;
+  --lab-cover-ratio: 16 / 9;
+  --lab-cover-radius: 12px;
   --lab-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --lab-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --lab-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -17,7 +20,7 @@
 }
 .root * { box-sizing: border-box; }
 .rootBattle { min-height: 100dvh; padding-bottom: 0; padding-left: 24px; padding-right: 24px; display: flex; flex-direction: column; }
-.rootBattle .shell { flex: 1; display: flex; flex-direction: column; min-height: 0; max-width: none; }
+.rootBattle .shell { flex: 1; display: flex; flex-direction: column; min-height: 0; width: 100%; max-width: none; }
 .rootBattle .contentAnchor { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .rootBattle .battleSection { flex: 1; display: flex; flex-direction: column; min-height: 0; padding-top: 0; }
 .rootBattle .battleToolbar { flex-shrink: 0; }
@@ -29,8 +32,11 @@
 .rootBattle .contestantHeader { flex-shrink: 0; }
 .rootBattle .contestantEmbed { flex: 1; min-height: 0; display: flex; flex-direction: column; margin-bottom: 0; }
 .rootBattle .contestantEmbed iframe { flex: 1; min-height: 0; height: auto; }
-.rootBattle .contestantEmbed .coverButton { display: grid; place-items: center; flex: 1; min-height: 0; }
-.rootBattle .contestantEmbed .coverButton .artworkLarge { width: min(100%, 320px); height: auto; flex: none; aspect-ratio: 1; }
+.rootBattle .contestantCoverEmbed { flex: none; align-self: center; width: min(100%, var(--lab-cover-size)); aspect-ratio: var(--lab-cover-ratio); border-radius: var(--lab-cover-radius); }
+.rootBattle .contestantCoverEmbed .coverButton { display: grid; place-items: center; flex: none; width: 100%; height: 100%; min-height: 0; border: 0; border-radius: inherit; }
+.rootBattle .contestantCoverEmbed .coverButton .artworkLarge { width: 100%; height: 100%; flex: none; aspect-ratio: var(--lab-cover-ratio); }
+.contestantCoverEmbed .soundcloudPlayer { width: 100%; height: 100%; }
+.contestantCoverEmbed .soundcloudCover { width: 100%; height: 100%; border: 0; border-radius: inherit; }
 .rootBattle .chooseButton { flex-shrink: 0; margin-top: auto; }
 .rootBattle .footer { flex-shrink: 0; padding: 12px 0; }
 .root button, .root input, .root textarea { font: inherit; }
@@ -184,7 +190,7 @@
 
 .coverButton { display: block; position: relative; padding: 0; width: 100%; border: 1px solid var(--hair-strong); border-radius: 12px; overflow: hidden; background: var(--surface); transition: border-color var(--lab-dur-base) ease, transform var(--lab-dur-fast) var(--lab-ease-out); }
 .coverButton:active:not(:disabled) { transform: scale(0.99); }
-.artworkLarge { position: relative; aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; width: 100%; background: var(--surface-2); color: var(--accent); }
+.artworkLarge { position: relative; aspect-ratio: 1; flex-shrink: 0; display: grid; place-items: center; overflow: hidden; width: 100%; background: var(--surface-2); color: var(--accent); }
 .artworkLarge img { position: absolute; inset: 0; display: block; }
 .artworkLarge > svg { width: 35%; height: 35%; stroke-width: .5; transition: transform var(--lab-dur-base) var(--lab-ease-out); }
 .coverListen { position: absolute; bottom: 15px; left: 15px; display: flex; align-items: center; gap: 8px; background: var(--void); color: var(--paper); padding: 10px 14px; border: 1px solid var(--hair-strong); border-radius: 6px; font-size: 11px; transition: background-color var(--lab-dur-fast) ease, color var(--lab-dur-fast) ease, border-color var(--lab-dur-fast) ease, transform var(--lab-dur-fast) var(--lab-ease-out); }
@@ -197,7 +203,8 @@
 .champion { text-align: center; padding: 30px 0; display: flex; flex-direction: column; align-items: center; }
 .championMedal { color: var(--accent-strong); margin-bottom: 10px; }
 .root .champion h2 { font-family: var(--font-fraunces), Georgia, serif; font-size: clamp(28px, 4vw, 44px) !important; font-weight: 400 !important; margin: 9px 0 27px; line-height: 1.2 !important; }
-.championArtwork { width: 300px; border-radius: 10px; overflow: hidden; border: 1px solid var(--hair-strong); transition: transform var(--lab-dur-panel) var(--lab-ease-out), border-color var(--lab-dur-base) ease; }
+.championArtwork { width: min(100%, var(--lab-cover-size)); aspect-ratio: var(--lab-cover-ratio); border-radius: var(--lab-cover-radius); overflow: hidden; border: 1px solid var(--hair-strong); transition: transform var(--lab-dur-panel) var(--lab-ease-out), border-color var(--lab-dur-base) ease; }
+.championArtwork > .artworkLarge { width: 100%; height: 100%; }
 .champion h3 { font-size: 24px; margin: 22px 0 4px; font-weight: 500; }
 .champion > p { color: var(--paper-dim); font-size: 13px; margin: 0; }
 .championActions { display: flex; gap: 10px; margin: 26px 0 16px; }
@@ -221,7 +228,7 @@
 .preview iframe { border: 0; border-radius: 8px; display: block; }
 .preview audio { width: 100%; display: block; }
 .soundcloudPlayer { width: 100%; display: grid; place-items: center; flex: 1; min-height: 0; }
-.soundcloudCover { position: relative; width: min(100%, 360px); aspect-ratio: 1; overflow: hidden; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--hair-strong); transition: border-color var(--lab-dur-base) ease; }
+.soundcloudCover { position: relative; width: min(100%, var(--lab-cover-size)); aspect-ratio: var(--lab-cover-ratio); flex-shrink: 0; overflow: hidden; border-radius: var(--lab-cover-radius); background: var(--surface-2); border: 1px solid var(--hair-strong); transition: border-color var(--lab-dur-base) ease; }
 .soundcloudCover > .artworkLarge { width: 100%; height: 100%; }
 .soundcloudCover > .artworkLarge img { transition: transform 280ms var(--lab-ease-out); }
 .soundcloudBadge { position: absolute; top: 14px; left: 14px; padding: 5px 9px; border: 1px solid #ffffff30; border-radius: 5px; background: #141017a6; color: #fff; font-size: 9px; letter-spacing: 1.8px; }
