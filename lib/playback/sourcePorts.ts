@@ -8,7 +8,7 @@ export interface PlaybackSourceDeps {
   isIOS(): boolean;
   isFastConnection(): boolean;
   resolution: ClientResolutionService;
-  search(query: string, source: 'all' | 'youtube', signal?: AbortSignal): Promise<GlobalSearchTracks>;
+  search(query: string, source: 'all' | 'playback' | 'youtube', signal?: AbortSignal): Promise<GlobalSearchTracks>;
   resolveSoundCloudUrl(target: string | number, bypassCache?: boolean): Promise<string | null>;
   getDeterministicSoundCloudUrl?(target: string | number, bypassCache?: boolean): string;
   signStoragePath(filePath: string): Promise<string | null>;

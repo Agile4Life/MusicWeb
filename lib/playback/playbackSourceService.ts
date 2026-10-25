@@ -251,7 +251,6 @@ export function createPlaybackSourceService(
     }
 
     if (
-      track.source === 'audius' ||
       (track.audio_url &&
         !isPreviewUrl(track.audio_url) &&
         !track.youtube_id &&
@@ -309,8 +308,7 @@ export function createPlaybackSourceService(
     if (
       (track.audio_url && isPreviewUrl(track.audio_url)) ||
       (track.file_path && isPreviewUrl(track.file_path)) ||
-      track.source === 'spotify' ||
-      track.source === 'itunes'
+      track.source === 'spotify'
     ) {
       return null;
     }
@@ -373,7 +371,7 @@ export function createPlaybackSourceService(
         .replace(/\s*feat(\.|\s).*$/i, '')
         .trim();
       const cleanQ = `${cleanTitleOnly || track.title} ${cleanArtistOnly || track.artist || ''}`.trim();
-      const fbData = await deps.search(cleanQ, 'all', signal);
+      const fbData = await deps.search(cleanQ, 'playback', signal);
 
       const nctCandidates: Track[] = (fbData.nhaccuatui || []).filter((t: Track) =>
         Boolean(t?.nhaccuatui_id)
@@ -397,10 +395,7 @@ export function createPlaybackSourceService(
         ? nctCandidates.find((t) => t.nhaccuatui_id === nctMatchedItem.id)
         : undefined;
 
-      const ytCandidates: Track[] = [
-        ...(fbData.youtube || []),
-        ...(fbData.spotify || []).filter((s: Track) => Boolean(s?.youtube_id)),
-      ];
+      const ytCandidates: Track[] = fbData.youtube || [];
       const ytMatch = findBestYouTubeMatch(
         ytCandidates,
         track.title,
@@ -531,7 +526,6 @@ export function createPlaybackSourceService(
         !isWebpageOrCatalogUrl(track.file_path) &&
         !isSoundCloudTrack(track) &&
         track.source !== 'spotify' &&
-        track.source !== 'itunes' &&
         track.source !== 'youtube'
       ) {
         cached = track.file_path;
@@ -739,7 +733,7 @@ export function createPlaybackSourceService(
             track.source === 'soundcloud' ||
             Boolean(track.soundcloud_id))
             ? 'youtube'
-            : 'all';
+            : 'playback';
         const data = await deps.search(query, fallbackSource);
 
         const ytList: Track[] = (data.youtube || []).filter(
@@ -921,7 +915,7 @@ export function createPlaybackSourceService(
     try {
       const cleanTitle = stripNonIdentityAnnotations(track.title) || track.title;
       const queryStr = `${cleanTitle} ${track.artist || ''}`.trim();
-      const searchRes = await deps.search(queryStr, 'all');
+      const searchRes = await deps.search(queryStr, 'playback');
 
       const candidates = (searchRes?.youtube || []).filter(
         (t: Track) => t.youtube_id && t.youtube_id !== track.youtube_id

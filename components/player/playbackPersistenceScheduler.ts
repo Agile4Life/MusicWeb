@@ -23,7 +23,6 @@ export function toMinimalPersistedTrack(track: Track): Partial<Track> {
     source_url: track.source_url,
     spotify_id: track.spotify_id,
     spotify_album_id: track.spotify_album_id,
-    itunes_id: track.itunes_id,
     album: track.album,
     view_count: track.view_count,
     is_favorite: track.is_favorite,

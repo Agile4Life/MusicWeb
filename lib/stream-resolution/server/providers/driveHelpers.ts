@@ -1,3 +1,5 @@
+import { isRetiredMusicUrl } from '@/lib/retiredMusicSources';
+
 export function extractDriveFileId(path: string): string | null {
     if (!path)
         return null;
@@ -16,11 +18,7 @@ export function extractDriveFileId(path: string): string | null {
 export function isPreviewUrl(filePath: string): boolean {
     const lower = filePath.toLowerCase();
     return (lower.includes('preview') ||
-        lower.includes('itunes.apple.com') ||
-        lower.includes('audio-ssl.itunes.apple.com') ||
-        lower.includes('is1-ssl.mzstatic.com') ||
-        lower.includes('mzstatic.com') ||
-        lower.startsWith('itunes:') ||
+        isRetiredMusicUrl(filePath) ||
         lower.includes('spotify.com') ||
         lower.startsWith('spotify:') ||
         lower.includes('p.scdn.co') ||

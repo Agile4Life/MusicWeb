@@ -1,10 +1,12 @@
 'use client'
 
+import { isRetiredMusicId } from '@/lib/retiredMusicSources'
+
 /**
  * Zero-lag in-memory client-side cache & event bus for resolved albums.
  *
  * Bounded LRU cache (max 500 entries) with:
- * - Known-bad Deezer fallback ID rejection
+ * - Retired provider and known-bad Deezer fallback ID rejection
  * - Conservative exact-match album validation
  * - Collision-resistant cache keys (preserves compound artist names)
  * - Manual invalidation APIs
@@ -60,7 +62,7 @@ const KNOWN_BAD_FALLBACK_ALBUM_IDS = new Set([
 ])
 
 export function isKnownBadFallback(albumId?: string): boolean {
-  return !!albumId && KNOWN_BAD_FALLBACK_ALBUM_IDS.has(albumId)
+  return !!albumId && (isRetiredMusicId(albumId) || KNOWN_BAD_FALLBACK_ALBUM_IDS.has(albumId))
 }
 
 // ── LRU bounded cache ───────────────────────────────────
@@ -134,7 +136,7 @@ export function getCachedResolvedAlbum(
   const cached = resolvedAlbumCache.get(key)
   if (!cached) return undefined
 
-  // Reject and evict known-bad Deezer fallback album IDs
+  // Reject and evict retired or known-bad fallback album IDs
   if (isKnownBadFallback(cached.albumId)) {
     resolvedAlbumCache.delete(key)
     return undefined

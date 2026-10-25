@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Track } from '@/types'
+import { isRetiredMusicId, normalizeRetiredMusicTrack } from './retiredMusicSources'
 
 /**
  * Resolve a non-local (external) track to a real `tracks.id` (UUID) in Supabase.
@@ -28,8 +29,7 @@ export function isExternalTrack(track: Track): boolean {
     track.id.startsWith('spotify-') ||
     track.id.startsWith('deezer-') ||
     track.id.startsWith('nct-') ||
-    track.id.startsWith('itunes-') ||
-    track.id.startsWith('audius-') ||
+    isRetiredMusicId(track.id) ||
     track.id.startsWith('sc-')
 
   if (syntheticId) return true
@@ -38,6 +38,7 @@ export function isExternalTrack(track: Track): boolean {
 }
 
 function inferTrackSource(track: Track): Track {
+  track = normalizeRetiredMusicTrack(track)
   if (track.source && track.source !== 'local' && UUID_REGEX.test(track.id || '')) return track
 
   const normalized: Track = { ...track }
@@ -45,16 +46,12 @@ function inferTrackSource(track: Track): Track {
     if (normalized.youtube_id || normalized.id?.startsWith('yt-')) normalized.source = 'youtube'
     else if (normalized.spotify_id || normalized.id?.startsWith('spotify-')) normalized.source = 'spotify'
     else if (normalized.nhaccuatui_id || normalized.id?.startsWith('nct-')) normalized.source = 'nhaccuatui'
-    else if (normalized.itunes_id || normalized.id?.startsWith('itunes-')) normalized.source = 'itunes'
-    else if (normalized.audius_id || normalized.id?.startsWith('audius-')) normalized.source = 'audius'
     else if (normalized.soundcloud_id || normalized.id?.startsWith('sc-')) normalized.source = 'soundcloud'
     else if (normalized.id?.startsWith('deezer-')) normalized.source = 'deezer'
     else {
       const fp = normalized.file_path || ''
       if (fp.includes('youtube.com') || fp.includes('youtu.be')) normalized.source = 'youtube'
       else if (fp.includes('spotify.com')) normalized.source = 'spotify'
-      else if (fp.includes('itunes.apple.com')) normalized.source = 'itunes'
-      else if (fp.includes('audius.co')) normalized.source = 'audius'
       else if (fp.includes('soundcloud.com') || fp.startsWith('soundcloud:')) normalized.source = 'soundcloud'
       else if (fp.includes('deezer.com') || fp.startsWith('deezer:')) normalized.source = 'deezer'
     }
@@ -63,17 +60,11 @@ function inferTrackSource(track: Track): Track {
   if (!normalized.youtube_id && (normalized.id?.startsWith('yt-') || normalized.source === 'youtube')) {
     normalized.youtube_id = normalized.id?.startsWith('yt-') ? normalized.id.slice(3) : normalized.id
   }
-  if (!normalized.spotify_id && (normalized.id?.startsWith('spotify-') || normalized.source === 'spotify')) {
+  if (!normalized.spotify_id && !isRetiredMusicId(normalized.id) && (normalized.id?.startsWith('spotify-') || normalized.source === 'spotify')) {
     normalized.spotify_id = normalized.id?.startsWith('spotify-') ? normalized.id.slice(8) : normalized.id
   }
   if (!normalized.nhaccuatui_id && (normalized.id?.startsWith('nct-') || normalized.source === 'nhaccuatui')) {
     normalized.nhaccuatui_id = normalized.id?.startsWith('nct-') ? normalized.id.slice(4) : normalized.id
-  }
-  if (!normalized.itunes_id && (normalized.id?.startsWith('itunes-') || normalized.source === 'itunes')) {
-    normalized.itunes_id = normalized.id?.startsWith('itunes-') ? normalized.id.slice(7) : String(normalized.id)
-  }
-  if (!normalized.audius_id && (normalized.id?.startsWith('audius-') || normalized.source === 'audius')) {
-    normalized.audius_id = normalized.id?.startsWith('audius-') ? normalized.id.slice(7) : normalized.id
   }
   if (!normalized.soundcloud_id && (normalized.id?.startsWith('sc-') || normalized.source === 'soundcloud')) {
     const fp = normalized.file_path || ''
@@ -189,11 +180,7 @@ export async function resolveExternalTrackId(
             ? normalizedTrack.soundcloud_permalink_url
             : normalizedTrack.spotify_id
               ? `spotify:${normalizedTrack.spotify_id}`
-              : normalizedTrack.itunes_id
-                ? `itunes:${normalizedTrack.itunes_id}`
-                : normalizedTrack.audius_id
-                  ? `audius:${normalizedTrack.audius_id}`
-                  : `ext:${Date.now()}`)
+              : `ext:${Date.now()}`)
 
   // Insert payload containing ONLY valid PostgreSQL table columns
   const insertPayload: Record<string, any> = {

@@ -34,8 +34,6 @@ function emptySearchResponse(youtube: Track[] = []) {
     nhaccuatui: [],
     local: [],
     youtube,
-    audius: [],
-    itunes: [],
     spotify: [],
     deezer: [],
     soundcloud: [],
@@ -833,7 +831,7 @@ describe('production playback ownership', () => {
       itunes_id: 'it-111',
       file_path:
         'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/mzaf_123.plus.aac.p.m4a',
-    });
+    } as unknown as Partial<Track>);
 
     h.sources.prewarmNextAdaptive([makeTrack('A'), itunesPreviewNext], 0, 'off');
     await new Promise(setImmediate);
@@ -882,7 +880,7 @@ describe('production playback ownership', () => {
       source: 'itunes',
       itunes_id: 'it-2',
       file_path: 'https://audio-ssl.itunes.apple.com/preview.m4a',
-    });
+    } as unknown as Partial<Track>);
     const t3 = makeTrack('song-3', { file_path: 'https://audio.test/3' });
 
     await h.controller.playTrack(t1, [t1, t2, t3], 0);

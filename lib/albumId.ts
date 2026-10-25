@@ -1,10 +1,11 @@
+import { isRetiredMusicId, normalizeRetiredMusicTrack } from '@/lib/retiredMusicSources'
+
 /**
- * Helper to strip provider prefix from album IDs.
- * Order matters: "itunes-rss" must be before "itunes" so "itunes-rss-123" becomes "123" instead of "rss-123".
+ * Strip supported provider prefixes while preserving retired IDs to prevent numeric collisions.
  */
 export function stripAlbumIdPrefix(albumId: string): string {
   if (!albumId) return ''
-  return albumId.replace(/^(itunes-rss|deezer|spotify|itunes)-/, '')
+  return albumId.replace(/^(deezer|spotify)-/, '')
 }
 
 const SYSTEM_USER_ID = '00000000-0000-4000-a000-000000000001'
@@ -35,7 +36,7 @@ export function sortAlbumTracks<T extends { disc_number?: number | null; track_n
  * and sorts tracks by disc_number and track_number.
  */
 export function validateAndNormalizeCachedAlbum(cached: any): any | null {
-  if (!cached || !cached.id || KNOWN_BAD_ALBUM_IDS.has(String(cached.id))) {
+  if (!cached || !cached.id || isRetiredMusicId(cached.id) || KNOWN_BAD_ALBUM_IDS.has(String(cached.id))) {
     return null
   }
 
@@ -91,7 +92,7 @@ export function validateAndNormalizeCachedAlbum(cached: any): any | null {
     return null
   }
 
-  const sortedTracks = sortAlbumTracks(deduped).map((t: any) => ({
+  const sortedTracks = sortAlbumTracks(deduped).map((t: any) => normalizeRetiredMusicTrack({
     ...t,
     album: cached.name || t.album,
     spotify_album_id: cached.id || t.spotify_album_id,

@@ -1,3 +1,5 @@
+import { isRetiredMusicUrl } from './retiredMusicSources'
+
 /**
  * Upload large files to Google Drive via Cloudflare Worker Resumable Upload API.
  *
@@ -84,11 +86,7 @@ export function isPreviewUrl(filePath: string): boolean {
   return (
     lower.startsWith('skd:') ||
     lower.includes('preview') ||
-    lower.includes('audio-ssl.itunes.apple.com') ||
-    lower.includes('is1-ssl.mzstatic.com') ||
-    lower.includes('mzstatic.com') ||
-    lower.includes('itunes.apple.com') ||
-    lower.startsWith('itunes:') ||
+    isRetiredMusicUrl(filePath) ||
     lower.includes('p.scdn.co') ||
     lower.includes('spotify.com') ||
     lower.startsWith('spotify:') ||

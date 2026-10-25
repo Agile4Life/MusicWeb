@@ -25,8 +25,6 @@ function createFakeDeps(overrides: Partial<PlaybackSourceDeps> = {}): PlaybackSo
       nhaccuatui: [],
       local: [],
       youtube: [],
-      audius: [],
-      itunes: [],
       spotify: [],
       deezer: [],
       soundcloud: [],
@@ -54,6 +52,29 @@ function createFakeDeps(overrides: Partial<PlaybackSourceDeps> = {}): PlaybackSo
 }
 
 describe('playbackSourceService', () => {
+  it.each(['resolvePlayable', 'resolveFallback', 'resolveYouTubeAlternate'] as const)(
+    'limits %s recovery searches to playable providers', async (method) => {
+      const deps = createFakeDeps();
+      const track = makeTrack('spotify-recovery', {
+        source: 'spotify', title: 'Starboy', artist: 'The Weeknd', duration: 230, file_path: '',
+      });
+      vi.mocked(deps.search).mockResolvedValue({
+        nhaccuatui: [], local: [], spotify: [], deezer: [], soundcloud: [],
+        youtube: [makeTrack('yt-recovery', {
+          source: 'youtube', youtube_id: 'ytRecovery1', title: track.title, artist: track.artist, duration: 230,
+        })],
+      });
+      const service = createPlaybackSourceService(deps);
+      const result = method === 'resolvePlayable'
+        ? await service.resolvePlayable({ track })
+        : await service[method](track, 0);
+
+      expect(result?.target).toBe('ytRecovery1');
+      expect(deps.search).toHaveBeenCalledOnce();
+      expect(vi.mocked(deps.search).mock.calls[0][1]).toBe('playback');
+    }
+  );
+
   it('synchronously resolves cached NCT, Drive, and iOS YouTube tracks via resolveImmediate', () => {
     const deps = createFakeDeps();
     const service = createPlaybackSourceService(deps);
@@ -166,8 +187,6 @@ describe('playbackSourceService', () => {
             duration: 3600,
           }),
         ],
-        audius: [],
-        itunes: [],
         spotify: [],
         deezer: [],
         soundcloud: [],
@@ -247,8 +266,6 @@ describe('playbackSourceService', () => {
           duration: 200,
         }),
       ],
-      audius: [],
-      itunes: [],
       spotify: [],
       deezer: [],
       soundcloud: [],
@@ -304,8 +321,6 @@ describe('playbackSourceService', () => {
           duration: 230,
         }),
       ],
-      audius: [],
-      itunes: [],
       spotify: [],
       deezer: [],
       soundcloud: [
@@ -589,7 +604,6 @@ describe('playbackSourceService', () => {
     const deps = createFakeDeps({
       resolution: {
         resolve: vi.fn().mockResolvedValue(null),
-        findFallback: vi.fn().mockResolvedValue(scCandidate),
         invalidate: vi.fn().mockResolvedValue(undefined),
         dispose: vi.fn(),
       },
@@ -598,11 +612,9 @@ describe('playbackSourceService', () => {
         nhaccuatui: [],
         local: [],
         youtube: [ytCandidate],
-        audius: [],
-        itunes: [],
         spotify: [],
         deezer: [],
-        soundcloud: [],
+        soundcloud: [scCandidate],
       }),
     });
 

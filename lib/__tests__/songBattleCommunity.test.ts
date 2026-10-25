@@ -7,7 +7,7 @@ const input = (tracks = [track('abc'), track('def')]) => ({ name: ' Deck ', desc
 describe('community deck publication', () => {
   it('publishes album audio and keeps it playable after normalizing the public snapshot', () => {
     const result = validateCommunityDeckInput(input([
-      { id: 'itunes-123', source: 'itunes', title: 'Album song', file_path: 'https://audio.example/song.m4a', user_id: 'private' } as never,
+      { id: 'deezer-123', source: 'deezer', title: 'Album song', file_path: 'https://audio.example/song.m4a', user_id: 'private' } as never,
       { id: 'deezer-456', source: 'spotify', spotify_id: '456', title: 'Deezer song', file_path: 'https://audio.example/preview.mp3' } as never,
     ]))
     expect(result.tracks.map(t => t.source)).toEqual(['musicweb', 'musicweb'])

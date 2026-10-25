@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { searchYouTubeTracks, findBestYouTubeMatch, isOriginalTrackOnly, NEGATIVE_KEYWORDS } from '@/lib/youtube'
-import { searchSpotifyTracks, getTrendingSpotifyTracks, getTopArtistSpotifyTracks, isCleanTrendingTrack } from '@/lib/spotify'
+import { searchSpotifyTracks, getTopArtistSpotifyTracks, isCleanTrendingTrack } from '@/lib/spotify'
 import { getTrendingDeezerTracks, getTopArtistDeezerTracks, searchDeezerTracks } from '@/lib/deezer'
 import { searchSoundCloudTracks } from '@/lib/soundcloudClient'
 import { findBestNhacCuaTuiMatch, normalizeNhacCuaTuiChartResponse, nhacCuaTuiSearchItemToTrack, searchNhacCuaTuiDirect } from '@/lib/nhaccuatui'
 import { extractArtistAliases, isCatalogTrackMatch, measureIdentityTokenOverlap, normalizeIdentity } from '@/lib/catalogMatching'
 import { STATIC_DRIVE_TRACKS } from '@/lib/driveTracksMap'
 import { rankSearchTracks } from '@/lib/searchFlow'
+import { isRetiredMusicTrack, normalizeRetiredMusicTrack } from '@/lib/retiredMusicSources'
 import { Track } from '@/types'
 
 // In-memory LRU search cache & in-flight request deduplication map
@@ -57,80 +58,6 @@ function deduplicateTrendingTracks(tracks: Track[]): Track[] {
   return out
 }
 
-async function getTopArtistITunesTracks(
-  artists: string[],
-  country = 'us',
-  tracksPerArtist = 2
-): Promise<Track[]> {
-  try {
-    const safePerArtist = Math.min(Math.max(1, tracksPerArtist), 4)
-    const systemUserId = '00000000-0000-4000-a000-000000000001'
-    const results = await Promise.all(
-      artists.slice(0, 8).map(async (artist) => {
-        try {
-          const url = `https://itunes.apple.com/search?term=${encodeURIComponent(artist)}&country=${encodeURIComponent(country)}&media=music&entity=song&limit=10`
-          const res = await fetch(url, {
-            signal: AbortSignal.timeout(3500),
-            cache: 'no-store',
-          })
-          if (!res.ok) return []
-          const data = await res.json()
-          const items: any[] = data?.results || []
-          const targetNorm = normalizeIdentity(artist)
-          const seenTitles = new Set<string>()
-          const matched: Track[] = []
-
-          for (const item of items) {
-            if (!item?.trackId || !item?.trackName || !item?.artistName) continue
-            const itemArtistNorm = normalizeIdentity(item.artistName)
-            if (artist === 'LiSA' && !String(item.artistName).includes('LiSA')) continue
-            if (
-              targetNorm &&
-              !itemArtistNorm.includes(targetNorm) &&
-              !(artist === 'Mayday' && String(item.artistName).includes('五月天')) &&
-              !(artist === 'Jay Chou' && String(item.artistName).includes('周杰倫')) &&
-              !(artist === 'JJ Lin' && String(item.artistName).includes('林俊傑')) &&
-              !(artist === 'G.E.M.' && String(item.artistName).includes('鄧紫棋'))
-            ) {
-              continue
-            }
-            if (!isCleanTrendingTrack(item.trackName, item.artistName)) continue
-            const titleKey = normalizeIdentity(item.trackName)
-            if (titleKey && seenTitles.has(titleKey)) continue
-            if (titleKey) seenTitles.add(titleKey)
-
-            const hiResCover = item.artworkUrl100
-              ? String(item.artworkUrl100).replace('100x100bb', '600x600bb')
-              : null
-
-            matched.push({
-              id: `itunes-${item.trackId}`,
-              user_id: systemUserId,
-              title: item.trackName,
-              artist: item.artistName,
-              album: item.collectionName || '',
-              duration: Math.round((item.trackTimeMillis || 0) / 1000),
-              file_path: item.previewUrl || item.trackViewUrl || `itunes:${item.trackId}`,
-              audio_url: item.previewUrl || undefined,
-              cover_url: hiResCover,
-              created_at: new Date().toISOString(),
-              source: 'spotify',
-              spotify_id: String(item.trackId),
-            })
-            if (matched.length >= safePerArtist) break
-          }
-          return matched
-        } catch {
-          return []
-        }
-      })
-    )
-    return results.flat()
-  } catch {
-    return []
-  }
-}
-
 function hasAnyTrendingTracks(data: any): boolean {
   if (!data || typeof data !== 'object') return false
   return (
@@ -155,6 +82,10 @@ export async function GET(request: Request) {
   const source = searchParams.get('source') || 'all'
   const isTrending = searchParams.get('trending') === 'true'
   const category = (searchParams.get('category') || 'all').toLowerCase().trim()
+
+  if (source === 'itunes' || source === 'audius') {
+    return NextResponse.json({ error: 'Unsupported search source' }, { status: 400 })
+  }
 
   // Handle Trending Global / Category-specific Request
   if (isTrending || (!q.trim() && searchParams.has('trending'))) {
@@ -196,17 +127,11 @@ export async function GET(request: Request) {
               getTopArtistSpotifyTracks(vpopArtists, 2).catch(() => []),
               getTopArtistDeezerTracks(['Sơn Tùng M-TP', 'HIEUTHUHAI', 'SOOBIN', 'Wren Evans', 'tlinh', 'MONO'], 2).catch(() => []),
             ])
-            let cleanSpotify = deduplicateTrendingTracks([...spotifyVpop, ...deezerVpop])
-            if (cleanSpotify.length < 12) {
-              const itunesFallback = await getTopArtistITunesTracks(vpopArtists, 'vn', 2)
-              cleanSpotify = deduplicateTrendingTracks([...cleanSpotify, ...itunesFallback])
-            }
+            const cleanSpotify = deduplicateTrendingTracks([...spotifyVpop, ...deezerVpop])
             return {
               nhaccuatui: deduplicateTrendingTracks(nctTrending),
               local: [],
               youtube: [],
-              audius: [],
-              itunes: [],
               spotify: cleanSpotify,
               deezer: [],
             }
@@ -230,17 +155,11 @@ export async function GET(request: Request) {
               getTopArtistSpotifyTracks(usukArtists, 2).catch(() => []),
               getTrendingDeezerTracks(20).catch(() => []),
             ])
-            let cleanSpotify = deduplicateTrendingTracks([...spotifyUsUkArtists, ...deezerUsUk])
-            if (cleanSpotify.length < 12) {
-              const itunesFallback = await getTopArtistITunesTracks(usukArtists, 'us', 2)
-              cleanSpotify = deduplicateTrendingTracks([...cleanSpotify, ...itunesFallback])
-            }
+            const cleanSpotify = deduplicateTrendingTracks([...spotifyUsUkArtists, ...deezerUsUk])
             return {
               nhaccuatui: [],
               local: [],
               youtube: [],
-              audius: [],
-              itunes: [],
               spotify: cleanSpotify,
               deezer: [],
             }
@@ -262,17 +181,11 @@ export async function GET(request: Request) {
               getTopArtistSpotifyTracks(kpopArtists, 2).catch(() => []),
               getTopArtistDeezerTracks(['NewJeans', 'aespa', 'BLACKPINK', 'BTS', 'LE SSERAFIM', 'IVE'], 2).catch(() => []),
             ])
-            let cleanSpotify = deduplicateTrendingTracks([...spotifyKpopArtists, ...deezerKpop])
-            if (cleanSpotify.length < 12) {
-              const itunesFallback = await getTopArtistITunesTracks(kpopArtists, 'kr', 2)
-              cleanSpotify = deduplicateTrendingTracks([...cleanSpotify, ...itunesFallback])
-            }
+            const cleanSpotify = deduplicateTrendingTracks([...spotifyKpopArtists, ...deezerKpop])
             return {
               nhaccuatui: [],
               local: [],
               youtube: [],
-              audius: [],
-              itunes: [],
               spotify: cleanSpotify,
               deezer: [],
             }
@@ -292,17 +205,11 @@ export async function GET(request: Request) {
               getTopArtistSpotifyTracks(cpopArtists, 2).catch(() => []),
               getTopArtistDeezerTracks(['Jay Chou', 'JJ Lin', 'G.E.M.', 'Eric Chou', 'Eason Chan'], 2).catch(() => []),
             ])
-            let cleanSpotify = deduplicateTrendingTracks([...spotifyCpopArtists, ...deezerCpop])
-            if (cleanSpotify.length < 12) {
-              const itunesFallback = await getTopArtistITunesTracks(cpopArtists, 'tw', 2)
-              cleanSpotify = deduplicateTrendingTracks([...cleanSpotify, ...itunesFallback])
-            }
+            const cleanSpotify = deduplicateTrendingTracks([...spotifyCpopArtists, ...deezerCpop])
             return {
               nhaccuatui: [],
               local: [],
               youtube: [],
-              audius: [],
-              itunes: [],
               spotify: cleanSpotify,
               deezer: [],
             }
@@ -322,17 +229,11 @@ export async function GET(request: Request) {
               getTopArtistSpotifyTracks(jpopArtists, 2).catch(() => []),
               getTopArtistDeezerTracks(['YOASOBI', 'Ado', 'Kenshi Yonezu', 'LiSA', 'Fujii Kaze', 'RADWIMPS'], 2).catch(() => []),
             ])
-            let cleanSpotify = deduplicateTrendingTracks([...spotifyJpopArtists, ...deezerJpop])
-            if (cleanSpotify.length < 12) {
-              const itunesFallback = await getTopArtistITunesTracks(jpopArtists, 'jp', 2)
-              cleanSpotify = deduplicateTrendingTracks([...cleanSpotify, ...itunesFallback])
-            }
+            const cleanSpotify = deduplicateTrendingTracks([...spotifyJpopArtists, ...deezerJpop])
             return {
               nhaccuatui: [],
               local: [],
               youtube: [],
-              audius: [],
-              itunes: [],
               spotify: cleanSpotify,
               deezer: [],
             }
@@ -356,18 +257,12 @@ export async function GET(request: Request) {
               getTopArtistSpotifyTracks(globalArtists, 2).catch(() => []),
               getTrendingDeezerTracks(16).catch(() => []),
             ])
-            let cleanSpotify = deduplicateTrendingTracks([...spotifyGlobalArtists, ...deezerTrending])
-            if (cleanSpotify.length < 12) {
-              const itunesFallback = await getTopArtistITunesTracks(globalArtists, 'us', 2)
-              cleanSpotify = deduplicateTrendingTracks([...cleanSpotify, ...itunesFallback])
-            }
+            const cleanSpotify = deduplicateTrendingTracks([...spotifyGlobalArtists, ...deezerTrending])
 
             return {
               nhaccuatui: deduplicateTrendingTracks(nctTrending),
               local: [],
               youtube: [],
-              audius: [],
-              itunes: [],
               spotify: cleanSpotify,
               deezer: [],
             }
@@ -391,14 +286,14 @@ export async function GET(request: Request) {
       }
     } catch (err: any) {
       return NextResponse.json(
-        { nhaccuatui: [], local: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: [] },
+        { nhaccuatui: [], local: [], youtube: [], spotify: [], deezer: [] },
         { headers: { 'Cache-Control': 'no-store' } }
       )
     }
   }
 
   if (!q.trim()) {
-    return cachedJsonResponse({ local: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: [] })
+    return cachedJsonResponse({ local: [], youtube: [], spotify: [], deezer: [] })
   }
 
   const query = q.trim().toLowerCase()
@@ -429,7 +324,7 @@ export async function GET(request: Request) {
     const primaryPromises: Array<Promise<any>> = []
 
     // 0. Search NhacCuaTui tracks (Lossless Vietnamese Catalog - Top Priority)
-    if (source === 'all' || source === 'nhaccuatui') {
+    if (source === 'all' || source === 'playback' || source === 'nhaccuatui') {
       primaryPromises.push(searchNhacCuaTuiDirect(q.trim(), 12).catch(() => []))
     } else {
       primaryPromises.push(Promise.resolve([]))
@@ -475,7 +370,10 @@ export async function GET(request: Request) {
               .select('*')
               .or(`title.ilike.%${cleanQuery}%,artist.ilike.%${cleanQuery}%`)
               .limit(10)
-            const dbTracks: Track[] = (data || []).map((t: any) => ({ ...t, source: 'local' as const }))
+            const dbTracks: Track[] = (data || []).map((t: any) => {
+              const normalized = normalizeRetiredMusicTrack(t)
+              return isRetiredMusicTrack(t) ? normalized : { ...normalized, source: 'local' as const }
+            })
             const seenIds = new Set(dbTracks.map((t) => t.id))
             return [...dbTracks, ...staticMatches.filter((t) => !seenIds.has(t.id))]
           } catch {
@@ -501,24 +399,21 @@ export async function GET(request: Request) {
       primaryPromises.push(Promise.resolve([]))
     }
 
-    // 3. Search YouTube tracks (for stream ID matching)
-    if (source === 'all' || source === 'youtube' || source === 'spotify' || source === 'deezer' || source === 'itunes') {
+    // Single-source catalog results resolve playback on demand; YouTube enrichment is optional.
+    if (source === 'all' || source === 'playback' || source === 'youtube') {
       primaryPromises.push(searchYouTubeTracks(q.trim(), 10).catch(() => []))
     } else {
       primaryPromises.push(Promise.resolve([]))
     }
 
     // 4. Search SoundCloud tracks
-    if (source === 'all' || source === 'soundcloud') {
+    if (source === 'all' || source === 'playback' || source === 'soundcloud') {
       primaryPromises.push(searchSoundCloudTracks(q.trim(), 10).catch(() => []))
     } else {
       primaryPromises.push(Promise.resolve([]))
     }
 
     const [nctTracks, localTracks, spotifyTracks, deezerTracks, youtubeTracks, soundCloudTracks] = await Promise.all(primaryPromises)
-
-    const itunesTracks: Track[] = []
-    const audiusTracks: Track[] = []
 
     // Enrich Spotify & Deezer tracks with NCT stream ID (when matched in batch) and YouTube view_count,
     // without setting youtube_id on unresolved catalog tracks (which would bypass NCT/SoundCloud resolution)
@@ -550,10 +445,8 @@ export async function GET(request: Request) {
     const enhancedSpotify = spotifyTracks.map(enrichCatalogSearchTrack)
     const enhancedDeezer = deezerTracks.map(enrichCatalogSearchTrack)
 
-    const enhancedITunes: Track[] = []
-
-    // Enrich YouTube tracks with high-res 1:1 Spotify/Deezer/iTunes album artwork when catalog identity matches
-    const catalogArtworkPool = [...spotifyTracks, ...deezerTracks, ...itunesTracks].filter((t) => Boolean(t.cover_url))
+    // Enrich YouTube tracks with high-res 1:1 Spotify/Deezer album artwork when catalog identity matches
+    const catalogArtworkPool = [...spotifyTracks, ...deezerTracks].filter((t) => Boolean(t.cover_url))
     const enhancedYouTube = youtubeTracks.map((yTrack: Track) => {
       if (!yTrack.title) return yTrack
       const match = catalogArtworkPool.find((cTrack) =>
@@ -576,8 +469,6 @@ export async function GET(request: Request) {
       local: rankSearchTracks(localTracks.filter(isValidTrackFilter), trimmedQuery),
       nhaccuatui: rankSearchTracks((nctTracks || []).filter(isValidTrackFilter), trimmedQuery),
       youtube: rankSearchTracks(enhancedYouTube.filter(isValidTrackFilter), trimmedQuery),
-      audius: rankSearchTracks(audiusTracks.filter(isValidTrackFilter), trimmedQuery),
-      itunes: rankSearchTracks(enhancedITunes.filter(isValidTrackFilter), trimmedQuery),
       spotify: rankSearchTracks(enhancedSpotify.filter(isValidTrackFilter), trimmedQuery),
       deezer: rankSearchTracks(enhancedDeezer.filter(isValidTrackFilter), trimmedQuery),
       soundcloud: rankSearchTracks((soundCloudTracks || []).filter(isValidTrackFilter), trimmedQuery),
@@ -585,19 +476,19 @@ export async function GET(request: Request) {
 
     // Single-source mode: only return the requested source so the UI shows one source at a time
     if (source === 'nhaccuatui') {
-      return { local: [], nhaccuatui: allResults.nhaccuatui, youtube: [], audius: [], itunes: [], spotify: [], deezer: [], soundcloud: [] }
+      return { local: [], nhaccuatui: allResults.nhaccuatui, youtube: [], spotify: [], deezer: [], soundcloud: [] }
     }
     if (source === 'spotify') {
-      return { local: [], nhaccuatui: [], youtube: [], audius: [], itunes: [], spotify: allResults.spotify, deezer: [], soundcloud: [] }
+      return { local: [], nhaccuatui: [], youtube: [], spotify: allResults.spotify, deezer: [], soundcloud: [] }
     }
     if (source === 'deezer') {
-      return { local: [], nhaccuatui: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: allResults.deezer, soundcloud: [] }
+      return { local: [], nhaccuatui: [], youtube: [], spotify: [], deezer: allResults.deezer, soundcloud: [] }
     }
     if (source === 'youtube') {
-      return { local: [], nhaccuatui: [], youtube: allResults.youtube, audius: [], itunes: [], spotify: [], deezer: [], soundcloud: [] }
+      return { local: [], nhaccuatui: [], youtube: allResults.youtube, spotify: [], deezer: [], soundcloud: [] }
     }
     if (source === 'soundcloud') {
-      return { local: [], nhaccuatui: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: [], soundcloud: allResults.soundcloud }
+      return { local: [], nhaccuatui: [], youtube: [], spotify: [], deezer: [], soundcloud: allResults.soundcloud }
     }
     return allResults
   })()

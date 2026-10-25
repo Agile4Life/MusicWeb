@@ -7,8 +7,6 @@ const emptyResults: GlobalSearchTracks = {
   nhaccuatui: [],
   local: [],
   youtube: [],
-  audius: [],
-  itunes: [],
   spotify: [],
   deezer: [],
   soundcloud: [],

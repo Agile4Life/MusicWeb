@@ -1,5 +1,6 @@
 import type { Track } from '@/types'
 import { resolveNhacCuaTuiTrack } from './nhaccuatuiClient'
+import { normalizeRetiredMusicTrack } from './retiredMusicSources'
 
 /**
  * Convert an imported Spotify/YouTube candidate to a persisted NCT identity
@@ -7,15 +8,14 @@ import { resolveNhacCuaTuiTrack } from './nhaccuatuiClient'
  * copied into the returned track because they are short-lived.
  */
 export async function resolvePlaylistTrackWithNct(track: Track): Promise<Track> {
+  track = normalizeRetiredMusicTrack(track)
   try {
     const song = await resolveNhacCuaTuiTrack(track)
     if (!song) return track
 
     const {
       audio_url: _audioUrl,
-      audius_id: _audiusId,
       file_path: _filePath,
-      itunes_id: _itunesId,
       spotify_id: _spotifyId,
       youtube_id: _youtubeId,
       ...fallbackMetadata

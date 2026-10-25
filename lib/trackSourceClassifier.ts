@@ -1,6 +1,7 @@
 import { Track } from '@/types'
 import { extractDriveFileId, isPreviewUrl } from '@/lib/googleDriveUpload'
 import { extractYouTubeVideoId } from '@/lib/youtube'
+import { normalizeRetiredMusicTrack } from './retiredMusicSources'
 
 export type TrackEngineType = 'html5' | 'youtube'
 
@@ -10,9 +11,7 @@ export type TrackSourceKind =
   | 'youtube'
   | 'drive'
   | 'spotify'
-  | 'itunes'
   | 'deezer'
-  | 'audius'
   | 'local'
   | 'unknown'
 
@@ -35,6 +34,7 @@ export interface TrackClassification {
  * Defensive against legacy or incomplete metadata.
  */
 export function inferTrackSource(track: Track): Track {
+  track = normalizeRetiredMusicTrack(track)
   const fp = track.file_path || ''
 
   if (track.nhaccuatui_id || track.source === 'nhaccuatui' || fp.includes('nhaccuatui.com')) {
@@ -100,34 +100,12 @@ export function inferTrackSource(track: Track): Track {
   }
 
   if (
-    track.itunes_id ||
-    track.source === 'itunes' ||
-    fp.includes('itunes.apple.com') ||
-    fp.includes('apple.com') ||
-    fp.startsWith('itunes:') ||
-    track.id?.startsWith('itunes-') ||
-    fp.includes('mzstatic.com')
-  ) {
-    return { ...track, source: 'itunes' }
-  }
-
-  if (
     (track as any).source === 'deezer' ||
     fp.includes('deezer.com') ||
     fp.startsWith('deezer:') ||
     fp.includes('dzcdn.net')
   ) {
     return { ...track, source: 'deezer' as any }
-  }
-
-  if (
-    track.audius_id ||
-    track.source === 'audius' ||
-    fp.includes('audius.co') ||
-    fp.startsWith('audius:') ||
-    track.id?.startsWith('audius-')
-  ) {
-    return { ...track, source: 'audius' }
   }
 
   return track
@@ -168,21 +146,16 @@ export function classifyTrack(track: Track, isIOS = false): TrackClassification 
       isPreviewUrl(fp) ||
       fp.startsWith('skd:') ||
       fp.startsWith('spotify:') ||
-      fp.startsWith('itunes:') ||
       fp.startsWith('deezer:') ||
       fp.includes('spotify.com') ||
-      fp.includes('p.scdn.co') ||
-      fp.includes('mzstatic.com') ||
-      fp.includes('apple.com')
+      fp.includes('p.scdn.co')
     ))
   )
 
   const isPreview = hasPreviewUrl || (!hasResolvedStreamProvider && Boolean(
     normalized.source === 'spotify' ||
-    normalized.source === 'itunes' ||
     (normalized as any).source === 'deezer' ||
-    Boolean(normalized.spotify_id) ||
-    Boolean(normalized.itunes_id)
+    Boolean(normalized.spotify_id)
   ))
 
   let source: TrackSourceKind = 'unknown'
@@ -196,12 +169,8 @@ export function classifyTrack(track: Track, isIOS = false): TrackClassification 
     source = 'drive'
   } else if (normalized.source === 'spotify' || Boolean(normalized.spotify_id)) {
     source = 'spotify'
-  } else if (normalized.source === 'itunes' || Boolean(normalized.itunes_id)) {
-    source = 'itunes'
   } else if ((normalized as any).source === 'deezer') {
     source = 'deezer'
-  } else if (normalized.source === 'audius' || Boolean(normalized.audius_id)) {
-    source = 'audius'
   } else if (normalized.source === 'local') {
     source = 'local'
   }
@@ -212,17 +181,14 @@ export function classifyTrack(track: Track, isIOS = false): TrackClassification 
     source === 'soundcloud' ||
     Boolean(scId) ||
     Boolean(driveId) ||
-    (source === 'local' && fp && !isPreviewUrl(fp)) ||
-    (source === 'audius' && (audioUrl || fp))
+    (source === 'local' && fp && !isPreviewUrl(fp))
   )
 
-  // Needs full external stream resolver (Spotify / iTunes / Deezer / Preview DRM)
+  // Needs full external stream resolver (Spotify / Deezer / Preview DRM)
   const needsCatalogResolution = !hasResolvedStreamProvider && (!isDirectPlayable || isPreview) && (
     source === 'spotify' ||
-    source === 'itunes' ||
     source === 'deezer' ||
     Boolean(normalized.spotify_id) ||
-    Boolean(normalized.itunes_id) ||
     isPreview
   )
 

@@ -159,14 +159,12 @@ function TrackRowComponent({
       // 2. Pre-warm Drive for local tracks
       triggerDrivePrewarm([track])
 
-      // 3. Pre-resolve external catalog tracks (Spotify / Deezer / iTunes) during hover
+      // 3. Pre-resolve external catalog tracks (Spotify / Deezer) during hover
       // so when the user clicks Play, stream is already in memory cache (0ms delay)
       const isCatalog =
         track.source === 'spotify' ||
-        track.source === 'itunes' ||
         (track as any).source === 'deezer' ||
-        Boolean(track.spotify_id) ||
-        Boolean(track.itunes_id)
+        Boolean(track.spotify_id)
       if (isCatalog && track.title) {
         resolveStreamCached({
           title: track.title,

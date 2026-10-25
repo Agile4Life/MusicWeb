@@ -69,8 +69,6 @@ describe('Player Adaptive Prewarming & Bandwidth Protection (Task 3)', () => {
         nhaccuatui: [],
         local: [],
         youtube: [],
-        audius: [],
-        itunes: [],
         spotify: [],
         deezer: [],
         soundcloud: [],

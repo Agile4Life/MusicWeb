@@ -106,7 +106,7 @@ export function stripAlbumEditionSuffix(albumName?: string | null): string {
 }
 
 /**
- * Strip trailing " - Single" or " - EP" from display album names returned by iTunes/Deezer.
+ * Strip trailing " - Single" or " - EP" from display album names returned by catalog providers.
  */
 export function cleanDisplayAlbumName(albumName?: string | null): string {
   if (!albumName) return ''

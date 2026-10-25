@@ -65,8 +65,8 @@ function classifyTrackSource(track) {
   if (track.source === 'spotify' || fp.includes('spotify.com') || track.id?.startsWith('spotify-')) {
     return 'spotify';
   }
-  if (track.source === 'itunes' || fp.includes('apple.com')) {
-    return 'itunes';
+  if (/^(itunes|audius)$/.test(track.source || '') || fp.includes('apple.com') || fp.includes('audius.co')) {
+    return 'catalog';
   }
   if (fp.startsWith('http')) {
     return 'direct_http';
@@ -198,7 +198,7 @@ async function testTrack(track) {
   } else if (source === 'soundcloud') {
     const scId = track.soundcloud_id || track.file_path;
     primaryTest = await testSoundCloudStream(scId);
-  } else if (source === 'spotify' || source === 'itunes') {
+  } else if (source === 'spotify' || source === 'catalog') {
     primaryTest = await testCatalogResolution(track);
   } else if (source === 'direct_http') {
     primaryTest = await testDirectHttpStream(track.file_path);

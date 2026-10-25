@@ -43,8 +43,8 @@ async function publish(user = 'owner', extra = {}) { state.user = user; const re
 describe('community deck HTTP contract', () => {
   it('publishes album audio that guests can reopen and the owner can update', async () => {
     const deck = await publish('owner', { tracks: [
-      { id: 'itunes-123', source: 'itunes', title: 'Album one', file_path: 'https://audio.example/one.m4a' },
-      { id: 'itunes-456', source: 'itunes', title: 'Album two', file_path: 'https://audio.example/two.m4a' },
+      { id: 'deezer-123', source: 'deezer', title: 'Album one', file_path: 'https://audio.example/one.m4a' },
+      { id: 'deezer-456', source: 'deezer', title: 'Album two', file_path: 'https://audio.example/two.m4a' },
     ] })
     state.user = null
     const reopened = await (await detail(request('GET'), context(deck.id))).json()

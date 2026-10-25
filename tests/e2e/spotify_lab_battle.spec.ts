@@ -28,9 +28,9 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('imports a main-site album, publishes its native audio and keeps portrait and landscape covers square', async ({ page }) => {
-  const albumTracks = [0, 1].map(i => ({ id: `itunes-${i + 123}`, source: 'itunes', title: `Album song ${i}`, artist: 'Artist', file_path: `https://audio.test/${i}.m4a`, cover_url: `https://covers.test/${i}.svg` }))
-  await page.route('**/api/albums/new-releases', route => route.fulfill({ json: [{ id: 'itunes-42', name: 'Main album', artist: 'Artist', cover_url: null }] }))
-  await page.route('**/api/albums/itunes-42', route => route.fulfill({ json: { tracks: albumTracks } }))
+  const albumTracks = [0, 1].map(i => ({ id: `deezer-${i + 123}`, source: 'deezer', title: `Album song ${i}`, artist: 'Artist', file_path: `https://audio.test/${i}.m4a`, cover_url: `https://covers.test/${i}.svg` }))
+  await page.route('**/api/albums/new-releases', route => route.fulfill({ json: [{ id: 'deezer-42', name: 'Main album', artist: 'Artist', cover_url: null }] }))
+  await page.route('**/api/albums/deezer-42', route => route.fulfill({ json: { tracks: albumTracks } }))
   await page.route('**/api/playlists', route => route.fulfill({ json: { playlists: [] } }))
   await page.route('https://covers.test/**', route => route.fulfill({ contentType: 'image/svg+xml', body: `<svg xmlns="http://www.w3.org/2000/svg" width="${route.request().url().includes('0.svg') ? 800 : 200}" height="400"><rect width="100%" height="100%" fill="red"/></svg>` }))
   await page.route('**/api/auth/session', route => route.fulfill({ json: { user: { id: 'owner', name: 'Album owner' }, expires: '2099-01-01' } }))
@@ -65,8 +65,8 @@ test('imports a main-site album, publishes its native audio and keeps portrait a
 })
 
 test('opens the builder with an album linked from the main site', async ({ page }) => {
-  await page.route('**/api/albums/itunes-42', route => route.fulfill({ json: { tracks: tracks.slice(0, 2) } }))
-  await page.goto('/spotify-lab?album=itunes-42')
+  await page.route('**/api/albums/deezer-42', route => route.fulfill({ json: { tracks: tracks.slice(0, 2) } }))
+  await page.goto('/spotify-lab?album=deezer-42')
   await expect(page.getByText('2 bài đã chọn', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Đăng bộ bài', exact: true })).toBeEnabled()
 })

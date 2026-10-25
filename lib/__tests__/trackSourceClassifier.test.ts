@@ -46,12 +46,12 @@ describe('trackSourceClassifier', () => {
     expect(iosClassification.youtubeId).toBe('dQw4w9WgXcQ')
   })
 
-  it('correctly identifies catalog tracks needing resolution (Spotify/iTunes/Deezer)', () => {
+  it('correctly identifies catalog tracks needing resolution (Spotify/Deezer)', () => {
     const spotifyTrack: Track = { ...baseTrack, source: 'spotify', spotify_id: 'sp_123' }
-    const itunesTrack: Track = { ...baseTrack, source: 'itunes', itunes_id: 'it_123' }
+    const deezerTrack: Track = { ...baseTrack, source: 'deezer', spotify_id: '123' }
 
     expect(classifyTrack(spotifyTrack).needsCatalogResolution).toBe(true)
-    expect(classifyTrack(itunesTrack).needsCatalogResolution).toBe(true)
+    expect(classifyTrack(deezerTrack).needsCatalogResolution).toBe(true)
   })
 
   it('correctly infers Google Drive file IDs and background playability', () => {
@@ -76,7 +76,7 @@ describe('trackSourceClassifier', () => {
     expect(isFullYouTubeQueue(mixedQ)).toBe(false)
   })
 
-  it('marks Spotify/iTunes tracks resolved to SoundCloud, Drive, NCT, or YouTube as resolved (needsCatalogResolution = false)', () => {
+  it('marks catalog tracks resolved to SoundCloud, Drive, NCT, or YouTube as resolved (needsCatalogResolution = false)', () => {
     const resolvedToSoundCloud: Track = {
       ...baseTrack,
       source: 'soundcloud',
@@ -108,7 +108,7 @@ describe('trackSourceClassifier', () => {
     const resolvedToNct: Track = {
       ...baseTrack,
       source: 'nhaccuatui',
-      itunes_id: 'it_keep_3',
+      spotify_id: 'sp_keep_3',
       nhaccuatui_id: 'nct_777',
       file_path: '',
     }

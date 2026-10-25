@@ -11,7 +11,7 @@ interface TrackCoverImageProps {
 }
 
 /**
- * Converts standard/low-res cover URLs from YouTube, iTunes, Deezer, NhacCuaTui
+ * Converts standard/low-res cover URLs from supported catalogs and saved legacy artwork
  * into high-resolution (HD/600px/720p) image URLs.
  */
 export function getHighResCoverUrl(url: string | null | undefined): string | null {
@@ -29,7 +29,7 @@ export function getHighResCoverUrl(url: string | null | undefined): string | nul
     highRes = cleanUrl.replace(/\/(hqdefault|mqdefault|default|sddefault|hq720)\.(jpg|webp)/g, '/maxresdefault.jpg')
   }
 
-  // 2. iTunes / Apple Music: Upgrade 100x100bb / 200x200bb to 600x600bb
+  // 2. Legacy saved artwork: Upgrade 100x100bb / 200x200bb to 600x600bb
   if (highRes.includes('mzstatic.com')) {
     highRes = highRes.replace(/\/\d+x\d+bb/g, '/600x600bb')
   }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { fetchSpotifyAlbumMeta, fetchFullAlbumTracks } from '@/lib/spotify'
 import { fetchDeezerAlbumTracks, searchDeezerAlbums } from '@/lib/deezer'
-import { fetchITunesAlbumTracks, searchITunesAlbums } from '@/lib/itunes'
+import { isRetiredMusicId } from '@/lib/retiredMusicSources'
 import {
   stripAlbumIdPrefix,
   sortAlbumTracks,
@@ -41,7 +41,7 @@ function getSupabaseClient() {
 }
 
 async function safeSaveAlbumToDb(supabase: any, albumMeta: any, tracksToSave: any[]) {
-  if (!supabase || !albumMeta || !albumMeta.id) return
+  if (!supabase || !albumMeta || !albumMeta.id || isRetiredMusicId(albumMeta.id)) return
   try {
     const albumIdStr = String(albumMeta.id)
     const totalTracks = tracksToSave?.length || albumMeta.total_tracks || 0
@@ -124,14 +124,18 @@ export async function GET(
     }
 
     const albumId = rawAlbumId.trim()
+    if (isRetiredMusicId(albumId)) {
+      return NextResponse.json({ error: 'Album source is no longer supported' }, { status: 410 })
+    }
     const cleanId = stripAlbumIdPrefix(albumId)
-    const idVariants = Array.from(new Set([albumId, cleanId, `deezer-${cleanId}`, `itunes-${cleanId}`]))
+    const idVariants = Array.from(new Set([albumId, cleanId, `deezer-${cleanId}`]))
 
     // 0. Check in-memory LRU cache (<2ms)
     for (const key of idVariants) {
       const memCached = albumMemoryCache.get(key)
       if (
         memCached &&
+        !isRetiredMusicId(memCached.data?.id) &&
         Date.now() - memCached.timestamp < ALBUM_CACHE_TTL &&
         Array.isArray(memCached.data?.tracks) &&
         memCached.data.tracks.length > 0
@@ -158,7 +162,7 @@ export async function GET(
           .limit(1)
 
         const cached = cachedList && cachedList.length > 0 ? cachedList[0] : null
-        if (cached && cached.name && cached.artist) {
+        if (cached && !isRetiredMusicId(cached.id) && cached.name && cached.artist) {
           fallbackMeta = cached
         }
 
@@ -227,33 +231,8 @@ export async function GET(
       }
     }
 
-    // 3. iTunes Public API Branch (itunes-{collectionId})
-    if (albumId.startsWith('itunes-')) {
-      try {
-        const itunesDetail = await fetchITunesAlbumTracks(albumId)
-        if (itunesDetail && itunesDetail.tracks.length > 0) {
-          const { tracks: itunesTracks, ...meta } = itunesDetail
-          const sortedTracks = sortAlbumTracks(itunesTracks)
-
-          if (supabase) {
-            safeSaveAlbumToDb(supabase, meta, sortedTracks).catch(() => {})
-          }
-
-          return cachedAlbumResponse(
-            {
-              ...meta,
-              tracks: sortedTracks,
-            },
-            albumId
-          )
-        }
-      } catch (itErr) {
-        console.warn('iTunes album fetch warning:', itErr)
-      }
-    }
-
-    // 4. Deezer Public API Branch (Primary provider for strictly numeric IDs)
-    if (!albumId.startsWith('itunes-') && (/^\d+$/.test(cleanId) || albumId.startsWith('deezer'))) {
+    // 3. Deezer Public API Branch (Primary provider for strictly numeric IDs)
+    if (/^\d+$/.test(cleanId) || albumId.startsWith('deezer')) {
       try {
         const deezerRes = await fetchDeezerAlbumTracks(albumId)
         if (deezerRes && deezerRes.meta && deezerRes.tracks.length > 0) {
@@ -275,23 +254,9 @@ export async function GET(
       } catch (dErr) {
         console.warn('Deezer album fetch warning:', dErr)
       }
-
-      // If numeric ID was actually an iTunes collectionId without prefix, try iTunes lookup
-      try {
-        const itunesFallback = await fetchITunesAlbumTracks(`itunes-${cleanId}`)
-        if (itunesFallback && itunesFallback.tracks.length > 0) {
-          const { tracks: itunesTracks, ...meta } = itunesFallback
-          const sortedTracks = sortAlbumTracks(itunesTracks)
-          if (supabase) {
-            safeSaveAlbumToDb(supabase, meta, sortedTracks).catch(() => {})
-          }
-          return cachedAlbumResponse({ ...meta, tracks: sortedTracks }, albumId)
-        }
-      } catch {}
     }
 
-    // 5. Cross-Provider Metadata Fallback: If we know the album's name & artist (from Spotify meta or DB stub),
-    // resolve its full tracklist via Deezer or iTunes so the user never hits a dead 404.
+    // 4. If Spotify metadata or a DB stub supplies the album name and artist, resolve its tracklist via Deezer.
     if (fallbackMeta?.name && fallbackMeta?.artist) {
       const searchQuery = `${fallbackMeta.artist} ${fallbackMeta.name}`.trim()
       try {
@@ -313,39 +278,6 @@ export async function GET(
               release_date: fallbackMeta.release_date || deezerRes.meta.release_date,
             }
             const sortedTracks = sortAlbumTracks(deezerRes.tracks).map((t) => ({
-              ...t,
-              album: mergedMeta.name,
-              spotify_album_id: albumId,
-              cover_url: t.cover_url || mergedMeta.cover_url || null,
-            }))
-            if (supabase) {
-              safeSaveAlbumToDb(supabase, mergedMeta, sortedTracks).catch(() => {})
-            }
-            return cachedAlbumResponse({ ...mergedMeta, tracks: sortedTracks }, albumId)
-          }
-        }
-      } catch {}
-
-      try {
-        const itunesCandidates = await searchITunesAlbums(searchQuery, 6)
-        const matchedITunes = itunesCandidates.find(
-          (a) =>
-            isAlbumNameMatch(a.name, fallbackMeta!.name) &&
-            isAlbumArtistMatch(a.artist, fallbackMeta!.artist),
-        )
-        if (matchedITunes?.id) {
-          const itunesDetail = await fetchITunesAlbumTracks(matchedITunes.id)
-          if (itunesDetail && itunesDetail.tracks.length > 0) {
-            const { tracks: itunesTracks, ...meta } = itunesDetail
-            const mergedMeta = {
-              ...meta,
-              id: albumId,
-              name: fallbackMeta.name || meta.name,
-              artist: fallbackMeta.artist || meta.artist,
-              cover_url: fallbackMeta.cover_url || meta.cover_url,
-              release_date: fallbackMeta.release_date || meta.release_date,
-            }
-            const sortedTracks = sortAlbumTracks(itunesTracks).map((t) => ({
               ...t,
               album: mergedMeta.name,
               spotify_album_id: albumId,

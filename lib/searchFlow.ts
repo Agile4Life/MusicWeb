@@ -43,8 +43,6 @@ export function combineCombinedSearchResults(
     soundcloud: deduped.filter((t) => idSets[3].has(t.id)),
     local: [],
     youtube: [],
-    itunes: [],
-    audius: [],
   }
 }
 
@@ -63,10 +61,6 @@ function getSourceBaseScore(track: Track): number {
       return 14
     case 'youtube':
       return 12
-    case 'itunes':
-      return 10
-    case 'audius':
-      return 8
     default:
       return 10
   }
@@ -213,9 +207,7 @@ export function flattenUnifiedSearchResults(results: GlobalSearchTracks, query?:
     ...(results.nhaccuatui || []),
     ...(results.local || []),
     ...(results.spotify || []),
-    ...(results.itunes || []),
     ...(results.youtube || []),
-    ...(results.audius || []),
     ...(results.deezer || []),
     ...(results.soundcloud || []),
   ])
