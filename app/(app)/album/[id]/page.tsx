@@ -22,6 +22,7 @@ import { prewarmNctStreamUrl } from '@/lib/nhaccuatuiClient'
 import { Play, DiscAlbum, Calendar, Music, Shuffle, Disc, Eye, Clock } from 'lucide-react'
 import { useBatchViewCounts, getViewCountCacheKey } from '@/hooks/useBatchViewCounts'
 import { ArtistLinks } from '@/components/common/ArtistLinks'
+import { isRetiredMusicId } from '@/lib/retiredMusicSources'
 
 interface AlbumDetail {
   id: string
@@ -65,8 +66,12 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
       setLoading(true)
 
       try {
+        if (isRetiredMusicId(albumId)) {
+          setAlbum(null)
+          return
+        }
         const cleanId = stripAlbumIdPrefix(albumId)
-        const idVariants = Array.from(new Set([albumId, cleanId, `deezer-${cleanId}`, `itunes-${cleanId}`]))
+        const idVariants = Array.from(new Set([albumId, cleanId, `deezer-${cleanId}`]))
 
         // 1. Try Supabase DB cache first (only accept complete, validated album tracklists)
         const { data: cachedList } = await supabase
@@ -88,7 +93,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
         const res = await fetch(`/api/albums/${encodeURIComponent(albumId)}`)
         if (res.ok) {
           const data = await res.json()
-          if (data && Array.isArray(data.tracks) && data.tracks.length > 0) {
+          if (data && !isRetiredMusicId(data.id) && Array.isArray(data.tracks) && data.tracks.length > 0) {
             const sortedTracks = sortAlbumTracks(data.tracks).map((t: any) => ({
               ...t,
               album: data.name || t.album,
@@ -263,6 +268,13 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
             >
               <Play className="w-4 h-4 fill-current" />
               <span>Phát Album</span>
+            </button>
+            <button
+              onClick={() => router.push(`/spotify-lab?album=${encodeURIComponent(albumId)}`)}
+              className="font-bold px-4 py-3 rounded-full flex items-center gap-2 text-xs border bg-white/10 hover:bg-white/20 text-white border-white/10"
+            >
+              <DiscAlbum className="w-4 h-4" />
+              <span>Tạo bộ bài đọ nhạc</span>
             </button>
 
             <button

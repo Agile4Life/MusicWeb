@@ -170,6 +170,9 @@ export async function GET(req: NextRequest) {
     const isHls = streamUrl.includes('.m3u8')
 
     if (format === 'json') {
+      if (isHls) {
+        void resolveSoundCloudHlsBuffer(cleanId, streamUrl, refresh).catch(() => {})
+      }
       const publicUrl = isHls
         ? `/api/soundcloud/stream?id=${encodeURIComponent(id)}`
         : streamUrl

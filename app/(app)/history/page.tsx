@@ -24,6 +24,7 @@ import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 import { ArtistLinks } from '@/components/common/ArtistLinks'
 import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
 import { TopHistoryTrackItem } from '@/lib/listeningHistory'
+import { inferTrackSource } from '@/lib/trackSourceClassifier'
 
 interface HistoryEntry {
   id: string
@@ -112,35 +113,14 @@ export default function HistoryPage() {
       if (res.ok) {
         const { items } = await res.json()
         const validEntries: HistoryEntry[] = (items ?? []).flatMap((item: any) => {
-          const tr = item.track
+          const tr = item.track ? inferTrackSource(item.track) : null
           if (!tr) return []
-          let source: Track['source'] = tr.source || 'local'
-          let youtube_id = tr.youtube_id
-          const fp = tr.file_path || ''
-
-          if (fp.includes('youtube.com') || fp.includes('youtu.be') || tr.id?.startsWith?.('yt-')) {
-            source = 'youtube'
-            if (!youtube_id) {
-              const match = fp.match(/(?:v=|\/embed\/|\/1\/|\/v\/|https:\/\/youtu\.be\/|^yt-)([a-zA-Z0-9_-]{11})/)
-              if (match) youtube_id = match[1]
-              else if (tr.id?.startsWith?.('yt-')) youtube_id = tr.id.replace('yt-', '')
-            }
-          } else if (fp.includes('spotify.com') || tr.id?.startsWith?.('spotify-')) {
-            source = 'spotify'
-          } else if (fp.includes('itunes.apple.com') || tr.id?.startsWith?.('itunes-')) {
-            source = 'itunes'
-          } else if (fp.includes('audius.co') || tr.id?.startsWith?.('audius-')) {
-            source = 'audius'
-          }
-
           return [
             {
               id: item.id,
               played_at: item.played_at,
               track: {
                 ...tr,
-                source,
-                youtube_id,
                 artist: tr.artist || null,
                 album: tr.album || null,
               },
@@ -170,15 +150,21 @@ export default function HistoryPage() {
       const res = await fetch(`/api/history/top?timeframe=${selectedTimeframe}&limit=50`)
       if (res.ok) {
         const { items, totalPlays: total } = await res.json()
-        const validItems: TopHistoryTrackItem[] = (items ?? []).map((item: any) => ({
-          track: {
-            ...item.track,
-            artist: item.track.artist || null,
-            album: item.track.album || null,
-          },
-          playCount: item.playCount || 1,
-          lastPlayedAt: item.lastPlayedAt || item.played_at,
-        }))
+        const validItems: TopHistoryTrackItem[] = (items ?? []).flatMap((item: TopHistoryTrackItem & { played_at?: string }) => {
+          const tr = item.track ? inferTrackSource(item.track) : null
+          if (!tr) return []
+          return [
+            {
+              track: {
+                ...tr,
+                artist: tr.artist || null,
+                album: tr.album || null,
+              },
+              playCount: item.playCount || 1,
+              lastPlayedAt: item.lastPlayedAt || item.played_at || '',
+            },
+          ]
+        })
 
         cachedTopMap[selectedTimeframe] = validItems
         cachedTotalPlays[selectedTimeframe] = total || 0

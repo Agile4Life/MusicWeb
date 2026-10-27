@@ -136,7 +136,7 @@ export async function setup(page: Page, options: { repeat?: string; resolveA?: R
         syncedLyrics: `[00:00.00]${letter} first fixture line\n[00:01.00]${letter} second fixture line\n[00:02.00]${letter} third fixture line`, plainLyrics: null }
       return route.fulfill({ json: url.pathname.endsWith('/search') ? [lyric] : lyric })
     }
-    if (url.pathname === '/api/search') return route.fulfill({ json: { spotify: url.searchParams.has('q') ? tracks : [], nhaccuatui: [], youtube: [], soundcloud: [], local: [], deezer: [], itunes: [], audius: [] } })
+    if (url.pathname === '/api/search') return route.fulfill({ json: { spotify: url.searchParams.has('q') ? tracks : [], nhaccuatui: [], youtube: [], soundcloud: [], local: [], deezer: [] } })
     if (url.pathname === '/api/auth/session') return route.fulfill({ json: {
       user: { id: '00000000-0000-4000-8000-000000000001', name: 'Playback Fixture', email: 'playback-fixture@example.test' }, expires: '2099-01-01T00:00:00Z',
     } })

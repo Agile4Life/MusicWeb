@@ -457,19 +457,37 @@ export function normalizeArtistForComparison(name: string): string {
  * Fetches top 15 candidates and verifies exact or strict normalized name match.
  * Rejects fuzzy / unrelated artists to guarantee accuracy.
  */
-export async function searchDeezerArtist(artistName: string): Promise<{
+type DeezerArtist = {
   id: number
   name: string
   picture_xl: string | null
   picture_big: string | null
   nb_fan: number
-} | null> {
-  if (!artistName || !artistName.trim()) return null
-  try {
-    const cleanTarget = artistName.replace(/[\(\[\{].*?[\)\]\}]/g, '').trim()
-    const targetNorm = normalizeArtistForComparison(cleanTarget)
-    if (!targetNorm) return null
+}
 
+const artistLookupsInFlight = new Map<string, Promise<DeezerArtist | null>>()
+
+export async function searchDeezerArtist(artistName: string): Promise<DeezerArtist | null> {
+  if (!artistName || !artistName.trim()) return null
+  const cleanTarget = artistName.replace(/[\(\[\{].*?[\)\]\}]/g, '').trim()
+  const targetNorm = normalizeArtistForComparison(cleanTarget)
+  if (!targetNorm) return null
+
+  const key = cleanTarget.toLowerCase()
+  const existing = artistLookupsInFlight.get(key)
+  if (existing) return existing
+
+  const request = fetchDeezerArtist(cleanTarget, targetNorm)
+  artistLookupsInFlight.set(key, request)
+  try {
+    return await request
+  } finally {
+    artistLookupsInFlight.delete(key)
+  }
+}
+
+async function fetchDeezerArtist(cleanTarget: string, targetNorm: string): Promise<DeezerArtist | null> {
+  try {
     const res = await fetch(`https://api.deezer.com/search/artist?q=${encodeURIComponent(cleanTarget)}&limit=15`, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
       signal: AbortSignal.timeout(2500),

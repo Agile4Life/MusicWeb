@@ -14,6 +14,6 @@ workers_dev = true
 # id = "<YOUR_KV_NAMESPACE_ID>"
 
 [vars]
-NEXT_APP_URL = "https://phongtctmusic.vercel.app"
+NEXT_APP_URL = "https://bluesymphony.site"
 # Optional static client_id override if you don't want worker to scrape it dynamically:
 # SOUNDCLOUD_CLIENT_ID = "UMY1dzQ68n2QbCuypNe8JOivmV2FO2Ep"

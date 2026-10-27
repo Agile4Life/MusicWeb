@@ -9,7 +9,8 @@ import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
 import { deduplicateQueueTracks, mergeTrackMetadata } from '@/lib/utils'
 import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
-import { fetchUnifiedSearch, GlobalSearchTracks } from '@/lib/searchApi'
+import { fetchUnifiedSearch, GlobalSearchTracks, TrendingMetadata } from '@/lib/searchApi'
+import { isTrendingSnapshotFresh } from '@/lib/dailyTrendingRefresh'
 import { resolveExternalTrackId, isExternalTrack, addTrackToPlaylist } from '@/lib/trackPersistence'
 import { getValidUserId, getAllValidUserIds } from '@/lib/accessControl'
 import { toast } from '@/components/ui/ToastContext'
@@ -17,6 +18,7 @@ import { fetchListeningHistory, getRecentUniqueTracks } from '@/lib/listeningHis
 import { MediaCard } from '@/components/common/MediaCard'
 import { useGridGlideIndicator } from '@/components/common/useGlideIndicator'
 import { buildStyleCoherentQueue } from '@/lib/trackClassifier'
+import { inferTrackSource } from '@/lib/trackSourceClassifier'
 
 function isTrackVisibleToUser(track: Track, userId: string | null): boolean {
   const fp = track.file_path || ''
@@ -141,6 +143,7 @@ export default function HomePage() {
     searchingGlobal,
     trendingTracks,
     loadingTrending,
+    trendingDay,
   } = useSearch()
   const { data: nextAuthSession } = useSession()
   const searchParams = useSearchParams()
@@ -167,7 +170,12 @@ export default function HomePage() {
     { id: 'japanese', label: 'J-Pop' },
   ]
   const [selectedCategory, setSelectedCategory] = useState('all')
-  const [categoryTracksMap, setCategoryTracksMap] = useState<Record<string, Track[]>>({})
+  const [categoryTracksMap, setCategoryTracksMap] = useState<Record<string, {
+    tracks: Track[]
+    metadata?: TrendingMetadata
+    retryAt: number
+  }>>({})
+  const [categoryRetry, setCategoryRetry] = useState(0)
   const [loadingCategory, setLoadingCategory] = useState(false)
 
   // Pull-to-refresh handlers
@@ -442,18 +450,16 @@ export default function HomePage() {
       if (mySeq !== fetchSeqRef.current) return
       setTracks(
         uniqueVisibleTracks.map((t: Track) => ({
-          ...t,
-          source: t.source || 'local',
+          ...inferTrackSource({ ...t, source: t.source || 'local' }),
           is_favorite: userFavSet.has(t.id),
         }))
       )
 
       // Process history from combined response
       try {
-        const recent = getRecentUniqueTracks(historyItems).map((tr) => ({
-          ...tr,
-          source: tr.source || 'local',
-        }))
+        const recent = getRecentUniqueTracks(historyItems).map((tr) =>
+          inferTrackSource({ ...tr, source: tr.source || 'local' })
+        )
         if (mySeq !== fetchSeqRef.current) return
         setRecentTracks(recent)
       } catch (hErr) {
@@ -473,27 +479,54 @@ export default function HomePage() {
     return processTrendingTracks(trendingTracks, 18)
   }, [trendingTracks])
 
-  // Fetch category trending tracks when a genre chip is clicked (or retry 'all' if initial trending was empty)
-  useEffect(() => {
-    if (selectedCategory === 'all' && (loadingTrending || displayTrending.length > 0)) return
-    if (categoryTracksMap[selectedCategory] && categoryTracksMap[selectedCategory].length > 0) return
+  const categoryCacheKey = `${trendingDay}_${selectedCategory}`
 
+  // Only the selected category loads. Day-keyed entries cannot survive a daily rollover.
+  useEffect(() => {
     let active = true
-    setLoadingCategory(true)
+    const updateLoading = (loading: boolean) => queueMicrotask(() => {
+      if (active) setLoadingCategory(loading)
+    })
+    if (selectedCategory === 'all') {
+      updateLoading(false)
+      return () => { active = false }
+    }
+    const cached = categoryTracksMap[categoryCacheKey]
+    if (cached && cached.retryAt > Date.now()) {
+      updateLoading(false)
+      if (Number.isFinite(cached.retryAt)) {
+        const timer = setTimeout(() => setCategoryRetry((value) => value + 1), cached.retryAt - Date.now())
+        return () => { active = false; clearTimeout(timer) }
+      }
+      return () => { active = false }
+    }
+
+    const previous = cached || Object.entries(categoryTracksMap)
+      .find(([key]) => key.endsWith(`_${selectedCategory}`))?.[1]
+    updateLoading(true)
 
     fetchUnifiedSearch('', 'all', true, selectedCategory)
       .then((data) => {
         if (!active) return
         const processed = processTrendingTracks(data, 18)
-        if (processed.length > 0) {
-          setCategoryTracksMap((prev) => ({
-            ...prev,
-            [selectedCategory]: processed,
-          }))
-        }
+        setCategoryTracksMap((prev) => ({
+          ...Object.fromEntries(Object.entries(prev).filter(([key]) => key.startsWith(`${trendingDay}_`))),
+          [categoryCacheKey]: {
+            tracks: processed.length > 0 ? processed : (previous?.tracks || []),
+            metadata: processed.length > 0 ? data.trending : previous?.metadata ? { ...previous.metadata, stale: true } : data.trending,
+            retryAt: isTrendingSnapshotFresh(data, trendingDay) ? Infinity : Date.now() + 5 * 60 * 1000,
+          },
+        }))
       })
       .catch((err) => {
         console.warn('Failed to fetch category trending:', err)
+        if (active) {
+          setCategoryTracksMap((prev) => ({ ...prev, [categoryCacheKey]: {
+            tracks: previous?.tracks || [],
+            metadata: previous?.metadata && { ...previous.metadata, stale: true },
+            retryAt: Date.now() + 5 * 60 * 1000,
+          } }))
+        }
       })
       .finally(() => {
         if (active) setLoadingCategory(false)
@@ -502,14 +535,15 @@ export default function HomePage() {
     return () => {
       active = false
     }
-  }, [selectedCategory, categoryTracksMap, loadingTrending, displayTrending.length])
+  }, [selectedCategory, categoryCacheKey, categoryTracksMap, trendingDay, categoryRetry])
 
   const currentCategoryTracks: Track[] = useMemo(() => {
     if (selectedCategory === 'all') {
-      return displayTrending.length > 0 ? displayTrending : (categoryTracksMap['all'] || [])
+      return displayTrending
     }
-    return categoryTracksMap[selectedCategory] || []
-  }, [selectedCategory, displayTrending, categoryTracksMap])
+    return categoryTracksMap[categoryCacheKey]?.tracks || []
+  }, [selectedCategory, displayTrending, categoryTracksMap, categoryCacheKey])
+
 
   // Fetch initial page data
   useEffect(() => {
@@ -990,6 +1024,7 @@ export default function HomePage() {
                 <Loader2 style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-3.5 h-3.5 animate-spin" />
               )}
             </div>
+
 
             {/* Category Chips - Mobile Only */}
             <div className="lg:hidden flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4"

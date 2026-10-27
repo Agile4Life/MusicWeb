@@ -3,14 +3,15 @@ import { stripAlbumIdPrefix, sortAlbumTracks, validateAndNormalizeCachedAlbum } 
 import { resolveTrackSpotifyAlbumId } from '../spotify'
 import { deduplicateQueueTracks, mergeTrackMetadata } from '../utils'
 import { Track } from '@/types'
+import { clearAlbumCache, getCachedResolvedAlbum, isKnownBadFallback, setCachedResolvedAlbum } from '../albumCache'
 
 describe('stripAlbumIdPrefix', () => {
-  it('strips itunes-rss- prefix correctly', () => {
-    expect(stripAlbumIdPrefix('itunes-rss-12345')).toBe('12345')
+  it('preserves retired iTunes RSS IDs so they cannot become Deezer IDs', () => {
+    expect(stripAlbumIdPrefix('itunes-rss-12345')).toBe('itunes-rss-12345')
   })
 
-  it('strips itunes- prefix correctly', () => {
-    expect(stripAlbumIdPrefix('itunes-12345')).toBe('12345')
+  it('preserves retired iTunes IDs so they cannot become Deezer IDs', () => {
+    expect(stripAlbumIdPrefix('itunes-12345')).toBe('itunes-12345')
   })
 
   it('strips deezer- prefix correctly', () => {
@@ -27,6 +28,40 @@ describe('stripAlbumIdPrefix', () => {
 })
 
 describe('validateAndNormalizeCachedAlbum', () => {
+  it.each(['itunes', 'audius'])('normalizes retired %s track transports inside a supported cached album', (source) => {
+    const cached = {
+      id: 'spotify-current', name: 'Studio Record', artist: 'Artist', total_tracks: 2, album_type: 'album',
+      tracks: [
+        { id: 'saved-2', title: 'Second Song', source: 'spotify', file_path: 'spotify:valid-track', track_number: 2 },
+        {
+          id: 'saved-1', title: 'First Song', source, track_number: 1, spotify_id: '123',
+          file_path: source === 'itunes' ? 'https://audio-ssl.itunes.apple.com/preview.m4a' : 'https://discovery.audius.co/v1/tracks/123/stream',
+          audio_url: `${source}:123`, source_url: `${source}:123`, itunes_id: '123', audius_id: '123',
+        },
+      ],
+    }
+
+    const validated = validateAndNormalizeCachedAlbum(cached)
+    expect(validated).toMatchObject({ id: 'spotify-current', total_tracks: 2 })
+    expect(validated.tracks.map((track: Track) => track.id)).toEqual(['saved-1', 'saved-2'])
+    expect(validated.tracks[0]).toMatchObject({
+      title: 'First Song', source: 'spotify', file_path: '', album: 'Studio Record', spotify_album_id: 'spotify-current',
+    })
+    for (const key of ['audio_url', 'source_url', 'itunes_id', 'audius_id', 'spotify_id']) {
+      expect(validated.tracks[0]).not.toHaveProperty(key)
+    }
+    expect(validated.tracks[1].file_path).toBe('spotify:valid-track')
+    expect(cached.tracks[1].source).toBe(source)
+    expect(cached.tracks[1].audio_url).toBe(`${source}:123`)
+  })
+
+  it.each(['itunes-12345', 'itunes-rss-12345', 'audius-12345'])('rejects retired cached album %s', (id) => {
+    expect(validateAndNormalizeCachedAlbum({
+      id, name: 'Saved Album', artist: 'Artist', total_tracks: 1, album_type: 'single',
+      tracks: [{ id: 'saved-track', title: 'Song', track_number: 1 }],
+    })).toBeNull()
+  })
+
   it('rejects stub albums where total_tracks is missing or 0 even if 1 track is linked', () => {
     const stub = {
       id: '369191597',
@@ -86,6 +121,15 @@ describe('validateAndNormalizeCachedAlbum', () => {
     const validated = validateAndNormalizeCachedAlbum(singleAlbum)
     expect(validated).not.toBeNull()
     expect(validated.tracks).toHaveLength(1)
+  })
+})
+
+describe('retired client album resolutions', () => {
+  it.each(['itunes-12345', 'itunes-rss-12345', 'audius-12345', 'audius:12345'])('rejects retired fallback %s', (albumId) => {
+    clearAlbumCache()
+    expect(isKnownBadFallback(albumId)).toBe(true)
+    setCachedResolvedAlbum('Song', 'Artist', { albumId, albumName: 'Saved Album' })
+    expect(getCachedResolvedAlbum('Song', 'Artist')).toBeUndefined()
   })
 })
 

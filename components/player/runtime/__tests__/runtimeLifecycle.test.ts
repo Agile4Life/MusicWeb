@@ -380,7 +380,7 @@ describe('browserLifecycle', () => {
     };
 
     const fakeWin = {
-      location: { origin: 'https://phongtctmusic.vercel.app' },
+      location: { origin: 'https://bluesymphony.site' },
       YT: {
         Player: class {
           constructor(_id: string, opts: { events?: { onReady?: () => void; onStateChange?: (e: { data: number }) => void } }) {

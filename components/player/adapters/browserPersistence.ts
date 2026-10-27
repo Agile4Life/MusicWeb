@@ -1,14 +1,15 @@
 import type { Track } from '@/types'
 import type { PlaybackPersistencePort } from '@/lib/playback/ports'
 import { inferTrackSource } from '@/lib/trackSourceClassifier'
+import { normalizeRetiredMusicTrack } from '@/lib/retiredMusicSources'
 import { deduplicateQueueTracks } from '@/lib/utils'
 import { PlaybackPersistenceScheduler, STORAGE_KEY_PLAYER_STATE } from '../playbackPersistenceScheduler'
 
 const REPEAT_KEY = 'musicweb_repeat_mode'
-const sources = new Set(['local', 'youtube', 'audius', 'itunes', 'spotify', 'nhaccuatui', 'deezer', 'soundcloud'])
+const sources = new Set(['local', 'youtube', 'spotify', 'nhaccuatui', 'deezer', 'soundcloud'])
 function restoreTrack(value: unknown): Track | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
-  const row = value as Record<string, unknown>
+  const row = normalizeRetiredMusicTrack(value as Track) as unknown as Record<string, unknown>
   if (typeof row.id !== 'string' || !row.id) return null
   for (const key of ['title', 'artist', 'cover_url', 'file_path', 'file_ext', 'drive_file_id', 'nhaccuatui_id', 'youtube_id', 'audio_url', 'source_url', 'soundcloud_permalink_url', 'spotify_id', 'spotify_album_id', 'album']) {
     if (row[key] != null && typeof row[key] !== 'string') return null
@@ -17,7 +18,7 @@ function restoreTrack(value: unknown): Track | null {
   if (row.view_count != null && (typeof row.view_count !== 'number' || !Number.isFinite(row.view_count))) return null
   if (row.source != null && (typeof row.source !== 'string' || !sources.has(row.source))) return null
   if (row.is_favorite != null && typeof row.is_favorite !== 'boolean') return null
-  for (const key of ['itunes_id', 'soundcloud_id']) {
+  for (const key of ['soundcloud_id']) {
     if (row[key] != null && typeof row[key] !== 'string' && typeof row[key] !== 'number') return null
   }
   // Only validated persisted fields are hydrated; missing full Track fields are defaults.
@@ -29,7 +30,7 @@ function restoreTrack(value: unknown): Track | null {
     nhaccuatui_id: minimal.nhaccuatui_id, youtube_id: minimal.youtube_id, soundcloud_id: minimal.soundcloud_id,
     soundcloud_permalink_url: minimal.soundcloud_permalink_url, audio_url: minimal.audio_url,
     source_url: minimal.source_url, spotify_id: minimal.spotify_id, spotify_album_id: minimal.spotify_album_id,
-    itunes_id: minimal.itunes_id, album: minimal.album, view_count: minimal.view_count, is_favorite: minimal.is_favorite,
+    album: minimal.album, view_count: minimal.view_count, is_favorite: minimal.is_favorite,
   })
 }
 const finite = (value: unknown, fallback: number): number => typeof value === 'number' && Number.isFinite(value) ? value : fallback

@@ -395,27 +395,51 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
     <>
       {/* 📱 Mobile Centered Screen Loading Toast */}
       {isBuffering && (!currentTrack.source || currentTrack.source === 'local') && (
-        <div className="lg:hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-[#0a0d14]/95 backdrop-blur-2xl border border-[var(--spotify-glow,#22d3ee)]/40 px-6 py-4 rounded-2xl shadow-2xl flex flex-col items-center justify-center gap-2.5 text-center pointer-events-none transition-all duration-200">
-          <div className="w-11 h-11 rounded-full bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/30 flex items-center justify-center shadow-lg">
-            <Loader2 className="w-6 h-6 animate-spin text-[var(--spotify-glow,#22d3ee)]" />
+        <div
+          className={`lg:hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 px-6 py-4 flex flex-col items-center justify-center gap-2.5 text-center pointer-events-none transition-all duration-200 ${
+            isMinimalFlat
+              ? 'bg-[#1D1720] border border-[rgba(232,169,79,0.35)] rounded-[16px] shadow-[0_18px_40px_rgba(0,0,0,0.7)]'
+              : 'bg-[#0a0d14]/95 backdrop-blur-2xl border border-[var(--spotify-glow,#22d3ee)]/40 rounded-2xl shadow-2xl'
+          }`}
+        >
+          <div
+            className={`w-11 h-11 rounded-full flex items-center justify-center ${
+              isMinimalFlat
+                ? 'bg-[#E8A94F]/15 border border-[#E8A94F]/35'
+                : 'bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/30 shadow-lg'
+            }`}
+          >
+            <Loader2 className={`w-6 h-6 animate-spin ${isMinimalFlat ? 'text-[#E8A94F]' : 'text-[var(--spotify-glow,#22d3ee)]'}`} />
           </div>
-          <span className="text-xs font-extrabold text-white tracking-wide">Đang tải bản Lossless...</span>
+          <span className={`text-xs font-extrabold tracking-wide ${isMinimalFlat ? 'text-[#F4ECE1]' : 'text-white'}`}>
+            Đang tải bản Lossless...
+          </span>
         </div>
       )}
 
       {/* 📱 MOBILE FLOATING MINI PLAYER BAR (Visible on < 768px) */}
       <div
         onClick={openNowPlayingOverlay}
-        className={`${miniPlayerClassName} !rounded-[37px] rounded-[37px] select-none cursor-pointer active:scale-[0.98] transition-transform relative overflow-hidden`}
+        className={`${miniPlayerClassName} ${
+          isMinimalFlat ? '!rounded-[18px] rounded-[18px]' : '!rounded-[37px] rounded-[37px]'
+        } select-none cursor-pointer active:scale-[0.98] transition-transform relative overflow-hidden`}
         style={{
-          borderRadius: 37,
-          ...(!isMinimalFlat ? {
-            background: 'rgba(255, 255, 255, 0.025)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.12)',
-            backdropFilter: 'blur(16px) saturate(150%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(150%)',
-          } : {}),
+          borderRadius: isMinimalFlat ? 18 : 37,
+          ...(isMinimalFlat
+            ? {
+                background: 'rgba(29, 23, 32, 0.96)',
+                border: '1px solid rgba(244, 236, 230, 0.14)',
+                boxShadow: '0 12px 28px rgba(0, 0, 0, 0.6)',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+              }
+            : {
+                background: 'rgba(255, 255, 255, 0.025)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.12)',
+                backdropFilter: 'blur(16px) saturate(150%)',
+                WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+              }),
           transform: isNavCollapsed
             ? 'translate3d(0, 80px, 0) scale(0.88)'
             : 'translate3d(0, 0px, 0) scale(1)',
@@ -441,11 +465,31 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             }}
           />
         )}
-        <PlayerBarGlowBorder duration={duration || currentTrack.duration} rx={34} />
+        {!isMinimalFlat ? (
+          <PlayerBarGlowBorder duration={duration || currentTrack.duration} rx={34} />
+        ) : (
+          <div
+            aria-hidden="true"
+            className="absolute bottom-0 left-0 right-0 h-[2px] bg-[rgba(244,236,230,0.08)] pointer-events-none z-20"
+          >
+            <div
+              className="h-full bg-[#E8A94F] transition-[width] duration-150 ease-linear"
+              style={{
+                width: `${Math.min(100, Math.max(0, (currentTime / Math.max(duration || currentTrack.duration || 1, 1)) * 100))}%`,
+              }}
+            />
+          </div>
+        )}
         {/* Main row */}
         <div className="flex items-center gap-2.5 w-full h-[54px] px-3 sm:px-3.5 relative z-10">
           {/* Cover Art */}
-          <div className={`player-cover w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 relative border border-white/10 shadow-md ${isPlaying ? 'is-playing' : ''}`}>
+          <div
+            className={`player-cover w-10 h-10 flex items-center justify-center overflow-hidden shrink-0 relative ${
+              isMinimalFlat
+                ? 'rounded-[10px] bg-[#251E29] border border-[rgba(244,236,230,0.14)]'
+                : `rounded-full bg-slate-800 border border-white/10 shadow-md ${isPlaying ? 'is-playing' : ''}`
+            }`}
+          >
             <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
           </div>
 
@@ -453,7 +497,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <div className="flex flex-col min-w-0 flex-1 overflow-hidden justify-center pr-1">
             <OverflowMarqueeText
               text={currentTrack.title}
-              className={`text-xs font-bold text-white leading-tight ${trackMetadataTitleClass}`}
+              className={`text-xs font-bold leading-tight ${isMinimalFlat ? 'text-[#F4ECE1]' : 'text-white'} ${trackMetadataTitleClass}`}
             />
             <div className="flex items-center gap-1.5 min-w-0 mt-0.5">
               {currentTrack.source === 'soundcloud' && (
@@ -463,8 +507,8 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
               )}
               <ArtistLinks
                 artist={currentTrack.artist}
-                className="text-[10px] text-slate-400 truncate leading-tight block"
-                linkClassName="hover:underline hover:text-slate-200 transition-colors cursor-pointer"
+                className={`text-[10px] truncate leading-tight block ${isMinimalFlat ? 'text-[#B9AC9C]' : 'text-slate-400'}`}
+                linkClassName={`hover:underline transition-colors cursor-pointer ${isMinimalFlat ? 'hover:text-[#F4ECE1]' : 'hover:text-slate-200'}`}
                 onArtistClick={(name, e) => {
                   e.stopPropagation()
                   handleOpenArtist(name, e)
@@ -477,7 +521,9 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <div className="flex items-center shrink-0 gap-1">
             <button
               onClick={(e) => { e.stopPropagation(); prevTrack() }}
-              className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white active:scale-90 transition-all rounded-full"
+              className={`w-8 h-8 flex items-center justify-center active:scale-90 transition-all rounded-full ${
+                isMinimalFlat ? 'text-[#B9AC9C] hover:text-[#F4ECE1]' : 'text-slate-400 hover:text-white'
+              }`}
               title={t('previous')}
             >
               <SkipBack className="w-4 h-4" />
@@ -485,26 +531,37 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
 
             <button
               onClick={(e) => { e.stopPropagation(); togglePlay() }}
-              className="player-play-btn w-9 h-9 rounded-full flex items-center justify-center shrink-0 active:scale-90 transition-transform shadow-lg border border-white/20"
-              style={{
-                background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                boxShadow: '0 2px 10px var(--theme-glow-shadow, rgba(6,182,212,0.4))',
-              }}
+              className={`player-play-btn w-9 h-9 rounded-full flex items-center justify-center shrink-0 active:scale-90 transition-transform ${
+                isMinimalFlat ? 'border border-[rgba(232,169,79,0.5)]' : 'shadow-lg border border-white/20'
+              }`}
+              style={
+                isMinimalFlat
+                  ? {
+                      background: '#E8A94F',
+                      boxShadow: 'none',
+                    }
+                  : {
+                      background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                      boxShadow: '0 2px 10px var(--theme-glow-shadow, rgba(6,182,212,0.4))',
+                    }
+              }
               title={isBuffering ? t('buffering') : isPlaying ? t('pause') : t('play')}
               aria-label={isBuffering ? t('buffering') : isPlaying ? t('pause') : t('play')}
             >
               {isBuffering ? (
-                <Loader2 className="w-4 h-4 animate-spin text-black shrink-0" />
+                <Loader2 className={`w-4 h-4 animate-spin shrink-0 ${isMinimalFlat ? 'text-[#141017]' : 'text-black'}`} />
               ) : isPlaying ? (
-                <Pause className="w-4 h-4 fill-current text-black shrink-0" />
+                <Pause className={`w-4 h-4 fill-current shrink-0 ${isMinimalFlat ? 'text-[#141017]' : 'text-black'}`} />
               ) : (
-                <Play className="w-4 h-4 fill-current text-black ml-0.5 shrink-0" />
+                <Play className={`w-4 h-4 fill-current ml-0.5 shrink-0 ${isMinimalFlat ? 'text-[#141017]' : 'text-black'}`} />
               )}
             </button>
 
             <button
               onClick={(e) => { e.stopPropagation(); nextTrack() }}
-              className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white active:scale-90 transition-all rounded-full"
+              className={`w-8 h-8 flex items-center justify-center active:scale-90 transition-all rounded-full ${
+                isMinimalFlat ? 'text-[#B9AC9C] hover:text-[#F4ECE1]' : 'text-slate-400 hover:text-white'
+              }`}
               title={t('next')}
             >
               <SkipForward className="w-4 h-4" />
@@ -518,8 +575,12 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             >
               <Heart
                 className={`w-4 h-4 transition-all ${currentTrack.is_favorite
-                    ? 'text-rose-500 fill-current drop-shadow-[0_0_6px_rgba(244,63,94,0.6)]'
-                    : 'text-slate-500'
+                    ? isMinimalFlat
+                      ? 'text-[#E8A94F] fill-current'
+                      : 'text-rose-500 fill-current drop-shadow-[0_0_6px_rgba(244,63,94,0.6)]'
+                    : isMinimalFlat
+                      ? 'text-[#8B8090]'
+                      : 'text-slate-500'
                   }`}
               />
             </button>

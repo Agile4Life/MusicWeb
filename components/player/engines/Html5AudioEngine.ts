@@ -48,6 +48,7 @@ export class Html5AudioEngine implements PlaybackEngine {
       this.audio.pause()
       this.audio.currentTime = 0
       this.audio.removeAttribute('src')
+      this.audio.load()
     } catch {}
   }
 

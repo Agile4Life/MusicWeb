@@ -21,6 +21,7 @@ export function resolveTrackSpotifyAlbumId(album: any, trackTitle?: string | nul
 }
 
 let cachedToken: { token: string; expiresAt: number } | null = null
+let tokenInFlight: Promise<string | null> | null = null
 
 export async function getSpotifyAccessToken(): Promise<string | null> {
   const clientId = process.env.SPOTIFY_CLIENT_ID
@@ -35,6 +36,17 @@ export async function getSpotifyAccessToken(): Promise<string | null> {
     return cachedToken.token
   }
 
+  if (tokenInFlight) return tokenInFlight
+
+  tokenInFlight = fetchSpotifyAccessToken(clientId, clientSecret)
+  try {
+    return await tokenInFlight
+  } finally {
+    tokenInFlight = null
+  }
+}
+
+async function fetchSpotifyAccessToken(clientId: string, clientSecret: string): Promise<string | null> {
   try {
     const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
     const res = await fetch('https://accounts.spotify.com/api/token', {
@@ -226,30 +238,6 @@ function doesSpotifyArtistMatchTarget(
     }
     return false
   })
-}
-
-export async function getTrendingSpotifyTracks(limit = 12): Promise<Track[]> {
-  try {
-    const globalArtists = [
-      'Taylor Swift',
-      'The Weeknd',
-      'Billie Eilish',
-      'Bruno Mars',
-      'Sabrina Carpenter',
-      'Ariana Grande',
-      'Post Malone',
-      'Dua Lipa',
-      'Drake',
-      'Olivia Rodrigo',
-    ]
-    const perArtist = Math.max(1, Math.ceil(limit / globalArtists.length))
-    const tracks = await getTopArtistSpotifyTracks(globalArtists, perArtist)
-    const clean = tracks.filter((t) => isCleanTrendingTrack(t.title, t.artist))
-    return clean.slice(0, limit)
-  } catch (err) {
-    console.warn('Spotify trending fetch error:', err)
-  }
-  return []
 }
 
 /**
@@ -703,11 +691,95 @@ export interface SpotifyPlaylistMeta {
   isPublic: boolean
 }
 
+const spotifyTrackCoverCache = new Map<string, string>()
+const spotifyTrackCoverInFlight = new Map<string, Promise<string | null>>()
+
+export function upgradeSpotifyCoverUrl(url: string | null | undefined): string | null {
+  if (!url) return null
+  if (url.includes('charts-images.scdn.co')) return null
+  if (url.includes('scdn.co') || url.includes('spotifycdn.com')) {
+    return url.replace(/ab67616d0000(?:1e02|4851)/g, 'ab67616d0000b273')
+  }
+  return url
+}
+
+export async function resolveSpotifyTrackCover(spotifyId: string): Promise<string | null> {
+  if (!/^[a-zA-Z0-9]{22}$/.test(spotifyId)) return null
+  const cached = spotifyTrackCoverCache.get(spotifyId)
+  if (cached) return cached
+
+  const existing = spotifyTrackCoverInFlight.get(spotifyId)
+  if (existing) return existing
+
+  const promise = (async (): Promise<string | null> => {
+    try {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const res = await fetch(
+            `https://open.spotify.com/oembed?url=${encodeURIComponent(`spotify:track:${spotifyId}`)}`,
+            { signal: AbortSignal.timeout(4500) }
+          )
+          if (!res.ok) continue
+          const data = await res.json()
+          const cover = upgradeSpotifyCoverUrl(typeof data?.thumbnail_url === 'string' ? data.thumbnail_url : null)
+          if (cover) {
+            if (spotifyTrackCoverCache.size >= 1000) {
+              const oldest = spotifyTrackCoverCache.keys().next().value
+              if (oldest) spotifyTrackCoverCache.delete(oldest)
+            }
+            spotifyTrackCoverCache.set(spotifyId, cover)
+            return cover
+          }
+        } catch {
+          // Retry once on transient network/timeout error
+        }
+      }
+      return null
+    } finally {
+      spotifyTrackCoverInFlight.delete(spotifyId)
+    }
+  })()
+
+  spotifyTrackCoverInFlight.set(spotifyId, promise)
+  return promise
+}
+
+async function enrichSpotifyPlaylistTrackCovers(
+  tracks: SpotifyPlaylistTrack[],
+  maxToEnrich = 50,
+  concurrency = 10
+): Promise<SpotifyPlaylistTrack[]> {
+  const results = tracks.map((track) => {
+    const cleanExisting = upgradeSpotifyCoverUrl(track.cover_url)
+    return cleanExisting === track.cover_url ? track : { ...track, cover_url: cleanExisting }
+  })
+
+  const indicesToFetch: number[] = []
+  for (let i = 0; i < results.length && indicesToFetch.length < maxToEnrich; i++) {
+    if (!results[i].cover_url && /^[a-zA-Z0-9]{22}$/.test(results[i].spotify_id)) {
+      indicesToFetch.push(i)
+    }
+  }
+
+  if (indicesToFetch.length === 0) return results
+
+  let cursor = 0
+  const workers = Array.from({ length: Math.min(concurrency, indicesToFetch.length) }, async () => {
+    while (cursor < indicesToFetch.length) {
+      const idx = indicesToFetch[cursor++]
+      const resolvedCover = await resolveSpotifyTrackCover(results[idx].spotify_id)
+      results[idx] = { ...results[idx], cover_url: resolvedCover }
+    }
+  })
+  await Promise.all(workers)
+  return results
+}
+
 /**
  * Lấy metadata & danh sách bài hát từ trang Spotify Embed public.
  * Hoạt động 100% tin cậy cho toàn bộ playlist Public mà không bị giới hạn bởi quyền Token Spotify API.
  */
-async function fetchSpotifyEmbedPlaylistData(playlistId: string): Promise<{ meta: SpotifyPlaylistMeta; tracks: SpotifyPlaylistTrack[] } | null> {
+async function fetchSpotifyEmbedPlaylistData(playlistId: string, options?: { fresh?: boolean }): Promise<{ meta: SpotifyPlaylistMeta; tracks: SpotifyPlaylistTrack[] } | null> {
   try {
     const embedUrl = `https://open.spotify.com/embed/playlist/${playlistId}`
     const res = await fetch(embedUrl, {
@@ -716,7 +788,9 @@ async function fetchSpotifyEmbedPlaylistData(playlistId: string): Promise<{ meta
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Accept-Language': 'en-US,en;q=0.9,vi;q=0.8',
       },
-      next: { revalidate: 60 },
+      ...(options?.fresh
+        ? { cache: 'no-store' as const, signal: AbortSignal.timeout(5000) }
+        : { next: { revalidate: 60 } }),
     })
 
     if (!res.ok) return null
@@ -769,7 +843,7 @@ async function fetchSpotifyEmbedPlaylistData(playlistId: string): Promise<{ meta
         artist,
         album,
         duration,
-        cover_url: item.coverArt?.sources?.[0]?.url || coverUrl,
+        cover_url: upgradeSpotifyCoverUrl(item.coverArt?.sources?.[0]?.url || item.images?.[0]?.url || item.album?.images?.[0]?.url || null),
         isrc: item.isrc || null,
       }
     })
@@ -841,7 +915,7 @@ export async function fetchSpotifyPlaylistMeta(playlistId: string): Promise<Spot
  * Lấy toàn bộ track trong playlist, tự động phân trang (Spotify trả tối đa 100 item/lần).
  * Bỏ qua local files và episode (podcast) nếu playlist có lẫn — chỉ giữ track nhạc thật.
  */
-export async function fetchSpotifyPlaylistTracks(playlistId: string): Promise<SpotifyPlaylistTrack[]> {
+export async function fetchSpotifyPlaylistTracks(playlistId: string, options?: { fresh?: boolean }): Promise<SpotifyPlaylistTrack[]> {
   if (typeof window !== 'undefined') {
     try {
       const res = await fetch(`/api/spotify/playlist?id=${encodeURIComponent(playlistId)}&type=tracks`)
@@ -854,9 +928,9 @@ export async function fetchSpotifyPlaylistTracks(playlistId: string): Promise<Sp
   }
 
   // 1. Try Spotify Embed Scraper (Fastest, 100% Reliable)
-  const embedData = await fetchSpotifyEmbedPlaylistData(playlistId)
+  const embedData = await fetchSpotifyEmbedPlaylistData(playlistId, options)
   if (embedData && embedData.tracks.length > 0) {
-    return embedData.tracks
+    return enrichSpotifyPlaylistTrackCovers(embedData.tracks)
   }
 
   // 2. Fallback: Official Spotify API via Token
@@ -872,7 +946,10 @@ export async function fetchSpotifyPlaylistTracks(playlistId: string): Promise<Sp
     while (offset < total) {
       const res = await fetch(
         `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=${limit}&offset=${offset}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          ...(options?.fresh ? { cache: 'no-store' as const, signal: AbortSignal.timeout(5000) } : {}),
+        }
       )
 
       if (!res.ok) {

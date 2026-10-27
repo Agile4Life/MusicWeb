@@ -5,6 +5,8 @@ import type { GlobalSearchTracks } from '@/lib/searchApi'
 import { createSearchRequests } from '@/lib/search/searchRequests'
 import type { SearchService } from '@/lib/search/searchService'
 import { createBrowserSearchService } from './searchComposition'
+import { getTrendingDay } from '@/lib/trendingDay'
+import { isTrendingSnapshotFresh, retainTrendingSnapshot, startDailyTrendingRefresh } from '@/lib/dailyTrendingRefresh'
 
 interface SearchContextType {
   searchQuery: string
@@ -17,6 +19,7 @@ interface SearchContextType {
   searchingGlobal: boolean
   trendingTracks: GlobalSearchTracks
   loadingTrending: boolean
+  trendingDay: string
   clearSearch: () => void
 }
 
@@ -24,8 +27,6 @@ const emptyResults: GlobalSearchTracks = {
   nhaccuatui: [],
   local: [],
   youtube: [],
-  audius: [],
-  itunes: [],
   spotify: [],
   deezer: [],
 }
@@ -48,33 +49,37 @@ export function SearchProvider({
   const [searchingSuggestions, setSearchingSuggestions] = useState(false)
   const [trendingTracks, setTrendingTracks] = useState<GlobalSearchTracks>(emptyResults)
   const [loadingTrending, setLoadingTrending] = useState(true)
+  const [trendingDay, setTrendingDay] = useState(getTrendingDay)
 
   const requestsRef = useRef(createSearchRequests())
 
-  // Fetch Trending Tracks once on initial mount
+  // One daily timer also checks suspended tabs and retries temporarily unavailable charts.
   useEffect(() => {
     const requests = requestsRef.current
-    const token = requests.issue('trending')
-    queueMicrotask(() => {
-      if (requests.isCurrent('trending', token)) {
-        setLoadingTrending(true)
-      }
-    })
-
-    searchService
-      .loadTrending()
-      .then((data) => {
+    const stop = startDailyTrendingRefresh(async (day) => {
+      const token = requests.issue('trending')
+      setTrendingDay(day)
+      setLoadingTrending(true)
+      try {
+        const data = await searchService.loadTrending()
         if (requests.isCurrent('trending', token)) {
-          setTrendingTracks(data)
+          setTrendingTracks((previous) => retainTrendingSnapshot(previous, data))
         }
-      })
-      .finally(() => {
+        return isTrendingSnapshotFresh(data, day)
+      } catch {
+        if (requests.isCurrent('trending', token)) {
+          setTrendingTracks((previous) => retainTrendingSnapshot(previous, emptyResults))
+        }
+        return false
+      } finally {
         if (requests.isCurrent('trending', token)) {
           setLoadingTrending(false)
         }
-      })
+      }
+    }, { focus: window, visibility: document })
 
     return () => {
+      stop()
       requests.invalidate('trending')
     }
   }, [searchService])
@@ -185,9 +190,10 @@ export function SearchProvider({
       searchingGlobal,
       trendingTracks,
       loadingTrending,
+      trendingDay,
       clearSearch,
     }),
-    [searchQuery, globalTracks, searchingGlobal, suggestionQuery, suggestionTracks, searchingSuggestions, trendingTracks, loadingTrending, clearSearch]
+    [searchQuery, globalTracks, searchingGlobal, suggestionQuery, suggestionTracks, searchingSuggestions, trendingTracks, loadingTrending, trendingDay, clearSearch]
   )
 
   return (

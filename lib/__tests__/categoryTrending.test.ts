@@ -10,6 +10,25 @@ describe('category trending search API', () => {
 
   afterEach(() => {
     global.fetch = originalFetch
+    vi.useRealTimers()
+  })
+
+  it('fetches a new trending snapshot after Vietnam midnight even within the normal search TTL', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-25T16:59:30Z'))
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ spotify: [{ id: 'before-midnight', title: 'Yesterday chart' }] }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ spotify: [{ id: 'after-midnight', title: 'Today chart' }] }) })
+    global.fetch = fetchMock
+
+    expect((await fetchUnifiedSearch('', 'all', true, 'all')).spotify[0].id).toBe('before-midnight')
+    vi.setSystemTime(new Date('2026-10-25T17:00:01Z'))
+    const result = await fetchUnifiedSearch('', 'all', true, 'all')
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(result.spotify[0].id).toBe('after-midnight')
+    expect(String(fetchMock.mock.calls[0][0])).toContain('date=2026-10-25')
+    expect(String(fetchMock.mock.calls[1][0])).toContain('date=2026-10-26')
   })
 
   it('sends the category parameter in the trending request URL', async () => {
@@ -92,6 +111,37 @@ describe('category trending search API', () => {
     expect(result.spotify).toEqual([])
     expect(result.nhaccuatui).toEqual([])
     expect(result.youtube).toEqual([])
+    expect(result).not.toHaveProperty('itunes')
+    expect(result).not.toHaveProperty('audius')
+  })
+
+  it('ignores retired provider groups in older search responses', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        spotify: [{ id: 'spotify-current', title: 'Daylight', artist: 'Taylor Swift', source: 'spotify' }],
+        itunes: [{ id: 'itunes-retired', title: 'Legacy preview', artist: 'Artist', source: 'itunes' }],
+        audius: [{ id: 'audius-retired', title: 'Legacy stream', artist: 'Artist', source: 'audius' }],
+      }),
+    })
+
+    const result = await fetchUnifiedSearch('retired groups response')
+
+    expect(result.spotify.map((track) => track.id)).toEqual(['spotify-current'])
+    expect(result).not.toHaveProperty('itunes')
+    expect(result).not.toHaveProperty('audius')
+  })
+
+  it('returns only supported empty groups without fetching a blank query', async () => {
+    const fetchMock = vi.fn()
+    global.fetch = fetchMock
+
+    const result = await fetchUnifiedSearch('   ')
+
+    expect(result).toEqual({
+      nhaccuatui: [], local: [], youtube: [], spotify: [], deezer: [], soundcloud: [],
+    })
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('rejects spam and compilation tracks with billboard or top music keywords', async () => {

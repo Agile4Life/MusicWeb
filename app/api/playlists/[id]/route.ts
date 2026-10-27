@@ -1,5 +1,6 @@
 // app/api/playlists/[id]/route.ts
 import { requireUser, requirePlaylistOwner, adminClient, getAuthenticatedUserId } from '@/lib/serverUser'
+import { inferTrackSource } from '@/lib/trackSourceClassifier'
 
 export async function GET(
   req: Request,
@@ -41,11 +42,7 @@ export async function GET(
     const tracks = (ptData || [])
       .map((item: any) => {
         if (!item.tracks) return null
-        return {
-          ...item.tracks,
-          artist: item.tracks.artist || null,
-          album: item.tracks.album || null,
-        }
+        return inferTrackSource({ ...item.tracks, artist: item.tracks.artist || null, album: item.tracks.album || null })
       })
       .filter(Boolean)
 

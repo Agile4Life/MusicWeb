@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { searchDeezerAlbums, extractDeezerArtistName } from '@/lib/deezer'
 import { createClient } from '@supabase/supabase-js'
 import { isKnownBadFallback, isRealAlbumName } from '@/lib/albumCache'
+import { isRetiredMusicId } from '@/lib/retiredMusicSources'
 import {
   cleanTrackTitleForAlbumSearch,
   normalizeAlbumText,
@@ -20,14 +21,6 @@ function getSupabaseClient() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   if (!url || !key) return null
   return createClient(url, key, { auth: { persistSession: false } })
-}
-
-function upgradeITunesArtwork(url?: string | null): string | null {
-  if (!url) return null
-  return url
-    .replace('{w}x{h}', '600x600')
-    .replace(/\/\d+x\d+[^/]*\./i, '/600x600bb.')
-    .replace(/\d+x\d+bb/i, '600x600bb')
 }
 
 const resolveMemoryCache = new Map<string, { data: any; timestamp: number }>()
@@ -151,10 +144,9 @@ export async function GET(req: NextRequest) {
           !trackId.startsWith('yt-') &&
           !trackId.startsWith('sc-') &&
           !trackId.startsWith('spotify-') &&
-          !trackId.startsWith('itunes-') &&
           !trackId.startsWith('deezer-') &&
           !trackId.startsWith('nct-') &&
-          !trackId.startsWith('audius-')
+          !isRetiredMusicId(trackId)
         ) {
           const { error: trackUpdateErr } = await supabase
             .from('tracks')
@@ -401,7 +393,7 @@ export async function GET(req: NextRequest) {
     // Helper to map raw Deezer track search items to AlbumTrackCandidate
     const mapDeezerTrackCandidates = (items: any[]): AlbumTrackCandidate[] =>
       (items || [])
-        .filter((item: any) => item && item.album?.id && (item.title || item.title_short))
+        .filter((item: any) => item && item.album?.id && !isKnownBadFallback(String(item.album.id)) && (item.title || item.title_short))
         .map((item: any) => ({
           trackTitle: item.title || item.title_short || '',
           artistName: extractDeezerArtistName(item),
@@ -534,71 +526,6 @@ export async function GET(req: NextRequest) {
       } catch (dTitleErr) {
         console.warn('Deezer title search resolve warning:', dTitleErr)
       }
-    }
-
-    // 5. iTunes Track / Collection Search Fallback (Strict Artist Match + VN store fallback)
-    try {
-      const iTunesSearchTerm = searchQuery || (effectiveTitle || title).trim()
-      if (iTunesSearchTerm && finalCleanArtist) {
-        const fetchITunesCandidates = async (country?: string): Promise<AlbumTrackCandidate[]> => {
-          const countryParam = country ? `&country=${encodeURIComponent(country)}` : ''
-          const iRes = await fetch(
-            `https://itunes.apple.com/search?term=${encodeURIComponent(iTunesSearchTerm)}&entity=song&limit=15${countryParam}`,
-            { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(4000) },
-          )
-          if (!iRes.ok) return []
-          const iData = await iRes.json()
-          return (iData.results || [])
-            .filter((t: any) => t && t.collectionId && t.collectionName)
-            .map((t: any) => ({
-              trackTitle: t.trackName || t.collectionName || '',
-              artistName: t.artistName || '',
-              albumId: `itunes-${t.collectionId}`,
-              albumTitle: t.collectionName || '',
-              coverUrl: upgradeITunesArtwork(t.artworkUrl100),
-              totalTracks: t.trackCount || undefined,
-              albumType:
-                /\s-\s*single\s*$/i.test(t.collectionName || '') || (t.trackCount || 0) === 1
-                  ? 'single'
-                  : 'album',
-            }))
-        }
-
-        let iTunesCandidates = await fetchITunesCandidates()
-        let match = selectBestAlbumTrackCandidate(iTunesCandidates, {
-          title: effectiveTitle || title,
-          artist: effectiveArtist || artist,
-          album: albumParam,
-        })
-
-        // Fallback to Vietnam iTunes store if default US store had no match
-        if (!match) {
-          iTunesCandidates = await fetchITunesCandidates('vn')
-          match = selectBestAlbumTrackCandidate(iTunesCandidates, {
-            title: effectiveTitle || title,
-            artist: effectiveArtist || artist,
-            album: albumParam,
-          })
-        }
-
-        if (match && match.albumId) {
-          const displayAlbum =
-            cleanDisplayAlbumName(match.albumTitle) || match.albumTitle || albumParam || 'Single'
-          const resData = {
-            albumId: match.albumId,
-            albumName: displayAlbum,
-            coverUrl: match.coverUrl || null,
-          }
-          await persistToDb({
-            ...resData,
-            totalTracks: match.totalTracks,
-            albumType: match.albumType,
-          })
-          return cachedResolveResponse(resData, cacheKey)
-        }
-      }
-    } catch (iErr) {
-      console.warn('iTunes resolve fallback warning:', iErr)
     }
 
     return NextResponse.json({ error: 'Album not found' }, { status: 404 })

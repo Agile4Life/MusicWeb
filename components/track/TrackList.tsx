@@ -6,6 +6,8 @@ import { TrackRow } from './TrackRow'
 import { Clock, CheckSquare, Pencil, Trash2, X, Loader2, User, Disc, Scissors, Eye } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { triggerDrivePrewarm } from '@/lib/googleDriveUpload'
+import { prewarmSoundCloudTrack } from '@/lib/prewarmTrackBatch'
+import { isSoundCloudTrack } from '@/lib/trackSourceClassifier'
 import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
 import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
 import { useBatchViewCounts, getViewCountCacheKey } from '@/hooks/useBatchViewCounts'
@@ -65,10 +67,15 @@ export function TrackList({
     }
   }, [showBulkModal])
 
-  // Fire-and-forget prewarm for top 3 visible Drive tracks
+  // Fire-and-forget prewarm for top visible Drive and SoundCloud tracks
   React.useEffect(() => {
     if (tracks && tracks.length > 0) {
       triggerDrivePrewarm(tracks.slice(0, 3))
+      for (const t of tracks.slice(0, 2)) {
+        if (isSoundCloudTrack(t)) {
+          prewarmSoundCloudTrack(t).catch(() => {})
+        }
+      }
     }
   }, [tracks])
 

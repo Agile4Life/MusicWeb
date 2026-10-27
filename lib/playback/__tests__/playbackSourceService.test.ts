@@ -25,8 +25,6 @@ function createFakeDeps(overrides: Partial<PlaybackSourceDeps> = {}): PlaybackSo
       nhaccuatui: [],
       local: [],
       youtube: [],
-      audius: [],
-      itunes: [],
       spotify: [],
       deezer: [],
       soundcloud: [],
@@ -54,6 +52,48 @@ function createFakeDeps(overrides: Partial<PlaybackSourceDeps> = {}): PlaybackSo
 }
 
 describe('playbackSourceService', () => {
+  it('keeps alternate YouTube recovery on HTML5 audio on iOS', async () => {
+    const track = makeTrack('yt-original', {
+      source: 'youtube', youtube_id: 'dQw4w9WgXcQ', title: 'Test Song', artist: 'Test Artist',
+    });
+    const deps = createFakeDeps({ isIOS: () => true });
+    vi.mocked(deps.search).mockResolvedValue({
+      nhaccuatui: [], local: [], spotify: [], deezer: [], soundcloud: [],
+      youtube: [makeTrack('yt-alternate', {
+        source: 'youtube', youtube_id: 'M7lc1UVf-VE', title: 'Test Song', artist: 'Test Artist',
+      })],
+    });
+    const service = createPlaybackSourceService(deps);
+
+    expect(await service.resolveYouTubeAlternate(track, 35)).toMatchObject({
+      engine: 'html5', target: '/api/youtube/stream?id=M7lc1UVf-VE', initialTime: 35,
+    });
+    service.dispose();
+  });
+
+  it.each(['resolvePlayable', 'resolveFallback', 'resolveYouTubeAlternate'] as const)(
+    'limits %s recovery searches to playable providers', async (method) => {
+      const deps = createFakeDeps();
+      const track = makeTrack('spotify-recovery', {
+        source: 'spotify', title: 'Starboy', artist: 'The Weeknd', duration: 230, file_path: '',
+      });
+      vi.mocked(deps.search).mockResolvedValue({
+        nhaccuatui: [], local: [], spotify: [], deezer: [], soundcloud: [],
+        youtube: [makeTrack('yt-recovery', {
+          source: 'youtube', youtube_id: 'ytRecovery1', title: track.title, artist: track.artist, duration: 230,
+        })],
+      });
+      const service = createPlaybackSourceService(deps);
+      const result = method === 'resolvePlayable'
+        ? await service.resolvePlayable({ track })
+        : await service[method](track, 0);
+
+      expect(result?.target).toBe('ytRecovery1');
+      expect(deps.search).toHaveBeenCalledOnce();
+      expect(vi.mocked(deps.search).mock.calls[0][1]).toBe('playback');
+    }
+  );
+
   it('synchronously resolves cached NCT, Drive, and iOS YouTube tracks via resolveImmediate', () => {
     const deps = createFakeDeps();
     const service = createPlaybackSourceService(deps);
@@ -166,8 +206,6 @@ describe('playbackSourceService', () => {
             duration: 3600,
           }),
         ],
-        audius: [],
-        itunes: [],
         spotify: [],
         deezer: [],
         soundcloud: [],
@@ -247,8 +285,6 @@ describe('playbackSourceService', () => {
           duration: 200,
         }),
       ],
-      audius: [],
-      itunes: [],
       spotify: [],
       deezer: [],
       soundcloud: [],
@@ -304,8 +340,6 @@ describe('playbackSourceService', () => {
           duration: 230,
         }),
       ],
-      audius: [],
-      itunes: [],
       spotify: [],
       deezer: [],
       soundcloud: [
@@ -566,11 +600,14 @@ describe('playbackSourceService', () => {
       target: 'https://cdn.sc/ios-resolved.mp3',
     });
 
-    // 3. Prewarm direct YouTube track on iOS -> does not call resolution.resolve
+    // 3. Direct YouTube prewarm also prepares a native catalog alternative.
     resolveMock.mockClear();
     service.prewarmNextAdaptive([currentTrack, directYtTrack], 0, 'off');
     await Promise.resolve();
-    expect(resolveMock).not.toHaveBeenCalled();
+    expect(resolveMock).toHaveBeenCalledOnce();
+    expect(service.resolveImmediate({ track: directYtTrack, tabHidden: true })).toMatchObject({
+      engine: 'html5', target: '/api/youtube/stream?id=directYt111',
+    });
   });
 
   it('falls through from an unstreamable SoundCloud fallback candidate to the YouTube fallback candidate', async () => {
@@ -589,7 +626,6 @@ describe('playbackSourceService', () => {
     const deps = createFakeDeps({
       resolution: {
         resolve: vi.fn().mockResolvedValue(null),
-        findFallback: vi.fn().mockResolvedValue(scCandidate),
         invalidate: vi.fn().mockResolvedValue(undefined),
         dispose: vi.fn(),
       },
@@ -598,11 +634,9 @@ describe('playbackSourceService', () => {
         nhaccuatui: [],
         local: [],
         youtube: [ytCandidate],
-        audius: [],
-        itunes: [],
         spotify: [],
         deezer: [],
-        soundcloud: [],
+        soundcloud: [scCandidate],
       }),
     });
 
@@ -624,6 +658,290 @@ describe('playbackSourceService', () => {
       engine: 'youtube',
       target: 'ytGood12345',
       initialTime: 12,
+    });
+  });
+
+  it('does not treat a persisted SoundCloud permalink URL in file_path as a direct HTML5 audio stream in resolveImmediate', async () => {
+    const deps = createFakeDeps({
+      isIOS: () => false,
+      resolveSoundCloudUrl: vi.fn().mockResolvedValue('https://cf-media.sndcdn.com/stream.mp3'),
+    });
+    const service = createPlaybackSourceService(deps);
+
+    const historyScTrack = makeTrack('550e8400-e29b-41d4-a716-446655440000', {
+      source: 'soundcloud',
+      file_path: 'https://soundcloud.com/sontungmtp/making-my-way',
+      soundcloud_id: undefined,
+      audio_url: undefined,
+    });
+
+    // resolveImmediate on desktop must NOT return the SoundCloud HTML webpage URL
+    expect(
+      service.resolveImmediate({
+        track: historyScTrack,
+        initialTime: 0,
+        preserveGesture: false,
+        tabHidden: false,
+      })
+    ).toBeNull();
+
+    // resolvePlayable must resolve the SoundCloud target via resolveSoundCloudUrl
+    const playable = await service.resolvePlayable({
+      track: historyScTrack,
+      initialTime: 0,
+      tabHidden: false,
+    });
+    expect(deps.resolveSoundCloudUrl).toHaveBeenCalledWith(
+      'https://soundcloud.com/sontungmtp/making-my-way',
+      false
+    );
+    expect(playable).toEqual({
+      track: expect.objectContaining({
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        source: 'soundcloud',
+      }),
+      engine: 'html5',
+      target: 'https://cf-media.sndcdn.com/stream.mp3',
+      initialTime: 0,
+    });
+  });
+
+  it('starts iOS YouTube synchronously and deduplicates concurrent HTML5 catalog preparation', async () => {
+    let resolveCatalog!: (val: {
+      source: 'nhaccuatui';
+      id: string;
+      title: string;
+      artist: string;
+      duration: number;
+      streamUrl: string;
+    }) => void;
+    const catalogPromise = new Promise<{
+      source: 'nhaccuatui';
+      id: string;
+      title: string;
+      artist: string;
+      duration: number;
+      streamUrl: string;
+    }>((res) => {
+      resolveCatalog = res;
+    });
+
+    const resolveMock = vi.fn(() => catalogPromise);
+    const deps = createFakeDeps({
+      isIOS: () => true,
+      clock: {
+        now: () => 1_000,
+        after: () => () => {},
+        every: () => () => {},
+      },
+      resolution: {
+        resolve: resolveMock,
+        invalidate: vi.fn().mockResolvedValue(undefined),
+        dispose: vi.fn(),
+      },
+    });
+    const service = createPlaybackSourceService(deps);
+    const ytTrack = makeTrack('yt-first-play-ios', {
+      source: 'youtube',
+      youtube_id: 'ytMusic1234',
+      title: 'Chúng Ta Của Tương Lai',
+      artist: 'Sơn Tùng M-TP',
+      duration: 245,
+    });
+
+    // 1. Cold foreground playback keeps activation while preparing a catalog alternative.
+    expect(
+      service.resolveImmediate({
+        track: ytTrack,
+        preserveGesture: false,
+        tabHidden: false,
+      })
+    ).toMatchObject({ engine: 'html5', target: '/api/youtube/stream?id=ytMusic1234' });
+
+    // 2. Concurrent resolvePlayable and resolveFallback share the single in-flight catalog lookup
+    const p1 = service.resolvePlayable({ track: ytTrack, initialTime: 0 });
+    const p2 = service.resolveFallback(ytTrack, 0, undefined, { preferHtml5: true });
+
+    resolveCatalog({
+      source: 'nhaccuatui',
+      id: 'nct-ctctl-1',
+      title: 'Chúng Ta Của Tương Lai',
+      artist: 'Sơn Tùng M-TP',
+      duration: 245,
+      streamUrl: '/api/nhaccuatui/stream?id=nct-ctctl-1',
+    });
+
+    const [res1, res2] = await Promise.all([p1, p2]);
+    expect(resolveMock).toHaveBeenCalledTimes(1);
+    expect(res1).toEqual({
+      track: expect.objectContaining({
+        id: 'yt-first-play-ios',
+        source: 'nhaccuatui',
+        nhaccuatui_id: 'nct-ctctl-1',
+      }),
+      engine: 'html5',
+      target: '/api/nhaccuatui/stream?id=nct-ctctl-1',
+      initialTime: 0,
+    });
+    expect(res2?.target).toBe('/api/nhaccuatui/stream?id=nct-ctctl-1');
+
+    // 3. Subsequent resolveImmediate hits the warmed trackResolutionCache in 0ms
+    expect(
+      service.resolveImmediate({
+        track: ytTrack,
+        preserveGesture: false,
+        tabHidden: false,
+      })
+    ).toEqual({
+      track: expect.objectContaining({
+        id: 'yt-first-play-ios',
+        source: 'nhaccuatui',
+        nhaccuatui_id: 'nct-ctctl-1',
+      }),
+      engine: 'html5',
+      target: '/api/nhaccuatui/stream?id=nct-ctctl-1',
+      initialTime: 0,
+    });
+  });
+
+  it('falls back to YouTube HTML5 stream proxy if first-play catalog lookup exceeds 1800ms, then promotes late catalog result to cache', async () => {
+    let fireTimeout!: () => void;
+    let resolveLateCatalog!: (val: {
+      source: 'nhaccuatui';
+      id: string;
+      title: string;
+      artist: string;
+      duration: number;
+      streamUrl: string;
+    }) => void;
+    const lateCatalogPromise = new Promise<{
+      source: 'nhaccuatui';
+      id: string;
+      title: string;
+      artist: string;
+      duration: number;
+      streamUrl: string;
+    }>((res) => {
+      resolveLateCatalog = res;
+    });
+
+    const deps = createFakeDeps({
+      isIOS: () => true,
+      clock: {
+        now: () => 1_000,
+        after: (_ms, cb) => {
+          fireTimeout = cb;
+          return () => {};
+        },
+        every: () => () => {},
+      },
+      resolution: {
+        resolve: vi.fn(() => lateCatalogPromise),
+        invalidate: vi.fn().mockResolvedValue(undefined),
+        dispose: vi.fn(),
+      },
+    });
+    const service = createPlaybackSourceService(deps);
+    const ytTrack = makeTrack('yt-slow-network', {
+      source: 'youtube',
+      youtube_id: 'slowYt12345',
+      title: 'Slow Network Song',
+      artist: 'Artist',
+      duration: 200,
+    });
+
+    const playablePromise = service.resolvePlayable({ track: ytTrack, initialTime: 0 });
+    // Trigger the 1800ms race deadline before catalog finishes
+    fireTimeout();
+    const firstPlayResult = await playablePromise;
+
+    // Immediately falls back to HTML5 YouTube stream proxy without stalling
+    expect(firstPlayResult).toEqual({
+      track: expect.objectContaining({
+        id: 'yt-slow-network',
+        source: 'youtube',
+        youtube_id: 'slowYt12345',
+      }),
+      engine: 'html5',
+      target: '/api/youtube/stream?id=slowYt12345',
+      initialTime: 0,
+    });
+
+    // Now the late catalog resolution completes in the background
+    resolveLateCatalog({
+      source: 'nhaccuatui',
+      id: 'nct-late-999',
+      title: 'Slow Network Song',
+      artist: 'Artist',
+      duration: 200,
+      streamUrl: '/api/nhaccuatui/stream?id=nct-late-999',
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // Late promotion populated trackResolutionCache so subsequent resolveImmediate uses NCT HTML5 stream
+    expect(
+      service.resolveImmediate({
+        track: ytTrack,
+        preserveGesture: false,
+        tabHidden: false,
+      })
+    )?.toMatchObject({
+      engine: 'html5',
+      target: '/api/nhaccuatui/stream?id=nct-late-999',
+    });
+  });
+
+  it('synchronously resolves SoundCloud-tagged tracks with direct SoundCloud IDs via resolveImmediate on desktop foreground', () => {
+    const deps = createFakeDeps({ isIOS: () => false });
+    const service = createPlaybackSourceService(deps);
+
+    const scSearchTrack = makeTrack('sc-777888', {
+      source: 'soundcloud',
+      soundcloud_id: 777888,
+      audio_url: '/api/soundcloud/stream?id=777888',
+      file_path: '',
+    });
+
+    expect(
+      service.resolveImmediate({
+        track: scSearchTrack,
+        initialTime: 0,
+        preserveGesture: false,
+        tabHidden: false,
+      })
+    ).toEqual({
+      track: expect.objectContaining({
+        id: 'sc-777888',
+        source: 'soundcloud',
+        soundcloud_id: 777888,
+      }),
+      engine: 'html5',
+      target: '/api/soundcloud/stream?id=777888',
+      initialTime: 0,
+    });
+
+    const dbImportedScTrack = makeTrack('db-uuid-sc-1', {
+      source: 'local',
+      file_path: 'soundcloud:99887766',
+    });
+
+    expect(
+      service.resolveImmediate({
+        track: dbImportedScTrack,
+        initialTime: 5,
+        preserveGesture: false,
+        tabHidden: false,
+      })
+    ).toEqual({
+      track: expect.objectContaining({
+        id: 'db-uuid-sc-1',
+        source: 'soundcloud',
+        soundcloud_id: '99887766',
+      }),
+      engine: 'html5',
+      target: '/api/soundcloud/stream?id=99887766',
+      initialTime: 5,
     });
   });
 });

@@ -18,8 +18,6 @@ const makeTrack = (id: string, source: Track['source'], title = 'Xương Rồng'
 const emptyFallback: GlobalSearchTracks = {
   local: [],
   youtube: [],
-  audius: [],
-  itunes: [],
   spotify: [],
   nhaccuatui: [],
   deezer: [],
@@ -50,6 +48,18 @@ describe('unified search flow', () => {
     expect(flattenUnifiedSearchResults(merged)).toHaveLength(1)
     expect(flattenUnifiedSearchResults(merged)[0].source).toBe('nhaccuatui')
   })
+
+  it('ignores retired groups from older payloads when building the playable results', () => {
+    const supportedTrack = makeTrack('spotify-current', 'spotify', 'Current song')
+    const legacyPayload = {
+      ...emptyFallback,
+      spotify: [supportedTrack],
+      itunes: [makeTrack('itunes-retired', 'spotify', 'Legacy preview')],
+      audius: [makeTrack('audius-retired', 'spotify', 'Legacy stream')],
+    }
+
+    expect(flattenUnifiedSearchResults(legacyPayload)).toEqual([supportedTrack])
+  })
 })
 
 describe('combineCombinedSearchResults', () => {
@@ -65,6 +75,8 @@ describe('combineCombinedSearchResults', () => {
     expect(result.deezer).toHaveLength(0)
     expect(flattenUnifiedSearchResults(result)).toHaveLength(1)
     expect(flattenUnifiedSearchResults(result)[0].source).toBe('nhaccuatui')
+    expect(result).not.toHaveProperty('itunes')
+    expect(result).not.toHaveProperty('audius')
   })
 
   it('keeps unique tracks from all three sources', () => {

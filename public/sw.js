@@ -1,14 +1,36 @@
-// MusicWeb Service Worker — Background Audio + Audio Caching
-// Keeps audio playing when app is minimized/screen locked on mobile
+// MusicWeb Service Worker — PWA shell and eligible audio response caching.
+// Background playback and page lifetime are managed by the browser and OS.
 
-const CACHE_NAME = 'musicweb-audio-v2'
+const SHELL_CACHE_NAME = 'musicweb-shell-v3'
+const AUDIO_CACHE_NAME = 'musicweb-audio-v2'
 const MAX_CACHED_AUDIO = 30 // max number of audio responses to cache
+
+const PRECACHE_SHELL_ASSETS = [
+  '/',
+  '/manifest.json',
+  '/apple-touch-icon.png',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/favicon.ico',
+  '/phong-signature.png',
+]
 
 self.addEventListener('install', (event) => {
   self.skipWaiting()
+  event.waitUntil(
+    caches
+      .open(SHELL_CACHE_NAME)
+      .then((cache) =>
+        Promise.allSettled(
+          PRECACHE_SHELL_ASSETS.map((assetUrl) => cache.add(assetUrl))
+        )
+      )
+      .catch(() => {})
+  )
 })
 
 self.addEventListener('activate', (event) => {
+  const validCaches = new Set([SHELL_CACHE_NAME, AUDIO_CACHE_NAME])
   event.waitUntil(
     Promise.all([
       self.clients.claim(),
@@ -16,7 +38,7 @@ self.addEventListener('activate', (event) => {
       caches.keys().then((names) =>
         Promise.all(
           names
-            .filter((name) => name.startsWith('musicweb-') && name !== CACHE_NAME)
+            .filter((name) => name.startsWith('musicweb-') && !validCaches.has(name))
             .map((name) => caches.delete(name))
         )
       ),
@@ -25,23 +47,84 @@ self.addEventListener('activate', (event) => {
 })
 
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return
+
   const url = new URL(event.request.url)
 
-  // Only intercept audio stream requests from our own API
+  // 1. Intercept audio stream requests from our own API
   if (url.pathname === '/api/drive-stream') {
     event.respondWith(handleAudioFetch(event.request))
     return
   }
 
-  // For navigation and other requests, use network-first strategy
-  // This keeps the app shell working even with spotty connections
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
-    )
+  // Skip other API routes or cross-origin dynamic streams
+  if (url.pathname.startsWith('/api/')) {
     return
   }
+
+  // 2. For navigation requests (iOS Home Screen launch & route changes):
+  //    Network-first with automatic shell cache update and offline fallback
+  if (event.request.mode === 'navigate') {
+    event.respondWith(handleNavigateFetch(event.request))
+    return
+  }
+
+  // 3. Static App Shell assets (Next.js bundles, icons, manifest, fonts):
+  //    Stale-While-Revalidate for instant iOS PWA cold start
+  if (
+    url.origin === self.location.origin &&
+    (url.pathname.startsWith('/_next/static/') ||
+      url.pathname === '/manifest.json' ||
+      url.pathname === '/apple-touch-icon.png' ||
+      url.pathname === '/icon-192.png' ||
+      url.pathname === '/icon-512.png' ||
+      url.pathname === '/phong-signature.png')
+  ) {
+    event.respondWith(handleStaticAssetFetch(event.request))
+  }
 })
+
+async function handleNavigateFetch(request) {
+  try {
+    const networkResponse = await fetch(request)
+    if (networkResponse && networkResponse.status === 200) {
+      const clone = networkResponse.clone()
+      caches.open(SHELL_CACHE_NAME).then((cache) => {
+        cache.put(request, clone).catch(() => {})
+      })
+    }
+    return networkResponse
+  } catch (err) {
+    const cachedPage = await caches.match(request)
+    if (cachedPage) return cachedPage
+    const cachedRoot = await caches.match('/')
+    if (cachedRoot) return cachedRoot
+    return new Response('Offline — Vui lòng kiểm tra kết nối mạng.', {
+      status: 503,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    })
+  }
+}
+
+async function handleStaticAssetFetch(request) {
+  const cache = await caches.open(SHELL_CACHE_NAME)
+  const cached = await cache.match(request)
+  const networkPromise = fetch(request)
+    .then((res) => {
+      if (res && res.status === 200) {
+        cache.put(request, res.clone()).catch(() => {})
+      }
+      return res
+    })
+    .catch(() => null)
+
+  if (cached) {
+    return cached
+  }
+  const networkRes = await networkPromise
+  if (networkRes) return networkRes
+  return new Response('Asset unavailable offline', { status: 504 })
+}
 
 async function handleAudioFetch(request) {
   try {
@@ -52,7 +135,7 @@ async function handleAudioFetch(request) {
     if (!isRangeRequest && networkResponse.status === 200) {
       const responseToCache = networkResponse.clone()
 
-      caches.open(CACHE_NAME).then(async (cache) => {
+      caches.open(AUDIO_CACHE_NAME).then(async (cache) => {
         try {
           await cache.put(request, responseToCache)
           const keys = await cache.keys()
@@ -79,11 +162,10 @@ async function handleAudioFetch(request) {
   }
 }
 
-// Keep service worker alive during audio playback
-// This prevents the browser from killing the SW while music is playing
+// Reply to client liveness probes; this does not extend page or OS lifetime.
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'KEEP_ALIVE') {
-    // Acknowledge to keep the connection alive
+    // Acknowledge when the client supplied a reply port.
     if (event.ports && event.ports[0]) {
       event.ports[0].postMessage({ type: 'ALIVE' })
     }

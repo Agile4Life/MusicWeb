@@ -231,7 +231,7 @@ export default function AlbumsPage() {
               Thư Viện Albums
             </h1>
             <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 max-w-lg line-clamp-2 sm:line-clamp-none">
-              Khám phá và tìm kiếm hơn 60+ album phát hành mới nhất trên toàn thế giới từ Deezer, Spotify & iTunes.
+              Khám phá và tìm kiếm hơn 60+ album phát hành mới nhất trên toàn thế giới từ Deezer & Spotify.
             </p>
           </div>
         </div>

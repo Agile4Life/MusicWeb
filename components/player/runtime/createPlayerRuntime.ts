@@ -245,6 +245,7 @@ export function createPlayerRuntime(): PlayerRuntime {
   const sources = createPlaybackSourceService(sourceDeps);
 
   const controller = createPlaybackController({
+    canUseYouTubeIframe: () => !isIOSDevice(),
     clock,
     transport,
     sources,

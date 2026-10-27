@@ -113,7 +113,7 @@ export async function resolveYouTubeAudioStreamAndroid(videoId: string): Promise
         },
         videoId: videoId,
       }),
-      signal: AbortSignal.timeout(4500),
+      signal: AbortSignal.timeout(3500),
     })
 
     if (res.ok) {
@@ -150,38 +150,6 @@ export async function resolveYouTubeAudioStream(videoId: string): Promise<Resolv
   const androidStream = await resolveYouTubeAudioStreamAndroid(videoId)
   if (androidStream) return androidStream
 
-  try {
-    // Bound ytdl-core with an 8-second timeout — it has no built-in timeout and can hang
-    // indefinitely on slow/inaccessible videos.
-    const info = await Promise.race([
-      ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`, {
-        requestOptions: {
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          },
-        },
-      }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('ytdl-core timeout (8s)')), 8000)
-      ),
-    ])
-    const audioFormats = ytdl.filterFormats(info.formats, 'audioonly')
-    if (audioFormats && audioFormats.length > 0) {
-      const m4aFormat = audioFormats.find((f) => f.mimeType && f.mimeType.includes('audio/mp4')) || audioFormats[0]
-      if (m4aFormat && m4aFormat.url) {
-        return {
-          url: m4aFormat.url,
-          mimeType: m4aFormat.mimeType || 'audio/mp4',
-        }
-      }
-    }
-  } catch (err: any) {
-    console.warn('ytdl-core stream resolution warning:', err?.message || err)
-  }
-
-  // Run all Piped instances in parallel — first successful response wins.
-  // Total worst-case latency: max(3.5s) instead of sequential 4 × 3.5s = 14s.
   const pipedInstances = [
     'https://pipedapi.mha.fi/streams/',
     'https://pipedapi.adminforge.de/streams/',
@@ -189,8 +157,8 @@ export async function resolveYouTubeAudioStream(videoId: string): Promise<Resolv
     'https://api.piped.video/streams/',
   ]
 
-  const pipedStream = await firstValidResult(
-    pipedInstances.map((base) => async () => {
+  const fallbackStream = await firstValidResult([
+    ...pipedInstances.map((base) => async () => {
       const res = await fetch(`${base}${videoId}`, {
         headers: { 'User-Agent': 'Mozilla/5.0' },
         signal: AbortSignal.timeout(3500),
@@ -203,9 +171,30 @@ export async function resolveYouTubeAudioStream(videoId: string): Promise<Resolv
       if (!best?.url) throw new Error('No URL in stream')
       return { url: best.url, mimeType: best.mimeType || 'audio/mp4' }
     }),
-  )
+    async () => {
+      const info = await Promise.race([
+        ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`, {
+          requestOptions: {
+            headers: {
+              'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            },
+          },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('ytdl-core timeout (3.5s)')), 3500)
+        ),
+      ])
+      const audioFormats = ytdl.filterFormats(info.formats, 'audioonly')
+      const m4aFormat =
+        audioFormats?.find((f) => f.mimeType && f.mimeType.includes('audio/mp4')) || audioFormats?.[0]
+      if (!m4aFormat?.url) throw new Error('No ytdl-core audio URL')
+      return {
+        url: m4aFormat.url,
+        mimeType: m4aFormat.mimeType || 'audio/mp4',
+      }
+    },
+  ])
 
-  if (pipedStream) return pipedStream
-
-  return null
+  return fallbackStream || null
 }

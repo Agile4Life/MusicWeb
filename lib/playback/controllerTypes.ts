@@ -44,6 +44,8 @@ export interface PlaybackController {
     startFromTime?: number
   ): Promise<void>;
   playSearchTrack(track: Track): Promise<void>;
+  play(): Promise<void>;
+  pause(): void;
   togglePlay(): Promise<void>;
   seek(time: number): void;
   setVolume(val: number): void;
@@ -76,4 +78,5 @@ export interface PlaybackControllerDeps {
   sources: PlaybackSourceService;
   persistence: PlaybackPersistencePort;
   userEffects: PlaybackUserEffects;
+  canUseYouTubeIframe?: () => boolean;
 }

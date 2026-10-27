@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { fetchDeezerNewReleases } from '@/lib/deezer'
 import { fetchSpotifyNewReleases } from '@/lib/spotify'
-import { getTrendingITunesAlbums } from '@/lib/itunes'
+import { isRetiredMusicId } from '@/lib/retiredMusicSources'
 import {
   cleanDisplayAlbumName,
   normalizeAlbumText,
@@ -30,26 +30,25 @@ function normalizeAlbumKey(name: string, artist: string): string {
 
 export async function GET() {
   try {
-    const [deezerRes, spotifyRes, itunesRes] = await Promise.allSettled([
-      fetchDeezerNewReleases(MAX_ALBUMS),
+    const [deezerRes, spotifyRes] = await Promise.allSettled([
+      // The chart supplies at most 50 albums; Spotify fills the mixed feed.
+      fetchDeezerNewReleases(50),
       fetchSpotifyNewReleases('US', 40),
-      getTrendingITunesAlbums('us', 40),
     ])
 
     const deezer = deezerRes.status === 'fulfilled' ? deezerRes.value : []
     const spotify = spotifyRes.status === 'fulfilled' ? spotifyRes.value : []
-    const itunes = itunesRes.status === 'fulfilled' ? itunesRes.value : []
 
-    const sources: TrendingAlbum[][] = [deezer, spotify, itunes]
+    const sources: TrendingAlbum[][] = [deezer, spotify]
     const seenKeys = new Set<string>()
     const merged: TrendingAlbum[] = []
-    const maxLen = Math.max(deezer.length, spotify.length, itunes.length)
+    const maxLen = Math.max(deezer.length, spotify.length)
 
     // Round-robin interleave across platforms so no single source floods the feed
     for (let i = 0; i < maxLen && merged.length < MAX_ALBUMS; i++) {
       for (const list of sources) {
         const item = list[i]
-        if (!item || !item.name) continue
+        if (!item || !item.name || isRetiredMusicId(item.id)) continue
         const key = normalizeAlbumKey(item.name, item.artist)
         if (!key || key === '::' || seenKeys.has(key)) continue
         seenKeys.add(key)

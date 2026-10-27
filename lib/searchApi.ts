@@ -1,11 +1,18 @@
 import { Track } from '@/types'
+import { getTrendingDay } from '@/lib/trendingDay'
+
+export interface TrendingMetadata {
+  date: string
+  updatedAt: string
+  nextRefreshAt: string
+  stale: boolean
+}
 
 export interface GlobalSearchTracks {
+  trending?: TrendingMetadata
   nhaccuatui: Track[]
   local: Track[]
   youtube: Track[]
-  audius: Track[]
-  itunes: Track[]
   spotify: Track[]
   deezer: Track[]
   soundcloud?: Track[]
@@ -27,10 +34,11 @@ export async function fetchUnifiedSearch(
   category = 'all'
 ): Promise<GlobalSearchTracks> {
   const trimmed = query.trim().toLowerCase()
-  const cacheKey = isTrending ? `trending_${source}_${category}` : `${trimmed}_${source}`
+  const day = getTrendingDay()
+  const cacheKey = isTrending ? `trending_${day}_${source}_${category}` : `${trimmed}_${source}`
 
   if (!isTrending && !trimmed) {
-    return { nhaccuatui: [], local: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: [], soundcloud: [] }
+    return { nhaccuatui: [], local: [], youtube: [], spotify: [], deezer: [], soundcloud: [] }
   }
 
   // 1. Check in-memory LRU cache first
@@ -48,7 +56,7 @@ export async function fetchUnifiedSearch(
   const fetchPromise = (async (): Promise<GlobalSearchTracks> => {
     try {
       const url = isTrending
-        ? `/api/search?trending=true&v=2&source=${encodeURIComponent(source)}&category=${encodeURIComponent(category)}`
+        ? `/api/search?trending=true&v=4&date=${day}&source=${encodeURIComponent(source)}&category=${encodeURIComponent(category)}`
         : `/api/search?q=${encodeURIComponent(query.trim())}&source=${encodeURIComponent(source)}`
 
       const res = await fetch(url)
@@ -61,11 +69,10 @@ export async function fetchUnifiedSearch(
         nhaccuatui: Array.isArray(data.nhaccuatui) ? data.nhaccuatui : [],
         local: Array.isArray(data.local) ? data.local : [],
         youtube: Array.isArray(data.youtube) ? data.youtube : [],
-        audius: Array.isArray(data.audius) ? data.audius : [],
-        itunes: Array.isArray(data.itunes) ? data.itunes : [],
         spotify: Array.isArray(data.spotify) ? data.spotify : [],
         deezer: Array.isArray(data.deezer) ? data.deezer : [],
         soundcloud: Array.isArray(data.soundcloud) ? data.soundcloud : [],
+        ...(isTrending && data.trending ? { trending: data.trending } : {}),
       }
 
       const hasTrendingItems =
@@ -83,7 +90,7 @@ export async function fetchUnifiedSearch(
       return result
     } catch (err) {
       console.warn('Unified Search Fetch Error:', err)
-      return { nhaccuatui: [], local: [], youtube: [], audius: [], itunes: [], spotify: [], deezer: [], soundcloud: [] }
+      return { nhaccuatui: [], local: [], youtube: [], spotify: [], deezer: [], soundcloud: [] }
     } finally {
       inFlightRequests.delete(cacheKey)
     }

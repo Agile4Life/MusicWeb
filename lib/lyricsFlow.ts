@@ -1,15 +1,29 @@
 import { normalizeNhacCuaTuiLyrics } from './nhaccuatui'
 import { resolveNhacCuaTuiSong } from './nhaccuatuiClient'
 import { fetchLyricsFromLrclib } from './lrclib'
+import { customLyricsToLrclibResponse, hasLrcTimestamps } from './customLyrics'
 import type { LrclibResponse } from './lrclib'
 import type { Track } from '@/types'
 
-type LyricsTrack = Pick<Track, 'title'> &
-  Partial<Pick<Track, 'id' | 'artist' | 'album' | 'duration' | 'youtube_id' | 'nhaccuatui_id' | 'source'>>
+export const LYRICS_UPDATED_EVENT = 'musicweb:lyrics-updated'
 
-function hasLrcTimestamps(lyrics: string): boolean {
-  return /^\s*\[\d{1,3}:\d{2}(?:[.:]\d{1,3})?\]/m.test(lyrics)
-}
+export type LyricsTrack = Pick<Track, 'title'> &
+  Partial<
+    Pick<
+      Track,
+      | 'id'
+      | 'artist'
+      | 'album'
+      | 'duration'
+      | 'youtube_id'
+      | 'nhaccuatui_id'
+      | 'soundcloud_id'
+      | 'spotify_id'
+      | 'file_path'
+      | 'lyrics'
+      | 'source'
+    >
+  >
 
 function nctLyricsToResponse(track: LyricsTrack, lyrics: string): LrclibResponse {
   const synced = hasLrcTimestamps(lyrics)
@@ -125,6 +139,52 @@ export function clearPrimaryLyricsCache(): void {
   primaryLyricsInFlight.clear()
 }
 
+export function setCustomLyricsInPrimaryCache(
+  track: LyricsTrack,
+  data: LrclibResponse | null,
+): void {
+  const cacheKey = getTrackLyricsCacheKey(track)
+  primaryLyricsInFlight.delete(cacheKey)
+  if (data && (data.syncedLyrics?.trim() || data.plainLyrics?.trim())) {
+    primaryLyricsCache.set(cacheKey, data)
+    while (primaryLyricsCache.size > MAX_PRIMARY_LYRICS_ENTRIES) {
+      primaryLyricsCache.delete(primaryLyricsCache.keys().next().value!)
+    }
+  } else {
+    primaryLyricsCache.delete(cacheKey)
+  }
+}
+
+async function fetchCustomLyricsFromApi(track: LyricsTrack): Promise<LrclibResponse | null> {
+  try {
+    const params = new URLSearchParams()
+    if (track.id) params.set('id', String(track.id))
+    if (track.source) params.set('source', String(track.source))
+    if (track.title) params.set('title', track.title)
+    if (track.artist) params.set('artist', track.artist)
+    if (track.album) params.set('album', track.album)
+    if (track.duration) params.set('duration', String(track.duration))
+    if (track.youtube_id) params.set('youtube_id', track.youtube_id)
+    if (track.nhaccuatui_id) params.set('nhaccuatui_id', track.nhaccuatui_id)
+    if (track.soundcloud_id) params.set('soundcloud_id', String(track.soundcloud_id))
+    if (track.spotify_id) params.set('spotify_id', track.spotify_id)
+    if (track.file_path) params.set('file_path', track.file_path)
+
+    const res = await fetch(`/api/lyrics/custom?${params.toString()}`, {
+      cache: 'no-store',
+    })
+    if (!res.ok) return null
+    const json = await res.json()
+    if (json?.found && json?.data) {
+      return json.data as LrclibResponse
+    }
+  } catch {
+    // Ignore network or parsing errors and continue to standard providers
+  }
+
+  return null
+}
+
 export async function getPrimaryLyrics(
   track: LyricsTrack,
 ): Promise<LrclibResponse | null> {
@@ -139,27 +199,52 @@ export async function getPrimaryLyrics(
     return primaryLyricsInFlight.get(cacheKey)!
   }
 
-  // If track is from SoundCloud and is a remix / UGC user upload, do NOT fetch lyrics from other songs
-  if (track.source === 'soundcloud') {
-    if (isSoundCloudUgcOrRemix(track.title, track.artist)) {
-      return null
+  if (track.lyrics && track.lyrics.trim()) {
+    const inlineCustom = customLyricsToLrclibResponse(track, track.lyrics)
+    if (inlineCustom && (inlineCustom.syncedLyrics?.trim() || inlineCustom.plainLyrics?.trim())) {
+      primaryLyricsCache.set(cacheKey, inlineCustom)
+      while (primaryLyricsCache.size > MAX_PRIMARY_LYRICS_ENTRIES) {
+        primaryLyricsCache.delete(primaryLyricsCache.keys().next().value!)
+      }
+      return inlineCustom
     }
   }
 
   const fetchPromise = (async (): Promise<LrclibResponse | null> => {
     try {
-      // Run both NCT and LRCLIB queries concurrently in parallel to eliminate sequential latency
-      const [nctResult, lrclibResult] = await Promise.all([
-        fetchNctLyrics(track),
-        fetchLyricsFromLrclib({
+      // 0. Highest priority: Admin custom lyrics saved in DB (browser runtime).
+      // Checked even before SoundCloud UGC/remix filter so Admin can write lyrics for remixes/covers.
+      const customResult =
+        typeof window !== 'undefined' && typeof fetch === 'function'
+          ? await fetchCustomLyricsFromApi(track)
+          : null
+      if (customResult && (customResult.syncedLyrics?.trim() || customResult.plainLyrics?.trim())) {
+        primaryLyricsCache.set(cacheKey, customResult)
+        while (primaryLyricsCache.size > MAX_PRIMARY_LYRICS_ENTRIES) {
+          primaryLyricsCache.delete(primaryLyricsCache.keys().next().value!)
+        }
+        return customResult
+      }
+
+      // If track is from SoundCloud and is a remix / UGC user upload, do NOT fetch lyrics from other songs
+      if (track.source === 'soundcloud') {
+        if (isSoundCloudUgcOrRemix(track.title, track.artist)) {
+          return null
+        }
+      }
+
+      // Synced NCT lyrics already satisfy the highest-priority provider result.
+      const nctResult = track.nhaccuatui_id ? await fetchNctLyrics(track) : null
+      const lrclibResult = nctResult?.syncedLyrics
+        ? null
+        : await fetchLyricsFromLrclib({
           title: track.title,
           artist: track.artist,
           album: track.album,
           duration: track.duration,
           youtubeId: track.youtube_id,
           isSoundCloud: track.source === 'soundcloud',
-        }).catch(() => null),
-      ])
+        }).catch(() => null)
 
       let finalResult: LrclibResponse | null = null
       // 1. Ưu tiên lyrics synced từ NCT nếu có

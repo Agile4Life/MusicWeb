@@ -626,6 +626,46 @@ const ARTIST_KNOWLEDGE_SEEDS: ArtistProfileSeed[] = [
     subGenres: ['rnb'],
     related: ['Obito', 'RPT MCK', 'Wren Evans'],
   },
+  {
+    canonical: 'Dangrangto',
+    aliases: ['dangrangto', 'donal', 'youngpuppy'],
+    region: 'vn',
+    genre: 'rap',
+    subGenres: ['rnb'],
+    related: ['Obito', 'Low G', 'RPT MCK', 'Wxrdie'],
+  },
+  {
+    canonical: 'marzuz',
+    aliases: ['marzuz', 'changg'],
+    region: 'vn',
+    genre: 'indie',
+    subGenres: ['rnb', 'pop'],
+    related: ['HIEUTHUHAI', 'Wren Evans', 'GREY D', 'tlinh'],
+  },
+  {
+    canonical: 'BigDaddy',
+    aliases: ['bigdaddy', 'big daddy'],
+    region: 'vn',
+    genre: 'rap',
+    subGenres: ['pop'],
+    related: ['JustaTee', 'Bích Phương', 'SOOBIN', 'Emily'],
+  },
+  {
+    canonical: 'Fishy',
+    aliases: ['fishy'],
+    region: 'vn',
+    genre: 'rnb',
+    subGenres: ['indie'],
+    related: ['Obito', 'GREY D', 'Wren Evans'],
+  },
+  {
+    canonical: 'CONGB',
+    aliases: ['congb', 'buitruonglinh', 'wean', 'coolkid', 'codynamvo', 'phap kieu', '14 casper', 'sivan'],
+    region: 'vn',
+    genre: 'pop',
+    subGenres: ['rnb', 'rap'],
+    related: ['Quang Hùng MasterD', 'Dương Domic', 'HIEUTHUHAI', 'Wren Evans'],
+  },
 
   // ======================== K-POP ========================
   {

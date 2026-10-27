@@ -156,7 +156,7 @@ export function mergeTrackMetadata(winner: Track, loser: Track): Track {
 
 /**
  * Smart queue & search track deduplication algorithm.
- * Normalizes title & artist to eliminate duplicate songs across Spotify, YouTube, iTunes & Drive,
+ * Normalizes title & artist to eliminate duplicate songs across Spotify, YouTube, Deezer & Drive,
  * while automatically keeping the highest quality official track and merging album metadata.
  */
 export function deduplicateQueueTracks(tracks: Track[]): Track[] {

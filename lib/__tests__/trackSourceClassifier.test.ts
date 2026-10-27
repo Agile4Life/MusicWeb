@@ -46,12 +46,12 @@ describe('trackSourceClassifier', () => {
     expect(iosClassification.youtubeId).toBe('dQw4w9WgXcQ')
   })
 
-  it('correctly identifies catalog tracks needing resolution (Spotify/iTunes/Deezer)', () => {
+  it('correctly identifies catalog tracks needing resolution (Spotify/Deezer)', () => {
     const spotifyTrack: Track = { ...baseTrack, source: 'spotify', spotify_id: 'sp_123' }
-    const itunesTrack: Track = { ...baseTrack, source: 'itunes', itunes_id: 'it_123' }
+    const deezerTrack: Track = { ...baseTrack, source: 'deezer', spotify_id: '123' }
 
     expect(classifyTrack(spotifyTrack).needsCatalogResolution).toBe(true)
-    expect(classifyTrack(itunesTrack).needsCatalogResolution).toBe(true)
+    expect(classifyTrack(deezerTrack).needsCatalogResolution).toBe(true)
   })
 
   it('correctly infers Google Drive file IDs and background playability', () => {
@@ -76,7 +76,7 @@ describe('trackSourceClassifier', () => {
     expect(isFullYouTubeQueue(mixedQ)).toBe(false)
   })
 
-  it('marks Spotify/iTunes tracks resolved to SoundCloud, Drive, NCT, or YouTube as resolved (needsCatalogResolution = false)', () => {
+  it('marks catalog tracks resolved to SoundCloud, Drive, NCT, or YouTube as resolved (needsCatalogResolution = false)', () => {
     const resolvedToSoundCloud: Track = {
       ...baseTrack,
       source: 'soundcloud',
@@ -108,7 +108,7 @@ describe('trackSourceClassifier', () => {
     const resolvedToNct: Track = {
       ...baseTrack,
       source: 'nhaccuatui',
-      itunes_id: 'it_keep_3',
+      spotify_id: 'sp_keep_3',
       nhaccuatui_id: 'nct_777',
       file_path: '',
     }
@@ -116,5 +116,28 @@ describe('trackSourceClassifier', () => {
     expect(nctClass.source).toBe('nhaccuatui')
     expect(nctClass.needsCatalogResolution).toBe(false)
     expect(nctClass.isPreview).toBe(false)
+  })
+
+  it('infers soundcloud_id and soundcloud_permalink_url from persisted DB file_path', () => {
+    const dbScById: Track = {
+      ...baseTrack,
+      id: '550e8400-e29b-41d4-a716-446655440000',
+      source: 'soundcloud',
+      file_path: 'soundcloud:1822834458',
+    }
+    const inferredById = inferTrackSource(dbScById)
+    expect(inferredById.source).toBe('soundcloud')
+    expect(inferredById.soundcloud_id).toBe('1822834458')
+    expect(classifyTrack(dbScById).soundcloudId).toBe('1822834458')
+
+    const dbScByPermalink: Track = {
+      ...baseTrack,
+      id: '550e8400-e29b-41d4-a716-446655440001',
+      source: 'soundcloud',
+      file_path: 'https://soundcloud.com/artist/track-name',
+    }
+    const inferredByPermalink = inferTrackSource(dbScByPermalink)
+    expect(inferredByPermalink.source).toBe('soundcloud')
+    expect(inferredByPermalink.soundcloud_permalink_url).toBe('https://soundcloud.com/artist/track-name')
   })
 })

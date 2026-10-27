@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { searchDeezerAlbums } from '@/lib/deezer'
-import { searchITunesAlbums } from '@/lib/itunes'
 import { createClient } from '@supabase/supabase-js'
 import { isKnownBadFallback, isRealAlbumName } from '@/lib/albumCache'
 import {
@@ -33,7 +32,7 @@ export async function GET(req: NextRequest) {
 
     const supabase = getSupabaseClient()
 
-    const [dbRes, deezerRes, itunesRes] = await Promise.allSettled([
+    const [dbRes, deezerRes] = await Promise.allSettled([
       supabase
         ? supabase
             .from('spotify_albums')
@@ -42,7 +41,6 @@ export async function GET(req: NextRequest) {
             .limit(18)
         : Promise.resolve({ data: [] }),
       searchDeezerAlbums(q, 30),
-      searchITunesAlbums(q, 20),
     ])
 
     const localDbAlbums: any[] =
@@ -57,7 +55,6 @@ export async function GET(req: NextRequest) {
         : []
 
     const deezerAlbums = deezerRes.status === 'fulfilled' ? deezerRes.value : []
-    const itunesAlbums = itunesRes.status === 'fulfilled' ? itunesRes.value : []
 
     const combinedMap = new Map<string, any>()
 
@@ -99,7 +96,6 @@ export async function GET(req: NextRequest) {
 
     for (const alb of localDbAlbums) addCandidate(alb)
     for (const alb of deezerAlbums) addCandidate(alb)
-    for (const alb of itunesAlbums) addCandidate(alb)
 
     const combined = Array.from(combinedMap.values())
 

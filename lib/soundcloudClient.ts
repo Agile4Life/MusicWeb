@@ -7,28 +7,76 @@ import {
 } from './soundcloud'
 import { Track, SoundCloudPlaylist } from '@/types'
 
-// Cache client_id in memory with 15-minute TTL
-let cachedClientId: string | null = null
-let clientIdExpiresAt: number = 0
-let inFlightClientIdPromise: Promise<string> | null = null
+interface SoundCloudGlobalState {
+  cachedClientId: string | null
+  clientIdExpiresAt: number
+  inFlightClientIdPromise: Promise<string> | null
+  inFlightForceRefreshPromise: Promise<string> | null
+  fallbackClientIdIndex: number
+  streamUrlCache: Map<string, { url: string; expiresAt: number }>
+  inFlightSoundCloudStream: Map<string, Promise<string | null>>
+  trackMetadataCache: Map<
+    string,
+    { track: Track; raw: SoundCloudRawTrack; expiresAt: number }
+  >
+  permalinkIdCache: Map<string, { id: string; expiresAt: number }>
+  hlsManifestCache: Map<string, { info: SoundCloudHlsManifestInfo; expiresAt: number }>
+  hlsMediaBufferCache: Map<
+    string,
+    { buffer: Uint8Array; contentType: string; expiresAt: number }
+  >
+  inFlightHlsMediaBuffer: Map<
+    string,
+    Promise<{ buffer: Uint8Array; contentType: string } | null>
+  >
+}
 
-// [FIX #2] Track a *separate* in-flight promise for forced refreshes so a
-// forceRefresh=true caller never receives a stale (non-forced) in-flight
-// result. Previously, if a normal (non-force) fetch was already in-flight,
-// a concurrent forceRefresh call would just `return inFlightClientIdPromise`
-// and silently get the OLD client_id back — defeating the whole point of
-// forcing a refresh after a 401/403.
-let inFlightForceRefreshPromise: Promise<string> | null = null
+const globalForSoundCloud = globalThis as unknown as {
+  __musicWebSoundCloudState?: SoundCloudGlobalState
+}
 
-// In-memory stream URL cache (15-minute TTL)
-const streamUrlCache = new Map<string, { url: string; expiresAt: number }>()
-const inFlightSoundCloudStream = new Map<string, Promise<string | null>>()
+const scState: SoundCloudGlobalState =
+  globalForSoundCloud.__musicWebSoundCloudState ??
+  (globalForSoundCloud.__musicWebSoundCloudState = {
+    cachedClientId: null,
+    clientIdExpiresAt: 0,
+    inFlightClientIdPromise: null,
+    inFlightForceRefreshPromise: null,
+    fallbackClientIdIndex: 0,
+    streamUrlCache: new Map(),
+    inFlightSoundCloudStream: new Map(),
+    trackMetadataCache: new Map(),
+    permalinkIdCache: new Map(),
+    hlsManifestCache: new Map(),
+    hlsMediaBufferCache: new Map(),
+    inFlightHlsMediaBuffer: new Map(),
+  })
 
-// In-memory track metadata cache (1-hour TTL)
-const trackMetadataCache = new Map<
-  string,
-  { track: Track; raw: SoundCloudRawTrack; expiresAt: number }
->()
+const streamUrlCache = scState.streamUrlCache
+const inFlightSoundCloudStream = scState.inFlightSoundCloudStream
+const trackMetadataCache = scState.trackMetadataCache
+const permalinkIdCache = scState.permalinkIdCache
+const hlsManifestCache = scState.hlsManifestCache
+
+function cacheRawTrackMetadata(raw: SoundCloudRawTrack, appTrack?: Track): Track {
+  const mapped = appTrack ?? soundCloudTrackToAppTrack(raw)
+  const now = Date.now()
+  if (raw?.id) {
+    const cleanId = String(raw.id)
+    trackMetadataCache.set(cleanId, {
+      track: mapped,
+      raw,
+      expiresAt: now + 60 * 60 * 1000,
+    })
+    if (raw.permalink_url) {
+      permalinkIdCache.set(raw.permalink_url.trim().replace(/\/+$/, ''), {
+        id: cleanId,
+        expiresAt: now + 60 * 60 * 1000,
+      })
+    }
+  }
+  return mapped
+}
 
 // Fallback known public client IDs
 const FALLBACK_CLIENT_IDS = [
@@ -37,14 +85,8 @@ const FALLBACK_CLIENT_IDS = [
   'iZIs9mchVcX5lhVRyQGGAYlNPVldzAoX',
 ]
 
-// [FIX #3] Index into FALLBACK_CLIENT_IDS. Previously the code always used
-// FALLBACK_CLIENT_IDS[0] — the other two entries were dead code. Now we
-// rotate to the next candidate whenever the current one is invalidated
-// (see invalidateFallbackClientId()).
-let fallbackClientIdIndex = 0
-
 function getCurrentFallbackClientId(): string {
-  const id = FALLBACK_CLIENT_IDS[fallbackClientIdIndex % FALLBACK_CLIENT_IDS.length]
+  const id = FALLBACK_CLIENT_IDS[scState.fallbackClientIdIndex % FALLBACK_CLIENT_IDS.length]
   if (!id) {
     throw new Error('[SoundCloud] No fallback client_id available')
   }
@@ -53,7 +95,8 @@ function getCurrentFallbackClientId(): string {
 
 /** Advance to the next fallback client_id candidate (called after a 401/403). */
 function rotateFallbackClientId(): void {
-  fallbackClientIdIndex = (fallbackClientIdIndex + 1) % FALLBACK_CLIENT_IDS.length
+  scState.fallbackClientIdIndex =
+    (scState.fallbackClientIdIndex + 1) % FALLBACK_CLIENT_IDS.length
 }
 
 /**
@@ -65,11 +108,23 @@ async function fetchWithTimeout(
   ms = 8000
 ): Promise<Response> {
   const controller = new AbortController()
+  const externalSignal = options.signal
+  const onExternalAbort = () => controller.abort()
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort()
+    } else {
+      externalSignal.addEventListener('abort', onExternalAbort, { once: true })
+    }
+  }
   const timer = setTimeout(() => controller.abort(), ms)
   try {
     return await fetch(url, { ...options, signal: controller.signal })
   } finally {
     clearTimeout(timer)
+    if (externalSignal) {
+      externalSignal.removeEventListener('abort', onExternalAbort)
+    }
   }
 }
 
@@ -91,25 +146,35 @@ async function scrapeClientIdFromWeb(): Promise<string | null> {
         },
         next: { revalidate: 3600 },
       },
-      6000
+      5000
     )
     if (!htmlRes.ok) return null
     const html = await htmlRes.text()
     const scriptUrls = [...html.matchAll(/<script[^>]+src="([^">]+\.js)"/g)].map((m) => m[1])
     const targetScripts = scriptUrls.slice(-8).reverse()
-    const results = await Promise.allSettled(
-      targetScripts.map(async (sUrl) => {
-        const sRes = await fetchWithTimeout(sUrl, {}, 5000)
-        if (!sRes.ok) return null
-        const js = await sRes.text()
-        const match = js.match(/client_id[:=]\s*["']([a-zA-Z0-9]{32})["']/)
-        return match?.[1] || null
-      })
-    )
-    for (const r of results) {
-      if (r.status === 'fulfilled' && r.value) return r.value
+    if (targetScripts.length === 0) return null
+
+    const bundleAbort = new AbortController()
+    try {
+      const found = await Promise.any(
+        targetScripts.map(async (sUrl) => {
+          const sRes = await fetchWithTimeout(
+            sUrl,
+            { signal: bundleAbort.signal },
+            4500
+          )
+          if (!sRes.ok) throw new Error(`Bundle HTTP ${sRes.status}`)
+          const js = await sRes.text()
+          const match = js.match(/client_id[:=]\s*["']([a-zA-Z0-9]{32})["']/)
+          if (!match?.[1]) throw new Error('No client_id in bundle')
+          return match[1]
+        })
+      )
+      bundleAbort.abort()
+      return found
+    } catch {
+      return null
     }
-    return null
   } catch (err) {
     console.warn('[SoundCloud] Failed dynamic client_id extraction:', err)
     return null
@@ -130,52 +195,68 @@ export async function getSoundCloudClientId(forceRefresh = false): Promise<strin
 
   const now = Date.now()
   if (!forceRefresh) {
-    if (cachedClientId && now < clientIdExpiresAt) {
-      return cachedClientId
+    if (scState.cachedClientId && now < scState.clientIdExpiresAt) {
+      return scState.cachedClientId
     }
-    if (inFlightClientIdPromise) {
-      return inFlightClientIdPromise
+    if (scState.inFlightClientIdPromise) {
+      return scState.inFlightClientIdPromise
     }
-  } else if (inFlightForceRefreshPromise) {
+  } else if (scState.inFlightForceRefreshPromise) {
     // A forced refresh is already in progress — await that one instead of
     // starting a duplicate scrape.
-    return inFlightForceRefreshPromise
+    return scState.inFlightForceRefreshPromise
   }
 
   const runFetch = async (): Promise<string> => {
     const scraped = await scrapeClientIdFromWeb()
     if (scraped) {
-      cachedClientId = scraped
-      clientIdExpiresAt = Date.now() + 15 * 60 * 1000 // 15 mins TTL
-      fallbackClientIdIndex = 0 // reset fallback rotation once we have a real scraped id
-      return cachedClientId
+      scState.cachedClientId = scraped
+      scState.clientIdExpiresAt = Date.now() + 60 * 60 * 1000 // 60 mins TTL
+      scState.fallbackClientIdIndex = 0 // reset fallback rotation once we have a real scraped id
+      return scState.cachedClientId
     }
     // [FIX #3] Use (and rotate through) the fallback candidate list instead
     // of always using FALLBACK_CLIENT_IDS[0].
     const fallback = getCurrentFallbackClientId()
-    cachedClientId = fallback
-    clientIdExpiresAt = Date.now() + 15 * 60 * 1000
-    return cachedClientId
+    scState.cachedClientId = fallback
+    scState.clientIdExpiresAt = Date.now() + 15 * 60 * 1000
+    return scState.cachedClientId
   }
 
   if (forceRefresh) {
     // On a forced refresh caused by a 401/403, also rotate the fallback
     // candidate so a repeatedly-revoked hardcoded id isn't retried forever.
     rotateFallbackClientId()
-    inFlightForceRefreshPromise = runFetch()
+    scState.inFlightForceRefreshPromise = runFetch()
     try {
-      return await inFlightForceRefreshPromise
+      return await scState.inFlightForceRefreshPromise
     } finally {
-      inFlightForceRefreshPromise = null
+      scState.inFlightForceRefreshPromise = null
     }
   }
 
-  inFlightClientIdPromise = runFetch()
+  scState.inFlightClientIdPromise = runFetch()
   try {
-    return await inFlightClientIdPromise
+    return await scState.inFlightClientIdPromise
   } finally {
-    inFlightClientIdPromise = null
+    scState.inFlightClientIdPromise = null
   }
+}
+
+async function fetchSoundCloudApiWithClientId(
+  buildUrl: (clientId: string) => string,
+  options: RequestInit & { next?: { revalidate?: number } },
+  timeoutMs = 8000
+): Promise<{ res: Response; clientId: string }> {
+  let clientId = await getSoundCloudClientId()
+  let res = await fetchWithTimeout(buildUrl(clientId), options, timeoutMs)
+  if (!res.ok && (res.status === 401 || res.status === 403)) {
+    scState.cachedClientId = null
+    scState.clientIdExpiresAt = 0
+    clientId = await getSoundCloudClientId(true)
+    res = await fetchWithTimeout(buildUrl(clientId), options, timeoutMs)
+  }
+  return { res, clientId }
 }
 
 /**
@@ -184,6 +265,17 @@ export async function getSoundCloudClientId(forceRefresh = false): Promise<strin
 export async function resolveSoundCloudUrl(inputUrl: string): Promise<Track[]> {
   let targetUrl = inputUrl.trim()
   if (!targetUrl) return []
+
+  // Fast path: check permalinkIdCache + trackMetadataCache for single track permalinks
+  const cleanPermalink = targetUrl.replace(/\/+$/, '')
+  const now = Date.now()
+  const cachedPermalink = permalinkIdCache.get(cleanPermalink)
+  if (cachedPermalink && now < cachedPermalink.expiresAt) {
+    const cachedMeta = trackMetadataCache.get(cachedPermalink.id)
+    if (cachedMeta && now < cachedMeta.expiresAt) {
+      return [cachedMeta.track]
+    }
+  }
 
   // If short link on.soundcloud.com, follow redirect to extract canonical permalink
   if (targetUrl.includes('on.soundcloud.com')) {
@@ -208,18 +300,15 @@ export async function resolveSoundCloudUrl(inputUrl: string): Promise<Track[]> {
     }
   }
 
-  const clientId = await getSoundCloudClientId()
-  const resolveApi = `https://api-v2.soundcloud.com/resolve?url=${encodeURIComponent(
-    targetUrl
-  )}&client_id=${clientId}`
-
   try {
-    const res = await fetchWithTimeout(
-      resolveApi,
+    const { res, clientId } = await fetchSoundCloudApiWithClientId(
+      (cid) =>
+        `https://api-v2.soundcloud.com/resolve?url=${encodeURIComponent(
+          targetUrl
+        )}&client_id=${cid}`,
       {
         headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'User-Agent': SC_USER_AGENT,
           Accept: 'application/json',
         },
         next: { revalidate: 3600 },
@@ -243,13 +332,12 @@ export async function resolveSoundCloudUrl(inputUrl: string): Promise<Track[]> {
     // 2. If it resolved to a User Profile Page (e.g. soundcloud.com/vanhung03042)
     if (data.kind === 'user' && data.id) {
       try {
-        const userTracksUrl = `https://api-v2.soundcloud.com/users/${data.id}/tracks?client_id=${clientId}&limit=50&access=playable`
-        const userRes = await fetchWithTimeout(
-          userTracksUrl,
+        const { res: userRes } = await fetchSoundCloudApiWithClientId(
+          (cid) =>
+            `https://api-v2.soundcloud.com/users/${data.id}/tracks?client_id=${cid}&limit=50&access=playable`,
           {
             headers: {
-              'User-Agent':
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+              'User-Agent': SC_USER_AGENT,
               Accept: 'application/json',
             },
             next: { revalidate: 600 },
@@ -262,7 +350,9 @@ export async function resolveSoundCloudUrl(inputUrl: string): Promise<Track[]> {
           const rawTracks: SoundCloudRawTrack[] = Array.isArray(userTracksData)
             ? userTracksData
             : userTracksData.collection || []
-          return rawTracks.filter(isSoundCloudFullAudio).map(soundCloudTrackToAppTrack)
+          return rawTracks
+            .filter(isSoundCloudFullAudio)
+            .map((raw) => cacheRawTrackMetadata(raw))
         }
       } catch (userErr) {
         console.error('[SoundCloud] Failed to fetch user profile tracks:', userErr)
@@ -271,7 +361,14 @@ export async function resolveSoundCloudUrl(inputUrl: string): Promise<Track[]> {
 
     // 3. If it resolved to a single Track
     if (isSoundCloudFullAudio(data)) {
-      return [soundCloudTrackToAppTrack(data)]
+      const appTrack = cacheRawTrackMetadata(data)
+      if (cleanPermalink.includes('soundcloud.com/') && data.id) {
+        permalinkIdCache.set(cleanPermalink, {
+          id: String(data.id),
+          expiresAt: Date.now() + 60 * 60 * 1000,
+        })
+      }
+      return [appTrack]
     }
 
     return []
@@ -313,18 +410,15 @@ export async function resolveSoundCloudPlaylistUrl(
     }
   }
 
-  const clientId = await getSoundCloudClientId()
-  const resolveApi = `https://api-v2.soundcloud.com/resolve?url=${encodeURIComponent(
-    targetUrl
-  )}&client_id=${clientId}`
-
   try {
-    const res = await fetchWithTimeout(
-      resolveApi,
+    const { res, clientId } = await fetchSoundCloudApiWithClientId(
+      (cid) =>
+        `https://api-v2.soundcloud.com/resolve?url=${encodeURIComponent(
+          targetUrl
+        )}&client_id=${cid}`,
       {
         headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'User-Agent': SC_USER_AGENT,
           Accept: 'application/json',
         },
         next: { revalidate: 3600 },
@@ -397,8 +491,7 @@ async function resolveAllPlaylistTracks(
           tracksApi,
           {
             headers: {
-              'User-Agent':
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+              'User-Agent': SC_USER_AGENT,
               Accept: 'application/json',
             },
             next: { revalidate: 600 },
@@ -426,7 +519,9 @@ async function resolveAllPlaylistTracks(
     .map((t) => (t && t.id ? trackMap.get(t.id) : null))
     .filter(Boolean) as SoundCloudRawTrack[]
 
-  return allOrderedTracks.filter(isSoundCloudFullAudio).map(soundCloudTrackToAppTrack)
+  return allOrderedTracks
+    .filter(isSoundCloudFullAudio)
+    .map((raw) => cacheRawTrackMetadata(raw))
 }
 
 /**
@@ -449,20 +544,17 @@ export async function searchSoundCloudTracks(
     return resolveSoundCloudUrl(trimmed)
   }
 
-  const clientId = await getSoundCloudClientId()
   const fetchLimit = Math.min(Math.max(limit * 2, 30), 100)
 
-  const url = `https://api-v2.soundcloud.com/search/tracks?q=${encodeURIComponent(
-    trimmed
-  )}&client_id=${clientId}&limit=${fetchLimit}&offset=${offset}&access=playable`
-
   try {
-    const res = await fetchWithTimeout(
-      url,
+    const { res } = await fetchSoundCloudApiWithClientId(
+      (cid) =>
+        `https://api-v2.soundcloud.com/search/tracks?q=${encodeURIComponent(
+          trimmed
+        )}&client_id=${cid}&limit=${fetchLimit}&offset=${offset}&access=playable`,
       {
         headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'User-Agent': SC_USER_AGENT,
           Accept: 'application/json',
         },
         next: { revalidate: 300 }, // Cache search queries for 5 mins
@@ -481,18 +573,7 @@ export async function searchSoundCloudTracks(
     // Strict Full Audio Filter
     const fullAudioTracks = rawTracks.filter(isSoundCloudFullAudio)
 
-    const now = Date.now()
-    return fullAudioTracks.slice(0, limit).map((raw) => {
-      const appTrack = soundCloudTrackToAppTrack(raw)
-      if (raw?.id) {
-        trackMetadataCache.set(String(raw.id), {
-          track: appTrack,
-          raw,
-          expiresAt: now + 60 * 60 * 1000,
-        })
-      }
-      return appTrack
-    })
+    return fullAudioTracks.slice(0, limit).map((raw) => cacheRawTrackMetadata(raw))
   } catch (err) {
     console.error('[SoundCloud] Search error:', err)
     return []
@@ -527,6 +608,11 @@ export async function resolveSoundCloudTrack(
 
   // 1. If target is a SoundCloud permalink URL
   if (rawId.includes('soundcloud.com')) {
+    const cleanPermalink = rawId.replace(/\/+$/, '')
+    const cachedPermalink = permalinkIdCache.get(cleanPermalink)
+    if (cachedPermalink && Date.now() < cachedPermalink.expiresAt) {
+      return resolveSoundCloudTrack(cachedPermalink.id)
+    }
     const resolvedTracks = await resolveSoundCloudUrl(rawId)
     if (resolvedTracks.length > 0 && resolvedTracks[0].soundcloud_id) {
       return resolveSoundCloudTrack(resolvedTracks[0].soundcloud_id)
@@ -545,15 +631,32 @@ export async function resolveSoundCloudTrack(
         process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
       if (supabaseUrl && supabaseKey) {
         const supabase = createClient(supabaseUrl, supabaseKey)
-        const { data: dbTrack } = await supabase.from('tracks').select('file_path, source_url').eq('id', rawId).single()
-        const fp = dbTrack?.source_url || dbTrack?.file_path || ''
-        if (fp) {
+        const { data: dbTrack } = await supabase
+          .from('tracks')
+          .select('file_path, title, artist')
+          .eq('id', rawId)
+          .single()
+        const fp = (dbTrack?.file_path || '').trim()
+        if (
+          fp &&
+          (fp.startsWith('soundcloud:') ||
+            fp.includes('soundcloud.com') ||
+            /^\d+$/.test(fp.replace(/^sc-/, '')))
+        ) {
           return resolveSoundCloudTrack(fp)
+        }
+        if (dbTrack?.title) {
+          const query = [dbTrack.title, dbTrack.artist].filter(Boolean).join(' ').trim()
+          const candidates = await searchSoundCloudTracks(query, 5)
+          if (candidates.length > 0 && candidates[0].soundcloud_id) {
+            return resolveSoundCloudTrack(candidates[0].soundcloud_id)
+          }
         }
       }
     } catch (dbErr) {
       console.warn('[SoundCloud] DB lookup for UUID track failed:', dbErr)
     }
+    return null
   }
 
   rawId = rawId.replace(/^sc-/, '')
@@ -565,16 +668,12 @@ export async function resolveSoundCloudTrack(
     return { track: cached.track, raw: cached.raw }
   }
 
-  const clientId = await getSoundCloudClientId()
-  const url = `https://api-v2.soundcloud.com/tracks/${rawId}?client_id=${clientId}`
-
   try {
-    const res = await fetchWithTimeout(
-      url,
+    const { res } = await fetchSoundCloudApiWithClientId(
+      (cid) => `https://api-v2.soundcloud.com/tracks/${rawId}?client_id=${cid}`,
       {
         headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'User-Agent': SC_USER_AGENT,
           Accept: 'application/json',
         },
         next: { revalidate: 3600 },
@@ -587,12 +686,7 @@ export async function resolveSoundCloudTrack(
     const raw: SoundCloudRawTrack = await res.json()
     if (!isSoundCloudFullAudio(raw)) return null
 
-    const appTrack = soundCloudTrackToAppTrack(raw)
-    trackMetadataCache.set(rawId, {
-      track: appTrack,
-      raw,
-      expiresAt: Date.now() + 60 * 60 * 1000, // 1 hour TTL
-    })
+    const appTrack = cacheRawTrackMetadata(raw)
 
     return {
       track: appTrack,
@@ -620,6 +714,11 @@ export async function resolveSoundCloudStreamUrl(
 
   // 1. If target is a SoundCloud permalink URL
   if (rawId.includes('soundcloud.com')) {
+    const cleanPermalink = rawId.replace(/\/+$/, '')
+    const cachedPermalink = permalinkIdCache.get(cleanPermalink)
+    if (cachedPermalink && Date.now() < cachedPermalink.expiresAt) {
+      return resolveSoundCloudStreamUrl(cachedPermalink.id, bypassCache)
+    }
     const resolvedTracks = await resolveSoundCloudUrl(rawId)
     if (resolvedTracks.length > 0 && resolvedTracks[0].soundcloud_id) {
       return resolveSoundCloudStreamUrl(resolvedTracks[0].soundcloud_id, bypassCache)
@@ -638,15 +737,32 @@ export async function resolveSoundCloudStreamUrl(
         process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
       if (supabaseUrl && supabaseKey) {
         const supabase = createClient(supabaseUrl, supabaseKey)
-        const { data: dbTrack } = await supabase.from('tracks').select('file_path, source_url').eq('id', rawId).single()
-        const fp = dbTrack?.source_url || dbTrack?.file_path || ''
-        if (fp) {
+        const { data: dbTrack } = await supabase
+          .from('tracks')
+          .select('file_path, title, artist')
+          .eq('id', rawId)
+          .single()
+        const fp = (dbTrack?.file_path || '').trim()
+        if (
+          fp &&
+          (fp.startsWith('soundcloud:') ||
+            fp.includes('soundcloud.com') ||
+            /^\d+$/.test(fp.replace(/^sc-/, '')))
+        ) {
           return resolveSoundCloudStreamUrl(fp, bypassCache)
+        }
+        if (dbTrack?.title) {
+          const query = [dbTrack.title, dbTrack.artist].filter(Boolean).join(' ').trim()
+          const candidates = await searchSoundCloudTracks(query, 5)
+          if (candidates.length > 0 && candidates[0].soundcloud_id) {
+            return resolveSoundCloudStreamUrl(candidates[0].soundcloud_id, bypassCache)
+          }
         }
       }
     } catch (dbErr) {
       console.warn('[SoundCloud] DB lookup for UUID stream failed:', dbErr)
     }
+    return null
   }
 
   rawId = rawId.replace(/^sc-/, '')
@@ -674,41 +790,17 @@ export async function resolveSoundCloudStreamUrl(
     const transcoding = getBestSoundCloudTranscoding(resolved.raw)
     if (!transcoding?.url) return null
 
-    let clientId = await getSoundCloudClientId()
-    let resolveUrl = `${transcoding.url}?client_id=${clientId}`
-
     try {
-      let res = await fetchWithTimeout(
-        resolveUrl,
+      const { res } = await fetchSoundCloudApiWithClientId(
+        (cid) => `${transcoding.url}?client_id=${cid}`,
         {
           headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'User-Agent': SC_USER_AGENT,
             Accept: 'application/json',
           },
         },
         6000
       )
-
-      // Invalidate client_id and retry once if SoundCloud revoked it (401 or 403)
-      if (!res.ok && (res.status === 401 || res.status === 403)) {
-        console.warn(`[SoundCloud] resolve stream returned ${res.status}, refreshing client_id...`)
-        cachedClientId = null
-        clientIdExpiresAt = 0
-        clientId = await getSoundCloudClientId(true)
-        resolveUrl = `${transcoding.url}?client_id=${clientId}`
-        res = await fetchWithTimeout(
-          resolveUrl,
-          {
-            headers: {
-              'User-Agent':
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-              Accept: 'application/json',
-            },
-          },
-          6000
-        )
-      }
 
       if (!res.ok) return null
 
@@ -953,14 +1045,8 @@ export function buildMasterFmp4SidxBox(
 
 const HLS_BUFFER_CACHE_MAX_ENTRIES = 10
 const HLS_BUFFER_CACHE_TTL_MS = 10 * 60 * 1000
-const hlsMediaBufferCache = new Map<
-  string,
-  { buffer: Uint8Array; contentType: string; expiresAt: number }
->()
-const inFlightHlsMediaBuffer = new Map<
-  string,
-  Promise<{ buffer: Uint8Array; contentType: string } | null>
->()
+const hlsMediaBufferCache = scState.hlsMediaBufferCache
+const inFlightHlsMediaBuffer = scState.inFlightHlsMediaBuffer
 
 export async function assembleSoundCloudHlsMedia(
   hlsInfo: SoundCloudHlsManifestInfo,
@@ -1119,6 +1205,12 @@ export async function parseSoundCloudHlsManifest(
 ): Promise<SoundCloudHlsManifestInfo | null> {
   try {
     if (!m3u8Url || m3u8Url.includes('/cbcs/')) return null
+    const now = Date.now()
+    const cached = hlsManifestCache.get(m3u8Url)
+    if (cached && now < cached.expiresAt) {
+      return cached.info
+    }
+
     const res = await fetchWithTimeout(
       m3u8Url,
       { headers: { 'User-Agent': SC_USER_AGENT } },
@@ -1143,12 +1235,26 @@ export async function parseSoundCloudHlsManifest(
       .map((line) => line.trim())
       .filter((line) => line.startsWith('http://') || line.startsWith('https://'))
     if (segmentUrls.length === 0) return null
-    return {
+
+    const info: SoundCloudHlsManifestInfo = {
       contentType: mapUrl ? 'audio/mp4' : 'audio/mpeg',
       urls: mapUrl ? [mapUrl, ...segmentUrls] : segmentUrls,
       hasInitMap: Boolean(mapUrl),
       durationSeconds,
     }
+
+    if (hlsManifestCache.size >= 60) {
+      const oldestKey = hlsManifestCache.keys().next().value
+      if (oldestKey !== undefined) {
+        hlsManifestCache.delete(oldestKey)
+      }
+    }
+    hlsManifestCache.set(m3u8Url, {
+      info,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+    })
+
+    return info
   } catch {
     return null
   }
@@ -1187,7 +1293,8 @@ export async function verifySoundCloudTrackPlayable(
   const isNumericId = /^\d+$/.test(cleanId)
   if (workerUrl && isNumericId) {
     try {
-      const target = `${workerUrl.replace(/\/+$/, '')}/stream?id=${encodeURIComponent(cleanId)}&format=json`
+      const cleanWorkerOrigin = workerUrl.replace(/\/+$/, '')
+      const target = `${cleanWorkerOrigin}/stream?id=${encodeURIComponent(cleanId)}&format=json`
       const res = await fetchWithTimeout(
         target,
         { headers: { Accept: 'application/json' }, cache: 'no-store' },
@@ -1199,10 +1306,12 @@ export async function verifySoundCloudTrackPlayable(
       if (res.ok) {
         const data = await res.json().catch(() => null)
         if (isPlayableSoundCloudDirectUrl(data?.url) && !String(data.url).toLowerCase().includes('.m3u8')) {
-          streamUrlCache.set(cleanId, {
-            url: data.url,
-            expiresAt: Date.now() + 15 * 60 * 1000,
-          })
+          if (!String(data.url).startsWith(cleanWorkerOrigin)) {
+            streamUrlCache.set(cleanId, {
+              url: data.url,
+              expiresAt: Date.now() + 15 * 60 * 1000,
+            })
+          }
           return true
         }
         return false
@@ -1226,18 +1335,15 @@ export async function searchSoundCloudPlaylists(
   const trimmed = query?.trim()
   if (!trimmed) return []
 
-  const clientId = await getSoundCloudClientId()
-  const url = `https://api-v2.soundcloud.com/search/playlists?q=${encodeURIComponent(
-    trimmed
-  )}&client_id=${clientId}&limit=${limit}&access=playable`
-
   try {
-    const res = await fetchWithTimeout(
-      url,
+    const { res } = await fetchSoundCloudApiWithClientId(
+      (cid) =>
+        `https://api-v2.soundcloud.com/search/playlists?q=${encodeURIComponent(
+          trimmed
+        )}&client_id=${cid}&limit=${limit}&access=playable`,
       {
         headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'User-Agent': SC_USER_AGENT,
           Accept: 'application/json',
         },
         next: { revalidate: 600 },
@@ -1281,16 +1387,13 @@ export async function getSoundCloudPlaylistTracks(
   playlistId: string | number
 ): Promise<{ playlist: SoundCloudPlaylist; tracks: Track[] } | null> {
   const rawId = String(playlistId).replace(/^sc-pl-/, '')
-  const clientId = await getSoundCloudClientId()
-  const url = `https://api-v2.soundcloud.com/playlists/${rawId}?client_id=${clientId}`
 
   try {
-    const res = await fetchWithTimeout(
-      url,
+    const { res, clientId } = await fetchSoundCloudApiWithClientId(
+      (cid) => `https://api-v2.soundcloud.com/playlists/${rawId}?client_id=${cid}`,
       {
         headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'User-Agent': SC_USER_AGENT,
           Accept: 'application/json',
         },
         next: { revalidate: 600 },

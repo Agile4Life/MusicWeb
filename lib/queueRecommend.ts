@@ -559,36 +559,60 @@ export async function buildNextQueue(
 
   const [
     nctSeedRes,
-    nctPeersRes,
     scSeedRes,
-    scPeersRes,
     deezerRadioRes,
-    deezerRelatedRes,
-    deezerTopicRes,
     internalCFRes,
     skippedSet,
   ] = await Promise.all([
     shouldUseNct && searchSeedQuery
       ? searchNhacCuaTuiDirect(searchSeedQuery, 12).catch(() => [])
       : Promise.resolve([]),
-    shouldUseNct && peerArtists.length > 0
+    searchSeedQuery ? searchSoundCloudTracks(searchSeedQuery, 12).catch(() => []) : Promise.resolve([]),
+    getDeezerArtistRadio(artistQuery || seedTrack.artist, 25).catch(() => []),
+    getInternalCollaborativeCandidates(seedTrack.id, seedTrack.artist, userId, seedTrack.title),
+    getFrequentlySkippedTrackIds(userId),
+  ])
+
+  const scoreOptions: FilterAndScoreOptions = {
+    sessionHistory,
+    skippedSet,
+    userPreferredArtists: internalCFRes.preferredArtists,
+  }
+  const primaryPool: QueueTrack[] = [
+    ...nctSeedRes.map((t) =>
+      mapNativeTrackToQueueTrack(t, seedTrack.artist, 'nhaccuatui', 'nhaccuatui_native_priority')
+    ),
+    ...scSeedRes.map((t) =>
+      mapNativeTrackToQueueTrack(t, seedTrack.artist, 'soundcloud', 'soundcloud_native_priority')
+    ),
+    ...deezerRadioRes,
+    ...internalCFRes.tracks,
+  ]
+  // Count usable, diverse tracks before opening peer searches and related-artist fan-out.
+  const needsExpansion = diversify(
+    filterAndScoreCandidates(seedTrack, primaryPool, scoreOptions),
+    { maxPerArtist: 2 }
+  ).length < limit
+
+  const [nctPeersRes, scPeersRes, deezerRelatedRes, deezerTopicRes] = await Promise.all([
+    needsExpansion && shouldUseNct && peerArtists.length > 0
       ? Promise.all(peerArtists.map((peer) => searchNhacCuaTuiDirect(peer, 8).catch(() => []))).then((arr) =>
           arr.flat()
         )
-      : shouldUseNct && genreRegionTopicQuery
+      : needsExpansion && shouldUseNct && genreRegionTopicQuery
         ? searchNhacCuaTuiDirect(genreRegionTopicQuery, 10).catch(() => [])
         : Promise.resolve([]),
-    searchSeedQuery ? searchSoundCloudTracks(searchSeedQuery, 12).catch(() => []) : Promise.resolve([]),
-    peerArtists.length > 0
+    needsExpansion && peerArtists.length > 0
       ? Promise.all(peerArtists.map((peer) => searchSoundCloudTracks(peer, 6).catch(() => []))).then((arr) =>
           arr.flat()
         )
       : Promise.resolve([]),
-    getDeezerArtistRadio(artistQuery || seedTrack.artist, 25).catch(() => []),
-    getDeezerRelatedArtistsTopTracks(artistQuery || seedTrack.artist, 25).catch(() => []),
-    genreRegionTopicQuery ? searchDeezerTracks(genreRegionTopicQuery, 12).catch(() => []) : Promise.resolve([]),
-    getInternalCollaborativeCandidates(seedTrack.id, seedTrack.artist, userId, seedTrack.title),
-    getFrequentlySkippedTrackIds(userId),
+    needsExpansion
+      ? getDeezerRelatedArtistsTopTracks(artistQuery || seedTrack.artist, 25).catch(() => [])
+      : Promise.resolve([]),
+    needsExpansion && genreRegionTopicQuery
+      ? searchDeezerTracks(genreRegionTopicQuery, 12).catch(() => [])
+      : Promise.resolve([]),
   ])
 
   const nctCombined = [...nctSeedRes, ...nctPeersRes]
@@ -625,7 +649,7 @@ export async function buildNextQueue(
   if (deezerRelatedRes.length > 0) {
     deezerRelatedTracks = deezerRelatedRes
     sourcesUsed.push('deezer_related')
-  } else {
+  } else if (needsExpansion) {
     sourcesFailed.push('deezer_related')
   }
 
@@ -634,19 +658,10 @@ export async function buildNextQueue(
   )
 
   const internalCFTracks = internalCFRes.tracks
-  const userPreferredArtists = internalCFRes.preferredArtists
   if (internalCFTracks.length > 0) {
     sourcesUsed.push('internal_cf')
   } else {
     sourcesFailed.push('internal_cf')
-  }
-
-  if (deezerRadioTracks.length === 0 && artistQuery) {
-    const topTracks = await getDeezerArtistTopTracks(artistQuery, 15).catch(() => [])
-    if (topTracks.length > 0) {
-      deezerRadioTracks = topTracks
-      sourcesUsed.push('deezer_top_fallback')
-    }
   }
 
   const rawPool: QueueTrack[] = [
@@ -658,34 +673,36 @@ export async function buildNextQueue(
     ...deezerTopicTracks,
   ]
 
-  let candidates = filterAndScoreCandidates(seedTrack, rawPool, {
-    sessionHistory,
-    skippedSet,
-    userPreferredArtists,
-  })
+  let candidates = filterAndScoreCandidates(seedTrack, rawPool, scoreOptions)
+  let ranked = diversify(candidates, { maxPerArtist: 2 })
 
-  // Trigger Spotify fallback if fewer than 5 compatible candidates survived
-  const MIN_CANDIDATES_BEFORE_SPOTIFY = 5
-  if (candidates.length < MIN_CANDIDATES_BEFORE_SPOTIFY) {
+  if (ranked.length < limit && deezerRadioTracks.length === 0 && artistQuery) {
+    const topTracks = await getDeezerArtistTopTracks(artistQuery, 15).catch(() => [])
+    if (topTracks.length > 0) {
+      rawPool.push(...topTracks)
+      sourcesUsed.push('deezer_top_fallback')
+      candidates = filterAndScoreCandidates(seedTrack, rawPool, scoreOptions)
+      ranked = diversify(candidates, { maxPerArtist: 2 })
+    }
+  }
+
+  // Fall back only when the requested queue remains short after all filtering.
+  if (ranked.length < limit) {
     const spotifyFallbackTracks = await maybeSpotifySearchFallback(seedTrack, seedProfile, 15)
     if (spotifyFallbackTracks.length > 0) {
       sourcesUsed.push('spotify_fallback')
       candidates = filterAndScoreCandidates(
         seedTrack,
         [...rawPool, ...spotifyFallbackTracks],
-        {
-          sessionHistory,
-          skippedSet,
-          userPreferredArtists,
-        }
+        scoreOptions
       )
+      ranked = diversify(candidates, { maxPerArtist: 2 })
     } else {
       sourcesFailed.push('spotify_fallback')
     }
   }
 
   // Enforce diversity constraint (Max 2 tracks per artist) & exploration slot injection
-  let ranked = diversify(candidates, { maxPerArtist: 2 })
   ranked = injectExplorationSlots(ranked, { exploreRatio: 0.2 })
 
   const finalBatch = ranked.slice(0, limit)

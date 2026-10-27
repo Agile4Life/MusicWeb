@@ -52,6 +52,7 @@ export function bindMediaSession(
 
   let lastTrackKey = '';
   let lastTrackId: string | null = null;
+  let wasPlaying = false;
   let cancelPositionTimer: Cancel | null = null;
 
   const stopPositionTimer = () => {
@@ -64,16 +65,10 @@ export function bindMediaSession(
   const registerActionHandlers = () => {
     try {
       mediaSession.setActionHandler('play', () => {
-        const snap = controller.getSnapshot();
-        if (!snap.isPlaying) {
-          void controller.togglePlay();
-        }
+        void controller.play();
       });
       mediaSession.setActionHandler('pause', () => {
-        const snap = controller.getSnapshot();
-        if (snap.isPlaying || snap.isBuffering) {
-          void controller.togglePlay();
-        }
+        controller.pause();
       });
       mediaSession.setActionHandler('previoustrack', () => {
         controller.prevTrack();
@@ -94,10 +89,7 @@ export function bindMediaSession(
 
       try {
         mediaSession.setActionHandler('stop', () => {
-          const snap = controller.getSnapshot();
-          if (snap.isPlaying || snap.isBuffering) {
-            void controller.togglePlay();
-          }
+          controller.pause();
         });
       } catch {
         // Ignore unsupported stop action
@@ -147,10 +139,11 @@ export function bindMediaSession(
       }
     }
 
-    if (track.id !== lastTrackId) {
+    if (track.id !== lastTrackId || (snap.isPlaying && !wasPlaying)) {
       lastTrackId = track.id;
       registerActionHandlers();
     }
+    wasPlaying = snap.isPlaying;
 
     try {
       const shouldReportPlaying = snap.isPlaying || snap.isBuffering;

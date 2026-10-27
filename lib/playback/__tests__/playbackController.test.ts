@@ -731,5 +731,56 @@ describe('playbackController', () => {
     });
     expect(controller.getSnapshot().isPlaying).toBe(true);
   });
+
+  it('recovers a failing iOS YouTube HTML5 proxy stream via HTML5 catalog fallback (NhacCuaTui/SoundCloud) before touching YouTube IFrame', async () => {
+    const { controller, sources, transport } = createTestHarness();
+    const ytTrack = makeTrack('yt-ios-bg', {
+      source: 'youtube',
+      youtube_id: 'ytBlocked502',
+      title: 'Background iOS Song',
+      artist: 'Artist',
+      duration: 210,
+    });
+
+    vi.mocked(sources.resolveImmediate).mockReturnValueOnce({
+      track: ytTrack,
+      engine: 'html5',
+      target: '/api/youtube/stream?id=ytBlocked502',
+      initialTime: 0,
+    });
+    vi.mocked(sources.resolveFallback).mockResolvedValueOnce({
+      track: {
+        ...ytTrack,
+        source: 'nhaccuatui',
+        nhaccuatui_id: 'nct-bg-210',
+        youtube_id: undefined,
+      },
+      engine: 'html5',
+      target: '/api/nhaccuatui/stream?id=nct-bg-210',
+      initialTime: 0,
+    });
+
+    vi.mocked(transport.start).mockRejectedValueOnce(
+      new Error('502 Bad Gateway on /api/youtube/stream')
+    );
+
+    await controller.playTrack(ytTrack, [ytTrack], 0);
+
+    expect(sources.resolveFallback).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'yt-ios-bg' }),
+      0,
+      undefined,
+      { preferHtml5: true }
+    );
+    expect(transport.getLastStarted()?.target).toMatchObject({
+      engine: 'html5',
+      target: '/api/nhaccuatui/stream?id=nct-bg-210',
+    });
+    const youtubeStarts = vi
+      .mocked(transport.start)
+      .mock.calls.filter(([t]) => t.engine === 'youtube');
+    expect(youtubeStarts).toHaveLength(0);
+    expect(controller.getSnapshot().isPlaying).toBe(true);
+  });
 });
 

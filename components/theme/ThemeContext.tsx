@@ -390,6 +390,7 @@ export const THEMES: Record<ThemeId, ThemeConfig> = {
 
 import { CURSOR_CONFIGS } from '@/lib/cursors'
 import { RefractionMode } from '@/lib/theme/liquidGlassFilters'
+import { syncDocumentThemeColor } from '@/lib/pwaManifestConfig'
 
 export type CursorStyle = string
 
@@ -572,6 +573,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const root = document.documentElement
     root.setAttribute('data-theme-style', style)
     applyLiquidGlassConfig(configOverride ?? liquidGlassConfig, style)
+    syncDocumentThemeColor(style, THEMES[themeId]?.bgSpace)
   }
 
   const setThemeStyle = (style: ThemeStyle) => {
@@ -636,6 +638,8 @@ function hexToRgbTuple(hex: string): string {
     root.style.setProperty('--theme-gradient-3', theme.gradient3)
     root.style.setProperty('--theme-neon-from', theme.neonFrom)
     root.style.setProperty('--theme-neon-to', theme.neonTo)
+    const activeStyle = (root.getAttribute('data-theme-style') as ThemeStyle) || themeStyle
+    syncDocumentThemeColor(activeStyle, theme.bgSpace)
   }
 
   const setTheme = (id: ThemeId) => {

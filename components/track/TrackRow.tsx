@@ -24,6 +24,8 @@ import {
 import { resolveAlbumDeduped } from '@/lib/albumResolveClient'
 import { triggerDrivePrewarm } from '@/lib/googleDriveUpload'
 import { prewarmNctStreamUrl } from '@/lib/nhaccuatuiClient'
+import { prewarmSoundCloudTrack } from '@/lib/prewarmTrackBatch'
+import { isSoundCloudTrack } from '@/lib/trackSourceClassifier'
 import { resolveStreamCached } from '@/lib/resolveStreamClient'
 import { TrackContextMenu } from './TrackContextMenu'
 
@@ -157,16 +159,17 @@ function TrackRowComponent({
         }
       }
       // 2. Pre-warm Drive for local tracks
+      if (isSoundCloudTrack(track)) {
+        prewarmSoundCloudTrack(track).catch(() => {})
+      }
       triggerDrivePrewarm([track])
 
-      // 3. Pre-resolve external catalog tracks (Spotify / Deezer / iTunes) during hover
+      // 3. Pre-resolve external catalog tracks (Spotify / Deezer) during hover
       // so when the user clicks Play, stream is already in memory cache (0ms delay)
       const isCatalog =
         track.source === 'spotify' ||
-        track.source === 'itunes' ||
         (track as any).source === 'deezer' ||
-        Boolean(track.spotify_id) ||
-        Boolean(track.itunes_id)
+        Boolean(track.spotify_id)
       if (isCatalog && track.title) {
         resolveStreamCached({
           title: track.title,

@@ -18,6 +18,7 @@ import {
 import { useLiquidNav, LiquidNavTab } from '@/hooks/useLiquidNav'
 import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
+import { useTheme } from '@/components/theme/ThemeContext'
 
 // ─── NavBar state machine ───
 type NavBarMode = 'expanded' | 'collapsing' | 'collapsed' | 'expanding'
@@ -234,6 +235,8 @@ export function LiquidNavBar({
   const router = useRouter()
   const pathname = usePathname()
   const filterId = useId()
+  const { themeStyle } = useTheme()
+  const isMinimalFlat = themeStyle === 'minimal-flat'
   const { currentTrack, isPlaying } = usePlayerTrack()
   const { togglePlay, openNowPlayingOverlay } = usePlayerControls()
 
@@ -602,7 +605,7 @@ export function LiquidNavBar({
   return (
     <>
       {/* SVG Filter */}
-      {displacementMapUrl && (
+      {!isMinimalFlat && displacementMapUrl && (
         <NavSVGFilter
           id="liquidNavDisplacement"
           displacementSrc={displacementMapUrl}
@@ -624,15 +627,26 @@ export function LiquidNavBar({
               layout
               transition={{ duration: MORPH_DURATION_MS / 1000, ease: MORPH_EASE }}
               ref={navRef}
-              className={`liquid-nav relative h-[68px] rounded-[37px] ${isNavExpanded ? 'scale-[1.01]' : ''}`}
-              style={{
-                background: 'rgba(255,255,255,0.025)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.12)',
-                backdropFilter: 'blur(16px) saturate(150%)',
-                WebkitBackdropFilter: 'blur(16px) saturate(150%)',
-                transformOrigin: 'center bottom',
-              }}
+              className={`liquid-nav relative h-[68px] ${isMinimalFlat ? 'rounded-[22px]' : 'rounded-[37px]'} ${isNavExpanded ? 'scale-[1.01]' : ''}`}
+              style={
+                isMinimalFlat
+                  ? {
+                      background: 'rgba(29, 23, 32, 0.96)',
+                      border: '1px solid rgba(244, 236, 230, 0.14)',
+                      boxShadow: '0 14px 34px rgba(0, 0, 0, 0.65)',
+                      backdropFilter: 'blur(16px)',
+                      WebkitBackdropFilter: 'blur(16px)',
+                      transformOrigin: 'center bottom',
+                    }
+                  : {
+                      background: 'rgba(255,255,255,0.025)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.12)',
+                      backdropFilter: 'blur(16px) saturate(150%)',
+                      WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+                      transformOrigin: 'center bottom',
+                    }
+              }
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
@@ -641,16 +655,18 @@ export function LiquidNavBar({
               onMouseLeave={onMouseLeave}
             >
               {/* Inner glass gradient */}
-              <span
-                aria-hidden="true"
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  borderRadius: 37,
-                  background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 40%)',
-                  pointerEvents: 'none',
-                }}
-              />
+              {!isMinimalFlat && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    borderRadius: 37,
+                    background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 40%)',
+                    pointerEvents: 'none',
+                  }}
+                />
+              )}
 
               {/* Liquid blob indicator */}
               <span
@@ -661,45 +677,58 @@ export function LiquidNavBar({
                   bottom: 6,
                   left: blobLeft,
                   width: blobWidth,
-                  borderRadius: 28,
+                  borderRadius: isMinimalFlat ? 16 : 28,
                   pointerEvents: 'none',
                   zIndex: 1,
                   transformOrigin: 'center center',
                   transform: isDragging
-                    ? `scaleX(${blobScaleX * 1.20}) scaleY(${blobScaleY * 1.36})`
+                    ? `scaleX(${blobScaleX * (isMinimalFlat ? 1.05 : 1.20)}) scaleY(${blobScaleY * (isMinimalFlat ? 1.08 : 1.36)})`
                     : `scaleX(${blobScaleX}) scaleY(${blobScaleY})`,
                   transition: isDragging
                     ? 'transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, background 0.2s ease'
                     : 'left 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, background 0.3s ease',
-                  backdropFilter: `${displacementMapUrl ? 'url(#liquidNavDisplacement) ' : ''}blur(${blurAmount * 32 + (isDragging ? 22 : 16)}px) saturate(${isDragging ? 220 : saturation}%) brightness(${isDragging ? 1.15 : 1})`,
-                  WebkitBackdropFilter: `${displacementMapUrl ? 'url(#liquidNavDisplacement) ' : ''}blur(${blurAmount * 32 + (isDragging ? 22 : 16)}px) saturate(${isDragging ? 220 : saturation}%) brightness(${isDragging ? 1.15 : 1})`,
-                  background: isDragging
-                    ? 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 18%, rgba(255,255,255,0.12))'
-                    : 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 12%, rgba(255,255,255,0.06))',
-                  boxShadow: isDragging
-                    ? '0 0 0 0.75px rgba(255,255,255,0.35), 0 16px 36px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.3), inset 0 1px 1.5px rgba(255,255,255,0.35), inset 0 -1px 1.5px rgba(0,0,0,0.2)'
-                    : '0 0 0 0.5px rgba(255,255,255,0.2), 0 4px 12px rgba(0,0,0,0.2), inset 0 0.5px 0 rgba(255,255,255,0.12)',
+                  backdropFilter: isMinimalFlat
+                    ? 'none'
+                    : `${displacementMapUrl ? 'url(#liquidNavDisplacement) ' : ''}blur(${blurAmount * 32 + (isDragging ? 22 : 16)}px) saturate(${isDragging ? 220 : saturation}%) brightness(${isDragging ? 1.15 : 1})`,
+                  WebkitBackdropFilter: isMinimalFlat
+                    ? 'none'
+                    : `${displacementMapUrl ? 'url(#liquidNavDisplacement) ' : ''}blur(${blurAmount * 32 + (isDragging ? 22 : 16)}px) saturate(${isDragging ? 220 : saturation}%) brightness(${isDragging ? 1.15 : 1})`,
+                  background: isMinimalFlat
+                    ? isDragging
+                      ? 'rgba(232, 169, 79, 0.22)'
+                      : 'rgba(232, 169, 79, 0.14)'
+                    : isDragging
+                      ? 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 18%, rgba(255,255,255,0.12))'
+                      : 'color-mix(in srgb, var(--spotify-glow, #22d3ee) 12%, rgba(255,255,255,0.06))',
+                  border: isMinimalFlat ? '1px solid rgba(232, 169, 79, 0.35)' : undefined,
+                  boxShadow: isMinimalFlat
+                    ? 'none'
+                    : isDragging
+                      ? '0 0 0 0.75px rgba(255,255,255,0.35), 0 16px 36px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.3), inset 0 1px 1.5px rgba(255,255,255,0.35), inset 0 -1px 1.5px rgba(0,0,0,0.2)'
+                      : '0 0 0 0.5px rgba(255,255,255,0.2), 0 4px 12px rgba(0,0,0,0.2), inset 0 0.5px 0 rgba(255,255,255,0.12)',
                 }}
               >
                 {/* Chromatic aberration rainbow rim on holding */}
-                <span
-                  aria-hidden="true"
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    borderRadius: 28,
-                    pointerEvents: 'none',
-                    background: 'linear-gradient(135deg, color-mix(in srgb, var(--spotify-glow, #22d3ee) 50%, transparent) 0%, rgba(255,255,255,0.7) 30%, color-mix(in srgb, var(--theme-secondary, #818cf8) 50%, transparent) 70%, color-mix(in srgb, var(--primary-spotify, #06b6d4) 50%, transparent) 100%)',
-                    mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-                    WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-                    maskComposite: 'exclude',
-                    WebkitMaskComposite: 'xor',
-                    padding: '0.75px',
-                    opacity: isDragging ? 0.7 : 0,
-                    transition: 'opacity 0.2s ease',
-                    zIndex: 3,
-                  }}
-                />
+                {!isMinimalFlat && (
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      borderRadius: 28,
+                      pointerEvents: 'none',
+                      background: 'linear-gradient(135deg, color-mix(in srgb, var(--spotify-glow, #22d3ee) 50%, transparent) 0%, rgba(255,255,255,0.7) 30%, color-mix(in srgb, var(--theme-secondary, #818cf8) 50%, transparent) 70%, color-mix(in srgb, var(--primary-spotify, #06b6d4) 50%, transparent) 100%)',
+                      mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                      WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                      maskComposite: 'exclude',
+                      WebkitMaskComposite: 'xor',
+                      padding: '0.75px',
+                      opacity: isDragging ? 0.7 : 0,
+                      transition: 'opacity 0.2s ease',
+                      zIndex: 3,
+                    }}
+                  />
+                )}
               </span>
 
               {/* Tabs grid */}
@@ -723,13 +752,21 @@ export function LiquidNavBar({
                     ? (u < 1 ? (1 + (1 - u * u) * 0.12).toFixed(3) : '1.000')
                     : '1.000'
 
-                  const iconColor = isDragging
-                    ? (u < 0.6 ? 'text-[var(--spotify-glow,#22d3ee)]' : 'text-[var(--spotify-glow,#22d3ee)]/70')
-                    : (isActive ? 'text-white' : 'text-slate-400 hover:text-slate-200')
+                  const iconColor = isMinimalFlat
+                    ? isDragging
+                      ? (u < 0.6 ? 'text-[#E8A94F]' : 'text-[#E8A94F]/75')
+                      : (isActive ? 'text-[#E8A94F]' : 'text-[#8B8090] hover:text-[#B9AC9C]')
+                    : isDragging
+                      ? (u < 0.6 ? 'text-[var(--spotify-glow,#22d3ee)]' : 'text-[var(--spotify-glow,#22d3ee)]/70')
+                      : (isActive ? 'text-white' : 'text-slate-400 hover:text-slate-200')
 
-                  const textColor = isDragging
-                    ? (u < 0.6 ? 'text-[var(--spotify-glow,#22d3ee)] font-bold' : 'text-[var(--spotify-glow,#22d3ee)]/80 font-semibold')
-                    : (isActive ? 'text-white font-bold' : 'text-slate-300 font-medium')
+                  const textColor = isMinimalFlat
+                    ? isDragging
+                      ? (u < 0.6 ? 'text-[#E8A94F] font-semibold' : 'text-[#F4ECE1]/85 font-medium')
+                      : (isActive ? 'text-[#F4ECE1] font-semibold' : 'text-[#B9AC9C] font-medium')
+                    : isDragging
+                      ? (u < 0.6 ? 'text-[var(--spotify-glow,#22d3ee)] font-bold' : 'text-[var(--spotify-glow,#22d3ee)]/80 font-semibold')
+                      : (isActive ? 'text-white font-bold' : 'text-slate-300 font-medium')
 
                   return (
                     <React.Fragment key={tab.id}>
@@ -776,31 +813,51 @@ export function LiquidNavBar({
               onClick={handleCapsuleTap}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleCapsuleTap() }}
               aria-label="Mở thanh điều hướng"
-              className="w-full h-[62px] flex items-center px-2 gap-2 rounded-[37px] overflow-hidden cursor-pointer"
-              style={{
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderTopColor: 'rgba(255,255,255,0.12)',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15)',
-                backdropFilter: 'blur(20px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-              }}
+              className={`w-full h-[62px] flex items-center px-2 gap-2 ${isMinimalFlat ? 'rounded-[22px]' : 'rounded-[37px]'} overflow-hidden cursor-pointer`}
+              style={
+                isMinimalFlat
+                  ? {
+                      background: 'rgba(29, 23, 32, 0.96)',
+                      border: '1px solid rgba(244, 236, 230, 0.14)',
+                      boxShadow: '0 14px 34px rgba(0, 0, 0, 0.65)',
+                      backdropFilter: 'blur(16px)',
+                      WebkitBackdropFilter: 'blur(16px)',
+                    }
+                  : {
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      borderTopColor: 'rgba(255,255,255,0.12)',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15)',
+                      backdropFilter: 'blur(20px) saturate(180%)',
+                      WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                    }
+              }
             >
               {/* Left: Active Tab Icon — harmonized with outer left capsule curve */}
               <motion.div
                 layout
-                className="shrink-0 w-[48px] h-[46px] rounded-l-[26px] rounded-r-[14px] flex items-center justify-center"
-                style={{
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.10)',
-                  borderTopColor: 'rgba(255,255,255,0.10)',
-                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)',
-                  minWidth: 48,
-                }}
+                className={`shrink-0 w-[48px] h-[46px] ${
+                  isMinimalFlat ? 'rounded-[14px]' : 'rounded-l-[26px] rounded-r-[14px]'
+                } flex items-center justify-center`}
+                style={
+                  isMinimalFlat
+                    ? {
+                        background: '#251E29',
+                        border: '1px solid rgba(244, 236, 230, 0.10)',
+                        minWidth: 48,
+                      }
+                    : {
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid rgba(255,255,255,0.10)',
+                        borderTopColor: 'rgba(255,255,255,0.10)',
+                        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)',
+                        minWidth: 48,
+                      }
+                }
               >
                 {ActiveIcon && (
                   <ActiveIcon
-                    className="w-5 h-5 text-white"
+                    className={`w-5 h-5 ${isMinimalFlat ? 'text-[#E8A94F]' : 'text-white'}`}
                     strokeWidth={2.2}
                   />
                 )}
@@ -809,15 +866,24 @@ export function LiquidNavBar({
               {/* Center: Mini Player — flex-1 (Tapping opens Now Playing Fullview) */}
               <motion.div
                 layout
-                className="flex-1 min-w-0 h-[46px] flex items-center gap-2 px-2.5 rounded-[16px] cursor-pointer select-none active:scale-[0.98] transition-transform"
-                style={{
-                  background: currentTrack
-                    ? 'linear-gradient(135deg, color-mix(in srgb, var(--spotify-glow, #22d3ee) 14%, transparent) 0%, rgba(255,255,255,0.05) 100%)'
-                    : 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.10)',
-                  borderTopColor: 'rgba(255,255,255,0.10)',
-                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10)',
-                }}
+                className={`flex-1 min-w-0 h-[46px] flex items-center gap-2 px-2.5 ${
+                  isMinimalFlat ? 'rounded-[14px]' : 'rounded-[16px]'
+                } cursor-pointer select-none active:scale-[0.98] transition-transform`}
+                style={
+                  isMinimalFlat
+                    ? {
+                        background: '#251E29',
+                        border: '1px solid rgba(244, 236, 230, 0.12)',
+                      }
+                    : {
+                        background: currentTrack
+                          ? 'linear-gradient(135deg, color-mix(in srgb, var(--spotify-glow, #22d3ee) 14%, transparent) 0%, rgba(255,255,255,0.05) 100%)'
+                          : 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.10)',
+                        borderTopColor: 'rgba(255,255,255,0.10)',
+                        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10)',
+                      }
+                }
                 onClick={(e) => {
                   e.stopPropagation()
                   if (currentTrack) {
@@ -828,15 +894,17 @@ export function LiquidNavBar({
                 {currentTrack ? (
                   <>
                     {/* Album art */}
-                    <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 bg-slate-800 border border-white/10">
+                    <div className={`w-8 h-8 rounded-lg overflow-hidden shrink-0 ${
+                      isMinimalFlat ? 'bg-[#1D1720] border border-[rgba(244,236,230,0.12)]' : 'bg-slate-800 border border-white/10'
+                    }`}>
                       <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
                     </div>
                     {/* Track info */}
                     <div className="flex-1 min-w-0 overflow-hidden">
-                      <p className="text-[11px] font-bold text-white truncate leading-tight">
+                      <p className={`text-[11px] font-bold truncate leading-tight ${isMinimalFlat ? 'text-[#F4ECE1]' : 'text-white'}`}>
                         {currentTrack.title}
                       </p>
-                      <p className="text-[10px] text-slate-400 truncate leading-tight">
+                      <p className={`text-[10px] truncate leading-tight ${isMinimalFlat ? 'text-[#B9AC9C]' : 'text-slate-400'}`}>
                         {currentTrack.artist}
                       </p>
                     </div>
@@ -847,20 +915,28 @@ export function LiquidNavBar({
                       onClick={(e) => { e.stopPropagation(); togglePlay?.() }}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); togglePlay?.() } }}
                       className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
-                      style={{
-                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                        boxShadow: '0 2px 8px var(--theme-glow-shadow, rgba(6,182,212,0.4))',
-                        minWidth: 32,
-                      }}
+                      style={
+                        isMinimalFlat
+                          ? {
+                              background: '#E8A94F',
+                              boxShadow: 'none',
+                              minWidth: 32,
+                            }
+                          : {
+                              background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                              boxShadow: '0 2px 8px var(--theme-glow-shadow, rgba(6,182,212,0.4))',
+                              minWidth: 32,
+                            }
+                      }
                       aria-label={isPlaying ? 'Tạm dừng' : 'Phát'}
                     >
                       {isPlaying
-                        ? <Pause className="w-3.5 h-3.5 fill-current text-black" />
-                        : <Play className="w-3.5 h-3.5 fill-current text-black ml-px" />}
+                        ? <Pause className={`w-3.5 h-3.5 fill-current ${isMinimalFlat ? 'text-[#141017]' : 'text-black'}`} />
+                        : <Play className={`w-3.5 h-3.5 fill-current ml-px ${isMinimalFlat ? 'text-[#141017]' : 'text-black'}`} />}
                     </div>
                   </>
                 ) : (
-                  <p className="text-[11px] text-slate-500 truncate w-full text-center">
+                  <p className={`text-[11px] truncate w-full text-center ${isMinimalFlat ? 'text-[#8B8090]' : 'text-slate-500'}`}>
                     Chưa phát nhạc
                   </p>
                 )}
@@ -873,14 +949,24 @@ export function LiquidNavBar({
                 tabIndex={0}
                 aria-label="Danh sách phát"
                 title="Playlist"
-                className="shrink-0 w-[48px] h-[46px] rounded-r-[26px] rounded-l-[14px] flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
-                style={{
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.10)',
-                  borderTopColor: 'rgba(255,255,255,0.10)',
-                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)',
-                  minWidth: 48,
-                }}
+                className={`shrink-0 w-[48px] h-[46px] ${
+                  isMinimalFlat ? 'rounded-[14px]' : 'rounded-r-[26px] rounded-l-[14px]'
+                } flex items-center justify-center cursor-pointer active:scale-95 transition-transform`}
+                style={
+                  isMinimalFlat
+                    ? {
+                        background: '#251E29',
+                        border: '1px solid rgba(244, 236, 230, 0.10)',
+                        minWidth: 48,
+                      }
+                    : {
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid rgba(255,255,255,0.10)',
+                        borderTopColor: 'rgba(255,255,255,0.10)',
+                        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)',
+                        minWidth: 48,
+                      }
+                }
                 onClick={handlePlaylistClick}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -891,7 +977,9 @@ export function LiquidNavBar({
               >
                 <ListMusic
                   className={`w-5 h-5 transition-colors ${
-                    isPlaylistActive ? 'text-[var(--spotify-glow,#22d3ee)]' : 'text-slate-300 hover:text-white'
+                    isMinimalFlat
+                      ? isPlaylistActive ? 'text-[#E8A94F]' : 'text-[#B9AC9C] hover:text-[#F4ECE1]'
+                      : isPlaylistActive ? 'text-[var(--spotify-glow,#22d3ee)]' : 'text-slate-300 hover:text-white'
                   }`}
                   strokeWidth={isPlaylistActive ? 2.5 : 2}
                 />

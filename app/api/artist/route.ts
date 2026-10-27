@@ -106,9 +106,11 @@ export async function GET(request: NextRequest) {
         (primaryQueryName && isAlbumArtistMatch(tr.artist, primaryQueryName))
     ).map((tr) => ({
       ...tr,
+      duration: tr.duration ?? 0,
+      cover_url: tr.cover_url ?? null,
       user_id: '00000000-0000-4000-a000-000000000001',
       created_at: new Date().toISOString(),
-    }))
+    } as Track))
 
     if (realAudience && realAudience > 0) {
       artist.nb_fan = realAudience

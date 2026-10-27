@@ -6,6 +6,10 @@ vi.mock('@supabase/supabase-js', () => ({ createClient: mocks.client }))
 vi.mock('@/lib/catalogResolutionRace', () => ({ resolveCatalogCandidates: mocks.race }))
 vi.mock('@/lib/driveTracksMap', () => ({ findMemoryDriveTrack: () => null }))
 vi.mock('@/lib/soundcloudClient', () => ({ searchSoundCloudTracks: vi.fn(), verifySoundCloudTrackPlayable: vi.fn(async () => true) }))
+vi.mock('@/lib/nctCacheStore', () => ({
+  searchNctCached: vi.fn(async () => []),
+  resolveNctSongDetailCached: vi.fn(async () => ({ audioUrl: 'https://audio.test/nct.mp3' })),
+}))
 
 type Entry = { source: string; resolvedId: string; isMiss: boolean; expiresAt: number }
 const entry = (id: string, source = 'youtube'): Entry => ({

@@ -17,6 +17,7 @@ import type { PlaybackSourceDeps } from './sourcePorts';
 const AUDIO_URL_MAX_ENTRIES = 200;
 const TRACK_RESOLUTION_MAX_ENTRIES = 200;
 const TRACK_RESOLUTION_TTL_MS = 30 * 60 * 1000;
+const IOS_CATALOG_LOOKUP_TIMEOUT_MS = 1800;
 
 function setBounded<K, V>(map: Map<K, V>, key: K, value: V, maxEntries: number): void {
   if (map.has(key)) map.delete(key);
@@ -95,6 +96,18 @@ function isSoundCloudTrack(track: Track): boolean {
       (track.source_url && track.source_url.includes('soundcloud.com')) ||
       (track.soundcloud_permalink_url &&
         track.soundcloud_permalink_url.includes('soundcloud.com'))
+  );
+}
+
+function isWebpageOrCatalogUrl(url: string | undefined | null): boolean {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return (
+    lower.includes('soundcloud.com') ||
+    lower.includes('youtube.com/watch') ||
+    lower.includes('youtu.be/') ||
+    lower.includes('open.spotify.com') ||
+    lower.includes('nhaccuatui.com')
   );
 }
 
@@ -209,6 +222,11 @@ export function createPlaybackSourceService(
   const audioUrlCache = new Map<string, { url: string; ts: number }>();
   const trackResolutionCache = new Map<string, { activeTrack: Track; expiresAt: number }>();
   const pendingYoutubeFallbackByTrackId = new Map<string, Track>();
+  const inFlightIosCatalogByTrackId = new Map<
+    string,
+    Promise<ResolvedStreamResult | null>
+  >();
+  const trackInvalidationGeneration = new Map<string, number>();
   const resolutionIdentities = new Map<
     string,
     { title: string; artist?: string | null; duration?: number | null; album?: string | null }
@@ -239,7 +257,6 @@ export function createPlaybackSourceService(
     }
 
     if (
-      track.source === 'audius' ||
       (track.audio_url &&
         !isPreviewUrl(track.audio_url) &&
         !track.youtube_id &&
@@ -297,8 +314,7 @@ export function createPlaybackSourceService(
     if (
       (track.audio_url && isPreviewUrl(track.audio_url)) ||
       (track.file_path && isPreviewUrl(track.file_path)) ||
-      track.source === 'spotify' ||
-      track.source === 'itunes'
+      track.source === 'spotify'
     ) {
       return null;
     }
@@ -361,7 +377,7 @@ export function createPlaybackSourceService(
         .replace(/\s*feat(\.|\s).*$/i, '')
         .trim();
       const cleanQ = `${cleanTitleOnly || track.title} ${cleanArtistOnly || track.artist || ''}`.trim();
-      const fbData = await deps.search(cleanQ, 'all', signal);
+      const fbData = await deps.search(cleanQ, 'playback', signal);
 
       const nctCandidates: Track[] = (fbData.nhaccuatui || []).filter((t: Track) =>
         Boolean(t?.nhaccuatui_id)
@@ -385,10 +401,7 @@ export function createPlaybackSourceService(
         ? nctCandidates.find((t) => t.nhaccuatui_id === nctMatchedItem.id)
         : undefined;
 
-      const ytCandidates: Track[] = [
-        ...(fbData.youtube || []),
-        ...(fbData.spotify || []).filter((s: Track) => Boolean(s?.youtube_id)),
-      ];
+      const ytCandidates: Track[] = fbData.youtube || [];
       const ytMatch = findBestYouTubeMatch(
         ytCandidates,
         track.title,
@@ -445,6 +458,123 @@ export function createPlaybackSourceService(
     return null;
   };
 
+  const applyAndCacheCatalogResolution = (
+    track: Track,
+    streamResult: ResolvedStreamResult,
+    expectedGen?: number
+  ): Track => {
+    const resolvedTrack = applyResolvedStreamToTrack(track, streamResult);
+    if (
+      disposed ||
+      (expectedGen !== undefined &&
+        (trackInvalidationGeneration.get(track.id) ?? 0) !== expectedGen)
+    ) {
+      return resolvedTrack;
+    }
+
+    audioUrlCache.delete(track.id);
+    if (
+      streamResult.streamUrl &&
+      streamResult.source !== 'youtube' &&
+      streamResult.source !== 'soundcloud'
+    ) {
+      setBounded(
+        audioUrlCache,
+        resolvedTrack.id,
+        { url: streamResult.streamUrl, ts: deps.clock.now() },
+        AUDIO_URL_MAX_ENTRIES
+      );
+    } else if (streamResult.source === 'nhaccuatui' && streamResult.id) {
+      const nctUrl =
+        deps.getCachedNctUrl(streamResult.id) || deps.getNctStreamUrl(resolvedTrack);
+      if (nctUrl) {
+        setBounded(
+          audioUrlCache,
+          resolvedTrack.id,
+          { url: nctUrl, ts: deps.clock.now() },
+          AUDIO_URL_MAX_ENTRIES
+        );
+      }
+    } else if (streamResult.source === 'soundcloud' && deps.isIOS()) {
+      const scTarget = extractSoundCloudTarget(resolvedTrack);
+      if (scTarget) {
+        const deterministicUrl = deps.getDeterministicSoundCloudUrl
+          ? deps.getDeterministicSoundCloudUrl(scTarget)
+          : `/api/soundcloud/stream?id=${encodeURIComponent(scTarget)}`;
+        setBounded(
+          audioUrlCache,
+          resolvedTrack.id,
+          { url: deterministicUrl, ts: deps.clock.now() },
+          AUDIO_URL_MAX_ENTRIES
+        );
+      }
+    }
+
+    setBounded(
+      trackResolutionCache,
+      track.id,
+      {
+        activeTrack: resolvedTrack,
+        expiresAt: deps.clock.now() + TRACK_RESOLUTION_TTL_MS,
+      },
+      TRACK_RESOLUTION_MAX_ENTRIES
+    );
+    return resolvedTrack;
+  };
+
+  const resolveIosCatalogCandidate = (
+    track: Track,
+    signal?: AbortSignal
+  ): Promise<ResolvedStreamResult | null> => {
+    if (disposed || !track?.id) return Promise.resolve(null);
+    const existing = inFlightIosCatalogByTrackId.get(track.id);
+    if (existing) return existing;
+
+    const startGen = trackInvalidationGeneration.get(track.id) ?? 0;
+    const promise = (async (): Promise<ResolvedStreamResult | null> => {
+      try {
+        rememberIdentity(track);
+        const primary = await deps.resolution.resolve({
+          title: track.title,
+          artist: track.artist,
+          duration: track.duration,
+          album: track.album,
+        });
+        if (
+          primary &&
+          (primary.source === 'nhaccuatui' ||
+            primary.source === 'soundcloud' ||
+            primary.source === 'drive')
+        ) {
+          applyAndCacheCatalogResolution(track, primary, startGen);
+          return primary;
+        }
+        if (disposed || signal?.aborted) return null;
+
+        const emergency = await resolveEmergencyCatalogSearch(track, signal);
+        if (
+          emergency &&
+          (emergency.source === 'nhaccuatui' ||
+            emergency.source === 'soundcloud' ||
+            emergency.source === 'drive')
+        ) {
+          applyAndCacheCatalogResolution(track, emergency, startGen);
+          return emergency;
+        }
+        return null;
+      } catch {
+        return null;
+      }
+    })().finally(() => {
+      if (inFlightIosCatalogByTrackId.get(track.id) === promise) {
+        inFlightIosCatalogByTrackId.delete(track.id);
+      }
+    });
+
+    inFlightIosCatalogByTrackId.set(track.id, promise);
+    return promise;
+  };
+
   const resolveImmediate = (req: SourceRequest): PreparedPlayback | null => {
     if (disposed || !req.track) return null;
     const rawTrack = req.track;
@@ -474,6 +604,12 @@ export function createPlaybackSourceService(
       };
     }
 
+    // Start the native stream in the selecting gesture. Prepare a catalog
+    // alternative concurrently so a slow lookup cannot consume activation.
+    if (isIOS && track.source === 'youtube' && !cachedRes) {
+      void resolveIosCatalogCandidate(track);
+    }
+
     let cached: string | undefined;
     if (track.source === 'nhaccuatui' && track.nhaccuatui_id) {
       cached = deps.getCachedNctUrl(track.nhaccuatui_id) || undefined;
@@ -496,8 +632,15 @@ export function createPlaybackSourceService(
           cached = deps.buildYouTubeStreamUrl(ytId);
         }
       } else if (
-        (isIOS || Boolean(req.tabHidden)) &&
-        isSoundCloudTrack(track)
+        isSoundCloudTrack(track) &&
+        (isIOS ||
+          Boolean(req.tabHidden) ||
+          Boolean(track.soundcloud_id) ||
+          Boolean(track.id && String(track.id).startsWith('sc-')) ||
+          Boolean(track.file_path && track.file_path.startsWith('soundcloud:')) ||
+          Boolean(
+            track.audio_url && track.audio_url.startsWith('/api/soundcloud/stream')
+          ))
       ) {
         const scTarget = extractSoundCloudTarget(track);
         if (scTarget) {
@@ -508,15 +651,18 @@ export function createPlaybackSourceService(
       } else if (
         track.audio_url &&
         track.audio_url.startsWith('http') &&
-        !isPreviewUrl(track.audio_url)
+        !isPreviewUrl(track.audio_url) &&
+        !isWebpageOrCatalogUrl(track.audio_url)
       ) {
         cached = track.audio_url;
       } else if (
         track.file_path &&
         track.file_path.startsWith('http') &&
         !isPreviewUrl(track.file_path) &&
+        !isWebpageOrCatalogUrl(track.file_path) &&
+        !isSoundCloudTrack(track) &&
         track.source !== 'spotify' &&
-        track.source !== 'itunes'
+        track.source !== 'youtube'
       ) {
         cached = track.file_path;
       }
@@ -546,9 +692,11 @@ export function createPlaybackSourceService(
     let activeTrack = track;
     const classification = classifyTrack(track, isIOS);
     const shouldResolveCatalog = classification.needsCatalogResolution;
+    const isIosYouTubeTrack =
+      isIOS && (track.source === 'youtube' || Boolean(track.youtube_id));
 
     const cachedResolution =
-      shouldResolveCatalog && !req.bypassCache
+      (shouldResolveCatalog || isIosYouTubeTrack) && !req.bypassCache
         ? getBoundedRefreshed(
             trackResolutionCache,
             track.id,
@@ -574,29 +722,7 @@ export function createPlaybackSourceService(
       }
 
       if (streamResult) {
-        audioUrlCache.delete(track.id);
-        activeTrack = applyResolvedStreamToTrack(track, streamResult);
-        if (
-          streamResult.streamUrl &&
-          streamResult.source !== 'youtube' &&
-          streamResult.source !== 'soundcloud'
-        ) {
-          setBounded(
-            audioUrlCache,
-            activeTrack.id,
-            { url: streamResult.streamUrl, ts: deps.clock.now() },
-            AUDIO_URL_MAX_ENTRIES
-          );
-        }
-        setBounded(
-          trackResolutionCache,
-          track.id,
-          {
-            activeTrack,
-            expiresAt: deps.clock.now() + TRACK_RESOLUTION_TTL_MS,
-          },
-          TRACK_RESOLUTION_MAX_ENTRIES
-        );
+        activeTrack = applyAndCacheCatalogResolution(track, streamResult);
       } else {
         audioUrlCache.delete(track.id);
         activeTrack = {
@@ -604,6 +730,30 @@ export function createPlaybackSourceService(
           audio_url: undefined,
           file_path: '',
         };
+      }
+    } else if (isIosYouTubeTrack && !req.bypassCache) {
+      let cancelRaceTimer: (() => void) | undefined;
+      const catalogPromise = resolveIosCatalogCandidate(track, req.signal);
+      const raceOutcome = await Promise.race([
+        catalogPromise,
+        new Promise<'timeout'>((resolve) => {
+          cancelRaceTimer = deps.clock.after(
+            IOS_CATALOG_LOOKUP_TIMEOUT_MS,
+            () => {
+              setTimeout(() => resolve('timeout'), 0);
+            }
+          );
+        }),
+      ]).finally(() => {
+        cancelRaceTimer?.();
+      });
+
+      if (req.signal?.aborted || disposed) {
+        return null;
+      }
+
+      if (raceOutcome && raceOutcome !== 'timeout') {
+        activeTrack = applyResolvedStreamToTrack(track, raceOutcome);
       }
     }
 
@@ -654,7 +804,7 @@ export function createPlaybackSourceService(
       (activeTrack.source === 'youtube'
         ? extractYouTubeVideoId(activeTrack.file_path || '')
         : null);
-    if (ytId) {
+    if (ytId && !isIOS) {
       return {
         track: activeTrack,
         engine: 'youtube',
@@ -713,6 +863,71 @@ export function createPlaybackSourceService(
     }
 
     if (!bestMatch) {
+      if (
+        (deps.isIOS() || options?.preferHtml5) &&
+        (track.source === 'youtube' || Boolean(track.youtube_id))
+      ) {
+        const cachedRes = getBoundedRefreshed(
+          trackResolutionCache,
+          track.id,
+          (entry) => deps.clock.now() >= entry.expiresAt
+        );
+        if (
+          cachedRes &&
+          cachedRes.activeTrack.source !== 'youtube' &&
+          !cachedRes.activeTrack.youtube_id
+        ) {
+          const cachedHtml5Url = await getAudioUrlCached(cachedRes.activeTrack);
+          if (cachedHtml5Url) {
+            return {
+              track: cachedRes.activeTrack,
+              engine: 'html5',
+              target: cachedHtml5Url,
+              initialTime: resolveFallbackResumeTime(
+                cachedRes.activeTrack.duration
+              ),
+            };
+          }
+        }
+
+        const inFlightCatalog = inFlightIosCatalogByTrackId.get(track.id);
+        let cancelCatalogTimer: (() => void) | undefined;
+        const resolvedCatalog = await Promise.race([
+          inFlightCatalog ?? deps.resolution.resolve({
+            title: track.title,
+            artist: track.artist,
+            duration: track.duration,
+            album: track.album,
+          }),
+          new Promise<null>((resolve) => {
+            cancelCatalogTimer = deps.clock.after(
+              IOS_CATALOG_LOOKUP_TIMEOUT_MS,
+              () => resolve(null)
+            );
+          }),
+        ]).finally(() => cancelCatalogTimer?.());
+        if (
+          resolvedCatalog &&
+          (resolvedCatalog.source === 'nhaccuatui' ||
+            resolvedCatalog.source === 'soundcloud' ||
+            resolvedCatalog.source === 'drive')
+        ) {
+          const upgradedTrack = applyAndCacheCatalogResolution(
+            track,
+            resolvedCatalog
+          );
+          const upgradedUrl = await getAudioUrlCached(upgradedTrack);
+          if (upgradedUrl) {
+            return {
+              track: upgradedTrack,
+              engine: 'html5',
+              target: upgradedUrl,
+              initialTime: resolveFallbackResumeTime(upgradedTrack.duration),
+            };
+          }
+        }
+      }
+
       try {
         const cleanTitle = stripNonIdentityAnnotations(track.title) || track.title;
         const query = `${cleanTitle} ${track.artist || ''}`.trim();
@@ -723,7 +938,7 @@ export function createPlaybackSourceService(
             track.source === 'soundcloud' ||
             Boolean(track.soundcloud_id))
             ? 'youtube'
-            : 'all';
+            : 'playback';
         const data = await deps.search(query, fallbackSource);
 
         const ytList: Track[] = (data.youtube || []).filter(
@@ -905,7 +1120,7 @@ export function createPlaybackSourceService(
     try {
       const cleanTitle = stripNonIdentityAnnotations(track.title) || track.title;
       const queryStr = `${cleanTitle} ${track.artist || ''}`.trim();
-      const searchRes = await deps.search(queryStr, 'all');
+      const searchRes = await deps.search(queryStr, 'playback');
 
       const candidates = (searchRes?.youtube || []).filter(
         (t: Track) => t.youtube_id && t.youtube_id !== track.youtube_id
@@ -926,8 +1141,10 @@ export function createPlaybackSourceService(
           };
           return {
             track: updatedTrack,
-            engine: 'youtube',
-            target: fallbackMatch.youtube_id,
+            engine: deps.isIOS() ? 'html5' : 'youtube',
+            target: deps.isIOS()
+              ? deps.buildYouTubeStreamUrl(fallbackMatch.youtube_id)
+              : fallbackMatch.youtube_id,
             initialTime: currentTime >= 3 ? Math.floor(currentTime) : 0,
           };
         }
@@ -1038,6 +1255,11 @@ export function createPlaybackSourceService(
 
   const invalidateTrack = async (track: Track): Promise<void> => {
     if (!track) return;
+    trackInvalidationGeneration.set(
+      track.id,
+      (trackInvalidationGeneration.get(track.id) ?? 0) + 1
+    );
+    inFlightIosCatalogByTrackId.delete(track.id);
     trackResolutionCache.delete(track.id);
     audioUrlCache.delete(track.id);
     if (track.nhaccuatui_id) {
@@ -1117,6 +1339,7 @@ export function createPlaybackSourceService(
             AUDIO_URL_MAX_ENTRIES
           );
         }
+        void resolveIosCatalogCandidate(nextTr);
         return;
       }
       if (nextClass.isDirectPlayable && !audioUrlCache.has(nextTr.id)) {
@@ -1182,7 +1405,7 @@ export function createPlaybackSourceService(
             void getAudioUrlCached(mergedTrack).catch(() => {});
           }
         } else if (resolved.source === 'soundcloud') {
-          if (deps.isIOS() && !audioUrlCache.has(targetTrackId)) {
+          if (!audioUrlCache.has(targetTrackId)) {
             const scTarget = extractSoundCloudTarget(mergedTrack);
             if (scTarget) {
               const deterministicUrl = deps.getDeterministicSoundCloudUrl
@@ -1196,7 +1419,18 @@ export function createPlaybackSourceService(
               );
             }
           }
-          void getAudioUrlCached(mergedTrack, true).catch(() => {});
+          void getAudioUrl(mergedTrack, false)
+            .then((resolvedUrl) => {
+              if (resolvedUrl && !isPreviewUrl(resolvedUrl) && !disposed) {
+                setBounded(
+                  audioUrlCache,
+                  targetTrackId,
+                  { url: resolvedUrl, ts: deps.clock.now() },
+                  AUDIO_URL_MAX_ENTRIES
+                );
+              }
+            })
+            .catch(() => {});
         } else if (resolved.source === 'youtube' && deps.isIOS() && resolved.id) {
           setBounded(
             audioUrlCache,
@@ -1263,7 +1497,7 @@ export function createPlaybackSourceService(
       deps.isIOS() &&
       (nextTr.source === 'youtube' || Boolean(nextTr.youtube_id))
     ) {
-      // Intentionally do not HEAD-prewarm YouTube on iOS
+      void resolveIosCatalogCandidate(nextTr);
     } else if (!audioUrlCache.has(nextTr.id)) {
       void getAudioUrlCached(nextTr).catch(() => {});
     }
@@ -1360,6 +1594,8 @@ export function createPlaybackSourceService(
       audioUrlCache.clear();
       trackResolutionCache.clear();
       pendingYoutubeFallbackByTrackId.clear();
+      inFlightIosCatalogByTrackId.clear();
+      trackInvalidationGeneration.clear();
       resolutionIdentities.clear();
       resolvingTrackIds.clear();
     },

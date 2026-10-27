@@ -223,7 +223,7 @@ export function ImportSoundCloudModal({
         const track = tracksToImport[i]
         const rawScId = track.soundcloud_id || (track.id?.startsWith('sc-') ? track.id.slice(3) : null)
         const permalink = track.soundcloud_permalink_url || track.file_path || ''
-        const filePath = permalink || (rawScId ? `soundcloud:${rawScId}` : `sc:${Date.now()}-${i}`)
+        const filePath = rawScId ? `soundcloud:${rawScId}` : (permalink || `sc:${Date.now()}-${i}`)
 
         const res = await fetch('/api/playlist-tracks/import-track', {
           method: 'POST',

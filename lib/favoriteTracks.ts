@@ -1,11 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Track } from '@/types'
+import { normalizeRetiredMusicTrack } from './retiredMusicSources'
+import { inferTrackSource as classifyTrackSource } from './trackSourceClassifier'
 
 function toError(message: string | undefined, fallback: string): Error {
   return new Error(message || fallback)
 }
 
 export function inferTrackSource(track: Track): Track {
+  track = classifyTrackSource(normalizeRetiredMusicTrack(track))
   if (track.source && track.source !== 'local') return track
 
   const fp = track.file_path || ''
@@ -21,14 +24,6 @@ export function inferTrackSource(track: Track): Track {
 
   if (fp.includes('spotify.com') || track.spotify_id || track.id?.startsWith?.('spotify-')) {
     return { ...track, source: 'spotify' }
-  }
-
-  if (fp.includes('itunes.apple.com') || track.itunes_id || track.id?.startsWith?.('itunes-')) {
-    return { ...track, source: 'itunes' }
-  }
-
-  if (fp.includes('audius.co') || track.audius_id || track.id?.startsWith?.('audius-')) {
-    return { ...track, source: 'audius' }
   }
 
   return track

@@ -11,7 +11,7 @@ interface TrackCoverImageProps {
 }
 
 /**
- * Converts standard/low-res cover URLs from YouTube, iTunes, Deezer, NhacCuaTui
+ * Converts standard/low-res cover URLs from supported catalogs and saved legacy artwork
  * into high-resolution (HD/600px/720p) image URLs.
  */
 export function getHighResCoverUrl(url: string | null | undefined): string | null {
@@ -29,7 +29,7 @@ export function getHighResCoverUrl(url: string | null | undefined): string | nul
     highRes = cleanUrl.replace(/\/(hqdefault|mqdefault|default|sddefault|hq720)\.(jpg|webp)/g, '/maxresdefault.jpg')
   }
 
-  // 2. iTunes / Apple Music: Upgrade 100x100bb / 200x200bb to 600x600bb
+  // 2. Legacy saved artwork: Upgrade 100x100bb / 200x200bb to 600x600bb
   if (highRes.includes('mzstatic.com')) {
     highRes = highRes.replace(/\/\d+x\d+bb/g, '/600x600bb')
   }
@@ -42,6 +42,11 @@ export function getHighResCoverUrl(url: string | null | undefined): string | nul
   // 4. NhacCuaTui: Upgrade _120 / _200 / _300 to _600
   if (highRes.includes('nct.vn') || highRes.includes('nhaccuatui')) {
     highRes = highRes.replace(/_(120|200|300)x\1/g, '_600x600').replace(/_(120|200|300)\.jpg/g, '_600.jpg')
+  }
+
+  // 5. Spotify: Upgrade 300x300 (1e02) / 64x64 (4851) to 640x640 (b273)
+  if (highRes.includes('scdn.co') || highRes.includes('spotifycdn.com')) {
+    highRes = highRes.replace(/ab67616d0000(?:1e02|4851)/g, 'ab67616d0000b273')
   }
 
   return highRes
