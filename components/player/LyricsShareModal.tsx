@@ -118,7 +118,6 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
     generateLyricCardDataUrl({
       title: track.title,
       artist: track.artist || track.artist_name || null,
-      album: track.album || track.album_title || null,
       coverUrl: track.cover_url,
       selectedLines,
       themeId: selectedThemeId,
@@ -160,7 +159,6 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
       const blob = await generateLyricCardBlob({
         title: track.title,
         artist: track.artist || track.artist_name || null,
-        album: track.album || track.album_title || null,
         coverUrl: track.cover_url,
         selectedLines,
         themeId: selectedThemeId,
@@ -220,7 +218,6 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
       const blob = await generateLyricCardBlob({
         title: track.title,
         artist: track.artist || track.artist_name || null,
-        album: track.album || track.album_title || null,
         coverUrl: track.cover_url,
         selectedLines,
         themeId: selectedThemeId,
@@ -257,7 +254,6 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
       const blob = await generateLyricCardBlob({
         title: track.title,
         artist: track.artist || track.artist_name || null,
-        album: track.album || track.album_title || null,
         coverUrl: track.cover_url,
         selectedLines,
         themeId: selectedThemeId,

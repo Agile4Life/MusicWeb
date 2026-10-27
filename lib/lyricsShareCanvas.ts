@@ -359,7 +359,6 @@ export async function renderMinimalCardToCanvas(
   }
 
   // Calculate dynamic card dimensions
-  const hasAlbum = Boolean(options.album && options.album.trim())
   const headerTopPadding = 50
   const coverSize = 114
   const headerBottomMargin = 32
@@ -501,7 +500,7 @@ export async function renderMinimalCardToCanvas(
   ctx.stroke()
   ctx.restore()
 
-  // 7. Header Track Metadata (Title, Artist, Album) - Left-Aligned next to Cover
+  // 7. Header Track Metadata (Title, Artist) - Left-Aligned next to Cover
   const textLeftX = coverX + coverSize + 24
   const maxHeaderWidth = cardWidth - margin - (textLeftX - cardX)
 
@@ -517,7 +516,7 @@ export async function renderMinimalCardToCanvas(
   while (ctx.measureText(displayTitle).width > maxHeaderWidth && displayTitle.length > 3) {
     displayTitle = displayTitle.slice(0, -2) + '…'
   }
-  const titleY = coverY + (hasAlbum ? 4 : 14)
+  const titleY = coverY + 20
   ctx.fillText(displayTitle, textLeftX, titleY)
 
   // Artist name
@@ -532,21 +531,6 @@ export async function renderMinimalCardToCanvas(
   }
   const artistY = titleY + 38
   ctx.fillText(displayArtist, textLeftX, artistY)
-
-  // Album name (if available)
-  if (hasAlbum && options.album) {
-    ctx.font = '500 18px system-ui, -apple-system, sans-serif'
-    ctx.fillStyle = isLightTheme
-      ? 'rgba(15, 23, 42, 0.50)'
-      : 'rgba(255, 255, 255, 0.50)'
-
-    let displayAlbum = `Album: ${options.album}`
-    while (ctx.measureText(displayAlbum).width > maxHeaderWidth && displayAlbum.length > 3) {
-      displayAlbum = displayAlbum.slice(0, -2) + '…'
-    }
-    const albumY = artistY + 30
-    ctx.fillText(displayAlbum, textLeftX, albumY)
-  }
   ctx.restore()
 
   // 8. Divider Line
@@ -930,11 +914,10 @@ export async function renderLyricCardToCanvas(
   }
   ctx.fillText(displayTitle, centerX, cardY + 295)
 
-  // Centered Artist & Album
+  // Centered Artist
+  ctx.font = '600 24px system-ui, -apple-system, sans-serif'
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.75)'
   let displayArtist = options.artist || 'Nghệ sĩ chưa xác định'
-  if (options.album && options.album.trim() && options.album.trim() !== displayArtist && options.album.trim() !== displayTitle) {
-    displayArtist = `${displayArtist} • ${options.album.trim()}`
-  }
   while (ctx.measureText(displayArtist).width > maxTitleWidth && displayArtist.length > 3) {
     displayArtist = displayArtist.slice(0, -2) + '…'
   }
