@@ -7,6 +7,7 @@ import {
 } from '@/lib/catalogMatching';
 import { extractDriveFileId, isPreviewUrl } from '@/lib/googleDriveUpload';
 import { findBestNhacCuaTuiMatch } from '@/lib/nhaccuatui';
+import { isSameAudioSource } from '@/components/player/audioSourceSwitch';
 import { isAbortError, planUpcomingPrewarm } from '@/lib/prewarmPlan';
 import type { ResolvedStreamResult } from '@/lib/stream-resolution/client/contracts';
 import { classifyTrack, inferTrackSource } from '@/lib/trackSourceClassifier';
@@ -18,6 +19,7 @@ const AUDIO_URL_MAX_ENTRIES = 200;
 const TRACK_RESOLUTION_MAX_ENTRIES = 200;
 const TRACK_RESOLUTION_TTL_MS = 30 * 60 * 1000;
 const IOS_CATALOG_LOOKUP_TIMEOUT_MS = 1800;
+const IDENTITY_MAX_ENTRIES = 2000;
 
 function setBounded<K, V>(map: Map<K, V>, key: K, value: V, maxEntries: number): void {
   if (map.has(key)) map.delete(key);
@@ -109,6 +111,63 @@ function isWebpageOrCatalogUrl(url: string | undefined | null): boolean {
     lower.includes('open.spotify.com') ||
     lower.includes('nhaccuatui.com')
   );
+}
+
+type SearchResults = {
+  nhaccuatui?: Track[];
+  youtube?: Track[];
+  soundcloud?: Track[];
+} | null | undefined;
+
+function soundCloudIdOf(t: Track): string {
+  return t.soundcloud_id ? String(t.soundcloud_id) : (t.id || '').replace(/^sc-/, '');
+}
+
+/**
+ * The single place that turns search results into one best candidate per source.
+ * `exclude` drops the source id that just failed so it is not picked again.
+ */
+function pickBestCandidates(
+  data: SearchResults,
+  track: Track,
+  exclude: { youtubeId?: string | null; nhaccuatuiId?: string | null; soundcloudId?: string | null } = {}
+): { nct?: Track; sc?: Track; yt?: Track } {
+  const nctCandidates = (data?.nhaccuatui || []).filter(
+    (t: Track) => t?.nhaccuatui_id && t.nhaccuatui_id !== exclude.nhaccuatuiId
+  );
+  const nctMatched = findBestNhacCuaTuiMatch(
+    nctCandidates.map((t) => ({
+      id: t.nhaccuatui_id!,
+      title: t.title,
+      artist: t.artist || '',
+      duration: t.duration,
+      thumbnail: t.cover_url || undefined,
+    })),
+    { title: track.title, artist: track.artist, duration: track.duration, album: track.album }
+  );
+  const nct = nctMatched
+    ? nctCandidates.find((t) => t.nhaccuatui_id === nctMatched.id)
+    : undefined;
+
+  const ytList = (data?.youtube || []).filter(
+    (t: Track) => t.youtube_id && t.youtube_id !== exclude.youtubeId
+  );
+  const yt =
+    findBestYouTubeMatch(ytList, track.title, track.artist, track.duration, track.album) ||
+    undefined;
+
+  const scList = (data?.soundcloud || []).filter((t: Track) => {
+    const id = soundCloudIdOf(t);
+    return Boolean(id && id !== exclude.soundcloudId);
+  });
+  const sc =
+    findBestSoundCloudMatch(scList, {
+      title: track.title,
+      artist: track.artist,
+      duration: track.duration,
+    }) || undefined;
+
+  return { nct, sc, yt };
 }
 
 function applyResolvedStreamToTrack(track: Track, streamResult: ResolvedStreamResult): Track {
@@ -235,12 +294,17 @@ export function createPlaybackSourceService(
   let disposed = false;
 
   const rememberIdentity = (track: Track) => {
-    resolutionIdentities.set(track.id, {
-      title: track.title,
-      artist: track.artist,
-      duration: track.duration,
-      album: track.album,
-    });
+    setBounded(
+      resolutionIdentities,
+      track.id,
+      {
+        title: track.title,
+        artist: track.artist,
+        duration: track.duration,
+        album: track.album,
+      },
+      IDENTITY_MAX_ENTRIES
+    );
   };
 
   const getAudioUrl = async (track: Track, bypassCache = false): Promise<string | null> => {
@@ -379,43 +443,7 @@ export function createPlaybackSourceService(
       const cleanQ = `${cleanTitleOnly || track.title} ${cleanArtistOnly || track.artist || ''}`.trim();
       const fbData = await deps.search(cleanQ, 'playback', signal);
 
-      const nctCandidates: Track[] = (fbData.nhaccuatui || []).filter((t: Track) =>
-        Boolean(t?.nhaccuatui_id)
-      );
-      const nctMatchedItem = findBestNhacCuaTuiMatch(
-        nctCandidates.map((t) => ({
-          id: t.nhaccuatui_id!,
-          title: t.title,
-          artist: t.artist || '',
-          duration: t.duration,
-          thumbnail: t.cover_url || undefined,
-        })),
-        {
-          title: track.title,
-          artist: track.artist,
-          duration: track.duration,
-          album: track.album,
-        }
-      );
-      const nctMatch = nctMatchedItem
-        ? nctCandidates.find((t) => t.nhaccuatui_id === nctMatchedItem.id)
-        : undefined;
-
-      const ytCandidates: Track[] = fbData.youtube || [];
-      const ytMatch = findBestYouTubeMatch(
-        ytCandidates,
-        track.title,
-        track.artist,
-        track.duration,
-        track.album
-      );
-
-      const scCandidates: Track[] = fbData.soundcloud || [];
-      const scMatch = findBestSoundCloudMatch(scCandidates, {
-        title: track.title,
-        artist: track.artist,
-        duration: track.duration,
-      });
+      const { nct: nctMatch, sc: scMatch, yt: ytMatch } = pickBestCandidates(fbData, track);
 
       if (nctMatch?.nhaccuatui_id) {
         return {
@@ -427,13 +455,10 @@ export function createPlaybackSourceService(
           coverUrl: nctMatch.cover_url,
         };
       }
-      if (scMatch?.soundcloud_id || scMatch?.id) {
-        const scId = scMatch.soundcloud_id
-          ? String(scMatch.soundcloud_id)
-          : scMatch.id.replace(/^sc-/, '');
+      if (scMatch) {
         return {
           source: 'soundcloud',
-          id: scId,
+          id: soundCloudIdOf(scMatch),
           title: scMatch.title,
           artist: scMatch.artist || undefined,
           duration: scMatch.duration,
@@ -710,6 +735,7 @@ export function createPlaybackSourceService(
       audioUrlCache.delete(track.id);
     } else if (shouldResolveCatalog) {
       rememberIdentity(track);
+      const startGen = trackInvalidationGeneration.get(track.id) ?? 0;
       let streamResult = await deps.resolution.resolve({
         title: track.title,
         artist: track.artist,
@@ -722,7 +748,7 @@ export function createPlaybackSourceService(
       }
 
       if (streamResult) {
-        activeTrack = applyAndCacheCatalogResolution(track, streamResult);
+        activeTrack = applyAndCacheCatalogResolution(track, streamResult, startGen);
       } else {
         audioUrlCache.delete(track.id);
         activeTrack = {
@@ -941,38 +967,16 @@ export function createPlaybackSourceService(
             : 'playback';
         const data = await deps.search(query, fallbackSource);
 
-        const ytList: Track[] = (data.youtube || []).filter(
-          (t: Track) => t.youtube_id && (options?.preferHtml5 || t.youtube_id !== track.youtube_id)
-        );
-        const searchedYtMatch = findBestYouTubeMatch(
-          ytList,
-          track.title,
-          track.artist,
-          track.duration,
-          track.album
-        );
-
-        const nctAlternates: Track[] = (data.nhaccuatui || []).filter(
-          (t: Track) => t.nhaccuatui_id && t.nhaccuatui_id !== track.nhaccuatui_id
-        );
-        const nctMatchedItem = findBestNhacCuaTuiMatch(
-          nctAlternates.map((t) => ({
-            id: t.nhaccuatui_id!,
-            title: t.title,
-            artist: t.artist || '',
-            duration: t.duration,
-            thumbnail: t.cover_url || undefined,
-          })),
-          {
-            title: track.title,
-            artist: track.artist,
-            duration: track.duration,
-            album: track.album,
-          }
-        );
-        const nctCandidate = nctMatchedItem
-          ? nctAlternates.find((t) => t.nhaccuatui_id === nctMatchedItem.id)
-          : undefined;
+        const currentScId = track.soundcloud_id ? String(track.soundcloud_id) : '';
+        const {
+          nct: nctCandidate,
+          sc: scCandidate,
+          yt: searchedYtMatch,
+        } = pickBestCandidates(data, track, {
+          youtubeId: options?.preferHtml5 ? null : track.youtube_id,
+          nhaccuatuiId: track.nhaccuatui_id,
+          soundcloudId: currentScId,
+        });
 
         if (nctCandidate?.nhaccuatui_id) {
           if (searchedYtMatch?.youtube_id) {
@@ -1001,20 +1005,8 @@ export function createPlaybackSourceService(
           };
         }
 
-        const currentScId = track.soundcloud_id ? String(track.soundcloud_id) : '';
-        const scAlternates: Track[] = (data.soundcloud || []).filter((t: Track) => {
-          const id = t.soundcloud_id ? String(t.soundcloud_id) : t.id?.replace(/^sc-/, '');
-          return Boolean(id && id !== currentScId);
-        });
-        const scCandidate = findBestSoundCloudMatch(scAlternates, {
-          title: track.title,
-          artist: track.artist,
-          duration: track.duration,
-        });
-        if (scCandidate && (scCandidate.soundcloud_id || scCandidate.id)) {
-          const scId = scCandidate.soundcloud_id
-            ? String(scCandidate.soundcloud_id)
-            : scCandidate.id.replace(/^sc-/, '');
+        if (scCandidate) {
+          const scId = soundCloudIdOf(scCandidate);
           const updatedScTrack: Track = {
             ...track,
             source: 'soundcloud',
@@ -1041,7 +1033,7 @@ export function createPlaybackSourceService(
           }
         }
 
-        bestMatch = searchedYtMatch;
+        bestMatch = searchedYtMatch ?? null;
       } catch {
         // Search failed
       }
@@ -1122,55 +1114,27 @@ export function createPlaybackSourceService(
       const queryStr = `${cleanTitle} ${track.artist || ''}`.trim();
       const searchRes = await deps.search(queryStr, 'playback');
 
-      const candidates = (searchRes?.youtube || []).filter(
-        (t: Track) => t.youtube_id && t.youtube_id !== track.youtube_id
+      const { nct: nctCandidate, sc: scMatch, yt: fallbackMatch } = pickBestCandidates(
+        searchRes,
+        track,
+        { youtubeId: track.youtube_id }
       );
-      if (candidates.length > 0) {
-        const fallbackMatch = findBestYouTubeMatch(
-          candidates,
-          track.title,
-          track.artist,
-          track.duration,
-          track.album
-        );
-        if (fallbackMatch?.youtube_id) {
-          const updatedTrack: Track = {
-            ...track,
-            source: 'youtube',
-            youtube_id: fallbackMatch.youtube_id,
-          };
-          return {
-            track: updatedTrack,
-            engine: deps.isIOS() ? 'html5' : 'youtube',
-            target: deps.isIOS()
-              ? deps.buildYouTubeStreamUrl(fallbackMatch.youtube_id)
-              : fallbackMatch.youtube_id,
-            initialTime: currentTime >= 3 ? Math.floor(currentTime) : 0,
-          };
-        }
+      if (fallbackMatch?.youtube_id) {
+        const updatedTrack: Track = {
+          ...track,
+          source: 'youtube',
+          youtube_id: fallbackMatch.youtube_id,
+        };
+        return {
+          track: updatedTrack,
+          engine: deps.isIOS() ? 'html5' : 'youtube',
+          target: deps.isIOS()
+            ? deps.buildYouTubeStreamUrl(fallbackMatch.youtube_id)
+            : fallbackMatch.youtube_id,
+          initialTime: currentTime >= 3 ? Math.floor(currentTime) : 0,
+        };
       }
 
-      const nctAlternates: Track[] = (searchRes?.nhaccuatui || []).filter((t: Track) =>
-        Boolean(t?.nhaccuatui_id)
-      );
-      const nctMatchedItem = findBestNhacCuaTuiMatch(
-        nctAlternates.map((t) => ({
-          id: t.nhaccuatui_id!,
-          title: t.title,
-          artist: t.artist || '',
-          duration: t.duration,
-          thumbnail: t.cover_url || undefined,
-        })),
-        {
-          title: track.title,
-          artist: track.artist,
-          duration: track.duration,
-          album: track.album,
-        }
-      );
-      const nctCandidate = nctMatchedItem
-        ? nctAlternates.find((t) => t.nhaccuatui_id === nctMatchedItem.id)
-        : undefined;
       if (nctCandidate?.nhaccuatui_id) {
         const updatedTrack: Track = {
           ...track,
@@ -1188,20 +1152,11 @@ export function createPlaybackSourceService(
         };
       }
 
-      const scCandidates: Track[] = searchRes?.soundcloud || [];
-      const scMatch = findBestSoundCloudMatch(scCandidates, {
-        title: track.title,
-        artist: track.artist,
-        duration: track.duration,
-      });
-      if (scMatch && (scMatch.soundcloud_id || scMatch.id)) {
-        const scId = scMatch.soundcloud_id
-          ? String(scMatch.soundcloud_id)
-          : scMatch.id.replace(/^sc-/, '');
+      if (scMatch) {
         const updatedTrack: Track = {
           ...track,
           source: 'soundcloud',
-          soundcloud_id: scId,
+          soundcloud_id: soundCloudIdOf(scMatch),
           youtube_id: undefined,
         };
         return resolvePlayable({ track: updatedTrack, initialTime: 0 });
@@ -1217,9 +1172,15 @@ export function createPlaybackSourceService(
     initialTime: number
   ): Promise<PreparedPlayback | null> => {
     if (disposed || !track) return null;
+    const previousUrl = audioUrlCache.get(track.id)?.url;
     audioUrlCache.delete(track.id);
-    const freshUrl = await getAudioUrl(track, true);
+    let freshUrl = await getAudioUrl(track, true);
     if (!freshUrl) return null;
+    // A deterministic proxy URL is identical to the stalled one, so the audio
+    // element would keep its stalled connection. Make the URL distinct.
+    if (previousUrl && freshUrl.startsWith('/') && isSameAudioSource(previousUrl, freshUrl)) {
+      freshUrl += `${freshUrl.includes('?') ? '&' : '?'}_r=${deps.clock.now()}`;
+    }
     setBounded(
       audioUrlCache,
       track.id,
@@ -1255,9 +1216,11 @@ export function createPlaybackSourceService(
 
   const invalidateTrack = async (track: Track): Promise<void> => {
     if (!track) return;
-    trackInvalidationGeneration.set(
+    setBounded(
+      trackInvalidationGeneration,
       track.id,
-      (trackInvalidationGeneration.get(track.id) ?? 0) + 1
+      (trackInvalidationGeneration.get(track.id) ?? 0) + 1,
+      IDENTITY_MAX_ENTRIES
     );
     inFlightIosCatalogByTrackId.delete(track.id);
     trackResolutionCache.delete(track.id);
@@ -1351,6 +1314,7 @@ export function createPlaybackSourceService(
     const targetTrackId = nextTr.id;
     if (resolvingTrackIds.has(targetTrackId)) return;
     resolvingTrackIds.add(targetTrackId);
+    const prewarmGen = trackInvalidationGeneration.get(targetTrackId) ?? 0;
 
     void deps.resolution
       .resolve({
@@ -1360,7 +1324,14 @@ export function createPlaybackSourceService(
         album: nextTr.album,
       })
       .then((resolved) => {
-        if (!resolved || disposed) return;
+        // An invalidation while this lookup was in flight makes it stale.
+        if (
+          !resolved ||
+          disposed ||
+          (trackInvalidationGeneration.get(targetTrackId) ?? 0) !== prewarmGen
+        ) {
+          return;
+        }
         const mergedTrack: Track = {
           ...applyResolvedStreamToTrack(nextTr, resolved),
           audio_url: undefined,

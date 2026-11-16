@@ -201,6 +201,9 @@ export function createClientResolutionService(deps: ClientResolutionDeps): Clien
     deps.persistence.delete(key)
     forceRefreshGeneration.set(key, generation)
 
+    // Offline errors say nothing about the source; keep the local markers only.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return
+
     // Best-effort eager server invalidation. The next resolve also sends
     // invalidate=1, so correctness does not depend on this request winning a race.
     try {

@@ -783,14 +783,14 @@ export async function resolveSoundCloudStreamUrl(
     }
   }
 
-  const promise = (async (): Promise<string | null> => {
-    const resolved = await resolveSoundCloudTrack(rawId)
-    if (!resolved || !resolved.raw) return null
-
-    const transcoding = getBestSoundCloudTranscoding(resolved.raw)
-    if (!transcoding?.url) return null
-
+  const promise: Promise<string | null> = (async (): Promise<string | null> => {
     try {
+      const resolved = await resolveSoundCloudTrack(rawId)
+      if (!resolved || !resolved.raw) return null
+
+      const transcoding = getBestSoundCloudTranscoding(resolved.raw)
+      if (!transcoding?.url) return null
+
       const { res } = await fetchSoundCloudApiWithClientId(
         (cid) => `${transcoding.url}?client_id=${cid}`,
         {
@@ -827,14 +827,15 @@ export async function resolveSoundCloudStreamUrl(
     } catch (err) {
       console.error(`[SoundCloud] Failed to resolve stream for ${trackId}:`, err)
       return null
-    } finally {
+    }
+  })().finally(() => {
+    // Only the owner may clear its slot; a newer refresh may have replaced it.
+    if (inFlightSoundCloudStream.get(rawId) === promise) {
       inFlightSoundCloudStream.delete(rawId)
     }
-  })()
+  })
 
-  if (!bypassCache) {
-    inFlightSoundCloudStream.set(rawId, promise)
-  }
+  inFlightSoundCloudStream.set(rawId, promise)
 
   return promise
 }
@@ -1043,7 +1044,8 @@ export function buildMasterFmp4SidxBox(
   return out
 }
 
-const HLS_BUFFER_CACHE_MAX_ENTRIES = 10
+// Whole tracks live in RAM (~5-10MB each). Sized for several listeners + prewarm.
+const HLS_BUFFER_CACHE_MAX_ENTRIES = 30
 const HLS_BUFFER_CACHE_TTL_MS = 10 * 60 * 1000
 const hlsMediaBufferCache = scState.hlsMediaBufferCache
 const inFlightHlsMediaBuffer = scState.inFlightHlsMediaBuffer
@@ -1168,35 +1170,36 @@ export async function resolveSoundCloudHlsBuffer(
     }
   }
 
-  const promise = (async () => {
-    try {
-      const hlsInfo = await parseSoundCloudHlsManifest(m3u8Url)
-      if (!hlsInfo) return null
-      const assembled = await assembleSoundCloudHlsMedia(hlsInfo)
-      if (!assembled) return null
+  const self: { promise?: Promise<{ buffer: Uint8Array; contentType: string } | null> } = {}
+  self.promise = (async () => {
+    const hlsInfo = await parseSoundCloudHlsManifest(m3u8Url)
+    if (!hlsInfo) return null
+    const assembled = await assembleSoundCloudHlsMedia(hlsInfo)
+    if (!assembled) return null
 
-      if (hlsMediaBufferCache.size >= HLS_BUFFER_CACHE_MAX_ENTRIES) {
-        const oldestKey = hlsMediaBufferCache.keys().next().value
-        if (oldestKey !== undefined) {
-          hlsMediaBufferCache.delete(oldestKey)
-        }
+    // A newer refresh owns the slot; never overwrite it with an older download.
+    if (inFlightHlsMediaBuffer.get(cacheKey) !== self.promise) return assembled
+    if (hlsMediaBufferCache.size >= HLS_BUFFER_CACHE_MAX_ENTRIES) {
+      const oldestKey = hlsMediaBufferCache.keys().next().value
+      if (oldestKey !== undefined) {
+        hlsMediaBufferCache.delete(oldestKey)
       }
-      hlsMediaBufferCache.set(cacheKey, {
-        buffer: assembled.buffer,
-        contentType: assembled.contentType,
-        expiresAt: Date.now() + HLS_BUFFER_CACHE_TTL_MS,
-      })
-      return assembled
-    } finally {
+    }
+    hlsMediaBufferCache.set(cacheKey, {
+      buffer: assembled.buffer,
+      contentType: assembled.contentType,
+      expiresAt: Date.now() + HLS_BUFFER_CACHE_TTL_MS,
+    })
+    return assembled
+  })().finally(() => {
+    if (inFlightHlsMediaBuffer.get(cacheKey) === self.promise) {
       inFlightHlsMediaBuffer.delete(cacheKey)
     }
-  })()
+  })
 
-  if (!bypassCache) {
-    inFlightHlsMediaBuffer.set(cacheKey, promise)
-  }
+  inFlightHlsMediaBuffer.set(cacheKey, self.promise)
 
-  return promise
+  return self.promise
 }
 
 export async function parseSoundCloudHlsManifest(

@@ -46,9 +46,12 @@ export async function GET(req: NextRequest) {
       }
       if (range) proxyHeaders['Range'] = range
 
+      const upstreamSignal = () =>
+        req.signal ? AbortSignal.any([req.signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000)
       let streamRes = await fetch(resolved.url, {
         headers: proxyHeaders,
         cache: 'no-store',
+        signal: upstreamSignal(),
       })
 
       // Cached CDN URL may have died upstream — invalidate caches and re-resolve once
@@ -59,8 +62,18 @@ export async function GET(req: NextRequest) {
           streamRes = await fetch(reResolved.url, {
             headers: proxyHeaders,
             cache: 'no-store',
+            signal: upstreamSignal(),
           })
         }
+      }
+
+      // Never let a CDN or browser cache an upstream error (Drive quota, 404...).
+      if (!streamRes.ok) {
+        await streamRes.body?.cancel().catch(() => {})
+        return NextResponse.json(
+          { error: 'Google Drive: upstream stream unavailable' },
+          { status: 502, headers: { 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' } }
+        )
       }
 
       const resHeaders = new Headers()
@@ -69,7 +82,7 @@ export async function GET(req: NextRequest) {
       resHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
       resHeaders.set('Access-Control-Allow-Headers', 'Range, Content-Type')
       resHeaders.set('Accept-Ranges', 'bytes')
-    resHeaders.set('Cache-Control', 'public, max-age=2700, s-maxage=2700, stale-while-revalidate=600')
+      resHeaders.set('Cache-Control', 'public, max-age=2700, s-maxage=2700, stale-while-revalidate=600')
 
       const cl = streamRes.headers.get('content-length')
       if (cl) resHeaders.set('Content-Length', cl)
@@ -90,7 +103,10 @@ export async function GET(req: NextRequest) {
     redirectHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
     redirectHeaders.set('Access-Control-Allow-Headers', 'Range, Content-Type')
     redirectHeaders.set('Accept-Ranges', 'bytes')
-    redirectHeaders.set('Cache-Control', 'public, max-age=2700, s-maxage=2700, stale-while-revalidate=600')
+    // The target is a signed CDN URL that may already be up to 45 min old (server
+    // cache). Keep the redirect itself short-lived and per-browser so it cannot
+    // outlive the URL it points to.
+    redirectHeaders.set('Cache-Control', 'private, max-age=300')
 
     return new Response(null, { status: 302, headers: redirectHeaders })
   } catch (err: any) {
@@ -133,15 +149,18 @@ export async function HEAD(req: NextRequest) {
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
       },
       cache: 'no-store',
+      signal: AbortSignal.timeout(8000),
     })
+    if (!res.ok) {
+      return new NextResponse(null, { status: 502, headers: { 'Cache-Control': 'no-store' } })
+    }
 
     const headers = new Headers()
     headers.set('Access-Control-Allow-Origin', '*')
     headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
     headers.set('Access-Control-Allow-Headers', 'Range, Content-Type')
     headers.set('Accept-Ranges', 'bytes')
-    headers.set('Cache-Control', 'public, max-age=2700, s-maxage=2700, stale-while-revalidate=600')
-    headers.set('Location', resolved.url)
+    headers.set('Cache-Control', 'private, max-age=300')
     headers.set('Content-Type', resolved.contentType || 'audio/mpeg')
 
     const cl = res.headers.get('content-length')

@@ -6,6 +6,7 @@ import { isCatalogTrackMatch } from '@/lib/catalogMatching';
 import { extractDriveFileId, isPreviewUrl } from './driveHelpers';
 import type { SourceResolver } from '../contracts';
 const L1_HIT_TTL = 600000;
+const DRIVE_QUERY_TIMEOUT_MS = 2500;
 export function createDriveResolver(supabase: SupabaseClient | null): SourceResolver {
     return async ({ title, artist, duration }) => {
         const primaryArtist = getPrimaryArtistName(artist) || artist;
@@ -30,7 +31,8 @@ export function createDriveResolver(supabase: SupabaseClient | null): SourceReso
                 .from('tracks')
                 .select('*')
                 .or(`title.ilike.%${cleanTitle}%,artist.ilike.%${cleanTitle}%`)
-                .limit(10);
+                .limit(25)
+                .abortSignal(AbortSignal.timeout(DRIVE_QUERY_TIMEOUT_MS));
             if (!localMatches || localMatches.length === 0)
                 return null;
             for (const lt of localMatches) {

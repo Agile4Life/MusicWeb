@@ -20,3 +20,22 @@ export function isNextAuthRoute(pathname: string): boolean {
     pathname.startsWith('/auth/callback')
   )
 }
+
+// Stateless audio proxies: they never read the session, so paying a Supabase Auth
+// round-trip on every Range request only adds latency to playback.
+const STREAM_PROXY_PREFIXES = [
+  '/api/soundcloud/stream',
+  '/api/nhaccuatui/stream',
+  '/api/nhaccuatui/resolve-stream',
+  '/api/nhaccuatui/match-stream',
+  '/api/youtube/stream',
+  '/api/yt-stream',
+  '/api/drive-stream',
+  '/api/resolve-stream',
+]
+
+export function isStreamProxyPath(pathname: string): boolean {
+  return STREAM_PROXY_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  )
+}

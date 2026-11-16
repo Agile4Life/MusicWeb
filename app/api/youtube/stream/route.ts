@@ -43,7 +43,12 @@ export async function GET(req: NextRequest) {
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
       }
       if (range) proxyHeaders['Range'] = range
-      return fetch(url, { headers: proxyHeaders, cache: 'no-store' })
+      // A stalled googlevideo connection must not pin a function until maxDuration.
+      return fetch(url, {
+        headers: proxyHeaders,
+        cache: 'no-store',
+        signal: AbortSignal.any([req.signal, AbortSignal.timeout(15000)]),
+      })
     }
 
     let streamRes = await fetchUpstream(resolved.url)
@@ -120,6 +125,7 @@ export async function HEAD(req: NextRequest) {
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
       },
       cache: 'no-store',
+      signal: AbortSignal.timeout(8000),
     })
 
     const headers = new Headers()

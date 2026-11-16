@@ -20,6 +20,7 @@ export interface ResolvedYouTubeStream {
 export const streamUrlCache = new Map<string, { url: string; mimeType: string; expiresAt: number }>()
 const inFlightYouTubeStream = new Map<string, Promise<ResolvedYouTubeStream | null>>()
 const STREAM_CACHE_TTL = 2.5 * 60 * 60 * 1000 // googlevideo URLs expire after ~6h
+const STREAM_CACHE_MAX_ENTRIES = 500
 
 export async function resolveYouTubeAudioStreamCached(videoId: string): Promise<ResolvedYouTubeStream | null> {
   const cached = streamUrlCache.get(videoId)
@@ -36,6 +37,10 @@ export async function resolveYouTubeAudioStreamCached(videoId: string): Promise<
     try {
       const resolved = await resolveYouTubeAudioStream(videoId)
       if (resolved && resolved.url) {
+        if (streamUrlCache.size >= STREAM_CACHE_MAX_ENTRIES && !streamUrlCache.has(videoId)) {
+          const oldest = streamUrlCache.keys().next().value
+          if (oldest !== undefined) streamUrlCache.delete(oldest)
+        }
         streamUrlCache.set(videoId, { ...resolved, expiresAt: Date.now() + STREAM_CACHE_TTL })
       }
       return resolved
@@ -144,18 +149,20 @@ export async function resolveYouTubeAudioStreamAndroid(videoId: string): Promise
 export async function resolveYouTubeAudioStream(videoId: string): Promise<ResolvedYouTubeStream | null> {
   if (!videoId) return null
 
-  const ytDlpStream = await resolveViaYtDlp(videoId)
-  if (ytDlpStream) return ytDlpStream
-
-  const androidStream = await resolveYouTubeAudioStreamAndroid(videoId)
-  if (androidStream) return androidStream
-
   const pipedInstances = [
     'https://pipedapi.mha.fi/streams/',
     'https://pipedapi.adminforge.de/streams/',
     'https://pipedapi.kavin.rocks/streams/',
     'https://api.piped.video/streams/',
   ]
+
+  // yt-dlp can take up to 25s cold; racing it with the 3.5s InnerTube call keeps
+  // its reliability without making every video wait for it.
+  const primaryStream = await firstValidResult([
+    () => resolveViaYtDlp(videoId),
+    () => resolveYouTubeAudioStreamAndroid(videoId),
+  ])
+  if (primaryStream) return primaryStream
 
   const fallbackStream = await firstValidResult([
     ...pipedInstances.map((base) => async () => {

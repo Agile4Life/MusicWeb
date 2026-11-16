@@ -151,7 +151,9 @@ export function createBrowserSourceDependencies(
         const payload = {
           source: 'youtube',
           resolvedId: youtubeId,
-          ttl: 24 * 60 * 60 * 1000,
+          // Same lifetime as other client resolutions, so a YouTube fallback cannot
+          // outrank NCT/SoundCloud for a day after the preferred source recovers.
+          ttl: 30 * 60 * 1000,
           youtubeVideoId: youtubeId,
         };
         saveTrackResolution(keyWithDur, payload);

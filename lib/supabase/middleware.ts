@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
-import { isNextAuthRoute, isPublicAuthPath } from '@/lib/auth/publicPaths'
+import { isNextAuthRoute, isPublicAuthPath, isStreamProxyPath } from '@/lib/auth/publicPaths'
 
 export async function updateSession(request: NextRequest) {
   const isAuthPage = isPublicAuthPath(request.nextUrl.pathname)
@@ -10,6 +10,11 @@ export async function updateSession(request: NextRequest) {
 
   // Never block NextAuth API routes, Passkey API, or auth callback
   if (isNextAuthApi) {
+    return NextResponse.next({ request })
+  }
+
+  // Stream proxies are not gated and never read the session.
+  if (isStreamProxyPath(request.nextUrl.pathname)) {
     return NextResponse.next({ request })
   }
 
@@ -61,12 +66,14 @@ export async function updateSession(request: NextRequest) {
     try {
       const authSecret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET
       if (!authSecret && process.env.NODE_ENV === 'production') {
+        // Never verify against a secret that is public in the repository.
         console.error('[Middleware] NEXTAUTH_SECRET or AUTH_SECRET is required in production')
+      } else {
+        nextAuthToken = await getToken({
+          req: request,
+          secret: authSecret || 'musicweb_nextauth_secret_key_84920482910_phongtct_dev_only',
+        })
       }
-      nextAuthToken = await getToken({
-        req: request,
-        secret: authSecret || 'musicweb_nextauth_secret_key_84920482910_phongtct_dev_only',
-      })
     } catch (e) {
       console.warn('NextAuth getToken failed in middleware:', e)
     }

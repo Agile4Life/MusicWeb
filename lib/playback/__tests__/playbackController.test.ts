@@ -782,5 +782,26 @@ describe('playbackController', () => {
     expect(youtubeStarts).toHaveLength(0);
     expect(controller.getSnapshot().isPlaying).toBe(true);
   });
+
+  it('does not resurrect the current track removed from the queue while it was resolving', async () => {
+    const { controller, sources, transport } = createTestHarness();
+    const slow = deferred<PreparedPlayback | null>();
+    vi.mocked(sources.resolvePlayable).mockImplementationOnce(() => slow.promise);
+    const only = makeTrack('only-track');
+
+    const playing = controller.playTrack(only, [only], 0);
+    controller.removeFromQueue(0);
+    slow.resolve({
+      track: only,
+      engine: 'html5',
+      target: 'https://cdn.example/only-track.mp3',
+      initialTime: 0,
+    });
+    await playing;
+
+    expect(controller.getSnapshot().currentTrack).toBeNull();
+    expect(controller.getSnapshot().isPlaying).toBe(false);
+    expect(transport.start).not.toHaveBeenCalled();
+  });
 });
 

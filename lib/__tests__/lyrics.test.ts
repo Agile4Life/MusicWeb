@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { extractCleanTitleAndArtist, fetchLyricsFromLrclib } from '../lrclib'
 
-describe('Lyrics Debug Tests', () => {
+// Hits real YouTube Music: opt-in so CI stays hermetic (RUN_LIVE_TESTS=1).
+describe.skipIf(!process.env.RUN_LIVE_TESTS)('Lyrics Debug Tests', () => {
   it('should clean title and artist correctly for Sơn Tùng M-TP', () => {
     const rawTitle = 'Sơn Tùng M-TP - Chúng Ta Của Tương Lai (Official Music Video)'
     const rawArtist = 'Sơn Tùng M-TP'

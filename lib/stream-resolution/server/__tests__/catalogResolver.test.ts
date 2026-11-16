@@ -47,3 +47,18 @@ it('preserves the NCT grace window and late preferred callback', async () => {
     expect(late).toHaveBeenCalledWith(hit)
   } finally { vi.useRealTimers() }
 })
+it('does not let a hung Drive lookup block other sources for long', async () => {
+    const nct = { source: 'nhaccuatui', resolvedId: 'n1', isMiss: false, expiresAt: 600001 };
+    const never = new Promise<null>(() => { });
+    const resolve = createCatalogResolver({ drive: () => never, nhaccuatui: async () => nct, soundcloud: async () => null, youtube: async () => null }, () => 1);
+    const started = Date.now();
+    expect(await resolve(query)).toEqual(nct);
+    expect(Date.now() - started).toBeLessThan(1000);
+});
+it('still prefers a Drive hit that arrives within the grace window', async () => {
+    const nct = { source: 'nhaccuatui', resolvedId: 'n1', isMiss: false, expiresAt: 600001 };
+    const late = vi.fn();
+    const resolve = createCatalogResolver({ drive: () => new Promise(r => setTimeout(() => r(hit), 250)), nhaccuatui: async () => nct, soundcloud: async () => null, youtube: async () => null }, () => 1);
+    expect(await resolve(query, late)).toEqual(hit);
+    expect(late).not.toHaveBeenCalled();
+});

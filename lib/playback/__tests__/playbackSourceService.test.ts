@@ -944,5 +944,36 @@ describe('playbackSourceService', () => {
       initialTime: 5,
     });
   });
+
+  it('refreshStream returns a distinct URL when the proxy URL would be unchanged', async () => {
+    const track = makeTrack('sc-1', { source: 'soundcloud', soundcloud_id: '123', title: 'T', artist: 'A' });
+    const deps = createFakeDeps({
+      resolveSoundCloudUrl: vi.fn().mockResolvedValue('/api/soundcloud/stream?id=123'),
+    });
+    const service = createPlaybackSourceService(deps);
+    const first = await service.resolvePlayable({ track });
+    expect(first?.target).toBe('/api/soundcloud/stream?id=123');
+    const refreshed = await service.refreshStream(track, 5);
+    expect(refreshed?.target).not.toBe(first?.target);
+    expect(refreshed?.target).toContain('/api/soundcloud/stream?id=123');
+  });
+
+  it('ignores a prewarm lookup that finished after the track was invalidated', async () => {
+    const queue = [
+      makeTrack('current', { source: 'local', file_path: '/api/drive-stream?id=x', title: 'Cur', artist: 'A' }),
+      makeTrack('next', { source: 'spotify', title: 'Next', artist: 'B', spotify_id: 'sp1' }),
+    ];
+    let finish!: (v: unknown) => void;
+    const pending = new Promise((resolve) => { finish = resolve; });
+    const deps = createFakeDeps();
+    vi.mocked(deps.resolution.resolve).mockReturnValue(pending as never);
+    const service = createPlaybackSourceService(deps);
+    service.prewarmNextAdaptive(queue, 0, 'off');
+    await service.invalidateTrack(queue[1]);
+    finish({ source: 'nhaccuatui', id: 'stale-nct' });
+    await new Promise((r) => setTimeout(r, 0));
+    const immediate = service.resolveImmediate({ track: queue[1] });
+    expect(immediate?.target ?? '').not.toContain('stale-nct');
+  });
 });
 

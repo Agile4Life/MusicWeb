@@ -50,7 +50,7 @@ describe('shared stream resolution client validation', () => {
 
   it('preserves bigint generation text for both RPC responses', async () => {
     const { readSharedResolution, writeSharedResolution } = await helpers()
-    await database.rpc('read_stream_resolution_cache', { ...identity, p_invalidate: false })
+    await database.rpc('read_stream_resolution_cache', { ...identity, p_invalidate: true })
     await database.db.exec('UPDATE public.stream_resolution_cache SET generation = 9007199254740993')
     expect(await readSharedResolution(database.client, cacheIdentity, false))
       .toEqual({ generation: '9007199254740993', entry: null })
@@ -211,18 +211,44 @@ describe('shared stream resolution SQL protocol', () => {
     expect(await read()).toMatchObject({ entry: { source: 'drive', resolvedId: 'upload' } })
   })
 
-  it('ignores caller expiry and gives hits 30 days and misses one hour', async () => {
-    await read()
-    await write('0', { ...hit(), expiresAt: 1 })
-    const result = await read()
-    expect(result?.expiresAt).toBeGreaterThan(Date.now() + 29 * 24 * 60 * 60 * 1000)
-    expect(result?.expiresAt).toBeLessThan(Date.now() + 31 * 24 * 60 * 60 * 1000)
-    expect(result?.entry).not.toHaveProperty('expiresAt')
+  it('ignores caller expiry and sizes lifetime by source trust', async () => {
+    const ttlOf = async (entry: unknown, generation: string) => {
+      await write(generation, entry)
+      const result = await read()
+      expect(result?.entry).not.toHaveProperty('expiresAt')
+      return (result!.expiresAt! - Date.now()) / 60_000
+    }
+    const minutes = {
+      drive: await ttlOf({ ...hit('drive', 'upload'), expiresAt: 1 }, '0'),
+    }
+    expect(minutes.drive).toBeGreaterThan(29 * 24 * 60)
+    expect(minutes.drive).toBeLessThan(31 * 24 * 60)
     await read(true)
-    await write('1', { ...miss, expiresAt: Number.MAX_SAFE_INTEGER })
-    const missed = await read()
-    expect(missed?.expiresAt).toBeGreaterThan(Date.now() + 59 * 60 * 1000)
-    expect(missed?.expiresAt).toBeLessThan(Date.now() + 61 * 60 * 1000)
+    const nct = await ttlOf(hit('nhaccuatui', 'n'), '1')
+    expect(nct).toBeGreaterThan(6.9 * 24 * 60)
+    expect(nct).toBeLessThan(7.1 * 24 * 60)
+    await read(true)
+    const sc = await ttlOf(hit('soundcloud', 's'), '2')
+    expect(sc).toBeGreaterThan(5.9 * 60)
+    expect(sc).toBeLessThan(6.1 * 60)
+    await read(true)
+    // A fallback must not hide the preferred source for long.
+    const yt = await ttlOf(hit('youtube', 'y'), '3')
+    expect(yt).toBeGreaterThan(29)
+    expect(yt).toBeLessThan(31)
+    await read(true)
+    // Timeouts look like misses: keep them short-lived.
+    const missed = await ttlOf({ ...miss, expiresAt: Number.MAX_SAFE_INTEGER }, '4')
+    expect(missed).toBeGreaterThan(1.9)
+    expect(missed).toBeLessThan(2.1)
+  })
+
+  it('plain reads never create or lock a row', async () => {
+    expect(await read()).toEqual({ generation: '0', entry: null })
+    const rows = await database.db.query<{ n: number }>('SELECT count(*)::int AS n FROM public.stream_resolution_cache')
+    expect(rows.rows[0].n).toBe(0)
+    expect(await write('0', hit('nhaccuatui', 'n'))).toEqual({ accepted: true, generation: '0' })
+    expect(await read()).toMatchObject({ generation: '0', entry: { resolvedId: 'n' } })
   })
 
   it('hides expired payloads while retaining generation and allows replacement', async () => {
@@ -243,7 +269,7 @@ describe('shared stream resolution SQL protocol', () => {
   })
 
   it('does not round bigint generations through a JavaScript number', async () => {
-    await read()
+    await read(true)
     await database.db.exec("UPDATE public.stream_resolution_cache SET generation = 9007199254740993")
     expect(await read()).toEqual({ generation: '9007199254740993', entry: null })
     expect(await read(true)).toEqual({ generation: '9007199254740994', entry: null })

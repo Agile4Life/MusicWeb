@@ -164,3 +164,22 @@ it('ignores a delayed validation bump after a newer invalidation owns the cache'
     expect(shared.snapshot()).toEqual({ generation: '2', entry: hit('fresh') });
     expect(await service.resolve(query)).toMatchObject({ resolvedId: 'fresh' });
 });
+it('coalesces and briefly caches locally when the shared read is unavailable', async () => {
+    let calls = 0;
+    const port: SharedCachePort = { read: async () => null, write: async () => null };
+    const service = createServerResolutionService(deps(async () => { await new Promise(r => setTimeout(r, 10)); return hit(String(++calls)); }, port));
+    await Promise.all([service.resolve(query), service.resolve(query), service.resolve(query)]);
+    await service.resolve(query);
+    expect(calls).toBe(1);
+});
+it('never reuses an L1 entry tied to a shared generation once the store is unavailable', async () => {
+    const shared = sharedFake();
+    let outage = false;
+    const port = { ...shared.port, read: async (...args: Parameters<SharedCachePort['read']>) => outage ? null : shared.port.read(...args) };
+    let calls = 0;
+    const service = createServerResolutionService(deps(async () => hit(String(++calls)), port));
+    await service.resolve(query);
+    outage = true;
+    await service.resolve(query);
+    expect(calls).toBe(2);
+});

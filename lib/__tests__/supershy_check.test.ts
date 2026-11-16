@@ -5,7 +5,8 @@ import { searchSoundCloudTracks } from '../soundcloudClient'
 import { searchNhacCuaTuiDirect } from '../nhaccuatui'
 import { fetchLyricsFromLrclib } from '../lrclib'
 
-describe('Super Shy - NewJeans Catalog & Stream & Lyrics Test', () => {
+// Hits real SoundCloud/Deezer/LRCLIB: opt-in so CI stays hermetic (RUN_LIVE_TESTS=1).
+describe.skipIf(!process.env.RUN_LIVE_TESTS)('Super Shy - NewJeans Catalog & Stream & Lyrics Test', () => {
   it('1. YouTube Search: finds official Super Shy track', async () => {
     const ytResults = await searchYouTubeTracks('Super Shy NewJeans', 5)
     console.log('YouTube Results count:', ytResults.length)

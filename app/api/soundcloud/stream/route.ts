@@ -79,10 +79,9 @@ function createSeekableHlsResponse(
     if (isHead) {
       return new NextResponse(null, { status: 206, headers })
     }
+    // A view, not a copy: Response never mutates or transfers the shared buffer.
     const slice = media.buffer.subarray(start, end + 1)
-    const body = new Uint8Array(slice.byteLength)
-    body.set(slice)
-    return new NextResponse(body, { status: 206, headers })
+    return new NextResponse(slice as unknown as BodyInit, { status: 206, headers })
   }
 
   const headers: Record<string, string> = {
@@ -92,9 +91,7 @@ function createSeekableHlsResponse(
   if (isHead) {
     return new NextResponse(null, { status: 200, headers })
   }
-  const body = new Uint8Array(media.buffer.byteLength)
-  body.set(media.buffer)
-  return new NextResponse(body, { status: 200, headers })
+  return new NextResponse(media.buffer as unknown as BodyInit, { status: 200, headers })
 }
 
 export async function OPTIONS() {

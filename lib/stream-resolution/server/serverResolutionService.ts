@@ -19,6 +19,20 @@ export function createServerResolutionService(deps: ServerResolutionDeps): Serve
     const L1_HIT_TTL = 10 * 60 * 1000; // 10 min for hits
     const L1_MISS_TTL = 60 * 1000; // 1 min for misses
     const L1_MAX_SIZE = 2000;
+    const VERSION_MAP_MAX_SIZE = 5000;
+    // Shared store unreachable: reuse only results produced while already degraded
+    // (never ones tied to a shared generation), briefly, instead of stampeding
+    // every upstream source on each request.
+    const DEGRADED_L1_TTL = 15 * 1000;
+    function setBoundedVersion<V>(map: Map<string, V>, key: string, value: V): void {
+        map.delete(key);
+        map.set(key, value);
+        if (map.size > VERSION_MAP_MAX_SIZE) {
+            const oldest = map.keys().next().value;
+            if (oldest !== undefined)
+                map.delete(oldest);
+        }
+    }
     function evictL1IfFull(): void {
         if (l1Cache.size >= L1_MAX_SIZE) {
             const oldest = l1Cache.keys().next().value;
@@ -76,7 +90,7 @@ export function createServerResolutionService(deps: ServerResolutionDeps): Serve
         let generation = generationFor(cacheKey) + (invalidate ? 1 : 0);
         if (invalidate) {
             // Revoke ownership synchronously, before waiting on any network mutation.
-            cacheGenerations.set(cacheKey, generation);
+            setBoundedVersion(cacheGenerations, cacheKey, generation);
             l1Cache.delete(cacheKey);
             inFlightResolutions.delete(cacheKey);
         }
@@ -98,23 +112,25 @@ export function createServerResolutionService(deps: ServerResolutionDeps): Serve
             const observed = observedSharedGenerations.get(cacheKey);
             if (observed && observed !== shared.generation) {
                 generation = generationFor(cacheKey) + 1;
-                cacheGenerations.set(cacheKey, generation);
+                setBoundedVersion(cacheGenerations, cacheKey, generation);
                 l1Cache.delete(cacheKey);
                 inFlightResolutions.delete(cacheKey);
             }
             else {
                 generation = generationFor(cacheKey);
             }
-            observedSharedGenerations.set(cacheKey, shared.generation);
+            setBoundedVersion(observedSharedGenerations, cacheKey, shared.generation);
         }
+        const degraded = Boolean(sharedClient) && shared === null;
         // ── L1 check ──────────────────────────────────────────────────────
         if (!invalidate) {
             const l1 = l1Cache.get(cacheKey);
             if (l1 && deps.now() < l1.expiresAt &&
-                (shared ? l1.sharedGeneration === shared.generation && shared.entry !== null &&
-                    l1.source === shared.entry.source && l1.resolvedId === shared.entry.resolvedId &&
-                    l1.isMiss === shared.entry.isMiss
-                    : !sharedClient && !l1.sharedGeneration)) {
+                (degraded ? l1.sharedGeneration === undefined :
+                    (shared ? l1.sharedGeneration === shared.generation && shared.entry !== null &&
+                        l1.source === shared.entry.source && l1.resolvedId === shared.entry.resolvedId &&
+                        l1.isMiss === shared.entry.isMiss
+                        : !sharedClient && !l1.sharedGeneration))) {
                 return l1;
             }
         }
@@ -144,10 +160,10 @@ export function createServerResolutionService(deps: ServerResolutionDeps): Serve
                         if (bumped) {
                             shared = bumped;
                             generation = generationFor(cacheKey) + 1;
-                            cacheGenerations.set(cacheKey, generation);
+                            setBoundedVersion(cacheGenerations, cacheKey, generation);
                             l1Cache.delete(cacheKey);
                             inFlightResolutions.delete(cacheKey);
-                            observedSharedGenerations.set(cacheKey, bumped.generation);
+                            setBoundedVersion(observedSharedGenerations, cacheKey, bumped.generation);
                         }
                         else {
                             shared = { ...shared, entry: null };
@@ -173,7 +189,7 @@ export function createServerResolutionService(deps: ServerResolutionDeps): Serve
             const existingInFlight = inFlightResolutions.get(cacheKey);
             if (existingInFlight?.generation === generation &&
                 (shared ? existingInFlight.sharedGeneration === shared.generation
-                    : !sharedClient && !existingInFlight.sharedGeneration)) {
+                    : degraded ? existingInFlight.sharedGeneration === undefined : (!sharedClient && !existingInFlight.sharedGeneration))) {
                 try {
                     const resolvedEntry = await existingInFlight.promise;
                     return resolvedEntry;
@@ -196,6 +212,12 @@ export function createServerResolutionService(deps: ServerResolutionDeps): Serve
                 }
                 else if (!sharedClient) {
                     storeL1(cacheKey, generation, entry);
+                }
+                else {
+                    storeL1(cacheKey, generation, {
+                        ...entry,
+                        expiresAt: Math.min(entry.expiresAt, deps.now() + DEGRADED_L1_TTL),
+                    });
                 }
             };
             const result = await deps.resolveCatalog(query, (preferred) => {

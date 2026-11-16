@@ -1,6 +1,3 @@
-const NON_IDENTITY_GROUP_PATTERN =
-  /^\s*(?:official\s*(?:video|music\s*video|audio|mv|lyric\s*video|visualizer|clip)?|lyric\s*video|lyrics?|visualizer|audio|mv|hd|hq|high\s*quality|full\s*audio|original\s*audio|4k|m\/v|mv\s*hd|video|full\s*hd|vietsub|engsub|explicit|clip|full|remaster(?:ed)?(?:\s+\d{4})?|\d{4}\s+remaster(?:ed)?)\s*$/i
-
 const VERSION_MARKER_PATTERN =
   /\b(?:remix|mix|live|acoustic|unplugged|radio\s*edit|edit|single\s*version|extended|vip|club|dub|cover|karaoke|instrumental|beat|sped\s*up|speed\s*up|slowed|reverb|8d|nightcore|lofi|lo\s*fi|mashup|demo|piano|guitar|version|ver)\b/i
 
@@ -19,13 +16,7 @@ export function normalizeTrackField(text: string | null | undefined): string {
     .replace(/[\(\[\{]\s*(?:feat\.?|ft\.?|featuring|with)\b[^\)\]\}]*[\)\]\}]/gi, ' ')
     // Strip parenthetical/bracket suffixes only when they are non-identity annotations (keep Remix, Live, Acoustic, etc.)
     .replace(/[\(\[\{]([^\)\]\}]*)[\)\]\}]/g, (_match, inner: string) => {
-      if (VERSION_MARKER_PATTERN.test(inner)) {
-        return ` ${inner} `
-      }
-      if (NON_IDENTITY_GROUP_PATTERN.test(inner)) {
-        return ' '
-      }
-      return ' '
+      return VERSION_MARKER_PATTERN.test(inner) ? ` ${inner} ` : ' '
     })
     // Strip trailing feat./ft. and soundtrack attribution (- From "...")
     .replace(/\s*(?:feat\.?|ft\.?|featuring)\s+.*/i, '')

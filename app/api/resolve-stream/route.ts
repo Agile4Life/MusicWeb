@@ -3,6 +3,9 @@ import { getNhacCuaTuiStreamUrl } from '@/lib/nhaccuatuiClient'
 import { getServerResolutionService } from '@/lib/stream-resolution/server/composition'
 import { extractDriveFileId } from '@/lib/stream-resolution/server/providers/driveHelpers'
 import type { ResolutionEntry } from '@/lib/stream-resolution/server/contracts'
+import { createInvalidateGuard } from '@/lib/invalidateGuard'
+import { normalizeTrackKey } from '@/lib/normalizeTrackKey'
+const invalidateGuard = createInvalidateGuard()
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest): Promise<Response> {
@@ -12,10 +15,16 @@ export async function GET(request: NextRequest): Promise<Response> {
   const album = (url.searchParams.get('album') || '').trim() || undefined
   const durationStr = url.searchParams.get('duration')
   const duration = durationStr ? parseInt(durationStr, 10) : undefined
-  const invalidate = url.searchParams.get('invalidate') === '1'
+  let invalidate = url.searchParams.get('invalidate') === '1'
 
   if (!title) {
     return NextResponse.json({ error: 'Missing title parameter' }, { status: 400 })
+  }
+
+  if (invalidate) {
+    const client = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    // Public endpoint: a refused bust degrades to a normal cached resolve.
+    invalidate = invalidateGuard.allow(normalizeTrackKey(title, artist, duration, album), client)
   }
 
   return respondWith(await getServerResolutionService().resolve({ title, artist, duration, album }, { invalidate }))

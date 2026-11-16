@@ -7,8 +7,16 @@ export const streamResolutionMigrationPath = path.join(
   process.cwd(), 'supabase/migrations/202610070001_stream_resolution_coordination.sql',
 )
 
+export const streamResolutionTtlMigrationPath = path.join(
+  process.cwd(), 'supabase/migrations/202611160001_stream_resolution_ttl_and_lockfree_read.sql',
+)
+
 export function streamResolutionMigration(): string {
   return existsSync(streamResolutionMigrationPath) ? readFileSync(streamResolutionMigrationPath, 'utf8') : ''
+}
+
+export function streamResolutionTtlMigration(): string {
+  return existsSync(streamResolutionTtlMigrationPath) ? readFileSync(streamResolutionTtlMigrationPath, 'utf8') : ''
 }
 
 // PGlite executes the production SQL. Only the PostgREST transport is replaced;
@@ -23,6 +31,7 @@ export async function createStreamResolutionDatabase() {
     INSERT INTO public.stream_resolutions VALUES ('preserve legacy cache');
   `)
   await db.exec(streamResolutionMigration())
+  await db.exec(streamResolutionTtlMigration())
 
   async function rpc(name: string, args: Record<string, unknown>) {
     const parameters = [args.p_title_key, args.p_artist_key, args.p_duration_bucket]

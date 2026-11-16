@@ -107,6 +107,16 @@ export function createPlaybackController(
     }
   };
 
+  /** Per-track playback flags; every new selection starts from this state. */
+  const resetPerTrackFlags = () => {
+    nextTrackEndPrewarmed = false;
+    hasPrewarmedNextTrack = false;
+    pendingSeek = null;
+    pendingResume = false;
+    youtubeBgPauseRetries = 0;
+    html5BgPauseRetries = 0;
+  };
+
   const clearTimers = () => {
     clearStallWatchdog();
     clearAutoSkipTimer();
@@ -527,6 +537,90 @@ export function createPlaybackController(
     }
   };
 
+  /**
+   * An HTML5 YouTube proxy stream failed: try another HTML5 source for the same
+   * track, else fall back to the YouTube iframe. Shared by first play, quick
+   * play and mid-playback errors so their recovery cannot drift apart.
+   */
+  const recoverFromYouTubeProxy = async (p: {
+    owner: PlaybackOwner;
+    sourceTrack: Track;
+    originalTrack: Track;
+    failedTarget: string;
+    videoId: string;
+    resumeTime: number;
+    isFallback: boolean;
+    isStale: () => boolean;
+    ownsErrorSlot?: boolean;
+  }): Promise<void> => {
+    const { owner, sourceTrack, originalTrack, failedTarget, videoId, resumeTime } = p;
+    const execOptions = p.isFallback ? { isFallback: true } : undefined;
+    // handleTransportError already holds the in-flight slot for its request.
+    if (!p.ownsErrorSlot) inFlightErrorRequestId = owner.requestId;
+    try {
+      try {
+        const html5Alt = await deps.sources.resolveFallback(
+          sourceTrack,
+          resumeTime,
+          undefined,
+          { preferHtml5: true }
+        );
+        if (p.isStale()) return;
+        if (ownership.getDesiredState() === 'paused') {
+          store.patch({ isPlaying: false, isBuffering: false });
+          return;
+        }
+        const isSameFailingYtProxy =
+          !html5Alt ||
+          html5Alt.engine !== 'html5' ||
+          html5Alt.target === failedTarget ||
+          (html5Alt.track.source === 'youtube' &&
+            (html5Alt.track.youtube_id || videoId) === videoId);
+        if (!isSameFailingYtProxy) {
+          await executePreparedPlayback(html5Alt, owner, originalTrack, {
+            isFallback: true,
+          });
+          return;
+        }
+      } catch {
+        if (p.isStale()) return;
+      }
+
+      ytHtml5Mode = false;
+      try {
+        await executePreparedPlayback(
+          { track: sourceTrack, engine: 'youtube', target: videoId, initialTime: resumeTime },
+          owner,
+          originalTrack,
+          execOptions
+        );
+      } catch {
+        handleUnrecoverableFailure(owner, sourceTrack, { isYouTube: true });
+      }
+    } finally {
+      if (!p.ownsErrorSlot && inFlightErrorRequestId === owner.requestId) {
+        inFlightErrorRequestId = null;
+      }
+    }
+  };
+
+  /** A non-YouTube HTML5 stream failed on first play: drop its cache, then fall back. */
+  const failOverAfterHtml5Failure = async (
+    owner: PlaybackOwner,
+    track: Track
+  ): Promise<void> => {
+    inFlightErrorRequestId = owner.requestId;
+    try {
+      await deps.sources.invalidateTrack(track);
+      if (disposed || !ownership.isCurrentRequest(owner.requestId)) return;
+      await runFallbackToYouTube(track, owner);
+    } finally {
+      if (inFlightErrorRequestId === owner.requestId) {
+        inFlightErrorRequestId = null;
+      }
+    }
+  };
+
   const switchYouTubeToHtml5InBackground = async (
     owner: PlaybackOwner,
     track: Track,
@@ -842,65 +936,19 @@ export function createPlaybackController(
 
       if (decision.type === 'switch-to-youtube-iframe') {
         const resumeTime = Math.floor(getActiveTime());
-        const failedSrc = activeTargetUrl;
-        const safeResume = resumeTime >= 3 ? resumeTime : 0;
-        try {
-          const html5Alt = await deps.sources.resolveFallback(
-            current,
-            safeResume,
-            undefined,
-            { preferHtml5: true }
-          );
-          if (
+        await recoverFromYouTubeProxy({
+          owner,
+          sourceTrack: current,
+          originalTrack: current,
+          failedTarget: activeTargetUrl,
+          videoId: decision.videoId,
+          resumeTime: resumeTime >= 3 ? resumeTime : 0,
+          isFallback: true,
+          isStale: () =>
             disposed ||
-            !ownership.isCurrentOwner(owner, store.getSnapshot().currentTrack?.id)
-          ) {
-            return;
-          }
-          if (ownership.getDesiredState() === 'paused') {
-            store.patch({ isPlaying: false, isBuffering: false });
-            return;
-          }
-          const isSameFailingYtProxy =
-            !html5Alt ||
-            html5Alt.engine !== 'html5' ||
-            html5Alt.target === failedSrc ||
-            (html5Alt.track.source === 'youtube' &&
-              (html5Alt.track.youtube_id || decision.videoId) === decision.videoId);
-          if (!isSameFailingYtProxy) {
-            await executePreparedPlayback(
-              html5Alt,
-              owner,
-              current,
-              { isFallback: true }
-            );
-            return;
-          }
-        } catch {
-          if (
-            disposed ||
-            !ownership.isCurrentOwner(owner, store.getSnapshot().currentTrack?.id)
-          ) {
-            return;
-          }
-        }
-
-        ytHtml5Mode = false;
-        try {
-          await executePreparedPlayback(
-            {
-              track: current,
-              engine: 'youtube',
-              target: decision.videoId,
-              initialTime: safeResume,
-            },
-            owner,
-            current,
-            { isFallback: true }
-          );
-        } catch {
-          handleUnrecoverableFailure(owner, current, { isYouTube: true });
-        }
+            !ownership.isCurrentOwner(owner, store.getSnapshot().currentTrack?.id),
+          ownsErrorSlot: true,
+        });
         return;
       }
 
@@ -1269,12 +1317,7 @@ export function createPlaybackController(
     if (!isErrorAutoSkip) {
       recovery.resetConsecutiveSkips();
     }
-    nextTrackEndPrewarmed = false;
-    hasPrewarmedNextTrack = false;
-    pendingSeek = null;
-    pendingResume = false;
-    youtubeBgPauseRetries = 0;
-    html5BgPauseRetries = 0;
+    resetPerTrackFlags();
     clearTimers();
     completion.reset();
 
@@ -1383,71 +1426,20 @@ export function createPlaybackController(
         prepared.track.youtube_id ||
         (prepared.track.source === 'youtube' ? prepared.target : null);
       if (prepared.engine === 'html5' && directYtId) {
-        inFlightErrorRequestId = owner.requestId;
-        try {
-          try {
-            const html5Alt = await deps.sources.resolveFallback(
-              prepared.track,
-              prepared.initialTime,
-              undefined,
-              { preferHtml5: true }
-            );
-            if (disposed || !ownership.isCurrentRequest(owner.requestId)) return;
-            if (ownership.getDesiredState() === 'paused') {
-              store.patch({ isPlaying: false, isBuffering: false });
-              return;
-            }
-            const isSameFailingYtProxy =
-              !html5Alt ||
-              html5Alt.engine !== 'html5' ||
-              html5Alt.target === prepared.target ||
-              (html5Alt.track.source === 'youtube' &&
-                (html5Alt.track.youtube_id || directYtId) === directYtId);
-            if (!isSameFailingYtProxy) {
-              await executePreparedPlayback(
-                html5Alt,
-                owner,
-                track,
-                { isFallback: true }
-              );
-              return;
-            }
-          } catch {
-            if (disposed || !ownership.isCurrentRequest(owner.requestId)) return;
-          }
-
-          ytHtml5Mode = false;
-          await executePreparedPlayback(
-            {
-              track: prepared.track,
-              engine: 'youtube',
-              target: directYtId,
-              initialTime: prepared.initialTime,
-            },
-            owner,
-            track
-          );
-          return;
-        } catch {
-          handleUnrecoverableFailure(owner, prepared.track, { isYouTube: true });
-          return;
-        } finally {
-          if (inFlightErrorRequestId === owner.requestId) {
-            inFlightErrorRequestId = null;
-          }
-        }
+        await recoverFromYouTubeProxy({
+          owner,
+          sourceTrack: prepared.track,
+          originalTrack: track,
+          failedTarget: prepared.target,
+          videoId: directYtId,
+          resumeTime: prepared.initialTime,
+          isFallback: false,
+          isStale: () => disposed || !ownership.isCurrentRequest(owner.requestId),
+        });
+        return;
       }
 
-      inFlightErrorRequestId = owner.requestId;
-      try {
-        await deps.sources.invalidateTrack(prepared.track);
-        if (disposed || !ownership.isCurrentRequest(owner.requestId)) return;
-        await runFallbackToYouTube(prepared.track, owner);
-      } finally {
-        if (inFlightErrorRequestId === owner.requestId) {
-          inFlightErrorRequestId = null;
-        }
-      }
+      await failOverAfterHtml5Failure(owner, prepared.track);
     }
   };
 
@@ -1470,12 +1462,7 @@ export function createPlaybackController(
     ownership.setDesiredState('playing');
     const owner = ownership.issueRequest(track.id);
 
-    nextTrackEndPrewarmed = false;
-    hasPrewarmedNextTrack = false;
-    pendingSeek = null;
-    pendingResume = false;
-    youtubeBgPauseRetries = 0;
-    html5BgPauseRetries = 0;
+    resetPerTrackFlags();
 
     const prevSnap = store.getSnapshot();
     const transition = queueController.preparePlayTrack({
@@ -1528,71 +1515,20 @@ export function createPlaybackController(
         track.youtube_id ||
         (track.source === 'youtube' ? immediate.target : null);
       if (immediate.engine === 'html5' && directYtId) {
-        inFlightErrorRequestId = owner.requestId;
-        try {
-          try {
-            const html5Alt = await deps.sources.resolveFallback(
-              track,
-              immediate.initialTime,
-              undefined,
-              { preferHtml5: true }
-            );
-            if (disposed || !ownership.isCurrentRequest(owner.requestId)) return;
-            if (ownership.getDesiredState() === 'paused') {
-              store.patch({ isPlaying: false, isBuffering: false });
-              return;
-            }
-            const isSameFailingYtProxy =
-              !html5Alt ||
-              html5Alt.engine !== 'html5' ||
-              html5Alt.target === immediate.target ||
-              (html5Alt.track.source === 'youtube' &&
-                (html5Alt.track.youtube_id || directYtId) === directYtId);
-            if (!isSameFailingYtProxy) {
-              await executePreparedPlayback(
-                html5Alt,
-                owner,
-                rawTrack,
-                { isFallback: true }
-              );
-              return;
-            }
-          } catch {
-            if (disposed || !ownership.isCurrentRequest(owner.requestId)) return;
-          }
-
-          ytHtml5Mode = false;
-          await executePreparedPlayback(
-            {
-              track,
-              engine: 'youtube',
-              target: directYtId,
-              initialTime: immediate.initialTime,
-            },
-            owner,
-            rawTrack
-          );
-          return;
-        } catch {
-          handleUnrecoverableFailure(owner, track, { isYouTube: true });
-          return;
-        } finally {
-          if (inFlightErrorRequestId === owner.requestId) {
-            inFlightErrorRequestId = null;
-          }
-        }
+        await recoverFromYouTubeProxy({
+          owner,
+          sourceTrack: track,
+          originalTrack: rawTrack,
+          failedTarget: immediate.target,
+          videoId: directYtId,
+          resumeTime: immediate.initialTime,
+          isFallback: false,
+          isStale: () => disposed || !ownership.isCurrentRequest(owner.requestId),
+        });
+        return;
       }
 
-      inFlightErrorRequestId = owner.requestId;
-      try {
-        await deps.sources.invalidateTrack(track);
-        if (disposed || !ownership.isCurrentRequest(owner.requestId)) return;
-        await runFallbackToYouTube(track, owner);
-      } finally {
-        if (inFlightErrorRequestId === owner.requestId) {
-          inFlightErrorRequestId = null;
-        }
-      }
+      await failOverAfterHtml5Failure(owner, track);
     });
 
     return true;
@@ -1932,7 +1868,12 @@ export function createPlaybackController(
       }
 
       if (!result.nextTrack) {
-        deps.transport.pause();
+        // Revoke any in-flight resolve so it cannot bring the removed track back.
+        const removed = snap.currentTrack;
+        if (removed) ownership.issueRequest(removed.id);
+        ownership.setDesiredState('paused');
+        clearTimers();
+        deps.transport.stop();
         store.patch({
           currentTrack: null,
           queue: [],
