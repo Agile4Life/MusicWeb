@@ -303,6 +303,8 @@ export function LiquidNavBar({
   const [isNavExpanded, setIsNavExpanded] = useState(false)
   const [displacementMapUrl, setDisplacementMapUrl] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
+  const activeIndexRef = useRef(0)
+  activeIndexRef.current = activeIndex
 
   const navRef = useRef<HTMLDivElement>(null)
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
@@ -387,7 +389,8 @@ export function LiquidNavBar({
   // Recompute after mount to handle late layout (fonts, images)
   useEffect(() => {
     const id = requestAnimationFrame(() => {
-      const tab = tabRefs.current[activeIndex]
+      // Read the latest index: this frame can run after the pathname effect moved the blob.
+      const tab = tabRefs.current[activeIndexRef.current]
       if (tab) {
         setBlobLeft(tab.offsetLeft)
         setBlobWidth(tab.offsetWidth)

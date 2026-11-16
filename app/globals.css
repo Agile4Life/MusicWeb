@@ -3728,6 +3728,13 @@ html[data-cursor="default"][data-buffering="true"] * {
   --theme-neon-to: #E8A94F !important;
   --primary-spotify-rgb: 232, 169, 79 !important;
   --spotify-glow-rgb: 232, 169, 79 !important;
+  --theme-secondary: #C98A3D !important;
+  --base-h: 285 !important;
+  --base-s: 18% !important;
+  /* Warm the dark slate surfaces (skeletons, artwork placeholders) Tailwind utilities read. */
+  --color-slate-700: #2E2632 !important;
+  --color-slate-800: #251E29 !important;
+  --color-slate-900: #1D1720 !important;
   --theme-gradient-1: transparent !important;
   --theme-gradient-2: transparent !important;
   --theme-gradient-3: transparent !important;
@@ -4322,8 +4329,9 @@ html[data-theme-style="minimal-flat"] body {
   }
 }
 
-[data-theme-style="minimal-flat"] a[href="/albums"],
-[data-theme-style="minimal-flat"] a[href="/albums"]:hover {
+/* Home "Xem tất cả" link only; sidebar/drawer nav items keep their own nav styling. */
+[data-theme-style="minimal-flat"] a[href="/albums"]:not(.sidebar-item),
+[data-theme-style="minimal-flat"] a[href="/albums"]:not(.sidebar-item):hover {
   color: #E8A94F !important;
   font-size: 12.5px !important;
   font-weight: 600 !important;
@@ -4608,8 +4616,7 @@ html[data-theme-style="minimal-flat"] body {
   color: #F4ECE1 !important;
 }
 
-[data-theme-style="minimal-flat"] input[type="password"]::placeholder,
-[data-theme-style="minimal-flat"] input[type="email"]::placeholder,
+[data-theme-style="minimal-flat"] input::placeholder,
 [data-theme-style="minimal-flat"] textarea::placeholder {
   color: #8B8090 !important;
 }
@@ -7200,4 +7207,4 @@ html[data-tab-hidden="true"] *::after {
     content: none !important;
   }
 }
-
+

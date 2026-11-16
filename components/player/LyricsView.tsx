@@ -11,6 +11,7 @@ import { fetchLyricsRomaji } from '@/lib/romajiTransliteration'
 import { OverflowMarqueeText } from '@/components/common/OverflowMarqueeText'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { isAdmin } from '@/lib/accessControl'
+import { useTheme } from '@/components/theme/ThemeContext'
 import { LyricsShareModal } from './LyricsShareModal'
 import { AdminLyricsEditorModal } from './AdminLyricsEditorModal'
 import {
@@ -360,6 +361,11 @@ export const LyricsView = memo(function LyricsView({
   const { seek } = usePlayerControls()
   const { userEmail } = useCurrentUser()
   const userIsAdmin = isAdmin(userEmail)
+  const isMinimal = useTheme().themeStyle === 'minimal-flat'
+  // Same amber treatment MobileFullviewPlayer uses for its admin lyric buttons.
+  const adminTone = isMinimal
+    ? 'bg-[#E8A94F]/15 hover:bg-[#E8A94F]/25 text-[#E8A94F] border border-[#E8A94F]/35'
+    : 'bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/40'
 
   const [loading, setLoading] = useState(false)
   const [lyricsData, setLyricsData] = useState<LrclibResponse | null>(null)
@@ -683,7 +689,7 @@ export const LyricsView = memo(function LyricsView({
             {userIsAdmin && (
               <button
                 onClick={() => setShowAdminEditor(true)}
-                className="w-9 h-9 flex items-center justify-center bg-cyan-500/15 hover:bg-cyan-500/25 active:scale-95 text-cyan-300 rounded-full border border-cyan-500/35 transition-all shrink-0 shadow-md"
+                className={`w-9 h-9 flex items-center justify-center active:scale-95 rounded-full transition-all shrink-0 shadow-md ${isMinimal ? adminTone : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/35'}`}
                 title={
                   parsedLyrics.length > 0
                     ? 'Chỉnh sửa lời bài hát (Admin)'
@@ -773,7 +779,7 @@ export const LyricsView = memo(function LyricsView({
               <button
                 type="button"
                 onClick={() => setShowAdminEditor(true)}
-                className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500/20 to-teal-500/20 hover:from-cyan-500/30 hover:to-teal-500/30 text-cyan-300 border border-cyan-400/40 shadow-[0_0_20px_rgba(34,211,238,0.18)] active:scale-95 transition-all text-xs font-extrabold cursor-pointer"
+                className={`mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full active:scale-95 transition-all text-xs font-extrabold cursor-pointer ${isMinimal ? adminTone : 'bg-gradient-to-r from-cyan-500/20 to-teal-500/20 hover:from-cyan-500/30 hover:to-teal-500/30 text-cyan-300 border border-cyan-400/40 shadow-[0_0_20px_rgba(34,211,238,0.18)]'}`}
               >
                 <PenTool className="w-3.5 h-3.5" />
                 <span>Viết lời bài hát (Admin)</span>
@@ -792,7 +798,7 @@ export const LyricsView = memo(function LyricsView({
           {userIsAdmin && (
             <button
               onClick={() => setShowAdminEditor(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-500/20 hover:bg-cyan-500/30 active:scale-95 text-cyan-300 border border-cyan-400/40 backdrop-blur-xl shadow-lg transition-all text-xs font-bold cursor-pointer"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full active:scale-95 backdrop-blur-xl shadow-lg transition-all text-xs font-bold cursor-pointer ${adminTone}`}
               title={
                 parsedLyrics.length > 0
                   ? 'Chỉnh sửa lời bài hát (Admin)'

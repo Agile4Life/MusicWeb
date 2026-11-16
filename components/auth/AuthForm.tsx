@@ -13,7 +13,7 @@ import { useTheme } from '@/components/theme/ThemeContext'
 import { MiniEqualizer } from '@/components/player/MiniEqualizer'
 import { safeAuthReturnTo, scheduleAuthRedirect } from './authNavigation'
 import { createPasswordSession } from './passwordSession'
-import { Lock, Mail, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, Info, Music } from 'lucide-react'
+import { Lock, Mail, User, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, Info, Music } from 'lucide-react'
 
 interface AuthFormProps {
   mode: 'login' | 'register'
@@ -505,10 +505,11 @@ export function AuthForm({ mode }: AuthFormProps) {
         {/* ─── 4. Account + 5. Password Form (Đăng nhập / Đăng ký) ─── */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-3.5 relative z-20 w-full">
           <div>
-            <label className="block text-xs font-bold text-slate-300 mb-1.5">{t('account_label')}</label>
+            <label htmlFor="auth-account" className="block text-xs font-bold text-slate-300 mb-1.5">{t('account_label')}</label>
             <div className="relative">
-              <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none z-10" />
+              <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none z-10" />
               <input
+                id="auth-account"
                 type="text"
                 required
                 autoComplete="username"
@@ -525,10 +526,11 @@ export function AuthForm({ mode }: AuthFormProps) {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-300 mb-1.5">{t('password_label')}</label>
+            <label htmlFor="auth-password" className="block text-xs font-bold text-slate-300 mb-1.5">{t('password_label')}</label>
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none z-10" />
               <input
+                id="auth-password"
                 type={showPassword ? 'text' : 'password'}
                 required
                 autoComplete={authMode === 'register' ? 'new-password' : 'current-password'}
@@ -554,10 +556,11 @@ export function AuthForm({ mode }: AuthFormProps) {
 
           {authMode === 'register' && (
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5">{t('confirm_password')}</label>
+              <label htmlFor="auth-confirm-password" className="block text-xs font-bold text-slate-300 mb-1.5">{t('confirm_password')}</label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none z-10" />
                 <input
+                  id="auth-confirm-password"
                   type={showPassword ? 'text' : 'password'}
                   required
                   autoComplete="new-password"
@@ -577,13 +580,14 @@ export function AuthForm({ mode }: AuthFormProps) {
           {/* Optional Gmail linking — only shown in register mode */}
           {authMode === 'register' && (
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+              <label htmlFor="auth-real-email" className="block text-xs font-bold text-slate-300 mb-1.5">
                 Gmail liên kết{' '}
                 <span className="text-slate-500 font-normal text-[10px]">(tuỳ chọn — để đăng nhập bằng Google sau)</span>
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none z-10" />
                 <input
+                  id="auth-real-email"
                   type="email"
                   autoComplete="email"
                   value={realEmail}
