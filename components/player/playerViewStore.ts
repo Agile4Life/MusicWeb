@@ -25,11 +25,9 @@ export interface PlayerViewStore {
 export function createPlayerViewStore(
   controller: PlaybackController,
   options: {
-    frequencyData?: Uint8Array;
     audioRef?: React.RefObject<HTMLAudioElement | null>;
   } = {}
 ): PlayerViewStore {
-  const frequencyData = options.frequencyData ?? new Uint8Array(16);
   const audioRef: React.RefObject<HTMLAudioElement | null> =
     options.audioRef ?? { current: null };
 
@@ -67,7 +65,6 @@ export function createPlayerViewStore(
     isShuffle: lastSnap.isShuffle,
     repeatMode: lastSnap.repeatMode,
     playbackError: lastSnap.playbackError,
-    frequencyData,
     audioRef,
     mvIntroOffset: lastSnap.mvIntroOffset,
   };
@@ -129,7 +126,6 @@ export function createPlayerViewStore(
         isShuffle: snap.isShuffle,
         repeatMode: snap.repeatMode,
         playbackError: snap.playbackError,
-        frequencyData,
         audioRef,
         mvIntroOffset: snap.mvIntroOffset,
       };

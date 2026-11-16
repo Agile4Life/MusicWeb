@@ -13,7 +13,6 @@ import { useTheme } from '@/components/theme/ThemeContext'
 const ParticleScene = lazy(() => import('./ParticleScene'))
 
 interface NowPlayingStageProps {
-  analyserData?: Uint8Array
   coverUrl?: string | null
   title?: string | null
   artist?: string | null
@@ -28,7 +27,6 @@ const PARALLAX_2 = 24 // px — particles
 const PARALLAX_3 = 6 // px — album scene
 
 export const NowPlayingStage = React.memo(function NowPlayingStage({
-  analyserData,
   coverUrl,
   title,
   artist,
@@ -40,7 +38,7 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
   const { currentTheme, themeStyle, gamingMode } = useTheme()
   const canUse3D = canUse3DHardware && themeStyle !== 'minimal-flat' && !gamingMode
   const { currentTrack } = usePlayerTrack()
-  const { queue, currentIndex } = usePlayerQueue()
+  const { queue, currentIndex, isNowPlayingOpen } = usePlayerQueue()
   const [derivedAccent, setDerivedAccent] = useState<string | null>(null)
 
   useEffect(() => {
@@ -203,7 +201,7 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
         >
           <Suspense fallback={null}>
             <ParticleScene
-              analyserData={analyserData}
+              isActive={isNowPlayingOpen}
               isPlaying={isPlaying}
               accentColor={effectiveAccent}
               glowColor={effectiveGlow}

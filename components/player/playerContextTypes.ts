@@ -38,7 +38,6 @@ export interface PlayerTrackContextType {
   isShuffle: boolean;
   repeatMode: RepeatMode;
   playbackError: string | null;
-  frequencyData: Uint8Array;
   audioRef: React.RefObject<HTMLAudioElement | null>;
   mvIntroOffset: number;
 }

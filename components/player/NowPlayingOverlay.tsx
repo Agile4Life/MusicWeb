@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { usePlayer, usePlayerTrack } from './PlayerContext'
+import { usePlayer } from './PlayerContext'
 import { usePlaybackDuration } from './PlaybackProgressStore'
 import { NowPlayingStage } from './NowPlayingStage'
 import { LyricsView } from './LyricsView'
@@ -45,36 +45,6 @@ import {
   Cloud,
   Languages,
 } from 'lucide-react'
-
-const StageWithFrequencyData = React.memo(function StageWithFrequencyData({
-  coverUrl,
-  title,
-  artist,
-  isPlaying,
-  onArtistClick,
-  children,
-}: {
-  coverUrl?: string | null
-  title?: string | null
-  artist?: string | null
-  isPlaying: boolean
-  onArtistClick?: (artistName: string, e: React.MouseEvent) => void
-  children?: React.ReactNode
-}) {
-  const { frequencyData } = usePlayerTrack()
-  return (
-    <NowPlayingStage
-      analyserData={frequencyData}
-      coverUrl={coverUrl}
-      title={title}
-      artist={artist}
-      isPlaying={isPlaying}
-      onArtistClick={onArtistClick}
-    >
-      {children}
-    </NowPlayingStage>
-  )
-})
 
 export function NowPlayingOverlay() {
   const duration = usePlaybackDuration()
@@ -461,7 +431,7 @@ export function NowPlayingOverlay() {
         <div className="hidden lg:block w-full h-full relative">
           {/* Layer 1 & 2: Full Stage 3D Background & Left Album Scene */}
           <div className="absolute inset-0 z-0">
-            <StageWithFrequencyData
+            <NowPlayingStage
               coverUrl={currentTrack.cover_url}
               title={currentTrack.title}
               artist={currentTrack.artist}

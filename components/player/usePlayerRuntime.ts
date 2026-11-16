@@ -21,7 +21,6 @@ export function usePlayerRuntime(
   options: UsePlayerRuntimeOptions = {}
 ): UsePlayerRuntimeResult {
   const { data: nextAuthSession } = useSession();
-  const frequencyData = useMemo(() => new Uint8Array(16), []);
 
   const [ownedRuntime] = useState<PlayerRuntime | null>(() =>
     !options.runtime && !options.controller ? createPlayerRuntime() : null
@@ -31,13 +30,7 @@ export function usePlayerRuntime(
   const activeRuntime = options.runtime ?? ownedRuntime;
   const controller = options.controller ?? activeRuntime!.controller;
 
-  const viewStore = useMemo(
-    () =>
-      createPlayerViewStore(controller, {
-        frequencyData,
-      }),
-    [controller, frequencyData]
-  );
+  const viewStore = useMemo(() => createPlayerViewStore(controller), [controller]);
 
   const slices = useSyncExternalStore(
     viewStore.subscribe,
@@ -87,33 +80,6 @@ export function usePlayerRuntime(
       toast(slices.track.playbackError, 'error');
     }
   }, [slices.track.playbackError]);
-
-  // Fake visualizer data is only shown in the Now Playing overlay; don't animate it while closed.
-  const isNowPlayingOpen = slices.queue.isNowPlayingOpen;
-  useEffect(() => {
-    if (!slices.track.isPlaying || !isNowPlayingOpen) {
-      frequencyData.fill(0);
-      return;
-    }
-    let animId: number;
-
-    const tick = () => {
-      if (typeof document !== 'undefined' && document.hidden) {
-        animId = requestAnimationFrame(tick);
-        return;
-      }
-      const now = Date.now() / 120;
-      for (let i = 0; i < 16; i++) {
-        frequencyData[i] = Math.floor(
-          Math.sin(now + i * 0.8) * 80 + 150 + Math.random() * 25
-        );
-      }
-      animId = requestAnimationFrame(tick);
-    };
-
-    animId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(animId);
-  }, [slices.track.isPlaying, isNowPlayingOpen, frequencyData]);
 
   const effectiveDuration =
     progressDuration > 0

@@ -112,8 +112,13 @@ export function kanaToRomajiOffline(text: string): string {
 const romajiCache = new Map<string, string[]>()
 const romajiInFlight = new Map<string, Promise<string[]>>()
 
+// Characters the /api/lyrics/romaji route transliterates (kana, CJK ideographs, Hangul).
+export const CJK_REGEX = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af]/
+
 export async function fetchLyricsRomaji(lines: string[]): Promise<string[]> {
   if (!lines || lines.length === 0) return []
+  // The server returns '' for every non-CJK line, so skip the request (e.g. Vietnamese songs).
+  if (!lines.some((line) => CJK_REGEX.test(line))) return lines.map(() => '')
   const cacheKey = lines.join('\n')
   if (romajiCache.has(cacheKey)) {
     return romajiCache.get(cacheKey)!

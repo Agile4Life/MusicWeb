@@ -358,11 +358,12 @@ export function MobileFullviewPlayer({
   }, [currentTrack])
 
   // Active lyric index calculation
-  // Selects a primitive from the progress store: re-renders only when the active line changes.
+  // Selects a primitive from the progress store: re-renders only when the active line changes,
+  // and only while the lyrics tab is visible (this player stays mounted when closed / on desktop).
   const activeIndex = useSyncExternalStore(
     playbackProgressStore.subscribe,
     () =>
-      !lyrics || lyrics.length === 0 || !isSynced
+      !isNowPlayingOpen || activeTab !== 'lyrics' || !lyrics || lyrics.length === 0 || !isSynced
         ? -1
         : findActiveLyricIndex(lyrics, playbackProgressStore.getCurrentTime(), -(mvIntroOffset || 0)),
     () => -1
@@ -982,6 +983,8 @@ export function MobileFullviewPlayer({
                   WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 10%, black 88%, transparent 100%)',
                 }}
               >
+                {/* Only opacity/transform/colour animate: font-size and padding change instantly,
+                    animating them re-laid out the whole list every frame on phones. */}
                 {lyrics.map((line, idx) => {
                   const isActive = idx === activeIndex
                   const isSyncedMode = isSynced && activeIndex >= 0
@@ -1024,7 +1027,7 @@ export function MobileFullviewPlayer({
                         lineRefs.current[idx] = el
                       }}
                       onClick={() => handleLineClick(line)}
-                      className={`cursor-pointer select-none transition-all duration-300 ease-out py-1 pr-3 w-full max-w-full flex flex-col ${
+                      className={`cursor-pointer select-none transition-[opacity,transform] duration-300 ease-out py-1 pr-3 w-full max-w-full flex flex-col ${
                         isMinimal
                           ? isActive
                             ? 'border-l-[3px] border-[#E8A94F] pl-3.5 rounded-none'
@@ -1044,7 +1047,7 @@ export function MobileFullviewPlayer({
                     >
                       {/* Main Lyric Line */}
                       <p
-                        className={`leading-snug break-words break-normal whitespace-pre-wrap transition-all duration-300 pr-1 ${
+                        className={`leading-snug break-words break-normal whitespace-pre-wrap transition-colors duration-300 pr-1 ${
                           isMinimal
                             ? isActive
                               ? 'text-[clamp(1.35rem,5.4vw,1.8rem)] font-serif italic font-medium text-[#F4ECE1]'
@@ -1060,7 +1063,7 @@ export function MobileFullviewPlayer({
                       {/* Romaji / Translation */}
                       {hasRomaji && (
                         <p
-                          className={`text-xs sm:text-sm font-semibold mt-1 tracking-wide leading-normal break-words whitespace-pre-wrap transition-all duration-300 pr-1 ${
+                          className={`text-xs sm:text-sm font-semibold mt-1 tracking-wide leading-normal break-words whitespace-pre-wrap transition-colors duration-300 pr-1 ${
                             isMinimal
                               ? isActive
                                 ? 'text-[#E8A94F]'

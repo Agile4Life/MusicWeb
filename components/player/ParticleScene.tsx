@@ -160,13 +160,12 @@ function makeTwinkleGeometry(count: number, spreadX: number, spreadY: number, zM
 }
 
 interface ParticlesProps {
-  analyserData?: Uint8Array
   isPlaying: boolean
   accentColor?: string
   glowColor?: string
 }
 
-function Particles({ analyserData, isPlaying, accentColor: propAccent, glowColor: propGlow }: ParticlesProps) {
+function Particles({ isPlaying, accentColor: propAccent, glowColor: propGlow }: ParticlesProps) {
   const bgPointsRef = useRef<THREE.Points>(null)
   const midPointsRef = useRef<THREE.Points>(null)
   const fgPointsRef = useRef<THREE.Points>(null)
@@ -363,7 +362,7 @@ function Particles({ analyserData, isPlaying, accentColor: propAccent, glowColor
   )
 }
 
-export default function ParticleScene({ analyserData, isPlaying, accentColor, glowColor }: ParticlesProps) {
+export default function ParticleScene({ isActive = true, isPlaying, accentColor, glowColor }: ParticlesProps & { isActive?: boolean }) {
   const [isHidden, setIsHidden] = useState(false)
 
   useEffect(() => {
@@ -394,9 +393,10 @@ export default function ParticleScene({ analyserData, isPlaying, accentColor, gl
       camera={{ position: [0, 0, 5], fov: 45 }}
       dpr={isMobileScreen ? [1, 1.5] : [1, 2]}
       gl={{ antialias: !isMobileScreen, alpha: true, powerPreference: 'high-performance' }}
+      // The overlay is only translated off-screen when closed; stop drawing frames then.
+      frameloop={isActive ? 'always' : 'never'}
     >
       <Particles
-        analyserData={analyserData}
         isPlaying={isPlaying}
         accentColor={accentColor}
         glowColor={glowColor}

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { CJK_REGEX } from '@/lib/romajiTransliteration'
 
 // In-memory cache for transliterated text
 const romajiCache = new Map<string, string[]>()
 
-const CJK_REGEX = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af]/
 
 async function transliterateSingleLine(line: string): Promise<string> {
   const trimmed = line.trim()
