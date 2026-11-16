@@ -425,6 +425,36 @@ describe('playbackSourceService', () => {
     });
   });
 
+  it('recovers a failed NCT track via SoundCloud before the YouTube IFrame', async () => {
+    // NCT upstream down + embed-blocked YouTube: SoundCloud must still be reachable.
+    const sc = makeTrack('sc-demons', {
+      source: 'soundcloud', soundcloud_id: '126096323', title: 'Demons', artist: 'Imagine Dragons', duration: 177,
+    });
+    const yt = makeTrack('yt-demons', {
+      source: 'youtube', youtube_id: 'mWRsgZuwf_8', title: 'Demons', artist: 'Imagine Dragons', duration: 177,
+    });
+    const search = vi.fn(async (_q: string, source?: string) => ({
+      nhaccuatui: [], local: [], spotify: [], deezer: [],
+      youtube: [yt],
+      soundcloud: source === 'youtube' ? [] : [sc],
+    }));
+    const deps = createFakeDeps({ search: search as PlaybackSourceDeps['search'] });
+    const service = createPlaybackSourceService(deps);
+    const nctTrack = makeTrack('nct-demons', {
+      source: 'nhaccuatui', nhaccuatui_id: 'uj3FchGd2qXx', title: 'Demons', artist: 'Imagine Dragons', duration: 177,
+    });
+
+    const first = await service.resolveFallback(nctTrack, 0);
+    expect(first).toMatchObject({
+      engine: 'html5', track: { source: 'soundcloud', soundcloud_id: '126096323' },
+    });
+    // The YouTube match stays queued for the next step if SoundCloud also fails.
+    expect(await service.resolveFallback(first!.track, 0)).toMatchObject({
+      engine: 'youtube', target: 'mWRsgZuwf_8',
+    });
+    service.dispose();
+  });
+
   it('passes duration to getCachedYouTubeId, skips identical failing youtube_id, and supports preferHtml5 fallback', async () => {
     const getCachedYtMock = vi.fn().mockReturnValue('sameFailingId');
     const deps = createFakeDeps({

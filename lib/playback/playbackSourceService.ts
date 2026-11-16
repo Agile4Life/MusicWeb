@@ -960,15 +960,9 @@ export function createPlaybackSourceService(
       try {
         const cleanTitle = stripNonIdentityAnnotations(track.title) || track.title;
         const query = `${cleanTitle} ${track.artist || ''}`.trim();
-        const fallbackSource =
-          !options?.preferHtml5 &&
-          (track.source === 'nhaccuatui' ||
-            Boolean(track.nhaccuatui_id) ||
-            track.source === 'soundcloud' ||
-            Boolean(track.soundcloud_id))
-            ? 'youtube'
-            : 'playback';
-        const data = await deps.search(query, fallbackSource);
+        // Search every playable provider: a YouTube-only search skipped SoundCloud, so a dead NCT
+        // upstream plus an embed-blocked (VEVO) video left nothing to play.
+        const data = await deps.search(query, 'playback');
 
         const currentScId = track.soundcloud_id ? String(track.soundcloud_id) : '';
         const {
