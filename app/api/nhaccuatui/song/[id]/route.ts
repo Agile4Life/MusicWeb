@@ -98,7 +98,8 @@ export async function GET(
   const existingInFlight = inFlightNctSong.get(trimmedId)
   if (existingInFlight) {
     const data = await existingInFlight
-    if (!data) return NextResponse.json({ error: 'Song not found' }, { status: 404 })
+    // Same status the leading request returns for this failure (null = upstream unavailable).
+    if (!data) return NextResponse.json({ error: 'Song stream unavailable' }, { status: 502 })
     return NextResponse.json(data, {
       headers: { 'Cache-Control': 'public, max-age=600, s-maxage=600, stale-while-revalidate=120' },
     })

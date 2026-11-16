@@ -1614,7 +1614,8 @@ export function createPlaybackController(
     }
 
     if (snap.currentTrack) {
-      saveState(true, { currentTime: safeTime });
+      // Debounced: visibility-hide and pagehide still flush immediately.
+      saveState(false, { currentTime: safeTime });
     }
   };
 

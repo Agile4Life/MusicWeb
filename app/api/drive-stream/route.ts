@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveDriveStreamUrl, clearAllCachesForFile, getServiceClient } from '@/lib/drive-stream-resolver'
+import { fetchWithConnectTimeout } from '@/lib/fetchWithConnectTimeout'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,24 +47,17 @@ export async function GET(req: NextRequest) {
       }
       if (range) proxyHeaders['Range'] = range
 
-      const upstreamSignal = () =>
-        req.signal ? AbortSignal.any([req.signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000)
-      let streamRes = await fetch(resolved.url, {
-        headers: proxyHeaders,
-        cache: 'no-store',
-        signal: upstreamSignal(),
-      })
+      // Timeout covers the header wait only; the body may stream longer to slow clients.
+      const fetchUpstream = (url: string) =>
+        fetchWithConnectTimeout(url, { headers: proxyHeaders, cache: 'no-store' }, 15000, req.signal)
+      let streamRes = await fetchUpstream(resolved.url)
 
       // Cached CDN URL may have died upstream — invalidate caches and re-resolve once
       if (!streamRes.ok) {
         clearAllCachesForFile(fileId, supabase)
         const reResolved = await resolveDriveStreamUrl(fileId, supabase, titleParam)
         if (reResolved && reResolved.url) {
-          streamRes = await fetch(reResolved.url, {
-            headers: proxyHeaders,
-            cache: 'no-store',
-            signal: upstreamSignal(),
-          })
+          streamRes = await fetchUpstream(reResolved.url)
         }
       }
 

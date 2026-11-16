@@ -112,6 +112,10 @@ describe('browserLifecycle', () => {
     fakeWorker.onmessage?.({ data: 'tick' } as MessageEvent);
     expect(controller.checkBackgroundCompletion).toHaveBeenCalledTimes(1);
 
+    // The window-timer heartbeat stays silent while the worker is the tick source.
+    intervals.forEach((cb) => cb());
+    expect(controller.checkBackgroundCompletion).toHaveBeenCalledTimes(1);
+
     // Dispose and verify 100% cleanup symmetry
     dispose();
     expect(docListeners.size).toBe(0);

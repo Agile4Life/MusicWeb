@@ -73,7 +73,10 @@ export function bindBrowserLifecycle(
     worker = null;
   }
 
+  // Fallback only: while the worker runs it is the tick source. Two sources made the
+  // background resume retries run out twice as fast.
   const cancelHeartbeat = options.clock.every(1500, () => {
+    if (worker) return;
     controller.checkBackgroundCompletion();
   });
   cleanups.push(cancelHeartbeat);

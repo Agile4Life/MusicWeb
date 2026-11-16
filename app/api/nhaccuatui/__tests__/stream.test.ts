@@ -7,6 +7,19 @@ describe('NhacCuaTui audio stream route', () => {
     delete process.env.NCT_API_BASE_URL
   })
 
+  it('returns 404 to every concurrent caller for a deleted song, not 502 to the coalesced ones', async () => {
+    process.env.NCT_API_BASE_URL = 'https://nct-api.test'
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve(new Response('gone', { status: 404 })), 10))
+    )
+    const [a, b] = await Promise.all([
+      GET(new Request('https://music.test/api/nhaccuatui/stream?id=nct-gone-1')),
+      HEAD(new Request('https://music.test/api/nhaccuatui/stream?id=nct-gone-1')),
+    ])
+    expect(a.status).toBe(404)
+    expect(b.status).toBe(404)
+  })
+
   it('handles OPTIONS CORS preflight requests', async () => {
     const response = await OPTIONS()
     expect(response.status).toBe(204)

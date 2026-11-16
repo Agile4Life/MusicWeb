@@ -43,7 +43,9 @@ async function resolveNctAudioUrlCached(id: string): Promise<string | null> {
       console.log(`[NCT:Stream] Coalescing in-flight request for id: ${trimmed}`)
     }
     const res = await existingInFlight
-    return res?.audioUrl ?? null
+    if (res?.audioUrl) return res.audioUrl
+    // A shared null hides whether the song is gone (404) or upstream failed (502):
+    // fall through and resolve once ourselves so the caller gets the right status.
   }
 
   const promise = (async (): Promise<string | null> => {
@@ -320,37 +322,44 @@ export async function GET(request: Request): Promise<Response> {
     }
     request.signal?.addEventListener('abort', onBodyAbort, { once: true })
 
+    const finish = (reader: ReadableStreamDefaultReader<Uint8Array>) => {
+      try { reader.releaseLock() } catch {}
+      activeReader = null
+      releaseBody()
+    }
+
+    // pull() reads one chunk only when the client wants more (backpressure), so a slow
+    // reader does not make the whole song pile up in this function's memory.
     const stream = new ReadableStream<Uint8Array>({
-      async start(controller) {
+      start(controller) {
         downstreamController = controller
         if (!upstream.body) {
           controller.close()
           releaseBody()
           return
         }
-        const reader = upstream.body.getReader()
-        activeReader = reader
+        activeReader = upstream.body.getReader()
+      },
+      async pull(controller) {
+        const reader = activeReader
+        if (!reader) return
         try {
-          while (true) {
-            if (request.signal?.aborted) {
-              throw request.signal.reason || new DOMException('Aborted', 'AbortError')
-            }
-            const { done, value } = await reader.read()
-            if (done) {
-              controller.close()
-              break
-            }
-            controller.enqueue(value)
+          if (request.signal?.aborted) {
+            throw request.signal.reason || new DOMException('Aborted', 'AbortError')
           }
+          const { done, value } = await reader.read()
+          if (done) {
+            controller.close()
+            finish(reader)
+            return
+          }
+          controller.enqueue(value)
         } catch (error) {
           // A broken CDN connection must remain an error downstream. Closing
           // normally makes partial audio look like a successful cached response.
           try { controller.error(error) } catch {}
           try { await reader.cancel().catch(() => {}) } catch {}
-        } finally {
-          reader.releaseLock()
-          activeReader = null
-          releaseBody()
+          finish(reader)
         }
       },
       cancel() {

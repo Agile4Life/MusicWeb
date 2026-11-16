@@ -13,15 +13,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'track_id is required' }, { status: 400 })
     }
 
-    // Giữ nguyên hành vi cũ: cho phép ghi nhận cả lượt nghe ẩn danh (chưa đăng nhập)
-    // bằng 1 UUID cố định dùng chung, không map về user thật nào.
-    let userId = '00000000-0000-4000-a000-000000000001'
+    // Chỉ ghi cho người đã đăng nhập: gợi ý bài chỉ đọc theo user_id thật, nên lượt nghe
+    // ẩn danh không ai dùng, còn endpoint mở thì ai cũng spam được vào bảng.
+    let userId: string | null = null
     try {
       const session = await getServerSession(authOptions)
       if (session?.user) {
         userId = getValidUserId(session.user)
       }
     } catch {}
+    if (!userId) {
+      return NextResponse.json({ success: true, skipped: true })
+    }
 
     // ĐỔI: dùng service_role thay vì client SSR (anon) — vì RLS giờ chặn hẳn
     // anon/authenticated ghi trực tiếp vào listen_events.

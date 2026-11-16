@@ -29,12 +29,21 @@ export function AudioWaveformScrubber({
   const [hoverX, setHoverX] = useState<number>(0)
   const [isDragging, setIsDragging] = useState<boolean>(false)
   const [showRemaining, setShowRemaining] = useState<boolean>(false)
+  // While dragging, the bar follows the pointer locally; one seek happens on release
+  // (seeking per frame opened a new ranged stream request each time).
+  const [dragTime, setDragTime] = useState<number | null>(null)
+  const dragTimeRef = useRef<number | null>(null)
+  const setDrag = (t: number | null) => {
+    dragTimeRef.current = t
+    setDragTime(t)
+  }
 
   const containerRef = useRef<HTMLDivElement | null>(null)
   const rafRef = useRef<number | null>(null)
 
   const safeDuration = effectiveDuration > 0 ? effectiveDuration : 0.0001
-  const progressRatio = safeDuration > 1 ? Math.min(Math.max(0, currentTime / safeDuration), 1) : 0
+  const shownTime = dragTime ?? currentTime
+  const progressRatio = safeDuration > 1 ? Math.min(Math.max(0, shownTime / safeDuration), 1) : 0
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -57,11 +66,12 @@ export function AudioWaveformScrubber({
         setHoverTime(calculatedTime)
 
         if (isDragging && effectiveDuration > 0) {
-          onSeek(calculatedTime)
+          dragTimeRef.current = calculatedTime
+          setDragTime(calculatedTime)
         }
       })
     },
-    [effectiveDuration, isDragging, onSeek]
+    [effectiveDuration, isDragging]
   )
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -71,7 +81,7 @@ export function AudioWaveformScrubber({
     const rect = containerRef.current.getBoundingClientRect()
     const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width))
     const ratio = x / rect.width
-    onSeek(ratio * effectiveDuration)
+    setDrag(ratio * effectiveDuration)
   }
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -82,15 +92,18 @@ export function AudioWaveformScrubber({
       e.currentTarget.releasePointerCapture(e.pointerId)
     } catch {}
     setIsDragging(false)
+    const target = dragTimeRef.current
+    setDrag(null)
+    if (target !== null && e.type === 'pointerup') onSeek(target)
   }
 
-  const remainingTime = Math.max(0, safeDuration - currentTime)
+  const remainingTime = Math.max(0, safeDuration - shownTime)
 
   return (
     <div className="w-full flex items-center justify-between gap-3 sm:gap-4 select-none px-1">
       {/* Elapsed time */}
       <span className="text-[11px] sm:text-xs font-mono tabular-nums text-slate-400 font-semibold w-10 text-right shrink-0">
-        {formatTime(currentTime)}
+        {formatTime(shownTime)}
       </span>
 
       {/* Thin Progress Track with Round Thumb */}

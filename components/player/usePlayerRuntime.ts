@@ -88,8 +88,10 @@ export function usePlayerRuntime(
     }
   }, [slices.track.playbackError]);
 
+  // Fake visualizer data is only shown in the Now Playing overlay; don't animate it while closed.
+  const isNowPlayingOpen = slices.queue.isNowPlayingOpen;
   useEffect(() => {
-    if (!slices.track.isPlaying) {
+    if (!slices.track.isPlaying || !isNowPlayingOpen) {
       frequencyData.fill(0);
       return;
     }
@@ -111,7 +113,7 @@ export function usePlayerRuntime(
 
     animId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animId);
-  }, [slices.track.isPlaying, frequencyData]);
+  }, [slices.track.isPlaying, isNowPlayingOpen, frequencyData]);
 
   const effectiveDuration =
     progressDuration > 0

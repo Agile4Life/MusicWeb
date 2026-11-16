@@ -14,6 +14,20 @@ describe('NhacCuaTui proxy routes', () => {
     delete process.env.NCT_API_BASE_URL
   })
 
+  it('gives concurrent song-detail callers the same 502 when upstream fails', async () => {
+    process.env.NCT_API_BASE_URL = 'https://nct-api.test'
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve(new Response('bad', { status: 400 })), 10))
+    )
+    const call = () => songGET(
+      new Request('https://music.test/api/nhaccuatui/song/nct-fail-1'),
+      { params: Promise.resolve({ id: 'nct-fail-1' }) } as never
+    )
+    const [a, b] = await Promise.all([call(), call()])
+    expect(a.status).toBe(502)
+    expect(b.status).toBe(502)
+  })
+
   it('normalizes search metadata and caches repeated search queries', async () => {
     process.env.NCT_API_BASE_URL = 'https://nct-api.test'
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(

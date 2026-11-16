@@ -42,6 +42,29 @@ describe('NCT audio transport lifecycle', () => {
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]))
   })
 
+  it('reads upstream only as fast as the client consumes (backpressure)', async () => {
+    let sent = 0
+    await listen('nct-backpressure', (_request, response) => {
+      response.writeHead(200, { 'Content-Type': 'audio/mpeg' })
+      const chunk = Buffer.alloc(64 * 1024)
+      const push = () => {
+        while (sent < 200) {
+          sent += 1
+          if (!response.write(chunk)) { response.once('drain', push); return }
+        }
+        response.end()
+      }
+      push()
+    })
+    const response = await GET(new Request('https://music.test/api/nhaccuatui/stream?id=nct-backpressure'))
+    const reader = response.body!.getReader()
+    await reader.read()
+    await new Promise((r) => setTimeout(r, 150))
+    // 200 x 64KB = 12.8MB upstream; an unread client must not have pulled it all through.
+    expect(sent).toBeLessThan(200)
+    await reader.cancel()
+  })
+
   it('rejects a truncated real HTTP body instead of returning partial successful audio', async () => {
     await listen('nct-reset-loopback', (_request, response) => {
       response.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Content-Length': '8' })

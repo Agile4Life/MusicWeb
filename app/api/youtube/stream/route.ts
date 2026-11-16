@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveYouTubeAudioStreamCached, streamUrlCache } from '@/lib/youtubeStream'
+import { fetchWithConnectTimeout } from '@/lib/fetchWithConnectTimeout'
 
 export const dynamic = 'force-dynamic'
 // Maximum execution time per invocation (Vercel Pro limit = 300s).
@@ -43,12 +44,9 @@ export async function GET(req: NextRequest) {
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
       }
       if (range) proxyHeaders['Range'] = range
-      // A stalled googlevideo connection must not pin a function until maxDuration.
-      return fetch(url, {
-        headers: proxyHeaders,
-        cache: 'no-store',
-        signal: AbortSignal.any([req.signal, AbortSignal.timeout(15000)]),
-      })
+      // A stalled googlevideo connection must not pin a function until maxDuration,
+      // but a slow client reading the body must not be cut off either.
+      return fetchWithConnectTimeout(url, { headers: proxyHeaders, cache: 'no-store' }, 15000, req.signal)
     }
 
     let streamRes = await fetchUpstream(resolved.url)

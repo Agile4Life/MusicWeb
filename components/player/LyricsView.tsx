@@ -152,6 +152,13 @@ const LyricsBottomControls = memo(function LyricsBottomControls() {
   const { seek, togglePlay, nextTrack, prevTrack, toggleShuffle, toggleRepeat, setVolume, toggleFavoriteCurrentTrack } = usePlayerControls()
 
   const [prevVol, setPrevVol] = useState(0.8)
+  // Range input fires per drag step; preview locally and seek once on release.
+  const [dragValue, setDragValue] = useState<number | null>(null)
+  const shownTime = dragValue ?? currentTime
+  const commitDrag = () => {
+    if (dragValue !== null) seek(dragValue)
+    setDragValue(null)
+  }
 
   const handleVolumeToggle = () => {
     if (volume > 0) {
@@ -288,15 +295,18 @@ const LyricsBottomControls = memo(function LyricsBottomControls() {
 
         {/* Seekbar Progress */}
         <div className="w-full flex items-center gap-3 text-[11px] text-slate-400 font-mono">
-          <span className="w-9 text-right shrink-0 font-bold">{formatTime(currentTime)}</span>
+          <span className="w-9 text-right shrink-0 font-bold">{formatTime(shownTime)}</span>
           <input
             type="range"
             min={0}
             max={duration || 100}
-            value={currentTime}
-            onChange={(e) => seek(Number(e.target.value))}
+            value={shownTime}
+            onChange={(e) => setDragValue(Number(e.target.value))}
+            onPointerUp={commitDrag}
+            onKeyUp={commitDrag}
+            onBlur={commitDrag}
             style={{
-              background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${(currentTime / (duration || 1)) * 100}%, rgba(255,255,255,0.15) ${(currentTime / (duration || 1)) * 100}%)`,
+              background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${(shownTime / (duration || 1)) * 100}%, rgba(255,255,255,0.15) ${(shownTime / (duration || 1)) * 100}%)`,
             }}
             className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-all hover:h-2"
           />
