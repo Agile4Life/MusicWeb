@@ -258,18 +258,21 @@ export interface PlaybackSourceService {
     queue: Track[],
     currentIndex: number,
     repeatMode: 'off' | 'all' | 'one',
-    options?: { tabHidden?: boolean }
+    options?: { tabHidden?: boolean; nextIndex?: number }
   ): void;
+  /** nextIndex overrides currentIndex + 1 (e.g. a planned shuffle pick). */
   prewarmNextAdaptive(
     queue: Track[],
     currentIndex: number,
-    repeatMode: 'off' | 'all' | 'one'
+    repeatMode: 'off' | 'all' | 'one',
+    nextIndex?: number
   ): void;
   prewarmNearEnd(
     queue: Track[],
     currentIndex: number,
     repeatMode: 'off' | 'all' | 'one',
-    isShuffle: boolean
+    isShuffle: boolean,
+    nextIndex?: number
   ): void;
   hydrateRestoredTrack(track: Track, initialTime: number): Promise<PreparedPlayback | null>;
   dispose(): void;
@@ -1250,11 +1253,13 @@ export function createPlaybackSourceService(
   const prewarmNextAdaptive = (
     queue: Track[],
     currentIndex: number,
-    repeatMode: 'off' | 'all' | 'one'
+    repeatMode: 'off' | 'all' | 'one',
+    nextIndex?: number
   ): void => {
     if (disposed || !deps.isFastConnection()) return;
     if (!queue || queue.length === 0 || currentIndex < -1) return;
     if (
+      nextIndex === undefined &&
       currentIndex >= queue.length - 1 &&
       !(repeatMode === 'all' && queue.length > 1)
     ) {
@@ -1262,7 +1267,9 @@ export function createPlaybackSourceService(
     }
 
     const targetIdx =
-      currentIndex >= 0
+      nextIndex !== undefined
+        ? nextIndex
+        : currentIndex >= 0
         ? currentIndex + 1 < queue.length
           ? currentIndex + 1
           : 0
@@ -1424,7 +1431,7 @@ export function createPlaybackSourceService(
     queue: Track[],
     currentIndex: number,
     repeatMode: 'off' | 'all' | 'one',
-    options?: { tabHidden?: boolean }
+    options?: { tabHidden?: boolean; nextIndex?: number }
   ): void => {
     if (disposed) return;
     const upcoming = planUpcomingPrewarm(queue, currentIndex, {
@@ -1434,7 +1441,7 @@ export function createPlaybackSourceService(
       void deps.prewarmTrackBatch(upcoming).catch(() => {});
     }
     if (deps.isIOS() || Boolean(options?.tabHidden)) {
-      prewarmNextAdaptive(queue, currentIndex, repeatMode);
+      prewarmNextAdaptive(queue, currentIndex, repeatMode, options?.nextIndex);
     }
   };
 
@@ -1442,13 +1449,16 @@ export function createPlaybackSourceService(
     queue: Track[],
     currentIndex: number,
     repeatMode: 'off' | 'all' | 'one',
-    isShuffle: boolean
+    isShuffle: boolean,
+    nextIndex?: number
   ): void => {
     if (disposed || !deps.isFastConnection()) return;
-    if (isShuffle || currentIndex < 0 || queue.length <= 1) return;
+    if ((isShuffle && nextIndex === undefined) || currentIndex < 0 || queue.length <= 1) return;
 
     const nextIdx =
-      repeatMode === 'one' ? currentIndex : (currentIndex + 1) % queue.length;
+      repeatMode === 'one'
+        ? currentIndex
+        : nextIndex ?? (currentIndex + 1) % queue.length;
     const rawNextTr = queue[nextIdx];
     if (!rawNextTr || !rawNextTr.id) return;
 
@@ -1461,7 +1471,7 @@ export function createPlaybackSourceService(
     const nextClass = classifyTrack(nextTr, deps.isIOS());
 
     if (!cachedRes && nextClass.needsCatalogResolution) {
-      prewarmNextAdaptive(queue, currentIndex, repeatMode);
+      prewarmNextAdaptive(queue, currentIndex, repeatMode, repeatMode === 'one' ? undefined : nextIndex);
     } else if (nextTr.source === 'nhaccuatui' && nextTr.nhaccuatui_id) {
       void deps.prewarmNctUrl(nextTr.nhaccuatui_id).catch(() => {});
     } else if (

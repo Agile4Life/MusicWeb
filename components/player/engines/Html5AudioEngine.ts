@@ -62,7 +62,9 @@ export class Html5AudioEngine implements PlaybackEngine {
   setVolume(volume: number): void {
     if (!this.audio) return
     try {
-      this.audio.volume = Math.max(0, Math.min(1, volume))
+      const v = Math.max(0, Math.min(1, volume))
+      this.audio.volume = v
+      this.audio.muted = v === 0 // iOS ignores volume; mute is the only control it honours
     } catch {}
   }
 

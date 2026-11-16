@@ -43,106 +43,6 @@ export interface PlayerRuntime {
   dispose(): void;
 }
 
-export interface WebAudioGainManagerOptions {
-  getAudioElement: () => HTMLAudioElement | null;
-  isPlaying: () => boolean;
-  isIOS?: () => boolean;
-  getAudioContextClass?: () => (new () => AudioContext) | undefined;
-}
-
-export function createWebAudioGainManager(options: WebAudioGainManagerOptions) {
-  let audioContext: AudioContext | null = null;
-  let gainNode: GainNode | null = null;
-  let connectedAudioElement: HTMLAudioElement | null = null;
-
-  return {
-    ensureGain(volume: number) {
-      const currentAudioElement = options.getAudioElement();
-      if (!currentAudioElement) return;
-
-      // On iOS WebKit, routing <audio> through AudioContext.createMediaElementSource
-      // hijacks the native AVPlayer pipeline and causes background / Lock Screen audio
-      // to go silent when iOS interrupts AudioContext in the background.
-      if (options.isIOS?.()) {
-        try {
-          currentAudioElement.muted = volume === 0;
-        } catch {
-          // Ignore
-        }
-        return;
-      }
-
-      try {
-        if (!audioContext) {
-          const AudioCtxClass =
-            options.getAudioContextClass?.() ??
-            (typeof window !== 'undefined'
-              ? window.AudioContext ||
-                (
-                  window as unknown as {
-                    webkitAudioContext?: new () => AudioContext;
-                  }
-                ).webkitAudioContext
-              : undefined);
-          if (!AudioCtxClass) return;
-          const createdCtx: AudioContext = new AudioCtxClass();
-          try {
-            createdCtx.onstatechange = () => {
-              const st = createdCtx.state as string;
-              if (
-                options.isPlaying() &&
-                (st === 'suspended' || st === 'interrupted')
-              ) {
-                createdCtx.resume().catch(() => {});
-              }
-            };
-          } catch {
-            // Ignore
-          }
-          audioContext = createdCtx;
-        }
-
-        if (
-          audioContext &&
-          (audioContext.state === 'suspended' ||
-            (audioContext.state as string) === 'interrupted')
-        ) {
-          audioContext.resume().catch(() => {});
-        }
-
-        if (!gainNode && audioContext) {
-          gainNode = audioContext.createGain();
-          gainNode.gain.value = volume;
-        }
-
-        if (
-          audioContext &&
-          gainNode &&
-          connectedAudioElement !== currentAudioElement
-        ) {
-          try {
-            const source =
-              audioContext.createMediaElementSource(currentAudioElement);
-            source.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            connectedAudioElement = currentAudioElement;
-          } catch {
-            // Already connected or deferred
-          }
-        }
-
-        if (connectedAudioElement === currentAudioElement && gainNode) {
-          currentAudioElement.volume = 1;
-          currentAudioElement.muted = volume === 0;
-          gainNode.gain.value = volume;
-        }
-      } catch {
-        // Ignore WebAudio setup errors
-      }
-    },
-  };
-}
-
 export function createPlayerRuntime(): PlayerRuntime {
   const clock = createBrowserClock();
   const supabase = createClient();
@@ -179,46 +79,24 @@ export function createPlayerRuntime(): PlayerRuntime {
     },
   });
 
-  const webAudioGain = createWebAudioGainManager({
-    getAudioElement: () =>
-      currentAudioElement !== fallbackAudio ? currentAudioElement : null,
-    isPlaying: () => {
-      const snap = controller.getSnapshot();
-      return snap.isPlaying || snap.isBuffering;
-    },
-    isIOS: () => isIOSDevice(),
-  });
-
   const baseTransport: BrowserTransport = createBrowserTransport({
     audio: audioProxy,
     html5: html5Engine,
     youtube: youtubeEngine,
   });
 
+  // Volume is applied natively by Html5AudioEngine (muted toggle covers iOS, which ignores
+  // audio.volume). No WebAudio graph: it only cost an always-on AudioContext and could go
+  // silent when the context was suspended in the background.
   const transport: BrowserTransport = {
     ...baseTransport,
     start(target, owner, volume, mode) {
       activeOwner = target.engine === 'youtube' ? { ...owner } : null;
-      const p = baseTransport.start(target, owner, volume, mode);
-      if (target.engine === 'html5' && mode === 'play') {
-        webAudioGain.ensureGain(volume);
-      }
-      return p;
-    },
-    resume() {
-      const p = baseTransport.resume();
-      if (!activeOwner) {
-        webAudioGain.ensureGain(controller.getSnapshot().volume);
-      }
-      return p;
+      return baseTransport.start(target, owner, volume, mode);
     },
     stop() {
       activeOwner = null;
       baseTransport.stop();
-    },
-    setVolume(volume) {
-      baseTransport.setVolume(volume);
-      webAudioGain.ensureGain(volume);
     },
   };
 

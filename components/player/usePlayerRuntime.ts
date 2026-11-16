@@ -45,10 +45,11 @@ export function usePlayerRuntime(
     viewStore.getSlices
   );
 
-  const progress = useSyncExternalStore(
+  // Duration only, so the provider does not re-render on every time tick.
+  const progressDuration = useSyncExternalStore(
     controller.subscribeProgress,
-    controller.getProgress,
-    controller.getProgress
+    () => controller.getProgress().duration,
+    () => controller.getProgress().duration
   );
 
   useEffect(() => {
@@ -113,8 +114,8 @@ export function usePlayerRuntime(
   }, [slices.track.isPlaying, frequencyData]);
 
   const effectiveDuration =
-    progress.duration > 0
-      ? progress.duration
+    progressDuration > 0
+      ? progressDuration
       : slices.track.currentTrack?.duration || 0;
 
   return {

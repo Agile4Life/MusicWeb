@@ -109,3 +109,12 @@ export function usePlaybackProgressStore(): PlaybackProgressState {
     () => ({ currentTime: 0, duration: 0 })
   )
 }
+
+/** Duration only: re-renders on track/duration change, not on every timeupdate tick. */
+export function usePlaybackDuration(): number {
+  return useSyncExternalStore(
+    playbackProgressStore.subscribe,
+    playbackProgressStore.getDuration,
+    () => 0
+  )
+}

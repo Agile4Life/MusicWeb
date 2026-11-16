@@ -1,8 +1,9 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useSyncExternalStore } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { usePlayer, usePlaybackProgress } from './PlayerContext'
+import { playbackProgressStore, usePlaybackDuration } from './PlaybackProgressStore'
 import { useTheme } from '../theme/ThemeContext'
 import { TrackCoverImage } from '../common/TrackCoverImage'
 import { ArtistLinks } from '../common/ArtistLinks'
@@ -57,6 +58,33 @@ function formatTime(seconds: number) {
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`
 }
 
+// Leaf readers of the ticking clock, so the whole fullview tree does not re-render ~4x/s.
+function useDisplayTime(isScrubbing: boolean, scrubValue: number) {
+  const { currentTime } = usePlaybackProgress()
+  return isScrubbing ? scrubValue : currentTime
+}
+
+function ProgressFill({ isScrubbing, scrubValue, duration, color }: { isScrubbing: boolean; scrubValue: number; duration: number; color: string }) {
+  const displayTime = useDisplayTime(isScrubbing, scrubValue)
+  const percent = duration > 0 ? Math.min(100, Math.max(0, (displayTime / duration) * 100)) : 0
+  return (
+    <div
+      className="h-full rounded-full"
+      style={{ width: `${percent}%`, backgroundColor: color, transition: isScrubbing ? 'none' : 'width 0.15s linear' }}
+    />
+  )
+}
+
+function TimeLabels({ isScrubbing, scrubValue, duration }: { isScrubbing: boolean; scrubValue: number; duration: number }) {
+  const displayTime = useDisplayTime(isScrubbing, scrubValue)
+  return (
+    <>
+      <span>{formatTime(displayTime)}</span>
+      <span>{formatNegativeTime(Math.max(0, duration - displayTime))}</span>
+    </>
+  )
+}
+
 function formatNegativeTime(seconds: number) {
   if (isNaN(seconds) || seconds <= 0) return '-0:00'
   const mins = Math.floor(seconds / 60)
@@ -77,7 +105,7 @@ export function MobileFullviewPlayer({
   onOpenAlbum,
   onOpenArtist,
 }: MobileFullviewPlayerProps = {}) {
-  const { currentTime, duration } = usePlaybackProgress()
+  const duration = usePlaybackDuration()
   const {
     currentTrack,
     isPlaying,
@@ -330,10 +358,15 @@ export function MobileFullviewPlayer({
   }, [currentTrack])
 
   // Active lyric index calculation
-  const activeIndex = useMemo(() => {
-    if (!lyrics || lyrics.length === 0 || !isSynced) return -1
-    return findActiveLyricIndex(lyrics, currentTime, -(mvIntroOffset || 0))
-  }, [lyrics, currentTime, isSynced, mvIntroOffset])
+  // Selects a primitive from the progress store: re-renders only when the active line changes.
+  const activeIndex = useSyncExternalStore(
+    playbackProgressStore.subscribe,
+    () =>
+      !lyrics || lyrics.length === 0 || !isSynced
+        ? -1
+        : findActiveLyricIndex(lyrics, playbackProgressStore.getCurrentTime(), -(mvIntroOffset || 0)),
+    () => -1
+  )
 
   // Ultra-Smooth Spring Auto-scroll to active line
   useEffect(() => {
@@ -643,9 +676,6 @@ export function MobileFullviewPlayer({
   if (!currentTrack) return null
 
   const effectiveDuration = duration > 0 ? duration : (currentTrack.duration || 0)
-  const displayTime = isScrubbing ? scrubValue : currentTime
-  const remainingTime = Math.max(0, effectiveDuration - displayTime)
-  const progressPercent = effectiveDuration > 0 ? Math.min(100, Math.max(0, (displayTime / effectiveDuration) * 100)) : 0
 
   const isLiquid = themeStyle === 'liquid-glass'
   const isMinimal = themeStyle === 'minimal-flat'
@@ -1241,13 +1271,11 @@ export function MobileFullviewPlayer({
           >
             {/* Track */}
             <div className={`w-full h-[3px] rounded-full overflow-hidden ${isMinimal ? 'bg-[rgba(244,236,230,0.14)]' : 'bg-white/[0.22]'}`}>
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${progressPercent}%`,
-                  backgroundColor: isMinimal ? '#E8A94F' : 'rgba(255, 255, 255, 0.92)',
-                  transition: isScrubbing ? 'none' : 'width 0.15s linear',
-                }}
+              <ProgressFill
+                isScrubbing={isScrubbing}
+                scrubValue={scrubValue}
+                duration={effectiveDuration}
+                color={isMinimal ? '#E8A94F' : 'rgba(255, 255, 255, 0.92)'}
               />
             </div>
           </div>
@@ -1258,8 +1286,7 @@ export function MobileFullviewPlayer({
               isMinimal ? 'font-mono tabular-nums text-[#8B8090]' : 'font-semibold text-white/45'
             }`}
           >
-            <span>{formatTime(displayTime)}</span>
-            <span>{formatNegativeTime(remainingTime)}</span>
+            <TimeLabels isScrubbing={isScrubbing} scrubValue={scrubValue} duration={effectiveDuration} />
           </div>
         </div>
 

@@ -64,6 +64,12 @@ export interface QueueController {
     queue: Track[];
     currentIndex: number;
   }): SearchPlayPlan;
+  /** Index selectNext will choose under shuffle, picked now and remembered; -1 if none. */
+  planShuffleNext(params: {
+    queue: Track[];
+    currentIndex: number;
+    currentTrack: Track | null;
+  }): number;
   selectNext(params: {
     queue: Track[];
     currentIndex: number;
@@ -100,7 +106,88 @@ export function createQueueController(
   let isBackwardAction = false;
   let lastPrevClickAt = 0;
 
+  // Shared by selectNext and planShuffleNext so a planned pick follows the same rules.
+  const pickShuffleIndex = (queue: Track[], idx: number, seedForShuffle: Track | null): number => {
+    let nextIdx = 0;
+    const preserveOrder = isFullYouTubeQueue(queue);
+    if (preserveOrder) {
+      let guard = 0;
+      do {
+        nextIdx = Math.floor(random() * queue.length);
+        guard += 1;
+      } while (nextIdx === idx && guard < 16);
+      if (nextIdx === idx) nextIdx = (idx + 1) % queue.length;
+    } else {
+      const styleMatchedCandidates: { track: Track; index: number }[] = [];
+      const candidates: { track: Track; index: number }[] = [];
+      const fallbackCandidates: { track: Track; index: number }[] = [];
+
+      queue.forEach((t, i) => {
+        if (i === idx) return;
+        fallbackCandidates.push({ track: t, index: i });
+        if (isBackgroundPlayableTrack(t)) {
+          candidates.push({ track: t, index: i });
+          if (!seedForShuffle || isTrackStyleCompatible(seedForShuffle, t)) {
+            styleMatchedCandidates.push({ track: t, index: i });
+          }
+        }
+      });
+
+      if (styleMatchedCandidates.length > 0) {
+        const chosen =
+          styleMatchedCandidates[
+            Math.floor(random() * styleMatchedCandidates.length)
+          ];
+        nextIdx = chosen.index;
+      } else if (candidates.length > 0) {
+        const chosen =
+          candidates[Math.floor(random() * candidates.length)];
+        nextIdx = chosen.index;
+      } else if (fallbackCandidates.length > 0) {
+        const chosen =
+          fallbackCandidates[
+            Math.floor(random() * fallbackCandidates.length)
+          ];
+        nextIdx = chosen.index;
+      } else {
+        nextIdx = idx;
+      }
+    }
+    return nextIdx;
+  };
+
+  // A shuffle pick made ahead of time (for prewarm), valid only while the same track is current.
+  let plannedShuffle: { fromId: string; trackId: string } | null = null;
+  const takePlannedShuffle = (queue: Track[], idx: number, seed: Track | null): number => {
+    const plan = plannedShuffle;
+    plannedShuffle = null;
+    if (!plan || !seed || plan.fromId !== seed.id) return -1;
+    const i = queue.findIndex((t) => t.id === plan.trackId);
+    return i >= 0 && i !== idx ? i : -1;
+  };
+
   return {
+    planShuffleNext({ queue, currentIndex, currentTrack }) {
+      if (forwardHistory.length > 0) {
+        const forward = forwardHistory[forwardHistory.length - 1];
+        return queue.findIndex((t) => t.id === forward.id);
+      }
+      if (queue.length < 2) return -1;
+      let idx = currentIndex >= 0 ? currentIndex : -1;
+      if (idx < 0 && currentTrack) idx = queue.findIndex((t) => t.id === currentTrack.id);
+      if (idx < 0) idx = 0;
+      const seed = currentTrack ?? queue[idx] ?? null;
+      if (!seed) return -1;
+      if (plannedShuffle && plannedShuffle.fromId === seed.id) {
+        const plannedId = plannedShuffle.trackId;
+        const i = queue.findIndex((t) => t.id === plannedId);
+        if (i >= 0 && i !== idx) return i;
+      }
+      const nextIdx = pickShuffleIndex(queue, idx, seed);
+      plannedShuffle = nextIdx !== idx && queue[nextIdx] ? { fromId: seed.id, trackId: queue[nextIdx].id } : null;
+      return plannedShuffle ? nextIdx : -1;
+    },
+
     preparePlayTrack({
       track,
       queue,
@@ -217,52 +304,10 @@ export function createQueueController(
       if (idx < 0) idx = 0;
 
       let nextIdx = 0;
-      const preserveOrder = isFullYouTubeQueue(queue);
       const seedForShuffle = currentTrack ?? queue[idx] ?? null;
       if (isShuffle && queue.length > 1) {
-        if (preserveOrder) {
-          let guard = 0;
-          do {
-            nextIdx = Math.floor(random() * queue.length);
-            guard += 1;
-          } while (nextIdx === idx && guard < 16);
-          if (nextIdx === idx) nextIdx = (idx + 1) % queue.length;
-        } else {
-          const styleMatchedCandidates: { track: Track; index: number }[] = [];
-          const candidates: { track: Track; index: number }[] = [];
-          const fallbackCandidates: { track: Track; index: number }[] = [];
-
-          queue.forEach((t, i) => {
-            if (i === idx) return;
-            fallbackCandidates.push({ track: t, index: i });
-            if (isBackgroundPlayableTrack(t)) {
-              candidates.push({ track: t, index: i });
-              if (!seedForShuffle || isTrackStyleCompatible(seedForShuffle, t)) {
-                styleMatchedCandidates.push({ track: t, index: i });
-              }
-            }
-          });
-
-          if (styleMatchedCandidates.length > 0) {
-            const chosen =
-              styleMatchedCandidates[
-                Math.floor(random() * styleMatchedCandidates.length)
-              ];
-            nextIdx = chosen.index;
-          } else if (candidates.length > 0) {
-            const chosen =
-              candidates[Math.floor(random() * candidates.length)];
-            nextIdx = chosen.index;
-          } else if (fallbackCandidates.length > 0) {
-            const chosen =
-              fallbackCandidates[
-                Math.floor(random() * fallbackCandidates.length)
-              ];
-            nextIdx = chosen.index;
-          } else {
-            nextIdx = idx;
-          }
-        }
+        const planned = takePlannedShuffle(queue, idx, seedForShuffle);
+        nextIdx = planned >= 0 ? planned : pickShuffleIndex(queue, idx, seedForShuffle);
       } else {
         nextIdx = (idx + 1) % queue.length;
       }
@@ -416,6 +461,7 @@ export function createQueueController(
     },
 
     reset() {
+      plannedShuffle = null;
       playedHistory = [];
       forwardHistory = [];
       isPrevNextAction = false;

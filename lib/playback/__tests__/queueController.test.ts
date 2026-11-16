@@ -199,5 +199,25 @@ describe('queueController', () => {
       shouldSmartFill: true,
     });
   });
-});
 
+  it('selectNext under shuffle plays the track planned for prewarm, and only for the same current track', () => {
+    const rolls = [0.9, 0.1, 0.1];
+    const qc = createQueueController({ random: () => rolls.shift() ?? 0 });
+    const queue = ['a', 'b', 'c', 'd'].map((id) => makeTrack(id));
+
+    const planned = qc.planShuffleNext({ queue, currentIndex: 0, currentTrack: queue[0] });
+    expect(planned).toBeGreaterThan(0);
+    // Planning again is stable (no new random roll).
+    expect(qc.planShuffleNext({ queue, currentIndex: 0, currentTrack: queue[0] })).toBe(planned);
+
+    const decision = qc.selectNext({ queue, currentIndex: 0, currentTrack: queue[0], isShuffle: true });
+    expect(decision).toMatchObject({ action: 'play', index: planned });
+
+    // A plan made for another current track is ignored.
+    const qc2 = createQueueController({ random: () => 0.9 });
+    const plannedForA = qc2.planShuffleNext({ queue, currentIndex: 0, currentTrack: queue[0] });
+    const fromB = qc2.selectNext({ queue, currentIndex: 1, currentTrack: queue[1], isShuffle: true });
+    expect(fromB.action).toBe('play');
+    expect(plannedForA).toBeGreaterThan(0);
+  });
+});

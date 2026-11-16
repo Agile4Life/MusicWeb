@@ -4,7 +4,6 @@ import React, { useState, useRef, useCallback } from 'react'
 import { usePlaybackProgress } from './PlayerContext'
 
 interface AudioWaveformScrubberProps {
-  currentTime: number
   duration: number
   isPlaying?: boolean
   trackId?: string
@@ -20,11 +19,10 @@ function formatTime(seconds: number) {
 }
 
 export function AudioWaveformScrubber({
-  currentTime,
   duration,
   onSeek,
 }: AudioWaveformScrubberProps) {
-  const { duration: contextDuration } = usePlaybackProgress()
+  const { currentTime, duration: contextDuration } = usePlaybackProgress()
   const effectiveDuration = duration && duration > 0 ? duration : contextDuration || 0
 
   const [hoverTime, setHoverTime] = useState<number | null>(null)

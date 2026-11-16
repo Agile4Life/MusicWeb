@@ -143,6 +143,26 @@ function createTestHarness() {
 }
 
 describe('playbackController', () => {
+  it('under shuffle, prewarms the track that nextTrack() then actually plays', async () => {
+    const { controller, sources, transport } = createTestHarness();
+    const queue = ['s-1', 's-2', 's-3', 's-4', 's-5'].map((id) => makeTrack(id));
+    await controller.playTrack(queue[0], queue, 0);
+    if (!controller.getSnapshot().isShuffle) controller.toggleShuffle();
+    vi.mocked(sources.prewarmNextAdaptive).mockClear();
+
+    const owner = transport.getLastStarted()!.owner;
+    transport.emit({ type: 'time', owner, time: 6, duration: 180 });
+
+    const call = vi.mocked(sources.prewarmNextAdaptive).mock.calls.at(-1);
+    expect(call).toBeDefined();
+    const plannedIndex = call![3];
+    expect(typeof plannedIndex).toBe('number');
+
+    controller.nextTrack();
+    await new Promise(setImmediate);
+    expect(controller.getSnapshot().currentTrack?.id).toBe(queue[plannedIndex as number].id);
+  });
+
   it('ignores stale resolution when a newer track is selected before resolution completes', async () => {
     const { controller, sources, transport } = createTestHarness();
     const slowA = deferred<PreparedPlayback | null>();

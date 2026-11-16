@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { usePlayer, usePlaybackProgress, usePlayerTrack } from './PlayerContext'
+import { usePlayer, usePlayerTrack } from './PlayerContext'
+import { usePlaybackDuration } from './PlaybackProgressStore'
 import { NowPlayingStage } from './NowPlayingStage'
 import { LyricsView } from './LyricsView'
 import { MiniEqualizer } from './MiniEqualizer'
@@ -76,7 +77,7 @@ const StageWithFrequencyData = React.memo(function StageWithFrequencyData({
 })
 
 export function NowPlayingOverlay() {
-  const { currentTime, duration } = usePlaybackProgress()
+  const duration = usePlaybackDuration()
   const {
     currentTrack,
     isPlaying,
@@ -682,7 +683,6 @@ export function NowPlayingOverlay() {
             {/* Progress track stays centered directly below the play controls. */}
             <div className={`${trackMetadataProgressClass} shrink-0`} onClick={(e) => e.stopPropagation()}>
               <AudioWaveformScrubber
-                currentTime={currentTime}
                 duration={duration || currentTrack.duration || 0}
                 isPlaying={isPlaying}
                 trackId={currentTrack.id}

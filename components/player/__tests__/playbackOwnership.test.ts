@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createBrowserTransport } from '@/components/player/adapters/browserTransport';
 import { Html5AudioEngine, YouTubeIframeEngine } from '@/components/player/engines';
-import { createWebAudioGainManager } from '@/components/player/runtime/createPlayerRuntime';
 import { bindYouTubeIframe } from '@/components/player/runtime/youtubeBinding';
 import { createPlaybackController } from '@/lib/playback/playbackController';
 import {
@@ -641,27 +640,6 @@ describe('production playback ownership', () => {
     expect(h.audio.playCalls).toBe(0);
   });
 
-  it('applies volume once after connecting Web Audio', () => {
-    const gain = { gain: { value: 1 }, connect: vi.fn() };
-    const fakeAudio = { volume: 0.5, muted: false } as unknown as HTMLAudioElement;
-    const manager = createWebAudioGainManager({
-      getAudioElement: () => fakeAudio,
-      isPlaying: () => true,
-      getAudioContextClass: () =>
-        function () {
-          return {
-            state: 'running',
-            createGain: () => gain,
-            createMediaElementSource: () => ({ connect: vi.fn() }),
-            destination: {},
-          };
-        } as unknown as new () => AudioContext,
-    });
-
-    manager.ensureGain(0.5);
-    expect(fakeAudio.volume * gain.gain.value).toBe(0.5);
-  });
-
   it('preserves playback position on fallback only when candidate duration matches within 8s', async () => {
     const h = createControllerHarness();
     const track = makeTrack('A', { duration: 200 });
@@ -904,59 +882,13 @@ describe('production playback ownership', () => {
     );
   });
 
-  it('resumes WebKit interrupted AudioContext state in ensureWebAudioGain', () => {
-    let resumeCalls = 0;
-    const gain = { gain: { value: 0.8 }, connect: vi.fn() };
-    const fakeAudio = { volume: 0.8, muted: false } as unknown as HTMLAudioElement;
-
-    const manager = createWebAudioGainManager({
-      getAudioElement: () => fakeAudio,
-      isPlaying: () => true,
-      getAudioContextClass: () =>
-        function () {
-          return {
-            state: 'interrupted',
-            resume() {
-              resumeCalls += 1;
-              this.state = 'running';
-              return Promise.resolve();
-            },
-            createGain: () => gain,
-            createMediaElementSource: () => ({ connect: vi.fn() }),
-            destination: {},
-          };
-        } as unknown as new () => AudioContext,
-    });
-
-    manager.ensureGain(0.8);
-    expect(resumeCalls).toBe(1);
-  });
-
-  it('skips AudioContext.createMediaElementSource on iOS devices so Lock Screen / background HTML5 audio is not interrupted by WebKit AudioContext suspension', () => {
-    const createMediaElementSource = vi.fn(() => ({ connect: vi.fn() }));
+  it('mutes on zero volume without a WebAudio graph (iOS ignores audio.volume)', () => {
     const fakeAudio = { volume: 1, muted: false } as unknown as HTMLAudioElement;
-
-    const iosManager = createWebAudioGainManager({
-      getAudioElement: () => fakeAudio,
-      isPlaying: () => true,
-      isIOS: () => true,
-      getAudioContextClass: () =>
-        function () {
-          return {
-            state: 'running',
-            resume: () => Promise.resolve(),
-            createGain: () => ({ gain: { value: 1 }, connect: vi.fn() }),
-            createMediaElementSource,
-            destination: {},
-          };
-        } as unknown as new () => AudioContext,
-    });
-
-    iosManager.ensureGain(0.5);
-    expect(createMediaElementSource).not.toHaveBeenCalled();
+    const engine = new Html5AudioEngine(fakeAudio);
+    engine.setVolume(0.5);
+    expect(fakeAudio.volume).toBe(0.5);
     expect(fakeAudio.muted).toBe(false);
-
-    iosManager.ensureGain(0);
+    engine.setVolume(0);
     expect(fakeAudio.muted).toBe(true);
   });
 

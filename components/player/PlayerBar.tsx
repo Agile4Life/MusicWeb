@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { usePlayer, usePlaybackProgress } from './PlayerContext'
+import { usePlaybackDuration } from './PlaybackProgressStore'
 import { LyricsView } from './LyricsView'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import { OverflowMarqueeText } from '@/components/common/OverflowMarqueeText'
@@ -45,12 +46,23 @@ import {
   Share2,
 } from 'lucide-react'
 
+// Only this leaf follows the ticking clock; PlayerBar itself re-renders on duration changes.
+function MiniProgressFill({ duration }: { duration: number }) {
+  const { currentTime } = usePlaybackProgress()
+  return (
+    <div
+      className="h-full bg-[#E8A94F] transition-[width] duration-150 ease-linear"
+      style={{ width: `${Math.min(100, Math.max(0, (currentTime / Math.max(duration, 1)) * 100))}%` }}
+    />
+  )
+}
+
 export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
   const { t } = useLanguage()
   const { themeStyle } = useTheme()
   const isLiquidGlass = themeStyle === 'liquid-glass'
   const isMinimalFlat = themeStyle === 'minimal-flat'
-  const { currentTime, duration } = usePlaybackProgress()
+  const duration = usePlaybackDuration()
   const {
     currentTrack,
     isPlaying,
@@ -472,12 +484,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             aria-hidden="true"
             className="absolute bottom-0 left-0 right-0 h-[2px] bg-[rgba(244,236,230,0.08)] pointer-events-none z-20"
           >
-            <div
-              className="h-full bg-[#E8A94F] transition-[width] duration-150 ease-linear"
-              style={{
-                width: `${Math.min(100, Math.max(0, (currentTime / Math.max(duration || currentTrack.duration || 1, 1)) * 100))}%`,
-              }}
-            />
+            <MiniProgressFill duration={duration || currentTrack.duration || 1} />
           </div>
         )}
         {/* Main row */}
@@ -802,7 +809,6 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
           {/* Progress track stays centered directly below the play controls. */}
           <div className={`${trackMetadataProgressClass} shrink-0`} onClick={(e) => e.stopPropagation()}>
               <AudioWaveformScrubber
-                currentTime={currentTime}
                 duration={duration || currentTrack.duration || 0}
                 isPlaying={isPlaying}
                 trackId={currentTrack.id}

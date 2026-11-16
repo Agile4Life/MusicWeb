@@ -1,10 +1,11 @@
 'use client'
 
-import React, { lazy, Suspense, useRef, useEffect, useState } from 'react'
+import React, { lazy, Suspense, useRef, useEffect, useState, useSyncExternalStore } from 'react'
 import { useCanUse3D } from '@/hooks/useCanUse3D'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import { ArtistLinks } from '@/components/common/ArtistLinks'
-import { usePlaybackProgress, usePlayerTrack, usePlayerQueue } from './PlayerContext'
+import { usePlayerTrack, usePlayerQueue } from './PlayerContext'
+import { playbackProgressStore } from './PlaybackProgressStore'
 import { UpNextList } from './UpNextList'
 import { extractCoverAccent } from '@/lib/coverColor'
 import { useTheme } from '@/components/theme/ThemeContext'
@@ -38,7 +39,6 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
   const canUse3DHardware = useCanUse3D()
   const { currentTheme, themeStyle, gamingMode } = useTheme()
   const canUse3D = canUse3DHardware && themeStyle !== 'minimal-flat' && !gamingMode
-  const { currentTime, duration } = usePlaybackProgress()
   const { currentTrack } = usePlayerTrack()
   const { queue, currentIndex } = usePlayerQueue()
   const [derivedAccent, setDerivedAccent] = useState<string | null>(null)
@@ -61,9 +61,16 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
   const releaseYear = currentTrack?.created_at ? new Date(currentTrack.created_at).getFullYear() : null
   const contextAlbumName = currentTrack?.album || 'Album'
 
-  const progressRatio = (duration && !isNaN(duration) && duration > 0)
-    ? Math.min(1, Math.max(0, (currentTime || 0) / duration))
-    : 0
+  // Ring progress quantised to 0.25% steps: a few renders per song-minute instead of ~4/s.
+  const progressRatio = useSyncExternalStore(
+    playbackProgressStore.subscribe,
+    () => {
+      const { currentTime, duration } = playbackProgressStore.getSnapshot()
+      if (!duration || isNaN(duration) || duration <= 0) return 0
+      return Math.round(Math.min(1, Math.max(0, (currentTime || 0) / duration)) * 400) / 400
+    },
+    () => 0
+  )
   const radius = 47
   const circumference = 2 * Math.PI * radius
   const strokeDashoffset = circumference * (1 - progressRatio)

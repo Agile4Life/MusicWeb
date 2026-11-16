@@ -258,6 +258,32 @@ export function createPlaybackController(
     }
   };
 
+  /** Shuffle picks at random; plan the pick now so prewarm warms the track that will play. */
+  const plannedNextIndex = (): number | undefined => {
+    const snap = store.getSnapshot();
+    if (!snap.isShuffle || snap.repeatMode === 'one' || snap.queue.length < 2) return undefined;
+    const idx = queueController.planShuffleNext({
+      queue: snap.queue,
+      currentIndex: snap.currentIndex,
+      currentTrack: snap.currentTrack,
+    });
+    return idx >= 0 ? idx : undefined;
+  };
+
+  const hasNextToPrewarm = (snap: { queue: Track[]; currentIndex: number; repeatMode: string; isShuffle: boolean }) =>
+    snap.queue.length > snap.currentIndex + 1 ||
+    ((snap.repeatMode === 'all' || snap.isShuffle) && snap.queue.length > 1);
+
+  const prewarmNext = () => {
+    const snap = store.getSnapshot();
+    const target = plannedNextIndex();
+    if (target === undefined) {
+      deps.sources.prewarmNextAdaptive(snap.queue, snap.currentIndex, snap.repeatMode);
+    } else {
+      deps.sources.prewarmNextAdaptive(snap.queue, snap.currentIndex, snap.repeatMode, target);
+    }
+  };
+
   const isPlaybackWanted = (owner: PlaybackOwner) =>
     !disposed &&
     ownership.getDesiredState() === 'playing' &&
@@ -358,11 +384,12 @@ export function createPlaybackController(
       if (!options?.isFallback) {
         deps.userEffects.recordHistory(originalTrack);
         const snap = store.getSnapshot();
+        const nextIndex = plannedNextIndex();
         deps.sources.prewarmUpcoming(
           snap.queue,
           snap.currentIndex,
           snap.repeatMode,
-          { tabHidden }
+          nextIndex === undefined ? { tabHidden } : { tabHidden, nextIndex }
         );
         if (tabHidden) {
           hasPrewarmedNextTrack = true;
@@ -1212,17 +1239,9 @@ export function createPlaybackController(
           event.time >= 5 &&
           !store.getSnapshot().isBuffering
         ) {
-          const cur = store.getSnapshot();
-          if (
-            cur.queue.length > cur.currentIndex + 1 ||
-            (cur.repeatMode === 'all' && cur.queue.length > 1)
-          ) {
+          if (hasNextToPrewarm(store.getSnapshot())) {
             hasPrewarmedNextTrack = true;
-            deps.sources.prewarmNextAdaptive(
-              cur.queue,
-              cur.currentIndex,
-              cur.repeatMode
-            );
+            prewarmNext();
           }
         }
 
@@ -1233,12 +1252,12 @@ export function createPlaybackController(
             if (remaining <= 30 && remaining >= 0) {
               nextTrackEndPrewarmed = true;
               const cur = store.getSnapshot();
-              deps.sources.prewarmNearEnd(
-                cur.queue,
-                cur.currentIndex,
-                cur.repeatMode,
-                cur.isShuffle
-              );
+              const nextIndex = plannedNextIndex();
+              if (nextIndex === undefined) {
+                deps.sources.prewarmNearEnd(cur.queue, cur.currentIndex, cur.repeatMode, cur.isShuffle);
+              } else {
+                deps.sources.prewarmNearEnd(cur.queue, cur.currentIndex, cur.repeatMode, cur.isShuffle, nextIndex);
+              }
             }
           }
         }
@@ -1961,18 +1980,9 @@ export function createPlaybackController(
         } else {
           deps.persistence.flush();
         }
-        if (ownership.getDesiredState() === 'playing') {
-          if (
-            snap.queue.length > snap.currentIndex + 1 ||
-            (snap.repeatMode === 'all' && snap.queue.length > 1)
-          ) {
-            hasPrewarmedNextTrack = true;
-            deps.sources.prewarmNextAdaptive(
-              snap.queue,
-              snap.currentIndex,
-              snap.repeatMode
-            );
-          }
+        if (ownership.getDesiredState() === 'playing' && hasNextToPrewarm(snap)) {
+          hasPrewarmedNextTrack = true;
+          prewarmNext();
         }
         const liveOnHide = deps.transport.read();
         const ownerOnHide = ownership.getOwner();
@@ -2093,16 +2103,9 @@ export function createPlaybackController(
         live.time >= 5 &&
         !snap.isBuffering
       ) {
-        if (
-          snap.queue.length > snap.currentIndex + 1 ||
-          (snap.repeatMode === 'all' && snap.queue.length > 1)
-        ) {
+        if (hasNextToPrewarm(snap)) {
           hasPrewarmedNextTrack = true;
-          deps.sources.prewarmNextAdaptive(
-            snap.queue,
-            snap.currentIndex,
-            snap.repeatMode
-          );
+          prewarmNext();
         }
       }
 

@@ -1,7 +1,8 @@
 'use client'
 
-import React, { useEffect, useState, useRef, useCallback, memo } from 'react'
+import React, { useEffect, useState, useRef, useCallback, memo, useSyncExternalStore } from 'react'
 import { usePlaybackProgress, usePlayerTrack, usePlayerControls } from './PlayerContext'
+import { playbackProgressStore } from './PlaybackProgressStore'
 import { Track } from '@/types'
 import { LrclibResponse } from '@/lib/lrclib'
 import { getPrimaryLyrics, LYRICS_UPDATED_EVENT } from '@/lib/lyricsFlow'
@@ -345,7 +346,6 @@ export const LyricsView = memo(function LyricsView({
   showRomaji: showRomajiProp,
   onToggleRomaji,
 }: LyricsViewProps) {
-  const { currentTime } = usePlaybackProgress()
   const { currentTrack, mvIntroOffset } = usePlayerTrack()
   const { seek } = usePlayerControls()
   const { userEmail } = useCurrentUser()
@@ -391,7 +391,6 @@ export const LyricsView = memo(function LyricsView({
   const isUserScrollingRef = useRef(false)
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lyricsReqIdRef = useRef(0)
-  const lastLyricCheckRef = useRef(0)
 
   const applyLyricsResponse = useCallback((data: LrclibResponse | null, reqId: number) => {
     if (data) {
@@ -512,18 +511,21 @@ export const LyricsView = memo(function LyricsView({
     return () => window.removeEventListener(LYRICS_UPDATED_EVENT, handleLyricsUpdated)
   }, [currentTrack, applyLyricsResponse, loadLyricsForTrack])
 
-  // 2. High-Performance Active Lyric Finder (Throttled calculation, zero state churn)
+  // 2. Active lyric: select a primitive from the progress store so this view
+  // re-renders on line changes only, not on every timeupdate (it stays mounted while hidden).
+  const liveIndex = useSyncExternalStore(
+    playbackProgressStore.subscribe,
+    () =>
+      !isSynced || parsedLyrics.length === 0
+        ? -1
+        : findActiveLyricIndex(parsedLyrics, playbackProgressStore.getCurrentTime(), lyricOffset - (mvIntroOffset || 0)),
+    () => -1
+  )
   useEffect(() => {
-    if (!isSynced || parsedLyrics.length === 0) return
+    if (liveIndex < 0) return
     if (typeof document !== 'undefined' && document.hidden) return
-
-    const now = performance.now()
-    if (now - lastLyricCheckRef.current < 60) return
-    lastLyricCheckRef.current = now
-
-    const index = findActiveLyricIndex(parsedLyrics, currentTime, lyricOffset - (mvIntroOffset || 0))
-    setActiveIndex((prev) => (prev !== index ? index : prev))
-  }, [currentTime, parsedLyrics, isSynced, lyricOffset, mvIntroOffset])
+    setActiveIndex((prev) => (prev !== liveIndex ? liveIndex : prev))
+  }, [liveIndex])
 
   // 3. Ultra-Smooth Hardware Accelerated Scroll
   useEffect(() => {
