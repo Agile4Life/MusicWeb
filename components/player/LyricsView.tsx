@@ -533,7 +533,6 @@ export const LyricsView = memo(function LyricsView({
   )
   useEffect(() => {
     if (liveIndex < 0) return
-    if (typeof document !== 'undefined' && document.hidden) return
     setActiveIndex((prev) => (prev !== liveIndex ? liveIndex : prev))
   }, [liveIndex])
 

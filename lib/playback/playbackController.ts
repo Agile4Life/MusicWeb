@@ -306,6 +306,7 @@ export function createPlaybackController(
     };
     const nextOwner = ownership.setOwnerTrack(syncedTrack.id) ?? owner;
 
+    const savedTrack = store.getSnapshot().currentTrack;
     const currentQ = store.getSnapshot().queue;
     const syncedQueue = queueController.mergeResolvedTrack(currentQ, syncedTrack);
     store.patch({
@@ -324,7 +325,17 @@ export function createPlaybackController(
         : prepared.initialTime;
 
     lastSavedTime = targetStartTime;
-    saveState(true, {
+    // playTrack/quick-play already wrote this queue synchronously. Write again immediately only
+    // when resolution changed the stream identity; otherwise debounce, so a second full JSON
+    // write does not sit between the tap and audio.play(). Hide/pagehide still flush.
+    const identityChanged =
+      !savedTrack ||
+      savedTrack.source !== syncedTrack.source ||
+      savedTrack.nhaccuatui_id !== syncedTrack.nhaccuatui_id ||
+      savedTrack.youtube_id !== syncedTrack.youtube_id ||
+      savedTrack.soundcloud_id !== syncedTrack.soundcloud_id ||
+      savedTrack.drive_file_id !== syncedTrack.drive_file_id;
+    saveState(identityChanged, {
       track: syncedTrack,
       currentTime: targetStartTime,
       queue: syncedQueue,

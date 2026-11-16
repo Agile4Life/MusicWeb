@@ -52,6 +52,18 @@ function createFakeDeps(overrides: Partial<PlaybackSourceDeps> = {}): PlaybackSo
 }
 
 describe('playbackSourceService', () => {
+  it('under shuffle, batch-prewarms only the planned next track', () => {
+    const deps = createFakeDeps()
+    const service = createPlaybackSourceService(deps)
+    const queue = ['q-0', 'q-1', 'q-2', 'q-3', 'q-4'].map((id) => makeTrack(id))
+
+    service.prewarmUpcoming(queue, 0, 'off', { nextIndex: 3 })
+    expect(vi.mocked(deps.prewarmTrackBatch).mock.calls.at(-1)?.[0].map((t: { id: string }) => t.id)).toEqual(['q-3'])
+
+    service.prewarmUpcoming(queue, 0, 'off')
+    expect(vi.mocked(deps.prewarmTrackBatch).mock.calls.at(-1)?.[0].map((t: { id: string }) => t.id)).toEqual(['q-1', 'q-2', 'q-3'])
+  })
+
   it('keeps alternate YouTube recovery on HTML5 audio on iOS', async () => {
     const track = makeTrack('yt-original', {
       source: 'youtube', youtube_id: 'dQw4w9WgXcQ', title: 'Test Song', artist: 'Test Artist',

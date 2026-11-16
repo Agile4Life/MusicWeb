@@ -25,6 +25,10 @@ import {
   deleteNctInFlight,
 } from '@/lib/nctCacheStore'
 
+// Raw resolutions started by this route. Unlike the shared in-flight store, these keep the
+// not-found sentinel, so concurrent callers share one upstream call and still get 404 vs 502.
+const rawInFlight = new Map<string, Promise<string | null>>()
+
 async function resolveNctAudioUrlCached(id: string): Promise<string | null> {
   const trimmed = id.trim()
   if (!trimmed) return null
@@ -37,6 +41,9 @@ async function resolveNctAudioUrlCached(id: string): Promise<string | null> {
     return cached.audioUrl
   }
 
+  const ownInFlight = rawInFlight.get(trimmed)
+  if (ownInFlight) return ownInFlight
+
   const existingInFlight = getNctInFlight(trimmed)
   if (existingInFlight) {
     if (process.env.NODE_ENV !== 'production') {
@@ -44,8 +51,10 @@ async function resolveNctAudioUrlCached(id: string): Promise<string | null> {
     }
     const res = await existingInFlight
     if (res?.audioUrl) return res.audioUrl
-    // A shared null hides whether the song is gone (404) or upstream failed (502):
-    // fall through and resolve once ourselves so the caller gets the right status.
+    // A null from another route's resolution hides 404 vs 502: resolve once ourselves.
+    // Callers arriving meanwhile join rawInFlight below instead of each calling upstream.
+    const joined = rawInFlight.get(trimmed)
+    if (joined) return joined
   }
 
   const promise = (async (): Promise<string | null> => {
@@ -95,8 +104,10 @@ async function resolveNctAudioUrlCached(id: string): Promise<string | null> {
       return null
     } finally {
       deleteNctInFlight(trimmed)
+      rawInFlight.delete(trimmed)
     }
   })()
+  rawInFlight.set(trimmed, promise)
 
   // Track in-flight resolution in shared store
   const cacheInFlightPromise = promise.then((audioUrl) =>

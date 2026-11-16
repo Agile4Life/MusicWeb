@@ -535,6 +535,14 @@ describe('playbackController', () => {
     expect(controller.getSnapshot().isPlaying).toBe(true);
   });
 
+  it('does not write storage synchronously twice when the resolved track keeps its identity', async () => {
+    const { controller, persistence } = createTestHarness();
+    const track = makeTrack('same-id-1', { file_path: 'https://cdn.example/a.mp3' });
+    await controller.playTrack(track, [track], 0);
+    const immediateWrites = vi.mocked(persistence.save).mock.calls.filter(([, immediate]) => immediate === true);
+    expect(immediateWrites).toHaveLength(1);
+  });
+
   it('persists resolved track metadata after playTrack resolution, as well as volume and queue mutations', async () => {
     const { controller, sources, persistence } = createTestHarness();
     const rawCatalogTrack = makeTrack('sp-raw-1', {

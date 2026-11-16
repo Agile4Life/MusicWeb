@@ -1434,9 +1434,14 @@ export function createPlaybackSourceService(
     options?: { tabHidden?: boolean; nextIndex?: number }
   ): void => {
     if (disposed) return;
-    const upcoming = planUpcomingPrewarm(queue, currentIndex, {
-      fastConnection: deps.isFastConnection(),
-    });
+    // A planned shuffle pick is the only upcoming track worth warming; the next three in
+    // queue order would almost never play.
+    const plannedNext = options?.nextIndex !== undefined ? queue[options.nextIndex] : undefined;
+    const upcoming = plannedNext
+      ? deps.isFastConnection() ? [plannedNext] : []
+      : planUpcomingPrewarm(queue, currentIndex, {
+          fastConnection: deps.isFastConnection(),
+        });
     if (upcoming.length > 0) {
       void deps.prewarmTrackBatch(upcoming).catch(() => {});
     }

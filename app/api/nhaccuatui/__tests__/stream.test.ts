@@ -20,6 +20,18 @@ describe('NhacCuaTui audio stream route', () => {
     expect(b.status).toBe(404)
   })
 
+  it('makes one upstream call for many concurrent requests of a failing song', async () => {
+    process.env.NCT_API_BASE_URL = 'https://nct-api.test'
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve(new Response('gone', { status: 404 })), 10))
+    )
+    const responses = await Promise.all(
+      Array.from({ length: 5 }, () => GET(new Request('https://music.test/api/nhaccuatui/stream?id=nct-herd-1')))
+    )
+    expect(responses.map((r) => r.status)).toEqual([404, 404, 404, 404, 404])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
   it('handles OPTIONS CORS preflight requests', async () => {
     const response = await OPTIONS()
     expect(response.status).toBe(204)
