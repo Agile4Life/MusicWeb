@@ -283,10 +283,10 @@ export default function ArtistPage() {
 
           {/* Action Buttons */}
           {topTracks.length > 0 && (
-            <div className="flex items-center gap-3 mt-2">
+            <div className="flex flex-wrap items-center gap-3 mt-2">
               <button
                 onClick={handlePlayAll}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold text-black transition-all hover:scale-105 hover:brightness-110 active:scale-95 border border-white/20 shadow-lg"
+                className="flex items-center gap-2 whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-bold text-black transition-all hover:scale-105 hover:brightness-110 active:scale-95 border border-white/20 shadow-lg"
                 style={{
                   background:
                     'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
@@ -299,7 +299,7 @@ export default function ArtistPage() {
               </button>
               <button
                 onClick={handleShufflePlay}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold text-slate-200 bg-white/10 hover:bg-white/15 transition-all hover:scale-105 active:scale-95 border border-white/10"
+                className="flex items-center gap-2 whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-semibold text-slate-200 bg-white/10 hover:bg-white/15 transition-all hover:scale-105 active:scale-95 border border-white/10"
               >
                 <Shuffle className="w-4 h-4" />
                 Phát ngẫu nhiên

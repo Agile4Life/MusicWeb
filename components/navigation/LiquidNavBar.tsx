@@ -330,13 +330,16 @@ export function LiquidNavBar({
   }, [router, tabs])
 
   // Determine default active tab from pathname
+  const routeTabIndex = tabs.findIndex((t) => {
+    if (t.id === 'playlist' && pathname.startsWith('/playlist')) return true
+    if (!t.href) return false
+    if (t.href === '/') return pathname === '/'
+    return pathname.startsWith(t.href)
+  })
+  // Pages without a tab (/upload, /receipt…) should not keep the previous tab lit.
+  const routeHasTab = routeTabIndex >= 0 || isDragging
   useEffect(() => {
-    const idx = tabs.findIndex((t) => {
-      if (t.id === 'playlist' && pathname.startsWith('/playlist')) return true
-      if (!t.href) return false
-      if (t.href === '/') return pathname === '/'
-      return pathname.startsWith(t.href)
-    })
+    const idx = routeTabIndex
     if (idx >= 0 && idx !== activeIndex) {
       setActiveIndex(idx)
       // Defer to next frame so DOM has updated
@@ -683,13 +686,14 @@ export function LiquidNavBar({
                   borderRadius: isMinimalFlat ? 16 : 28,
                   pointerEvents: 'none',
                   zIndex: 1,
+                  opacity: routeHasTab ? 1 : 0,
                   transformOrigin: 'center center',
                   transform: isDragging
                     ? `scaleX(${blobScaleX * (isMinimalFlat ? 1.05 : 1.20)}) scaleY(${blobScaleY * (isMinimalFlat ? 1.08 : 1.36)})`
                     : `scaleX(${blobScaleX}) scaleY(${blobScaleY})`,
                   transition: isDragging
                     ? 'transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, background 0.2s ease'
-                    : 'left 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, background 0.3s ease',
+                    : 'left 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, background 0.3s ease, opacity 0.2s ease',
                   backdropFilter: isMinimalFlat
                     ? 'none'
                     : `${displacementMapUrl ? 'url(#liquidNavDisplacement) ' : ''}blur(${blurAmount * 32 + (isDragging ? 22 : 16)}px) saturate(${isDragging ? 220 : saturation}%) brightness(${isDragging ? 1.15 : 1})`,
@@ -737,7 +741,7 @@ export function LiquidNavBar({
               {/* Tabs grid */}
               <div className="relative grid grid-cols-5 h-full items-stretch z-[2] px-1.5">
                 {tabs.map((tab, i) => {
-                  const isActive = i === activeIndex
+                  const isActive = i === activeIndex && routeHasTab
                   const IconComp = icons[tab.icon]
 
                   const blobCenter = blobLeft + blobWidth / 2

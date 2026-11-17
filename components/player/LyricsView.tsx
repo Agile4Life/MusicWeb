@@ -617,8 +617,9 @@ export const LyricsView = memo(function LyricsView({
 
       {/* 🔝 Glassmorphic Header */}
       {showHeader && (
-        <div className="relative z-20 flex items-center justify-between gap-3 p-3 sm:p-4 md:px-8 md:py-4 border-b border-white/[0.08] shrink-0 bg-black/40 backdrop-blur-2xl shadow-lg">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="relative z-20 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 p-3 sm:p-4 md:px-8 md:py-4 border-b border-white/[0.08] shrink-0 bg-black/40 backdrop-blur-2xl shadow-lg">
+          {/* Full row on phones: the right-hand controls alone are ~286px wide. */}
+          <div className="flex items-center gap-3 min-w-0 flex-[1_1_100%] sm:flex-1">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-slate-900 border border-white/15 flex items-center justify-center shrink-0 overflow-hidden shadow-xl relative group">
               {currentTrack.cover_url ? (
                 <img src={currentTrack.cover_url} alt={currentTrack.title} className="w-full h-full object-cover" />
@@ -650,7 +651,7 @@ export const LyricsView = memo(function LyricsView({
           </div>
 
           {/* Top Right Controls */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 ml-auto">
             {isSynced && (
               <div className="flex items-center gap-1 bg-white/[0.06] backdrop-blur-md rounded-full border border-white/10 px-2 py-1 shadow-inner">
                 <button
