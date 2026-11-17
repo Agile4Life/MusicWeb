@@ -7208,3 +7208,119 @@ html[data-tab-hidden="true"] *::after {
   }
 }
 
+
+/* ================================================================
+   Minimal Flat refinement: truly flat surfaces, clear hover vs active,
+   quieter badges/chips. Appended last so it wins over earlier rules.
+   ================================================================ */
+[data-theme-style="minimal-flat"] {
+  --muted: #A094A6;
+  --text-muted: #A094A6 !important;
+  --sidebar-text-muted: #A094A6 !important;
+}
+
+/* 1. Sidebar — flat surface; hover = neutral tint, active = accent bar */
+[data-theme-style="minimal-flat"] .app-sidebar {
+  background: #17111B !important;
+}
+
+[data-theme-style="minimal-flat"] .sidebar-glide,
+[data-theme-style="minimal-flat"] .nav-indicator {
+  background: rgba(244, 236, 230, 0.06) !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+}
+
+[data-theme-style="minimal-flat"] .sidebar-item--active,
+[data-theme-style="minimal-flat"] .sidebar-item.active {
+  background: rgba(232, 169, 79, 0.1) !important;
+  border: 1px solid transparent !important;
+  box-shadow: inset 2px 0 0 var(--accent-strong) !important;
+}
+
+/* Sidebar tags: one neutral style instead of three colours */
+[data-theme-style="minimal-flat"] .app-sidebar a[href="/soundcloud"] span[class*="rounded"],
+[data-theme-style="minimal-flat"] .app-sidebar a[href="/drive"] span[class*="rounded"],
+[data-theme-style="minimal-flat"] .app-sidebar a[href="/receipt"] span[class*="rounded"] {
+  background: rgba(244, 236, 230, 0.07) !important;
+  color: var(--paper-dim) !important;
+}
+
+/* 2. Hero banner — flat panel, hairline border */
+[data-theme-style="minimal-flat"] .hero-banner {
+  border-radius: 20px !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--hair) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[data-theme-style="minimal-flat"] .hero-banner::before,
+[data-theme-style="minimal-flat"] .hero-banner::after {
+  display: none !important;
+}
+
+/* 3. Player bar — solid, no glow / blur */
+[data-theme-style="minimal-flat"] .player-bar,
+[data-theme-style="minimal-flat"] .mini-player-bar,
+[data-theme-style="minimal-flat"] .mini-player {
+  background: var(--surface) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid var(--hair) !important;
+  border-top: 1px solid var(--hair-strong) !important;
+  box-shadow: none !important;
+}
+
+/* 4. Cards — solid, border-only hover, quiet badge */
+[data-theme-style="minimal-flat"] .media-card,
+[data-theme-style="minimal-flat"] .tilt-card {
+  background: var(--surface) !important;
+}
+
+[data-theme-style="minimal-flat"] .media-card:hover,
+[data-theme-style="minimal-flat"] .tilt-card:hover {
+  transform: none !important;
+  border-color: var(--hair-strong) !important;
+  background: var(--surface-2) !important;
+}
+
+[data-theme-style="minimal-flat"] .media-card .aspect-square {
+  box-shadow: none !important;
+}
+
+[data-theme-style="minimal-flat"] .badge-glass,
+[data-theme-style="minimal-flat"] .media-card [class*="badge"],
+[data-theme-style="minimal-flat"] [data-media-card] [class*="badge"] {
+  background: rgba(20, 16, 23, 0.6) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: none !important;
+  padding: 2px 6px !important;
+  font-size: 8.5px !important;
+  letter-spacing: 0.1em !important;
+  font-weight: 500 !important;
+  color: var(--paper-dim) !important;
+}
+
+[data-theme-style="minimal-flat"] .media-card .play-btn {
+  box-shadow: none !important;
+}
+
+/* 5. Category chips — active = soft accent, not a solid gradient block */
+[data-theme-style="minimal-flat"] .no-scrollbar button.bg-gradient-to-r {
+  background: rgba(232, 169, 79, 0.14) !important;
+  color: var(--accent-strong) !important;
+  border: 1px solid rgba(232, 169, 79, 0.45) !important;
+  box-shadow: none !important;
+}
+
+[data-theme-style="minimal-flat"] .no-scrollbar button.bg-gradient-to-r svg {
+  color: var(--accent-strong) !important;
+}
+
+/* 6. Rhythm — more air under the hero */
+[data-theme-style="minimal-flat"] .hero-banner {
+  margin-bottom: 8px !important;
+}
