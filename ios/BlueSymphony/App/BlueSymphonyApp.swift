@@ -11,7 +11,10 @@ struct BlueSymphonyApp: App {
                 .environment(player)
                 .environment(session)
                 .tint(.pink)
-                .task { await session.refresh() }
+                .task {
+                    player.session = session
+                    await session.refresh()
+                }
         }
     }
 }

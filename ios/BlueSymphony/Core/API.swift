@@ -73,6 +73,15 @@ enum API {
         return r.tracks?.items ?? []
     }
 
+    /// Similar tracks to continue playback (route: app/api/queue/next).
+    static func recommend(seed: Track, queue: [Track]) async throws -> [Track] {
+        let ids = queue.suffix(50).map(\.id).joined(separator: ",")
+        var q = ["current_track_id": seed.id, "artist": seed.artist ?? "", "title": seed.title, "limit": "12"]
+        if !ids.isEmpty { q["history_ids"] = ids }
+        let r: TracksResponse = try await get("api/queue/next", query: q)
+        return r.tracks?.items ?? []
+    }
+
     @MainActor private static var resolved: [String: (url: URL?, expires: Date)] = [:]
 
     /// Turns a track's metadata into a playable audio URL, mirroring the web

@@ -1,74 +1,55 @@
+import AVKit
+import MediaPlayer
 import SwiftUI
-
-struct MiniPlayer: View {
-    @Environment(Player.self) private var player
-    let onOpen: () -> Void
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Artwork(url: player.current?.coverURL, cornerRadius: 6).frame(width: 36, height: 36)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(player.current?.title ?? "Chưa phát").font(.subheadline.weight(.medium)).lineLimit(1)
-                if let artist = player.current?.artistName {
-                    Text(artist).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                }
-            }
-            Spacer()
-            Group {
-                if player.isLoading {
-                    ProgressView()
-                } else {
-                    Button { player.togglePlay() } label: {
-                        Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                    }
-                }
-            }
-            .frame(width: 32)
-            Button { player.next() } label: { Image(systemName: "forward.fill") }
-        }
-        .font(.title3)
-        .foregroundStyle(.primary)
-        .padding(.horizontal, 12)
-        .contentShape(Rectangle())
-        .onTapGesture { if player.current != nil { onOpen() } }
-        .disabled(player.current == nil)
-    }
-}
 
 struct NowPlayingView: View {
     @Environment(Player.self) private var player
     @Environment(\.dismiss) private var dismiss
     @State private var scrub: Double?
+    @State private var showLyrics = false
+    @State private var showQueue = false
 
     var body: some View {
         ZStack {
             background
             VStack(spacing: 0) {
                 Capsule().fill(.white.opacity(0.4)).frame(width: 40, height: 5).padding(.top, 8)
-                Spacer(minLength: 24)
 
-                Artwork(url: player.current?.coverURL, cornerRadius: 14)
-                    .shadow(color: .black.opacity(0.4), radius: 24, y: 12)
-                    .scaleEffect(player.isPlaying ? 1 : 0.82)
-                    .animation(.spring(response: 0.45, dampingFraction: 0.7), value: player.isPlaying)
-                    .padding(.horizontal, 28)
-
-                Spacer(minLength: 24)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(player.current?.title ?? "").font(.title2.bold()).lineLimit(1)
-                    Text(player.current?.artistName ?? "").font(.title3).opacity(0.7).lineLimit(1)
+                if showLyrics, let track = player.current {
+                    LyricsView(track: track).padding(.top, 12)
+                } else {
+                    Spacer(minLength: 24)
+                    Artwork(url: player.current?.coverURL, cornerRadius: 14)
+                        .shadow(color: .black.opacity(0.4), radius: 24, y: 12)
+                        .scaleEffect(player.isPlaying ? 1 : 0.82)
+                        .animation(.spring(response: 0.45, dampingFraction: 0.7), value: player.isPlaying)
+                        .padding(.horizontal, 28)
+                    Spacer(minLength: 24)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
 
-                progress.padding(.top, 20)
-                controls.padding(.vertical, 28)
-                Spacer(minLength: 12)
+                if let track = player.current {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(track.title).font(.title2.bold()).lineLimit(1)
+                            Text(track.artistName).font(.title3).opacity(0.7).lineLimit(1)
+                        }
+                        Spacer()
+                        FavoriteButton(track: track).font(.title2)
+                    }
+                    .padding(.top, 12)
+                }
+
+                progress.padding(.top, 16)
+                controls.padding(.vertical, 20)
+                VolumeSlider().frame(height: 24)
+                bottomBar.padding(.top, 16)
+                Spacer(minLength: 8)
             }
             .padding(.horizontal, 28)
             .foregroundStyle(.white)
         }
         .gesture(DragGesture().onEnded { if $0.translation.height > 120 { dismiss() } })
+        .sheet(isPresented: $showQueue) { QueueView() }
     }
 
     private var background: some View {
@@ -106,6 +87,7 @@ struct NowPlayingView: View {
     private var controls: some View {
         HStack {
             Button { player.previous() } label: { Image(systemName: "backward.fill") }
+                .accessibilityLabel("Bài trước")
             Spacer()
             Button { player.togglePlay() } label: {
                 ZStack {
@@ -119,11 +101,51 @@ struct NowPlayingView: View {
                 .font(.system(size: 52))
                 .frame(width: 64, height: 64)
             }
+            .accessibilityLabel(player.isPlaying ? "Tạm dừng" : "Phát")
             Spacer()
             Button { player.next() } label: { Image(systemName: "forward.fill") }
+                .accessibilityLabel("Bài tiếp theo")
         }
         .font(.system(size: 34))
         .padding(.horizontal, 24)
         .buttonStyle(.plain)
     }
+
+    private var bottomBar: some View {
+        HStack {
+            Button { showLyrics.toggle() } label: {
+                Image(systemName: showLyrics ? "quote.bubble.fill" : "quote.bubble")
+            }
+            .accessibilityLabel("Lời bài hát")
+            Spacer()
+            AirPlayButton().frame(width: 32, height: 32)
+            Spacer()
+            Button { showQueue = true } label: { Image(systemName: "list.bullet") }
+                .accessibilityLabel("Danh sách chờ")
+        }
+        .font(.title2)
+        .padding(.horizontal, 24)
+        .buttonStyle(.plain)
+    }
+}
+
+private struct AirPlayButton: UIViewRepresentable {
+    func makeUIView(context: Context) -> AVRoutePickerView {
+        let v = AVRoutePickerView()
+        v.tintColor = .white
+        v.activeTintColor = .systemPink
+        return v
+    }
+    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
+}
+
+/// System output volume (the slider the hardware buttons move).
+private struct VolumeSlider: UIViewRepresentable {
+    func makeUIView(context: Context) -> MPVolumeView {
+        let v = MPVolumeView(frame: .zero)
+        v.showsRouteButton = false
+        v.tintColor = .white
+        return v
+    }
+    func updateUIView(_ uiView: MPVolumeView, context: Context) {}
 }

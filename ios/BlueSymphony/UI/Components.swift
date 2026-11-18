@@ -42,6 +42,7 @@ struct TrackRow: View {
             }
         }
         .contentShape(Rectangle())
+        .trackMenu(track)
     }
 }
 
