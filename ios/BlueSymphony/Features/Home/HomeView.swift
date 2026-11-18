@@ -1,10 +1,17 @@
 import SwiftUI
 
+private struct Shelf: Sendable { let tag: String; let title: String; let tracks: [Track] }
+
 struct HomeView: View {
     @Environment(Player.self) private var player
     @State private var trending: [Track] = []
     @State private var albums: [Album] = []
     @State private var failed = false
+    @State private var recent: [Track] = []
+    @State private var favorites: [Track] = []
+    @State private var soundcloud: [Shelf] = []
+    @Environment(SessionStore.self) private var session
+    private static let tags = [("all-music", "SoundCloud Việt Nam"), ("chill", "Chill trên SoundCloud"), ("hiphoprap", "Hip-hop & Rap")]
 
     var body: some View {
         ScrollView {
@@ -34,6 +41,11 @@ struct HomeView: View {
                     }
                 }
 
+                if session.isSignedIn {
+                    TrackShelf(title: "Nghe gần đây", tracks: recent)
+                    TrackShelf(title: "Yêu thích", tracks: favorites)
+                }
+
                 if !albums.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         SectionHeader(title: "Mới phát hành")
@@ -51,6 +63,8 @@ struct HomeView: View {
                     }
                 }
 
+                ForEach(soundcloud, id: \.tag) { TrackShelf(title: $0.title, tracks: $0.tracks) }
+
                 if failed && trending.isEmpty && albums.isEmpty {
                     ContentUnavailableView("Không tải được", systemImage: "wifi.exclamationmark",
                                            description: Text("Kéo xuống để thử lại."))
@@ -61,8 +75,9 @@ struct HomeView: View {
         .navigationTitle("Trang chủ")
         .toolbar { ToolbarItem(placement: .topBarTrailing) { AccountButton() } }
         .navigationDestination(for: Album.self) { AlbumView(album: $0) }
-        .refreshable { await load() }
+        .refreshable { await load(); await loadPrivate() }
         .task { if trending.isEmpty { await load() } }
+        .task(id: session.isSignedIn) { await loadPrivate() }
         .overlay { if trending.isEmpty && albums.isEmpty && !failed { ProgressView() } }
     }
 
@@ -73,6 +88,34 @@ struct HomeView: View {
         trending = tr ?? trending
         albums = al ?? albums
         failed = tr == nil && al == nil
+        await loadSoundCloud()
+    }
+
+    private func loadSoundCloud() async {
+        var shelves: [Shelf] = []
+        await withTaskGroup(of: Shelf?.self) { group in
+            for (tag, title) in Self.tags {
+                group.addTask { (try? await API.soundCloudExplore(tag: tag)).map { Shelf(tag: tag, title: title, tracks: $0) } }
+            }
+            for await shelf in group { if let shelf { shelves.append(shelf) } }
+        }
+        let order = Self.tags.map(\.0)
+        soundcloud = shelves.sorted { order.firstIndex(of: $0.tag)! < order.firstIndex(of: $1.tag)! }
+    }
+
+    /// "Nghe gần đây" (user/init-data) and "Yêu thích" shelves; only when signed in.
+    private func loadPrivate() async {
+        guard session.isSignedIn else { recent = []; favorites = []; return }
+        struct Init: Decodable { struct H: Decodable { let items: Lossy<HistoryItem>? }; let history: H? }
+        struct Fav: Decodable { let tracks: Lossy<Track>? }
+        if let i: Init = try? await session.guarded({ try await API.get("api/user/init-data", query: ["history_limit": "40"]) }) {
+            var seen = Set<String>()
+            recent = (i.history?.items?.items ?? []).compactMap(\.track).filter { seen.insert($0.id).inserted }.prefix(15).map { $0 }
+            session.learn(recent)
+        }
+        if let f: Fav = try? await session.guarded({ try await API.get("api/favorites/list", query: ["limit": "15"]) }) {
+            favorites = f.tracks?.items ?? []
+        }
     }
 }
 
@@ -96,35 +139,3 @@ struct HeroCard: View {
     }
 }
 
-struct AlbumTile: View {
-    let album: Album
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Artwork(url: album.coverURL)
-            Text(album.name).font(.subheadline).lineLimit(1)
-            Text(album.artist ?? "").font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-        }
-    }
-}
-
-struct NewReleasesView: View {
-    @State private var albums: [Album] = []
-    private let columns = [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)]
-
-    var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: 20) {
-                ForEach(albums) { album in
-                    NavigationLink(value: album) { AlbumTile(album: album) }.buttonStyle(.plain)
-                }
-            }
-            .padding()
-        }
-        .navigationTitle("Mới phát hành")
-        .navigationDestination(for: Album.self) { AlbumView(album: $0) }
-        .overlay { if albums.isEmpty { ProgressView() } }
-        .refreshable { albums = (try? await API.newReleases()) ?? albums }
-        .task { if albums.isEmpty { albums = (try? await API.newReleases()) ?? [] } }
-    }
-}

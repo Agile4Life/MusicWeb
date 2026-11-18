@@ -1,36 +1,103 @@
 import SwiftUI
 
+enum SearchScope: String, CaseIterable, Identifiable {
+    case songs, albums, soundcloud
+    var id: String { rawValue }
+    var title: String { switch self { case .songs: "Bài hát"; case .albums: "Album"; case .soundcloud: "SoundCloud" } }
+}
+
 struct SearchView: View {
     @Environment(Player.self) private var player
-    let query: String
-    @State private var results: [Track] = []
+    @State private var query = ""
+    @State private var scope = SearchScope.songs
+    @AppStorage("recentSearches") private var recentRaw = ""
+    @State private var tracks: [Track] = []
+    @State private var albums: [Album] = []
     @State private var searching = false
+    @State private var failed = false
+
+    private var trimmed: String { query.trimmingCharacters(in: .whitespaces) }
+    private var recents: [String] { recentRaw.split(separator: "\n").map(String.init) }
+    private var isEmpty: Bool { scope == .albums ? albums.isEmpty : tracks.isEmpty }
 
     var body: some View {
-        List(Array(results.enumerated()), id: \.element.id) { i, track in
-            Button { player.play(results, startAt: i) } label: { TrackRow(track: track) }
-                .buttonStyle(.plain)
+        List {
+            if trimmed.isEmpty {
+                if !recents.isEmpty {
+                    Section {
+                        ForEach(recents, id: \.self) { term in
+                            Button { query = term } label: { Label(term, systemImage: "clock.arrow.circlepath") }.buttonStyle(.plain)
+                        }
+                    } header: {
+                        HStack {
+                            Text("Tìm kiếm gần đây").font(.title3.bold()).foregroundStyle(.primary).textCase(nil)
+                            Spacer()
+                            Button("Xoá") { recentRaw = "" }.font(.subheadline)
+                        }
+                    }
+                }
+            } else if scope == .albums {
+                ForEach(albums) { album in
+                    NavigationLink(value: album) {
+                        HStack(spacing: 12) {
+                            Artwork(url: album.coverURL, cornerRadius: 6).frame(width: 56, height: 56)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(album.name).lineLimit(1)
+                                Text(album.artist ?? "").font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                        }
+                    }
+                }
+            } else {
+                ForEach(Array(tracks.enumerated()), id: \.element.id) { i, track in
+                    Button { remember(); player.play(tracks, startAt: i) } label: { TrackRow(track: track) }.buttonStyle(.plain)
+                }
+            }
         }
         .listStyle(.plain)
         .navigationTitle("Tìm kiếm")
+        .searchable(text: $query, prompt: "Bài hát, nghệ sĩ")
+        .searchScopes($scope) {
+            ForEach(SearchScope.allCases) { Text($0.title).tag($0) }
+        }
+        .navigationDestination(for: Album.self) { AlbumView(album: $0) }
+        .onSubmit(of: .search) { remember() }
         .overlay {
             if searching {
                 ProgressView()
-            } else if query.trimmingCharacters(in: .whitespaces).isEmpty {
-                ContentUnavailableView("Tìm nhạc", systemImage: "magnifyingglass",
-                                       description: Text("Nhập tên bài hát hoặc nghệ sĩ."))
-            } else if results.isEmpty {
+            } else if trimmed.isEmpty {
+                if recents.isEmpty {
+                    ContentUnavailableView("Tìm nhạc", systemImage: "magnifyingglass", description: Text("Nhập tên bài hát hoặc nghệ sĩ."))
+                }
+            } else if failed {
+                ContentUnavailableView("Không tìm được", systemImage: "wifi.exclamationmark", description: Text("Kiểm tra mạng rồi thử lại."))
+            } else if isEmpty {
                 ContentUnavailableView.search(text: query)
             }
         }
-        .task(id: query) {
-            let q = query.trimmingCharacters(in: .whitespaces)
-            guard !q.isEmpty else { results = []; return }
-            try? await Task.sleep(for: .milliseconds(350)) // debounce typing
-            guard !Task.isCancelled else { return }
-            searching = true
-            let r = try? await API.search(q)
-            if !Task.isCancelled { results = r ?? []; searching = false }
+        .task(id: "\(scope.rawValue)|\(trimmed)") { await search() }
+    }
+
+    private func remember() {
+        guard !trimmed.isEmpty else { return }
+        recentRaw = ([trimmed] + recents.filter { $0 != trimmed }).prefix(10).joined(separator: "\n")
+    }
+
+    private func search() async {
+        guard !trimmed.isEmpty else { tracks = []; albums = []; failed = false; return }
+        try? await Task.sleep(for: .milliseconds(350)) // debounce typing
+        guard !Task.isCancelled else { return }
+        searching = true
+        defer { if !Task.isCancelled { searching = false } }
+        do {
+            switch scope {
+            case .songs: tracks = try await API.search(trimmed)
+            case .soundcloud: tracks = try await API.soundCloudSearch(trimmed)
+            case .albums: albums = try await API.searchAlbums(trimmed)
+            }
+            failed = false
+        } catch {
+            if !isCancellation(error) { tracks = []; albums = []; failed = true }
         }
     }
 }

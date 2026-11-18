@@ -2,6 +2,8 @@ import SwiftUI
 
 struct AlbumView: View {
     @Environment(Player.self) private var player
+    @Environment(Router.self) private var router
+    @Environment(\.openArtist) private var openArtist
     let album: Album
     @State private var tracks: [Track] = []
     @State private var loading = true
@@ -13,7 +15,10 @@ struct AlbumView: View {
                     .frame(width: 260)
                     .shadow(radius: 16, y: 8)
                 Text(album.name).font(.title2.bold()).multilineTextAlignment(.center)
-                Text(album.artist ?? "").font(.title3).foregroundStyle(.tint)
+                Button { if let a = album.artist, !a.isEmpty { (openArtist ?? router.show(artist:))(a) } } label: {
+                    Text(album.artist ?? "").font(.title3).foregroundStyle(.tint)
+                }
+                .buttonStyle(.plain)
                 if let meta = subtitle { Text(meta).font(.caption).foregroundStyle(.secondary) }
                 HStack(spacing: 12) {
                     Button { player.play(tracks, startAt: 0) } label: {

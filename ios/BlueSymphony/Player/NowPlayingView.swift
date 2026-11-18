@@ -5,6 +5,7 @@ import SwiftUI
 struct NowPlayingView: View {
     @Environment(Player.self) private var player
     @Environment(\.dismiss) private var dismiss
+    @Environment(Router.self) private var router
     @State private var scrub: Double?
     @State private var showLyrics = false
     @State private var showQueue = false
@@ -31,7 +32,10 @@ struct NowPlayingView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(track.title).font(.title2.bold()).lineLimit(1)
-                            Text(track.artistName).font(.title3).opacity(0.7).lineLimit(1)
+                            Button { if let a = track.primaryArtist { router.show(artist: a) } } label: {
+                                Text(track.artistName).font(.title3).opacity(0.7).lineLimit(1)
+                            }
+                            .buttonStyle(.plain)
                         }
                         Spacer()
                         FavoriteButton(track: track).font(.title2)

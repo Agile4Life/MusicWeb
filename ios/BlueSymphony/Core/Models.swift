@@ -34,6 +34,10 @@ struct Track: Codable, Identifiable, Hashable {
 
     var artistName: String { artist?.isEmpty == false ? artist! : "Nghệ sĩ chưa xác định" }
     var coverURL: URL? { cover_url.flatMap(URL.init(string:)) }
+    /// First credited artist ("A, B & C" -> "A"), for artist pages.
+    var primaryArtist: String? {
+        artist?.split(whereSeparator: { ",&".contains($0) }).first.map { $0.trimmingCharacters(in: .whitespaces) }.flatMap { $0.isEmpty ? nil : $0 }
+    }
     /// Rows from the `tracks` table have UUID ids; Spotify/SoundCloud/YouTube search results carry synthetic ones.
     var isPersisted: Bool { UUID(uuidString: id) != nil }
 
@@ -168,4 +172,29 @@ struct TopItem: Decodable, Identifiable, Hashable {
         track = try c.decode(Track.self, forKey: .track)
         playCount = Int(c.lossyDouble(.playCount) ?? 1)
     }
+}
+
+struct ArtistInfo: Decodable, Hashable {
+    var name: String
+    var picture_xl: String?
+    var picture_big: String?
+    var nb_fan: Double?
+
+    enum CodingKeys: String, CodingKey { case name, picture_xl, picture_big, nb_fan }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = c.lossyString(.name) ?? ""
+        picture_xl = c.lossyString(.picture_xl)
+        picture_big = c.lossyString(.picture_big)
+        nb_fan = c.lossyDouble(.nb_fan)
+    }
+
+    var pictureURL: URL? { (picture_xl ?? picture_big).flatMap(URL.init(string:)) }
+}
+
+/// Navigation value that opens an artist page.
+struct ArtistRoute: Hashable, Identifiable {
+    let name: String
+    var id: String { name }
 }

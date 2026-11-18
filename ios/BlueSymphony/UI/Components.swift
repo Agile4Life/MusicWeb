@@ -5,18 +5,22 @@ struct Artwork: View {
     var cornerRadius: CGFloat = 8
 
     var body: some View {
-        AsyncImage(url: url) { phase in
-            if let image = phase.image {
-                image.resizable().scaledToFill()
-            } else {
-                ZStack {
-                    Rectangle().fill(.quaternary)
-                    Image(systemName: "music.note").font(.title2).foregroundStyle(.secondary)
+        // Square placeholder first, so non-square covers (YouTube thumbnails) are cropped instead of overflowing.
+        Color.clear
+            .aspectRatio(1, contentMode: .fit)
+            .overlay {
+                AsyncImage(url: url) { phase in
+                    if let image = phase.image {
+                        image.resizable().scaledToFill()
+                    } else {
+                        ZStack {
+                            Rectangle().fill(.quaternary)
+                            Image(systemName: "music.note").font(.title2).foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
-        }
-        .aspectRatio(1, contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 }
 
@@ -117,5 +121,59 @@ struct SignInPrompt: View {
             Button("Đăng nhập") { show = true }.buttonStyle(.borderedProminent)
         }
         .sheet(isPresented: $show) { AccountView() }
+    }
+}
+
+struct AlbumTile: View {
+    let album: Album
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Artwork(url: album.coverURL)
+            Text(album.name).font(.subheadline).lineLimit(1)
+            Text(album.artist ?? "").font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+        }
+    }
+}
+
+/// Square cover + title/artist for horizontal shelves; tapping plays the whole shelf from this track.
+struct TrackTile: View {
+    @Environment(Player.self) private var player
+    let tracks: [Track]
+    let index: Int
+
+    var body: some View {
+        let track = tracks[index]
+        Button { player.play(tracks, startAt: index) } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                Artwork(url: track.coverURL)
+                Text(track.title).font(.subheadline).lineLimit(1)
+                Text(track.artistName).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+            }
+            .frame(width: 150)
+            .trackMenu(track)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct TrackShelf: View {
+    let title: String
+    let tracks: [Track]
+
+    var body: some View {
+        if !tracks.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeader(title: title)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(alignment: .top, spacing: 14) {
+                        ForEach(tracks.indices, id: \.self) { TrackTile(tracks: tracks, index: $0) }
+                    }
+                    .scrollTargetLayout()
+                    .padding(.horizontal)
+                }
+                .scrollTargetBehavior(.viewAligned)
+            }
+        }
     }
 }

@@ -8,6 +8,8 @@ extension View {
 private struct TrackMenu: ViewModifier {
     @Environment(Player.self) private var player
     @Environment(SessionStore.self) private var session
+    @Environment(Router.self) private var router
+    @Environment(\.openArtist) private var openArtist
     let track: Track
     @State private var pickPlaylist = false
     @State private var error: String?
@@ -17,6 +19,9 @@ private struct TrackMenu: ViewModifier {
             .contextMenu {
                 Button("Phát tiếp theo", systemImage: "text.insert") { player.playNext(track) }
                 Button("Thêm vào hàng chờ", systemImage: "text.append") { player.enqueue(track) }
+                if let artist = track.primaryArtist {
+                    Button("Đi tới nghệ sĩ", systemImage: "music.mic") { (openArtist ?? router.show(artist:))(artist) }
+                }
                 if session.isSignedIn {
                     Button("Thêm vào playlist…", systemImage: "music.note.list") { pickPlaylist = true }
                     let fav = session.isFavorite(track)

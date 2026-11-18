@@ -73,6 +73,21 @@ enum API {
         return r.tracks?.items ?? []
     }
 
+    static func soundCloudSearch(_ q: String) async throws -> [Track] {
+        let r: TracksResponse = try await get("api/soundcloud/search", query: ["q": q])
+        return r.tracks?.items ?? []
+    }
+
+    static func soundCloudExplore(tag: String, limit: Int = 12) async throws -> [Track] {
+        let r: TracksResponse = try await get("api/soundcloud/explore", query: ["tag": tag, "limit": String(limit)])
+        return r.tracks?.items ?? []
+    }
+
+    static func searchAlbums(_ q: String) async throws -> [Album] {
+        let r: Lossy<Album> = try await get("api/albums/search", query: ["q": q])
+        return r.items
+    }
+
     /// Similar tracks to continue playback (route: app/api/queue/next).
     static func recommend(seed: Track, queue: [Track]) async throws -> [Track] {
         let ids = queue.suffix(50).map(\.id).joined(separator: ",")
@@ -88,6 +103,8 @@ enum API {
     /// clientResolutionService: same params, 5 min cache (1 min for misses), invalidate=1 on playback error.
     @MainActor
     static func streamURL(for track: Track, invalidate: Bool = false) async throws -> URL? {
+        // SoundCloud has a deterministic stream route (same as the web player); no resolve step needed.
+        if let sc = soundCloudID(track) { return soundCloudStream(sc, refresh: invalidate) }
         if let yt = track.youtube_id, !yt.isEmpty, !invalidate { return youtubeStream(yt) }
         if !invalidate, let hit = resolved[track.id], hit.expires > .now { return hit.url }
 
@@ -121,6 +138,18 @@ enum API {
         }
         if r.source == "youtube", let id = r.resolvedId { return youtubeStream(id) }
         return nil
+    }
+
+    private static func soundCloudID(_ t: Track) -> String? {
+        let candidates = [t.soundcloud_id, t.id.hasPrefix("sc-") ? String(t.id.dropFirst(3)) : nil,
+                          t.file_path?.hasPrefix("soundcloud:") == true ? String(t.file_path!.dropFirst("soundcloud:".count)) : nil]
+        return candidates.compactMap { $0 }.first { !$0.isEmpty && $0.allSatisfy(\.isNumber) }
+    }
+
+    private static func soundCloudStream(_ id: String, refresh: Bool) -> URL {
+        var c = URLComponents(url: apiBase.appendingPathComponent("api/soundcloud/stream"), resolvingAgainstBaseURL: false)!
+        c.queryItems = [URLQueryItem(name: "id", value: id)] + (refresh ? [URLQueryItem(name: "refresh", value: "1")] : [])
+        return c.url!
     }
 
     private static func youtubeStream(_ id: String) -> URL {

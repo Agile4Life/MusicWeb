@@ -43,6 +43,7 @@ struct LyricsView: View {
                 .opacity(0.6)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: track.id) {
             loading = true
             lyrics = nil
