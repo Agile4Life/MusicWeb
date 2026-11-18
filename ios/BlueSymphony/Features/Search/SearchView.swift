@@ -1,15 +1,17 @@
 import SwiftUI
 
 enum SearchScope: String, CaseIterable, Identifiable {
-    case songs, albums, soundcloud
+    case nct, soundcloud, songs, albums
     var id: String { rawValue }
-    var title: String { switch self { case .songs: "Bài hát"; case .albums: "Album"; case .soundcloud: "SoundCloud" } }
+    var title: String {
+        switch self { case .nct: "NhacCuaTui"; case .soundcloud: "SoundCloud"; case .songs: "Quốc tế"; case .albums: "Album" }
+    }
 }
 
 struct SearchView: View {
     @Environment(Player.self) private var player
     @State private var query = ""
-    @State private var scope = SearchScope.songs
+    @State private var scope = SearchScope.nct
     @AppStorage("recentSearches") private var recentRaw = ""
     @State private var tracks: [Track] = []
     @State private var albums: [Album] = []
@@ -91,6 +93,7 @@ struct SearchView: View {
         defer { if !Task.isCancelled { searching = false } }
         do {
             switch scope {
+            case .nct: tracks = try await NCT.search(trimmed)
             case .songs: tracks = try await API.search(trimmed)
             case .soundcloud: tracks = try await API.soundCloudSearch(trimmed)
             case .albums: albums = try await API.searchAlbums(trimmed)

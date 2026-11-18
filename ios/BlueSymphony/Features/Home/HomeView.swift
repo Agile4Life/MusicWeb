@@ -4,48 +4,45 @@ private struct Shelf: Sendable { let tag: String; let title: String; let tracks:
 
 struct HomeView: View {
     @Environment(Player.self) private var player
+    @State private var nct: [Track] = []
+    @State private var nctTitle = "Top 50 NhacCuaTui"
     @State private var trending: [Track] = []
     @State private var albums: [Album] = []
     @State private var failed = false
+    @State private var loaded = false
     @State private var recent: [Track] = []
     @State private var favorites: [Track] = []
     @State private var soundcloud: [Shelf] = []
     @Environment(SessionStore.self) private var session
-    private static let tags = [("all-music", "SoundCloud Việt Nam"), ("chill", "Chill trên SoundCloud"), ("hiphoprap", "Hip-hop & Rap")]
+    // NhacCuaTui is the main catalog; SoundCloud fills Vietnamese genre shelves underneath.
+    private static let tags = [("v-pop", "V-Pop trên SoundCloud"), ("rap viet", "Rap Việt"),
+                               ("lofi viet", "Lofi Việt"), ("remix viet", "Remix Việt")]
+
+    /// Hero: NCT #1, else the first SoundCloud pick, else global trending.
+    private var heroQueue: [Track] { !nct.isEmpty ? nct : soundcloud.first?.tracks ?? trending }
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 28) {
-                if let hero = trending.first {
-                    Button { player.play(trending, startAt: 0) } label: { HeroCard(track: hero) }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Phát \(hero.title) của \(hero.artistName)")
-                        .padding(.horizontal)
+                if let hero = heroQueue.first {
+                    Button { player.play(heroQueue, startAt: 0) } label: {
+                        HeroCard(track: hero, badge: nct.isEmpty ? "ĐANG THỊNH HÀNH" : "#1 NHACCUATUI")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Phát \(hero.title) của \(hero.artistName)")
+                    .padding(.horizontal)
                 }
 
-                if !trending.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
-                        SectionHeader(title: "Thịnh hành")
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            LazyHGrid(rows: Array(repeating: GridItem(.fixed(56), spacing: 8), count: 4), spacing: 16) {
-                                ForEach(Array(trending.enumerated()), id: \.element.id) { i, track in
-                                    Button { player.play(trending, startAt: i) } label: {
-                                        TrackRow(track: track).frame(width: 300)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                            .scrollTargetLayout()
-                            .padding(.horizontal)
-                        }
-                        .scrollTargetBehavior(.viewAligned)
-                    }
-                }
+                TrackGrid(title: nctTitle, tracks: nct)
 
                 if session.isSignedIn {
                     TrackShelf(title: "Nghe gần đây", tracks: recent)
                     TrackShelf(title: "Yêu thích", tracks: favorites)
                 }
+
+                ForEach(soundcloud, id: \.tag) { TrackShelf(title: $0.title, tracks: $0.tracks) }
+
+                TrackGrid(title: "Thịnh hành quốc tế", tracks: trending)
 
                 if !albums.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
@@ -64,9 +61,7 @@ struct HomeView: View {
                     }
                 }
 
-                ForEach(soundcloud, id: \.tag) { TrackShelf(title: $0.title, tracks: $0.tracks) }
-
-                if failed && trending.isEmpty && albums.isEmpty {
+                if failed && nct.isEmpty && soundcloud.isEmpty && trending.isEmpty {
                     ContentUnavailableView("Không tải được", systemImage: "wifi.exclamationmark",
                                            description: Text("Kéo xuống để thử lại."))
                 }
@@ -77,19 +72,22 @@ struct HomeView: View {
         .toolbar { ToolbarItem(placement: .topBarTrailing) { AccountButton() } }
         .navigationDestination(for: Album.self) { AlbumView(album: $0) }
         .refreshable { await load(); await loadPrivate() }
-        .task { if trending.isEmpty { await load() } }
+        .task { if !loaded { await load() } }
         .task(id: session.isSignedIn) { await loadPrivate() }
-        .overlay { if trending.isEmpty && albums.isEmpty && !failed { ProgressView() } }
+        .overlay { if !loaded { ProgressView() } }
     }
 
     private func load() async {
+        async let chart = try? NCT.chart()
         async let t = try? API.trending()
         async let a = try? API.newReleases()
-        let (tr, al) = await (t, a)
+        async let sc: Void = loadSoundCloud()
+        let (c, tr, al, _) = await (chart, t, a, sc)
+        if let c { nct = c.tracks; nctTitle = c.title }
         trending = tr ?? trending
         albums = al ?? albums
-        failed = tr == nil && al == nil
-        await loadSoundCloud()
+        failed = c == nil && tr == nil && al == nil
+        loaded = true
     }
 
     private func loadSoundCloud() async {
@@ -98,7 +96,7 @@ struct HomeView: View {
             for (tag, title) in Self.tags {
                 group.addTask { (try? await API.soundCloudExplore(tag: tag)).map { Shelf(tag: tag, title: title, tracks: $0) } }
             }
-            for await shelf in group { if let shelf { shelves.append(shelf) } }
+            for await shelf in group { if let shelf, !shelf.tracks.isEmpty { shelves.append(shelf) } }
         }
         let order = Self.tags.map(\.0)
         soundcloud = shelves.sorted { order.firstIndex(of: $0.tag)! < order.firstIndex(of: $1.tag)! }
@@ -122,6 +120,7 @@ struct HomeView: View {
 
 struct HeroCard: View {
     let track: Track
+    var badge = "ĐANG THỊNH HÀNH"
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
@@ -130,7 +129,7 @@ struct HeroCard: View {
                 .overlay { LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom) }
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             VStack(alignment: .leading, spacing: 4) {
-                Text("ĐANG THỊNH HÀNH").font(.caption.bold()).foregroundStyle(.white.opacity(0.8))
+                Text(badge).font(.caption.bold()).foregroundStyle(.white.opacity(0.8))
                 Text(track.title).font(.title.bold()).foregroundStyle(.white).lineLimit(2)
                 Text(track.artistName).font(.headline).foregroundStyle(.white.opacity(0.85))
             }
@@ -140,3 +139,31 @@ struct HeroCard: View {
     }
 }
 
+
+/// Apple Music-style 4-row horizontal grid of tracks; hidden when empty (e.g. NCT unreachable).
+struct TrackGrid: View {
+    @Environment(Player.self) private var player
+    let title: String
+    let tracks: [Track]
+
+    var body: some View {
+        if !tracks.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeader(title: title)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHGrid(rows: Array(repeating: GridItem(.fixed(56), spacing: 8), count: 4), spacing: 16) {
+                        ForEach(Array(tracks.enumerated()), id: \.element.id) { i, track in
+                            Button { player.play(tracks, startAt: i) } label: {
+                                TrackRow(track: track).frame(width: 300)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .scrollTargetLayout()
+                    .padding(.horizontal)
+                }
+                .scrollTargetBehavior(.viewAligned)
+            }
+        }
+    }
+}

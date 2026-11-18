@@ -110,18 +110,27 @@ enum API {
     /// clientResolutionService: same params, 5 min cache (1 min for misses), invalidate=1 on playback error.
     @MainActor
     static func streamURL(for track: Track, invalidate: Bool = false) async throws -> URL? {
+        // NhacCuaTui is the primary source: songs carrying an NCT key play NCT's own mp3 directly.
+        if let key = track.nhaccuatui_id, !key.isEmpty,
+           let url = try? await NCT.streamURL(key: key, fresh: invalidate) { return url }
         // SoundCloud has a deterministic stream route (same as the web player); no resolve step needed.
         if let sc = soundCloudID(track) { return soundCloudStream(sc, refresh: invalidate) }
-        if let yt = track.youtube_id, !yt.isEmpty, !invalidate { return youtubeStream(yt) }
         if !invalidate, let hit = resolved[track.id], hit.expires > .now { return hit.url }
+        // Metadata-only and YouTube tracks: try the same song on NCT first (YouTube audio is blocked from
+        // the stream worker, and the server resolver's NCT source is down).
+        if let key = await NCT.match(track), let url = try? await NCT.streamURL(key: key, fresh: invalidate) {
+            resolved[track.id] = (url, .now.addingTimeInterval(300))
+            return url
+        }
 
         var q = ["title": track.title]
         if let a = track.artist, !a.isEmpty { q["artist"] = a }
         if let d = track.duration, d > 0 { q["duration"] = String(Int(d.rounded())) }
         if let al = track.album, !al.isEmpty { q["album"] = al }
         if invalidate { q["invalidate"] = "1" }
-        let r: ResolveResponse = try await get("api/resolve-stream", query: q)
-        let url = url(from: r)
+        let r: ResolveResponse? = try? await get("api/resolve-stream", query: q)
+        // YouTube is the last resort (its audio is mostly blocked): only the track's own video id when nothing else matched.
+        let url = r.flatMap(url(from:)) ?? track.youtube_id.flatMap { $0.isEmpty ? nil : youtubeStream($0) }
         resolved[track.id] = (url, .now.addingTimeInterval(url == nil ? 60 : 300))
         return url
     }
