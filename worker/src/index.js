@@ -18,7 +18,7 @@
  *   for the same songId to prevent stampedes when multiple requests arrive on a cold cache.
  */
 
-const DEFAULT_NCT_API_BASE_URL = 'https://music-api.vanhuy2004h.io.vn'
+const NCT_GRAPH_API = 'https://graph.nhaccuatui.com/api'
 const ORIGIN_TIMEOUT_MS = 10000
 const POPULATE_R2_TIMEOUT_MS = 30000
 const FULL_CACHE_TTL_SECONDS = 60 * 60 * 24 * 7 // 7 days
@@ -298,19 +298,24 @@ async function resolveStreamUrl(id, env, forceRefresh = false) {
 
   const promise = (async () => {
     try {
-      // 1) NCT API (mirrors app/api/nhaccuatui/stream/route.ts)
+      // 1) NCT graph API (same source as lib/nctGraph.ts; the old mirror host is offline)
       try {
-        const nctUrl = new URL(env.NCT_API_BASE_URL || DEFAULT_NCT_API_BASE_URL)
-        nctUrl.pathname = `/api/song/${encodeURIComponent(id)}`
-        nctUrl.search = ''
+        const nctUrl = new URL(`${NCT_GRAPH_API}/v1/song/detail/${encodeURIComponent(id)}`)
+        nctUrl.searchParams.set('key', id)
+        nctUrl.searchParams.set('isDailyMix', 'false')
+        nctUrl.searchParams.set('timestamp', String(Date.now()))
 
         const res = await fetch(nctUrl, {
           cache: 'no-store',
-          headers: { Accept: 'application/json' },
+          headers: {
+            Accept: 'application/json',
+            Referer: 'https://www.nhaccuatui.com/',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          },
           signal: AbortSignal.timeout(ORIGIN_TIMEOUT_MS),
         })
         if (res.ok) {
-          const audioUrl = readNctAudioUrl(await res.json())
+          const audioUrl = readGraphAudioUrl(await res.json())
           if (audioUrl) {
             if (env.STREAM_URL_KV) {
               await env.STREAM_URL_KV.put(kvKey, audioUrl, {
@@ -362,16 +367,15 @@ async function resolveStreamUrl(id, env, forceRefresh = false) {
   return promise
 }
 
-// Mirrors normalizeNhacCuaTuiSongResponse: accepts {song:{...}} or flat payload,
-// only trusts https URLs on nct.vn (incl. subdomains like stream.nct.vn, a01.nct.vn)
-function readNctAudioUrl(payload) {
-  if (!payload || typeof payload !== 'object') return null
-  const root = payload
-  const item = root.song && typeof root.song === 'object' ? root.song : root
-  const raw = item.audioUrl || item.audio_url || item.streamUrl || item.stream_url
-  if (typeof raw !== 'string') return null
+// Graph song/detail -> best free stream (320 kbps, else 128 kbps; never VIP-only), mirroring
+// lib/nctGraph.ts. Only trusts https URLs on nct.vn (incl. stream.nct.vn, a01.nct.vn).
+function readGraphAudioUrl(payload) {
+  if (!payload || payload.code !== 0 || !payload.data) return null
+  const free = (payload.data.streamURL || []).filter((s) => s && s.onlyVIP !== true && s.status === 1 && s.stream)
+  const pick = free.find((s) => s.type === '320') || free.find((s) => s.type === '128') || free[0]
+  if (!pick) return null
   try {
-    const u = new URL(raw)
+    const u = new URL(pick.stream)
     if (u.protocol !== 'https:' || (u.hostname !== 'nct.vn' && !u.hostname.endsWith('.nct.vn')))
       return null
     return u.href

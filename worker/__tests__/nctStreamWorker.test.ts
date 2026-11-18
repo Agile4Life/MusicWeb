@@ -100,10 +100,8 @@ describe('NCT Cloudflare Worker streaming & caching pipeline', () => {
 
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
-      if (url.includes('/api/song/xxkiVtQf4MX9')) {
-        return Response.json({
-          audioUrl: 'https://cdn.nct.vn/timeless.mp3',
-        })
+      if (url.includes('/v1/song/detail/xxkiVtQf4MX9')) {
+        return Response.json({ code: 0, data: { streamURL: [{ type: '128', stream: 'https://cdn.nct.vn/timeless.mp3', onlyVIP: false, status: 1 }] } })
       }
       if (url === 'https://cdn.nct.vn/timeless.mp3') {
         const rangeHeader = new Headers(init?.headers).get('Range')
@@ -178,12 +176,10 @@ describe('NCT Cloudflare Worker streaming & caching pipeline', () => {
       'fetch',
       vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input)
-        if (url.includes('/api/song/coalesce-id')) {
+        if (url.includes('/v1/song/detail/coalesce-id')) {
           songApiCalls++
           await new Promise((r) => setTimeout(r, 20))
-          return Response.json({
-            audioUrl: 'https://cdn.nct.vn/coalesce.mp3',
-          })
+          return Response.json({ code: 0, data: { streamURL: [{ type: '128', stream: 'https://cdn.nct.vn/coalesce.mp3', onlyVIP: false, status: 1 }] } })
         }
         return new Response(fullAudio, {
           status: 200,

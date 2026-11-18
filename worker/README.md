@@ -40,7 +40,7 @@ npx wrangler r2 bucket create music-audio-cache
 
 ### 3. Biến môi trường
 
-- `NCT_API_BASE_URL` (có sẵn mặc định `https://music-api.vanhuy2004h.io.vn`) — API NCT.
+- NCT được lấy trực tiếp từ `https://graph.nhaccuatui.com/api` (API web hiện tại của NCT), không cần cấu hình.
 - `MATCHING_SERVICE_URL` (tùy chọn) — backend matching service fallback (YouTube).
   **Contract:** `GET <MATCHING_SERVICE_URL>?id=<nctSongId>` → **JSON** `{ "url": "https://..." }`.
   Trỏ về `/api/nhaccuatui/match-stream` trên app Vercel: endpoint này lấy metadata bài NCT

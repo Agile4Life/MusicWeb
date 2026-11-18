@@ -20,8 +20,6 @@ binding = "STREAM_URL_KV"
 id = "32507b30619d40f7be17434056667486"
 
 [vars]
-# NCT music API (same base used by app/api/nhaccuatui/stream)
-NCT_API_BASE_URL = "https://music-api.vanhuy2004h.io.vn"
 
 # Optional fallback backend that resolves an NCT song id to a playable stream URL.
 # Contract: GET <MATCHING_SERVICE_URL>?id=<nctSongId>
