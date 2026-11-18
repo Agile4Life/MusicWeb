@@ -3,6 +3,7 @@ import {
   normalizeNhacCuaTuiSearchResponse,
   normalizeNhacCuaTuiSongResponse,
 } from './nhaccuatui'
+import { nctApiFetch, NCT_LEGACY_BASE } from '@/lib/nctGraph'
 
 export interface NctCachedSong {
   audioUrl: string
@@ -23,7 +24,6 @@ const GLOBAL_NCT_CACHE_KEY = Symbol.for('__musicweb_nct_audio_cache__')
 const GLOBAL_NCT_INFLIGHT_KEY = Symbol.for('__musicweb_nct_inflight__')
 const GLOBAL_NCT_SEARCH_CACHE_KEY = Symbol.for('__musicweb_nct_search_cache__')
 const GLOBAL_NCT_SEARCH_INFLIGHT_KEY = Symbol.for('__musicweb_nct_search_inflight__')
-const DEFAULT_NCT_API_BASE_URL = 'https://music-api.vanhuy2004h.io.vn'
 
 export const NCT_CACHE_TTL_MS = 10 * 60 * 1000 // 10 minutes (signed URLs valid ~15-20 min)
 export const NCT_CACHE_MAX_ENTRIES = 2000
@@ -130,14 +130,14 @@ export function deleteNctInFlight(id: string): void {
 }
 
 function getNctSongApiUrl(id: string): URL {
-  const url = new URL(process.env.NCT_API_BASE_URL || DEFAULT_NCT_API_BASE_URL)
+  const url = new URL(NCT_LEGACY_BASE)
   url.pathname = `/api/song/${encodeURIComponent(id)}`
   url.search = ''
   return url
 }
 
 function getNctSearchApiUrl(query: string): URL {
-  const url = new URL(process.env.NCT_API_BASE_URL || DEFAULT_NCT_API_BASE_URL)
+  const url = new URL(NCT_LEGACY_BASE)
   url.pathname = '/api/search'
   url.search = ''
   url.searchParams.set('q', query)
@@ -146,7 +146,7 @@ function getNctSearchApiUrl(query: string): URL {
 
 function getNctSearchCacheKey(query: string): string {
   const normalizedQuery = query.trim().replace(/\s+/g, ' ').toLowerCase()
-  const baseUrl = process.env.NCT_API_BASE_URL || DEFAULT_NCT_API_BASE_URL
+  const baseUrl = NCT_LEGACY_BASE
   return `${baseUrl}:::${normalizedQuery}`
 }
 
@@ -199,7 +199,7 @@ export async function searchNctCached(
 
   const promise = (async (): Promise<NhacCuaTuiSearchItem[]> => {
     try {
-      const res = await fetch(getNctSearchApiUrl(trimmed), {
+      const res = await nctApiFetch(getNctSearchApiUrl(trimmed), {
         cache: 'no-store',
         headers: { Accept: 'application/json' },
         signal: AbortSignal.timeout(timeoutMs),
@@ -241,7 +241,7 @@ export async function resolveNctSongDetailCached(
 
   const promise = (async (): Promise<NctCachedSong | null> => {
     try {
-      const res = await fetch(getNctSongApiUrl(trimmed).toString(), {
+      const res = await nctApiFetch(getNctSongApiUrl(trimmed).toString(), {
         cache: 'no-store',
         headers: { Accept: 'application/json' },
         signal: AbortSignal.timeout(timeoutMs),

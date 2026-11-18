@@ -1,4 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+// These suites test route logic against the legacy mirror payloads; the graph adapter has its own test.
+vi.mock('@/lib/nctGraph', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/nctGraph')>()),
+  nctApiFetch: (input: string | URL, init?: RequestInit) => fetch(input, init),
+}))
 import { GET, OPTIONS } from '../match-stream/route'
 
 interface MockVideo {
@@ -57,7 +63,6 @@ describe('NhacCuaTui match-stream route', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
-    delete process.env.NCT_API_BASE_URL
   })
 
   it('handles OPTIONS CORS preflight requests', async () => {
@@ -73,7 +78,6 @@ describe('NhacCuaTui match-stream route', () => {
   })
 
   it('matches an NCT song to a proxied YouTube stream URL', async () => {
-    process.env.NCT_API_BASE_URL = 'https://nct-api.test'
     const fetchMock = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify({
         song: { id: 'nct-match-1', title: 'Xương Rồng', artist: 'Dangrangto', duration: 254 },
@@ -93,11 +97,10 @@ describe('NhacCuaTui match-stream route', () => {
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*')
 
     // NCT metadata fetched from the configured backend
-    expect(String(fetchMock.mock.calls[0]?.[0])).toBe('https://nct-api.test/api/song/nct-match-1')
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe('https://nct.internal/api/song/nct-match-1')
   })
 
   it('serves repeat lookups from the in-memory match cache', async () => {
-    process.env.NCT_API_BASE_URL = 'https://nct-api.test'
     const fetchMock = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify({
         song: { id: 'nct-match-cache', title: 'Xương Rồng', artist: 'Dangrangto', duration: 254 },
@@ -119,7 +122,6 @@ describe('NhacCuaTui match-stream route', () => {
   })
 
   it('skips matched videos that cannot be resolved from this server', async () => {
-    process.env.NCT_API_BASE_URL = 'https://nct-api.test'
     vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify({
         song: { id: 'nct-match-blocked', title: 'Xương Rồng', artist: 'Dangrangto', duration: 254 },

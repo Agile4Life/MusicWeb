@@ -7,6 +7,7 @@ import {
   stripArtistFromCandidateTitle,
   stripNonIdentityAnnotations,
 } from './catalogMatching'
+import { nctApiFetch, NCT_LEGACY_BASE } from '@/lib/nctGraph'
 
 export interface NhacCuaTuiSearchItem {
   id: string
@@ -187,11 +188,11 @@ export async function searchNhacCuaTuiDirect(query: string, limit = 20): Promise
   if (!trimmed) return []
 
   try {
-    const nctUrl = new URL(process.env.NCT_API_BASE_URL || 'https://music-api.vanhuy2004h.io.vn')
+    const nctUrl = new URL(NCT_LEGACY_BASE)
     nctUrl.pathname = '/api/search'
     nctUrl.searchParams.set('q', trimmed)
 
-    const res = await fetch(nctUrl, {
+    const res = await nctApiFetch(nctUrl, {
       cache: 'no-store',
       headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(6000),

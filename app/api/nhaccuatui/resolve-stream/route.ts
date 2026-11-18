@@ -4,10 +4,9 @@ import { fetchWithRetry, isNetworkError, isTransientError } from '@/lib/fetchWit
 
 export const dynamic = 'force-dynamic'
 
-const DEFAULT_NCT_API_BASE_URL = 'https://music-api.vanhuy2004h.io.vn'
 
 function getNctSongUrl(id: string): URL {
-  const url = new URL(process.env.NCT_API_BASE_URL || DEFAULT_NCT_API_BASE_URL)
+  const url = new URL(NCT_LEGACY_BASE)
   url.pathname = `/api/song/${encodeURIComponent(id)}`
   url.search = ''
   return url
@@ -20,6 +19,7 @@ import {
   setNctInFlight,
   deleteNctInFlight,
 } from '@/lib/nctCacheStore'
+import { nctApiFetch, NCT_LEGACY_BASE } from '@/lib/nctGraph'
 
 async function resolveNctStreamUrlCached(id: string): Promise<{
   url: string
@@ -70,7 +70,7 @@ async function resolveNctStreamUrlCached(id: string): Promise<{
       // Retry once with fast backoff to fail-fast on cold start
       const songRes = await fetchWithRetry(
         () =>
-          fetch(getNctSongUrl(trimmed), {
+          nctApiFetch(getNctSongUrl(trimmed), {
             cache: 'no-store',
             headers: { Accept: 'application/json' },
             signal: AbortSignal.timeout(3800),

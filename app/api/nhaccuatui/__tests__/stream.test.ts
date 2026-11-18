@@ -1,14 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+
+// These suites test route logic against the legacy mirror payloads; the graph adapter has its own test.
+vi.mock('@/lib/nctGraph', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/nctGraph')>()),
+  nctApiFetch: (input: string | URL, init?: RequestInit) => fetch(input, init),
+}))
 import { GET, HEAD, OPTIONS } from '../stream/route'
 
 describe('NhacCuaTui audio stream route', () => {
   afterEach(() => {
     vi.restoreAllMocks()
-    delete process.env.NCT_API_BASE_URL
   })
 
   it('returns 404 to every concurrent caller for a deleted song, not 502 to the coalesced ones', async () => {
-    process.env.NCT_API_BASE_URL = 'https://nct-api.test'
     vi.spyOn(globalThis, 'fetch').mockImplementation(
       () => new Promise((resolve) => setTimeout(() => resolve(new Response('gone', { status: 404 })), 10))
     )
@@ -21,7 +25,6 @@ describe('NhacCuaTui audio stream route', () => {
   })
 
   it('makes one upstream call for many concurrent requests of a failing song', async () => {
-    process.env.NCT_API_BASE_URL = 'https://nct-api.test'
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(
       () => new Promise((resolve) => setTimeout(() => resolve(new Response('gone', { status: 404 })), 10))
     )
@@ -40,7 +43,6 @@ describe('NhacCuaTui audio stream route', () => {
   })
 
   it('handles HEAD requests for song metadata inspection', async () => {
-    process.env.NCT_API_BASE_URL = 'https://nct-api.test'
     vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify({
         id: 'nct-head-1',
@@ -70,7 +72,6 @@ describe('NhacCuaTui audio stream route', () => {
   })
 
   it('resolves and streams a valid NCT audio response', async () => {
-    process.env.NCT_API_BASE_URL = 'https://nct-api.test'
     const upstreamAudio = new Response(new Uint8Array([1, 2, 3]), {
       status: 206,
       headers: {

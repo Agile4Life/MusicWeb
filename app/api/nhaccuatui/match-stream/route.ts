@@ -4,13 +4,13 @@ import { getNctAudioCache, setNctAudioCache } from '@/lib/nctCacheStore'
 import { findBestYouTubeMatch, searchYouTubeTracks } from '@/lib/youtube'
 import { resolveYouTubeAudioStreamAndroid } from '@/lib/youtubeStream'
 import { fetchWithRetry, isNetworkError, isTransientError } from '@/lib/fetchWithRetry'
+import { nctApiFetch, NCT_LEGACY_BASE } from '@/lib/nctGraph'
 
 export const dynamic = 'force-dynamic'
 
-const DEFAULT_NCT_API_BASE_URL = 'https://music-api.vanhuy2004h.io.vn'
 
 function getNctSongUrl(id: string): URL {
-  const url = new URL(process.env.NCT_API_BASE_URL || DEFAULT_NCT_API_BASE_URL)
+  const url = new URL(NCT_LEGACY_BASE)
   url.pathname = `/api/song/${encodeURIComponent(id)}`
   url.search = ''
   return url
@@ -49,7 +49,7 @@ async function resolveYouTubeVideoIdForNctSong(id: string): Promise<string | nul
       if (!song) {
         const songRes = await fetchWithRetry(
           () =>
-            fetch(getNctSongUrl(id), {
+            nctApiFetch(getNctSongUrl(id), {
               cache: 'no-store',
               headers: { Accept: 'application/json' },
               signal: AbortSignal.timeout(5000),

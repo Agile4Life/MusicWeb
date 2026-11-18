@@ -7,10 +7,9 @@ export const dynamic = 'force-dynamic'
 // NCT stream resolution + CDN pipe should not exceed 60s.
 export const maxDuration = 60
 
-const DEFAULT_NCT_API_BASE_URL = 'https://music-api.vanhuy2004h.io.vn'
 
 function getNctSongUrl(id: string): URL {
-  const url = new URL(process.env.NCT_API_BASE_URL || DEFAULT_NCT_API_BASE_URL)
+  const url = new URL(NCT_LEGACY_BASE)
   url.pathname = `/api/song/${encodeURIComponent(id)}`
   url.search = ''
   return url
@@ -24,6 +23,7 @@ import {
   setNctInFlight,
   deleteNctInFlight,
 } from '@/lib/nctCacheStore'
+import { nctApiFetch, NCT_LEGACY_BASE } from '@/lib/nctGraph'
 
 // Raw resolutions started by this route. Unlike the shared in-flight store, these keep the
 // not-found sentinel, so concurrent callers share one upstream call and still get 404 vs 502.
@@ -65,7 +65,7 @@ async function resolveNctAudioUrlCached(id: string): Promise<string | null> {
       // Retry once with quick backoff to fail-fast if external NCT upstream is cold/unresponsive
       const songRes = await fetchWithRetry(
         () =>
-          fetch(getNctSongUrl(trimmed), {
+          nctApiFetch(getNctSongUrl(trimmed), {
             cache: 'no-store',
             headers: { Accept: 'application/json' },
             signal: AbortSignal.timeout(3800),

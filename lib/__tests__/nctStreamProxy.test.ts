@@ -1,14 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+
+// These suites test route logic against the legacy mirror payloads; the graph adapter has its own test.
+vi.mock('@/lib/nctGraph', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/nctGraph')>()),
+  nctApiFetch: (input: string | URL, init?: RequestInit) => fetch(input, init),
+}))
 import { GET } from '@/app/api/nhaccuatui/stream/route'
 
 describe('NCT Stream Proxy Abort & Signal Handling', () => {
   afterEach(() => {
     vi.restoreAllMocks()
-    delete process.env.NCT_API_BASE_URL
   })
 
   it('aborts upstream fetch immediately when client request is aborted', async () => {
-    process.env.NCT_API_BASE_URL = 'https://nct-api.test'
 
     vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify({
@@ -48,7 +52,6 @@ describe('NCT Stream Proxy Abort & Signal Handling', () => {
   })
 
   it('cancels upstream body when client aborts during active streaming', async () => {
-    process.env.NCT_API_BASE_URL = 'https://nct-api.test'
 
     let cancelCalled = false
     const mockBody = new ReadableStream({

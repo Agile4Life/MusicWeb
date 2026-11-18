@@ -6,6 +6,7 @@ import { isCleanTrendingTrack } from '@/lib/spotify'
 import { normalizeIdentity } from '@/lib/catalogMatching'
 import { isRetiredMusicTrack } from '@/lib/retiredMusicSources'
 import { getTrendingDay, getNextTrendingRefreshAt, getTrendingCacheSeconds } from '@/lib/trendingDay'
+import { nctApiFetch, NCT_LEGACY_BASE } from '@/lib/nctGraph'
 
 export interface DailyTrendingResult {
   nhaccuatui: Track[]
@@ -103,10 +104,10 @@ export function createDailyTrendingService(ports: TrendingPorts) {
 }
 
 async function fetchNhacCuaTuiChart(): Promise<Track[]> {
-  const url = new URL(process.env.NCT_API_BASE_URL || 'https://music-api.vanhuy2004h.io.vn')
+  const url = new URL(NCT_LEGACY_BASE)
   url.pathname = '/api/chart'
   url.search = ''
-  const response = await fetch(url, { cache: 'no-store', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(2500) })
+  const response = await nctApiFetch(url, { cache: 'no-store', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(2500) })
   if (!response.ok) return []
   return normalizeNhacCuaTuiChartResponse(await response.json()).slice(0, 24).map(nhacCuaTuiSearchItemToTrack)
 }

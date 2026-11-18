@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
 import { normalizeNhacCuaTuiSearchResponse } from '@/lib/nhaccuatui'
 import { getNctSearchCache, setNctSearchCache } from '@/lib/nctCacheStore'
+import { nctApiFetch, NCT_LEGACY_BASE } from '@/lib/nctGraph'
 
-const DEFAULT_NCT_API_BASE_URL = 'https://music-api.vanhuy2004h.io.vn'
 
 function getNctUrl(pathname: string, query?: string): URL {
-  const url = new URL(process.env.NCT_API_BASE_URL || DEFAULT_NCT_API_BASE_URL)
+  const url = new URL(NCT_LEGACY_BASE)
   url.pathname = pathname
   url.search = ''
   if (query) url.searchParams.set('q', query)
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const upstream = await fetch(getNctUrl('/api/search', query), {
+    const upstream = await nctApiFetch(getNctUrl('/api/search', query), {
       cache: 'no-store',
       headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(8000),

@@ -1,4 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+// These suites test route logic against the legacy mirror payloads; the graph adapter has its own test.
+vi.mock('@/lib/nctGraph', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/nctGraph')>()),
+  nctApiFetch: (input: string | URL, init?: RequestInit) => fetch(input, init),
+}))
 import {
   clearAllNctAudioCache,
   getNctAudioCache,

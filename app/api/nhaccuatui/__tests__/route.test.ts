@@ -1,4 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+// These suites test route logic against the legacy mirror payloads; the graph adapter has its own test.
+vi.mock('@/lib/nctGraph', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/nctGraph')>()),
+  nctApiFetch: (input: string | URL, init?: RequestInit) => fetch(input, init),
+}))
 import { GET as searchGET } from '../search/route'
 import { GET as songGET } from '../song/[id]/route'
 import { clearAllNctAudioCache, resolveNctSongDetailCached } from '@/lib/nctCacheStore'
@@ -11,11 +17,9 @@ describe('NhacCuaTui proxy routes', () => {
   afterEach(() => {
     clearAllNctAudioCache()
     vi.restoreAllMocks()
-    delete process.env.NCT_API_BASE_URL
   })
 
   it('gives concurrent song-detail callers the same 502 when upstream fails', async () => {
-    process.env.NCT_API_BASE_URL = 'https://nct-api.test'
     vi.spyOn(globalThis, 'fetch').mockImplementation(
       () => new Promise((resolve) => setTimeout(() => resolve(new Response('bad', { status: 400 })), 10))
     )
@@ -29,7 +33,6 @@ describe('NhacCuaTui proxy routes', () => {
   })
 
   it('normalizes search metadata and caches repeated search queries', async () => {
-    process.env.NCT_API_BASE_URL = 'https://nct-api.test'
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify([
         { id: 'nct-1', title: 'Xương Rồng', artist: 'Dangrangto' },
@@ -42,7 +45,7 @@ describe('NhacCuaTui proxy routes', () => {
     await expect(response.json()).resolves.toEqual({
       items: [{ id: 'nct-1', title: 'Xương Rồng', artist: 'Dangrangto' }],
     })
-    expect(String(fetchMock.mock.calls[0]?.[0])).toBe('https://nct-api.test/api/search?q=x%C6%B0%C6%A1ng+r%E1%BB%93ng')
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe('https://nct.internal/api/search?q=x%C6%B0%C6%A1ng+r%E1%BB%93ng')
 
     // Second search for the same query hits server search cache
     const secondResponse = await searchGET(new Request('https://music.test/api/nhaccuatui/search?q=x%C6%B0%C6%A1ng%20r%E1%BB%93ng'))
@@ -51,7 +54,6 @@ describe('NhacCuaTui proxy routes', () => {
   })
 
   it('returns a same-origin stream URL without exposing the signed NCT URL', async () => {
-    process.env.NCT_API_BASE_URL = 'https://nct-api.test'
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({
         id: 'nct-1',
@@ -73,7 +75,6 @@ describe('NhacCuaTui proxy routes', () => {
   })
 
   it('reuses nctCacheStore populated by resolveNctSongDetailCached without a second upstream fetch', async () => {
-    process.env.NCT_API_BASE_URL = 'https://nct-api.test'
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({
         song: {
