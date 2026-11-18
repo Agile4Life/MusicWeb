@@ -67,10 +67,6 @@ export function setMemoryCachedCdnUrl(fileId: string, url: string, contentType: 
   memoryCdnCache.set(fileId, { url, contentType, expiresAt: Date.now() + CDN_CACHE_TTL_MS })
 }
 
-export function clearMemoryCachedCdnUrl(fileId: string) {
-  memoryCdnCache.delete(fileId)
-}
-
 // Clear both memory and DB cache for a fileId
 export async function clearAllCachesForFile(
   fileId: string,

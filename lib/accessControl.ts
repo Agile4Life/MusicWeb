@@ -56,67 +56,6 @@ export function isAdmin(email?: string | null): boolean {
   return getUserRole(email) === 'admin'
 }
 
-/** Returns true if the account is allowed to log into the application */
-export function isAllowedToLogin(email?: string | null): boolean {
-  if (!email) return false
-  if (allowedConfig.allowAllAsListeners) return true
-
-  const normalizedEmail = email.trim().toLowerCase()
-
-  if (getEnvAdminEmails().includes(normalizedEmail)) {
-    return true
-  }
-
-  if (Array.isArray(allowedConfig.adminEmails)) {
-    if (allowedConfig.adminEmails.some((e) => e.trim().toLowerCase() === normalizedEmail)) {
-      return true
-    }
-  }
-
-  if (Array.isArray(allowedConfig.allowedEmails)) {
-    if (allowedConfig.allowedEmails.some((item) => item.email && item.email.trim().toLowerCase() === normalizedEmail)) {
-      return true
-    }
-  }
-
-  // Check client-side approved passkey emails (stored in localStorage)
-  if (typeof window !== 'undefined') {
-    try {
-      const stored = localStorage.getItem('musicweb_approved_emails')
-      if (stored) {
-        const approvedList: string[] = JSON.parse(stored)
-        if (Array.isArray(approvedList) && approvedList.some((e) => e.trim().toLowerCase() === normalizedEmail)) {
-          return true
-        }
-      }
-    } catch {
-      // ignore parsing error
-    }
-
-    // Also check the approved_emails cookie (set by Passkey API and client-side)
-    try {
-      const cookieStr = document.cookie
-      const match = cookieStr.match(/(?:^|;\s*)approved_emails=([^;]*)/)
-      if (match?.[1]) {
-        let decoded = match[1]
-        try {
-          decoded = decodeURIComponent(decoded)
-        } catch {}
-        try {
-          const parsed = JSON.parse(decoded)
-          if (Array.isArray(parsed) && parsed.some((e: string) => String(e).trim().toLowerCase() === normalizedEmail)) {
-            return true
-          }
-        } catch {}
-      }
-    } catch {
-      // ignore cookie parsing error
-    }
-  }
-
-  return false
-}
-
 /** Utility to mark an email as authorized via Passkey verification */
 export function markEmailAsAllowed(email: string) {  if (typeof window === 'undefined' || !email) return
   try {
@@ -149,26 +88,6 @@ export function markEmailAsAllowed(email: string) {  if (typeof window === 'unde
     document.cookie = `approved_emails=${JSON.stringify(cookieList)}; path=/; max-age=31536000; SameSite=Lax`
   } catch {
     // ignore storage error
-  }
-}
-
-/**
- * Client-side wrapper for the server approval check (/api/check-approval).
- * Returns true when the email is approved in the bundled config allowlist OR in
- * the server-persistent Supabase roles table (passkey/register approvals).
- */
-export async function checkServerApproval(email?: string | null): Promise<boolean> {
-  if (!email) return false
-  try {
-    const res = await fetch(
-      `/api/check-approval?email=${encodeURIComponent(email.trim().toLowerCase())}`,
-      { cache: 'no-store' }
-    )
-    if (!res.ok) return false
-    const data = await res.json()
-    return Boolean(data?.approved)
-  } catch {
-    return false
   }
 }
 

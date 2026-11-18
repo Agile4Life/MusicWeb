@@ -433,7 +433,6 @@ export function findBestYouTubeMatch(
   let bestMatch: Track | null = null
   let highestScore = 30 // Threshold score for valid match
 
-  const titleWords = cleanTargetTitle.split(/\s+/).filter((w) => w.length > 1)
   const unaccentedTitleWords = unaccentedTargetTitle.split(/\s+/).filter((w) => w.length > 1)
 
   for (const candidate of candidates) {
@@ -824,26 +823,6 @@ export async function searchYouTubeTracks(query: string, limit = 15): Promise<Tr
 }
 
 /**
- * Fetch Trending / Top YouTube songs for initial display
- */
-export async function getTrendingYouTubeTracks(limit = 12): Promise<Track[]> {
-  const tracks = await searchYouTubeTracks('Official Music Video Vpop USUK Trending 2026', limit * 2)
-  const filtered = tracks.filter((t) => {
-    const titleLower = t.title.toLowerCase()
-    return (
-      !titleLower.includes('top 100') &&
-      !titleLower.includes('top 150') &&
-      !titleLower.includes('top 50') &&
-      !titleLower.includes('bảng xếp hạng') &&
-      !titleLower.includes('full album') &&
-      !titleLower.includes('tổng hợp') &&
-      !titleLower.includes('danh sách')
-    )
-  })
-  return filtered.length > 0 ? filtered.slice(0, limit) : tracks.slice(0, limit)
-}
-
-/**
  * On-demand: lấy view count thật cho MỘT track cụ thể (vd khi mở trang chi tiết
  * hoặc khi track bắt đầu phát). KHÔNG gọi hàm này cho toàn bộ danh sách kết quả
  * tìm kiếm — chỉ dùng khi cần hiển thị 1 track cụ thể, để tránh tốn quota.
@@ -863,111 +842,6 @@ export interface YouTubePlaylistMeta {
   channelTitle: string
   cover_url: string | null
   total_tracks: number
-}
-
-/**
- * Lấy metadata playlist (tên, kênh sở hữu, ảnh bìa, tổng số video).
- * Trả về null nếu playlist private/không tồn tại/ID sai.
- */
-export async function fetchYouTubePlaylistMeta(playlistId: string): Promise<YouTubePlaylistMeta | null> {
-  const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY || ''
-  if (!YOUTUBE_API_KEY) {
-    console.warn('YOUTUBE_API_KEY missing — playlist import requires the official API, InnerTube/scrape fallback does not support playlist metadata.')
-    return null
-  }
-
-  try {
-    const url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&id=${playlistId}&key=${YOUTUBE_API_KEY}`
-    const res = await fetch(url, { signal: AbortSignal.timeout(5000) })
-    if (!res.ok) return null
-
-    const data = await res.json()
-    const item = data.items?.[0]
-    if (!item) return null // private playlist or bad ID both land here — API returns empty items[], not a 4xx
-
-    const snippet = item.snippet || {}
-    return {
-      id: item.id,
-      title: snippet.title || 'Untitled Playlist',
-      description: snippet.description || '',
-      channelTitle: snippet.channelTitle || 'Unknown',
-      cover_url: getBestYouTubeThumbnailUrl(
-        item.id,
-        snippet.thumbnails?.maxres?.url || snippet.thumbnails?.high?.url
-      ),
-      total_tracks: item.contentDetails?.itemCount || 0,
-    }
-  } catch (err) {
-    console.error('YouTube playlist meta fetch error:', err)
-    return null
-  }
-}
-
-/**
- * Lấy toàn bộ video trong playlist, tự động phân trang qua pageToken.
- * Mỗi video đã sẵn là 1 YouTube track hoàn chỉnh — map thẳng sang Track,
- * KHÔNG cần bước match như luồng import Spotify.
- */
-export async function fetchYouTubePlaylistTracks(playlistId: string): Promise<Track[]> {
-  const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY || ''
-  if (!YOUTUBE_API_KEY) return []
-
-  const allTracks: Track[] = []
-  let pageToken = ''
-
-  try {
-    do {
-      const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&maxResults=50&playlistId=${playlistId}&key=${YOUTUBE_API_KEY}${
-        pageToken ? `&pageToken=${pageToken}` : ''
-      }`
-      const res = await fetch(url, { signal: AbortSignal.timeout(5000) })
-      if (!res.ok) break
-
-      const data = await res.json()
-      const items = data.items || []
-
-      for (const item of items) {
-        const videoId = item.contentDetails?.videoId
-        const snippet = item.snippet || {}
-
-        // Deleted/private videos still appearing as playlist entries typically have
-        // this placeholder title — skip them, they have no playable content.
-        if (!videoId || snippet.title === 'Deleted video' || snippet.title === 'Private video') {
-          continue
-        }
-
-        const title = (snippet.title || 'YouTube Track')
-          .replace(/&quot;/g, '"')
-          .replace(/&#39;/g, "'")
-          .replace(/&amp;/g, '&')
-
-        allTracks.push({
-          id: `yt-${videoId}`,
-          user_id: 'youtube-global',
-          title,
-          artist: (snippet.videoOwnerChannelTitle || snippet.channelTitle || 'YouTube Artist')
-            .replace(' - Topic', '')
-            .replace('VEVO', ''),
-          album: 'YouTube Music',
-          duration: 0, // filled in Stage 4 — playlistItems does not return duration
-          file_path: `https://www.youtube.com/watch?v=${videoId}`,
-          cover_url: getBestYouTubeThumbnailUrl(
-            videoId,
-            snippet.thumbnails?.maxres?.url || snippet.thumbnails?.high?.url
-          ),
-          created_at: new Date().toISOString(),
-          source: 'youtube',
-          youtube_id: videoId,
-        })
-      }
-
-      pageToken = data.nextPageToken || ''
-    } while (pageToken)
-  } catch (err) {
-    console.error('YouTube playlist tracks fetch error:', err)
-  }
-
-  return allTracks
 }
 
 /**

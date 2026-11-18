@@ -102,45 +102,6 @@ import { stripAlbumIdPrefix, sortAlbumTracks } from '@/lib/albumId'
 import { isRealAlbumName } from '@/lib/albumCache'
 
 /**
- * Fetch metadata for a specific album from Deezer API
- */
-export async function fetchDeezerAlbumMeta(albumId: string): Promise<DeezerAlbumItem | null> {
-  try {
-    const cleanId = stripAlbumIdPrefix(albumId)
-    if (!cleanId || !/^\d+$/.test(cleanId)) return null
-
-    const res = await fetch(`https://api.deezer.com/album/${encodeURIComponent(cleanId)}`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      },
-      signal: AbortSignal.timeout(4000),
-      next: { revalidate: 3600 },
-    })
-
-    if (!res.ok) {
-      console.warn('Deezer album meta status:', res.status)
-      return null
-    }
-
-    const item = await res.json()
-    if (!item || item.error || !item.title) return null
-
-    return {
-      id: String(item.id),
-      name: item.title,
-      artist: item.artist?.name || 'Nghệ sĩ chưa xác định',
-      cover_url: item.cover_xl || item.cover_big || item.cover_medium || item.cover || null,
-      release_date: item.release_date || '',
-      total_tracks: item.nb_tracks || item.tracks?.data?.length || 0,
-      album_type: item.record_type || 'album',
-    }
-  } catch (err) {
-    console.warn('Deezer album meta fetch warning:', err)
-    return null
-  }
-}
-
-/**
  * Fetch full tracklist for a specific album from Deezer API
  */
 export async function fetchDeezerAlbumTracks(albumId: string): Promise<{ meta: DeezerAlbumItem; tracks: Track[] } | null> {

@@ -149,7 +149,7 @@ export function getBestSoundCloudTranscoding(track: SoundCloudRawTrack | any): S
 export function parseSoundCloudTitleAndArtist(rawTitle?: string | null, uploader?: string | null): { title: string; artist: string } {
   if (!rawTitle) return { title: 'SoundCloud Track', artist: uploader || 'SoundCloud Artist' }
 
-  let cleanT = rawTitle
+  const cleanT = rawTitle
     .replace(/[\(\[\{].*?(official|video|audio|mv|lyric|lyrics|full|hd|4k|mp3|visualizer|prod|remix).*?[\)\]\}]/gi, '')
     .trim()
 

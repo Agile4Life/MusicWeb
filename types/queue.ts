@@ -22,13 +22,6 @@ export interface NextQueueResponse {
   sources_failed: string[]
 }
 
-export interface ListenEventPayload {
-  track_id: string
-  artist?: string
-  completed: boolean
-  skip_at_seconds?: number | null
-}
-
 /**
  * Convert standard app Track to QueueTrack
  */

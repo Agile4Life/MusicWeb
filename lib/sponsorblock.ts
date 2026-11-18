@@ -39,7 +39,7 @@ export async function getMusicOfftopicSegments(youtubeId: string): Promise<Spons
           return [fakeSegment]
         }
       }
-    } catch (e) {}
+    } catch {}
   }
 
   try {
@@ -64,7 +64,7 @@ export async function getMusicOfftopicSegments(youtubeId: string): Promise<Spons
       try {
         const offset = calculateIntroOffset(result)
         localStorage.setItem(`sb_offset_${youtubeId}`, offset.toString())
-      } catch (e) {}
+      } catch {}
     }
 
     return result

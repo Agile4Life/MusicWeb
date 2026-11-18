@@ -52,34 +52,6 @@ export interface Playlist {
   tracks_count?: number
 }
 
-export interface PlaylistTrack {
-  id: string
-  playlist_id: string
-  track_id: string
-  position: number
-  added_at: string
-  track?: Track
-}
-
-export interface UserProfile {
-  id: string
-  display_name: string | null
-  avatar_url: string | null
-  bio: string | null
-  theme: string
-  created_at: string
-  updated_at: string
-}
-
-export interface UserSettings {
-  user_id: string
-  audio_quality: string
-  auto_play: boolean
-  repeat_mode: string
-  shuffle: boolean
-  updated_at: string
-}
-
 export interface ListeningHistoryItem {
   id: string
   user_id: string

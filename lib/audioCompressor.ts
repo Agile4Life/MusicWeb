@@ -135,7 +135,7 @@ function encodeInWorker(
 
     try {
       worker = new Worker('/audioWorker.js?v=4')
-    } catch (error) {
+    } catch {
       return resolve(encodeOnMainThread(fallbackLeft, fallbackRight, numChannels, sampleRate, targetBitrate, onProgress))
     }
 

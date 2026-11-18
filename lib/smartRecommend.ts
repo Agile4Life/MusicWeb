@@ -8,31 +8,9 @@ import {
   getStyleCompatibilityScore,
   isTrackStyleCompatible,
   removeDiacritics,
-  type TrackGenre,
-  type TrackRegion,
 } from './trackClassifier'
 
 export { removeDiacritics }
-
-export interface TrackMetadataAnalysis {
-  region: TrackRegion
-  genre: TrackGenre | 'general'
-  queryTerms: string[]
-  relatedArtists?: string[]
-}
-
-/**
- * 🧠 Detect Region (Country/Language) and Genre of a Track
- */
-export function analyzeTrackMetadata(track: Partial<Track> & { title?: string; artist?: string | null }): TrackMetadataAnalysis {
-  const profile = classifyTrack(track)
-  return {
-    region: profile.region,
-    genre: profile.genre,
-    queryTerms: profile.queryTerms,
-    relatedArtists: profile.relatedArtists,
-  }
-}
 
 /**
  * 🚀 Fetch Smart Recommended Related Tracks matching region & genre

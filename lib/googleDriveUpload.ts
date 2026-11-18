@@ -22,7 +22,7 @@ async function getAuthorizationHeader(): Promise<Record<string, string>> {
     if (session?.access_token) {
       return { Authorization: `Bearer ${session.access_token}` }
     }
-  } catch (e) {
+  } catch {
     // Ignore error when no Supabase session exists
   }
   return { Authorization: 'Bearer musicweb_app_token' }
@@ -94,23 +94,6 @@ export function isPreviewUrl(filePath: string): boolean {
     lower.includes('deezer.com') ||
     lower.includes('dzcdn.net')
   )
-}
-
-export async function verifyDriveFile(filePath: string): Promise<{ valid: boolean; driveId?: string; streamUrl?: string }> {
-  if (!filePath || isPreviewUrl(filePath)) {
-    return { valid: false }
-  }
-
-  const driveId = extractDriveFileId(filePath)
-  if (!driveId) {
-    if (filePath.startsWith('http') && !filePath.includes('drive.google.com')) {
-      return { valid: true, streamUrl: filePath }
-    }
-    return { valid: false }
-  }
-
-  const streamUrl = buildDriveStreamUrl(driveId)
-  return { valid: true, driveId, streamUrl }
 }
 
 
@@ -312,27 +295,6 @@ export async function fetchDriveFolderFiles(folderId: string): Promise<Array<{ i
   }
 
   throw new Error('Không tìm thấy file nhạc trong Thư mục. Hãy kiểm tra lại rằng Thư mục đã được chia sẻ ở chế độ "Bất kỳ ai có link đều xem được" (Public/Anyone with the link).')
-}
-
-export async function getAuthorizedDriveStreamUrl(trackId: string, fileId: string): Promise<string> {
-  try {
-    const auth = await getAuthorizationHeader()
-    const response = await fetch(`${WORKER_URL}/api/upload/stream-token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...auth },
-      body: JSON.stringify({ trackId, fileId }),
-      cache: 'no-store',
-    })
-    if (response.ok) {
-      const { token } = await response.json()
-      if (token) {
-        return `${buildDriveStreamUrl(fileId)}&token=${encodeURIComponent(token)}`
-      }
-    }
-  } catch (err) {
-    console.warn('Could not acquire signed stream token, using direct stream URL:', err)
-  }
-  return buildDriveStreamUrl(fileId)
 }
 
 export async function deleteGoogleDriveFile(fileId: string, uploadUrl: string): Promise<void> {

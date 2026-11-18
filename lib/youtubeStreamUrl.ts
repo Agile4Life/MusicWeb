@@ -17,7 +17,3 @@ export function buildYouTubeStreamUrl(videoId: string): string {
   return `/api/youtube/stream?id=${encodeURIComponent(videoId)}`
 }
 
-/** Returns true when the YouTube stream Worker is configured. */
-export function hasYouTubeStreamWorker(): boolean {
-  return Boolean(process.env.NEXT_PUBLIC_YT_STREAM_WORKER_URL?.trim())
-}

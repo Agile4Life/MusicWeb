@@ -79,6 +79,3 @@ export function extractCoverAccent(
   })
 }
 
-export function clearCoverAccentCache() {
-  accentCache.clear()
-}

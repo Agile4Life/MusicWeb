@@ -74,13 +74,6 @@ const songMetadataCache = new Map<string, { song: NhacCuaTuiSong; ts: number }>(
 const SONG_METADATA_CACHE_TTL = 3 * 60 * 1000 // 3 minutes
 const SONG_METADATA_MAX_ENTRIES = 300
 
-export function clearCachedNctSong(id: string): void {
-  const trimmed = id.trim()
-  if (!trimmed) return
-  songMetadataCache.delete(trimmed)
-  inFlightSongRequests.delete(trimmed)
-}
-
 export function clearAllCachedNctSongs(): void {
   songMetadataCache.clear()
   inFlightSongRequests.clear()

@@ -1,8 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Track, Playlist } from '@/types'
-import { getAllValidUserIds } from '@/lib/accessControl'
-import { fetchListeningHistory, getRecentUniqueTracks } from '@/lib/listeningHistory'
-import { fetchFavoriteTracks } from '@/lib/favoriteTracks'
+import { getRecentUniqueTracks } from '@/lib/listeningHistory'
 import type { ReceiptTrackItem } from '@/lib/receiptCanvas'
 
 export type ReceiptDataSource = 'top' | 'history' | 'favorites' | 'playlist' | 'queue'
@@ -25,15 +23,11 @@ export interface FetchReceiptTracksParams {
 export async function fetchReceiptTracks({
   supabase,
   source,
-  currentUser,
-  nextAuthSession,
   currentTrack,
   queue = [],
   playlists = [],
   limit = 50,
 }: FetchReceiptTracksParams): Promise<ReceiptTrackItem[]> {
-  const userIds = getAllValidUserIds(currentUser, nextAuthSession)
-
   if (source === 'top' || source === 'queue') {
     let items: ReceiptTrackItem[] = []
     try {
@@ -161,7 +155,7 @@ export async function fetchReceiptTracks({
   }
 
   if (source === 'playlist') {
-    let items: ReceiptTrackItem[] = []
+    const items: ReceiptTrackItem[] = []
     if (playlists.length > 0) {
       try {
         const firstPlaylistId = playlists[0].id

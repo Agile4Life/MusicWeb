@@ -1,7 +1,6 @@
 import { createBrowserClient } from '@supabase/ssr'
 
 declare global {
-  // eslint-disable-next-line no-var
   var __supabaseBrowserClient: ReturnType<typeof createBrowserClient> | undefined
 }
 
