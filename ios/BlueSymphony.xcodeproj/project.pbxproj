@@ -9,11 +9,15 @@
 /* Begin PBXFileReference section */
 		A10000000000000000000001 /* BlueSymphony.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BlueSymphony.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		A10000000000000000000003 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/Base.xcconfig; sourceTree = "<group>"; };
+		A10000000000000000000003 /* Config/Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/Base.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		A10000000000000000000010 /* BlueSymphony */ = {isa = PBXFileSystemSynchronizedRootGroup; path = BlueSymphony; sourceTree = "<group>"; };
+		A10000000000000000000010 /* BlueSymphony */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = BlueSymphony;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -32,7 +36,7 @@
 			children = (
 				A10000000000000000000010 /* BlueSymphony */,
 				A10000000000000000000002 /* Info.plist */,
-				A10000000000000000000003 /* Base.xcconfig */,
+				A10000000000000000000003 /* Config/Base.xcconfig */,
 				A10000000000000000000031 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -121,11 +125,12 @@
 /* Begin XCBuildConfiguration section */
 		A10000000000000000000061 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = A10000000000000000000003 /* Base.xcconfig */;
+			baseConfigurationReference = A10000000000000000000003 /* Config/Base.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = W7DLRU75D6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = BlueSymphony;
@@ -146,11 +151,12 @@
 		};
 		A10000000000000000000062 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = A10000000000000000000003 /* Base.xcconfig */;
+			baseConfigurationReference = A10000000000000000000003 /* Config/Base.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = W7DLRU75D6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = BlueSymphony;
