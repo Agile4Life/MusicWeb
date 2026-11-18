@@ -199,10 +199,12 @@ describe('search upstream provider budget', () => {
       const result = await response.json()
 
       expect(response.status).toBe(200)
-      // The only direct transport is the NCT chart for these two categories.
-      expect(fetch).toHaveBeenCalledTimes(category === 'vietnamese' || category === 'all' ? 1 : 0)
+      // The only direct transport is the NCT chart for these two categories; an empty chart makes the
+      // graph adapter try its fallback chart keys (this year's weekly, last year's weekly, last year's yearly).
       const urls = vi.mocked(fetch).mock.calls.map(([url]) => new URL(String(url)))
-      expect(urls.map((url) => url.pathname)).toEqual(category === 'vietnamese' || category === 'all' ? ['/api/chart'] : [])
+      const nctCategory = category === 'vietnamese' || category === 'all'
+      expect(urls).toHaveLength(nctCategory ? 3 : 0)
+      expect(urls.every((url) => url.hostname === 'graph.nhaccuatui.com' && url.pathname.startsWith('/api/v1/playlist/charts/'))).toBe(true)
       expect(result.spotify).toEqual([])
       expect(trendingProviders.spotifyChart).toHaveBeenCalledOnce()
       expect(trendingProviders.spotifyArtists).not.toHaveBeenCalled()
