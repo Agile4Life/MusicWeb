@@ -24,7 +24,6 @@ const QUERIES = ['NewJeans', 'Imagine Dragons Believer', 'Sơn Tùng M-TP']
 const WARMUP_QUERY = 'Taylor Swift' // untimed: forces Next dev to compile /api/search + /api/resolve-stream
 
 const errors: string[] = []
-const slowOrFailed: string[] = []
 const timelines: Timeline[] = []
 
 async function prime(page: Page) {

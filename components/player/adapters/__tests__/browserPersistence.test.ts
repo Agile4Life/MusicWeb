@@ -35,7 +35,7 @@ describe('browser persistence', () => {
   vi.advanceTimersByTime(30000); expect(JSON.parse(values.get('musicweb_player_state')!).currentTime).toBe(9)
  })
  it('reconciles currentIndex after queue deduplication and preserves extended track metadata on reload', () => {
-  const values = storage()
+  storage()
   const persistence = createBrowserPersistence()
   const dup1 = { ...track, id: 'dup-1', title: 'Same Song', artist: 'Same Artist', source: 'spotify' } as Track
   const dup2 = { ...track, id: 'dup-2', title: 'Same Song (Official Video)', artist: 'Same Artist', source: 'nhaccuatui', nhaccuatui_id: 'nct-1' } as Track

@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { searchYouTubeTracks, findBestYouTubeMatch } from '../youtube'
+import { searchYouTubeTracks } from '../youtube'
 import { searchDeezerTracks } from '../deezer'
 import { searchSoundCloudTracks } from '../soundcloudClient'
-import { searchNhacCuaTuiDirect } from '../nhaccuatui'
 import { fetchLyricsFromLrclib } from '../lrclib'
 
 // Hits real SoundCloud/Deezer/LRCLIB: opt-in so CI stays hermetic (RUN_LIVE_TESTS=1).

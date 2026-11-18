@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import type { ListeningHistoryItem, Track } from '@/types'
-import { aggregateTopTracks, fetchTopListeningHistory } from '../listeningHistory'
+import { aggregateTopTracks } from '../listeningHistory'
 
 describe('aggregateTopTracks', () => {
   const trackA: Track = {

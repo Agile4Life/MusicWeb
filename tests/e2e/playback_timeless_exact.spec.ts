@@ -80,12 +80,6 @@ test('Measure playback performance of Timeless (DB track vs NCT track)', async (
     console.log('\n======================================================')
     console.log('🧪 TEST 2: Playing YouTube "Timeless" Track...')
     console.log('======================================================')
-    const t0 = Date.now()
-    await page.evaluate((tr) => {
-      const rows = Array.from(document.querySelectorAll('.song-row'))
-      const r = rows.find(el => el.textContent?.includes('Timeless'))
-      // If there are multiple, click the second one or switch tab
-    }, dbTrack.youtubeTrack)
 
     // Let's test the YouTube iframe readiness
     const ytStatus = await page.evaluate(async (ytId) => {

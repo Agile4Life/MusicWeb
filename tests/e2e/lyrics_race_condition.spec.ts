@@ -143,7 +143,7 @@ test('Investigate lyrics fetching race conditions during fast song switching', a
 
   // STEP 3: HIGH RESOLUTION MONITORING
   log('\n=== STEP 3: Monitoring Lyrics Display State for 8 Seconds ===')
-  let detectedStaleLyrics = false
+  const detectedStaleLyrics = false
   let detectedFlicker = false
   let lastSample = ''
 

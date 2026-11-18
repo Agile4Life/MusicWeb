@@ -4,11 +4,11 @@
 import { GET as searchGet } from '../app/api/nhaccuatui/search/route'
 import { GET as songGet } from '../app/api/nhaccuatui/song/[id]/route'
 import { GET as streamGet, HEAD as streamHead, OPTIONS as streamOptions } from '../app/api/nhaccuatui/stream/route'
-import { GET as resolveStreamGet, OPTIONS as resolveStreamOptions } from '../app/api/nhaccuatui/resolve-stream/route'
-import { GET as matchStreamGet, OPTIONS as matchStreamOptions } from '../app/api/nhaccuatui/match-stream/route'
-import { GET as driveStreamGet, OPTIONS as driveStreamOptions } from '../app/api/drive-stream/route'
-import { searchSoundCloudTracks, resolveSoundCloudStreamUrl } from '../lib/soundcloudClient'
-import { GET as scStreamGet, OPTIONS as scStreamOptions } from '../app/api/soundcloud/stream/route'
+import { GET as resolveStreamGet } from '../app/api/nhaccuatui/resolve-stream/route'
+import { GET as matchStreamGet } from '../app/api/nhaccuatui/match-stream/route'
+import { OPTIONS as driveStreamOptions } from '../app/api/drive-stream/route'
+import { searchSoundCloudTracks } from '../lib/soundcloudClient'
+import { GET as scStreamGet } from '../app/api/soundcloud/stream/route'
 import { GET as ytLyricsGet } from '../app/api/youtube/lyrics/route'
 import { fetchLyricsFromLrclib } from '../lib/lrclib'
 import { resolveYouTubeAudioStreamAndroid } from '../lib/youtubeStream'
@@ -208,7 +208,6 @@ async function runAllTests() {
       })
       return await streamGet(req)
     })
-    const contentType = res.headers.get('content-type')
     const contentRange = res.headers.get('content-range')
     const allowOrigin = res.headers.get('access-control-allow-origin')
     let bytesRead = 0

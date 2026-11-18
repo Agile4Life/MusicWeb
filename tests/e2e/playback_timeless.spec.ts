@@ -79,7 +79,6 @@ test('Test Timeless track playback latency and behavior', async ({ page }) => {
   const titleText = await timelessRow.locator('p').first().textContent()
   console.log(`Found track row: "${titleText?.trim()}"`)
 
-  const startClickTime = Date.now()
   console.log('\n▶ Step 2: Clicking "Timeless" track row (force: true)...')
   const rowHtml = await timelessRow.evaluate(el => el.outerHTML)
   console.log('Row HTML prefix:', rowHtml.slice(0, 200))

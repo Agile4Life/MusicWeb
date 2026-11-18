@@ -12,29 +12,24 @@ interface MockQuery {
   single?: () => Promise<{ data: any | null; error?: any }>
 }
 
-type MockSupabase = {
-  from: (table: string) => MockQuery
-  rpc?: (fn: string, params: any) => Promise<{ error?: any }>
-}
-
 function createMockSupabase(selectRow?: any, insertRow?: any, onInsert?: (row: any) => void): SupabaseClient {
   const selectQuery: MockQuery = {
-    select(columns: string) {
+    select() {
       return this
     },
-    eq(column: string, value: string | null) {
+    eq(_column: string) {
       return this
     },
-    ilike(column: string, value: string | null) {
+    ilike(_column: string) {
       return this
     },
-    limit(count: number) {
+    limit() {
       return Promise.resolve({ data: selectRow ? [selectRow] : [] })
     },
   }
 
   const insertQuery: MockQuery = {
-    select(columns: string) {
+    select() {
       return this
     },
     insert(row: any) {
@@ -44,10 +39,10 @@ function createMockSupabase(selectRow?: any, insertRow?: any, onInsert?: (row: a
     single() {
       return Promise.resolve({ data: insertRow || null, error: insertRow ? undefined : { message: 'insert failed' } })
     },
-    eq(column: string, value: string | null) {
+    eq(_column: string) {
       return this
     },
-    ilike(column: string, value: string | null) {
+    ilike(_column: string) {
       return this
     },
   }

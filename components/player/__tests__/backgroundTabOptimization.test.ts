@@ -26,7 +26,7 @@ describe('Background Tab Optimization (Gaming Eco Mode)', () => {
   })
 
   afterEach(() => {
-    // @ts-ignore
+    // @ts-expect-error test stub assigns to a read-only global
     delete globalThis.document
   })
 
@@ -141,13 +141,10 @@ describe('Background Tab Optimization (Gaming Eco Mode)', () => {
 
   it('togglePlay unconditionally pauses all engines when hardware audio is active even if isPlaying state was false', () => {
     let isPlaying = false
-    let isBuffering = false
     const setIsPlaying = vi.fn((val: boolean) => {
       isPlaying = val
     })
-    const setIsBuffering = vi.fn((val: boolean) => {
-      isBuffering = val
-    })
+    const setIsBuffering = vi.fn()
 
     const mockAudio = {
       paused: false,

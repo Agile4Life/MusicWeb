@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { ListeningHistoryItem, Track } from '@/types'
+import type { ListeningHistoryItem } from '@/types'
 import { fetchListeningHistory, getRecentUniqueTracks } from '../listeningHistory'
 
 type QueryResult = {

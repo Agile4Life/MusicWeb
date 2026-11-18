@@ -356,7 +356,7 @@ describe('playbackController', () => {
     // Transport rejects NCT stream, accepts YouTube candidate
     vi.mocked(transport.start)
       .mockRejectedValueOnce(new Error('NCT stream failed'))
-      .mockImplementationOnce(async (target, owner, volume, mode) => {
+      .mockImplementationOnce(async (_target, _owner, _volume, mode) => {
         transport.setReadState({ playing: mode === 'play' });
       });
 

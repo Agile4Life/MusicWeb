@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { fetchReceiptTracks } from '../receiptTracks'
 import { getAllValidUserIds, getValidUserId } from '../accessControl'
-import { fetchFavoriteTracks } from '../favoriteTracks'
 
 describe('getAllValidUserIds defense-in-depth', () => {
   it('handles email string passed as second parameter directly', () => {

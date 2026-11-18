@@ -1,7 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import { isPreviewUrl } from '@/lib/googleDriveUpload'
 import { saveTrackResolution, getTrackResolution, deleteTrackResolution } from '@/lib/playbackPersistence'
-import { resolveStreamCached, invalidateStreamResolution } from '@/lib/resolveStreamClient'
 
 describe('Catalog stream resolution helpers', () => {
   const store: Record<string, string> = {}
@@ -14,9 +13,9 @@ describe('Catalog stream resolution helpers', () => {
 
   beforeEach(() => {
     mockLocalStorage.clear()
-    // @ts-ignore
+    // @ts-expect-error test stub assigns to a read-only global
     globalThis.window = {}
-    // @ts-ignore
+    // @ts-expect-error test stub assigns to a read-only global
     globalThis.localStorage = mockLocalStorage
   })
 

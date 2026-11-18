@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { PlaybackProgressStore } from '../PlaybackProgressStore'
 
 describe('Playback Progress Decoupling via useSyncExternalStore (Task 6)', () => {

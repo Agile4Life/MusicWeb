@@ -24,7 +24,6 @@ describe('MediaSession Interval Lifecycle & Position Sync (Task 6)', () => {
   })
 
   it('polls every 1s and syncs accurate position from store/ref without state lag', () => {
-    let isPlaying = true
     const currentTrack = { id: 'track-1', title: 'Song 1', duration: 240 }
 
     // Start interval

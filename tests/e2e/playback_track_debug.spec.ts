@@ -241,7 +241,6 @@ test.describe('Playback Single Track & Race Condition Diagnostic Suite', () => {
     await expect(pauseBtn).toBeVisible({ timeout: 5_000 })
 
     console.log('\n⏸ Clicking PAUSE button...')
-    const eventsBeforePause = logs.length
     await pauseBtn.click()
 
     await page.waitForTimeout(500)

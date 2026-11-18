@@ -19,7 +19,7 @@ describe('Player Engines Mutual Exclusion & Race Guards (Task 1)', () => {
     }
 
     const ytEngine = new YouTubeIframeEngine(mockYtPlayer)
-    const html5Engine = new Html5AudioEngine(mockAudio)
+    new Html5AudioEngine(mockAudio)
 
     // Simulate stopping YouTube when switching to HTML5
     ytEngine.stop()
