@@ -59,6 +59,7 @@ struct HomeView: View {
             .padding(.vertical)
         }
         .navigationTitle("Trang chủ")
+        .toolbar { ToolbarItem(placement: .topBarTrailing) { AccountButton() } }
         .navigationDestination(for: Album.self) { AlbumView(album: $0) }
         .refreshable { await load() }
         .task { if trending.isEmpty { await load() } }

@@ -9,6 +9,7 @@
 /* Begin PBXFileReference section */
 		A10000000000000000000001 /* BlueSymphony.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BlueSymphony.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A10000000000000000000003 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/Base.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -31,6 +32,7 @@
 			children = (
 				A10000000000000000000010 /* BlueSymphony */,
 				A10000000000000000000002 /* Info.plist */,
+				A10000000000000000000003 /* Base.xcconfig */,
 				A10000000000000000000031 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -119,6 +121,7 @@
 /* Begin XCBuildConfiguration section */
 		A10000000000000000000061 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A10000000000000000000003 /* Base.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
@@ -143,6 +146,7 @@
 		};
 		A10000000000000000000062 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A10000000000000000000003 /* Base.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;

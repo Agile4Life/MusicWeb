@@ -3,12 +3,15 @@ import SwiftUI
 @main
 struct BlueSymphonyApp: App {
     @State private var player = Player()
+    @State private var session = SessionStore()
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(player)
+                .environment(session)
                 .tint(.pink)
+                .task { await session.refresh() }
         }
     }
 }

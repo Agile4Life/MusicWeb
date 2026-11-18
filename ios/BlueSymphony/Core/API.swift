@@ -3,32 +3,7 @@ import Foundation
 /// Apex host 308-redirects to www; call www directly.
 let apiBase = URL(string: "https://www.bluesymphony.site")!
 
-struct Track: Codable, Identifiable, Hashable {
-    let id: String
-    let title: String
-    var artist: String?
-    var album: String?
-    var duration: Double?
-    var cover_url: String?
-    var youtube_id: String?
-
-    var artistName: String { artist?.isEmpty == false ? artist! : "Nghệ sĩ chưa xác định" }
-    var coverURL: URL? { cover_url.flatMap(URL.init(string:)) }
-}
-
-struct Album: Codable, Identifiable, Hashable {
-    let id: String
-    let name: String
-    var artist: String?
-    var cover_url: String?
-    var release_date: String?
-    var album_type: String?
-    var tracks: [Track]?
-
-    var coverURL: URL? { cover_url.flatMap(URL.init(string:)) }
-}
-
-private struct TracksResponse: Decodable { let tracks: [Track]? }
+private struct TracksResponse: Decodable { let tracks: Lossy<Track>? }
 
 private struct ResolveResponse: Decodable {
     var miss: Bool?
@@ -37,20 +12,52 @@ private struct ResolveResponse: Decodable {
     var streamUrl: String?
 }
 
-enum API {
-    static func get<T: Decodable>(_ path: String, query: [String: String] = [:]) async throws -> T {
-        var comps = URLComponents(url: apiBase.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
-        if !query.isEmpty { comps.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) } }
-        let (data, response) = try await URLSession.shared.data(for: URLRequest(url: comps.url!, timeoutInterval: 15))
-        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            throw URLError(.badServerResponse)
+enum APIError: LocalizedError {
+    case unauthorized
+    case server(String?)
+
+    var errorDescription: String? {
+        switch self {
+        case .unauthorized: "Vui lòng đăng nhập."
+        case .server(let m): m ?? "Máy chủ gặp lỗi, vui lòng thử lại."
         }
-        return try JSONDecoder().decode(T.self, from: data)
+    }
+}
+
+enum API {
+    /// Sends a request to the site (cookies from URLSession.shared carry the NextAuth session).
+    /// 401 -> `APIError.unauthorized`; other non-2xx -> `APIError.server` with the route's `error`/`message` text.
+    @discardableResult
+    static func send(_ method: String, _ path: String, query: [String: String] = [:], body: (any Encodable)? = nil) async throws -> Data {
+        var comps = URLComponents(url: apiBase.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
+        if !query.isEmpty { comps.queryItems = query.sorted { $0.key < $1.key }.map { URLQueryItem(name: $0.key, value: $0.value) } }
+        var req = URLRequest(url: comps.url!, timeoutInterval: 15)
+        req.httpMethod = method
+        if let body {
+            req.httpBody = try JSONEncoder().encode(body)
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
+        if http.statusCode == 401 { throw APIError.unauthorized }
+        if !(200..<300).contains(http.statusCode) {
+            let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            throw APIError.server((obj?["error"] as? String) ?? (obj?["message"] as? String))
+        }
+        return data
+    }
+
+    static func get<T: Decodable>(_ path: String, query: [String: String] = [:]) async throws -> T {
+        try JSONDecoder().decode(T.self, from: await send("GET", path, query: query))
+    }
+
+    static func post<T: Decodable>(_ path: String, body: any Encodable) async throws -> T {
+        try JSONDecoder().decode(T.self, from: await send("POST", path, body: body))
     }
 
     static func trending() async throws -> [Track] {
         let r: TracksResponse = try await get("api/trending")
-        return r.tracks ?? []
+        return r.tracks?.items ?? []
     }
 
     static func newReleases() async throws -> [Album] {
@@ -63,7 +70,7 @@ enum API {
 
     static func search(_ q: String) async throws -> [Track] {
         let r: TracksResponse = try await get("api/spotify/search", query: ["q": q])
-        return r.tracks ?? []
+        return r.tracks?.items ?? []
     }
 
     @MainActor private static var resolved: [String: (url: URL?, expires: Date)] = [:]

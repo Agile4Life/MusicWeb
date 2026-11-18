@@ -1,0 +1,3 @@
+// Committed base configuration. Secrets.xcconfig is optional and gitignored:
+// generate it with scripts/make-secrets.sh. Without it the app builds, and sign-in shows "chưa cấu hình".
+#include? "Secrets.xcconfig"
