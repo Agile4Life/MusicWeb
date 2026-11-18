@@ -203,8 +203,6 @@ async function handleStream(videoId, request, env, ctx) {
   clearTimeout(fetchTimeout)
 
   if (!originRes.ok || !originRes.body) {
-    // A cached googlevideo URL that stops working must not be reused by the next request.
-    ctx.waitUntil(caches.default.delete(`https://cache.internal/yt-resolve/${videoId}`).catch(() => {}))
     return json({ error: `Origin responded ${originRes.status}` }, 502)
   }
 
@@ -215,7 +213,7 @@ async function handleStream(videoId, request, env, ctx) {
 
   if (isPartial) {
     // Serve the partial slice immediately, warm R2 with full file in background
-    ctx.waitUntil(populateR2(videoId, resolved.url, contentType, r2Key, env, resolved.contentLength))
+    ctx.waitUntil(populateR2(videoId, resolved.url, contentType, r2Key, env))
 
     const headers = new Headers(CORS)
     headers.set('Content-Type', contentType)
@@ -257,36 +255,20 @@ async function handleStream(videoId, request, env, ctx) {
 // Called after a Range (partial) response so that the next play can be served
 // entirely from R2 without going to origin again.
 
-// Each cold Range request used to start its own full download; one per video per isolate is enough.
-const populateInFlight = new Set()
-
-async function populateR2(videoId, resolvedUrl, contentType, r2Key, env, contentLength = 0) {
-  if (populateInFlight.has(videoId)) return
-  populateInFlight.add(videoId)
+async function populateR2(videoId, resolvedUrl, contentType, r2Key, env) {
+  // Skip if R2 already has a complete entry (concurrent request may have written it)
   try {
-    // Skip if R2 already has a complete entry (concurrent request may have written it)
-    try {
-      const existing = await env.AUDIO_BUCKET.head(r2Key)
-      if (existing && existing.size > 0) return
-    } catch {}
+    const existing = await env.AUDIO_BUCKET.head(r2Key)
+    if (existing && existing.size > 0) return
+  } catch {}
 
-    // googlevideo throttles or rejects un-ranged GETs on adaptive formats, so ask for the
-    // whole file as an explicit range (what the browser player does and what gets served).
-    const headers = { 'User-Agent': USER_AGENT, Range: contentLength ? `bytes=0-${contentLength - 1}` : 'bytes=0-' }
+  try {
     const res = await fetch(resolvedUrl, {
-      headers,
+      headers: { 'User-Agent': USER_AGENT },
       signal: AbortSignal.timeout(POPULATE_R2_TIMEOUT_MS),
       cache: 'no-store',
     })
-    if (!res.ok || !res.body) {
-      console.warn('[YT Worker] Background R2 population: origin responded', res.status, 'for', videoId)
-      return
-    }
-    const got = Number(res.headers.get('content-length')) || 0
-    if (contentLength && got && got !== contentLength) {
-      console.warn('[YT Worker] Background R2 population: partial body', got, '/', contentLength, 'for', videoId)
-      return
-    }
+    if (!res.ok || !res.body) return
 
     await env.AUDIO_BUCKET.put(r2Key, res.body, {
       httpMetadata: { contentType },
@@ -295,8 +277,6 @@ async function populateR2(videoId, resolvedUrl, contentType, r2Key, env, content
   } catch (e) {
     console.warn('[YT Worker] Background R2 population failed for', videoId, e?.message || e)
     await env.AUDIO_BUCKET.delete(r2Key).catch(() => {})
-  } finally {
-    populateInFlight.delete(videoId)
   }
 }
 
@@ -327,7 +307,7 @@ async function prewarmR2Background(videoId, r2Key, env) {
   }
 
   // Fetch and write full audio to R2
-  await populateR2(videoId, resolved.url, resolved.mimeType, r2Key, env, resolved.contentLength)
+  await populateR2(videoId, resolved.url, resolved.mimeType, r2Key, env)
 }
 
 
@@ -339,41 +319,7 @@ async function prewarmR2Background(videoId, r2Key, env) {
 //   3. Vercel fallback    — /api/youtube/resolve, uses ANDROID+iOS+Piped from Vercel IP
 //                           (helpful for geo-blocked content where CF IP is blocked)
 
-// One play makes several Range requests (AVPlayer / Safari: probe, body, moov at the end,
-// every seek). Re-resolving on each one hammers InnerTube, which then rate-limits the
-// edge IP and makes the same request flip between 206 and 502. Cache the googlevideo URL
-// until shortly before it expires.
-const RESOLVE_CACHE_MAX_SECONDS = 5 * 60 * 60
-const RESOLVE_EXPIRY_MARGIN_SECONDS = 30 * 60
-const resolveInFlight = new Map()
-
 async function resolveYouTubeAudio(videoId, env) {
-  const cacheKey = `https://cache.internal/yt-resolve/${videoId}`
-  try {
-    const hit = await caches.default.match(cacheKey)
-    if (hit) return await hit.json()
-  } catch {}
-
-  if (resolveInFlight.has(videoId)) return resolveInFlight.get(videoId)
-  const pending = resolveYouTubeAudioUncached(videoId, env).finally(() => resolveInFlight.delete(videoId))
-  resolveInFlight.set(videoId, pending)
-
-  const resolved = await pending
-  if (resolved) {
-    const expire = Number(new URL(resolved.url).searchParams.get('expire')) || 0
-    const ttl = expire
-      ? Math.min(RESOLVE_CACHE_MAX_SECONDS, expire - Math.floor(Date.now() / 1000) - RESOLVE_EXPIRY_MARGIN_SECONDS)
-      : 0
-    if (ttl > 60) {
-      await caches.default.put(cacheKey, new Response(JSON.stringify(resolved), {
-        headers: { 'Content-Type': 'application/json', 'Cache-Control': `max-age=${ttl}` },
-      })).catch(() => {})
-    }
-  }
-  return resolved
-}
-
-async function resolveYouTubeAudioUncached(videoId, env) {
   const android = await resolveViaAndroid(videoId)
   if (android) return android
 
@@ -505,11 +451,7 @@ function extractBestAudio(data) {
   })
 
   const best = audio[0]
-  return {
-    url: best.url,
-    mimeType: best.mimeType.split(';')[0].trim(),
-    contentLength: Number(best.contentLength) || 0,
-  }
+  return { url: best.url, mimeType: best.mimeType.split(';')[0].trim() }
 }
 
 // ── R2 helpers ────────────────────────────────────────────────────────────────
