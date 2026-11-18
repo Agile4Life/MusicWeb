@@ -8,9 +8,14 @@ final class Router {
     func show(artist name: String) { artist = ArtistRoute(name: name) }
 }
 
+private struct OpenArtistKey: EnvironmentKey { static let defaultValue: ((String) -> Void)? = nil }
+
 extension EnvironmentValues {
     /// Overridden inside the artist sheet so "go to artist" pushes instead of presenting another sheet.
-    @Entry var openArtist: ((String) -> Void)?
+    var openArtist: ((String) -> Void)? {
+        get { self[OpenArtistKey.self] }
+        set { self[OpenArtistKey.self] = newValue }
+    }
 }
 
 /// Sheet content: an artist page with its own navigation stack (albums, further artists).

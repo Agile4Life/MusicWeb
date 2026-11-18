@@ -38,12 +38,14 @@ enum AuthService {
         try await createSession(email: email, accessToken: token)
     }
 
-    /// Email of the current NextAuth session, nil when signed out.
-    static func sessionEmail() async -> String? {
-        struct Session: Decodable { struct User: Decodable { let email: String? }; let user: User? }
-        guard let s: Session = try? await API.get("api/auth/session") else { return nil }
-        return s.user?.email
+    /// Email and user id of the current NextAuth session; both nil when signed out.
+    static func sessionInfo() async -> (email: String?, id: String?) {
+        struct Session: Decodable { struct User: Decodable { let email: String?; let id: String? }; let user: User? }
+        guard let s: Session = try? await API.get("api/auth/session") else { return (nil, nil) }
+        return (s.user?.email, s.user?.id)
     }
+
+    static func sessionEmail() async -> String? { await sessionInfo().email }
 
     static func signOut() async {
         if let csrf = try? await csrfToken() {

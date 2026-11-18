@@ -65,7 +65,7 @@ private struct PlaylistPicker: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Đóng") { dismiss() } } }
             .task {
-                playlists = (try? await session.guarded { try await PlaylistAPI.list() }) ?? []
+                playlists = ((try? await session.guarded { try await PlaylistAPI.list() }) ?? []).filter(session.owns)
                 loaded = true
             }
             .alert(note ?? "", isPresented: Binding(get: { note != nil }, set: { if !$0 { note = nil; dismiss() } })) {}

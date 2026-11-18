@@ -148,7 +148,6 @@ private struct AirPlayButton: UIViewRepresentable {
 private struct VolumeSlider: UIViewRepresentable {
     func makeUIView(context: Context) -> MPVolumeView {
         let v = MPVolumeView(frame: .zero)
-        v.showsRouteButton = false
         v.tintColor = .white
         return v
     }

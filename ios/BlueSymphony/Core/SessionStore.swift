@@ -8,6 +8,8 @@ final class SessionStore {
     private(set) var email: String?
     /// Database ids (UUIDs) of the user's favorite tracks.
     private(set) var favoriteIDs: Set<String> = []
+    /// Auth user id from the NextAuth session (a Supabase UUID when the token carries one).
+    private(set) var sessionUserID: String?
     var isSignedIn: Bool { email != nil }
     var displayName: String { email?.split(separator: "@").first.map(String.init) ?? "" }
 
@@ -18,7 +20,7 @@ final class SessionStore {
 
     /// Restores the session on launch (cookies persist in HTTPCookieStorage).
     func refresh() async {
-        email = await AuthService.sessionEmail()
+        (email, sessionUserID) = await AuthService.sessionInfo()
         if isSignedIn { await refreshFavorites() } else { favoriteIDs = [] }
     }
 
@@ -33,11 +35,29 @@ final class SessionStore {
     func signOut() async {
         await AuthService.signOut()
         email = nil
+        sessionUserID = nil
         favoriteIDs = []
     }
 
     /// Call when a private route answers 401 (cookie expired).
-    func handleUnauthorized() { email = nil; favoriteIDs = [] }
+    func handleUnauthorized() { email = nil; sessionUserID = nil; favoriteIDs = [] }
+
+    /// The server stamps rows with `getValidUserId({ email })` (lib/accessControl.ts): a UUID-shaped hash of the
+    /// email. Reproduced here so the app can tell its own playlists from other people's public ones.
+    var serverUserID: String? {
+        guard let email = email?.trimmingCharacters(in: .whitespaces).lowercased() else { return nil }
+        var hex = email.utf16.map { String($0, radix: 16) }.joined()
+        while hex.count < 30 { hex += "0123456789abcdef" }
+        let h = Array(hex.prefix(30))
+        func s(_ a: Int, _ b: Int) -> String { String(h[a..<b]) }
+        return "\(s(0, 8))-\(s(8, 12))-4\(s(12, 15))-a\(s(15, 18))-\(s(18, 30))"
+    }
+
+    /// shortcut: ownership is inferred from user_id; a playlist stamped with an older id scheme reads as someone else's.
+    func owns(_ playlist: Playlist) -> Bool {
+        guard let id = playlist.user_id?.lowercased() else { return true }
+        return id == serverUserID || id == sessionUserID?.lowercased()
+    }
 
     /// Runs a private request; a 401 signs the user out locally before rethrowing.
     func guarded<T>(_ work: () async throws -> T) async throws -> T {
@@ -73,7 +93,7 @@ final class SessionStore {
         let before = favoriteIDs
         if value { favoriteIDs.insert(id) } else { favoriteIDs.remove(id) }
         do {
-            try await guarded { try await API.send("POST", "api/favorites/toggle", body: Body(trackId: id, nextValue: value)) }
+            _ = try await guarded { try await API.send("POST", "api/favorites/toggle", body: Body(trackId: id, nextValue: value)) }
         } catch {
             favoriteIDs = before
             throw error
@@ -86,6 +106,14 @@ final class SessionStore {
     /// favorite creates one through the server (`/api/tracks/create`) — never straight against Supabase.
     private func persistedID(for track: Track) async throws -> String {
         if let id = dbID(for: track) { return id }
+        // A track that was played was already deduped into `tracks` by history/record; reuse that row if we can see it.
+        struct Hist: Decodable { let items: Lossy<HistoryItem>? }
+        if let h: Hist = try? await API.get("api/history/list", query: ["limit": "60"]) {
+            learn((h.items?.items ?? []).compactMap(\.track))
+            if let id = dbID(for: track) { return id }
+        }
+        // Last resort: no row seen yet, ask the server to create one. shortcut: tracks/create does not dedupe
+        // against rows we could not see, so a duplicate `tracks` row is possible.
         struct Body: Encodable {
             let title: String; let file_path: String
             let artist, album, cover_url, source, youtube_id, spotify_id, nhaccuatui_id: String?
@@ -133,7 +161,7 @@ final class SessionStore {
         } catch {
             throw AuthError("Không kết nối được máy chủ. Kiểm tra mạng và thử lại.")
         }
-        email = await AuthService.sessionEmail()
+        (email, sessionUserID) = await AuthService.sessionInfo()
         await refreshFavorites()
     }
 }

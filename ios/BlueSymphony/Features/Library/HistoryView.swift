@@ -75,7 +75,7 @@ struct HistoryView: View {
     private func delete(_ item: HistoryItem) async {
         struct Body: Encodable { let historyId: String }
         do {
-            try await session.guarded { try await API.send("POST", "api/history/delete", body: Body(historyId: item.id)) }
+            _ = try await session.guarded { try await API.send("POST", "api/history/delete", body: Body(historyId: item.id)) }
             items.removeAll { $0.id == item.id }
         } catch { self.error = message(for: error) }
     }
@@ -83,7 +83,7 @@ struct HistoryView: View {
     private func clearAll() async {
         struct Body: Encodable { let clearAll = true }
         do {
-            try await session.guarded { try await API.send("POST", "api/history/delete", body: Body()) }
+            _ = try await session.guarded { try await API.send("POST", "api/history/delete", body: Body()) }
             items = []
         } catch { self.error = message(for: error) }
     }

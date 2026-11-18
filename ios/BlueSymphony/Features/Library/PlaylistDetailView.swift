@@ -11,6 +11,8 @@ struct PlaylistDetailView: View {
     @State private var editing = false
     @State private var confirmDelete = false
 
+    private var mine: Bool { session.owns(playlist) }
+
     var body: some View {
         List {
             VStack(spacing: 12) {
@@ -25,18 +27,18 @@ struct PlaylistDetailView: View {
             ForEach(Array(tracks.enumerated()), id: \.element.id) { i, track in
                 Button { player.play(tracks, startAt: i) } label: { TrackRow(track: track) }
                     .buttonStyle(.plain)
-                    .swipeActions { Button("Xoá", systemImage: "trash", role: .destructive) { Task { await remove(track) } } }
+                    .swipeActions { if mine { Button("Xoá", systemImage: "trash", role: .destructive) { Task { await remove(track) } } } }
             }
         }
         .listStyle(.plain)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            if mine { ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button("Sửa playlist", systemImage: "pencil") { editing = true }
                     Button("Xoá playlist", systemImage: "trash", role: .destructive) { confirmDelete = true }
                 } label: { Image(systemName: "ellipsis.circle") }.accessibilityLabel("Tuỳ chọn")
-            }
+            } }
         }
         .sheet(isPresented: $editing) { PlaylistEditor(playlist: playlist) { playlist = $0 } }
         .confirmationDialog("Xoá playlist “\(playlist.name)”?", isPresented: $confirmDelete, titleVisibility: .visible) {

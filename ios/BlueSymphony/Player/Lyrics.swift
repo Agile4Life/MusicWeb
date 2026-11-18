@@ -74,10 +74,11 @@ enum LyricsService {
         var get = [URLQueryItem(name: "track_name", value: title), URLQueryItem(name: "artist_name", value: artist)]
         if let a = track.album, !a.isEmpty { get.append(.init(name: "album_name", value: a)) }
         if let d = track.duration, d > 0 { get.append(.init(name: "duration", value: String(Int(d.rounded())))) }
-        if let data = await call("get", get), let r = try? JSONDecoder().decode(LRCLib.self, from: data) { return r }
-        // Album/duration mismatches 404 the exact lookup; fall back to the first search hit.
+        let exact = await call("get", get).flatMap { try? JSONDecoder().decode(LRCLib.self, from: $0) }
+        if exact?.syncedLyrics?.isEmpty == false { return exact }
+        // Exact lookup missed (404) or has plain text only: look for a synced version among the search hits.
         let search = [URLQueryItem(name: "track_name", value: title), URLQueryItem(name: "artist_name", value: artist)]
-        guard let data = await call("search", search), let hits = try? JSONDecoder().decode([LRCLib].self, from: data) else { return nil }
-        return hits.first { $0.syncedLyrics?.isEmpty == false } ?? hits.first
+        let hits = await call("search", search).flatMap { try? JSONDecoder().decode([LRCLib].self, from: $0) } ?? []
+        return hits.first { $0.syncedLyrics?.isEmpty == false } ?? exact ?? hits.first
     }
 }

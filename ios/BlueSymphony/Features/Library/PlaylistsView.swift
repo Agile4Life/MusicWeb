@@ -16,7 +16,7 @@ struct PlaylistsView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Artwork(url: p.coverURL)
                             Text(p.name).font(.subheadline).lineLimit(1)
-                            if p.is_public == true { Text("Công khai").font(.caption).foregroundStyle(.secondary) }
+                            if !session.owns(p) { Text("Công khai").font(.caption).foregroundStyle(.secondary) }
                         }
                     }
                     .buttonStyle(.plain)
