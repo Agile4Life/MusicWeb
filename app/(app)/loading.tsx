@@ -1,4 +1,3 @@
-import React from 'react'
 import { TrackListSkeleton, HeroCardSkeleton } from '@/components/common/SkeletonLoader'
 
 export default function Loading() {

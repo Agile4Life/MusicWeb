@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useCallback } from 'react'
 
 export interface GlideIndicator2DState {
   left: number

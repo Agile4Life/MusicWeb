@@ -1,7 +1,7 @@
 // app/api/favorites/status/route.ts
 import { requireUser, adminClient } from '@/lib/serverUser'
 
-export async function GET(req: Request) {
+export async function GET() {
   const auth = await requireUser()
   if (auth instanceof Response) return auth
   const userId = auth

@@ -7,9 +7,7 @@ import {
   Home,
   Upload,
   Plus,
-  Music,
   LogOut,
-  ListMusic,
   UserCheck,
   Cloud,
   Menu,
@@ -25,8 +23,7 @@ import {
   FolderArchive,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { Playlist } from '@/types'
-import { isAdmin, getValidUserId } from '@/lib/accessControl'
+import { isAdmin } from '@/lib/accessControl'
 import { useSession, signOut } from 'next-auth/react'
 import { useSearch } from '@/components/search/SearchContext'
 import { useLanguage } from '@/components/i18n/LanguageContext'
@@ -50,7 +47,7 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
   const supabase = createClient()
   const { data: nextAuthSession } = useSession()
   const { userEmail } = useCurrentUser()
-  const { playlists, loading: creating, createPlaylist, deletePlaylist } = usePlaylists()
+  const { playlists, createPlaylist, deletePlaylist } = usePlaylists()
   const { clearSearch } = useSearch()
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [isYtImportModalOpen, setIsYtImportModalOpen] = useState(false)

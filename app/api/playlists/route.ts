@@ -1,7 +1,7 @@
 // app/api/playlists/route.ts
 import { requireUser, adminClient, getAuthenticatedUserId } from '@/lib/serverUser'
 
-export async function GET(req: Request) {
+export async function GET() {
   const userId = await getAuthenticatedUserId()
 
   try {

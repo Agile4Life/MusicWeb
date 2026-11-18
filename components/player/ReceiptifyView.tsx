@@ -1,7 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Track } from '@/types'
+import React, { useState, useEffect, useCallback } from 'react'
 import { usePlayerTrack, usePlayerQueue } from '@/components/player/PlayerContext'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
@@ -14,7 +13,7 @@ import {
   generateReceiptDataUrl,
   generateReceiptBlob,
 } from '@/lib/receiptCanvas'
-import { fetchReceiptTracks, ReceiptDataSource } from '@/lib/receiptTracks'
+import { fetchReceiptTracks } from '@/lib/receiptTracks'
 import {
   Receipt,
   ListMusic,
@@ -26,11 +25,9 @@ import {
   Check,
   RefreshCw,
   Sparkles,
-  Layers,
   Palette,
   User,
   Flame,
-  Trophy,
 } from 'lucide-react'
 
 interface ReceiptifyViewProps {
@@ -43,8 +40,6 @@ type DataSourceType = 'top' | 'history' | 'favorites' | 'playlist' | 'queue'
 
 export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
   isOpen = true,
-  onClose,
-  isPageMode = false,
 }) => {
   const { currentTrack } = usePlayerTrack()
   const { queue } = usePlayerQueue()
@@ -299,7 +294,6 @@ export const ReceiptifyView: React.FC<ReceiptifyViewProps> = ({
       })
 
       const file = new File([blob], 'musicweb-receipt.png', { type: 'image/png' })
-      const shareUrl = typeof window !== 'undefined' ? window.location.origin : 'https://bluesymphony.site'
 
       if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({

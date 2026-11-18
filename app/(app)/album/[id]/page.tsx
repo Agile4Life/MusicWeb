@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState, use } from 'react'
+import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Track } from '@/types'
@@ -8,7 +8,6 @@ import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerCon
 import { TrackRow } from '@/components/track/TrackRow'
 import { TrackListSkeleton, HeroCardSkeleton } from '@/components/common/SkeletonLoader'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
-import { useSession } from 'next-auth/react'
 import { addTrackToPlaylist } from '@/lib/trackPersistence'
 import {
   stripAlbumIdPrefix,
@@ -42,7 +41,6 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
   const { currentTrack, isPlaying, isShuffle } = usePlayerTrack()
   const { playTrack, toggleShuffle, addToQueue } = usePlayerControls()
   const { playlists } = usePlaylists()
-  const { data: session } = useSession()
   const {
     containerRef: listContainerRef,
     indicator: trackIndicator,

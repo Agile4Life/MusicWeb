@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Track } from '@/types'
 import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
@@ -26,7 +26,6 @@ import {
   Music,
   Users,
   CheckCircle2,
-  Loader2,
   AlertTriangle,
   Eye,
   Clock,

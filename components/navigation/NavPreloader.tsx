@@ -21,7 +21,7 @@ export function NavPreloader() {
     routesToPrefetch.forEach((path) => {
       try {
         router.prefetch(path)
-      } catch (err) {
+      } catch {
         // Ignore prefetch errors in dev mode
       }
     })

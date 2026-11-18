@@ -4,7 +4,6 @@ import React, { useState } from 'react'
 import { Track, Playlist } from '@/types'
 import { TrackRow } from './TrackRow'
 import { Clock, CheckSquare, Pencil, Trash2, X, Loader2, User, Disc, Scissors, Eye } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import { triggerDrivePrewarm } from '@/lib/googleDriveUpload'
 import { prewarmSoundCloudTrack } from '@/lib/prewarmTrackBatch'
 import { isSoundCloudTrack } from '@/lib/trackSourceClassifier'
@@ -39,7 +38,6 @@ export function TrackList({
 }: TrackListProps) {
   const { currentTrack, isPlaying, isBuffering } = usePlayerTrack()
   const { playTrack, playSearchTrack, togglePlay, addToQueue } = usePlayerControls()
-  const supabase = createClient()
   const {
     containerRef: listContainerRef,
     indicator: trackIndicator,

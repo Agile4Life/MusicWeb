@@ -114,7 +114,7 @@ async function safeSaveAlbumToDb(supabase: any, albumMeta: any, tracksToSave: an
 }
 
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {

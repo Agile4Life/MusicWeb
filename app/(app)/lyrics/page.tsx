@@ -1,6 +1,5 @@
 'use client'
 
-import React from 'react'
 import { LyricsView } from '@/components/player/LyricsView'
 
 export default function LyricsPage() {

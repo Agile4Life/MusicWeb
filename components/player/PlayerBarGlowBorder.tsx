@@ -1,6 +1,5 @@
 'use client'
 
-import React from 'react'
 import { usePlaybackProgress } from './PlayerContext'
 import { useTheme } from '@/components/theme/ThemeContext'
 

@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useMemo } from 'react'
 import type { PlaybackController } from '@/lib/playback/controllerTypes'
-import { DEFAULT_PLAYBACK_VOLUME } from '@/lib/playback/playbackState'
 import {
   AUDIO_STALL_WATCHDOG_TIMEOUT_MS,
   MAX_CONSECUTIVE_SKIPS,
@@ -38,8 +37,6 @@ export type {
   PlayerQueueContextType,
   PlayerContextType,
 }
-
-export const DEFAULT_VOLUME = DEFAULT_PLAYBACK_VOLUME
 
 const PlayerControlsContext = createContext<PlayerControlsContextType | undefined>(undefined)
 const PlayerTrackContext = createContext<PlayerTrackContextType | undefined>(undefined)

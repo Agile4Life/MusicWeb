@@ -3,7 +3,7 @@ import { requireUser, requirePlaylistOwner, adminClient, getAuthenticatedUserId 
 import { inferTrackSource } from '@/lib/trackSourceClassifier'
 
 export async function GET(
-  req: Request,
+  _req: Request,
   props: { params: Promise<{ id: string }> | { id: string } }
 ) {
   const userId = await getAuthenticatedUserId()

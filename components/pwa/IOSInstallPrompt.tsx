@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Share, PlusSquare, X } from 'lucide-react'
 import { useTheme } from '@/components/theme/ThemeContext'
 import {

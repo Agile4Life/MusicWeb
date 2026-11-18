@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element -- Local brand assets render immediately at their intrinsic aspect ratios. */
 'use client'
 
-import React, { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import {
   INTRO_EXIT_DURATION_MS,
   INTRO_REDUCED_MOTION_DURATION_MS,

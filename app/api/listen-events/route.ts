@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: error.message }, { status: 200 })
     }
     return NextResponse.json({ success: true })
-  } catch (err: any) {
+  } catch {
     return NextResponse.json({ success: false, error: 'Internal server warning' }, { status: 200 })
   }
 }

@@ -1,7 +1,6 @@
 'use client'
 
-import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
-import Link from 'next/link'
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -15,7 +14,6 @@ import {
   Play,
   Pause,
 } from 'lucide-react'
-import { useLiquidNav, LiquidNavTab } from '@/hooks/useLiquidNav'
 import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import { useTheme } from '@/components/theme/ThemeContext'
@@ -234,7 +232,6 @@ export function LiquidNavBar({
 }: LiquidNavBarProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const filterId = useId()
   const { themeStyle } = useTheme()
   const isMinimalFlat = themeStyle === 'minimal-flat'
   const { currentTrack, isPlaying } = usePlayerTrack()
@@ -291,7 +288,6 @@ export function LiquidNavBar({
     }
   }, [setMode])
 
-  const isCollapsedMode = navMode === 'collapsed' || navMode === 'collapsing'
   const isExpandedMode = navMode === 'expanded' || navMode === 'expanding'
 
   // Blob state

@@ -10,22 +10,14 @@ import {
   AlertTriangle,
   Loader2,
   ArrowRight,
-  RefreshCw,
-  ExternalLink,
   Check,
-  ListMusic,
   User,
   Sparkles,
 } from 'lucide-react'
 import { YoutubeIcon } from '@/components/icons/YoutubeIcon'
-import { createClient } from '@/lib/supabase/client'
-import { getValidUserId } from '@/lib/accessControl'
-import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import {
   extractYouTubePlaylistId,
-  fetchYouTubePlaylistMeta,
-  fetchYouTubePlaylistTracks,
   enrichPlaylistTracksWithMeta,
   YouTubePlaylistMeta,
 } from '@/lib/youtube'
@@ -47,8 +39,6 @@ function formatSeconds(secs: number): string {
 
 export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePlaylistModalProps) {
   const router = useRouter()
-  const supabase = createClient()
-  const { userEmail } = useCurrentUser()
   const { refreshPlaylists } = usePlaylists()
   const importingRef = useRef(false)
 
@@ -62,7 +52,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
   const [meta, setMeta] = useState<YouTubePlaylistMeta | null>(null)
   const [fetchedTracks, setFetchedTracks] = useState<Track[]>([])
   const [selectedTrackIds, setSelectedTrackIds] = useState<Set<string>>(new Set())
-  const [loadingTracks, setLoadingTracks] = useState(false)
+  const [, setLoadingTracks] = useState(false)
   const [playlistName, setPlaylistName] = useState('')
 
   // Importing Progress

@@ -10,18 +10,12 @@ import {
   AlertTriangle,
   Loader2,
   ArrowRight,
-  RefreshCw,
-  ExternalLink,
   Check,
   ListMusic,
   User,
   Sparkles,
   Cloud,
 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-import { getValidUserId } from '@/lib/accessControl'
-import { useSession } from 'next-auth/react'
-import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { Track, SoundCloudPlaylist } from '@/types'
 
@@ -52,9 +46,6 @@ export function ImportSoundCloudModal({
   initialTracks = EMPTY_TRACKS,
 }: ImportSoundCloudModalProps) {
   const router = useRouter()
-  const supabase = createClient()
-  const { userEmail } = useCurrentUser()
-  const { data: nextAuthSession } = useSession()
   const { refreshPlaylists } = usePlaylists()
   const importingRef = useRef(false)
 
@@ -568,7 +559,7 @@ export function ImportSoundCloudModal({
                   Nhập Playlist thành công!
                 </h3>
                 <p className="text-xs text-slate-300 max-w-sm">
-                  Đã thêm thành công <strong className="text-[var(--spotify-glow,#22d3ee)] font-bold">{importedTrackCount}</strong> bài hát vào playlist <strong className="text-white font-bold">"{playlistName}"</strong> của bạn.
+                  Đã thêm thành công <strong className="text-[var(--spotify-glow,#22d3ee)] font-bold">{importedTrackCount}</strong> bài hát vào playlist <strong className="text-white font-bold">&quot;{playlistName}&quot;</strong> của bạn.
                 </p>
               </div>
 

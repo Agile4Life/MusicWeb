@@ -4,21 +4,16 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Track } from '@/types'
 import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
-import { useSession } from 'next-auth/react'
 import {
   History,
   Play,
   Trash2,
   Search,
-  Sparkles,
   Music,
   Clock,
   Flame,
   Trophy,
   Medal,
-  Calendar,
-  RefreshCw,
-  TrendingUp,
 } from 'lucide-react'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 import { ArtistLinks } from '@/components/common/ArtistLinks'
@@ -69,7 +64,7 @@ let cachedTopMap: Record<TopTimeframe, TopHistoryTrackItem[]> = {
   '30days': [],
   '7days': [],
 }
-let cachedTotalPlays: Record<TopTimeframe, number> = {
+const cachedTotalPlays: Record<TopTimeframe, number> = {
   all: 0,
   '30days': 0,
   '7days': 0,
@@ -77,7 +72,6 @@ let cachedTotalPlays: Record<TopTimeframe, number> = {
 
 export default function HistoryPage() {
   const supabase = createClient()
-  const { data: nextAuthSession } = useSession()
   const { currentTrack, isPlaying } = usePlayerTrack()
   const { playTrack } = usePlayerControls()
 
@@ -231,7 +225,7 @@ export default function HistoryPage() {
       } else {
         alert('Lỗi xóa lịch sử nghe!')
       }
-    } catch (err) {
+    } catch {
       alert('Lỗi xóa lịch sử nghe!')
     } finally {
       setClearing(false)

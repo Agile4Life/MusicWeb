@@ -1,10 +1,9 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Track, Playlist } from '@/types'
-import { Play, Pause, Music, Trash2, MoreVertical, Plus, Pencil, Check, X, Heart, Cloud, ListMusic, DiscAlbum, Loader2, Eye } from 'lucide-react'
+import { Play, Pause, MoreVertical, Check, X, ListMusic, DiscAlbum, Loader2, Eye } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { isAdmin, getValidUserId } from '@/lib/accessControl'
 import { formatViewCount } from '@/lib/utils'
@@ -67,7 +66,6 @@ function TrackRowComponent({
   isPlayingThis = false,
   onPlayClick,
   onAddToQueue,
-  playlistTracks = [],
   userPlaylists = [],
   onAddToPlaylist,
   onDeleteTrack,
@@ -81,7 +79,6 @@ function TrackRowComponent({
 }: TrackRowProps) {
   const router = useRouter()
   const [isResolvingAlbum, setIsResolvingAlbum] = useState(false)
-  const [showPlaylistMenu, setShowPlaylistMenu] = useState(false)
   const [liveAlbum, setLiveAlbum] = useState<string | null>(() => {
     if (isRealAlbumName(track.album, track.title)) return track.album || null
     const cached = getCachedResolvedAlbum(track.title, track.artist, track.album)
@@ -248,7 +245,7 @@ function TrackRowComponent({
 
   const hasRealAlbumDisplay = isRealAlbumName(currentAlbumDisplay, track.title)
 
-  const [mounted, setMounted] = useState(false)
+  const [, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)

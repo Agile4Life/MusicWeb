@@ -15,14 +15,12 @@ import {
 import { Track } from '@/types'
 import { usePlayerControls } from '@/components/player/PlayerContext'
 import { useSearch } from '@/components/search/SearchContext'
-import { useLanguage } from '@/components/i18n/LanguageContext'
 import { useScrollContext } from '@/components/navigation/ScrollContext'
 import { useTheme } from '@/components/theme/ThemeContext'
 import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import {
   shouldCommitGlobalSearch,
-  shouldKeepSearchOpenOnScroll,
   shouldCloseSearchOnOutsideClick,
   shouldRedirectToHomeOnSearch,
 } from '@/components/search/searchInteraction'
@@ -34,9 +32,6 @@ function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v))
 }
 
-function lerp(a: number, b: number, t: number) {
-  return a + (b - a) * clamp(t, 0, 1)
-}
 
 /**
  * Hook: Continuous scroll-linked progress 0→1
@@ -76,12 +71,11 @@ function useScrollProgress(
  *   - NavBar receives 'mweb:header-progress' event to trigger capsule morph
  */
 export function MobileScrollHeader() {
-  const { t } = useLanguage()
   const { themeStyle } = useTheme()
   const isMinimalFlat = themeStyle === 'minimal-flat'
   const pathname = usePathname()
   const router = useRouter()
-  const { playTrack, playSearchTrack } = usePlayerControls()
+  const { playSearchTrack } = usePlayerControls()
   const {
     searchQuery,
     setSearchQuery,
@@ -336,7 +330,8 @@ export function MobileScrollHeader() {
               onClick={() => {
                 if (navBackBusyRef.current) return
                 navBackBusyRef.current = true
-                window.history.length > 1 ? router.back() : router.push('/')
+                if (window.history.length > 1) router.back()
+                else router.push('/')
                 setTimeout(() => { navBackBusyRef.current = false }, 500)
               }}
               className={`p-2 active:scale-95 transition-all shrink-0 rounded-lg ${

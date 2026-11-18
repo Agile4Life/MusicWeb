@@ -45,7 +45,7 @@ async function fetchDriveFileRealName(fileId: string): Promise<string | null> {
         html.match(/<title>([^<]+?)(?:\s*-\s*Google Drive)?<\/title>/i)
 
       if (ogTitleMatch && ogTitleMatch[1]) {
-        let name = ogTitleMatch[1].replace(/\s*-\s*Google Drive$/i, '').trim()
+        const name = ogTitleMatch[1].replace(/\s*-\s*Google Drive$/i, '').trim()
         if (name && name !== 'Google Drive' && !name.toLowerCase().includes('google drive')) {
           return decodeUnicodeEscapes(name)
         }

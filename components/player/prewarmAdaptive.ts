@@ -1,4 +1,3 @@
-import type { Track } from '@/types'
 
 /**
  * Checks if the user's current connection is fast enough for speculative prewarming.

@@ -46,7 +46,7 @@ export async function GET(req: Request) {
       ),
     )
 
-    let trackMap = new Map<string, any>()
+    const trackMap = new Map<string, any>()
     if (trackIds.length > 0) {
       const { data: tracks, error: trackError } = await adminClient
         .from('tracks')

@@ -14,7 +14,6 @@ import {
   RotateCcw,
   FileAudio,
   Plus,
-  SlidersHorizontal,
   Check,
   Play,
   AlertTriangle,
@@ -388,7 +387,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
   // Upload single track workflow with mandatory lightweight MP3 compression & live DB check
   const processSingleTrack = async (
     item: QueueItem,
-    userId: string,
+    _userId: string,
     batchKeys: Set<string>
   ): Promise<boolean> => {
     const cleanTitle = (item.title || item.file.name).trim()
@@ -948,7 +947,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
               required
             />
             <p className="text-[10px] text-slate-400">
-              Lưu ý: Bật chế độ "Bất kỳ ai có link đều xem được" (Anyone with the link) trên Google Drive cho file này.
+              Lưu ý: Bật chế độ &quot;Bất kỳ ai có link đều xem được&quot; (Anyone with the link) trên Google Drive cho file này.
             </p>
           </div>
 

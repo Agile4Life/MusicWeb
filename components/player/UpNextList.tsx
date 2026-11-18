@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { usePlayer } from './PlayerContext'
 import { TrackCoverImage } from '../common/TrackCoverImage'
 import { ArtistLinks } from '../common/ArtistLinks'

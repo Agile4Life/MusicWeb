@@ -37,9 +37,7 @@ import {
   Volume2,
   VolumeX,
   DiscAlbum,
-  Mic2,
   Sparkles,
-  ListMusic,
   Loader2,
   Share2,
   Cloud,
@@ -65,10 +63,6 @@ export function NowPlayingOverlay() {
     toggleFavoriteCurrentTrack,
     isNowPlayingOpen,
     closeNowPlayingOverlay,
-    toggleQueue,
-    isQueueOpen,
-    queue,
-    currentIndex,
   } = usePlayer()
 
   const router = useRouter()
@@ -241,11 +235,6 @@ export function NowPlayingOverlay() {
       : undefined
   )
   const displayAlbumName = rawDisplayAlbumName ? cleanDisplayAlbumName(rawDisplayAlbumName) : undefined
-
-  const trackNum = (currentIndex >= 0 ? currentIndex : 0) + 1
-  const totalTracks = queue?.length || 1
-  const releaseYear = currentTrack?.created_at ? new Date(currentTrack.created_at).getFullYear() : null
-  const contextAlbumName = displayAlbumName || 'Album'
 
   const handleOpenAlbum = async (e: React.MouseEvent) => {
     e.preventDefault()

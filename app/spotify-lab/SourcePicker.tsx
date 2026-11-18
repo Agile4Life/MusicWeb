@@ -99,19 +99,10 @@ export function SourcePicker({ selected, onAdd, onPreview }: {
       const data = await communityRequest<{ tracks: unknown[] }>(`/api/playlists/${encodeURIComponent(playlistId)}`, { signal: controller.signal })
       if (controller.signal.aborted) return
       const rawTracks: unknown[] = Array.isArray(data.tracks) ? data.tracks : []
-      console.log('[MusicWeb Import] Raw tracks:', rawTracks.length, rawTracks.slice(0, 2))
       // normalizeBattleTrack handles all source detection (spotify/youtube/soundcloud/musicweb)
       const battleTracks = rawTracks
-        .map(t => {
-          const result = normalizeBattleTrack(t)
-          if (!result && t && typeof t === 'object') {
-            const raw = t as Record<string, unknown>
-            console.log('[MusicWeb Import] Filtered out:', raw.title, raw.source, raw.file_path)
-          }
-          return result
-        })
+        .map(t => normalizeBattleTrack(t))
         .filter((t): t is BattleTrack => t !== null)
-      console.log('[MusicWeb Import] Battle tracks:', battleTracks.length)
 
       if (!battleTracks.length) { setNotice('Playlist này không có bài hát nào.'); return }
       const count = mergeBattleTracks(selectedRef.current, battleTracks).length - selectedRef.current.length

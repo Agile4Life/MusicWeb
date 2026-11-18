@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef, useMemo, useEffect, useState } from 'react'
+import { useRef, useMemo, useEffect, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
@@ -165,7 +165,7 @@ interface ParticlesProps {
   glowColor?: string
 }
 
-function Particles({ isPlaying, accentColor: propAccent, glowColor: propGlow }: ParticlesProps) {
+function Particles({ accentColor: propAccent, glowColor: propGlow }: ParticlesProps) {
   const bgPointsRef = useRef<THREE.Points>(null)
   const midPointsRef = useRef<THREE.Points>(null)
   const fgPointsRef = useRef<THREE.Points>(null)

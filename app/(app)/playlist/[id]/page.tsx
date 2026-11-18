@@ -1,11 +1,11 @@
 'use client'
 
-import React, { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useSession } from 'next-auth/react'
-import { getValidUserId, isAdmin } from '@/lib/accessControl'
+import { isAdmin } from '@/lib/accessControl'
 import { addTrackToPlaylist } from '@/lib/trackPersistence'
 import { fetchUnifiedSearch } from '@/lib/searchApi'
 import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
@@ -14,7 +14,6 @@ import { Playlist, Track } from '@/types'
 import { TrackList } from '@/components/track/TrackList'
 import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
 import { UploadForm } from '@/components/upload/UploadForm'
-import { normalizeTitle } from '@/lib/utils'
 import {
   Play,
   Music,
@@ -27,15 +26,10 @@ import {
   Plus,
   Search,
   Loader2,
-  AlertCircle,
-  Sparkles,
   Shuffle,
   ChevronDown,
 } from 'lucide-react'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
-import * as mm from 'music-metadata-browser'
-import { uploadToGoogleDrive, buildDriveStreamUrl, deleteGoogleDriveFile } from '@/lib/googleDriveUpload'
-import { compressAudioIfNeeded } from '@/lib/audioCompressor'
 
 import { TrackListSkeleton, HeroCardSkeleton } from '@/components/common/SkeletonLoader'
 
@@ -98,13 +92,6 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
   const [showLibraryModal, setShowLibraryModal] = useState(false)
 
   // Direct Upload State
-  const [file, setFile] = useState<File | null>(null)
-  const [isModalDragging, setIsModalDragging] = useState(false)
-  const [uploadTitle, setUploadTitle] = useState('')
-  const [uploadArtist, setUploadArtist] = useState('')
-  const [uploadDuration, setUploadDuration] = useState(0)
-  const [uploading, setUploading] = useState(false)
-  const [uploadError, setUploadError] = useState<string | null>(null)
 
   // Library & Global Tracks Picker State
   const [libraryTracks, setLibraryTracks] = useState<Track[]>([])
@@ -262,141 +249,10 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
     }
   }
 
-  const handleDeleteTrackPermanently = async (trackId: string) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa vĩnh viễn bài hát này khỏi Thư viện? (Bài hát sẽ bị xóa ở Trang chủ và tất cả Playlist)')) return
-
-    try {
-      const res = await fetch('/api/tracks/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trackIds: [trackId] }),
-      })
-      const result = await res.json()
-      if (!res.ok) {
-        alert('Lỗi xóa: ' + (result.error || 'Không xác định'))
-        return
-      }
-      setTracks((prev) => prev.filter((t) => t.id !== trackId))
-      router.refresh()
-    } catch (err) {
-      alert('Lỗi xóa bài hát: ' + (err as Error).message)
-    }
-  }
 
   // Handle File select for direct upload inside playlist
-  const handleFileChange = async (selectedFile: File) => {
-    if (!selectedFile) return
-    setUploadError(null)
-
-    setUploadTitle(selectedFile.name.replace(/\.[^/.]+$/, ''))
-
-    try {
-      const metadata = await mm.parseBlob(selectedFile)
-      if (metadata.common.title) setUploadTitle(metadata.common.title)
-      if (metadata.common.artist) setUploadArtist(metadata.common.artist)
-      if (metadata.format.duration) setUploadDuration(Math.round(metadata.format.duration))
-    } catch (err) {
-      console.warn('Metadata parsing warning:', err)
-    }
-
-    setFile(selectedFile)
-  }
 
   // Handle direct upload & add to playlist
-  const handleDirectUpload = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!file) return
-
-    setUploading(true)
-    setUploadError(null)
-    let driveFileId: string | null = null
-    let driveUploadUrl: string | null = null
-    let driveFileWasCreated = false
-
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) throw new Error('Bạn cần đăng nhập để tải nhạc')
-
-      // 1. Upload to Google Drive via Cloudflare Worker (with playlist folder)
-      setUploadError('Đang chuẩn hóa audio sang MP3...')
-      const compression = await compressAudioIfNeeded(
-        file,
-        (percent, stageText) => setUploadError(stageText || `Đang chuẩn hóa audio... ${percent}%`),
-        256,
-        0
-      )
-      const uploadFile = compression.file
-
-      setUploadError('Đang tải lên Google Drive...')
-
-      // Get playlist name for subfolder creation
-      let folderName: string | undefined = undefined
-      if (playlist?.name) folderName = playlist.name
-
-      const driveResult = await uploadToGoogleDrive({
-        file: uploadFile,
-        fileName: uploadTitle || uploadFile.name,
-        folderName,
-        onProgress: ({ percent }) => {
-          setUploadError(`Đang tải lên Google Drive... ${percent}%`)
-        },
-      })
-
-      if (!driveResult.success || !driveResult.fileId) {
-        throw new Error(`Upload Google Drive thất bại: ${driveResult.error || 'Không nhận được File ID'}`)
-      }
-
-      const filePath = buildDriveStreamUrl(driveResult.fileId)
-      driveFileId = driveResult.fileId
-      driveUploadUrl = driveResult.uploadUrl || null
-      driveFileWasCreated = !driveResult.duplicate
-
-      // 2. Insert into tracks DB table. Artist/album are plain text columns in
-      // the current schema; there is no artists/albums relation.
-      const { data: newTrack, error: dbError } = await supabase
-        .from('tracks')
-        .insert({
-          user_id: user.id,
-          title: uploadTitle || file.name,
-          artist: uploadArtist || null,
-          duration: uploadDuration || 0,
-          file_path: filePath,
-          file_size: uploadFile.size,
-        })
-        .select()
-        .single()
-
-      if (dbError || !newTrack) throw new Error('Lỗi lưu thông tin DB: ' + (dbError?.message || ''))
-
-      // 3. Add newly created track to playlist and surface failures.
-      const { error: playlistError } = await Promise.resolve(
-        supabase.rpc('fn_add_track_to_playlist', {
-          p_playlist_id: playlistId,
-          p_track_id: newTrack.id,
-        })
-      )
-      if (playlistError) throw new Error('Lưu bài hát thành công nhưng không thêm được vào playlist: ' + playlistError.message)
-
-      // Reset states & close modal
-      setShowUploadModal(false)
-      setFile(null)
-      setUploadTitle('')
-      setUploadArtist('')
-      fetchPlaylistData()
-    } catch (err: any) {
-      if (driveFileId && driveUploadUrl && driveFileWasCreated) {
-        try { await deleteGoogleDriveFile(driveFileId, driveUploadUrl) } catch (cleanupError) {
-          console.warn('Không thể dọn file Drive sau khi lưu DB thất bại:', cleanupError)
-        }
-      }
-      setUploadError(err.message || 'Đã xảy ra lỗi khi tải nhạc')
-    } finally {
-      setUploading(false)
-    }
-  }
 
   // Open Library Picker modal
   const openLibraryModal = async () => {

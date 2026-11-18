@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { useSession, signOut } from 'next-auth/react'
+import { useSession } from 'next-auth/react'
 import { createClient } from '@/lib/supabase/client'
 import { AuthForm } from './AuthForm'
 

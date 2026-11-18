@@ -14,21 +14,6 @@ export function hash31(text: string): number {
   return (Math.abs(hash) % 0x18697) + 1;
 }
 
-/** GPU-style hash noise: fract(43758.5453 * sin(dot(v, primes))) */
-export function hashNoise3(i: number, j: number, k: number, seed: number): number {
-  const dot = i * 127.1 + j * 311.7 + k * 74.7 + seed * 13.13;
-  return fract(43758.5453 * Math.sin(dot));
-}
-
-/** 2D variant */
-export function hashNoise2(i: number, j: number, seed: number): number {
-  const dot = i * 127.1 + j * 311.7 + seed * 13.13;
-  return fract(43758.5453 * Math.sin(dot));
-}
-
-function fract(x: number): number {
-  return x - Math.floor(x);
-}
 
 /** Mulberry32 PRNG — deterministic sequence from a 32-bit seed */
 export function mulberry32(seed: number): () => number {

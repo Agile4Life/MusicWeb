@@ -1,6 +1,5 @@
 'use client'
 
-import React from 'react'
 import { ReceiptifyView } from '@/components/player/ReceiptifyView'
 import { Receipt, ChevronLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'

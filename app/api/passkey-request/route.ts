@@ -6,7 +6,6 @@ import path from 'path'
 import passkeysConfig from '@/config/passkeys.json'
 
 // Admin's personal email to receive Passkey notifications (configurable via env)
-const ADMIN_PERSONAL_EMAIL = process.env.ADMIN_PERSONAL_EMAIL || process.env.SMTP_USER || ''
 
 // Helper to get valid Passkeys (from VALID_PASSKEYS env var + config/passkeys.json)
 function getValidPasskeys(): string[] {

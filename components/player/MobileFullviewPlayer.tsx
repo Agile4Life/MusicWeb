@@ -678,9 +678,7 @@ export function MobileFullviewPlayer({
 
   const effectiveDuration = duration > 0 ? duration : (currentTrack.duration || 0)
 
-  const isLiquid = themeStyle === 'liquid-glass'
   const isMinimal = themeStyle === 'minimal-flat'
-  const isClassic = themeStyle === 'classic'
 
   // Queue: upcoming tracks after current
   const nextUpTracks = currentIndex >= 0 ? queue.slice(currentIndex + 1) : queue

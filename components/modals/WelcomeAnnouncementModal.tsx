@@ -10,11 +10,7 @@ import {
   ExternalLink,
   Pencil,
   Save,
-  RotateCcw,
-  Eye,
   Loader2,
-  CheckCircle2,
-  AlertCircle,
   ToggleLeft,
   ToggleRight,
 } from 'lucide-react'
@@ -183,7 +179,7 @@ export function WelcomeAnnouncementModal() {
       } else {
         toast(json?.error || 'Lỗi khi lưu thông báo', 'error')
       }
-    } catch (err: any) {
+    } catch {
       toast('Không thể kết nối đến máy chủ', 'error')
     } finally {
       setIsSaving(false)

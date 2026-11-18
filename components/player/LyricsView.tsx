@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState, useRef, useCallback, memo, useSyncExternalStore } from 'react'
+import { useEffect, useState, useRef, useCallback, memo, useSyncExternalStore } from 'react'
 import { usePlaybackProgress, usePlayerTrack, usePlayerControls } from './PlayerContext'
 import { playbackProgressStore } from './PlaybackProgressStore'
 import { Track } from '@/types'

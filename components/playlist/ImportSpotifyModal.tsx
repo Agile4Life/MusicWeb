@@ -12,16 +12,12 @@ import {
   XCircle,
   Loader2,
   ArrowRight,
-  RefreshCw,
   ExternalLink,
   Check,
   ListMusic,
   User,
   Sparkles,
 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-import { getValidUserId } from '@/lib/accessControl'
-import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import {
   extractSpotifyPlaylistId,
@@ -32,7 +28,6 @@ import {
 } from '@/lib/spotify'
 import {
   matchPlaylistToYouTube,
-  matchSingleTrack,
   PlaylistImportResult,
 } from '@/lib/playlist-import'
 import { searchYouTubeTracks } from '@/lib/youtube'
@@ -55,8 +50,6 @@ function formatSeconds(secs: number): string {
 
 export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps) {
   const router = useRouter()
-  const supabase = createClient()
-  const { userEmail } = useCurrentUser()
   const { refreshPlaylists } = usePlaylists()
 
   // Steps & basic inputs
@@ -843,7 +836,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
                 <h3 className="text-lg sm:text-xl font-bold text-white">Nhập Playlist thành công!</h3>
                 <p className="text-xs text-slate-300 max-w-md mx-auto leading-relaxed">
                   Đã thêm thành công <strong className="text-[var(--spotify-glow,#22d3ee)]">{importedTrackCount}</strong> bài hát vào playlist{' '}
-                  <strong className="text-white">"{playlistName}"</strong>.
+                  <strong className="text-white">&quot;{playlistName}&quot;</strong>.
                 </p>
               </div>
 

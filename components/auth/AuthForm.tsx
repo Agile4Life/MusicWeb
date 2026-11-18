@@ -29,8 +29,8 @@ function translateAuthError(err: any): string {
   if (!err) return 'Đã xảy ra lỗi không xác định'
 
   let errorMessage = ''
-  let errStatus = err.status || err.code || ''
-  let errName = err.name || ''
+  const errStatus = err.status || err.code || ''
+  const errName = err.name || ''
 
   if (typeof err === 'string') {
     errorMessage = err

@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useState } from 'react'
-import { useTheme, THEMES, ThemeId, ThemeStyle } from './ThemeContext'
-import { Palette, Check, MousePointer, Sparkles, Sliders, Eye, Waves, Square, Disc } from 'lucide-react'
+import { useTheme, THEMES, ThemeId } from './ThemeContext'
+import { Palette, Check, MousePointer, Sparkles, Sliders, Eye, Waves, Disc } from 'lucide-react'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { CURSOR_CONFIGS } from '@/lib/cursors'
 import { RefractionMode } from '@/lib/theme/liquidGlassFilters'

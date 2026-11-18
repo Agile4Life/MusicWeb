@@ -3,7 +3,6 @@ import { createClient } from '@supabase/supabase-js'
 import nodemailer from 'nodemailer'
 import { isAdmin } from '@/lib/accessControl'
 
-const ADMIN_PERSONAL_EMAIL = process.env.ADMIN_PERSONAL_EMAIL || process.env.SMTP_USER || ''
 
 const RESERVED_USERNAMES = new Set([
   'admin',
@@ -172,7 +171,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function notifyAdmin(username: string, authEmail: string, realEmail?: string) {
+async function notifyAdmin(username: string, _authEmail: string, realEmail?: string) {
   const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER
   const smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD
   const targetAdminEmail = process.env.ADMIN_PERSONAL_EMAIL || smtpUser || ''

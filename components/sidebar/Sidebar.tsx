@@ -8,8 +8,6 @@ import {
   Upload,
   Plus,
   Music,
-  LogOut,
-  UserCheck,
   Cloud,
   Settings,
   Heart,
@@ -20,10 +18,8 @@ import {
   Sparkles,
   FolderArchive,
 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-import { Playlist } from '@/types'
-import { isAdmin, getValidUserId } from '@/lib/accessControl'
-import { useSession, signOut } from 'next-auth/react'
+import { isAdmin } from '@/lib/accessControl'
+import { useSession } from 'next-auth/react'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
@@ -39,7 +35,6 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
   const { t } = useLanguage()
   const pathname = usePathname()
   const router = useRouter()
-  const supabase = createClient()
   const { data: nextAuthSession } = useSession()
   const { userEmail } = useCurrentUser()
   const { playlists, loading: creating, createPlaylist, deletePlaylist } = usePlaylists()
@@ -131,11 +126,6 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
     }
     : null
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    await signOut({ callbackUrl: '/login' })
-    window.location.href = '/login'
-  }
 
   const handleCreatePlaylist = async () => {
     if (!user) {

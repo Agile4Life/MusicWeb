@@ -20,7 +20,7 @@ export async function GET(req: Request) {
     if (historyError) throw new Error(historyError.message)
 
     const trackIds = Array.from(new Set((historyRows ?? []).map((r: any) => r.track_id).filter(Boolean)))
-    let trackMap = new Map<string, any>()
+    const trackMap = new Map<string, any>()
 
     if (trackIds.length > 0) {
       const { data: tracks, error: trackError } = await adminClient

@@ -1,13 +1,12 @@
 'use client'
 
-import React, { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Track, Playlist } from '@/types'
 import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
-import { getValidUserId } from '@/lib/accessControl'
 import { useSession } from 'next-auth/react'
-import { Cloud, Play, Shuffle, Music, Sparkles, Upload, FolderSync } from 'lucide-react'
+import { Cloud, Play, Shuffle, Upload } from 'lucide-react'
 import { TrackList } from '@/components/track/TrackList'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 import { extractDriveFileId } from '@/lib/googleDriveUpload'
@@ -26,7 +25,7 @@ export default function DrivePage() {
   const [driveTracks, setDriveTracks] = useState<Track[]>([])
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery] = useState('')
   const [supabaseUser, setSupabaseUser] = useState<any>(null)
 
   const fetchSeqRef = useRef(0)
@@ -64,16 +63,6 @@ export default function DrivePage() {
       } = await supabase.auth.getUser()
 
       setSupabaseUser(currentUser)
-
-      const activeUser =
-        currentUser ||
-        (nextAuthSession?.user
-          ? {
-              id: nextAuthSession.user.email,
-              email: nextAuthSession.user.email,
-            }
-          : null)
-      const userId = activeUser ? getValidUserId(activeUser) : null
 
       let userFavSet = new Set<string>()
       try {
@@ -175,14 +164,6 @@ export default function DrivePage() {
   useEffect(() => {
     fetchDriveTracks()
 
-    let timer: NodeJS.Timeout
-    const debouncedFetch = () => {
-      clearTimeout(timer)
-      timer = setTimeout(() => {
-        fetchDriveTracks()
-      }, 800)
-    }
-
     const channel = supabase
       .channel('drive-page-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tracks' }, (payload: any) => {
@@ -230,7 +211,6 @@ export default function DrivePage() {
       .subscribe()
 
     return () => {
-      clearTimeout(timer)
       supabase.removeChannel(channel)
     }
   }, [fetchDriveTracks, supabase])

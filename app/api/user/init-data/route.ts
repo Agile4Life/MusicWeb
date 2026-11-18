@@ -1,7 +1,6 @@
 // app/api/user/init-data/route.ts
 // Combined endpoint: fetches favorites status + listening history in one function invocation
 import { requireUser, adminClient } from '@/lib/serverUser'
-import { getRecentUniqueTracks } from '@/lib/listeningHistory'
 
 export async function GET(req: Request) {
   const auth = await requireUser()
@@ -34,7 +33,7 @@ export async function GET(req: Request) {
     const histTrackIds = Array.from(
       new Set(historyRows.map((r: any) => r.track_id).filter(Boolean))
     )
-    let trackMap = new Map<string, any>()
+    const trackMap = new Map<string, any>()
 
     if (histTrackIds.length > 0) {
       const { data: tracks, error: trackError } = await adminClient

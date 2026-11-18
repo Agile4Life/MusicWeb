@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { usePlayer } from './PlayerContext'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { X, Play, Music, History, Sparkles } from 'lucide-react'
@@ -9,8 +9,7 @@ import { ArtistLinks } from '@/components/common/ArtistLinks'
 import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
 import { createClient } from '@/lib/supabase/client'
 import { useSession } from 'next-auth/react'
-import { getValidUserId, getAllValidUserIds } from '@/lib/accessControl'
-import { fetchListeningHistory, getRecentUniqueTracks } from '@/lib/listeningHistory'
+import { getRecentUniqueTracks } from '@/lib/listeningHistory'
 import { Track } from '@/types'
 
 export function QueueDrawer() {

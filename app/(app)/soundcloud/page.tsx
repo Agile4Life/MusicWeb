@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Cloud,
   Search,
@@ -17,10 +17,6 @@ import { Track, SoundCloudPlaylist } from '@/types'
 import { usePlayerControls } from '@/components/player/PlayerContext'
 import { TrackList } from '@/components/track/TrackList'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
-import { useCurrentUser } from '@/components/auth/CurrentUserContext'
-import { useSession } from 'next-auth/react'
-import { createClient } from '@/lib/supabase/client'
-import { getValidUserId } from '@/lib/accessControl'
 import { addTrackToPlaylist } from '@/lib/trackPersistence'
 import { toast } from '@/components/ui/ToastContext'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
@@ -42,9 +38,6 @@ const GENRE_TABS = [
 export default function SoundCloudPage() {
   const { playTrack } = usePlayerControls()
   const { playlists: userPlaylists, refreshPlaylists } = usePlaylists()
-  const { userEmail } = useCurrentUser()
-  const { data: nextAuthSession } = useSession()
-  const supabase = useMemo(() => createClient(), [])
   const soundcloudPlaylistGrid = useGridGlideIndicator()
 
   const [activeTab, setActiveTab] = useState<string>('all-music')

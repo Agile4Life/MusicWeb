@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import lottie, { type AnimationItem } from 'lottie-web'
 import { createCursorAnimationOptions, getCursorTransform, restartCursorAnimation } from './customCursorBehavior'
 import { useTheme } from './ThemeContext'

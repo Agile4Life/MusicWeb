@@ -1,22 +1,20 @@
 'use client'
 
-import React, { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Track, Playlist } from '@/types'
+import { Track } from '@/types'
 import { usePlayerControls } from '@/components/player/PlayerContext'
-import { getValidUserId, getAllValidUserIds, isAdmin as checkIsAdmin } from '@/lib/accessControl'
-import { resolveExternalTrackId, isExternalTrack, addTrackToPlaylist } from '@/lib/trackPersistence'
-import { fetchFavoriteTracks, inferTrackSource } from '@/lib/favoriteTracks'
+import { isAdmin as checkIsAdmin } from '@/lib/accessControl'
+import { addTrackToPlaylist } from '@/lib/trackPersistence'
 import { toast } from '@/components/ui/ToastContext'
 import { useSession } from 'next-auth/react'
-import { Heart, Play, Search, Music, Sparkles, Loader2, ChevronLeft } from 'lucide-react'
+import { Heart, Play, Search, ChevronLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { TrackList } from '@/components/track/TrackList'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 
 let cachedFavorites: Track[] = []
-let favoritesFetchedAt = 0
 
 export default function FavoritesPage() {
   const router = useRouter()
@@ -28,7 +26,7 @@ export default function FavoritesPage() {
   const [tracks, setTracks] = useState<Track[]>(cachedFavorites)
   const [loading, setLoading] = useState(cachedFavorites.length === 0)
   const [searchQuery, setSearchQuery] = useState('')
-  const [supabaseUser, setSupabaseUser] = useState<any>(null)
+  const [supabaseUser] = useState<any>(null)
 
   const fetchFavorites = useCallback(async (silent = false) => {
     if (!silent && cachedFavorites.length === 0) {
@@ -40,7 +38,6 @@ export default function FavoritesPage() {
         const { tracks: incomingTracks } = await res.json()
         const resolved = incomingTracks || []
         cachedFavorites = resolved
-        favoritesFetchedAt = Date.now()
         setTracks(resolved)
       } else if (res.status === 401) {
         setTracks([])

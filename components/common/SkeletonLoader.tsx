@@ -1,6 +1,5 @@
 'use client'
 
-import React from 'react'
 
 export function TrackRowSkeleton() {
   return (
@@ -52,16 +51,3 @@ export function HeroCardSkeleton() {
   )
 }
 
-export function PlaylistGridSkeleton({ count = 4 }: { count?: number }) {
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="p-4 rounded-2xl bg-[var(--bg-surface-1)] border border-white/5 animate-pulse flex flex-col gap-3">
-          <div className="w-full aspect-square bg-[var(--bg-surface-2)] rounded-xl" />
-          <div className="w-3/4 h-4 bg-[var(--bg-surface-2)] rounded" />
-          <div className="w-1/2 h-3 bg-[var(--bg-surface-2)]/60 rounded" />
-        </div>
-      ))}
-    </div>
-  )
-}

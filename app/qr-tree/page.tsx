@@ -3,7 +3,7 @@
 // app/qr-tree/page.tsx — ICQR Magic Tree (Exact Match to tree.icqr.com)
 // ---------------------------------------------------------------------------
 
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { type Season, SEASON_THEMES } from "@/components/qr-tree/seasonTheme";
 

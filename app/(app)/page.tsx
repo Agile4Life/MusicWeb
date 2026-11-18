@@ -3,18 +3,18 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Track, Playlist } from '@/types'
+import { Track } from '@/types'
 import { TrackList } from '@/components/track/TrackList'
 import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
 import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
-import { deduplicateQueueTracks, mergeTrackMetadata } from '@/lib/utils'
+import { mergeTrackMetadata } from '@/lib/utils'
 import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
 import { fetchUnifiedSearch, GlobalSearchTracks, TrendingMetadata } from '@/lib/searchApi'
 import { isTrendingSnapshotFresh } from '@/lib/dailyTrendingRefresh'
-import { resolveExternalTrackId, isExternalTrack, addTrackToPlaylist } from '@/lib/trackPersistence'
-import { getValidUserId, getAllValidUserIds } from '@/lib/accessControl'
+import { addTrackToPlaylist } from '@/lib/trackPersistence'
+import { getValidUserId } from '@/lib/accessControl'
 import { toast } from '@/components/ui/ToastContext'
-import { fetchListeningHistory, getRecentUniqueTracks } from '@/lib/listeningHistory'
+import { getRecentUniqueTracks } from '@/lib/listeningHistory'
 import { MediaCard } from '@/components/common/MediaCard'
 import { useGridGlideIndicator } from '@/components/common/useGlideIndicator'
 import { buildStyleCoherentQueue } from '@/lib/trackClassifier'
@@ -34,22 +34,15 @@ function isTrackVisibleToUser(track: Track, userId: string | null): boolean {
   return false
 }
 import {
-  Play,
   Upload,
   Search,
-  Sparkles,
-  Disc,
   Music,
-  Flame,
   AlertTriangle,
-  Globe,
-  Radio,
   Loader2,
   TrendingUp,
   History,
   RotateCcw,
   Cloud,
-  Shuffle,
   DiscAlbum,
   ChevronRight,
   ListMusic,
@@ -58,8 +51,8 @@ import {
 import { SpotifyAlbumItem } from '@/lib/spotify'
 import { useSession } from 'next-auth/react'
 import { isAdmin as checkIsAdmin } from '@/lib/accessControl'
-import { useSearchParams, usePathname, useRouter } from 'next/navigation'
-import { extractDriveFileId, parseFilenameToTitleArtist } from '@/lib/googleDriveUpload'
+import { usePathname, useRouter } from 'next/navigation'
+import { extractDriveFileId } from '@/lib/googleDriveUpload'
 import { STATIC_DRIVE_TRACKS } from '@/lib/driveTracksMap'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { useSearch } from '@/components/search/SearchContext'
@@ -128,8 +121,8 @@ function processTrendingTracks(raw: GlobalSearchTracks, maxItems = 18): Track[] 
 
 export default function HomePage() {
   const supabase = createClient()
-  const { currentTrack, isPlaying, isShuffle } = usePlayerTrack()
-  const { playTrack, toggleShuffle } = usePlayerControls()
+  const { currentTrack, isPlaying } = usePlayerTrack()
+  const { playTrack } = usePlayerControls()
   const { playlists } = usePlaylists()
   const { getScrollY } = useScrollContext()
   const albumGrid = useGridGlideIndicator()
@@ -146,7 +139,6 @@ export default function HomePage() {
     trendingDay,
   } = useSearch()
   const { data: nextAuthSession } = useSession()
-  const searchParams = useSearchParams()
   const pathname = usePathname()
 
   const [tracks, setTracks] = useState<Track[]>([])
@@ -912,13 +904,6 @@ export default function HomePage() {
     }
     return displayedTracks
   }, [isShortQuery, showAllResults, displayedTracks])
-
-  const branch =
-    loading
-      ? 'skeleton'
-      : isSearching && searchingGlobal && displayedTracks.length === 0
-        ? 'spinner'
-        : 'tracklist'
 
   return (
     <div className="relative">

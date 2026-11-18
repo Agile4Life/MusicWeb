@@ -22,8 +22,6 @@ interface NowPlayingStageProps {
 }
 
 const MAX_TILT = 8 // degrees
-const PARALLAX_1 = 12 // px — gradient layer
-const PARALLAX_2 = 24 // px — particles
 const PARALLAX_3 = 6 // px — album scene
 
 export const NowPlayingStage = React.memo(function NowPlayingStage({
@@ -32,7 +30,6 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
   artist,
   isPlaying,
   onArtistClick,
-  children,
 }: NowPlayingStageProps) {
   const canUse3DHardware = useCanUse3D()
   const { currentTheme, themeStyle, gamingMode } = useTheme()
@@ -69,9 +66,6 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
     },
     () => 0
   )
-  const radius = 47
-  const circumference = 2 * Math.PI * radius
-  const strokeDashoffset = circumference * (1 - progressRatio)
 
   // Refs for direct DOM manipulation (ZERO React re-renders on mouse move)
   const stageRef = useRef<HTMLDivElement>(null)

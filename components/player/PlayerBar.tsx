@@ -99,7 +99,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
   }, [])
 
   const [isNavigatingAlbum, setIsNavigatingAlbum] = useState(false)
-  const [isResolvingAlbumInfo, setIsResolvingAlbumInfo] = useState(false)
+  const [, setIsResolvingAlbumInfo] = useState(false)
   const [resolvedAlbumInfo, setResolvedAlbumInfo] = useState<{ id?: string; name?: string } | null>(null)
 
   useEffect(() => {
@@ -307,7 +307,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
   const [showLyricsModal, setShowLyricsModal] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
   const [shareLyrics, setShareLyrics] = useState<LyricLine[]>([])
-  const [isFetchingLyricsForShare, setIsFetchingLyricsForShare] = useState(false)
+  const [, setIsFetchingLyricsForShare] = useState(false)
 
   const handleOpenShare = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
