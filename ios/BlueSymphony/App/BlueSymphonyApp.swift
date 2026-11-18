@@ -30,6 +30,9 @@ struct RootView: View {
             Tab("Mới", systemImage: "square.grid.2x2.fill") {
                 NavigationStack { NewReleasesView() }
             }
+            Tab("Thư viện", systemImage: "music.note.square.stack.fill") {
+                NavigationStack { LibraryView() }
+            }
             Tab(role: .search) {
                 NavigationStack { SearchView(query: searchText) }
             }

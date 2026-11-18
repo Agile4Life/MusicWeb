@@ -154,3 +154,18 @@ struct Lossy<T: Decodable>: Decodable {
 }
 
 struct AnyDecodable: Decodable { init(from decoder: Decoder) throws {} }
+
+/// `history/top` row: a track with how many times it was played.
+struct TopItem: Decodable, Identifiable, Hashable {
+    let track: Track
+    var playCount: Int
+    var id: String { track.id }
+
+    enum CodingKeys: String, CodingKey { case track, playCount }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        track = try c.decode(Track.self, forKey: .track)
+        playCount = Int(c.lossyDouble(.playCount) ?? 1)
+    }
+}
