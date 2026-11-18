@@ -43,16 +43,18 @@ struct ArtistView: View {
                 ContentUnavailableView("Không tải được nghệ sĩ", systemImage: "person.crop.circle.badge.exclamationmark", description: Text("Thử lại sau."))
             }
         }
-        .task(id: name) {
-            struct Reply: Decodable { let artist: ArtistInfo?; let topTracks: Lossy<Track>? }
-            loading = true
-            do {
-                let r: Reply = try await API.get("api/artist", query: ["name": name])
-                info = r.artist
-                tracks = r.topTracks?.items ?? []
-                failed = false
-            } catch { failed = !isCancellation(error) }
-            loading = false
-        }
+        .refreshable { await load() }
+        .task(id: name) { await load() }
+    }
+
+    private func load() async {
+        struct Reply: Decodable { let artist: ArtistInfo?; let topTracks: Lossy<Track>? }
+        do {
+            let r: Reply = try await API.get("api/artist", query: ["name": name])
+            info = r.artist
+            tracks = r.topTracks?.items ?? []
+            failed = false
+        } catch { failed = !isCancellation(error) }
+        loading = false
     }
 }

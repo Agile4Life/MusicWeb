@@ -88,6 +88,13 @@ enum API {
         return r.items
     }
 
+    /// "Xoá bộ nhớ đệm": HTTP cache plus the resolved-stream cache.
+    @MainActor
+    static func clearCache() {
+        resolved.removeAll()
+        URLCache.shared.removeAllCachedResponses()
+    }
+
     /// Similar tracks to continue playback (route: app/api/queue/next).
     static func recommend(seed: Track, queue: [Track]) async throws -> [Track] {
         let ids = queue.suffix(50).map(\.id).joined(separator: ",")

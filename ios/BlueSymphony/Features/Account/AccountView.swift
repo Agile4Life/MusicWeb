@@ -1,30 +1,36 @@
 import SwiftUI
 
-/// Sheet behind the avatar button: sign-in form when signed out, account info when signed in.
+/// Sheet behind the avatar button: account, cache and app info (Apple Music's account sheet, in miniature).
 struct AccountView: View {
     @Environment(SessionStore.self) private var session
     @Environment(\.dismiss) private var dismiss
+    @State private var cacheCleared = false
+
+    private var version: String {
+        let info = Bundle.main.infoDictionary
+        return "\(info?["CFBundleShortVersionString"] as? String ?? "1.0") (\(info?["CFBundleVersion"] as? String ?? "1"))"
+    }
 
     var body: some View {
         NavigationStack {
-            Group {
-                if session.isSignedIn {
-                    List {
-                        Section {
-                            Label(session.email ?? "", systemImage: "person.crop.circle.fill")
-                        }
-                        Section {
-                            Button("Đăng xuất", role: .destructive) {
-                                Task { await session.signOut(); dismiss() }
-                            }
-                        }
+            List {
+                Section("Tài khoản") {
+                    if session.isSignedIn {
+                        Label(session.email ?? "", systemImage: "person.crop.circle.fill")
+                        Button("Đăng xuất", role: .destructive) { Task { await session.signOut(); dismiss() } }
+                    } else {
+                        NavigationLink { LoginView() } label: { Label("Đăng nhập", systemImage: "person.crop.circle") }
                     }
-                    .navigationTitle("Tài khoản")
-                } else {
-                    LoginView()
+                }
+                Section("Ứng dụng") {
+                    Button("Xoá bộ nhớ đệm", systemImage: "trash") { API.clearCache(); cacheCleared = true }
+                    LabeledContent("Phiên bản", value: version)
                 }
             }
+            .navigationTitle("Tài khoản")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Xong") { dismiss() } } }
+            .alert("Đã xoá bộ nhớ đệm", isPresented: $cacheCleared) {}
         }
     }
 }

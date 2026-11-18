@@ -19,6 +19,7 @@ struct HomeView: View {
                 if let hero = trending.first {
                     Button { player.play(trending, startAt: 0) } label: { HeroCard(track: hero) }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Phát \(hero.title) của \(hero.artistName)")
                         .padding(.horizontal)
                 }
 

@@ -7,6 +7,7 @@ struct AlbumView: View {
     let album: Album
     @State private var tracks: [Track] = []
     @State private var loading = true
+    @State private var failed = false
 
     var body: some View {
         List {
@@ -48,16 +49,25 @@ struct AlbumView: View {
         }
         .listStyle(.plain)
         .navigationBarTitleDisplayMode(.inline)
-        .overlay { if loading && tracks.isEmpty { ProgressView() } }
-        .task {
-            tracks = (try? await API.album(album.id).tracks) ?? []
-            loading = false
+        .overlay {
+            if loading && tracks.isEmpty { ProgressView() }
+            else if tracks.isEmpty {
+                ContentUnavailableView(failed ? "Không tải được album" : "Album chưa có bài hát", systemImage: failed ? "wifi.exclamationmark" : "music.note")
+                    .padding(.top, 360)
+            }
         }
+        .refreshable { await load() }
+        .task { await load() }
     }
 
     private var subtitle: String? {
         let parts = [album.album_type?.uppercased(), album.release_date.flatMap { $0.isEmpty ? nil : String($0.prefix(4)) }]
             .compactMap { $0 }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    private func load() async {
+        do { tracks = try await API.album(album.id).tracks ?? []; failed = false } catch { failed = !isCancellation(error) }
+        loading = false
     }
 }

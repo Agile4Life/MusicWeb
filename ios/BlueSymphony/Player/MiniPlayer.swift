@@ -21,10 +21,12 @@ struct MiniPlayer: View {
                     Button { player.togglePlay() } label: {
                         Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
                     }
+                    .accessibilityLabel(player.isPlaying ? "Tạm dừng" : "Phát")
                 }
             }
             .frame(width: 32)
             Button { player.next() } label: { Image(systemName: "forward.fill") }
+                .accessibilityLabel("Bài tiếp theo")
         }
         .font(.title3)
         .foregroundStyle(.primary)

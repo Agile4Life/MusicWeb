@@ -78,6 +78,7 @@ struct NowPlayingView: View {
                 if !editing, let s = scrub { player.seek(to: s); scrub = nil }
             }
             .tint(.white)
+            .accessibilityLabel("Vị trí phát")
             HStack {
                 Text(formatTime(scrub ?? player.currentTime))
                 Spacer()
