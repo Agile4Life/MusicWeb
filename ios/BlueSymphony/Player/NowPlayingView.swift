@@ -45,7 +45,9 @@ struct NowPlayingView: View {
 
                 progress.padding(.top, 16)
                 controls.padding(.vertical, 20)
+                #if !targetEnvironment(macCatalyst)
                 VolumeSlider().frame(height: 24)
+                #endif
                 bottomBar.padding(.top, 16)
                 Spacer(minLength: 8)
             }
@@ -144,7 +146,8 @@ private struct AirPlayButton: UIViewRepresentable {
     func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
 }
 
-/// System output volume (the slider the hardware buttons move).
+#if !targetEnvironment(macCatalyst)
+/// System output volume (the slider the hardware buttons move). Not available on Mac.
 private struct VolumeSlider: UIViewRepresentable {
     func makeUIView(context: Context) -> MPVolumeView {
         let v = MPVolumeView(frame: .zero)
@@ -153,3 +156,4 @@ private struct VolumeSlider: UIViewRepresentable {
     }
     func updateUIView(_ uiView: MPVolumeView, context: Context) {}
 }
+#endif

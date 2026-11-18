@@ -43,6 +43,8 @@ struct RootView: View {
                 NavigationStack { SearchView() }
             }
         }
+        // iPhone: bottom tab bar; iPad/Mac: Apple Music-style sidebar.
+        .tabViewStyle(.sidebarAdaptable)
         .tabBarMinimizeBehavior(.onScrollDown)
         .tabViewBottomAccessory {
             MiniPlayer { showNowPlaying = true }
