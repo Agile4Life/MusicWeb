@@ -1,7 +1,8 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import { AlertCircle, Info, X, ListMusic, Sparkles } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { AlertCircle, Info, X, CheckCircle2 } from 'lucide-react'
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning'
 
@@ -35,6 +36,11 @@ export function toast(message: string, type: ToastType = 'success', title?: stri
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([])
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id))
@@ -94,7 +100,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {children}
 
       {/* Floating Toast Notification Container */}
-      <div className="fixed top-5 right-4 sm:right-6 z-[99999] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-2 sm:px-0">
+      {mounted && typeof document !== 'undefined' && createPortal(
+      <div className="fixed top-5 lg:top-auto lg:bottom-28 xl:bottom-32 right-4 sm:right-6 z-[110] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-2 sm:px-0">
         {toasts.map((t) => {
           const isSuccess = t.type === 'success'
           const isError = t.type === 'error'
@@ -106,14 +113,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               role="alert"
               data-testid="toast-notification"
               data-toast-type={t.type}
-              className={`pointer-events-auto w-full glass-panel p-3.5 rounded-2xl shadow-2xl border flex items-center justify-between gap-3 transition-all duration-300 animate-in slide-in-from-top-5 fade-in select-none ${
+              className={`pointer-events-auto w-full glass-panel p-3.5 rounded-2xl shadow-xl border flex items-center justify-between gap-3 transition-[opacity,transform] duration-300 animate-in slide-in-from-top-5 fade-in select-none ${
                 isSuccess
-                  ? 'bg-[var(--elevation-2-bg,#0a1815)]/95 border-[var(--primary-spotify,#10b981)]/40 text-white shadow-[var(--theme-glow-shadow)]'
+                  ? 'bg-[var(--elevation-2-bg,#0a1815)]/95 border-[var(--primary-spotify,#10b981)]/40 text-white'
                   : isError
-                  ? 'bg-[#1c0d12]/95 border-rose-500/40 text-white shadow-rose-950/40'
+                  ? 'bg-[#1c0d12]/95 border-rose-500/40 text-white'
                   : isInfo
-                  ? 'bg-[var(--elevation-2-bg,#0b1626)]/95 border-[var(--spotify-glow,#22d3ee)]/40 text-white shadow-[var(--theme-glow-shadow)]'
-                  : 'bg-[#181308]/95 border-amber-500/40 text-white shadow-amber-950/40'
+                  ? 'bg-[var(--elevation-2-bg,#0b1626)]/95 border-[var(--spotify-glow,#22d3ee)]/40 text-white'
+                  : 'bg-[#181308]/95 border-amber-500/40 text-white'
               }`}
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -130,11 +137,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                   }`}
                 >
                   {isSuccess ? (
-                    <ListMusic className="w-5 h-5 animate-pulse" />
+                    <CheckCircle2 className="w-5 h-5" />
                   ) : isError ? (
                     <AlertCircle className="w-5 h-5" />
-                  ) : isInfo ? (
-                    <Sparkles className="w-5 h-5" />
                   ) : (
                     <Info className="w-5 h-5" />
                   )}
@@ -163,7 +168,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             </div>
           )
         })}
-      </div>
+      </div>,
+      document.body
+      )}
     </ToastContext.Provider>
   )
 }

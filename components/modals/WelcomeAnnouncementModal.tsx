@@ -1,12 +1,12 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Bell,
   Mail,
   X,
   Check,
-  Sparkles,
   ExternalLink,
   Pencil,
   Save,
@@ -116,7 +116,7 @@ export function WelcomeAnnouncementModal() {
     }
   }, [isAdmin])
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     try {
       if (dontShowAgain) {
         const ver = String(announcement.version || 1)
@@ -128,7 +128,16 @@ export function WelcomeAnnouncementModal() {
     }
     setIsEditing(false)
     setIsOpen(false)
-  }
+  }, [dontShowAgain, announcement.version])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [isOpen, handleClose])
 
   const handleStartEdit = () => {
     setFormData(announcement)
@@ -186,42 +195,42 @@ export function WelcomeAnnouncementModal() {
     }
   }
 
-  if (!mounted || !isOpen) return null
+  if (!mounted || !isOpen || typeof document === 'undefined') return null
 
-  return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300 select-none">
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[75] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300 select-none"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) handleClose()
+      }}
+    >
       {/* Modal Container */}
       <div
-        className="glass-panel modal-content relative w-full max-w-xl bg-[var(--elevation-2-bg,#0e1322)] border border-white/15 rounded-3xl p-5 sm:p-7 shadow-2xl shadow-[0_20px_50px_var(--theme-glow-shadow)] overflow-hidden flex flex-col gap-4 sm:gap-5 transform transition-all animate-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto"
+        className="glass-panel modal-content relative w-full max-w-xl bg-[var(--elevation-2-bg,#0e1322)] border border-white/15 rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 max-h-[92vh]"
         role="dialog"
         aria-modal="true"
       >
-        {/* Background glow accents */}
-        <div className="ambient-glow-orb absolute -top-24 -left-24 w-48 h-48 bg-[var(--primary-spotify,#06b6d4)]/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="ambient-glow-orb absolute -bottom-24 -right-24 w-48 h-48 bg-[var(--theme-secondary,#3b82f6)]/20 rounded-full blur-3xl pointer-events-none" />
-
         {/* Top Header Actions (Admin Edit Toggle & Close) */}
-        <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] pb-3.5">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#3b82f6)] flex items-center justify-center text-white shadow-lg shadow-[0_8px_20px_var(--theme-glow-shadow)] flex-shrink-0">
-              <Bell className="w-5 h-5 animate-pulse" />
+        <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] px-5 sm:px-7 pt-5 sm:pt-6 pb-3.5 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#3b82f6)] flex items-center justify-center text-white shadow-lg flex-shrink-0">
+              <Bell className="w-5 h-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--spotify-glow,#22d3ee)] uppercase tracking-wider">
-                <Sparkles className="w-3.5 h-3.5" />
                 <span>{isEditing ? 'Trình chỉnh sửa thông báo' : announcement.badge || 'Thông báo từ Tác giả'}</span>
               </div>
-              <h2 className="text-base sm:text-lg font-extrabold text-white tracking-tight">
+              <h2 className="text-base sm:text-lg font-extrabold text-white tracking-tight truncate">
                 {isEditing ? 'Chỉnh Sửa Thông Báo (Admin)' : announcement.title}
               </h2>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             {isAdmin && !isEditing && (
               <button
                 onClick={handleStartEdit}
-                className="px-2.5 py-1.5 rounded-xl bg-[var(--primary-spotify,#06b6d4)]/15 hover:bg-[var(--primary-spotify,#06b6d4)]/25 text-[var(--spotify-glow,#22d3ee)] border border-[var(--primary-spotify,#06b6d4)]/30 hover:border-[var(--spotify-glow,#22d3ee)] text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-sm"
+                className="px-2.5 py-1.5 rounded-xl bg-[var(--primary-spotify,#06b6d4)]/15 hover:bg-[var(--primary-spotify,#06b6d4)]/25 text-[var(--spotify-glow,#22d3ee)] border border-[var(--primary-spotify,#06b6d4)]/30 hover:border-[var(--spotify-glow,#22d3ee)] text-xs font-semibold flex items-center gap-1.5 transition-[background-color,border-color,color] cursor-pointer active:scale-95 shadow-sm"
                 title="Chỉnh sửa nội dung thông báo này"
               >
                 <Pencil className="w-3.5 h-3.5" />
@@ -239,6 +248,7 @@ export function WelcomeAnnouncementModal() {
           </div>
         </div>
 
+        <div className="overflow-y-auto flex-1 custom-slim-scrollbar px-5 sm:px-7 py-4 sm:py-5 flex flex-col gap-4 sm:gap-5">
         {/* --- EDIT MODE (Admin Only) --- */}
         {isEditing ? (
           <form onSubmit={handleSaveAnnouncement} className="flex flex-col gap-3.5 text-xs text-slate-200">
@@ -250,7 +260,7 @@ export function WelcomeAnnouncementModal() {
                   value={formData.badge}
                   onChange={(e) => setFormData({ ...formData, badge: e.target.value })}
                   placeholder="VD: Thông báo từ Tác giả, Cập nhật mới..."
-                  className="bg-white/5 border border-white/15 focus:border-[var(--spotify-glow,#22d3ee)] rounded-xl px-3 py-2 text-white outline-none transition-all"
+                  className="bg-white/5 border border-white/15 focus:border-[var(--spotify-glow,#22d3ee)] rounded-xl px-3 py-2 text-white outline-none transition-colors"
                   required
                 />
               </div>
@@ -262,7 +272,7 @@ export function WelcomeAnnouncementModal() {
                   value={formData.cta_text || ''}
                   onChange={(e) => setFormData({ ...formData, cta_text: e.target.value })}
                   placeholder="VD: Đã hiểu & Bắt đầu, Xem ngay..."
-                  className="bg-white/5 border border-white/15 focus:border-[var(--spotify-glow,#22d3ee)] rounded-xl px-3 py-2 text-white outline-none transition-all"
+                  className="bg-white/5 border border-white/15 focus:border-[var(--spotify-glow,#22d3ee)] rounded-xl px-3 py-2 text-white outline-none transition-colors"
                 />
               </div>
             </div>
@@ -273,8 +283,8 @@ export function WelcomeAnnouncementModal() {
                 type="text"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                placeholder="VD: Chào mừng bạn đến với MusicWeb 🎵"
-                className="bg-white/5 border border-white/15 focus:border-[var(--spotify-glow,#22d3ee)] rounded-xl px-3 py-2 text-white font-bold outline-none transition-all"
+                placeholder="VD: Chào mừng bạn đến với MusicWeb"
+                className="bg-white/5 border border-white/15 focus:border-[var(--spotify-glow,#22d3ee)] rounded-xl px-3 py-2 text-white font-bold outline-none transition-colors"
                 required
               />
             </div>
@@ -286,7 +296,7 @@ export function WelcomeAnnouncementModal() {
                 value={formData.content}
                 onChange={(e) => setFormData({ ...formData, content: e.target.value })}
                 placeholder="Nhập nội dung thông báo gửi đến người dùng..."
-                className="bg-white/5 border border-white/15 focus:border-[var(--spotify-glow,#22d3ee)] rounded-xl p-3 text-white leading-relaxed outline-none transition-all resize-none"
+                className="bg-white/5 border border-white/15 focus:border-[var(--spotify-glow,#22d3ee)] rounded-xl p-3 text-white leading-relaxed outline-none transition-colors resize-none"
                 required
               />
             </div>
@@ -346,14 +356,14 @@ export function WelcomeAnnouncementModal() {
                 type="button"
                 onClick={handleCancelEdit}
                 disabled={isSaving}
-                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-slate-300 font-semibold text-xs transition-all cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-slate-300 font-semibold text-xs transition-colors cursor-pointer"
               >
                 Hủy
               </button>
               <button
                 type="submit"
                 disabled={isSaving}
-                className="px-5 py-2 rounded-xl bg-gradient-to-r from-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#3b82f6)] hover:brightness-110 text-white font-bold text-xs tracking-wide shadow-lg shadow-[0_8px_20px_var(--theme-glow-shadow)] active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#3b82f6)] hover:brightness-110 text-white font-bold text-xs tracking-wide shadow-lg active:scale-95 transition-[filter,transform] flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 {isSaving ? (
                   <>
@@ -387,7 +397,7 @@ export function WelcomeAnnouncementModal() {
                       href={announcement.facebook_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-3 py-1.5 rounded-xl bg-[var(--theme-secondary,#3b82f6)]/15 hover:bg-[var(--theme-secondary,#3b82f6)]/25 text-[var(--theme-secondary,#3b82f6)] border border-[var(--theme-secondary,#3b82f6)]/30 hover:scale-[1.03] active:scale-95 transition-all text-xs font-semibold flex items-center gap-1.5 shadow-sm"
+                      className="px-3 py-1.5 rounded-xl bg-[var(--theme-secondary,#3b82f6)]/15 hover:bg-[var(--theme-secondary,#3b82f6)]/25 text-[var(--theme-secondary,#3b82f6)] border border-[var(--theme-secondary,#3b82f6)]/30 active:scale-95 transition-colors text-xs font-semibold flex items-center gap-1.5 shadow-sm"
                       title="Facebook"
                     >
                       <FacebookIcon className="w-3.5 h-3.5 fill-current" />
@@ -402,7 +412,7 @@ export function WelcomeAnnouncementModal() {
                       href={announcement.instagram_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-3 py-1.5 rounded-xl bg-pink-600/15 hover:bg-pink-600/25 text-pink-400 border border-pink-500/30 hover:scale-[1.03] active:scale-95 transition-all text-xs font-semibold flex items-center gap-1.5 shadow-sm"
+                      className="px-3 py-1.5 rounded-xl bg-pink-600/15 hover:bg-pink-600/25 text-pink-400 border border-pink-500/30 active:scale-95 transition-colors text-xs font-semibold flex items-center gap-1.5 shadow-sm"
                       title="Instagram"
                     >
                       <InstagramIcon className="w-3.5 h-3.5" />
@@ -415,7 +425,7 @@ export function WelcomeAnnouncementModal() {
                   {announcement.contact_email && (
                     <a
                       href={`mailto:${announcement.contact_email}`}
-                      className="px-3 py-1.5 rounded-xl bg-[var(--primary-spotify,#06b6d4)]/10 hover:bg-[var(--primary-spotify,#06b6d4)]/20 text-[var(--spotify-glow,#22d3ee)] border border-[var(--primary-spotify,#06b6d4)]/30 hover:scale-[1.03] active:scale-95 text-xs font-mono transition-all flex items-center gap-1.5 shadow-sm"
+                      className="px-3 py-1.5 rounded-xl bg-[var(--primary-spotify,#06b6d4)]/10 hover:bg-[var(--primary-spotify,#06b6d4)]/20 text-[var(--spotify-glow,#22d3ee)] border border-[var(--primary-spotify,#06b6d4)]/30 active:scale-95 text-xs font-mono transition-colors flex items-center gap-1.5 shadow-sm"
                       title={`Gửi Email đến ${announcement.contact_email}`}
                     >
                       <Mail className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)] flex-shrink-0" />
@@ -437,9 +447,9 @@ export function WelcomeAnnouncementModal() {
                   onChange={(e) => setDontShowAgain(e.target.checked)}
                 />
                 <div
-                  className={`w-4 h-4 rounded-md border flex items-center justify-center transition-all ${
+                  className={`w-4 h-4 rounded-md border flex items-center justify-center transition-colors ${
                     dontShowAgain
-                      ? 'bg-[var(--primary-spotify,#06b6d4)] border-[var(--spotify-glow,#22d3ee)] text-black font-bold shadow-sm shadow-[var(--theme-glow-shadow)]'
+                      ? 'bg-[var(--primary-spotify,#06b6d4)] border-[var(--spotify-glow,#22d3ee)] text-black font-bold shadow-sm'
                       : 'border-white/30 bg-white/5 hover:border-white/50'
                   }`}
                 >
@@ -451,15 +461,17 @@ export function WelcomeAnnouncementModal() {
               {/* Primary CTA */}
               <button
                 onClick={handleClose}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#3b82f6)] hover:brightness-110 text-white font-bold text-xs sm:text-sm tracking-wide shadow-lg shadow-[0_8px_20px_var(--theme-glow-shadow)] active:scale-[0.98] transition-all text-center cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#3b82f6)] hover:brightness-110 text-white font-bold text-xs sm:text-sm tracking-wide shadow-lg active:scale-[0.98] transition-[filter,transform] text-center cursor-pointer"
               >
                 {announcement.cta_text || 'Đã hiểu & Bắt đầu'}
               </button>
             </div>
           </>
         )}
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

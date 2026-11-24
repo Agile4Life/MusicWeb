@@ -16,7 +16,7 @@ export interface AnnouncementData {
 
 export const DEFAULT_ANNOUNCEMENT: AnnouncementData = {
   badge: 'Thông báo từ Tác giả',
-  title: 'Chào mừng bạn đến với MusicWeb 🎵',
+  title: 'Chào mừng bạn đến với MusicWeb',
   content:
     'Phong cảm ơn tất cả mọi người đã trải nghiệm web đầu tay của Phong! Nếu có thắc mắc, feedback đóng góp hoặc cần Phong bổ sung tính năng gì, mọi người hãy liên hệ trực tiếp với mình qua các kênh bên dưới nhé:',
   facebook_url: 'https://www.facebook.com/phong.trancongtuan',

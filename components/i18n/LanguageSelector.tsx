@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useId } from 'react'
+import { createPortal } from 'react-dom'
 import { useLanguage } from './LanguageContext'
 import { Language } from '@/lib/i18n'
 import { Globe, ChevronDown, Check } from 'lucide-react'
@@ -10,7 +11,7 @@ interface LanguageSelectorProps {
   className?: string
 }
 
-const renderFlag = (code: Language, isRound = false) => {
+const renderFlag = (code: Language, isRound = false, idPrefix = 'lang') => {
   if (isRound) {
     switch (code) {
       case 'vi':
@@ -24,10 +25,10 @@ const renderFlag = (code: Language, isRound = false) => {
         return (
           <svg className="w-6 h-6 rounded-full shrink-0 border border-white/20 shadow-sm overflow-hidden block" viewBox="0 0 30 30">
             <circle cx="15" cy="15" r="15" fill="#00247d" />
-            <clipPath id="circle-clip-en">
+            <clipPath id={`${idPrefix}-circle-clip-en`}>
               <circle cx="15" cy="15" r="15" />
             </clipPath>
-            <g clipPath="url(#circle-clip-en)">
+            <g clipPath={`url(#${idPrefix}-circle-clip-en)`}>
               <path d="M0,0 L30,30 M30,0 L0,30" stroke="#fff" strokeWidth="4"/>
               <path d="M0,0 L30,30 M30,0 L0,30" stroke="#cc0000" strokeWidth="2.5"/>
               <path d="M15,0 v30 M0,15 h30" stroke="#fff" strokeWidth="7"/>
@@ -64,11 +65,11 @@ const renderFlag = (code: Language, isRound = false) => {
     case 'en':
       return (
         <svg className="w-5 h-3.5 rounded-sm object-cover shadow-sm shrink-0 border border-white/10" viewBox="0 0 60 30">
-          <clipPath id="s"><path d="M0,0 v30 h60 v-30 z"/></clipPath>
-          <clipPath id="t"><path d="M0,0 L60,30 M60,0 L0,30"/></clipPath>
-          <g clipPath="url(#s)">
+          <clipPath id={`${idPrefix}-s`}><path d="M0,0 v30 h60 v-30 z"/></clipPath>
+          <clipPath id={`${idPrefix}-t`}><path d="M0,0 L60,30 M60,0 L0,30"/></clipPath>
+          <g clipPath={`url(#${idPrefix}-s)`}>
             <path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" strokeWidth="6"/>
-            <path d="M0,0 L60,30 M60,0 L0,30" clipPath="url(#t)" stroke="#cc0000" strokeWidth="4"/>
+            <path d="M0,0 L60,30 M60,0 L0,30" clipPath={`url(#${idPrefix}-t)`} stroke="#cc0000" strokeWidth="4"/>
             <path d="M30,0 v30 M0,15 h60" stroke="#fff" strokeWidth="10"/>
             <path d="M30,0 v30 M0,15 h60" stroke="#cc0000" strokeWidth="6"/>
           </g>
@@ -95,26 +96,155 @@ const renderFlag = (code: Language, isRound = false) => {
 export function LanguageSelector({ variant = 'dropdown', className = '' }: LanguageSelectorProps) {
   const { language, setLanguage, options, currentOption } = useLanguage()
   const [isOpen, setIsOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  const [menuCoords, setMenuCoords] = useState<{ top?: number; bottom?: number; right: number }>({
+    top: 0,
+    right: 16,
+  })
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const rawId = useId()
+  const idPrefix = rawId.replace(/:/g, '')
 
   useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!isOpen || !triggerRef.current) return
+    const updatePosition = () => {
+      if (!triggerRef.current) return
+      const rect = triggerRef.current.getBoundingClientRect()
+      const estimatedMenuHeight = variant === 'flag-only' ? 190 : 230
+      const spaceBelow = window.innerHeight - rect.bottom
+      const openUpward = spaceBelow < estimatedMenuHeight && rect.top > estimatedMenuHeight
+      const right = Math.max(8, window.innerWidth - rect.right)
+      if (openUpward) {
+        setMenuCoords({ bottom: window.innerHeight - rect.top + 8, right })
+      } else {
+        setMenuCoords({ top: rect.bottom + 8, right })
+      }
+    }
+    updatePosition()
+    window.addEventListener('resize', updatePosition)
+    return () => window.removeEventListener('resize', updatePosition)
+  }, [isOpen, variant])
+
+  useEffect(() => {
+    if (!isOpen) return
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(target) &&
+        (!menuRef.current || !menuRef.current.contains(target))
+      ) {
         setIsOpen(false)
       }
     }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false)
+      }
+    }
+    const handleScroll = (event: Event) => {
+      if (menuRef.current && event.target instanceof Node && menuRef.current.contains(event.target)) {
+        return
+      }
+      setIsOpen(false)
+    }
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('scroll', handleScroll, true)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('scroll', handleScroll, true)
+    }
+  }, [isOpen])
+
+  const renderPortalMenu = () => {
+    if (!isOpen || !mounted || typeof document === 'undefined') return null
+    const isFlagOnly = variant === 'flag-only'
+    return createPortal(
+      <div
+        ref={menuRef}
+        style={{
+          position: 'fixed',
+          top: menuCoords.top !== undefined ? `${menuCoords.top}px` : undefined,
+          bottom: menuCoords.bottom !== undefined ? `${menuCoords.bottom}px` : undefined,
+          right: `${menuCoords.right}px`,
+        }}
+        className={`${
+          isFlagOnly ? 'w-44 bg-[#0e121c]/95 backdrop-blur-xl' : 'w-48 bg-[var(--elevation-3-bg)]'
+        } rounded-2xl border border-white/10 shadow-2xl p-1.5 z-[90] animate-in fade-in zoom-in-95 duration-150 select-none`}
+      >
+        <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-white/5 mb-1 flex items-center justify-between">
+          <span>{isFlagOnly ? 'Ngôn ngữ' : 'Ngôn ngữ / Language'}</span>
+          <Globe className="w-3 h-3 text-[var(--primary-spotify,#06b6d4)]" />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          {options.map((opt) => {
+            const isSelected = opt.code === language
+            return (
+              <button
+                key={opt.code}
+                type="button"
+                onClick={() => {
+                  setLanguage(opt.code)
+                  setIsOpen(false)
+                }}
+                className={`w-full flex items-center justify-between px-3 ${
+                  isFlagOnly ? 'py-1.5' : 'py-2'
+                } rounded-xl text-xs font-medium transition-colors cursor-pointer ${
+                  isSelected
+                    ? isFlagOnly
+                      ? 'bg-[var(--spotify-glow,#22d3ee)]/15 text-[var(--spotify-glow,#22d3ee)] font-bold'
+                      : 'text-[var(--spotify-glow,#22d3ee)] bg-white/10 font-bold border border-white/10'
+                    : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+                }`}
+              >
+                <div className={`flex items-center ${isFlagOnly ? 'gap-2' : 'gap-2.5'}`}>
+                  {renderFlag(opt.code, false, `${idPrefix}-opt-${opt.code}`)}
+                  {isFlagOnly ? (
+                    <span>{opt.nativeName}</span>
+                  ) : (
+                    <div className="flex flex-col items-start leading-tight">
+                      <span className="font-semibold">{opt.nativeName}</span>
+                      {opt.name !== opt.nativeName && (
+                        <span className="text-[10px] text-slate-400 font-normal">{opt.name}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {isSelected && (
+                  <Check
+                    className={`${
+                      isFlagOnly ? 'w-3.5 h-3.5' : 'w-4 h-4 shrink-0'
+                    } text-[var(--spotify-glow,#22d3ee)]`}
+                  />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>,
+      document.body
+    )
+  }
 
   if (variant === 'flag-only') {
     return (
       <div ref={dropdownRef} className={`relative inline-block select-none ${className}`}>
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => setIsOpen(!isOpen)}
+          aria-expanded={isOpen}
           aria-label={`Ngôn ngữ: ${currentOption.nativeName}`}
-          className="flex items-center justify-center p-0 bg-transparent border-0 outline-none cursor-pointer transition-all active:scale-95"
+          className="flex items-center justify-center p-0 rounded-full bg-transparent border-0 outline-none cursor-pointer transition-transform active:scale-95"
           title={currentOption.nativeName}
         >
           <span
@@ -127,45 +257,11 @@ export function LanguageSelector({ variant = 'dropdown', className = '' }: Langu
               transition: 'box-shadow 0.2s ease',
             }}
           >
-            {renderFlag(currentOption.code, true)}
+            {renderFlag(currentOption.code, true, `${idPrefix}-trigger`)}
           </span>
         </button>
 
-        {isOpen && (
-          <div className="absolute right-0 mt-2 w-44 rounded-2xl bg-[#0e121c]/95 border border-white/10 shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl">
-            <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-white/5 mb-1 flex items-center justify-between">
-              <span>Ngôn ngữ</span>
-              <Globe className="w-3 h-3 text-[var(--primary-spotify,#06b6d4)]" />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              {options.map((opt) => {
-                const isSelected = opt.code === language
-                return (
-                  <button
-                    key={opt.code}
-                    type="button"
-                    onClick={() => {
-                      setLanguage(opt.code)
-                      setIsOpen(false)
-                    }}
-                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-                      isSelected
-                        ? 'bg-[var(--spotify-glow,#22d3ee)]/15 text-[var(--spotify-glow,#22d3ee)] font-bold'
-                        : 'text-slate-300 hover:bg-white/5 hover:text-white'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      {renderFlag(opt.code, false)}
-                      <span>{opt.nativeName}</span>
-                    </div>
-                    {isSelected && <Check className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)]" />}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
+        {renderPortalMenu()}
       </div>
     )
   }
@@ -173,15 +269,18 @@ export function LanguageSelector({ variant = 'dropdown', className = '' }: Langu
   return (
     <div ref={dropdownRef} className={`relative inline-block select-none ${className}`}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center justify-between gap-2.5 px-3 py-1.5 rounded-xl bg-[var(--elevation-2-bg)] hover:bg-white/[0.14] border border-white/10 text-xs font-semibold text-white transition-all active:scale-95 shadow-md ${
+        aria-expanded={isOpen}
+        aria-label={`Ngôn ngữ: ${currentOption.nativeName}`}
+        className={`flex items-center justify-between gap-2.5 px-3 py-1.5 rounded-xl bg-[var(--elevation-2-bg)] hover:bg-white/[0.14] border border-white/10 text-xs font-semibold text-white transition-[background-color,border-color,box-shadow,transform] active:scale-95 shadow-md cursor-pointer ${
           isOpen ? 'border-[var(--spotify-glow,#22d3ee)]/50 shadow-[0_0_12px_var(--theme-glow-shadow)]' : ''
         }`}
       >
         <div className="flex items-center gap-2">
           {variant === 'select' && <Globe className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)] shrink-0" />}
-          {renderFlag(currentOption.code, false)}
+          {renderFlag(currentOption.code, false, `${idPrefix}-trigger`)}
           <span>{currentOption.nativeName}</span>
         </div>
         <ChevronDown
@@ -191,46 +290,7 @@ export function LanguageSelector({ variant = 'dropdown', className = '' }: Langu
         />
       </button>
 
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 rounded-2xl bg-[var(--elevation-3-bg)] border border-white/10 shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-          <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-white/5 mb-1 flex items-center justify-between">
-            <span>Ngôn ngữ / Language</span>
-            <Globe className="w-3 h-3 text-[var(--primary-spotify,#06b6d4)]" />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            {options.map((opt) => {
-              const isSelected = opt.code === language
-              return (
-                <button
-                  key={opt.code}
-                  type="button"
-                  onClick={() => {
-                    setLanguage(opt.code)
-                    setIsOpen(false)
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                    isSelected
-                      ? 'text-[var(--spotify-glow,#22d3ee)] bg-white/10 font-bold border border-white/10'
-                      : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    {renderFlag(opt.code, false)}
-                    <div className="flex flex-col items-start leading-tight">
-                      <span className="font-semibold">{opt.nativeName}</span>
-                      {opt.name !== opt.nativeName && (
-                        <span className="text-[10px] text-slate-400 font-normal">{opt.name}</span>
-                      )}
-                    </div>
-                  </div>
-                  {isSelected && <Check className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)] shrink-0" />}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
+      {renderPortalMenu()}
     </div>
   )
 }

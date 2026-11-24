@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Track, Playlist } from '@/types'
@@ -61,6 +61,7 @@ export function TrackContextMenu({
   const { themeStyle } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [clampedPos, setClampedPos] = useState<{ top?: number; bottom?: number; right: number } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
   // Ensure portal mounts on client only
@@ -74,6 +75,29 @@ export function TrackContextMenu({
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
+  // Clamp desktop context menu inside viewport with bottom clearance above docked player
+  useLayoutEffect(() => {
+    if (!isOpen || isMobile || !menuPos || !menuRef.current) {
+      setClampedPos(menuPos)
+      return
+    }
+    const rect = menuRef.current.getBoundingClientRect()
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    const right = Math.min(Math.max(12, menuPos.right), Math.max(12, vw - rect.width - 12))
+
+    if (menuPos.bottom !== undefined) {
+      const bottom = Math.min(Math.max(12, menuPos.bottom), Math.max(12, vh - rect.height - 12))
+      setClampedPos({ bottom, right })
+      return
+    }
+
+    const rawTop = menuPos.top ?? 12
+    const maxBottom = vh - 112
+    const top = Math.min(Math.max(12, rawTop), Math.max(12, maxBottom - rect.height))
+    setClampedPos({ top, right })
+  }, [isOpen, isMobile, menuPos])
+
   // Handle outside click, scroll, and escape dismissals
   useEffect(() => {
     if (!isOpen) return
@@ -83,8 +107,7 @@ export function TrackContextMenu({
       if (
         menuRef.current &&
         !menuRef.current.contains(target) &&
-        triggerRef?.current &&
-        !triggerRef.current.contains(target)
+        (!triggerRef?.current || !triggerRef.current.contains(target))
       ) {
         onClose()
       }
@@ -96,7 +119,15 @@ export function TrackContextMenu({
       }
     }
 
-    const handleScrollOrResize = () => {
+    const handleScrollOrResize = (event: Event) => {
+      if (
+        event.type === 'scroll' &&
+        menuRef.current &&
+        event.target instanceof Node &&
+        menuRef.current.contains(event.target)
+      ) {
+        return
+      }
       onClose()
     }
 
@@ -131,16 +162,17 @@ export function TrackContextMenu({
 
   const isLiquid = themeStyle === 'liquid-glass'
   const isMinimal = themeStyle === 'minimal-flat'
+  const activeMenuPos = clampedPos ?? menuPos
 
   // -------------------------------------------------------------
   // Dynamic Styling Tokens per Theme
   // -------------------------------------------------------------
   const desktopContainerStyle: React.CSSProperties = {
     position: 'fixed',
-    top: menuPos?.top !== undefined ? `${menuPos.top}px` : undefined,
-    bottom: menuPos?.bottom !== undefined ? `${menuPos.bottom}px` : undefined,
-    right: menuPos?.right !== undefined ? `${menuPos.right}px` : 16,
-    transformOrigin: menuPos?.bottom !== undefined ? 'bottom right' : 'top right',
+    top: activeMenuPos?.top !== undefined ? `${activeMenuPos.top}px` : undefined,
+    bottom: activeMenuPos?.bottom !== undefined ? `${activeMenuPos.bottom}px` : undefined,
+    right: activeMenuPos?.right !== undefined ? `${activeMenuPos.right}px` : 16,
+    transformOrigin: activeMenuPos?.bottom !== undefined ? 'bottom right' : 'top right',
     ...(isLiquid
       ? {
           background:
@@ -208,7 +240,7 @@ export function TrackContextMenu({
 
   // Common interactive item classes
   const itemBaseClass = isLiquid
-    ? 'w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-white/[0.12] active:bg-white/[0.2] flex items-center gap-3 transition-all duration-150 cursor-pointer text-white/90 hover:text-white group border border-transparent hover:border-white/10 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] active:scale-[0.98]'
+    ? 'w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-white/[0.12] active:bg-white/[0.2] flex items-center gap-3 transition-[background-color,border-color,color,box-shadow] duration-150 cursor-pointer text-white/90 hover:text-white group border border-transparent hover:border-white/10 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] active:scale-[0.98]'
     : isMinimal
     ? 'w-full text-left px-3.5 py-2.5 rounded-lg hover:bg-[var(--hair-strong,rgba(244,236,230,0.08))] active:bg-[var(--hair-strong,rgba(244,236,230,0.14))] flex items-center gap-3 transition-colors cursor-pointer text-[var(--paper,#F4ECE1)] hover:text-white active:scale-[0.99]'
     : 'w-full text-left px-3.5 py-2 rounded-xl hover:bg-white/10 active:bg-white/15 flex items-center gap-2.5 transition-colors cursor-pointer text-slate-200 hover:text-white active:scale-[0.98]'
@@ -232,23 +264,25 @@ export function TrackContextMenu({
           {/* ========================================================================= */}
           {/* 💻 DESKTOP DROPDOWN (>= 768px)                                            */}
           {/* ========================================================================= */}
+          {!isMobile && (
           <div className="hidden md:block select-none">
             <motion.div
               ref={menuRef}
+              role="menu"
               style={desktopContainerStyle}
               initial={{
                 opacity: 0,
                 scale: 0.94,
-                y: menuPos?.bottom !== undefined ? 6 : -6,
+                y: activeMenuPos?.bottom !== undefined ? 6 : -6,
               }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{
                 opacity: 0,
                 scale: 0.96,
-                y: menuPos?.bottom !== undefined ? 4 : -4,
+                y: activeMenuPos?.bottom !== undefined ? 4 : -4,
               }}
               transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-              className="py-1.5 w-60 z-[99999] text-xs shadow-2xl relative overflow-hidden will-change-transform"
+              className="py-1.5 w-60 z-[90] text-xs shadow-2xl relative max-h-[calc(100vh-128px)] overflow-y-auto custom-slim-scrollbar will-change-transform"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Specular Top Sheen Highlight for Liquid Glass */}
@@ -277,7 +311,7 @@ export function TrackContextMenu({
                   }`}
                 >
                   <Heart
-                    className={`w-3.5 h-3.5 transition-transform group-hover:scale-110 ${
+                    className={`w-3.5 h-3.5 ${
                       isFavorite
                         ? isMinimal
                           ? 'fill-[var(--wine,#A24B3D)] text-[var(--wine,#A24B3D)]'
@@ -321,7 +355,7 @@ export function TrackContextMenu({
                     }`}
                   >
                     <ListMusic
-                      className={`w-3.5 h-3.5 transition-transform group-hover:scale-110 ${
+                      className={`w-3.5 h-3.5 ${
                         isMinimal
                           ? 'text-[var(--accent,#C98A3D)]'
                           : 'text-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_0_6px_var(--spotify-glow)]'
@@ -362,7 +396,7 @@ export function TrackContextMenu({
                     <Loader2 className="w-3.5 h-3.5 text-[var(--theme-secondary,#818cf8)] animate-spin" />
                   ) : (
                     <DiscAlbum
-                      className={`w-3.5 h-3.5 transition-transform group-hover:scale-110 ${
+                      className={`w-3.5 h-3.5 ${
                         isMinimal
                           ? 'text-[var(--paper-dim,#B9AC9C)]'
                           : 'text-[var(--theme-secondary,#818cf8)]'
@@ -483,10 +517,12 @@ export function TrackContextMenu({
               )}
             </motion.div>
           </div>
+          )}
 
           {/* ========================================================================= */}
           {/* 📱 MOBILE ACTION SHEET DRAWER (< 768px)                                   */}
           {/* ========================================================================= */}
+          {isMobile && (
           <div className="fixed inset-0 z-[99999] md:hidden select-none">
             {/* Backdrop */}
             <motion.div
@@ -857,6 +893,7 @@ export function TrackContextMenu({
               </div>
             </motion.div>
           </div>
+          )}
         </>
       )}
     </AnimatePresence>,

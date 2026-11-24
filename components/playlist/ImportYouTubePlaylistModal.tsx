@@ -12,9 +12,9 @@ import {
   ArrowRight,
   Check,
   User,
-  Sparkles,
 } from 'lucide-react'
 import { YoutubeIcon } from '@/components/icons/YoutubeIcon'
+import { toast } from '@/components/ui/ToastContext'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import {
   extractYouTubePlaylistId,
@@ -80,6 +80,17 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
     prevIsOpenRef.current = isOpen
   }, [isOpen])
 
+  useEffect(() => {
+    if (!isOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && step !== 'importing') {
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [isOpen, step, onClose])
+
   if (!isOpen || typeof document === 'undefined') return null
 
   // Step 1: Submit URL / ID
@@ -98,14 +109,14 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
       const res = await fetch(`/api/youtube/playlist?id=${encodeURIComponent(playlistId)}`)
       if (!res.ok) {
         const errData = await res.json().catch(() => null)
-        setInputError(errData?.error || 'Không tìm thấy playlist — có thể playlist ở chế độ riêng tư hoặc link không đúng.')
+        setInputError(errData?.error || 'Không tìm thấy playlist, có thể playlist ở chế độ riêng tư hoặc link không đúng.')
         setLoadingMeta(false)
         return
       }
 
       const { meta: playlistMeta, tracks: rawTracks } = await res.json()
       if (!playlistMeta || !rawTracks || rawTracks.length === 0) {
-        setInputError('Không tìm thấy playlist — có thể playlist ở chế độ riêng tư hoặc link không đúng.')
+        setInputError('Không tìm thấy playlist, có thể playlist ở chế độ riêng tư hoặc link không đúng.')
         setLoadingMeta(false)
         return
       }
@@ -156,7 +167,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
     try {
       const tracksToImport = fetchedTracks.filter((t) => selectedTrackIds.has(t.id))
       if (tracksToImport.length === 0) {
-        alert('Vui lòng chọn ít nhất 1 bài hát để nhập vào playlist.')
+        toast('Vui lòng chọn ít nhất 1 bài hát để nhập vào playlist.', 'error')
         return
       }
 
@@ -224,7 +235,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
       setStep('complete')
     } catch (err: any) {
       console.error('Import YouTube playlist error:', err)
-      alert(`Có lỗi xảy ra khi nhập playlist: ${err?.message || err}`)
+      toast(`Có lỗi xảy ra khi nhập playlist: ${err?.message || err}`, 'error')
       setStep('review')
     } finally {
       importingRef.current = false
@@ -234,8 +245,13 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
   const skippedTracksCount = (meta?.total_tracks || 0) - fetchedTracks.length
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="glass-panel modal-content bg-[var(--elevation-2-bg,#0f172a)] border border-white/10 max-sm:rounded-t-3xl max-sm:rounded-b-none sm:rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh] animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200">
+    <div
+      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && step !== 'importing') onClose()
+      }}
+    >
+      <div className="glass-panel modal-content bg-[var(--elevation-2-bg,#0f172a)] border border-white/10 max-sm:rounded-t-3xl max-sm:rounded-b-none sm:rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh] animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200">
         {/* Mobile Drag Indicator Bar */}
         <div className="w-12 h-1 bg-white/20 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
 
@@ -246,14 +262,9 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
               <YoutubeIcon className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <h2 className="text-sm sm:text-base font-bold text-white leading-tight">
-                  Nhập Playlist YouTube
-                </h2>
-                <span className="text-[9px] sm:text-[10px] font-mono font-semibold uppercase px-1.5 py-0.5 rounded-full bg-[var(--primary-spotify,#06b6d4)]/15 text-[var(--primary-spotify,#06b6d4)] border border-[var(--primary-spotify,#06b6d4)]/30 shrink-0">
-                  YouTube API
-                </span>
-              </div>
+              <h2 className="text-sm sm:text-base font-bold text-white leading-tight truncate">
+                Nhập Playlist YouTube
+              </h2>
               <p className="text-[11px] sm:text-xs text-slate-400 truncate mt-0.5">
                 Nhập danh sách bài hát từ YouTube Music hoặc YouTube
               </p>
@@ -286,7 +297,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
                       setInputError(null)
                     }}
                     placeholder="Dán link playlist tại đây..."
-                    className="w-full bg-white/[0.04] border border-white/10 focus:border-[var(--primary-spotify,#06b6d4)]/60 rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none transition-all"
+                    className="w-full bg-white/[0.04] border border-white/10 focus:border-[var(--primary-spotify,#06b6d4)]/60 rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none transition-colors"
                     autoFocus
                   />
                   {urlInput && (
@@ -308,9 +319,8 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
               </div>
 
               <div className="p-3 sm:p-4 bg-white/[0.02] border border-white/5 rounded-xl sm:rounded-2xl flex flex-col gap-2">
-                <span className="text-xs font-bold text-slate-300 flex items-center gap-2">
-                  <Sparkles className="w-3.5 h-3.5 text-[var(--primary-spotify,#06b6d4)] shrink-0" />
-                  <span>Định dạng liên kết được hỗ trợ:</span>
+                <span className="text-xs font-bold text-slate-300">
+                  Định dạng liên kết được hỗ trợ:
                 </span>
                 <ul className="text-[11px] text-slate-400 flex flex-col gap-1 font-mono pl-4 list-disc break-all">
                   <li>music.youtube.com/playlist?list=...</li>
@@ -323,7 +333,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
               <button
                 type="submit"
                 disabled={!urlInput.trim() || loadingMeta}
-                className="w-full py-3 sm:py-3.5 rounded-xl font-bold text-xs sm:text-sm bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black shadow-lg shadow-[var(--theme-glow-shadow)] flex items-center justify-center gap-2 disabled:opacity-50 transition-all cursor-pointer"
+                className="w-full py-3 sm:py-3.5 rounded-xl font-bold text-xs sm:text-sm bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 transition-[filter,opacity] cursor-pointer"
               >
                 {loadingMeta ? (
                   <>
@@ -440,7 +450,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
                     <div
                       key={t.id}
                       onClick={() => toggleSelectTrack(t.id)}
-                      className={`flex items-center gap-2.5 sm:gap-3 p-2 sm:p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                      className={`flex items-center gap-2.5 sm:gap-3 p-2 sm:p-2.5 rounded-xl border transition-[background-color,border-color,opacity] cursor-pointer select-none ${
                         isChecked
                           ? 'bg-white/[0.04] border-white/10 hover:border-[var(--primary-spotify,#06b6d4)]/40'
                           : 'bg-white/[0.01] border-transparent opacity-60 hover:opacity-100'
@@ -484,7 +494,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
                   type="button"
                   onClick={handleConfirmImport}
                   disabled={selectedTrackIds.size === 0}
-                  className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs font-bold bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black shadow-lg shadow-[var(--theme-glow-shadow)] flex items-center gap-1.5 sm:gap-2 disabled:opacity-50 transition-all cursor-pointer"
+                  className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs font-bold bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black shadow-lg flex items-center gap-1.5 sm:gap-2 disabled:opacity-50 transition-[filter,opacity] cursor-pointer"
                 >
                   <Check className="w-4 h-4" />
                   <span>Xác nhận ({selectedTrackIds.size} bài)</span>
@@ -507,7 +517,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
               </div>
               <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden max-w-md">
                 <div
-                  className="bg-gradient-to-r from-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#3b82f6)] h-full transition-all duration-200"
+                  className="bg-gradient-to-r from-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#3b82f6)] h-full transition-[width] duration-200"
                   style={{
                     width: `${importingProgress.total > 0 ? (importingProgress.done / importingProgress.total) * 100 : 0}%`,
                   }}
@@ -543,7 +553,7 @@ export function ImportYouTubePlaylistModal({ isOpen, onClose }: ImportYouTubePla
                       onClose()
                       router.push(`/playlist/${createdPlaylistId}`)
                     }}
-                    className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs font-bold bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black shadow-lg shadow-[var(--theme-glow-shadow)] flex items-center gap-2 transition-all cursor-pointer"
+                    className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs font-bold bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black shadow-lg flex items-center gap-2 transition-[filter] cursor-pointer"
                   >
                     <span>Mở Playlist Mới</span>
                     <ArrowRight className="w-4 h-4" />

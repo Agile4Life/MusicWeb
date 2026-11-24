@@ -16,8 +16,8 @@ import {
   Check,
   ListMusic,
   User,
-  Sparkles,
 } from 'lucide-react'
+import { toast } from '@/components/ui/ToastContext'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import {
   extractSpotifyPlaylistId,
@@ -109,6 +109,22 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
     }
     prevIsOpenRef.current = isOpen
   }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (manualMatchTrack) {
+        setManualMatchTrack(null)
+        return
+      }
+      if (step !== 'importing') {
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [isOpen, manualMatchTrack, step, onClose])
 
   if (!isOpen || typeof document === 'undefined') return null
 
@@ -284,7 +300,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
       )
 
       if (tracksToImport.length === 0) {
-        alert('Chưa có bài hát nào được chọn để thêm vào playlist!')
+        toast('Chưa có bài hát nào được chọn để thêm vào playlist!', 'error')
         return
       }
 
@@ -365,7 +381,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
       setStep('complete')
     } catch (err: any) {
       console.error('Import DB error:', err)
-      alert('Có lỗi xảy ra trong quá trình lưu dữ liệu: ' + err?.message)
+      toast(`Có lỗi xảy ra trong quá trình lưu dữ liệu: ${err?.message || err}`, 'error')
       setStep('review')
     } finally {
       importingRef.current = false
@@ -385,8 +401,13 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
   })
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md p-0 sm:p-4 animate-in fade-in duration-200">
-      <div className="glass-panel modal-content relative w-full max-sm:rounded-t-3xl max-sm:rounded-b-none sm:max-w-2xl max-h-[92vh] sm:max-h-[85vh] bg-[var(--elevation-2-bg,#0f121a)] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-200 animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200">
+    <div
+      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md p-0 sm:p-4 animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && step !== 'importing') onClose()
+      }}
+    >
+      <div className="glass-panel modal-content relative w-full max-sm:rounded-t-3xl max-sm:rounded-b-none sm:max-w-xl max-h-[92vh] sm:max-h-[85vh] bg-[var(--elevation-2-bg,#0f121a)] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-200 animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200">
         
         {/* Mobile Drag Indicator Bar */}
         <div className="w-12 h-1 bg-white/20 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
@@ -395,7 +416,9 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
         <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-white/[0.08] bg-white/[0.02] shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/20 flex items-center justify-center text-[var(--primary-spotify,#06b6d4)] shrink-0">
-              <Sparkles className="w-5 h-5" />
+              <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+                <path d="M12 0C5.372 0 0 5.372 0 12s5.372 12 12 12 12-5.372 12-12S18.628 0 12 0zm5.504 17.308c-.216.353-.675.464-1.028.248-2.816-1.72-6.36-2.109-10.535-1.155-.403.092-.805-.16-.897-.563-.092-.403.16-.805.563-.897 4.568-1.044 8.485-.594 11.649 1.339.353.216.464.675.248 1.028zm1.469-3.268c-.272.442-.851.58-1.293.308-3.224-1.981-8.138-2.555-11.951-1.397-.497.151-1.022-.13-1.173-.627-.151-.497.13-1.022.627-1.173 4.356-1.322 9.772-.682 13.482 1.596.442.272.58.851.308 1.293zm.126-3.403c-3.866-2.296-10.244-2.507-13.937-1.386-.593.18-1.22-.155-1.4-.748-.18-.593.155-1.22.748-1.4 4.24-1.287 11.286-1.038 15.736 1.604.534.317.709 1.006.392 1.54-.317.534-1.006.709-1.539.39z" />
+              </svg>
             </div>
             <div className="min-w-0">
               <h2 className="text-sm sm:text-base font-bold text-white truncate">
@@ -470,7 +493,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
                 <button
                   onClick={() => handleParseAndFetchMeta()}
                   disabled={loadingMeta || !urlInput.trim()}
-                  className="w-full sm:w-auto sm:ml-auto px-6 py-3 bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 active:scale-[0.98] disabled:opacity-50 text-black font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-[var(--theme-glow-shadow)]"
+                  className="w-full sm:w-auto sm:ml-auto px-6 py-3 bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 active:scale-[0.98] disabled:opacity-50 text-black font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 transition-[filter,transform,opacity] shadow-lg cursor-pointer"
                 >
                   {loadingMeta ? (
                     <>
@@ -563,7 +586,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
                 <button
                   onClick={handleStartMatching}
                   disabled={loadingTracks || spotifyTracks.length === 0}
-                  className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 disabled:opacity-50 text-black font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-[var(--theme-glow-shadow)] active:scale-[0.98]"
+                  className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 disabled:opacity-50 text-black font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 transition-[filter,transform,opacity] shadow-lg active:scale-[0.98] cursor-pointer"
                 >
                   <span>Bắt đầu thêm nhạc</span>
                   <ArrowRight className="w-4 h-4" />
@@ -593,7 +616,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
               <div className="max-w-md mx-auto space-y-1.5 px-2">
                 <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#3b82f6)] transition-all duration-300 rounded-full"
+                    className="h-full bg-gradient-to-r from-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#3b82f6)] transition-[width] duration-300 rounded-full"
                     style={{
                       width: `${progress.total > 0 ? (progress.done / progress.total) * 100 : 0}%`,
                     }}
@@ -626,7 +649,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
                 <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1.5">
                   <button
                     onClick={() => setActiveTab('all')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                       activeTab === 'all'
                         ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-sm'
                         : 'bg-white/[0.04] text-slate-400 hover:text-white border border-white/5'
@@ -636,7 +659,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
                   </button>
                   <button
                     onClick={() => setActiveTab('high')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                       activeTab === 'high'
                         ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-sm'
                         : 'bg-white/[0.04] text-slate-400 hover:text-white border border-white/5'
@@ -646,7 +669,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
                   </button>
                   <button
                     onClick={() => setActiveTab('low')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                       activeTab === 'low'
                         ? 'bg-amber-500 text-black shadow-sm'
                         : 'bg-white/[0.04] text-slate-400 hover:text-white border border-white/5'
@@ -656,7 +679,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
                   </button>
                   <button
                     onClick={() => setActiveTab('none')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                       activeTab === 'none'
                         ? 'bg-rose-500 text-white shadow-sm'
                         : 'bg-white/[0.04] text-slate-400 hover:text-white border border-white/5'
@@ -704,7 +727,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
                     return (
                       <div
                         key={item.spotify_id}
-                        className={`p-3 rounded-xl border transition-all space-y-2 ${
+                        className={`p-3 rounded-xl border transition-[background-color,border-color,opacity] space-y-2 ${
                           isSelected
                             ? 'bg-white/[0.04] border-white/15'
                             : 'bg-white/[0.01] border-white/[0.05] opacity-60'
@@ -801,7 +824,7 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
                 <button
                   onClick={handleConfirmImport}
                   disabled={selectedIds.size === 0}
-                  className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 disabled:opacity-50 text-black font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-[var(--theme-glow-shadow)] active:scale-[0.98]"
+                  className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 disabled:opacity-50 text-black font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 transition-[filter,transform,opacity] shadow-lg active:scale-[0.98] cursor-pointer"
                 >
                   <span>Tạo Playlist ({selectedIds.size} bài)</span>
                   <Check className="w-4 h-4" />
@@ -868,7 +891,12 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
 
       {/* MANUAL MATCHING SUB-MODAL */}
       {manualMatchTrack && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
+        <div
+          className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setManualMatchTrack(null)
+          }}
+        >
           <div className="glass-panel modal-content w-full max-sm:rounded-t-3xl max-sm:rounded-b-none sm:max-w-lg max-h-[85vh] bg-[var(--elevation-2-bg,#141824)] border border-white/15 rounded-2xl p-4 sm:p-5 shadow-2xl space-y-4 text-slate-200 flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
             
             {/* Mobile handle indicator */}
