@@ -35,20 +35,10 @@ export function MediaCard({
   onClick,
   onPlay,
   isPlaying = false,
-  index = 0,
   className = '',
   fallbackIcon = 'album',
 }: MediaCardProps) {
-  // Determine badge text
-  const displayBadge =
-    badgeLabel ||
-    (type === 'single'
-      ? 'Single / EP'
-      : type === 'playlist'
-        ? 'Playlist'
-        : type === 'track'
-          ? 'Bài hát'
-          : 'Album')
+  const displayBadge = badgeLabel
 
   const isArtistSubtitle = Boolean(
     subtitle &&
@@ -90,10 +80,9 @@ export function MediaCard({
 
   return (
     <TiltCard
-      className={`media-card group p-2.5 xs:p-3 sm:p-3.5 flex flex-col gap-2.5 sm:gap-3 cursor-pointer outline-none w-full select-none ${
+      className={`media-card group p-2.5 sm:p-3.5 flex flex-col gap-2.5 sm:gap-3 cursor-pointer outline-none w-full select-none ${
         isPlaying ? 'is-playing' : ''
       } ${className}`}
-      style={{ '--i': index } as React.CSSProperties}
     >
       <Link href={href} onClick={handleCardClick} className="flex flex-col gap-2.5 sm:gap-3 h-full w-full outline-none">
         {/* 3D Elevated Cover Artwork Container */}
@@ -133,7 +122,7 @@ export function MediaCard({
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') handlePlayClick(e)
               }}
-              className="play-btn z-10 btn-3d-tactile"
+              className="play-btn z-10"
             >
               {isPlaying ? (
                 <Pause className="w-5 h-5 fill-current" />
@@ -163,8 +152,8 @@ export function MediaCard({
               </p>
             ))}
           {metaText && (
-            <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-500 mt-0.5">
-              <span>{metaText}</span>
+            <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-500 mt-0.5 min-w-0">
+              <span className="truncate">{metaText}</span>
             </div>
           )}
         </div>

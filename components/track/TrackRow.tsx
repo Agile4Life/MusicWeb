@@ -27,6 +27,7 @@ import { prewarmSoundCloudTrack } from '@/lib/prewarmTrackBatch'
 import { isSoundCloudTrack } from '@/lib/trackSourceClassifier'
 import { resolveStreamCached } from '@/lib/resolveStreamClient'
 import { TrackContextMenu } from './TrackContextMenu'
+import { toast } from '@/components/ui/ToastContext'
 
 
 
@@ -47,6 +48,7 @@ interface TrackRowProps {
   isSelected?: boolean
   onToggleSelect?: () => void
   onMouseEnterRow?: (e: React.MouseEvent<HTMLDivElement>) => void
+  onHideRowGlide?: () => void
   /** Pre-fetched view count from batch API — skips per-row /api/track-views call */
   batchViewCount?: number | null
 }
@@ -75,6 +77,7 @@ function TrackRowComponent({
   isSelected = false,
   onToggleSelect,
   onMouseEnterRow,
+  onHideRowGlide,
   batchViewCount,
 }: TrackRowProps) {
   const router = useRouter()
@@ -142,7 +145,11 @@ function TrackRowComponent({
   const recentlyPrewarmedRef = useRef<Set<string>>(new Set())
 
   const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
-    onMouseEnterRow?.(e)
+    if (isCurrent || isSelected) {
+      onHideRowGlide?.()
+    } else {
+      onMouseEnterRow?.(e)
+    }
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
     hoverTimeoutRef.current = setTimeout(() => {
       // 1. Pre-warm NCT stream URL so play is instant when user clicks
@@ -245,12 +252,6 @@ function TrackRowComponent({
 
   const hasRealAlbumDisplay = isRealAlbumName(currentAlbumDisplay, track.title)
 
-  const [, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
   const handleToggleMenu = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (!showMenu) {
@@ -326,10 +327,10 @@ function TrackRowComponent({
         setEditMode(false)
       } else {
         const errData = await res.json().catch(() => ({}))
-        alert('Lỗi sửa track: ' + (errData.error || 'Không xác định'))
+        toast('Lỗi sửa track: ' + (errData.error || 'Không xác định'), 'error')
       }
     } catch (err: any) {
-      alert('Lỗi sửa track: ' + (err?.message || 'Lỗi mạng'))
+      toast('Lỗi sửa track: ' + (err?.message || 'Lỗi mạng'), 'error')
     } finally {
       setSaving(false)
     }
@@ -386,11 +387,11 @@ function TrackRowComponent({
       onClick={onPlayClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`recent-row song-row cv-auto group flex items-center justify-between px-3 md:px-4 py-2.5 rounded-xl transition-all duration-200 cursor-pointer select-none border relative ${
+      className={`recent-row song-row cv-auto group flex items-center justify-between px-3 md:px-4 py-2.5 rounded-xl transition-[background-color,border-color,color] duration-200 cursor-pointer select-none border relative ${
         showMenu
           ? 'z-40 bg-white/[0.12] border-white/20 text-white shadow-lg'
           : isSelected
-          ? 'bg-[var(--primary-spotify,#06b6d4)]/20 border-[var(--primary-spotify,#06b6d4)]/50 text-white font-bold shadow-md hover:bg-[var(--primary-spotify,#06b6d4)]/25'
+          ? 'is-active bg-[var(--primary-spotify,#06b6d4)]/20 border-[var(--primary-spotify,#06b6d4)]/50 text-white font-bold shadow-md hover:bg-[var(--primary-spotify,#06b6d4)]/25'
           : isCurrent
           ? 'is-playing bg-[var(--primary-spotify,#06b6d4)]/10 border-[var(--primary-spotify,#06b6d4)]/30 text-white hover:bg-[var(--primary-spotify,#06b6d4)]/18 shadow-[0_2px_12px_color-mix(in_srgb,var(--primary-spotify,#06b6d4)_15%,transparent)]'
           : 'bg-transparent border-transparent'
@@ -435,7 +436,7 @@ function TrackRowComponent({
               onPlayClick?.()
             }}
             aria-label={isPlayingThis ? 'Tạm dừng' : 'Phát'}
-            className="hidden group-hover:flex items-center justify-center text-white hover:scale-110 transition-transform"
+            className="hidden group-hover:flex items-center justify-center text-white cursor-pointer"
           >
             {isPlayingThis ? (
               <Pause className="w-4 h-4 fill-current text-[var(--spotify-glow,#22d3ee)]" />
@@ -483,7 +484,6 @@ function TrackRowComponent({
           <div className="flex items-center gap-1.5 truncate mt-0.5">
             {editMode ? (
               <input
-                autoFocus
                 value={editArtist}
                 onChange={(e) => setEditArtist(e.target.value)}
                 onClick={(e) => e.stopPropagation()}
@@ -514,7 +514,7 @@ function TrackRowComponent({
       </div>
 
       {/* Album — editable inline */}
-      <div className="hidden md:block w-40 lg:w-52 xl:w-64 shrink-0 truncate text-xs text-slate-400 px-2">
+      <div className="hidden @[560px]:block w-40 lg:w-48 xl:w-60 shrink-0 truncate text-xs text-slate-400 px-2">
         {editMode ? (
           <input
             value={editAlbum}
@@ -527,15 +527,15 @@ function TrackRowComponent({
           <button
             onClick={handleOpenTrackAlbum}
             disabled={isResolvingAlbum}
-            className="hover:text-[var(--spotify-glow,#22d3ee)] hover:underline transition-colors text-left inline-flex items-center gap-1.5 max-w-full truncate text-xs cursor-pointer group"
+            className="hover:text-[var(--spotify-glow,#22d3ee)] hover:underline transition-colors text-left inline-flex items-center gap-1.5 max-w-full truncate text-xs cursor-pointer group/album"
             title={hasRealAlbumDisplay ? `Vào album: ${currentAlbumDisplay}` : 'Vào Album bài hát'}
           >
             {isResolvingAlbum ? (
               <Loader2 className="w-3 h-3 text-[var(--primary-spotify,#06b6d4)] animate-spin shrink-0" />
             ) : (
-              <DiscAlbum className="w-3 h-3 text-[var(--primary-spotify,#06b6d4)]/80 group-hover:text-[var(--primary-spotify,#06b6d4)] shrink-0" />
+              <DiscAlbum className="w-3 h-3 text-[var(--primary-spotify,#06b6d4)]/80 group-hover/album:text-[var(--primary-spotify,#06b6d4)] shrink-0" />
             )}
-            <span className="truncate group-hover:text-[var(--primary-spotify,#06b6d4)]">
+            <span className="truncate group-hover/album:text-[var(--primary-spotify,#06b6d4)]">
               {hasRealAlbumDisplay ? currentAlbumDisplay : 'Album'}
             </span>
           </button>
@@ -544,7 +544,7 @@ function TrackRowComponent({
 
       {/* Views */}
       <div
-        className="hidden sm:flex items-center justify-end gap-1.5 w-24 md:w-28 shrink-0 text-[11px] font-mono text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] transition-colors px-2"
+        className="hidden @[680px]:flex items-center justify-end gap-1.5 w-24 shrink-0 text-[11px] font-mono text-slate-400 px-2"
         title={displayViews ? `${displayViews.toLocaleString('vi-VN')} lượt xem trên YouTube` : undefined}
       >
         {displayViews != null && displayViews > 0 ? (
@@ -561,7 +561,7 @@ function TrackRowComponent({
       </div>
 
       {/* Options container */}
-      <div className="w-8 sm:w-16 flex items-center justify-end shrink-0">
+      <div className="w-9 sm:w-16 flex items-center justify-end shrink-0">
           {/* Edit mode save/cancel */}
           {editMode ? (
             <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -589,7 +589,7 @@ function TrackRowComponent({
                     e.stopPropagation()
                     onAddToQueue()
                   }}
-                  className={`p-1.5 text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10 rounded-lg transition-all hidden sm:block ${
+                  className={`p-1.5 text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10 rounded-lg transition-[opacity,color,background-color] hidden sm:block cursor-pointer ${
                     showMenu ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                   }`}
                   title="Thêm vào hàng đợi"

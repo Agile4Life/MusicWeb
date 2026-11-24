@@ -6,10 +6,9 @@ import { createClient } from '@/lib/supabase/client'
 import { SpotifyAlbumItem } from '@/lib/spotify'
 import { Track } from '@/types'
 import { usePlayerControls } from '@/components/player/PlayerContext'
-import { DiscAlbum, Sparkles, Search, X, Loader2 } from 'lucide-react'
-import { HeroCardSkeleton } from '@/components/common/SkeletonLoader'
+import { DiscAlbum, Search, X, Loader2 } from 'lucide-react'
+import { HeroCardSkeleton, MediaCardGridSkeleton } from '@/components/common/SkeletonLoader'
 import { MediaCard } from '@/components/common/MediaCard'
-import { useGridGlideIndicator } from '@/components/common/useGlideIndicator'
 import { isKnownBadFallback, isRealAlbumName } from '@/lib/albumCache'
 import { cleanDisplayAlbumName, normalizeAlbumText, stripAlbumEditionSuffix } from '@/lib/albumMatching'
 
@@ -57,7 +56,7 @@ function AlbumCard({ album, index = 0 }: AlbumCardProps) {
       subtitle={album.artist}
       coverUrl={album.cover_url}
       type={album.album_type === 'single' ? 'single' : 'album'}
-      badgeLabel={album.album_type === 'single' ? 'Single / EP' : 'Album'}
+      badgeLabel={album.album_type === 'single' ? 'Single / EP' : undefined}
       metaText={metaText}
       href={`/album/${encodeURIComponent(album.id)}`}
       onPlay={handlePlayAlbum}
@@ -79,10 +78,6 @@ export default function AlbumsPage() {
   const [listenedAlbums, setListenedAlbums] = useState<SpotifyAlbumItem[]>(cachedListenedAlbums)
   const [newReleases, setNewReleases] = useState<SpotifyAlbumItem[]>(cachedNewReleases)
   const [loading, setLoading] = useState<boolean>(cachedListenedAlbums.length === 0 && cachedNewReleases.length === 0)
-
-  const searchGrid = useGridGlideIndicator()
-  const listenedGrid = useGridGlideIndicator()
-  const newReleasesGrid = useGridGlideIndicator()
 
   // Search state
   const [albumQuery, setAlbumQuery] = useState('')
@@ -207,10 +202,10 @@ export default function AlbumsPage() {
   }, [albumQuery])
 
   return (
-    <div className="px-2.5 py-3 sm:px-4 sm:py-3.5 md:px-6 md:py-4 lg:px-7 lg:py-5 flex flex-col gap-3 sm:gap-4 md:gap-5 max-w-7xl mx-auto w-full pb-36 lg:pb-12 select-none">
+    <div className="px-2.5 py-3 sm:px-4 sm:py-3.5 md:px-6 md:py-4 lg:px-7 lg:py-5 flex flex-col gap-3 sm:gap-4 md:gap-5 max-w-7xl mx-auto w-full pb-36 lg:pb-8 select-none">
       {/* Header Banner */}
-      <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.08] p-3 sm:p-4 md:p-5 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
-        <div className="flex items-center gap-3 sm:gap-4">
+      <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.08] p-3 sm:p-4 md:p-5 shadow-xl flex flex-col @[700px]/main:flex-row items-start @[700px]/main:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
           <div
             style={{
               backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
@@ -221,20 +216,15 @@ export default function AlbumsPage() {
           >
             <DiscAlbum className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
           </div>
-          <div>
-            <div style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-mono uppercase tracking-widest mb-0.5 sm:mb-1">
-              <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span>BỘ SƯU TẬP ALBUM NỔI BẬT</span>
-            </div>
-            <h1 className="text-lg sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight truncate">
               Thư Viện Albums
             </h1>
             <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 max-w-lg line-clamp-2 sm:line-clamp-none">
-              Khám phá và tìm kiếm hơn 60+ album phát hành mới nhất trên toàn thế giới từ Deezer & Spotify.
+              Khám phá các album đã nghe và danh sách phát hành mới nhất.
             </p>
           </div>
         </div>
-
       </div>
 
       {/* Album Search Input */}
@@ -245,14 +235,14 @@ export default function AlbumsPage() {
           value={albumQuery}
           onChange={(e) => setAlbumQuery(e.target.value)}
           placeholder="Tìm kiếm Album theo tên đĩa nhạc, nghệ sĩ (Sơn Tùng, Taylor Swift, Coldplay...)"
-          className="search-input w-full bg-[var(--elevation-1-bg,#0d111a)] border border-white/10 focus:border-[var(--primary-spotify,#06b6d4)]/60 rounded-full pl-11 pr-10 py-2 sm:py-2.5 text-xs text-white placeholder-slate-400 outline-none transition-all shadow-inner"
+          className="search-input w-full bg-[var(--elevation-1-bg,#0d111a)] border border-white/10 focus:border-[var(--primary-spotify,#06b6d4)]/60 rounded-full pl-11 pr-10 py-2 sm:py-2.5 text-xs text-white placeholder-slate-400 outline-none transition-colors shadow-inner"
         />
         {searching ? (
           <Loader2 className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)] animate-spin absolute right-3.5" />
         ) : albumQuery ? (
           <button
             onClick={() => setAlbumQuery('')}
-            className="absolute right-3.5 p-0.5 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+            className="absolute right-3.5 p-0.5 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -260,14 +250,14 @@ export default function AlbumsPage() {
       </div>
 
       {loading ? (
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-6">
           <HeroCardSkeleton />
-          <HeroCardSkeleton />
+          <MediaCardGridSkeleton count={12} />
         </div>
       ) : albumQuery.trim() ? (
         /* Search Results Mode */
         <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                 Kết quả tìm kiếm cho:
@@ -282,30 +272,11 @@ export default function AlbumsPage() {
           </div>
 
           {searching ? (
-            <div className="flex flex-col gap-4">
-              <HeroCardSkeleton />
-            </div>
+            <MediaCardGridSkeleton count={12} />
           ) : searchResults.length > 0 ? (
-            <div
-              ref={searchGrid.containerRef}
-              onMouseLeave={searchGrid.handleContainerMouseLeave}
-              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-5 relative"
-            >
-              <div
-                className="grid-glide-indicator"
-                style={{
-                  transform: `translate3d(${searchGrid.indicator.left}px, ${searchGrid.indicator.top}px, 0) scale(${searchGrid.indicator.scaleX}, ${searchGrid.indicator.scaleY})`,
-                  width: `${searchGrid.indicator.width}px`,
-                  height: `${searchGrid.indicator.height}px`,
-                  opacity: searchGrid.indicator.opacity,
-                }}
-              />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 sm:gap-4">
               {searchResults.map((album, idx) => (
-                <div
-                  key={album.id}
-                  onMouseEnter={searchGrid.handleItemMouseEnter}
-                  className="relative z-[1] h-full"
-                >
+                <div key={album.id} className="h-full">
                   <AlbumCard album={album} index={idx} />
                 </div>
               ))}
@@ -335,26 +306,9 @@ export default function AlbumsPage() {
                 </span>
               </div>
 
-              <div
-                ref={listenedGrid.containerRef}
-                onMouseLeave={listenedGrid.handleContainerMouseLeave}
-                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-5 relative"
-              >
-                <div
-                  className="grid-glide-indicator"
-                  style={{
-                    transform: `translate3d(${listenedGrid.indicator.left}px, ${listenedGrid.indicator.top}px, 0) scale(${listenedGrid.indicator.scaleX}, ${listenedGrid.indicator.scaleY})`,
-                    width: `${listenedGrid.indicator.width}px`,
-                    height: `${listenedGrid.indicator.height}px`,
-                    opacity: listenedGrid.indicator.opacity,
-                  }}
-                />
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 sm:gap-4">
                 {listenedAlbums.map((album, idx) => (
-                  <div
-                    key={album.id}
-                    onMouseEnter={listenedGrid.handleItemMouseEnter}
-                    className="relative z-[1] h-full"
-                  >
+                  <div key={album.id} className="h-full">
                     <AlbumCard album={album} index={idx} />
                   </div>
                 ))}
@@ -368,35 +322,18 @@ export default function AlbumsPage() {
               <div className="flex items-center gap-2.5">
                 <div className="w-2 h-5 bg-[var(--theme-secondary,#ec4899)] rounded-full" />
                 <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">
-                  Khám Phá Album Mới (Top Releases)
+                  Khám Phá Album Mới
                 </h2>
               </div>
               <span className="text-xs font-mono text-slate-500">
-                {newReleases.length} Albums • 3 Nền Tảng
+                {newReleases.length} albums
               </span>
             </div>
 
             {newReleases.length > 0 ? (
-              <div
-                ref={newReleasesGrid.containerRef}
-                onMouseLeave={newReleasesGrid.handleContainerMouseLeave}
-                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-5 relative"
-              >
-                <div
-                  className="grid-glide-indicator"
-                  style={{
-                    transform: `translate3d(${newReleasesGrid.indicator.left}px, ${newReleasesGrid.indicator.top}px, 0) scale(${newReleasesGrid.indicator.scaleX}, ${newReleasesGrid.indicator.scaleY})`,
-                    width: `${newReleasesGrid.indicator.width}px`,
-                    height: `${newReleasesGrid.indicator.height}px`,
-                    opacity: newReleasesGrid.indicator.opacity,
-                  }}
-                />
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 sm:gap-4">
                 {newReleases.map((album, idx) => (
-                  <div
-                    key={album.id}
-                    onMouseEnter={newReleasesGrid.handleItemMouseEnter}
-                    className="relative z-[1] h-full"
-                  >
+                  <div key={album.id} className="h-full">
                     <AlbumCard album={album} index={idx} />
                   </div>
                 ))}

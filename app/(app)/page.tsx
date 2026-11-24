@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Track } from '@/types'
 import { TrackList } from '@/components/track/TrackList'
-import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
+import { TrackListSkeleton, MediaCardGridSkeleton } from '@/components/common/SkeletonLoader'
 import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
 import { mergeTrackMetadata } from '@/lib/utils'
 import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
@@ -16,7 +16,6 @@ import { getValidUserId } from '@/lib/accessControl'
 import { toast } from '@/components/ui/ToastContext'
 import { getRecentUniqueTracks } from '@/lib/listeningHistory'
 import { MediaCard } from '@/components/common/MediaCard'
-import { useGridGlideIndicator } from '@/components/common/useGlideIndicator'
 import { buildStyleCoherentQueue } from '@/lib/trackClassifier'
 import { inferTrackSource } from '@/lib/trackSourceClassifier'
 
@@ -125,10 +124,6 @@ export default function HomePage() {
   const { playTrack } = usePlayerControls()
   const { playlists } = usePlaylists()
   const { getScrollY } = useScrollContext()
-  const albumGrid = useGridGlideIndicator()
-  const playlistGrid = useGridGlideIndicator()
-  const trendingGrid = useGridGlideIndicator()
-  const driveGrid = useGridGlideIndicator()
   const {
     searchQuery,
     setSearchQuery,
@@ -938,25 +933,17 @@ export default function HomePage() {
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className="px-6 py-3 sm:px-5 sm:py-3.5 md:px-6 md:py-4 lg:px-7 lg:py-5 flex flex-col gap-3 sm:gap-4 md:gap-5 max-w-7xl mx-auto w-full pb-36 lg:pb-16 select-none"
+        className="px-6 py-3 sm:px-5 sm:py-3.5 md:px-6 md:py-4 lg:px-7 lg:py-5 flex flex-col gap-3 sm:gap-4 md:gap-5 max-w-7xl mx-auto w-full pb-36 lg:pb-8 select-none"
       >
         {/* High-Impact Clean Hero Card with Editorial Vinyl Element */}
-        {/* Mobile: Compact greeting only | Desktop: Full banner with vinyl */}
         <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.06] p-3.5 sm:p-4 md:p-5">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 lg:gap-5 relative z-10">
-            <div className="hero-copy flex flex-col gap-1 sm:gap-1.5 max-w-xl">
-              {/* Mobile: Hidden eyebrow, desc, admin button | Desktop: Full content */}
-              <span className="eyebrow hidden sm:block text-[10px] sm:text-[11px] font-mono tracking-widest uppercase font-semibold text-[var(--spotify-glow,#22d3ee)]">
-                Thư viện âm nhạc của bạn
-              </span>
+          <div className="flex flex-col @[700px]/main:flex-row items-start @[700px]/main:items-center justify-between gap-3 lg:gap-5 relative z-10">
+            <div className="hero-copy flex flex-col gap-1 sm:gap-1.5 min-w-0 flex-1 max-w-xl">
               <h1 className="text-base sm:text-xl lg:text-2xl font-display font-bold text-white tracking-tight leading-tight">
                 Xin chào{user ? `, ${user.user_metadata?.full_name || user.email?.split('@')[0]}` : ''}
               </h1>
-              <p className="hidden sm:block text-xs text-slate-400 leading-relaxed max-w-md line-clamp-2 sm:line-clamp-none">
-                Khám phá và nghe những bài hát yêu thích, được gom về từ một thư viện âm nhạc thống nhất.
-              </p>
-              <div className="hidden sm:flex items-center gap-3 mt-1.5">
-                {isAdmin && (
+              {isAdmin && (
+                <div className="hidden sm:flex items-center gap-3 mt-1.5">
                   <Link
                     href="/upload"
                     className="btn-outline-accent font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-2 text-xs"
@@ -964,12 +951,12 @@ export default function HomePage() {
                     <Upload className="w-3.5 h-3.5" />
                     <span>Upload bài hát</span>
                   </Link>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             {/* Editorial Decorative Vinyl Disc with Track Cover Center */}
-            <div className="hero-vinyl hidden md:flex items-center justify-center shrink-0">
+            <div className="hero-vinyl hidden @[700px]/main:flex items-center justify-center shrink-0">
               <div className={`hero-vinyl-disc ${isPlaying ? 'is-spinning' : 'is-paused'}`}>
                 <div className="hero-vinyl-label overflow-hidden rounded-full relative flex items-center justify-center">
                   {currentTrack?.cover_url ? (
@@ -997,10 +984,8 @@ export default function HomePage() {
         {!isSearching && (
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between pb-1">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-rose-500/10 border border-rose-500/25 flex items-center justify-center shadow-[0_0_12px_rgba(244,63,94,0.3)]">
-                  <TrendingUp className="w-4 h-4 text-rose-400" />
-                </div>
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-rose-400 shrink-0" />
                 <h2 className="text-base font-bold font-display text-white tracking-tight">
                   Trending & Hot Songs
                 </h2>
@@ -1021,7 +1006,7 @@ export default function HomePage() {
                   <button
                     key={cat.id}
                     onClick={() => setSelectedCategory(cat.id)}
-                    className={`flex-shrink-0 px-4 py-1.5 rounded-full text-[11px] font-semibold transition-all inline-flex items-center gap-1.5 ${
+                    className={`flex-shrink-0 px-4 py-1.5 rounded-full text-[11px] font-semibold transition-colors inline-flex items-center gap-1.5 ${
                       isActive
                         ? 'bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--primary-spotify,#06b6d4)] text-black border border-white/20 shadow-[0_2px_8px_var(--theme-glow-shadow)]'
                         : 'bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10 hover:text-white'
@@ -1037,18 +1022,16 @@ export default function HomePage() {
             </div>
 
             {/* Category Chips - Desktop */}
-            <div className="hidden lg:flex gap-2 overflow-x-auto no-scrollbar pb-1"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
+            <div className="hidden lg:flex flex-wrap gap-2 pb-1">
               {categories.map((cat) => {
                 const isActive = selectedCategory === cat.id
                 return (
                   <button
                     key={cat.id}
                     onClick={() => setSelectedCategory(cat.id)}
-                    className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all inline-flex items-center gap-1.5 ${
+                    className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-colors inline-flex items-center gap-1.5 cursor-pointer ${
                       isActive
-                        ? 'bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--primary-spotify,#06b6d4)] text-black border border-white/20 shadow-[0_2px_8px_var(--theme-glow-shadow)]'
+                        ? 'bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--primary-spotify,#06b6d4)] text-black border border-white/20'
                         : 'bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10 hover:text-white'
                     }`}
                   >
@@ -1077,14 +1060,8 @@ export default function HomePage() {
                   ))}
                 </div>
                 {/* Desktop skeleton */}
-                <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse flex flex-col gap-2.5">
-                      <div className="aspect-square w-full bg-slate-800/80 rounded-xl" />
-                      <div className="h-3 bg-slate-700/80 rounded w-3/4" />
-                      <div className="h-2 bg-slate-800/80 rounded w-1/2" />
-                    </div>
-                  ))}
+                <div className="hidden md:block">
+                  <MediaCardGridSkeleton count={6} />
                 </div>
               </>
             ) : currentCategoryTracks.length > 0 ? (
@@ -1115,34 +1092,16 @@ export default function HomePage() {
                     </div>
                   ))}
                 </div>
-                {/* Desktop: Grid with glide indicator */}
-                <div
-                  ref={trendingGrid.containerRef}
-                  onMouseLeave={trendingGrid.handleContainerMouseLeave}
-                  className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative"
-                >
-                  <div
-                    className="grid-glide-indicator"
-                    style={{
-                      transform: `translate3d(${trendingGrid.indicator.left}px, ${trendingGrid.indicator.top}px, 0) scale(${trendingGrid.indicator.scaleX}, ${trendingGrid.indicator.scaleY})`,
-                      width: `${trendingGrid.indicator.width}px`,
-                      height: `${trendingGrid.indicator.height}px`,
-                      opacity: trendingGrid.indicator.opacity,
-                    }}
-                  />
+                {/* Desktop: Fluid Auto-Fill Grid */}
+                <div className="hidden md:grid grid-cols-3 lg:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 sm:gap-4">
                   {currentCategoryTracks.map((t, idx) => (
-                    <div
-                      key={t.id}
-                      onMouseEnter={trendingGrid.handleItemMouseEnter}
-                      className="relative z-[1] h-full"
-                    >
+                    <div key={t.id} className="h-full">
                       <MediaCard
                         id={t.id}
                         title={t.title}
                         subtitle={t.artist || 'Nghệ sĩ chưa xác định'}
                         coverUrl={t.cover_url}
                         type="track"
-                        badgeLabel="Hot"
                         href="#"
                         onPlay={() => playTrack(t, buildStyleCoherentQueue(t, currentCategoryTracks))}
                         isPlaying={currentTrack?.id === t.id && isPlaying}
@@ -1168,7 +1127,7 @@ export default function HomePage() {
                 </div>
                 <button
                   onClick={() => setSelectedCategory('all')}
-                  className="mt-1 px-4 py-1.5 rounded-full text-xs font-semibold bg-white/10 hover:bg-white/15 text-[var(--spotify-glow,#22d3ee)] border border-[var(--primary-spotify,#06b6d4)]/30 transition-all shadow-[0_0_12px_var(--theme-glow-shadow)]"
+                  className="mt-1 px-4 py-1.5 rounded-full text-xs font-semibold bg-white/10 hover:bg-white/15 text-[var(--spotify-glow,#22d3ee)] border border-[var(--primary-spotify,#06b6d4)]/30 transition-colors cursor-pointer"
                 >
                   Xem tất cả thể loại
                 </button>
@@ -1181,10 +1140,8 @@ export default function HomePage() {
         {!isSearching && playlists && playlists.length > 0 && (
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between pb-1">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-[var(--spotify-glow,#22d3ee)]/10 border border-[var(--spotify-glow,#22d3ee)]/25 flex items-center justify-center shadow-[0_0_12px_var(--theme-glow-shadow,#22d3ee)]">
-                  <ListMusic style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
-                </div>
+              <div className="flex items-center gap-2">
+                <ListMusic style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4 shrink-0" />
                 <h2 className="text-base font-bold font-display text-white tracking-tight">
                   Playlist Của Bạn
                 </h2>
@@ -1194,11 +1151,7 @@ export default function HomePage() {
               </span>
             </div>
 
-            {/* Mobile: Horizontal scroll | Desktop: Grid with glide indicator */}
-            <div
-              ref={playlistGrid.containerRef}
-              onMouseLeave={playlistGrid.handleContainerMouseLeave}
-            >
+            <div>
               {/* Mobile: Horizontal scroll */}
               <div className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2 -mx-2.5 px-2.5"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
@@ -1222,30 +1175,16 @@ export default function HomePage() {
                   </div>
                 ))}
               </div>
-              {/* Desktop: Grid with glide indicator */}
-              <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative">
-                <div
-                  className="grid-glide-indicator"
-                  style={{
-                    transform: `translate3d(${playlistGrid.indicator.left}px, ${playlistGrid.indicator.top}px, 0) scale(${playlistGrid.indicator.scaleX}, ${playlistGrid.indicator.scaleY})`,
-                    width: `${playlistGrid.indicator.width}px`,
-                    height: `${playlistGrid.indicator.height}px`,
-                    opacity: playlistGrid.indicator.opacity,
-                  }}
-                />
+              {/* Desktop: Fluid Auto-Fill Grid */}
+              <div className="hidden md:grid grid-cols-3 lg:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 sm:gap-4">
                 {playlists.slice(0, 6).map((pl, idx) => (
-                  <div
-                    key={pl.id}
-                    onMouseEnter={playlistGrid.handleItemMouseEnter}
-                    className="relative z-[1] h-full"
-                  >
+                  <div key={pl.id} className="h-full">
                     <MediaCard
                       id={pl.id}
                       title={pl.name}
                       subtitle="Playlist cá nhân"
                       coverUrl={pl.cover_url || undefined}
                       type="playlist"
-                      badgeLabel="Playlist"
                       href={`/playlist/${pl.id}`}
                       index={idx}
                       fallbackIcon="playlist"
@@ -1261,17 +1200,15 @@ export default function HomePage() {
         {!isSearching && (
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between pb-1">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-[var(--spotify-glow,#22d3ee)]/10 border border-[var(--spotify-glow,#22d3ee)]/25 flex items-center justify-center shadow-[0_0_12px_var(--theme-glow-shadow,#22d3ee)]">
-                  <DiscAlbum style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
-                </div>
+              <div className="flex items-center gap-2">
+                <DiscAlbum style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4 shrink-0" />
                 <h2 className="text-base font-bold font-display text-white tracking-tight">
                   Trending & Hot Albums
                 </h2>
               </div>
               <Link
                 href="/albums"
-                className="text-xs font-semibold text-[var(--spotify-glow,#22d3ee)] hover:brightness-110 flex items-center gap-1 transition-all px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10 hover:border-[var(--primary-spotify,#06b6d4)]/30 hover:bg-white/[0.08]"
+                className="text-xs font-semibold text-[var(--spotify-glow,#22d3ee)] hover:text-white flex items-center gap-1 transition-colors px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10 hover:border-[var(--primary-spotify,#06b6d4)]/30 hover:bg-white/[0.08]"
               >
                 <span>Xem tất cả</span>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -1290,14 +1227,8 @@ export default function HomePage() {
                     </div>
                   ))}
                 </div>
-                <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse flex flex-col gap-2.5">
-                      <div className="aspect-square w-full bg-slate-800/80 rounded-xl" />
-                      <div className="h-3 bg-slate-700/80 rounded w-3/4" />
-                      <div className="h-2 bg-slate-800/80 rounded w-1/2" />
-                    </div>
-                  ))}
+                <div className="hidden md:block">
+                  <MediaCardGridSkeleton count={6} />
                 </div>
               </>
             ) : trendingAlbums.length > 0 ? (
@@ -1327,34 +1258,17 @@ export default function HomePage() {
                     </div>
                   ))}
                 </div>
-                {/* Desktop: Grid with glide indicator */}
-                <div
-                  ref={albumGrid.containerRef}
-                  onMouseLeave={albumGrid.handleContainerMouseLeave}
-                  className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative"
-                >
-                  <div
-                    className="grid-glide-indicator"
-                    style={{
-                      transform: `translate3d(${albumGrid.indicator.left}px, ${albumGrid.indicator.top}px, 0) scale(${albumGrid.indicator.scaleX}, ${albumGrid.indicator.scaleY})`,
-                      width: `${albumGrid.indicator.width}px`,
-                      height: `${albumGrid.indicator.height}px`,
-                      opacity: albumGrid.indicator.opacity,
-                    }}
-                  />
+                {/* Desktop: Fluid Auto-Fill Grid */}
+                <div className="hidden md:grid grid-cols-3 lg:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 sm:gap-4">
                   {trendingAlbums.map((album, idx) => (
-                    <div
-                      key={album.id}
-                      onMouseEnter={albumGrid.handleItemMouseEnter}
-                      className="relative z-[1] h-full"
-                    >
+                    <div key={album.id} className="h-full">
                       <MediaCard
                         id={album.id}
                         title={album.name}
                         subtitle={album.artist}
                         coverUrl={album.cover_url}
                         type={album.album_type === 'single' ? 'single' : 'album'}
-                        badgeLabel={album.album_type === 'single' ? 'Single' : 'Album'}
+                        badgeLabel={album.album_type === 'single' ? 'Single' : undefined}
                         href={`/album/${album.id}`}
                         onPlay={(e) => void handlePlayAlbum(e, album)}
                         index={idx}
@@ -1372,28 +1286,22 @@ export default function HomePage() {
         {!isSearching && driveTracks.length > 0 && (
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between pb-1">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-[var(--spotify-glow,#22d3ee)]/10 border border-[var(--spotify-glow,#22d3ee)]/25 flex items-center justify-center shadow-[0_0_12px_var(--theme-glow-shadow,#22d3ee)]">
-                  <Cloud style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4" />
-                </div>
+              <div className="flex items-center gap-2">
+                <Cloud style={{ color: 'var(--spotify-glow, #22d3ee)' }} className="w-4 h-4 shrink-0" />
                 <h2 className="text-base font-bold font-display text-white tracking-tight">
                   Kho Nhạc Google Drive
                 </h2>
               </div>
               <Link
                 href="/drive"
-                className="text-xs font-semibold text-[var(--spotify-glow,#22d3ee)] hover:brightness-110 flex items-center gap-1 transition-all px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10 hover:border-[var(--primary-spotify,#06b6d4)]/30 hover:bg-white/[0.08]"
+                className="text-xs font-semibold text-[var(--spotify-glow,#22d3ee)] hover:text-white flex items-center gap-1 transition-colors px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10 hover:border-[var(--primary-spotify,#06b6d4)]/30 hover:bg-white/[0.08]"
               >
                 <span>Xem tất cả ({driveTracks.length})</span>
                 <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
 
-            {/* Mobile: Horizontal scroll | Desktop: Grid */}
-            <div
-              ref={driveGrid.containerRef}
-              onMouseLeave={driveGrid.handleContainerMouseLeave}
-            >
+            <div>
               {/* Mobile: Horizontal scroll */}
               <div className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2 -mx-2.5 px-2.5"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
@@ -1419,30 +1327,16 @@ export default function HomePage() {
                   </div>
                 ))}
               </div>
-              {/* Desktop: Grid with glide indicator */}
-              <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative">
-                <div
-                  className="grid-glide-indicator"
-                  style={{
-                    transform: `translate3d(${driveGrid.indicator.left}px, ${driveGrid.indicator.top}px, 0) scale(${driveGrid.indicator.scaleX}, ${driveGrid.indicator.scaleY})`,
-                    width: `${driveGrid.indicator.width}px`,
-                    height: `${driveGrid.indicator.height}px`,
-                    opacity: driveGrid.indicator.opacity,
-                  }}
-                />
+              {/* Desktop: Fluid Auto-Fill Grid */}
+              <div className="hidden md:grid grid-cols-3 lg:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 sm:gap-4">
                 {driveTracks.slice(0, 6).map((t, idx) => (
-                  <div
-                    key={t.id}
-                    onMouseEnter={driveGrid.handleItemMouseEnter}
-                    className="relative z-[1] h-full"
-                  >
+                  <div key={t.id} className="h-full">
                     <MediaCard
                       id={t.id}
                       title={t.title}
                       subtitle={t.artist || 'Nghệ sĩ chưa xác định'}
                       coverUrl={t.cover_url}
                       type="track"
-                      badgeLabel="Drive"
                       href="/drive"
                       onPlay={() => playTrack(t, buildStyleCoherentQueue(t, driveTracks))}
                       isPlaying={currentTrack?.id === t.id && isPlaying}
@@ -1461,18 +1355,17 @@ export default function HomePage() {
           {!isSearching && (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
               {/* Tabs: visible on mobile and desktop */}
-              <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar max-w-full pb-1 md:pb-0 touch-pan-x pr-2 py-0.5">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap pb-1 md:pb-0">
                 <button
                   onClick={() => setLibraryTab('recent')}
                   style={
                     libraryTab === 'recent'
                       ? {
                         background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                        boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
                       }
                       : undefined
                   }
-                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${libraryTab === 'recent'
+                  className={`px-4 py-2 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer ${libraryTab === 'recent'
                       ? 'text-black font-extrabold border border-white/20'
                       : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:bg-white/10'
                     }`}
@@ -1487,11 +1380,10 @@ export default function HomePage() {
                     libraryTab === 'drive'
                       ? {
                         background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                        boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
                       }
                       : undefined
                   }
-                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${libraryTab === 'drive'
+                  className={`px-4 py-2 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer ${libraryTab === 'drive'
                       ? 'text-black font-extrabold border border-white/20'
                       : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:bg-white/10'
                     }`}
@@ -1506,11 +1398,10 @@ export default function HomePage() {
                     libraryTab === 'all'
                       ? {
                         background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                        boxShadow: '0 4px 14px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
                       }
                       : undefined
                   }
-                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${libraryTab === 'all'
+                  className={`px-4 py-2 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer ${libraryTab === 'all'
                       ? 'text-black font-extrabold border border-white/20'
                       : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:bg-white/10'
                     }`}
@@ -1526,7 +1417,7 @@ export default function HomePage() {
               <button
                 onClick={handleCleanMissingDriveFiles}
                 disabled={cleaningDuplicates}
-                className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--spotify-glow,#22d3ee)] hover:brightness-110 bg-[var(--primary-spotify,#06b6d4)]/10 hover:bg-[var(--primary-spotify,#06b6d4)]/20 border border-[var(--primary-spotify,#06b6d4)]/30 px-3.5 py-1.5 rounded-full transition-all disabled:opacity-50"
+                className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--spotify-glow,#22d3ee)] hover:brightness-110 bg-[var(--primary-spotify,#06b6d4)]/10 hover:bg-[var(--primary-spotify,#06b6d4)]/20 border border-[var(--primary-spotify,#06b6d4)]/30 px-3.5 py-1.5 rounded-full transition-colors disabled:opacity-50 cursor-pointer"
                 title="Tự động kiểm tra và xóa khỏi CSDL các bài hát đã bị xóa khỏi Google Drive"
               >
                 {cleaningDuplicates ? (
@@ -1551,7 +1442,7 @@ export default function HomePage() {
                   <button
                     onClick={handleCleanDuplicates}
                     disabled={cleaningDuplicates}
-                    className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-3.5 py-1.5 rounded-full transition-all disabled:opacity-50"
+                    className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-3.5 py-1.5 rounded-full transition-colors disabled:opacity-50 cursor-pointer"
                   >
                     {cleaningDuplicates ? (
                       <span className="animate-spin w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full inline-block" />
@@ -1601,7 +1492,7 @@ export default function HomePage() {
                 <div className="flex justify-center pt-3 pb-2">
                   <button
                     onClick={() => setShowAllResults(true)}
-                    className="bg-white/5 hover:bg-white/10 text-[var(--spotify-glow,#22d3ee)] hover:brightness-110 border border-white/10 text-xs font-bold px-6 py-2.5 rounded-full transition-all flex items-center gap-2 shadow-lg hover:scale-105"
+                    className="bg-white/5 hover:bg-white/10 text-[var(--spotify-glow,#22d3ee)] hover:brightness-110 border border-white/10 text-xs font-bold px-6 py-2.5 rounded-full transition-colors flex items-center gap-2 shadow-lg cursor-pointer"
                   >
                     <span>Xem thêm {displayedTracks.length - 15} kết quả cho &quot;{searchQuery.trim()}&quot;</span>
                     <ChevronRight className="w-4 h-4" />

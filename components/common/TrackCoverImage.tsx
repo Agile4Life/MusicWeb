@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { Music } from 'lucide-react'
 
 interface TrackCoverImageProps {
@@ -61,6 +61,8 @@ function TrackCoverImageComponent({
   const [hasError, setHasError] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [fallbackStage, setFallbackStage] = useState(0)
+  const imgRef = useRef<HTMLImageElement | null>(null)
+  const prevSrcRef = useRef(src)
 
   const highResSrc = useMemo(() => getHighResCoverUrl(src), [src])
 
@@ -88,6 +90,19 @@ function TrackCoverImageComponent({
     }
   }, [youtubeVideoId, fallbackStage, highResSrc, src])
 
+  useEffect(() => {
+    if (prevSrcRef.current !== src) {
+      prevSrcRef.current = src
+      setHasError(false)
+      setLoaded(false)
+      setFallbackStage(0)
+    }
+    const img = imgRef.current
+    if (img && img.complete && img.naturalWidth > 0) {
+      setLoaded(true)
+    }
+  }, [src, currentSrc])
+
   if (!currentSrc || hasError) {
     return (
       <div className="w-full h-full bg-[var(--bg-surface-2,#1e293b)] border border-white/10 flex items-center justify-center">
@@ -98,6 +113,7 @@ function TrackCoverImageComponent({
 
   return (
     <img
+      ref={imgRef}
       src={currentSrc}
       alt={alt}
       width={600}

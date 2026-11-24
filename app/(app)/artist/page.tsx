@@ -10,7 +10,7 @@ import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { addTrackToPlaylist } from '@/lib/trackPersistence'
 import { toast } from '@/components/ui/ToastContext'
 import { deduplicateQueueTracks } from '@/lib/utils'
-import { useListGlideIndicator, useGridGlideIndicator } from '@/components/common/useGlideIndicator'
+import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
 import { resolveStreamCached } from '@/lib/resolveStreamClient'
 import { prewarmNctStreamUrl } from '@/lib/nhaccuatuiClient'
 import { useBatchViewCounts, getViewCountCacheKey } from '@/hooks/useBatchViewCounts'
@@ -25,7 +25,6 @@ import {
   ChevronUp,
   Music,
   Users,
-  CheckCircle2,
   AlertTriangle,
   Eye,
   Clock,
@@ -55,7 +54,6 @@ export default function ArtistPage() {
   const { playTrack, toggleShuffle, addToQueue } = usePlayerControls()
 
   const { playlists } = usePlaylists()
-  const albumGrid = useGridGlideIndicator()
   const {
     containerRef: listContainerRef,
     indicator: trackIndicator,
@@ -217,7 +215,7 @@ export default function ArtistPage() {
         </div>
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-sm font-semibold border border-white/10 transition-all"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-sm font-semibold border border-white/10 transition-colors cursor-pointer"
         >
           <ChevronLeft className="w-4 h-4" />
           Quay lại
@@ -229,7 +227,7 @@ export default function ArtistPage() {
   return (
     <div className="p-4 md:p-6 lg:p-8 flex flex-col gap-6 md:gap-8 max-w-7xl mx-auto w-full pb-36 lg:pb-8">
       {/* Hero Section */}
-      <div className="artist-hero relative flex flex-col sm:flex-row items-center sm:items-end gap-5 sm:gap-7 p-6 sm:p-8 rounded-2xl overflow-hidden">
+      <div className="artist-hero relative flex flex-col @[700px]/main:flex-row items-center @[700px]/main:items-end gap-5 sm:gap-7 p-6 sm:p-8 rounded-2xl overflow-hidden">
         {/* Gradient Backdrop */}
         <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary-spotify,#06b6d4)]/20 via-[var(--bg-space,#07090e)]/80 to-[var(--elevation-1-bg,#0f0b16)] z-0" />
         <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-space,#07090e)] via-transparent to-transparent z-0" />
@@ -251,19 +249,13 @@ export default function ArtistPage() {
         </div>
 
         {/* Artist Info */}
-        <div className="relative z-10 flex flex-col items-center sm:items-start gap-3 pb-1">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-[var(--primary-spotify,#06b6d4)]/15 text-[var(--spotify-glow,#22d3ee)] border border-[var(--primary-spotify,#06b6d4)]/30 backdrop-blur-md shadow-sm">
-              <CheckCircle2 className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)] shrink-0" />
-              Nghệ sĩ được xác minh
-            </span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white leading-tight text-center sm:text-left">
+        <div className="relative z-10 flex flex-col items-center @[700px]/main:items-start gap-3 pb-1 min-w-0 flex-1">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white leading-tight text-center @[700px]/main:text-left break-words">
             {artist.name}
           </h1>
 
           {/* Stats */}
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-sm text-slate-400">
+          <div className="flex flex-wrap items-center justify-center @[700px]/main:justify-start gap-3 sm:gap-4 text-sm text-slate-400">
             {artist.nb_fan > 0 && (
               <div className="flex items-center gap-1.5">
                 <Users className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
@@ -282,15 +274,13 @@ export default function ArtistPage() {
 
           {/* Action Buttons */}
           {topTracks.length > 0 && (
-            <div className="flex flex-wrap items-center gap-3 mt-2">
+            <div className="flex flex-wrap items-center justify-center @[700px]/main:justify-start gap-3 mt-2">
               <button
                 onClick={handlePlayAll}
-                className="flex items-center gap-2 whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-bold text-black transition-all hover:scale-105 hover:brightness-110 active:scale-95 border border-white/20 shadow-lg"
+                className="flex items-center gap-2 whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-bold text-black transition-[filter,transform] hover:brightness-110 active:scale-95 border border-white/20 shadow-lg cursor-pointer"
                 style={{
                   background:
                     'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                  boxShadow:
-                    '0 4px 16px var(--theme-glow-shadow, rgba(6,182,212,0.35))',
                 }}
               >
                 <Play className="w-4 h-4 fill-current" />
@@ -298,7 +288,7 @@ export default function ArtistPage() {
               </button>
               <button
                 onClick={handleShufflePlay}
-                className="flex items-center gap-2 whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-semibold text-slate-200 bg-white/10 hover:bg-white/15 transition-all hover:scale-105 active:scale-95 border border-white/10"
+                className="flex items-center gap-2 whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-semibold text-slate-200 bg-white/10 hover:bg-white/15 transition-colors active:scale-95 border border-white/10 cursor-pointer"
               >
                 <Shuffle className="w-4 h-4" />
                 Phát ngẫu nhiên
@@ -310,7 +300,7 @@ export default function ArtistPage() {
 
       {/* Top Tracks Section */}
       {topTracks.length > 0 && (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 @container">
           <h2 className="text-lg font-bold text-white flex items-center gap-2 px-1">
             <Music className="w-4.5 h-4.5" style={{ color: 'var(--spotify-glow, #22d3ee)' }} />
             Bài hát phổ biến
@@ -323,11 +313,11 @@ export default function ArtistPage() {
               <span className="text-[11px] font-mono tracking-wider font-semibold text-slate-400">TIÊU ĐỀ</span>
             </div>
 
-            <div className="hidden md:block w-40 lg:w-52 xl:w-64 shrink-0 text-left text-[11px] font-mono tracking-wider font-semibold text-slate-400 px-2">
+            <div className="hidden @[560px]:block w-40 lg:w-48 xl:w-60 shrink-0 text-left text-[11px] font-mono tracking-wider font-semibold text-slate-400 px-2">
               ALBUM
             </div>
 
-            <div className="hidden sm:flex items-center justify-end gap-1.5 w-24 md:w-28 shrink-0 text-[10px] font-mono uppercase text-slate-500 px-2" title="Lượt xem trên YouTube">
+            <div className="hidden @[680px]:flex items-center justify-end gap-1.5 w-24 shrink-0 text-[10px] font-mono uppercase text-slate-500 px-2" title="Lượt xem trên YouTube">
               <Eye className="w-3.5 h-3.5 text-slate-500" />
               <span>LƯỢT XEM</span>
             </div>
@@ -336,7 +326,7 @@ export default function ArtistPage() {
               <Clock className="w-4 h-4 text-slate-400" />
             </div>
 
-            <div className="w-8 sm:w-16 shrink-0" />
+            <div className="w-9 sm:w-16 shrink-0" />
           </div>
 
           <div
@@ -362,6 +352,7 @@ export default function ArtistPage() {
                 isCurrent={currentTrack?.id === track.id}
                 isPlayingThis={currentTrack?.id === track.id && isPlaying}
                 onMouseEnterRow={handleRowMouseEnter}
+                onHideRowGlide={handleListMouseLeave}
                 batchViewCount={batchViews.get(viewCacheKey)}
                 onPlayClick={() => {
                   const dedupedQueue = deduplicateQueueTracks(
@@ -384,7 +375,7 @@ export default function ArtistPage() {
           {topTracks.length > INITIAL_COUNT && (
             <button
               onClick={() => setShowAll(!showAll)}
-              className="flex items-center justify-center gap-2 mx-auto mt-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all active:scale-95"
+              className="flex items-center justify-center gap-2 mx-auto mt-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-colors active:scale-95 cursor-pointer"
             >
               {showAll ? (
                 <>
@@ -410,26 +401,9 @@ export default function ArtistPage() {
             Album & Đĩa đơn
           </h2>
 
-          <div
-            ref={albumGrid.containerRef}
-            onMouseLeave={albumGrid.handleContainerMouseLeave}
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 relative"
-          >
-            <div
-              className="grid-glide-indicator"
-              style={{
-                transform: `translate3d(${albumGrid.indicator.left}px, ${albumGrid.indicator.top}px, 0)`,
-                width: `${albumGrid.indicator.width}px`,
-                height: `${albumGrid.indicator.height}px`,
-                opacity: albumGrid.indicator.opacity,
-              }}
-            />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 sm:gap-4">
             {artistAlbums.map((alb, idx) => (
-              <div
-                key={alb.id}
-                onMouseEnter={albumGrid.handleItemMouseEnter}
-                className="relative z-[1] h-full"
-              >
+              <div key={alb.id} className="h-full">
                 <MediaCard
                   id={alb.id}
                   title={alb.name}
@@ -440,7 +414,7 @@ export default function ArtistPage() {
                   }
                   coverUrl={alb.cover_url}
                   type={alb.album_type === 'single' ? 'single' : 'album'}
-                  badgeLabel={alb.album_type === 'single' ? 'Single / EP' : 'Album'}
+                  badgeLabel={alb.album_type === 'single' ? 'Single / EP' : undefined}
                   href={`/album/${encodeURIComponent(alb.id)}`}
                   index={idx}
                   fallbackIcon="album"

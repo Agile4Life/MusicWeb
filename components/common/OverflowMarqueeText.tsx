@@ -17,13 +17,16 @@ export function OverflowMarqueeText({
 }: OverflowMarqueeTextProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [isOverflowing, setIsOverflowing] = useState(false)
+  const [overflowPx, setOverflowPx] = useState(0)
 
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
 
     const checkOverflow = () => {
-      setIsOverflowing(el.scrollWidth > el.clientWidth + 1)
+      const diff = Math.max(0, el.scrollWidth - el.clientWidth)
+      setIsOverflowing(diff > 1)
+      setOverflowPx(diff)
     }
 
     checkOverflow()
@@ -39,7 +42,10 @@ export function OverflowMarqueeText({
       title={title || text}
       onClick={onClick}
     >
-      <span className={isOverflowing ? 'animate-marquee-text' : 'truncate block'}>
+      <span
+        className={isOverflowing ? 'animate-marquee-text' : 'truncate block'}
+        style={isOverflowing ? ({ ['--marquee-shift' as string]: `-${overflowPx}px` } as React.CSSProperties) : undefined}
+      >
         {text}
       </span>
     </div>

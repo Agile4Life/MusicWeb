@@ -1,7 +1,9 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Track, Playlist } from '@/types'
+import { toast } from '@/components/ui/ToastContext'
 import { TrackRow } from './TrackRow'
 import { Clock, CheckSquare, Pencil, Trash2, X, Loader2, User, Disc, Scissors, Eye } from 'lucide-react'
 import { triggerDrivePrewarm } from '@/lib/googleDriveUpload'
@@ -53,17 +55,32 @@ export function TrackList({
   const [updateAlbum, setUpdateAlbum] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
-  React.useEffect(() => {
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    const scrollHost = document.querySelector('.main-content-scroll') as HTMLElement | null
     if (showBulkModal) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
+      if (scrollHost) scrollHost.style.overflow = 'hidden'
+    } else if (scrollHost) {
+      scrollHost.style.overflow = ''
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (showBulkModal && e.key === 'Escape' && !saving) {
+        setShowBulkModal(false)
+      }
+    }
+    if (showBulkModal) {
+      window.addEventListener('keydown', onKeyDown)
     }
     return () => {
-      document.body.style.overflow = ''
+      if (scrollHost) scrollHost.style.overflow = ''
+      window.removeEventListener('keydown', onKeyDown)
     }
-  }, [showBulkModal])
+  }, [showBulkModal, saving])
 
   // Fire-and-forget prewarm for top visible Drive and SoundCloud tracks
   React.useEffect(() => {
@@ -113,7 +130,7 @@ export function TrackList({
   const handleExecuteBulkEdit = async () => {
     if (selectedIds.size === 0) return
     if (!updateArtist && !updateAlbum) {
-      alert('Vui lòng chọn ít nhất một trường thông tin cần cập nhật (Nghệ sĩ hoặc Album)!')
+      toast('Vui lòng chọn ít nhất một trường thông tin cần cập nhật (Nghệ sĩ hoặc Album)!', 'error')
       return
     }
 
@@ -133,7 +150,7 @@ export function TrackList({
       const result = await res.json()
 
       if (!res.ok) {
-        alert('Lỗi sửa hàng loạt: ' + (result.error || 'Không xác định'))
+        toast('Lỗi sửa hàng loạt: ' + (result.error || 'Không xác định'), 'error')
         return
       }
 
@@ -155,9 +172,9 @@ export function TrackList({
       }
 
       if (result.deniedIds && result.deniedIds.length > 0) {
-        alert(`✅ Đã cập nhật ${updatedIds.length} bài hát của bạn. (${result.deniedIds.length} bài hát không thuộc quyền sở hữu đã được bỏ qua).`)
+        toast(`Đã cập nhật ${updatedIds.length} bài hát của bạn. (${result.deniedIds.length} bài hát không thuộc quyền sở hữu đã được bỏ qua).`, 'success')
       } else {
-        alert(`✅ Đã cập nhật ${updatedIds.length} bài hát thành công!`)
+        toast(`Đã cập nhật ${updatedIds.length} bài hát thành công!`, 'success')
       }
       setShowBulkModal(false)
       setSelectedIds(new Set())
@@ -197,10 +214,10 @@ export function TrackList({
         }
       }
 
-      alert(`✅ Đã tự động xóa số thứ tự ở đầu tên bài hát cho ${cleanedCount} bài hát!`)
+      toast(`Đã tự động xóa số thứ tự ở đầu tên bài hát cho ${cleanedCount} bài hát!`, 'success')
       setSelectedIds(new Set())
     } catch (err: any) {
-      alert('Lỗi khi xóa số thứ tự: ' + err?.message)
+      toast('Lỗi khi xóa số thứ tự: ' + err?.message, 'error')
     } finally {
       setSaving(false)
     }
@@ -223,7 +240,7 @@ export function TrackList({
       })
       const result = await res.json()
       if (!res.ok) {
-        alert('Lỗi xóa: ' + (result.error || 'Không xác định'))
+        toast('Lỗi xóa: ' + (result.error || 'Không xác định'), 'error')
         return
       }
 
@@ -239,7 +256,7 @@ export function TrackList({
         deletedIds.forEach((id) => onDeleteTrackPermanently(id))
       }
 
-      alert(`✅ Đã xóa ${deletedIds.length} bài hát khỏi thư viện!`)
+      toast(`Đã xóa ${deletedIds.length} bài hát khỏi thư viện!`, 'success')
       setSelectedIds(new Set())
     } finally {
       setDeleting(false)
@@ -247,7 +264,7 @@ export function TrackList({
   }
 
   return (
-    <div className="flex flex-col gap-1 relative">
+    <div className="flex flex-col gap-1 relative @container">
       {/* Table Header */}
       <div className="flex items-center justify-between px-3 md:px-4 py-2 text-xs font-semibold text-gray-400 border-b border-white/[0.08] mb-2 select-none">
         <div className="flex items-center gap-2.5 sm:gap-3 flex-1 min-w-0 pr-4">
@@ -265,11 +282,11 @@ export function TrackList({
           <span className="text-[11px] font-mono tracking-wider font-semibold text-slate-400">TIÊU ĐỀ</span>
         </div>
 
-        <div className="hidden md:block w-40 lg:w-52 xl:w-64 shrink-0 text-left text-[11px] font-mono tracking-wider font-semibold text-slate-400 px-2">
+        <div className="hidden @[560px]:block w-40 lg:w-48 xl:w-60 shrink-0 text-left text-[11px] font-mono tracking-wider font-semibold text-slate-400 px-2">
           ALBUM
         </div>
 
-        <div className="hidden sm:flex items-center justify-end gap-1.5 w-24 md:w-28 shrink-0 text-[10px] font-mono uppercase text-slate-500 px-2" title="Lượt xem trên YouTube">
+        <div className="hidden @[680px]:flex items-center justify-end gap-1.5 w-24 shrink-0 text-[10px] font-mono uppercase text-slate-500 px-2" title="Lượt xem trên YouTube">
           <Eye className="w-3.5 h-3.5 text-slate-500 shrink-0" />
           <span>LƯỢT XEM</span>
         </div>
@@ -278,7 +295,7 @@ export function TrackList({
           <Clock className="w-4 h-4 text-slate-400" />
         </div>
 
-        <div className="w-8 sm:w-16 shrink-0" />
+        <div className="w-9 sm:w-16 shrink-0" />
       </div>
 
       {/* Track Rows with Liquid Glide Indicator */}
@@ -307,6 +324,7 @@ export function TrackList({
               isCurrent={isCurrent}
               isPlayingThis={isPlayingThis}
               onMouseEnterRow={handleRowMouseEnter}
+              onHideRowGlide={handleListMouseLeave}
               onPlayClick={() => {
                 const now = Date.now()
                 if (lastPlayClickRef.current.id === track.id && now - lastPlayClickRef.current.time < 400) {
@@ -341,16 +359,16 @@ export function TrackList({
       </div>
 
       {/* 🚀 FLOATING BULK ACTION BAR (ADMIN ONLY) */}
-      {isAdmin && selectedIds.size > 0 && (
-        <div className="fixed bottom-24 lg:bottom-8 left-1/2 -translate-x-1/2 z-[9990] bg-[var(--elevation-2-bg,#090d16)]/95 backdrop-blur-2xl border border-[var(--spotify-glow,#22d3ee)]/40 text-white px-4 sm:px-5 py-2.5 sm:py-3 rounded-full shadow-2xl shadow-black flex items-center gap-2.5 sm:gap-3 animate-in fade-in slide-in-from-bottom-4 duration-200 select-none max-w-[92vw]">
-          <div className="flex items-center gap-2 pr-2 border-r border-white/10 text-xs font-bold text-[var(--spotify-glow,#22d3ee)]">
+      {mounted && typeof document !== 'undefined' && isAdmin && selectedIds.size > 0 && createPortal(
+        <div className="fixed bottom-24 lg:bottom-28 left-1/2 -translate-x-1/2 z-[75] bg-[var(--elevation-2-bg,#090d16)]/95 backdrop-blur-2xl border border-[var(--spotify-glow,#22d3ee)]/40 text-white px-4 sm:px-5 py-2.5 sm:py-3 rounded-full shadow-2xl shadow-black flex items-center gap-2.5 sm:gap-3 animate-in fade-in slide-in-from-bottom-4 duration-200 select-none max-w-[92vw] flex-wrap sm:flex-nowrap justify-center">
+          <div className="flex items-center gap-2 pr-2 border-r border-white/10 text-xs font-bold text-[var(--spotify-glow,#22d3ee)] shrink-0">
             <CheckSquare className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
             <span>Đã chọn {selectedIds.size} bài</span>
           </div>
 
           <button
             onClick={() => setShowBulkModal(true)}
-            className="bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--theme-secondary,#3b82f6)] hover:brightness-110 text-black font-extrabold text-xs px-4 py-2 rounded-full flex items-center gap-1.5 shadow-lg transition-transform hover:scale-105"
+            className="bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--theme-secondary,#3b82f6)] hover:brightness-110 text-black font-extrabold text-xs px-4 py-2 rounded-full flex items-center gap-1.5 shadow-lg transition-[filter] cursor-pointer shrink-0"
           >
             <Pencil className="w-3.5 h-3.5" />
             Sửa Nghệ Sĩ & Album
@@ -359,7 +377,7 @@ export function TrackList({
           <button
             onClick={handleExecuteStripLeadingNumbers}
             disabled={saving}
-            className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-semibold text-xs px-3.5 py-2 rounded-full flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-semibold text-xs px-3.5 py-2 rounded-full flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer shrink-0"
             title="Tự động xóa các số thứ tự ở đầu tên bài hát như '23. ', '22. ', '01 - '"
           >
             <Scissors className="w-3.5 h-3.5 text-amber-400" />
@@ -369,7 +387,7 @@ export function TrackList({
           <button
             onClick={handleExecuteBulkDelete}
             disabled={deleting}
-            className="bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 font-semibold text-xs px-3.5 py-2 rounded-full flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            className="bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 font-semibold text-xs px-3.5 py-2 rounded-full flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer shrink-0"
           >
             {deleting ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -381,21 +399,32 @@ export function TrackList({
 
           <button
             onClick={() => setSelectedIds(new Set())}
-            className="text-slate-400 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-colors"
+            className="text-slate-400 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer shrink-0"
             title="Bỏ chọn"
           >
             <X className="w-4 h-4" />
           </button>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* 🚀 BULK EDIT MODAL */}
-      {showBulkModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="glass-panel modal-content w-full max-w-md p-6 rounded-3xl border border-[var(--spotify-glow,#22d3ee)]/30 bg-[var(--elevation-2-bg,#0b1019)] shadow-2xl relative flex flex-col gap-5 my-auto animate-in zoom-in-95 duration-200">
+      {mounted && typeof document !== 'undefined' && showBulkModal && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !saving) setShowBulkModal(false)
+          }}
+          className="fixed inset-0 bg-black/80 backdrop-blur-md z-[75] flex items-center justify-center p-4 overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="glass-panel modal-content w-full max-w-md p-6 rounded-3xl border border-[var(--spotify-glow,#22d3ee)]/30 bg-[var(--elevation-2-bg,#0b1019)] shadow-2xl relative flex flex-col gap-5 my-auto animate-in zoom-in-95 duration-200"
+          >
             <button
               onClick={() => setShowBulkModal(false)}
-              className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-xl hover:bg-white/10 transition-colors"
+              className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -464,7 +493,7 @@ export function TrackList({
               <button
                 type="button"
                 onClick={() => setShowBulkModal(false)}
-                className="px-4 py-2 rounded-full text-xs font-bold text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                className="px-4 py-2 rounded-full text-xs font-bold text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               >
                 Hủy
               </button>
@@ -472,7 +501,7 @@ export function TrackList({
                 type="button"
                 disabled={saving}
                 onClick={handleExecuteBulkEdit}
-                className="bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black font-extrabold text-xs px-5 py-2.5 rounded-full flex items-center gap-2 shadow-[0_4px_16px_var(--theme-glow-shadow)] transition-all disabled:opacity-50"
+                className="bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black font-extrabold text-xs px-5 py-2.5 rounded-full flex items-center gap-2 shadow-lg transition-[filter,opacity] disabled:opacity-50 cursor-pointer"
               >
                 {saving ? (
                   <>
@@ -485,7 +514,8 @@ export function TrackList({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

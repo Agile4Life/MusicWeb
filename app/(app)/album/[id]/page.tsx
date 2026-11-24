@@ -200,7 +200,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="p-3.5 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6 lg:gap-8 max-w-7xl mx-auto w-full pb-36 lg:pb-8 select-none">
       {/* Album Header Banner */}
-      <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.08] p-4 sm:p-6 lg:p-8 bg-[var(--elevation-1-bg,#0c1017)] flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
+      <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.08] p-4 sm:p-6 lg:p-8 bg-[var(--elevation-1-bg,#0c1017)] flex flex-col @[700px]/main:flex-row items-start @[700px]/main:items-center gap-4 @[700px]/main:gap-8">
         {/* Cover Art */}
         <div className="w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 bg-slate-900 rounded-2xl flex items-center justify-center shrink-0 border border-white/10 shadow-2xl overflow-hidden relative group">
           {album.cover_url ? (
@@ -208,19 +208,16 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
           ) : (
             <DiscAlbum className="w-16 h-16 text-[var(--spotify-glow,#22d3ee)]" />
           )}
-          <div className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[10px] font-mono text-[var(--spotify-glow,#22d3ee)] uppercase tracking-wider">
-            {album.album_type === 'single' ? 'Single / EP' : 'Album'}
-          </div>
+          {album.album_type === 'single' && (
+            <div className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[10px] font-mono text-[var(--spotify-glow,#22d3ee)] uppercase tracking-wider">
+              Single / EP
+            </div>
+          )}
         </div>
 
         {/* Album Meta */}
         <div className="flex-1 flex flex-col gap-2.5 min-w-0">
-          <p className="text-[11px] font-mono text-[var(--spotify-glow,#22d3ee)] uppercase tracking-widest flex items-center gap-1.5">
-            <Disc className="w-3.5 h-3.5" />
-            <span>BỘ SƯU TẬP ALBUM</span>
-          </p>
-
-          <h1 className="text-xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-tight">
+          <h1 className="text-xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-tight line-clamp-2">
             {album.name}
           </h1>
 
@@ -262,14 +259,14 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
           <>
             <button
               onClick={() => playTrack(album.tracks[0], album.tracks, 0)}
-              className="bg-[var(--primary-spotify,#06b6d4)] text-black font-extrabold px-6 py-3 rounded-full flex items-center gap-2 shadow-[0_8px_20px_var(--theme-glow-shadow)] hover:scale-105 transition-all text-xs"
+              className="bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black font-extrabold px-6 py-3 rounded-full flex items-center gap-2 transition-[filter] text-xs cursor-pointer"
             >
               <Play className="w-4 h-4 fill-current" />
               <span>Phát Album</span>
             </button>
             <button
               onClick={() => router.push(`/spotify-lab?album=${encodeURIComponent(albumId)}`)}
-              className="font-bold px-4 py-3 rounded-full flex items-center gap-2 text-xs border bg-white/10 hover:bg-white/20 text-white border-white/10"
+              className="font-bold px-4 py-3 rounded-full flex items-center gap-2 text-xs border bg-white/10 hover:bg-white/20 text-white border-white/10 transition-colors cursor-pointer"
             >
               <DiscAlbum className="w-4 h-4" />
               <span>Tạo bộ bài đọ nhạc</span>
@@ -284,9 +281,9 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
                 const chosenIdx = candidates[Math.floor(Math.random() * candidates.length)] ?? 0
                 playTrack(album.tracks[chosenIdx], album.tracks, chosenIdx)
               }}
-              className={`font-bold px-4 py-3 rounded-full flex items-center gap-2 text-xs transition-all border ${
+              className={`font-bold px-4 py-3 rounded-full flex items-center gap-2 text-xs transition-colors border cursor-pointer ${
                 isShuffle
-                  ? 'bg-[var(--primary-spotify)]/20 text-[var(--primary-spotify)] border-[var(--primary-spotify)]/40 shadow-lg'
+                  ? 'bg-[var(--primary-spotify)]/20 text-[var(--primary-spotify)] border-[var(--primary-spotify)]/40 shadow-sm'
                   : 'bg-white/10 hover:bg-white/20 text-white border-white/10'
               }`}
             >
@@ -298,7 +295,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
       </div>
 
       {/* Track List (Supports Multi-Disc Headers) */}
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 @container">
         {/* Table Column Headers */}
         <div className="flex items-center justify-between px-3 md:px-4 py-2 text-xs font-semibold text-gray-400 border-b border-white/[0.08] mb-1 select-none">
           <div className="flex items-center gap-2.5 sm:gap-3 flex-1 min-w-0 pr-4">
@@ -306,11 +303,11 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
             <span className="text-[11px] font-mono tracking-wider font-semibold text-slate-400">TIÊU ĐỀ</span>
           </div>
 
-          <div className="hidden md:block w-40 lg:w-52 xl:w-64 shrink-0 text-left text-[11px] font-mono tracking-wider font-semibold text-slate-400 px-2">
+          <div className="hidden @[560px]:block w-40 lg:w-48 xl:w-60 shrink-0 text-left text-[11px] font-mono tracking-wider font-semibold text-slate-400 px-2">
             ALBUM
           </div>
 
-          <div className="hidden sm:flex items-center justify-end gap-1.5 w-24 md:w-28 shrink-0 text-[10px] font-mono uppercase text-slate-500 px-2" title="Lượt xem trên YouTube">
+          <div className="hidden @[680px]:flex items-center justify-end gap-1.5 w-24 shrink-0 text-[10px] font-mono uppercase text-slate-500 px-2" title="Lượt xem trên YouTube">
             <Eye className="w-3.5 h-3.5 text-slate-500" />
             <span>LƯỢT XEM</span>
           </div>
@@ -319,7 +316,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
             <Clock className="w-4 h-4 text-slate-400" />
           </div>
 
-          <div className="w-8 sm:w-16 shrink-0" />
+          <div className="w-9 sm:w-16 shrink-0" />
         </div>
 
         <div
@@ -358,6 +355,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
                       isCurrent={isCurrent}
                       isPlayingThis={isPlayingThis}
                       onMouseEnterRow={handleRowMouseEnter}
+                      onHideRowGlide={handleListMouseLeave}
                       playlistTracks={album.tracks}
                       userPlaylists={playlists}
                       onAddToPlaylist={handleAddToPlaylist}
