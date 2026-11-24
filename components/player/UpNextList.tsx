@@ -33,11 +33,8 @@ export function UpNextList() {
 
   return (
     <div
-      className="up-next-list w-full mt-2 sm:mt-2.5 rounded-2xl shadow-2xl overflow-y-auto overscroll-contain min-h-[120px] max-h-[clamp(130px,22vh,200px)] xl:max-h-[clamp(150px,26vh,240px)] select-none z-10 relative no-scrollbar shrink-0"
-      style={{
-        WebkitMaskImage: 'linear-gradient(to bottom, black 86%, transparent 100%)',
-        maskImage: 'linear-gradient(to bottom, black 86%, transparent 100%)',
-        ...(isLiquidGlass ? {
+      className="up-next-list w-full mt-2 sm:mt-2.5 rounded-2xl shadow-2xl flex flex-col min-h-0 max-h-[clamp(130px,22vh,200px)] xl:max-h-[clamp(150px,26vh,240px)] overflow-hidden select-none z-10 relative shrink-0"
+      style={isLiquidGlass ? {
           background: 'linear-gradient(135deg, rgba(255,255,255,0.11) 0%, rgba(255,255,255,0.035) 60%, var(--theme-gradient-1, rgba(6,182,212,0.06)) 100%)',
           backdropFilter: 'blur(36px) saturate(200%) brightness(1.05)',
           WebkitBackdropFilter: 'blur(36px) saturate(200%) brightness(1.05)',
@@ -47,12 +44,11 @@ export function UpNextList() {
         } : {
           backgroundColor: 'var(--elevation-2-bg, #0d1020)',
           border: '1px solid rgba(255,255,255,0.15)',
-        }),
-      }}
+        }}
     >
-      {/* Sticky Header */}
+      {/* Fixed Header (not affected by bottom list scroll fade mask) */}
       <div
-        className="sticky top-0 px-3.5 py-2 z-20 flex items-center justify-between"
+        className="px-3.5 py-2 z-20 flex items-center justify-between shrink-0"
         style={isLiquidGlass ? {
           background: 'rgba(255,255,255,0.06)',
           backdropFilter: 'blur(20px)',
@@ -65,14 +61,7 @@ export function UpNextList() {
           boxShadow: '0 2px 4px rgba(0,0,0,0.4)',
         }}
       >
-        <h3 className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-          <span
-            className="w-1.5 h-1.5 rounded-full"
-            style={{
-              backgroundColor: 'var(--spotify-glow,#22d3ee)',
-              boxShadow: isLiquidGlass ? '0 0 6px var(--spotify-glow,#22d3ee)' : 'none',
-            }}
-          />
+        <h3 className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
           Tiếp theo
         </h3>
         <span className="text-[10px] text-slate-400 font-medium">
@@ -80,18 +69,31 @@ export function UpNextList() {
         </span>
       </div>
 
-      <div className="flex flex-col gap-1 p-2">
+      <div
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain no-scrollbar flex flex-col gap-1 p-2"
+        style={{
+          WebkitMaskImage: 'linear-gradient(to bottom, black 86%, transparent 100%)',
+          maskImage: 'linear-gradient(to bottom, black 86%, transparent 100%)',
+        }}
+      >
         {remainingTracks.map((track, idx) => {
           const actualIndex = startIndex + idx
           const isCurrent = actualIndex === currentIndex || Boolean(currentTrack?.id && track.id === currentTrack.id)
 
           return (
-            <button
+            <div
               key={`${track.id}-${actualIndex}`}
-              type="button"
+              role="button"
+              tabIndex={0}
               onClick={() => playTrack(track, queue, actualIndex)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  playTrack(track, queue, actualIndex)
+                }
+              }}
               aria-label={`Phát bài ${track.title} của ${track.artist || 'Nghệ sĩ'}`}
-              className={`w-full cv-auto flex items-center gap-2.5 sm:gap-3 p-2 rounded-xl text-left transition-all duration-200 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-glow,#22d3ee)] border ${isCurrent ? 'queue-track-current' : ''}`}
+              className={`w-full cv-auto flex items-center gap-2.5 sm:gap-3 p-2 rounded-xl text-left transition-[background-color,border-color,color] duration-200 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-glow,#22d3ee)] border cursor-pointer ${isCurrent ? 'queue-track-current' : ''}`}
               style={isCurrent ? {
                 background: isLiquidGlass
                   ? 'linear-gradient(135deg, var(--theme-gradient-1, rgba(6,182,212,0.22)) 0%, rgba(255,255,255,0.08) 100%)'
@@ -138,9 +140,9 @@ export function UpNextList() {
                     {track.title}
                   </p>
                 </div>
-                <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                <div className="text-[10px] text-slate-400 truncate mt-0.5">
                   <ArtistLinks artist={track.artist || track.artist_name} fallbackText="Nghệ sĩ chưa xác định" className="text-[10px] text-slate-400 truncate" onArtistClick={(name) => { closeNowPlayingOverlay(); router.push(`/artist?name=${encodeURIComponent(name)}`) }} />
-                </p>
+                </div>
               </div>
 
               {track.duration > 0 && (
@@ -148,7 +150,7 @@ export function UpNextList() {
                   {formatTime(track.duration)}
                 </span>
               )}
-            </button>
+            </div>
           )
         })}
       </div>

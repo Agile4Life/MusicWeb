@@ -17,7 +17,6 @@ import { AdminLyricsEditorModal } from './AdminLyricsEditorModal'
 import {
   Headphones,
   RefreshCw,
-  Sparkles,
   Mic2,
   Play,
   Pause,
@@ -45,7 +44,10 @@ export interface LyricsViewProps {
   onClose?: () => void
   isModal?: boolean
   showControls?: boolean
+  hideDesktopControls?: boolean
   showHeader?: boolean
+  hideFloatingActions?: boolean
+  openEditorSignal?: number
   showRomaji?: boolean
   onToggleRomaji?: () => void
 }
@@ -97,22 +99,21 @@ const LyricLineItem = memo(function LyricLineItem({
     <div
       ref={isActive ? activeLineRefSetter : undefined}
       onClick={() => onClick(line)}
-      className={`lyric-line-item cursor-pointer rounded-2xl select-none origin-left group/line relative transform-gpu will-change-transform will-change-opacity transition-all duration-300 ease-out flex flex-col ${
+      className={`lyric-line-item cursor-pointer rounded-2xl select-none origin-left group/line relative transition-[opacity,background-color,border-color] duration-300 ease-out flex flex-col opacity-[var(--line-opacity)] hover:opacity-100 ${
         isActive
-          ? 'active-lyric-pill py-2.5 sm:py-3.5 px-4 sm:px-6 bg-white/[0.05] border border-white/10 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.35),0_0_20px_color-mix(in_srgb,var(--spotify-glow,#22d3ee)_12%,transparent)]'
+          ? 'active-lyric-pill py-2.5 sm:py-3.5 px-4 sm:px-6 bg-white/[0.05] border border-white/10 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.35)]'
           : 'py-1 sm:py-1.5 px-3 sm:px-5 bg-transparent border border-transparent hover:bg-white/[0.02] hover:border-white/[0.04]'
       }`}
       style={{
-        opacity,
-        transform: isActive ? 'translate3d(10px, 0, 0)' : 'translate3d(0, 0, 0)',
+        ['--line-opacity' as string]: opacity,
         contentVisibility: distance > 8 ? 'auto' : 'visible',
         containIntrinsicSize: distance > 8 ? '0 44px' : undefined,
-      }}
+      } as React.CSSProperties}
     >
       <p
-        className={`leading-snug transition-all duration-300 ease-out ${
+        className={`leading-snug transition-colors duration-300 ease-out ${
           isActive
-            ? 'text-[clamp(1.25rem,3.2vh,2.65rem)] font-black text-white bg-clip-text bg-gradient-to-r from-white via-[var(--theme-neon-from,#cffafe)] to-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]'
+            ? 'text-[clamp(1.25rem,3.2vh,2.65rem)] font-black text-white'
             : distance === 1
               ? 'text-[clamp(1rem,2.2vh,1.65rem)] font-bold text-slate-100 group-hover/line:text-white'
               : distance === 2
@@ -124,7 +125,7 @@ const LyricLineItem = memo(function LyricLineItem({
       </p>
       {hasRomaji && (
         <p
-          className={`text-xs sm:text-sm font-semibold mt-0.5 tracking-wide transition-all duration-300 ${
+          className={`text-xs sm:text-sm font-semibold mt-0.5 tracking-wide transition-colors duration-300 ${
             isActive ? 'text-[var(--spotify-glow,#22d3ee)]' : 'text-slate-400/80'
           }`}
         >
@@ -353,7 +354,10 @@ export const LyricsView = memo(function LyricsView({
   onClose,
   isModal = false,
   showControls = true,
+  hideDesktopControls = false,
   showHeader = true,
+  hideFloatingActions = false,
+  openEditorSignal,
   showRomaji: showRomajiProp,
   onToggleRomaji,
 }: LyricsViewProps) {
@@ -379,6 +383,12 @@ export const LyricsView = memo(function LyricsView({
       if (saved !== null) setInternalShowRomaji(saved === 'true')
     } catch {}
   }, [])
+
+  useEffect(() => {
+    if (openEditorSignal && openEditorSignal > 0 && userIsAdmin) {
+      setShowAdminEditor(true)
+    }
+  }, [openEditorSignal, userIsAdmin])
 
   const showRomaji = showRomajiProp !== undefined ? showRomajiProp : internalShowRomaji
 
@@ -589,7 +599,7 @@ export const LyricsView = memo(function LyricsView({
   if (!currentTrack) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center text-slate-400 p-8 text-center select-none bg-[var(--bg-space,#07090e)]">
-        <Headphones className="w-16 h-16 text-[var(--spotify-glow,#22d3ee)]/60 mb-4 animate-pulse" />
+        <Headphones className="w-16 h-16 text-[var(--spotify-glow,#22d3ee)]/60 mb-4" />
         <h3 className="text-lg font-bold text-slate-200">Chưa có bài hát đang phát</h3>
         <p className="text-xs text-slate-500 mt-1">Hãy chọn một bài hát từ thư viện để xem lời bài hát</p>
       </div>
@@ -605,7 +615,7 @@ export const LyricsView = memo(function LyricsView({
             <img
               src={currentTrack.cover_url}
               alt=""
-              className="w-full h-full object-cover blur-3xl opacity-30 scale-125 transform-gpu transition-all duration-700"
+              className="w-full h-full object-cover blur-3xl opacity-30 scale-125 transform-gpu transition-opacity duration-700"
             />
           ) : (
             <div className="w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[var(--theme-gradient-1,rgba(6,182,212,0.25))] via-[var(--bg-space,#07090e)] to-[var(--bg-space,#07090e)]" />
@@ -617,9 +627,9 @@ export const LyricsView = memo(function LyricsView({
 
       {/* 🔝 Glassmorphic Header */}
       {showHeader && (
-        <div className="relative z-20 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 p-3 sm:p-4 md:px-8 md:py-4 border-b border-white/[0.08] shrink-0 bg-black/40 backdrop-blur-2xl shadow-lg">
+        <div className="relative z-20 flex flex-wrap xl:flex-nowrap items-center justify-between gap-3 p-3 sm:p-4 md:px-8 md:py-4 border-b border-white/[0.08] shrink-0 bg-black/40 backdrop-blur-2xl shadow-lg">
           {/* Full row on phones: the right-hand controls alone are ~286px wide. */}
-          <div className="flex items-center gap-3 min-w-0 flex-[1_1_100%] sm:flex-1">
+          <div className="flex items-center gap-3 min-w-0 flex-[1_1_100%] xl:flex-1">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-slate-900 border border-white/15 flex items-center justify-center shrink-0 overflow-hidden shadow-xl relative group">
               {currentTrack.cover_url ? (
                 <img src={currentTrack.cover_url} alt={currentTrack.title} className="w-full h-full object-cover" />
@@ -634,8 +644,7 @@ export const LyricsView = memo(function LyricsView({
                   className="lyrics-title-text text-xs sm:text-sm md:text-base font-extrabold text-white tracking-tight flex-1 min-w-0"
                 />
                 {isSynced ? (
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[var(--accent,#06b6d4)]/10 text-[var(--spotify-glow,#22d3ee)] border border-[var(--accent,#06b6d4)]/25 shrink-0 shadow-[0_0_12px_var(--theme-glow-shadow)] flex items-center gap-1.5 leading-none">
-                    <Sparkles className="w-3 h-3 text-[var(--spotify-glow,#22d3ee)] shrink-0" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[var(--accent,#06b6d4)]/10 text-[var(--spotify-glow,#22d3ee)] border border-[var(--accent,#06b6d4)]/25 shrink-0 flex items-center gap-1.5 leading-none">
                     Synced
                   </span>
                 ) : parsedLyrics.length > 0 ? (
@@ -656,7 +665,7 @@ export const LyricsView = memo(function LyricsView({
               <div className="flex items-center gap-1 bg-white/[0.06] backdrop-blur-md rounded-full border border-white/10 px-2 py-1 shadow-inner">
                 <button
                   onClick={() => setLyricOffset((prev) => +(prev - 0.1).toFixed(1))}
-                  className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
+                  className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-colors active:scale-90 cursor-pointer"
                   title="Lời hiển thị sớm hơn 100ms"
                 >
                   <Minus className="w-3 h-3" />
@@ -666,7 +675,7 @@ export const LyricsView = memo(function LyricsView({
                 </span>
                 <button
                   onClick={() => setLyricOffset((prev) => +(prev + 0.1).toFixed(1))}
-                  className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
+                  className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-colors active:scale-90 cursor-pointer"
                   title="Lời hiển thị muộn hơn 100ms"
                 >
                   <Plus className="w-3 h-3" />
@@ -676,7 +685,7 @@ export const LyricsView = memo(function LyricsView({
 
             <button
               onClick={handleToggleRomaji}
-              className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all shrink-0 shadow-md ${
+              className={`w-9 h-9 flex items-center justify-center rounded-full border transition-colors shrink-0 shadow-md cursor-pointer ${
                 showRomaji
                   ? 'bg-white/15 text-white border-white/25 shadow-sm'
                   : 'text-slate-400 hover:text-white bg-white/5 border-white/10'
@@ -690,7 +699,7 @@ export const LyricsView = memo(function LyricsView({
             {userIsAdmin && (
               <button
                 onClick={() => setShowAdminEditor(true)}
-                className={`w-9 h-9 flex items-center justify-center active:scale-95 rounded-full transition-all shrink-0 shadow-md ${isMinimal ? adminTone : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/35'}`}
+                className={`w-9 h-9 flex items-center justify-center active:scale-95 rounded-full transition-colors shrink-0 shadow-md cursor-pointer ${isMinimal ? adminTone : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/35'}`}
                 title={
                   parsedLyrics.length > 0
                     ? 'Chỉnh sửa lời bài hát (Admin)'
@@ -704,7 +713,7 @@ export const LyricsView = memo(function LyricsView({
             <button
               onClick={() => setShowShareModal(true)}
               disabled={parsedLyrics.length === 0}
-              className="w-9 h-9 flex items-center justify-center bg-white/[0.06] hover:bg-white/15 active:scale-95 text-slate-200 hover:text-[var(--spotify-glow,#22d3ee)] rounded-full border border-white/10 transition-all shrink-0 shadow-md disabled:opacity-40 disabled:pointer-events-none"
+              className="w-9 h-9 flex items-center justify-center bg-white/[0.06] hover:bg-white/15 active:scale-95 text-slate-200 hover:text-[var(--spotify-glow,#22d3ee)] rounded-full border border-white/10 transition-colors shrink-0 shadow-md disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
               title="Chia sẻ câu hát (Lyrics Story)"
             >
               <Share2 className="w-3.5 h-3.5" />
@@ -713,7 +722,7 @@ export const LyricsView = memo(function LyricsView({
             <button
               onClick={() => loadLyricsForTrack(currentTrack)}
               disabled={loading}
-              className="w-9 h-9 flex items-center justify-center bg-white/[0.06] hover:bg-white/15 active:scale-95 text-slate-200 rounded-full border border-white/10 transition-all shrink-0 shadow-md"
+              className="w-9 h-9 flex items-center justify-center bg-white/[0.06] hover:bg-white/15 active:scale-95 text-slate-200 rounded-full border border-white/10 transition-colors shrink-0 shadow-md cursor-pointer"
               title="Tải lại lời bài hát"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[var(--spotify-glow,#22d3ee)]' : ''}`} />
@@ -722,7 +731,7 @@ export const LyricsView = memo(function LyricsView({
             {onClose && (
               <button
                 onClick={onClose}
-                className="w-9 h-9 flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-95 text-white rounded-full border border-white/15 transition-all shrink-0 shadow-md"
+                className="w-9 h-9 flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-95 text-white rounded-full border border-white/15 transition-colors shrink-0 shadow-md cursor-pointer"
                 title="Đóng lời bài hát"
               >
                 <X className="w-4 h-4" />
@@ -791,15 +800,23 @@ export const LyricsView = memo(function LyricsView({
       </div>
 
       {/* 🎵 Bottom Glassmorphic Player Controls & Seekbar (Isolated 60FPS re-render) */}
-      {showControls && <LyricsBottomControls />}
+      {showControls && (
+        hideDesktopControls ? (
+          <div className="lg:hidden">
+            <LyricsBottomControls />
+          </div>
+        ) : (
+          <LyricsBottomControls />
+        )
+      )}
 
       {/* Floating Share & Admin Edit Buttons when header is hidden */}
-      {!showHeader && (parsedLyrics.length > 0 || userIsAdmin) && (
+      {!showHeader && !hideFloatingActions && (parsedLyrics.length > 0 || userIsAdmin) && (
         <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
           {userIsAdmin && (
             <button
               onClick={() => setShowAdminEditor(true)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full active:scale-95 backdrop-blur-xl shadow-lg transition-all text-xs font-bold cursor-pointer ${adminTone}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full active:scale-95 backdrop-blur-xl shadow-lg transition-colors text-xs font-bold cursor-pointer ${adminTone}`}
               title={
                 parsedLyrics.length > 0
                   ? 'Chỉnh sửa lời bài hát (Admin)'
@@ -815,7 +832,7 @@ export const LyricsView = memo(function LyricsView({
           {parsedLyrics.length > 0 && (
             <button
               onClick={() => setShowShareModal(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 hover:bg-white/15 active:scale-95 text-slate-300 hover:text-white border border-white/15 backdrop-blur-xl shadow-lg transition-all text-xs font-bold"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 hover:bg-white/15 active:scale-95 text-slate-300 hover:text-white border border-white/15 backdrop-blur-xl shadow-lg transition-colors text-xs font-bold cursor-pointer"
               title="Chia sẻ câu hát"
             >
               <Share2 className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)]" />

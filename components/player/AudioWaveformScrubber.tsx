@@ -100,9 +100,9 @@ export function AudioWaveformScrubber({
   const remainingTime = Math.max(0, safeDuration - shownTime)
 
   return (
-    <div className="w-full flex items-center justify-between gap-3 sm:gap-4 select-none px-1">
+    <div className="scrubber-wrapper w-full flex items-center justify-between gap-3 sm:gap-4 select-none px-1">
       {/* Elapsed time */}
-      <span className="text-[11px] sm:text-xs font-mono tabular-nums text-slate-400 font-semibold w-10 text-right shrink-0">
+      <span className="scrubber-time-btn text-[11px] sm:text-xs font-mono tabular-nums text-slate-400 font-semibold w-10 text-right shrink-0">
         {formatTime(shownTime)}
       </span>
 
@@ -118,12 +118,12 @@ export function AudioWaveformScrubber({
             setHoverTime(null)
           }
         }}
-        className={`relative flex-1 h-8 flex items-center cursor-pointer group px-0.5 touch-none ${isDragging ? 'is-dragging' : ''}`}
+        className={`relative flex-1 h-8 lg:h-[18px] flex items-center cursor-pointer group px-0.5 touch-none ${isDragging ? 'is-dragging' : ''}`}
       >
         {/* Floating Time Preview Tooltip */}
         {hoverTime !== null && (
           <div
-            className="absolute -top-7 transform -translate-x-1/2 bg-[var(--elevation-2-bg,#0f172a)]/95 text-white text-[10px] sm:text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full border border-white/20 shadow-2xl backdrop-blur-md pointer-events-none transition-transform z-40"
+            className="absolute -top-7 lg:top-auto lg:bottom-[13px] transform -translate-x-1/2 bg-[var(--elevation-2-bg,#0f172a)]/95 text-white text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border border-white/20 shadow-lg backdrop-blur-md pointer-events-none z-40 leading-none"
             style={{ left: `${Math.max(24, Math.min(hoverX, (containerRef.current?.clientWidth || 200) - 24))}px` }}
           >
             <span>{formatTime(hoverTime)}</span>
@@ -153,8 +153,9 @@ export function AudioWaveformScrubber({
 
       {/* Total / Remaining Duration toggle */}
       <button
+        type="button"
         onClick={() => setShowRemaining((prev) => !prev)}
-        className="text-[11px] sm:text-xs font-mono tabular-nums text-slate-400 hover:text-white font-semibold w-10 text-left shrink-0 transition-colors cursor-pointer"
+        className="scrubber-time-btn text-[11px] sm:text-xs font-mono tabular-nums text-slate-400 hover:text-white font-semibold w-10 text-left shrink-0 transition-colors cursor-pointer"
         title="Bấm để đổi giữa Thời lượng & Thời gian còn lại"
       >
         {showRemaining ? `-${formatTime(remainingTime)}` : formatTime(effectiveDuration)}

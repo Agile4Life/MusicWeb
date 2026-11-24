@@ -30,6 +30,7 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
   artist,
   isPlaying,
   onArtistClick,
+  children,
 }: NowPlayingStageProps) {
   const canUse3DHardware = useCanUse3D()
   const { currentTheme, themeStyle, gamingMode } = useTheme()
@@ -204,16 +205,16 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
         </div>
       )}
 
-      {/* Layer 3: Album Cover + Title (3× parallax + 3D tilt) + Stationary Up Next List */}
-      <div className="relative z-20 w-full h-full max-w-[1360px] xl:max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-center lg:justify-start">
-        <div className="w-full max-w-sm sm:max-w-md lg:max-w-[400px] xl:max-w-[440px] flex flex-col items-center justify-center gap-2 sm:gap-2.5 lg:gap-3 my-auto">
+      {/* Layer 3: Centered 2-Column Stage Grid (Left: Album + Up Next, Right: Lyrics child slot) */}
+      <div className="relative z-20 w-full h-full min-h-0 max-w-[1360px] xl:max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-10 grid grid-cols-1 lg:grid-cols-2 gap-6 xl:gap-12 items-center">
+        <div className="w-full max-w-sm sm:max-w-md lg:max-w-[420px] xl:max-w-[460px] mx-auto lg:mx-0 h-full min-h-0 flex flex-col items-center justify-center gap-2 sm:gap-2.5 lg:gap-3">
           {/* Parallax 3D moving wrapper for Album Cover */}
-          <div ref={sceneLayerRef} className="scene-layer w-full flex items-center justify-center">
+          <div ref={sceneLayerRef} className="scene-layer w-full flex items-center justify-center shrink-0">
             {/* Perspective container with Album Art + Progress Ring */}
             <div className="album-3d-container relative flex items-center justify-center p-1 sm:p-1.5 shrink-0">
               <div
                 ref={cardRef}
-                className={`album-3d-card pointer-gone now-playing-cover ${isPlaying ? 'is-spinning' : 'is-paused'} relative w-[clamp(110px,20vh,220px)] h-[clamp(110px,20vh,220px)] xl:w-[clamp(130px,23vh,250px)] xl:h-[clamp(130px,23vh,250px)] aspect-square shrink-0 rounded-full border border-white/20 shadow-[0_16px_40px_rgba(0,0,0,0.7),0_0_50px_var(--accent-dim)]`}
+                className={`album-3d-card pointer-gone now-playing-cover ${isPlaying ? 'is-spinning' : 'is-paused'} relative w-[clamp(110px,20vh,220px)] h-[clamp(110px,20vh,220px)] xl:w-[clamp(130px,23vh,250px)] xl:h-[clamp(130px,23vh,250px)] aspect-square shrink-0 rounded-full border border-white/20 shadow-[0_16px_40px_rgba(0,0,0,0.65)]`}
               >
                 {/* Progress Ring SVG (3D tilted with card, sitting flush around circular album cover) */}
                 <svg
@@ -236,7 +237,7 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
                     strokeWidth="1"
                     fill="none"
                   />
-                  {/* Accent Fill Circle with intense multi-tier neon glow */}
+                  {/* Accent Fill Circle with subtle glow */}
                   <circle
                     cx="50"
                     cy="50"
@@ -249,7 +250,7 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
                     strokeDasharray={2 * Math.PI * 48}
                     strokeDashoffset={2 * Math.PI * 48 * (1 - progressRatio)}
                     style={{
-                      filter: 'drop-shadow(0 0 4px var(--spotify-glow, #22d3ee)) drop-shadow(0 0 8px var(--theme-glow-shadow, rgba(6,182,212,0.95))) drop-shadow(0 0 16px var(--theme-glow-shadow, rgba(34,211,238,0.7)))',
+                      filter: 'drop-shadow(0 0 6px var(--spotify-glow, #22d3ee))',
                     }}
                   />
                 </svg>
@@ -270,7 +271,7 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
             <h2 className="fullview-track-title text-[clamp(1.05rem,2.1vh,1.65rem)] xl:text-[clamp(1.2rem,2.4vh,1.85rem)] font-bold text-white tracking-tight line-clamp-2 leading-tight">
               {title || 'Chưa chọn bài hát'}
             </h2>
-            <p className="fullview-track-artist text-[clamp(10px,1.3vh,14px)] text-slate-400 font-medium mt-0.5 sm:mt-1 line-clamp-1">
+            <div className="fullview-track-artist text-[clamp(10px,1.3vh,14px)] text-slate-400 font-medium mt-0.5 sm:mt-1 line-clamp-1">
               <ArtistLinks
                 artist={artist}
                 fallbackText="Nghệ sĩ"
@@ -278,7 +279,7 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
                 linkClassName="hover:underline hover:text-[var(--spotify-glow,#22d3ee)] transition-colors cursor-pointer"
                 onArtistClick={onArtistClick}
               />
-            </p>
+            </div>
 
             {/* Context Metadata (Bài n/total · Album · Year) */}
             {currentTrack && (
@@ -295,6 +296,12 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
             <UpNextList />
           </div>
         </div>
+
+        {children && (
+          <div className="hidden lg:flex h-full min-h-0 w-full flex-col justify-center">
+            {children}
+          </div>
+        )}
       </div>
     </div>
   )

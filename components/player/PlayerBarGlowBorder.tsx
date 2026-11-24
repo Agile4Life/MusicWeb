@@ -1,5 +1,6 @@
 'use client'
 
+import { useId } from 'react'
 import { usePlaybackProgress } from './PlayerContext'
 import { useTheme } from '@/components/theme/ThemeContext'
 
@@ -12,6 +13,8 @@ interface PlayerBarGlowBorderProps {
 export function PlayerBarGlowBorder({ duration = 0, className = '', rx = 16 }: PlayerBarGlowBorderProps) {
   const { themeStyle } = useTheme()
   const { currentTime, duration: contextDuration } = usePlaybackProgress()
+  const rawId = useId()
+  const gradientId = `playerbar-perimeter-glow-${rawId.replace(/:/g, '')}`
   const effectiveDuration = duration || contextDuration || 0
   const progressRatio = effectiveDuration > 0 ? Math.min(1, Math.max(0, currentTime / effectiveDuration)) : 0
 
@@ -23,7 +26,7 @@ export function PlayerBarGlowBorder({ duration = 0, className = '', rx = 16 }: P
       aria-hidden="true"
     >
       <defs>
-        <linearGradient id="playerbar-perimeter-glow" x1="0%" y1="0%" x2="100%" y2="0%">
+        <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset="0%" stopColor="var(--spotify-glow, #22d3ee)" stopOpacity="1" />
           <stop offset="50%" stopColor="var(--primary-spotify, #06b6d4)" stopOpacity="1" />
           <stop offset="100%" stopColor="var(--spotify-glow, #22d3ee)" stopOpacity="1" />
@@ -37,13 +40,13 @@ export function PlayerBarGlowBorder({ duration = 0, className = '', rx = 16 }: P
         rx={rx}
         pathLength={100}
         fill="none"
-        stroke="url(#playerbar-perimeter-glow)"
+        stroke={`url(#${gradientId})`}
         strokeWidth="2.5"
         strokeLinecap="round"
         strokeDasharray="100"
         strokeDashoffset={100 * (1 - progressRatio)}
         style={{
-          filter: 'drop-shadow(0 0 6px var(--spotify-glow, #22d3ee)) drop-shadow(0 0 12px var(--theme-glow-shadow, rgba(6,182,212,0.9))) drop-shadow(0 0 20px var(--theme-glow-shadow, rgba(6,182,212,0.55)))',
+          filter: 'drop-shadow(0 0 6px var(--spotify-glow, #22d3ee))',
           transition: 'stroke-dashoffset 0.25s linear',
         }}
       />

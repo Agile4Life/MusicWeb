@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { usePlayer, usePlaybackProgress } from './PlayerContext'
 import { usePlaybackDuration } from './PlaybackProgressStore'
@@ -308,6 +309,20 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
   const [showShareModal, setShowShareModal] = useState(false)
   const [shareLyrics, setShareLyrics] = useState<LyricLine[]>([])
   const [, setIsFetchingLyricsForShare] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!showLyricsModal) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowLyricsModal(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [showLyricsModal])
 
   const handleOpenShare = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
@@ -349,7 +364,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
   if (!currentTrack) {
     return (
       <footer
-        className={`player-bar hidden lg:flex h-20 rounded-[37px] px-6 items-center justify-between text-slate-400 select-none shrink-0 pointer-events-auto relative overflow-hidden ${isScrolled ? 'is-scrolled' : ''}`}
+        className={`player-bar hidden lg:grid lg:grid-cols-[minmax(190px,1fr)_minmax(320px,min(560px,42vw))_minmax(220px,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(320px,560px)_minmax(0,1fr)] lg:gap-3 xl:gap-6 h-[84px] xl:h-[92px] py-2 xl:py-2.5 rounded-[37px] px-4 xl:px-6 items-center text-slate-400 select-none shrink-0 pointer-events-auto relative ${isScrolled ? 'is-scrolled' : ''}`}
         style={isLiquidGlass ? {
           background: 'linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 40%, hsla(var(--base-h, 224), var(--base-s, 45%), 12%, 0.35) 100%)',
           backdropFilter: 'blur(36px) saturate(220%) brightness(1.06)',
@@ -358,32 +373,33 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
           borderTopColor: 'rgba(255,255,255,0.40)',
           boxShadow: '0 20px 50px -10px rgba(0,0,0,0.6), 0 0 40px -4px var(--theme-glow-shadow, rgba(34,211,238,0.2)), inset 0 1px 0 rgba(255,255,255,0.30)',
         } : undefined}
-      >        {/* Inner glass specular gradient */}
-        <span
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            borderRadius: 'inherit',
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 40%)',
-            pointerEvents: 'none',
-          }}
-        />
-        <div className="flex items-center gap-3 w-1/4 min-w-[200px]">
-          <div className="w-11 h-11 bg-white/5 rounded-xl flex items-center justify-center text-slate-600 border border-white/5">
+      >
+        {/* Inner glass specular gradient */}
+        <div aria-hidden="true" className="absolute inset-0 rounded-[inherit] overflow-hidden pointer-events-none">
+          <span
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: 'inherit',
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 40%)',
+            }}
+          />
+        </div>
+        <div className="flex items-center gap-3 min-w-0 relative z-20">
+          <div className="w-11 h-11 bg-white/5 rounded-xl flex items-center justify-center text-slate-600 border border-white/5 shrink-0">
             <Music className="w-5 h-5" />
           </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-300">Chưa chọn bài hát</p>
-            <p className="text-[10px] text-slate-500">Chọn một bài hát từ thư viện để phát</p>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-slate-300 truncate">Chưa chọn bài hát</p>
+            <p className="text-[10px] text-slate-500 truncate">Chọn một bài hát từ thư viện để phát</p>
           </div>
         </div>
 
         {/* Desktop Disabled Controls when empty */}
-        <div className="flex flex-col items-center gap-1.5 w-2/4 max-w-xl">
-          <div className="flex items-center gap-4 text-slate-600">
+        <div className="flex flex-col items-center gap-2.5 w-full min-w-0 relative z-20">
+          <div className="flex items-center gap-3 xl:gap-4 text-slate-600">
             <SkipBack className="w-4 h-4 cursor-not-allowed" />
-            <button className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-slate-600 cursor-not-allowed border border-white/5">
+            <button className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center text-slate-600 cursor-not-allowed border border-white/5">
               <Play className="w-4 h-4 fill-current ml-0.5" />
             </button>
             <SkipForward className="w-4 h-4 cursor-not-allowed" />
@@ -395,9 +411,9 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
           </div>
         </div>
 
-        <div className="w-1/4 flex justify-end items-center gap-2.5 text-slate-600">
-          <Volume2 className="w-4 h-4 cursor-not-allowed" />
-          <div className="w-24 h-1 bg-white/5 rounded-full" />
+        <div className="flex justify-end items-center gap-2 text-slate-600 min-w-0 relative z-20">
+          <Volume2 className="w-4 h-4 cursor-not-allowed shrink-0" />
+          <div className="w-16 xl:w-20 h-1 bg-white/5 rounded-full" />
         </div>
       </footer>
     )
@@ -596,9 +612,9 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
       </div>
 
 
-      {/* 💻 DESKTOP PLAYER BAR (Visible on >= 768px screens) */}
+      {/* 💻 DESKTOP PLAYER BAR (Visible on >= 1024px screens) */}
       <footer
-        className={`player-bar hidden lg:flex h-[84px] xl:h-[96px] py-2.5 xl:py-3.5 rounded-[37px] px-4 lg:px-6 xl:px-8 items-center justify-between text-slate-300 select-none shrink-0 panel-theme-hover transition-all relative overflow-hidden ${isNowPlayingOpen ? 'pointer-events-none' : 'pointer-events-auto'} ${isScrolled ? 'is-scrolled' : ''}`}
+        className={`player-bar hidden lg:grid lg:grid-cols-[minmax(190px,1fr)_minmax(320px,min(560px,42vw))_minmax(220px,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(320px,560px)_minmax(0,1fr)] lg:gap-3 xl:gap-6 h-[84px] xl:h-[92px] py-2 xl:py-2.5 rounded-[37px] px-4 xl:px-6 items-center text-slate-300 select-none shrink-0 relative ${isNowPlayingOpen ? 'pointer-events-none' : 'pointer-events-auto'} ${isScrolled ? 'is-scrolled' : ''}`}
         aria-hidden={isNowPlayingOpen ? true : undefined}
         style={isLiquidGlass ? {
           background: 'linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 40%, hsla(var(--base-h, 224), var(--base-s, 45%), 12%, 0.35) 100%)',
@@ -615,24 +631,24 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         }}
         role="presentation"
       >
-        {/* Inner glass specular gradient (Same as Mobile Player Bar) */}
-        <span
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            borderRadius: 'inherit',
-            background: isLiquidGlass
-              ? 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.015) 15%, transparent 40%)'
-              : 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 40%)',
-            pointerEvents: 'none',
-          }}
-        />
+        {/* Inner glass specular gradient */}
+        <div aria-hidden="true" className="absolute inset-0 rounded-[inherit] overflow-hidden pointer-events-none">
+          <span
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: 'inherit',
+              background: isLiquidGlass
+                ? 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.015) 15%, transparent 40%)'
+                : 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 40%)',
+            }}
+          />
+        </div>
         <PlayerBarGlowBorder duration={duration || currentTrack.duration} rx={37} />
         {/* Left: Track Metadata */}
-        <div className="flex items-center gap-3 w-1/4 min-w-[250px] lg:min-w-[300px] xl:min-w-[360px] max-w-[420px]">
+        <div className="flex items-center gap-3 min-w-0 relative z-20">
           <div onClick={openNowPlayingOverlay} className="relative group shrink-0 cursor-pointer" title="Mở Now Playing">
-            <div className={`player-cover w-14 h-14 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 shadow-md ${isPlaying ? 'is-playing' : ''}`}>
+            <div className={`player-cover w-12 h-12 xl:w-14 xl:h-14 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 shadow-md ${isPlaying ? 'is-playing' : ''}`}>
               <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
             </div>
           </div>
@@ -662,7 +678,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                     backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
                     borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
                   }}
-                  className={`${trackMetadataLoadingClass} inline-flex items-center gap-1 text-[10px] font-semibold border px-2 py-0.5 rounded-full animate-pulse`}
+                  className={`${trackMetadataLoadingClass} inline-flex items-center gap-1 text-[10px] font-semibold border px-2 py-0.5 rounded-full`}
                   title="Đang tải bản Lossless..."
                 >
                   <Loader2 className="w-3 h-3 animate-spin shrink-0" style={{ color: 'var(--spotify-glow, #22d3ee)' }} />
@@ -683,7 +699,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
               <div
                 onClick={handleOpenAlbum}
                 data-playerbar-exclude-fullview
-                className="flex items-center gap-1 min-w-0 max-w-[180px] sm:max-w-[220px] xl:max-w-[280px] text-[10px] text-slate-300 bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 px-2 py-0.5 rounded-md hover:border-[var(--spotify-glow,#22d3ee)]/50 cursor-pointer transition-all group shadow-sm"
+                className="flex items-center gap-1 min-w-0 max-w-[160px] xl:max-w-[260px] text-[10px] text-slate-300 bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 px-2 py-0.5 rounded-md hover:border-[var(--spotify-glow,#22d3ee)]/50 cursor-pointer transition-[background-color,border-color,color] group shadow-sm"
                 title={displayAlbumName ? `Vào album: ${displayAlbumName}` : 'Vào Album bài hát'}
               >
                 {isNavigatingAlbum ? (
@@ -702,8 +718,8 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         </div>
 
         {/* Center: Playback Controls */}
-        <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0 px-4 max-w-2xl">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col items-center gap-2.5 w-full min-w-0 relative z-20">
+          <div className="flex items-center gap-3 xl:gap-4">
             <button
               onClick={(e) => { e.stopPropagation(); toggleShuffle() }}
               aria-label={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
@@ -717,7 +733,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                   }
                   : undefined
               }
-              className={`p-2 rounded-xl relative btn-3d-tactile ${isShuffle ? 'is-active border shadow-md' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
+              className={`p-1.5 xl:p-2 rounded-xl relative transition-colors cursor-pointer ${isShuffle ? 'is-active border shadow-sm' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
                 }`}
               title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
             >
@@ -733,7 +749,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             <button
               onClick={(e) => { e.stopPropagation(); prevTrack() }}
               aria-label={t('previous')}
-              className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full btn-3d-tactile"
+              className="p-1.5 xl:p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-colors cursor-pointer"
               title={t('previous')}
             >
               <SkipBack className="w-5 h-5" />
@@ -746,7 +762,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                 background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.4), 0 0 10px var(--theme-glow-shadow, rgba(6,182,212,0.25))',
               }}
-              className="player-play-btn w-10 h-10 rounded-full btn-3d-tactile flex items-center justify-center text-black font-bold shrink-0 border border-white/20"
+              className="player-play-btn w-9 h-9 rounded-full transition-[filter,transform] hover:brightness-110 active:scale-95 flex items-center justify-center text-black font-bold shrink-0 border border-white/20 cursor-pointer"
               title={isBuffering ? t('buffering') : isPlaying ? t('pause') : t('play')}
             >
               {isBuffering ? (
@@ -761,7 +777,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             <button
               onClick={(e) => { e.stopPropagation(); nextTrack() }}
               aria-label={t('next')}
-              className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full btn-3d-tactile"
+              className="p-1.5 xl:p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-colors cursor-pointer"
               title={t('next')}
             >
               <SkipForward className="w-5 h-5" />
@@ -786,7 +802,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                   }
                   : undefined
               }
-              className={`p-2 rounded-xl relative btn-3d-tactile ${repeatMode !== 'off' ? 'is-active border shadow-md' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
+              className={`p-1.5 xl:p-2 rounded-xl relative transition-colors cursor-pointer ${repeatMode !== 'off' ? 'is-active border shadow-sm' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
                 }`}
               title={
                 repeatMode === 'one'
@@ -820,19 +836,19 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
         </div>
 
         {/* Right: Volume & Extra Controls */}
-        <div className="flex items-center justify-end gap-2 lg:gap-3 flex-[0_0_170px] lg:flex-[0_0_200px] xl:flex-[0_0_240px] shrink-0">
+        <div className="flex items-center justify-end gap-1.5 xl:gap-2.5 min-w-0 relative z-20">
           <button
             onClick={(e) => { e.stopPropagation(); toggleFavoriteCurrentTrack() }}
             aria-label={currentTrack.is_favorite ? t('remove_favorite') : t('add_to_favorite')}
             aria-pressed={Boolean(currentTrack.is_favorite)}
-            className={`p-2 rounded-xl transition-all btn-3d-tactile ${currentTrack.is_favorite
+            className={`p-1.5 xl:p-2 rounded-xl transition-colors cursor-pointer ${currentTrack.is_favorite
                 ? 'is-active text-rose-500 bg-rose-500/15 border border-rose-500/30'
                 : 'text-slate-400 hover:text-rose-400 hover:bg-white/5'
               }`}
             title={currentTrack.is_favorite ? t('remove_favorite') : t('add_to_favorite')}
           >
             <Heart
-              className={`w-4 h-4 transition-all ${currentTrack.is_favorite ? 'fill-current drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]' : ''
+              className={`w-4 h-4 transition-colors ${currentTrack.is_favorite ? 'fill-current drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]' : ''
                 }`}
             />
           </button>
@@ -841,8 +857,8 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             onClick={(e) => { e.stopPropagation(); setShowLyricsModal(!showLyricsModal) }}
             aria-label={t('lyrics')}
             aria-pressed={showLyricsModal}
-            className={`p-2 rounded-xl transition-all btn-3d-tactile ${showLyricsModal
-                ? 'is-active bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md font-bold'
+            className={`p-1.5 xl:p-2 rounded-xl transition-colors cursor-pointer ${showLyricsModal
+                ? 'is-active bg-[var(--primary-spotify,#06b6d4)] text-black shadow-sm font-bold'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
             title={t('lyrics')}
@@ -853,7 +869,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <button
             onClick={handleOpenShare}
             aria-label={t('share_lyrics')}
-            className="p-2 rounded-xl transition-all btn-3d-tactile text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/5"
+            className="p-1.5 xl:p-2 rounded-xl transition-colors text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/5 cursor-pointer"
             title={t('share_lyrics')}
           >
             <Share2 className="w-4 h-4" />
@@ -872,7 +888,7 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
                 }
                 : undefined
             }
-            className={`p-2 rounded-xl relative transition-all btn-3d-tactile ${isQueueOpen ? 'is-active border shadow-md font-bold' : 'text-slate-400 hover:text-white hover:bg-white/5'
+            className={`p-1.5 xl:p-2 rounded-xl relative transition-colors cursor-pointer ${isQueueOpen ? 'is-active border shadow-sm font-bold' : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
             title={t('queue')}
           >
@@ -885,18 +901,18 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
             )}
           </button>
 
-          <div className="h-4 w-[1px] bg-white/10" />
+          <div className="h-4 w-[1px] bg-white/10 shrink-0" />
 
-          <div className="flex items-center gap-2.5 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.06] rounded-full px-2.5 xl:px-3 py-1 shrink-0" onClick={(e) => e.stopPropagation()}>
             <button
               onClick={(e) => { e.stopPropagation(); handleVolumeToggle() }}
               aria-label={volume === 0 ? t('unmute') : t('mute')}
-              className="text-slate-400 hover:text-white transition-colors p-0.5 shrink-0"
+              className="text-slate-400 hover:text-white transition-colors p-0.5 shrink-0 cursor-pointer"
               title={volume === 0 ? t('unmute') : t('mute')}
             >
               {volume === 0 ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
             </button>
-            <div className="volume-track-wrapper w-16 lg:w-20 ml-0.5">
+            <div className="volume-track-wrapper w-14 lg:w-16 xl:w-20 ml-0.5">
               <div className="volume-track">
                 <div className="volume-fill" style={{ width: `${volume * 100}%` }} />
                 <div className="volume-thumb" style={{ left: `${volume * 100}%` }} />
@@ -916,16 +932,21 @@ export function PlayerBar({ isScrolled }: { isScrolled?: boolean } = {}) {
       </footer>
 
       {/* 🎤 FULLSCREEN / MODAL LYRICS OVERLAY FOR MOBILE (ANDROID/IOS) & DESKTOP */}
-      <div
-        className={`fixed inset-0 z-50 bg-black/85 p-2 md:p-6 flex items-center justify-center transition-all duration-200 ${showLyricsModal
-            ? 'opacity-100 pointer-events-auto visible scale-100'
-            : 'opacity-0 pointer-events-none invisible scale-95'
-          }`}
-      >
-        <div className="modal-content w-full h-full max-w-5xl bg-[var(--bg-space,#090b10)] rounded-2xl border border-white/[0.1] shadow-2xl overflow-hidden flex flex-col relative">
-          <LyricsView onClose={() => setShowLyricsModal(false)} isModal={true} />
-        </div>
-      </div>
+      {showLyricsModal && mounted && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[70] bg-black/85 p-2 md:p-6 flex items-center justify-center animate-in fade-in duration-200"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowLyricsModal(false)
+          }}
+        >
+          <div className="modal-content w-full h-full max-w-5xl bg-[var(--bg-space,#090b10)] rounded-2xl border border-white/[0.1] shadow-2xl overflow-hidden flex flex-col relative">
+            <LyricsView onClose={() => setShowLyricsModal(false)} isModal={true} />
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* 🚀 Lyrics Share Modal */}
       {showShareModal && currentTrack && (

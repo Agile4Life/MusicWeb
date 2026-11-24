@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { usePlayer } from './PlayerContext'
 import { useLanguage } from '@/components/i18n/LanguageContext'
-import { X, Play, Music, History, Sparkles } from 'lucide-react'
+import { X, Play, Music, History, ListMusic } from 'lucide-react'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import { ArtistLinks } from '@/components/common/ArtistLinks'
 import { useListGlideIndicator } from '@/components/common/useGlideIndicator'
@@ -74,7 +74,7 @@ export function QueueDrawer() {
   const displayHistoryTracks = persistedRecentTracks.length > 0 ? persistedRecentTracks : []
 
   return (
-    <aside className="queue-drawer fixed inset-x-2 top-16 bottom-36 z-40 lg:z-40 lg:static lg:inset-auto lg:top-auto lg:bottom-auto lg:h-full w-auto lg:w-80 xl:w-96 bg-[var(--elevation-3-bg)] backdrop-blur-2xl rounded-2xl border border-white/10 panel-theme-hover shadow-2xl flex flex-col overflow-hidden shrink-0 select-none animate-in slide-in-from-bottom lg:slide-in-from-right duration-200 transform-gpu">
+    <aside className="queue-drawer fixed inset-x-2 top-16 bottom-36 z-40 lg:z-40 lg:static lg:inset-auto lg:top-auto lg:bottom-auto lg:h-full w-auto lg:w-72 xl:w-80 2xl:w-96 bg-[var(--elevation-3-bg)] backdrop-blur-2xl rounded-2xl lg:rounded-2xl border border-white/10 shadow-2xl flex flex-col overflow-hidden shrink-0 select-none animate-in slide-in-from-bottom lg:slide-in-from-right duration-200 transform-gpu">
       {/* Drawer Header */}
       <div className="flex items-center justify-between px-4 py-3.5 border-b border-white/10 shrink-0">
         <div className="flex items-center gap-4">
@@ -119,7 +119,7 @@ export function QueueDrawer() {
       </div>
 
       {/* Drawer Content */}
-      <div className="flex-1 overflow-y-auto p-4 pb-28 lg:pb-32 space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 pb-28 lg:pb-4 space-y-6">
         {activeTab === 'queue' ? (
           <>
             {/* Section 1: Now Playing */}
@@ -151,9 +151,9 @@ export function QueueDrawer() {
                     >
                       {currentTrack.title}
                     </p>
-                    <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                    <div className="text-[11px] text-slate-400 truncate mt-0.5">
                       <ArtistLinks artist={currentTrack.artist} fallbackText={t('unknown_artist')} className="text-[11px] text-slate-400 truncate" />
-                    </p>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -163,14 +163,14 @@ export function QueueDrawer() {
 
             {/* Section 2: Next Up */}
             <div className="flex flex-col gap-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider truncate">
                   {t('next_up')} ({nextUpTracks.length})
                 </span>
                 {nextUpTracks.length > 0 && (
                   <button
                     onClick={clearQueue}
-                    className="text-[11px] text-slate-400 hover:text-rose-400 transition-colors"
+                    className="text-[11px] text-slate-400 hover:text-rose-400 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                   >
                     {t('clear_queue')}
                   </button>
@@ -198,12 +198,12 @@ export function QueueDrawer() {
                         key={`${track.id}-${idx}`}
                         onClick={() => playTrack(track, queue, actualQueueIndex)}
                         onMouseEnter={queueGlide.handleItemMouseEnter}
-                        className="queue-track-row flex items-center justify-between gap-3 p-2 rounded-xl border border-transparent group transition-all cursor-pointer relative z-[1]"
+                        className="queue-track-row flex items-center justify-between gap-3 p-2 rounded-xl border border-transparent group transition-colors cursor-pointer relative z-[1]"
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div className="w-9 h-9 rounded-lg bg-slate-800 border border-white/10 overflow-hidden shrink-0 relative flex items-center justify-center">
+                          <div className="w-9 h-9 rounded-lg bg-slate-800 border border-white/10 overflow-hidden shrink-0 relative flex items-center justify-center group/cover">
                             <TrackCoverImage src={track.cover_url} alt={track.title} />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/cover:opacity-100 flex items-center justify-center transition-opacity">
                               <Play className="w-3.5 h-3.5 text-white fill-current ml-0.5" />
                             </div>
                           </div>
@@ -212,9 +212,9 @@ export function QueueDrawer() {
                             <p className="text-xs font-semibold text-white truncate group-hover:text-[var(--spotify-glow,#22d3ee)] transition-colors">
                               {track.title}
                             </p>
-                            <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                            <div className="text-[10px] text-slate-400 truncate mt-0.5">
                               <ArtistLinks artist={track.artist} fallbackText={t('unknown_artist')} className="text-[10px] text-slate-400 truncate" />
-                            </p>
+                            </div>
                           </div>
                         </div>
 
@@ -223,7 +223,7 @@ export function QueueDrawer() {
                             e.stopPropagation()
                             removeFromQueue(actualQueueIndex)
                           }}
-                          className="p-1 text-slate-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all rounded-md hover:bg-white/10 shrink-0"
+                          className="p-1 text-slate-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-[opacity,color,background-color] rounded-md hover:bg-white/10 shrink-0 cursor-pointer"
                           title={t('remove_from_queue')}
                         >
                           <X className="w-3.5 h-3.5" />
@@ -234,7 +234,7 @@ export function QueueDrawer() {
                 </div>
               ) : (
                 <div className="p-6 text-center rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col items-center gap-2">
-                  <Sparkles className="w-6 h-6 text-slate-500" />
+                  <ListMusic className="w-6 h-6 text-slate-500" />
                   <p className="text-xs text-slate-400">{t('no_next_tracks')}</p>
                   <p className="text-[10px] text-slate-500">{t('add_to_queue_hint')}</p>
                 </div>
@@ -265,15 +265,15 @@ export function QueueDrawer() {
                     key={`hist-${track.id}-${idx}`}
                     onClick={() => playTrack(track)}
                     onMouseEnter={historyGlide.handleItemMouseEnter}
-                    className="queue-track-row flex items-center gap-3 p-2 rounded-xl border border-transparent group transition-all cursor-pointer relative z-[1]"
+                    className="queue-track-row flex items-center gap-3 p-2 rounded-xl border border-transparent group transition-colors cursor-pointer relative z-[1]"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-slate-800 border border-white/10 overflow-hidden shrink-0 relative flex items-center justify-center">
+                    <div className="w-9 h-9 rounded-lg bg-slate-800 border border-white/10 overflow-hidden shrink-0 relative flex items-center justify-center group/cover">
                       {track.cover_url ? (
                         <img src={track.cover_url} alt={track.title} className="w-full h-full object-cover" />
                       ) : (
                         <Music className="w-4 h-4 text-slate-500" />
                       )}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/cover:opacity-100 flex items-center justify-center transition-opacity">
                         <Play className="w-3.5 h-3.5 text-white fill-current ml-0.5" />
                       </div>
                     </div>
@@ -282,9 +282,9 @@ export function QueueDrawer() {
                       <p className="text-xs font-semibold text-white truncate group-hover:text-[var(--spotify-glow,#22d3ee)] transition-colors">
                         {track.title}
                       </p>
-                      <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                      <div className="text-[10px] text-slate-400 truncate mt-0.5">
                         <ArtistLinks artist={track.artist} fallbackText="Nghệ sĩ chưa xác định" className="text-[10px] text-slate-400 truncate" />
-                      </p>
+                      </div>
                     </div>
                   </div>
                 ))}

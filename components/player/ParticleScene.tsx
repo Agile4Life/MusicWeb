@@ -4,10 +4,10 @@ import { useRef, useMemo, useEffect, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
-// Số lượng hạt của 3 tầng (Tổng: 8,120 hạt)
-const BG_COUNT = 4480   // Tầng xa: vệt sao băng trắng tinh khôi
-const MID_COUNT = 2520  // Tầng giữa: sao lấp lánh trắng sáng tự nhiên
-const FG_COUNT = 1120   // Tầng gần: sao lấp lánh lớn, sáng rực rỡ, ĐỒNG BỘ MÀU THEME
+// Balanced subtle starfield counts on desktop (total <= 240 particles)
+const BG_COUNT = 120   // Distant star layer
+const MID_COUNT = 80   // Mid twinkling layer
+const FG_COUNT = 40    // Foreground theme-accent layer
 
 /** Texture sao lấp lánh: đa giác 4 cánh sắc cạnh (không chỉ dựa gradient mềm) + lõi sáng rực */
 function createSparkleTexture() {
@@ -236,18 +236,18 @@ function Particles({ accentColor: propAccent, glowColor: propGlow }: ParticlesPr
     }
   }, [propAccent, propGlow])
 
-  // Dynamic particle count based on screen width (avoids GPU overheating on Retina mobile screens)
+  // Dynamic particle count based on screen width
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
-  const bgCount = isMobile ? 1000 : BG_COUNT
-  const midCount = isMobile ? 600 : MID_COUNT
-  const fgCount = isMobile ? 200 : FG_COUNT
+  const bgCount = isMobile ? 60 : BG_COUNT
+  const midCount = isMobile ? 40 : MID_COUNT
+  const fgCount = isMobile ? 20 : FG_COUNT
 
   // Tầng nền: vệt sao băng, trải rộng toàn màn hình
-  const bg = useMemo(() => makeTwinkleGeometry(bgCount, 26, 18, -5.0, 3.0, 0.09), [bgCount])
+  const bg = useMemo(() => makeTwinkleGeometry(bgCount, 26, 18, -5.0, 3.0, 0.065), [bgCount])
   // Tầng giữa: sao lấp lánh cỡ vừa
-  const mid = useMemo(() => makeTwinkleGeometry(midCount, 22, 15, -2.0, 2.5, 0.095), [midCount])
-  // Tầng cận cảnh: sao lấp lánh lớn, sáng nhất
-  const fg = useMemo(() => makeTwinkleGeometry(fgCount, 18, 12, 0.5, 2.0, 0.12), [fgCount])
+  const mid = useMemo(() => makeTwinkleGeometry(midCount, 22, 15, -2.0, 2.5, 0.07), [midCount])
+  // Tầng cận cảnh: sao lấp lánh lớn
+  const fg = useMemo(() => makeTwinkleGeometry(fgCount, 18, 12, 0.5, 2.0, 0.09), [fgCount])
 
   useFrame((state) => {
     const t = state.clock.getElapsedTime()
@@ -300,11 +300,11 @@ function Particles({ accentColor: propAccent, glowColor: propGlow }: ParticlesPr
           <bufferAttribute attach="attributes-position" args={[bg.positions, 3]} />
         </bufferGeometry>
         <pointsMaterial
-          size={0.09}
+          size={0.07}
           map={cometMap}
           color="#ffffff"
           transparent
-          opacity={0.4}
+          opacity={0.25}
           depthWrite={false}
           sizeAttenuation
           blending={THREE.AdditiveBlending}
@@ -327,7 +327,7 @@ function Particles({ accentColor: propAccent, glowColor: propGlow }: ParticlesPr
             uScale: { value: 400 },
             uMap: { value: sparkleMap },
             uColor: { value: whiteColor },
-            uOpacity: { value: 0.8 },
+            uOpacity: { value: 0.5 },
           }}
           transparent
           depthWrite={false}
@@ -335,7 +335,7 @@ function Particles({ accentColor: propAccent, glowColor: propGlow }: ParticlesPr
         />
       </points>
 
-      {/* 3. Tầng Cận Cảnh: ĐỒNG BỘ MÀU THEME CỦA USER, sáng rực rỡ nhất */}
+      {/* 3. Tầng Cận Cảnh: ĐỒNG BỘ MÀU THEME CỦA USER */}
       <points ref={fgPointsRef}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[fg.positions, 3]} />
@@ -351,7 +351,7 @@ function Particles({ accentColor: propAccent, glowColor: propGlow }: ParticlesPr
             uScale: { value: 400 },
             uMap: { value: sparkleMap },
             uColor: { value: fgColor },
-            uOpacity: { value: 0.95 },
+            uOpacity: { value: 0.65 },
           }}
           transparent
           depthWrite={false}
@@ -364,6 +364,7 @@ function Particles({ accentColor: propAccent, glowColor: propGlow }: ParticlesPr
 
 export default function ParticleScene({ isActive = true, isPlaying, accentColor, glowColor }: ParticlesProps & { isActive?: boolean }) {
   const [isHidden, setIsHidden] = useState(false)
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
 
   useEffect(() => {
     const handleVisibility = () => {
@@ -373,9 +374,21 @@ export default function ParticleScene({ isActive = true, isPlaying, accentColor,
       setIsHidden(document.hidden)
       document.addEventListener('visibilitychange', handleVisibility)
     }
+    let mql: MediaQueryList | null = null
+    const handleMotion = () => {
+      if (mql) setPrefersReducedMotion(mql.matches)
+    }
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      mql = window.matchMedia('(prefers-reduced-motion: reduce)')
+      setPrefersReducedMotion(mql.matches)
+      mql.addEventListener('change', handleMotion)
+    }
     return () => {
       if (typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', handleVisibility)
+      }
+      if (mql) {
+        mql.removeEventListener('change', handleMotion)
       }
     }
   }, [])
@@ -393,8 +406,8 @@ export default function ParticleScene({ isActive = true, isPlaying, accentColor,
       camera={{ position: [0, 0, 5], fov: 45 }}
       dpr={isMobileScreen ? [1, 1.5] : [1, 2]}
       gl={{ antialias: !isMobileScreen, alpha: true, powerPreference: 'high-performance' }}
-      // The overlay is only translated off-screen when closed; stop drawing frames then.
-      frameloop={isActive ? 'always' : 'never'}
+      // Stop drawing frames when closed or reduced-motion is preferred
+      frameloop={isActive && !prefersReducedMotion ? 'always' : 'never'}
     >
       <Particles
         isPlaying={isPlaying}

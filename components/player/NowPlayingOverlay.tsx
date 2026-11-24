@@ -24,6 +24,8 @@ import { LyricsShareModal } from './LyricsShareModal'
 import { getPrimaryLyrics } from '@/lib/lyricsFlow'
 import { parseLrc, parsePlainLyrics, LyricLine } from '@/lib/lrcParser'
 import { MobileFullviewPlayer } from './MobileFullviewPlayer'
+import { useCurrentUser } from '@/components/auth/CurrentUserContext'
+import { isAdmin } from '@/lib/accessControl'
 import {
   ChevronDown,
   Play,
@@ -37,11 +39,11 @@ import {
   Volume2,
   VolumeX,
   DiscAlbum,
-  Sparkles,
   Loader2,
   Share2,
   Cloud,
   Languages,
+  PenTool,
 } from 'lucide-react'
 
 export function NowPlayingOverlay() {
@@ -66,10 +68,13 @@ export function NowPlayingOverlay() {
   } = usePlayer()
 
   const router = useRouter()
+  const { userEmail } = useCurrentUser()
+  const userIsAdmin = isAdmin(userEmail)
   const [isNavigatingAlbum, setIsNavigatingAlbum] = useState(false)
   const [resolvedAlbumInfo, setResolvedAlbumInfo] = useState<{ id?: string; name?: string } | null>(null)
   const [showShareModal, setShowShareModal] = useState(false)
   const [shareLyrics, setShareLyrics] = useState<LyricLine[]>([])
+  const [openEditorSignal, setOpenEditorSignal] = useState(0)
   const [isLiquidGlass, setIsLiquidGlass] = useState(false)
   const [showRomaji, setShowRomaji] = useState(true)
 
@@ -325,17 +330,18 @@ export function NowPlayingOverlay() {
     router.push(`/artist?name=${encodeURIComponent(name)}`)
   }
 
-  // Listen to Esc key to close overlay
+  // Listen to Esc key to close overlay (only when no nested dialog is open)
   useEffect(() => {
     if (!isNowPlayingOpen) return
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (showShareModal || document.querySelector('[role="dialog"]')) return
         closeNowPlayingOverlay()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isNowPlayingOpen, closeNowPlayingOverlay])
+  }, [isNowPlayingOpen, showShareModal, closeNowPlayingOverlay])
 
   if (!currentTrack) return null
 
@@ -365,119 +371,103 @@ export function NowPlayingOverlay() {
       <div
         inert={!isNowPlayingOpen}
         aria-hidden={!isNowPlayingOpen}
-        className={`now-playing-overlay hidden lg:flex fixed inset-0 z-50 bg-[#07090e] text-white flex-col transition-transform duration-350 ease-[cubic-bezier(0.22,1,0.36,1)] select-none ${
+        className={`now-playing-overlay hidden lg:flex fixed inset-0 z-[60] bg-[#07090e] text-white flex-col transition-transform duration-350 ease-[cubic-bezier(0.22,1,0.36,1)] select-none ${
           isNowPlayingOpen ? 'open translate-y-0' : 'translate-y-full pointer-events-none'
         }`}
       >
-        {/* 🌟 Single Shared Ambient Glow Layer (Behind Top Bar, Stage & PlayerBar) */}
+        {/* Subtle Single Shared Ambient Radial Wash */}
         <div
-          className="absolute inset-0 z-0 pointer-events-none overflow-hidden opacity-60"
+          className="absolute inset-0 z-0 pointer-events-none overflow-hidden opacity-50"
           aria-hidden="true"
-        >
-          <div className="absolute -top-1/4 -left-1/4 w-[75vw] h-[75vw] rounded-full bg-[radial-gradient(circle,var(--spotify-glow,rgba(34,211,238,0.25))_0%,transparent_65%)] blur-3xl" />
-          <div className="absolute -bottom-1/4 -right-1/4 w-[75vw] h-[75vw] rounded-full bg-[radial-gradient(circle,var(--theme-gradient-1,rgba(168,85,247,0.2))_0%,transparent_65%)] blur-3xl" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[55vw] h-[55vw] rounded-full bg-[radial-gradient(circle,var(--theme-gradient-2,rgba(6,182,212,0.15))_0%,transparent_70%)] blur-3xl" />
-          {/* Extra bottom glow for liquid-glass player bar backdrop (extends into bar region) */}
-          {isLiquidGlass && (
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[90vw] h-[35vh] rounded-full blur-3xl opacity-70"
-              style={{ background: 'radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--spotify-glow,#22d3ee) 28%, transparent) 0%, color-mix(in srgb, var(--theme-gradient-1,rgba(168,85,247,0.3)) 20%, transparent) 45%, transparent 75%)' }}
-            />
-          )}
-        </div>
+          style={{
+            background:
+              'radial-gradient(circle at 28% 38%, color-mix(in srgb, var(--spotify-glow, #22d3ee) 18%, transparent) 0%, transparent 55%), radial-gradient(circle at 76% 68%, color-mix(in srgb, var(--theme-gradient-1, #a855f7) 14%, transparent) 0%, transparent 60%)',
+          }}
+        />
 
         {/* 🔝 Unified Top Header (Desktop) */}
         <div className="relative z-30 flex items-center justify-between h-16 px-6 border-b border-white/[0.08] shrink-0 bg-[#07090e]/90 backdrop-blur-xl">
           <button
             aria-label="Thu nhỏ player (Esc)"
             onClick={closeNowPlayingOverlay}
-            className="fullview-header-btn p-2 text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-all active:scale-95 flex items-center gap-1.5 text-xs font-semibold shrink-0 border border-white/10"
+            className="fullview-header-btn p-2 text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-colors active:scale-95 flex items-center gap-1.5 text-xs font-semibold shrink-0 border border-white/10 cursor-pointer"
             title="Thu nhỏ player (Esc)"
           >
             <ChevronDown className="w-5 h-5" />
             <span className="hidden sm:inline">Thu nhỏ</span>
           </button>
 
-          {/* Right Header context badge */}
+          {/* Right Header context & actions */}
           <div className="flex items-center gap-2.5 shrink-0">
-
-            {currentTrack.source === 'soundcloud' ? (
-              <span className="fullview-header-badge text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/40 flex items-center gap-1.5 shadow-[0_0_12px_rgba(255,85,0,0.3)]">
+            {currentTrack.source === 'soundcloud' && (
+              <span className="fullview-header-badge text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#ff5500]/15 text-[#ff7700] border border-[#ff5500]/35 flex items-center gap-1.5">
                 <Cloud className="w-3 h-3 text-[#ff7700]" />
                 SOUNDCLOUD
               </span>
-            ) : (
-              <span className="fullview-header-badge text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[var(--accent,#06b6d4)]/10 text-[var(--spotify-glow,#22d3ee)] border border-[var(--accent,#06b6d4)]/25 flex items-center gap-1.5 shadow-[0_0_12px_var(--theme-glow-shadow)]">
-                <Sparkles className="w-3 h-3 text-[var(--spotify-glow,#22d3ee)]" />
-                SYNCED LYRICS
-              </span>
+            )}
+            {userIsAdmin && (
+              <button
+                type="button"
+                onClick={() => setOpenEditorSignal((n) => n + 1)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-200 hover:text-white transition-colors cursor-pointer"
+                title="Chỉnh sửa lời bài hát (Admin)"
+              >
+                <PenTool className="w-3.5 h-3.5" />
+                <span>Sửa lời</span>
+              </button>
             )}
           </div>
         </div>
 
       {/* 🎭 Main Stage Area */}
       <div className="flex-1 min-h-0 relative flex overflow-hidden bg-gradient-to-r from-[#07090e] via-[#07090e] to-[#0f0b16]">
-        {/* Desktop View (>=1024px): Centered 2-Column Unified Stage (Album 320px Left, Lyrics Right) */}
-        <div className="hidden lg:block w-full h-full relative">
-          {/* Layer 1 & 2: Full Stage 3D Background & Left Album Scene */}
-          <div className="absolute inset-0 z-0">
-            <NowPlayingStage
-              coverUrl={currentTrack.cover_url}
-              title={currentTrack.title}
-              artist={currentTrack.artist}
-              isPlaying={isPlaying}
-              onArtistClick={(name, e) => handleOpenArtist(name, e)}
+        {/* Desktop View (>=1024px): 2-Column Unified Stage */}
+        <div className="hidden lg:block w-full h-full min-h-0 relative">
+          <NowPlayingStage
+            coverUrl={currentTrack.cover_url}
+            title={currentTrack.title}
+            artist={currentTrack.artist}
+            isPlaying={isPlaying}
+            onArtistClick={(name, e) => handleOpenArtist(name, e)}
+          >
+            <LyricsView
+              isModal={false}
+              showControls={false}
+              showHeader={false}
+              showRomaji={showRomaji}
+              onToggleRomaji={toggleRomaji}
+              hideFloatingActions={true}
+              openEditorSignal={openEditorSignal}
             />
-          </div>
-
-          {/* Layer 3: Right Column Lyrics */}
-          <div className="absolute inset-0 z-10 w-full h-full max-w-[1360px] xl:max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-end pointer-events-none">
-            <div className="w-full max-w-[640px] lg:w-[50%] xl:w-[48%] h-full pointer-events-auto flex flex-col justify-center pb-24 sm:pb-28 lg:pb-32 pt-2 sm:pt-4">
-              <LyricsView isModal={false} showControls={false} showHeader={false} showRomaji={showRomaji} onToggleRomaji={toggleRomaji} />
-            </div>
-          </div>
-
-          {/* Liquid Glass: bottom glow source for player bar backdrop-filter */}
-          {isLiquidGlass && (
-            <div
-              aria-hidden="true"
-              className="absolute bottom-0 inset-x-0 h-[200px] pointer-events-none"
-              style={{
-                zIndex: 29,
-                background: 'radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--spotify-glow,#22d3ee) 35%, transparent) 0%, color-mix(in srgb, var(--theme-gradient-1,rgba(168,85,247,0.4)) 25%, transparent) 40%, transparent 70%)',
-                opacity: 0.85,
-              }}
-            />
-          )}
+          </NowPlayingStage>
         </div>
 
         {/* 🎛️ DESKTOP FLOATING CONTROL BAR (>= 1024px) */}
         <div
-          className="player-bar group/playerbar hidden lg:flex absolute bottom-2 sm:bottom-3 lg:bottom-4 inset-x-3 sm:inset-x-6 z-30 px-4 lg:px-6 xl:px-8 py-2 xl:py-3.5 h-[76px] lg:h-[84px] xl:h-[96px] items-center justify-between rounded-[37px] transition-all duration-300 select-none overflow-hidden"
+          className="player-bar hidden lg:grid lg:grid-cols-[minmax(190px,1fr)_minmax(320px,min(560px,42vw))_minmax(220px,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(320px,560px)_minmax(0,1fr)] lg:gap-3 xl:gap-6 absolute bottom-2 sm:bottom-3 lg:bottom-4 inset-x-3 sm:inset-x-6 z-30 px-4 xl:px-6 py-2 xl:py-2.5 h-[84px] xl:h-[92px] items-center rounded-[37px] select-none"
           style={isLiquidGlass ? {
             backdropFilter: 'blur(40px) saturate(220%) brightness(1.08)',
             WebkitBackdropFilter: 'blur(40px) saturate(220%) brightness(1.08)',
           } : undefined}
         >
-          {/* Inner glass specular gradient (Same as Mobile Player Bar) */}
-          <span
-            aria-hidden="true"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              borderRadius: 'inherit',
-              background: isLiquidGlass
-                ? 'linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 20%, transparent 40%)'
-                : 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 40%)',
-              pointerEvents: 'none',
-            }}
-          />
-          {/* Top ambient highlight reflection line (fades in on hover) */}
-          <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-[var(--spotify-glow,#22d3ee)]/35 to-transparent pointer-events-none rounded-t-2xl opacity-0 group-hover/playerbar:opacity-100 transition-opacity duration-300" />
+          {/* Inner glass specular gradient */}
+          <div aria-hidden="true" className="absolute inset-0 rounded-[inherit] overflow-hidden pointer-events-none">
+            <span
+              style={{
+                position: 'absolute',
+                inset: 0,
+                borderRadius: 'inherit',
+                background: isLiquidGlass
+                  ? 'linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 20%, transparent 40%)'
+                  : 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 40%)',
+              }}
+            />
+          </div>
 
           {/* Left: Track Metadata (Matches Main Menu PlayerBar) */}
-          <div className="flex items-center gap-3.5 w-1/4 min-w-[220px]">
-            <div className="relative group shrink-0 cursor-pointer" title="Thông tin bài hát">
-              <div className={`player-cover w-14 h-14 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 shadow-md ${isPlaying ? 'is-playing' : ''}`}>
+          <div className="flex items-center gap-3 min-w-0 relative z-20">
+            <div className="relative shrink-0">
+              <div className={`player-cover w-12 h-12 xl:w-14 xl:h-14 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 shadow-md ${isPlaying ? 'is-playing' : ''}`}>
                 <TrackCoverImage src={currentTrack.cover_url} alt={currentTrack.title} />
               </div>
             </div>
@@ -487,7 +477,7 @@ export function NowPlayingOverlay() {
                 <div className={`inline-flex items-center gap-1.5 min-w-0 max-w-full ${trackMetadataTitleClass}`}>
                   <OverflowMarqueeText
                     text={currentTrack.title}
-                    className="text-xs lg:text-sm font-bold text-white hover:text-[var(--spotify-glow)] transition-colors cursor-pointer truncate"
+                    className="text-xs lg:text-sm font-bold text-white truncate"
                   />
                   {isPlaying && (
                     <MiniEqualizer isPlaying={isPlaying} className="shrink-0" />
@@ -500,7 +490,7 @@ export function NowPlayingOverlay() {
                       backgroundColor: 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
                       borderColor: 'var(--theme-glow-shadow, rgba(6,182,212,0.3))',
                     }}
-                    className={`${trackMetadataLoadingClass} inline-flex items-center gap-1 text-[10px] font-semibold border px-2 py-0.5 rounded-full animate-pulse`}
+                    className={`${trackMetadataLoadingClass} inline-flex items-center gap-1 text-[10px] font-semibold border px-2 py-0.5 rounded-full`}
                     title="Đang tải bản Lossless..."
                   >
                     <Loader2 className="w-3 h-3 animate-spin shrink-0" style={{ color: 'var(--spotify-glow, #22d3ee)' }} />
@@ -520,7 +510,7 @@ export function NowPlayingOverlay() {
                 {/* Album Link Pill with Overflow Marquee Text */}
                 <div
                   onClick={handleOpenAlbum}
-                  className="flex items-center gap-1 min-w-0 max-w-[180px] sm:max-w-[220px] xl:max-w-[280px] text-[10px] text-slate-300 bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 px-2 py-0.5 rounded-md hover:border-[var(--spotify-glow,#22d3ee)]/50 cursor-pointer transition-all group shadow-sm"
+                  className="flex items-center gap-1 min-w-0 max-w-[160px] xl:max-w-[260px] text-[10px] text-slate-300 bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 px-2 py-0.5 rounded-md hover:border-[var(--spotify-glow,#22d3ee)]/50 cursor-pointer transition-[background-color,border-color,color] group shadow-sm"
                   title={displayAlbumName ? `Vào album: ${displayAlbumName}` : 'Vào Album bài hát'}
                 >
                   {isNavigatingAlbum ? (
@@ -539,8 +529,8 @@ export function NowPlayingOverlay() {
           </div>
 
           {/* Center: Playback Controls & Seekbar (Matches Main Menu PlayerBar Layout) */}
-          <div className="flex flex-col items-center gap-1.5 w-2/4 max-w-xl">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col items-center gap-2.5 w-full min-w-0 relative z-20">
+            <div className="flex items-center gap-3 xl:gap-4">
               <button
                 aria-label={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
                 onClick={toggleShuffle}
@@ -553,7 +543,7 @@ export function NowPlayingOverlay() {
                     }
                     : undefined
                 }
-                className={`p-2 rounded-xl relative transition-all duration-200 hover:scale-110 active:scale-95 ${isShuffle ? 'border shadow-md' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
+                className={`p-1.5 xl:p-2 rounded-xl relative transition-colors active:scale-95 cursor-pointer ${isShuffle ? 'border shadow-sm' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
                   }`}
                 title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
               >
@@ -569,7 +559,7 @@ export function NowPlayingOverlay() {
               <button
                 aria-label="Bài trước"
                 onClick={prevTrack}
-                className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-all duration-200 hover:scale-110 active:scale-95"
+                className="p-1.5 xl:p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-colors active:scale-95 cursor-pointer"
                 title="Bài trước"
               >
                 <SkipBack className="w-4.5 h-4.5" />
@@ -582,7 +572,7 @@ export function NowPlayingOverlay() {
                   background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
                   boxShadow: '0 4px 16px var(--theme-glow-shadow, rgba(6,182,212,0.45))',
                 }}
-                className="w-10 h-10 rounded-full hover:scale-110 hover:brightness-110 active:scale-95 transition-all duration-200 flex items-center justify-center text-black font-bold shrink-0 border border-white/20"
+                className="w-9 h-9 rounded-full hover:brightness-110 active:scale-95 transition-[filter,transform] flex items-center justify-center text-black font-bold shrink-0 border border-white/20 cursor-pointer"
                 title={isPlaying ? 'Tạm dừng' : 'Phát'}
               >
                 {isPlaying ? (
@@ -595,7 +585,7 @@ export function NowPlayingOverlay() {
               <button
                 aria-label="Bài kế tiếp"
                 onClick={nextTrack}
-                className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-all duration-200 hover:scale-110 active:scale-95"
+                className="p-1.5 xl:p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-colors active:scale-95 cursor-pointer"
                 title="Bài kế tiếp"
               >
                 <SkipForward className="w-4.5 h-4.5" />
@@ -619,7 +609,7 @@ export function NowPlayingOverlay() {
                     }
                     : undefined
                 }
-                className={`p-2 rounded-xl relative transition-all duration-200 hover:scale-110 active:scale-95 ${repeatMode !== 'off' ? 'border shadow-md' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
+                className={`p-1.5 xl:p-2 rounded-xl relative transition-colors active:scale-95 cursor-pointer ${repeatMode !== 'off' ? 'border shadow-sm' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
                   }`}
                 title={
                   repeatMode === 'one'
@@ -653,7 +643,7 @@ export function NowPlayingOverlay() {
           </div>
 
           {/* Right: Volume, Romaji & Favorite Controls (Clean Fullview) */}
-          <div className="w-1/4 flex justify-end items-center gap-2.5 min-w-0">
+          <div className="flex justify-end items-center gap-1.5 xl:gap-2.5 min-w-0 relative z-20">
             <button
               onClick={toggleRomaji}
               style={
@@ -665,9 +655,9 @@ export function NowPlayingOverlay() {
                     }
                   : undefined
               }
-              className={`p-2 rounded-xl border transition-all flex items-center justify-center ${
+              className={`p-1.5 xl:p-2 rounded-xl border transition-colors flex items-center justify-center cursor-pointer ${
                 showRomaji
-                  ? 'border shadow-md'
+                  ? 'border shadow-sm'
                   : 'text-slate-400 border-transparent hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/5'
               }`}
               title="Bật/Tắt phiên âm Romaji / Pinyin"
@@ -679,7 +669,7 @@ export function NowPlayingOverlay() {
             <button
               aria-label="Chia sẻ câu hát (Lyrics Story)"
               onClick={handleOpenShare}
-              className="p-2 rounded-xl transition-all text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/5"
+              className="p-1.5 xl:p-2 rounded-xl transition-colors text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/5 cursor-pointer"
               title="Chia sẻ câu hát (Lyrics Story)"
             >
               <Share2 className="w-4 h-4" />
@@ -688,28 +678,28 @@ export function NowPlayingOverlay() {
             <button
               aria-label={currentTrack.is_favorite ? 'Bỏ khỏi bài hát yêu thích' : 'Thêm vào bài hát yêu thích'}
               onClick={handleFavoriteClick}
-              className={`p-2 rounded-xl transition-all ${currentTrack.is_favorite
+              className={`p-1.5 xl:p-2 rounded-xl transition-colors cursor-pointer ${currentTrack.is_favorite
                 ? 'text-rose-500 bg-rose-500/15 border border-rose-500/30'
                 : 'text-slate-400 hover:text-rose-400 hover:bg-white/5'
                 }`}
               title={currentTrack.is_favorite ? 'Bỏ khỏi bài hát yêu thích' : 'Thêm vào bài hát yêu thích'}
             >
               <Heart
-                className={`w-4 h-4 transition-all ${currentTrack.is_favorite ? 'fill-current drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]' : ''
+                className={`w-4 h-4 transition-colors ${currentTrack.is_favorite ? 'fill-current drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]' : ''
                   }`}
               />
             </button>
 
-            <div className="flex items-center gap-2.5 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1">
+            <div className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.06] rounded-full px-2.5 xl:px-3 py-1 shrink-0">
               <button
                 aria-label={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}
                 onClick={handleVolumeToggle}
-                className="text-slate-400 hover:text-white transition-colors p-0.5 shrink-0"
+                className="text-slate-400 hover:text-white transition-colors p-0.5 shrink-0 cursor-pointer"
                 title={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}
               >
                 {volume === 0 ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
               </button>
-              <div className="volume-track-wrapper w-16 lg:w-20 ml-0.5">
+              <div className="volume-track-wrapper w-14 lg:w-16 xl:w-20 ml-0.5">
                 <div className="volume-track">
                   <div className="volume-fill" style={{ width: `${volume * 100}%` }} />
                   <div className="volume-thumb" style={{ left: `${volume * 100}%` }} />
