@@ -78,12 +78,12 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
         <Sidebar isScrolled={isScrolled} />
 
         {/* Main Content Area */}
-        <main className="main-content-panel flex-1 rounded-none sm:rounded-t-2xl sm:rounded-b-[37px] overflow-hidden flex flex-col relative">
+        <main className="main-content-panel flex-1 rounded-none sm:rounded-t-2xl sm:rounded-b-[37px] lg:rounded-2xl overflow-hidden flex flex-col relative">
           <TopBar />
           <div
             ref={contentScrollRef}
             onScroll={handleScroll}
-            className={`flex-1 overflow-y-auto min-h-0 relative main-content-scroll ${mobileContentPaddingClassName} lg:pb-24`}
+            className={`flex-1 overflow-y-auto min-h-0 relative main-content-scroll @container/main ${mobileContentPaddingClassName}`}
           >
             {/* Mobile scroll header — sticky at top of scroll container */}
             <MobileScrollHeader />
@@ -96,8 +96,8 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
         <QueueDrawer />
       </div>
 
-      {/* Player Bar (Elevation 3 - Fixed above bottom navigation on mobile) */}
-      <div className="fixed lg:absolute bottom-[calc(var(--bottom-nav-height,84px)+env(safe-area-inset-bottom,0px)+12px)] lg:bottom-3 left-4 sm:left-4 lg:left-3 right-4 sm:right-4 lg:right-3 z-40 pointer-events-none">
+      {/* Player Bar (Elevation 3 - Fixed above bottom navigation on mobile, docked on desktop) */}
+      <div className="fixed lg:static lg:shrink-0 lg:mt-3 bottom-[calc(var(--bottom-nav-height,84px)+env(safe-area-inset-bottom,0px)+12px)] left-4 sm:left-4 right-4 sm:right-4 z-40 pointer-events-none">
         <PlayerBar isScrolled={isScrolled} />
       </div>
       <IOSInstallPrompt />

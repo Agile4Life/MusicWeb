@@ -15,7 +15,6 @@ import {
   Receipt,
   Trash2,
   DiscAlbum,
-  Sparkles,
   FolderArchive,
 } from 'lucide-react'
 import { isAdmin } from '@/lib/accessControl'
@@ -150,7 +149,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
   }
 
   return (
-    <aside className={`app-sidebar hidden lg:flex w-60 lg:w-64 xl:w-72 flex-col p-3 lg:p-3.5 xl:p-4 h-full select-none text-slate-300 rounded-t-2xl rounded-b-[37px] panel-theme-hover shrink-0 z-10 overflow-hidden ${isScrolled ? 'is-scrolled' : ''}`}>
+    <aside className={`app-sidebar hidden lg:flex w-60 lg:w-64 xl:w-72 flex-col p-3 lg:p-3.5 xl:p-4 h-full select-none text-slate-300 rounded-2xl shrink-0 z-20 overflow-hidden ${isScrolled ? 'is-scrolled' : ''}`}>
       {/* App Branding Header (Mini Glass Plaque) - Fixed at top, never scrolls or clips */}
       <div className="px-0.5 py-0.5 shrink-0 mb-2 z-20">
         <Link
@@ -166,7 +165,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
             <img
               src="/phong-signature.png"
               alt="MusicWeb Logo"
-              className="h-8 lg:h-9 w-auto object-contain signature-img-invert group-hover:scale-[1.03] transition-transform"
+              className="h-8 lg:h-9 w-auto object-contain signature-img-invert"
             />
           </div>
         </Link>
@@ -195,7 +194,10 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <Link
             href="/"
             onMouseEnter={(e) => {
-              if (pathname === '/') return
+              if (pathname === '/') {
+                exploreGlide.hide()
+                return
+              }
               exploreGlide.moveTo(e.currentTarget)
             }}
             onClick={(e) => {
@@ -212,7 +214,10 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <Link
             href="/albums"
             onMouseEnter={(e) => {
-              if (pathname === '/albums' || pathname.startsWith('/album/')) return
+              if (pathname === '/albums' || pathname.startsWith('/album/')) {
+                exploreGlide.hide()
+                return
+              }
               exploreGlide.moveTo(e.currentTarget)
             }}
             onClick={handleItemClick}
@@ -227,43 +232,42 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <Link
             href="/soundcloud"
             onMouseEnter={(e) => {
-              if (pathname === '/soundcloud') return
+              if (pathname === '/soundcloud') {
+                exploreGlide.hide()
+                return
+              }
               exploreGlide.moveTo(e.currentTarget)
             }}
             onClick={handleItemClick}
             className={`sidebar-item text-xs ${pathname === '/soundcloud' ? 'sidebar-item--active active font-semibold' : ''}`}
           >
             <Cloud className="w-4 h-4 text-[#ff7700] icon" />
-            <div className="flex items-center justify-between flex-1">
-              <span>SoundCloud</span>
-              <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/35 shadow-[0_0_8px_rgba(255,85,0,0.3)]">
-                HOT
-              </span>
-            </div>
+            <span>SoundCloud</span>
           </Link>
 
           <Link
             href="/drive"
             onMouseEnter={(e) => {
-              if (pathname === '/drive') return
+              if (pathname === '/drive') {
+                exploreGlide.hide()
+                return
+              }
               exploreGlide.moveTo(e.currentTarget)
             }}
             onClick={handleItemClick}
             className={`sidebar-item text-xs ${pathname === '/drive' ? 'sidebar-item--active active font-semibold' : ''}`}
           >
             <FolderArchive className="w-4 h-4 text-[#22c55e] icon" />
-            <div className="flex items-center justify-between flex-1">
-              <span>Google Drive</span>
-              <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-[#22c55e]/20 text-[#22c55e] border border-[#22c55e]/35">
-                CLOUD
-              </span>
-            </div>
+            <span>Google Drive</span>
           </Link>
 
           <Link
             href="/favorites"
             onMouseEnter={(e) => {
-              if (pathname === '/favorites') return
+              if (pathname === '/favorites') {
+                exploreGlide.hide()
+                return
+              }
               exploreGlide.moveTo(e.currentTarget)
             }}
             onClick={handleItemClick}
@@ -276,7 +280,10 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <Link
             href="/history"
             onMouseEnter={(e) => {
-              if (pathname === '/history') return
+              if (pathname === '/history') {
+                exploreGlide.hide()
+                return
+              }
               exploreGlide.moveTo(e.currentTarget)
             }}
             onClick={handleItemClick}
@@ -289,26 +296,27 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <Link
             href="/receipt"
             onMouseEnter={(e) => {
-              if (pathname === '/receipt') return
+              if (pathname === '/receipt') {
+                exploreGlide.hide()
+                return
+              }
               exploreGlide.moveTo(e.currentTarget)
             }}
             onClick={handleItemClick}
             className={`sidebar-item text-xs ${pathname === '/receipt' ? 'sidebar-item--active active font-semibold' : ''}`}
           >
             <Receipt className="w-4 h-4 text-amber-400 icon" />
-            <div className="flex items-center justify-between flex-1">
-              <span>{t('receipt')}</span>
-              <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                NEW
-              </span>
-            </div>
+            <span>{t('receipt')}</span>
           </Link>
 
           {isAdmin(user?.email) && (
             <Link
               href="/upload"
               onMouseEnter={(e) => {
-                if (pathname === '/upload') return
+                if (pathname === '/upload') {
+                  exploreGlide.hide()
+                  return
+                }
                 exploreGlide.moveTo(e.currentTarget)
               }}
               onClick={handleItemClick}
@@ -322,7 +330,10 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <Link
             href="/settings"
             onMouseEnter={(e) => {
-              if (pathname === '/settings') return
+              if (pathname === '/settings') {
+                exploreGlide.hide()
+                return
+              }
               exploreGlide.moveTo(e.currentTarget)
             }}
             onClick={handleItemClick}
@@ -339,11 +350,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <div className="px-0.5 mb-1.5 shrink-0">
             <div
               onMouseLeave={handleActionMouseLeave}
-              className={`relative flex items-center justify-between gap-1 bg-white/[0.03] p-1 rounded-full shadow-inner w-full overflow-hidden transition-all duration-300 ${
-                actionIndicator.opacity > 0
-                  ? `action-bar-${actionIndicator.variant}`
-                  : 'border border-white/[0.08]'
-              }`}
+              className="relative flex items-center justify-between gap-1 bg-white/[0.03] p-1 rounded-full shadow-inner w-full overflow-hidden border border-white/[0.08]"
             >
               <div
                 className={`action-glide-indicator variant-${actionIndicator.variant}`}
@@ -357,36 +364,38 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
               <button
                 onClick={() => setIsImportModalOpen(true)}
                 onMouseEnter={(e) => handleActionMouseEnter(e, 'emerald')}
-                className="relative z-[1] flex-1 h-8 rounded-full text-emerald-400 hover:text-emerald-300 flex items-center justify-center transition-all cursor-pointer group"
+                className="relative z-[1] flex-1 h-8 rounded-full text-emerald-400 hover:text-emerald-300 flex items-center justify-center transition-colors cursor-pointer"
                 title="Nhập Playlist từ Spotify"
               >
-                <Sparkles className="w-4 h-4 transition-transform group-hover:scale-110" />
+                <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4" aria-hidden="true">
+                  <path d="M12 0C5.372 0 0 5.372 0 12s5.372 12 12 12 12-5.372 12-12S18.628 0 12 0zm5.504 17.308c-.216.353-.675.464-1.028.248-2.816-1.72-6.36-2.109-10.535-1.155-.403.092-.805-.16-.897-.563-.092-.403.16-.805.563-.897 4.568-1.044 8.485-.594 11.649 1.339.353.216.464.675.248 1.028zm1.469-3.268c-.272.442-.851.58-1.293.308-3.224-1.981-8.138-2.555-11.951-1.397-.497.151-1.022-.13-1.173-.627-.151-.497.13-1.022.627-1.173 4.356-1.322 9.772-.682 13.482 1.596.442.272.58.851.308 1.293zm.126-3.403c-3.866-2.296-10.244-2.507-13.937-1.386-.593.18-1.22-.155-1.4-.748-.18-.593.155-1.22.748-1.4 4.24-1.287 11.286-1.038 15.736 1.604.534.317.709 1.006.392 1.54-.317.534-1.006.709-1.539.39z" />
+                </svg>
               </button>
               <button
                 onClick={() => setIsYtImportModalOpen(true)}
                 onMouseEnter={(e) => handleActionMouseEnter(e, 'rose')}
-                className="relative z-[1] flex-1 h-8 rounded-full text-red-400 hover:text-red-300 flex items-center justify-center transition-all cursor-pointer group"
+                className="relative z-[1] flex-1 h-8 rounded-full text-red-400 hover:text-red-300 flex items-center justify-center transition-colors cursor-pointer"
                 title="Nhập Playlist từ YouTube Music"
               >
-                <YoutubeIcon className="w-4 h-4 transition-transform group-hover:scale-110" />
+                <YoutubeIcon className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setIsScImportModalOpen(true)}
                 onMouseEnter={(e) => handleActionMouseEnter(e, 'orange')}
-                className="relative z-[1] flex-1 h-8 rounded-full text-[#ff7700] hover:text-[#ff5500] flex items-center justify-center transition-all cursor-pointer group"
+                className="relative z-[1] flex-1 h-8 rounded-full text-[#ff7700] hover:text-[#ff5500] flex items-center justify-center transition-colors cursor-pointer"
                 title="Nhập Playlist từ SoundCloud"
               >
-                <Cloud className="w-4 h-4 transition-transform group-hover:scale-110" />
+                <Cloud className="w-4 h-4" />
               </button>
               <div className="relative z-[1] w-[1px] h-3.5 bg-white/10 my-auto mx-0.5 shrink-0" />
               <button
                 onClick={handleCreatePlaylist}
                 disabled={creating}
                 onMouseEnter={(e) => handleActionMouseEnter(e, 'cyan')}
-                className="relative z-[1] flex-1 h-8 rounded-full text-[var(--spotify-glow,#22d3ee)] hover:text-white flex items-center justify-center transition-all cursor-pointer disabled:opacity-50 group"
+                className="relative z-[1] flex-1 h-8 rounded-full text-[var(--spotify-glow,#22d3ee)] hover:text-white flex items-center justify-center transition-colors cursor-pointer disabled:opacity-50"
                 title="Tạo Playlist mới"
               >
-                <Plus className="w-4 h-4 transition-transform group-hover:scale-110" />
+                <Plus className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -394,7 +403,7 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
           <div
             ref={playlistNavRef}
             onMouseLeave={playlistGlide.hide}
-            className="flex-1 overflow-y-auto flex flex-col gap-0.5 lg:gap-1 relative no-scrollbar min-h-0 touch-pan-y pb-28 xl:pb-32"
+            className="flex-1 overflow-y-auto flex flex-col gap-0.5 lg:gap-1 relative no-scrollbar min-h-0 touch-pan-y pb-4"
           >
             <div
               className="sidebar-glide nav-indicator"
@@ -412,7 +421,10 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
                     key={pl.id}
                     href={`/playlist/${pl.id}`}
                     onMouseEnter={(e) => {
-                      if (pathname === `/playlist/${pl.id}`) return
+                      if (pathname === `/playlist/${pl.id}`) {
+                        playlistGlide.hide()
+                        return
+                      }
                       playlistGlide.moveTo(e.currentTarget)
                     }}
                     onClick={handleItemClick}
@@ -420,13 +432,13 @@ export function Sidebar({ isScrolled }: { isScrolled?: boolean } = {}) {
                       pathname === `/playlist/${pl.id}` ? 'sidebar-item--active active font-semibold' : ''
                     }`}
                   >
-                    <div className="w-7 h-7 rounded-full bg-white/[0.06] border border-white/10 flex items-center justify-center text-slate-300 shrink-0 icon group-hover:text-[var(--sidebar-accent)] group-hover:scale-105 transition-all shadow-inner">
+                    <div className="w-7 h-7 rounded-full bg-white/[0.06] border border-white/10 flex items-center justify-center text-slate-300 shrink-0 icon group-hover:text-[var(--sidebar-accent)] transition-colors shadow-inner">
                       <Music className="w-3.5 h-3.5" />
                     </div>
                     <span className="truncate flex-1 font-medium group-hover:text-white transition-colors">{pl.name}</span>
                     <button
                       onClick={(e) => handleDeletePlaylistFromSidebar(e, pl.id, pl.name)}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-red-400 rounded-lg hover:bg-red-500/15 transition-all relative z-10 shrink-0 cursor-pointer"
+                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-red-400 rounded-lg hover:bg-red-500/15 transition-[opacity,color,background-color] relative z-10 shrink-0 cursor-pointer"
                       title="Xóa playlist"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

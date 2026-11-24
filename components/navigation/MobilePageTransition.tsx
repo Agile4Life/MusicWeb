@@ -21,13 +21,13 @@ export function MobilePageTransition({ children }: MobilePageTransitionProps) {
   return (
     <motion.div
       key={pathname}
-      initial={prefersReduced ? { opacity: 0 } : { opacity: 0, transform: 'translateY(6px)' }}
-      animate={{ opacity: 1, transform: 'translateY(0px)' }}
+      initial={prefersReduced ? { opacity: 0 } : { opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0, transitionEnd: { transform: 'none' } }}
       transition={{
         duration: 0.22,
         ease: EASE_OUT_STRONG,
       }}
-      className="flex-1 min-h-0 will-change-transform"
+      className="flex-1 min-h-full flex flex-col will-change-transform lg:will-change-auto"
     >
       {children}
     </motion.div>

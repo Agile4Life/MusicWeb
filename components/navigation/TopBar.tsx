@@ -127,14 +127,14 @@ export function TopBar() {
   }
 
   return (
-    <header className="sticky top-0 z-20 hidden lg:grid lg:grid-cols-[1fr_auto_1fr] h-14 sm:h-16 lg:h-18 px-4 sm:px-6 lg:px-8 py-2 lg:py-3 app-header items-center justify-center gap-3 sm:gap-4 select-none">
+    <header className="sticky top-0 z-[25] hidden lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(180px,520px)_minmax(max-content,1fr)] h-14 sm:h-16 lg:h-18 px-4 sm:px-6 lg:px-5 xl:px-8 py-2 lg:py-3 app-header items-center justify-center gap-3 sm:gap-4 select-none">
 
       {/* Left Slot: Balanced 1fr space on desktop */}
       <div className="hidden lg:flex items-center justify-start min-w-0" />
 
       {/* Center Slot: Perfectly Centered Search Input Container (Hidden on /soundcloud) */}
       {!isSoundCloudPage ? (
-        <div className="relative w-full min-w-0 sm:min-w-[360px] md:min-w-[420px] lg:min-w-[480px] xl:min-w-[540px] max-w-xl mx-auto my-auto" ref={dropdownRef}>
+        <div className="relative w-full min-w-0 max-w-xl mx-auto my-auto" ref={dropdownRef}>
           <div className="relative flex items-center">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none z-10" />
             <input
@@ -160,7 +160,7 @@ export function TopBar() {
             />
             {searchingSuggestions ? (
               <Loader2 className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)] animate-spin absolute right-3 z-10" />
-            ) : searchQuery ? (
+            ) : (inputQuery || searchQuery) ? (
               <button
                 onClick={handleClearSearch}
                 className="absolute right-3 p-0.5 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors z-10"
@@ -173,7 +173,7 @@ export function TopBar() {
           {/* Suggestions Dropdown Popup — Elevation Level 3 */}
           {showDropdown && (
             <div className="search-dropdown-glass absolute top-full left-0 right-0 mt-2 bg-[var(--elevation-3-bg,#0d111a)]/95 border border-white/10 rounded-2xl shadow-2xl z-40 overflow-hidden backdrop-blur-2xl">
-              <div className="p-2 max-h-80 overflow-y-auto flex flex-col gap-1 custom-slim-scrollbar">
+              <div className="p-2 max-h-[min(20rem,calc(100vh-12rem))] overflow-y-auto flex flex-col gap-1 custom-slim-scrollbar">
                 {searchingSuggestions && suggestions.length === 0 ? (
                   <div className="p-4 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin text-[var(--spotify-glow,#22d3ee)]" />
@@ -243,7 +243,7 @@ export function TopBar() {
               aria-expanded={isProfileMenuOpen}
               aria-controls="topbar-profile-menu"
               aria-label="Mở menu tài khoản"
-              className="sidebar-logo-plaque flex items-center gap-2.5 min-h-11 px-2.5 py-1 rounded-full group active:scale-[0.98] transition-all cursor-pointer"
+              className="topbar-account-pill flex items-center gap-2.5 min-h-11 px-2.5 py-1 rounded-full group active:scale-[0.98] transition-[background-color,border-color,color,transform] cursor-pointer"
             >
               <div className="w-8 h-8 rounded-full bg-[var(--primary-spotify,#06b6d4)] text-black border border-white/20 flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden shadow-sm">
                 {user.user_metadata?.avatar_url ? (
@@ -300,7 +300,7 @@ export function TopBar() {
         ) : (
           <Link
             href="/login"
-            className="sidebar-logo-plaque text-xs font-bold text-white px-4 py-2 rounded-full transition-all cursor-pointer"
+            className="topbar-account-pill text-xs font-bold text-white px-4 py-2 rounded-full transition-[background-color,border-color,color] cursor-pointer"
           >
             Đăng nhập
           </Link>
