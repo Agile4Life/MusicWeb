@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import { Search, Link2, Plus, Check, Headphones, ArrowUpRight, Loader2, ListMusic } from 'lucide-react'
+import { SPRING_UI } from '@/lib/motion'
 import { fetchBattleTracks, playlistEndpoint, normalizeBattleTrack, mergeBattleTracks, battleTrackKey, type BattleTrack } from '@/lib/songBattleSources'
 import { communityRequest } from './communityClient'
 import { TrackArtwork } from './TrackArtwork'
@@ -24,6 +26,7 @@ export function SourcePicker({ selected, onAdd, onPreview }: {
   onAdd: (tracks: BattleTrack[]) => void
   onPreview: (track: BattleTrack) => void
 }) {
+  const reducedMotion = Boolean(useReducedMotion())
   const [mode, setMode] = useState<'search' | 'playlist' | 'musicweb'>('search')
   const [query, setQuery] = useState('')
   const [url, setUrl] = useState('')
@@ -142,9 +145,45 @@ export function SourcePicker({ selected, onAdd, onPreview }: {
   return <section className={styles.sourcePanel} aria-labelledby="source-title">
     <div className={styles.sectionHeading}><span className={styles.eyebrow}>02 / TUYỂN CHỌN</span><h2 id="source-title">Bắt đầu từ gu nhạc của bạn.</h2></div>
     <div className={styles.tabs} aria-label="Nguồn bài hát">
-      <button type="button" aria-pressed={mode === 'search'} onClick={() => changeMode('search')}><Search size={16} aria-hidden="true" /> Tìm bài hát</button>
-      <button type="button" aria-pressed={mode === 'playlist'} onClick={() => changeMode('playlist')}><Link2 size={16} aria-hidden="true" /> Nhập playlist</button>
-      <button type="button" aria-pressed={mode === 'musicweb'} onClick={() => changeMode('musicweb')}><ListMusic size={16} aria-hidden="true" /> Từ MusicWeb</button>
+      <button type="button" aria-pressed={mode === 'search'} onClick={() => changeMode('search')}>
+        <Search size={16} aria-hidden="true" /> Tìm bài hát
+        {mode === 'search' && (
+          <motion.span
+            layoutId={reducedMotion ? undefined : 'lab-source-tab-underline'}
+            className={styles.tabIndicator}
+            initial={reducedMotion ? { opacity: 0 } : false}
+            animate={{ opacity: 1 }}
+            transition={reducedMotion ? { duration: 0.15, ease: 'easeOut' } : SPRING_UI}
+            aria-hidden="true"
+          />
+        )}
+      </button>
+      <button type="button" aria-pressed={mode === 'playlist'} onClick={() => changeMode('playlist')}>
+        <Link2 size={16} aria-hidden="true" /> Nhập playlist
+        {mode === 'playlist' && (
+          <motion.span
+            layoutId={reducedMotion ? undefined : 'lab-source-tab-underline'}
+            className={styles.tabIndicator}
+            initial={reducedMotion ? { opacity: 0 } : false}
+            animate={{ opacity: 1 }}
+            transition={reducedMotion ? { duration: 0.15, ease: 'easeOut' } : SPRING_UI}
+            aria-hidden="true"
+          />
+        )}
+      </button>
+      <button type="button" aria-pressed={mode === 'musicweb'} onClick={() => changeMode('musicweb')}>
+        <ListMusic size={16} aria-hidden="true" /> Từ MusicWeb
+        {mode === 'musicweb' && (
+          <motion.span
+            layoutId={reducedMotion ? undefined : 'lab-source-tab-underline'}
+            className={styles.tabIndicator}
+            initial={reducedMotion ? { opacity: 0 } : false}
+            animate={{ opacity: 1 }}
+            transition={reducedMotion ? { duration: 0.15, ease: 'easeOut' } : SPRING_UI}
+            aria-hidden="true"
+          />
+        )}
+      </button>
     </div>
     <div key={mode} className={styles.tabPanel}>
     {mode === 'search' ? <>
@@ -161,16 +200,16 @@ export function SourcePicker({ selected, onAdd, onPreview }: {
       <form className={styles.importForm} onSubmit={event => { event.preventDefault(); void importPlaylist() }}>
         <label htmlFor="playlist-link" className={styles.srOnly}>Link playlist</label>
         <input id="playlist-link" type="url" required value={url} onChange={event => setUrl(event.target.value)} placeholder="Dán link playlist công khai…" />
-        <button type="submit" className={styles.primaryButton} disabled={busy || !url.trim()}>{busy ? <Loader2 size={17} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />} {busy ? 'Đang nhập…' : 'Thêm playlist'}</button>
+        <button type="submit" className={styles.primaryButton} disabled={busy || !url.trim()}>{busy ? <Loader2 size={17} className={styles.spin} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />} {busy ? 'Đang nhập…' : 'Thêm playlist'}</button>
       </form>
       <p className={styles.finePrint}>Bài được thêm vào ván chơi này. Thư viện cá nhân của bạn không thay đổi.</p>
     </> : <>
       <AlbumSourcePicker onAdd={onAdd} />
       <p className={styles.description}>Chọn playlist có sẵn trên MusicWeb để thêm tất cả bài vào cuộc đấu.</p>
-      {loadingPlaylists ? <p role="status" className={styles.feedback}><Loader2 size={16} aria-hidden="true" /> Đang tải playlist…</p>
+      {loadingPlaylists ? <p role="status" className={styles.feedback}><Loader2 size={16} className={styles.spin} aria-hidden="true" /> Đang tải playlist…</p>
         : playlists.length ? <div className={styles.results}>
           <div className={styles.listHeading}><span>{playlists.length} PLAYLIST</span><button type="button" onClick={() => { setPlaylistsLoaded(false); void loadPlaylists() }}>Tải lại</button></div>
-          {playlists.map((pl, index) => <div key={pl.id} className={styles.trackRow} style={{ '--row-index': Math.min(index, 10) } as CSSProperties}>
+          {playlists.map((pl, index) => <div key={pl.id} className={styles.trackRow} style={{ '--row-index': Math.min(index, 6) } as CSSProperties}>
             <div className={styles.artwork}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               {pl.cover_url ? <img src={pl.cover_url} alt="" loading="lazy" /> : <ListMusic size={20} aria-hidden="true" />}
@@ -188,14 +227,14 @@ export function SourcePicker({ selected, onAdd, onPreview }: {
         </div>}
     </>}
     </div>
-    {busy && <p role="status" className={styles.feedback}><Loader2 size={16} aria-hidden="true" /> {mode === 'search' ? 'Đang tìm bài hát…' : 'Đang lấy bài từ playlist…'}</p>}
+    {busy && <p role="status" className={styles.feedback}><Loader2 size={16} className={styles.spin} aria-hidden="true" /> {mode === 'search' ? 'Đang tìm bài hát…' : 'Đang lấy bài từ playlist…'}</p>}
     {error && <p role="alert" className={styles.error}>{error}</p>}
     {notice && <p role="status" className={styles.notice}>{notice}</p>}
     {mode === 'search' && results.length > 0 ? <div className={styles.results} aria-label="Kết quả tìm kiếm" aria-busy={busy}>
       <div className={styles.listHeading}><span>{results.length} KẾT QUẢ</span><button type="button" disabled={results.every(track => selectedIds.has(battleTrackKey(track)))} onClick={() => addResults(results)}><Plus size={14} aria-hidden="true" /> Thêm tất cả</button></div>
       {results.map((track, index) => {
         const added = selectedIds.has(battleTrackKey(track))
-        return <div key={track.id} className={styles.trackRow} style={{ '--row-index': Math.min(index, 10) } as CSSProperties}>
+        return <div key={track.id} className={styles.trackRow} style={{ '--row-index': Math.min(index, 6) } as CSSProperties}>
           <TrackArtwork track={track} />
           <div className={styles.trackInfo}><strong>{track.title}</strong><span>{track.artist} · YouTube</span></div>
           <button type="button" className={styles.iconButton} aria-label={`Nghe thử ${track.title}`} title="Nghe thử" onClick={() => onPreview(track)}><Headphones size={18} aria-hidden="true" /></button>

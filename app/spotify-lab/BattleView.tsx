@@ -84,7 +84,19 @@ export function BattleView({ battle, currentId, onPreview, onChoose, onUndo, onR
       <span className={styles.eyebrow}>{battle.entrants.length} BÀI / {battle.history.length} TRÊN {total} LỰA CHỌN</span>
       <button type="button" className={styles.textButton} disabled={!battle.history.length || !!choosingId} onClick={onUndo} aria-label="Quay lại lựa chọn trước"><Undo2 size={16} aria-hidden="true" /> Chọn lại</button>
     </div>
-    <progress className={styles.progress} value={battle.history.length} max={total} aria-label="Tiến độ cuộc đấu" />
+    <div
+      role="progressbar"
+      aria-label="Tiến độ cuộc đấu"
+      aria-valuemin={0}
+      aria-valuemax={total}
+      aria-valuenow={battle.history.length}
+      className={styles.progress}
+    >
+      <span
+        className={styles.progressFill}
+        style={{ transform: `scaleX(${total ? battle.history.length / total : 0})` }}
+      />
+    </div>
     {pair ? <>
       <header className={styles.matchHeading} aria-live="polite" aria-atomic="true">
         <span className={styles.eyebrow}>NGHE BẰNG TAI. CHỌN BẰNG CẢM XÚC.</span>
@@ -127,7 +139,7 @@ export function BattleView({ battle, currentId, onPreview, onChoose, onUndo, onR
     </> : battle.champion ? <>
       <div className={styles.champion}>
         <div className={styles.championConfetti} aria-hidden="true">
-          {Array.from({ length: 12 }, (_, i) => <span key={i} className={styles.confettiPiece} style={{ '--i': i } as React.CSSProperties} />)}
+          {Array.from({ length: 12 }, (_, i) => <span key={i} className={styles.confettiPiece} />)}
         </div>
         <span className={styles.championMedal}><Trophy size={25} strokeWidth={1.4} aria-hidden="true" /></span>
         <span className={styles.eyebrow}>BÀI HÁT VÔ ĐỊCH</span>

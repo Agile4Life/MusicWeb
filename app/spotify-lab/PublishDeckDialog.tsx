@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
-import { Globe2, X } from 'lucide-react'
+import { Globe2, Loader2, X } from 'lucide-react'
 import type { BattleTrack } from '@/lib/songBattleSources'
 import type { CommunityDeck } from '@/lib/songBattleCommunity'
 import { saveCommunityDeck } from './communityClient'
@@ -51,7 +51,7 @@ export function PublishDeckDialog({ tracks, editing, onClose, onSaved, onPreserv
       <label htmlFor="deck-creator">Tên hiển thị của bạn</label><input id="deck-creator" required maxLength={80} value={creator} onChange={event => setCreator(event.target.value)} disabled={busy} />
       {tracks.length > 512 && <p role="alert" className={styles.error}>Mỗi bộ bài tối đa 512 bài. Hãy bớt bài trước khi đăng.</p>}
       {error && <p role="alert" className={styles.error}>{error}</p>}
-      <div className={styles.publishActions}><button type="button" className={styles.secondaryButton} disabled={busy} onClick={onClose}>Hủy</button><button type="submit" className={styles.primaryButton} disabled={busy || !canSave}>{busy ? 'Đang lưu…' : editing ? 'Lưu thay đổi' : 'Đăng công khai'}</button></div>
+      <div className={styles.publishActions}><button type="button" className={styles.secondaryButton} disabled={busy} onClick={onClose}>Hủy</button><button type="submit" className={styles.primaryButton} disabled={busy || !canSave}>{busy ? <><Loader2 size={15} className={styles.spin} aria-hidden="true" /> Đang lưu…</> : editing ? 'Lưu thay đổi' : 'Đăng công khai'}</button></div>
     </form>}
   </dialog>
 }

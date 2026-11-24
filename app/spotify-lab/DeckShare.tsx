@@ -17,7 +17,7 @@ export function DeckShare({ id }: { id: string }) {
     {link && <div className={styles.shareField}>
       <label className={styles.srOnly} htmlFor="deck-share-link">Link chia sẻ bộ bài</label>
       <input id="deck-share-link" value={link} readOnly onFocus={event => event.currentTarget.select()} />
-      <button type="button" className={styles.iconButton} onClick={() => { void copy() }} aria-label={copied ? 'Đã sao chép' : 'Sao chép link'}>{copied ? <Check size={17} aria-hidden="true" /> : <Copy size={17} aria-hidden="true" />}</button>
+      <button type="button" className={styles.iconButton} onClick={() => { void copy() }} aria-label={copied ? 'Đã sao chép' : 'Sao chép link'}>{copied ? <Check size={17} className={styles.checkPop} aria-hidden="true" /> : <Copy size={17} aria-hidden="true" />}</button>
     </div>}
     {copied && <span role="status" className={styles.finePrint}>Đã sao chép link.</span>}
   </div>

@@ -1,4 +1,5 @@
 .page {
+  --qr-ease-out: var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
   position: relative;
   width: 100%;
   height: 100dvh;
@@ -7,6 +8,7 @@
   font-family: var(--font-inter), 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
   user-select: none;
   color: #3f352b;
+  transition: background-color 280ms var(--qr-ease-out);
 }
 
 .page ::selection {
@@ -45,7 +47,19 @@
   text-decoration: none;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  transition: background-color 150ms ease, border-color 150ms ease;
+  transition:
+    background-color 160ms var(--qr-ease-out),
+    border-color 160ms var(--qr-ease-out),
+    transform 160ms var(--qr-ease-out);
+}
+
+.backLink svg {
+  transition: transform 160ms var(--qr-ease-out);
+}
+
+.backLink:active {
+  transform: scale(0.97);
+  transition-duration: 90ms;
 }
 
 .backLink:focus-visible,
@@ -76,7 +90,6 @@
 .modePill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   font-size: 11px;
   font-weight: 700;
   background-color: rgba(245, 211, 66, 0.85);
@@ -86,6 +99,12 @@
   width: fit-content;
   letter-spacing: 0.2px;
   border: 1px solid rgba(180, 140, 15, 0.25);
+}
+
+.pillInner {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .topRight {
@@ -108,7 +127,15 @@
   justify-content: center;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  transition: background-color 150ms ease, border-color 150ms ease;
+  transition:
+    background-color 160ms var(--qr-ease-out),
+    border-color 160ms var(--qr-ease-out),
+    transform 160ms var(--qr-ease-out);
+}
+
+.infoButton:active {
+  transform: scale(0.95);
+  transition-duration: 90ms;
 }
 
 .infoPopover {
@@ -143,6 +170,16 @@
 .canvasWrap {
   position: absolute;
   inset: 0;
+  opacity: 0;
+  transition: opacity 240ms var(--qr-ease-out);
+}
+
+.canvasWrapReady {
+  opacity: 1;
+}
+
+.canvasWrapDipping {
+  opacity: 0.55;
 }
 
 .controlsOverlay {
@@ -162,7 +199,6 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
   text-align: center;
   color: #5c4e3e;
   font-size: 11px;
@@ -178,7 +214,16 @@
   pointer-events: auto;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+  transition:
+    background-color 160ms var(--qr-ease-out),
+    border-color 160ms var(--qr-ease-out),
+    color 160ms var(--qr-ease-out),
+    transform 160ms var(--qr-ease-out);
+}
+
+.hintPill:active {
+  transform: scale(0.97);
+  transition-duration: 90ms;
 }
 
 .controlsCard {
@@ -218,11 +263,14 @@
   box-sizing: border-box;
   font-family: inherit;
   user-select: text;
-  transition: border-color 150ms ease, background-color 150ms ease;
+  transition:
+    border-color 160ms var(--qr-ease-out),
+    background-color 160ms var(--qr-ease-out);
 }
 
 .submitButton {
   height: 42px;
+  min-width: 82px;
   padding: 0 14px;
   border-radius: 12px;
   border: none;
@@ -236,7 +284,28 @@
   justify-content: center;
   gap: 6px;
   flex-shrink: 0;
-  transition: background-color 150ms ease;
+  transition:
+    background-color 160ms var(--qr-ease-out),
+    transform 160ms var(--qr-ease-out);
+}
+
+.submitButton svg {
+  transition: transform 160ms var(--qr-ease-out);
+}
+
+.submitButton:active {
+  transform: scale(0.97);
+  transition-duration: 90ms;
+}
+
+.submitButtonSuccess {
+  background-color: #5a8f3a;
+}
+
+.iconSwap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .seasonRow {
@@ -246,6 +315,7 @@
 }
 
 .seasonButton {
+  position: relative;
   height: 36px;
   border-radius: 10px;
   border: 1px solid transparent;
@@ -257,15 +327,42 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+  transition:
+    background-color 160ms var(--qr-ease-out),
+    color 160ms var(--qr-ease-out),
+    border-color 160ms var(--qr-ease-out),
+    transform 160ms var(--qr-ease-out);
+}
+
+.seasonButton:active {
+  transform: scale(0.97);
+  transition-duration: 90ms;
 }
 
 .seasonButtonActive {
-  background-color: rgba(228, 218, 200, 0.98);
+  background-color: transparent;
   color: #33291d;
   font-weight: 700;
-  border-color: rgba(154, 91, 30, 0.28);
+  border-color: transparent;
+}
+
+.seasonPill {
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  background-color: rgba(228, 218, 200, 0.98);
+  border: 1px solid rgba(154, 91, 30, 0.28);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.seasonLabel {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -276,6 +373,10 @@
     border-color: rgba(154, 91, 30, 0.4);
   }
 
+  .backLink:hover svg {
+    transform: translateX(-2px);
+  }
+
   .urlInput:hover {
     border-color: rgba(154, 91, 30, 0.5);
   }
@@ -284,8 +385,80 @@
     background-color: #a36226;
   }
 
+  .submitButtonSuccess:hover {
+    background-color: #4f8032;
+  }
+
+  .submitButton:not(.submitButtonSuccess):hover svg {
+    transform: translateX(2px);
+  }
+
   .seasonButton:not(.seasonButtonActive):hover {
     background-color: rgba(224, 214, 198, 0.72);
     color: #3f352b;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page {
+    transition: background-color 180ms ease;
+  }
+
+  .canvasWrap {
+    transition: opacity 180ms ease;
+  }
+
+  .backLink,
+  .backLink svg,
+  .infoButton,
+  .hintPill,
+  .submitButton,
+  .submitButton svg,
+  .seasonButton {
+    transform: none !important;
+    transition:
+      background-color 160ms ease,
+      border-color 160ms ease,
+      color 160ms ease,
+      opacity 160ms ease;
+  }
+
+  .backLink:active,
+  .backLink:hover svg,
+  .infoButton:active,
+  .hintPill:active,
+  .submitButton:active,
+  .submitButton:not(.submitButtonSuccess):hover svg,
+  .seasonButton:active {
+    transform: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .backLink,
+  .infoButton,
+  .hintPill {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: #f7f4ed;
+    border-color: rgba(63, 53, 43, 0.34);
+  }
+
+  .infoPopover {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: #f7f4ed;
+    border-color: rgba(63, 53, 43, 0.3);
+  }
+
+  .controlsCard {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: #f7f3eb;
+    border-color: rgba(154, 134, 110, 0.72);
+  }
+
+  .urlInput {
+    background-color: #fffcf7;
   }
 }

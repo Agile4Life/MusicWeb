@@ -1,9 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { motion, useReducedMotion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Disc3, Headphones, ListMusic, Music2, X, Shuffle, Globe2 } from 'lucide-react'
+import { SPRING_UI } from '@/lib/motion'
 import { createBattle, chooseWinner, undoChoice, type Battle } from '@/lib/songBattle'
 import { fetchBattleTracks, mergeBattleTracks, type BattleTrack } from '@/lib/songBattleSources'
 import { SourcePicker } from './SourcePicker'
@@ -29,6 +31,7 @@ export default function SpotifyLabPage() {
     return () => { document.body.style.overflow = prev }
   }, [])
   const router = useRouter()
+  const reducedMotion = Boolean(useReducedMotion())
   const [pool, setPool] = useState<BattleTrack[]>([])
   const [clearedTracks, setClearedTracks] = useState<BattleTrack[]>([])
   const [preferredSize, setSize] = useState(4)
@@ -170,8 +173,32 @@ export default function SpotifyLabPage() {
           <div className={styles.heroAside}><p>Đôi khi, gu nhạc chỉ cần một câu trả lời.<br />{' '}Nghe thử, chọn bài bạn yêu hơn và tìm ra<br className={styles.desktopBreak} /> ca khúc đứng đầu playlist của riêng mình.</p><span className={styles.heroFootnote}><Headphones size={14} aria-hidden="true" /> Đeo tai nghe. Tin cảm xúc.</span></div>
         </header>
         <nav className={styles.modeNav} aria-label="Chế độ Spotify Lab">
-          <button type="button" aria-pressed={view === 'community'} onClick={() => { cancelDeckLoad(); setView('community'); setCurrent(null) }}><Globe2 size={16} aria-hidden="true" /> Bộ bài cộng đồng</button>
-          <button type="button" aria-pressed={view === 'builder'} onClick={() => { cancelDeckLoad(); setView('builder'); setCurrent(null) }}><Headphones size={16} aria-hidden="true" /> Tạo cuộc đấu</button>
+          <button type="button" aria-pressed={view === 'community'} onClick={() => { cancelDeckLoad(); setView('community'); setCurrent(null) }}>
+            <Globe2 size={16} aria-hidden="true" /> Bộ bài cộng đồng
+            {view === 'community' && (
+              <motion.span
+                layoutId={reducedMotion ? undefined : 'lab-mode-underline'}
+                className={styles.modeNavIndicator}
+                initial={reducedMotion ? { opacity: 0 } : false}
+                animate={{ opacity: 1 }}
+                transition={reducedMotion ? { duration: 0.15, ease: 'easeOut' } : SPRING_UI}
+                aria-hidden="true"
+              />
+            )}
+          </button>
+          <button type="button" aria-pressed={view === 'builder'} onClick={() => { cancelDeckLoad(); setView('builder'); setCurrent(null) }}>
+            <Headphones size={16} aria-hidden="true" /> Tạo cuộc đấu
+            {view === 'builder' && (
+              <motion.span
+                layoutId={reducedMotion ? undefined : 'lab-mode-underline'}
+                className={styles.modeNavIndicator}
+                initial={reducedMotion ? { opacity: 0 } : false}
+                animate={{ opacity: 1 }}
+                transition={reducedMotion ? { duration: 0.15, ease: 'easeOut' } : SPRING_UI}
+                aria-hidden="true"
+              />
+            )}
+          </button>
         </nav>
         {communityError && <p role="alert" className={styles.error}>{communityError}</p>}
         {communityNotice && <p role="status" className={styles.notice}>{communityNotice}</p>}
@@ -193,7 +220,7 @@ export default function SpotifyLabPage() {
               <div className={styles.poolTitle}><h2 id="pool-title">Sân khấu của bạn.</h2><span>{pool.length} bài đã chọn</span></div>
               {pool.length ? <>
                 <div className={styles.poolActions}><span>Các bài trùng được tự động bỏ qua.</span><button type="button" onClick={() => { setCurrent(null); setClearedTracks(pool); setPool([]) }}>Xóa tất cả</button></div>
-                <ol className={styles.poolList}>{pool.map((track, index) => <li key={track.id} style={{ '--row-index': Math.min(index, 10) } as CSSProperties}>
+                <ol className={styles.poolList}>{pool.map((track, index) => <li key={track.id}>
                   <span className={styles.poolIndex}>{String(index + 1).padStart(2, '0')}</span><TrackArtwork track={track} />
                   <div className={styles.trackInfo}><strong>{track.title}</strong><span>{track.artist} <small>· {track.source}</small></span></div>
                   <button type="button" className={styles.iconButton} aria-label={`Nghe bài đã chọn ${track.title}`} aria-pressed={current?.id === track.id} title="Nghe thử" onClick={() => preview(track)}><Headphones size={15} aria-hidden="true" /></button>

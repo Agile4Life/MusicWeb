@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useId, useRef, useState } from 'react'
-import { ExternalLink, Pause, Play, RotateCcw } from 'lucide-react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useReducedMotion } from 'framer-motion'
+import { ExternalLink, Loader2, Pause, Play, RotateCcw } from 'lucide-react'
 import type { BattleTrack } from '@/lib/songBattleSources'
 import { waveformPeaks } from '@/lib/audioWaveform'
 import { TrackArtwork } from './TrackArtwork'
@@ -15,7 +16,10 @@ function time(seconds: number) {
 
 export function WaveformCoverPlayer({ track, autoPlay = false }: { track: BattleTrack; autoPlay?: boolean }) {
   const audioRef = useRef<HTMLAudioElement>(null)
+  const clipRectRef = useRef<SVGRectElement>(null)
+  const playheadRef = useRef<HTMLSpanElement>(null)
   const clipId = useId().replaceAll(':', '')
+  const reducedMotion = Boolean(useReducedMotion())
   const [playing, setPlaying] = useState(false)
   const [started, setStarted] = useState(autoPlay)
   const [loading, setLoading] = useState(false)
@@ -28,7 +32,55 @@ export function WaveformCoverPlayer({ track, autoPlay = false }: { track: Battle
   const src = isSoundCloud
     ? `/api/soundcloud/stream?id=${encodeURIComponent(track.soundcloud_id!)}`
     : track.stream_url || track.preview_url || ''
-  const progress = duration > 0 ? Math.min(100, position / duration * 100) : 0
+
+  const syncVisualProgress = useCallback((ratio: number) => {
+    const clamped = Number.isFinite(ratio) ? Math.max(0, Math.min(1, ratio)) : 0
+    if (clipRectRef.current) {
+      clipRectRef.current.setAttribute('width', String(288 * clamped))
+    }
+    if (playheadRef.current) {
+      playheadRef.current.style.transform = `translate3d(${clamped * 100}%, 0, 0)`
+    }
+  }, [])
+
+  const waveGroups = useMemo(() => {
+    const bars = peaks.map((peak, index) => (
+      <rect
+        key={index}
+        x={index * 4}
+        y={28 - Math.max(2, peak * 26)}
+        width="2.5"
+        height={Math.max(4, peak * 52)}
+        rx="1.25"
+      />
+    ))
+    return (
+      <>
+        <g className={styles.soundcloudWaveBase}>{bars}</g>
+        <g clipPath={`url(#${clipId})`} className={styles.soundcloudWavePlayed}>{bars}</g>
+      </>
+    )
+  }, [peaks, clipId])
+
+  useEffect(() => {
+    if (playing && !reducedMotion) return
+    syncVisualProgress(duration > 0 ? position / duration : 0)
+  }, [position, duration, playing, reducedMotion, syncVisualProgress])
+
+  useEffect(() => {
+    if (!playing || reducedMotion) return
+    let rafId = 0
+    const tick = () => {
+      const audio = audioRef.current
+      if (audio) {
+        const activeDuration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : duration
+        syncVisualProgress(activeDuration > 0 ? audio.currentTime / activeDuration : 0)
+      }
+      rafId = requestAnimationFrame(tick)
+    }
+    rafId = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafId)
+  }, [playing, reducedMotion, duration, syncVisualProgress])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -80,22 +132,34 @@ export function WaveformCoverPlayer({ track, autoPlay = false }: { track: Battle
       <div className={styles.soundcloudControls}>
         <div className={styles.soundcloudTransport}>
           <button type="button" className={styles.soundcloudPlay} onClick={() => void toggle()} aria-label={`${error ? 'Thử lại' : playing ? 'Tạm dừng' : 'Phát'} ${track.title}`}>
-            {error ? <RotateCcw size={22} aria-hidden="true" /> : playing ? <Pause size={22} fill="currentColor" aria-hidden="true" /> : <Play size={22} fill="currentColor" aria-hidden="true" />}
+            {error ? (
+              <span key="retry" className={styles.playIconSwap}><RotateCcw size={22} aria-hidden="true" /></span>
+            ) : loading && !playing ? (
+              <Loader2 size={22} className={styles.spin} aria-hidden="true" />
+            ) : playing ? (
+              <span key="pause" className={styles.playIconSwap}><Pause size={22} fill="currentColor" aria-hidden="true" /></span>
+            ) : (
+              <span key="play" className={styles.playIconSwap}><Play size={22} fill="currentColor" aria-hidden="true" /></span>
+            )}
           </button>
           <span className={styles.soundcloudTime}>{time(position)} <span>/ {time(duration)}</span></span>
           {track.source_url && <a href={track.source_url} target="_blank" rel="noopener noreferrer" aria-label={`Mở bản gốc ${track.title}`}><ExternalLink size={17} aria-hidden="true" /></a>}
         </div>
         <div className={styles.soundcloudWave}>
           <svg viewBox="0 0 288 56" preserveAspectRatio="none" aria-hidden="true">
-            <defs><clipPath id={clipId}><rect width={288 * progress / 100} height="56" /></clipPath></defs>
-            <g className={styles.soundcloudWaveBase}>{peaks.map((peak, index) => <rect key={index} x={index * 4} y={28 - Math.max(2, peak * 26)} width="2.5" height={Math.max(4, peak * 52)} rx="1.25" />)}</g>
-            <g clipPath={`url(#${clipId})`} className={styles.soundcloudWavePlayed}>{peaks.map((peak, index) => <rect key={index} x={index * 4} y={28 - Math.max(2, peak * 26)} width="2.5" height={Math.max(4, peak * 52)} rx="1.25" />)}</g>
+            <defs><clipPath id={clipId}><rect ref={clipRectRef} width="0" height="56" /></clipPath></defs>
+            {waveGroups}
           </svg>
+          <span className={`${styles.soundcloudPlayheadTrack} ${started && !error && (playing || position > 0) ? styles.soundcloudPlayheadVisible : ''}`} aria-hidden="true">
+            <span ref={playheadRef} className={styles.soundcloudPlayhead} />
+          </span>
           <input type="range" min="0" max={duration || 0} step="0.1" value={Math.min(position, duration)} disabled={!duration || !started || error} aria-label={`Tua ${track.title}`} aria-valuetext={`${time(position)} trên ${time(duration)}`} onChange={event => {
             const audio = audioRef.current
             if (!audio || audio.readyState < 1) return
             const next = Number(event.target.value)
-            audio.currentTime = next; setPosition(next)
+            audio.currentTime = next
+            setPosition(next)
+            syncVisualProgress(duration > 0 ? next / duration : 0)
           }} />
         </div>
         <p className={styles.soundcloudStatus} role="status">{error ? 'Không tải được âm thanh. Nhấn thử lại hoặc mở bản gốc.' : loading ? 'Đang tải âm thanh…' : 'Bấm hoặc kéo trên sóng để tua'}</p>

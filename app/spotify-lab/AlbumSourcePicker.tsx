@@ -62,14 +62,14 @@ export function AlbumSourcePicker({ onAdd }: { onAdd: (tracks: BattleTrack[]) =>
       <button type="submit" className={styles.smallButton} disabled={busy}>Tìm album</button>
     </form>
     {busy ? <p role="status">Đang tải album…</p> : <div className={styles.results}>
-      {albums.map((album, index) => <div key={album.id} className={styles.trackRow} style={{ '--row-index': Math.min(index, 10) } as CSSProperties}>
+      {albums.map((album, index) => <div key={album.id} className={styles.trackRow} style={{ '--row-index': Math.min(index, 6) } as CSSProperties}>
         <div className={styles.artwork}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {album.cover_url ? <img src={album.cover_url} alt="" loading="lazy" /> : <Disc3 aria-hidden="true" />}
         </div>
         <div className={styles.trackInfo}><strong>{album.name}</strong><span>{album.artist}</span></div>
         <button type="button" className={styles.addButton} disabled={Boolean(importing)} aria-label={`Thêm album ${album.name}`} onClick={() => void importAlbum(album)}>
-          {importing === album.id ? <Loader2 size={17} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />}
+          {importing === album.id ? <Loader2 size={17} className={styles.spin} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />}
         </button>
       </div>)}
       {!albums.length && !error && <p>Không tìm thấy album. Thử tên album hoặc nghệ sĩ khác.</p>}

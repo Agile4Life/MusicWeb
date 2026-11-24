@@ -1,8 +1,16 @@
 "use client";
 
-import React, { MutableRefObject, useMemo, useRef } from "react";
+import React, {
+  MutableRefObject,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
+import { appleRubberband } from "@/lib/motion";
 import { SEASON_THEMES, type Season, type SeasonTheme } from "./seasonTheme";
 import { clamp, lerp } from "./hashNoise";
 import {
@@ -17,6 +25,8 @@ import {
 
 const DUMMY = new THREE.Object3D();
 const COLOR = new THREE.Color();
+const TARGET_COLOR = new THREE.Color();
+const GROUND_BASE_COLOR = new THREE.Color("#f4ede1");
 const A = new THREE.Vector3();
 const B = new THREE.Vector3();
 const DIR = new THREE.Vector3();
@@ -24,18 +34,46 @@ const UP = new THREE.Vector3(0, 1, 0);
 const Q = new THREE.Quaternion();
 const TARGET = new THREE.Vector3();
 
+const MIN_ELEV = -0.25;
+const MAX_ELEV = 0.35;
+const ELEV_RUBBER_DIM = 0.22;
+const SPRING_RESPONSE = 0.58;
+const SPRING_OMEGA = (2 * Math.PI) / SPRING_RESPONSE;
+
+interface UserAngleState {
+  azimuth: number;
+  rawElevation: number;
+  elevation: number;
+  zoom: number;
+  targetZoom: number;
+  velAzimuth: number;
+  velElevation: number;
+  dragging: boolean;
+}
+
 function smooth(t: number) {
   const x = clamp(t, 0, 1);
   return x * x * (3 - 2 * x);
 }
 
+function applyElevationRubberband(raw: number): number {
+  if (raw > MAX_ELEV) {
+    return MAX_ELEV + appleRubberband(raw - MAX_ELEV, ELEV_RUBBER_DIM, 0.55);
+  }
+  if (raw < MIN_ELEV) {
+    return MIN_ELEV + appleRubberband(raw - MIN_ELEV, ELEV_RUBBER_DIM, 0.55);
+  }
+  return raw;
+}
+
 // Builds one irregular "lumpy blob" geometry by displacing every vertex of
 // an icosahedron outward/inward by a deterministic pseudo-random amount.
-// Used (once, via useMemo) as the shared InstancedMesh geometry for leaves
-// and canopy filler blobs — a perfect sphere always reads as "a ball" no
-// matter how it's shaded, so breaking the silhouette itself is what's
-// needed to look like an irregular leaf/foliage clump instead.
-function makeLumpyGeometry(detail: number, jitterMin: number, jitterMax: number, seedOffset: number) {
+function makeLumpyGeometry(
+  detail: number,
+  jitterMin: number,
+  jitterMax: number,
+  seedOffset: number
+) {
   const geo = new THREE.IcosahedronGeometry(1, detail);
   const pos = geo.attributes.position;
   const v = new THREE.Vector3();
@@ -56,10 +94,56 @@ function phase(t: number, start: number, end: number) {
   return smooth((t - start) / Math.max(0.0001, end - start));
 }
 
-function mixHex(a: string, b: string, t: number) {
-  const ca = new THREE.Color(a);
-  const cb = new THREE.Color(b);
-  return `#${ca.lerp(cb, clamp(t, 0, 1)).getHexString()}`;
+// ---------------------------------------------------------------------------
+// 0. Smooth Season Background & Fog Lerp
+// ---------------------------------------------------------------------------
+function SeasonBackdrop({
+  bgColor,
+  reducedMotion,
+}: {
+  bgColor: string;
+  reducedMotion: boolean;
+}) {
+  const [initialBg] = useState(bgColor);
+  const bgRef = useRef<THREE.Color>(null);
+  const fogRef = useRef<THREE.Fog>(null);
+  const targetRef = useRef(new THREE.Color(bgColor));
+
+  useEffect(() => {
+    targetRef.current.set(bgColor);
+    if (reducedMotion) {
+      bgRef.current?.copy(targetRef.current);
+      fogRef.current?.color.copy(targetRef.current);
+    }
+  }, [bgColor, reducedMotion]);
+
+  useFrame((_, delta) => {
+    if (reducedMotion) return;
+    const bg = bgRef.current;
+    if (!bg) return;
+    const target = targetRef.current;
+    const dr = Math.abs(bg.r - target.r);
+    const dg = Math.abs(bg.g - target.g);
+    const db = Math.abs(bg.b - target.b);
+    if (dr < 0.0008 && dg < 0.0008 && db < 0.0008) {
+      if (dr > 0 || dg > 0 || db > 0) {
+        bg.copy(target);
+        fogRef.current?.color.copy(target);
+      }
+      return;
+    }
+    const dt = Math.min(delta, 0.05);
+    const alpha = 1 - Math.exp(-8 * dt);
+    bg.lerp(target, alpha);
+    fogRef.current?.color.copy(bg);
+  });
+
+  return (
+    <>
+      <color ref={bgRef} attach="background" args={[initialBg]} />
+      <fog ref={fogRef} attach="fog" args={[initialBg, 45, 110]} />
+    </>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -76,14 +160,23 @@ function Ground({
 }) {
   const ref = useRef<THREE.Mesh>(null);
   const rim = useRef<THREE.Mesh>(null);
+  const lastProgressRef = useRef(-1);
+
+  useLayoutEffect(() => {
+    lastProgressRef.current = -1;
+  }, [theme, size]);
 
   useFrame(() => {
-    const p = phase(progressRef.current, 0.1, 0.7);
-    if (ref.current) {
-      (ref.current.material as THREE.MeshStandardMaterial).color.set(
-        mixHex("#f4ede1", theme.stoneTileColors[1] || "#e4ddcc", p)
-      );
-    }
+    const mesh = ref.current;
+    if (!mesh) return;
+    const p = progressRef.current;
+    if (Math.abs(p - lastProgressRef.current) < 1e-5) return;
+    lastProgressRef.current = p;
+
+    const qrMorph = phase(p, 0.1, 0.7);
+    const mat = mesh.material as THREE.MeshStandardMaterial;
+    TARGET_COLOR.set(theme.stoneTileColors[1] || "#e4ddcc");
+    mat.color.copy(GROUND_BASE_COLOR).lerp(TARGET_COLOR, qrMorph);
   });
 
   return (
@@ -115,12 +208,21 @@ function QRTiles({
   cellSize: number;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
+  const lastProgressRef = useRef(-1);
+
+  useLayoutEffect(() => {
+    lastProgressRef.current = -1;
+  }, [tiles, theme, cellSize]);
 
   useFrame(() => {
     const mesh = ref.current;
     if (!mesh) return;
     const p = progressRef.current;
+    if (Math.abs(p - lastProgressRef.current) < 1e-5) return;
+    lastProgressRef.current = p;
+
     const qrMorph = phase(p, 0.1, 0.7);
+    const lightTarget = theme.stoneTileColors[0] || "#ede7d8";
 
     for (let i = 0; i < tiles.length; i++) {
       const tile = tiles[i];
@@ -134,12 +236,10 @@ function QRTiles({
       DUMMY.updateMatrix();
       mesh.setMatrixAt(i, DUMMY.matrix);
 
-      // 100% color convergence to clean garden paving tiles
+      // 100% color convergence to clean garden paving tiles (zero allocations)
       COLOR.set(tile.qrColor);
-      const targetColor = tile.isDark
-        ? tile.stoneColor
-        : theme.stoneTileColors[0] || "#ede7d8";
-      COLOR.lerp(new THREE.Color(targetColor), qrMorph);
+      TARGET_COLOR.set(tile.isDark ? tile.stoneColor : lightTarget);
+      COLOR.lerp(TARGET_COLOR, qrMorph);
 
       // Organic subtle stone variation to give natural texture
       const tint = 1 + (tile.variation - 0.5) * 0.06 * qrMorph;
@@ -152,7 +252,12 @@ function QRTiles({
   });
 
   return (
-    <instancedMesh ref={ref} args={[undefined, undefined, tiles.length]} receiveShadow>
+    <instancedMesh
+      key={tiles.length}
+      ref={ref}
+      args={[undefined, undefined, tiles.length]}
+      receiveShadow
+    >
       <boxGeometry args={[1, 1, 1]} />
       <meshStandardMaterial roughness={0.88} />
     </instancedMesh>
@@ -172,12 +277,25 @@ function Branches({
   progressRef: MutableRefObject<number>;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
+  const lastProgressRef = useRef(-1);
+
+  useLayoutEffect(() => {
+    lastProgressRef.current = -1;
+  }, [segments, theme]);
 
   useFrame(() => {
     const mesh = ref.current;
     if (!mesh) return;
 
     const p = progressRef.current;
+    if (Math.abs(p - lastProgressRef.current) < 1e-5) return;
+    lastProgressRef.current = p;
+
+    if (phase(p, 0.05, 0.85) < 0.001) {
+      mesh.visible = false;
+      return;
+    }
+    mesh.visible = true;
 
     for (let i = 0; i < segments.length; i++) {
       const seg = segments[i];
@@ -229,7 +347,13 @@ function Branches({
   });
 
   return (
-    <instancedMesh ref={ref} args={[undefined, undefined, segments.length]} castShadow receiveShadow>
+    <instancedMesh
+      key={segments.length}
+      ref={ref}
+      args={[undefined, undefined, segments.length]}
+      castShadow
+      receiveShadow
+    >
       <cylinderGeometry args={[0.82, 1.18, 1, 8]} />
       <meshStandardMaterial color={theme.trunkColor} roughness={0.82} />
     </instancedMesh>
@@ -237,21 +361,41 @@ function Branches({
 }
 
 // ---------------------------------------------------------------------------
-// 4. Canopy Silhouette Base Blobs (small inner filler — see FIX 2 in
-//    treeGenerator.ts. These are now deliberately small so the dense Leaves
-//    layer below is what reads as the visible surface, not these blobs.)
+// 4. Canopy Silhouette Base Blobs
 // ---------------------------------------------------------------------------
 function CanopyBlobs({
   blobs,
   progressRef,
+  reducedMotion,
 }: {
   blobs: CanopyBlob[];
   progressRef: MutableRefObject<number>;
+  reducedMotion: boolean;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
-  // More aggressive jitter than the leaves — these are bigger and fewer,
-  // so they need more shape break-up to avoid reading as distinct balls.
+  const lastProgressRef = useRef(-1);
   const blobGeometry = useMemo(() => makeLumpyGeometry(1, 0.62, 1.22, 99), []);
+
+  useEffect(() => {
+    return () => {
+      blobGeometry.dispose();
+    };
+  }, [blobGeometry]);
+
+  useLayoutEffect(() => {
+    lastProgressRef.current = -1;
+    const mesh = ref.current;
+    if (!mesh || blobs.length === 0) return;
+    for (let i = 0; i < blobs.length; i++) {
+      COLOR.set(blobs[i].colorHex);
+      mesh.setColorAt(i, COLOR);
+    }
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  }, [blobs]);
+
+  useEffect(() => {
+    lastProgressRef.current = -1;
+  }, [reducedMotion]);
 
   useFrame((state) => {
     const mesh = ref.current;
@@ -259,34 +403,47 @@ function CanopyBlobs({
 
     const p = progressRef.current;
     const tree = phase(p, 0.18, 0.85);
-    const time = state.clock.elapsedTime;
+    if (tree < 0.001) {
+      mesh.visible = false;
+      lastProgressRef.current = p;
+      return;
+    }
+    mesh.visible = true;
+
+    if (reducedMotion && Math.abs(p - lastProgressRef.current) < 1e-5) return;
+    lastProgressRef.current = p;
+
+    const time = reducedMotion ? 0 : state.clock.elapsedTime;
 
     for (let i = 0; i < blobs.length; i++) {
       const b = blobs[i];
-      const sway = Math.sin(time * 0.85 + i * 0.4) * 0.015 * tree;
+      const sway = reducedMotion ? 0 : Math.sin(time * 0.85 + i * 0.4) * 0.015 * tree;
 
       const currX = lerp(b.qrX, b.x, tree);
       const currY = lerp(0.04, b.y, tree);
       const currZ = lerp(b.qrZ, b.z, tree);
 
       DUMMY.position.set(currX, currY, currZ);
-      DUMMY.rotation.set(0, time * 0.04 + i, 0);
+      DUMMY.rotation.set(0, reducedMotion ? i : time * 0.04 + i, 0);
       const scale = b.radius * tree * (0.96 + sway);
       DUMMY.scale.set(scale, scale * 0.88, scale);
       DUMMY.updateMatrix();
 
       mesh.setMatrixAt(i, DUMMY.matrix);
-      COLOR.set(b.colorHex);
-      mesh.setColorAt(i, COLOR);
     }
     mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   });
 
   if (blobs.length === 0) return null;
 
   return (
-    <instancedMesh ref={ref} args={[undefined, undefined, blobs.length]} castShadow receiveShadow>
+    <instancedMesh
+      key={blobs.length}
+      ref={ref}
+      args={[undefined, undefined, blobs.length]}
+      castShadow
+      receiveShadow
+    >
       <primitive object={blobGeometry} attach="geometry" />
       <meshStandardMaterial roughness={0.7} flatShading />
     </instancedMesh>
@@ -294,20 +451,43 @@ function CanopyBlobs({
 }
 
 // ---------------------------------------------------------------------------
-// 5. Fibonacci Surface Leaves (Dense, smooth leaf layer — the main visible
-//    canopy texture; see FIX 2 in treeGenerator.ts for the density/shell tuning)
+// 5. Fibonacci Surface Leaves
 // ---------------------------------------------------------------------------
 function Leaves({
   leaves,
   progressRef,
+  reducedMotion,
 }: {
   leaves: LeafParticle[];
   progressRef: MutableRefObject<number>;
+  reducedMotion: boolean;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
-  // Same shared geometry for every instance — irregular but consistent,
-  // varied further per-instance by random rotation + non-uniform scale below.
+  const lastProgressRef = useRef(-1);
   const leafGeometry = useMemo(() => makeLumpyGeometry(1, 0.72, 1.18, 1), []);
+
+  useEffect(() => {
+    return () => {
+      leafGeometry.dispose();
+    };
+  }, [leafGeometry]);
+
+  useLayoutEffect(() => {
+    lastProgressRef.current = -1;
+    const mesh = ref.current;
+    if (!mesh || leaves.length === 0) return;
+    for (let i = 0; i < leaves.length; i++) {
+      COLOR.set(leaves[i].colorHex);
+      const variance = 0.85 + (((i * 92837 + 17) % 233) / 233) * 0.3;
+      COLOR.multiplyScalar(variance);
+      mesh.setColorAt(i, COLOR);
+    }
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  }, [leaves]);
+
+  useEffect(() => {
+    lastProgressRef.current = -1;
+  }, [reducedMotion]);
 
   useFrame((state) => {
     const mesh = ref.current;
@@ -315,46 +495,49 @@ function Leaves({
 
     const p = progressRef.current;
     const tree = phase(p, 0.15, 0.92);
-    const time = state.clock.elapsedTime;
+    if (tree < 0.001) {
+      mesh.visible = false;
+      lastProgressRef.current = p;
+      return;
+    }
+    mesh.visible = true;
+
+    if (reducedMotion && Math.abs(p - lastProgressRef.current) < 1e-5) return;
+    lastProgressRef.current = p;
+
+    const time = reducedMotion ? 0 : state.clock.elapsedTime;
 
     for (let i = 0; i < leaves.length; i++) {
       const l = leaves[i];
-      const swayX = Math.sin(time * 1.2 + i * 0.15) * 0.02 * tree;
-      const swayY = Math.cos(time * 1.05 + i * 0.12) * 0.015 * tree;
+      const swayX = reducedMotion ? 0 : Math.sin(time * 1.2 + i * 0.15) * 0.02 * tree;
+      const swayY = reducedMotion ? 0 : Math.cos(time * 1.05 + i * 0.12) * 0.015 * tree;
 
       const currX = lerp(l.qrX, l.x, tree) + swayX;
       const currY = lerp(0.04, l.y, tree) + swayY;
       const currZ = lerp(l.qrZ, l.z, tree);
 
       DUMMY.position.set(currX, currY, currZ);
-      DUMMY.rotation.set(l.rotX, l.rotY + time * 0.15 * tree, l.rotZ);
+      DUMMY.rotation.set(l.rotX, reducedMotion ? l.rotY : l.rotY + time * 0.15 * tree, l.rotZ);
 
       const s = l.scale * (0.2 + 0.8 * tree);
-      // Non-uniform per-axis jitter (deterministic from index) so each
-      // instance's silhouette is an irregular clump, not a circular disc.
-      const jx = 0.8 + ((i * 15731) % 211) / 211 * 0.5;
-      const jz = 0.8 + ((i * 42391 + 7) % 197) / 197 * 0.5;
+      const jx = 0.8 + (((i * 15731) % 211) / 211) * 0.5;
+      const jz = 0.8 + (((i * 42391 + 7) % 197) / 197) * 0.5;
       DUMMY.scale.set(s * jx, s * 0.58, s * jz);
       DUMMY.updateMatrix();
 
       mesh.setMatrixAt(i, DUMMY.matrix);
-      COLOR.set(l.colorHex);
-      // Deterministic per-instance brightness jitter (±15%) so neighbouring
-      // leaf facets read as distinct shapes instead of blending into one
-      // smooth green mass — this is most of what "sharpens" the canopy.
-      const variance = 0.85 + ((i * 92837 + 17) % 233) / 233 * 0.3;
-      COLOR.multiplyScalar(variance);
-      mesh.setColorAt(i, COLOR);
     }
     mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   });
 
   return (
-    <instancedMesh ref={ref} args={[undefined, undefined, leaves.length]} castShadow receiveShadow>
-      {/* Irregular lumpy geometry instead of a perfect sphere — this is what
-          actually stops each leaf from reading as "a ball", regardless of
-          shading. flatShading still gives it hard, defined edges. */}
+    <instancedMesh
+      key={leaves.length}
+      ref={ref}
+      args={[undefined, undefined, leaves.length]}
+      castShadow
+      receiveShadow
+    >
       <primitive object={leafGeometry} attach="geometry" />
       <meshStandardMaterial roughness={0.45} flatShading />
     </instancedMesh>
@@ -367,11 +550,29 @@ function Leaves({
 function Flowers({
   flowers,
   progressRef,
+  reducedMotion,
 }: {
   flowers: FlowerParticle[];
   progressRef: MutableRefObject<number>;
+  reducedMotion: boolean;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
+  const lastProgressRef = useRef(-1);
+
+  useLayoutEffect(() => {
+    lastProgressRef.current = -1;
+    const mesh = ref.current;
+    if (!mesh || flowers.length === 0) return;
+    for (let i = 0; i < flowers.length; i++) {
+      COLOR.set(flowers[i].colorHex);
+      mesh.setColorAt(i, COLOR);
+    }
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  }, [flowers]);
+
+  useEffect(() => {
+    lastProgressRef.current = -1;
+  }, [reducedMotion]);
 
   useFrame((state) => {
     const mesh = ref.current;
@@ -379,32 +580,45 @@ function Flowers({
 
     const p = progressRef.current;
     const tree = phase(p, 0.3, 0.95);
-    const time = state.clock.elapsedTime;
+    if (tree < 0.001) {
+      mesh.visible = false;
+      lastProgressRef.current = p;
+      return;
+    }
+    mesh.visible = true;
+
+    if (reducedMotion && Math.abs(p - lastProgressRef.current) < 1e-5) return;
+    lastProgressRef.current = p;
+
+    const time = reducedMotion ? 0 : state.clock.elapsedTime;
 
     for (let i = 0; i < flowers.length; i++) {
       const f = flowers[i];
       const currX = lerp(f.qrX, f.x, tree);
-      const currY = lerp(0.04, f.y, tree) + Math.sin(time + i) * 0.01 * tree;
+      const currY = lerp(0.04, f.y, tree) + (reducedMotion ? 0 : Math.sin(time + i) * 0.01 * tree);
       const currZ = lerp(f.qrZ, f.z, tree);
 
       DUMMY.position.set(currX, currY, currZ);
-      DUMMY.rotation.set(0, time * 0.3 + i, 0);
+      DUMMY.rotation.set(0, reducedMotion ? i : time * 0.3 + i, 0);
       const s = f.scale * tree;
       DUMMY.scale.setScalar(s);
       DUMMY.updateMatrix();
 
       mesh.setMatrixAt(i, DUMMY.matrix);
-      COLOR.set(f.colorHex);
-      mesh.setColorAt(i, COLOR);
     }
     mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   });
 
   if (flowers.length === 0) return null;
 
   return (
-    <instancedMesh ref={ref} args={[undefined, undefined, flowers.length]} castShadow receiveShadow>
+    <instancedMesh
+      key={flowers.length}
+      ref={ref}
+      args={[undefined, undefined, flowers.length]}
+      castShadow
+      receiveShadow
+    >
       <dodecahedronGeometry args={[1, 0]} />
       <meshStandardMaterial roughness={0.48} />
     </instancedMesh>
@@ -412,45 +626,50 @@ function Flowers({
 }
 
 // ---------------------------------------------------------------------------
-// 7. Grass Tufts (four little clusters at the platform corners, matching
-//    the reference site.)
-//
-// FIX 4 — grass used to fade all the way to zero scale in flat/QR mode
-// (`phase(p, 0.45, 0.9)` hits exactly 0 at p = 0, and p = 0 IS the flat
-// state — see `progressRef = useRef(isFlat ? 0 : 1)` below). That's why it
-// nearly disappeared once the scene settled into the QR view, unlike the
-// reference site where the corner grass tufts stay clearly visible even
-// in the flattened state. Leaves/flowers/canopy blobs are SUPPOSED to
-// vanish in QR mode (they're morphing into QR dots), but grass is a fixed
-// decorative element that should persist — so its "grow" value now has a
-// floor instead of bottoming out at 0.
+// 7. Grass Tufts (persist at platform corners in both QR and Tree views)
 // ---------------------------------------------------------------------------
 function Grass({
   blades,
   progressRef,
+  reducedMotion,
 }: {
   blades: GrassBlade[];
   progressRef: MutableRefObject<number>;
+  reducedMotion: boolean;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
+  const lastProgressRef = useRef(-1);
+
+  useLayoutEffect(() => {
+    lastProgressRef.current = -1;
+    const mesh = ref.current;
+    if (!mesh || blades.length === 0) return;
+    for (let i = 0; i < blades.length; i++) {
+      COLOR.set(blades[i].colorHex);
+      mesh.setColorAt(i, COLOR);
+    }
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  }, [blades]);
+
+  useEffect(() => {
+    lastProgressRef.current = -1;
+  }, [reducedMotion]);
 
   useFrame((state) => {
     const mesh = ref.current;
     if (!mesh || blades.length === 0) return;
 
     const p = progressRef.current;
-    // Was: const grow = phase(p, 0.45, 0.9); — went all the way to 0 at
-    // p = 0 (flat/QR mode), wiping the grass out. Now it only ever eases
-    // between a visible floor (0.62) and full size (1), so the corner
-    // tufts stay readable in both the tree view and the flat QR view,
-    // matching the reference screenshot.
+    if (reducedMotion && Math.abs(p - lastProgressRef.current) < 1e-5) return;
+    lastProgressRef.current = p;
+
     const treeGrow = phase(p, 0.2, 0.85);
     const grow = lerp(0.62, 1, treeGrow);
-    const time = state.clock.elapsedTime;
+    const time = reducedMotion ? 0 : state.clock.elapsedTime;
 
     for (let i = 0; i < blades.length; i++) {
       const g = blades[i];
-      const sway = Math.sin(time * 1.4 + i) * 0.06 * grow;
+      const sway = reducedMotion ? 0 : Math.sin(time * 1.4 + i) * 0.06 * grow;
 
       DUMMY.position.set(g.x, 0.001, g.z);
       DUMMY.rotation.set(g.tilt + sway, g.rotY, 0);
@@ -459,17 +678,20 @@ function Grass({
       DUMMY.updateMatrix();
 
       mesh.setMatrixAt(i, DUMMY.matrix);
-      COLOR.set(g.colorHex);
-      mesh.setColorAt(i, COLOR);
     }
     mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   });
 
   if (blades.length === 0) return null;
 
   return (
-    <instancedMesh ref={ref} args={[undefined, undefined, blades.length]} castShadow receiveShadow>
+    <instancedMesh
+      key={blades.length}
+      ref={ref}
+      args={[undefined, undefined, blades.length]}
+      castShadow
+      receiveShadow
+    >
       <coneGeometry args={[1, 1, 4]} />
       <meshStandardMaterial roughness={0.75} />
     </instancedMesh>
@@ -492,8 +714,19 @@ function AtmosphereParticles({
 }) {
   const count = 26;
   const ref = useRef<THREE.InstancedMesh>(null);
-  const particles = useMemo(() => {
-    return Array.from({ length: count }, () => ({
+  const particlesRef = useRef<
+    Array<{
+      x: number;
+      y: number;
+      z: number;
+      speed: number;
+      rotSpeed: number;
+      scale: number;
+    }>
+  >([]);
+
+  useEffect(() => {
+    particlesRef.current = Array.from({ length: count }, () => ({
       x: canopyCenter.x + (Math.random() - 0.5) * spread,
       y: canopyCenter.y + Math.random() * 1.3,
       z: canopyCenter.z + (Math.random() - 0.5) * spread,
@@ -503,9 +736,10 @@ function AtmosphereParticles({
     }));
   }, [theme.rainMode, canopyCenter.x, canopyCenter.y, canopyCenter.z, spread]);
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     const mesh = ref.current;
-    if (!mesh) return;
+    const particles = particlesRef.current;
+    if (!mesh || particles.length === 0) return;
     const tree = phase(progressRef.current, 0.4, 0.95);
     if (tree < 0.01) {
       mesh.visible = false;
@@ -513,10 +747,11 @@ function AtmosphereParticles({
     }
     mesh.visible = true;
     const time = state.clock.elapsedTime;
+    const step = Math.min(delta, 0.05) * 60;
 
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < particles.length; i++) {
       const p = particles[i];
-      p.y -= p.speed * 0.014 * (theme.rainMode ? 2.4 : 1.0);
+      p.y -= p.speed * 0.014 * (theme.rainMode ? 2.4 : 1.0) * step;
       if (p.y < 0.05) {
         p.y = canopyCenter.y + 1.0 + Math.random() * 0.5;
         p.x = canopyCenter.x + (Math.random() - 0.5) * spread;
@@ -557,53 +792,111 @@ function AtmosphereParticles({
 }
 
 // ---------------------------------------------------------------------------
-// 9. Camera Rig (Isometric Perspective & Clean Zoom/Orbit)
+// 9. Camera Rig (Isometric Perspective, Inertial Orbit & Smooth Wheel Zoom)
 // ---------------------------------------------------------------------------
 function CameraRig({
   progressRef,
   platformSize,
   canopyCenter,
   userAngleRef,
+  reducedMotion,
 }: {
   progressRef: MutableRefObject<number>;
   platformSize: number;
   canopyCenter: { x: number; y: number; z: number };
-  userAngleRef: MutableRefObject<{ azimuth: number; elevation: number; zoom: number }>;
+  userAngleRef: MutableRefObject<UserAngleState>;
+  reducedMotion: boolean;
 }) {
   const { camera, size } = useThree();
 
-  React.useEffect(() => {
+  useEffect(() => {
+    if (!(camera instanceof THREE.PerspectiveCamera)) return;
+    if (size.height > 480) {
+      camera.setViewOffset(size.width, size.height, 0, 72, size.width, size.height);
+    } else {
+      camera.clearViewOffset();
+    }
     return () => {
-      if (camera instanceof THREE.PerspectiveCamera) {
-        camera.clearViewOffset();
-      }
+      camera.clearViewOffset();
     };
-  }, [camera]);
+  }, [camera, size.width, size.height]);
 
-  useFrame(() => {
-    const p = smooth(progressRef.current);
+  useFrame((_, delta) => {
+    const dt = Math.min(delta, 0.05);
+    const p = progressRef.current;
+    const user = userAngleRef.current;
+
+    // Smooth wheel zoom toward targetZoom
+    if (reducedMotion) {
+      user.zoom = user.targetZoom;
+    } else if (Math.abs(user.zoom - user.targetZoom) > 0.0004) {
+      user.zoom = lerp(user.zoom, user.targetZoom, 1 - Math.exp(-10 * dt));
+    } else {
+      user.zoom = user.targetZoom;
+    }
+
+    // Post-drag inertial decay & rubberband elevation return
+    if (!user.dragging) {
+      if (!reducedMotion && p >= 0.2) {
+        if (Math.abs(user.velAzimuth) > 0.002) {
+          user.azimuth += user.velAzimuth * dt;
+          user.velAzimuth *= Math.exp(-6 * dt);
+        } else {
+          user.velAzimuth = 0;
+        }
+        if (Math.abs(user.velElevation) > 0.002) {
+          user.rawElevation = clamp(
+            user.rawElevation + user.velElevation * dt,
+            MIN_ELEV - 0.3,
+            MAX_ELEV + 0.3
+          );
+          user.velElevation *= Math.exp(-6 * dt);
+        } else {
+          user.velElevation = 0;
+        }
+      } else {
+        user.velAzimuth = 0;
+        user.velElevation = 0;
+      }
+
+      const clampedEl = clamp(user.rawElevation, MIN_ELEV, MAX_ELEV);
+      if (user.rawElevation !== clampedEl) {
+        if (reducedMotion) {
+          user.rawElevation = clampedEl;
+        } else {
+          user.rawElevation = lerp(user.rawElevation, clampedEl, 1 - Math.exp(-12 * dt));
+          if (Math.abs(user.rawElevation - clampedEl) < 0.0005) {
+            user.rawElevation = clampedEl;
+          }
+        }
+        user.velElevation = 0;
+      }
+      user.elevation = applyElevationRubberband(user.rawElevation);
+    }
+
     const aspect = size.width / Math.max(1, size.height);
     const effectiveAspect = Math.min(1, Math.max(0.6, aspect));
     const fov = (35 * Math.PI) / 180;
 
     // Top-down distance so QR code fits cleanly above the floating bottom control bar
-    const qrDistance = Math.max(20, ((platformSize * 0.85) / Math.tan(fov / 2) / effectiveAspect) * 1.48);
+    const qrDistance = Math.max(
+      20,
+      ((platformSize * 0.85) / Math.tan(fov / 2) / effectiveAspect) * 1.48
+    );
 
     // 3D Tree distance so entire tree crown and ground platform are framed
-    const baseTreeDist = Math.max(19, ((platformSize * 0.85) / Math.tan(fov / 2) / effectiveAspect) * 1.38);
-    const treeDistance = baseTreeDist * userAngleRef.current.zoom;
+    const baseTreeDist = Math.max(
+      19,
+      ((platformSize * 0.85) / Math.tan(fov / 2) / effectiveAspect) * 1.38
+    );
+    const treeDistance = baseTreeDist * user.zoom;
 
-    const user = userAngleRef.current;
     const azimuth = Math.PI * 0.25 + user.azimuth;
-    const elevation = clamp(0.58 + user.elevation, 0.22, 1.15);
+    const elevation = clamp(0.58 + user.elevation, 0.14, 1.25);
 
     const tx = Math.sin(azimuth) * Math.cos(elevation) * treeDistance;
     const ty = Math.sin(elevation) * treeDistance;
     const tz = Math.cos(azimuth) * Math.cos(elevation) * treeDistance;
-
-    if (camera instanceof THREE.PerspectiveCamera && size.height > 480) {
-      camera.setViewOffset(size.width, size.height, 0, 72, size.width, size.height);
-    }
 
     camera.position.set(lerp(0, tx, p), lerp(qrDistance, ty, p), lerp(0.001, tz, p));
     TARGET.set(0, lerp(0, canopyCenter.y * 0.65, p), 0);
@@ -625,10 +918,18 @@ function Lighting({
   progressRef: MutableRefObject<number>;
 }) {
   const light = useRef<THREE.DirectionalLight>(null);
+  const lastProgressRef = useRef(-1);
+
+  useLayoutEffect(() => {
+    lastProgressRef.current = -1;
+  }, [theme]);
 
   useFrame(() => {
     if (!light.current) return;
     const p = progressRef.current;
+    if (Math.abs(p - lastProgressRef.current) < 1e-5) return;
+    lastProgressRef.current = p;
+
     light.current.position.set(lerp(0, 8, p), 16, lerp(0, 10, p));
     light.current.intensity = lerp(1.1, 1.45, p);
   });
@@ -658,34 +959,78 @@ function Scene({
   url,
   season,
   isFlat,
+  reducedMotion,
+  progressRef,
   userAngleRef,
 }: {
   matrix: boolean[][];
   url: string;
   season: Season;
   isFlat: boolean;
-  userAngleRef: MutableRefObject<{ azimuth: number; elevation: number; zoom: number }>;
+  reducedMotion: boolean;
+  progressRef: MutableRefObject<number>;
+  userAngleRef: MutableRefObject<UserAngleState>;
 }) {
-  const progressRef = useRef(isFlat ? 0 : 1);
+  const velocityRef = useRef(0);
+  const prevUrlRef = useRef(url);
   const theme = SEASON_THEMES[season];
 
   const sceneData = useMemo(() => generateSceneData(matrix, url, season), [matrix, url, season]);
 
+  // Gently bloom new QR URL when already settled in 3D view
+  useEffect(() => {
+    if (prevUrlRef.current !== url) {
+      prevUrlRef.current = url;
+      if (!isFlat && !reducedMotion && progressRef.current > 0.2) {
+        progressRef.current = 0.08;
+        velocityRef.current = 0;
+      }
+    }
+  }, [url, isFlat, reducedMotion, progressRef]);
+
   useFrame((_, delta) => {
     const target = isFlat ? 0 : 1;
-    const speed = target > progressRef.current ? 1.5 : 1.9;
-    progressRef.current += (target - progressRef.current) * Math.min(1, delta * speed);
-    if (Math.abs(target - progressRef.current) < 0.001) progressRef.current = target;
+    if (reducedMotion) {
+      progressRef.current = target;
+      velocityRef.current = 0;
+      return;
+    }
+
+    const x0 = progressRef.current - target;
+    const v0 = velocityRef.current;
+    if (Math.abs(x0) < 0.001 && Math.abs(v0) < 0.001) {
+      progressRef.current = target;
+      velocityRef.current = 0;
+      return;
+    }
+
+    // Exact frame-rate-independent critically-damped spring (zeta = 1, response = 0.58s)
+    const dt = Math.min(delta, 0.05);
+    const exp = Math.exp(-SPRING_OMEGA * dt);
+    const c1 = x0;
+    const c2 = v0 + SPRING_OMEGA * x0;
+    const nextX = (c1 + c2 * dt) * exp;
+    const nextV = (c2 - SPRING_OMEGA * (c1 + c2 * dt)) * exp;
+
+    if (Math.abs(nextX) < 0.001 && Math.abs(nextV) < 0.001) {
+      progressRef.current = target;
+      velocityRef.current = 0;
+    } else {
+      progressRef.current = clamp(target + nextX, 0, 1);
+      velocityRef.current = nextV;
+    }
   });
 
   return (
     <>
+      <SeasonBackdrop bgColor={theme.bgColor} reducedMotion={reducedMotion} />
       <Lighting theme={theme} progressRef={progressRef} />
       <CameraRig
         progressRef={progressRef}
         platformSize={sceneData.platformSize}
         canopyCenter={sceneData.tree.canopyCenter}
         userAngleRef={userAngleRef}
+        reducedMotion={reducedMotion}
       />
       <Ground size={sceneData.platformSize} theme={theme} progressRef={progressRef} />
       <QRTiles
@@ -695,16 +1040,34 @@ function Scene({
         cellSize={sceneData.cellSize}
       />
       <Branches segments={sceneData.tree.segments} theme={theme} progressRef={progressRef} />
-      <CanopyBlobs blobs={sceneData.tree.canopyBlobs} progressRef={progressRef} />
-      <Leaves leaves={sceneData.tree.leaves} progressRef={progressRef} />
-      <Flowers flowers={sceneData.tree.flowers} progressRef={progressRef} />
-      <Grass blades={sceneData.grass} progressRef={progressRef} />
-      <AtmosphereParticles
-        theme={theme}
+      <CanopyBlobs
+        blobs={sceneData.tree.canopyBlobs}
         progressRef={progressRef}
-        canopyCenter={sceneData.tree.canopyCenter}
-        spread={sceneData.tree.canopyRadius * 1.6}
+        reducedMotion={reducedMotion}
       />
+      <Leaves
+        leaves={sceneData.tree.leaves}
+        progressRef={progressRef}
+        reducedMotion={reducedMotion}
+      />
+      <Flowers
+        flowers={sceneData.tree.flowers}
+        progressRef={progressRef}
+        reducedMotion={reducedMotion}
+      />
+      <Grass
+        blades={sceneData.grass}
+        progressRef={progressRef}
+        reducedMotion={reducedMotion}
+      />
+      {!reducedMotion && (
+        <AtmosphereParticles
+          theme={theme}
+          progressRef={progressRef}
+          canopyCenter={sceneData.tree.canopyCenter}
+          spread={sceneData.tree.canopyRadius * 1.6}
+        />
+      )}
     </>
   );
 }
@@ -714,7 +1077,9 @@ export interface QRTreeSceneProps {
   url: string;
   season: Season;
   isFlat: boolean;
+  reducedMotion?: boolean;
   onToggleFlat: () => void;
+  onReady?: () => void;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -724,46 +1089,128 @@ export default function QRTreeScene({
   url,
   season,
   isFlat,
+  reducedMotion = false,
   onToggleFlat,
+  onReady,
   className,
   style,
 }: QRTreeSceneProps) {
-  const theme = SEASON_THEMES[season];
-  const userAngleRef = useRef({ azimuth: 0, elevation: 0, zoom: 1.0 });
-  const dragRef = useRef<{ startX: number; startY: number; moved: boolean } | null>(null);
+  const progressRef = useRef(isFlat ? 0 : 1);
+  const [isDragging, setIsDragging] = useState(false);
+  const userAngleRef = useRef<UserAngleState>({
+    azimuth: 0,
+    rawElevation: 0,
+    elevation: 0,
+    zoom: 1.0,
+    targetZoom: 1.0,
+    velAzimuth: 0,
+    velElevation: 0,
+    dragging: false,
+  });
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    lastX: number;
+    lastY: number;
+    lastTime: number;
+    moved: boolean;
+  } | null>(null);
 
-  const onPointerDown = (e: React.PointerEvent) => {
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
-    dragRef.current = { startX: e.clientX, startY: e.clientY, moved: false };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    userAngleRef.current.velAzimuth = 0;
+    userAngleRef.current.velElevation = 0;
+    dragRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      lastX: e.clientX,
+      lastY: e.clientY,
+      lastTime: performance.now(),
+      moved: false,
+    };
   };
 
-  const onPointerMove = (e: React.PointerEvent) => {
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const d = dragRef.current;
-    if (!d) return;
-    const dx = e.clientX - d.startX;
-    const dy = e.clientY - d.startY;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+    if (!d || d.pointerId !== e.pointerId) return;
+
+    if (!d.moved) {
+      if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) <= 8) return;
       d.moved = true;
-      userAngleRef.current.azimuth += dx * 0.0035;
-      userAngleRef.current.elevation = clamp(
-        userAngleRef.current.elevation - dy * 0.003,
-        -0.25,
-        0.35
-      );
-      d.startX = e.clientX;
-      d.startY = e.clientY;
+      d.lastX = e.clientX;
+      d.lastY = e.clientY;
+      d.lastTime = performance.now();
+      if (progressRef.current >= 0.2) {
+        userAngleRef.current.dragging = true;
+        setIsDragging(true);
+      }
+      return;
+    }
+
+    const now = performance.now();
+    // Ignore orbit accumulation while settled in 2D flat mode
+    if (progressRef.current < 0.2) {
+      d.lastX = e.clientX;
+      d.lastY = e.clientY;
+      d.lastTime = now;
+      return;
+    }
+
+    const dx = e.clientX - d.lastX;
+    const dy = e.clientY - d.lastY;
+    const dt = Math.max(0.004, (now - d.lastTime) / 1000);
+    d.lastX = e.clientX;
+    d.lastY = e.clientY;
+    d.lastTime = now;
+
+    const user = userAngleRef.current;
+    user.dragging = true;
+    const dAzimuth = dx * 0.004;
+    const dElevation = -dy * 0.0032;
+
+    user.azimuth += dAzimuth;
+    user.rawElevation = clamp(user.rawElevation + dElevation, MIN_ELEV - 0.38, MAX_ELEV + 0.38);
+    user.elevation = applyElevationRubberband(user.rawElevation);
+
+    if (!reducedMotion) {
+      const instVelAz = clamp(dAzimuth / dt, -6, 6);
+      const instVelEl = clamp(dElevation / dt, -4, 4);
+      user.velAzimuth = lerp(user.velAzimuth, instVelAz, 0.35);
+      user.velElevation = lerp(user.velElevation, instVelEl, 0.35);
     }
   };
 
-  const onPointerUp = () => {
+  const finishDrag = (e: React.PointerEvent<HTMLDivElement>, cancelled: boolean) => {
     const d = dragRef.current;
-    if (d && !d.moved) onToggleFlat();
+    if (!d || d.pointerId !== e.pointerId) return;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+
+    const user = userAngleRef.current;
+    user.dragging = false;
+
+    if (cancelled) {
+      user.velAzimuth = 0;
+      user.velElevation = 0;
+    } else if (!d.moved) {
+      onToggleFlat();
+    } else if (reducedMotion || performance.now() - d.lastTime > 80) {
+      user.velAzimuth = 0;
+      user.velElevation = 0;
+    }
+
     dragRef.current = null;
+    setIsDragging(false);
   };
 
-  const onWheel = (e: React.WheelEvent) => {
-    userAngleRef.current.zoom = clamp(
-      userAngleRef.current.zoom + e.deltaY * 0.001,
+  const onWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (progressRef.current < 0.2) return;
+    userAngleRef.current.targetZoom = clamp(
+      userAngleRef.current.targetZoom + e.deltaY * 0.001,
       0.65,
       1.75
     );
@@ -775,32 +1222,32 @@ export default function QRTreeScene({
       style={{
         width: "100%",
         height: "100%",
-        cursor: "grab",
+        cursor: isFlat ? "pointer" : isDragging ? "grabbing" : "grab",
         touchAction: "none",
         ...style,
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
+      onPointerUp={(e) => finishDrag(e, false)}
+      onPointerCancel={(e) => finishDrag(e, true)}
       onWheel={onWheel}
-      onPointerLeave={() => {
-        dragRef.current = null;
-      }}
     >
       <Canvas
         camera={{ fov: 35, near: 0.1, far: 200, position: [0, 22, 0.001] }}
         dpr={[1, 2]}
         gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
         shadows
-        style={{ background: theme.bgColor }}
+        onCreated={() => {
+          onReady?.();
+        }}
       >
-        <color attach="background" args={[theme.bgColor]} />
-        <fog attach="fog" args={[theme.bgColor, 45, 110]} />
         <Scene
           matrix={matrix}
           url={url}
           season={season}
           isFlat={isFlat}
+          reducedMotion={reducedMotion}
+          progressRef={progressRef}
           userAngleRef={userAngleRef}
         />
       </Canvas>
