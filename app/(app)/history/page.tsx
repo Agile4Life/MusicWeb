@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useEffect, useState, useCallback } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { EASE_OUT, SPRING_UI } from '@/lib/motion'
 import { createClient } from '@/lib/supabase/client'
 import { Track } from '@/types'
 import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
@@ -72,6 +74,7 @@ const cachedTotalPlays: Record<TopTimeframe, number> = {
 
 export default function HistoryPage() {
   const supabase = createClient()
+  const reduced = useReducedMotion()
   const { currentTrack, isPlaying } = usePlayerTrack()
   const { playTrack } = usePlayerControls()
 
@@ -321,7 +324,7 @@ export default function HistoryPage() {
             <>
               <button
                 onClick={handlePlayAllRecent}
-                className="bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black font-bold px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full flex items-center gap-1.5 text-xs transition-colors cursor-pointer"
+                className="bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black font-bold px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full flex items-center gap-1.5 text-xs active:scale-[0.97] transition-[transform,filter,background-color,border-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer"
               >
                 <Play className="w-3.5 h-3.5 fill-current text-black" />
                 <span>Phát tất cả</span>
@@ -330,7 +333,7 @@ export default function HistoryPage() {
               <button
                 onClick={handleClearAllHistory}
                 disabled={clearing}
-                className="bg-white/5 hover:bg-red-500/10 text-slate-300 hover:text-red-400 border border-white/10 font-semibold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full flex items-center gap-1.5 text-xs transition-colors disabled:opacity-50 cursor-pointer"
+                className="bg-white/5 hover:bg-red-500/10 text-slate-300 hover:text-red-400 border border-white/10 font-semibold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full flex items-center gap-1.5 text-xs active:scale-[0.97] transition-[transform,filter,background-color,border-color,color] duration-150 ease-[var(--ease-out)] disabled:opacity-50 cursor-pointer"
                 title="Xóa tất cả lịch sử"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -342,7 +345,7 @@ export default function HistoryPage() {
           {activeTab === 'top' && topItems.length > 0 && (
             <button
               onClick={handlePlayAllTop}
-              className="bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black font-bold px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full flex items-center gap-1.5 text-xs transition-colors cursor-pointer"
+              className="bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black font-bold px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full flex items-center gap-1.5 text-xs active:scale-[0.97] transition-[transform,filter,background-color,border-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer"
             >
               <Play className="w-3.5 h-3.5 fill-current text-black" />
               <span>Phát tất cả Top</span>
@@ -362,26 +365,35 @@ export default function HistoryPage() {
             }}
             style={
               activeTab === 'recent'
-                ? {
-                    backgroundColor: 'var(--accent-dim, rgba(6,182,212,0.16))',
-                    borderColor: 'var(--spotify-glow, #22d3ee)',
-                    color: 'var(--spotify-glow, #22d3ee)',
-                  }
+                ? { color: 'var(--spotify-glow, #22d3ee)' }
                 : undefined
             }
-            className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-bold transition-colors cursor-pointer ${
+            className={`relative px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-bold active:scale-[0.97] transition-[transform,color,background-color] duration-150 ease-[var(--ease-out)] cursor-pointer ${
               activeTab === 'recent'
-                ? 'border'
-                : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+                ? ''
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <Clock className="w-3.5 h-3.5" />
-            <span>Gần đây</span>
-            {historyItems.length > 0 && (
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/10 text-slate-300 font-mono tabular-nums">
-                {historyItems.length}
-              </span>
+            {activeTab === 'recent' && (
+              <motion.span
+                layoutId="history-tab-pill"
+                transition={reduced ? { duration: 0.14 } : SPRING_UI}
+                style={{
+                  backgroundColor: 'var(--accent-dim, rgba(6,182,212,0.16))',
+                  borderColor: 'var(--spotify-glow, #22d3ee)',
+                }}
+                className="absolute inset-0 rounded-lg border pointer-events-none"
+              />
             )}
+            <span className="relative z-10 flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5" />
+              <span>Gần đây</span>
+              {historyItems.length > 0 && (
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/10 text-slate-300 font-mono tabular-nums">
+                  {historyItems.length}
+                </span>
+              )}
+            </span>
           </button>
 
           <button
@@ -391,53 +403,78 @@ export default function HistoryPage() {
             }}
             style={
               activeTab === 'top'
-                ? {
-                    backgroundColor: 'var(--accent-dim, rgba(6,182,212,0.16))',
-                    borderColor: 'var(--spotify-glow, #22d3ee)',
-                    color: 'var(--spotify-glow, #22d3ee)',
-                  }
+                ? { color: 'var(--spotify-glow, #22d3ee)' }
                 : undefined
             }
-            className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-bold transition-colors cursor-pointer ${
+            className={`relative px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-bold active:scale-[0.97] transition-[transform,color,background-color] duration-150 ease-[var(--ease-out)] cursor-pointer ${
               activeTab === 'top'
-                ? 'border'
-                : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+                ? ''
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <Trophy className="w-3.5 h-3.5" />
-            <span>Nghe nhiều nhất</span>
-            {topItems.length > 0 && (
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/10 text-slate-300 font-mono tabular-nums">
-                {topItems.length}
-              </span>
+            {activeTab === 'top' && (
+              <motion.span
+                layoutId="history-tab-pill"
+                transition={reduced ? { duration: 0.14 } : SPRING_UI}
+                style={{
+                  backgroundColor: 'var(--accent-dim, rgba(6,182,212,0.16))',
+                  borderColor: 'var(--spotify-glow, #22d3ee)',
+                }}
+                className="absolute inset-0 rounded-lg border pointer-events-none"
+              />
             )}
+            <span className="relative z-10 flex items-center gap-1.5">
+              <Trophy className="w-3.5 h-3.5" />
+              <span>Nghe nhiều nhất</span>
+              {topItems.length > 0 && (
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/10 text-slate-300 font-mono tabular-nums">
+                  {topItems.length}
+                </span>
+              )}
+            </span>
           </button>
         </div>
 
         {/* Timeframe Selector (Only for Top Tab) */}
-        {activeTab === 'top' && (
-          <div className="flex items-center gap-1.5 bg-white/[0.03] p-1 rounded-xl border border-white/[0.06]">
-            {(
-              [
-                { id: 'all', label: 'Tất cả' },
-                { id: '30days', label: '30 ngày qua' },
-                { id: '7days', label: '7 ngày qua' },
-              ] as const
-            ).map((tf) => (
-              <button
-                key={tf.id}
-                onClick={() => handleTimeframeChange(tf.id)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                  timeframe === tf.id
-                    ? 'bg-white/15 text-white border border-white/20'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
-                }`}
-              >
-                {tf.label}
-              </button>
-            ))}
-          </div>
-        )}
+        <AnimatePresence initial={false}>
+          {activeTab === 'top' && (
+            <motion.div
+              key="history-timeframe-bar"
+              initial={reduced ? { opacity: 0 } : { opacity: 0, transform: 'translate3d(0, -4px, 0) scale(0.97)' }}
+              animate={reduced ? { opacity: 1 } : { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)' }}
+              exit={reduced ? { opacity: 0 } : { opacity: 0, transform: 'translate3d(0, -4px, 0) scale(0.97)' }}
+              transition={{ duration: reduced ? 0.14 : 0.18, ease: EASE_OUT }}
+              className="flex items-center gap-1.5 bg-white/[0.03] p-1 rounded-xl border border-white/[0.06]"
+            >
+              {(
+                [
+                  { id: 'all', label: 'Tất cả' },
+                  { id: '30days', label: '30 ngày qua' },
+                  { id: '7days', label: '7 ngày qua' },
+                ] as const
+              ).map((tf) => (
+                <button
+                  key={tf.id}
+                  onClick={() => handleTimeframeChange(tf.id)}
+                  className={`relative px-2.5 py-1 rounded-lg text-xs font-semibold active:scale-[0.97] transition-[transform,color,background-color] duration-150 ease-[var(--ease-out)] cursor-pointer ${
+                    timeframe === tf.id
+                      ? 'text-white'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  {timeframe === tf.id && (
+                    <motion.span
+                      layoutId="history-range-pill"
+                      transition={reduced ? { duration: 0.14 } : SPRING_UI}
+                      className="absolute inset-0 rounded-lg bg-white/15 border border-white/20 pointer-events-none"
+                    />
+                  )}
+                  <span className="relative z-10">{tf.label}</span>
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Search & Filter Bar */}
@@ -502,7 +539,9 @@ export default function HistoryPage() {
                   <div
                     key={item.id}
                     onClick={() => playTrack(track, filteredRecentItems.map((i) => i.track))}
-                    onMouseEnter={handleHistoryMouseEnter}
+                    onPointerEnter={(e) => {
+                      if (e.pointerType === 'mouse') handleHistoryMouseEnter(e)
+                    }}
                     className="history-track-row song-row recent-row flex items-center justify-between p-2.5 sm:p-3 rounded-xl transition-colors group gap-2.5 sm:gap-4 cursor-pointer relative z-[1]"
                   >
                     <div className="flex items-center gap-2.5 sm:gap-4 flex-1 min-w-0">
@@ -554,7 +593,7 @@ export default function HistoryPage() {
 
                       <button
                         onClick={(e) => handleRemoveSingleItem(e, item.id)}
-                        className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 sm:p-2 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-xl transition-colors cursor-pointer"
+                        className="opacity-70 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100 p-1.5 sm:p-2 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-xl transition-[opacity,color,background-color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.95] cursor-pointer"
                         title="Xóa mục này khỏi lịch sử"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -611,7 +650,9 @@ export default function HistoryPage() {
                   <div
                     key={`${track.id}-${idx}`}
                     onClick={() => playTrack(track, filteredTopItems.map((i) => i.track))}
-                    onMouseEnter={handleHistoryMouseEnter}
+                    onPointerEnter={(e) => {
+                      if (e.pointerType === 'mouse') handleHistoryMouseEnter(e)
+                    }}
                     className="history-track-row song-row top-track-row flex items-center justify-between p-2.5 sm:p-3 rounded-xl transition-colors group gap-2.5 sm:gap-4 cursor-pointer relative z-[1]"
                   >
                     <div className="flex items-center gap-2.5 sm:gap-4 flex-1 min-w-0">

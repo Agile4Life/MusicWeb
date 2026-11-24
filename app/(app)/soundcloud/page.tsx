@@ -1,6 +1,9 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { EASE_OUT, SPRING_UI } from '@/lib/motion'
+import { useTheme } from '@/components/theme/ThemeContext'
 import {
   Cloud,
   Search,
@@ -37,6 +40,9 @@ const GENRE_TABS = [
 export default function SoundCloudPage() {
   const { playTrack } = usePlayerControls()
   const { playlists: userPlaylists, refreshPlaylists } = usePlaylists()
+  const { themeStyle } = useTheme()
+  const reduced = useReducedMotion()
+  const isMinimalFlat = themeStyle === 'minimal-flat'
 
   const [activeTab, setActiveTab] = useState<string>('all-music')
   const [searchQuery, setSearchQuery] = useState<string>('')
@@ -308,7 +314,7 @@ export default function SoundCloudPage() {
         {searchQuery && (
           <button
             onClick={handleClearSearch}
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 rounded-full hover:bg-white/10 cursor-pointer transition-colors"
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 rounded-full hover:bg-white/10 active:scale-95 cursor-pointer transition-[transform,color,background-color] duration-150 ease-[var(--ease-out)]"
             title="Xóa tìm kiếm"
           >
             <X className="w-4 h-4" />
@@ -325,13 +331,28 @@ export default function SoundCloudPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`sc-genre-chip px-3.5 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors shrink-0 border flex items-center gap-1.5 cursor-pointer ${
-                  isActive
-                    ? 'sc-genre-chip--active bg-gradient-to-r from-[#ff5500] to-[#ff3300] text-white border-transparent'
-                    : 'bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border-white/10 hover:border-white/20'
+                className={`sc-genre-chip ${isActive ? 'sc-genre-chip--active' : ''} relative px-3.5 py-2 text-xs whitespace-nowrap active:scale-[0.97] transition-[transform,color,background-color,border-color] duration-150 ease-[var(--ease-out)] shrink-0 border flex items-center gap-1.5 cursor-pointer ${
+                  isMinimalFlat
+                    ? isActive
+                      ? 'rounded-[10px] border-transparent bg-transparent text-[var(--accent-strong,#E8A94F)] font-semibold'
+                      : 'rounded-[10px] bg-[#1D1720] border-[rgba(244,236,230,0.08)] text-[#B9AC9C] hover:bg-[rgba(244,236,230,0.06)] hover:text-[#F4ECE1] font-bold'
+                    : isActive
+                    ? 'rounded-full border-transparent bg-transparent text-white font-bold'
+                    : 'rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border-white/10 hover:border-white/20 font-bold'
                 }`}
               >
-                <span>{tab.label}</span>
+                {isActive && (
+                  <motion.span
+                    layoutId="sc-genre-pill"
+                    transition={reduced ? { duration: 0.14 } : SPRING_UI}
+                    className={`absolute inset-0 pointer-events-none ${
+                      isMinimalFlat
+                        ? 'rounded-[10px] bg-[#E8A94F]/15 border border-[#E8A94F]/45'
+                        : 'rounded-full bg-gradient-to-r from-[#ff5500] to-[#ff3300]'
+                    }`}
+                  />
+                )}
+                <span className="relative z-10">{tab.label}</span>
               </button>
             )
           })}
@@ -388,82 +409,91 @@ export default function SoundCloudPage() {
       )}
 
       {/* Selected Playlist Header Banner */}
-      {selectedPlaylist && (
-        <div className="glass-panel p-4 sm:p-6 rounded-2xl border border-[#ff5500]/30 bg-gradient-to-r from-[#ff5500]/12 via-white/[0.02] to-transparent flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4 min-w-0 flex-1">
-            <button
-              onClick={handleBackToExplore}
-              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors shrink-0 cursor-pointer"
-              title="Quay lại danh sách tổng"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
+      <AnimatePresence mode="wait">
+        {selectedPlaylist && (
+          <motion.div
+            key={selectedPlaylist.id}
+            initial={reduced ? { opacity: 0 } : { opacity: 0, transform: 'translate3d(0, -6px, 0) scale(0.985)' }}
+            animate={reduced ? { opacity: 1 } : { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)' }}
+            exit={reduced ? { opacity: 0 } : { opacity: 0, transform: 'translate3d(0, -6px, 0) scale(0.985)' }}
+            transition={{ duration: reduced ? 0.14 : 0.2, ease: EASE_OUT }}
+            className="glass-panel p-4 sm:p-6 rounded-2xl border border-[#ff5500]/30 bg-gradient-to-r from-[#ff5500]/12 via-white/[0.02] to-transparent flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+          >
+            <div className="flex items-center gap-4 min-w-0 flex-1">
+              <button
+                onClick={handleBackToExplore}
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white active:scale-[0.97] transition-[transform,filter,background-color,border-color,color] duration-150 ease-[var(--ease-out)] shrink-0 cursor-pointer"
+                title="Quay lại danh sách tổng"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
 
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-900 border border-white/10 overflow-hidden shrink-0">
-              {selectedPlaylist.artwork_url ? (
-                <img
-                  src={selectedPlaylist.artwork_url}
-                  alt={selectedPlaylist.title}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-[#ff5500]/20 text-[#ff7700]">
-                  <Disc className="w-7 h-7" />
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-900 border border-white/10 overflow-hidden shrink-0">
+                {selectedPlaylist.artwork_url ? (
+                  <img
+                    src={selectedPlaylist.artwork_url}
+                    alt={selectedPlaylist.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-[#ff5500]/20 text-[#ff7700]">
+                    <Disc className="w-7 h-7" />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/30 shrink-0">
+                    Playlist
+                  </span>
+                  <span className="text-xs text-slate-400 truncate">
+                    {selectedPlaylist.user?.username}
+                  </span>
                 </div>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/30 shrink-0">
-                  Playlist
-                </span>
-                <span className="text-xs text-slate-400 truncate">
-                  {selectedPlaylist.user?.username}
+                <h2 className="text-base sm:text-xl font-black text-white truncate">
+                  {selectedPlaylist.title}
+                </h2>
+                <span className="text-xs text-slate-400 tabular-nums">
+                  {tracks.length} bài hát
                 </span>
               </div>
-              <h2 className="text-base sm:text-xl font-black text-white truncate">
-                {selectedPlaylist.title}
-              </h2>
-              <span className="text-xs text-slate-400 tabular-nums">
-                {tracks.length} bài hát
-              </span>
             </div>
-          </div>
 
-          <div className="flex items-center flex-wrap gap-2 shrink-0 self-end sm:self-center">
-            {tracks.length > 0 && (
-              <>
-                <button
-                  onClick={handlePlayAll}
-                  className="px-4 py-2 rounded-full font-bold text-xs text-white flex items-center gap-2 bg-gradient-to-r from-[#ff7700] to-[#ff3300] hover:brightness-110 transition-colors cursor-pointer"
-                >
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>Phát Playlist</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setImportInitialPlaylist(selectedPlaylist)
-                    setImportInitialTracks(tracks)
-                    setIsImportModalOpen(true)
-                  }}
-                  className="px-4 py-2 rounded-full font-bold text-xs text-black flex items-center gap-1.5 bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 transition-colors cursor-pointer"
-                  title="Tạo và lưu playlist này vào thư viện cá nhân của bạn"
-                >
-                  <BookmarkPlus className="w-3.5 h-3.5" />
-                  <span>Lưu vào Thư viện</span>
-                </button>
-              </>
-            )}
-            <button
-              onClick={handleBackToExplore}
-              className="px-3.5 py-2 rounded-full font-bold text-xs text-slate-300 bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"
-            >
-              Đóng Playlist
-            </button>
-          </div>
-        </div>
-      )}
+            <div className="flex items-center flex-wrap gap-2 shrink-0 self-end sm:self-center">
+              {tracks.length > 0 && (
+                <>
+                  <button
+                    onClick={handlePlayAll}
+                    className="px-4 py-2 rounded-full font-bold text-xs text-white flex items-center gap-2 bg-gradient-to-r from-[#ff7700] to-[#ff3300] hover:brightness-110 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer"
+                  >
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>Phát Playlist</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setImportInitialPlaylist(selectedPlaylist)
+                      setImportInitialTracks(tracks)
+                      setIsImportModalOpen(true)
+                    }}
+                    className="px-4 py-2 rounded-full font-bold text-xs text-black flex items-center gap-1.5 bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer"
+                    title="Tạo và lưu playlist này vào thư viện cá nhân của bạn"
+                  >
+                    <BookmarkPlus className="w-3.5 h-3.5" />
+                    <span>Lưu vào Thư viện</span>
+                  </button>
+                </>
+              )}
+              <button
+                onClick={handleBackToExplore}
+                className="px-3.5 py-2 rounded-full font-bold text-xs text-slate-300 bg-white/10 hover:bg-white/20 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer"
+              >
+                Đóng Playlist
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* SECTION 2: Top Tracks List */}
       <div className="flex flex-col gap-3.5">
@@ -516,7 +546,7 @@ export default function SoundCloudPage() {
                   <button
                     onClick={handleLoadMore}
                     disabled={loadingMore}
-                    className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-white/[0.06] hover:bg-[var(--spotify-glow,#22d3ee)]/15 border border-white/10 hover:border-[var(--spotify-glow,#22d3ee)]/40 flex items-center gap-2 transition-colors disabled:opacity-50 hover:text-[var(--spotify-glow,#22d3ee)] cursor-pointer"
+                    className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-white/[0.06] hover:bg-[var(--spotify-glow,#22d3ee)]/15 border border-white/10 hover:border-[var(--spotify-glow,#22d3ee)]/40 flex items-center gap-2 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color] duration-150 ease-[var(--ease-out)] disabled:opacity-50 hover:text-[var(--spotify-glow,#22d3ee)] cursor-pointer"
                   >
                     {loadingMore ? (
                       <>

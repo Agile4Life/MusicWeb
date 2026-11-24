@@ -247,7 +247,7 @@ export default function DrivePage() {
               <>
                 <button
                   onClick={handlePlayAll}
-                  className="bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 px-5 py-2.5 rounded-full text-black font-extrabold text-xs flex items-center gap-2 transition-colors cursor-pointer"
+                  className="bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 px-5 py-2.5 rounded-full text-black font-extrabold text-xs flex items-center gap-2 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer"
                 >
                   <Play className="w-4 h-4 fill-current" />
                   <span>Phát Tất Cả ({driveTracks.length})</span>
@@ -255,7 +255,7 @@ export default function DrivePage() {
 
                 <button
                   onClick={toggleShuffle}
-                  className={`p-2.5 rounded-full border transition-colors cursor-pointer ${
+                  className={`p-2.5 rounded-full border active:scale-[0.97] transition-[transform,filter,background-color,border-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer ${
                     isShuffle
                       ? 'bg-[var(--spotify-glow,#22d3ee)]/20 border-[var(--spotify-glow,#22d3ee)] text-[var(--spotify-glow,#22d3ee)]'
                       : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
@@ -269,7 +269,7 @@ export default function DrivePage() {
 
             <Link
               href="/upload"
-              className="px-4 py-2.5 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 text-white font-bold text-xs flex items-center gap-2 transition-colors"
+              className="px-4 py-2.5 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 text-white font-bold text-xs flex items-center gap-2 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color] duration-150 ease-[var(--ease-out)]"
             >
               <Upload className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
               <span>Thêm Nhạc Vào Drive</span>
@@ -309,7 +309,7 @@ export default function DrivePage() {
             </div>
             <Link
               href="/upload"
-              className="bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 px-6 py-3 rounded-full text-black font-extrabold text-xs transition-colors mt-2"
+              className="bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 px-6 py-3 rounded-full text-black font-extrabold text-xs active:scale-[0.97] transition-[transform,filter,background-color,border-color,color] duration-150 ease-[var(--ease-out)] mt-2"
             >
               + Đóng Góp Nhạc Vào Drive
             </Link>

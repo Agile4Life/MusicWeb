@@ -104,7 +104,7 @@ export default function FavoritesPage() {
         <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1">
           <button
             onClick={() => router.back()}
-            className="lg:hidden p-1.5 sm:p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition-colors shrink-0"
+            className="lg:hidden p-1.5 sm:p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color] duration-150 ease-[var(--ease-out)] shrink-0 cursor-pointer"
             title="Quay lại"
           >
             <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -131,7 +131,7 @@ export default function FavoritesPage() {
         {tracks.length > 0 && (
           <button
             onClick={() => playTrack(tracks[0], tracks)}
-            className="bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black font-bold px-4 py-2 sm:px-5 sm:py-2.5 rounded-full flex items-center gap-2 text-xs transition-colors shrink-0 cursor-pointer"
+            className="bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black font-bold px-4 py-2 sm:px-5 sm:py-2.5 rounded-full flex items-center gap-2 text-xs active:scale-[0.97] transition-[transform,filter,background-color,border-color,color] duration-150 ease-[var(--ease-out)] shrink-0 cursor-pointer"
           >
             <Play className="w-4 h-4 fill-current" />
             <span>Phát tất cả</span>

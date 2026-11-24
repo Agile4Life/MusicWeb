@@ -14,7 +14,7 @@ export default function ReceiptPage() {
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <button
             onClick={() => router.back()}
-            className="p-2 -ml-1 text-slate-400 hover:text-white rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] transition-colors lg:hidden shrink-0"
+            className="p-2 -ml-1 text-slate-400 hover:text-white rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] active:scale-[0.97] transition-[transform,filter,background-color,border-color,color] duration-150 ease-[var(--ease-out)] lg:hidden shrink-0 cursor-pointer"
             title="Quay lại"
           >
             <ChevronLeft className="w-5 h-5" />
