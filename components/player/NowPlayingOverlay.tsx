@@ -1,7 +1,9 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { EASE_OUT, SPRING_DELIGHT } from '@/lib/motion'
 import { usePlayer } from './PlayerContext'
 import { usePlaybackDuration } from './PlaybackProgressStore'
 import { NowPlayingStage } from './NowPlayingStage'
@@ -68,6 +70,7 @@ export function NowPlayingOverlay() {
   } = usePlayer()
 
   const router = useRouter()
+  const prefersReducedMotion = useReducedMotion()
   const { userEmail } = useCurrentUser()
   const userIsAdmin = isAdmin(userEmail)
   const [isNavigatingAlbum, setIsNavigatingAlbum] = useState(false)
@@ -77,6 +80,23 @@ export function NowPlayingOverlay() {
   const [openEditorSignal, setOpenEditorSignal] = useState(0)
   const [isLiquidGlass, setIsLiquidGlass] = useState(false)
   const [showRomaji, setShowRomaji] = useState(true)
+  const [isDraggingVolume, setIsDraggingVolume] = useState(false)
+  const prevFavRef = useRef<{ id: string | null; fav: boolean }>({ id: null, fav: false })
+  const [heartPopping, setHeartPopping] = useState(false)
+
+  useEffect(() => {
+    const id = currentTrack?.id ?? null
+    const fav = Boolean(currentTrack?.is_favorite)
+    let timer: ReturnType<typeof setTimeout> | null = null
+    if (id && prevFavRef.current.id === id && !prevFavRef.current.fav && fav && !prefersReducedMotion) {
+      setHeartPopping(true)
+      timer = setTimeout(() => setHeartPopping(false), 100)
+    }
+    prevFavRef.current = { id, fav }
+    return () => {
+      if (timer) clearTimeout(timer)
+    }
+  }, [currentTrack?.id, currentTrack?.is_favorite, prefersReducedMotion])
 
   useEffect(() => {
     try {
@@ -355,6 +375,21 @@ export function NowPlayingOverlay() {
     else setVolume(0.8)
   }
 
+  const playStateKey = isBuffering ? 'buffering' : isPlaying ? 'pause' : 'play'
+  const iconSwapMotion = prefersReducedMotion
+    ? {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+        transition: { duration: 0.14, ease: 'easeOut' as const },
+      }
+    : {
+        initial: { opacity: 0, transform: 'scale(0.84)' },
+        animate: { opacity: 1, transform: 'scale(1)' },
+        exit: { opacity: 0, transform: 'scale(0.84)' },
+        transition: { duration: 0.15, ease: EASE_OUT },
+      }
+
   return (
     <>
       {/* 📱 Mobile Fullview Player (<1024px screens) - Persistent mount for zero-lag and non-freezing sync */}
@@ -371,8 +406,14 @@ export function NowPlayingOverlay() {
       <div
         inert={!isNowPlayingOpen}
         aria-hidden={!isNowPlayingOpen}
-        className={`now-playing-overlay hidden lg:flex fixed inset-0 z-[60] bg-[#07090e] text-white flex-col transition-transform duration-350 ease-[cubic-bezier(0.22,1,0.36,1)] select-none ${
-          isNowPlayingOpen ? 'open translate-y-0' : 'translate-y-full pointer-events-none'
+        className={`now-playing-overlay hidden lg:flex fixed inset-0 z-[60] bg-[#07090e] text-white flex-col select-none ${
+          prefersReducedMotion
+            ? `transition-opacity duration-200 ease-out ${
+                isNowPlayingOpen ? 'open opacity-100' : 'opacity-0 pointer-events-none'
+              }`
+            : `transition-transform duration-[340ms] ease-[var(--ease-drawer)] ${
+                isNowPlayingOpen ? 'open translate-y-0' : 'translate-y-full pointer-events-none'
+              }`
         }`}
       >
         {/* Subtle Single Shared Ambient Radial Wash */}
@@ -388,9 +429,10 @@ export function NowPlayingOverlay() {
         {/* 🔝 Unified Top Header (Desktop) */}
         <div className="relative z-30 flex items-center justify-between h-16 px-6 border-b border-white/[0.08] shrink-0 bg-[#07090e]/90 backdrop-blur-xl">
           <button
+            type="button"
             aria-label="Thu nhỏ player (Esc)"
             onClick={closeNowPlayingOverlay}
-            className="fullview-header-btn p-2 text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-colors active:scale-95 flex items-center gap-1.5 text-xs font-semibold shrink-0 border border-white/10 cursor-pointer"
+            className="fullview-header-btn p-2 text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-full active:scale-[0.97] transition-[transform,color,background-color] duration-150 ease-[var(--ease-out)] flex items-center gap-1.5 text-xs font-semibold shrink-0 border border-white/10 cursor-pointer"
             title="Thu nhỏ player (Esc)"
           >
             <ChevronDown className="w-5 h-5" />
@@ -409,7 +451,7 @@ export function NowPlayingOverlay() {
               <button
                 type="button"
                 onClick={() => setOpenEditorSignal((n) => n + 1)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-200 hover:text-white transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-200 hover:text-white active:scale-[0.97] transition-[transform,color,background-color] duration-150 ease-[var(--ease-out)] cursor-pointer"
                 title="Chỉnh sửa lời bài hát (Admin)"
               >
                 <PenTool className="w-3.5 h-3.5" />
@@ -510,7 +552,7 @@ export function NowPlayingOverlay() {
                 {/* Album Link Pill with Overflow Marquee Text */}
                 <div
                   onClick={handleOpenAlbum}
-                  className="flex items-center gap-1 min-w-0 max-w-[160px] xl:max-w-[260px] text-[10px] text-slate-300 bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 px-2 py-0.5 rounded-md hover:border-[var(--spotify-glow,#22d3ee)]/50 cursor-pointer transition-[background-color,border-color,color] group shadow-sm"
+                  className="flex items-center gap-1 min-w-0 max-w-[160px] xl:max-w-[260px] text-[10px] text-slate-300 bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 px-2 py-0.5 rounded-md hover:border-[var(--spotify-glow,#22d3ee)]/50 cursor-pointer active:scale-[0.97] transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] group shadow-sm"
                   title={displayAlbumName ? `Vào album: ${displayAlbumName}` : 'Vào Album bài hát'}
                 >
                   {isNavigatingAlbum ? (
@@ -532,6 +574,7 @@ export function NowPlayingOverlay() {
           <div className="flex flex-col items-center gap-2.5 w-full min-w-0 relative z-20">
             <div className="flex items-center gap-3 xl:gap-4">
               <button
+                type="button"
                 aria-label={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
                 onClick={toggleShuffle}
                 style={
@@ -543,7 +586,7 @@ export function NowPlayingOverlay() {
                     }
                     : undefined
                 }
-                className={`p-1.5 xl:p-2 rounded-xl relative transition-colors active:scale-95 cursor-pointer ${isShuffle ? 'border shadow-sm' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
+                className={`p-1.5 xl:p-2 rounded-xl relative active:scale-[0.97] transition-[transform,color,background-color,border-color] duration-150 ease-[var(--ease-out)] cursor-pointer ${isShuffle ? 'border shadow-sm' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
                   }`}
                 title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
               >
@@ -557,41 +600,55 @@ export function NowPlayingOverlay() {
               </button>
 
               <button
+                type="button"
                 aria-label="Bài trước"
                 onClick={prevTrack}
-                className="p-1.5 xl:p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-colors active:scale-95 cursor-pointer"
+                className="p-1.5 xl:p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full active:scale-[0.97] transition-[transform,color,background-color] duration-150 ease-[var(--ease-out)] cursor-pointer"
                 title="Bài trước"
               >
                 <SkipBack className="w-4.5 h-4.5" />
               </button>
 
               <button
-                aria-label={isPlaying ? 'Tạm dừng' : 'Phát'}
+                type="button"
+                aria-label={isBuffering ? 'Đang tải' : isPlaying ? 'Tạm dừng' : 'Phát'}
                 onClick={togglePlay}
                 style={{
                   background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
                   boxShadow: '0 4px 16px var(--theme-glow-shadow, rgba(6,182,212,0.45))',
                 }}
-                className="w-9 h-9 rounded-full hover:brightness-110 active:scale-95 transition-[filter,transform] flex items-center justify-center text-black font-bold shrink-0 border border-white/20 cursor-pointer"
-                title={isPlaying ? 'Tạm dừng' : 'Phát'}
+                className="w-9 h-9 rounded-full hover:brightness-110 active:scale-[0.97] transition-[filter,transform] duration-150 ease-[var(--ease-out)] flex items-center justify-center text-black font-bold shrink-0 border border-white/20 cursor-pointer"
+                title={isBuffering ? 'Đang tải' : isPlaying ? 'Tạm dừng' : 'Phát'}
               >
-                {isPlaying ? (
-                  <Pause className="w-4 h-4 fill-current text-black" />
-                ) : (
-                  <Play className="w-4 h-4 fill-current text-black ml-0.5" />
-                )}
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.span
+                    key={playStateKey}
+                    {...iconSwapMotion}
+                    className="inline-flex items-center justify-center"
+                  >
+                    {isBuffering ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-black shrink-0" />
+                    ) : isPlaying ? (
+                      <Pause className="w-4 h-4 fill-current text-black shrink-0" />
+                    ) : (
+                      <Play className="w-4 h-4 fill-current text-black ml-0.5 shrink-0" />
+                    )}
+                  </motion.span>
+                </AnimatePresence>
               </button>
 
               <button
+                type="button"
                 aria-label="Bài kế tiếp"
                 onClick={nextTrack}
-                className="p-1.5 xl:p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-colors active:scale-95 cursor-pointer"
+                className="p-1.5 xl:p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full active:scale-[0.97] transition-[transform,color,background-color] duration-150 ease-[var(--ease-out)] cursor-pointer"
                 title="Bài kế tiếp"
               >
                 <SkipForward className="w-4.5 h-4.5" />
               </button>
 
               <button
+                type="button"
                 aria-label={
                   repeatMode === 'one'
                     ? 'Lặp lại 1 bài'
@@ -609,7 +666,7 @@ export function NowPlayingOverlay() {
                     }
                     : undefined
                 }
-                className={`p-1.5 xl:p-2 rounded-xl relative transition-colors active:scale-95 cursor-pointer ${repeatMode !== 'off' ? 'border shadow-sm' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
+                className={`p-1.5 xl:p-2 rounded-xl relative active:scale-[0.97] transition-[transform,color,background-color,border-color] duration-150 ease-[var(--ease-out)] cursor-pointer ${repeatMode !== 'off' ? 'border shadow-sm' : 'text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10'
                   }`}
                 title={
                   repeatMode === 'one'
@@ -645,6 +702,7 @@ export function NowPlayingOverlay() {
           {/* Right: Volume, Romaji & Favorite Controls (Clean Fullview) */}
           <div className="flex justify-end items-center gap-1.5 xl:gap-2.5 min-w-0 relative z-20">
             <button
+              type="button"
               onClick={toggleRomaji}
               style={
                 showRomaji
@@ -655,7 +713,7 @@ export function NowPlayingOverlay() {
                     }
                   : undefined
               }
-              className={`p-1.5 xl:p-2 rounded-xl border transition-colors flex items-center justify-center cursor-pointer ${
+              className={`p-1.5 xl:p-2 rounded-xl border active:scale-[0.97] transition-[transform,color,background-color,border-color] duration-150 ease-[var(--ease-out)] flex items-center justify-center cursor-pointer ${
                 showRomaji
                   ? 'border shadow-sm'
                   : 'text-slate-400 border-transparent hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/5'
@@ -667,42 +725,63 @@ export function NowPlayingOverlay() {
             </button>
 
             <button
+              type="button"
               aria-label="Chia sẻ câu hát (Lyrics Story)"
               onClick={handleOpenShare}
-              className="p-1.5 xl:p-2 rounded-xl transition-colors text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/5 cursor-pointer"
+              className="p-1.5 xl:p-2 rounded-xl active:scale-[0.97] transition-[transform,color,background-color] duration-150 ease-[var(--ease-out)] text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/5 cursor-pointer"
               title="Chia sẻ câu hát (Lyrics Story)"
             >
               <Share2 className="w-4 h-4" />
             </button>
 
             <button
+              type="button"
               aria-label={currentTrack.is_favorite ? 'Bỏ khỏi bài hát yêu thích' : 'Thêm vào bài hát yêu thích'}
               onClick={handleFavoriteClick}
-              className={`p-1.5 xl:p-2 rounded-xl transition-colors cursor-pointer ${currentTrack.is_favorite
+              className={`p-1.5 xl:p-2 rounded-xl active:scale-[0.97] transition-[transform,color,background-color,border-color] duration-150 ease-[var(--ease-out)] cursor-pointer ${currentTrack.is_favorite
                 ? 'text-rose-500 bg-rose-500/15 border border-rose-500/30'
                 : 'text-slate-400 hover:text-rose-400 hover:bg-white/5'
                 }`}
               title={currentTrack.is_favorite ? 'Bỏ khỏi bài hát yêu thích' : 'Thêm vào bài hát yêu thích'}
             >
-              <Heart
-                className={`w-4 h-4 transition-colors ${currentTrack.is_favorite ? 'fill-current drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]' : ''
-                  }`}
-              />
+              <motion.span
+                animate={{ transform: heartPopping && !prefersReducedMotion ? 'scale(1.22)' : 'scale(1)' }}
+                transition={heartPopping ? { duration: 0.09, ease: EASE_OUT } : SPRING_DELIGHT}
+                className="inline-flex items-center justify-center"
+              >
+                <Heart
+                  className={`w-4 h-4 transition-colors duration-150 ${currentTrack.is_favorite ? 'fill-current drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]' : ''
+                    }`}
+                />
+              </motion.span>
             </button>
 
             <div className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.06] rounded-full px-2.5 xl:px-3 py-1 shrink-0">
               <button
+                type="button"
                 aria-label={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}
                 onClick={handleVolumeToggle}
-                className="text-slate-400 hover:text-white transition-colors p-0.5 shrink-0 cursor-pointer"
+                className="text-slate-400 hover:text-white active:scale-[0.97] transition-[transform,color] duration-150 ease-[var(--ease-out)] p-0.5 shrink-0 cursor-pointer"
                 title={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}
               >
                 {volume === 0 ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
               </button>
-              <div className="volume-track-wrapper w-14 lg:w-16 xl:w-20 ml-0.5">
+              <div className={`volume-track-wrapper w-14 lg:w-16 xl:w-20 ml-0.5 ${isDraggingVolume ? 'dragging' : ''}`}>
                 <div className="volume-track">
-                  <div className="volume-fill" style={{ width: `${volume * 100}%` }} />
-                  <div className="volume-thumb" style={{ left: `${volume * 100}%` }} />
+                  <div
+                    className="volume-fill"
+                    style={{
+                      width: '100%',
+                      transformOrigin: 'left center',
+                      transform: `scaleX(${volume})`,
+                    }}
+                  />
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{ transform: `translate3d(${(volume - 1) * 100}%, 0, 0)` }}
+                  >
+                    <div className="volume-thumb" style={{ left: '100%' }} />
+                  </div>
                 </div>
                 <input
                   type="range"
@@ -710,6 +789,10 @@ export function NowPlayingOverlay() {
                   max={1}
                   step={0.01}
                   value={volume}
+                  onPointerDown={() => setIsDraggingVolume(true)}
+                  onPointerUp={() => setIsDraggingVolume(false)}
+                  onPointerCancel={() => setIsDraggingVolume(false)}
+                  onBlur={() => setIsDraggingVolume(false)}
                   onChange={(e) => setVolume(Number(e.target.value))}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
@@ -721,7 +804,7 @@ export function NowPlayingOverlay() {
     </div>
 
       {/* 🚀 Lyrics Share Modal */}
-      {showShareModal && currentTrack && (
+      {currentTrack && (
         <LyricsShareModal
           isOpen={showShareModal}
           onClose={() => setShowShareModal(false)}

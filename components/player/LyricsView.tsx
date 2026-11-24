@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback, memo, useSyncExternalStore } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { EASE_OUT, SPRING_DELIGHT } from '@/lib/motion'
 import { usePlaybackProgress, usePlayerTrack, usePlayerControls } from './PlayerContext'
 import { playbackProgressStore } from './PlaybackProgressStore'
 import { Track } from '@/types'
@@ -61,6 +63,7 @@ function formatTime(seconds: number) {
 
 /* =========================================================================
    ⚡ MEMOIZED LYRIC LINE ITEM (Zero re-render when other lines change)
+   Constant font-size, line-height, and padding keep offsetTop invariant!
    ========================================================================= */
 interface LyricLineItemProps {
   line: ExtendedLyricLine
@@ -69,6 +72,7 @@ interface LyricLineItemProps {
   distance: number
   isPast: boolean
   showRomaji?: boolean
+  prefersReducedMotion: boolean | null
   onClick: (line: ExtendedLyricLine) => void
   activeLineRefSetter?: (el: HTMLDivElement | null) => void
 }
@@ -79,18 +83,25 @@ const LyricLineItem = memo(function LyricLineItem({
   distance,
   isPast,
   showRomaji = true,
+  prefersReducedMotion,
   onClick,
   activeLineRefSetter,
 }: LyricLineItemProps) {
   let opacity = 1.0
+  let scale = 1.0
+
   if (isActive) {
     opacity = 1.0
+    scale = prefersReducedMotion ? 1.0 : 1.06
   } else if (distance === 1) {
     opacity = isPast ? 0.5 : 0.72
+    scale = 1.0
   } else if (distance === 2) {
     opacity = isPast ? 0.32 : 0.5
+    scale = prefersReducedMotion ? 1.0 : 0.97
   } else {
-    opacity = distance < 0 ? 0.75 : isPast ? 0.18 : 0.3
+    opacity = distance < 0 ? 0.82 : isPast ? 0.18 : 0.3
+    scale = prefersReducedMotion ? 1.0 : distance < 0 ? 1.0 : 0.95
   }
 
   const hasRomaji = showRomaji && Boolean(line.romaji) && line.romaji !== line.text
@@ -99,33 +110,34 @@ const LyricLineItem = memo(function LyricLineItem({
     <div
       ref={isActive ? activeLineRefSetter : undefined}
       onClick={() => onClick(line)}
-      className={`lyric-line-item cursor-pointer rounded-2xl select-none origin-left group/line relative transition-[opacity,background-color,border-color] duration-300 ease-out flex flex-col opacity-[var(--line-opacity)] hover:opacity-100 ${
+      className={`lyric-line-item cursor-pointer rounded-2xl select-none origin-center sm:origin-left group/line relative py-2 sm:py-2.5 px-4 sm:px-6 border transition-[transform,opacity,background-color,border-color] duration-300 ease-[var(--ease-out)] motion-reduce:transition-opacity flex flex-col opacity-[var(--line-opacity)] [@media(hover:hover)]:hover:opacity-100 ${
         isActive
-          ? 'active-lyric-pill py-2.5 sm:py-3.5 px-4 sm:px-6 bg-white/[0.05] border border-white/10 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.35)]'
-          : 'py-1 sm:py-1.5 px-3 sm:px-5 bg-transparent border border-transparent hover:bg-white/[0.02] hover:border-white/[0.04]'
+          ? 'active-lyric-pill bg-white/[0.06] border-white/12 shadow-[0_10px_28px_rgba(0,0,0,0.3)]'
+          : 'bg-transparent border-transparent [@media(hover:hover)]:hover:bg-white/[0.025] [@media(hover:hover)]:hover:border-white/[0.05]'
       }`}
       style={{
         ['--line-opacity' as string]: opacity,
+        transform: `scale(${scale})`,
         contentVisibility: distance > 8 ? 'auto' : 'visible',
-        containIntrinsicSize: distance > 8 ? '0 44px' : undefined,
+        containIntrinsicSize: distance > 8 ? '0 56px' : undefined,
       } as React.CSSProperties}
     >
       <p
-        className={`leading-snug transition-colors duration-300 ease-out ${
+        className={`text-[clamp(1.1rem,2.45vh,1.85rem)] font-extrabold leading-snug transition-colors duration-300 ease-[var(--ease-out)] ${
           isActive
-            ? 'text-[clamp(1.25rem,3.2vh,2.65rem)] font-black text-white'
+            ? 'text-white'
             : distance === 1
-              ? 'text-[clamp(1rem,2.2vh,1.65rem)] font-bold text-slate-100 group-hover/line:text-white'
+              ? 'text-slate-200 [@media(hover:hover)]:group-hover/line:text-white'
               : distance === 2
-                ? 'text-[clamp(0.85rem,1.8vh,1.3rem)] font-semibold text-slate-300 group-hover/line:text-slate-100'
-                : 'text-[clamp(0.85rem,1.8vh,1.3rem)] font-medium text-slate-400 group-hover/line:text-slate-200'
+                ? 'text-slate-300 [@media(hover:hover)]:group-hover/line:text-slate-100'
+                : 'text-slate-400 [@media(hover:hover)]:group-hover/line:text-slate-200'
         }`}
       >
         {line.text}
       </p>
       {hasRomaji && (
         <p
-          className={`text-xs sm:text-sm font-semibold mt-0.5 tracking-wide transition-colors duration-300 ${
+          className={`text-xs sm:text-sm font-semibold mt-0.5 tracking-wide transition-colors duration-300 ease-[var(--ease-out)] ${
             isActive ? 'text-[var(--spotify-glow,#22d3ee)]' : 'text-slate-400/80'
           }`}
         >
@@ -140,6 +152,7 @@ const LyricLineItem = memo(function LyricLineItem({
     prev.distance === next.distance &&
     prev.isPast === next.isPast &&
     prev.showRomaji === next.showRomaji &&
+    prev.prefersReducedMotion === next.prefersReducedMotion &&
     prev.line.text === next.line.text &&
     prev.line.romaji === next.line.romaji
   )
@@ -149,11 +162,15 @@ const LyricLineItem = memo(function LyricLineItem({
    ⚡ ISOLATED SEEKBAR & CONTROLS (Only this re-renders on audio tick)
    ========================================================================= */
 const LyricsBottomControls = memo(function LyricsBottomControls() {
+  const prefersReducedMotion = useReducedMotion()
   const { currentTime, duration } = usePlaybackProgress()
   const { currentTrack, isPlaying, isShuffle, repeatMode, volume } = usePlayerTrack()
   const { seek, togglePlay, nextTrack, prevTrack, toggleShuffle, toggleRepeat, setVolume, toggleFavoriteCurrentTrack } = usePlayerControls()
 
   const [prevVol, setPrevVol] = useState(0.8)
+  const [isDraggingVolume, setIsDraggingVolume] = useState(false)
+  const prevFavRef = useRef<{ id: string | null; fav: boolean }>({ id: null, fav: false })
+  const [heartPopping, setHeartPopping] = useState(false)
   // Range input fires per drag step; preview locally and seek once on release.
   const [dragValue, setDragValue] = useState<number | null>(null)
   const shownTime = dragValue ?? currentTime
@@ -161,6 +178,20 @@ const LyricsBottomControls = memo(function LyricsBottomControls() {
     if (dragValue !== null) seek(dragValue)
     setDragValue(null)
   }
+
+  useEffect(() => {
+    const id = currentTrack?.id ?? null
+    const fav = Boolean(currentTrack?.is_favorite)
+    let timer: ReturnType<typeof setTimeout> | null = null
+    if (id && prevFavRef.current.id === id && !prevFavRef.current.fav && fav && !prefersReducedMotion) {
+      setHeartPopping(true)
+      timer = setTimeout(() => setHeartPopping(false), 100)
+    }
+    prevFavRef.current = { id, fav }
+    return () => {
+      if (timer) clearTimeout(timer)
+    }
+  }, [currentTrack?.id, currentTrack?.is_favorite, prefersReducedMotion])
 
   const handleVolumeToggle = () => {
     if (volume > 0) {
@@ -172,6 +203,20 @@ const LyricsBottomControls = memo(function LyricsBottomControls() {
   }
 
   if (!currentTrack) return null
+
+  const iconSwapMotion = prefersReducedMotion
+    ? {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+        transition: { duration: 0.14, ease: 'easeOut' as const },
+      }
+    : {
+        initial: { opacity: 0, transform: 'scale(0.84)' },
+        animate: { opacity: 1, transform: 'scale(1)' },
+        exit: { opacity: 0, transform: 'scale(0.84)' },
+        transition: { duration: 0.15, ease: EASE_OUT },
+      }
 
   return (
     <div className="relative z-20 bg-black/50 backdrop-blur-2xl border-t border-white/10 px-4 sm:px-8 py-3.5 flex flex-col sm:flex-row items-center justify-between text-slate-300 select-none shrink-0 gap-3">
@@ -199,19 +244,26 @@ const LyricsBottomControls = memo(function LyricsBottomControls() {
         </div>
 
         <button
+          type="button"
           onClick={toggleFavoriteCurrentTrack}
-          className={`p-2 rounded-xl transition-all ml-1 shrink-0 ${
+          className={`p-2 rounded-xl active:scale-[0.97] transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] ml-1 shrink-0 cursor-pointer ${
             currentTrack.is_favorite
               ? 'text-rose-400 bg-rose-500/20 border border-rose-500/40 shadow-lg'
               : 'text-slate-400 hover:text-rose-400 hover:bg-white/10'
           }`}
           title={currentTrack.is_favorite ? 'Bỏ khỏi bài hát yêu thích' : 'Thêm vào bài hát yêu thích'}
         >
-          <Heart
-            className={`w-4 h-4 transition-all ${
-              currentTrack.is_favorite ? 'fill-current drop-shadow-[0_0_10px_rgba(244,63,94,0.7)]' : ''
-            }`}
-          />
+          <motion.span
+            animate={{ transform: heartPopping && !prefersReducedMotion ? 'scale(1.22)' : 'scale(1)' }}
+            transition={heartPopping ? { duration: 0.09, ease: EASE_OUT } : SPRING_DELIGHT}
+            className="inline-flex items-center justify-center"
+          >
+            <Heart
+              className={`w-4 h-4 transition-colors duration-150 ${
+                currentTrack.is_favorite ? 'fill-current drop-shadow-[0_0_10px_rgba(244,63,94,0.7)]' : ''
+              }`}
+            />
+          </motion.span>
         </button>
       </div>
 
@@ -219,6 +271,7 @@ const LyricsBottomControls = memo(function LyricsBottomControls() {
       <div className="flex flex-col items-center gap-2 w-full sm:w-2/4 max-w-xl">
         <div className="flex items-center gap-5">
           <button
+            type="button"
             onClick={toggleShuffle}
             style={
               isShuffle
@@ -229,7 +282,7 @@ const LyricsBottomControls = memo(function LyricsBottomControls() {
                   }
                 : undefined
             }
-            className={`p-2 rounded-xl relative transition-all active:scale-90 ${
+            className={`p-2 rounded-xl relative transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] active:scale-[0.97] cursor-pointer ${
               isShuffle ? 'border shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/10'
             }`}
             title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
@@ -238,38 +291,50 @@ const LyricsBottomControls = memo(function LyricsBottomControls() {
           </button>
 
           <button
+            type="button"
             onClick={prevTrack}
-            className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
+            className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-[transform,background-color,color] duration-150 ease-[var(--ease-out)] active:scale-[0.97] cursor-pointer"
             title="Bài trước"
           >
             <SkipBack className="w-5 h-5" />
           </button>
 
           <button
+            type="button"
             onClick={togglePlay}
             style={{
               background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
               boxShadow: '0 4px 18px var(--theme-glow-shadow, rgba(6,182,212,0.45))',
             }}
-            className="w-11 h-11 rounded-full hover:scale-[1.08] hover:shadow-[0_0_30px_var(--theme-glow-shadow,rgba(6,182,212,0.45))] active:scale-95 transition-all flex items-center justify-center text-black font-extrabold shrink-0 border border-white/30"
+            className="w-11 h-11 rounded-full [@media(hover:hover)]:hover:scale-[1.05] [@media(hover:hover)]:hover:brightness-110 active:scale-[0.97] transition-[transform,filter,box-shadow] duration-150 ease-[var(--ease-out)] flex items-center justify-center text-black font-extrabold shrink-0 border border-white/30 cursor-pointer"
             title={isPlaying ? 'Tạm dừng' : 'Phát'}
           >
-            {isPlaying ? (
-              <Pause className="w-5 h-5 fill-current text-black" />
-            ) : (
-              <Play className="w-5 h-5 fill-current text-black ml-0.5" />
-            )}
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={isPlaying ? 'pause' : 'play'}
+                {...iconSwapMotion}
+                className="inline-flex items-center justify-center"
+              >
+                {isPlaying ? (
+                  <Pause className="w-5 h-5 fill-current text-black" />
+                ) : (
+                  <Play className="w-5 h-5 fill-current text-black ml-0.5" />
+                )}
+              </motion.span>
+            </AnimatePresence>
           </button>
 
           <button
+            type="button"
             onClick={nextTrack}
-            className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
+            className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-[transform,background-color,color] duration-150 ease-[var(--ease-out)] active:scale-[0.97] cursor-pointer"
             title="Bài tiếp theo"
           >
             <SkipForward className="w-5 h-5" />
           </button>
 
           <button
+            type="button"
             onClick={toggleRepeat}
             style={
               repeatMode !== 'off'
@@ -280,7 +345,7 @@ const LyricsBottomControls = memo(function LyricsBottomControls() {
                   }
                 : undefined
             }
-            className={`p-2 rounded-xl relative transition-all active:scale-90 ${
+            className={`p-2 rounded-xl relative transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] active:scale-[0.97] cursor-pointer ${
               repeatMode !== 'off' ? 'border shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/10'
             }`}
             title={
@@ -295,9 +360,9 @@ const LyricsBottomControls = memo(function LyricsBottomControls() {
           </button>
         </div>
 
-        {/* Seekbar Progress */}
+        {/* Seekbar Progress — fixed height, GPU scaleY on fine pointer hover (no reflow) */}
         <div className="w-full flex items-center gap-3 text-[11px] text-slate-400 font-mono">
-          <span className="w-9 text-right shrink-0 font-bold">{formatTime(shownTime)}</span>
+          <span className="w-9 text-right shrink-0 font-bold tabular-nums">{formatTime(shownTime)}</span>
           <input
             type="range"
             min={0}
@@ -310,9 +375,9 @@ const LyricsBottomControls = memo(function LyricsBottomControls() {
             style={{
               background: `linear-gradient(to right, var(--primary-spotify,#06b6d4) ${(shownTime / (duration || 1)) * 100}%, rgba(255,255,255,0.15) ${(shownTime / (duration || 1)) * 100}%)`,
             }}
-            className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-all hover:h-2"
+            className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-transform duration-150 ease-[var(--ease-out)] [@media(hover:hover)]:hover:scale-y-[1.3]"
           />
-          <span className="w-9 shrink-0 font-bold">{formatTime(duration)}</span>
+          <span className="w-9 shrink-0 font-bold tabular-nums">{formatTime(duration)}</span>
         </div>
       </div>
 
@@ -320,16 +385,29 @@ const LyricsBottomControls = memo(function LyricsBottomControls() {
       <div className="hidden sm:flex w-1/4 justify-end items-center">
         <div className="flex items-center gap-2.5 bg-white/[0.06] border border-white/10 rounded-full px-3.5 py-1 shadow-md">
           <button
+            type="button"
             onClick={handleVolumeToggle}
-            className="text-slate-300 hover:text-white transition-colors p-0.5"
+            className="text-slate-300 hover:text-white active:scale-[0.97] transition-[transform,color] duration-150 ease-[var(--ease-out)] p-0.5 cursor-pointer"
             title={volume === 0 ? 'Mở tiếng' : 'Tắt tiếng'}
           >
             {volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
           </button>
-          <div className="volume-track-wrapper w-16 md:w-24">
+          <div className={`volume-track-wrapper w-16 md:w-24 ${isDraggingVolume ? 'dragging' : ''}`}>
             <div className="volume-track">
-              <div className="volume-fill" style={{ width: `${volume * 100}%` }} />
-              <div className="volume-thumb" style={{ left: `${volume * 100}%` }} />
+              <div
+                className="volume-fill"
+                style={{
+                  width: '100%',
+                  transformOrigin: 'left center',
+                  transform: `scaleX(${volume})`,
+                }}
+              />
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{ transform: `translate3d(${(volume - 1) * 100}%, 0, 0)` }}
+              >
+                <div className="volume-thumb" style={{ left: '100%' }} />
+              </div>
             </div>
             <input
               type="range"
@@ -337,6 +415,10 @@ const LyricsBottomControls = memo(function LyricsBottomControls() {
               max={1}
               step={0.01}
               value={volume}
+              onPointerDown={() => setIsDraggingVolume(true)}
+              onPointerUp={() => setIsDraggingVolume(false)}
+              onPointerCancel={() => setIsDraggingVolume(false)}
+              onBlur={() => setIsDraggingVolume(false)}
               onChange={(e) => setVolume(Number(e.target.value))}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
             />
@@ -363,6 +445,7 @@ export const LyricsView = memo(function LyricsView({
 }: LyricsViewProps) {
   const { currentTrack, mvIntroOffset } = usePlayerTrack()
   const { seek } = usePlayerControls()
+  const prefersReducedMotion = useReducedMotion()
   const { userEmail } = useCurrentUser()
   const userIsAdmin = isAdmin(userEmail)
   const isMinimal = useTheme().themeStyle === 'minimal-flat'
@@ -552,7 +635,7 @@ export const LyricsView = memo(function LyricsView({
     setActiveIndex((prev) => (prev !== liveIndex ? liveIndex : prev))
   }, [liveIndex])
 
-  // 3. Ultra-Smooth Hardware Accelerated Scroll
+  // 3. Ultra-Smooth Hardware Accelerated Scroll (respects reduced motion)
   useEffect(() => {
     if (activeIndex < 0 || !isSynced || isUserScrollingRef.current) return
     if (typeof document !== 'undefined' && document.hidden) return
@@ -565,13 +648,13 @@ export const LyricsView = memo(function LyricsView({
         const targetScroll = activeLine.offsetTop - container.clientHeight * 0.38 + activeLine.clientHeight / 2
         container.scrollTo({
           top: Math.max(0, targetScroll),
-          behavior: 'smooth',
+          behavior: prefersReducedMotion ? 'auto' : 'smooth',
         })
       }
     })
 
     return () => cancelAnimationFrame(rafId)
-  }, [activeIndex, isSynced])
+  }, [activeIndex, isSynced, prefersReducedMotion])
 
   // Handle user scroll detection
   const handleScroll = useCallback(() => {
@@ -664,8 +747,9 @@ export const LyricsView = memo(function LyricsView({
             {isSynced && (
               <div className="flex items-center gap-1 bg-white/[0.06] backdrop-blur-md rounded-full border border-white/10 px-2 py-1 shadow-inner">
                 <button
+                  type="button"
                   onClick={() => setLyricOffset((prev) => +(prev - 0.1).toFixed(1))}
-                  className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-colors active:scale-90 cursor-pointer"
+                  className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-[transform,color,background-color] duration-150 ease-[var(--ease-out)] active:scale-[0.97] cursor-pointer"
                   title="Lời hiển thị sớm hơn 100ms"
                 >
                   <Minus className="w-3 h-3" />
@@ -674,8 +758,9 @@ export const LyricsView = memo(function LyricsView({
                   {lyricOffset >= 0 ? '+' : ''}{lyricOffset.toFixed(1)}s
                 </span>
                 <button
+                  type="button"
                   onClick={() => setLyricOffset((prev) => +(prev + 0.1).toFixed(1))}
-                  className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-colors active:scale-90 cursor-pointer"
+                  className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-[transform,color,background-color] duration-150 ease-[var(--ease-out)] active:scale-[0.97] cursor-pointer"
                   title="Lời hiển thị muộn hơn 100ms"
                 >
                   <Plus className="w-3 h-3" />
@@ -684,8 +769,9 @@ export const LyricsView = memo(function LyricsView({
             )}
 
             <button
+              type="button"
               onClick={handleToggleRomaji}
-              className={`w-9 h-9 flex items-center justify-center rounded-full border transition-colors shrink-0 shadow-md cursor-pointer ${
+              className={`w-9 h-9 flex items-center justify-center rounded-full border active:scale-[0.97] transition-[transform,color,background-color,border-color] duration-150 ease-[var(--ease-out)] shrink-0 shadow-md cursor-pointer ${
                 showRomaji
                   ? 'bg-white/15 text-white border-white/25 shadow-sm'
                   : 'text-slate-400 hover:text-white bg-white/5 border-white/10'
@@ -698,8 +784,9 @@ export const LyricsView = memo(function LyricsView({
 
             {userIsAdmin && (
               <button
+                type="button"
                 onClick={() => setShowAdminEditor(true)}
-                className={`w-9 h-9 flex items-center justify-center active:scale-95 rounded-full transition-colors shrink-0 shadow-md cursor-pointer ${isMinimal ? adminTone : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/35'}`}
+                className={`w-9 h-9 flex items-center justify-center active:scale-[0.97] rounded-full transition-[transform,color,background-color,border-color] duration-150 ease-[var(--ease-out)] shrink-0 shadow-md cursor-pointer ${isMinimal ? adminTone : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/35'}`}
                 title={
                   parsedLyrics.length > 0
                     ? 'Chỉnh sửa lời bài hát (Admin)'
@@ -711,18 +798,20 @@ export const LyricsView = memo(function LyricsView({
             )}
 
             <button
+              type="button"
               onClick={() => setShowShareModal(true)}
               disabled={parsedLyrics.length === 0}
-              className="w-9 h-9 flex items-center justify-center bg-white/[0.06] hover:bg-white/15 active:scale-95 text-slate-200 hover:text-[var(--spotify-glow,#22d3ee)] rounded-full border border-white/10 transition-colors shrink-0 shadow-md disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+              className="w-9 h-9 flex items-center justify-center bg-white/[0.06] hover:bg-white/15 active:scale-[0.97] text-slate-200 hover:text-[var(--spotify-glow,#22d3ee)] rounded-full border border-white/10 transition-[transform,color,background-color] duration-150 ease-[var(--ease-out)] shrink-0 shadow-md disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
               title="Chia sẻ câu hát (Lyrics Story)"
             >
               <Share2 className="w-3.5 h-3.5" />
             </button>
 
             <button
+              type="button"
               onClick={() => loadLyricsForTrack(currentTrack)}
               disabled={loading}
-              className="w-9 h-9 flex items-center justify-center bg-white/[0.06] hover:bg-white/15 active:scale-95 text-slate-200 rounded-full border border-white/10 transition-colors shrink-0 shadow-md cursor-pointer"
+              className="w-9 h-9 flex items-center justify-center bg-white/[0.06] hover:bg-white/15 active:scale-[0.97] text-slate-200 rounded-full border border-white/10 transition-[transform,color,background-color] duration-150 ease-[var(--ease-out)] shrink-0 shadow-md cursor-pointer"
               title="Tải lại lời bài hát"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[var(--spotify-glow,#22d3ee)]' : ''}`} />
@@ -730,8 +819,9 @@ export const LyricsView = memo(function LyricsView({
 
             {onClose && (
               <button
+                type="button"
                 onClick={onClose}
-                className="w-9 h-9 flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-95 text-white rounded-full border border-white/15 transition-colors shrink-0 shadow-md cursor-pointer"
+                className="w-9 h-9 flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-[0.97] text-white rounded-full border border-white/15 transition-[transform,color,background-color] duration-150 ease-[var(--ease-out)] shrink-0 shadow-md cursor-pointer"
                 title="Đóng lời bài hát"
               >
                 <X className="w-4 h-4" />
@@ -773,6 +863,7 @@ export const LyricsView = memo(function LyricsView({
                   distance={distance}
                   isPast={isPast}
                   showRomaji={showRomaji}
+                  prefersReducedMotion={prefersReducedMotion}
                   onClick={handleLineClick}
                   activeLineRefSetter={activeLineRefSetter}
                 />
@@ -789,7 +880,7 @@ export const LyricsView = memo(function LyricsView({
               <button
                 type="button"
                 onClick={() => setShowAdminEditor(true)}
-                className={`mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full active:scale-95 transition-all text-xs font-extrabold cursor-pointer ${isMinimal ? adminTone : 'bg-gradient-to-r from-cyan-500/20 to-teal-500/20 hover:from-cyan-500/30 hover:to-teal-500/30 text-cyan-300 border border-cyan-400/40 shadow-[0_0_20px_rgba(34,211,238,0.18)]'}`}
+                className={`mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full active:scale-[0.97] transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] text-xs font-extrabold cursor-pointer ${isMinimal ? adminTone : 'bg-gradient-to-r from-cyan-500/20 to-teal-500/20 hover:from-cyan-500/30 hover:to-teal-500/30 text-cyan-300 border border-cyan-400/40 shadow-[0_0_20px_rgba(34,211,238,0.18)]'}`}
               >
                 <PenTool className="w-3.5 h-3.5" />
                 <span>Viết lời bài hát (Admin)</span>
@@ -815,8 +906,9 @@ export const LyricsView = memo(function LyricsView({
         <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
           {userIsAdmin && (
             <button
+              type="button"
               onClick={() => setShowAdminEditor(true)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full active:scale-95 backdrop-blur-xl shadow-lg transition-colors text-xs font-bold cursor-pointer ${adminTone}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full active:scale-[0.97] backdrop-blur-xl shadow-lg transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] text-xs font-bold cursor-pointer ${adminTone}`}
               title={
                 parsedLyrics.length > 0
                   ? 'Chỉnh sửa lời bài hát (Admin)'
@@ -831,8 +923,9 @@ export const LyricsView = memo(function LyricsView({
           )}
           {parsedLyrics.length > 0 && (
             <button
+              type="button"
               onClick={() => setShowShareModal(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 hover:bg-white/15 active:scale-95 text-slate-300 hover:text-white border border-white/15 backdrop-blur-xl shadow-lg transition-colors text-xs font-bold cursor-pointer"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 hover:bg-white/15 active:scale-[0.97] text-slate-300 hover:text-white border border-white/15 backdrop-blur-xl shadow-lg transition-[transform,background-color,color] duration-150 ease-[var(--ease-out)] text-xs font-bold cursor-pointer"
               title="Chia sẻ câu hát"
             >
               <Share2 className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)]" />
@@ -843,18 +936,16 @@ export const LyricsView = memo(function LyricsView({
       )}
 
       {/* 🚀 Lyrics Share Modal */}
-      {showShareModal && currentTrack && (
-        <LyricsShareModal
-          isOpen={showShareModal}
-          onClose={() => setShowShareModal(false)}
-          track={currentTrack}
-          lyrics={parsedLyrics}
-          initialActiveIndex={activeIndex}
-        />
-      )}
+      <LyricsShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        track={currentTrack}
+        lyrics={parsedLyrics}
+        initialActiveIndex={activeIndex}
+      />
 
       {/* ✍️ Admin Custom Lyrics Editor Modal */}
-      {userIsAdmin && showAdminEditor && currentTrack && (
+      {userIsAdmin && (
         <AdminLyricsEditorModal
           isOpen={showAdminEditor}
           onClose={() => setShowAdminEditor(false)}

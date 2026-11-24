@@ -160,12 +160,13 @@ function makeTwinkleGeometry(count: number, spreadX: number, spreadY: number, zM
 }
 
 interface ParticlesProps {
+  isActive: boolean
   isPlaying: boolean
   accentColor?: string
   glowColor?: string
 }
 
-function Particles({ accentColor: propAccent, glowColor: propGlow }: ParticlesProps) {
+function Particles({ isActive, accentColor: propAccent, glowColor: propGlow }: ParticlesProps) {
   const bgPointsRef = useRef<THREE.Points>(null)
   const midPointsRef = useRef<THREE.Points>(null)
   const fgPointsRef = useRef<THREE.Points>(null)
@@ -199,42 +200,46 @@ function Particles({ accentColor: propAccent, glowColor: propGlow }: ParticlesPr
   }, [propAccent, propGlow])
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const updateThemeColors = () => {
-        const rootStyle = getComputedStyle(document.documentElement)
-        const themeGlow = rootStyle.getPropertyValue('--spotify-glow').trim()
-        const themeAccent = rootStyle.getPropertyValue('--primary-spotify').trim() || rootStyle.getPropertyValue('--accent').trim()
-        const activeColor = themeGlow || themeAccent || propGlow || propAccent || '#22d3ee'
-        setThemeColorHex(activeColor)
-      }
-
-      updateThemeColors()
-
-      const observer = new MutationObserver(() => {
-        updateThemeColors()
-      })
-      observer.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ['style', 'data-theme-style'],
-      })
-
-      const handlePointerMove = (e: PointerEvent) => {
-        const nx = (e.clientX / window.innerWidth - 0.5) * 2
-        const ny = (e.clientY / window.innerHeight - 0.5) * 2
-        targetMouseRef.current = { x: nx, y: -ny }
-      }
-      const handlePointerLeave = () => {
-        targetMouseRef.current = { x: 0, y: 0 }
-      }
-      window.addEventListener('pointermove', handlePointerMove, { passive: true })
-      window.addEventListener('mouseleave', handlePointerLeave)
-      return () => {
-        observer.disconnect()
-        window.removeEventListener('pointermove', handlePointerMove)
-        window.removeEventListener('mouseleave', handlePointerLeave)
-      }
+    if (!isActive || typeof window === 'undefined') {
+      targetMouseRef.current = { x: 0, y: 0 }
+      return
     }
-  }, [propAccent, propGlow])
+
+    const updateThemeColors = () => {
+      const rootStyle = getComputedStyle(document.documentElement)
+      const themeGlow = rootStyle.getPropertyValue('--spotify-glow').trim()
+      const themeAccent = rootStyle.getPropertyValue('--primary-spotify').trim() || rootStyle.getPropertyValue('--accent').trim()
+      const activeColor = themeGlow || themeAccent || propGlow || propAccent || '#22d3ee'
+      setThemeColorHex(activeColor)
+    }
+
+    updateThemeColors()
+
+    const observer = new MutationObserver(() => {
+      updateThemeColors()
+    })
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['style', 'data-theme-style'],
+    })
+
+    const handlePointerMove = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse') return
+      const nx = (e.clientX / window.innerWidth - 0.5) * 2
+      const ny = (e.clientY / window.innerHeight - 0.5) * 2
+      targetMouseRef.current = { x: nx, y: -ny }
+    }
+    const handlePointerLeave = () => {
+      targetMouseRef.current = { x: 0, y: 0 }
+    }
+    window.addEventListener('pointermove', handlePointerMove, { passive: true })
+    window.addEventListener('mouseleave', handlePointerLeave)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('mouseleave', handlePointerLeave)
+    }
+  }, [isActive, propAccent, propGlow])
 
   // Dynamic particle count based on screen width
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
@@ -249,13 +254,15 @@ function Particles({ accentColor: propAccent, glowColor: propGlow }: ParticlesPr
   // Tầng cận cảnh: sao lấp lánh lớn
   const fg = useMemo(() => makeTwinkleGeometry(fgCount, 18, 12, 0.5, 2.0, 0.09), [fgCount])
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     const t = state.clock.getElapsedTime()
     const scale = state.size.height * 0.5
 
-    // Smooth inertia mouse tracking
-    currentMouseRef.current.x += (targetMouseRef.current.x - currentMouseRef.current.x) * 0.035
-    currentMouseRef.current.y += (targetMouseRef.current.y - currentMouseRef.current.y) * 0.035
+    // Frame-rate independent smooth inertia mouse tracking
+    const clampedDelta = Math.min(delta, 0.1)
+    const alpha = 1 - Math.exp(-2.1 * clampedDelta)
+    currentMouseRef.current.x += (targetMouseRef.current.x - currentMouseRef.current.x) * alpha
+    currentMouseRef.current.y += (targetMouseRef.current.y - currentMouseRef.current.y) * alpha
     const mx = currentMouseRef.current.x
     const my = currentMouseRef.current.y
 
@@ -362,9 +369,16 @@ function Particles({ accentColor: propAccent, glowColor: propGlow }: ParticlesPr
   )
 }
 
-export default function ParticleScene({ isActive = true, isPlaying, accentColor, glowColor }: ParticlesProps & { isActive?: boolean }) {
+export default function ParticleScene({ isActive = true, isPlaying, accentColor, glowColor }: Omit<ParticlesProps, 'isActive'> & { isActive?: boolean }) {
   const [isHidden, setIsHidden] = useState(false)
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
+  const [hasActivated, setHasActivated] = useState(isActive)
+
+  useEffect(() => {
+    if (isActive && !hasActivated) {
+      setHasActivated(true)
+    }
+  }, [isActive, hasActivated])
 
   useEffect(() => {
     const handleVisibility = () => {
@@ -393,8 +407,8 @@ export default function ParticleScene({ isActive = true, isPlaying, accentColor,
     }
   }, [])
 
-  // When tab is hidden / gaming, stop rendering WebGL canvas completely to drop GPU to 0%
-  if (isHidden) {
+  // Defer WebGL initialization until Now Playing has opened at least once; unmount when tab is hidden
+  if (!hasActivated || isHidden) {
     return null
   }
 
@@ -410,6 +424,7 @@ export default function ParticleScene({ isActive = true, isPlaying, accentColor,
       frameloop={isActive && !prefersReducedMotion ? 'always' : 'never'}
     >
       <Particles
+        isActive={isActive}
         isPlaying={isPlaying}
         accentColor={accentColor}
         glowColor={glowColor}

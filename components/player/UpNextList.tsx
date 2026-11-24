@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { EASE_OUT } from '@/lib/motion'
 import { usePlayer } from './PlayerContext'
 import { TrackCoverImage } from '../common/TrackCoverImage'
 import { ArtistLinks } from '../common/ArtistLinks'
@@ -10,6 +12,7 @@ import { formatTime } from '@/lib/utils'
 export function UpNextList() {
   const { queue, currentIndex, currentTrack, isPlaying, playTrack, closeNowPlayingOverlay } = usePlayer()
   const router = useRouter()
+  const prefersReducedMotion = useReducedMotion()
 
   const [isLiquidGlass, setIsLiquidGlass] = useState(false)
 
@@ -93,8 +96,9 @@ export function UpNextList() {
                 }
               }}
               aria-label={`Phát bài ${track.title} của ${track.artist || 'Nghệ sĩ'}`}
-              className={`w-full cv-auto flex items-center gap-2.5 sm:gap-3 p-2 rounded-xl text-left transition-[background-color,border-color,color] duration-200 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-glow,#22d3ee)] border cursor-pointer ${isCurrent ? 'queue-track-current' : ''}`}
+              className={`w-full cv-auto flex items-center gap-2.5 sm:gap-3 p-2 rounded-xl text-left active:scale-[0.98] transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-glow,#22d3ee)] border cursor-pointer ${isCurrent ? 'queue-track-current' : ''}`}
               style={isCurrent ? {
+                transition: 'transform 150ms var(--ease-out), background-color 200ms var(--ease-out), border-color 200ms var(--ease-out), color 200ms var(--ease-out), box-shadow 200ms var(--ease-out)',
                 background: isLiquidGlass
                   ? 'linear-gradient(135deg, var(--theme-gradient-1, rgba(6,182,212,0.22)) 0%, rgba(255,255,255,0.08) 100%)'
                   : 'var(--theme-gradient-1, rgba(6,182,212,0.15))',
@@ -108,30 +112,40 @@ export function UpNextList() {
                   boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
                 }),
               } : {
+                transition: 'transform 150ms var(--ease-out), background-color 200ms var(--ease-out), border-color 200ms var(--ease-out), color 200ms var(--ease-out), box-shadow 200ms var(--ease-out)',
                 borderColor: 'transparent',
                 color: 'rgb(203 213 225)',
               }}
             >
               <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 border border-white/10 relative bg-slate-900 shadow">
                 <TrackCoverImage src={track.cover_url} alt={track.title} />
-                {isCurrent && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                    <div className="flex items-end justify-center gap-0.5 h-3">
-                      <span
-                        className="w-0.5 bg-[var(--spotify-glow,#22d3ee)] rounded-full eq-bar-1"
-                        style={!isPlaying ? { animationPlayState: 'paused' } : undefined}
-                      />
-                      <span
-                        className="w-0.5 bg-[var(--spotify-glow,#22d3ee)] rounded-full eq-bar-2"
-                        style={!isPlaying ? { animationPlayState: 'paused' } : undefined}
-                      />
-                      <span
-                        className="w-0.5 bg-[var(--spotify-glow,#22d3ee)] rounded-full eq-bar-3"
-                        style={!isPlaying ? { animationPlayState: 'paused' } : undefined}
-                      />
-                    </div>
-                  </div>
-                )}
+                <AnimatePresence>
+                  {isCurrent && (
+                    <motion.div
+                      key="current-eq"
+                      initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, transform: 'scale(0.92)' }}
+                      animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, transform: 'scale(1)' }}
+                      exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, transform: 'scale(0.92)' }}
+                      transition={{ duration: 0.18, ease: EASE_OUT }}
+                      className="absolute inset-0 bg-black/50 flex items-center justify-center"
+                    >
+                      <div className="flex items-end justify-center gap-0.5 h-3">
+                        <span
+                          className="w-0.5 bg-[var(--spotify-glow,#22d3ee)] rounded-full eq-bar-1"
+                          style={!isPlaying ? { animationPlayState: 'paused' } : undefined}
+                        />
+                        <span
+                          className="w-0.5 bg-[var(--spotify-glow,#22d3ee)] rounded-full eq-bar-2"
+                          style={!isPlaying ? { animationPlayState: 'paused' } : undefined}
+                        />
+                        <span
+                          className="w-0.5 bg-[var(--spotify-glow,#22d3ee)] rounded-full eq-bar-3"
+                          style={!isPlaying ? { animationPlayState: 'paused' } : undefined}
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               <div className="min-w-0 flex-1">

@@ -1,7 +1,13 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useId } from 'react'
 import { createPortal } from 'react-dom'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import {
+  SPRING_UI,
+  modalBackdropProps,
+  modalPanelProps,
+} from '@/lib/motion'
 import {
   X,
   FileText,
@@ -51,13 +57,14 @@ export interface AdminLyricsEditorModalProps {
 
 type EditorTab = 'text' | 'sync'
 
-export function AdminLyricsEditorModal({
-  isOpen,
+function AdminLyricsEditorContent({
   onClose,
   track,
   initialLyrics,
   onSaved,
-}: AdminLyricsEditorModalProps) {
+}: Omit<AdminLyricsEditorModalProps, 'isOpen'>) {
+  const uid = useId()
+  const prefersReducedMotion = useReducedMotion()
   const { currentTime, duration } = usePlaybackProgress()
   const { isPlaying } = usePlayerTrack()
   const { togglePlay, seek } = usePlayerControls()
@@ -92,7 +99,7 @@ export function AdminLyricsEditorModal({
     [activeTab, rawText, syncLines],
   )
 
-  // Scroll selected line into view in Sync tab
+  // Instant scroll in Sync tab so rapid Space/Enter/Arrow stamping stays locked without lag
   useEffect(() => {
     if (activeTab !== 'sync') return
     const rowEl = lineRowRefs.current[selectedLineIdx]
@@ -102,7 +109,7 @@ export function AdminLyricsEditorModal({
         rowEl.offsetTop - container.clientHeight * 0.35 + rowEl.clientHeight / 2
       container.scrollTo({
         top: Math.max(0, targetTop),
-        behavior: 'smooth',
+        behavior: 'auto',
       })
     }
   }, [selectedLineIdx, activeTab])
@@ -122,7 +129,7 @@ export function AdminLyricsEditorModal({
 
   // Keyboard shortcut in Sync tab: Space or Enter stamps current line
   useEffect(() => {
-    if (!isOpen || activeTab !== 'sync') return
+    if (activeTab !== 'sync') return
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName
@@ -144,10 +151,9 @@ export function AdminLyricsEditorModal({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, activeTab, handleStampCurrentLine, syncLines.length])
+  }, [activeTab, handleStampCurrentLine, syncLines.length])
 
   useEffect(() => {
-    if (!isOpen) return
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !isSaving) {
         onClose()
@@ -155,7 +161,7 @@ export function AdminLyricsEditorModal({
     }
     window.addEventListener('keydown', handleEsc)
     return () => window.removeEventListener('keydown', handleEsc)
-  }, [isOpen, isSaving, onClose])
+  }, [isSaving, onClose])
 
   // Insert current [mm:ss.xx] at cursor line in textarea
   const handleInsertTimestampInTextarea = useCallback(() => {
@@ -283,23 +289,24 @@ export function AdminLyricsEditorModal({
     }
   }
 
-  if (!isOpen || typeof document === 'undefined') return null
-
   const effectiveText =
     activeTab === 'sync' ? serializeEditableLyricLines(syncLines) : rawText
   const isSyncedFormat = hasLrcTimestamps(effectiveText)
   const lineCount = effectiveText
     .split('\n')
     .filter((l) => l.trim().length > 0).length
+  const tabTransition = prefersReducedMotion ? { duration: 0.14 } : SPRING_UI
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-xl animate-in fade-in duration-200 select-none"
+  return (
+    <motion.div
+      {...modalBackdropProps(prefersReducedMotion)}
+      className="fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md select-none"
       onClick={(e) => {
         if (e.target === e.currentTarget && !isSaving) onClose()
       }}
     >
-      <div
+      <motion.div
+        {...modalPanelProps(prefersReducedMotion)}
         role="dialog"
         aria-modal="true"
         aria-labelledby="admin-lyrics-editor-title"
@@ -343,7 +350,7 @@ export function AdminLyricsEditorModal({
             type="button"
             onClick={onClose}
             disabled={isSaving}
-            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition-colors shrink-0 cursor-pointer"
+            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white active:scale-[0.97] transition-[transform,background-color,color] duration-150 ease-[var(--ease-out)] shrink-0 cursor-pointer"
             title="Đóng"
           >
             <X className="w-4 h-4" />
@@ -353,30 +360,40 @@ export function AdminLyricsEditorModal({
         {/* Mode Tabs + Mini Audio Control Strip */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3 border-b border-white/10 bg-black/30 shrink-0">
           {/* Tabs */}
-          <div className="flex items-center gap-1.5 bg-white/[0.04] p-1 rounded-2xl border border-white/10 self-start">
+          <div className="flex items-center gap-1.5 bg-white/[0.04] p-1 rounded-2xl border border-white/10 self-start relative">
             <button
               type="button"
               onClick={() => switchToTab('text')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-                activeTab === 'text'
-                  ? 'bg-cyan-500 text-slate-950 shadow-md'
-                  : 'text-slate-300 hover:text-white hover:bg-white/5'
+              className={`relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold active:scale-[0.97] transition-[color,transform] duration-150 ease-[var(--ease-out)] cursor-pointer ${
+                activeTab === 'text' ? 'text-slate-950' : 'text-slate-300 hover:text-white'
               }`}
             >
-              <FileText className="w-3.5 h-3.5" />
-              <span>1. Soạn thảo ({lineCount} câu)</span>
+              {activeTab === 'text' && (
+                <motion.span
+                  layoutId={`admin-lyrics-editor-tab-${uid}`}
+                  transition={tabTransition}
+                  className="absolute inset-0 rounded-xl bg-cyan-500 shadow-md"
+                />
+              )}
+              <FileText className="w-3.5 h-3.5 relative z-10" />
+              <span className="relative z-10">1. Soạn thảo ({lineCount} câu)</span>
             </button>
             <button
               type="button"
               onClick={() => switchToTab('sync')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-                activeTab === 'sync'
-                  ? 'bg-cyan-500 text-slate-950 shadow-md'
-                  : 'text-slate-300 hover:text-white hover:bg-white/5'
+              className={`relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold active:scale-[0.97] transition-[color,transform] duration-150 ease-[var(--ease-out)] cursor-pointer ${
+                activeTab === 'sync' ? 'text-slate-950' : 'text-slate-300 hover:text-white'
               }`}
             >
-              <Clock className="w-3.5 h-3.5" />
-              <span>2. Căn nhịp LRC trực tiếp</span>
+              {activeTab === 'sync' && (
+                <motion.span
+                  layoutId={`admin-lyrics-editor-tab-${uid}`}
+                  transition={tabTransition}
+                  className="absolute inset-0 rounded-xl bg-cyan-500 shadow-md"
+                />
+              )}
+              <Clock className="w-3.5 h-3.5 relative z-10" />
+              <span className="relative z-10">2. Căn nhịp LRC trực tiếp</span>
             </button>
           </div>
 
@@ -385,7 +402,7 @@ export function AdminLyricsEditorModal({
             <button
               type="button"
               onClick={() => seek(Math.max(0, currentTime - 3))}
-              className="p-1 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+              className="p-1 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg active:scale-[0.97] transition-[transform,color,background-color] duration-150 ease-[var(--ease-out)] cursor-pointer"
               title="Tua lùi 3 giây"
             >
               <Rewind className="w-3.5 h-3.5" />
@@ -393,7 +410,7 @@ export function AdminLyricsEditorModal({
             <button
               type="button"
               onClick={togglePlay}
-              className="w-7 h-7 rounded-full bg-cyan-400 hover:bg-cyan-300 text-slate-950 flex items-center justify-center transition-transform active:scale-95 cursor-pointer"
+              className="w-7 h-7 rounded-full bg-cyan-400 hover:bg-cyan-300 text-slate-950 flex items-center justify-center active:scale-[0.97] transition-[transform,background-color] duration-150 ease-[var(--ease-out)] cursor-pointer"
               title={isPlaying ? 'Tạm dừng' : 'Phát nhạc để căn lời'}
             >
               {isPlaying ? (
@@ -405,12 +422,12 @@ export function AdminLyricsEditorModal({
             <button
               type="button"
               onClick={() => seek(Math.min(duration || 9999, currentTime + 3))}
-              className="p-1 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+              className="p-1 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg active:scale-[0.97] transition-[transform,color,background-color] duration-150 ease-[var(--ease-out)] cursor-pointer"
               title="Tua tiến 3 giây"
             >
               <FastForward className="w-3.5 h-3.5" />
             </button>
-            <span className="font-mono text-xs font-bold text-cyan-300 pl-1">
+            <span className="font-mono tabular-nums text-xs font-bold text-cyan-300 pl-1">
               {formatLrcTimestamp(currentTime)}
             </span>
           </div>
@@ -433,7 +450,7 @@ export function AdminLyricsEditorModal({
                   <button
                     type="button"
                     onClick={handleInsertTimestampInTextarea}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 text-xs font-bold transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 text-xs font-bold active:scale-[0.97] transition-[transform,background-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer"
                     title="Chèn thời gian phát hiện tại vào đầu dòng đang đặt con trỏ"
                   >
                     <Clock className="w-3.5 h-3.5" />
@@ -443,7 +460,7 @@ export function AdminLyricsEditorModal({
                     <button
                       type="button"
                       onClick={handleStripTimestamps}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 text-xs font-semibold transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 text-xs font-semibold active:scale-[0.97] transition-[transform,background-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer"
                       title="Xóa toàn bộ mốc [mm:ss.xx] để về văn bản thuần"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
@@ -479,7 +496,7 @@ export function AdminLyricsEditorModal({
                   type="button"
                   onClick={handleStampCurrentLine}
                   disabled={syncLines.length === 0}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-400 to-teal-400 hover:from-cyan-300 hover:to-teal-300 text-slate-950 font-extrabold text-xs shadow-lg active:scale-95 transition-[filter,transform,opacity] shrink-0 cursor-pointer disabled:opacity-40"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-400 to-teal-400 hover:from-cyan-300 hover:to-teal-300 text-slate-950 font-extrabold text-xs shadow-lg active:scale-[0.97] transition-[filter,transform,opacity] duration-150 ease-[var(--ease-out)] shrink-0 cursor-pointer disabled:opacity-40"
                 >
                   <Clock className="w-4 h-4" />
                   <span>
@@ -514,7 +531,7 @@ export function AdminLyricsEditorModal({
                           lineRowRefs.current[idx] = el
                         }}
                         onClick={() => setSelectedLineIdx(idx)}
-                        className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl border transition-colors cursor-pointer ${
+                        className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl border transition-[background-color,border-color] duration-150 ease-[var(--ease-out)] cursor-pointer ${
                           isSelected
                             ? 'bg-cyan-500/15 border-cyan-400/50 shadow-[0_0_20px_rgba(34,211,238,0.12)]'
                             : 'bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.05]'
@@ -535,7 +552,7 @@ export function AdminLyricsEditorModal({
                                 handleStampSingleLine(idx)
                               }
                             }}
-                            className={`text-xs font-mono font-bold px-2 py-0.5 rounded-lg border shrink-0 transition-colors cursor-pointer ${
+                            className={`text-xs font-mono font-bold px-2 py-0.5 rounded-lg border shrink-0 active:scale-[0.97] transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer ${
                               hasTime
                                 ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 hover:bg-cyan-500/30'
                                 : 'bg-white/5 text-slate-400 border-white/10 hover:text-white'
@@ -568,7 +585,7 @@ export function AdminLyricsEditorModal({
                                   e.stopPropagation()
                                   handleNudgeLine(idx, -0.2)
                                 }}
-                                className="p-1 rounded-lg bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white text-[10px] font-mono transition-colors cursor-pointer"
+                                className="p-1 rounded-lg bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white text-[10px] font-mono active:scale-[0.97] transition-[transform,background-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer"
                                 title="Sớm hơn 0.2 giây"
                               >
                                 <Minus className="w-3 h-3" />
@@ -579,7 +596,7 @@ export function AdminLyricsEditorModal({
                                   e.stopPropagation()
                                   handleNudgeLine(idx, 0.2)
                                 }}
-                                className="p-1 rounded-lg bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white text-[10px] font-mono transition-colors cursor-pointer"
+                                className="p-1 rounded-lg bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white text-[10px] font-mono active:scale-[0.97] transition-[transform,background-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer"
                                 title="Muộn hơn 0.2 giây"
                               >
                                 <Plus className="w-3 h-3" />
@@ -592,7 +609,7 @@ export function AdminLyricsEditorModal({
                               e.stopPropagation()
                               handleStampSingleLine(idx)
                             }}
-                            className="px-2 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold transition-colors cursor-pointer"
+                            className="px-2 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold active:scale-[0.97] transition-[transform,background-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer"
                             title="Gắn mốc thời gian hiện tại cho dòng này"
                           >
                             Gắn mốc
@@ -615,7 +632,7 @@ export function AdminLyricsEditorModal({
                 type="button"
                 onClick={() => handleSave(true)}
                 disabled={isSaving}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold transition-colors cursor-pointer disabled:opacity-40"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold active:scale-[0.97] transition-[transform,background-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer disabled:opacity-40"
                 title="Xóa lời bài hát tùy chỉnh của Admin và quay về tự động tìm lời"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -629,7 +646,7 @@ export function AdminLyricsEditorModal({
               type="button"
               onClick={onClose}
               disabled={isSaving}
-              className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 text-xs font-bold transition-colors cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 text-xs font-bold active:scale-[0.97] transition-[transform,background-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer"
             >
               Hủy
             </button>
@@ -637,7 +654,7 @@ export function AdminLyricsEditorModal({
               type="button"
               onClick={() => handleSave(false)}
               disabled={isSaving || lineCount === 0}
-              className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-400 to-teal-400 hover:from-cyan-300 hover:to-teal-300 text-slate-950 font-extrabold text-xs shadow-lg active:scale-95 transition-[filter,transform,opacity] cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
+              className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-400 to-teal-400 hover:from-cyan-300 hover:to-teal-300 text-slate-950 font-extrabold text-xs shadow-lg active:scale-[0.97] transition-[filter,transform,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
             >
               {isSaving ? (
                 <>
@@ -653,8 +670,38 @@ export function AdminLyricsEditorModal({
             </button>
           </div>
         </div>
-      </div>
-    </div>,
+      </motion.div>
+    </motion.div>
+  )
+}
+
+export function AdminLyricsEditorModal({
+  isOpen,
+  onClose,
+  track,
+  initialLyrics,
+  onSaved,
+}: AdminLyricsEditorModalProps) {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted || typeof document === 'undefined') return null
+
+  return createPortal(
+    <AnimatePresence>
+      {isOpen && (
+        <AdminLyricsEditorContent
+          key="admin-lyrics-editor-modal"
+          onClose={onClose}
+          track={track}
+          initialLyrics={initialLyrics}
+          onSaved={onSaved}
+        />
+      )}
+    </AnimatePresence>,
     document.body,
   )
 }

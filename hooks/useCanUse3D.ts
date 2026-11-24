@@ -14,10 +14,19 @@ export function useCanUse3D() {
       !window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
     setCanUse3D(check())
-    const mq = window.matchMedia('(min-width: 1024px)')
+    const mqWidth = window.matchMedia('(min-width: 1024px)')
+    const mqPointer = window.matchMedia('(pointer: fine)')
+    const mqReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
     const handler = () => setCanUse3D(check())
-    mq.addEventListener('change', handler)
-    return () => mq.removeEventListener('change', handler)
+
+    mqWidth.addEventListener('change', handler)
+    mqPointer.addEventListener('change', handler)
+    mqReducedMotion.addEventListener('change', handler)
+    return () => {
+      mqWidth.removeEventListener('change', handler)
+      mqPointer.removeEventListener('change', handler)
+      mqReducedMotion.removeEventListener('change', handler)
+    }
   }, [])
 
   return canUse3D

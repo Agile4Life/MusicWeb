@@ -1,6 +1,8 @@
 'use client'
 
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { EASE_OUT } from '@/lib/motion'
 import { usePlaybackProgress } from './PlayerContext'
 
 interface AudioWaveformScrubberProps {
@@ -22,11 +24,12 @@ export function AudioWaveformScrubber({
   duration,
   onSeek,
 }: AudioWaveformScrubberProps) {
+  const prefersReducedMotion = useReducedMotion()
   const { currentTime, duration: contextDuration } = usePlaybackProgress()
   const effectiveDuration = duration && duration > 0 ? duration : contextDuration || 0
 
   const [hoverTime, setHoverTime] = useState<number | null>(null)
-  const [hoverX, setHoverX] = useState<number>(0)
+  const [hoverX, setHoverX] = useState<number>(24)
   const [isDragging, setIsDragging] = useState<boolean>(false)
   const [showRemaining, setShowRemaining] = useState<boolean>(false)
   // While dragging, the bar follows the pointer locally; one seek happens on release
@@ -41,6 +44,14 @@ export function AudioWaveformScrubber({
   const containerRef = useRef<HTMLDivElement | null>(null)
   const rafRef = useRef<number | null>(null)
 
+  useEffect(() => {
+    return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current)
+      }
+    }
+  }, [])
+
   const safeDuration = effectiveDuration > 0 ? effectiveDuration : 0.0001
   const shownTime = dragTime ?? currentTime
   const progressRatio = safeDuration > 1 ? Math.min(Math.max(0, shownTime / safeDuration), 1) : 0
@@ -48,6 +59,8 @@ export function AudioWaveformScrubber({
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (!containerRef.current) return
+      const isMouse = e.pointerType === 'mouse'
+      if (!isMouse && !isDragging) return
       const clientX = e.clientX
 
       if (rafRef.current) {
@@ -59,10 +72,11 @@ export function AudioWaveformScrubber({
         const rect = containerRef.current.getBoundingClientRect()
         if (rect.width === 0) return
         const x = Math.max(0, Math.min(clientX - rect.left, rect.width))
+        const clampedX = Math.max(24, Math.min(x, Math.max(24, rect.width - 24)))
         const ratio = x / rect.width
         const calculatedTime = ratio * effectiveDuration
 
-        setHoverX(x)
+        setHoverX(clampedX)
         setHoverTime(calculatedTime)
 
         if (isDragging && effectiveDuration > 0) {
@@ -79,9 +93,14 @@ export function AudioWaveformScrubber({
     setIsDragging(true)
     if (!containerRef.current || effectiveDuration <= 0) return
     const rect = containerRef.current.getBoundingClientRect()
+    if (rect.width === 0) return
     const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width))
+    const clampedX = Math.max(24, Math.min(x, Math.max(24, rect.width - 24)))
     const ratio = x / rect.width
-    setDrag(ratio * effectiveDuration)
+    const calculatedTime = ratio * effectiveDuration
+    setHoverX(clampedX)
+    setHoverTime(calculatedTime)
+    setDrag(calculatedTime)
   }
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -92,6 +111,9 @@ export function AudioWaveformScrubber({
       e.currentTarget.releasePointerCapture(e.pointerId)
     } catch {}
     setIsDragging(false)
+    if (e.pointerType !== 'mouse') {
+      setHoverTime(null)
+    }
     const target = dragTimeRef.current
     setDrag(null)
     if (target !== null && e.type === 'pointerup') onSeek(target)
@@ -100,7 +122,11 @@ export function AudioWaveformScrubber({
   const remainingTime = Math.max(0, safeDuration - shownTime)
 
   return (
-    <div className="scrubber-wrapper w-full flex items-center justify-between gap-3 sm:gap-4 select-none px-1">
+    <div
+      className={`scrubber-wrapper w-full flex items-center justify-between gap-3 sm:gap-4 select-none px-1 ${
+        isDragging ? 'is-dragging' : ''
+      }`}
+    >
       {/* Elapsed time */}
       <span className="scrubber-time-btn text-[11px] sm:text-xs font-mono tabular-nums text-slate-400 font-semibold w-10 text-right shrink-0">
         {formatTime(shownTime)}
@@ -118,36 +144,62 @@ export function AudioWaveformScrubber({
             setHoverTime(null)
           }
         }}
-        className={`relative flex-1 h-8 lg:h-[18px] flex items-center cursor-pointer group px-0.5 touch-none ${isDragging ? 'is-dragging' : ''}`}
+        className="relative flex-1 h-8 lg:h-[18px] flex items-center cursor-pointer group px-0.5 touch-none"
       >
         {/* Floating Time Preview Tooltip */}
-        {hoverTime !== null && (
-          <div
-            className="absolute -top-7 lg:top-auto lg:bottom-[13px] transform -translate-x-1/2 bg-[var(--elevation-2-bg,#0f172a)]/95 text-white text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border border-white/20 shadow-lg backdrop-blur-md pointer-events-none z-40 leading-none"
-            style={{ left: `${Math.max(24, Math.min(hoverX, (containerRef.current?.clientWidth || 200) - 24))}px` }}
-          >
-            <span>{formatTime(hoverTime)}</span>
-          </div>
-        )}
+        <AnimatePresence>
+          {hoverTime !== null && (
+            <div
+              className="absolute -top-7 lg:top-auto lg:bottom-[13px] -translate-x-1/2 pointer-events-none z-40"
+              style={{ left: `${hoverX}px` }}
+            >
+              <motion.div
+                initial={
+                  prefersReducedMotion
+                    ? { opacity: 0 }
+                    : { opacity: 0, transform: 'translate3d(0, 2px, 0) scale(0.94)' }
+                }
+                animate={
+                  prefersReducedMotion
+                    ? { opacity: 1 }
+                    : { opacity: 1, transform: 'translate3d(0, 0px, 0) scale(1)' }
+                }
+                exit={
+                  prefersReducedMotion
+                    ? { opacity: 0 }
+                    : { opacity: 0, transform: 'translate3d(0, 2px, 0) scale(0.94)' }
+                }
+                transition={{ duration: 0.15, ease: EASE_OUT }}
+                className="origin-bottom bg-[var(--elevation-2-bg,#0f172a)]/95 text-white text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border border-white/20 shadow-lg backdrop-blur-md leading-none"
+              >
+                <span>{formatTime(hoverTime)}</span>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         {/* The Track */}
         <div className="scrubber-track">
           <div
-            className="scrubber-fill"
+            className="scrubber-fill motion-reduce:transition-none"
             style={{
               background: 'linear-gradient(90deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-              boxShadow: '0 0 8px var(--spotify-glow, #22d3ee), 0 0 16px var(--theme-glow-shadow, rgba(6, 182, 212, 0.95)), 0 0 28px var(--theme-glow-shadow, rgba(34, 211, 238, 0.45))',
-              width: `calc(${progressRatio * 100}%)`,
-              transition: isDragging ? 'none' : 'width 0.25s linear',
+              width: '100%',
+              opacity: progressRatio > 0.001 ? 1 : 0,
+              transformOrigin: 'left center',
+              transform: `scaleX(${progressRatio})`,
+              transition: isDragging ? 'none' : 'transform 220ms linear, opacity 140ms ease',
             }}
           />
           <div
-            className="scrubber-thumb"
+            className="absolute inset-0 pointer-events-none motion-reduce:transition-none"
             style={{
-              left: `calc(${progressRatio * 100}%)`,
-              transition: isDragging ? 'none' : 'left 0.25s linear',
+              transform: `translate3d(${(progressRatio - 1) * 100}%, 0, 0)`,
+              transition: isDragging ? 'none' : 'transform 220ms linear',
             }}
-          />
+          >
+            <div className="scrubber-thumb" style={{ left: '100%' }} />
+          </div>
         </div>
       </div>
 
@@ -155,7 +207,7 @@ export function AudioWaveformScrubber({
       <button
         type="button"
         onClick={() => setShowRemaining((prev) => !prev)}
-        className="scrubber-time-btn text-[11px] sm:text-xs font-mono tabular-nums text-slate-400 hover:text-white font-semibold w-10 text-left shrink-0 transition-colors cursor-pointer"
+        className="scrubber-time-btn text-[11px] sm:text-xs font-mono tabular-nums text-slate-400 hover:text-white font-semibold w-10 text-left shrink-0 active:scale-[0.97] transition-[color,transform] duration-150 ease-[var(--ease-out)] cursor-pointer"
         title="Bấm để đổi giữa Thời lượng & Thời gian còn lại"
       >
         {showRemaining ? `-${formatTime(remainingTime)}` : formatTime(effectiveDuration)}

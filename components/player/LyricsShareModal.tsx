@@ -1,7 +1,14 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useId } from 'react'
 import { createPortal } from 'react-dom'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import {
+  EASE_OUT,
+  SPRING_UI,
+  modalBackdropProps,
+  modalPanelProps,
+} from '@/lib/motion'
 import {
   X,
   Share2,
@@ -45,16 +52,29 @@ function getInitialThemeForApp(themeId?: string, themeStyle?: string): string {
   return 'dominant'
 }
 
-export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
-  isOpen,
+const CATEGORY_TABS: { id: 'all' | 'cover' | 'gradient' | 'solid' | 'minimal'; label: string }[] = [
+  { id: 'all', label: 'Tất cả' },
+  { id: 'cover', label: 'Ảnh bìa' },
+  { id: 'gradient', label: 'Gradient' },
+  { id: 'solid', label: 'Đơn sắc' },
+  { id: 'minimal', label: 'Tối giản' },
+]
+
+function LyricsShareModalContent({
   onClose,
   track,
   lyrics,
   initialActiveIndex = 0,
-}) => {
-  const [mounted, setMounted] = useState(false)
+}: Omit<LyricsShareModalProps, 'isOpen'>) {
+  const uid = useId()
+  const prefersReducedMotion = useReducedMotion()
   const { currentTheme, themeStyle } = useTheme()
-  const [selectedIndices, setSelectedIndices] = useState<number[]>([0])
+  const [selectedIndices, setSelectedIndices] = useState<number[]>(() => {
+    if (lyrics.length > 0 && initialActiveIndex >= 0 && initialActiveIndex < lyrics.length) {
+      return [initialActiveIndex]
+    }
+    return [0]
+  })
   const [selectedThemeId, setSelectedThemeId] = useState<string>(() =>
     getInitialThemeForApp(currentTheme?.id, themeStyle)
   )
@@ -67,53 +87,33 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
   const [mobileTab, setMobileTab] = useState<'select' | 'preview'>('select')
   const listRef = useRef<HTMLDivElement | null>(null)
   const activeLineRef = useRef<HTMLDivElement | null>(null)
-  const initializedRef = useRef(false)
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (!isOpen) return
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [isOpen, onClose])
+  }, [onClose])
 
-  // Initialize selected lines ONCE when modal opens (Static mode: do not reset on audio sync)
+  // Scroll initial selected line into view once on mount
   useEffect(() => {
-    if (isOpen) {
-      if (!initializedRef.current) {
-        initializedRef.current = true
-        if (currentTheme?.id || themeStyle) {
-          setSelectedThemeId(getInitialThemeForApp(currentTheme?.id, themeStyle))
-        }
-        if (lyrics.length > 0) {
-          let initIndex = 0
-          if (initialActiveIndex >= 0 && initialActiveIndex < lyrics.length) {
-            initIndex = initialActiveIndex
-          }
-          setSelectedIndices([initIndex])
-          setMobileTab('select')
-
-          setTimeout(() => {
-            if (activeLineRef.current && listRef.current) {
-              const target = activeLineRef.current.offsetTop - listRef.current.clientHeight * 0.35
-              listRef.current.scrollTo({ top: Math.max(0, target), behavior: 'smooth' })
-            }
-          }, 100)
-        }
+    if (lyrics.length === 0) return
+    const timer = setTimeout(() => {
+      if (activeLineRef.current && listRef.current) {
+        const target = activeLineRef.current.offsetTop - listRef.current.clientHeight * 0.35
+        listRef.current.scrollTo({
+          top: Math.max(0, target),
+          behavior: prefersReducedMotion ? 'auto' : 'smooth',
+        })
       }
-    } else {
-      initializedRef.current = false
-    }
-  }, [isOpen, lyrics, currentTheme?.id, themeStyle])
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [lyrics.length, prefersReducedMotion])
 
   // Update card preview whenever selected lines, theme, or cardOnly mode changes
   useEffect(() => {
-    if (!isOpen || selectedIndices.length === 0 || lyrics.length === 0) return
+    if (selectedIndices.length === 0 || lyrics.length === 0) return
 
     let cancelled = false
     setIsGenerating(true)
@@ -149,9 +149,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
     return () => {
       cancelled = true
     }
-  }, [isOpen, selectedIndices, selectedThemeId, cardOnly, track, lyrics])
-
-  if (!isOpen) return null
+  }, [selectedIndices, selectedThemeId, cardOnly, track, lyrics])
 
   const toggleLine = (index: number) => {
     const result = toggleContiguousLyricLine(selectedIndices, index, 5)
@@ -288,26 +286,26 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
     }
   }
 
-  if (!isOpen || !mounted || typeof window === 'undefined' || !document?.body) {
-    return null
-  }
+  const pillTransition = prefersReducedMotion ? { duration: 0.14 } : SPRING_UI
 
-  return createPortal(
-    <div
+  return (
+    <motion.div
+      {...modalBackdropProps(prefersReducedMotion)}
       role="dialog"
       aria-modal="true"
       aria-labelledby="lyrics-share-modal-title"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose()
       }}
-      className="fixed inset-0 z-[80] bg-black/85 backdrop-blur-xl flex items-center justify-center p-0 sm:p-4 md:p-6 pb-4 sm:pb-6 animate-in fade-in duration-200"
+      className="fixed inset-0 z-[80] bg-black/80 backdrop-blur-md flex items-center justify-center p-0 sm:p-4 md:p-6 pb-4 sm:pb-6"
     >
-      <div
+      <motion.div
+        {...modalPanelProps(prefersReducedMotion)}
         onClick={(e) => e.stopPropagation()}
         className="relative w-full max-w-5xl h-full sm:h-[86vh] max-h-none sm:max-h-[760px] bg-[var(--elevation-1-bg,#0b0f19)] border-0 sm:border sm:border-white/10 rounded-none sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden text-slate-100 select-none"
       >
         {/* Modal Top Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-white/[0.08] bg-black/50 backdrop-blur-2xl shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-white/[0.08] bg-[#090d16]/90 shrink-0">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[var(--primary-spotify,#06b6d4)]/15 border border-[var(--primary-spotify,#06b6d4)]/30 flex items-center justify-center text-[var(--spotify-glow,#22d3ee)] shadow-[0_0_15px_var(--theme-glow-shadow,rgba(6,182,212,0.25))] shrink-0">
               <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -326,8 +324,9 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
           </div>
 
           <button
+            type="button"
             onClick={onClose}
-            className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/15 active:scale-95 text-slate-300 hover:text-white flex items-center justify-center transition-all border border-white/10 shrink-0 ml-2"
+            className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/15 active:scale-[0.97] text-slate-300 hover:text-white flex items-center justify-center transition-[transform,background-color,color] duration-150 ease-[var(--ease-out)] border border-white/10 shrink-0 ml-2 cursor-pointer"
             title="Đóng"
           >
             <X className="w-5 h-5" />
@@ -335,66 +334,78 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
         </div>
 
         {/* Mobile Tab Segmented Switcher (Visible on mobile only < md) */}
-        <div className="flex md:hidden items-center p-2 bg-black/60 border-b border-white/[0.08] shrink-0">
-          <div className="grid grid-cols-2 w-full p-1 bg-white/[0.05] rounded-xl border border-white/10">
+        <div className="flex md:hidden items-center p-2 bg-[#090d16]/95 border-b border-white/[0.08] shrink-0">
+          <div className="grid grid-cols-2 w-full p-1 bg-white/[0.05] rounded-xl border border-white/10 relative">
             <button
+              type="button"
               onClick={() => setMobileTab('select')}
-              className={`py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                mobileTab === 'select'
-                  ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md shadow-[var(--theme-glow-shadow)] font-extrabold'
-                  : 'text-slate-400 hover:text-white'
+              className={`relative py-2 text-xs font-bold rounded-lg active:scale-[0.97] transition-[color,transform] duration-150 ease-[var(--ease-out)] flex items-center justify-center gap-1.5 cursor-pointer ${
+                mobileTab === 'select' ? 'text-black font-extrabold' : 'text-slate-400 hover:text-white'
               }`}
             >
-              <span>1. Chọn câu hát</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${mobileTab === 'select' ? 'bg-black/20 text-black' : 'bg-white/10 text-[var(--spotify-glow,#22d3ee)]'}`}>
+              {mobileTab === 'select' && (
+                <motion.span
+                  layoutId={`lyrics-share-mobile-tab-${uid}`}
+                  transition={pillTransition}
+                  className="absolute inset-0 rounded-lg bg-[var(--primary-spotify,#06b6d4)] shadow-md shadow-[var(--theme-glow-shadow)]"
+                />
+              )}
+              <span className="relative z-10">1. Chọn câu hát</span>
+              <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full ${mobileTab === 'select' ? 'bg-black/20 text-black' : 'bg-white/10 text-[var(--spotify-glow,#22d3ee)]'}`}>
                 {selectedIndices.length}/5
               </span>
             </button>
 
             <button
+              type="button"
               onClick={() => setMobileTab('preview')}
-              className={`py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                mobileTab === 'preview'
-                  ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md shadow-[var(--theme-glow-shadow)] font-extrabold'
-                  : 'text-slate-400 hover:text-white'
+              className={`relative py-2 text-xs font-bold rounded-lg active:scale-[0.97] transition-[color,transform] duration-150 ease-[var(--ease-out)] flex items-center justify-center gap-1.5 cursor-pointer ${
+                mobileTab === 'preview' ? 'text-black font-extrabold' : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Palette className="w-3.5 h-3.5" />
-              <span>2. Xem trước Card</span>
+              {mobileTab === 'preview' && (
+                <motion.span
+                  layoutId={`lyrics-share-mobile-tab-${uid}`}
+                  transition={pillTransition}
+                  className="absolute inset-0 rounded-lg bg-[var(--primary-spotify,#06b6d4)] shadow-md shadow-[var(--theme-glow-shadow)]"
+                />
+              )}
+              <Palette className="w-3.5 h-3.5 relative z-10" />
+              <span className="relative z-10">2. Xem trước Card</span>
             </button>
           </div>
         </div>
 
-            {/* Modal Content 2-Column Studio (Responsive Desktop + Mobile Tabs) */}
-            <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative bg-[var(--bg-space,#07090e)]">
-              {/* 🌟 Unified Ambient Glassmorphic Background across entire Studio (Desktop & Mobile) */}
-              <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden select-none">
-                {track.cover_url ? (
-                  <img
-                    src={track.cover_url}
-                    alt=""
-                    className="w-full h-full object-cover blur-3xl opacity-45 scale-125 transform-gpu transition-all duration-700"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[var(--theme-gradient-1,rgba(6,182,212,0.25))] via-[var(--bg-space,#07090e)] to-[var(--bg-space,#07090e)]" />
-                )}
-                <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-space,#07090e)]/65 via-[var(--bg-space,#07090e)]/80 to-[var(--bg-space,#07090e)]" />
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background: 'radial-gradient(circle at 75% 40%, var(--theme-gradient-1, rgba(6,182,212,0.25)), transparent 65%)',
-                  }}
-                />
-              </div>
+        {/* Modal Content 2-Column Studio (Responsive Desktop + Mobile Tabs) */}
+        <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative bg-[var(--bg-space,#07090e)]">
+          {/* 🌟 Unified Ambient Background across entire Studio (Desktop & Mobile) */}
+          <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden select-none">
+            {track.cover_url ? (
+              <img
+                src={track.cover_url}
+                alt=""
+                className="w-full h-full object-cover blur-3xl opacity-40 scale-125 transform-gpu transition-opacity duration-500 ease-[var(--ease-out)]"
+              />
+            ) : (
+              <div className="w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[var(--theme-gradient-1,rgba(6,182,212,0.25))] via-[var(--bg-space,#07090e)] to-[var(--bg-space,#07090e)]" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-space,#07090e)]/70 via-[var(--bg-space,#07090e)]/85 to-[var(--bg-space,#07090e)]" />
+            <div
+              className="absolute inset-0"
+              style={{
+                background: 'radial-gradient(circle at 75% 40%, var(--theme-gradient-1, rgba(6,182,212,0.25)), transparent 65%)',
+              }}
+            />
+          </div>
 
-              {/* Left Column: Line Selector */}
-              <div
-                className={`flex-1 flex-col min-h-0 border-b md:border-b-0 md:border-r border-white/[0.08] bg-black/20 backdrop-blur-md relative overflow-hidden z-10 ${
-                  mobileTab === 'select' ? 'flex' : 'hidden md:flex'
-                }`}
-              >
-                {/* Selector Top Toolbar (Desktop) */}
-                <div className="relative z-20 px-5 py-3.5 border-b border-white/[0.08] hidden md:flex items-center justify-between bg-black/50 backdrop-blur-2xl shrink-0 shadow-lg">
+          {/* Left Column: Line Selector */}
+          <div
+            className={`flex-1 flex-col min-h-0 border-b md:border-b-0 md:border-r border-white/[0.08] bg-black/30 relative overflow-hidden z-10 ${
+              mobileTab === 'select' ? 'flex' : 'hidden md:flex'
+            }`}
+          >
+            {/* Selector Top Toolbar (Desktop) */}
+            <div className="relative z-20 px-5 py-3.5 border-b border-white/[0.08] hidden md:flex items-center justify-between bg-[#090d16]/85 shrink-0 shadow-lg">
               <div className="flex items-center gap-2.5">
                 <span className="text-xs font-extrabold uppercase tracking-wider text-slate-100">
                   Chọn câu hát chia sẻ
@@ -405,7 +416,7 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
                   (1 - 5 câu liên tiếp)
                 </span>
                 <span
-                  className={`text-xs font-mono font-bold px-3 py-1 rounded-full border shadow-sm transition-colors ${
+                  className={`text-xs font-mono font-bold px-3 py-1 rounded-full border shadow-sm transition-colors duration-150 ${
                     selectedIndices.length >= 5
                       ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
                       : 'bg-[var(--primary-spotify,#06b6d4)]/20 border-[var(--primary-spotify,#06b6d4)]/40 text-[var(--spotify-glow,#22d3ee)]'
@@ -417,62 +428,61 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
             </div>
 
             <div className="relative flex-1 min-h-0 flex flex-col overflow-hidden">
-            {/* Top & Bottom Fade Overlays strictly inside list wrapper */}
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-[var(--bg-space,#07090e)] to-transparent z-20" />
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[var(--bg-space,#07090e)] to-transparent z-20" />
+              {/* Top & Bottom Fade Overlays strictly inside list wrapper */}
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-[var(--bg-space,#07090e)] to-transparent z-20" />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[var(--bg-space,#07090e)] to-transparent z-20" />
 
-            {/* Scrollable Lyric Lines List (Immersive Typography & Touch Scroll) */}
-            <div
-              ref={listRef}
-              className="relative z-10 flex-1 overflow-y-auto overscroll-y-contain px-4 sm:px-8 md:px-10 pt-4 md:pt-6 pb-24 md:pb-20 space-y-2.5 sm:space-y-3 no-scrollbar"
-              style={{
-                WebkitOverflowScrolling: 'touch',
-                scrollBehavior: 'smooth',
-              }}
-            >
-              {lyrics.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-8 text-slate-400">
-                  <Mic2 className="w-12 h-12 text-[var(--spotify-glow,#22d3ee)]/60 mb-3" />
-                  <p className="text-base font-bold text-slate-200">Không có dữ liệu lời bài hát</p>
-                  <p className="text-xs text-slate-500 mt-1">Bài hát này chưa có lời để chia sẻ</p>
-                </div>
-              ) : (
-                lyrics.map((line, index) => {
-                  const isSelected = selectedIndices.includes(index)
-                  return (
-                    <div
-                      key={index}
-                      ref={index === selectedIndices[0] ? activeLineRef : null}
-                      onClick={() => toggleLine(index)}
-                      className={`cursor-pointer rounded-2xl select-none group/line relative transition-[background-color,border-color,opacity,box-shadow] duration-200 active:scale-[0.98] ${
-                        isSelected
-                          ? 'py-3 sm:py-4 px-4 sm:px-6 bg-white/[0.1] border border-[var(--spotify-glow,#22d3ee)]/45 backdrop-blur-2xl shadow-[0_14px_40px_rgba(0,0,0,0.45)]'
-                          : 'py-2 sm:py-2.5 px-3 sm:px-5 bg-transparent border border-transparent hover:bg-white/[0.05] hover:border-white/15 opacity-60 hover:opacity-100'
-                      }`}
-                    >
-                      {/* Lyrics Text with Large Rich Typography */}
-                      <p
-                        className={`leading-snug transition-colors duration-200 ${
+              {/* Scrollable Lyric Lines List (Constant padding & font-size so toggling never jumps) */}
+              <div
+                ref={listRef}
+                className="relative z-10 flex-1 overflow-y-auto overscroll-y-contain px-4 sm:px-8 md:px-10 pt-4 md:pt-6 pb-24 md:pb-20 space-y-2.5 sm:space-y-3 no-scrollbar"
+                style={{
+                  WebkitOverflowScrolling: 'touch',
+                }}
+              >
+                {lyrics.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-8 text-slate-400">
+                    <Mic2 className="w-12 h-12 text-[var(--spotify-glow,#22d3ee)]/60 mb-3" />
+                    <p className="text-base font-bold text-slate-200">Không có dữ liệu lời bài hát</p>
+                    <p className="text-xs text-slate-500 mt-1">Bài hát này chưa có lời để chia sẻ</p>
+                  </div>
+                ) : (
+                  lyrics.map((line, index) => {
+                    const isSelected = selectedIndices.includes(index)
+                    return (
+                      <div
+                        key={index}
+                        ref={index === selectedIndices[0] ? activeLineRef : null}
+                        onClick={() => toggleLine(index)}
+                        className={`cursor-pointer rounded-2xl select-none group/line relative py-2.5 sm:py-3 px-4 sm:px-5 border active:scale-[0.98] transition-[transform,background-color,border-color,opacity,box-shadow] duration-150 ease-[var(--ease-out)] ${
                           isSelected
-                            ? 'text-base sm:text-lg md:text-xl font-black text-white'
-                            : 'text-sm sm:text-base md:text-lg font-semibold text-slate-300 group-hover/line:text-white'
+                            ? 'bg-white/[0.12] border-[var(--spotify-glow,#22d3ee)]/50 shadow-[0_10px_28px_rgba(0,0,0,0.4)] opacity-100'
+                            : 'bg-white/[0.02] border-transparent [@media(hover:hover)]:hover:bg-white/[0.06] [@media(hover:hover)]:hover:border-white/15 opacity-60 [@media(hover:hover)]:hover:opacity-100'
                         }`}
                       >
-                        {line.text}
-                      </p>
-                    </div>
-                  )
-                })
-              )}
-            </div>
+                        <p
+                          className={`text-sm sm:text-base md:text-lg font-bold leading-snug transition-colors duration-150 ${
+                            isSelected
+                              ? 'text-white'
+                              : 'text-slate-300 [@media(hover:hover)]:group-hover/line:text-white'
+                          }`}
+                        >
+                          {line.text}
+                        </p>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
             </div>
 
             {/* Mobile Bottom Floating Action: Proceed to Preview */}
-            <div className="md:hidden p-3 bg-black/60 backdrop-blur-xl border-t border-white/10 z-20 shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
+            <div className="md:hidden p-3 bg-[#090d16]/95 border-t border-white/10 z-20 shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
               <button
+                type="button"
                 onClick={() => setMobileTab('preview')}
                 disabled={selectedIndices.length === 0}
-                className="w-full py-3.5 px-4 rounded-xl font-extrabold text-sm text-black flex items-center justify-center gap-2 shadow-lg active:scale-98"
+                className="w-full py-3.5 px-4 rounded-xl font-extrabold text-sm text-black flex items-center justify-center gap-2 shadow-lg active:scale-[0.97] transition-[transform,filter,opacity] duration-150 ease-[var(--ease-out)] disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                 style={{
                   background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
                   boxShadow: '0 8px 20px var(--theme-glow-shadow, rgba(6,182,212,0.25))',
@@ -486,189 +496,175 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
 
           {/* Right Column: Live Card Preview & Pinned Actions */}
           <div
-            className={`w-full md:w-[400px] lg:w-[440px] flex-col min-h-0 bg-black/40 backdrop-blur-2xl border-t md:border-t-0 md:border-l border-white/[0.08] p-3 sm:p-5 overflow-hidden justify-between relative z-10 gap-3 ${
+            className={`w-full md:w-[400px] lg:w-[440px] flex-col min-h-0 bg-[#090d16]/85 border-t md:border-t-0 md:border-l border-white/[0.08] p-3 sm:p-5 overflow-hidden justify-between relative z-10 gap-3 ${
               mobileTab === 'preview' ? 'flex flex-1 h-full' : 'hidden md:flex'
             }`}
           >
             <div className="flex-1 min-h-0 flex flex-col gap-3 overflow-y-auto no-scrollbar">
-            {/* Format Switcher: Full Story 9:16 vs Standalone Card Only (Transparent PNG) */}
-            <div className="shrink-0 space-y-2">
-              <div className="grid grid-cols-2 p-1 bg-white/[0.05] border border-white/10 rounded-2xl text-[11px] font-bold">
-                <button
-                  onClick={() => setCardOnly(false)}
-                  className={`py-1.5 px-2 rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
-                    !cardOnly
-                      ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md font-extrabold'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <Smartphone className="w-3.5 h-3.5 shrink-0" />
-                  <span>Nền Story 9:16</span>
-                </button>
-                <button
-                  onClick={() => setCardOnly(true)}
-                  className={`py-1.5 px-2 rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
-                    cardOnly
-                      ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-md font-extrabold'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <Square className="w-3.5 h-3.5 shrink-0" />
-                  <span>Bỏ nền ngoài (Chỉ Card)</span>
-                </button>
-              </div>
+              {/* Format Switcher: Full Story 9:16 vs Standalone Card Only (Transparent PNG) */}
+              <div className="shrink-0 space-y-2">
+                <div className="grid grid-cols-2 p-1 bg-white/[0.05] border border-white/10 rounded-2xl text-[11px] font-bold relative">
+                  <button
+                    type="button"
+                    onClick={() => setCardOnly(false)}
+                    className={`relative py-1.5 px-2 rounded-xl active:scale-[0.97] transition-[color,transform] duration-150 ease-[var(--ease-out)] flex items-center justify-center gap-1.5 cursor-pointer ${
+                      !cardOnly ? 'text-black font-extrabold' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {!cardOnly && (
+                      <motion.span
+                        layoutId={`lyrics-share-format-tab-${uid}`}
+                        transition={pillTransition}
+                        className="absolute inset-0 rounded-xl bg-[var(--primary-spotify,#06b6d4)] shadow-md"
+                      />
+                    )}
+                    <Smartphone className="w-3.5 h-3.5 shrink-0 relative z-10" />
+                    <span className="relative z-10">Nền Story 9:16</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCardOnly(true)}
+                    className={`relative py-1.5 px-2 rounded-xl active:scale-[0.97] transition-[color,transform] duration-150 ease-[var(--ease-out)] flex items-center justify-center gap-1.5 cursor-pointer ${
+                      cardOnly ? 'text-black font-extrabold' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {cardOnly && (
+                      <motion.span
+                        layoutId={`lyrics-share-format-tab-${uid}`}
+                        transition={pillTransition}
+                        className="absolute inset-0 rounded-xl bg-[var(--primary-spotify,#06b6d4)] shadow-md"
+                      />
+                    )}
+                    <Square className="w-3.5 h-3.5 shrink-0 relative z-10" />
+                    <span className="relative z-10">Bỏ nền ngoài (Chỉ Card)</span>
+                  </button>
+                </div>
 
-              {/* Background Style Selector */}
-              <div className="flex items-center justify-between pt-0.5">
-                <div className="flex items-center gap-2">
-                  <Palette className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
-                  <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-                    {cardOnly ? 'Tông màu Card' : 'Tùy chọn nền Card'}
+                {/* Background Style Selector */}
+                <div className="flex items-center justify-between pt-0.5">
+                  <div className="flex items-center gap-2">
+                    <Palette className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
+                    <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+                      {cardOnly ? 'Tông màu Card' : 'Tùy chọn nền Card'}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-mono font-semibold text-[var(--spotify-glow,#22d3ee)] truncate max-w-[140px]">
+                    {LYRIC_CARD_THEMES.find((t) => t.id === selectedThemeId)?.name}
                   </span>
                 </div>
-                <span className="text-[11px] font-mono font-semibold text-[var(--spotify-glow,#22d3ee)] truncate max-w-[140px]">
-                  {LYRIC_CARD_THEMES.find((t) => t.id === selectedThemeId)?.name}
-                </span>
+
+                {/* Category Filter Tabs */}
+                <div className="grid grid-cols-5 p-0.5 bg-white/[0.04] border border-white/10 rounded-xl text-[10px] font-bold shrink-0 relative">
+                  {CATEGORY_TABS.map((cat) => {
+                    const isActiveCat = themeCategoryFilter === cat.id
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setThemeCategoryFilter(cat.id)}
+                        className={`relative py-1 rounded-lg active:scale-[0.97] transition-[color,transform] duration-150 ease-[var(--ease-out)] cursor-pointer ${
+                          isActiveCat ? 'text-white' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {isActiveCat && (
+                          <motion.span
+                            layoutId={`lyrics-share-category-tab-${uid}`}
+                            transition={pillTransition}
+                            className="absolute inset-0 rounded-lg bg-white/15 shadow"
+                          />
+                        )}
+                        <span className="relative z-10">{cat.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Theme Swatches Horizontal Scroll List */}
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2.5 shrink-0 -mx-1 px-1">
+                  {LYRIC_CARD_THEMES.filter(
+                    (t) => themeCategoryFilter === 'all' || t.category === themeCategoryFilter
+                  ).map((theme) => {
+                    const isActive = selectedThemeId === theme.id
+                    const isSolid = theme.category === 'solid'
+                    const isCover = theme.category === 'cover'
+                    const isMinimal = theme.category === 'minimal'
+
+                    let bgStyle: string
+                    if (isMinimal || isSolid) {
+                      bgStyle = theme.solidColor || theme.background[0]
+                    } else if (isCover) {
+                      bgStyle = track.cover_url
+                        ? `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.7)), url(${track.cover_url}) center/cover`
+                        : 'linear-gradient(135deg, #1e293b, #0f172a)'
+                    } else {
+                      bgStyle = `linear-gradient(135deg, ${theme.background[0]}, ${theme.background[1]})`
+                    }
+
+                    return (
+                      <button
+                        key={theme.id}
+                        type="button"
+                        onClick={() => setSelectedThemeId(theme.id)}
+                        className={`h-8 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-[transform,opacity,border-color,box-shadow] duration-150 ease-[var(--ease-out)] relative border active:scale-[0.97] text-xs font-bold shrink-0 cursor-pointer ${
+                          isActive
+                            ? 'border-white shadow-[0_0_16px_rgba(255,255,255,0.35)] ring-2 ring-[var(--spotify-glow,#22d3ee)]/60'
+                            : 'border-white/15 opacity-75 hover:opacity-100 hover:border-white/40'
+                        }`}
+                        style={{
+                          background: bgStyle,
+                          color: theme.textColor,
+                        }}
+                        title={theme.name}
+                      >
+                        <span className="truncate whitespace-nowrap drop-shadow-sm">{theme.name}</span>
+                        {isActive && <Check className="w-3.5 h-3.5 shrink-0 drop-shadow-sm" style={{ color: theme.textColor }} />}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
 
-              {/* Category Filter Tabs */}
-              <div className="grid grid-cols-5 p-0.5 bg-white/[0.04] border border-white/10 rounded-xl text-[10px] font-bold shrink-0">
-                <button
-                  onClick={() => setThemeCategoryFilter('all')}
-                  className={`py-1 rounded-lg transition-all ${
-                    themeCategoryFilter === 'all'
-                      ? 'bg-white/15 text-white shadow'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
+              {/* Lyric Card Preview Container (Aspect Responsive Plaque) */}
+              <div className="flex-1 min-h-[220px] max-h-full flex items-center justify-center py-2 px-1 overflow-hidden shrink min-w-0">
+                <div
+                  className={`relative h-full max-h-[38vh] sm:max-h-[420px] ${
+                    cardOnly ? 'aspect-[1010/1220] max-w-[340px]' : 'aspect-[9/16]'
+                  } rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.85)] border border-white/20 transition-colors duration-200 flex items-center justify-center ${
+                    cardOnly
+                      ? 'bg-[radial-gradient(#ffffff18_1px,transparent_1px)] [background-size:12px_12px] bg-slate-950/80'
+                      : 'bg-black/60'
+                  } shrink-0`}
                 >
-                  Tất cả
-                </button>
-                <button
-                  onClick={() => setThemeCategoryFilter('cover')}
-                  className={`py-1 rounded-lg transition-all ${
-                    themeCategoryFilter === 'cover'
-                      ? 'bg-white/15 text-white shadow'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Ảnh bìa
-                </button>
-                <button
-                  onClick={() => setThemeCategoryFilter('gradient')}
-                  className={`py-1 rounded-lg transition-all ${
-                    themeCategoryFilter === 'gradient'
-                      ? 'bg-white/15 text-white shadow'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Gradient
-                </button>
-                <button
-                  onClick={() => setThemeCategoryFilter('solid')}
-                  className={`py-1 rounded-lg transition-all ${
-                    themeCategoryFilter === 'solid'
-                      ? 'bg-white/15 text-white shadow'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Đơn sắc
-                </button>
-                <button
-                  onClick={() => setThemeCategoryFilter('minimal')}
-                  className={`py-1 rounded-lg transition-all ${
-                    themeCategoryFilter === 'minimal'
-                      ? 'bg-white/15 text-white shadow'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Tối giản
-                </button>
+                  {previewUrl ? (
+                    <img
+                      src={previewUrl}
+                      alt="Lyric Card Preview"
+                      className="w-full h-full object-contain rounded-2xl drop-shadow-2xl"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-4 text-center">
+                      <RefreshCw className="w-6 h-6 text-[var(--spotify-glow,#22d3ee)] animate-spin" />
+                      <span className="text-[10px] text-slate-400 font-bold">Đang tạo thẻ câu hát...</span>
+                    </div>
+                  )}
+
+                  {isGenerating && (
+                    <div className="absolute inset-0 bg-black/55 flex items-center justify-center">
+                      <RefreshCw className="w-6 h-6 text-[var(--spotify-glow,#22d3ee)] animate-spin" />
+                    </div>
+                  )}
+                </div>
               </div>
-
-              {/* Theme Swatches Horizontal Scroll List */}
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2.5 shrink-0 -mx-1 px-1">
-                {LYRIC_CARD_THEMES.filter(
-                  (t) => themeCategoryFilter === 'all' || t.category === themeCategoryFilter
-                ).map((theme) => {
-                  const isActive = selectedThemeId === theme.id
-                  const isSolid = theme.category === 'solid'
-                  const isCover = theme.category === 'cover'
-                  const isMinimal = theme.category === 'minimal'
-
-                  let bgStyle: string
-                  if (isMinimal || isSolid) {
-                    bgStyle = theme.solidColor || theme.background[0]
-                  } else if (isCover) {
-                    bgStyle = track.cover_url
-                      ? `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.7)), url(${track.cover_url}) center/cover`
-                      : 'linear-gradient(135deg, #1e293b, #0f172a)'
-                  } else {
-                    bgStyle = `linear-gradient(135deg, ${theme.background[0]}, ${theme.background[1]})`
-                  }
-
-                  return (
-                    <button
-                      key={theme.id}
-                      onClick={() => setSelectedThemeId(theme.id)}
-                      className={`h-8 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all duration-200 relative border active:scale-95 text-xs font-bold shrink-0 ${
-                        isActive
-                          ? 'border-white shadow-[0_0_16px_rgba(255,255,255,0.35)] ring-2 ring-[var(--spotify-glow,#22d3ee)]/60'
-                          : 'border-white/15 opacity-75 hover:opacity-100 hover:border-white/40'
-                      }`}
-                      style={{
-                        background: bgStyle,
-                        color: theme.textColor,
-                      }}
-                      title={theme.name}
-                    >
-                      <span className="truncate whitespace-nowrap drop-shadow-sm">{theme.name}</span>
-                      {isActive && <Check className="w-3.5 h-3.5 shrink-0 drop-shadow-sm" style={{ color: theme.textColor }} />}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Lyric Card Preview Container (Aspect Responsive Plaque) */}
-            <div className="flex-1 min-h-[220px] max-h-full flex items-center justify-center py-2 px-1 overflow-hidden shrink min-w-0">
-              <div
-                className={`relative h-full max-h-[38vh] sm:max-h-[420px] ${
-                  cardOnly ? 'aspect-[1010/1220] max-w-[340px]' : 'aspect-[9/16]'
-                } rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.85)] border border-white/20 transition-colors duration-200 flex items-center justify-center ${
-                  cardOnly
-                    ? 'bg-[radial-gradient(#ffffff18_1px,transparent_1px)] [background-size:12px_12px] bg-slate-950/80'
-                    : 'bg-black/60'
-                } shrink-0`}
-              >
-                {previewUrl ? (
-                  <img
-                    src={previewUrl}
-                    alt="Lyric Card Preview"
-                    className="w-full h-full object-contain rounded-2xl drop-shadow-2xl"
-                  />
-                ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-4 text-center">
-                    <RefreshCw className="w-6 h-6 text-[var(--spotify-glow,#22d3ee)] animate-spin" />
-                    <span className="text-[10px] text-slate-400 font-bold">Đang tạo thẻ câu hát...</span>
-                  </div>
-                )}
-
-                {isGenerating && (
-                  <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center">
-                    <RefreshCw className="w-6 h-6 text-[var(--spotify-glow,#22d3ee)] animate-spin" />
-                  </div>
-                )}
-              </div>
-            </div>
             </div>
 
             {/* Pinned Actions Bar */}
             <div className="flex flex-col gap-2 pt-2.5 border-t border-white/[0.08] shrink-0 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] sm:pb-0">
               {/* Primary Native Share Button */}
               <button
+                type="button"
                 onClick={handleShare}
                 disabled={isSharing || selectedIndices.length === 0}
-                className="w-full py-3 sm:py-2.5 px-4 rounded-xl font-extrabold text-xs sm:text-sm text-black flex items-center justify-center gap-2 transition-[filter,transform,opacity] duration-200 hover:brightness-110 active:scale-[0.97] shadow-lg disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                className="w-full py-3 sm:py-2.5 px-4 rounded-xl font-extrabold text-xs sm:text-sm text-black flex items-center justify-center gap-2 transition-[filter,transform,opacity] duration-150 ease-[var(--ease-out)] hover:brightness-110 active:scale-[0.97] shadow-lg disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                 style={{
                   background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
                 }}
@@ -684,32 +680,89 @@ export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
               {/* Secondary Download & Copy Buttons */}
               <div className="grid grid-cols-2 gap-2">
                 <button
+                  type="button"
                   onClick={handleDownload}
                   disabled={selectedIndices.length === 0}
-                  className="py-2.5 px-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] active:scale-[0.96] text-xs font-bold text-white border border-white/10 flex items-center justify-center gap-2 transition-colors shadow-sm disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                  className="py-2.5 px-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] active:scale-[0.97] text-xs font-bold text-white border border-white/10 flex items-center justify-center gap-2 transition-[transform,background-color,color,opacity] duration-150 ease-[var(--ease-out)] shadow-sm disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)]" />
                   <span>Tải ảnh PNG</span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={handleCopyImage}
                   disabled={selectedIndices.length === 0}
-                  className="py-2.5 px-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] active:scale-[0.96] text-xs font-bold text-white border border-white/10 flex items-center justify-center gap-2 transition-colors shadow-sm disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                  className="py-2.5 px-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] active:scale-[0.97] text-xs font-bold text-white border border-white/10 flex items-center justify-center gap-2 transition-[transform,background-color,color,opacity] duration-150 ease-[var(--ease-out)] shadow-sm disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
                 >
-                  {copied ? (
-                    <Check className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)] animate-in zoom-in-75" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)]" />
-                  )}
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.span
+                      key={copied ? 'copied' : 'copy'}
+                      initial={
+                        prefersReducedMotion
+                          ? { opacity: 0 }
+                          : { opacity: 0, transform: 'scale(0.84)' }
+                      }
+                      animate={
+                        prefersReducedMotion
+                          ? { opacity: 1 }
+                          : { opacity: 1, transform: 'scale(1)' }
+                      }
+                      exit={
+                        prefersReducedMotion
+                          ? { opacity: 0 }
+                          : { opacity: 0, transform: 'scale(0.84)' }
+                      }
+                      transition={{ duration: 0.15, ease: EASE_OUT }}
+                      className="inline-flex items-center justify-center"
+                    >
+                      {copied ? (
+                        <Check className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)]" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)]" />
+                      )}
+                    </motion.span>
+                  </AnimatePresence>
                   <span>{copied ? 'Đã chép' : 'Sao chép ảnh'}</span>
                 </button>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>,
+      </motion.div>
+    </motion.div>
+  )
+}
+
+export const LyricsShareModal: React.FC<LyricsShareModalProps> = ({
+  isOpen,
+  onClose,
+  track,
+  lyrics,
+  initialActiveIndex = 0,
+}) => {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted || typeof window === 'undefined' || !document?.body) {
+    return null
+  }
+
+  return createPortal(
+    <AnimatePresence>
+      {isOpen && (
+        <LyricsShareModalContent
+          key="lyrics-share-modal"
+          onClose={onClose}
+          track={track}
+          lyrics={lyrics}
+          initialActiveIndex={initialActiveIndex}
+        />
+      )}
+    </AnimatePresence>,
     document.body
   )
 }

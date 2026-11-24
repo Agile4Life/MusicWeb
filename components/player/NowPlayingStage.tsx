@@ -1,6 +1,8 @@
 'use client'
 
 import React, { lazy, Suspense, useRef, useEffect, useState, useSyncExternalStore } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { EASE_OUT } from '@/lib/motion'
 import { useCanUse3D } from '@/hooks/useCanUse3D'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
 import { ArtistLinks } from '@/components/common/ArtistLinks'
@@ -32,6 +34,7 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
   onArtistClick,
   children,
 }: NowPlayingStageProps) {
+  const prefersReducedMotion = useReducedMotion()
   const canUse3DHardware = useCanUse3D()
   const { currentTheme, themeStyle, gamingMode } = useTheme()
   const canUse3D = canUse3DHardware && themeStyle !== 'minimal-flat' && !gamingMode
@@ -78,13 +81,17 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
   const rafRef = useRef<number | null>(null)
   const isPointerActiveRef = useRef(false)
 
-  // Attach global window pointermove listener (ZERO React re-renders, smooth tilt over entire overlay including PlayerBar)
+  // Attach global window pointermove listener only while overlay is open & 3D is allowed
   useEffect(() => {
-    if (!canUse3D) {
+    if (!canUse3D || !isNowPlayingOpen) {
+      isPointerActiveRef.current = false
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current)
+        rafRef.current = null
+      }
       if (cardRef.current) {
         cardRef.current.classList.add('pointer-gone')
-        cardRef.current.style.setProperty('--tilt-x', '0deg')
-        cardRef.current.style.setProperty('--tilt-y', '0deg')
+        cardRef.current.style.transform = canUse3D ? 'rotateX(0deg) rotateY(0deg)' : ''
       }
       if (reflectionRef.current) {
         reflectionRef.current.style.setProperty('--reflect-opacity', '0')
@@ -97,6 +104,7 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
     }
 
     const handlePointerMoveGlobal = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse') return
       const stage = stageRef.current
       if (!stage) return
 
@@ -120,13 +128,12 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
 
       rafRef.current = requestAnimationFrame(() => {
-        // --- Album 3D Tilt ---
+        // --- Album 3D Tilt (direct GPU transform without mutating parent CSS vars) ---
         const rotateY = nx * MAX_TILT
         const rotateX = -ny * MAX_TILT // Inverted: moving pointer down tilts card forward
 
         if (cardRef.current) {
-          cardRef.current.style.setProperty('--tilt-x', `${rotateX.toFixed(2)}deg`)
-          cardRef.current.style.setProperty('--tilt-y', `${rotateY.toFixed(2)}deg`)
+          cardRef.current.style.transform = `rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg)`
         }
 
         // --- Specular reflection follows pointer ---
@@ -155,8 +162,7 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
         sceneLayerRef.current?.classList.add('reset')
 
         if (cardRef.current) {
-          cardRef.current.style.setProperty('--tilt-x', '0deg')
-          cardRef.current.style.setProperty('--tilt-y', '0deg')
+          cardRef.current.style.transform = 'rotateX(0deg) rotateY(0deg)'
         }
         if (reflectionRef.current) {
           reflectionRef.current.style.setProperty('--reflect-opacity', '0')
@@ -165,15 +171,22 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
       })
     }
 
-    window.addEventListener('pointermove', handlePointerMoveGlobal)
+    window.addEventListener('pointermove', handlePointerMoveGlobal, { passive: true })
     window.addEventListener('mouseleave', handlePointerLeaveGlobal)
 
     return () => {
       window.removeEventListener('pointermove', handlePointerMoveGlobal)
       window.removeEventListener('mouseleave', handlePointerLeaveGlobal)
-      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current)
+        rafRef.current = null
+      }
     }
-  }, [canUse3D])
+  }, [canUse3D, isNowPlayingOpen])
+
+  const ringCircumference = 2 * Math.PI * 48
+  const ringDashOffset = ringCircumference * (1 - progressRatio)
+  const trackSwapKey = currentTrack?.id || `${coverUrl || ''}-${title || ''}`
 
   return (
     <div
@@ -237,7 +250,21 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
                     strokeWidth="1"
                     fill="none"
                   />
-                  {/* Accent Fill Circle with subtle glow */}
+                  {/* Lightweight glow stroke replacing per-tick drop-shadow filter */}
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="48"
+                    stroke="url(#fullview-progress-glow-gradient)"
+                    strokeOpacity="0.28"
+                    className="motion-reduce:transition-none transition-[stroke-dashoffset] duration-300 ease-linear"
+                    strokeWidth="3.8"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeDasharray={ringCircumference}
+                    strokeDashoffset={ringDashOffset}
+                  />
+                  {/* Accent Fill Circle */}
                   <circle
                     cx="50"
                     cy="50"
@@ -247,17 +274,37 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
                     strokeWidth="1.8"
                     fill="none"
                     strokeLinecap="round"
-                    strokeDasharray={2 * Math.PI * 48}
-                    strokeDashoffset={2 * Math.PI * 48 * (1 - progressRatio)}
-                    style={{
-                      filter: 'drop-shadow(0 0 6px var(--spotify-glow, #22d3ee))',
-                    }}
+                    strokeDasharray={ringCircumference}
+                    strokeDashoffset={ringDashOffset}
                   />
                 </svg>
 
-                {/* Circular overflow-hidden inner wrapper for image + reflection */}
+                {/* Circular overflow-hidden inner wrapper for crossfading artwork + reflection */}
                 <div className="w-full h-full rounded-full overflow-hidden relative shadow-inner">
-                  <TrackCoverImage src={coverUrl} alt={title || 'Now Playing'} />
+                  <AnimatePresence mode="popLayout" initial={false}>
+                    <motion.div
+                      key={trackSwapKey}
+                      initial={
+                        prefersReducedMotion
+                          ? { opacity: 0 }
+                          : { opacity: 0, transform: 'scale(0.96)' }
+                      }
+                      animate={
+                        prefersReducedMotion
+                          ? { opacity: 1 }
+                          : { opacity: 1, transform: 'scale(1)' }
+                      }
+                      exit={
+                        prefersReducedMotion
+                          ? { opacity: 0 }
+                          : { opacity: 0, transform: 'scale(1.02)' }
+                      }
+                      transition={{ duration: 0.2, ease: EASE_OUT }}
+                      className="absolute inset-0 w-full h-full"
+                    >
+                      <TrackCoverImage src={coverUrl} alt={title || 'Now Playing'} />
+                    </motion.div>
+                  </AnimatePresence>
 
                   {/* Specular light reflection */}
                   <div ref={reflectionRef} className="album-3d-reflection rounded-full" />
@@ -266,29 +313,44 @@ export const NowPlayingStage = React.memo(function NowPlayingStage({
             </div>
           </div>
 
-          {/* Title & Artist — Stationary, 100% crisp vector text */}
+          {/* Title & Artist — Crisp track crossfade */}
           <div className="text-center px-2 sm:px-4 max-w-md w-full shrink-0">
-            <h2 className="fullview-track-title text-[clamp(1.05rem,2.1vh,1.65rem)] xl:text-[clamp(1.2rem,2.4vh,1.85rem)] font-bold text-white tracking-tight line-clamp-2 leading-tight">
-              {title || 'Chưa chọn bài hát'}
-            </h2>
-            <div className="fullview-track-artist text-[clamp(10px,1.3vh,14px)] text-slate-400 font-medium mt-0.5 sm:mt-1 line-clamp-1">
-              <ArtistLinks
-                artist={artist}
-                fallbackText="Nghệ sĩ"
-                className="text-[clamp(10px,1.3vh,14px)] text-slate-400 font-medium line-clamp-1"
-                linkClassName="hover:underline hover:text-[var(--spotify-glow,#22d3ee)] transition-colors cursor-pointer"
-                onArtistClick={onArtistClick}
-              />
-            </div>
-
-            {/* Context Metadata (Bài n/total · Album · Year) */}
-            {currentTrack && (
-              <div className="mt-1 sm:mt-1.5 flex items-center justify-center">
-                <span className="fullview-track-meta bg-white/10 border border-white/15 text-slate-200 px-3 py-0.5 rounded-full text-[clamp(10px,1.2vh,12px)] font-semibold backdrop-blur-md shadow-sm truncate max-w-[280px]">
-                  Bài {trackNum}/{totalTracks} {contextAlbumName ? `· ${contextAlbumName}` : ''} {releaseYear ? `· ${releaseYear}` : ''}
-                </span>
+            <motion.div
+              key={trackSwapKey}
+              initial={
+                prefersReducedMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, transform: 'translate3d(0, 5px, 0)' }
+              }
+              animate={
+                prefersReducedMotion
+                  ? { opacity: 1 }
+                  : { opacity: 1, transform: 'translate3d(0, 0px, 0)' }
+              }
+              transition={{ duration: 0.2, ease: EASE_OUT }}
+            >
+              <h2 className="fullview-track-title text-[clamp(1.05rem,2.1vh,1.65rem)] xl:text-[clamp(1.2rem,2.4vh,1.85rem)] font-bold text-white tracking-tight line-clamp-2 leading-tight">
+                {title || 'Chưa chọn bài hát'}
+              </h2>
+              <div className="fullview-track-artist text-[clamp(10px,1.3vh,14px)] text-slate-400 font-medium mt-0.5 sm:mt-1 line-clamp-1">
+                <ArtistLinks
+                  artist={artist}
+                  fallbackText="Nghệ sĩ"
+                  className="text-[clamp(10px,1.3vh,14px)] text-slate-400 font-medium line-clamp-1"
+                  linkClassName="hover:underline hover:text-[var(--spotify-glow,#22d3ee)] transition-colors cursor-pointer"
+                  onArtistClick={onArtistClick}
+                />
               </div>
-            )}
+
+              {/* Context Metadata (Bài n/total · Album · Year) */}
+              {currentTrack && (
+                <div className="mt-1 sm:mt-1.5 flex items-center justify-center">
+                  <span className="fullview-track-meta bg-white/10 border border-white/15 text-slate-200 px-3 py-0.5 rounded-full text-[clamp(10px,1.2vh,12px)] font-semibold backdrop-blur-md shadow-sm truncate max-w-[280px]">
+                    Bài {trackNum}/{totalTracks} {contextAlbumName ? `· ${contextAlbumName}` : ''} {releaseYear ? `· ${releaseYear}` : ''}
+                  </span>
+                </div>
+              )}
+            </motion.div>
           </div>
 
           {/* Stationary Up Next Queue List (Fixed, fluidly contained) */}

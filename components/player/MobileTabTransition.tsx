@@ -2,6 +2,7 @@
 
 import React, { useRef } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { EASE_OUT } from '@/lib/motion'
 
 type FullviewTab = 'cover' | 'lyrics' | 'queue'
 
@@ -11,19 +12,17 @@ interface MobileTabTransitionProps {
   children: React.ReactNode
 }
 
-const EASE_OUT_STRONG = [0.23, 1, 0.32, 1] as const
-
 const tabVariants = {
   enter: (direction: number) => ({
-    transform: `translateX(${direction * 8}%)`,
+    transform: `translate3d(${direction * 8}%, 0, 0)`,
     opacity: 0,
   }),
   center: {
-    transform: 'translateX(0%)',
+    transform: 'translate3d(0%, 0, 0)',
     opacity: 1,
   },
   exit: (direction: number) => ({
-    transform: `translateX(${direction * -8}%)`,
+    transform: `translate3d(${direction * -8}%, 0, 0)`,
     opacity: 0,
   }),
 }
@@ -64,11 +63,12 @@ export function MobileTabTransition({
         initial="enter"
         animate="center"
         exit="exit"
-        transition={{
-          duration: 0.22,
-          ease: EASE_OUT_STRONG as [number, number, number, number],
-        }}
-        className="flex-1 flex flex-col min-h-0 overflow-hidden will-change-transform"
+        transition={
+          prefersReduced
+            ? { duration: 0.16, ease: 'easeOut' }
+            : { duration: 0.22, ease: EASE_OUT }
+        }
+        className="flex-1 flex flex-col min-h-0 overflow-hidden"
       >
         {children}
       </motion.div>

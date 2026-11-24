@@ -2,6 +2,15 @@
 
 import React, { useState, useEffect, useRef, useCallback, useSyncExternalStore } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import {
+  EASE_OUT,
+  EASE_DRAWER,
+  SPRING_DELIGHT,
+  modalBackdropProps,
+  drawerSheetProps,
+  appleRubberband,
+  projectMomentum,
+} from '@/lib/motion'
 import { usePlayer, usePlaybackProgress } from './PlayerContext'
 import { playbackProgressStore, usePlaybackDuration } from './PlaybackProgressStore'
 import { useTheme } from '../theme/ThemeContext'
@@ -66,11 +75,16 @@ function useDisplayTime(isScrubbing: boolean, scrubValue: number) {
 
 function ProgressFill({ isScrubbing, scrubValue, duration, color }: { isScrubbing: boolean; scrubValue: number; duration: number; color: string }) {
   const displayTime = useDisplayTime(isScrubbing, scrubValue)
-  const percent = duration > 0 ? Math.min(100, Math.max(0, (displayTime / duration) * 100)) : 0
+  const ratio = duration > 0 ? Math.min(1, Math.max(0, displayTime / duration)) : 0
   return (
     <div
-      className="h-full rounded-full"
-      style={{ width: `${percent}%`, backgroundColor: color, transition: isScrubbing ? 'none' : 'width 0.15s linear' }}
+      className="h-full w-full rounded-full motion-reduce:transition-none"
+      style={{
+        backgroundColor: color,
+        transform: `scaleX(${ratio})`,
+        transformOrigin: 'left center',
+        transition: isScrubbing ? 'none' : 'transform 150ms linear',
+      }}
     />
   )
 }
@@ -155,8 +169,25 @@ export function MobileFullviewPlayer({
   const touchHistoryRef = useRef<{ y: number; t: number }[]>([])
   const isDraggingRef = useRef(false)
   const dragYRef = useRef(0)
+  const dragBaseYRef = useRef(0)
   const isClosingRef = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const prevFavRef = useRef<{ id: string | null; fav: boolean }>({ id: null, fav: false })
+  const [heartPopping, setHeartPopping] = useState(false)
+
+  useEffect(() => {
+    const id = currentTrack?.id ?? null
+    const fav = Boolean(currentTrack?.is_favorite)
+    let timer: ReturnType<typeof setTimeout> | null = null
+    if (id && prevFavRef.current.id === id && !prevFavRef.current.fav && fav && !prefersReducedMotion) {
+      setHeartPopping(true)
+      timer = setTimeout(() => setHeartPopping(false), 100)
+    }
+    prevFavRef.current = { id, fav }
+    return () => {
+      if (timer) clearTimeout(timer)
+    }
+  }, [currentTrack?.id, currentTrack?.is_favorite, prefersReducedMotion])
 
   // ===== Horizontal Swipe Between Tabs =====
   const swipeStartXRef = useRef(0)
@@ -229,6 +260,7 @@ export function MobileFullviewPlayer({
   const lineRefs = useRef<(HTMLDivElement | null)[]>([])
   const userScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const dismissTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const snapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isUserScrollingLyricsRef = useRef(false)
   const scrollableElRef = useRef<HTMLElement | null>(null)
   const isOverScrollableRef = useRef(false)
@@ -242,6 +274,7 @@ export function MobileFullviewPlayer({
   useEffect(() => {
     return () => {
       if (dismissTimeoutRef.current) clearTimeout(dismissTimeoutRef.current)
+      if (snapTimeoutRef.current) clearTimeout(snapTimeoutRef.current)
       if (userScrollTimeoutRef.current) clearTimeout(userScrollTimeoutRef.current)
     }
   }, [])
@@ -253,15 +286,18 @@ export function MobileFullviewPlayer({
         clearTimeout(dismissTimeoutRef.current)
         dismissTimeoutRef.current = null
       }
+      if (snapTimeoutRef.current) {
+        clearTimeout(snapTimeoutRef.current)
+        snapTimeoutRef.current = null
+      }
       dragYRef.current = 0
+      dragBaseYRef.current = 0
       isDraggingRef.current = false
       isClosingRef.current = false
       touchHistoryRef.current = []
       if (containerRef.current) {
         containerRef.current.style.transform = ''
         containerRef.current.style.opacity = ''
-        containerRef.current.style.borderRadius = ''
-        containerRef.current.style.boxShadow = ''
         containerRef.current.style.transition = ''
       }
       setActiveTab('cover')
@@ -369,7 +405,7 @@ export function MobileFullviewPlayer({
     () => -1
   )
 
-  // Ultra-Smooth Spring Auto-scroll to active line
+  // Ultra-Smooth Auto-scroll to active line
   useEffect(() => {
     if (!isNowPlayingOpen || activeTab !== 'lyrics' || isUserScrollingLyricsRef.current || activeIndex < 0 || !isSynced) {
       return
@@ -383,13 +419,13 @@ export function MobileFullviewPlayer({
         const targetScroll = activeEl.offsetTop - container.clientHeight * 0.38 + activeEl.clientHeight / 2
         container.scrollTo({
           top: Math.max(0, targetScroll),
-          behavior: 'smooth',
+          behavior: prefersReducedMotion ? 'auto' : 'smooth',
         })
       }
     })
 
     return () => cancelAnimationFrame(rafId)
-  }, [activeIndex, isSynced, isNowPlayingOpen, activeTab])
+  }, [activeIndex, isSynced, isNowPlayingOpen, activeTab, prefersReducedMotion])
 
   // Instant scroll on opening overlay or switching to lyrics tab
   useEffect(() => {
@@ -420,17 +456,50 @@ export function MobileFullviewPlayer({
     }, 1800)
   }, [])
 
-  // ===== iOS Sheet Drag Gestures =====
+  // ===== iOS Sheet Drag Gestures (Interruptible, GPU-only, Rubber-banded) =====
   const handleDragTouchStart = useCallback((e: TouchEvent) => {
-    if (isClosingRef.current) return
     const touch = e.touches[0]
     const now = Date.now()
+
+    // Cancel any in-flight dismiss or snap-back so the sheet can be caught mid-motion
+    if (dismissTimeoutRef.current) {
+      clearTimeout(dismissTimeoutRef.current)
+      dismissTimeoutRef.current = null
+    }
+    if (snapTimeoutRef.current) {
+      clearTimeout(snapTimeoutRef.current)
+      snapTimeoutRef.current = null
+    }
+
+    const wasClosing = isClosingRef.current
+    isClosingRef.current = false
+
+    let currentVisualY = 0
+    if (containerRef.current && typeof window !== 'undefined') {
+      const computedTransform = window.getComputedStyle(containerRef.current).transform
+      if (computedTransform && computedTransform !== 'none') {
+        try {
+          const matrix = new DOMMatrix(computedTransform)
+          currentVisualY = matrix.m42
+        } catch {
+          currentVisualY = dragYRef.current
+        }
+      }
+      if (wasClosing || Math.abs(currentVisualY) > 0.5) {
+        containerRef.current.style.transition = 'none'
+        containerRef.current.style.transform = `translate3d(0, ${currentVisualY}px, 0)`
+        isDraggingRef.current = true
+      }
+    }
+
+    dragBaseYRef.current = currentVisualY
+    dragYRef.current = currentVisualY
+
     touchStartYRef.current = touch.clientY
     touchStartXRef.current = touch.clientX
     lastTouchYRef.current = touch.clientY
     touchStartTimeRef.current = now
     touchHistoryRef.current = [{ y: touch.clientY, t: now }]
-    dragYRef.current = 0
 
     // Cache DOM query at touchstart once (O(1) instead of O(N) traversal on every move)
     const target = e.target as HTMLElement | null
@@ -445,7 +514,6 @@ export function MobileFullviewPlayer({
   }, [])
 
   const handleDragTouchMove = useCallback((e: TouchEvent) => {
-    if (isClosingRef.current) return
     const touch = e.touches[0]
     const currentY = touch.clientY
     const currentX = touch.clientX
@@ -495,22 +563,27 @@ export function MobileFullviewPlayer({
       if (e.cancelable) {
         e.preventDefault() // Guarantees preventDefault succeeds because listener is { passive: false }
       }
-      const currentDrag = deltaY > 0 ? deltaY : deltaY * 0.18
+      const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800
+      const rawDrag = dragBaseYRef.current + deltaY
+      const currentDrag =
+        rawDrag >= 0
+          ? rawDrag
+          : appleRubberband(rawDrag, viewportH * 0.45, 0.35)
       dragYRef.current = currentDrag
 
       if (containerRef.current) {
         const progress = Math.min(1, Math.max(0, currentDrag / 500))
-        const scale = currentDrag > 0 ? Math.max(0.92, 1 - progress * 0.08) : 1
-        const radius = currentDrag > 0 ? Math.min(36, 16 + currentDrag * 0.12) : 0
-        const opacity = currentDrag > 0 ? Math.max(0.35, 1 - progress * 0.55) : 1
+        const scale =
+          prefersReducedMotion || currentDrag <= 0
+            ? 1
+            : Math.max(0.94, 1 - progress * 0.06)
+        const opacity = currentDrag > 0 ? Math.max(0.45, 1 - progress * 0.5) : 1
 
-        containerRef.current.style.transform = `translateY(${Math.max(0, currentDrag)}px) scale(${scale})`
+        containerRef.current.style.transform = `translate3d(0, ${currentDrag.toFixed(1)}px, 0) scale(${scale})`
         containerRef.current.style.opacity = `${opacity}`
-        containerRef.current.style.borderRadius = `${radius}px ${radius}px 0 0`
-        containerRef.current.style.boxShadow = currentDrag > 0 ? '0 -12px 48px rgba(0, 0, 0, 0.85)' : 'none'
       }
     }
-  }, [])
+  }, [prefersReducedMotion])
 
   const tabOrder: FullviewTab[] = ['cover', 'lyrics', 'queue']
 
@@ -537,19 +610,18 @@ export function MobileFullviewPlayer({
       return
     }
 
-    if (isClosingRef.current) return
     if (!isDraggingRef.current) {
       return
     }
 
-    // Precise flick velocity calculation from recent touch points window
+    // Precise flick velocity calculation from recent touch points window (px / ms)
     let velocity = 0
     const history = touchHistoryRef.current
     if (history.length >= 2) {
       const first = history[0]
       const last = history[history.length - 1]
       const dt = Math.max(1, last.t - first.t)
-      velocity = (last.y - first.y) / dt // px per ms
+      velocity = (last.y - first.y) / dt
     } else {
       const elapsed = Math.max(1, Date.now() - touchStartTimeRef.current)
       velocity = (lastTouchYRef.current - touchStartYRef.current) / elapsed
@@ -557,19 +629,28 @@ export function MobileFullviewPlayer({
 
     const currentDragY = dragYRef.current
     isDraggingRef.current = false
+    dragBaseYRef.current = 0
 
-    const shouldDismiss = currentDragY > 100 || (currentDragY > 35 && velocity > 0.4)
+    const projectedY = currentDragY + projectMomentum(velocity * 1000, 0.992)
+    const shouldDismiss =
+      currentDragY > 100 ||
+      (currentDragY > 28 && velocity > 0.35) ||
+      (currentDragY > 20 && velocity > 0.15 && projectedY > 160)
 
     if (shouldDismiss) {
       isClosingRef.current = true
+      const dismissDurationMs = prefersReducedMotion ? 180 : 280
 
       if (containerRef.current) {
-        containerRef.current.style.transition =
-          'transform 0.28s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.25s ease-out, border-radius 0.25s ease, box-shadow 0.25s ease'
-        containerRef.current.style.transform = 'translateY(100%) scale(0.92)'
-        containerRef.current.style.opacity = '0'
-        containerRef.current.style.borderRadius = '36px 36px 0 0'
-        containerRef.current.style.boxShadow = 'none'
+        if (prefersReducedMotion) {
+          containerRef.current.style.transition = 'opacity 180ms ease-out'
+          containerRef.current.style.opacity = '0'
+        } else {
+          containerRef.current.style.transition =
+            'transform 280ms var(--ease-drawer), opacity 240ms var(--ease-out)'
+          containerRef.current.style.transform = 'translate3d(0, 100%, 0) scale(0.95)'
+          containerRef.current.style.opacity = '0'
+        }
       }
 
       if (dismissTimeoutRef.current) {
@@ -580,32 +661,42 @@ export function MobileFullviewPlayer({
         if (containerRef.current) {
           containerRef.current.style.transform = ''
           containerRef.current.style.opacity = ''
-          containerRef.current.style.borderRadius = ''
-          containerRef.current.style.boxShadow = ''
           containerRef.current.style.transition = ''
         }
         dragYRef.current = 0
+        dragBaseYRef.current = 0
         isClosingRef.current = false
         dismissTimeoutRef.current = null
-      }, 280)
+      }, dismissDurationMs)
     } else {
+      const snapDurationMs = prefersReducedMotion ? 160 : 320
       if (containerRef.current) {
-        containerRef.current.style.transition =
-          'transform 0.35s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.3s ease, border-radius 0.3s ease, box-shadow 0.3s ease'
-        containerRef.current.style.transform = 'translateY(0px) scale(1)'
-        containerRef.current.style.opacity = '1'
-        containerRef.current.style.borderRadius = '0px'
-        containerRef.current.style.boxShadow = 'none'
+        if (prefersReducedMotion) {
+          containerRef.current.style.transition = 'opacity 160ms ease-out'
+          containerRef.current.style.transform = 'translate3d(0, 0, 0)'
+          containerRef.current.style.opacity = '1'
+        } else {
+          containerRef.current.style.transition =
+            'transform 320ms var(--ease-drawer), opacity 240ms var(--ease-out)'
+          containerRef.current.style.transform = 'translate3d(0, 0, 0) scale(1)'
+          containerRef.current.style.opacity = '1'
+        }
 
-        setTimeout(() => {
+        if (snapTimeoutRef.current) {
+          clearTimeout(snapTimeoutRef.current)
+        }
+        snapTimeoutRef.current = setTimeout(() => {
           if (containerRef.current && !isDraggingRef.current) {
             containerRef.current.style.transition = ''
+            containerRef.current.style.transform = ''
+            containerRef.current.style.opacity = ''
           }
-        }, 350)
+          snapTimeoutRef.current = null
+        }, snapDurationMs)
       }
       dragYRef.current = 0
     }
-  }, [closeNowPlayingOverlay])
+  }, [closeNowPlayingOverlay, prefersReducedMotion])
 
   // Attach native non-passive touchmove listener to allow preventDefault
   useEffect(() => {
@@ -686,16 +777,38 @@ export function MobileFullviewPlayer({
   // Repeat icon
   const RepeatIcon = repeatMode === 'one' ? Repeat1 : Repeat
   const isRepeatActive = repeatMode !== 'off'
+  const playStateKey = isBuffering ? 'buffering' : isPlaying ? 'pause' : 'play'
+  const iconSwapMotion = prefersReducedMotion
+    ? {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+        transition: { duration: 0.14, ease: 'easeOut' as const },
+      }
+    : {
+        initial: { opacity: 0, transform: 'scale(0.84)' },
+        animate: { opacity: 1, transform: 'scale(1)' },
+        exit: { opacity: 0, transform: 'scale(0.84)' },
+        transition: { duration: 0.15, ease: EASE_OUT },
+      }
 
   return (
     <div
       ref={containerRef}
       inert={!isNowPlayingOpen}
       aria-hidden={!isNowPlayingOpen}
-      className={`mobile-fullview-overlay fixed inset-0 h-[100dvh] max-h-[100dvh] z-[100] flex flex-col select-none overflow-hidden touch-manipulation transition-all duration-350 ease-[cubic-bezier(0.32,0.72,0,1)] ${
-        isNowPlayingOpen
-          ? 'translate-y-0 opacity-100 pointer-events-auto'
-          : 'translate-y-full opacity-0 pointer-events-none'
+      className={`mobile-fullview-overlay fixed inset-0 h-[100dvh] max-h-[100dvh] z-[100] flex flex-col select-none overflow-hidden touch-manipulation ${
+        prefersReducedMotion
+          ? `transition-opacity duration-200 ease-out ${
+              isNowPlayingOpen
+                ? 'opacity-100 pointer-events-auto'
+                : 'opacity-0 pointer-events-none'
+            }`
+          : `transition-[transform,opacity] duration-[340ms] ease-[var(--ease-drawer)] ${
+              isNowPlayingOpen
+                ? 'translate-y-0 opacity-100 pointer-events-auto'
+                : 'translate-y-full opacity-0 pointer-events-none'
+            }`
       }`}
       style={{
         transformOrigin: 'bottom center',
@@ -711,7 +824,7 @@ export function MobileFullviewPlayer({
           <>
             {currentTrack.cover_url && (
               <div
-                className="absolute inset-[-30%] bg-cover bg-center transition-all duration-[1200ms]"
+                className="absolute inset-[-30%] bg-cover bg-center transition-opacity duration-500 ease-[var(--ease-out)]"
                 style={{
                   backgroundImage: `url(${currentTrack.cover_url})`,
                   filter: 'blur(90px) brightness(0.26) saturate(0.85)',
@@ -732,7 +845,7 @@ export function MobileFullviewPlayer({
           <>
             {currentTrack.cover_url ? (
               <div
-                className="absolute inset-[-30%] bg-cover bg-center transition-all duration-[1200ms]"
+                className="absolute inset-[-30%] bg-cover bg-center transition-opacity duration-500 ease-[var(--ease-out)]"
                 style={{
                   backgroundImage: `url(${currentTrack.cover_url})`,
                   filter: 'blur(80px) brightness(0.4) saturate(1.8)',
@@ -763,10 +876,10 @@ export function MobileFullviewPlayer({
           type="button"
           aria-label="Đóng trình phát toàn màn hình"
           onClick={closeNowPlayingOverlay}
-          className="w-16 h-7 flex items-center justify-center -my-2.5 cursor-pointer active:scale-95 group focus:outline-none"
+          className="w-16 h-7 flex items-center justify-center -my-2.5 cursor-pointer active:scale-[0.97] transition-transform duration-150 ease-[var(--ease-out)] group focus:outline-none"
         >
           <span
-            className={`w-10 h-1 rounded-full transition-all ${
+            className={`w-10 h-1 rounded-full transition-colors duration-150 ${
               isMinimal
                 ? 'bg-[#F4ECE1]/30 group-hover:bg-[#F4ECE1]/55'
                 : 'bg-white/40 group-hover:bg-white/60'
@@ -816,25 +929,31 @@ export function MobileFullviewPlayer({
               aria-label={currentTrack.is_favorite ? "Bỏ yêu thích" : "Thêm yêu thích"}
               type="button"
               onClick={toggleFavoriteCurrentTrack}
-              className="p-1.5 active:scale-90 transition-transform cursor-pointer"
+              className="p-1.5 active:scale-[0.97] transition-transform duration-150 ease-[var(--ease-out)] cursor-pointer"
             >
-              <Heart
-                className={`w-5 h-5 transition-all ${
-                  currentTrack.is_favorite
-                    ? isMinimal
-                      ? 'text-[#E8A94F] fill-[#E8A94F]'
-                      : 'text-rose-500 fill-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]'
-                    : isMinimal
-                      ? 'text-[#B9AC9C] hover:text-[#F4ECE1]'
-                      : 'text-white/50 hover:text-white/80'
-                }`}
-              />
+              <motion.span
+                animate={{ transform: heartPopping && !prefersReducedMotion ? 'scale(1.22)' : 'scale(1)' }}
+                transition={heartPopping ? { duration: 0.09, ease: EASE_OUT } : SPRING_DELIGHT}
+                className="inline-flex items-center justify-center"
+              >
+                <Heart
+                  className={`w-5 h-5 transition-colors duration-150 ${
+                    currentTrack.is_favorite
+                      ? isMinimal
+                        ? 'text-[#E8A94F] fill-[#E8A94F]'
+                        : 'text-rose-500 fill-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]'
+                      : isMinimal
+                        ? 'text-[#B9AC9C] hover:text-[#F4ECE1]'
+                        : 'text-white/50 hover:text-white/80'
+                  }`}
+                />
+              </motion.span>
             </button>
             <button
               aria-label="Tùy chọn bài hát"
               type="button"
               onClick={() => setShowMenuSheet(true)}
-              className={`p-1.5 active:scale-90 transition-all cursor-pointer ${
+              className={`p-1.5 active:scale-[0.97] transition-[transform,color] duration-150 ease-[var(--ease-out)] cursor-pointer ${
                 isMinimal ? 'text-[#B9AC9C] hover:text-[#F4ECE1]' : 'text-white/50 hover:text-white/80'
               }`}
             >
@@ -853,12 +972,17 @@ export function MobileFullviewPlayer({
         {/* ─── TAB 1: COVER ART VIEW ─── */}
         {activeTab === 'cover' && (
           <div className="flex-1 flex flex-col justify-center px-6 sm:px-8 gap-6 overflow-hidden">
-            {/* Large Cover Art — stagger entrance */}
+            {/* Large Cover Art — Apple Music play/pause subtle settle */}
             <motion.div
-              initial={prefersReducedMotion ? false : { opacity: 0, transform: 'scale(0.92)' }}
-              animate={{ opacity: 1, transform: 'scale(1)' }}
-              transition={{ duration: 0.4, delay: 0.1, ease: [0.32, 0.72, 0, 1] }}
-              className={`w-full aspect-square max-w-[min(85vw,380px)] mx-auto overflow-hidden will-change-transform ${
+              animate={{
+                transform: prefersReducedMotion || isPlaying ? 'scale(1)' : 'scale(0.93)',
+              }}
+              transition={
+                prefersReducedMotion
+                  ? { duration: 0.14 }
+                  : { duration: 0.36, ease: EASE_DRAWER }
+              }
+              className={`w-full aspect-square max-w-[min(85vw,380px)] mx-auto overflow-hidden ${
                 isMinimal
                   ? 'rounded-[18px] border border-[rgba(244,236,230,0.14)] shadow-[0_24px_60px_rgba(0,0,0,0.65)] bg-[#1D1720]'
                   : 'rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.6)]'
@@ -871,11 +995,20 @@ export function MobileFullviewPlayer({
               />
             </motion.div>
 
-            {/* Song Info Row — stagger entrance */}
+            {/* Song Info Row — clean keyed crossfade on track change */}
             <motion.div
-              initial={prefersReducedMotion ? false : { opacity: 0, transform: 'translateY(12px)' }}
-              animate={{ opacity: 1, transform: 'translateY(0px)' }}
-              transition={{ duration: 0.3, delay: 0.18, ease: [0.23, 1, 0.32, 1] }}
+              key={currentTrack.id}
+              initial={
+                prefersReducedMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, transform: 'translate3d(0, 4px, 0)' }
+              }
+              animate={
+                prefersReducedMotion
+                  ? { opacity: 1 }
+                  : { opacity: 1, transform: 'translate3d(0, 0px, 0)' }
+              }
+              transition={{ duration: 0.18, ease: EASE_OUT }}
               className="flex items-start justify-between gap-3 px-1"
             >
               <div className="flex flex-col min-w-0 flex-1">
@@ -911,7 +1044,7 @@ export function MobileFullviewPlayer({
                     type="button"
                     onClick={onOpenAlbum}
                     disabled={isNavigatingAlbum}
-                    className={`inline-flex items-center gap-1.5 mt-1.5 text-xs truncate max-w-full text-left transition-colors cursor-pointer ${
+                    className={`inline-flex items-center gap-1.5 mt-1.5 text-xs truncate max-w-full text-left active:scale-[0.97] transition-[transform,color] duration-150 ease-[var(--ease-out)] cursor-pointer ${
                       isMinimal
                         ? 'text-[#E8A94F] hover:text-[#F4ECE1] font-mono tracking-wide'
                         : 'text-cyan-400/90 hover:text-cyan-300'
@@ -931,25 +1064,31 @@ export function MobileFullviewPlayer({
                   aria-label={currentTrack.is_favorite ? "Bỏ yêu thích" : "Thêm yêu thích"}
                   type="button"
                   onClick={toggleFavoriteCurrentTrack}
-                  className="p-1.5 active:scale-90 transition-transform cursor-pointer"
+                  className="p-1.5 active:scale-[0.97] transition-transform duration-150 ease-[var(--ease-out)] cursor-pointer"
                 >
-                  <Heart
-                    className={`w-[22px] h-[22px] transition-all ${
-                      currentTrack.is_favorite
-                        ? isMinimal
-                          ? 'text-[#E8A94F] fill-[#E8A94F]'
-                          : 'text-rose-500 fill-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]'
-                        : isMinimal
-                          ? 'text-[#B9AC9C] hover:text-[#F4ECE1]'
-                          : 'text-white/45 hover:text-white/75'
-                    }`}
-                  />
+                  <motion.span
+                    animate={{ transform: heartPopping && !prefersReducedMotion ? 'scale(1.22)' : 'scale(1)' }}
+                    transition={heartPopping ? { duration: 0.09, ease: EASE_OUT } : SPRING_DELIGHT}
+                    className="inline-flex items-center justify-center"
+                  >
+                    <Heart
+                      className={`w-[22px] h-[22px] transition-colors duration-150 ${
+                        currentTrack.is_favorite
+                          ? isMinimal
+                            ? 'text-[#E8A94F] fill-[#E8A94F]'
+                            : 'text-rose-500 fill-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]'
+                          : isMinimal
+                            ? 'text-[#B9AC9C] hover:text-[#F4ECE1]'
+                            : 'text-white/45 hover:text-white/75'
+                      }`}
+                    />
+                  </motion.span>
                 </button>
                 <button
                   aria-label="Tùy chọn bài hát"
                   type="button"
                   onClick={() => setShowMenuSheet(true)}
-                  className={`p-1.5 active:scale-90 transition-all cursor-pointer ${
+                  className={`p-1.5 active:scale-[0.97] transition-[transform,color] duration-150 ease-[var(--ease-out)] cursor-pointer ${
                     isMinimal ? 'text-[#B9AC9C] hover:text-[#F4ECE1]' : 'text-white/45 hover:text-white/75'
                   }`}
                 >
@@ -981,8 +1120,8 @@ export function MobileFullviewPlayer({
                   WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 10%, black 88%, transparent 100%)',
                 }}
               >
-                {/* Only opacity/transform/colour animate: font-size and padding change instantly,
-                    animating them re-laid out the whole list every frame on phones. */}
+                {/* Constant font-size, line-height, and padding prevent layout reflow/jump;
+                    active focus uses strictly GPU transform, opacity, and color (zero CSS blur). */}
                 {lyrics.map((line, idx) => {
                   const isActive = idx === activeIndex
                   const isSyncedMode = isSynced && activeIndex >= 0
@@ -996,7 +1135,7 @@ export function MobileFullviewPlayer({
                     opacity = 0.95
                   } else if (isActive) {
                     opacity = 1.0
-                    scale = 1.02
+                    scale = prefersReducedMotion ? 1.0 : 1.04
                   } else {
                     const isPast = idx < activeIndex
 
@@ -1025,34 +1164,36 @@ export function MobileFullviewPlayer({
                         lineRefs.current[idx] = el
                       }}
                       onClick={() => handleLineClick(line)}
-                      className={`cursor-pointer select-none transition-[opacity,transform] duration-300 ease-out py-1 pr-3 w-full max-w-full flex flex-col ${
+                      className={`cursor-pointer select-none transition-[opacity,transform,border-color] duration-300 ease-[var(--ease-out)] motion-reduce:transition-opacity py-1 pr-3 w-full max-w-full flex flex-col ${
                         isMinimal
-                          ? isActive
-                            ? 'border-l-[3px] border-[#E8A94F] pl-3.5 rounded-none'
-                            : 'pl-1 rounded-none hover:opacity-80 active:scale-98'
-                          : isActive
-                            ? 'px-1 rounded-2xl'
-                            : 'px-1 rounded-2xl hover:opacity-80 active:scale-98'
+                          ? `pl-3.5 rounded-none ${
+                              isActive
+                                ? 'border-l-[3px] border-[#E8A94F]'
+                                : 'border-l-[3px] border-transparent'
+                            }`
+                          : 'px-1 rounded-2xl'
                       }`}
                       style={{
                         opacity,
-                        transform: `scale(${isMinimal && isActive ? 1.0 : scale})`,
+                        transform: `scale(${scale})`,
                         transformOrigin: 'left center',
                         willChange: (isActive || isNearby) ? 'opacity, transform' : 'auto',
                         contentVisibility: (isActive || distance <= 6) ? 'visible' : 'auto',
                         containIntrinsicSize: `auto ${intrinsicHeight}px`,
                       }}
                     >
-                      {/* Main Lyric Line */}
+                      {/* Main Lyric Line — constant font-size, line-height & weight for zero reflow */}
                       <p
-                        className={`leading-snug break-words break-normal whitespace-pre-wrap transition-colors duration-300 pr-1 ${
+                        className={`leading-snug break-words break-normal whitespace-pre-wrap transition-colors duration-300 ease-[var(--ease-out)] pr-1 ${
                           isMinimal
-                            ? isActive
-                              ? 'text-[clamp(1.35rem,5.4vw,1.8rem)] font-serif italic font-medium text-[#F4ECE1]'
-                              : 'text-[clamp(1.1rem,4.4vw,1.45rem)] font-serif font-normal text-[#B9AC9C]'
-                            : isActive
-                              ? 'text-[clamp(1.35rem,5.5vw,1.85rem)] font-sans font-black text-white bg-clip-text bg-gradient-to-r from-white via-[var(--theme-neon-from,#cffafe)] to-[var(--spotify-glow,#22d3ee)] drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]'
-                              : 'text-[clamp(1.1rem,4.5vw,1.5rem)] font-sans font-bold text-white'
+                            ? `text-[clamp(1.2rem,4.8vw,1.58rem)] font-serif font-medium ${
+                                isActive ? 'font-serif italic text-[#F4ECE1]' : 'text-[#B9AC9C]'
+                              }`
+                            : `text-[clamp(1.2rem,4.9vw,1.6rem)] font-sans font-extrabold ${
+                                isActive
+                                  ? 'text-white bg-clip-text bg-gradient-to-r from-white via-[var(--theme-neon-from,#cffafe)] to-[var(--spotify-glow,#22d3ee)]'
+                                  : 'text-white'
+                              }`
                         }`}
                       >
                         {line.text}
@@ -1061,13 +1202,13 @@ export function MobileFullviewPlayer({
                       {/* Romaji / Translation */}
                       {hasRomaji && (
                         <p
-                          className={`text-xs sm:text-sm font-semibold mt-1 tracking-wide leading-normal break-words whitespace-pre-wrap transition-colors duration-300 pr-1 ${
+                          className={`text-xs sm:text-sm font-semibold mt-1 tracking-wide leading-normal break-words whitespace-pre-wrap transition-colors duration-300 ease-[var(--ease-out)] pr-1 ${
                             isMinimal
                               ? isActive
                                 ? 'text-[#E8A94F]'
                                 : 'text-[#8B8090]'
                               : isActive
-                                ? 'text-[var(--spotify-glow,#22d3ee)] drop-shadow-sm'
+                                ? 'text-[var(--spotify-glow,#22d3ee)]'
                                 : 'text-white/40'
                           }`}
                         >
@@ -1091,7 +1232,7 @@ export function MobileFullviewPlayer({
                   <button
                     type="button"
                     onClick={() => setShowAdminLyricsEditor(true)}
-                    className={`mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-full active:scale-95 transition-all text-xs font-extrabold cursor-pointer ${
+                    className={`mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-full active:scale-[0.97] transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] text-xs font-extrabold cursor-pointer ${
                       isMinimal
                         ? 'bg-[#E8A94F]/15 hover:bg-[#E8A94F]/25 text-[#E8A94F] border border-[#E8A94F]/35'
                         : 'bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/40 shadow-lg'
@@ -1115,7 +1256,7 @@ export function MobileFullviewPlayer({
                     try { localStorage.setItem('musicweb_show_romaji', String(next)) } catch {}
                     return next
                   })}
-                  className={`p-2 rounded-full transition-all cursor-pointer active:scale-95 ${
+                  className={`p-2 rounded-full transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer active:scale-[0.97] ${
                     showTranslation
                       ? isMinimal
                         ? 'bg-[#E8A94F]/20 text-[#E8A94F] border border-[#E8A94F]/35'
@@ -1134,7 +1275,7 @@ export function MobileFullviewPlayer({
                       aria-label="Chỉnh sửa lời bài hát (Admin)"
                       type="button"
                       onClick={() => setShowAdminLyricsEditor(true)}
-                      className={`p-2 rounded-full transition-all cursor-pointer active:scale-95 ${
+                      className={`p-2 rounded-full transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer active:scale-[0.97] ${
                         isMinimal
                           ? 'bg-[#E8A94F]/15 text-[#E8A94F] border border-[#E8A94F]/35 hover:bg-[#E8A94F]/25'
                           : 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/35 hover:bg-cyan-500/30'
@@ -1148,7 +1289,7 @@ export function MobileFullviewPlayer({
                     aria-label="Chia sẻ lời bài hát"
                     type="button"
                     onClick={() => setShowShareModal(true)}
-                    className={`p-2 rounded-full transition-all cursor-pointer active:scale-95 ${
+                    className={`p-2 rounded-full transition-[transform,color] duration-150 ease-[var(--ease-out)] cursor-pointer active:scale-[0.97] ${
                       isMinimal ? 'text-[#8B8090] hover:text-[#F4ECE1]' : 'text-white/40 hover:text-white/60'
                     }`}
                   >
@@ -1169,7 +1310,7 @@ export function MobileFullviewPlayer({
                 aria-label={isShuffle ? "Tắt phát ngẫu nhiên" : "Bật phát ngẫu nhiên"}
                 type="button"
                 onClick={toggleShuffle}
-                className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer active:scale-95 ${
+                className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer active:scale-[0.97] ${
                   isShuffle
                     ? isMinimal
                       ? 'text-[#E8A94F] bg-[#E8A94F]/15 border border-[#E8A94F]/35'
@@ -1186,7 +1327,7 @@ export function MobileFullviewPlayer({
                 aria-label="Chế độ lặp lại"
                 type="button"
                 onClick={toggleRepeat}
-                className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer active:scale-95 ${
+                className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer active:scale-[0.97] ${
                   isRepeatActive
                     ? isMinimal
                       ? 'text-[#E8A94F] bg-[#E8A94F]/15 border border-[#E8A94F]/35'
@@ -1216,7 +1357,7 @@ export function MobileFullviewPlayer({
                       key={`queue-${track.id}-${idx}`}
                       type="button"
                       onClick={() => playTrack(track, queue, currentIndex + 1 + idx)}
-                      className={`flex items-center gap-3 py-2.5 px-1 rounded-xl transition-colors cursor-pointer group text-left w-full ${
+                      className={`flex items-center gap-3 py-2.5 px-1 rounded-xl active:scale-[0.98] transition-[transform,background-color] duration-150 ease-[var(--ease-out)] cursor-pointer group text-left w-full ${
                         isMinimal ? 'hover:bg-[#1D1720]' : 'hover:bg-white/[0.04]'
                       }`}
                     >
@@ -1298,7 +1439,7 @@ export function MobileFullviewPlayer({
             aria-label="Bài trước"
             type="button"
             onClick={prevTrack}
-            className={`active:scale-85 active:opacity-60 transition-all cursor-pointer p-2 ${
+            className={`active:scale-[0.96] active:opacity-75 transition-[transform,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer p-2 ${
               isMinimal ? 'text-[#F4ECE1]' : 'text-white'
             }`}
           >
@@ -1307,20 +1448,28 @@ export function MobileFullviewPlayer({
 
           {/* Play / Pause */}
           <button
-            aria-label={isPlaying ? "Tạm dừng" : "Phát"}
+            aria-label={isBuffering ? 'Đang tải' : isPlaying ? "Tạm dừng" : "Phát"}
             type="button"
             onClick={togglePlay}
-            className={`active:scale-85 active:opacity-60 transition-all cursor-pointer p-2 ${
+            className={`active:scale-[0.96] active:opacity-75 transition-[transform,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer p-2 ${
               isMinimal ? 'text-[#F4ECE1]' : 'text-white'
             }`}
           >
-            {isBuffering ? (
-              <Loader2 className={`w-12 h-12 animate-spin ${isMinimal ? 'text-[#E8A94F]' : ''}`} />
-            ) : isPlaying ? (
-              <Pause className={`w-12 h-12 ${isMinimal ? 'fill-[#F4ECE1]' : 'fill-white'}`} />
-            ) : (
-              <Play className={`w-12 h-12 ml-1 ${isMinimal ? 'fill-[#F4ECE1]' : 'fill-white'}`} />
-            )}
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={playStateKey}
+                {...iconSwapMotion}
+                className="inline-flex items-center justify-center"
+              >
+                {isBuffering ? (
+                  <Loader2 className={`w-12 h-12 animate-spin ${isMinimal ? 'text-[#E8A94F]' : ''}`} />
+                ) : isPlaying ? (
+                  <Pause className={`w-12 h-12 ${isMinimal ? 'fill-[#F4ECE1]' : 'fill-white'}`} />
+                ) : (
+                  <Play className={`w-12 h-12 ml-1 ${isMinimal ? 'fill-[#F4ECE1]' : 'fill-white'}`} />
+                )}
+              </motion.span>
+            </AnimatePresence>
           </button>
 
           {/* Next */}
@@ -1328,7 +1477,7 @@ export function MobileFullviewPlayer({
             aria-label="Bài tiếp theo"
             type="button"
             onClick={nextTrack}
-            className={`active:scale-85 active:opacity-60 transition-all cursor-pointer p-2 ${
+            className={`active:scale-[0.96] active:opacity-75 transition-[transform,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer p-2 ${
               isMinimal ? 'text-[#F4ECE1]' : 'text-white'
             }`}
           >
@@ -1342,7 +1491,7 @@ export function MobileFullviewPlayer({
             aria-label={volume === 0 ? "Mở tiếng" : "Tắt tiếng"}
             type="button"
             onClick={handleVolumeToggle}
-            className={`active:scale-90 transition-all cursor-pointer shrink-0 ${
+            className={`active:scale-[0.97] transition-[transform,color] duration-150 ease-[var(--ease-out)] cursor-pointer shrink-0 ${
               isMinimal ? 'text-[#8B8090]' : 'text-white/35'
             }`}
           >
@@ -1377,9 +1526,10 @@ export function MobileFullviewPlayer({
             {/* Volume track */}
             <div className={`w-full h-[3px] rounded-full overflow-hidden ${isMinimal ? 'bg-[rgba(244,236,230,0.14)]' : 'bg-white/[0.18]'}`}>
               <div
-                className="h-full rounded-full"
+                className="h-full w-full rounded-full"
                 style={{
-                  width: `${volume * 100}%`,
+                  transform: `scaleX(${volume})`,
+                  transformOrigin: 'left center',
                   backgroundColor: isMinimal ? '#E8A94F' : 'rgba(255, 255, 255, 0.85)',
                 }}
               />
@@ -1395,7 +1545,7 @@ export function MobileFullviewPlayer({
             aria-label="Lời bài hát"
             type="button"
             onClick={() => switchTab(activeTab === 'lyrics' ? 'cover' : 'lyrics')}
-            className={`p-2.5 rounded-full transition-all cursor-pointer active:scale-90 ${
+            className={`p-2.5 rounded-full transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer active:scale-[0.97] ${
               activeTab === 'lyrics'
                 ? isMinimal
                   ? 'text-[#E8A94F] bg-[#E8A94F]/15 border border-[#E8A94F]/35'
@@ -1415,7 +1565,7 @@ export function MobileFullviewPlayer({
             aria-label="Hàng đợi phát"
             type="button"
             onClick={() => switchTab(activeTab === 'queue' ? 'cover' : 'queue')}
-            className={`p-2.5 rounded-full transition-all cursor-pointer active:scale-90 ${
+            className={`p-2.5 rounded-full transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer active:scale-[0.97] ${
               activeTab === 'queue'
                 ? isMinimal
                   ? 'text-[#E8A94F] bg-[#E8A94F]/15 border border-[#E8A94F]/35'
@@ -1438,24 +1588,18 @@ export function MobileFullviewPlayer({
         {showMenuSheet && (
           <motion.div
             key="menu-sheet-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+            {...modalBackdropProps(prefersReducedMotion)}
             onClick={() => setShowMenuSheet(false)}
             className="fixed inset-0 z-[110] bg-black/70 backdrop-blur-md flex items-end justify-center p-0"
           >
             <motion.div
               key="menu-sheet-content"
-              initial={{ transform: 'translateY(100%)' }}
-              animate={{ transform: 'translateY(0%)' }}
-              exit={{ transform: 'translateY(100%)' }}
-              transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
+              {...drawerSheetProps(prefersReducedMotion, 'bottom')}
               onClick={(e) => e.stopPropagation()}
-              className={`w-full border-t rounded-t-3xl p-5 shadow-2xl flex flex-col gap-3 max-h-[70vh] pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] will-change-transform ${
+              className={`w-full border-t rounded-t-3xl p-5 shadow-2xl flex flex-col gap-3 max-h-[70vh] pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] ${
                 isMinimal
                   ? 'bg-[#1D1720] border-[rgba(244,236,230,0.14)] text-[#F4ECE1]'
-                  : 'bg-[#1a1a1a]/95 backdrop-blur-2xl border-white/15 text-white'
+                  : 'bg-[#1a1a1a]/95 border-white/15 text-white'
               }`}
             >
               <div className={`flex items-center justify-between pb-3 border-b ${isMinimal ? 'border-[rgba(244,236,230,0.08)]' : 'border-white/10'}`}>
@@ -1466,7 +1610,7 @@ export function MobileFullviewPlayer({
                   aria-label="Đóng tùy chọn"
                   type="button"
                   onClick={() => setShowMenuSheet(false)}
-                  className={`p-1.5 rounded-full ${
+                  className={`p-1.5 rounded-full active:scale-[0.97] transition-[transform,color,background-color] duration-150 ease-[var(--ease-out)] cursor-pointer ${
                     isMinimal
                       ? 'text-[#B9AC9C] hover:text-[#F4ECE1] bg-[#251E29]'
                       : 'text-white/40 hover:text-white bg-white/5'
@@ -1484,7 +1628,7 @@ export function MobileFullviewPlayer({
                     setShowMenuSheet(false)
                     onOpenAlbum(e)
                   }}
-                  className={`flex items-center gap-3 p-3.5 rounded-2xl border text-xs font-semibold transition-all ${
+                  className={`flex items-center gap-3 p-3.5 rounded-2xl border text-xs font-semibold active:scale-[0.98] transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer ${
                     isMinimal
                       ? 'border-[rgba(244,236,230,0.08)] bg-[#251E29] text-[#F4ECE1] hover:border-[rgba(244,236,230,0.16)]'
                       : 'border-white/8 bg-white/[0.04] hover:bg-white/[0.08]'
@@ -1505,7 +1649,7 @@ export function MobileFullviewPlayer({
                     setShowMenuSheet(false)
                     onOpenArtist(e, getPrimaryArtistName(currentTrack.artist))
                   }}
-                  className={`flex items-center gap-3 p-3.5 rounded-2xl border text-xs font-semibold transition-all ${
+                  className={`flex items-center gap-3 p-3.5 rounded-2xl border text-xs font-semibold active:scale-[0.98] transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer ${
                     isMinimal
                       ? 'border-[rgba(244,236,230,0.08)] bg-[#251E29] text-[#F4ECE1] hover:border-[rgba(244,236,230,0.16)]'
                       : 'border-white/8 bg-white/[0.04] hover:bg-white/[0.08]'
@@ -1523,7 +1667,7 @@ export function MobileFullviewPlayer({
                   setShowMenuSheet(false)
                   setShowShareModal(true)
                 }}
-                className={`flex items-center gap-3 p-3.5 rounded-2xl border text-xs font-semibold transition-all ${
+                className={`flex items-center gap-3 p-3.5 rounded-2xl border text-xs font-semibold active:scale-[0.98] transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer ${
                   isMinimal
                     ? 'border-[rgba(244,236,230,0.08)] bg-[#251E29] text-[#F4ECE1] hover:border-[rgba(244,236,230,0.16)]'
                     : 'border-white/8 bg-white/[0.04] hover:bg-white/[0.08]'
@@ -1541,7 +1685,7 @@ export function MobileFullviewPlayer({
                     setShowMenuSheet(false)
                     setShowAdminLyricsEditor(true)
                   }}
-                  className={`flex items-center gap-3 p-3.5 rounded-2xl border text-xs font-bold transition-all ${
+                  className={`flex items-center gap-3 p-3.5 rounded-2xl border text-xs font-bold active:scale-[0.98] transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer ${
                     isMinimal
                       ? 'border-[#E8A94F]/35 bg-[#E8A94F]/15 text-[#E8A94F] hover:bg-[#E8A94F]/25'
                       : 'border-cyan-400/30 bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25'
@@ -1563,17 +1707,15 @@ export function MobileFullviewPlayer({
       {/* ══════════════════════════════════════════════════════════════════
           📱 Lyrics Share Story Modal
           ══════════════════════════════════════════════════════════════════ */}
-      {showShareModal && (
-        <LyricsShareModal
-          isOpen={showShareModal}
-          onClose={() => setShowShareModal(false)}
-          track={currentTrack}
-          lyrics={lyrics}
-        />
-      )}
+      <LyricsShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        track={currentTrack}
+        lyrics={lyrics}
+      />
 
       {/* ✍️ Admin Custom Lyrics Editor Modal */}
-      {userIsAdmin && showAdminLyricsEditor && (
+      {userIsAdmin && (
         <AdminLyricsEditorModal
           isOpen={showAdminLyricsEditor}
           onClose={() => setShowAdminLyricsEditor(false)}

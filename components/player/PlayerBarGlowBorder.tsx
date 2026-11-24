@@ -20,6 +20,8 @@ export function PlayerBarGlowBorder({ duration = 0, className = '', rx = 16 }: P
 
   if (themeStyle === 'minimal-flat' || effectiveDuration <= 0 || progressRatio <= 0) return null
 
+  const strokeDashoffset = 100 * (1 - progressRatio)
+
   return (
     <svg
       className={`absolute inset-0 w-full h-full pointer-events-none z-10 overflow-visible ${className}`}
@@ -32,6 +34,23 @@ export function PlayerBarGlowBorder({ duration = 0, className = '', rx = 16 }: P
           <stop offset="100%" stopColor="var(--spotify-glow, #22d3ee)" stopOpacity="1" />
         </linearGradient>
       </defs>
+      {/* Lightweight secondary glow stroke replacing per-tick CSS drop-shadow filter */}
+      <rect
+        x="1"
+        y="1"
+        width="calc(100% - 2px)"
+        height="calc(100% - 2px)"
+        rx={rx}
+        pathLength={100}
+        fill="none"
+        stroke={`url(#${gradientId})`}
+        strokeWidth="5"
+        strokeOpacity="0.28"
+        strokeLinecap="round"
+        strokeDasharray="100"
+        strokeDashoffset={strokeDashoffset}
+        className="transition-[stroke-dashoffset] duration-[250ms] ease-linear motion-reduce:transition-none"
+      />
       <rect
         x="1"
         y="1"
@@ -44,11 +63,8 @@ export function PlayerBarGlowBorder({ duration = 0, className = '', rx = 16 }: P
         strokeWidth="2.5"
         strokeLinecap="round"
         strokeDasharray="100"
-        strokeDashoffset={100 * (1 - progressRatio)}
-        style={{
-          filter: 'drop-shadow(0 0 6px var(--spotify-glow, #22d3ee))',
-          transition: 'stroke-dashoffset 0.25s linear',
-        }}
+        strokeDashoffset={strokeDashoffset}
+        className="transition-[stroke-dashoffset] duration-[250ms] ease-linear motion-reduce:transition-none"
       />
     </svg>
   )
