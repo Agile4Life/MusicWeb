@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 import Link from 'next/link'
@@ -10,10 +10,9 @@ import { markEmailAsAllowed } from '@/lib/accessControl'
 import { useLanguage } from '@/components/i18n/LanguageContext'
 import { LanguageSelector } from '@/components/i18n/LanguageSelector'
 import { useTheme } from '@/components/theme/ThemeContext'
-import { MiniEqualizer } from '@/components/player/MiniEqualizer'
 import { safeAuthReturnTo, scheduleAuthRedirect } from './authNavigation'
 import { createPasswordSession } from './passwordSession'
-import { Lock, Mail, User, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, Info, Music } from 'lucide-react'
+import { Lock, Mail, User, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, Info } from 'lucide-react'
 
 interface AuthFormProps {
   mode: 'login' | 'register'
@@ -49,15 +48,25 @@ function translateAuthError(err: any): string {
   const msg = errorMessage.toLowerCase()
 
   if (msg === '{}' || errName === 'AuthRetryableFetchError' || errStatus === 500) {
-    return 'Lỗi 500 từ Supabase Auth Server (Dữ liệu tài khoản bị hỏng do SQL Insert trực tiếp vào auth.users). Vui lòng vào Supabase Dashboard > Auth > Users để xóa tài khoản hỏng này và bấm "Add User" hoặc tạo tài khoản mới bằng trang Đăng Ký!'
+    return process.env.NODE_ENV === 'development'
+      ? 'Lỗi 500 từ Supabase Auth Server (auth.users). Vui lòng kiểm tra Supabase Dashboard > Auth > Users.'
+      : 'Máy chủ xác thực đang gặp sự cố. Vui lòng thử lại sau ít phút hoặc liên hệ Admin.'
   }
 
   if (msg.includes('invalid login credentials')) return 'Email hoặc mật khẩu không chính xác'
   if (msg.includes('user already registered') || msg.includes('already exists')) return 'Email này đã được đăng ký tài khoản'
   if (msg.includes('password should be at least')) return 'Mật khẩu phải có ít nhất 6 ký tự'
   if (msg.includes('invalid email')) return 'Định dạng email không hợp lệ'
-  if (msg.includes('email not confirmed')) return 'Tài khoản chưa được xác nhận email. Hãy kiểm tra hộp thư hoặc tắt "Confirm email" trong Supabase Dashboard.'
-  if (msg.includes('over_email_send_rate_limit') || msg.includes('email rate limit exceeded')) return 'Gửi email xác nhận bị quá giới hạn (Rate Limit). Vui lòng vào Supabase Dashboard > Auth > Providers > Email và tắt "Confirm email" để tạo tài khoản & đăng nhập ngay!'
+  if (msg.includes('email not confirmed')) {
+    return process.env.NODE_ENV === 'development'
+      ? 'Tài khoản chưa được xác nhận email. Hãy kiểm tra hộp thư hoặc tắt Confirm email trong Supabase Dashboard.'
+      : 'Tài khoản chưa được xác nhận email. Vui lòng kiểm tra hộp thư của bạn.'
+  }
+  if (msg.includes('over_email_send_rate_limit') || msg.includes('email rate limit exceeded')) {
+    return process.env.NODE_ENV === 'development'
+      ? 'Gửi email xác nhận bị quá giới hạn (Rate Limit). Tắt Confirm email trong Supabase để tạo tài khoản nhanh khi test.'
+      : 'Bạn đã gửi yêu cầu quá nhiều lần. Vui lòng thử lại sau ít phút.'
+  }
 
   return errorMessage && errorMessage !== '{}'
     ? errorMessage
@@ -71,7 +80,6 @@ export function AuthForm({ mode }: AuthFormProps) {
   const searchParams = useSearchParams()
   const returnTo = safeAuthReturnTo(searchParams.get('returnTo'))
   const supabase = createClient()
-  const cardRef = useRef<HTMLDivElement | null>(null)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -122,31 +130,13 @@ export function AuthForm({ mode }: AuthFormProps) {
 
 
 
-  // Mouse spotlight coordinates
-  const [cursorPos, setCursorPos] = useState({ x: -500, y: -500 })
-  const [cardCursorPos, setCardCursorPos] = useState({ x: -500, y: -500 })
-
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setCursorPos({ x: e.clientX, y: e.clientY })
-
-      if (cardRef.current) {
-        const rect = cardRef.current.getBoundingClientRect()
-        setCardCursorPos({
-          x: e.clientX - rect.left,
-          y: e.clientY - rect.top,
-        })
-      }
-    }
-
     const handleFocus = () => {
       setLoading(false)
     }
 
-    window.addEventListener('mousemove', handleMouseMove)
     window.addEventListener('focus', handleFocus)
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('focus', handleFocus)
     }
   }, [])
@@ -300,41 +290,7 @@ export function AuthForm({ mode }: AuthFormProps) {
 
 
 
-  // 3D Tilt State
-  const [tiltStyle, setTiltStyle] = useState<React.CSSProperties>({})
   const isMinimalFlat = themeStyle === 'minimal-flat'
-
-  const handleCardMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (
-      isMinimalFlat ||
-      (typeof window !== 'undefined' &&
-        (window.matchMedia('(pointer: coarse)').matches ||
-          window.matchMedia('(prefers-reduced-motion: reduce)').matches))
-    ) {
-      return
-    }
-    const card = e.currentTarget
-    const rect = card.getBoundingClientRect()
-    const centerX = rect.left + rect.width / 2
-    const centerY = rect.top + rect.height / 2
-    const dx = (e.clientX - centerX) / (rect.width / 2)
-    const dy = (e.clientY - centerY) / (rect.height / 2)
-    const rotateX = Math.min(Math.max(-dy * 7.5, -9), 9)
-    const rotateY = Math.min(Math.max(dx * 7.5, -9), 9)
-
-    setTiltStyle({
-      transform: `perspective(1200px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg)`,
-      transition: 'transform 0.08s ease-out',
-    })
-  }
-
-  const handleCardMouseLeave = () => {
-    if (isMinimalFlat) return
-    setTiltStyle({
-      transform: 'perspective(1200px) rotateX(0deg) rotateY(0deg)',
-      transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
-    })
-  }
 
   // Original, invented atmosphere copy for the lyric wall below — never real
   // song lyrics (copyright), just short evocative lines in the product's own
@@ -348,7 +304,7 @@ export function AuthForm({ mode }: AuthFormProps) {
 
   return (
     <div
-      className="min-h-screen w-full flex items-center justify-center lg:justify-end p-4 sm:p-6 lg:pr-16 relative overflow-hidden select-none"
+      className="h-[100dvh] w-full overflow-y-auto flex justify-center lg:justify-end p-4 sm:p-6 lg:py-20 lg:pr-16 relative select-none"
       style={{ background: 'var(--bg-space, #07090e)' }}
     >
       {/* Ambient wash behind the docked card */}
@@ -356,15 +312,8 @@ export function AuthForm({ mode }: AuthFormProps) {
         className="pointer-events-none fixed inset-0 z-0"
         style={{ background: 'radial-gradient(900px circle at 82% 8%, color-mix(in srgb, var(--spotify-glow,#22d3ee) 12%, transparent), transparent 70%)' }}
       />
-      {/* Dynamic Cursor Background Spotlight */}
-      <div
-        className="pointer-events-none fixed inset-0 z-0 transition-opacity duration-300"
-        style={{
-          background: `radial-gradient(130px circle at ${cursorPos.x}px ${cursorPos.y}px, rgba(255, 255, 255, 0.08), transparent 80%)`,
-        }}
-      />
 
-      {/* Lyric typographic wall — decorative, original copy, desktop only (too dense to stay legible at phone widths) */}
+      {/* Lyric typographic wall */}
       <div className="hidden lg:block pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
         {lyricLines.map((line) => (
           <div
@@ -386,8 +335,8 @@ export function AuthForm({ mode }: AuthFormProps) {
         ))}
       </div>
 
-      {/* Wordmark — top left, over the wall */}
-      <div className="fixed top-6 left-6 sm:top-8 sm:left-10 z-10 flex items-center">
+      {/* Wordmark — top left */}
+      <div className="fixed top-6 left-6 sm:top-8 sm:left-10 z-30 flex items-center">
         <img
           src="/phong-signature.png"
           alt="MusicWeb"
@@ -395,15 +344,12 @@ export function AuthForm({ mode }: AuthFormProps) {
         />
       </div>
       {/* Language Selector — top right */}
-      <div className="fixed top-6 right-6 sm:top-8 sm:right-10 z-10">
+      <div className="fixed top-6 right-6 sm:top-8 sm:right-10 z-30">
         <LanguageSelector variant="flag-only" />
       </div>
 
-      {/* Docked Auth Card — ticket-style dashed edge, inline styles to guarantee backdrop-filter */}
+      {/* Docked Auth Card */}
       <div
-        ref={cardRef}
-        onMouseMove={handleCardMouseMove}
-        onMouseLeave={handleCardMouseLeave}
         style={
           isMinimalFlat
             ? {
@@ -414,48 +360,18 @@ export function AuthForm({ mode }: AuthFormProps) {
                 boxShadow: '0 24px 60px rgba(0, 0, 0, 0.55)',
               }
             : {
-                ...tiltStyle,
                 background:
                   'linear-gradient(160deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 60%, hsla(var(--base-h, 224), var(--base-s, 45%), 10%, 0.35) 100%)',
-                backdropFilter: 'blur(28px) saturate(200%) brightness(1.06)',
-                WebkitBackdropFilter: 'blur(28px) saturate(200%) brightness(1.06)',
+                backdropFilter: 'blur(28px) saturate(180%) brightness(1.06)',
+                WebkitBackdropFilter: 'blur(28px) saturate(180%) brightness(1.06)',
                 border: '1px solid rgba(255,255,255,0.12)',
                 boxShadow:
-                  '0 40px 90px -20px rgba(0,0,0,0.6), 0 0 60px -12px color-mix(in srgb, var(--spotify-glow,#22d3ee) 35%, transparent), inset 0 1px 0 rgba(255,255,255,0.14)',
+                  '0 40px 90px -20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.14)',
               }
         }
-        className="w-full max-w-[440px] rounded-[26px] relative z-10 overflow-hidden transition-transform duration-150 ease-out mt-20 lg:mt-0"
+        className="w-full max-w-[440px] rounded-2xl relative z-10 overflow-hidden my-auto mt-16 lg:my-auto"
       >
-        {/* Dynamic Card Internal Cursor Spotlight */}
-        <div
-          className="pointer-events-none absolute inset-0 z-0 rounded-[26px] overflow-hidden transition-opacity duration-300"
-          style={{
-            background: `radial-gradient(120px circle at ${cardCursorPos.x}px ${cardCursorPos.y}px, rgba(255, 255, 255, 0.10), transparent 80%)`,
-          }}
-        />
-
-        {/* Ticket perforation */}
-        <div style={{ borderTop: '2px dashed rgba(255,255,255,0.14)' }} className="mx-7 mt-6 relative z-10" />
-
-        <div className="px-6 sm:px-8 pt-6 pb-7 sm:pb-8 relative z-10">
-
-          {/* "Now playing" strip — decorative brand flavor, not wired to real playback */}
-          <div
-            className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl mb-6"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
-          >
-            <div
-              className="w-8 h-8 rounded-[9px] shrink-0 flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, var(--spotify-glow,#22d3ee), var(--primary-spotify,#06b6d4))' }}
-            >
-              <Music className="w-3.5 h-3.5" style={{ color: 'rgba(10,12,17,0.6)' }} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[9.5px] font-bold tracking-widest" style={{ color: 'var(--spotify-glow,#22d3ee)' }}>ĐANG PHÁT</div>
-              <div className="text-xs text-slate-400 truncate">một bản nhạc đang chờ bạn</div>
-            </div>
-            <MiniEqualizer isPlaying className="h-4" />
-          </div>
+        <div className="px-6 sm:px-8 py-7 sm:py-8 relative z-10">
 
           <div className="flex flex-col gap-1.5 mb-5 relative z-10">
             <h1
@@ -482,10 +398,10 @@ export function AuthForm({ mode }: AuthFormProps) {
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span className="font-semibold leading-relaxed">{error}</span>
             </div>
-            {rawError && (
+            {process.env.NODE_ENV === 'development' && rawError && (
               <details className="mt-1 pt-2 border-t border-red-500/20 text-[11px] font-mono text-red-300">
                 <summary className="cursor-pointer hover:underline text-[10px] uppercase font-bold tracking-wider text-red-400/90">
-                  ▶ Debug Log
+                  Debug Log
                 </summary>
                 <pre className="mt-2 p-2.5 bg-black/60 rounded-xl overflow-x-auto whitespace-pre-wrap select-text text-[10px] text-red-300 border border-red-500/20">
                   {rawError}
@@ -502,12 +418,12 @@ export function AuthForm({ mode }: AuthFormProps) {
           </div>
         )}
 
-        {/* ─── 4. Account + 5. Password Form (Đăng nhập / Đăng ký) ─── */}
+        {/* Account & Password Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-3.5 relative z-20 w-full">
           <div>
             <label htmlFor="auth-account" className="block text-xs font-bold text-slate-300 mb-1.5">{t('account_label')}</label>
             <div className="relative">
-              <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none z-10" />
+              <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
               <input
                 id="auth-account"
                 type="text"
@@ -520,7 +436,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                   setRawError(null)
                 }}
                 placeholder={t('account_placeholder')}
-                className="w-full glass-3d-input rounded-2xl pl-10 pr-4 py-3 text-xs sm:text-sm text-white outline-none placeholder:text-slate-500 relative z-0 cursor-text pointer-events-auto"
+                className="w-full glass-3d-input rounded-2xl pl-10 pr-4 py-3 text-xs sm:text-sm text-white outline-none placeholder:text-slate-400 relative z-0 cursor-text pointer-events-auto"
               />
             </div>
           </div>
@@ -528,7 +444,7 @@ export function AuthForm({ mode }: AuthFormProps) {
           <div>
             <label htmlFor="auth-password" className="block text-xs font-bold text-slate-300 mb-1.5">{t('password_label')}</label>
             <div className="relative">
-              <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none z-10" />
+              <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
               <input
                 id="auth-password"
                 type={showPassword ? 'text' : 'password'}
@@ -541,13 +457,14 @@ export function AuthForm({ mode }: AuthFormProps) {
                   setRawError(null)
                 }}
                 placeholder={t('password_placeholder')}
-                className="w-full glass-3d-input rounded-2xl pl-10 pr-10 py-3 text-xs sm:text-sm text-white outline-none placeholder:text-slate-500 relative z-0 cursor-text pointer-events-auto"
+                className="w-full glass-3d-input rounded-2xl pl-10 pr-12 py-3 text-xs sm:text-sm text-white outline-none placeholder:text-slate-400 relative z-0 cursor-text pointer-events-auto"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-3.5 text-slate-400 hover:text-white transition-colors z-10 cursor-pointer p-1"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors z-10 cursor-pointer p-1.5"
                 tabIndex={-1}
+                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -558,7 +475,7 @@ export function AuthForm({ mode }: AuthFormProps) {
             <div>
               <label htmlFor="auth-confirm-password" className="block text-xs font-bold text-slate-300 mb-1.5">{t('confirm_password')}</label>
               <div className="relative">
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none z-10" />
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
                 <input
                   id="auth-confirm-password"
                   type={showPassword ? 'text' : 'password'}
@@ -571,7 +488,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                     setRawError(null)
                   }}
                   placeholder={t('password_placeholder')}
-                  className="w-full glass-3d-input rounded-2xl pl-10 pr-4 py-3 text-xs sm:text-sm text-white outline-none placeholder:text-slate-500 relative z-0 cursor-text pointer-events-auto"
+                  className="w-full glass-3d-input rounded-2xl pl-10 pr-4 py-3 text-xs sm:text-sm text-white outline-none placeholder:text-slate-400 relative z-0 cursor-text pointer-events-auto"
                 />
               </div>
             </div>
@@ -582,10 +499,10 @@ export function AuthForm({ mode }: AuthFormProps) {
             <div>
               <label htmlFor="auth-real-email" className="block text-xs font-bold text-slate-300 mb-1.5">
                 Gmail liên kết{' '}
-                <span className="text-slate-500 font-normal text-[10px]">(tuỳ chọn — để đăng nhập bằng Google sau)</span>
+                <span className="text-slate-400 font-normal text-[10px]">(tuỳ chọn, để đăng nhập bằng Google sau)</span>
               </label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none z-10" />
+                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
                 <input
                   id="auth-real-email"
                   type="email"
@@ -596,31 +513,31 @@ export function AuthForm({ mode }: AuthFormProps) {
                     setError(null)
                   }}
                   placeholder="example@gmail.com"
-                  className="w-full glass-3d-input rounded-2xl pl-10 pr-4 py-3 text-xs sm:text-sm text-white outline-none placeholder:text-slate-500 relative z-0 cursor-text pointer-events-auto"
+                  className="w-full glass-3d-input rounded-2xl pl-10 pr-4 py-3 text-xs sm:text-sm text-white outline-none placeholder:text-slate-400 relative z-0 cursor-text pointer-events-auto"
                 />
               </div>
             </div>
           )}
 
 
-          {/* 6. Link "Quên mật khẩu?" */}
+          {/* Forgot Password */}
           {authMode === 'login' && (
             <div className="flex justify-end -mt-1">
               <Link
                 href="/reset-password"
-                className="text-xs font-bold text-[var(--spotify-glow,#22d3ee)] hover:underline transition-all relative z-10"
+                className="text-xs font-bold text-[var(--spotify-glow,#22d3ee)] hover:underline transition-colors relative z-10"
               >
                 {t('forgot_password')}
               </Link>
             </div>
           )}
 
-          {/* 7. Nút Đăng nhập (Primary 3D Button) */}
+          {/* Submit */}
           <div className="relative z-10">
             <button
               type="submit"
               disabled={loading}
-              className="btn-3d-primary w-full text-black font-extrabold py-3.5 rounded-full flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-xs sm:text-sm shadow-xl"
+              className="btn-3d-primary w-full text-black font-extrabold py-3.5 rounded-full flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:hover:scale-100 text-xs sm:text-sm shadow-xl"
             >
               {loading ? (
                 <>
@@ -633,7 +550,7 @@ export function AuthForm({ mode }: AuthFormProps) {
             </button>
           </div>
 
-          {/* 8. Dòng "Chưa có tài khoản? Đăng ký ngay" */}
+          {/* Toggle Mode */}
           <div className="text-center text-xs text-slate-400 mt-1 relative z-10">
             {authMode === 'login' ? (
               <>
@@ -671,21 +588,20 @@ export function AuthForm({ mode }: AuthFormProps) {
           </div>
         </form>
 
-        {/* 9. Divider "HOẶC TIẾP TỤC VỚI" */}
+        {/* Divider */}
         <div className="flex items-center gap-3 my-5 relative z-10">
           <div className="flex-1 h-px bg-white/10" />
-          <span className="text-[10px] uppercase tracking-widest font-bold text-slate-500">{t('or_continue_with')}</span>
+          <span className="text-[10px] uppercase tracking-widest font-bold text-slate-400">{t('or_continue_with')}</span>
           <div className="flex-1 h-px bg-white/10" />
         </div>
 
-        {/* 10. Google & 11. Passkey Buttons */}
+        {/* Google Sign-In */}
         <div className="flex flex-col gap-3 relative z-10 w-full mt-1">
-          {/* Nút Google */}
           <button
             type="button"
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="w-full bg-white/95 hover:bg-white text-slate-900 font-extrabold py-3.5 rounded-full transition-all flex items-center justify-center gap-3 shadow-lg shadow-white/10 hover:scale-[1.01] active:scale-95 disabled:opacity-50 text-xs sm:text-sm cursor-pointer"
+            className="w-full bg-white/95 hover:bg-white text-slate-900 font-extrabold py-3.5 rounded-full transition-colors flex items-center justify-center gap-3 shadow-lg shadow-white/10 disabled:opacity-50 disabled:hover:scale-100 text-xs sm:text-sm cursor-pointer"
           >
             <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
               <path

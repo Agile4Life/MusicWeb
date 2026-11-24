@@ -83,7 +83,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   if (checking) {
     return (
       <div
-        className="h-screen w-screen bg-[var(--bg-space,#07090e)]"
+        className="h-[100dvh] w-full bg-[var(--bg-space,#07090e)]"
         aria-hidden="true"
       />
     )

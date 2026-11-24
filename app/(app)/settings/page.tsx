@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { getValidUserId, isAdmin as checkIsAdmin } from '@/lib/accessControl'
 import { useTheme } from '@/components/theme/ThemeContext'
-import { Volume2, Globe, Bell, Mail, Sparkles, Gamepad2 } from 'lucide-react'
+import { Volume2, Globe, Bell, Mail, Edit2, Gamepad2, CheckCircle2, Keyboard } from 'lucide-react'
 
 function FacebookIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -82,10 +82,7 @@ export default function SettingsPage() {
           <span>{t('language_title')}</span>
         </div>
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
-          <div>
-            <p className="text-xs font-bold text-white">{t('language_title')}</p>
-            <p className="text-[11px] text-slate-400">{t('language_desc')}</p>
-          </div>
+          <p className="text-xs text-slate-400">{t('language_desc')}</p>
           <LanguageSelector variant="select" />
         </div>
       </div>
@@ -97,23 +94,26 @@ export default function SettingsPage() {
           <span>{t('audio_playback_title')}</span>
         </div>
 
-        <div className="flex items-center justify-between py-1">
-          <div>
+        <div className="flex items-center justify-between gap-4 py-1">
+          <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-white">{t('auto_play')}</p>
             <p className="text-[11px] text-slate-400">{t('auto_play_desc')}</p>
           </div>
           <button
+            type="button"
+            role="switch"
+            aria-checked={autoPlayNext}
             onClick={() => {
               const value = !autoPlayNext
               setAutoPlayNext(value)
               void saveSettings({ auto_play: value })
             }}
-            className={`w-11 h-6 rounded-full p-1 transition-colors ${
+            className={`w-11 h-6 rounded-full p-1 transition-colors shrink-0 cursor-pointer ${
               autoPlayNext ? 'bg-[var(--primary-spotify,#06b6d4)]' : 'bg-white/20'
             }`}
           >
             <div
-              className={`w-4 h-4 rounded-full bg-black transition-transform ${
+              className={`w-4 h-4 rounded-full bg-white/90 shadow-sm transition-transform ${
                 autoPlayNext ? 'translate-x-5' : 'translate-x-0'
               }`}
             />
@@ -121,34 +121,37 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* 🎮 Gaming Mode */}
+      {/* Gaming Mode */}
       <div className="glass-panel bg-[var(--elevation-1-bg)] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-5">
         <div className="flex items-center gap-2 text-sm font-bold text-white border-b border-white/[0.05] pb-3">
           <Gamepad2 className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
           <span>Gaming Mode</span>
           {gamingMode && (
-            <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-green-500/20 text-green-300 border border-green-400/40 animate-pulse">
+            <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-green-500/20 text-green-300 border border-green-400/40">
               ON
             </span>
           )}
         </div>
 
-        <div className="flex items-center justify-between py-1">
-          <div className="flex-1 pr-4">
+        <div className="flex items-center justify-between gap-4 py-1">
+          <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-white">Tối ưu RAM khi chuyển tab</p>
             <p className="text-[11px] text-slate-400 leading-relaxed mt-0.5">
               Khi bật, chuyển sang tab khác sẽ tự động tắt toàn bộ giao diện (hiệu ứng, sidebar, player bar...) để giảm RAM. Nhạc vẫn phát bình thường, dùng phím media trên bàn phím/Windows để chuyển bài.
             </p>
           </div>
           <button
+            type="button"
+            role="switch"
+            aria-checked={gamingMode}
             id="gaming-mode-toggle"
             onClick={() => setGamingMode(!gamingMode)}
-            className={`w-11 h-6 rounded-full p-1 transition-colors flex-shrink-0 ${
+            className={`w-11 h-6 rounded-full p-1 transition-colors shrink-0 cursor-pointer ${
               gamingMode ? 'bg-[var(--primary-spotify,#06b6d4)]' : 'bg-white/20'
             }`}
           >
             <div
-              className={`w-4 h-4 rounded-full bg-black transition-transform ${
+              className={`w-4 h-4 rounded-full bg-white/90 shadow-sm transition-transform ${
                 gamingMode ? 'translate-x-5' : 'translate-x-0'
               }`}
             />
@@ -157,25 +160,28 @@ export default function SettingsPage() {
 
         {gamingMode && (
           <div className="rounded-xl bg-green-500/[0.06] border border-green-500/20 px-4 py-3 flex items-start gap-3">
-            <Gamepad2 className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-            <div className="text-[11px] text-green-300/90 leading-relaxed">
-              <p className="font-bold text-green-300 mb-1">✅ Gaming Mode đã bật</p>
-              <p>Khi bạn alt-tab sang game hoặc app khác, MusicWeb sẽ tự động giải phóng RAM. Quay lại tab → giao diện tự load lại.</p>
-              <p className="mt-1 text-green-400/70">💡 Điều khiển nhạc: Dùng phím Play/Pause/Next/Prev trên bàn phím hoặc Windows media overlay.</p>
+            <CheckCircle2 className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
+            <div className="text-[11px] text-green-300/90 leading-relaxed min-w-0">
+              <p className="font-bold text-green-300 mb-1">Gaming Mode đã bật</p>
+              <p>Khi bạn alt-tab sang game hoặc app khác, MusicWeb sẽ tự động giải phóng RAM và khôi phục giao diện khi quay lại tab.</p>
+              <p className="mt-1 text-green-400/80 flex items-center gap-1.5">
+                <Keyboard className="w-3.5 h-3.5 shrink-0" />
+                <span>Điều khiển nhạc bằng phím Play/Pause/Next/Prev trên bàn phím hoặc Windows media overlay.</span>
+              </p>
             </div>
           </div>
         )}
       </div>
 
-      {/* 🔔 Notifications / Thông báo từ Tác giả */}
+      {/* Thông báo & Liên hệ */}
       <div className="glass-panel bg-[var(--elevation-1-bg)] p-6 rounded-2xl border border-white/[0.06] flex flex-col gap-4 relative overflow-hidden">
         <div className="flex items-center justify-between border-b border-white/[0.05] pb-3">
           <div className="flex items-center gap-2 text-sm font-bold text-white">
             <Bell className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
-            <span>Notifications / Thông báo</span>
+            <span>Thông báo & Liên hệ</span>
           </div>
           {checkIsAdmin(userEmail) && (
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[var(--primary-spotify,#06b6d4)]/20 text-[var(--spotify-glow,#22d3ee)] border border-[var(--spotify-glow,#22d3ee)]/40">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[var(--primary-spotify,#06b6d4)]/20 text-[var(--spotify-glow,#22d3ee)] border border-[var(--spotify-glow,#22d3ee)]/40">
               Admin Mode
             </span>
           )}
@@ -187,32 +193,32 @@ export default function SettingsPage() {
           </p>
 
           <div className="flex flex-wrap items-center gap-3.5 pt-1">
-            {/* Facebook Icon Only */}
+            {/* Facebook Icon */}
             <a
               href="https://www.facebook.com/phong.trancongtuan"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2.5 rounded-xl bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/20 hover:scale-110 transition-all shadow-lg"
+              className="p-2.5 rounded-xl bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/20 transition-colors"
               title="Facebook: phong.trancongtuan"
             >
               <FacebookIcon className="w-5 h-5 fill-current" />
             </a>
 
-            {/* Instagram Icon Only */}
+            {/* Instagram Icon */}
             <a
               href="https://www.instagram.com/phongtct/"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2.5 rounded-xl bg-pink-600/10 hover:bg-pink-600/20 text-pink-400 border border-pink-500/20 hover:scale-110 transition-all shadow-lg"
+              className="p-2.5 rounded-xl bg-pink-600/10 hover:bg-pink-600/20 text-pink-400 border border-pink-500/20 transition-colors"
               title="Instagram: phongtct"
             >
               <InstagramIcon className="w-5 h-5" />
             </a>
 
-            {/* Gmail Raw Text */}
+            {/* Gmail Text */}
             <a
               href="mailto:tranphong16012006@gmail.com"
-              className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[var(--spotify-glow,#22d3ee)] border border-white/10 text-xs font-mono transition-all flex items-center gap-2 hover:border-[var(--primary-spotify,#06b6d4)]/30"
+              className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[var(--spotify-glow,#22d3ee)] border border-white/10 text-xs font-mono transition-colors flex items-center gap-2 hover:border-[var(--primary-spotify,#06b6d4)]/30"
             >
               <Mail className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
               <span>tranphong16012006@gmail.com</span>
@@ -225,7 +231,7 @@ export default function SettingsPage() {
                 ? 'Bạn có quyền Admin: Có thể chỉnh sửa nội dung và xuất bản thông báo cho toàn bộ người dùng'
                 : 'Pop-up thông báo hiển thị ở giữa màn hình khi truy cập web'}
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               {checkIsAdmin(userEmail) && (
                 <button
                   onClick={() => {
@@ -233,10 +239,10 @@ export default function SettingsPage() {
                       new CustomEvent('musicweb:open-welcome-modal', { detail: { editMode: true } })
                     )
                   }}
-                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-md shadow-[var(--theme-glow-shadow)]"
+                  className="px-3 py-1.5 rounded-xl bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>✏️ Chỉnh sửa thông báo</span>
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span>Chỉnh sửa thông báo</span>
                 </button>
               )}
 
@@ -248,7 +254,7 @@ export default function SettingsPage() {
                   } catch {}
                   window.dispatchEvent(new CustomEvent('musicweb:open-welcome-modal'))
                 }}
-                className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 border border-white/15 text-xs font-medium flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 border border-white/15 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
                 <span>Xem lại pop-up</span>
               </button>

@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
-  Sparkles,
   Trash2,
   RotateCcw,
   FileAudio,
@@ -865,16 +864,20 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
   }
 
   return (
-    <div className="max-w-4xl mx-auto glass-panel p-5 md:p-6 rounded-3xl border border-white/10 shadow-2xl relative flex flex-col max-h-[85vh] overflow-hidden">
+    <div
+      className={`w-full max-w-4xl mx-auto glass-panel p-5 md:p-6 rounded-2xl border border-white/10 shadow-2xl relative flex flex-col ${
+        onClose ? 'max-h-[85vh] overflow-hidden' : ''
+      }`}
+    >
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 shrink-0 pr-8 relative">
-        <div>
+        <div className="min-w-0">
           <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-2.5">
-            <Upload className="w-6 h-6 text-[var(--primary-spotify)]" />
-            Thêm Nhạc Vào Thư Viện
+            <Upload className="w-6 h-6 text-[var(--primary-spotify)] shrink-0" />
+            <span className="truncate">Thêm Nhạc Vào Thư Viện</span>
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Tải file âm thanh từ máy hoặc Nhập đường link Google Drive FLAC/MP3 có sẵn
+            Tải file âm thanh từ máy hoặc nhập đường link Google Drive FLAC/MP3 có sẵn
           </p>
         </div>
 
@@ -883,7 +886,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
           <button
             type="button"
             onClick={onClose}
-            className="absolute top-0 right-0 text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-colors"
+            className="absolute top-0 right-0 text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
             title="Đóng cửa sổ"
           >
             <X className="w-5 h-5" />
@@ -892,13 +895,13 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
       </div>
 
       {/* Mode Selector Tabs */}
-      <div className="flex items-center gap-2 mb-4 p-1 bg-black/40 border border-white/10 rounded-2xl shrink-0 overflow-x-auto scrollbar-none">
+      <div className="flex items-center gap-2 mb-4 p-1 bg-black/40 border border-white/10 rounded-xl shrink-0 overflow-x-auto scrollbar-none">
         <button
           type="button"
           onClick={() => setUploadTab('file')}
-          className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
             uploadTab === 'file'
-              ? 'bg-[var(--primary-spotify)] text-black shadow-md'
+              ? 'bg-[var(--primary-spotify)] text-black'
               : 'text-slate-400 hover:text-white'
           }`}
         >
@@ -909,9 +912,9 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
         <button
           type="button"
           onClick={() => setUploadTab('link')}
-          className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
             uploadTab === 'link'
-              ? 'bg-[var(--primary-spotify)] text-black shadow-md'
+              ? 'bg-[var(--primary-spotify)] text-black'
               : 'text-slate-400 hover:text-white'
           }`}
         >
@@ -922,9 +925,9 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
         <button
           type="button"
           onClick={() => setUploadTab('folder')}
-          className={`flex-1 min-w-[140px] py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 min-w-[140px] py-2 px-3 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
             uploadTab === 'folder'
-              ? 'bg-[var(--primary-spotify)] text-black shadow-md'
+              ? 'bg-[var(--primary-spotify)] text-black'
               : 'text-slate-400 hover:text-white'
           }`}
         >
@@ -935,7 +938,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
 
       {/* Tab 2: Link Google Drive Direct Import Form */}
       {uploadTab === 'link' && (
-        <form onSubmit={handleImportDriveLink} className="flex flex-col gap-4 p-5 bg-black/40 border border-white/10 rounded-2xl overflow-y-auto">
+        <form onSubmit={handleImportDriveLink} className="flex flex-col gap-4 p-5 bg-black/40 border border-white/10 rounded-2xl overflow-y-auto custom-slim-scrollbar">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-bold text-white">Link hoặc ID Google Drive *</label>
             <input
@@ -989,7 +992,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
           <button
             type="submit"
             disabled={importingDrive}
-            className="mt-2 w-full bg-[var(--primary-spotify)] text-black font-extrabold py-3 rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-2 text-xs shadow-lg disabled:opacity-50"
+            className="mt-2 w-full bg-[var(--primary-spotify)] text-black font-extrabold py-3 rounded-xl hover:brightness-110 transition-colors flex items-center justify-center gap-2 text-xs disabled:opacity-50 cursor-pointer"
           >
             {importingDrive ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
             {importingDrive ? 'Đang lưu bài hát...' : 'Thêm Vào Thư Viện Web'}
@@ -999,7 +1002,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
 
       {/* Tab 3: Folder Sync / Bulk Link Import */}
       {uploadTab === 'folder' && (
-        <form onSubmit={handleSyncFolder} className="flex flex-col gap-4 p-5 bg-black/40 border border-white/10 rounded-2xl overflow-y-auto">
+        <form onSubmit={handleSyncFolder} className="flex flex-col gap-4 p-5 bg-black/40 border border-white/10 rounded-2xl overflow-y-auto custom-slim-scrollbar">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-bold text-white flex items-center gap-2">
               <Folder className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
@@ -1014,7 +1017,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
               required
             />
             <p className="text-[10px] text-slate-400">
-              💡 <strong>Mẹo:</strong> Hệ thống tự động phân tích tên file theo dạng <code>Ca Sĩ - Tên Bài Hát.flac</code> để tách tên ca sĩ và tên bài hát.
+              <strong>Mẹo:</strong> Hệ thống tự động phân tích tên file theo dạng <code>Ca Sĩ - Tên Bài Hát.flac</code> để tách tên ca sĩ và tên bài hát.
             </p>
           </div>
 
@@ -1028,7 +1031,7 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
           <button
             type="submit"
             disabled={syncingFolder}
-            className="mt-2 w-full bg-[var(--primary-spotify)] text-black font-extrabold py-3 rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-2 text-xs shadow-lg disabled:opacity-50"
+            className="mt-2 w-full bg-[var(--primary-spotify)] text-black font-extrabold py-3 rounded-xl hover:brightness-110 transition-colors flex items-center justify-center gap-2 text-xs disabled:opacity-50 cursor-pointer"
           >
             {syncingFolder ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             {syncingFolder ? 'Đang Quét & Đồng Bộ...' : 'Bắt Đầu Đồng Bộ Hàng Loạt'}
@@ -1041,379 +1044,386 @@ export function UploadForm({ playlistId, onClose }: UploadFormProps = {}) {
         <div className="flex flex-col gap-3 min-h-0 overflow-hidden">
           <div
             onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        onClick={() => !isUploading && fileInputRef.current?.click()}
-        className={`border-2 border-dashed rounded-2xl p-4 text-center transition-all cursor-pointer mb-3 shrink-0 ${
-          isDragging
-            ? 'border-[var(--primary-spotify)] bg-[var(--primary-spotify)]/15 scale-[1.01] shadow-xl shadow-[var(--theme-glow-shadow)]'
-            : 'border-white/15 hover:border-[var(--primary-spotify)]/80 bg-black/30 hover:bg-black/50'
-        }`}
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept=".mp3,.wav,.m4a,.flac,.aac,.ogg"
-          onChange={(e) => e.target.files && handleFilesSelected(e.target.files)}
-          className="hidden"
-        />
-
-        <div className="flex flex-col items-center gap-2">
-          <div className="w-10 h-10 bg-gradient-to-tr from-[var(--primary-spotify)]/20 to-purple-500/20 rounded-xl flex items-center justify-center text-[var(--primary-spotify)] border border-[var(--primary-spotify)]/30">
-            <FileAudio className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-white">
-              Nhấp để chọn hoặc Kéo & thả nhiều file âm thanh vào đây
-            </p>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              Upload file gốc trực tiếp lên Google Drive (Không giới hạn dung lượng)
-            </p>
-          </div>
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--primary-spotify)] bg-[var(--primary-spotify)]/10 px-2.5 py-0.5 rounded-full border border-[var(--primary-spotify)]/20">
-            <Plus className="w-3 h-3" /> Thêm file vào danh sách
-          </span>
-        </div>
-      </div>
-
-      {/* Overall Queue Progress Banner */}
-      {totalCount > 0 && (
-        <div className="bg-black/40 rounded-2xl p-3 border border-white/10 mb-3 flex flex-col gap-2 shrink-0">
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-2 font-semibold text-slate-200 text-[11px]">
-              <span>Hàng chờ: <strong className="text-white">{totalCount}</strong> bài</span>
-              <span>•</span>
-              <span className="text-emerald-400">Đã xong: <strong>{completedCount}</strong></span>
-              {duplicateCount > 0 && (
-                <>
-                  <span>•</span>
-                  <span className="text-amber-400 flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3" /> Trùng bài: <strong>{duplicateCount}</strong>
-                  </span>
-                </>
-              )}
-              {skippedCount > 0 && (
-                <>
-                  <span>•</span>
-                  <span className="text-slate-400">Đã bỏ qua: <strong>{skippedCount}</strong></span>
-                </>
-              )}
-              <span>•</span>
-              <span className="text-[var(--spotify-glow,#22d3ee)]">Đang chạy: <strong>{inProgressCount}</strong></span>
-              <span>•</span>
-              <span className="text-red-400">Lỗi: <strong>{errorCount}</strong></span>
-            </div>
-
-            <div className="text-slate-400 text-[11px] font-bold">
-              Tiến trình tổng: {overallProgressPercent}%
-            </div>
-          </div>
-
-          {/* Overall Progress Bar */}
-          <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
-            <div
-              className="bg-gradient-to-r from-[var(--primary-spotify)] to-emerald-400 h-full transition-all duration-300"
-              style={{ width: `${overallProgressPercent}%` }}
-            />
-          </div>
-
-          {overallBatchInfo && (
-            <div className="text-[11px] font-medium text-[var(--primary-spotify)] flex items-center gap-1.5">
-              <Sparkles className="w-3 h-3 animate-pulse" />
-              <span>{overallBatchInfo}</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Controls Bar */}
-      {totalCount > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-3 shrink-0">
-          <div className="flex flex-wrap items-center gap-2">
-            {(completedCount > 0 || skippedCount > 0) && (
-              <button
-                type="button"
-                disabled={isUploading}
-                onClick={clearCompleted}
-                className="text-[11px] font-medium text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-xl border border-white/10 transition-all"
-              >
-                Xóa bài đã xong / bỏ qua ({completedCount + skippedCount})
-              </button>
-            )}
-
-            {errorCount > 0 && (
-              <button
-                type="button"
-                disabled={isUploading}
-                onClick={() => startBatchUpload(queue.filter((i) => i.status === 'error'))}
-                className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-xl border border-amber-500/30 transition-all flex items-center gap-1.5"
-              >
-                <RotateCcw className="w-3 h-3" /> Thử lại bài lỗi ({errorCount})
-              </button>
-            )}
-
-          </div>
-
-          <button
-            type="button"
-            disabled={isUploading || (pendingCount === 0 && errorCount === 0)}
-            onClick={() => startBatchUpload()}
-            className="bg-[var(--primary-spotify)] text-black font-extrabold px-5 py-2 rounded-full transition-all flex items-center justify-center gap-2 disabled:opacity-40 shadow-lg shadow-[var(--theme-glow-shadow)] text-xs"
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => !isUploading && fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-2xl p-4 text-center transition-colors cursor-pointer mb-2 shrink-0 ${
+              isDragging
+                ? 'border-[var(--primary-spotify)] bg-[var(--primary-spotify)]/15'
+                : 'border-white/15 hover:border-[var(--primary-spotify)]/80 bg-black/30 hover:bg-black/50'
+            }`}
           >
-            {isUploading ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Đang nén &amp; upload song song...
-              </>
-            ) : (
-              <>
-                <Play className="w-3.5 h-3.5 fill-black" />
-                Bắt đầu upload ({pendingCount} bài)
-              </>
-            )}
-          </button>
-        </div>
-      )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".mp3,.wav,.m4a,.flac,.aac,.ogg"
+              onChange={(e) => e.target.files && handleFilesSelected(e.target.files)}
+              className="hidden"
+            />
 
-      {/* Queue Items List */}
-      {totalCount === 0 ? (
-        <div className="text-center py-8 border border-dashed border-white/5 rounded-2xl bg-black/20 shrink-0">
-          <Music className="w-10 h-10 text-slate-600 mx-auto mb-2 opacity-40" />
-          <p className="text-slate-400 text-xs font-medium">Chưa có bài hát nào trong hàng chờ</p>
-          <p className="text-slate-500 text-[11px] mt-0.5">Kéo thả các file nhạc vào ô phía trên để bắt đầu</p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2.5 flex-1 min-h-0 overflow-y-auto pr-1">
-          {queue.map((item, idx) => {
-            const isCompleted = item.status === 'completed'
-            const isSkipped = item.status === 'skipped'
-            const isError = item.status === 'error'
-            const isProcessing =
-              item.status === 'compressing' ||
-              item.status === 'uploading' ||
-              item.status === 'saving_db'
-            const isParsing = item.status === 'parsing'
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-10 h-10 bg-gradient-to-tr from-[var(--primary-spotify)]/20 to-purple-500/20 rounded-xl flex items-center justify-center text-[var(--primary-spotify)] border border-[var(--primary-spotify)]/30">
+                <FileAudio className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white">
+                  Nhấp để chọn hoặc Kéo &amp; thả nhiều file âm thanh vào đây
+                </p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Upload file gốc trực tiếp lên Google Drive (Không giới hạn dung lượng)
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--primary-spotify)] bg-[var(--primary-spotify)]/10 px-2.5 py-0.5 rounded-full border border-[var(--primary-spotify)]/20">
+                <Plus className="w-3 h-3" /> Thêm file vào danh sách
+              </span>
+            </div>
+          </div>
 
-            return (
-              <div
-                key={item.id}
-                className={`p-4 rounded-2xl border transition-all flex flex-col gap-3 ${
-                  isCompleted
-                    ? 'bg-emerald-950/20 border-emerald-500/30'
-                    : isSkipped
-                    ? 'bg-slate-900/40 border-slate-700/40 opacity-75'
-                    : isError
-                    ? 'bg-red-950/20 border-red-500/30'
-                    : item.isDuplicate
-                    ? 'bg-amber-950/20 border-amber-500/40'
-                    : isProcessing
-                    ? 'bg-black/60 border-[var(--primary-spotify)]/50 shadow-md'
-                    : 'bg-black/30 border-white/10 hover:border-white/20'
-                }`}
-              >
-                {/* Item Top Info */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center shrink-0 border border-white/10 text-slate-300">
-                      {isParsing ? (
-                        <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
-                      ) : isCompleted ? (
-                        <CheckCircle2 className="w-5 h-5 text-[var(--primary-spotify)]" />
-                      ) : isError ? (
-                        <AlertCircle className="w-5 h-5 text-red-400" />
-                      ) : item.isDuplicate ? (
-                        <AlertTriangle className="w-5 h-5 text-amber-400" />
-                      ) : (
-                        <Music className="w-5 h-5 text-[var(--primary-spotify)]" />
-                      )}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-400">#{idx + 1}</span>
-                        <input
-                          type="text"
-                          disabled={isUploading || isCompleted}
-                          value={item.title}
-                          onChange={(e) => updateItem(item.id, { title: e.target.value })}
-                          placeholder="Tên bài hát *"
-                          className="bg-transparent text-sm font-bold text-white focus:outline-none border-b border-transparent focus:border-[var(--primary-spotify)] transition-colors w-full"
-                        />
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 mt-1">
-                        <input
-                          type="text"
-                          disabled={isUploading || isCompleted}
-                          value={item.artist}
-                          onChange={(e) => updateItem(item.id, { artist: e.target.value })}
-                          placeholder="Nghệ sĩ..."
-                          className="bg-transparent text-xs text-slate-300 focus:outline-none border-b border-transparent focus:border-[var(--primary-spotify)] w-36"
-                        />
-                        <span>•</span>
-                        <span>{formatFileSize(item.fileSize)}</span>
-                        <span>•</span>
-                        <span>{formatDuration(item.duration)}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Status Badge & Actions */}
-                  <div className="flex items-center gap-3 self-end md:self-center shrink-0">
-                    <div className="text-xs">
-                      {isParsing && (
-                        <span className="text-slate-400 italic">Đang đọc metadata...</span>
-                      )}
-                      {item.status === 'idle' && !item.isDuplicate && (
-                        <span className="text-slate-400 bg-white/5 px-2.5 py-1 rounded-full border border-white/10 font-semibold">
-                          {item.fileSize >= 10 * 1024 * 1024 ? 'Sẵn sàng nén' : 'Sẵn sàng upload'}
-                        </span>
-                      )}
-                      {item.status === 'idle' && item.isDuplicate && (
-                        <span className="text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/30 font-bold flex items-center gap-1">
-                          <AlertTriangle className="w-3.5 h-3.5" /> Bài trùng
-                        </span>
-                      )}
-                      {item.status === 'compressing' && (
-                        <span className="text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20 font-semibold flex items-center gap-1">
-                          <Loader2 className="w-3 h-3 animate-spin" /> Đang xử lý audio
-                        </span>
-                      )}
-                      {item.status === 'uploading' && (
-                        <span className="text-[var(--primary-spotify)] bg-[var(--primary-spotify)]/10 px-2.5 py-1 rounded-full border border-[var(--primary-spotify)]/20 font-semibold flex items-center gap-1">
-                          <Loader2 className="w-3 h-3 animate-spin" /> Đang upload
-                        </span>
-                      )}
-                      {item.status === 'saving_db' && (
-                        <span className="text-[var(--spotify-glow,#22d3ee)] bg-[var(--primary-spotify,#06b6d4)]/10 px-2.5 py-1 rounded-full border border-[var(--primary-spotify,#06b6d4)]/20 font-semibold flex items-center gap-1">
-                          <Loader2 className="w-3 h-3 animate-spin" /> Lưu DB
-                        </span>
-                      )}
-                      {isCompleted && (
-                        <span className="text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 font-bold flex items-center gap-1">
-                          <Check className="w-3.5 h-3.5" /> Hoàn thành
-                        </span>
-                      )}
-                      {isSkipped && (
-                        <span className="text-slate-400 bg-white/5 px-2.5 py-1 rounded-full border border-white/10 font-medium">
-                          Đã bỏ qua (Trùng)
-                        </span>
-                      )}
-                      {isError && (
-                        <span className="text-red-400 bg-red-500/10 px-2.5 py-1 rounded-full border border-red-500/20 font-bold flex items-center gap-1">
-                          <AlertCircle className="w-3.5 h-3.5" /> Lỗi
-                        </span>
-                      )}
-                    </div>
-
-                    {item.isDuplicate && !isCompleted && !isUploading && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          updateItem(item.id, { forceUpload: !item.forceUpload })
-                        }}
-                        className={`text-xs px-2.5 py-1 rounded-xl font-bold border transition-all ${
-                          item.forceUpload
-                            ? 'bg-amber-500 text-black border-amber-400 shadow-md'
-                            : 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20'
-                        }`}
-                        title="Cho phép upload trùng"
-                      >
-                        {item.forceUpload ? 'Vẫn upload' : 'Bỏ qua (Trùng)'}
-                      </button>
-                    )}
-
-                    {isError && !isUploading && (
-                      <button
-                        type="button"
-                        onClick={() => startBatchUpload([item])}
-                        className="text-amber-400 hover:text-amber-300 p-1.5 rounded-lg hover:bg-amber-500/10 transition-colors"
-                        title="Thử lại bài này"
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                      </button>
-                    )}
-
-                    {!isUploading && (
-                      <button
-                        type="button"
-                        onClick={() => removeItem(item.id)}
-                        className="text-slate-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-white/5 transition-colors"
-                        title="Xóa khỏi hàng chờ"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
+          {/* Overall Queue Progress Banner */}
+          {totalCount > 0 && (
+            <div className="bg-black/40 rounded-2xl p-3 border border-white/10 mb-2 flex flex-col gap-2 shrink-0">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div className="flex flex-wrap items-center gap-2 font-semibold text-slate-200 text-[11px]">
+                  <span>Hàng chờ: <strong className="text-white tabular-nums">{totalCount}</strong> bài</span>
+                  <span>·</span>
+                  <span className="text-emerald-400">Đã xong: <strong className="tabular-nums">{completedCount}</strong></span>
+                  {duplicateCount > 0 && (
+                    <>
+                      <span>·</span>
+                      <span className="text-amber-400 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" /> Trùng bài: <strong className="tabular-nums">{duplicateCount}</strong>
+                      </span>
+                    </>
+                  )}
+                  {skippedCount > 0 && (
+                    <>
+                      <span>·</span>
+                      <span className="text-slate-400">Đã bỏ qua: <strong className="tabular-nums">{skippedCount}</strong></span>
+                    </>
+                  )}
+                  <span>·</span>
+                  <span className="text-[var(--spotify-glow,#22d3ee)]">Đang chạy: <strong className="tabular-nums">{inProgressCount}</strong></span>
+                  <span>·</span>
+                  <span className="text-red-400">Lỗi: <strong className="tabular-nums">{errorCount}</strong></span>
                 </div>
 
-                {/* Duplicate warning notification */}
-                {item.isDuplicate && !isCompleted && !isSkipped && (
-                  <div className="p-2 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-xl text-xs flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-400" />
-                      <span>{item.duplicateReason}</span>
-                    </div>
-                    <span className="text-[10px] text-amber-400/80 italic">
-                      {item.forceUpload ? '(Sẽ upload trùng bài)' : skipDuplicates ? '(Sẽ tự động bỏ qua không nén/up)' : '(Vẫn upload)'}
-                    </span>
-                  </div>
+                <div className="text-slate-400 text-[11px] font-bold tabular-nums">
+                  Tiến trình tổng: {overallProgressPercent}%
+                </div>
+              </div>
+
+              {/* Overall Progress Bar */}
+              <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+                <div
+                  className="bg-gradient-to-r from-[var(--primary-spotify)] to-emerald-400 h-full transition-[width] duration-300"
+                  style={{ width: `${overallProgressPercent}%` }}
+                />
+              </div>
+
+              {overallBatchInfo && (
+                <div className="text-[11px] font-medium text-[var(--primary-spotify)] flex items-center gap-1.5">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <span>{overallBatchInfo}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Controls Bar */}
+          {totalCount > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2 shrink-0">
+              <div className="flex flex-wrap items-center gap-2">
+                {(completedCount > 0 || skippedCount > 0) && (
+                  <button
+                    type="button"
+                    disabled={isUploading}
+                    onClick={clearCompleted}
+                    className="text-[11px] font-medium text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-xl border border-white/10 transition-colors cursor-pointer"
+                  >
+                    Xóa bài đã xong / bỏ qua ({completedCount + skippedCount})
+                  </button>
                 )}
 
-                {/* Compression info notification */}
-                {item.compressInfo && (
-                  <div className="p-2 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-xl text-xs flex items-center gap-2">
-                    <Sparkles className="w-3.5 h-3.5 shrink-0 animate-pulse text-amber-400" />
-                    <span className="truncate">{item.compressInfo}</span>
-                  </div>
-                )}
-
-                {/* Error notification */}
-                {item.error && (
-                  <div className="p-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-xs flex items-center gap-2">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    <span>{item.error}</span>
-                  </div>
-                )}
-
-                {/* Individual Progress Bar */}
-                {(isProcessing || item.progress > 0) && !isCompleted && (
-                  <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden mt-1">
-                    <div
-                      className="bg-[var(--primary-spotify)] h-full transition-all duration-200"
-                      style={{ width: `${item.progress}%` }}
-                    />
-                  </div>
+                {errorCount > 0 && (
+                  <button
+                    type="button"
+                    disabled={isUploading}
+                    onClick={() => startBatchUpload(queue.filter((i) => i.status === 'error'))}
+                    className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-xl border border-amber-500/30 transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <RotateCcw className="w-3 h-3" /> Thử lại bài lỗi ({errorCount})
+                  </button>
                 )}
               </div>
-            )
-          })}
-        </div>
-      )}
 
-      {/* Done Footer */}
-      {completedCount > 0 && completedCount + skippedCount === totalCount && (
-        <div className="mt-6 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-3 text-emerald-300 text-xs">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-[var(--primary-spotify)] shrink-0" />
-            <span className="font-semibold">
-              Đã xử lý xong hàng chờ: {completedCount} bài upload thành công{skippedCount > 0 ? `, ${skippedCount} bài bị trùng đã bỏ qua` : ''}!
-            </span>
-          </div>
+              <button
+                type="button"
+                disabled={isUploading || (pendingCount === 0 && errorCount === 0)}
+                onClick={() => startBatchUpload()}
+                className="bg-[var(--primary-spotify)] hover:brightness-110 text-black font-extrabold px-5 py-2 rounded-full transition-colors flex items-center justify-center gap-2 disabled:opacity-40 text-xs cursor-pointer"
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Đang nén &amp; upload song song...
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3.5 h-3.5 fill-black" />
+                    Bắt đầu upload ({pendingCount} bài)
+                  </>
+                )}
+              </button>
+            </div>
+          )}
 
-          <button
-            type="button"
-            onClick={() => {
-              router.push('/')
-              router.refresh()
-            }}
-            className="bg-[var(--primary-spotify)] text-black font-extrabold px-4 py-2 rounded-full hover:brightness-110 transition-all text-xs shrink-0"
-          >
-            Về Trang Chủ nghe nhạc ➔
-          </button>
-        </div>
-      )}
+          {/* Queue Items List (@container) */}
+          {totalCount === 0 ? (
+            <div className="text-center py-8 border border-dashed border-white/10 rounded-2xl bg-black/20 shrink-0">
+              <Music className="w-10 h-10 text-slate-600 mx-auto mb-2 opacity-40" />
+              <p className="text-slate-400 text-xs font-medium">Chưa có bài hát nào trong hàng chờ</p>
+              <p className="text-slate-500 text-[11px] mt-0.5">Kéo thả các file nhạc vào ô phía trên để bắt đầu</p>
+            </div>
+          ) : (
+            <div
+              className={`@container flex flex-col gap-2.5 flex-1 min-h-0 ${
+                onClose ? 'overflow-y-auto pr-1 custom-slim-scrollbar' : ''
+              }`}
+            >
+              {queue.map((item, idx) => {
+                const isCompleted = item.status === 'completed'
+                const isSkipped = item.status === 'skipped'
+                const isError = item.status === 'error'
+                const isProcessing =
+                  item.status === 'compressing' ||
+                  item.status === 'uploading' ||
+                  item.status === 'saving_db'
+                const isParsing = item.status === 'parsing'
+
+                return (
+                  <div
+                    key={item.id}
+                    className={`p-4 rounded-xl border transition-colors flex flex-col gap-3 ${
+                      isCompleted
+                        ? 'bg-emerald-950/20 border-emerald-500/30'
+                        : isSkipped
+                        ? 'bg-slate-900/40 border-slate-700/40 opacity-75'
+                        : isError
+                        ? 'bg-red-950/20 border-red-500/30'
+                        : item.isDuplicate
+                        ? 'bg-amber-950/20 border-amber-500/40'
+                        : isProcessing
+                        ? 'bg-black/60 border-[var(--primary-spotify)]/50'
+                        : 'bg-black/30 border-white/10 hover:border-white/20'
+                    }`}
+                  >
+                    {/* Item Top Info */}
+                    <div className="flex flex-col @[640px]:flex-row @[640px]:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center shrink-0 border border-white/10 text-slate-300">
+                          {isParsing ? (
+                            <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+                          ) : isCompleted ? (
+                            <CheckCircle2 className="w-5 h-5 text-[var(--primary-spotify)]" />
+                          ) : isError ? (
+                            <AlertCircle className="w-5 h-5 text-red-400" />
+                          ) : item.isDuplicate ? (
+                            <AlertTriangle className="w-5 h-5 text-amber-400" />
+                          ) : (
+                            <Music className="w-5 h-5 text-[var(--primary-spotify)]" />
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-slate-400 shrink-0 tabular-nums">#{idx + 1}</span>
+                            <input
+                              type="text"
+                              disabled={isUploading || isCompleted}
+                              value={item.title}
+                              onChange={(e) => updateItem(item.id, { title: e.target.value })}
+                              placeholder="Tên bài hát *"
+                              className="bg-white/[0.03] text-sm font-bold text-white focus:outline-none border border-white/15 hover:border-white/25 focus:border-[var(--primary-spotify)] transition-colors w-full rounded-lg px-2 py-0.5 disabled:border-transparent disabled:bg-transparent disabled:px-0"
+                            />
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 mt-1.5">
+                            <input
+                              type="text"
+                              disabled={isUploading || isCompleted}
+                              value={item.artist}
+                              onChange={(e) => updateItem(item.id, { artist: e.target.value })}
+                              placeholder="Nghệ sĩ..."
+                              className="bg-white/[0.03] text-xs text-slate-300 focus:outline-none border border-white/15 hover:border-white/25 focus:border-[var(--primary-spotify)] rounded-lg px-2 py-0.5 w-36 transition-colors disabled:border-transparent disabled:bg-transparent disabled:px-0"
+                            />
+                            <span>·</span>
+                            <span className="tabular-nums">{formatFileSize(item.fileSize)}</span>
+                            <span>·</span>
+                            <span className="tabular-nums">{formatDuration(item.duration)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Status Badge & Actions */}
+                      <div className="flex items-center gap-2.5 self-end @[640px]:self-center shrink-0">
+                        <div className="text-xs">
+                          {isParsing && (
+                            <span className="text-slate-400">Đang đọc metadata...</span>
+                          )}
+                          {item.status === 'idle' && !item.isDuplicate && (
+                            <span className="text-slate-400 bg-white/5 px-2.5 py-1 rounded-full border border-white/10 font-semibold">
+                              {item.fileSize >= 10 * 1024 * 1024 ? 'Sẵn sàng nén' : 'Sẵn sàng upload'}
+                            </span>
+                          )}
+                          {item.status === 'idle' && item.isDuplicate && (
+                            <span className="text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/30 font-bold flex items-center gap-1">
+                              <AlertTriangle className="w-3.5 h-3.5" /> Bài trùng
+                            </span>
+                          )}
+                          {item.status === 'compressing' && (
+                            <span className="text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20 font-semibold flex items-center gap-1">
+                              <Loader2 className="w-3 h-3 animate-spin" /> Đang xử lý audio
+                            </span>
+                          )}
+                          {item.status === 'uploading' && (
+                            <span className="text-[var(--primary-spotify)] bg-[var(--primary-spotify)]/10 px-2.5 py-1 rounded-full border border-[var(--primary-spotify)]/20 font-semibold flex items-center gap-1">
+                              <Loader2 className="w-3 h-3 animate-spin" /> Đang upload
+                            </span>
+                          )}
+                          {item.status === 'saving_db' && (
+                            <span className="text-[var(--spotify-glow,#22d3ee)] bg-[var(--primary-spotify,#06b6d4)]/10 px-2.5 py-1 rounded-full border border-[var(--primary-spotify,#06b6d4)]/20 font-semibold flex items-center gap-1">
+                              <Loader2 className="w-3 h-3 animate-spin" /> Lưu DB
+                            </span>
+                          )}
+                          {isCompleted && (
+                            <span className="text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 font-bold flex items-center gap-1">
+                              <Check className="w-3.5 h-3.5" /> Hoàn thành
+                            </span>
+                          )}
+                          {isSkipped && (
+                            <span className="text-slate-400 bg-white/5 px-2.5 py-1 rounded-full border border-white/10 font-medium">
+                              Đã bỏ qua (Trùng)
+                            </span>
+                          )}
+                          {isError && (
+                            <span className="text-red-400 bg-red-500/10 px-2.5 py-1 rounded-full border border-red-500/20 font-bold flex items-center gap-1">
+                              <AlertCircle className="w-3.5 h-3.5" /> Lỗi
+                            </span>
+                          )}
+                        </div>
+
+                        {item.isDuplicate && !isCompleted && !isUploading && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateItem(item.id, { forceUpload: !item.forceUpload })
+                            }}
+                            className={`text-xs px-2.5 py-1 rounded-xl font-bold border transition-colors cursor-pointer ${
+                              item.forceUpload
+                                ? 'bg-amber-500 text-black border-amber-400'
+                                : 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20'
+                            }`}
+                            title="Cho phép upload trùng"
+                          >
+                            {item.forceUpload ? 'Vẫn upload' : 'Bỏ qua (Trùng)'}
+                          </button>
+                        )}
+
+                        {isError && !isUploading && (
+                          <button
+                            type="button"
+                            onClick={() => startBatchUpload([item])}
+                            className="text-amber-400 hover:text-amber-300 p-1.5 rounded-lg hover:bg-amber-500/10 transition-colors cursor-pointer"
+                            title="Thử lại bài này"
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                          </button>
+                        )}
+
+                        {!isUploading && (
+                          <button
+                            type="button"
+                            onClick={() => removeItem(item.id)}
+                            className="text-slate-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+                            title="Xóa khỏi hàng chờ"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Duplicate warning notification */}
+                    {item.isDuplicate && !isCompleted && !isSkipped && (
+                      <div className="p-2 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-xl text-xs flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                          <span className="truncate">{item.duplicateReason}</span>
+                        </div>
+                        <span className="text-[10px] text-amber-400/80 shrink-0">
+                          {item.forceUpload ? '(Sẽ upload trùng bài)' : skipDuplicates ? '(Sẽ tự động bỏ qua không nén/up)' : '(Vẫn upload)'}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Compression info notification */}
+                    {item.compressInfo && (
+                      <div className="p-2 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-xl text-xs flex items-center gap-2">
+                        <FileAudio className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                        <span className="truncate">{item.compressInfo}</span>
+                      </div>
+                    )}
+
+                    {/* Error notification */}
+                    {item.error && (
+                      <div className="p-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-xs flex items-center gap-2">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>{item.error}</span>
+                      </div>
+                    )}
+
+                    {/* Individual Progress Bar */}
+                    {(isProcessing || item.progress > 0) && !isCompleted && (
+                      <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden mt-1">
+                        <div
+                          className="bg-[var(--primary-spotify)] h-full transition-[width] duration-200"
+                          style={{ width: `${item.progress}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Done Footer */}
+          {completedCount > 0 && completedCount + skippedCount === totalCount && (
+            <div className="mt-4 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-3 text-emerald-300 text-xs shrink-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <CheckCircle2 className="w-5 h-5 text-[var(--primary-spotify)] shrink-0" />
+                <span className="font-semibold">
+                  Đã xử lý xong hàng chờ: {completedCount} bài upload thành công{skippedCount > 0 ? `, ${skippedCount} bài bị trùng đã bỏ qua` : ''}!
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (onClose) {
+                    onClose()
+                  } else {
+                    router.push('/')
+                    router.refresh()
+                  }
+                }}
+                className="bg-[var(--primary-spotify)] hover:brightness-110 text-black font-extrabold px-4 py-2 rounded-full transition-colors text-xs shrink-0 cursor-pointer"
+              >
+                {onClose ? 'Đóng cửa sổ' : 'Về Trang Chủ nghe nhạc'}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
