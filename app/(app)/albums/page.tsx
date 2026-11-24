@@ -2,12 +2,14 @@
 
 import React, { useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { EASE_OUT } from '@/lib/motion'
 import { createClient } from '@/lib/supabase/client'
 import { SpotifyAlbumItem } from '@/lib/spotify'
 import { Track } from '@/types'
 import { usePlayerControls } from '@/components/player/PlayerContext'
 import { DiscAlbum, Search, X, Loader2 } from 'lucide-react'
-import { HeroCardSkeleton, MediaCardGridSkeleton } from '@/components/common/SkeletonLoader'
+import { MediaCardGridSkeleton } from '@/components/common/SkeletonLoader'
 import { MediaCard } from '@/components/common/MediaCard'
 import { isKnownBadFallback, isRealAlbumName } from '@/lib/albumCache'
 import { cleanDisplayAlbumName, normalizeAlbumText, stripAlbumEditionSuffix } from '@/lib/albumMatching'
@@ -73,6 +75,7 @@ let albumsLastFetchedAt = 0
 const ALBUMS_CACHE_TTL = 15 * 60 * 1000 // 15 mins
 
 export default function AlbumsPage() {
+  const reduced = useReducedMotion()
   const supabase = createClient()
   const searchParams = useSearchParams()
   const [listenedAlbums, setListenedAlbums] = useState<SpotifyAlbumItem[]>(cachedListenedAlbums)
@@ -237,23 +240,38 @@ export default function AlbumsPage() {
           placeholder="Tìm kiếm Album theo tên đĩa nhạc, nghệ sĩ (Sơn Tùng, Taylor Swift, Coldplay...)"
           className="search-input w-full bg-[var(--elevation-1-bg,#0d111a)] border border-white/10 focus:border-[var(--primary-spotify,#06b6d4)]/60 rounded-full pl-11 pr-10 py-2 sm:py-2.5 text-xs text-white placeholder-slate-400 outline-none transition-colors shadow-inner"
         />
-        {searching ? (
-          <Loader2 className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)] animate-spin absolute right-3.5" />
-        ) : albumQuery ? (
-          <button
-            onClick={() => setAlbumQuery('')}
-            className="absolute right-3.5 p-0.5 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        ) : null}
+        <AnimatePresence mode="wait" initial={false}>
+          {searching ? (
+            <motion.span
+              key="album-search-loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.14, ease: EASE_OUT }}
+              className="absolute right-3.5 flex items-center justify-center pointer-events-none"
+            >
+              <Loader2 className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)] animate-spin" />
+            </motion.span>
+          ) : albumQuery ? (
+            <motion.button
+              key="album-search-clear"
+              type="button"
+              aria-label="Xóa tìm kiếm"
+              onClick={() => setAlbumQuery('')}
+              initial={reduced ? { opacity: 0 } : { opacity: 0, transform: 'scale(0.9)' }}
+              animate={reduced ? { opacity: 1 } : { opacity: 1, transform: 'scale(1)' }}
+              exit={reduced ? { opacity: 0 } : { opacity: 0, transform: 'scale(0.9)' }}
+              transition={{ duration: 0.14, ease: EASE_OUT }}
+              className="absolute right-3.5 p-0.5 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-[color,background-color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </motion.button>
+          ) : null}
+        </AnimatePresence>
       </div>
 
       {loading ? (
-        <div className="flex flex-col gap-6">
-          <HeroCardSkeleton />
-          <MediaCardGridSkeleton count={12} />
-        </div>
+        <MediaCardGridSkeleton count={12} />
       ) : albumQuery.trim() ? (
         /* Search Results Mode */
         <div className="flex flex-col gap-4">

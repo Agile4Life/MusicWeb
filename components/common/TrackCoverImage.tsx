@@ -1,7 +1,9 @@
 'use client'
 
-import React, { useState, useMemo, useEffect, useRef } from 'react'
+import React, { useState, useMemo, useEffect, useLayoutEffect, useRef } from 'react'
 import { Music } from 'lucide-react'
+
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect
 
 interface TrackCoverImageProps {
   src?: string | null
@@ -58,11 +60,16 @@ function TrackCoverImageComponent({
   className = 'w-full h-full object-cover',
   fallbackIconClassName = 'w-4 h-4 text-slate-400',
 }: TrackCoverImageProps) {
-  const [hasError, setHasError] = useState(false)
-  const [loaded, setLoaded] = useState(false)
-  const [fallbackStage, setFallbackStage] = useState(0)
+  const [errorSrc, setErrorSrc] = useState<string | null>(null)
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null)
+  const [fallbackState, setFallbackState] = useState<{ src: string | null | undefined; stage: number }>({
+    src,
+    stage: 0,
+  })
   const imgRef = useRef<HTMLImageElement | null>(null)
-  const prevSrcRef = useRef(src)
+
+  const fallbackStage = fallbackState.src === src ? fallbackState.stage : 0
+  const hasError = Boolean(src && errorSrc === src)
 
   const highResSrc = useMemo(() => getHighResCoverUrl(src), [src])
 
@@ -90,18 +97,12 @@ function TrackCoverImageComponent({
     }
   }, [youtubeVideoId, fallbackStage, highResSrc, src])
 
-  useEffect(() => {
-    if (prevSrcRef.current !== src) {
-      prevSrcRef.current = src
-      setHasError(false)
-      setLoaded(false)
-      setFallbackStage(0)
-    }
+  useIsomorphicLayoutEffect(() => {
     const img = imgRef.current
-    if (img && img.complete && img.naturalWidth > 0) {
-      setLoaded(true)
+    if (currentSrc && img && img.complete && img.naturalWidth > 0) {
+      setLoadedSrc(currentSrc)
     }
-  }, [src, currentSrc])
+  }, [currentSrc])
 
   if (!currentSrc || hasError) {
     return (
@@ -111,32 +112,38 @@ function TrackCoverImageComponent({
     )
   }
 
+  const isLoaded = Boolean(
+    currentSrc.startsWith('data:') || loadedSrc === currentSrc
+  )
+
   return (
-    <img
-      ref={imgRef}
-      src={currentSrc}
-      alt={alt}
-      width={600}
-      height={600}
-      decoding="async"
-      className={`${className} transition-opacity duration-200 ${loaded ? 'opacity-100' : 'opacity-0'}`}
-      style={{ aspectRatio: '1 / 1' }}
-      onLoad={() => setLoaded(true)}
-      onError={() => {
-        if (youtubeVideoId) {
-          if (fallbackStage < 3) {
-            setFallbackStage((prev) => prev + 1)
-          } else {
-            setHasError(true)
+    <div className="relative w-full h-full overflow-hidden bg-white/[0.04]">
+      <img
+        ref={imgRef}
+        src={currentSrc}
+        alt={alt}
+        width={600}
+        height={600}
+        decoding="async"
+        className={`${className} transition-opacity duration-200 ease-[var(--ease-out)] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+        style={{ aspectRatio: '1 / 1' }}
+        onLoad={() => setLoadedSrc(currentSrc)}
+        onError={() => {
+          if (youtubeVideoId) {
+            if (fallbackStage < 3) {
+              setFallbackState({ src, stage: fallbackStage + 1 })
+            } else if (src) {
+              setErrorSrc(src)
+            }
+          } else if (fallbackStage === 0 && src && src !== highResSrc) {
+            setFallbackState({ src, stage: 1 })
+          } else if (src) {
+            setErrorSrc(src)
           }
-        } else if (fallbackStage === 0 && src && src !== highResSrc) {
-          setFallbackStage(1)
-        } else {
-          setHasError(true)
-        }
-      }}
-      loading="lazy"
-    />
+        }}
+        loading="lazy"
+      />
+    </div>
   )
 }
 

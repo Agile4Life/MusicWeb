@@ -417,8 +417,8 @@ function TrackRowComponent({
         )}
 
         {/* Index & Play button */}
-        <div className="w-7 sm:w-8 shrink-0 flex items-center justify-center text-xs font-mono text-slate-400 select-none">
-          <span className="group-hover:hidden flex items-center justify-center">
+        <div className="group/play relative w-7 sm:w-8 h-7 shrink-0 flex items-center justify-center text-xs font-mono text-slate-400 select-none">
+          <span className="flex items-center justify-center transition-opacity duration-150 ease-[var(--ease-out)] group-hover:opacity-0 group-focus-within/play:opacity-0">
             {isPlayingThis ? (
               <div className="flex items-end justify-center gap-0.5 h-3">
                 <span className="w-0.5 bg-[var(--primary-spotify)] rounded-full eq-bar-1" />
@@ -436,7 +436,7 @@ function TrackRowComponent({
               onPlayClick?.()
             }}
             aria-label={isPlayingThis ? 'Tạm dừng' : 'Phát'}
-            className="hidden group-hover:flex items-center justify-center text-white cursor-pointer"
+            className="absolute inset-0 flex items-center justify-center rounded-md text-white cursor-pointer opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--spotify-glow,#22d3ee)] transition-[opacity,transform,color] duration-150 ease-[var(--ease-out)] active:scale-[0.96] motion-reduce:active:scale-100"
           >
             {isPlayingThis ? (
               <Pause className="w-4 h-4 fill-current text-[var(--spotify-glow,#22d3ee)]" />
@@ -568,14 +568,14 @@ function TrackRowComponent({
               <button
                 onClick={handleSaveEdit}
                 disabled={saving}
-                className="p-1.5 bg-[var(--primary-spotify)] text-black rounded-lg hover:opacity-80 transition-opacity disabled:opacity-50"
+                className="p-1.5 bg-[var(--primary-spotify)] text-black rounded-lg hover:opacity-80 transition-[opacity,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.96] motion-reduce:active:scale-100 disabled:opacity-50 cursor-pointer"
                 title="Lưu"
               >
                 <Check className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={handleCancelEdit}
-                className="p-1.5 bg-white/10 text-slate-300 rounded-lg hover:bg-white/20 transition-colors"
+                className="p-1.5 bg-white/10 text-slate-300 rounded-lg hover:bg-white/20 transition-[background-color,color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.96] motion-reduce:active:scale-100 cursor-pointer"
                 title="Hủy"
               >
                 <X className="w-3.5 h-3.5" />
@@ -589,7 +589,7 @@ function TrackRowComponent({
                     e.stopPropagation()
                     onAddToQueue()
                   }}
-                  className={`p-1.5 text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10 rounded-lg transition-[opacity,color,background-color] hidden sm:block cursor-pointer ${
+                  className={`p-1.5 text-slate-400 hover:text-[var(--spotify-glow,#22d3ee)] hover:bg-white/10 rounded-lg transition-[opacity,color,background-color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.96] motion-reduce:active:scale-100 hidden sm:block cursor-pointer focus-visible:opacity-100 ${
                     showMenu ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                   }`}
                   title="Thêm vào hàng đợi"
@@ -601,7 +601,7 @@ function TrackRowComponent({
               <button
                 ref={buttonRef}
                 onClick={handleToggleMenu}
-                className={`p-1.5 hover:text-white hover:bg-white/10 rounded-lg transition-colors ${
+                className={`p-1.5 hover:text-white hover:bg-white/10 rounded-lg transition-[opacity,color,background-color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.95] motion-reduce:active:scale-100 cursor-pointer focus-visible:opacity-100 ${
                   showMenu ? 'opacity-100 text-white bg-white/10' : 'opacity-100 md:opacity-0 md:group-hover:opacity-100'
                 }`}
                 title="Khác"

@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { EASE_OUT, modalBackdropProps, modalPanelProps } from '@/lib/motion'
 import { Track, Playlist } from '@/types'
 import { toast } from '@/components/ui/ToastContext'
 import { TrackRow } from './TrackRow'
@@ -38,11 +40,12 @@ export function TrackList({
   onBulkDeleted,
   isSearchResult = false,
 }: TrackListProps) {
+  const reduced = useReducedMotion()
   const { currentTrack, isPlaying, isBuffering } = usePlayerTrack()
   const { playTrack, playSearchTrack, togglePlay, addToQueue } = usePlayerControls()
   const {
     containerRef: listContainerRef,
-    indicator: trackIndicator,
+    indicatorStyle: trackIndicatorStyle,
     handleItemMouseEnter: handleRowMouseEnter,
     handleContainerMouseLeave: handleListMouseLeave,
   } = useListGlideIndicator(52)
@@ -306,11 +309,7 @@ export function TrackList({
       >
         <div
           className="track-glide-indicator"
-          style={{
-            transform: `translateY(${trackIndicator.top}px) scaleY(${trackIndicator.scaleY})`,
-            height: `${trackIndicator.height}px`,
-            opacity: trackIndicator.opacity,
-          }}
+          style={trackIndicatorStyle}
         />
         {tracks.map((track, idx) => {
           const isCurrent = currentTrack?.id === track.id
@@ -359,162 +358,195 @@ export function TrackList({
       </div>
 
       {/* 🚀 FLOATING BULK ACTION BAR (ADMIN ONLY) */}
-      {mounted && typeof document !== 'undefined' && isAdmin && selectedIds.size > 0 && createPortal(
-        <div className="fixed bottom-24 lg:bottom-28 left-1/2 -translate-x-1/2 z-[75] bg-[var(--elevation-2-bg,#090d16)]/95 backdrop-blur-2xl border border-[var(--spotify-glow,#22d3ee)]/40 text-white px-4 sm:px-5 py-2.5 sm:py-3 rounded-full shadow-2xl shadow-black flex items-center gap-2.5 sm:gap-3 animate-in fade-in slide-in-from-bottom-4 duration-200 select-none max-w-[92vw] flex-wrap sm:flex-nowrap justify-center">
-          <div className="flex items-center gap-2 pr-2 border-r border-white/10 text-xs font-bold text-[var(--spotify-glow,#22d3ee)] shrink-0">
-            <CheckSquare className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
-            <span>Đã chọn {selectedIds.size} bài</span>
-          </div>
+      {mounted && typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {isAdmin && selectedIds.size > 0 && (
+            <div className="fixed bottom-24 lg:bottom-28 inset-x-0 z-[75] flex justify-center px-3 pointer-events-none">
+              <motion.div
+                key="bulk-action-bar"
+                initial={
+                  reduced
+                    ? { opacity: 0 }
+                    : { opacity: 0, transform: 'translate3d(0, 16px, 0) scale(0.97)' }
+                }
+                animate={
+                  reduced
+                    ? { opacity: 1 }
+                    : { opacity: 1, transform: 'translate3d(0, 0px, 0) scale(1)' }
+                }
+                exit={
+                  reduced
+                    ? { opacity: 0 }
+                    : { opacity: 0, transform: 'translate3d(0, 12px, 0) scale(0.97)' }
+                }
+                transition={{ duration: reduced ? 0.14 : 0.2, ease: EASE_OUT }}
+                className="pointer-events-auto bg-[var(--elevation-2-bg,#090d16)]/95 backdrop-blur-2xl border border-[var(--spotify-glow,#22d3ee)]/40 text-white px-4 sm:px-5 py-2.5 sm:py-3 rounded-full shadow-2xl shadow-black flex items-center gap-2.5 sm:gap-3 select-none max-w-[92vw] flex-wrap sm:flex-nowrap justify-center"
+              >
+                <div className="flex items-center gap-2 pr-2 border-r border-white/10 text-xs font-bold text-[var(--spotify-glow,#22d3ee)] shrink-0">
+                  <CheckSquare className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
+                  <span>Đã chọn {selectedIds.size} bài</span>
+                </div>
 
-          <button
-            onClick={() => setShowBulkModal(true)}
-            className="bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--theme-secondary,#3b82f6)] hover:brightness-110 text-black font-extrabold text-xs px-4 py-2 rounded-full flex items-center gap-1.5 shadow-lg transition-[filter] cursor-pointer shrink-0"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-            Sửa Nghệ Sĩ & Album
-          </button>
+                <button
+                  onClick={() => setShowBulkModal(true)}
+                  className="bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--theme-secondary,#3b82f6)] hover:brightness-110 text-black font-extrabold text-xs px-4 py-2 rounded-full flex items-center gap-1.5 shadow-lg transition-[transform,background-color,border-color,color,filter] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 cursor-pointer shrink-0"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Sửa Nghệ Sĩ & Album
+                </button>
 
-          <button
-            onClick={handleExecuteStripLeadingNumbers}
-            disabled={saving}
-            className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-semibold text-xs px-3.5 py-2 rounded-full flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer shrink-0"
-            title="Tự động xóa các số thứ tự ở đầu tên bài hát như '23. ', '22. ', '01 - '"
-          >
-            <Scissors className="w-3.5 h-3.5 text-amber-400" />
-            Xóa Số Đầu Tên Bài
-          </button>
+                <button
+                  onClick={handleExecuteStripLeadingNumbers}
+                  disabled={saving}
+                  className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-semibold text-xs px-3.5 py-2 rounded-full flex items-center gap-1.5 transition-[transform,background-color,border-color,color,filter] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 disabled:opacity-50 cursor-pointer shrink-0"
+                  title="Tự động xóa các số thứ tự ở đầu tên bài hát như '23. ', '22. ', '01 - '"
+                >
+                  <Scissors className="w-3.5 h-3.5 text-amber-400" />
+                  Xóa Số Đầu Tên Bài
+                </button>
 
-          <button
-            onClick={handleExecuteBulkDelete}
-            disabled={deleting}
-            className="bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 font-semibold text-xs px-3.5 py-2 rounded-full flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer shrink-0"
-          >
-            {deleting ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Trash2 className="w-3.5 h-3.5 text-red-400" />
-            )}
-            Xóa Đã Chọn
-          </button>
+                <button
+                  onClick={handleExecuteBulkDelete}
+                  disabled={deleting}
+                  className="bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 font-semibold text-xs px-3.5 py-2 rounded-full flex items-center gap-1.5 transition-[transform,background-color,border-color,color,filter] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 disabled:opacity-50 cursor-pointer shrink-0"
+                >
+                  {deleting ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                  )}
+                  Xóa Đã Chọn
+                </button>
 
-          <button
-            onClick={() => setSelectedIds(new Set())}
-            className="text-slate-400 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer shrink-0"
-            title="Bỏ chọn"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>,
+                <button
+                  onClick={() => setSelectedIds(new Set())}
+                  className="text-slate-400 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-[transform,background-color,border-color,color,filter] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 cursor-pointer shrink-0"
+                  title="Bỏ chọn"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
         document.body
       )}
 
       {/* 🚀 BULK EDIT MODAL */}
-      {mounted && typeof document !== 'undefined' && showBulkModal && createPortal(
-        <div
-          role="dialog"
-          aria-modal="true"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !saving) setShowBulkModal(false)
-          }}
-          className="fixed inset-0 bg-black/80 backdrop-blur-md z-[75] flex items-center justify-center p-4 overflow-y-auto"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="glass-panel modal-content w-full max-w-md p-6 rounded-3xl border border-[var(--spotify-glow,#22d3ee)]/30 bg-[var(--elevation-2-bg,#0b1019)] shadow-2xl relative flex flex-col gap-5 my-auto animate-in zoom-in-95 duration-200"
-          >
-            <button
-              onClick={() => setShowBulkModal(false)}
-              className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
+      {mounted && typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showBulkModal && (
+            <motion.div
+              key="bulk-edit-backdrop"
+              role="dialog"
+              aria-modal="true"
+              onClick={(e) => {
+                if (e.target === e.currentTarget && !saving) setShowBulkModal(false)
+              }}
+              {...modalBackdropProps(reduced)}
+              className="fixed inset-0 bg-black/80 backdrop-blur-md z-[75] flex items-center justify-center p-4 overflow-y-auto"
             >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div>
-              <h3 className="text-xl font-black text-white flex items-center gap-2.5">
-                <Pencil className="w-5 h-5 text-[var(--spotify-glow,#22d3ee)]" />
-                Sửa Hàng Loạt ({selectedIds.size} bài hát)
-              </h3>
-              <p className="text-xs text-slate-400 mt-1">
-                Nhập thông tin mới để áp dụng đồng loạt cho tất cả các bài hát đã chọn.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-4">
-              {/* Field 1: Artist */}
-              <div className="flex flex-col gap-2 bg-black/40 p-3.5 rounded-2xl border border-white/5">
-                <label className="flex items-center gap-2 text-xs font-bold text-slate-200 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={updateArtist}
-                    onChange={(e) => setUpdateArtist(e.target.checked)}
-                    className="rounded accent-[var(--spotify-glow,#22d3ee)] w-3.5 h-3.5 cursor-pointer"
-                  />
-                  <User className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
-                  <span>Cập nhật Tên Nghệ Sĩ</span>
-                </label>
-
-                {updateArtist && (
-                  <input
-                    type="text"
-                    value={bulkArtist}
-                    onChange={(e) => setBulkArtist(e.target.value)}
-                    placeholder="Ví dụ: RPT MCK"
-                    className="w-full glass-input text-white text-xs rounded-xl px-3.5 py-2.5 outline-none font-medium mt-1 focus:border-[var(--spotify-glow,#22d3ee)]/50"
-                  />
-                )}
-              </div>
-
-              {/* Field 2: Album */}
-              <div className="flex flex-col gap-2 bg-black/40 p-3.5 rounded-2xl border border-white/5">
-                <label className="flex items-center gap-2 text-xs font-bold text-slate-200 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={updateAlbum}
-                    onChange={(e) => setUpdateAlbum(e.target.checked)}
-                    className="rounded accent-[var(--spotify-glow,#22d3ee)] w-3.5 h-3.5 cursor-pointer"
-                  />
-                  <Disc className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
-                  <span>Cập nhật Tên Album</span>
-                </label>
-
-                {updateAlbum && (
-                  <input
-                    type="text"
-                    value={bulkAlbum}
-                    onChange={(e) => setBulkAlbum(e.target.value)}
-                    placeholder="Ví dụ: 99%"
-                    className="w-full glass-input text-white text-xs rounded-xl px-3.5 py-2.5 outline-none font-medium mt-1 focus:border-[var(--spotify-glow,#22d3ee)]/50"
-                  />
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowBulkModal(false)}
-                className="px-4 py-2 rounded-full text-xs font-bold text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              <motion.div
+                key="bulk-edit-panel"
+                onClick={(e) => e.stopPropagation()}
+                {...modalPanelProps(reduced)}
+                className="glass-panel modal-content w-full max-w-md p-6 rounded-3xl border border-[var(--spotify-glow,#22d3ee)]/30 bg-[var(--elevation-2-bg,#0b1019)] shadow-2xl relative flex flex-col gap-5 my-auto"
               >
-                Hủy
-              </button>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={handleExecuteBulkEdit}
-                className="bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black font-extrabold text-xs px-5 py-2.5 rounded-full flex items-center gap-2 shadow-lg transition-[filter,opacity] disabled:opacity-50 cursor-pointer"
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Đang lưu DB...
-                  </>
-                ) : (
-                  'Lưu Thay Đổi Đồng Loạt'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>,
+                <button
+                  onClick={() => setShowBulkModal(false)}
+                  className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-xl hover:bg-white/10 transition-[transform,background-color,border-color,color,filter] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+
+                <div>
+                  <h3 className="text-xl font-black text-white flex items-center gap-2.5">
+                    <Pencil className="w-5 h-5 text-[var(--spotify-glow,#22d3ee)]" />
+                    Sửa Hàng Loạt ({selectedIds.size} bài hát)
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Nhập thông tin mới để áp dụng đồng loạt cho tất cả các bài hát đã chọn.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-4">
+                  {/* Field 1: Artist */}
+                  <div className="flex flex-col gap-2 bg-black/40 p-3.5 rounded-2xl border border-white/5">
+                    <label className="flex items-center gap-2 text-xs font-bold text-slate-200 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={updateArtist}
+                        onChange={(e) => setUpdateArtist(e.target.checked)}
+                        className="rounded accent-[var(--spotify-glow,#22d3ee)] w-3.5 h-3.5 cursor-pointer"
+                      />
+                      <User className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
+                      <span>Cập nhật Tên Nghệ Sĩ</span>
+                    </label>
+
+                    {updateArtist && (
+                      <input
+                        type="text"
+                        value={bulkArtist}
+                        onChange={(e) => setBulkArtist(e.target.value)}
+                        placeholder="Ví dụ: RPT MCK"
+                        className="w-full glass-input text-white text-xs rounded-xl px-3.5 py-2.5 outline-none font-medium mt-1 focus:border-[var(--spotify-glow,#22d3ee)]/50"
+                      />
+                    )}
+                  </div>
+
+                  {/* Field 2: Album */}
+                  <div className="flex flex-col gap-2 bg-black/40 p-3.5 rounded-2xl border border-white/5">
+                    <label className="flex items-center gap-2 text-xs font-bold text-slate-200 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={updateAlbum}
+                        onChange={(e) => setUpdateAlbum(e.target.checked)}
+                        className="rounded accent-[var(--spotify-glow,#22d3ee)] w-3.5 h-3.5 cursor-pointer"
+                      />
+                      <Disc className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
+                      <span>Cập nhật Tên Album</span>
+                    </label>
+
+                    {updateAlbum && (
+                      <input
+                        type="text"
+                        value={bulkAlbum}
+                        onChange={(e) => setBulkAlbum(e.target.value)}
+                        placeholder="Ví dụ: 99%"
+                        className="w-full glass-input text-white text-xs rounded-xl px-3.5 py-2.5 outline-none font-medium mt-1 focus:border-[var(--spotify-glow,#22d3ee)]/50"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowBulkModal(false)}
+                    className="px-4 py-2 rounded-full text-xs font-bold text-slate-400 hover:text-white hover:bg-white/10 transition-[transform,background-color,border-color,color,filter] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 cursor-pointer"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={handleExecuteBulkEdit}
+                    className="bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black font-extrabold text-xs px-5 py-2.5 rounded-full flex items-center gap-2 shadow-lg transition-[transform,background-color,border-color,color,filter,opacity] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 disabled:opacity-50 cursor-pointer"
+                  >
+                    {saving ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Đang lưu DB...
+                      </>
+                    ) : (
+                      'Lưu Thay Đổi Đồng Loạt'
+                    )}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
         document.body
       )}
     </div>

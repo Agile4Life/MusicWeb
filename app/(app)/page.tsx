@@ -2,10 +2,12 @@
 
 import React, { useEffect, useState, useMemo, useRef } from 'react'
 import Link from 'next/link'
+import { motion, useReducedMotion } from 'framer-motion'
+import { SPRING_UI, appleRubberband } from '@/lib/motion'
 import { createClient } from '@/lib/supabase/client'
 import { Track } from '@/types'
 import { TrackList } from '@/components/track/TrackList'
-import { TrackListSkeleton, MediaCardGridSkeleton } from '@/components/common/SkeletonLoader'
+import { TrackListSkeleton, MediaCardGridSkeleton, MediaCardRowSkeleton } from '@/components/common/SkeletonLoader'
 import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
 import { mergeTrackMetadata } from '@/lib/utils'
 import { flattenUnifiedSearchResults } from '@/lib/searchFlow'
@@ -119,6 +121,7 @@ function processTrendingTracks(raw: GlobalSearchTracks, maxItems = 18): Track[] 
 }
 
 export default function HomePage() {
+  const reduced = useReducedMotion()
   const supabase = createClient()
   const { currentTrack, isPlaying } = usePlayerTrack()
   const { playTrack } = usePlayerControls()
@@ -143,9 +146,11 @@ export default function HomePage() {
 
   // Pull-to-refresh state
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isPulling, setIsPulling] = useState(false)
   const [pullDistance, setPullDistance] = useState(0)
   const touchStartRef = useRef<number | null>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const PULL_THRESHOLD = 52
 
   // Category chips for trending
   const categories = [
@@ -170,6 +175,7 @@ export default function HomePage() {
     // Only activate when scrolled to top
     if (getScrollY() <= 0 && window.scrollY <= 0) {
       touchStartRef.current = e.touches[0].clientY
+      setIsPulling(true)
     }
   }
 
@@ -179,18 +185,22 @@ export default function HomePage() {
     const diff = currentY - touchStartRef.current
     // Only allow pull down, not up
     if (diff > 0) {
-      // Dampen the pull distance for smoother feel
-      const dampened = Math.min(diff * 0.4, 120)
-      setPullDistance(dampened)
+      setPullDistance(appleRubberband(diff, 140, 0.55))
+    } else if (pullDistance > 0) {
+      setPullDistance(0)
     }
   }
 
   const handleTouchEnd = () => {
-    if (pullDistance > 60) {
+    const shouldRefresh = pullDistance > PULL_THRESHOLD && !isRefreshing
+    setIsPulling(false)
+    setPullDistance(0)
+    touchStartRef.current = null
+
+    if (shouldRefresh) {
       setIsRefreshing(true)
       fetchData().finally(() => {
         setIsRefreshing(false)
-        setPullDistance(0)
       })
       // Also refresh trending albums
       setLoadingAlbums(true)
@@ -202,8 +212,6 @@ export default function HomePage() {
         .catch((err) => console.warn('Failed to refresh albums:', err))
         .finally(() => setLoadingAlbums(false))
     }
-    setPullDistance(0)
-    touchStartRef.current = null
   }
 
   const searchQueryRef = useRef(searchQuery)
@@ -904,25 +912,31 @@ export default function HomePage() {
     <div className="relative">
       {/* Pull-to-refresh indicator */}
       <div
-        className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-center pointer-events-none transition-transform duration-200"
+        className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-center pointer-events-none"
         style={{
-          transform: `translateY(${pullDistance > 0 ? pullDistance : -60}px)`,
+          transform: `translate3d(0, ${isRefreshing ? 48 : pullDistance > 0 ? pullDistance : -60}px, 0)`,
+          transition: isPulling ? 'none' : 'transform 240ms var(--ease-out)',
           height: '60px',
         }}
       >
         <div
           className="flex flex-col items-center gap-1"
-          style={{ opacity: Math.min(pullDistance / 60, 1) }}
+          style={{ opacity: isRefreshing ? 1 : Math.min(pullDistance / PULL_THRESHOLD, 1) }}
         >
           <RefreshCw
-            className={`w-5 h-5 text-[var(--spotify-glow,#22d3ee)] ${isRefreshing ? 'animate-spin' : ''}`}
-            style={{
-              transform: isRefreshing ? 'rotate(360deg)' : `rotate(${Math.min(pullDistance, 180)}deg)`,
-              transition: isRefreshing ? 'none' : 'transform 0.1s linear',
-            }}
+            className={`w-5 h-5 text-[var(--spotify-glow,#22d3ee)] ${
+              isRefreshing ? 'animate-spin motion-reduce:animate-none' : ''
+            }`}
+            style={
+              isRefreshing || reduced
+                ? undefined
+                : {
+                    transform: `rotate(${Math.min(pullDistance * 3.2, 270).toFixed(1)}deg)`,
+                  }
+            }
           />
           <span className="text-[10px] text-[var(--spotify-glow,#22d3ee)] font-semibold">
-            {isRefreshing ? 'Đang tải...' : pullDistance > 60 ? 'Thả ra để làm mới' : 'Kéo xuống để làm mới'}
+            {isRefreshing ? 'Đang tải...' : pullDistance > PULL_THRESHOLD ? 'Thả ra để làm mới' : 'Kéo xuống để làm mới'}
           </span>
         </div>
       </div>
@@ -933,6 +947,7 @@ export default function HomePage() {
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
         className="px-6 py-3 sm:px-5 sm:py-3.5 md:px-6 md:py-4 lg:px-7 lg:py-5 flex flex-col gap-3 sm:gap-4 md:gap-5 max-w-7xl mx-auto w-full pb-36 lg:pb-8 select-none"
       >
         {/* High-Impact Clean Hero Card with Editorial Vinyl Element */}
@@ -946,7 +961,7 @@ export default function HomePage() {
                 <div className="hidden sm:flex items-center gap-3 mt-1.5">
                   <Link
                     href="/upload"
-                    className="btn-outline-accent font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-2 text-xs"
+                    className="btn-outline-accent font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-2 text-xs transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100"
                   >
                     <Upload className="w-3.5 h-3.5" />
                     <span>Upload bài hát</span>
@@ -1006,16 +1021,25 @@ export default function HomePage() {
                   <button
                     key={cat.id}
                     onClick={() => setSelectedCategory(cat.id)}
-                    className={`flex-shrink-0 px-4 py-1.5 rounded-full text-[11px] font-semibold transition-colors inline-flex items-center gap-1.5 ${
+                    className={`relative flex-shrink-0 px-4 py-1.5 rounded-full text-[11px] font-semibold transition-[color,border-color,background-color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 inline-flex items-center gap-1.5 border ${
                       isActive
-                        ? 'bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--primary-spotify,#06b6d4)] text-black border border-white/20 shadow-[0_2px_8px_var(--theme-glow-shadow)]'
-                        : 'bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10 hover:text-white'
+                        ? 'text-black border-white/20'
+                        : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10 hover:text-white'
                     }`}
                   >
-                    {isActive && loadingCategory && (
-                      <Loader2 className="w-3 h-3 animate-spin text-black" />
+                    {isActive && (
+                      <motion.span
+                        layoutId="home-category-pill-mobile"
+                        transition={reduced ? { duration: 0.14 } : SPRING_UI}
+                        className="absolute inset-0 rounded-full bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--primary-spotify,#06b6d4)] shadow-[0_2px_8px_var(--theme-glow-shadow)]"
+                      />
                     )}
-                    <span>{cat.label}</span>
+                    <span className="relative z-10 inline-flex items-center gap-1.5">
+                      {isActive && loadingCategory && (
+                        <Loader2 className="w-3 h-3 animate-spin text-black" />
+                      )}
+                      <span>{cat.label}</span>
+                    </span>
                   </button>
                 )
               })}
@@ -1029,16 +1053,25 @@ export default function HomePage() {
                   <button
                     key={cat.id}
                     onClick={() => setSelectedCategory(cat.id)}
-                    className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-colors inline-flex items-center gap-1.5 cursor-pointer ${
+                    className={`relative flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-[color,border-color,background-color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 inline-flex items-center gap-1.5 cursor-pointer border ${
                       isActive
-                        ? 'bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--primary-spotify,#06b6d4)] text-black border border-white/20'
-                        : 'bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10 hover:text-white'
+                        ? 'text-black border-white/20'
+                        : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10 hover:text-white'
                     }`}
                   >
-                    {isActive && loadingCategory && (
-                      <Loader2 className="w-3 h-3 animate-spin text-black" />
+                    {isActive && (
+                      <motion.span
+                        layoutId="home-category-pill-desktop"
+                        transition={reduced ? { duration: 0.14 } : SPRING_UI}
+                        className="absolute inset-0 rounded-full bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--primary-spotify,#06b6d4)]"
+                      />
                     )}
-                    <span>{cat.label}</span>
+                    <span className="relative z-10 inline-flex items-center gap-1.5">
+                      {isActive && loadingCategory && (
+                        <Loader2 className="w-3 h-3 animate-spin text-black" />
+                      )}
+                      <span>{cat.label}</span>
+                    </span>
                   </button>
                 )
               })}
@@ -1048,16 +1081,8 @@ export default function HomePage() {
             {(loadingTrending && selectedCategory === 'all') || (loadingCategory && currentCategoryTracks.length === 0) ? (
               <>
                 {/* Mobile skeleton */}
-                <div className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2 -mx-2.5 px-2.5"
-                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                >
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="flex-shrink-0 w-[140px] bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse">
-                      <div className="aspect-square w-full bg-slate-800/80 rounded-xl" />
-                      <div className="h-3 bg-slate-700/80 rounded w-3/4 mt-2.5" />
-                      <div className="h-2 bg-slate-800/80 rounded w-1/2 mt-1" />
-                    </div>
-                  ))}
+                <div className="md:hidden">
+                  <MediaCardRowSkeleton count={4} />
                 </div>
                 {/* Desktop skeleton */}
                 <div className="hidden md:block">
@@ -1068,6 +1093,7 @@ export default function HomePage() {
               <>
                 {/* Mobile: Horizontal scroll */}
                 <div
+                  key={`trending-mobile-${selectedCategory}`}
                   className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2 -mx-2.5 px-2.5"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
@@ -1093,7 +1119,10 @@ export default function HomePage() {
                   ))}
                 </div>
                 {/* Desktop: Fluid Auto-Fill Grid */}
-                <div className="hidden md:grid grid-cols-3 lg:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 sm:gap-4">
+                <div
+                  key={`trending-desktop-${selectedCategory}`}
+                  className="hidden md:grid grid-cols-3 lg:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 sm:gap-4"
+                >
                   {currentCategoryTracks.map((t, idx) => (
                     <div key={t.id} className="h-full">
                       <MediaCard
@@ -1127,7 +1156,7 @@ export default function HomePage() {
                 </div>
                 <button
                   onClick={() => setSelectedCategory('all')}
-                  className="mt-1 px-4 py-1.5 rounded-full text-xs font-semibold bg-white/10 hover:bg-white/15 text-[var(--spotify-glow,#22d3ee)] border border-[var(--primary-spotify,#06b6d4)]/30 transition-colors cursor-pointer"
+                  className="mt-1 px-4 py-1.5 rounded-full text-xs font-semibold bg-white/10 hover:bg-white/15 text-[var(--spotify-glow,#22d3ee)] border border-[var(--primary-spotify,#06b6d4)]/30 transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 cursor-pointer"
                 >
                   Xem tất cả thể loại
                 </button>
@@ -1208,7 +1237,7 @@ export default function HomePage() {
               </div>
               <Link
                 href="/albums"
-                className="text-xs font-semibold text-[var(--spotify-glow,#22d3ee)] hover:text-white flex items-center gap-1 transition-colors px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10 hover:border-[var(--primary-spotify,#06b6d4)]/30 hover:bg-white/[0.08]"
+                className="text-xs font-semibold text-[var(--spotify-glow,#22d3ee)] hover:text-white flex items-center gap-1 transition-[transform,color,background-color,border-color] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10 hover:border-[var(--primary-spotify,#06b6d4)]/30 hover:bg-white/[0.08]"
               >
                 <span>Xem tất cả</span>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -1218,14 +1247,8 @@ export default function HomePage() {
             {/* Mobile: Horizontal scrollable row | Desktop: Grid */}
             {loadingAlbums ? (
               <>
-                <div className="flex md:hidden gap-3 overflow-hidden pb-2 -mx-2.5 px-2.5">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="flex-shrink-0 w-[140px] bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl animate-pulse">
-                      <div className="aspect-square w-full bg-slate-800/80 rounded-xl" />
-                      <div className="h-3 bg-slate-700/80 rounded w-3/4 mt-2.5" />
-                      <div className="h-2 bg-slate-800/80 rounded w-1/2 mt-1" />
-                    </div>
-                  ))}
+                <div className="md:hidden">
+                  <MediaCardRowSkeleton count={4} />
                 </div>
                 <div className="hidden md:block">
                   <MediaCardGridSkeleton count={6} />
@@ -1294,7 +1317,7 @@ export default function HomePage() {
               </div>
               <Link
                 href="/drive"
-                className="text-xs font-semibold text-[var(--spotify-glow,#22d3ee)] hover:text-white flex items-center gap-1 transition-colors px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10 hover:border-[var(--primary-spotify,#06b6d4)]/30 hover:bg-white/[0.08]"
+                className="text-xs font-semibold text-[var(--spotify-glow,#22d3ee)] hover:text-white flex items-center gap-1 transition-[transform,color,background-color,border-color] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10 hover:border-[var(--primary-spotify,#06b6d4)]/30 hover:bg-white/[0.08]"
               >
                 <span>Xem tất cả ({driveTracks.length})</span>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -1358,56 +1381,71 @@ export default function HomePage() {
               <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap pb-1 md:pb-0">
                 <button
                   onClick={() => setLibraryTab('recent')}
-                  style={
-                    libraryTab === 'recent'
-                      ? {
-                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                      }
-                      : undefined
-                  }
-                  className={`px-4 py-2 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer ${libraryTab === 'recent'
-                      ? 'text-black font-extrabold border border-white/20'
-                      : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:bg-white/10'
+                  className={`relative px-4 py-2 rounded-full text-xs font-bold transition-[color,border-color,background-color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 flex items-center gap-1.5 shrink-0 cursor-pointer border ${libraryTab === 'recent'
+                      ? 'text-black font-extrabold border-white/20'
+                      : 'bg-white/5 text-slate-400 hover:text-white border-white/10 hover:bg-white/10'
                     }`}
                 >
-                  <History className="w-3.5 h-3.5" />
-                  <span>Vừa Nghe Gần Đây ({recentTracks.length})</span>
+                  {libraryTab === 'recent' && (
+                    <motion.span
+                      layoutId="home-library-tab-pill"
+                      transition={reduced ? { duration: 0.14 } : SPRING_UI}
+                      style={{
+                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                      }}
+                      className="absolute inset-0 rounded-full"
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-1.5">
+                    <History className="w-3.5 h-3.5" />
+                    <span>Vừa Nghe Gần Đây ({recentTracks.length})</span>
+                  </span>
                 </button>
 
                 <button
                   onClick={() => setLibraryTab('drive')}
-                  style={
-                    libraryTab === 'drive'
-                      ? {
-                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                      }
-                      : undefined
-                  }
-                  className={`px-4 py-2 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer ${libraryTab === 'drive'
-                      ? 'text-black font-extrabold border border-white/20'
-                      : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:bg-white/10'
+                  className={`relative px-4 py-2 rounded-full text-xs font-bold transition-[color,border-color,background-color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 flex items-center gap-1.5 shrink-0 cursor-pointer border ${libraryTab === 'drive'
+                      ? 'text-black font-extrabold border-white/20'
+                      : 'bg-white/5 text-slate-400 hover:text-white border-white/10 hover:bg-white/10'
                     }`}
                 >
-                  <Cloud className="w-3.5 h-3.5" />
-                  <span>Google Drive ({driveTracks.length})</span>
+                  {libraryTab === 'drive' && (
+                    <motion.span
+                      layoutId="home-library-tab-pill"
+                      transition={reduced ? { duration: 0.14 } : SPRING_UI}
+                      style={{
+                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                      }}
+                      className="absolute inset-0 rounded-full"
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-1.5">
+                    <Cloud className="w-3.5 h-3.5" />
+                    <span>Google Drive ({driveTracks.length})</span>
+                  </span>
                 </button>
 
                 <button
                   onClick={() => setLibraryTab('all')}
-                  style={
-                    libraryTab === 'all'
-                      ? {
-                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                      }
-                      : undefined
-                  }
-                  className={`px-4 py-2 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer ${libraryTab === 'all'
-                      ? 'text-black font-extrabold border border-white/20'
-                      : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:bg-white/10'
+                  className={`relative px-4 py-2 rounded-full text-xs font-bold transition-[color,border-color,background-color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 flex items-center gap-1.5 shrink-0 cursor-pointer border ${libraryTab === 'all'
+                      ? 'text-black font-extrabold border-white/20'
+                      : 'bg-white/5 text-slate-400 hover:text-white border-white/10 hover:bg-white/10'
                     }`}
                 >
-                  <Music className="w-3.5 h-3.5" />
-                  <span>Tất Cả Bài Hát ({tracks.length})</span>
+                  {libraryTab === 'all' && (
+                    <motion.span
+                      layoutId="home-library-tab-pill"
+                      transition={reduced ? { duration: 0.14 } : SPRING_UI}
+                      style={{
+                        background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
+                      }}
+                      className="absolute inset-0 rounded-full"
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-1.5">
+                    <Music className="w-3.5 h-3.5" />
+                    <span>Tất Cả Bài Hát ({tracks.length})</span>
+                  </span>
                 </button>
               </div>
             </div>
@@ -1417,7 +1455,7 @@ export default function HomePage() {
               <button
                 onClick={handleCleanMissingDriveFiles}
                 disabled={cleaningDuplicates}
-                className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--spotify-glow,#22d3ee)] hover:brightness-110 bg-[var(--primary-spotify,#06b6d4)]/10 hover:bg-[var(--primary-spotify,#06b6d4)]/20 border border-[var(--primary-spotify,#06b6d4)]/30 px-3.5 py-1.5 rounded-full transition-colors disabled:opacity-50 cursor-pointer"
+                className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--spotify-glow,#22d3ee)] hover:brightness-110 bg-[var(--primary-spotify,#06b6d4)]/10 hover:bg-[var(--primary-spotify,#06b6d4)]/20 border border-[var(--primary-spotify,#06b6d4)]/30 px-3.5 py-1.5 rounded-full transition-[transform,background-color,border-color,color,filter] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 disabled:opacity-50 cursor-pointer"
                 title="Tự động kiểm tra và xóa khỏi CSDL các bài hát đã bị xóa khỏi Google Drive"
               >
                 {cleaningDuplicates ? (
@@ -1442,7 +1480,7 @@ export default function HomePage() {
                   <button
                     onClick={handleCleanDuplicates}
                     disabled={cleaningDuplicates}
-                    className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-3.5 py-1.5 rounded-full transition-colors disabled:opacity-50 cursor-pointer"
+                    className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-3.5 py-1.5 rounded-full transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 disabled:opacity-50 cursor-pointer"
                   >
                     {cleaningDuplicates ? (
                       <span className="animate-spin w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full inline-block" />
@@ -1492,7 +1530,7 @@ export default function HomePage() {
                 <div className="flex justify-center pt-3 pb-2">
                   <button
                     onClick={() => setShowAllResults(true)}
-                    className="bg-white/5 hover:bg-white/10 text-[var(--spotify-glow,#22d3ee)] hover:brightness-110 border border-white/10 text-xs font-bold px-6 py-2.5 rounded-full transition-colors flex items-center gap-2 shadow-lg cursor-pointer"
+                    className="bg-white/5 hover:bg-white/10 text-[var(--spotify-glow,#22d3ee)] hover:brightness-110 border border-white/10 text-xs font-bold px-6 py-2.5 rounded-full transition-[transform,background-color,border-color,color,filter] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 flex items-center gap-2 shadow-lg cursor-pointer"
                   >
                     <span>Xem thêm {displayedTracks.length - 15} kết quả cho &quot;{searchQuery.trim()}&quot;</span>
                     <ChevronRight className="w-4 h-4" />

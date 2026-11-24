@@ -1,8 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { motion, useReducedMotion } from 'framer-motion'
+import { EASE_OUT } from '@/lib/motion'
 import { Track } from '@/types'
+
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect
 import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
 import { TrackRow } from '@/components/track/TrackRow'
 import { TrackListSkeleton, HeroCardSkeleton } from '@/components/common/SkeletonLoader'
@@ -22,7 +26,6 @@ import {
   Shuffle,
   ChevronLeft,
   ChevronDown,
-  ChevronUp,
   Music,
   Users,
   AlertTriangle,
@@ -46,6 +49,7 @@ function formatFanCount(count: number): string {
 }
 
 export default function ArtistPage() {
+  const reduced = useReducedMotion()
   const router = useRouter()
   const searchParams = useSearchParams()
   const artistName = searchParams.get('name') || ''
@@ -56,7 +60,7 @@ export default function ArtistPage() {
   const { playlists } = usePlaylists()
   const {
     containerRef: listContainerRef,
-    indicator: trackIndicator,
+    indicatorStyle: trackIndicatorStyle,
     handleItemMouseEnter: handleRowMouseEnter,
     handleContainerMouseLeave: handleListMouseLeave,
   } = useListGlideIndicator(52)
@@ -67,6 +71,17 @@ export default function ArtistPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAll, setShowAll] = useState(false)
+  const avatarImgRef = useRef<HTMLImageElement | null>(null)
+  const [loadedAvatarUrl, setLoadedAvatarUrl] = useState<string | null>(null)
+
+  const avatarSrc = artist?.picture_xl || artist?.picture_big || null
+
+  useIsomorphicLayoutEffect(() => {
+    const img = avatarImgRef.current
+    if (avatarSrc && img && img.complete && img.naturalWidth > 0) {
+      setLoadedAvatarUrl(avatarSrc)
+    }
+  }, [avatarSrc])
 
   // Batch-fetch view counts in a single request — prevents N+1 /api/track-views calls
   const batchViews = useBatchViewCounts(topTracks)
@@ -215,7 +230,7 @@ export default function ArtistPage() {
         </div>
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-sm font-semibold border border-white/10 transition-colors cursor-pointer"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-sm font-semibold border border-white/10 transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 cursor-pointer"
         >
           <ChevronLeft className="w-4 h-4" />
           Quay lại
@@ -233,12 +248,16 @@ export default function ArtistPage() {
         <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-space,#07090e)] via-transparent to-transparent z-0" />
 
         {/* Artist Avatar */}
-        <div className="artist-avatar relative z-10 w-32 h-32 sm:w-36 sm:h-36 md:w-44 md:h-44 rounded-full overflow-hidden shrink-0 border-2 border-white/15 shadow-2xl">
-          {artist.picture_xl || artist.picture_big ? (
+        <div className="artist-avatar relative z-10 w-32 h-32 sm:w-36 sm:h-36 md:w-44 md:h-44 rounded-full overflow-hidden shrink-0 border-2 border-white/15 shadow-2xl bg-white/[0.04]">
+          {avatarSrc ? (
             <img
-              src={artist.picture_xl || artist.picture_big || ''}
+              ref={avatarImgRef}
+              src={avatarSrc}
               alt={artist.name}
-              className="w-full h-full object-cover"
+              onLoad={() => setLoadedAvatarUrl(avatarSrc)}
+              className={`w-full h-full object-cover transition-opacity duration-200 ease-[var(--ease-out)] ${
+                avatarSrc.startsWith('data:') || loadedAvatarUrl === avatarSrc ? 'opacity-100' : 'opacity-0'
+              }`}
               loading="eager"
             />
           ) : (
@@ -277,7 +296,7 @@ export default function ArtistPage() {
             <div className="flex flex-wrap items-center justify-center @[700px]/main:justify-start gap-3 mt-2">
               <button
                 onClick={handlePlayAll}
-                className="flex items-center gap-2 whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-bold text-black transition-[filter,transform] hover:brightness-110 active:scale-95 border border-white/20 shadow-lg cursor-pointer"
+                className="flex items-center gap-2 whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-bold text-black transition-[filter,transform] duration-150 ease-[var(--ease-out)] hover:brightness-110 active:scale-[0.97] motion-reduce:active:scale-100 border border-white/20 shadow-lg cursor-pointer"
                 style={{
                   background:
                     'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
@@ -288,7 +307,7 @@ export default function ArtistPage() {
               </button>
               <button
                 onClick={handleShufflePlay}
-                className="flex items-center gap-2 whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-semibold text-slate-200 bg-white/10 hover:bg-white/15 transition-colors active:scale-95 border border-white/10 cursor-pointer"
+                className="flex items-center gap-2 whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-semibold text-slate-200 bg-white/10 hover:bg-white/15 transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 border border-white/10 cursor-pointer"
               >
                 <Shuffle className="w-4 h-4" />
                 Phát ngẫu nhiên
@@ -336,37 +355,53 @@ export default function ArtistPage() {
           >
             <div
               className="track-glide-indicator"
-              style={{
-                transform: `translateY(${trackIndicator.top}px) scaleY(${trackIndicator.scaleY})`,
-                height: `${trackIndicator.height}px`,
-                opacity: trackIndicator.opacity,
-              }}
+              style={trackIndicatorStyle}
             />
             {displayTracks.map((track, index) => {
               const viewCacheKey = getViewCountCacheKey(track)
+              const rowEl = (
+                <TrackRow
+                  key={track.id}
+                  track={track}
+                  index={index}
+                  isCurrent={currentTrack?.id === track.id}
+                  isPlayingThis={currentTrack?.id === track.id && isPlaying}
+                  onMouseEnterRow={handleRowMouseEnter}
+                  onHideRowGlide={handleListMouseLeave}
+                  batchViewCount={batchViews.get(viewCacheKey)}
+                  onPlayClick={() => {
+                    const dedupedQueue = deduplicateQueueTracks(
+                      showAll ? topTracks : topTracks.slice(0, INITIAL_COUNT)
+                    )
+                    const queueIndex = dedupedQueue.findIndex((t) => t.id === track.id)
+                    playTrack(track, dedupedQueue, queueIndex >= 0 ? queueIndex : index)
+                  }}
+                  onAddToQueue={() => addToQueue(track)}
+                  onTrackUpdated={handleTrackUpdated}
+                  userPlaylists={playlists}
+                  onAddToPlaylist={(playlistId) => handleAddToPlaylist(playlistId, track)}
+                  playlistTracks={showAll ? topTracks : topTracks.slice(0, INITIAL_COUNT)}
+                />
+              )
+
+              if (index < INITIAL_COUNT) {
+                return rowEl
+              }
+
+              const revealOffset = Math.min(index - INITIAL_COUNT, 6)
               return (
-              <TrackRow
-                key={track.id}
-                track={track}
-                index={index}
-                isCurrent={currentTrack?.id === track.id}
-                isPlayingThis={currentTrack?.id === track.id && isPlaying}
-                onMouseEnterRow={handleRowMouseEnter}
-                onHideRowGlide={handleListMouseLeave}
-                batchViewCount={batchViews.get(viewCacheKey)}
-                onPlayClick={() => {
-                  const dedupedQueue = deduplicateQueueTracks(
-                    showAll ? topTracks : topTracks.slice(0, INITIAL_COUNT)
-                  )
-                  const queueIndex = dedupedQueue.findIndex((t) => t.id === track.id)
-                  playTrack(track, dedupedQueue, queueIndex >= 0 ? queueIndex : index)
-                }}
-                onAddToQueue={() => addToQueue(track)}
-                onTrackUpdated={handleTrackUpdated}
-                userPlaylists={playlists}
-                onAddToPlaylist={(playlistId) => handleAddToPlaylist(playlistId, track)}
-                playlistTracks={showAll ? topTracks : topTracks.slice(0, INITIAL_COUNT)}
-              />
+                <motion.div
+                  key={track.id}
+                  initial={reduced ? { opacity: 0 } : { opacity: 0, transform: 'translate3d(0, 6px, 0)' }}
+                  animate={reduced ? { opacity: 1 } : { opacity: 1, transform: 'translate3d(0, 0px, 0)' }}
+                  transition={{
+                    duration: 0.18,
+                    delay: reduced ? 0 : revealOffset * 0.025,
+                    ease: EASE_OUT,
+                  }}
+                >
+                  {rowEl}
+                </motion.div>
               )
             })}
           </div>
@@ -374,20 +409,18 @@ export default function ArtistPage() {
           {/* See More / Collapse Button */}
           {topTracks.length > INITIAL_COUNT && (
             <button
-              onClick={() => setShowAll(!showAll)}
-              className="flex items-center justify-center gap-2 mx-auto mt-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-colors active:scale-95 cursor-pointer"
+              onClick={() => {
+                handleListMouseLeave()
+                setShowAll((prev) => !prev)
+              }}
+              className="flex items-center justify-center gap-2 mx-auto mt-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 cursor-pointer"
             >
-              {showAll ? (
-                <>
-                  <ChevronUp className="w-4 h-4" />
-                  Thu gọn
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="w-4 h-4" />
-                  Xem thêm
-                </>
-              )}
+              <ChevronDown
+                className={`w-4 h-4 transition-transform duration-200 ease-[var(--ease-out)] ${
+                  showAll ? 'rotate-180' : ''
+                }`}
+              />
+              <span>{showAll ? 'Thu gọn' : 'Xem thêm'}</span>
             </button>
           )}
         </div>

@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useRef, useCallback, useEffect, useState } from 'react'
+import React, { useRef, useCallback, useEffect, useSyncExternalStore } from 'react'
+import { motion, useMotionValue, useSpring, useTransform, useReducedMotion } from 'framer-motion'
 import { calculateTilt } from './tiltCardMath'
 
 interface TiltCardProps {
@@ -10,6 +11,39 @@ interface TiltCardProps {
   maxTilt?: number
 }
 
+const TILT_SPRING = { stiffness: 260, damping: 24, mass: 0.6 }
+
+const getServerFalse = () => false
+
+function subscribeHoverCapable(callback: () => void) {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {}
+  const mql = window.matchMedia('(hover: hover) and (pointer: fine)')
+  mql.addEventListener?.('change', callback)
+  return () => mql.removeEventListener?.('change', callback)
+}
+
+function getHoverCapableSnapshot() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
+  return window.matchMedia('(hover: hover) and (pointer: fine)').matches
+}
+
+function subscribeMinimalFlat(callback: () => void) {
+  if (typeof document === 'undefined') return () => {}
+  const observer = new MutationObserver(callback)
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme-style'],
+  })
+  return () => observer.disconnect()
+}
+
+function getMinimalFlatSnapshot() {
+  return (
+    typeof document !== 'undefined' &&
+    document.documentElement.getAttribute('data-theme-style') === 'minimal-flat'
+  )
+}
+
 export function TiltCard({
   children,
   className = '',
@@ -17,150 +51,159 @@ export function TiltCard({
   maxTilt = 7,
 }: TiltCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
-  const rafRef = useRef<number | null>(null)
-  const [isHovering, setIsHovering] = useState(false)
-  const [isHoverCapable, setIsHoverCapable] = useState(() =>
-    typeof window === 'undefined' ? true : window.matchMedia('(hover: hover)').matches,
+  const isHoveredRef = useRef(false)
+  const isPressedRef = useRef(false)
+  const reducedMotion = useReducedMotion()
+
+  const isHoverCapable = useSyncExternalStore(
+    subscribeHoverCapable,
+    getHoverCapableSnapshot,
+    getServerFalse
   )
-  const [isReducedMotion, setIsReducedMotion] = useState(() =>
-    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  const isMinimalFlat = useSyncExternalStore(
+    subscribeMinimalFlat,
+    getMinimalFlatSnapshot,
+    getServerFalse
   )
-  const [isMinimalFlat, setIsMinimalFlat] = useState(() =>
-    typeof document !== 'undefined' &&
-    document.documentElement.getAttribute('data-theme-style') === 'minimal-flat',
+
+  const rotX = useMotionValue(0)
+  const rotY = useMotionValue(0)
+  const scaleMv = useMotionValue(1)
+  const glowX = useMotionValue(0)
+  const glowY = useMotionValue(0)
+
+  const springRotX = useSpring(rotX, TILT_SPRING)
+  const springRotY = useSpring(rotY, TILT_SPRING)
+  const springScale = useSpring(scaleMv, TILT_SPRING)
+  const springGlowX = useSpring(glowX, TILT_SPRING)
+  const springGlowY = useSpring(glowY, TILT_SPRING)
+
+  const cardTransform = useTransform(
+    [springRotX, springRotY, springScale],
+    ([rx, ry, s]: number[]) =>
+      `perspective(1000px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) scale3d(${s.toFixed(4)}, ${s.toFixed(4)}, 1)`
   )
+
+  const glowTransform = useTransform(
+    [springGlowX, springGlowY],
+    ([x, y]: number[]) => `translate3d(${x.toFixed(2)}%, ${y.toFixed(2)}%, 0)`
+  )
+
+  const tiltEnabled = isHoverCapable && !reducedMotion && !isMinimalFlat
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const hoverMatch = window.matchMedia('(hover: hover)')
-    const motionMatch = window.matchMedia('(prefers-reduced-motion: reduce)')
-
-    const handleHoverChange = (e: MediaQueryListEvent) => setIsHoverCapable(e.matches)
-    const handleMotionChange = (e: MediaQueryListEvent) => setIsReducedMotion(e.matches)
-
-    hoverMatch.addEventListener?.('change', handleHoverChange)
-    motionMatch.addEventListener?.('change', handleMotionChange)
-
-    const syncThemeStyle = () => {
-      setIsMinimalFlat(document.documentElement.getAttribute('data-theme-style') === 'minimal-flat')
+    if (!tiltEnabled) {
+      isHoveredRef.current = false
+      isPressedRef.current = false
+      rotX.jump(0)
+      rotY.jump(0)
+      scaleMv.jump(1)
+      glowX.jump(0)
+      glowY.jump(0)
     }
-    syncThemeStyle()
-    const observer = new MutationObserver(syncThemeStyle)
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-theme-style'],
-    })
+  }, [tiltEnabled, rotX, rotY, scaleMv, glowX, glowY])
 
-    return () => {
-      observer.disconnect()
-      hoverMatch.removeEventListener?.('change', handleHoverChange)
-      motionMatch.removeEventListener?.('change', handleMotionChange)
-    }
-  }, [])
-
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!tiltEnabled || e.pointerType !== 'mouse') return
       if (
-        !isHoverCapable ||
-        isReducedMotion ||
-        isMinimalFlat ||
-        (typeof document !== 'undefined' &&
-          document.documentElement.getAttribute('data-theme-style') === 'minimal-flat')
+        typeof document !== 'undefined' &&
+        document.documentElement.getAttribute('data-theme-style') === 'minimal-flat'
       ) {
         return
       }
       const card = cardRef.current
       if (!card) return
 
-      const clientX = e.clientX
-      const clientY = e.clientY
+      const rect = card.getBoundingClientRect()
+      if (rect.width === 0 || rect.height === 0) return
 
-      if (!isHovering) setIsHovering(true)
+      isHoveredRef.current = true
+      const localX = e.clientX - rect.left
+      const localY = e.clientY - rect.top
 
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current)
+      const { rotateX, rotateY } = calculateTilt(
+        { x: localX, y: localY, width: rect.width, height: rect.height },
+        maxTilt
+      )
+
+      rotX.set(rotateX)
+      rotY.set(rotateY)
+      if (!isPressedRef.current) {
+        scaleMv.set(1.015)
       }
-
-      rafRef.current = requestAnimationFrame(() => {
-        const rect = card.getBoundingClientRect()
-        if (rect.width === 0 || rect.height === 0) return
-
-        const { rotateX, rotateY } = calculateTilt(
-          { x: clientX - rect.left, y: clientY - rect.top, width: rect.width, height: rect.height },
-          maxTilt,
-        )
-
-        const normX = Number((((clientX - rect.left) / rect.width - 0.5) * 2).toFixed(2))
-        const normY = Number((((clientY - rect.top) / rect.height - 0.5) * 2).toFixed(2))
-
-        card.style.setProperty('--rotate-x', `${rotateX}deg`)
-        card.style.setProperty('--rotate-y', `${rotateY}deg`)
-        card.style.setProperty('--tilt-x', `${normX}`)
-        card.style.setProperty('--tilt-y', `${normY}`)
-        card.style.setProperty('--mouse-x', `${(((clientX - rect.left) / rect.width) * 100).toFixed(1)}%`)
-        card.style.setProperty('--mouse-y', `${(((clientY - rect.top) / rect.height) * 100).toFixed(1)}%`)
-      })
+      glowX.set((localX / rect.width - 0.5) * 50)
+      glowY.set((localY / rect.height - 0.5) * 50)
     },
-    [isHoverCapable, isReducedMotion, isMinimalFlat, isHovering, maxTilt]
+    [tiltEnabled, maxTilt, rotX, rotY, scaleMv, glowX, glowY]
   )
 
-  const handleMouseLeave = useCallback(() => {
-    setIsHovering(false)
-    if (rafRef.current) {
-      cancelAnimationFrame(rafRef.current)
-    }
-    const card = cardRef.current
-    if (!card) return
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!tiltEnabled || e.pointerType !== 'mouse') return
+      const target = e.target as HTMLElement | null
+      if (target?.closest('button, [role="button"]')) return
+      isPressedRef.current = true
+      scaleMv.set(0.985)
+    },
+    [tiltEnabled, scaleMv]
+  )
 
-    card.style.setProperty('--rotate-x', '0deg')
-    card.style.setProperty('--rotate-y', '0deg')
-    card.style.setProperty('--tilt-x', '0')
-    card.style.setProperty('--tilt-y', '0')
-  }, [])
+  const handlePointerUp = useCallback(() => {
+    if (!tiltEnabled || !isPressedRef.current) return
+    isPressedRef.current = false
+    scaleMv.set(isHoveredRef.current ? 1.015 : 1)
+  }, [tiltEnabled, scaleMv])
 
-  useEffect(() => {
-    return () => {
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current)
-      }
-    }
-  }, [])
+  const handlePointerLeave = useCallback(() => {
+    isHoveredRef.current = false
+    isPressedRef.current = false
+    rotX.set(0)
+    rotY.set(0)
+    scaleMv.set(1)
+    glowX.set(0)
+    glowY.set(0)
+  }, [rotX, rotY, scaleMv, glowX, glowY])
 
   return (
-    <div
+    <motion.div
       ref={cardRef}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      className={`group relative rounded-2xl overflow-hidden duration-300 ease-out motion-reduce:!transform-none tilt-card ${className}`}
-      style={{
-        transform: isMinimalFlat
-          ? undefined
-          : isHovering && isHoverCapable && !isReducedMotion
-            ? 'perspective(1000px) rotateX(var(--rotate-x, 0deg)) rotateY(var(--rotate-y, 0deg)) scale3d(1.015, 1.015, 1.015)'
-            : 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)',
-        transition: isMinimalFlat
-          ? undefined
-          : isHovering
-            ? 'transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease'
-            : 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease',
-        ...style,
-      }}
+      onPointerMove={handlePointerMove}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerLeave}
+      onPointerCancel={handlePointerLeave}
+      className={`group relative rounded-2xl overflow-hidden motion-reduce:!transform-none tilt-card ${className}`}
+      style={
+        tiltEnabled
+          ? {
+              ...style,
+              transform: cardTransform,
+              transitionProperty: 'border-color, background-color, box-shadow',
+            }
+          : {
+              ...style,
+              transform: undefined,
+            }
+      }
     >
       {/* 2.5D Isolated Layers (Cover has 3D tilt, Text stays in crisp 2D) */}
       <div className="relative z-10 h-full w-full flex flex-col">
         {children}
       </div>
 
-      {/* Subtle Specular Highlight behind text for glassy shine without blurring letters */}
-      {isHoverCapable && !isReducedMotion && !isMinimalFlat && (
-        <div
-          className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300 motion-reduce:hidden z-0"
+      {/* Subtle GPU-composited Specular Highlight behind text for glassy shine without blurring letters */}
+      {tiltEnabled && (
+        <motion.div
+          aria-hidden="true"
+          className="absolute -inset-1/2 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-[var(--ease-out)] motion-reduce:hidden z-0"
           style={{
+            transform: glowTransform,
             background:
-              'radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255,255,255,0.06) 0%, transparent 60%)',
+              'radial-gradient(circle at center, rgba(255,255,255,0.07) 0%, transparent 45%)',
           }}
         />
       )}
-    </div>
+    </motion.div>
   )
 }

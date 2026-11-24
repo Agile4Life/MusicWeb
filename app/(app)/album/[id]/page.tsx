@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useState, use } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect
 import { Track } from '@/types'
 import { usePlayerTrack, usePlayerControls } from '@/components/player/PlayerContext'
 import { TrackRow } from '@/components/track/TrackRow'
@@ -43,13 +45,23 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
   const { playlists } = usePlaylists()
   const {
     containerRef: listContainerRef,
-    indicator: trackIndicator,
+    indicatorStyle: trackIndicatorStyle,
     handleItemMouseEnter: handleRowMouseEnter,
     handleContainerMouseLeave: handleListMouseLeave,
   } = useListGlideIndicator(52)
 
   const [album, setAlbum] = useState<AlbumDetail | null>(null)
   const [loading, setLoading] = useState(true)
+  const heroCoverRef = useRef<HTMLImageElement | null>(null)
+  const [loadedHeroCover, setLoadedHeroCover] = useState<string | null>(null)
+
+  useIsomorphicLayoutEffect(() => {
+    const cover = album?.cover_url
+    const img = heroCoverRef.current
+    if (cover && img && img.complete && img.naturalWidth > 0) {
+      setLoadedHeroCover(cover)
+    }
+  }, [album?.cover_url])
 
   // Batch-fetch view counts in a single request — prevents N+1 /api/track-views calls
   const batchViews = useBatchViewCounts(album?.tracks ?? [])
@@ -146,7 +158,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
       <div className="p-6 md:p-8 flex flex-col gap-8 max-w-7xl mx-auto w-full">
         <HeroCardSkeleton />
         <div className="flex flex-col gap-4">
-          <div className="w-48 h-6 bg-slate-800 rounded-lg animate-pulse" />
+          <div className="w-48 h-6 bg-[var(--bg-surface-2)] rounded-lg skeleton-shimmer" />
           <TrackListSkeleton count={8} />
         </div>
       </div>
@@ -204,7 +216,19 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
         {/* Cover Art */}
         <div className="w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 bg-slate-900 rounded-2xl flex items-center justify-center shrink-0 border border-white/10 shadow-2xl overflow-hidden relative group">
           {album.cover_url ? (
-            <img src={album.cover_url} alt={album.name} className="w-full h-full object-cover" />
+            <div className="relative w-full h-full bg-white/[0.04]">
+              <img
+                ref={heroCoverRef}
+                src={album.cover_url}
+                alt={album.name}
+                onLoad={() => setLoadedHeroCover(album.cover_url)}
+                className={`w-full h-full object-cover transition-opacity duration-200 ease-[var(--ease-out)] ${
+                  album.cover_url.startsWith('data:') || loadedHeroCover === album.cover_url
+                    ? 'opacity-100'
+                    : 'opacity-0'
+                }`}
+              />
+            </div>
           ) : (
             <DiscAlbum className="w-16 h-16 text-[var(--spotify-glow,#22d3ee)]" />
           )}
@@ -259,14 +283,14 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
           <>
             <button
               onClick={() => playTrack(album.tracks[0], album.tracks, 0)}
-              className="bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black font-extrabold px-6 py-3 rounded-full flex items-center gap-2 transition-[filter] text-xs cursor-pointer"
+              className="bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black font-extrabold px-6 py-3 rounded-full flex items-center gap-2 transition-[transform,background-color,border-color,color,filter] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 text-xs cursor-pointer"
             >
               <Play className="w-4 h-4 fill-current" />
               <span>Phát Album</span>
             </button>
             <button
               onClick={() => router.push(`/spotify-lab?album=${encodeURIComponent(albumId)}`)}
-              className="font-bold px-4 py-3 rounded-full flex items-center gap-2 text-xs border bg-white/10 hover:bg-white/20 text-white border-white/10 transition-colors cursor-pointer"
+              className="font-bold px-4 py-3 rounded-full flex items-center gap-2 text-xs border bg-white/10 hover:bg-white/20 text-white border-white/10 transition-[transform,background-color,border-color,color,filter] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 cursor-pointer"
             >
               <DiscAlbum className="w-4 h-4" />
               <span>Tạo bộ bài đọ nhạc</span>
@@ -281,7 +305,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
                 const chosenIdx = candidates[Math.floor(Math.random() * candidates.length)] ?? 0
                 playTrack(album.tracks[chosenIdx], album.tracks, chosenIdx)
               }}
-              className={`font-bold px-4 py-3 rounded-full flex items-center gap-2 text-xs transition-colors border cursor-pointer ${
+              className={`font-bold px-4 py-3 rounded-full flex items-center gap-2 text-xs transition-[transform,background-color,border-color,color,filter] duration-150 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 border cursor-pointer ${
                 isShuffle
                   ? 'bg-[var(--primary-spotify)]/20 text-[var(--primary-spotify)] border-[var(--primary-spotify)]/40 shadow-sm'
                   : 'bg-white/10 hover:bg-white/20 text-white border-white/10'
@@ -326,11 +350,7 @@ export default function AlbumDetailPage({ params }: { params: Promise<{ id: stri
         >
           <div
             className="track-glide-indicator"
-            style={{
-              transform: `translateY(${trackIndicator.top}px) scaleY(${trackIndicator.scaleY})`,
-              height: `${trackIndicator.height}px`,
-              opacity: trackIndicator.opacity,
-            }}
+            style={trackIndicatorStyle}
           />
           {sortedDiscs.map(([discNum, discTracks]) => (
             <div key={discNum} className="flex flex-col gap-2">
