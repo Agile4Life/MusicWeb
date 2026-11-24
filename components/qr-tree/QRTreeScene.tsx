@@ -572,16 +572,25 @@ function CameraRig({
 }) {
   const { camera, size } = useThree();
 
+  React.useEffect(() => {
+    return () => {
+      if (camera instanceof THREE.PerspectiveCamera) {
+        camera.clearViewOffset();
+      }
+    };
+  }, [camera]);
+
   useFrame(() => {
     const p = smooth(progressRef.current);
     const aspect = size.width / Math.max(1, size.height);
+    const effectiveAspect = Math.min(1, Math.max(0.6, aspect));
     const fov = (35 * Math.PI) / 180;
 
-    // Top-down distance so QR code fits comfortably inside screen with padding
-    const qrDistance = Math.max(18, (platformSize * 0.85) / Math.tan(fov / 2) / Math.max(0.6, aspect) * 1.45);
+    // Top-down distance so QR code fits cleanly above the floating bottom control bar
+    const qrDistance = Math.max(20, ((platformSize * 0.85) / Math.tan(fov / 2) / effectiveAspect) * 1.48);
 
     // 3D Tree distance so entire tree crown and ground platform are framed
-    const baseTreeDist = Math.max(17, (platformSize * 0.85) / Math.tan(fov / 2) / Math.max(0.6, aspect) * 1.35);
+    const baseTreeDist = Math.max(19, ((platformSize * 0.85) / Math.tan(fov / 2) / effectiveAspect) * 1.38);
     const treeDistance = baseTreeDist * userAngleRef.current.zoom;
 
     const user = userAngleRef.current;
@@ -591,6 +600,10 @@ function CameraRig({
     const tx = Math.sin(azimuth) * Math.cos(elevation) * treeDistance;
     const ty = Math.sin(elevation) * treeDistance;
     const tz = Math.cos(azimuth) * Math.cos(elevation) * treeDistance;
+
+    if (camera instanceof THREE.PerspectiveCamera && size.height > 480) {
+      camera.setViewOffset(size.width, size.height, 0, 72, size.width, size.height);
+    }
 
     camera.position.set(lerp(0, tx, p), lerp(qrDistance, ty, p), lerp(0.001, tz, p));
     TARGET.set(0, lerp(0, canopyCenter.y * 0.65, p), 0);

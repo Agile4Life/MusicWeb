@@ -51,7 +51,11 @@ export function BattleView({ battle, currentId, onPreview, onChoose, onUndo, onR
   const handleChoose = useCallback((trackId: string, turn: number, event: MouseEvent<HTMLButtonElement>) => {
     if (pendingChoice.current) return
     const card = event.currentTarget.closest('article')!.getBoundingClientRect()
-    const selected = { id: trackId, turn, x: innerWidth / 2 - card.x - card.width / 2, y: innerHeight / 2 - card.y - card.height / 2 }
+    const rawY = innerHeight / 2 - card.y - card.height / 2
+    const minY = 24 - card.y
+    const maxY = innerHeight - 88 - card.height - card.y
+    const clampedY = minY <= maxY ? Math.min(Math.max(rawY, minY), maxY) : rawY
+    const selected = { id: trackId, turn, x: innerWidth / 2 - card.x - card.width / 2, y: clampedY }
     pendingChoice.current = selected
     setChoice(selected)
     timerRef.current = setTimeout(finishChoice, CHOOSE_DELAY)

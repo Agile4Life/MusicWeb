@@ -89,7 +89,7 @@ export function PreviewPlayer({ track, onClose }: { track: BattleTrack; onClose:
   return <aside className={styles.preview} aria-label="Trình nghe thử">
     <div className={styles.previewHeading}>
       <Headphones size={17} aria-hidden="true" />
-      <div><span className={styles.eyebrow}>ĐANG NGHE THỬ / {track.source.toUpperCase()}</span><strong>{track.title} <span>— {track.artist}</span></strong></div>
+      <div><span className={styles.eyebrow}>ĐANG NGHE THỬ / {track.source.toUpperCase()}</span><strong>{track.title} <span>· {track.artist}</span></strong></div>
       <button type="button" className={styles.iconButton} onClick={onClose} aria-label="Đóng trình nghe thử"><X size={19} aria-hidden="true" /></button>
     </div>
     {(track.source === 'soundcloud' && track.soundcloud_id) || (track.source === 'musicweb' && (track.stream_url || track.preview_url)) ? <WaveformCoverPlayer track={track} autoPlay />
