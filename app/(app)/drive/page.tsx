@@ -25,7 +25,6 @@ export default function DrivePage() {
   const [driveTracks, setDriveTracks] = useState<Track[]>([])
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery] = useState('')
   const [supabaseUser, setSupabaseUser] = useState<any>(null)
 
   const fetchSeqRef = useRef(0)
@@ -34,15 +33,10 @@ export default function DrivePage() {
   
   const userFavTrackIdsRef = useRef<Set<string>>(new Set())
   const supabaseUserRef = useRef<any>(null)
-  const searchQueryRef = useRef(searchQuery)
 
   useEffect(() => {
     supabaseUserRef.current = supabaseUser
   }, [supabaseUser])
-
-  useEffect(() => {
-    searchQueryRef.current = searchQuery
-  }, [searchQuery])
 
   const fetchDriveTracks = useCallback(async () => {
     if (isFetchingRef.current) return
@@ -167,8 +161,6 @@ export default function DrivePage() {
     const channel = supabase
       .channel('drive-page-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tracks' }, (payload: any) => {
-        if (searchQueryRef.current.trim()) return
-
         if (payload.eventType === 'INSERT') {
           const newTrack = payload.new as Track
           
@@ -215,70 +207,47 @@ export default function DrivePage() {
     }
   }, [fetchDriveTracks, supabase])
 
-  const filteredTracks = searchQuery.trim()
-    ? driveTracks.filter(
-        (t) =>
-          t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (t.artist && t.artist.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-    : driveTracks
-
   const handleAddToPlaylist = async (playlistId: string, track: Track) => {
     const result = await addTrackToPlaylist(playlistId, track)
     toast(result.message, result.success ? 'success' : 'error', track.title)
   }
 
   const handlePlayAll = () => {
-    if (filteredTracks.length === 0) return
+    if (driveTracks.length === 0) return
     if (isShuffle) {
-      const randomIndex = Math.floor(Math.random() * filteredTracks.length)
-      playTrack(filteredTracks[randomIndex], filteredTracks, randomIndex)
+      const randomIndex = Math.floor(Math.random() * driveTracks.length)
+      playTrack(driveTracks[randomIndex], driveTracks, randomIndex)
     } else {
-      playTrack(filteredTracks[0], filteredTracks, 0)
+      playTrack(driveTracks[0], driveTracks, 0)
     }
   }
 
   return (
     <div className="p-3.5 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6 lg:gap-8 max-w-7xl mx-auto w-full select-none pb-36 lg:pb-8">
       {/* Header Banner */}
-      <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.08] p-4 sm:p-6 md:p-8 bg-[var(--elevation-1-bg,#0b1320)] shadow-2xl">
-        {/* Glow backdrop */}
-        <div
-          style={{
-            background: 'radial-gradient(400px circle at 80% 20%, color-mix(in srgb, var(--spotify-glow, #22d3ee) 15%, transparent), transparent 70%)',
-          }}
-          className="absolute inset-0 pointer-events-none"
-        />
-
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6">
-          <div className="flex items-center gap-3.5 sm:gap-5">
-            <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl bg-[var(--spotify-glow,#22d3ee)]/10 border border-[var(--spotify-glow,#22d3ee)]/30 flex items-center justify-center text-[var(--spotify-glow,#22d3ee)] shadow-2xl shrink-0">
-              <Cloud className="w-7 h-7 sm:w-10 sm:h-10" />
+      <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.06] p-4 sm:p-6 md:p-8 bg-[var(--elevation-1-bg,#0d1017)]">
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6 flex-wrap">
+          <div className="flex items-center gap-3.5 sm:gap-5 min-w-0 flex-1">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-[var(--spotify-glow,#22d3ee)]/10 border border-[var(--spotify-glow,#22d3ee)]/25 flex items-center justify-center text-[var(--spotify-glow,#22d3ee)] shrink-0">
+              <Cloud className="w-6 h-6 sm:w-8 sm:h-8" />
             </div>
 
-            <div className="flex flex-col gap-1 sm:gap-1.5">
-              <span className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-[var(--spotify-glow,#22d3ee)]">
-                Google Drive Storage
-              </span>
-              <h1 className="text-xl sm:text-3xl font-black text-white tracking-tight">
+            <div className="flex flex-col gap-1 min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight truncate">
                 {t('drive')}
               </h1>
               <p className="text-xs sm:text-sm text-slate-400 max-w-xl">
-                Kho lưu trữ bài hát độc quyền được đồng bộ trực tiếp từ Google Drive. Phát nhạc Lossless & High-Quality chất lượng nguyên bản.
+                Kho lưu trữ bài hát được đồng bộ từ Google Drive.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center flex-wrap gap-2.5 shrink-0">
             {driveTracks.length > 0 && (
               <>
                 <button
                   onClick={handlePlayAll}
-                  style={{
-                    background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-                    boxShadow: '0 4px 16px var(--theme-glow-shadow, rgba(6,182,212,0.4))',
-                  }}
-                  className="px-5 py-3 rounded-full text-black font-extrabold text-xs flex items-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-lg"
+                  className="bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 px-5 py-2.5 rounded-full text-black font-extrabold text-xs flex items-center gap-2 transition-colors cursor-pointer"
                 >
                   <Play className="w-4 h-4 fill-current" />
                   <span>Phát Tất Cả ({driveTracks.length})</span>
@@ -286,21 +255,21 @@ export default function DrivePage() {
 
                 <button
                   onClick={toggleShuffle}
-                  className={`p-3 rounded-full border transition-all ${
+                  className={`p-2.5 rounded-full border transition-colors cursor-pointer ${
                     isShuffle
-                      ? 'bg-[var(--spotify-glow,#22d3ee)]/20 border-[var(--spotify-glow,#22d3ee)] text-[var(--spotify-glow,#22d3ee)] shadow-lg'
+                      ? 'bg-[var(--spotify-glow,#22d3ee)]/20 border-[var(--spotify-glow,#22d3ee)] text-[var(--spotify-glow,#22d3ee)]'
                       : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
                   }`}
                   title="Phát ngẫu nhiên"
                 >
-                  <Shuffle className="w-4.5 h-4.5" />
+                  <Shuffle className="w-4 h-4" />
                 </button>
               </>
             )}
 
             <Link
               href="/upload"
-              className="px-4 py-3 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 text-white font-bold text-xs flex items-center gap-2 transition-all"
+              className="px-4 py-2.5 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 text-white font-bold text-xs flex items-center gap-2 transition-colors"
             >
               <Upload className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
               <span>Thêm Nhạc Vào Drive</span>
@@ -314,22 +283,22 @@ export default function DrivePage() {
         <div className="flex items-center justify-between border-b border-white/10 pb-3">
           <h2 className="text-sm font-bold text-white flex items-center gap-2">
             <span>Danh Sách Bài Hát Drive</span>
-            <span className="text-xs text-slate-400 font-normal">({filteredTracks.length} bài hát)</span>
+            <span className="text-xs text-slate-400 font-normal font-mono tabular-nums">({driveTracks.length} bài hát)</span>
           </h2>
         </div>
 
         {loading ? (
           <TrackListSkeleton count={8} />
-        ) : filteredTracks.length > 0 ? (
+        ) : driveTracks.length > 0 ? (
           <TrackList
-            tracks={filteredTracks}
+            tracks={driveTracks}
             userPlaylists={playlists}
             onAddToPlaylist={handleAddToPlaylist}
             onTrackUpdated={fetchDriveTracks}
           />
         ) : (
-          <div className="glass-panel rounded-3xl p-12 text-center border border-white/10 flex flex-col items-center justify-center gap-4 py-16">
-            <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-500">
+          <div className="glass-panel rounded-2xl p-12 text-center border border-white/10 flex flex-col items-center justify-center gap-4 py-16">
+            <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-500">
               <Cloud className="w-8 h-8 text-slate-400" />
             </div>
             <div className="flex flex-col gap-1 max-w-md">
@@ -340,10 +309,7 @@ export default function DrivePage() {
             </div>
             <Link
               href="/upload"
-              style={{
-                background: 'linear-gradient(135deg, var(--spotify-glow, #22d3ee), var(--primary-spotify, #06b6d4))',
-              }}
-              className="px-6 py-3 rounded-full text-black font-extrabold text-xs shadow-lg hover:scale-105 transition-all mt-2"
+              className="bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 px-6 py-3 rounded-full text-black font-extrabold text-xs transition-colors mt-2"
             >
               + Đóng Góp Nhạc Vào Drive
             </Link>

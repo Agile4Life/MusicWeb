@@ -5,13 +5,13 @@ import {
   Cloud,
   Search,
   Play,
-  Flame,
   Disc,
   X,
   Loader2,
   ChevronDown,
   ArrowLeft,
-  Sparkles,
+  BookmarkPlus,
+  TrendingUp,
 } from 'lucide-react'
 import { Track, SoundCloudPlaylist } from '@/types'
 import { usePlayerControls } from '@/components/player/PlayerContext'
@@ -19,26 +19,24 @@ import { TrackList } from '@/components/track/TrackList'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { addTrackToPlaylist } from '@/lib/trackPersistence'
 import { toast } from '@/components/ui/ToastContext'
-import { TrackListSkeleton } from '@/components/common/SkeletonLoader'
+import { TrackListSkeleton, MediaCardGridSkeleton } from '@/components/common/SkeletonLoader'
 import { ImportSoundCloudModal } from '@/components/playlist/ImportSoundCloudModal'
 import { MediaCard } from '@/components/common/MediaCard'
-import { useGridGlideIndicator } from '@/components/common/useGlideIndicator'
 
 const GENRE_TABS = [
   { id: 'all-music', label: 'Tất cả', query: 'vietnam hit' },
-  { id: 'indie', label: '🎸 Indie', query: 'indie vietnam', isHot: true },
-  { id: 'remix', label: '🔥 Việt Mix / Remix', query: 'vietnamese remix 2025' },
-  { id: 'vinahouse', label: '⚡ Vinahouse / EDM', query: 'vinahouse edm' },
-  { id: 'lofi', label: '☕ Lofi & Chill', query: 'lofi chill viet nam' },
-  { id: 'vpop', label: '🎤 V-Pop Nhạc Trẻ', query: 'vpop hit 2025' },
-  { id: 'mashup', label: '🎧 Mashup & Bootleg', query: 'mashup vietnamese' },
-  { id: 'phonk', label: '🏎️ Phonk & Bass', query: 'drift phonk bass' },
+  { id: 'indie', label: 'Indie', query: 'indie vietnam' },
+  { id: 'remix', label: 'Việt Mix / Remix', query: 'vietnamese remix 2025' },
+  { id: 'vinahouse', label: 'Vinahouse / EDM', query: 'vinahouse edm' },
+  { id: 'lofi', label: 'Lofi & Chill', query: 'lofi chill viet nam' },
+  { id: 'vpop', label: 'V-Pop Nhạc Trẻ', query: 'vpop hit 2025' },
+  { id: 'mashup', label: 'Mashup & Bootleg', query: 'mashup vietnamese' },
+  { id: 'phonk', label: 'Phonk & Bass', query: 'drift phonk bass' },
 ]
 
 export default function SoundCloudPage() {
   const { playTrack } = usePlayerControls()
   const { playlists: userPlaylists, refreshPlaylists } = usePlaylists()
-  const soundcloudPlaylistGrid = useGridGlideIndicator()
 
   const [activeTab, setActiveTab] = useState<string>('all-music')
   const [searchQuery, setSearchQuery] = useState<string>('')
@@ -276,88 +274,71 @@ export default function SoundCloudPage() {
   }
 
   return (
-    <div className="p-3.5 sm:p-6 lg:p-8 flex flex-col gap-5 sm:gap-7 max-w-7xl mx-auto w-full pb-36 lg:pb-12 select-none">
-      {/* 🌟 SoundCloud Hero Banner */}
-      <div className="soundcloud-hero relative overflow-hidden rounded-3xl border border-[#ff5500]/25 p-5 sm:p-8 bg-gradient-to-br from-[#ff5500]/20 via-[#161113] to-[#0a0d14] shadow-[0_16px_40px_rgba(0,0,0,0.6),0_0_30px_rgba(255,85,0,0.15)]">
-        {/* Ambient Glow Orbs */}
-        <div className="ambient-glow-orb absolute -top-24 -right-24 w-80 h-80 bg-[#ff5500]/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="ambient-glow-orb absolute -bottom-24 -left-24 w-80 h-80 bg-[#ff7700]/15 rounded-full blur-3xl pointer-events-none" />
-
+    <div className="p-3.5 sm:p-6 lg:p-8 flex flex-col gap-5 sm:gap-7 max-w-7xl mx-auto w-full pb-36 lg:pb-8 select-none">
+      {/* SoundCloud Hero Banner */}
+      <div className="hero-banner soundcloud-hero relative overflow-hidden rounded-2xl border border-[#ff5500]/25 p-5 sm:p-7 bg-gradient-to-br from-[#ff5500]/12 via-[#141114] to-[#0a0d14]">
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
-          <div className="flex items-center gap-4 sm:gap-5">
-            {/* SoundCloud Flame Cloud Icon */}
-            <div className="soundcloud-cloud-icon w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#ff7700] to-[#ff3300] flex items-center justify-center text-white shadow-[0_8px_25px_rgba(255,85,0,0.4)] shrink-0 border border-white/20">
-              <Cloud className="w-8 h-8 sm:w-9 sm:h-9 fill-current" />
+          <div className="flex items-center gap-4 sm:gap-5 min-w-0 flex-1">
+            <div className="soundcloud-cloud-icon w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-[#ff7700] to-[#ff3300] flex items-center justify-center text-white shrink-0 border border-white/15">
+              <Cloud className="w-6 h-6 sm:w-7 sm:h-7 fill-current" />
             </div>
 
-            <div className="flex flex-col gap-1">
-              <span className="eyebrow text-[11px] font-mono tracking-widest uppercase font-semibold text-[var(--spotify-glow,#22d3ee)] hidden sm:block">
-                Stream & Audio Explorer
-              </span>
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight">
-                  SoundCloud
-                </h1>
-                <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-full bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/40">
-                  Full Audio
-                </span>
-              </div>
+            <div className="flex flex-col gap-1 min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-display font-bold text-white tracking-tight truncate">
+                SoundCloud
+              </h1>
               <p className="text-xs sm:text-sm text-slate-300 max-w-xl">
-                Khám phá Top Playlists & Bài hát thịnh hành, bản remix độc quyền, EDM, Vinahouse từ SoundCloud với chất lượng âm thanh nguyên bản.
+                Khám phá Top Playlists, bài hát thịnh hành, bản remix và EDM từ SoundCloud.
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 🔍 Search Input Bar */}
+      {/* Search Input Bar */}
       <div className="relative w-full">
-        <Search className="w-4 h-4 text-slate-400 absolute left-4 top-3.5" />
+        <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
         <input
           type="text"
           value={searchQuery}
           onChange={handleSearchChange}
           placeholder="Dán link SoundCloud (bài hát / playlist / cá nhân) hoặc nhập tên bài hát, playlist, nghệ sĩ..."
-          className="w-full bg-white/[0.04] hover:bg-white/[0.07] focus:bg-white/[0.09] border border-white/10 focus:border-[var(--spotify-glow,#22d3ee)] focus:ring-1 focus:ring-[var(--spotify-glow,#22d3ee)]/40 rounded-2xl pl-11 pr-10 py-3 text-xs sm:text-sm text-white placeholder-slate-400 outline-none transition-all shadow-inner"
+          className="w-full bg-white/[0.04] hover:bg-white/[0.07] focus:bg-white/[0.09] border border-white/10 focus:border-[var(--spotify-glow,#22d3ee)] focus:ring-1 focus:ring-[var(--spotify-glow,#22d3ee)]/40 rounded-2xl pl-11 pr-10 py-3 text-xs sm:text-sm text-white placeholder-slate-400 outline-none transition-colors"
         />
         {searchQuery && (
           <button
             onClick={handleClearSearch}
-            className="absolute right-3.5 top-3 text-slate-400 hover:text-white p-0.5 rounded-full hover:bg-white/10 cursor-pointer"
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 rounded-full hover:bg-white/10 cursor-pointer transition-colors"
+            title="Xóa tìm kiếm"
           >
             <X className="w-4 h-4" />
           </button>
         )}
       </div>
 
-      {/* 🏷️ Genre / Tag Filter Chips */}
+      {/* Genre / Tag Filter Chips */}
       {!debouncedQuery && !selectedPlaylist && (
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2.5 shrink-0 -mx-1 px-1">
+        <div className="flex items-center gap-2 overflow-x-auto lg:overflow-x-visible lg:flex-wrap no-scrollbar py-1 shrink-0">
           {GENRE_TABS.map((tab) => {
             const isActive = activeTab === tab.id
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 shrink-0 border flex items-center gap-1.5 cursor-pointer ${
+                className={`sc-genre-chip px-3.5 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors shrink-0 border flex items-center gap-1.5 cursor-pointer ${
                   isActive
-                    ? 'bg-gradient-to-r from-[#ff5500] to-[#ff3300] text-white border-transparent shadow-[0_4px_14px_rgba(255,85,0,0.45)]'
+                    ? 'sc-genre-chip--active bg-gradient-to-r from-[#ff5500] to-[#ff3300] text-white border-transparent'
                     : 'bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border-white/10 hover:border-white/20'
                 }`}
               >
                 <span>{tab.label}</span>
-                {tab.isHot && (
-                  <span className="px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider rounded-full bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-sm animate-pulse leading-none">
-                    HOT
-                  </span>
-                )}
               </button>
             )
           })}
         </div>
       )}
 
-      {/* 📀 SECTION 1: Top Playlists & Sets from SoundCloud */}
+      {/* SECTION 1: Top Playlists & Sets from SoundCloud */}
       {!selectedPlaylist && (
         <div className="flex flex-col gap-3.5">
           <div className="flex items-center justify-between">
@@ -370,43 +351,18 @@ export default function SoundCloudPage() {
               </h2>
             </div>
             {playlists.length > 0 && (
-              <span className="text-xs text-slate-400 font-medium">
+              <span className="text-xs text-slate-400 font-medium tabular-nums">
                 {playlists.length} playlists đề xuất
               </span>
             )}
           </div>
 
           {loadingPlaylists ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="animate-pulse bg-white/5 rounded-2xl p-3 flex flex-col gap-2.5">
-                  <div className="w-full aspect-square rounded-xl bg-white/10" />
-                  <div className="h-3.5 bg-white/10 rounded w-3/4" />
-                  <div className="h-3 bg-white/5 rounded w-1/2" />
-                </div>
-              ))}
-            </div>
+            <MediaCardGridSkeleton count={6} />
           ) : playlists.length > 0 ? (
-            <div
-              ref={soundcloudPlaylistGrid.containerRef}
-              onMouseLeave={soundcloudPlaylistGrid.handleContainerMouseLeave}
-              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 xs:gap-3.5 sm:gap-4 lg:gap-4.5 relative"
-            >
-              <div
-                className="grid-glide-indicator"
-                style={{
-                  transform: `translate3d(${soundcloudPlaylistGrid.indicator.left}px, ${soundcloudPlaylistGrid.indicator.top}px, 0) scale(${soundcloudPlaylistGrid.indicator.scaleX}, ${soundcloudPlaylistGrid.indicator.scaleY})`,
-                  width: `${soundcloudPlaylistGrid.indicator.width}px`,
-                  height: `${soundcloudPlaylistGrid.indicator.height}px`,
-                  opacity: soundcloudPlaylistGrid.indicator.opacity,
-                }}
-              />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 xs:gap-3.5 sm:gap-4 relative">
               {playlists.map((pl, idx) => (
-                <div
-                  key={pl.id}
-                  onMouseEnter={soundcloudPlaylistGrid.handleItemMouseEnter}
-                  className="relative z-[1] h-full"
-                >
+                <div key={pl.id} className="h-full">
                   <MediaCard
                     id={String(pl.id)}
                     title={pl.title}
@@ -431,20 +387,19 @@ export default function SoundCloudPage() {
         </div>
       )}
 
-      {/* 📌 Selected Playlist Header Banner (if viewing a specific playlist) */}
+      {/* Selected Playlist Header Banner */}
       {selectedPlaylist && (
-        <div className="glass-panel p-4 sm:p-6 rounded-3xl border border-[#ff5500]/30 bg-gradient-to-r from-[#ff5500]/15 via-white/[0.02] to-transparent flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+        <div className="glass-panel p-4 sm:p-6 rounded-2xl border border-[#ff5500]/30 bg-gradient-to-r from-[#ff5500]/12 via-white/[0.02] to-transparent flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0 flex-1">
             <button
               onClick={handleBackToExplore}
-              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all hover:scale-105 active:scale-95"
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors shrink-0 cursor-pointer"
               title="Quay lại danh sách tổng"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
 
-            {/* Thumbnail */}
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-900 border border-white/10 overflow-hidden shrink-0">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-900 border border-white/10 overflow-hidden shrink-0">
               {selectedPlaylist.artwork_url ? (
                 <img
                   src={selectedPlaylist.artwork_url}
@@ -458,30 +413,30 @@ export default function SoundCloudPage() {
               )}
             </div>
 
-            <div className="flex flex-col gap-0.5">
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.2 text-[9px] font-black uppercase rounded bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/40">
+            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/30 shrink-0">
                   Playlist
                 </span>
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-400 truncate">
                   {selectedPlaylist.user?.username}
                 </span>
               </div>
-              <h2 className="text-base sm:text-xl font-black text-white">
+              <h2 className="text-base sm:text-xl font-black text-white truncate">
                 {selectedPlaylist.title}
               </h2>
-              <span className="text-xs text-slate-400">
-                {tracks.length} bài hát Full Audio
+              <span className="text-xs text-slate-400 tabular-nums">
+                {tracks.length} bài hát
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+          <div className="flex items-center flex-wrap gap-2 shrink-0 self-end sm:self-center">
             {tracks.length > 0 && (
               <>
                 <button
                   onClick={handlePlayAll}
-                  className="px-4 py-2 rounded-full font-bold text-xs text-white flex items-center gap-2 bg-gradient-to-r from-[#ff7700] to-[#ff3300] shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                  className="px-4 py-2 rounded-full font-bold text-xs text-white flex items-center gap-2 bg-gradient-to-r from-[#ff7700] to-[#ff3300] hover:brightness-110 transition-colors cursor-pointer"
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />
                   <span>Phát Playlist</span>
@@ -492,17 +447,17 @@ export default function SoundCloudPage() {
                     setImportInitialTracks(tracks)
                     setIsImportModalOpen(true)
                   }}
-                  className="px-4 py-2 rounded-full font-bold text-xs text-black flex items-center gap-1.5 bg-gradient-to-r from-[var(--spotify-glow,#ff7700)] to-[var(--primary-spotify,#ff3300)] shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                  className="px-4 py-2 rounded-full font-bold text-xs text-black flex items-center gap-1.5 bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 transition-colors cursor-pointer"
                   title="Tạo và lưu playlist này vào thư viện cá nhân của bạn"
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
+                  <BookmarkPlus className="w-3.5 h-3.5" />
                   <span>Lưu vào Thư viện</span>
                 </button>
               </>
             )}
             <button
               onClick={handleBackToExplore}
-              className="px-3.5 py-2 rounded-full font-bold text-xs text-slate-300 bg-white/10 hover:bg-white/20 transition-all cursor-pointer"
+              className="px-3.5 py-2 rounded-full font-bold text-xs text-slate-300 bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"
             >
               Đóng Playlist
             </button>
@@ -510,12 +465,12 @@ export default function SoundCloudPage() {
         </div>
       )}
 
-      {/* 🎵 SECTION 2: Top Tracks List */}
+      {/* SECTION 2: Top Tracks List */}
       <div className="flex flex-col gap-3.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-[var(--spotify-glow,#22d3ee)]/15 text-[var(--spotify-glow,#22d3ee)] border border-[var(--spotify-glow,#22d3ee)]/30">
-              <Flame className="w-4 h-4" />
+              <TrendingUp className="w-4 h-4" />
             </div>
             <h2 className="text-base sm:text-lg font-black text-white tracking-tight">
               {selectedPlaylist
@@ -530,7 +485,7 @@ export default function SoundCloudPage() {
             </h2>
           </div>
           {!selectedPlaylist && tracks.length > 0 && (
-            <span className="text-xs text-slate-400 font-medium">
+            <span className="text-xs text-slate-400 font-medium tabular-nums">
               {tracks.length} bài hát
             </span>
           )}
@@ -550,18 +505,18 @@ export default function SoundCloudPage() {
               isSearchResult={Boolean(debouncedQuery && !selectedPlaylist)}
             />
 
-            {/* 📥 Load More / Pagination Bar (Only when not in a specific playlist) */}
+            {/* Load More / Pagination Bar */}
             {!selectedPlaylist && (
               <div className="pt-4 mt-2 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
-                <span className="font-medium">
-                  Đang hiển thị <strong className="text-white font-bold">{tracks.length}</strong> bài hát Full Audio
+                <span className="font-medium tabular-nums">
+                  Đang hiển thị <strong className="text-white font-bold">{tracks.length}</strong> bài hát
                 </span>
 
                 {hasMore ? (
                   <button
                     onClick={handleLoadMore}
                     disabled={loadingMore}
-                    className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-white/[0.06] hover:bg-[var(--spotify-glow,#22d3ee)]/15 border border-white/10 hover:border-[var(--spotify-glow,#22d3ee)]/40 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50 hover:text-[var(--spotify-glow,#22d3ee)] cursor-pointer"
+                    className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-white/[0.06] hover:bg-[var(--spotify-glow,#22d3ee)]/15 border border-white/10 hover:border-[var(--spotify-glow,#22d3ee)]/40 flex items-center gap-2 transition-colors disabled:opacity-50 hover:text-[var(--spotify-glow,#22d3ee)] cursor-pointer"
                   >
                     {loadingMore ? (
                       <>
@@ -576,15 +531,15 @@ export default function SoundCloudPage() {
                     )}
                   </button>
                 ) : (
-                  <span className="text-[11px] text-slate-500 italic">Đã hiển thị toàn bộ kết quả</span>
+                  <span className="text-[11px] text-slate-500">Đã hiển thị toàn bộ kết quả</span>
                 )}
               </div>
             )}
           </div>
         ) : (
           /* Empty State */
-          <div className="glass-panel p-12 rounded-3xl text-center border border-white/10 flex flex-col items-center gap-4 my-6">
-            <div className="w-16 h-16 rounded-2xl bg-[#ff5500]/15 border border-[#ff5500]/30 flex items-center justify-center text-[#ff7700] shadow-[0_8px_20px_rgba(255,85,0,0.2)]">
+          <div className="glass-panel p-12 rounded-2xl text-center border border-white/10 flex flex-col items-center gap-4 my-6">
+            <div className="w-16 h-16 rounded-2xl bg-[#ff5500]/15 border border-[#ff5500]/30 flex items-center justify-center text-[#ff7700]">
               <Cloud className="w-8 h-8" />
             </div>
             <div>

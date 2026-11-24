@@ -73,16 +73,6 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
     setMounted(true)
   }, [])
 
-  // Close playlist selector on Escape
-  useEffect(() => {
-    if (!showPlaylistSelector) return
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowPlaylistSelector(false)
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [showPlaylistSelector])
-
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState('')
   const [editDesc, setEditDesc] = useState('')
@@ -90,6 +80,20 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
   // Modals state
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [showLibraryModal, setShowLibraryModal] = useState(false)
+
+  // Close open modals on Escape
+  useEffect(() => {
+    if (!showPlaylistSelector && !showUploadModal && !showLibraryModal) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showPlaylistSelector) setShowPlaylistSelector(false)
+        else if (showUploadModal) setShowUploadModal(false)
+        else if (showLibraryModal) setShowLibraryModal(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showPlaylistSelector, showUploadModal, showLibraryModal])
 
   // Direct Upload State
 
@@ -184,19 +188,16 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
     }
   }, [playlistId])
 
-  // Prevent background page scrolling when modals are open (targets both body and main container)
+  // Prevent background page scrolling when modals are open
   useEffect(() => {
-    const mainEl = document.querySelector('main')
+    const scrollEl = document.querySelector<HTMLElement>('.main-content-scroll')
     if (showUploadModal || showLibraryModal || showPlaylistSelector) {
-      document.body.style.overflow = 'hidden'
-      if (mainEl) mainEl.style.overflow = 'hidden'
+      if (scrollEl) scrollEl.style.overflow = 'hidden'
     } else {
-      document.body.style.overflow = ''
-      if (mainEl) mainEl.style.overflow = 'auto'
+      if (scrollEl) scrollEl.style.overflow = ''
     }
     return () => {
-      document.body.style.overflow = ''
-      if (mainEl) mainEl.style.overflow = 'auto'
+      if (scrollEl) scrollEl.style.overflow = ''
     }
   }, [showUploadModal, showLibraryModal, showPlaylistSelector])
 
@@ -214,7 +215,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
       window.dispatchEvent(new Event('playlist-updated'))
       router.refresh()
     } else if (res.status === 403) {
-      alert('Bạn không có quyền sửa playlist này.')
+      toast('Bạn không có quyền sửa playlist này.', 'error')
     }
   }
 
@@ -229,10 +230,10 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
         router.refresh()
       } else {
         const errData = await res.json().catch(() => null)
-        alert('Lỗi xóa playlist: ' + (errData?.error || res.statusText))
+        toast('Lỗi xóa playlist: ' + (errData?.error || res.statusText), 'error')
       }
     } catch (err: any) {
-      alert('Lỗi xóa playlist: ' + err?.message)
+      toast('Lỗi xóa playlist: ' + err?.message, 'error')
     }
   }
 
@@ -245,7 +246,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
     if (res.ok) {
       setTracks(tracks.filter((t) => t.id !== trackId))
     } else if (res.status === 403) {
-      alert('Bạn không có quyền sửa playlist này.')
+      toast('Bạn không có quyền sửa playlist này.', 'error')
     }
   }
 
@@ -324,7 +325,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
           )}
         </div>
 
-        <div className="flex-1 flex flex-col gap-2.5">
+        <div className="flex-1 min-w-0 flex flex-col gap-2.5">
           <p className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
             Playlist cá nhân
           </p>
@@ -360,12 +361,12 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
               </div>
             </div>
           ) : (
-            <div>
+            <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-white">{playlist.name}</h1>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-white line-clamp-2">{playlist.name}</h1>
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+                  className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors shrink-0"
                   title="Chỉnh sửa playlist"
                 >
                   <Edit2 className="w-4 h-4" />
@@ -374,7 +375,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
                 <div className="relative">
                   <button
                     onClick={() => setShowPlaylistSelector((prev) => !prev)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/15 border border-white/15 text-xs font-bold text-[var(--spotify-glow,#22d3ee)] transition-all shadow-md active:scale-95 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/15 border border-white/15 text-xs font-bold text-[var(--spotify-glow,#22d3ee)] transition-colors cursor-pointer"
                     title="Đổi playlist"
                   >
                     <ListMusic className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
@@ -383,7 +384,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
                   </button>
                 </div>
               </div>
-              <p className="text-xs text-slate-400 mt-1">{playlist.description || 'Chưa có mô tả'}</p>
+              <p className="text-xs text-slate-400 mt-1 truncate">{playlist.description || 'Chưa có mô tả'}</p>
             </div>
           )}
 
@@ -400,7 +401,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
             <>
               <button
                 onClick={() => playTrack(tracks[0], tracks)}
-                className="bg-[var(--primary-spotify)] text-black font-extrabold px-6 py-3 rounded-full flex items-center gap-2 shadow-xl shadow-[var(--theme-glow-shadow)] hover:scale-105 transition-all text-xs"
+                className="bg-[var(--primary-spotify)] hover:brightness-110 text-black font-extrabold px-6 py-3 rounded-full flex items-center gap-2 transition-colors text-xs cursor-pointer"
               >
                 <Play className="w-4 h-4 fill-current" />
                 <span>Phát Playlist</span>
@@ -412,9 +413,9 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
                   const randomIdx = Math.floor(Math.random() * tracks.length)
                   playTrack(tracks[randomIdx], tracks, randomIdx)
                 }}
-                className={`font-bold px-4 py-3 rounded-full flex items-center gap-2 text-xs transition-all border ${
+                className={`font-bold px-4 py-3 rounded-full flex items-center gap-2 text-xs transition-colors border cursor-pointer ${
                   isShuffle
-                    ? 'bg-[var(--primary-spotify)]/20 text-[var(--primary-spotify)] border-[var(--primary-spotify)]/40 shadow-lg'
+                    ? 'bg-[var(--primary-spotify)]/20 text-[var(--primary-spotify)] border-[var(--primary-spotify)]/40'
                     : 'bg-white/10 hover:bg-white/20 text-white border-white/10'
                 }`}
               >
@@ -427,7 +428,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
           {userIsAdmin && (
             <button
               onClick={() => setShowUploadModal(true)}
-              className="bg-white/10 hover:bg-white/20 text-white font-bold px-4 py-3 rounded-full flex items-center gap-2 text-xs transition-all border border-white/10"
+              className="bg-white/10 hover:bg-white/20 text-white font-bold px-4 py-3 rounded-full flex items-center gap-2 text-xs transition-colors border border-white/10 cursor-pointer"
             >
               <Upload className="w-4 h-4 text-[var(--primary-spotify)]" />
               <span>Upload nhạc vào Playlist này</span>
@@ -436,7 +437,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
 
           <button
             onClick={openLibraryModal}
-            className="bg-white/10 hover:bg-white/20 text-white font-bold px-4 py-3 rounded-full flex items-center gap-2 text-xs transition-all border border-white/10"
+            className="bg-white/10 hover:bg-white/20 text-white font-bold px-4 py-3 rounded-full flex items-center gap-2 text-xs transition-colors border border-white/10 cursor-pointer"
           >
             <Plus className="w-4 h-4 text-[var(--primary-spotify)]" />
             <span>Thêm từ Thư viện</span>
@@ -445,7 +446,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
 
         <button
           onClick={handleDeletePlaylist}
-          className="text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors px-3 py-2 rounded-xl flex items-center gap-1.5 text-xs font-bold self-end sm:self-auto"
+          className="text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors px-3 py-2 rounded-xl flex items-center gap-1.5 text-xs font-bold self-end sm:self-auto whitespace-nowrap shrink-0 cursor-pointer"
           title="Xóa playlist"
         >
           <Trash2 className="w-4 h-4" />
@@ -465,8 +466,8 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
           onDeleteTrack={handleRemoveTrackFromPlaylist}
         />
       ) : (
-        <div className="glass-panel p-10 rounded-3xl text-center border border-white/10 flex flex-col items-center gap-4 my-4">
-          <div className="w-16 h-16 rounded-full bg-[var(--primary-spotify)]/10 flex items-center justify-center text-[var(--primary-spotify)] border border-[var(--primary-spotify)]/20 shadow-lg">
+        <div className="glass-panel p-10 rounded-2xl text-center border border-white/10 flex flex-col items-center gap-4 my-4">
+          <div className="w-16 h-16 rounded-full bg-[var(--primary-spotify)]/10 flex items-center justify-center text-[var(--primary-spotify)] border border-[var(--primary-spotify)]/20">
             <Music className="w-8 h-8" />
           </div>
           <div>
@@ -480,7 +481,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
             {userIsAdmin && (
               <button
                 onClick={() => setShowUploadModal(true)}
-                className="bg-[var(--primary-spotify)] text-black font-extrabold px-5 py-3 rounded-full flex items-center gap-2 text-xs hover:scale-105 transition-all shadow-lg shadow-[var(--theme-glow-shadow)]"
+                className="bg-[var(--primary-spotify)] hover:brightness-110 text-black font-extrabold px-5 py-3 rounded-full flex items-center gap-2 text-xs transition-colors cursor-pointer"
               >
                 <Upload className="w-4 h-4" />
                 <span>Tải Nhạc Mới Vào Playlist</span>
@@ -489,7 +490,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
 
             <button
               onClick={openLibraryModal}
-              className="glass-card hover:border-[var(--primary-spotify)]/50 text-white font-bold px-5 py-3 rounded-full flex items-center gap-2 text-xs transition-all"
+              className="bg-white/10 hover:bg-white/15 border border-white/15 hover:border-[var(--primary-spotify)]/50 text-white font-bold px-5 py-3 rounded-full flex items-center gap-2 text-xs transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4 text-[var(--primary-spotify)]" />
               <span>Chọn Từ Thư Viện Bài Hát</span>
@@ -498,14 +499,16 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
         </div>
       )}
 
-      {/* 📋 MODAL: Đổi Playlist Cá Nhân (Portaled to document.body for flawless mobile layering) */}
+      {/* 📋 MODAL: Đổi Playlist Cá Nhân */}
       {mounted && showPlaylistSelector && createPortal(
         <div
-          className="fixed inset-0 z-[99999] bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200 select-none"
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[99999] lg:z-[70] bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200 select-none"
           onClick={() => setShowPlaylistSelector(false)}
         >
           <div
-            className="glass-panel modal-content w-full sm:max-w-md bg-[var(--elevation-2-bg,#0c121e)] border-t sm:border border-white/15 rounded-t-3xl sm:rounded-3xl p-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pb-5 shadow-2xl flex flex-col gap-4 max-h-[85vh] animate-in slide-in-from-bottom duration-250"
+            className="glass-panel modal-content w-full sm:max-w-md bg-[var(--elevation-2-bg,#0c121e)] border-t sm:border border-white/15 rounded-t-3xl sm:rounded-2xl p-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pb-5 shadow-2xl flex flex-col gap-4 max-h-[85vh] animate-in slide-in-from-bottom duration-250"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Mobile drag handle */}
@@ -519,7 +522,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
               <button
                 type="button"
                 onClick={() => setShowPlaylistSelector(false)}
-                className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-white/10 transition-colors"
+                className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
                 title="Đóng"
               >
                 <X className="w-5 h-5" />
@@ -540,10 +543,10 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
                       setShowPlaylistSelector(false)
                       router.push(`/playlist/${pl.id}`)
                     }}
-                    className={`flex items-center justify-between px-4 py-3 rounded-2xl text-xs text-left transition-all ${
+                    className={`flex items-center justify-between px-4 py-3 rounded-xl text-xs text-left transition-colors cursor-pointer ${
                       pl.id === playlistId
-                        ? 'bg-[var(--primary-spotify)]/20 text-[var(--spotify-glow,#22d3ee)] font-bold border border-[var(--primary-spotify)]/40 shadow-lg'
-                        : 'bg-white/[0.04] text-slate-200 hover:bg-white/10 border border-white/5 active:scale-[0.99]'
+                        ? 'bg-[var(--primary-spotify)]/20 text-[var(--spotify-glow,#22d3ee)] font-bold border border-[var(--primary-spotify)]/40'
+                        : 'bg-white/[0.04] text-slate-200 hover:bg-white/10 border border-white/5'
                     }`}
                   >
                     <div className="flex flex-col gap-0.5 truncate pr-2">
@@ -568,7 +571,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
                     router.push(`/playlist/${newPl.id}`)
                   }
                 }}
-                className="w-full bg-[var(--primary-spotify,#06b6d4)] text-black font-extrabold py-3 rounded-2xl flex items-center justify-center gap-2 text-xs hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-[var(--theme-glow-shadow)]"
+                className="w-full bg-[var(--primary-spotify,#06b6d4)] text-black font-extrabold py-3 rounded-xl flex items-center justify-center gap-2 text-xs hover:brightness-110 transition-colors cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Tạo Playlist Mới</span>
@@ -582,7 +585,9 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
       {/* 🚀 MODAL 1: Upload Nhạc Trực Tiếp vào Playlist */}
       {mounted && showUploadModal && createPortal(
         <div
-          className="fixed inset-0 bg-black/85 backdrop-blur-md z-[99999] flex items-center justify-center p-4 select-none"
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 bg-black/85 backdrop-blur-md z-[99999] lg:z-[70] flex items-center justify-center p-4 select-none"
           onClick={() => setShowUploadModal(false)}
         >
           <div className="w-full max-w-4xl relative" onClick={(e) => e.stopPropagation()}>
@@ -601,11 +606,13 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
       {/* 🎵 MODAL 2: Chọn Bài Hát từ Thư Viện */}
       {mounted && showLibraryModal && createPortal(
         <div
-          className="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] flex items-center justify-center p-4 select-none"
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] lg:z-[70] flex items-center justify-center p-4 select-none"
           onClick={() => setShowLibraryModal(false)}
         >
           <div
-            className="glass-panel w-full max-w-lg p-6 rounded-3xl border border-white/10 shadow-2xl relative flex flex-col gap-4 max-h-[85vh]"
+            className="glass-panel w-full max-w-xl p-6 rounded-2xl border border-white/10 shadow-2xl relative flex flex-col gap-4 max-h-[85vh]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
@@ -615,7 +622,8 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
               </h3>
               <button
                 onClick={() => setShowLibraryModal(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10"
+                className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                title="Đóng"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -623,7 +631,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
 
             {/* Search Input */}
             <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Tìm bài hát từ thư viện hoặc online (Spotify, YouTube, NCT)..."
@@ -634,7 +642,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
             </div>
 
             {/* Library / Search Tracks List */}
-            <div className="flex-1 overflow-y-auto flex flex-col gap-2 max-h-96 pr-1">
+            <div className="flex-1 overflow-y-auto flex flex-col gap-2 max-h-96 pr-1 custom-slim-scrollbar">
               {loadingLibrary ? (
                 <p className="text-xs text-slate-400 text-center py-6">Đang tìm bài hát...</p>
               ) : displayedModalTracks.length === 0 ? (
@@ -654,9 +662,9 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
                   return (
                     <div
                       key={t.id}
-                      className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/10 transition-colors"
+                      className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.05] gap-3"
                     >
-                      <div className="flex items-center gap-3 truncate">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
                         <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center shrink-0 overflow-hidden border border-white/10">
                           {t.cover_url ? (
                             <img src={t.cover_url} alt={t.title} className="w-full h-full object-cover" />
@@ -664,7 +672,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
                             <Music className="w-4 h-4 text-slate-400" />
                           )}
                         </div>
-                        <div className="truncate">
+                        <div className="min-w-0 flex-1">
                           <p className="text-xs font-bold text-white truncate">{t.title}</p>
                           <p className="text-[10px] text-slate-400 truncate">{t.artist || 'Nghệ sĩ chưa xác định'}</p>
                         </div>
@@ -679,7 +687,7 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
                         <button
                           onClick={() => handleAddTrackToThisPlaylist(t)}
                           disabled={addingTrackId === t.id}
-                          className="bg-[var(--primary-spotify)] hover:scale-105 active:scale-95 text-black p-1.5 rounded-lg font-bold transition-all shrink-0 disabled:opacity-50 flex items-center justify-center min-w-[32px] min-h-[32px]"
+                          className="bg-[var(--primary-spotify)] hover:brightness-110 text-black p-1.5 rounded-lg font-bold transition-colors shrink-0 disabled:opacity-50 flex items-center justify-center min-w-[32px] min-h-[32px] cursor-pointer"
                           title="Thêm vào playlist"
                         >
                           {addingTrackId === t.id ? (

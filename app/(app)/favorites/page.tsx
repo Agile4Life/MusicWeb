@@ -98,28 +98,28 @@ export default function FavoritesPage() {
   const isAdmin = checkIsAdmin(user?.email)
 
   return (
-    <div className="p-2.5 sm:p-4 md:p-6 lg:p-7 flex flex-col gap-3 sm:gap-4 md:gap-5 max-w-7xl mx-auto w-full pb-36 lg:pb-12 select-none">
+    <div className="p-2.5 sm:p-4 md:p-6 lg:p-7 flex flex-col gap-3 sm:gap-4 md:gap-5 max-w-7xl mx-auto w-full pb-36 lg:pb-8 select-none">
       {/* Header Banner */}
       <div className="hero-banner relative overflow-hidden rounded-2xl border border-white/[0.06] p-3 sm:p-4 md:p-5 bg-[var(--elevation-1-bg,#0d1017)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
-        <div className="flex items-center gap-2.5 sm:gap-3.5">
+        <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1">
           <button
             onClick={() => router.back()}
-            className="p-1.5 sm:p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition-colors shrink-0"
+            className="lg:hidden p-1.5 sm:p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition-colors shrink-0"
             title="Quay lại"
           >
             <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 shrink-0">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-[var(--primary-spotify,#06b6d4)]/15 border border-[var(--primary-spotify,#06b6d4)]/25 flex items-center justify-center text-[var(--spotify-glow,#22d3ee)] shrink-0">
             <Heart className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
           </div>
 
-          <div className="flex flex-col gap-0.5">
-            <h1 className="text-lg sm:text-xl md:text-2xl font-extrabold text-white tracking-tight">
+          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-extrabold text-white tracking-tight truncate">
               <span className="hidden sm:inline">Bài hát yêu thích</span>
               <span className="sm:hidden">Yêu thích</span>
             </h1>
-            <p className="text-[11px] sm:text-xs text-slate-400">
+            <p className="text-[11px] sm:text-xs text-slate-400 truncate">
               {tracks.length > 0
                 ? `${tracks.length} bài hát trong bộ sưu tập của bạn`
                 : 'Danh sách bài hát được bạn đánh dấu yêu thích'}
@@ -131,7 +131,7 @@ export default function FavoritesPage() {
         {tracks.length > 0 && (
           <button
             onClick={() => playTrack(tracks[0], tracks)}
-            className="bg-rose-500 hover:bg-rose-400 text-white font-bold px-4 py-2 sm:px-5 sm:py-2.5 rounded-full flex items-center gap-2 text-xs transition-colors"
+            className="bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black font-bold px-4 py-2 sm:px-5 sm:py-2.5 rounded-full flex items-center gap-2 text-xs transition-colors shrink-0 cursor-pointer"
           >
             <Play className="w-4 h-4 fill-current" />
             <span>Phát tất cả</span>
@@ -141,9 +141,9 @@ export default function FavoritesPage() {
 
       {/* Filter / Search input */}
       {tracks.length > 0 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-white/10 pb-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
           <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
@@ -153,7 +153,7 @@ export default function FavoritesPage() {
             />
           </div>
 
-          <span className="text-xs font-mono text-slate-400">
+          <span className="text-xs font-mono text-slate-400 shrink-0">
             {filteredTracks.length} bài hát
           </span>
         </div>
