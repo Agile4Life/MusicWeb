@@ -6,7 +6,6 @@ import { SessionProvider } from '@/components/auth/SessionProvider'
 import { ThemeProvider } from '@/components/theme/ThemeContext'
 import { LanguageProvider } from '@/components/i18n/LanguageContext'
 import { CustomCursor } from '@/components/theme/CustomCursor'
-import { LiquidGlassFilterDefs } from '@/components/theme/LiquidGlassFilterDefs'
 import { WebIntroSplash } from '@/components/ui/WebIntroSplash'
 
 const spaceGrotesk = Space_Grotesk({
@@ -90,12 +89,6 @@ export default function RootLayout({
         <link rel="icon" type="image/png" sizes="180x180" href="/apple-touch-icon.png" />
         <link rel="shortcut icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Permanent+Marker&family=Rock+Salt&family=Sedgwick+Ave&display=swap"
-        />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -106,7 +99,10 @@ export default function RootLayout({
                   var style = ["classic","liquid-glass","minimal-flat"].indexOf(savedStyle) >= 0 ? savedStyle : 'minimal-flat';
                   root.setAttribute('data-theme-style', style);
                   var savedCursor = localStorage.getItem('musicweb-cursor-style');
-                  if (savedCursor) root.setAttribute('data-cursor', savedCursor);
+                  root.setAttribute('data-cursor', savedCursor || 'default');
+                  if (localStorage.getItem('has_seen_onboarding') === 'true' || localStorage.getItem('musicweb-gaming-mode') === 'true' || localStorage.getItem('musicweb_gaming_mode') === 'true') {
+                    root.setAttribute('data-skip-intro', 'true');
+                  }
                   var themes = {
                     slate: ['#1DB954', '#1ed760', '#06B6D4', '#07090E', '223', '33%', '29, 185, 84', '30, 215, 96'],
                     gold: ['#F59E0B', '#FBBF24', '#EF4444', '#0B0803', '38', '56%', '245, 158, 11', '251, 191, 36'],
@@ -154,7 +150,6 @@ export default function RootLayout({
         <SessionProvider>
           <LanguageProvider>
             <ThemeProvider>
-              <LiquidGlassFilterDefs />
               <WebIntroSplash />
               <CustomCursor />
               {children}

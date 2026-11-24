@@ -41,14 +41,19 @@ export function LiquidAmbientCanvas() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    let animationFrameId: number
-    let width = (canvas.width = window.innerWidth)
-    let height = (canvas.height = window.innerHeight)
+    let animationFrameId = 0
+    const SCALE = 0.5
+    let width = Math.max(1, Math.round(window.innerWidth * SCALE))
+    let height = Math.max(1, Math.round(window.innerHeight * SCALE))
+    canvas.width = width
+    canvas.height = height
 
     const handleResize = () => {
       if (!canvas) return
-      width = canvas.width = window.innerWidth
-      height = canvas.height = window.innerHeight
+      width = Math.max(1, Math.round(window.innerWidth * SCALE))
+      height = Math.max(1, Math.round(window.innerHeight * SCALE))
+      canvas.width = width
+      canvas.height = height
     }
 
     window.addEventListener('resize', handleResize)
@@ -63,28 +68,21 @@ export function LiquidAmbientCanvas() {
     const cPurple = '#a855f7'
 
     const orbs: Orb[] = [
-      { x: width * 0.2, y: height * 0.25, vx: 0.5, vy: 0.4, radius: 340, color: c1 },
-      { x: width * 0.8, y: height * 0.35, vx: -0.4, vy: 0.5, radius: 400, color: c2 },
-      { x: width * 0.5, y: height * 0.75, vx: 0.35, vy: -0.45, radius: 360, color: c3 },
-      { x: width * 0.15, y: height * 0.85, vx: -0.3, vy: -0.3, radius: 280, color: refractionMode === 'prominent' ? cRed : c1 },
-      { x: width * 0.85, y: height * 0.8, vx: -0.4, vy: 0.3, radius: 320, color: refractionMode === 'shader' ? cPurple : c3 },
+      { x: width * 0.2, y: height * 0.25, vx: 0.25, vy: 0.2, radius: 170, color: c1 },
+      { x: width * 0.8, y: height * 0.35, vx: -0.2, vy: 0.25, radius: 200, color: c2 },
+      { x: width * 0.5, y: height * 0.75, vx: 0.175, vy: -0.225, radius: 180, color: c3 },
+      { x: width * 0.15, y: height * 0.85, vx: -0.15, vy: -0.15, radius: 140, color: refractionMode === 'prominent' ? cRed : c1 },
+      { x: width * 0.85, y: height * 0.8, vx: -0.2, vy: 0.15, radius: 160, color: refractionMode === 'shader' ? cPurple : c3 },
     ]
 
     let time = 0
+    const reduceMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
 
-    let isHidden = document.hidden
-
-    const render = () => {
-      if (isHidden) {
-        // Tab is hidden — skip rendering, schedule next check
-        animationFrameId = requestAnimationFrame(render)
-        return
-      }
+    const drawFrame = () => {
       // Different speed and animation physics depending on refraction mode
       const speed = refractionMode === 'shader' ? 0.015 : refractionMode === 'polar' ? 0.012 : refractionMode === 'prominent' ? 0.01 : 0.006
       time += speed
       ctx.clearRect(0, 0, width, height)
-
 
       // Dark translucent backdrop
       ctx.fillStyle = currentTheme?.bgSpace || '#07090e'
@@ -99,7 +97,7 @@ export function LiquidAmbientCanvas() {
 
         // Radiating concentric pulsing rings
         for (let r = 1; r <= 3; r++) {
-          const ringRadius = ((time * 80 + r * 180) % (Math.max(width, height) * 0.7)) + 50
+          const ringRadius = ((time * 40 + r * 90) % (Math.max(width, height) * 0.7)) + 25
           const ringGrad = ctx.createRadialGradient(centerX, centerY, ringRadius * 0.8, centerX, centerY, ringRadius)
           ringGrad.addColorStop(0, 'transparent')
           ringGrad.addColorStop(0.5, `${c1}18`)
@@ -112,7 +110,7 @@ export function LiquidAmbientCanvas() {
 
         orbs.forEach((orb, i) => {
           const angle = time * 0.8 + (i * Math.PI * 2) / orbs.length
-          const dist = Math.min(width, height) * 0.28 + Math.sin(time + i) * 60
+          const dist = Math.min(width, height) * 0.28 + Math.sin(time + i) * 30
           orb.x = centerX + Math.cos(angle) * dist
           orb.y = centerY + Math.sin(angle) * dist
 
@@ -129,15 +127,15 @@ export function LiquidAmbientCanvas() {
       } else if (refractionMode === 'prominent') {
         // === Prominent Mode: High-contrast Prismatic RGB split beams ===
         orbs.forEach((orb, i) => {
-          orb.x += orb.vx * 1.5 + Math.sin(time * 1.8 + i) * 1.2
-          orb.y += orb.vy * 1.5 + Math.cos(time * 1.8 + i * 1.5) * 1.2
+          orb.x += orb.vx * 1.5 + Math.sin(time * 1.8 + i) * 0.6
+          orb.y += orb.vy * 1.5 + Math.cos(time * 1.8 + i * 1.5) * 0.6
 
-          if (orb.x < -100) orb.x = width + 100
-          if (orb.x > width + 100) orb.x = -100
-          if (orb.y < -100) orb.y = height + 100
-          if (orb.y > height + 100) orb.y = -100
+          if (orb.x < -50) orb.x = width + 50
+          if (orb.x > width + 50) orb.x = -50
+          if (orb.y < -50) orb.y = height + 50
+          if (orb.y > height + 50) orb.y = -50
 
-          const r = orb.radius + Math.sin(time * 3 + i) * 50
+          const r = orb.radius + Math.sin(time * 3 + i) * 25
 
           // High saturation prismatic gradients
           const grad = ctx.createRadialGradient(orb.x, orb.y, 0, orb.x, orb.y, r)
@@ -153,10 +151,10 @@ export function LiquidAmbientCanvas() {
       } else if (refractionMode === 'shader') {
         // === Shader SDF Mode: Fluid dynamic wave ripple mesh ===
         orbs.forEach((orb, i) => {
-          orb.x += Math.sin(time * 1.2 + i * 1.4) * 2.5
-          orb.y += Math.cos(time * 1.5 + i * 1.1) * 2.5
+          orb.x += Math.sin(time * 1.2 + i * 1.4) * 1.25
+          orb.y += Math.cos(time * 1.5 + i * 1.1) * 1.25
 
-          const r = orb.radius + Math.sin(time * 4 + i * 2) * 60
+          const r = orb.radius + Math.sin(time * 4 + i * 2) * 30
 
           const grad = ctx.createRadialGradient(orb.x, orb.y, 0, orb.x, orb.y, r)
           grad.addColorStop(0, `${orb.color}55`)
@@ -171,15 +169,15 @@ export function LiquidAmbientCanvas() {
       } else {
         // === Standard Mode: Smooth elegant organic drift ===
         orbs.forEach((orb, i) => {
-          orb.x += orb.vx + Math.sin(time + i) * 0.5
-          orb.y += orb.vy + Math.cos(time + i * 1.5) * 0.5
+          orb.x += orb.vx + Math.sin(time + i) * 0.25
+          orb.y += orb.vy + Math.cos(time + i * 1.5) * 0.25
 
-          if (orb.x < -100) orb.x = width + 100
-          if (orb.x > width + 100) orb.x = -100
-          if (orb.y < -100) orb.y = height + 100
-          if (orb.y > height + 100) orb.y = -100
+          if (orb.x < -50) orb.x = width + 50
+          if (orb.x > width + 50) orb.x = -50
+          if (orb.y < -50) orb.y = height + 50
+          if (orb.y > height + 50) orb.y = -50
 
-          const currentRadius = orb.radius + Math.sin(time * 2 + i) * 35
+          const currentRadius = orb.radius + Math.sin(time * 2 + i) * 17.5
 
           const grad = ctx.createRadialGradient(orb.x, orb.y, 0, orb.x, orb.y, currentRadius)
           grad.addColorStop(0, `${orb.color}35`)
@@ -194,20 +192,54 @@ export function LiquidAmbientCanvas() {
       }
 
       ctx.globalCompositeOperation = 'source-over'
-      animationFrameId = requestAnimationFrame(render)
+    }
+
+    const render = () => {
+      if (document.hidden) {
+        animationFrameId = 0
+        return
+      }
+      drawFrame()
+      if (!reduceMotionQuery.matches) {
+        animationFrameId = requestAnimationFrame(render)
+      }
     }
 
     const handleVisibility = () => {
-      isHidden = document.hidden
+      if (document.hidden) {
+        if (animationFrameId) {
+          cancelAnimationFrame(animationFrameId)
+          animationFrameId = 0
+        }
+      } else if (!reduceMotionQuery.matches && !animationFrameId) {
+        animationFrameId = requestAnimationFrame(render)
+      }
+    }
+    const handleMotionChange = () => {
+      if (reduceMotionQuery.matches) {
+        if (animationFrameId) {
+          cancelAnimationFrame(animationFrameId)
+          animationFrameId = 0
+        }
+        drawFrame()
+      } else if (!document.hidden && !animationFrameId) {
+        animationFrameId = requestAnimationFrame(render)
+      }
     }
     document.addEventListener('visibilitychange', handleVisibility)
+    reduceMotionQuery.addEventListener('change', handleMotionChange)
 
-    render()
+    if (reduceMotionQuery.matches) {
+      drawFrame()
+    } else if (!document.hidden) {
+      render()
+    }
 
     return () => {
       window.removeEventListener('resize', handleResize)
       document.removeEventListener('visibilitychange', handleVisibility)
-      cancelAnimationFrame(animationFrameId)
+      reduceMotionQuery.removeEventListener('change', handleMotionChange)
+      if (animationFrameId) cancelAnimationFrame(animationFrameId)
     }
   }, [currentTheme, themeStyle, refractionMode, liquidGlassConfig?.ambientCanvas])
 

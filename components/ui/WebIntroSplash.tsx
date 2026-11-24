@@ -43,6 +43,7 @@ export function WebIntroSplash() {
     }
 
     if (shouldBypassIntroSplash({ hasSeenOnboardingFlag, isGamingMode })) {
+      document.documentElement.setAttribute('data-skip-intro', 'true')
       const skipTimer = setTimeout(completeIntro, 0)
       return () => clearTimeout(skipTimer)
     }
