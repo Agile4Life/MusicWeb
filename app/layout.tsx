@@ -7,6 +7,7 @@ import { ThemeProvider } from '@/components/theme/ThemeContext'
 import { LanguageProvider } from '@/components/i18n/LanguageContext'
 import { CustomCursor } from '@/components/theme/CustomCursor'
 import { WebIntroSplash } from '@/components/ui/WebIntroSplash'
+import { MotionProvider } from '@/components/providers/MotionProvider'
 
 const spaceGrotesk = Space_Grotesk({
   variable: '--font-space-grotesk',
@@ -147,15 +148,17 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-[var(--bg-space,#0A0E1A)] text-slate-100 selection:bg-[var(--primary-spotify,#22D3EE)] selection:text-black font-sans">
-        <SessionProvider>
-          <LanguageProvider>
-            <ThemeProvider>
-              <WebIntroSplash />
-              <CustomCursor />
-              {children}
-            </ThemeProvider>
-          </LanguageProvider>
-        </SessionProvider>
+        <MotionProvider>
+          <SessionProvider>
+            <LanguageProvider>
+              <ThemeProvider>
+                <WebIntroSplash />
+                <CustomCursor />
+                {children}
+              </ThemeProvider>
+            </LanguageProvider>
+          </SessionProvider>
+        </MotionProvider>
         <script
           dangerouslySetInnerHTML={{
             __html: `
