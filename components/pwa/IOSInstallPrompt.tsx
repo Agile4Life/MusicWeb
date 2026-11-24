@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { Share, PlusSquare, X } from 'lucide-react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useTheme } from '@/components/theme/ThemeContext'
+import { EASE_OUT } from '@/lib/motion'
 import {
   IOS_PWA_PROMPT_STORAGE_KEY,
   isStandaloneDisplayMode,
@@ -12,6 +14,7 @@ import {
 export function IOSInstallPrompt() {
   const { themeStyle } = useTheme()
   const isMinimalFlat = themeStyle === 'minimal-flat'
+  const prefersReducedMotion = useReducedMotion()
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
@@ -43,14 +46,31 @@ export function IOSInstallPrompt() {
     }
   }
 
-  if (!visible) return null
-
   return (
-    <div
-      role="dialog"
-      aria-label="Hướng dẫn cài đặt ứng dụng iOS"
-      className="lg:hidden fixed left-4 right-4 bottom-[calc(var(--bottom-nav-height,84px)+env(safe-area-inset-bottom,0px)+76px)] z-[45] select-none animate-in fade-in slide-in-from-bottom-3 duration-300"
-    >
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          key="ios-install-prompt"
+          role="dialog"
+          aria-label="Hướng dẫn cài đặt ứng dụng iOS"
+          initial={
+            prefersReducedMotion
+              ? { opacity: 0 }
+              : { opacity: 0, transform: 'translate3d(0, 14px, 0) scale(0.97)' }
+          }
+          animate={
+            prefersReducedMotion
+              ? { opacity: 1 }
+              : { opacity: 1, transform: 'translate3d(0, 0px, 0) scale(1)' }
+          }
+          exit={
+            prefersReducedMotion
+              ? { opacity: 0 }
+              : { opacity: 0, transform: 'translate3d(0, 10px, 0) scale(0.97)' }
+          }
+          transition={{ duration: prefersReducedMotion ? 0.16 : 0.24, ease: EASE_OUT }}
+          className="lg:hidden fixed left-4 right-4 bottom-[calc(var(--bottom-nav-height,84px)+env(safe-area-inset-bottom,0px)+76px)] z-[45] select-none"
+        >
       <div
         className={`relative p-3.5 flex items-start gap-3 ${
           isMinimalFlat
@@ -122,7 +142,7 @@ export function IOSInstallPrompt() {
           type="button"
           onClick={handleDismiss}
           aria-label="Đóng hướng dẫn cài đặt"
-          className={`absolute top-2.5 right-2.5 w-7 h-7 flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
+          className={`absolute top-2.5 right-2.5 w-7 h-7 flex items-center justify-center rounded-lg active:scale-[0.97] transition-[transform,color,background-color] duration-150 ease-[var(--ease-out)] cursor-pointer ${
             isMinimalFlat
               ? 'text-[#8B8090] hover:text-[#F4ECE1] hover:bg-[#251E29]'
               : 'text-slate-400 hover:text-white hover:bg-white/10'
@@ -131,6 +151,8 @@ export function IOSInstallPrompt() {
           <X className="w-4 h-4" />
         </button>
       </div>
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }

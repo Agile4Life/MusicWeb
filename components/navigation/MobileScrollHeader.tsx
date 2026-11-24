@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   Search,
   X,
@@ -24,18 +25,23 @@ import {
   shouldCloseSearchOnOutsideClick,
   shouldRedirectToHomeOnSearch,
 } from '@/components/search/searchInteraction'
+import { popoverPanelProps } from '@/lib/motion'
 
 /** Distance in px before topbar is fully shrunk + search gone */
 const COLLAPSE_DISTANCE = 90
+const PROGRAMMATIC_TRANSITION_MS = 200
 
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v))
 }
 
+function prefersReducedMotionNow() {
+  return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
 
 /**
- * Hook: Continuous scroll-linked progress 0→1
- * Drives DOM refs directly each rAF — no React setState per frame.
+ * Hook: Continuous scroll-linked progress 0->1
+ * Drives DOM refs directly each rAF - no React setState per frame.
  */
 function useScrollProgress(
   collapseDistance: number,
@@ -57,17 +63,9 @@ function useScrollProgress(
 /**
  * MobileScrollHeader
  *
- * Layout:
- *   ┌─────────────────────────────────────┐
- *   │  [←][☰]      MuSic       [🔍]      │  ← Topbar pill (shrinks on scroll)
- *   └─────────────────────────────────────┘
- *   ┌─────────────────────────────────────┐
- *   │  🔍  Tìm bài hát, nghệ sĩ...        │  ← Search pill (collapses on scroll)
- *   └─────────────────────────────────────┘
- *
  * On scroll:
- *   - Topbar: side buttons fade + collapse inward → bar shrinks to logo pill
- *   - Search pill: slides up + fades out
+ *   - Topbar: fades out smoothly linked 1:1 to scroll progress
+ *   - Search pill: fades in and overlays topbar on scroll
  *   - NavBar receives 'mweb:header-progress' event to trigger capsule morph
  */
 export function MobileScrollHeader() {
@@ -75,6 +73,7 @@ export function MobileScrollHeader() {
   const isMinimalFlat = themeStyle === 'minimal-flat'
   const pathname = usePathname()
   const router = useRouter()
+  const prefersReducedMotion = useReducedMotion()
   const { playSearchTrack } = usePlayerControls()
   const {
     searchQuery,
@@ -92,11 +91,12 @@ export function MobileScrollHeader() {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const isSearchOpenRef = useRef(false)
   const visibilityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const transitionResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const progressRef = useRef(0)
   const lastDispatchedCollapsed = useRef<boolean | null>(null)
 
-  // DOM refs — animated directly, no React setState per frame
-  const topbarRowRef = useRef<HTMLDivElement>(null)   // the whole [☰ Logo 🔍] row
+  // DOM refs - animated directly, no React setState per frame
+  const topbarRowRef = useRef<HTMLDivElement>(null)
   const leftButtonsRef = useRef<HTMLDivElement>(null)
   const rightButtonRef = useRef<HTMLDivElement>(null)
   const searchRowRef = useRef<HTMLDivElement>(null)
@@ -112,7 +112,14 @@ export function MobileScrollHeader() {
 
   useEffect(() => { setInputQuery(searchQuery) }, [searchQuery])
 
-  // ─── Core animation driver ───────────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      if (visibilityTimeoutRef.current) clearTimeout(visibilityTimeoutRef.current)
+      if (transitionResetTimeoutRef.current) clearTimeout(transitionResetTimeoutRef.current)
+    }
+  }, [])
+
+  // Core scroll animation driver (transition: none so rAF updates are 1:1 with zero lag)
   const applyProgress = useCallback((p: number) => {
     progressRef.current = p
 
@@ -130,28 +137,36 @@ export function MobileScrollHeader() {
       return
     }
 
+    const reduced = prefersReducedMotionNow()
+
     // 1. Topbar row (logo + buttons): fades out as scroll starts
-    //    Position absolute to overlay with search row — zero layout shift
     const row = topbarRowRef.current
     if (row) {
-      const qFade = clamp(p / 0.5, 0, 1)  // opacity 1→0 in first 50%
+      const qFade = clamp(p / 0.5, 0, 1)
+      row.style.transition = 'none'
       row.style.opacity = String(1 - qFade)
       row.style.pointerEvents = qFade > 0.7 ? 'none' : 'auto'
-      row.style.transform = `translate3d(0, ${-qFade * 8}px, 0) scale(${1 - qFade * 0.04})`
+      row.style.transform = reduced
+        ? 'none'
+        : `translate3d(0, ${-qFade * 8}px, 0) scale(${1 - qFade * 0.04})`
     }
 
-    // 2. Search row: APPEARS on scroll, OVERLAYS topbar row (100% GPU composited)
+    // 2. Search row: appears on scroll, overlays topbar row (100% GPU composited)
     const searchRow = searchRowRef.current
     if (searchRow) {
-      const q = clamp((p - 0.1) / 0.5, 0, 1)  // 0→1 from p=0.1 to p=0.6
+      const q = clamp((p - 0.1) / 0.5, 0, 1)
+      searchRow.style.transition = 'none'
       if (q < 0.01) {
         searchRow.style.opacity = '0'
         searchRow.style.pointerEvents = 'none'
         searchRow.style.visibility = 'hidden'
+        searchRow.style.transform = reduced ? 'none' : 'translate3d(0, 8px, 0) scale(0.96)'
       } else {
         searchRow.style.visibility = 'visible'
         searchRow.style.opacity = String(q)
-        searchRow.style.transform = `translate3d(0, ${(1 - q) * 8}px, 0) scale(${0.96 + q * 0.04})`
+        searchRow.style.transform = reduced
+          ? 'none'
+          : `translate3d(0, ${(1 - q) * 8}px, 0) scale(${0.96 + q * 0.04})`
         searchRow.style.pointerEvents = q < 0.3 ? 'none' : 'auto'
       }
     }
@@ -170,6 +185,17 @@ export function MobileScrollHeader() {
 
   useScrollProgress(COLLAPSE_DISTANCE, addScrollListener, applyProgress)
 
+  const scheduleTransitionClear = useCallback(() => {
+    if (transitionResetTimeoutRef.current) {
+      clearTimeout(transitionResetTimeoutRef.current)
+    }
+    transitionResetTimeoutRef.current = setTimeout(() => {
+      if (topbarRowRef.current) topbarRowRef.current.style.transition = 'none'
+      if (searchRowRef.current) searchRowRef.current.style.transition = 'none'
+      transitionResetTimeoutRef.current = null
+    }, PROGRAMMATIC_TRANSITION_MS)
+  }, [])
+
   const openSearch = useCallback(() => {
     if (visibilityTimeoutRef.current) {
       clearTimeout(visibilityTimeoutRef.current)
@@ -178,27 +204,36 @@ export function MobileScrollHeader() {
     setIsSearchOpen(true)
     isSearchOpenRef.current = true
 
+    const reduced = prefersReducedMotionNow()
+    const transitionValue = reduced
+      ? 'opacity 160ms var(--ease-out)'
+      : 'opacity 200ms var(--ease-out), transform 200ms var(--ease-out)'
+
     // Animate topbar out
     const row = topbarRowRef.current
     if (row) {
+      row.style.transition = transitionValue
       row.style.opacity = '0'
       row.style.pointerEvents = 'none'
-      row.style.transform = 'translate3d(0, -8px, 0) scale(0.96)'
+      row.style.transform = reduced ? 'none' : 'translate3d(0, -8px, 0) scale(0.96)'
     }
 
     // Animate search row in
     const searchRow = searchRowRef.current
     if (searchRow) {
+      searchRow.style.transition = transitionValue
       searchRow.style.visibility = 'visible'
       searchRow.style.opacity = '1'
       searchRow.style.pointerEvents = 'auto'
-      searchRow.style.transform = 'translate3d(0, 0, 0) scale(1)'
+      searchRow.style.transform = reduced ? 'none' : 'translate3d(0, 0, 0) scale(1)'
     }
+
+    scheduleTransitionClear()
 
     requestAnimationFrame(() => {
       searchInputRef.current?.focus()
     })
-  }, [])
+  }, [scheduleTransitionClear])
 
   const closeSearch = useCallback(() => {
     setIsSearchOpen(false)
@@ -206,36 +241,50 @@ export function MobileScrollHeader() {
     setShowDropdown(false)
     searchInputRef.current?.blur()
 
+    const reduced = prefersReducedMotionNow()
+    const transitionValue = reduced
+      ? 'opacity 160ms var(--ease-out)'
+      : 'opacity 200ms var(--ease-out), transform 200ms var(--ease-out)'
+
     const p = progressRef.current
     const row = topbarRowRef.current
     if (row) {
       const qFade = clamp(p / 0.5, 0, 1)
+      row.style.transition = transitionValue
       row.style.opacity = String(1 - qFade)
       row.style.pointerEvents = qFade > 0.7 ? 'none' : 'auto'
-      row.style.transform = `translate3d(0, ${-qFade * 8}px, 0) scale(${1 - qFade * 0.04})`
+      row.style.transform = reduced
+        ? 'none'
+        : `translate3d(0, ${-qFade * 8}px, 0) scale(${1 - qFade * 0.04})`
     }
 
     const searchRow = searchRowRef.current
     if (searchRow) {
       const q = clamp((p - 0.1) / 0.5, 0, 1)
+      searchRow.style.transition = transitionValue
       if (q < 0.01) {
         searchRow.style.opacity = '0'
         searchRow.style.pointerEvents = 'none'
-        searchRow.style.transform = 'translate3d(0, 8px, 0) scale(0.96)'
+        searchRow.style.transform = reduced ? 'none' : 'translate3d(0, 8px, 0) scale(0.96)'
         if (visibilityTimeoutRef.current) clearTimeout(visibilityTimeoutRef.current)
         visibilityTimeoutRef.current = setTimeout(() => {
           if (!isSearchOpenRef.current && progressRef.current < 0.01 && searchRowRef.current) {
             searchRowRef.current.style.visibility = 'hidden'
           }
-        }, 260)
+          visibilityTimeoutRef.current = null
+        }, PROGRAMMATIC_TRANSITION_MS)
       } else {
         searchRow.style.visibility = 'visible'
         searchRow.style.opacity = String(q)
-        searchRow.style.transform = `translate3d(0, ${(1 - q) * 8}px, 0) scale(${0.96 + q * 0.04})`
+        searchRow.style.transform = reduced
+          ? 'none'
+          : `translate3d(0, ${(1 - q) * 8}px, 0) scale(${0.96 + q * 0.04})`
         searchRow.style.pointerEvents = q < 0.3 ? 'none' : 'auto'
       }
     }
-  }, [])
+
+    scheduleTransitionClear()
+  }, [scheduleTransitionClear])
 
   // Listen for global open search request (e.g. from LiquidNavBar capsule)
   useEffect(() => {
@@ -309,20 +358,19 @@ export function MobileScrollHeader() {
         height: 'calc(60px + env(safe-area-inset-top, 0px))',
       }}
     >
-      {/* ── Topbar row — fades & collapses on scroll, only search remains ── */}
+      {/* Topbar row - fades & collapses on scroll, only search remains */}
       <div
         ref={topbarRowRef}
         className="flex items-center h-11 relative"
         style={{
           overflow: 'visible',
-          transition: 'opacity 240ms cubic-bezier(0.32, 0.72, 0, 1), transform 240ms cubic-bezier(0.32, 0.72, 0, 1)',
+          transition: 'none',
         }}
       >
         {/* Left: plain icon buttons (no glass) */}
         <div
           ref={leftButtonsRef}
           className="flex items-center gap-0.5 shrink-0 z-10 pointer-events-auto"
-          style={{ willChange: 'opacity, max-width, transform' }}
         >
           {pathname !== '/' && (
             <button
@@ -334,7 +382,7 @@ export function MobileScrollHeader() {
                 else router.push('/')
                 setTimeout(() => { navBackBusyRef.current = false }, 500)
               }}
-              className={`p-2 active:scale-95 transition-all shrink-0 rounded-lg ${
+              className={`p-2 active:scale-[0.97] transition-[transform,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] shrink-0 rounded-lg ${
                 isMinimalFlat ? 'text-[#B9AC9C] hover:text-[#F4ECE1]' : 'text-white/55 hover:text-white'
               }`}
               title="Quay lại"
@@ -345,7 +393,7 @@ export function MobileScrollHeader() {
           <button
             type="button"
             onClick={() => window.dispatchEvent(new CustomEvent('musicweb-toggle-drawer'))}
-            className={`p-2 active:scale-95 transition-all shrink-0 rounded-lg ${
+            className={`p-2 active:scale-[0.97] transition-[transform,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] shrink-0 rounded-lg ${
               isMinimalFlat ? 'text-[#B9AC9C] hover:text-[#F4ECE1]' : 'text-white/55 hover:text-white'
             }`}
             title="Menu"
@@ -354,7 +402,7 @@ export function MobileScrollHeader() {
           </button>
         </div>
 
-        {/* Center: Logo plaque — floats above the bg */}
+        {/* Center: Logo plaque - floats above the bg */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <Link
             href="/"
@@ -362,7 +410,7 @@ export function MobileScrollHeader() {
               clearSearch()
               window.dispatchEvent(new Event('musicweb-tab-home'))
             }}
-            className={`pointer-events-auto flex items-center justify-center px-3 py-1.5 group cursor-pointer transition-all active:scale-95 ${
+            className={`pointer-events-auto flex items-center justify-center px-3 py-1.5 group cursor-pointer active:scale-[0.97] transition-[transform,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] ${
               isMinimalFlat ? 'rounded-[12px]' : 'rounded-[14px]'
             }`}
             style={
@@ -385,7 +433,7 @@ export function MobileScrollHeader() {
             <img
               src="/phong-signature.png"
               alt="MusicWeb Logo"
-              className="h-6 w-auto object-contain signature-img-invert group-hover:scale-[1.03] transition-transform"
+              className="h-6 w-auto object-contain signature-img-invert"
             />
           </Link>
         </div>
@@ -394,12 +442,11 @@ export function MobileScrollHeader() {
         <div
           ref={rightButtonRef}
           className="flex items-center shrink-0 z-10 ml-auto pointer-events-auto"
-          style={{ willChange: 'opacity, max-width, transform' }}
         >
           <button
             type="button"
             onClick={handleSearchIconClick}
-            className="p-2 active:scale-95 transition-all rounded-lg"
+            className="p-2 active:scale-[0.97] transition-[transform,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] rounded-lg"
             style={
               searchQuery
                 ? { color: isMinimalFlat ? '#E8A94F' : 'var(--spotify-glow, #22d3ee)' }
@@ -412,7 +459,7 @@ export function MobileScrollHeader() {
         </div>
       </div>
 
-      {/* ── Search pill — hidden at rest, OVERLAYS topbar on scroll ───────────── */}
+      {/* Search pill - hidden at rest, overlays topbar on scroll */}
       <div
         ref={searchRowRef}
         className="absolute left-0 right-0"
@@ -420,14 +467,14 @@ export function MobileScrollHeader() {
           top: 'calc(8px + env(safe-area-inset-top, 0px))',
           paddingLeft: 14,
           paddingRight: 14,
-          // Start HIDDEN — applyProgress or openSearch will reveal
+          // Start hidden - applyProgress or openSearch will reveal
           opacity: 0,
           visibility: 'hidden',
           transformOrigin: 'top center',
-          transform: 'translate3d(0, 8px, 0) scale(0.96)',
+          transform: prefersReducedMotion ? 'none' : 'translate3d(0, 8px, 0) scale(0.96)',
           pointerEvents: 'none',
           zIndex: 20,
-          transition: 'opacity 260ms cubic-bezier(0.16, 1, 0.3, 1), transform 260ms cubic-bezier(0.16, 1, 0.3, 1)',
+          transition: 'none',
         }}
       >
         <div className="relative pointer-events-auto w-full" ref={dropdownRef}>
@@ -448,8 +495,8 @@ export function MobileScrollHeader() {
                 : {
                     /* Frosted Liquid Glass Recipe */
                     background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 40%, rgba(13, 17, 26, 0.72) 100%)',
-                    backdropFilter: 'blur(32px) saturate(210%) brightness(1.08)',
-                    WebkitBackdropFilter: 'blur(32px) saturate(210%) brightness(1.08)',
+                    backdropFilter: 'blur(20px) saturate(210%) brightness(1.08)',
+                    WebkitBackdropFilter: 'blur(20px) saturate(210%) brightness(1.08)',
                     border: '1px solid rgba(255, 255, 255, 0.22)',
                     borderTopColor: 'rgba(255, 255, 255, 0.22)',
                     boxShadow: '0 12px 36px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 25px -4px var(--theme-glow-shadow, rgba(34, 211, 238, 0.15))',
@@ -492,7 +539,7 @@ export function MobileScrollHeader() {
               <button
                 type="button"
                 onClick={closeSearch}
-                className={`absolute left-3 p-1.5 active:scale-90 rounded-full transition-all z-20 cursor-pointer ${
+                className={`absolute left-3 p-1.5 active:scale-[0.97] rounded-full transition-[transform,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] z-20 cursor-pointer ${
                   isMinimalFlat
                     ? 'text-[#B9AC9C] hover:text-[#F4ECE1] hover:bg-[#251E29]'
                     : 'text-white/70 hover:text-white hover:bg-white/10'
@@ -557,7 +604,7 @@ export function MobileScrollHeader() {
               <button
                 type="button"
                 onClick={handleClearSearch}
-                className={`absolute right-3.5 p-1 rounded-full transition-colors z-10 active:scale-90 cursor-pointer ${
+                className={`absolute right-3.5 p-1 rounded-full active:scale-[0.97] transition-[transform,background-color,color] duration-150 ease-[var(--ease-out)] z-10 cursor-pointer ${
                   isMinimalFlat
                     ? 'text-[#8B8090] hover:text-[#F4ECE1] hover:bg-[#251E29]'
                     : 'text-slate-400 hover:text-white hover:bg-white/10'
@@ -571,7 +618,7 @@ export function MobileScrollHeader() {
               <button
                 type="button"
                 onClick={closeSearch}
-                className={`absolute right-3.5 p-1 rounded-full transition-colors z-10 active:scale-90 cursor-pointer ${
+                className={`absolute right-3.5 p-1 rounded-full active:scale-[0.97] transition-[transform,background-color,color] duration-150 ease-[var(--ease-out)] z-10 cursor-pointer ${
                   isMinimalFlat
                     ? 'text-[#8B8090] hover:text-[#F4ECE1] hover:bg-[#251E29]'
                     : 'text-slate-400 hover:text-white hover:bg-white/10'
@@ -591,127 +638,131 @@ export function MobileScrollHeader() {
           </div>
 
           {/* Autocomplete dropdown */}
-          {showDropdown && (
-            <div
-              className={`absolute top-full left-0 right-0 mt-2 shadow-2xl z-50 overflow-hidden ${
-                isMinimalFlat ? 'rounded-[16px]' : 'rounded-2xl'
-              }`}
-              style={
-                isMinimalFlat
-                  ? {
-                      background: '#1D1720',
-                      border: '1px solid rgba(244, 236, 230, 0.16)',
-                      boxShadow: '0 18px 42px rgba(0, 0, 0, 0.65)',
-                    }
-                  : {
-                      /* Liquid glass dropdown */
-                      background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 40%, hsla(var(--base-h, 224), var(--base-s, 45%), 12%, 0.45) 100%)',
-                      backdropFilter: 'blur(40px) saturate(220%) brightness(1.08)',
-                      WebkitBackdropFilter: 'blur(40px) saturate(220%) brightness(1.08)',
-                      border: '1px solid rgba(255,255,255,0.25)',
-                      borderTopColor: 'rgba(255,255,255,0.25)',
-                      boxShadow: '0 20px 50px -10px rgba(0,0,0,0.6), 0 0 40px -4px var(--theme-glow-shadow, rgba(34,211,238,0.2)), inset 0 1px 0 rgba(255,255,255,0.30)',
-                    }
-              }
-            >
-              <div className="p-2 max-h-72 overflow-y-auto flex flex-col gap-1 custom-slim-scrollbar">
-                {searchingSuggestions && suggestions.length === 0 ? (
-                  <div
-                    className={`p-4 text-center text-xs flex items-center justify-center gap-2 ${
-                      isMinimalFlat ? 'text-[#B9AC9C]' : 'text-slate-400'
-                    }`}
-                  >
-                    <Loader2
-                      className={`w-4 h-4 animate-spin ${
-                        isMinimalFlat ? 'text-[#E8A94F]' : 'text-[var(--spotify-glow,#22d3ee)]'
+          <AnimatePresence>
+            {showDropdown && (
+              <motion.div
+                key="mobile-search-dropdown"
+                {...popoverPanelProps(prefersReducedMotion, 'down')}
+                className={`origin-top absolute top-full left-0 right-0 mt-2 shadow-2xl z-50 overflow-hidden ${
+                  isMinimalFlat ? 'rounded-[16px]' : 'rounded-2xl'
+                }`}
+                style={
+                  isMinimalFlat
+                    ? {
+                        background: '#1D1720',
+                        border: '1px solid rgba(244, 236, 230, 0.16)',
+                        boxShadow: '0 18px 42px rgba(0, 0, 0, 0.65)',
+                      }
+                    : {
+                        /* Liquid glass dropdown */
+                        background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 40%, hsla(var(--base-h, 224), var(--base-s, 45%), 12%, 0.45) 100%)',
+                        backdropFilter: 'blur(20px) saturate(220%) brightness(1.08)',
+                        WebkitBackdropFilter: 'blur(20px) saturate(220%) brightness(1.08)',
+                        border: '1px solid rgba(255,255,255,0.25)',
+                        borderTopColor: 'rgba(255,255,255,0.25)',
+                        boxShadow: '0 20px 50px -10px rgba(0,0,0,0.6), 0 0 40px -4px var(--theme-glow-shadow, rgba(34,211,238,0.2)), inset 0 1px 0 rgba(255,255,255,0.30)',
+                      }
+                }
+              >
+                <div className="p-2 max-h-72 overflow-y-auto flex flex-col gap-1 custom-slim-scrollbar">
+                  {searchingSuggestions && suggestions.length === 0 ? (
+                    <div
+                      className={`p-4 text-center text-xs flex items-center justify-center gap-2 ${
+                        isMinimalFlat ? 'text-[#B9AC9C]' : 'text-slate-400'
                       }`}
-                    />
-                    <span>Đang tìm kiếm...</span>
-                  </div>
-                ) : suggestions.length > 0 ? (
-                  <>
-                    <p
-                      className={`text-[10px] font-mono uppercase tracking-wider px-3 py-1 ${
+                    >
+                      <Loader2
+                        className={`w-4 h-4 animate-spin ${
+                          isMinimalFlat ? 'text-[#E8A94F]' : 'text-[var(--spotify-glow,#22d3ee)]'
+                        }`}
+                      />
+                      <span>Đang tìm kiếm...</span>
+                    </div>
+                  ) : suggestions.length > 0 ? (
+                    <>
+                      <p
+                        className={`text-[10px] font-mono uppercase tracking-wider px-3 py-1 ${
+                          isMinimalFlat ? 'text-[#8B8090]' : 'text-slate-400'
+                        }`}
+                      >
+                        Gợi ý nhanh
+                      </p>
+                      {suggestions.map((track) => (
+                        <div
+                          key={track.id}
+                          onClick={() => {
+                            playSearchTrack(track)
+                            setShowDropdown(false)
+                            closeSearch()
+                          }}
+                          className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer active:scale-[0.98] transition-[transform,background-color,color] duration-150 ease-[var(--ease-out)] group ${
+                            isMinimalFlat ? 'hover:bg-[#251E29]' : 'hover:bg-white/10'
+                          }`}
+                        >
+                          <div
+                            className={`w-8 h-8 rounded-lg overflow-hidden shrink-0 relative ${
+                              isMinimalFlat
+                                ? 'bg-[#251E29] border border-[rgba(244,236,230,0.1)]'
+                                : 'bg-slate-800 border border-white/10'
+                            }`}
+                          >
+                            <TrackCoverImage src={track.cover_url} alt={track.title} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p
+                              className={`text-xs font-bold truncate transition-colors ${
+                                isMinimalFlat
+                                  ? 'text-[#F4ECE1] group-hover:text-[#E8A94F]'
+                                  : 'text-white group-hover:text-[var(--spotify-glow)]'
+                              }`}
+                            >
+                              {track.title}
+                            </p>
+                            <p
+                              className={`text-[11px] truncate mt-0.5 ${
+                                isMinimalFlat ? 'text-[#B9AC9C]' : 'text-slate-400'
+                              }`}
+                            >
+                              {track.artist}
+                            </p>
+                          </div>
+                          <div
+                            className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                              isMinimalFlat
+                                ? 'bg-[#251E29] text-[#E8A94F] group-hover:bg-[#E8A94F] group-hover:text-[#141017]'
+                                : 'bg-white/5 group-hover:bg-[var(--primary-spotify)] text-slate-400 group-hover:text-black'
+                            }`}
+                          >
+                            <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+                          </div>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={handleSubmitSearch}
+                        className={`mt-1 p-2 text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 active:scale-[0.97] transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer border ${
+                          isMinimalFlat
+                            ? 'text-[#E8A94F] bg-[#251E29]/80 hover:bg-[#251E29] border-[rgba(232,169,79,0.28)]'
+                            : 'text-[var(--spotify-glow,#22d3ee)] hover:text-white bg-white/[0.03] hover:bg-white/[0.08] border-white/[0.06]'
+                        }`}
+                      >
+                        <Search className="w-3.5 h-3.5" />
+                        <span>Xem tất cả kết quả cho &quot;{inputQuery.trim()}&quot;</span>
+                      </button>
+                    </>
+                  ) : (
+                    <div
+                      className={`p-4 text-center text-xs ${
                         isMinimalFlat ? 'text-[#8B8090]' : 'text-slate-400'
                       }`}
                     >
-                      Gợi ý nhanh
-                    </p>
-                    {suggestions.map((track) => (
-                      <div
-                        key={track.id}
-                        onClick={() => {
-                          playSearchTrack(track)
-                          setShowDropdown(false)
-                          closeSearch()
-                        }}
-                        className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-colors group ${
-                          isMinimalFlat ? 'hover:bg-[#251E29]' : 'hover:bg-white/10'
-                        }`}
-                      >
-                        <div
-                          className={`w-8 h-8 rounded-lg overflow-hidden shrink-0 relative ${
-                            isMinimalFlat
-                              ? 'bg-[#251E29] border border-[rgba(244,236,230,0.1)]'
-                              : 'bg-slate-800 border border-white/10'
-                          }`}
-                        >
-                          <TrackCoverImage src={track.cover_url} alt={track.title} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p
-                            className={`text-xs font-bold truncate transition-colors ${
-                              isMinimalFlat
-                                ? 'text-[#F4ECE1] group-hover:text-[#E8A94F]'
-                                : 'text-white group-hover:text-[var(--spotify-glow)]'
-                            }`}
-                          >
-                            {track.title}
-                          </p>
-                          <p
-                            className={`text-[11px] truncate mt-0.5 ${
-                              isMinimalFlat ? 'text-[#B9AC9C]' : 'text-slate-400'
-                            }`}
-                          >
-                            {track.artist}
-                          </p>
-                        </div>
-                        <div
-                          className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors ${
-                            isMinimalFlat
-                              ? 'bg-[#251E29] text-[#E8A94F] group-hover:bg-[#E8A94F] group-hover:text-[#141017]'
-                              : 'bg-white/5 group-hover:bg-[var(--primary-spotify)] text-slate-400 group-hover:text-black'
-                          }`}
-                        >
-                          <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
-                        </div>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={handleSubmitSearch}
-                      className={`mt-1 p-2 text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer border ${
-                        isMinimalFlat
-                          ? 'text-[#E8A94F] bg-[#251E29]/80 hover:bg-[#251E29] border-[rgba(232,169,79,0.28)]'
-                          : 'text-[var(--spotify-glow,#22d3ee)] hover:text-white bg-white/[0.03] hover:bg-white/[0.08] border-white/[0.06]'
-                      }`}
-                    >
-                      <Search className="w-3.5 h-3.5" />
-                      <span>Xem tất cả kết quả cho &quot;{inputQuery.trim()}&quot;</span>
-                    </button>
-                  </>
-                ) : (
-                  <div
-                    className={`p-4 text-center text-xs ${
-                      isMinimalFlat ? 'text-[#8B8090]' : 'text-slate-400'
-                    }`}
-                  >
-                    Không tìm thấy kết quả phù hợp
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+                      Không tìm thấy kết quả phù hợp
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </header>

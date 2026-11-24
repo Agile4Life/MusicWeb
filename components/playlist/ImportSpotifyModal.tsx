@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   X,
   Search,
@@ -33,6 +34,12 @@ import {
 import { searchYouTubeTracks } from '@/lib/youtube'
 import { Track } from '@/types'
 import { resolvePlaylistTrackWithNct } from '@/lib/playlistNct'
+import {
+  SPRING_DELIGHT,
+  modalBackdropProps,
+  modalPanelProps,
+  stepSwapProps,
+} from '@/lib/motion'
 
 interface ImportSpotifyModalProps {
   isOpen: boolean
@@ -51,6 +58,12 @@ function formatSeconds(secs: number): string {
 export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps) {
   const router = useRouter()
   const { refreshPlaylists } = usePlaylists()
+  const prefersReducedMotion = useReducedMotion()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Steps & basic inputs
   const [step, setStep] = useState<ModalStep>('input')
@@ -125,8 +138,6 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [isOpen, manualMatchTrack, step, onClose])
-
-  if (!isOpen || typeof document === 'undefined') return null
 
   // STAGE 4.1: Handle URL input submission
   const handleParseAndFetchMeta = async (e?: React.FormEvent) => {
@@ -400,590 +411,664 @@ export function ImportSpotifyModal({ isOpen, onClose }: ImportSpotifyModalProps)
     return true
   })
 
+  const matchRatio =
+    progress.total > 0 ? Math.max(0, Math.min(1, progress.done / progress.total)) : 0
+
+  if (!mounted || typeof document === 'undefined') return null
+
   return createPortal(
-    <div
-      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md p-0 sm:p-4 animate-in fade-in duration-200"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && step !== 'importing') onClose()
-      }}
-    >
-      <div className="glass-panel modal-content relative w-full max-sm:rounded-t-3xl max-sm:rounded-b-none sm:max-w-xl max-h-[92vh] sm:max-h-[85vh] bg-[var(--elevation-2-bg,#0f121a)] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-200 animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200">
-        
-        {/* Mobile Drag Indicator Bar */}
-        <div className="w-12 h-1 bg-white/20 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-white/[0.08] bg-white/[0.02] shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/20 flex items-center justify-center text-[var(--primary-spotify,#06b6d4)] shrink-0">
-              <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
-                <path d="M12 0C5.372 0 0 5.372 0 12s5.372 12 12 12 12-5.372 12-12S18.628 0 12 0zm5.504 17.308c-.216.353-.675.464-1.028.248-2.816-1.72-6.36-2.109-10.535-1.155-.403.092-.805-.16-.897-.563-.092-.403.16-.805.563-.897 4.568-1.044 8.485-.594 11.649 1.339.353.216.464.675.248 1.028zm1.469-3.268c-.272.442-.851.58-1.293.308-3.224-1.981-8.138-2.555-11.951-1.397-.497.151-1.022-.13-1.173-.627-.151-.497.13-1.022.627-1.173 4.356-1.322 9.772-.682 13.482 1.596.442.272.58.851.308 1.293zm.126-3.403c-3.866-2.296-10.244-2.507-13.937-1.386-.593.18-1.22-.155-1.4-.748-.18-.593.155-1.22.748-1.4 4.24-1.287 11.286-1.038 15.736 1.604.534.317.709 1.006.392 1.54-.317.534-1.006.709-1.539.39z" />
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-sm sm:text-base font-bold text-white truncate">
-                Nhập Playlist từ Spotify
-              </h2>
-              <p className="text-[11px] sm:text-xs text-slate-400 truncate">
-                Tự động tìm kiếm & thêm nhạc vào playlist cho bạn
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition-colors shrink-0 ml-2"
-            aria-label="Đóng"
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            key="spotify-import-backdrop"
+            {...modalBackdropProps(prefersReducedMotion)}
+            className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md p-0 sm:p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && step !== 'importing') onClose()
+            }}
           >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+            <motion.div
+              key="spotify-import-panel"
+              {...modalPanelProps(prefersReducedMotion)}
+              style={{ transformOrigin: 'center' }}
+              className="glass-panel modal-content relative w-full max-sm:rounded-t-3xl max-sm:rounded-b-none sm:max-w-xl max-h-[92vh] sm:max-h-[85vh] bg-[var(--elevation-2-bg,#0f121a)] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Mobile Drag Indicator Bar */}
+              <div className="w-12 h-1 bg-white/20 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
 
-        {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-white/[0.08] bg-white/[0.02] shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/20 flex items-center justify-center text-[var(--primary-spotify,#06b6d4)] shrink-0">
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+                      <path d="M12 0C5.372 0 0 5.372 0 12s5.372 12 12 12 12-5.372 12-12S18.628 0 12 0zm5.504 17.308c-.216.353-.675.464-1.028.248-2.816-1.72-6.36-2.109-10.535-1.155-.403.092-.805-.16-.897-.563-.092-.403.16-.805.563-.897 4.568-1.044 8.485-.594 11.649 1.339.353.216.464.675.248 1.028zm1.469-3.268c-.272.442-.851.58-1.293.308-3.224-1.981-8.138-2.555-11.951-1.397-.497.151-1.022-.13-1.173-.627-.151-.497.13-1.022.627-1.173 4.356-1.322 9.772-.682 13.482 1.596.442.272.58.851.308 1.293zm.126-3.403c-3.866-2.296-10.244-2.507-13.937-1.386-.593.18-1.22-.155-1.4-.748-.18-.593.155-1.22.748-1.4 4.24-1.287 11.286-1.038 15.736 1.604.534.317.709 1.006.392 1.54-.317.534-1.006.709-1.539.39z" />
+                    </svg>
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-sm sm:text-base font-bold text-white truncate">
+                      Nhập Playlist từ Spotify
+                    </h2>
+                    <p className="text-[11px] sm:text-xs text-slate-400 truncate">
+                      Tự động tìm kiếm & thêm nhạc vào playlist cho bạn
+                    </p>
+                  </div>
+                </div>
 
-          {/* STEP 1: INPUT LINK */}
-          {step === 'input' && (
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-300">
-                  Đường dẫn (URL) / ID Playlist Spotify Public
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={urlInput}
-                    onChange={(e) => setUrlInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleParseAndFetchMeta()}
-                    placeholder="https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"
-                    className="w-full px-4 py-3 bg-white/[0.04] border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[var(--primary-spotify,#06b6d4)] transition-colors pr-10"
-                  />
-                  {loadingMeta ? (
-                    <div className="absolute right-3 top-3.5 text-[var(--primary-spotify,#06b6d4)]">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    </div>
-                  ) : urlInput ? (
-                    <button
-                      onClick={() => setUrlInput('')}
-                      className="absolute right-3 top-3.5 text-slate-500 hover:text-slate-300"
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] shrink-0 ml-2 cursor-pointer"
+                  aria-label="Đóng"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+                <AnimatePresence mode="wait" initial={false}>
+                  {/* STEP 1: INPUT LINK */}
+                  {step === 'input' && (
+                    <motion.div
+                      key="input"
+                      {...stepSwapProps(prefersReducedMotion)}
+                      className="space-y-5"
                     >
-                      <X className="w-4 h-4" />
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-
-              {inputError && (
-                <div className="p-3.5 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3 text-red-300 text-xs leading-relaxed">
-                  <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                  <span>{inputError}</span>
-                </div>
-              )}
-
-              <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl text-xs space-y-2 text-slate-400">
-                <p className="font-semibold text-slate-300">Định dạng URL được hỗ trợ:</p>
-                <ul className="list-disc pl-4 space-y-1.5 font-mono text-[11px] text-slate-400 break-all">
-                  <li className="break-all">https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=...</li>
-                  <li className="break-all">spotify:playlist:37i9dQZF1DXcBWIGoYBM5M</li>
-                  <li className="break-all">37i9dQZF1DXcBWIGoYBM5M (Mã 22 ký tự base62)</li>
-                </ul>
-              </div>
-
-              <div className="pt-2">
-                <button
-                  onClick={() => handleParseAndFetchMeta()}
-                  disabled={loadingMeta || !urlInput.trim()}
-                  className="w-full sm:w-auto sm:ml-auto px-6 py-3 bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 active:scale-[0.98] disabled:opacity-50 text-black font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 transition-[filter,transform,opacity] shadow-lg cursor-pointer"
-                >
-                  {loadingMeta ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Đang tải thông tin...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Tiếp tục</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 2: PREVIEW & FETCH TRACKS */}
-          {step === 'preview' && meta && (
-            <div className="space-y-5 sm:space-y-6">
-              <div className="flex items-center sm:items-start gap-3 sm:gap-4 p-3.5 sm:p-4 bg-white/[0.03] border border-white/[0.08] rounded-2xl">
-                {meta.cover_url ? (
-                  <img
-                    src={meta.cover_url}
-                    alt={meta.name}
-                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover border border-white/10 shrink-0 shadow-md"
-                  />
-                ) : (
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-500 shrink-0">
-                    <Music className="w-7 h-7 sm:w-8 sm:h-8" />
-                  </div>
-                )}
-
-                <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex items-center gap-2 text-[10px] sm:text-[11px] font-mono text-[var(--primary-spotify,#06b6d4)] font-semibold uppercase">
-                    <span>Spotify Playlist Public</span>
-                  </div>
-                  <h3 className="text-base sm:text-lg font-bold text-white truncate">{meta.name}</h3>
-                  <p className="text-xs text-slate-400 line-clamp-2">
-                    {meta.description || 'Không có mô tả'}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-[11px] sm:text-xs text-slate-400">
-                    <span className="flex items-center gap-1 truncate max-w-[140px]">
-                      <User className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                      <span className="truncate">{meta.owner}</span>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <ListMusic className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                      {spotifyTracks.length > 0 ? spotifyTracks.length : meta.total_tracks} bài hát
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Editable Name */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-300">
-                  Tên Playlist mới trên MusicWeb:
-                </label>
-                <input
-                  type="text"
-                  value={playlistName}
-                  onChange={(e) => setPlaylistName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-white/[0.04] border border-white/10 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-[var(--primary-spotify,#06b6d4)]"
-                />
-              </div>
-
-              {/* Tracks Loading State */}
-              {loadingTracks ? (
-                <div className="p-6 sm:p-8 text-center bg-white/[0.02] border border-white/[0.05] rounded-xl space-y-3">
-                  <Loader2 className="w-7 h-7 text-[var(--primary-spotify,#06b6d4)] animate-spin mx-auto" />
-                  <p className="text-xs text-slate-300 font-medium">
-                    Đang lấy toàn bộ danh sách {meta.total_tracks} bài hát từ Spotify...
-                  </p>
-                </div>
-              ) : (
-                <div className="p-3.5 bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/20 rounded-xl flex items-center justify-between gap-2 text-xs text-[var(--primary-spotify,#06b6d4)]">
-                  <span>Đã tải thành công {spotifyTracks.length} bài hát sẵn sàng ghép nối.</span>
-                  <Check className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)] shrink-0" />
-                </div>
-              )}
-
-              <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2.5 pt-2">
-                <button
-                  onClick={() => setStep('input')}
-                  className="w-full sm:w-auto px-4 py-2.5 text-xs font-semibold text-slate-400 hover:text-white border border-white/10 sm:border-transparent rounded-xl text-center"
-                >
-                  Quay lại
-                </button>
-                <button
-                  onClick={handleStartMatching}
-                  disabled={loadingTracks || spotifyTracks.length === 0}
-                  className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 disabled:opacity-50 text-black font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 transition-[filter,transform,opacity] shadow-lg active:scale-[0.98] cursor-pointer"
-                >
-                  <span>Bắt đầu thêm nhạc</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: MATCHING PROGRESS */}
-          {step === 'matching' && (
-            <div className="py-6 sm:py-8 space-y-6 text-center">
-              <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
-                <Loader2 className="w-20 h-20 text-[var(--primary-spotify,#06b6d4)] animate-spin" />
-                <Music className="w-8 h-8 text-white absolute" />
-              </div>
-
-              <div className="space-y-1.5 px-2">
-                <h3 className="text-sm sm:text-base font-bold text-white">
-                  Đang tìm kiếm & thêm vào playlist cho bạn...
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Đã hoàn tất {progress.done} / {progress.total} bài hát
-                </p>
-              </div>
-
-              {/* Progress bar */}
-              <div className="max-w-md mx-auto space-y-1.5 px-2">
-                <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#3b82f6)] transition-[width] duration-300 rounded-full"
-                    style={{
-                      width: `${progress.total > 0 ? (progress.done / progress.total) * 100 : 0}%`,
-                    }}
-                  />
-                </div>
-                <div className="flex justify-between text-[11px] text-slate-400 font-mono">
-                  <span>
-                    {Math.round(progress.total > 0 ? (progress.done / progress.total) * 100 : 0)}%
-                  </span>
-                  <span>{progress.done} / {progress.total}</span>
-                </div>
-              </div>
-
-              <div className="pt-2">
-                <button
-                  onClick={handleCancelMatching}
-                  className="w-full sm:w-auto px-4 py-2.5 border border-white/10 hover:bg-white/10 text-xs font-semibold text-slate-300 rounded-xl transition-colors"
-                >
-                  Dừng & Duyệt kết quả hiện tại
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 4: REVIEW MATCHES */}
-          {step === 'review' && (
-            <div className="space-y-3 sm:space-y-4">
-              {/* Filter Tabs Header - Horizontal scroll on mobile */}
-              <div className="space-y-2 pb-2 border-b border-white/[0.08]">
-                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1.5">
-                  <button
-                    onClick={() => setActiveTab('all')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                      activeTab === 'all'
-                        ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-sm'
-                        : 'bg-white/[0.04] text-slate-400 hover:text-white border border-white/5'
-                    }`}
-                  >
-                    Tất cả ({importResults.length})
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('high')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                      activeTab === 'high'
-                        ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-sm'
-                        : 'bg-white/[0.04] text-slate-400 hover:text-white border border-white/5'
-                    }`}
-                  >
-                    Khớp tốt ({highCount})
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('low')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                      activeTab === 'low'
-                        ? 'bg-amber-500 text-black shadow-sm'
-                        : 'bg-white/[0.04] text-slate-400 hover:text-white border border-white/5'
-                    }`}
-                  >
-                    Cơ bản ({lowCount})
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('none')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                      activeTab === 'none'
-                        ? 'bg-rose-500 text-white shadow-sm'
-                        : 'bg-white/[0.04] text-slate-400 hover:text-white border border-white/5'
-                    }`}
-                  >
-                    Chưa khớp ({noneCount})
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between text-xs px-1">
-                  <div className="text-slate-400 font-medium text-[11px] sm:text-xs">
-                    Đã chọn <span className="text-[var(--primary-spotify,#06b6d4)] font-bold">{selectedIds.size}</span> / {importResults.length} bài
-                  </div>
-                  <div className="flex items-center gap-3 text-[11px] sm:text-xs">
-                    <button
-                      onClick={handleSelectAll}
-                      className="text-[var(--primary-spotify,#06b6d4)] hover:underline font-semibold"
-                    >
-                      Chọn tất cả
-                    </button>
-                    <span className="text-slate-600">•</span>
-                    <button
-                      onClick={handleDeselectAll}
-                      className="text-slate-400 hover:underline font-medium"
-                    >
-                      Bỏ chọn tất cả
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Track List */}
-              <div className="max-h-[300px] sm:max-h-[360px] overflow-y-auto space-y-2 pr-1">
-                {filteredResults.length === 0 ? (
-                  <div className="p-8 text-center text-slate-400 text-xs">
-                    Không có bài hát nào trong nhóm này.
-                  </div>
-                ) : (
-                  filteredResults.map((item) => {
-                    const isSelected = selectedIds.has(item.spotify_id)
-                    const durDiff = item.matchedTrack
-                      ? Math.abs((item.matchedTrack.duration || 0) - item.spotifyTrack.duration)
-                      : null
-
-                    return (
-                      <div
-                        key={item.spotify_id}
-                        className={`p-3 rounded-xl border transition-[background-color,border-color,opacity] space-y-2 ${
-                          isSelected
-                            ? 'bg-white/[0.04] border-white/15'
-                            : 'bg-white/[0.01] border-white/[0.05] opacity-60'
-                        }`}
-                      >
-                        {/* Row 1: Spotify Track info + Checkbox */}
-                        <div className="flex items-start gap-3 min-w-0">
+                      <div className="space-y-2">
+                        <label className="block text-xs font-semibold text-slate-300">
+                          Đường dẫn (URL) / ID Playlist Spotify Public
+                        </label>
+                        <div className="relative">
                           <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleSelectTrack(item.spotify_id)}
-                            className="w-4 h-4 mt-0.5 accent-[var(--primary-spotify,#06b6d4)] rounded cursor-pointer shrink-0"
+                            type="text"
+                            value={urlInput}
+                            onChange={(e) => setUrlInput(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleParseAndFetchMeta()}
+                            placeholder="https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"
+                            className="w-full px-4 py-3 bg-white/[0.04] border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[var(--primary-spotify,#06b6d4)] transition-colors pr-10"
                           />
-
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-xs sm:text-sm font-bold text-white truncate">
-                                {item.spotifyTrack.title}
-                              </span>
-                              <span className="text-[10px] font-mono text-slate-400 shrink-0">
-                                {formatSeconds(item.spotifyTrack.duration)}
-                              </span>
+                          {loadingMeta ? (
+                            <div className="absolute right-3 top-3.5 text-[var(--primary-spotify,#06b6d4)]">
+                              <Loader2 className="w-5 h-5 animate-spin" />
                             </div>
-                            <p className="text-[11px] text-slate-400 truncate">
-                              {item.spotifyTrack.artist} • {item.spotifyTrack.album}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Row 2: YouTube Match Info & Search button */}
-                        <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/[0.04] text-xs pl-7">
-                          <div className="min-w-0 flex-1">
-                            {item.matchConfidence === 'high' && item.matchedTrack && (
-                              <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-semibold rounded-md shrink-0">
-                                  <CheckCircle2 className="w-3 h-3" />
-                                  Khớp tốt (±{durDiff}s)
-                                </span>
-                                <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold rounded-md shrink-0 ${item.matchedTrack.source === 'nhaccuatui' ? 'bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/30 text-[var(--primary-spotify,#06b6d4)]' : 'bg-white/5 border border-white/10 text-slate-300'}`}>
-                                  {item.matchedTrack.source === 'nhaccuatui' ? 'NCT' : 'YouTube'}
-                                </span>
-                                <span className="text-[10px] text-slate-400 truncate max-w-[180px] sm:max-w-[240px]">
-                                  {item.matchedTrack.title}
-                                </span>
-                              </div>
-                            )}
-
-                            {item.matchConfidence === 'low' && item.matchedTrack && (
-                              <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-semibold rounded-md shrink-0">
-                                  <AlertTriangle className="w-3 h-3" />
-                                  Cơ bản (±{durDiff}s)
-                                </span>
-                                <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold rounded-md shrink-0 ${item.matchedTrack.source === 'nhaccuatui' ? 'bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/30 text-[var(--primary-spotify,#06b6d4)]' : 'bg-white/5 border border-white/10 text-slate-300'}`}>
-                                  {item.matchedTrack.source === 'nhaccuatui' ? 'NCT' : 'YouTube'}
-                                </span>
-                                <span className="text-[10px] text-slate-400 truncate max-w-[180px] sm:max-w-[240px]">
-                                  {item.matchedTrack.title}
-                                </span>
-                              </div>
-                            )}
-
-                            {item.matchConfidence === 'none' && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-semibold rounded-md">
-                                <XCircle className="w-3 h-3" />
-                                Không khớp YouTube
-                              </span>
-                            )}
-                          </div>
-
-                          <button
-                            onClick={() => handleOpenManualSearch(item.spotifyTrack)}
-                            className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors shrink-0 flex items-center gap-1 text-[11px]"
-                            title="Tìm video thủ công trên YouTube"
-                          >
-                            <Search className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Đổi video</span>
-                          </button>
+                          ) : urlInput ? (
+                            <button
+                              type="button"
+                              onClick={() => setUrlInput('')}
+                              className="absolute right-3 top-3.5 text-slate-500 hover:text-slate-300 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          ) : null}
                         </div>
                       </div>
-                    )
-                  })
-                )}
-              </div>
 
-              {/* Bottom bar */}
-              <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2.5 pt-3 border-t border-white/[0.08]">
-                <button
-                  onClick={() => setStep('preview')}
-                  className="w-full sm:w-auto px-4 py-2.5 text-xs font-semibold text-slate-400 hover:text-white border border-white/10 sm:border-transparent rounded-xl text-center"
-                >
-                  Quay lại
-                </button>
-                <button
-                  onClick={handleConfirmImport}
-                  disabled={selectedIds.size === 0}
-                  className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 disabled:opacity-50 text-black font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 transition-[filter,transform,opacity] shadow-lg active:scale-[0.98] cursor-pointer"
-                >
-                  <span>Tạo Playlist ({selectedIds.size} bài)</span>
-                  <Check className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
+                      {inputError && (
+                        <div className="p-3.5 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3 text-red-300 text-xs leading-relaxed">
+                          <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                          <span>{inputError}</span>
+                        </div>
+                      )}
 
-          {/* STEP 5: IMPORTING */}
-          {step === 'importing' && (
-            <div className="py-10 sm:py-12 space-y-6 text-center">
-              <Loader2 className="w-10 h-10 sm:w-12 sm:h-12 text-[var(--primary-spotify,#06b6d4)] animate-spin mx-auto" />
-              <div className="space-y-1">
-                <h3 className="text-sm sm:text-base font-bold text-white">
-                  Đang lưu Playlist vào cơ sở dữ liệu...
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Đã xử lý {importingProgress.done} / {importingProgress.total} bài hát
-                </p>
-              </div>
-            </div>
-          )}
+                      <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl text-xs space-y-2 text-slate-400">
+                        <p className="font-semibold text-slate-300">Định dạng URL được hỗ trợ:</p>
+                        <ul className="list-disc pl-4 space-y-1.5 font-mono text-[11px] text-slate-400 break-all">
+                          <li className="break-all">https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=...</li>
+                          <li className="break-all">spotify:playlist:37i9dQZF1DXcBWIGoYBM5M</li>
+                          <li className="break-all">37i9dQZF1DXcBWIGoYBM5M (Mã 22 ký tự base62)</li>
+                        </ul>
+                      </div>
 
-          {/* STEP 6: COMPLETE */}
-          {step === 'complete' && (
-            <div className="py-6 sm:py-8 space-y-5 sm:space-y-6 text-center">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/30 flex items-center justify-center text-[var(--spotify-glow,#22d3ee)] mx-auto shadow-lg shadow-[var(--theme-glow-shadow)]">
-                <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10" />
-              </div>
+                      <div className="pt-2">
+                        <button
+                          type="button"
+                          onClick={() => handleParseAndFetchMeta()}
+                          disabled={loadingMeta || !urlInput.trim()}
+                          className="w-full sm:w-auto sm:ml-auto px-6 py-3 bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 active:scale-[0.97] disabled:opacity-50 text-black font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] shadow-lg cursor-pointer"
+                        >
+                          {loadingMeta ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Đang tải thông tin...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>Tiếp tục</span>
+                              <ArrowRight className="w-4 h-4" />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
 
-              <div className="space-y-2">
-                <h3 className="text-lg sm:text-xl font-bold text-white">Nhập Playlist thành công!</h3>
-                <p className="text-xs text-slate-300 max-w-md mx-auto leading-relaxed">
-                  Đã thêm thành công <strong className="text-[var(--spotify-glow,#22d3ee)]">{importedTrackCount}</strong> bài hát vào playlist{' '}
-                  <strong className="text-white">&quot;{playlistName}&quot;</strong>.
-                </p>
-              </div>
+                  {/* STEP 2: PREVIEW & FETCH TRACKS */}
+                  {step === 'preview' && meta && (
+                    <motion.div
+                      key="preview"
+                      {...stepSwapProps(prefersReducedMotion)}
+                      className="space-y-5 sm:space-y-6"
+                    >
+                      <div className="flex items-center sm:items-start gap-3 sm:gap-4 p-3.5 sm:p-4 bg-white/[0.03] border border-white/[0.08] rounded-2xl">
+                        {meta.cover_url ? (
+                          <img
+                            src={meta.cover_url}
+                            alt={meta.name}
+                            className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover border border-white/10 shrink-0 shadow-md"
+                          />
+                        ) : (
+                          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-500 shrink-0">
+                            <Music className="w-7 h-7 sm:w-8 sm:h-8" />
+                          </div>
+                        )}
 
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-3">
-                <button
-                  onClick={onClose}
-                  className="w-full sm:w-auto px-4 py-2.5 border border-white/10 hover:bg-white/10 text-xs font-semibold text-slate-300 rounded-xl"
-                >
-                  Đóng
-                </button>
-                {createdPlaylistId && (
-                  <button
-                    onClick={() => {
-                      onClose()
-                      router.push(`/playlist/${createdPlaylistId}`)
-                    }}
-                    className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[var(--theme-glow-shadow)]"
-                  >
-                    <span>Mở Playlist ngay</span>
-                    <ExternalLink className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-center gap-2 text-[10px] sm:text-[11px] font-mono text-[var(--primary-spotify,#06b6d4)] font-semibold uppercase">
+                            <span>Spotify Playlist Public</span>
+                          </div>
+                          <h3 className="text-base sm:text-lg font-bold text-white truncate">{meta.name}</h3>
+                          <p className="text-xs text-slate-400 line-clamp-2">
+                            {meta.description || 'Không có mô tả'}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-[11px] sm:text-xs text-slate-400">
+                            <span className="flex items-center gap-1 truncate max-w-[140px]">
+                              <User className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                              <span className="truncate">{meta.owner}</span>
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <ListMusic className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                              {spotifyTracks.length > 0 ? spotifyTracks.length : meta.total_tracks} bài hát
+                            </span>
+                          </div>
+                        </div>
+                      </div>
 
-        </div>
-      </div>
+                      {/* Editable Name */}
+                      <div className="space-y-1.5">
+                        <label className="block text-xs font-semibold text-slate-300">
+                          Tên Playlist mới trên MusicWeb:
+                        </label>
+                        <input
+                          type="text"
+                          value={playlistName}
+                          onChange={(e) => setPlaylistName(e.target.value)}
+                          className="w-full px-3.5 py-2.5 bg-white/[0.04] border border-white/10 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-[var(--primary-spotify,#06b6d4)]"
+                        />
+                      </div>
+
+                      {/* Tracks Loading State */}
+                      {loadingTracks ? (
+                        <div className="p-6 sm:p-8 text-center bg-white/[0.02] border border-white/[0.05] rounded-xl space-y-3">
+                          <Loader2 className="w-7 h-7 text-[var(--primary-spotify,#06b6d4)] animate-spin mx-auto" />
+                          <p className="text-xs text-slate-300 font-medium">
+                            Đang lấy toàn bộ danh sách {meta.total_tracks} bài hát từ Spotify...
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="p-3.5 bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/20 rounded-xl flex items-center justify-between gap-2 text-xs text-[var(--primary-spotify,#06b6d4)]">
+                          <span>Đã tải thành công {spotifyTracks.length} bài hát sẵn sàng ghép nối.</span>
+                          <Check className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)] shrink-0" />
+                        </div>
+                      )}
+
+                      <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2.5 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setStep('input')}
+                          className="w-full sm:w-auto px-4 py-2.5 text-xs font-semibold text-slate-400 hover:text-white border border-white/10 sm:border-transparent rounded-xl text-center active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer"
+                        >
+                          Quay lại
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleStartMatching}
+                          disabled={loadingTracks || spotifyTracks.length === 0}
+                          className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 disabled:opacity-50 text-black font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] shadow-lg cursor-pointer"
+                        >
+                          <span>Bắt đầu thêm nhạc</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* STEP 3: MATCHING PROGRESS */}
+                  {step === 'matching' && (
+                    <motion.div
+                      key="matching"
+                      {...stepSwapProps(prefersReducedMotion)}
+                      className="py-6 sm:py-8 space-y-6 text-center"
+                    >
+                      <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
+                        <Loader2 className="w-20 h-20 text-[var(--primary-spotify,#06b6d4)] animate-spin" />
+                        <Music className="w-8 h-8 text-white absolute" />
+                      </div>
+
+                      <div className="space-y-1.5 px-2">
+                        <h3 className="text-sm sm:text-base font-bold text-white">
+                          Đang tìm kiếm & thêm vào playlist cho bạn...
+                        </h3>
+                        <p className="text-xs text-slate-400">
+                          Đã hoàn tất {progress.done} / {progress.total} bài hát
+                        </p>
+                      </div>
+
+                      {/* GPU-composited Progress bar */}
+                      <div className="max-w-md mx-auto space-y-1.5 px-2">
+                        <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden">
+                          <div
+                            className="w-full h-full origin-left bg-gradient-to-r from-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#3b82f6)] transition-transform duration-250 ease-[var(--ease-out)] rounded-full"
+                            style={{ transform: `scaleX(${matchRatio})` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-[11px] text-slate-400 font-mono">
+                          <span>{Math.round(matchRatio * 100)}%</span>
+                          <span>{progress.done} / {progress.total}</span>
+                        </div>
+                      </div>
+
+                      <div className="pt-2">
+                        <button
+                          type="button"
+                          onClick={handleCancelMatching}
+                          className="w-full sm:w-auto px-4 py-2.5 border border-white/10 hover:bg-white/10 text-xs font-semibold text-slate-300 rounded-xl active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer"
+                        >
+                          Dừng & Duyệt kết quả hiện tại
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* STEP 4: REVIEW MATCHES */}
+                  {step === 'review' && (
+                    <motion.div
+                      key="review"
+                      {...stepSwapProps(prefersReducedMotion)}
+                      className="space-y-3 sm:space-y-4"
+                    >
+                      {/* Filter Tabs Header - Horizontal scroll on mobile */}
+                      <div className="space-y-2 pb-2 border-b border-white/[0.08]">
+                        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('all')}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer ${
+                              activeTab === 'all'
+                                ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-sm'
+                                : 'bg-white/[0.04] text-slate-400 hover:text-white border border-white/5'
+                            }`}
+                          >
+                            Tất cả ({importResults.length})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('high')}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer ${
+                              activeTab === 'high'
+                                ? 'bg-[var(--primary-spotify,#06b6d4)] text-black shadow-sm'
+                                : 'bg-white/[0.04] text-slate-400 hover:text-white border border-white/5'
+                            }`}
+                          >
+                            Khớp tốt ({highCount})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('low')}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer ${
+                              activeTab === 'low'
+                                ? 'bg-amber-500 text-black shadow-sm'
+                                : 'bg-white/[0.04] text-slate-400 hover:text-white border border-white/5'
+                            }`}
+                          >
+                            Cơ bản ({lowCount})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('none')}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer ${
+                              activeTab === 'none'
+                                ? 'bg-rose-500 text-white shadow-sm'
+                                : 'bg-white/[0.04] text-slate-400 hover:text-white border border-white/5'
+                            }`}
+                          >
+                            Chưa khớp ({noneCount})
+                          </button>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs px-1">
+                          <div className="text-slate-400 font-medium text-[11px] sm:text-xs">
+                            Đã chọn <span className="text-[var(--primary-spotify,#06b6d4)] font-bold">{selectedIds.size}</span> / {importResults.length} bài
+                          </div>
+                          <div className="flex items-center gap-3 text-[11px] sm:text-xs">
+                            <button
+                              type="button"
+                              onClick={handleSelectAll}
+                              className="text-[var(--primary-spotify,#06b6d4)] hover:underline font-semibold active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer"
+                            >
+                              Chọn tất cả
+                            </button>
+                            <span className="text-slate-600">•</span>
+                            <button
+                              type="button"
+                              onClick={handleDeselectAll}
+                              className="text-slate-400 hover:underline font-medium active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer"
+                            >
+                              Bỏ chọn tất cả
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Track List */}
+                      <div className="max-h-[300px] sm:max-h-[360px] overflow-y-auto space-y-2 pr-1">
+                        {filteredResults.length === 0 ? (
+                          <div className="p-8 text-center text-slate-400 text-xs">
+                            Không có bài hát nào trong nhóm này.
+                          </div>
+                        ) : (
+                          filteredResults.map((item) => {
+                            const isSelected = selectedIds.has(item.spotify_id)
+                            const durDiff = item.matchedTrack
+                              ? Math.abs((item.matchedTrack.duration || 0) - item.spotifyTrack.duration)
+                              : null
+
+                            return (
+                              <div
+                                key={item.spotify_id}
+                                className={`p-3 rounded-xl border transition-[background-color,border-color,opacity] space-y-2 ${
+                                  isSelected
+                                    ? 'bg-white/[0.04] border-white/15'
+                                    : 'bg-white/[0.01] border-white/[0.05] opacity-60'
+                                }`}
+                              >
+                                {/* Row 1: Spotify Track info + Checkbox */}
+                                <div className="flex items-start gap-3 min-w-0">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => toggleSelectTrack(item.spotify_id)}
+                                    className="w-4 h-4 mt-0.5 accent-[var(--primary-spotify,#06b6d4)] rounded cursor-pointer shrink-0"
+                                  />
+
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="text-xs sm:text-sm font-bold text-white truncate">
+                                        {item.spotifyTrack.title}
+                                      </span>
+                                      <span className="text-[10px] font-mono text-slate-400 shrink-0">
+                                        {formatSeconds(item.spotifyTrack.duration)}
+                                      </span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-400 truncate">
+                                      {item.spotifyTrack.artist} • {item.spotifyTrack.album}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Row 2: YouTube Match Info & Search button */}
+                                <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/[0.04] text-xs pl-7">
+                                  <div className="min-w-0 flex-1">
+                                    {item.matchConfidence === 'high' && item.matchedTrack && (
+                                      <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-semibold rounded-md shrink-0">
+                                          <CheckCircle2 className="w-3 h-3" />
+                                          Khớp tốt (±{durDiff}s)
+                                        </span>
+                                        <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold rounded-md shrink-0 ${item.matchedTrack.source === 'nhaccuatui' ? 'bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/30 text-[var(--primary-spotify,#06b6d4)]' : 'bg-white/5 border border-white/10 text-slate-300'}`}>
+                                          {item.matchedTrack.source === 'nhaccuatui' ? 'NCT' : 'YouTube'}
+                                        </span>
+                                        <span className="text-[10px] text-slate-400 truncate max-w-[180px] sm:max-w-[240px]">
+                                          {item.matchedTrack.title}
+                                        </span>
+                                      </div>
+                                    )}
+
+                                    {item.matchConfidence === 'low' && item.matchedTrack && (
+                                      <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-semibold rounded-md shrink-0">
+                                          <AlertTriangle className="w-3 h-3" />
+                                          Cơ bản (±{durDiff}s)
+                                        </span>
+                                        <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold rounded-md shrink-0 ${item.matchedTrack.source === 'nhaccuatui' ? 'bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/30 text-[var(--primary-spotify,#06b6d4)]' : 'bg-white/5 border border-white/10 text-slate-300'}`}>
+                                          {item.matchedTrack.source === 'nhaccuatui' ? 'NCT' : 'YouTube'}
+                                        </span>
+                                        <span className="text-[10px] text-slate-400 truncate max-w-[180px] sm:max-w-[240px]">
+                                          {item.matchedTrack.title}
+                                        </span>
+                                      </div>
+                                    )}
+
+                                    {item.matchConfidence === 'none' && (
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-semibold rounded-md">
+                                        <XCircle className="w-3 h-3" />
+                                        Không khớp YouTube
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenManualSearch(item.spotifyTrack)}
+                                    className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] shrink-0 flex items-center gap-1 text-[11px] cursor-pointer"
+                                    title="Tìm video thủ công trên YouTube"
+                                  >
+                                    <Search className="w-3.5 h-3.5" />
+                                    <span className="hidden sm:inline">Đổi video</span>
+                                  </button>
+                                </div>
+                              </div>
+                            )
+                          })
+                        )}
+                      </div>
+
+                      {/* Bottom bar */}
+                      <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2.5 pt-3 border-t border-white/[0.08]">
+                        <button
+                          type="button"
+                          onClick={() => setStep('preview')}
+                          className="w-full sm:w-auto px-4 py-2.5 text-xs font-semibold text-slate-400 hover:text-white border border-white/10 sm:border-transparent rounded-xl text-center active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer"
+                        >
+                          Quay lại
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleConfirmImport}
+                          disabled={selectedIds.size === 0}
+                          className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 disabled:opacity-50 text-black font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] shadow-lg cursor-pointer"
+                        >
+                          <span>Tạo Playlist ({selectedIds.size} bài)</span>
+                          <Check className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* STEP 5: IMPORTING */}
+                  {step === 'importing' && (
+                    <motion.div
+                      key="importing"
+                      {...stepSwapProps(prefersReducedMotion)}
+                      className="py-10 sm:py-12 space-y-6 text-center"
+                    >
+                      <Loader2 className="w-10 h-10 sm:w-12 sm:h-12 text-[var(--primary-spotify,#06b6d4)] animate-spin mx-auto" />
+                      <div className="space-y-1">
+                        <h3 className="text-sm sm:text-base font-bold text-white">
+                          Đang lưu Playlist vào cơ sở dữ liệu...
+                        </h3>
+                        <p className="text-xs text-slate-400">
+                          Đã xử lý {importingProgress.done} / {importingProgress.total} bài hát
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* STEP 6: COMPLETE */}
+                  {step === 'complete' && (
+                    <motion.div
+                      key="complete"
+                      {...stepSwapProps(prefersReducedMotion)}
+                      className="py-6 sm:py-8 space-y-5 sm:space-y-6 text-center"
+                    >
+                      <motion.div
+                        initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, transform: 'scale(0.9)' }}
+                        animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, transform: 'scale(1)' }}
+                        transition={prefersReducedMotion ? { duration: 0.16, ease: 'easeOut' } : SPRING_DELIGHT}
+                        className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--primary-spotify,#06b6d4)]/10 border border-[var(--primary-spotify,#06b6d4)]/30 flex items-center justify-center text-[var(--spotify-glow,#22d3ee)] mx-auto shadow-lg shadow-[var(--theme-glow-shadow)]"
+                      >
+                        <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10" />
+                      </motion.div>
+
+                      <div className="space-y-2">
+                        <h3 className="text-lg sm:text-xl font-bold text-white">Nhập Playlist thành công!</h3>
+                        <p className="text-xs text-slate-300 max-w-md mx-auto leading-relaxed">
+                          Đã thêm thành công <strong className="text-[var(--spotify-glow,#22d3ee)]">{importedTrackCount}</strong> bài hát vào playlist{' '}
+                          <strong className="text-white">&quot;{playlistName}&quot;</strong>.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-3">
+                        <button
+                          type="button"
+                          onClick={onClose}
+                          className="w-full sm:w-auto px-4 py-2.5 border border-white/10 hover:bg-white/10 text-xs font-semibold text-slate-300 rounded-xl active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer"
+                        >
+                          Đóng
+                        </button>
+                        {createdPlaylistId && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onClose()
+                              router.push(`/playlist/${createdPlaylistId}`)
+                            }}
+                            className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[var(--theme-glow-shadow)] active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer"
+                          >
+                            <span>Mở Playlist ngay</span>
+                            <ExternalLink className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* MANUAL MATCHING SUB-MODAL */}
-      {manualMatchTrack && (
-        <div
-          className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setManualMatchTrack(null)
-          }}
-        >
-          <div className="glass-panel modal-content w-full max-sm:rounded-t-3xl max-sm:rounded-b-none sm:max-w-lg max-h-[85vh] bg-[var(--elevation-2-bg,#141824)] border border-white/15 rounded-2xl p-4 sm:p-5 shadow-2xl space-y-4 text-slate-200 flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
-            
-            {/* Mobile handle indicator */}
-            <div className="w-10 h-1 bg-white/20 rounded-full mx-auto my-1 sm:hidden shrink-0" />
+      <AnimatePresence>
+        {isOpen && manualMatchTrack && (
+          <motion.div
+            key="spotify-manual-backdrop"
+            {...modalBackdropProps(prefersReducedMotion)}
+            className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-sm p-0 sm:p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setManualMatchTrack(null)
+            }}
+          >
+            <motion.div
+              key="spotify-manual-panel"
+              {...modalPanelProps(prefersReducedMotion)}
+              style={{ transformOrigin: 'center' }}
+              className="glass-panel modal-content w-full max-sm:rounded-t-3xl max-sm:rounded-b-none sm:max-w-lg max-h-[85vh] bg-[var(--elevation-2-bg,#141824)] border border-white/15 rounded-2xl p-4 sm:p-5 shadow-2xl space-y-4 text-slate-200 flex flex-col overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Mobile handle indicator */}
+              <div className="w-10 h-1 bg-white/20 rounded-full mx-auto my-1 sm:hidden shrink-0" />
 
-            <div className="flex items-start justify-between border-b border-white/10 pb-3 shrink-0">
-              <div className="min-w-0 pr-2">
-                <h4 className="text-xs sm:text-sm font-bold text-white truncate">
-                  Tìm video cho: {manualMatchTrack.title}
-                </h4>
-                <p className="text-[11px] text-slate-400 truncate">{manualMatchTrack.artist}</p>
+              <div className="flex items-start justify-between border-b border-white/10 pb-3 shrink-0">
+                <div className="min-w-0 pr-2">
+                  <h4 className="text-xs sm:text-sm font-bold text-white truncate">
+                    Tìm video cho: {manualMatchTrack.title}
+                  </h4>
+                  <p className="text-[11px] text-slate-400 truncate">{manualMatchTrack.artist}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setManualMatchTrack(null)}
+                  className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] shrink-0 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <button
-                onClick={() => setManualMatchTrack(null)}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg shrink-0"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            <div className="flex gap-2 shrink-0">
-              <input
-                type="text"
-                value={manualSearchQuery}
-                onChange={(e) => setManualSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleRunManualSearch(manualSearchQuery)}
-                placeholder="Từ khóa tìm kiếm YouTube..."
-                className="flex-1 px-3.5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-[var(--primary-spotify,#06b6d4)]"
-              />
-              <button
-                onClick={() => handleRunManualSearch(manualSearchQuery)}
-                disabled={searchingManual}
-                className="px-4 py-2.5 bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black font-bold text-xs rounded-xl flex items-center gap-1.5 shrink-0"
-              >
+              <div className="flex gap-2 shrink-0">
+                <input
+                  type="text"
+                  value={manualSearchQuery}
+                  onChange={(e) => setManualSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleRunManualSearch(manualSearchQuery)}
+                  placeholder="Từ khóa tìm kiếm YouTube..."
+                  className="flex-1 px-3.5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-[var(--primary-spotify,#06b6d4)]"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleRunManualSearch(manualSearchQuery)}
+                  disabled={searchingManual}
+                  className="px-4 py-2.5 bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black font-bold text-xs rounded-xl flex items-center gap-1.5 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] shrink-0 cursor-pointer"
+                >
+                  {searchingManual ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Search className="w-3.5 h-3.5" />
+                  )}
+                  <span>Tìm</span>
+                </button>
+              </div>
+
+              {/* Candidates list */}
+              <div className="flex-1 overflow-y-auto space-y-2 pr-1">
                 {searchingManual ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Search className="w-3.5 h-3.5" />
-                )}
-                <span>Tìm</span>
-              </button>
-            </div>
-
-            {/* Candidates list */}
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-              {searchingManual ? (
-                <div className="p-6 text-center text-xs text-slate-400 space-y-2">
-                  <Loader2 className="w-5 h-5 animate-spin mx-auto text-[var(--primary-spotify,#06b6d4)]" />
-                  <span>Đang tìm kết quả...</span>
-                </div>
-              ) : manualCandidates.length === 0 ? (
-                <div className="p-6 text-center text-xs text-slate-500">
-                  Chưa có kết quả tìm kiếm nào.
-                </div>
-              ) : (
-                manualCandidates.map((cand) => (
-                  <div
-                    key={cand.id}
-                    onClick={() => handlePickManualCandidate(cand)}
-                    className="p-2.5 bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 rounded-xl cursor-pointer flex items-center gap-3 transition-colors group"
-                  >
-                    {cand.cover_url && (
-                      <img
-                        src={cand.cover_url}
-                        alt={cand.title}
-                        className="w-12 h-9 rounded object-cover border border-white/10 shrink-0"
-                      />
-                    )}
-                    <div className="min-w-0 flex-1 text-xs">
-                      <p className="font-semibold text-white truncate group-hover:text-[var(--primary-spotify,#06b6d4)]">
-                        {cand.title}
-                      </p>
-                      <p className="text-[11px] text-slate-400 truncate">
-                        {cand.artist} • {formatSeconds(cand.duration)}
-                      </p>
-                    </div>
-                    <button className="px-3 py-1.5 bg-[var(--primary-spotify,#06b6d4)]/20 text-[var(--primary-spotify,#06b6d4)] text-[11px] font-bold rounded-lg group-hover:bg-[var(--primary-spotify,#06b6d4)] group-hover:text-black transition-colors shrink-0">
-                      Chọn
-                    </button>
+                  <div className="p-6 text-center text-xs text-slate-400 space-y-2">
+                    <Loader2 className="w-5 h-5 animate-spin mx-auto text-[var(--primary-spotify,#06b6d4)]" />
+                    <span>Đang tìm kết quả...</span>
                   </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>,
+                ) : manualCandidates.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-slate-500">
+                    Chưa có kết quả tìm kiếm nào.
+                  </div>
+                ) : (
+                  manualCandidates.map((cand) => (
+                    <div
+                      key={cand.id}
+                      onClick={() => handlePickManualCandidate(cand)}
+                      className="p-2.5 bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 rounded-xl cursor-pointer flex items-center gap-3 active:scale-[0.98] transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] group"
+                    >
+                      {cand.cover_url && (
+                        <img
+                          src={cand.cover_url}
+                          alt={cand.title}
+                          className="w-12 h-9 rounded object-cover border border-white/10 shrink-0"
+                        />
+                      )}
+                      <div className="min-w-0 flex-1 text-xs">
+                        <p className="font-semibold text-white truncate group-hover:text-[var(--primary-spotify,#06b6d4)]">
+                          {cand.title}
+                        </p>
+                        <p className="text-[11px] text-slate-400 truncate">
+                          {cand.artist} • {formatSeconds(cand.duration)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="px-3 py-1.5 bg-[var(--primary-spotify,#06b6d4)]/20 text-[var(--primary-spotify,#06b6d4)] text-[11px] font-bold rounded-lg group-hover:bg-[var(--primary-spotify,#06b6d4)] group-hover:text-black active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] shrink-0"
+                      >
+                        Chọn
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>,
     document.body
   )
 }

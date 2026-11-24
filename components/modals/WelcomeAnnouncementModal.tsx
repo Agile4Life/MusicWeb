@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   Bell,
   Mail,
@@ -18,6 +19,7 @@ import { AnnouncementData, DEFAULT_ANNOUNCEMENT } from '@/lib/announcement'
 import { useCurrentUser } from '@/components/auth/CurrentUserContext'
 import { isAdmin as checkIsAdmin } from '@/lib/accessControl'
 import { toast } from '@/components/ui/ToastContext'
+import { modalBackdropProps, modalPanelProps, stepSwapProps } from '@/lib/motion'
 
 const STORAGE_DISMISSED_VERSION = 'musicweb_announcement_dismissed_v'
 
@@ -42,6 +44,7 @@ function InstagramIcon(props: React.SVGProps<SVGSVGElement>) {
 export function WelcomeAnnouncementModal() {
   const { userEmail } = useCurrentUser()
   const isAdmin = checkIsAdmin(userEmail)
+  const prefersReducedMotion = useReducedMotion()
 
   const [isOpen, setIsOpen] = useState(false)
   const [dontShowAgain, setDontShowAgain] = useState(false)
@@ -195,282 +198,305 @@ export function WelcomeAnnouncementModal() {
     }
   }
 
-  if (!mounted || !isOpen || typeof document === 'undefined') return null
+  if (!mounted || typeof document === 'undefined') return null
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-[75] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300 select-none"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) handleClose()
-      }}
-    >
-      {/* Modal Container */}
-      <div
-        className="glass-panel modal-content relative w-full max-w-xl bg-[var(--elevation-2-bg,#0e1322)] border border-white/15 rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 max-h-[92vh]"
-        role="dialog"
-        aria-modal="true"
-      >
-        {/* Top Header Actions (Admin Edit Toggle & Close) */}
-        <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] px-5 sm:px-7 pt-5 sm:pt-6 pb-3.5 shrink-0">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#3b82f6)] flex items-center justify-center text-white shadow-lg flex-shrink-0">
-              <Bell className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--spotify-glow,#22d3ee)] uppercase tracking-wider">
-                <span>{isEditing ? 'Trình chỉnh sửa thông báo' : announcement.badge || 'Thông báo từ Tác giả'}</span>
-              </div>
-              <h2 className="text-base sm:text-lg font-extrabold text-white tracking-tight truncate">
-                {isEditing ? 'Chỉnh Sửa Thông Báo (Admin)' : announcement.title}
-              </h2>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            {isAdmin && !isEditing && (
-              <button
-                onClick={handleStartEdit}
-                className="px-2.5 py-1.5 rounded-xl bg-[var(--primary-spotify,#06b6d4)]/15 hover:bg-[var(--primary-spotify,#06b6d4)]/25 text-[var(--spotify-glow,#22d3ee)] border border-[var(--primary-spotify,#06b6d4)]/30 hover:border-[var(--spotify-glow,#22d3ee)] text-xs font-semibold flex items-center gap-1.5 transition-[background-color,border-color,color] cursor-pointer active:scale-95 shadow-sm"
-                title="Chỉnh sửa nội dung thông báo này"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Sửa</span>
-              </button>
-            )}
-
-            <button
-              onClick={handleClose}
-              className="p-1.5 sm:p-2 rounded-full text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
-              aria-label="Đóng"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        <div className="overflow-y-auto flex-1 custom-slim-scrollbar px-5 sm:px-7 py-4 sm:py-5 flex flex-col gap-4 sm:gap-5">
-        {/* --- EDIT MODE (Admin Only) --- */}
-        {isEditing ? (
-          <form onSubmit={handleSaveAnnouncement} className="flex flex-col gap-3.5 text-xs text-slate-200">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] font-semibold text-slate-300">Nhãn tag trên đầu:</label>
-                <input
-                  type="text"
-                  value={formData.badge}
-                  onChange={(e) => setFormData({ ...formData, badge: e.target.value })}
-                  placeholder="VD: Thông báo từ Tác giả, Cập nhật mới..."
-                  className="bg-white/5 border border-white/15 focus:border-[var(--spotify-glow,#22d3ee)] rounded-xl px-3 py-2 text-white outline-none transition-colors"
-                  required
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] font-semibold text-slate-300">Chữ nút hành động (CTA):</label>
-                <input
-                  type="text"
-                  value={formData.cta_text || ''}
-                  onChange={(e) => setFormData({ ...formData, cta_text: e.target.value })}
-                  placeholder="VD: Đã hiểu & Bắt đầu, Xem ngay..."
-                  className="bg-white/5 border border-white/15 focus:border-[var(--spotify-glow,#22d3ee)] rounded-xl px-3 py-2 text-white outline-none transition-colors"
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-semibold text-slate-300">Tiêu đề thông báo:</label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                placeholder="VD: Chào mừng bạn đến với MusicWeb"
-                className="bg-white/5 border border-white/15 focus:border-[var(--spotify-glow,#22d3ee)] rounded-xl px-3 py-2 text-white font-bold outline-none transition-colors"
-                required
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-semibold text-slate-300">Nội dung thông báo:</label>
-              <textarea
-                rows={4}
-                value={formData.content}
-                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                placeholder="Nhập nội dung thông báo gửi đến người dùng..."
-                className="bg-white/5 border border-white/15 focus:border-[var(--spotify-glow,#22d3ee)] rounded-xl p-3 text-white leading-relaxed outline-none transition-colors resize-none"
-                required
-              />
-            </div>
-
-            {/* Social Contact Links Editor */}
-            <div className="flex flex-col gap-2 p-3 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
-              <span className="text-[11px] font-bold text-[var(--spotify-glow,#22d3ee)] uppercase tracking-wider">
-                Kênh liên hệ (Tùy chọn):
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                <input
-                  type="url"
-                  value={formData.facebook_url || ''}
-                  onChange={(e) => setFormData({ ...formData, facebook_url: e.target.value })}
-                  placeholder="Link Facebook..."
-                  className="bg-white/5 border border-white/10 focus:border-[var(--theme-secondary,#3b82f6)] rounded-xl px-2.5 py-1.5 text-xs text-white outline-none"
-                />
-                <input
-                  type="url"
-                  value={formData.instagram_url || ''}
-                  onChange={(e) => setFormData({ ...formData, instagram_url: e.target.value })}
-                  placeholder="Link Instagram..."
-                  className="bg-white/5 border border-white/10 focus:border-pink-400 rounded-xl px-2.5 py-1.5 text-xs text-white outline-none"
-                />
-                <input
-                  type="email"
-                  value={formData.contact_email || ''}
-                  onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
-                  placeholder="Email liên hệ..."
-                  className="bg-white/5 border border-white/10 focus:border-[var(--spotify-glow,#22d3ee)] rounded-xl px-2.5 py-1.5 text-xs text-white outline-none"
-                />
-              </div>
-            </div>
-
-            {/* Enable/Disable switch */}
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-              <div>
-                <p className="text-xs font-semibold text-white">Hiển thị thông báo khi vào web</p>
-                <p className="text-[10px] text-slate-400">Tắt nếu bạn muốn ẩn thông báo này tạm thời</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setFormData({ ...formData, is_enabled: !formData.is_enabled })}
-                className="cursor-pointer"
-              >
-                {formData.is_enabled !== false ? (
-                  <ToggleRight className="w-8 h-8 text-[var(--spotify-glow,#22d3ee)]" />
-                ) : (
-                  <ToggleLeft className="w-8 h-8 text-slate-500" />
-                )}
-              </button>
-            </div>
-
-            {/* Editor Action Buttons */}
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-white/[0.07]">
-              <button
-                type="button"
-                onClick={handleCancelEdit}
-                disabled={isSaving}
-                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-slate-300 font-semibold text-xs transition-colors cursor-pointer"
-              >
-                Hủy
-              </button>
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="px-5 py-2 rounded-xl bg-gradient-to-r from-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#3b82f6)] hover:brightness-110 text-white font-bold text-xs tracking-wide shadow-lg active:scale-95 transition-[filter,transform] flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Đang lưu...</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    <span>Lưu & Xuất Bản</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-        ) : (
-          /* --- VIEW MODE --- */
-          <>
-            {/* Body Content */}
-            <div className="flex flex-col gap-3.5 text-xs sm:text-sm text-slate-300 leading-relaxed font-medium bg-white/[0.02] p-4 rounded-2xl border border-white/[0.06]">
-              <div className="whitespace-pre-line text-slate-200">
-                {announcement.content}
-              </div>
-
-              {/* Social Contact Links */}
-              {(announcement.facebook_url || announcement.instagram_url || announcement.contact_email) && (
-                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/[0.06]">
-                  {/* Facebook */}
-                  {announcement.facebook_url && (
-                    <a
-                      href={announcement.facebook_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1.5 rounded-xl bg-[var(--theme-secondary,#3b82f6)]/15 hover:bg-[var(--theme-secondary,#3b82f6)]/25 text-[var(--theme-secondary,#3b82f6)] border border-[var(--theme-secondary,#3b82f6)]/30 active:scale-95 transition-colors text-xs font-semibold flex items-center gap-1.5 shadow-sm"
-                      title="Facebook"
-                    >
-                      <FacebookIcon className="w-3.5 h-3.5 fill-current" />
-                      <span>Facebook</span>
-                      <ExternalLink className="w-3 h-3 opacity-60 ml-0.5" />
-                    </a>
-                  )}
-
-                  {/* Instagram */}
-                  {announcement.instagram_url && (
-                    <a
-                      href={announcement.instagram_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1.5 rounded-xl bg-pink-600/15 hover:bg-pink-600/25 text-pink-400 border border-pink-500/30 active:scale-95 transition-colors text-xs font-semibold flex items-center gap-1.5 shadow-sm"
-                      title="Instagram"
-                    >
-                      <InstagramIcon className="w-3.5 h-3.5" />
-                      <span>Instagram</span>
-                      <ExternalLink className="w-3 h-3 opacity-60 ml-0.5" />
-                    </a>
-                  )}
-
-                  {/* Gmail */}
-                  {announcement.contact_email && (
-                    <a
-                      href={`mailto:${announcement.contact_email}`}
-                      className="px-3 py-1.5 rounded-xl bg-[var(--primary-spotify,#06b6d4)]/10 hover:bg-[var(--primary-spotify,#06b6d4)]/20 text-[var(--spotify-glow,#22d3ee)] border border-[var(--primary-spotify,#06b6d4)]/30 active:scale-95 text-xs font-mono transition-colors flex items-center gap-1.5 shadow-sm"
-                      title={`Gửi Email đến ${announcement.contact_email}`}
-                    >
-                      <Mail className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)] flex-shrink-0" />
-                      <span className="truncate">{announcement.contact_email}</span>
-                    </a>
-                  )}
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          key="welcome-announcement-backdrop"
+          {...modalBackdropProps(prefersReducedMotion)}
+          className="fixed inset-0 z-[75] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md select-none"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) handleClose()
+          }}
+        >
+          {/* Modal Container */}
+          <motion.div
+            key="welcome-announcement-panel"
+            {...modalPanelProps(prefersReducedMotion)}
+            style={{ transformOrigin: 'center' }}
+            className="glass-panel modal-content relative w-full max-w-xl bg-[var(--elevation-2-bg,#0e1322)] border border-white/15 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Top Header Actions (Admin Edit Toggle & Close) */}
+            <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] px-5 sm:px-7 pt-5 sm:pt-6 pb-3.5 shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#3b82f6)] flex items-center justify-center text-white shadow-lg flex-shrink-0">
+                  <Bell className="w-5 h-5" />
                 </div>
-              )}
-            </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--spotify-glow,#22d3ee)] uppercase tracking-wider">
+                    <span>{isEditing ? 'Trình chỉnh sửa thông báo' : announcement.badge || 'Thông báo từ Tác giả'}</span>
+                  </div>
+                  <h2 className="text-base sm:text-lg font-extrabold text-white tracking-tight truncate">
+                    {isEditing ? 'Chỉnh Sửa Thông Báo (Admin)' : announcement.title}
+                  </h2>
+                </div>
+              </div>
 
-            {/* Footer actions */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 border-t border-white/[0.07]">
-              {/* Checkbox: Don't show again */}
-              <label className="flex items-center gap-2.5 cursor-pointer text-xs text-slate-400 hover:text-slate-200 transition-colors select-none py-1">
-                <input
-                  type="checkbox"
-                  className="sr-only"
-                  checked={dontShowAgain}
-                  onChange={(e) => setDontShowAgain(e.target.checked)}
-                />
-                <div
-                  className={`w-4 h-4 rounded-md border flex items-center justify-center transition-colors ${
-                    dontShowAgain
-                      ? 'bg-[var(--primary-spotify,#06b6d4)] border-[var(--spotify-glow,#22d3ee)] text-black font-bold shadow-sm'
-                      : 'border-white/30 bg-white/5 hover:border-white/50'
-                  }`}
+              <div className="flex items-center gap-1.5 shrink-0">
+                {isAdmin && !isEditing && (
+                  <button
+                    type="button"
+                    onClick={handleStartEdit}
+                    className="px-2.5 py-1.5 rounded-xl bg-[var(--primary-spotify,#06b6d4)]/15 hover:bg-[var(--primary-spotify,#06b6d4)]/25 text-[var(--spotify-glow,#22d3ee)] border border-[var(--primary-spotify,#06b6d4)]/30 hover:border-[var(--spotify-glow,#22d3ee)] text-xs font-semibold flex items-center gap-1.5 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer shadow-sm"
+                    title="Chỉnh sửa nội dung thông báo này"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Sửa</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="p-1.5 sm:p-2 rounded-full text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer"
+                  aria-label="Đóng"
                 >
-                  {dontShowAgain && <Check className="w-3 h-3 stroke-[3]" />}
-                </div>
-                <span>Không hiển thị lại thông báo này</span>
-              </label>
-
-              {/* Primary CTA */}
-              <button
-                onClick={handleClose}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#3b82f6)] hover:brightness-110 text-white font-bold text-xs sm:text-sm tracking-wide shadow-lg active:scale-[0.98] transition-[filter,transform] text-center cursor-pointer"
-              >
-                {announcement.cta_text || 'Đã hiểu & Bắt đầu'}
-              </button>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
-          </>
-        )}
-        </div>
-      </div>
-    </div>,
+
+            <div className="overflow-y-auto flex-1 custom-slim-scrollbar px-5 sm:px-7 py-4 sm:py-5">
+              <AnimatePresence mode="wait" initial={false}>
+                {isEditing ? (
+                  <motion.form
+                    key="edit"
+                    {...stepSwapProps(prefersReducedMotion)}
+                    onSubmit={handleSaveAnnouncement}
+                    className="flex flex-col gap-3.5 text-xs text-slate-200"
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[11px] font-semibold text-slate-300">Nhãn tag trên đầu:</label>
+                        <input
+                          type="text"
+                          value={formData.badge}
+                          onChange={(e) => setFormData({ ...formData, badge: e.target.value })}
+                          placeholder="VD: Thông báo từ Tác giả, Cập nhật mới..."
+                          className="bg-white/5 border border-white/15 focus:border-[var(--spotify-glow,#22d3ee)] rounded-xl px-3 py-2 text-white outline-none transition-colors"
+                          required
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[11px] font-semibold text-slate-300">Chữ nút hành động (CTA):</label>
+                        <input
+                          type="text"
+                          value={formData.cta_text || ''}
+                          onChange={(e) => setFormData({ ...formData, cta_text: e.target.value })}
+                          placeholder="VD: Đã hiểu & Bắt đầu, Xem ngay..."
+                          className="bg-white/5 border border-white/15 focus:border-[var(--spotify-glow,#22d3ee)] rounded-xl px-3 py-2 text-white outline-none transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-semibold text-slate-300">Tiêu đề thông báo:</label>
+                      <input
+                        type="text"
+                        value={formData.title}
+                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                        placeholder="VD: Chào mừng bạn đến với MusicWeb"
+                        className="bg-white/5 border border-white/15 focus:border-[var(--spotify-glow,#22d3ee)] rounded-xl px-3 py-2 text-white font-bold outline-none transition-colors"
+                        required
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-semibold text-slate-300">Nội dung thông báo:</label>
+                      <textarea
+                        rows={4}
+                        value={formData.content}
+                        onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                        placeholder="Nhập nội dung thông báo gửi đến người dùng..."
+                        className="bg-white/5 border border-white/15 focus:border-[var(--spotify-glow,#22d3ee)] rounded-xl p-3 text-white leading-relaxed outline-none transition-colors resize-none"
+                        required
+                      />
+                    </div>
+
+                    {/* Social Contact Links Editor */}
+                    <div className="flex flex-col gap-2 p-3 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+                      <span className="text-[11px] font-bold text-[var(--spotify-glow,#22d3ee)] uppercase tracking-wider">
+                        Kênh liên hệ (Tùy chọn):
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <input
+                          type="url"
+                          value={formData.facebook_url || ''}
+                          onChange={(e) => setFormData({ ...formData, facebook_url: e.target.value })}
+                          placeholder="Link Facebook..."
+                          className="bg-white/5 border border-white/10 focus:border-[var(--theme-secondary,#3b82f6)] rounded-xl px-2.5 py-1.5 text-xs text-white outline-none"
+                        />
+                        <input
+                          type="url"
+                          value={formData.instagram_url || ''}
+                          onChange={(e) => setFormData({ ...formData, instagram_url: e.target.value })}
+                          placeholder="Link Instagram..."
+                          className="bg-white/5 border border-white/10 focus:border-pink-400 rounded-xl px-2.5 py-1.5 text-xs text-white outline-none"
+                        />
+                        <input
+                          type="email"
+                          value={formData.contact_email || ''}
+                          onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
+                          placeholder="Email liên hệ..."
+                          className="bg-white/5 border border-white/10 focus:border-[var(--spotify-glow,#22d3ee)] rounded-xl px-2.5 py-1.5 text-xs text-white outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Enable/Disable switch */}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                      <div>
+                        <p className="text-xs font-semibold text-white">Hiển thị thông báo khi vào web</p>
+                        <p className="text-[10px] text-slate-400">Tắt nếu bạn muốn ẩn thông báo này tạm thời</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, is_enabled: !formData.is_enabled })}
+                        className="active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer"
+                      >
+                        {formData.is_enabled !== false ? (
+                          <ToggleRight className="w-8 h-8 text-[var(--spotify-glow,#22d3ee)]" />
+                        ) : (
+                          <ToggleLeft className="w-8 h-8 text-slate-500" />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Editor Action Buttons */}
+                    <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-white/[0.07]">
+                      <button
+                        type="button"
+                        onClick={handleCancelEdit}
+                        disabled={isSaving}
+                        className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-slate-300 font-semibold text-xs active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isSaving}
+                        className="px-5 py-2 rounded-xl bg-gradient-to-r from-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#3b82f6)] hover:brightness-110 text-white font-bold text-xs tracking-wide shadow-lg active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Đang lưu...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" />
+                            <span>Lưu & Xuất Bản</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </motion.form>
+                ) : (
+                  /* --- VIEW MODE --- */
+                  <motion.div
+                    key="view"
+                    {...stepSwapProps(prefersReducedMotion)}
+                    className="flex flex-col gap-4 sm:gap-5"
+                  >
+                    {/* Body Content */}
+                    <div className="flex flex-col gap-3.5 text-xs sm:text-sm text-slate-300 leading-relaxed font-medium bg-white/[0.02] p-4 rounded-2xl border border-white/[0.06]">
+                      <div className="whitespace-pre-line text-slate-200">
+                        {announcement.content}
+                      </div>
+
+                      {/* Social Contact Links */}
+                      {(announcement.facebook_url || announcement.instagram_url || announcement.contact_email) && (
+                        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/[0.06]">
+                          {/* Facebook */}
+                          {announcement.facebook_url && (
+                            <a
+                              href={announcement.facebook_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1.5 rounded-xl bg-[var(--theme-secondary,#3b82f6)]/15 hover:bg-[var(--theme-secondary,#3b82f6)]/25 text-[var(--theme-secondary,#3b82f6)] border border-[var(--theme-secondary,#3b82f6)]/30 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] text-xs font-semibold flex items-center gap-1.5 shadow-sm"
+                              title="Facebook"
+                            >
+                              <FacebookIcon className="w-3.5 h-3.5 fill-current" />
+                              <span>Facebook</span>
+                              <ExternalLink className="w-3 h-3 opacity-60 ml-0.5" />
+                            </a>
+                          )}
+
+                          {/* Instagram */}
+                          {announcement.instagram_url && (
+                            <a
+                              href={announcement.instagram_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1.5 rounded-xl bg-pink-600/15 hover:bg-pink-600/25 text-pink-400 border border-pink-500/30 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] text-xs font-semibold flex items-center gap-1.5 shadow-sm"
+                              title="Instagram"
+                            >
+                              <InstagramIcon className="w-3.5 h-3.5" />
+                              <span>Instagram</span>
+                              <ExternalLink className="w-3 h-3 opacity-60 ml-0.5" />
+                            </a>
+                          )}
+
+                          {/* Gmail */}
+                          {announcement.contact_email && (
+                            <a
+                              href={`mailto:${announcement.contact_email}`}
+                              className="px-3 py-1.5 rounded-xl bg-[var(--primary-spotify,#06b6d4)]/10 hover:bg-[var(--primary-spotify,#06b6d4)]/20 text-[var(--spotify-glow,#22d3ee)] border border-[var(--primary-spotify,#06b6d4)]/30 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] text-xs font-mono flex items-center gap-1.5 shadow-sm"
+                              title={`Gửi Email đến ${announcement.contact_email}`}
+                            >
+                              <Mail className="w-3.5 h-3.5 text-[var(--spotify-glow,#22d3ee)] flex-shrink-0" />
+                              <span className="truncate">{announcement.contact_email}</span>
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Footer actions */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 border-t border-white/[0.07]">
+                      {/* Checkbox: Don't show again */}
+                      <label className="flex items-center gap-2.5 cursor-pointer text-xs text-slate-400 hover:text-slate-200 transition-colors select-none py-1">
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          checked={dontShowAgain}
+                          onChange={(e) => setDontShowAgain(e.target.checked)}
+                        />
+                        <div
+                          className={`w-4 h-4 rounded-md border flex items-center justify-center transition-colors ${
+                            dontShowAgain
+                              ? 'bg-[var(--primary-spotify,#06b6d4)] border-[var(--spotify-glow,#22d3ee)] text-black font-bold shadow-sm'
+                              : 'border-white/30 bg-white/5 hover:border-white/50'
+                          }`}
+                        >
+                          {dontShowAgain && <Check className="w-3 h-3 stroke-[3]" />}
+                        </div>
+                        <span>Không hiển thị lại thông báo này</span>
+                      </label>
+
+                      {/* Primary CTA */}
+                      <button
+                        type="button"
+                        onClick={handleClose}
+                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[var(--primary-spotify,#06b6d4)] to-[var(--theme-secondary,#3b82f6)] hover:brightness-110 text-white font-bold text-xs sm:text-sm tracking-wide shadow-lg active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] text-center cursor-pointer"
+                      >
+                        {announcement.cta_text || 'Đã hiểu & Bắt đầu'}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
     document.body
   )
 }

@@ -2,10 +2,11 @@
 
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { Track, Playlist } from '@/types'
 import { useTheme } from '@/components/theme/ThemeContext'
 import { TrackCoverImage } from '@/components/common/TrackCoverImage'
+import { EASE_OUT, EASE_DRAWER, appleRubberband } from '@/lib/motion'
 import {
   Heart,
   ListMusic,
@@ -59,10 +60,24 @@ export function TrackContextMenu({
   triggerRef,
 }: TrackContextMenuProps) {
   const { themeStyle } = useTheme()
+  const prefersReducedMotion = useReducedMotion()
   const [mounted, setMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [clampedPos, setClampedPos] = useState<{ top?: number; bottom?: number; right: number } | null>(null)
+  const [computedOrigin, setComputedOrigin] = useState<string>('top right')
   const menuRef = useRef<HTMLDivElement>(null)
+  const mobileBackdropRef = useRef<HTMLDivElement>(null)
+  const mobileListRef = useRef<HTMLDivElement>(null)
+  const snapBackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const sheetDragRef = useRef({
+    tracking: false,
+    active: false,
+    startedInList: false,
+    startY: 0,
+    startTime: 0,
+    dy: 0,
+    height: 400,
+  })
 
   // Ensure portal mounts on client only
   useEffect(() => {
@@ -72,31 +87,63 @@ export function TrackContextMenu({
     }
     checkMobile()
     window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
+    return () => {
+      window.removeEventListener('resize', checkMobile)
+      if (snapBackTimeoutRef.current) clearTimeout(snapBackTimeoutRef.current)
+    }
   }, [])
 
-  // Clamp desktop context menu inside viewport with bottom clearance above docked player
+  // Clamp desktop context menu inside viewport and compute trigger-anchored transformOrigin
+  // using unscaled offsetWidth/offsetHeight so initial scale never distorts measurements.
   useLayoutEffect(() => {
     if (!isOpen || isMobile || !menuPos || !menuRef.current) {
       setClampedPos(menuPos)
+      setComputedOrigin(menuPos?.bottom !== undefined ? 'bottom right' : 'top right')
       return
     }
-    const rect = menuRef.current.getBoundingClientRect()
+    const el = menuRef.current
+    const menuWidth = el.offsetWidth || 240
+    const menuHeight = el.offsetHeight || 260
     const vw = window.innerWidth
     const vh = window.innerHeight
-    const right = Math.min(Math.max(12, menuPos.right), Math.max(12, vw - rect.width - 12))
+    const right = Math.min(Math.max(12, menuPos.right), Math.max(12, vw - menuWidth - 12))
+
+    let nextPos: { top?: number; bottom?: number; right: number }
+    let menuTop: number
 
     if (menuPos.bottom !== undefined) {
-      const bottom = Math.min(Math.max(12, menuPos.bottom), Math.max(12, vh - rect.height - 12))
-      setClampedPos({ bottom, right })
-      return
+      const bottom = Math.min(Math.max(12, menuPos.bottom), Math.max(12, vh - menuHeight - 12))
+      nextPos = { bottom, right }
+      menuTop = vh - bottom - menuHeight
+    } else {
+      const rawTop = menuPos.top ?? 12
+      const maxBottom = vh - 112
+      const top = Math.min(Math.max(12, rawTop), Math.max(12, maxBottom - menuHeight))
+      nextPos = { top, right }
+      menuTop = top
     }
 
-    const rawTop = menuPos.top ?? 12
-    const maxBottom = vh - 112
-    const top = Math.min(Math.max(12, rawTop), Math.max(12, maxBottom - rect.height))
-    setClampedPos({ top, right })
-  }, [isOpen, isMobile, menuPos])
+    setClampedPos(nextPos)
+
+    if (triggerRef?.current) {
+      const triggerRect = triggerRef.current.getBoundingClientRect()
+      const menuLeft = vw - right - menuWidth
+      const triggerCenterX = triggerRect.left + triggerRect.width / 2
+      const triggerCenterY = triggerRect.top + triggerRect.height / 2
+      const originX = Math.max(0, Math.min(menuWidth, triggerCenterX - menuLeft))
+      let originY: number
+      if (triggerRect.bottom <= menuTop + 4) {
+        originY = 0
+      } else if (triggerRect.top >= menuTop + menuHeight - 4) {
+        originY = menuHeight
+      } else {
+        originY = Math.max(0, Math.min(menuHeight, triggerCenterY - menuTop))
+      }
+      setComputedOrigin(`${Math.round(originX)}px ${Math.round(originY)}px`)
+    } else {
+      setComputedOrigin(nextPos.bottom !== undefined ? 'bottom right' : 'top right')
+    }
+  }, [isOpen, isMobile, menuPos, triggerRef])
 
   // Handle outside click, scroll, and escape dismissals
   useEffect(() => {
@@ -158,11 +205,126 @@ export function TrackContextMenu({
     }
   }, [isOpen, isMobile, onClose, triggerRef])
 
+  // Velocity-based swipe-to-dismiss on mobile bottom sheet (with upward rubber-banding)
+  const handleSheetTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    const touch = e.targetTouches[0]
+    if (!touch) return
+    const target = e.target as Node | null
+    const listEl = mobileListRef.current
+    const startedInList = Boolean(listEl && target && listEl.contains(target))
+
+    // Let user scroll list normally when already scrolled down
+    if (startedInList && listEl && listEl.scrollTop > 0) {
+      sheetDragRef.current.tracking = false
+      return
+    }
+
+    if (snapBackTimeoutRef.current) {
+      clearTimeout(snapBackTimeoutRef.current)
+      snapBackTimeoutRef.current = null
+    }
+
+    sheetDragRef.current = {
+      tracking: true,
+      active: false,
+      startedInList,
+      startY: touch.clientY,
+      startTime: performance.now(),
+      dy: 0,
+      height: menuRef.current?.offsetHeight || 400,
+    }
+  }
+
+  const handleSheetTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    const drag = sheetDragRef.current
+    if (!drag.tracking) return
+    const touch = e.targetTouches[0]
+    if (!touch) return
+
+    const rawDy = touch.clientY - drag.startY
+
+    if (!drag.active) {
+      if (Math.abs(rawDy) < 6) return
+      const listEl = mobileListRef.current
+      if (
+        drag.startedInList &&
+        rawDy < 0 &&
+        listEl &&
+        listEl.scrollHeight > listEl.clientHeight
+      ) {
+        drag.tracking = false
+        return
+      }
+      drag.active = true
+      if (menuRef.current) menuRef.current.style.transition = 'none'
+      if (mobileBackdropRef.current) mobileBackdropRef.current.style.transition = 'none'
+    }
+
+    const dy =
+      rawDy >= 0
+        ? rawDy
+        : -appleRubberband(-rawDy, drag.height, 0.55)
+    drag.dy = dy
+
+    if (menuRef.current && !prefersReducedMotion) {
+      menuRef.current.style.transform = `translate3d(0, ${dy}px, 0)`
+    }
+    if (mobileBackdropRef.current && dy > 0) {
+      const progress = Math.max(0, Math.min(1, 1 - dy / drag.height))
+      mobileBackdropRef.current.style.opacity = String(progress)
+    }
+  }
+
+  const handleSheetTouchEnd = () => {
+    const drag = sheetDragRef.current
+    if (!drag.tracking && !drag.active) return
+
+    const { active, dy, startTime, height } = drag
+    drag.tracking = false
+    drag.active = false
+    drag.dy = 0
+
+    if (!active) return
+
+    const elapsedMs = Math.max(1, performance.now() - startTime)
+    const shouldDismiss =
+      dy > 0 &&
+      (dy > Math.min(110, height * 0.3) || (dy > 20 && Math.abs(dy) / elapsedMs > 0.11))
+
+    if (shouldDismiss) {
+      if (menuRef.current) menuRef.current.style.transition = ''
+      if (mobileBackdropRef.current) {
+        mobileBackdropRef.current.style.transition = ''
+        mobileBackdropRef.current.style.opacity = ''
+      }
+      onClose()
+      return
+    }
+
+    if (menuRef.current) {
+      menuRef.current.style.transition = prefersReducedMotion
+        ? 'none'
+        : 'transform 260ms var(--ease-drawer, cubic-bezier(0.32, 0.72, 0, 1))'
+      menuRef.current.style.transform = 'translate3d(0, 0, 0)'
+    }
+    if (mobileBackdropRef.current) {
+      mobileBackdropRef.current.style.transition =
+        'opacity 200ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1))'
+      mobileBackdropRef.current.style.opacity = '1'
+    }
+    snapBackTimeoutRef.current = setTimeout(() => {
+      if (menuRef.current) menuRef.current.style.transition = ''
+      if (mobileBackdropRef.current) mobileBackdropRef.current.style.transition = ''
+      snapBackTimeoutRef.current = null
+    }, 260)
+  }
+
   if (!mounted || typeof window === 'undefined') return null
 
   const isLiquid = themeStyle === 'liquid-glass'
   const isMinimal = themeStyle === 'minimal-flat'
   const activeMenuPos = clampedPos ?? menuPos
+  const opensUpward = activeMenuPos?.bottom !== undefined
 
   // -------------------------------------------------------------
   // Dynamic Styling Tokens per Theme
@@ -172,7 +334,7 @@ export function TrackContextMenu({
     top: activeMenuPos?.top !== undefined ? `${activeMenuPos.top}px` : undefined,
     bottom: activeMenuPos?.bottom !== undefined ? `${activeMenuPos.bottom}px` : undefined,
     right: activeMenuPos?.right !== undefined ? `${activeMenuPos.right}px` : 16,
-    transformOrigin: activeMenuPos?.bottom !== undefined ? 'bottom right' : 'top right',
+    transformOrigin: computedOrigin,
     ...(isLiquid
       ? {
           background:
@@ -238,12 +400,12 @@ export function TrackContextMenu({
         borderTopRightRadius: '28px',
       }
 
-  // Common interactive item classes
+  // Common interactive item classes (include transform so active:scale eases cleanly)
   const itemBaseClass = isLiquid
-    ? 'w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-white/[0.12] active:bg-white/[0.2] flex items-center gap-3 transition-[background-color,border-color,color,box-shadow] duration-150 cursor-pointer text-white/90 hover:text-white group border border-transparent hover:border-white/10 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] active:scale-[0.98]'
+    ? 'w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-white/[0.12] active:bg-white/[0.2] flex items-center gap-3 transition-[transform,background-color,border-color,color,box-shadow] duration-150 ease-[var(--ease-out)] cursor-pointer text-white/90 hover:text-white group border border-transparent hover:border-white/10 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] active:scale-[0.98]'
     : isMinimal
-    ? 'w-full text-left px-3.5 py-2.5 rounded-lg hover:bg-[var(--hair-strong,rgba(244,236,230,0.08))] active:bg-[var(--hair-strong,rgba(244,236,230,0.14))] flex items-center gap-3 transition-colors cursor-pointer text-[var(--paper,#F4ECE1)] hover:text-white active:scale-[0.99]'
-    : 'w-full text-left px-3.5 py-2 rounded-xl hover:bg-white/10 active:bg-white/15 flex items-center gap-2.5 transition-colors cursor-pointer text-slate-200 hover:text-white active:scale-[0.98]'
+    ? 'w-full text-left px-3.5 py-2.5 rounded-lg hover:bg-[var(--hair-strong,rgba(244,236,230,0.08))] active:bg-[var(--hair-strong,rgba(244,236,230,0.14))] flex items-center gap-3 transition-[transform,background-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer text-[var(--paper,#F4ECE1)] hover:text-white active:scale-[0.98]'
+    : 'w-full text-left px-3.5 py-2 rounded-xl hover:bg-white/10 active:bg-white/15 flex items-center gap-2.5 transition-[transform,background-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer text-slate-200 hover:text-white active:scale-[0.98]'
 
   const sectionDividerClass = isLiquid
     ? 'border-t border-white/15 my-1'
@@ -257,34 +419,52 @@ export function TrackContextMenu({
     ? 'px-3.5 py-1 text-[var(--muted,#8B8090)] font-serif uppercase tracking-[0.15em] text-[10px] font-semibold'
     : 'px-3 py-1 text-slate-400 font-semibold text-[10px] uppercase tracking-wider'
 
+  const desktopOffsetY = opensUpward ? '4px' : '-4px'
+
   return createPortal(
     <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* ========================================================================= */}
-          {/* 💻 DESKTOP DROPDOWN (>= 768px)                                            */}
-          {/* ========================================================================= */}
-          {!isMobile && (
-          <div className="hidden md:block select-none">
-            <motion.div
-              ref={menuRef}
-              role="menu"
-              style={desktopContainerStyle}
-              initial={{
-                opacity: 0,
-                scale: 0.94,
-                y: activeMenuPos?.bottom !== undefined ? 6 : -6,
-              }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{
-                opacity: 0,
-                scale: 0.96,
-                y: activeMenuPos?.bottom !== undefined ? 4 : -4,
-              }}
-              transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-              className="py-1.5 w-60 z-[90] text-xs shadow-2xl relative max-h-[calc(100vh-128px)] overflow-y-auto custom-slim-scrollbar will-change-transform"
-              onClick={(e) => e.stopPropagation()}
-            >
+      {/* ========================================================================= */}
+      {/* 💻 DESKTOP DROPDOWN (>= 768px)                                            */}
+      {/* ========================================================================= */}
+      {isOpen && !isMobile && (
+        <motion.div
+          key="track-context-menu-desktop"
+          ref={menuRef}
+          role="menu"
+          style={desktopContainerStyle}
+          initial={
+            prefersReducedMotion
+              ? { opacity: 0 }
+              : {
+                  opacity: 0,
+                  transform: `translate3d(0, ${desktopOffsetY}, 0) scale(0.95)`,
+                }
+          }
+          animate={
+            prefersReducedMotion
+              ? { opacity: 1 }
+              : {
+                  opacity: 1,
+                  transform: 'translate3d(0, 0px, 0) scale(1)',
+                }
+          }
+          exit={
+            prefersReducedMotion
+              ? { opacity: 0, transition: { duration: 0.12, ease: 'easeOut' } }
+              : {
+                  opacity: 0,
+                  transform: `translate3d(0, ${desktopOffsetY}, 0) scale(0.95)`,
+                  transition: { duration: 0.13, ease: EASE_OUT },
+                }
+          }
+          transition={
+            prefersReducedMotion
+              ? { duration: 0.14, ease: 'easeOut' }
+              : { duration: 0.18, ease: EASE_OUT }
+          }
+          className="hidden md:block select-none py-1.5 w-60 z-[90] text-xs shadow-2xl max-h-[calc(100vh-128px)] overflow-y-auto custom-slim-scrollbar"
+          onClick={(e) => e.stopPropagation()}
+        >
               {/* Specular Top Sheen Highlight for Liquid Glass */}
               {isLiquid && (
                 <span
@@ -515,136 +695,283 @@ export function TrackContextMenu({
                   </button>
                 </>
               )}
-            </motion.div>
-          </div>
-          )}
+        </motion.div>
+      )}
 
-          {/* ========================================================================= */}
-          {/* 📱 MOBILE ACTION SHEET DRAWER (< 768px)                                   */}
-          {/* ========================================================================= */}
-          {isMobile && (
-          <div className="fixed inset-0 z-[99999] md:hidden select-none">
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className={`fixed inset-0 ${
-                isLiquid
-                  ? 'bg-black/60 backdrop-blur-xl'
-                  : isMinimal
-                  ? 'bg-black/75 backdrop-blur-none'
-                  : 'bg-black/80 backdrop-blur-md'
-              }`}
-              onClick={onClose}
-            />
+      {/* ========================================================================= */}
+      {/* 📱 MOBILE ACTION SHEET DRAWER (< 768px)                                   */}
+      {/* ========================================================================= */}
+      {isOpen && isMobile && (
+        <motion.div
+          key="track-context-menu-mobile"
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 1, transition: { duration: prefersReducedMotion ? 0.16 : 0.32 } }}
+          className="fixed inset-0 z-[99999] md:hidden select-none"
+        >
+          {/* Backdrop */}
+          <motion.div
+            ref={mobileBackdropRef}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: prefersReducedMotion ? 0.14 : 0.22, ease: EASE_OUT }}
+            className={`fixed inset-0 ${
+              isLiquid
+                ? 'bg-black/60 backdrop-blur-xl'
+                : isMinimal
+                ? 'bg-black/75 backdrop-blur-none'
+                : 'bg-black/80 backdrop-blur-md'
+            }`}
+            onClick={onClose}
+          />
 
-            {/* Bottom Sheet Drawer */}
-            <motion.div
-              ref={menuRef}
-              style={mobileSheetStyle}
-              initial={{ y: '100%' }}
-              animate={{ y: '0%' }}
-              exit={{ y: '100%' }}
-              transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
-              className="fixed inset-x-0 bottom-0 z-10 flex flex-col max-h-[85vh] overflow-hidden will-change-transform"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Specular highlight on top edge for Liquid Glass */}
-              {isLiquid && (
-                <span
-                  className="pointer-events-none absolute inset-x-8 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/80 to-transparent"
-                  aria-hidden="true"
-                />
-              )}
+          {/* Bottom Sheet Drawer */}
+          <motion.div
+            ref={menuRef}
+            style={mobileSheetStyle}
+            initial={
+              prefersReducedMotion
+                ? { opacity: 0 }
+                : { opacity: 1, transform: 'translate3d(0, 100%, 0)' }
+            }
+            animate={
+              prefersReducedMotion
+                ? { opacity: 1 }
+                : { opacity: 1, transform: 'translate3d(0, 0%, 0)' }
+            }
+            exit={
+              prefersReducedMotion
+                ? { opacity: 0 }
+                : { opacity: 1, transform: 'translate3d(0, 100%, 0)' }
+            }
+            transition={
+              prefersReducedMotion
+                ? { duration: 0.16, ease: 'easeOut' }
+                : { duration: 0.32, ease: EASE_DRAWER }
+            }
+            className="fixed inset-x-0 bottom-0 z-10 flex flex-col max-h-[85vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={handleSheetTouchStart}
+            onTouchMove={handleSheetTouchMove}
+            onTouchEnd={handleSheetTouchEnd}
+            onTouchCancel={handleSheetTouchEnd}
+          >
+            {/* Specular highlight on top edge for Liquid Glass */}
+            {isLiquid && (
+              <span
+                className="pointer-events-none absolute inset-x-8 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/80 to-transparent"
+                aria-hidden="true"
+              />
+            )}
 
-              {/* Drag handle pill */}
-              <div className="pt-3 pb-1 flex justify-center shrink-0">
-                <div
-                  className={`w-10 h-1.5 rounded-full ${
-                    isLiquid
-                      ? 'bg-white/35 shadow-[0_0_8px_rgba(255,255,255,0.4)]'
-                      : isMinimal
-                      ? 'bg-[var(--paper-dim,#B9AC9C)]/30'
-                      : 'bg-white/25'
-                  }`}
-                />
-              </div>
-
-              {/* Track Info Header */}
+            {/* Drag handle pill */}
+            <div className="pt-3 pb-1 flex justify-center shrink-0">
               <div
-                className={`px-4 py-3 flex items-center gap-3.5 shrink-0 ${
+                className={`w-10 h-1.5 rounded-full ${
                   isLiquid
-                    ? 'border-b border-white/15 bg-white/[0.04]'
+                    ? 'bg-white/35 shadow-[0_0_8px_rgba(255,255,255,0.4)]'
                     : isMinimal
-                    ? 'border-b border-[var(--hair-strong,rgba(244,236,230,0.14))] bg-[var(--surface,#1D1720)]'
-                    : 'border-b border-white/10 bg-black/20'
+                    ? 'bg-[var(--paper-dim,#B9AC9C)]/30'
+                    : 'bg-white/25'
+                }`}
+              />
+            </div>
+
+            {/* Track Info Header */}
+            <div
+              className={`px-4 py-3 flex items-center gap-3.5 shrink-0 ${
+                isLiquid
+                  ? 'border-b border-white/15 bg-white/[0.04]'
+                  : isMinimal
+                  ? 'border-b border-[var(--hair-strong,rgba(244,236,230,0.14))] bg-[var(--surface,#1D1720)]'
+                  : 'border-b border-white/10 bg-black/20'
+              }`}
+            >
+              <div
+                className={`w-12 h-12 rounded-xl overflow-hidden shrink-0 flex items-center justify-center shadow-lg ${
+                  isLiquid
+                    ? 'border border-white/20'
+                    : isMinimal
+                    ? 'border border-[var(--hair-strong)]'
+                    : 'border border-white/10 bg-slate-800'
                 }`}
               >
-                <div
-                  className={`w-12 h-12 rounded-xl overflow-hidden shrink-0 flex items-center justify-center shadow-lg ${
-                    isLiquid
-                      ? 'border border-white/20'
-                      : isMinimal
-                      ? 'border border-[var(--hair-strong)]'
-                      : 'border border-white/10 bg-slate-800'
+                <TrackCoverImage src={track.cover_url} alt={track.title} />
+              </div>
+              <div className="flex flex-col min-w-0 flex-1">
+                <p
+                  className={`text-sm font-bold truncate ${
+                    isMinimal
+                      ? 'font-serif text-[var(--paper,#F4ECE1)]'
+                      : 'text-white'
                   }`}
                 >
-                  <TrackCoverImage src={track.cover_url} alt={track.title} />
+                  {track.title}
+                </p>
+                <p
+                  className={`text-xs truncate mt-0.5 ${
+                    isMinimal
+                      ? 'text-[var(--muted,#8B8090)]'
+                      : 'text-slate-400'
+                  }`}
+                >
+                  {track.artist || 'Không rõ nghệ sĩ'}
+                </p>
+                {currentAlbumDisplay && hasRealAlbumDisplay && (
+                  <p
+                    className={`text-[10px] truncate mt-0.5 ${
+                      isMinimal
+                        ? 'text-[var(--accent,#C98A3D)] font-mono'
+                        : 'text-[var(--spotify-glow,#22d3ee)]'
+                    }`}
+                  >
+                    {currentAlbumDisplay}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className={`p-2 rounded-full active:scale-[0.97] transition-[transform,background-color,color] duration-150 ease-[var(--ease-out)] shrink-0 ${
+                  isLiquid
+                    ? 'text-white/60 hover:text-white bg-white/10 active:bg-white/20'
+                    : isMinimal
+                    ? 'text-[var(--muted)] hover:text-[var(--paper)] bg-[var(--surface-3)] active:bg-[var(--hair-strong)]'
+                    : 'text-slate-400 hover:text-white bg-white/5 active:bg-white/15'
+                }`}
+                title="Đóng"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Action Buttons Scrollable List */}
+            <div ref={mobileListRef} className="p-3 overflow-y-auto overscroll-contain flex flex-col gap-1 text-sm">
+              {/* Toggle Favorite */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  onToggleFavorite(e)
+                  onClose()
+                }}
+                className={itemBaseClass}
+              >
+                <div
+                  className={`p-2 rounded-xl flex items-center justify-center shrink-0 ${
+                    isLiquid
+                      ? 'bg-rose-500/15 border border-rose-500/25 shadow-[0_0_12px_rgba(244,63,94,0.3)]'
+                      : isMinimal
+                      ? 'bg-[var(--wine)]/15 border border-[var(--wine)]/30'
+                      : 'bg-rose-500/10'
+                  }`}
+                >
+                  <Heart
+                    className={`w-4 h-4 ${
+                      isFavorite
+                        ? isMinimal
+                          ? 'fill-[var(--wine,#A24B3D)] text-[var(--wine,#A24B3D)]'
+                          : 'fill-rose-500 text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]'
+                        : isMinimal
+                        ? 'text-[var(--wine,#A24B3D)]'
+                        : 'text-rose-400'
+                    }`}
+                  />
                 </div>
-                <div className="flex flex-col min-w-0 flex-1">
-                  <p
-                    className={`text-sm font-bold truncate ${
-                      isMinimal
-                        ? 'font-serif text-[var(--paper,#F4ECE1)]'
-                        : 'text-white'
+                <span
+                  className={
+                    isFavorite
+                      ? isMinimal
+                        ? 'text-[var(--wine,#A24B3D)] font-semibold'
+                        : 'text-rose-300 font-semibold'
+                      : ''
+                  }
+                >
+                  {isFavorite ? 'Bỏ khỏi yêu thích' : 'Thêm vào yêu thích'}
+                </span>
+              </button>
+
+              {/* Add to Queue */}
+              {onAddToQueue && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onClose()
+                    onAddToQueue()
+                  }}
+                  className={itemBaseClass}
+                >
+                  <div
+                    className={`p-2 rounded-xl flex items-center justify-center shrink-0 ${
+                      isLiquid
+                        ? 'bg-[var(--primary-spotify)]/20 border border-[var(--primary-spotify)]/30 shadow-[0_0_12px_var(--spotify-glow)]'
+                        : isMinimal
+                        ? 'bg-[var(--accent)]/15 border border-[var(--accent)]/30'
+                        : 'bg-[var(--primary-spotify,#06b6d4)]/10'
                     }`}
                   >
-                    {track.title}
-                  </p>
-                  <p
-                    className={`text-xs truncate mt-0.5 ${
-                      isMinimal
-                        ? 'text-[var(--muted,#8B8090)]'
-                        : 'text-slate-400'
-                    }`}
-                  >
-                    {track.artist || 'Không rõ nghệ sĩ'}
-                  </p>
-                  {currentAlbumDisplay && hasRealAlbumDisplay && (
-                    <p
-                      className={`text-[10px] truncate mt-0.5 ${
+                    <ListMusic
+                      className={`w-4 h-4 ${
                         isMinimal
-                          ? 'text-[var(--accent,#C98A3D)] font-mono'
+                          ? 'text-[var(--accent,#C98A3D)]'
                           : 'text-[var(--spotify-glow,#22d3ee)]'
                       }`}
-                    >
-                      {currentAlbumDisplay}
-                    </p>
+                    />
+                  </div>
+                  <span
+                    className={`font-semibold ${
+                      isMinimal
+                        ? 'text-[var(--accent,#C98A3D)]'
+                        : 'text-[var(--spotify-glow,#22d3ee)]'
+                    }`}
+                  >
+                    Thêm vào hàng đợi
+                  </span>
+                </button>
+              )}
+
+              {/* Go to Album */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  onClose()
+                  onOpenAlbum(e)
+                }}
+                disabled={isResolvingAlbum}
+                className={`${itemBaseClass} disabled:opacity-50`}
+              >
+                <div
+                  className={`p-2 rounded-xl flex items-center justify-center shrink-0 ${
+                    isLiquid
+                      ? 'bg-[var(--theme-secondary,#818cf8)]/20 border border-[var(--theme-secondary,#818cf8)]/30'
+                      : isMinimal
+                      ? 'bg-[var(--surface-3)]'
+                      : 'bg-[var(--theme-secondary,#818cf8)]/10'
+                  }`}
+                >
+                  {isResolvingAlbum ? (
+                    <Loader2 className="w-4 h-4 text-[var(--theme-secondary,#818cf8)] animate-spin" />
+                  ) : (
+                    <DiscAlbum
+                      className={`w-4 h-4 ${
+                        isMinimal
+                          ? 'text-[var(--paper-dim,#B9AC9C)]'
+                          : 'text-[var(--theme-secondary,#818cf8)]'
+                      }`}
+                    />
                   )}
                 </div>
-                <button
-                  onClick={onClose}
-                  className={`p-2 rounded-full transition-colors shrink-0 ${
-                    isLiquid
-                      ? 'text-white/60 hover:text-white bg-white/10 active:bg-white/20'
-                      : isMinimal
-                      ? 'text-[var(--muted)] hover:text-[var(--paper)] bg-[var(--surface-3)] active:bg-[var(--hair-strong)]'
-                      : 'text-slate-400 hover:text-white bg-white/5 active:bg-white/15'
-                  }`}
-                  title="Đóng"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+                <span>Vào Album bài hát</span>
+              </button>
 
-              {/* Action Buttons Scrollable List */}
-              <div className="p-3 overflow-y-auto overscroll-contain flex flex-col gap-1 text-sm">
-                {/* Toggle Favorite */}
+              {/* Admin Edit */}
+              {isAdmin && (
                 <button
+                  type="button"
                   onClick={(e) => {
-                    onToggleFavorite(e)
+                    e.stopPropagation()
+                    onEditMode()
                     onClose()
                   }}
                   className={itemBaseClass}
@@ -652,249 +979,135 @@ export function TrackContextMenu({
                   <div
                     className={`p-2 rounded-xl flex items-center justify-center shrink-0 ${
                       isLiquid
-                        ? 'bg-rose-500/15 border border-rose-500/25 shadow-[0_0_12px_rgba(244,63,94,0.3)]'
+                        ? 'bg-[var(--primary-spotify,#06b6d4)]/20 border border-[var(--primary-spotify,#06b6d4)]/30'
                         : isMinimal
-                        ? 'bg-[var(--wine)]/15 border border-[var(--wine)]/30'
-                        : 'bg-rose-500/10'
+                        ? 'bg-[var(--accent-strong)]/15 border border-[var(--accent-strong)]/30'
+                        : 'bg-[var(--primary-spotify,#06b6d4)]/10'
                     }`}
                   >
-                    <Heart
+                    <Pencil
                       className={`w-4 h-4 ${
-                        isFavorite
-                          ? isMinimal
-                            ? 'fill-[var(--wine,#A24B3D)] text-[var(--wine,#A24B3D)]'
-                            : 'fill-rose-500 text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]'
-                          : isMinimal
-                          ? 'text-[var(--wine,#A24B3D)]'
-                          : 'text-rose-400'
+                        isMinimal
+                          ? 'text-[var(--accent-strong,#E8A94F)]'
+                          : 'text-[var(--spotify-glow,#22d3ee)]'
                       }`}
                     />
                   </div>
                   <span
                     className={
-                      isFavorite
-                        ? isMinimal
-                          ? 'text-[var(--wine,#A24B3D)] font-semibold'
-                          : 'text-rose-300 font-semibold'
-                        : ''
+                      isMinimal
+                        ? 'text-[var(--accent-strong,#E8A94F)] font-semibold'
+                        : 'text-[var(--spotify-glow,#22d3ee)] font-semibold'
                     }
                   >
-                    {isFavorite ? 'Bỏ khỏi yêu thích' : 'Thêm vào yêu thích'}
+                    Sửa Tên / Nghệ sĩ / Album
                   </span>
                 </button>
+              )}
 
-                {/* Add to Queue */}
-                {onAddToQueue && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onClose()
-                      onAddToQueue()
-                    }}
-                    className={itemBaseClass}
-                  >
-                    <div
-                      className={`p-2 rounded-xl flex items-center justify-center shrink-0 ${
-                        isLiquid
-                          ? 'bg-[var(--primary-spotify)]/20 border border-[var(--primary-spotify)]/30 shadow-[0_0_12px_var(--spotify-glow)]'
-                          : isMinimal
-                          ? 'bg-[var(--accent)]/15 border border-[var(--accent)]/30'
-                          : 'bg-[var(--primary-spotify,#06b6d4)]/10'
-                      }`}
-                    >
-                      <ListMusic
-                        className={`w-4 h-4 ${
-                          isMinimal
-                            ? 'text-[var(--accent,#C98A3D)]'
-                            : 'text-[var(--spotify-glow,#22d3ee)]'
-                        }`}
-                      />
-                    </div>
-                    <span
-                      className={`font-semibold ${
-                        isMinimal
-                          ? 'text-[var(--accent,#C98A3D)]'
-                          : 'text-[var(--spotify-glow,#22d3ee)]'
-                      }`}
-                    >
-                      Thêm vào hàng đợi
-                    </span>
-                  </button>
-                )}
-
-                {/* Go to Album */}
-                <button
-                  onClick={(e) => {
-                    onClose()
-                    onOpenAlbum(e)
-                  }}
-                  disabled={isResolvingAlbum}
-                  className={`${itemBaseClass} disabled:opacity-50`}
-                >
-                  <div
-                    className={`p-2 rounded-xl flex items-center justify-center shrink-0 ${
-                      isLiquid
-                        ? 'bg-[var(--theme-secondary,#818cf8)]/20 border border-[var(--theme-secondary,#818cf8)]/30'
-                        : isMinimal
-                        ? 'bg-[var(--surface-3)]'
-                        : 'bg-[var(--theme-secondary,#818cf8)]/10'
-                    }`}
-                  >
-                    {isResolvingAlbum ? (
-                      <Loader2 className="w-4 h-4 text-[var(--theme-secondary,#818cf8)] animate-spin" />
-                    ) : (
-                      <DiscAlbum
-                        className={`w-4 h-4 ${
-                          isMinimal
-                            ? 'text-[var(--paper-dim,#B9AC9C)]'
-                            : 'text-[var(--theme-secondary,#818cf8)]'
-                        }`}
-                      />
-                    )}
-                  </div>
-                  <span>Vào Album bài hát</span>
-                </button>
-
-                {/* Admin Edit */}
-                {isAdmin && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onEditMode()
-                      onClose()
-                    }}
-                    className={itemBaseClass}
-                  >
-                    <div
-                      className={`p-2 rounded-xl flex items-center justify-center shrink-0 ${
-                        isLiquid
-                          ? 'bg-[var(--primary-spotify,#06b6d4)]/20 border border-[var(--primary-spotify,#06b6d4)]/30'
-                          : isMinimal
-                          ? 'bg-[var(--accent-strong)]/15 border border-[var(--accent-strong)]/30'
-                          : 'bg-[var(--primary-spotify,#06b6d4)]/10'
-                      }`}
-                    >
-                      <Pencil
-                        className={`w-4 h-4 ${
-                          isMinimal
-                            ? 'text-[var(--accent-strong,#E8A94F)]'
-                            : 'text-[var(--spotify-glow,#22d3ee)]'
-                        }`}
-                      />
-                    </div>
-                    <span
-                      className={
-                        isMinimal
-                          ? 'text-[var(--accent-strong,#E8A94F)] font-semibold'
-                          : 'text-[var(--spotify-glow,#22d3ee)] font-semibold'
-                      }
-                    >
-                      Sửa Tên / Nghệ sĩ / Album
-                    </span>
-                  </button>
-                )}
-
-                {/* Add to Playlist */}
-                {onAddToPlaylist && userPlaylists.length > 0 && (
-                  <div className={`pt-2 ${sectionDividerClass}`}>
-                    <div className={sectionHeaderClass}>Thêm vào Playlist</div>
-                    <div className="max-h-44 overflow-y-auto flex flex-col gap-1 mt-1">
-                      {userPlaylists.map((pl) => (
-                        <button
-                          key={pl.id}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onAddToPlaylist?.(pl.id, track)
-                            onClose()
-                          }}
-                          className={itemBaseClass}
+              {/* Add to Playlist */}
+              {onAddToPlaylist && userPlaylists.length > 0 && (
+                <div className={`pt-2 ${sectionDividerClass}`}>
+                  <div className={sectionHeaderClass}>Thêm vào Playlist</div>
+                  <div className="max-h-44 overflow-y-auto flex flex-col gap-1 mt-1">
+                    {userPlaylists.map((pl) => (
+                      <button
+                        type="button"
+                        key={pl.id}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onAddToPlaylist?.(pl.id, track)
+                          onClose()
+                        }}
+                        className={itemBaseClass}
+                      >
+                        <div
+                          className={`p-1.5 rounded-lg flex items-center justify-center shrink-0 ${
+                            isLiquid
+                              ? 'bg-[var(--primary-spotify,#06b6d4)]/15 border border-[var(--primary-spotify,#06b6d4)]/25'
+                              : isMinimal
+                              ? 'bg-[var(--sage)]/15 border border-[var(--sage)]/30'
+                              : 'bg-[var(--primary-spotify,#06b6d4)]/10'
+                          }`}
                         >
-                          <div
-                            className={`p-1.5 rounded-lg flex items-center justify-center shrink-0 ${
-                              isLiquid
-                                ? 'bg-[var(--primary-spotify,#06b6d4)]/15 border border-[var(--primary-spotify,#06b6d4)]/25'
-                                : isMinimal
-                                ? 'bg-[var(--sage)]/15 border border-[var(--sage)]/30'
-                                : 'bg-[var(--primary-spotify,#06b6d4)]/10'
+                          <Plus
+                            className={`w-3.5 h-3.5 ${
+                              isMinimal
+                                ? 'text-[var(--sage,#7C9070)]'
+                                : 'text-[var(--primary-spotify,#06b6d4)]'
                             }`}
-                          >
-                            <Plus
-                              className={`w-3.5 h-3.5 ${
-                                isMinimal
-                                  ? 'text-[var(--sage,#7C9070)]'
-                                  : 'text-[var(--primary-spotify,#06b6d4)]'
-                              }`}
-                            />
-                          </div>
-                          <span className="truncate">{pl.name}</span>
-                        </button>
-                      ))}
-                    </div>
+                          />
+                        </div>
+                        <span className="truncate">{pl.name}</span>
+                      </button>
+                    ))}
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* Remove from Playlist */}
-                {onDeleteTrack && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onDeleteTrack(track.id)
-                      onClose()
-                    }}
-                    className={`${itemBaseClass} hover:bg-red-500/15 text-red-300 hover:text-red-200 mt-1`}
-                  >
-                    <div className="p-2 rounded-xl bg-red-500/15 border border-red-500/25 flex items-center justify-center shrink-0">
-                      <Trash2 className="w-4 h-4 text-red-400" />
-                    </div>
-                    <span>Bỏ khỏi Playlist này</span>
-                  </button>
-                )}
+              {/* Remove from Playlist */}
+              {onDeleteTrack && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDeleteTrack(track.id)
+                    onClose()
+                  }}
+                  className={`${itemBaseClass} hover:bg-red-500/15 text-red-300 hover:text-red-200 mt-1`}
+                >
+                  <div className="p-2 rounded-xl bg-red-500/15 border border-red-500/25 flex items-center justify-center shrink-0">
+                    <Trash2 className="w-4 h-4 text-red-400" />
+                  </div>
+                  <span>Bỏ khỏi Playlist này</span>
+                </button>
+              )}
 
-                {/* Delete Permanently (Admin) */}
-                {isAdmin && onDeleteTrackPermanently && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onDeleteTrackPermanently(track.id)
-                      onClose()
-                    }}
-                    className={`${itemBaseClass} hover:bg-red-500/25 text-red-400 hover:text-red-300 font-semibold mt-1`}
-                  >
-                    <div className="p-2 rounded-xl bg-red-500/25 border border-red-500/35 flex items-center justify-center shrink-0">
-                      <Trash2 className="w-4 h-4 text-red-400" />
-                    </div>
-                    <span>Xóa vĩnh viễn khỏi Thư viện</span>
-                  </button>
-                )}
-              </div>
+              {/* Delete Permanently (Admin) */}
+              {isAdmin && onDeleteTrackPermanently && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDeleteTrackPermanently(track.id)
+                    onClose()
+                  }}
+                  className={`${itemBaseClass} hover:bg-red-500/25 text-red-400 hover:text-red-300 font-semibold mt-1`}
+                >
+                  <div className="p-2 rounded-xl bg-red-500/25 border border-red-500/35 flex items-center justify-center shrink-0">
+                    <Trash2 className="w-4 h-4 text-red-400" />
+                  </div>
+                  <span>Xóa vĩnh viễn khỏi Thư viện</span>
+                </button>
+              )}
+            </div>
 
-              {/* Bottom Safe Area Dismiss */}
-              <div
-                className={`p-3 border-t pb-safe ${
+            {/* Bottom Safe Area Dismiss */}
+            <div
+              className={`p-3 border-t pb-safe ${
+                isLiquid
+                  ? 'border-white/15 bg-white/[0.03]'
+                  : isMinimal
+                  ? 'border-[var(--hair-strong)] bg-[var(--surface-2)]'
+                  : 'border-white/10 bg-black/30'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={onClose}
+                className={`w-full py-3 rounded-2xl font-semibold text-center text-sm active:scale-[0.97] transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] ${
                   isLiquid
-                    ? 'border-white/15 bg-white/[0.03]'
+                    ? 'bg-white/15 active:bg-white/25 text-white border border-white/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]'
                     : isMinimal
-                    ? 'border-[var(--hair-strong)] bg-[var(--surface-2)]'
-                    : 'border-white/10 bg-black/30'
+                    ? 'bg-[var(--surface-3,#2E2632)] hover:bg-[var(--accent)] hover:text-[var(--accent-ink,#2A1704)] active:bg-[var(--accent-strong)] text-[var(--paper)] border border-[var(--hair-strong)] font-serif tracking-wide'
+                    : 'bg-white/10 active:bg-white/20 text-white'
                 }`}
               >
-                <button
-                  onClick={onClose}
-                  className={`w-full py-3 rounded-2xl font-semibold text-center text-sm transition-all duration-150 ${
-                    isLiquid
-                      ? 'bg-white/15 active:bg-white/25 text-white border border-white/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]'
-                      : isMinimal
-                      ? 'bg-[var(--surface-3,#2E2632)] hover:bg-[var(--accent)] hover:text-[var(--accent-ink,#2A1704)] active:bg-[var(--accent-strong)] text-[var(--paper)] border border-[var(--hair-strong)] font-serif tracking-wide'
-                      : 'bg-white/10 active:bg-white/20 text-white'
-                  }`}
-                >
-                  Đóng
-                </button>
-              </div>
-            </motion.div>
-          </div>
-          )}
-        </>
+                Đóng
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
       )}
     </AnimatePresence>,
     document.body

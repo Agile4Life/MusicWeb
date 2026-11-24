@@ -789,12 +789,12 @@ export function LiquidNavBar({
                         ].join(' ')}
                         style={{ position: 'relative', zIndex: 3 }}
                       >
-                        <span style={{ transform: `scale(${opticalZoom})`, transition: isDragging ? 'transform 0.05s linear' : 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
-                          {IconComp && <IconComp className={`w-5 h-5 transition-all duration-250 ${iconColor}`} strokeWidth={isActive ? (isDragging ? 2.85 : 2.5) : 2} />}
+                        <span style={{ transform: `scale(${opticalZoom})`, transition: isDragging ? 'transform 0.05s linear' : 'transform 0.28s var(--ease-out)' }}>
+                          {IconComp && <IconComp className={`w-5 h-5 transition-[color,opacity] duration-200 ease-[var(--ease-out)] ${iconColor}`} strokeWidth={isActive ? (isDragging ? 2.85 : 2.5) : 2} />}
                         </span>
                         <span
-                          style={{ transform: `scale(${textZoom})`, transition: isDragging ? 'transform 0.05s linear' : 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
-                          className={`text-[9.5px] xs:text-[10px] leading-tight tracking-tight max-w-[62px] truncate transition-all duration-250 ${textColor}`}
+                          style={{ transform: `scale(${textZoom})`, transition: isDragging ? 'transform 0.05s linear' : 'transform 0.28s var(--ease-out)' }}
+                          className={`text-[9.5px] xs:text-[10px] leading-tight tracking-tight max-w-[62px] truncate transition-[color,opacity] duration-200 ease-[var(--ease-out)] ${textColor}`}
                         >
                           {tab.label}
                         </span>

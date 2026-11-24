@@ -194,12 +194,17 @@ export function LiquidAmbientCanvas() {
       ctx.globalCompositeOperation = 'source-over'
     }
 
-    const render = () => {
+    let lastFrameTime = 0
+
+    const render = (now: number) => {
       if (document.hidden) {
         animationFrameId = 0
         return
       }
-      drawFrame()
+      if (lastFrameTime === 0 || now - lastFrameTime >= 33) {
+        lastFrameTime = now
+        drawFrame()
+      }
       if (!reduceMotionQuery.matches) {
         animationFrameId = requestAnimationFrame(render)
       }
@@ -212,6 +217,7 @@ export function LiquidAmbientCanvas() {
           animationFrameId = 0
         }
       } else if (!reduceMotionQuery.matches && !animationFrameId) {
+        lastFrameTime = 0
         animationFrameId = requestAnimationFrame(render)
       }
     }
@@ -223,6 +229,7 @@ export function LiquidAmbientCanvas() {
         }
         drawFrame()
       } else if (!document.hidden && !animationFrameId) {
+        lastFrameTime = 0
         animationFrameId = requestAnimationFrame(render)
       }
     }
@@ -232,7 +239,7 @@ export function LiquidAmbientCanvas() {
     if (reduceMotionQuery.matches) {
       drawFrame()
     } else if (!document.hidden) {
-      render()
+      render(performance.now())
     }
 
     return () => {
@@ -260,7 +267,7 @@ export function LiquidAmbientCanvas() {
     <canvas
       ref={canvasRef}
       aria-hidden="true"
-      className={`pointer-events-none fixed inset-0 z-0 h-full w-full ${opacityClass} transition-opacity duration-700`}
+      className={`pointer-events-none fixed inset-0 z-0 h-full w-full ${opacityClass} transition-opacity duration-500 ease-[var(--ease-out)]`}
     />
   )
 }

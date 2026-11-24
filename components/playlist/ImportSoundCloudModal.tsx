@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   X,
   Music,
@@ -18,6 +19,12 @@ import {
 import { toast } from '@/components/ui/ToastContext'
 import { usePlaylists } from '@/components/playlist/PlaylistContext'
 import { Track, SoundCloudPlaylist } from '@/types'
+import {
+  SPRING_DELIGHT,
+  modalBackdropProps,
+  modalPanelProps,
+  stepSwapProps,
+} from '@/lib/motion'
 
 interface ImportSoundCloudModalProps {
   isOpen: boolean
@@ -47,7 +54,13 @@ export function ImportSoundCloudModal({
 }: ImportSoundCloudModalProps) {
   const router = useRouter()
   const { refreshPlaylists } = usePlaylists()
+  const prefersReducedMotion = useReducedMotion()
+  const [mounted, setMounted] = useState(false)
   const importingRef = useRef(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Steps & inputs
   const [step, setStep] = useState<ModalStep>('input')
@@ -107,8 +120,6 @@ export function ImportSoundCloudModal({
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [isOpen, step, onClose])
-
-  if (!isOpen || typeof document === 'undefined') return null
 
   // Step 1: Submit URL / Shortlink
   const handleFetchPlaylist = async (e?: React.FormEvent) => {
@@ -269,333 +280,381 @@ export function ImportSoundCloudModal({
     }
   }
 
+  const importRatio =
+    importingProgress.total > 0
+      ? Math.max(0, Math.min(1, importingProgress.done / importingProgress.total))
+      : 0
+
+  if (!mounted || typeof document === 'undefined') return null
+
   return createPortal(
-    <div
-      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && step !== 'importing') onClose()
-      }}
-    >
-      <div className="glass-panel modal-content relative w-full max-sm:rounded-t-3xl max-sm:rounded-b-none sm:max-w-xl bg-[var(--elevation-2-bg,#0f121a)] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[85vh]">
-        {/* Modal Top Header */}
-        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-white/[0.08] bg-white/[0.02]">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[var(--spotify-glow,#ff7700)] to-[var(--primary-spotify,#ff5500)] text-black flex items-center justify-center shrink-0">
-              <Cloud className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-sm sm:text-base font-black text-white truncate">
-                Nhập Playlist từ SoundCloud
-              </h2>
-              <p className="text-[11px] text-slate-400 truncate">
-                Tự động trích xuất toàn bộ bài hát chất lượng cao từ SoundCloud
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
-            disabled={step === 'importing'}
-            aria-label="Đóng"
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          key="soundcloud-import-backdrop"
+          {...modalBackdropProps(prefersReducedMotion)}
+          className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && step !== 'importing') onClose()
+          }}
+        >
+          <motion.div
+            key="soundcloud-import-panel"
+            {...modalPanelProps(prefersReducedMotion)}
+            style={{ transformOrigin: 'center' }}
+            className="glass-panel modal-content relative w-full max-sm:rounded-t-3xl max-sm:rounded-b-none sm:max-w-xl bg-[var(--elevation-2-bg,#0f121a)] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[85vh]"
+            onClick={(e) => e.stopPropagation()}
           >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto p-5 sm:p-6 custom-slim-scrollbar">
-          {/* STEP 1: Input URL */}
-          {step === 'input' && (
-            <form onSubmit={handleFetchPlaylist} className="flex flex-col gap-5 py-2">
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold text-slate-200">
-                  Dán link Playlist / Set hoặc Profile từ SoundCloud:
-                </label>
-                <div className="relative w-full">
-                  <input
-                    type="text"
-                    value={urlInput}
-                    onChange={(e) => setUrlInput(e.target.value)}
-                    placeholder="https://soundcloud.com/.../sets/... hoặc link on.soundcloud.com/..."
-                    className="w-full bg-white/[0.04] border border-white/10 focus:border-[var(--spotify-glow,#ff5500)]/60 rounded-2xl px-4 py-3.5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none transition-colors shadow-inner"
-                    autoFocus
-                  />
-                  {urlInput && (
-                    <button
-                      type="button"
-                      onClick={() => setUrlInput('')}
-                      className="absolute right-3.5 top-3.5 text-slate-400 hover:text-white p-0.5 rounded-full hover:bg-white/10"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
+            {/* Modal Top Header */}
+            <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-white/[0.08] bg-white/[0.02]">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[var(--spotify-glow,#ff7700)] to-[var(--primary-spotify,#ff5500)] text-black flex items-center justify-center shrink-0">
+                  <Cloud className="w-4 h-4" />
                 </div>
-                {inputError && (
-                  <div className="flex items-center gap-1.5 text-xs text-rose-400 mt-1 font-medium">
-                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                    <span>{inputError}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-[var(--spotify-glow,#ff5500)]/10 border border-[var(--spotify-glow,#ff5500)]/20 flex items-start gap-2.5 text-xs text-slate-300">
-                <div className="flex flex-col gap-1">
-                  <strong className="text-white font-bold">Hỗ trợ đầy đủ các định dạng link:</strong>
-                  <ul className="list-disc list-inside text-slate-400 space-y-0.5 text-[11px]">
-                    <li>Link Playlist/Set: <code>soundcloud.com/user/sets/playlist-name</code></li>
-                    <li>Link rút gọn trên mobile: <code>on.soundcloud.com/...</code></li>
-                    <li>Hỗ trợ trích xuất toàn bộ bài hát (bao gồm playlist 20 - 100+ bài).</li>
-                  </ul>
+                <div className="min-w-0">
+                  <h2 className="text-sm sm:text-base font-black text-white truncate">
+                    Nhập Playlist từ SoundCloud
+                  </h2>
+                  <p className="text-[11px] text-slate-400 truncate">
+                    Tự động trích xuất toàn bộ bài hát chất lượng cao từ SoundCloud
+                  </p>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2.5 rounded-xl font-bold text-xs text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={!urlInput.trim() || loadingMeta}
-                  className="px-6 py-2.5 rounded-xl font-bold text-xs text-black bg-gradient-to-r from-[var(--spotify-glow,#ff7700)] to-[var(--primary-spotify,#ff3300)] hover:brightness-110 active:scale-95 transition-[filter,transform,opacity] flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
-                >
-                  {loadingMeta ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Đang tải thông tin...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Tiếp tục</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* STEP 2: Fetching State */}
-          {step === 'fetching' && (
-            <div className="py-12 flex flex-col items-center justify-center gap-4 text-center">
-              <div className="relative">
-                <div className="w-16 h-16 rounded-full border-4 border-[var(--spotify-glow,#ff5500)]/20 border-t-[var(--spotify-glow,#ff5500)] animate-spin flex items-center justify-center" />
-                <Cloud className="w-6 h-6 text-[var(--spotify-glow,#ff7700)] absolute inset-0 m-auto" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-white mb-1">
-                  Đang phân giải Playlist SoundCloud...
-                </h3>
-                <p className="text-xs text-slate-400 max-w-sm">
-                  Hệ thống đang trích xuất danh sách bài hát và luồng phát âm thanh gốc.
-                </p>
-              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-white/10 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer shrink-0"
+                disabled={step === 'importing'}
+                aria-label="Đóng"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-          )}
 
-          {/* STEP 3: Review & Customization */}
-          {step === 'review' && playlistMeta && (
-            <div className="flex flex-col gap-4">
-              {/* Header Box */}
-              <div className="p-3 sm:p-4 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center gap-3.5">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-slate-900 border border-white/10 shrink-0">
-                  {playlistMeta.artwork_url ? (
-                    <img
-                      src={playlistMeta.artwork_url}
-                      alt={playlistMeta.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-[var(--spotify-glow,#ff5500)]/20 text-[var(--spotify-glow,#ff7700)]">
-                      <Cloud className="w-8 h-8" />
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6 custom-slim-scrollbar">
+              <AnimatePresence mode="wait" initial={false}>
+                {/* STEP 1: Input URL */}
+                {step === 'input' && (
+                  <motion.form
+                    key="input"
+                    {...stepSwapProps(prefersReducedMotion)}
+                    onSubmit={handleFetchPlaylist}
+                    className="flex flex-col gap-5 py-2"
+                  >
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-bold text-slate-200">
+                        Dán link Playlist / Set hoặc Profile từ SoundCloud:
+                      </label>
+                      <div className="relative w-full">
+                        <input
+                          type="text"
+                          value={urlInput}
+                          onChange={(e) => setUrlInput(e.target.value)}
+                          placeholder="https://soundcloud.com/.../sets/... hoặc link on.soundcloud.com/..."
+                          className="w-full bg-white/[0.04] border border-white/10 focus:border-[var(--spotify-glow,#ff5500)]/60 rounded-2xl px-4 py-3.5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none transition-colors shadow-inner"
+                          autoFocus
+                        />
+                        {urlInput && (
+                          <button
+                            type="button"
+                            onClick={() => setUrlInput('')}
+                            className="absolute right-3.5 top-3.5 text-slate-400 hover:text-white p-0.5 rounded-full hover:bg-white/10 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                      {inputError && (
+                        <div className="flex items-center gap-1.5 text-xs text-rose-400 mt-1 font-medium">
+                          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                          <span>{inputError}</span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                <div className="flex-1 min-w-0 flex flex-col gap-1">
-                  <div className="flex items-center gap-1.5 text-slate-400 text-[11px]">
-                    <User className="w-3 h-3" />
-                    <span className="truncate">{playlistMeta.user?.username || 'SoundCloud'}</span>
-                  </div>
+                    <div className="p-3.5 rounded-2xl bg-[var(--spotify-glow,#ff5500)]/10 border border-[var(--spotify-glow,#ff5500)]/20 flex items-start gap-2.5 text-xs text-slate-300">
+                      <div className="flex flex-col gap-1">
+                        <strong className="text-white font-bold">Hỗ trợ đầy đủ các định dạng link:</strong>
+                        <ul className="list-disc list-inside text-slate-400 space-y-0.5 text-[11px]">
+                          <li>Link Playlist/Set: <code>soundcloud.com/user/sets/playlist-name</code></li>
+                          <li>Link rút gọn trên mobile: <code>on.soundcloud.com/...</code></li>
+                          <li>Hỗ trợ trích xuất toàn bộ bài hát (bao gồm playlist 20 - 100+ bài).</li>
+                        </ul>
+                      </div>
+                    </div>
 
-                  <input
-                    type="text"
-                    value={playlistName}
-                    onChange={(e) => setPlaylistName(e.target.value)}
-                    placeholder="Tên playlist trong thư viện..."
-                    className="w-full bg-black/40 border border-white/10 focus:border-[var(--spotify-glow,#ff5500)]/60 rounded-lg px-2.5 py-1 text-xs sm:text-sm font-bold text-white outline-none"
-                  />
+                    <div className="flex items-center justify-end gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={onClose}
+                        className="px-4 py-2.5 rounded-xl font-bold text-xs text-slate-400 hover:text-white hover:bg-white/5 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={!urlInput.trim() || loadingMeta}
+                        className="px-6 py-2.5 rounded-xl font-bold text-xs text-black bg-gradient-to-r from-[var(--spotify-glow,#ff7700)] to-[var(--primary-spotify,#ff3300)] hover:brightness-110 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                      >
+                        {loadingMeta ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Đang tải thông tin...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>Tiếp tục</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </motion.form>
+                )}
 
-                  <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-0.5">
-                    <span>Tổng số: <strong className="text-white">{fetchedTracks.length}</strong> bài</span>
-                    <span>Đã chọn: <strong className="text-[var(--spotify-glow,#ff7700)]">{selectedTrackIds.size}</strong> bài</span>
-                  </div>
-                </div>
-              </div>
+                {/* STEP 2: Fetching State */}
+                {step === 'fetching' && (
+                  <motion.div
+                    key="fetching"
+                    {...stepSwapProps(prefersReducedMotion)}
+                    className="py-12 flex flex-col items-center justify-center gap-4 text-center"
+                  >
+                    <div className="relative">
+                      <div className="w-16 h-16 rounded-full border-4 border-[var(--spotify-glow,#ff5500)]/20 border-t-[var(--spotify-glow,#ff5500)] animate-spin flex items-center justify-center" />
+                      <Cloud className="w-6 h-6 text-[var(--spotify-glow,#ff7700)] absolute inset-0 m-auto" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white mb-1">
+                        Đang phân giải Playlist SoundCloud...
+                      </h3>
+                      <p className="text-xs text-slate-400 max-w-sm">
+                        Hệ thống đang trích xuất danh sách bài hát và luồng phát âm thanh gốc.
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
 
-              {/* Selection Bar */}
-              <div className="flex items-center justify-between px-1 text-xs">
-                <button
-                  type="button"
-                  onClick={toggleSelectAll}
-                  className="font-bold text-[var(--spotify-glow,#ff7700)] hover:underline"
-                >
-                  {selectedTrackIds.size === fetchedTracks.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả bài hát'}
-                </button>
-                <span className="text-[11px] text-slate-500">
-                  Thứ tự bài hát được giữ nguyên gốc
-                </span>
-              </div>
-
-              {/* Tracks List */}
-              <div className="flex flex-col gap-1 max-h-[300px] overflow-y-auto pr-1 custom-slim-scrollbar border border-white/[0.06] rounded-xl p-1.5 bg-black/20">
-                {fetchedTracks.map((tr, idx) => {
-                  const isSelected = selectedTrackIds.has(tr.id)
-                  return (
-                    <div
-                      key={tr.id}
-                      onClick={() => toggleSelectTrack(tr.id)}
-                      className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-[background-color,border-color,color] ${
-                        isSelected
-                          ? 'bg-[var(--primary-spotify)]/15 border border-[var(--primary-spotify)]/30 text-white'
-                          : 'hover:bg-white/[0.04] text-slate-400 border border-transparent'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div
-                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                            isSelected
-                              ? 'bg-[var(--primary-spotify)] border-[var(--primary-spotify)] text-black'
-                              : 'border-slate-500 bg-black/40'
-                          }`}
-                        >
-                          {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
-                        </div>
-
-                        <span className="text-[11px] text-slate-500 w-4 text-center shrink-0">
-                          {idx + 1}
-                        </span>
-
-                        <div className="w-8 h-8 rounded-md bg-slate-900 overflow-hidden shrink-0 border border-white/10">
-                          {tr.cover_url ? (
-                            <img src={tr.cover_url} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-slate-600 bg-white/5">
-                              <Music className="w-3.5 h-3.5" />
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-xs font-bold text-white truncate">
-                            {tr.title}
-                          </span>
-                          <span className="text-[10px] text-slate-400 truncate">
-                            {tr.artist}
-                          </span>
-                        </div>
+                {/* STEP 3: Review & Customization */}
+                {step === 'review' && playlistMeta && (
+                  <motion.div
+                    key="review"
+                    {...stepSwapProps(prefersReducedMotion)}
+                    className="flex flex-col gap-4"
+                  >
+                    {/* Header Box */}
+                    <div className="p-3 sm:p-4 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center gap-3.5">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-slate-900 border border-white/10 shrink-0">
+                        {playlistMeta.artwork_url ? (
+                          <img
+                            src={playlistMeta.artwork_url}
+                            alt={playlistMeta.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-[var(--spotify-glow,#ff5500)]/20 text-[var(--spotify-glow,#ff7700)]">
+                            <Cloud className="w-8 h-8" />
+                          </div>
+                        )}
                       </div>
 
-                      <span className="text-[11px] text-slate-500 font-mono shrink-0 ml-2">
-                        {formatSeconds(tr.duration)}
+                      <div className="flex-1 min-w-0 flex flex-col gap-1">
+                        <div className="flex items-center gap-1.5 text-slate-400 text-[11px]">
+                          <User className="w-3 h-3" />
+                          <span className="truncate">{playlistMeta.user?.username || 'SoundCloud'}</span>
+                        </div>
+
+                        <input
+                          type="text"
+                          value={playlistName}
+                          onChange={(e) => setPlaylistName(e.target.value)}
+                          placeholder="Tên playlist trong thư viện..."
+                          className="w-full bg-black/40 border border-white/10 focus:border-[var(--spotify-glow,#ff5500)]/60 rounded-lg px-2.5 py-1 text-xs sm:text-sm font-bold text-white outline-none"
+                        />
+
+                        <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-0.5">
+                          <span>Tổng số: <strong className="text-white">{fetchedTracks.length}</strong> bài</span>
+                          <span>Đã chọn: <strong className="text-[var(--spotify-glow,#ff7700)]">{selectedTrackIds.size}</strong> bài</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Selection Bar */}
+                    <div className="flex items-center justify-between px-1 text-xs">
+                      <button
+                        type="button"
+                        onClick={toggleSelectAll}
+                        className="font-bold text-[var(--spotify-glow,#ff7700)] hover:underline active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer"
+                      >
+                        {selectedTrackIds.size === fetchedTracks.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả bài hát'}
+                      </button>
+                      <span className="text-[11px] text-slate-500">
+                        Thứ tự bài hát được giữ nguyên gốc
                       </span>
                     </div>
-                  )
-                })}
-              </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center justify-between pt-3 border-t border-white/[0.06]">
-                <button
-                  type="button"
-                  onClick={() => setStep('input')}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white"
-                >
-                  ← Đổi link khác
-                </button>
+                    {/* Tracks List */}
+                    <div className="flex flex-col gap-1 max-h-[300px] overflow-y-auto pr-1 custom-slim-scrollbar border border-white/[0.06] rounded-xl p-1.5 bg-black/20">
+                      {fetchedTracks.map((tr, idx) => {
+                        const isSelected = selectedTrackIds.has(tr.id)
+                        return (
+                          <div
+                            key={tr.id}
+                            onClick={() => toggleSelectTrack(tr.id)}
+                            className={`flex items-center justify-between p-2 rounded-lg cursor-pointer active:scale-[0.98] transition-[transform,background-color,border-color,color] duration-150 ease-[var(--ease-out)] ${
+                              isSelected
+                                ? 'bg-[var(--primary-spotify)]/15 border border-[var(--primary-spotify)]/30 text-white'
+                                : 'hover:bg-white/[0.04] text-slate-400 border border-transparent'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div
+                                className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                                  isSelected
+                                    ? 'bg-[var(--primary-spotify)] border-[var(--primary-spotify)] text-black'
+                                    : 'border-slate-500 bg-black/40'
+                                }`}
+                              >
+                                {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                              </div>
 
-                <button
-                  type="button"
-                  onClick={handleConfirmImport}
-                  disabled={selectedTrackIds.size === 0}
-                  className="px-6 py-2.5 rounded-xl font-bold text-xs text-black bg-gradient-to-r from-[var(--spotify-glow,#ff7700)] to-[var(--primary-spotify,#ff3300)] hover:brightness-110 active:scale-95 transition-[filter,transform,opacity] flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
-                >
-                  <Check className="w-4 h-4" />
-                  <span>Tạo Playlist ({selectedTrackIds.size} bài)</span>
-                </button>
-              </div>
+                              <span className="text-[11px] text-slate-500 w-4 text-center shrink-0">
+                                {idx + 1}
+                              </span>
+
+                              <div className="w-8 h-8 rounded-md bg-slate-900 overflow-hidden shrink-0 border border-white/10">
+                                {tr.cover_url ? (
+                                  <img src={tr.cover_url} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-slate-600 bg-white/5">
+                                    <Music className="w-3.5 h-3.5" />
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs font-bold text-white truncate">
+                                  {tr.title}
+                                </span>
+                                <span className="text-[10px] text-slate-400 truncate">
+                                  {tr.artist}
+                                </span>
+                              </div>
+                            </div>
+
+                            <span className="text-[11px] text-slate-500 font-mono shrink-0 ml-2">
+                              {formatSeconds(tr.duration)}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center justify-between pt-3 border-t border-white/[0.06]">
+                      <button
+                        type="button"
+                        onClick={() => setStep('input')}
+                        className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer"
+                      >
+                        ← Đổi link khác
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleConfirmImport}
+                        disabled={selectedTrackIds.size === 0}
+                        className="px-6 py-2.5 rounded-xl font-bold text-xs text-black bg-gradient-to-r from-[var(--spotify-glow,#ff7700)] to-[var(--primary-spotify,#ff3300)] hover:brightness-110 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>Tạo Playlist ({selectedTrackIds.size} bài)</span>
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* STEP 4: Importing Progress */}
+                {step === 'importing' && (
+                  <motion.div
+                    key="importing"
+                    {...stepSwapProps(prefersReducedMotion)}
+                    className="py-10 flex flex-col items-center justify-center gap-5 text-center"
+                  >
+                    <div className="relative">
+                      <div className="w-16 h-16 rounded-full border-4 border-[var(--spotify-glow,#ff5500)]/20 border-t-[var(--spotify-glow,#ff5500)] animate-spin flex items-center justify-center" />
+                      <Cloud className="w-6 h-6 text-[var(--spotify-glow,#ff7700)] absolute inset-0 m-auto" />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <h3 className="text-base font-bold text-white">
+                        Đang nhập bài hát vào thư viện...
+                      </h3>
+                      <p className="text-xs text-slate-400">
+                        Đang lưu {importingProgress.done} / {importingProgress.total} bài hát
+                      </p>
+                    </div>
+
+                    {/* GPU-composited Progress Bar */}
+                    <div className="w-full max-w-md bg-white/10 rounded-full h-2.5 overflow-hidden">
+                      <div
+                        className="w-full h-full origin-left bg-gradient-to-r from-[var(--spotify-glow,#ff7700)] to-[var(--primary-spotify,#ff3300)] transition-transform duration-250 ease-[var(--ease-out)] rounded-full"
+                        style={{ transform: `scaleX(${importRatio})` }}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* STEP 5: Complete */}
+                {step === 'complete' && (
+                  <motion.div
+                    key="complete"
+                    {...stepSwapProps(prefersReducedMotion)}
+                    className="py-8 flex flex-col items-center justify-center gap-5 text-center"
+                  >
+                    <motion.div
+                      initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, transform: 'scale(0.9)' }}
+                      animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, transform: 'scale(1)' }}
+                      transition={prefersReducedMotion ? { duration: 0.16, ease: 'easeOut' } : SPRING_DELIGHT}
+                      className="w-16 h-16 rounded-full bg-[var(--primary-spotify,#06b6d4)]/20 border border-[var(--primary-spotify,#06b6d4)]/40 flex items-center justify-center text-[var(--spotify-glow,#22d3ee)] shadow-[0_0_25px_var(--theme-glow-shadow)]"
+                    >
+                      <CheckCircle2 className="w-8 h-8" />
+                    </motion.div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <h3 className="text-lg font-black text-white">
+                        Nhập Playlist thành công!
+                      </h3>
+                      <p className="text-xs text-slate-300 max-w-sm">
+                        Đã thêm thành công <strong className="text-[var(--spotify-glow,#22d3ee)] font-bold">{importedTrackCount}</strong> bài hát vào playlist <strong className="text-white font-bold">&quot;{playlistName}&quot;</strong> của bạn.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={onClose}
+                        className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-300 bg-white/10 hover:bg-white/20 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] cursor-pointer"
+                      >
+                        Đóng
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleGoToPlaylist}
+                        className="px-6 py-2.5 rounded-xl text-xs font-bold text-black bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--primary-spotify,#06b6d4)] shadow-[0_4px_15px_var(--theme-glow-shadow)] hover:brightness-110 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] flex items-center gap-2 cursor-pointer"
+                      >
+                        <ListMusic className="w-4 h-4" />
+                        <span>Xem Playlist vừa tạo</span>
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
-          )}
-
-          {/* STEP 4: Importing Progress */}
-          {step === 'importing' && (
-            <div className="py-10 flex flex-col items-center justify-center gap-5 text-center">
-              <div className="relative">
-                <div className="w-16 h-16 rounded-full border-4 border-[var(--spotify-glow,#ff5500)]/20 border-t-[var(--spotify-glow,#ff5500)] animate-spin flex items-center justify-center" />
-                <Cloud className="w-6 h-6 text-[var(--spotify-glow,#ff7700)] absolute inset-0 m-auto" />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <h3 className="text-base font-bold text-white">
-                  Đang nhập bài hát vào thư viện...
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Đang lưu {importingProgress.done} / {importingProgress.total} bài hát
-                </p>
-              </div>
-
-              {/* Progress Bar */}
-              <div className="w-full max-w-md bg-white/10 rounded-full h-2.5 overflow-hidden">
-                <div
-                  className="bg-gradient-to-r from-[var(--spotify-glow,#ff7700)] to-[var(--primary-spotify,#ff3300)] h-full transition-all duration-300"
-                  style={{
-                    width: `${Math.round((importingProgress.done / (importingProgress.total || 1)) * 100)}%`,
-                  }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* STEP 5: Complete */}
-          {step === 'complete' && (
-            <div className="py-8 flex flex-col items-center justify-center gap-5 text-center">
-              <div className="w-16 h-16 rounded-full bg-[var(--primary-spotify,#06b6d4)]/20 border border-[var(--primary-spotify,#06b6d4)]/40 flex items-center justify-center text-[var(--spotify-glow,#22d3ee)] shadow-[0_0_25px_var(--theme-glow-shadow)]">
-                <CheckCircle2 className="w-8 h-8" />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <h3 className="text-lg font-black text-white">
-                  Nhập Playlist thành công!
-                </h3>
-                <p className="text-xs text-slate-300 max-w-sm">
-                  Đã thêm thành công <strong className="text-[var(--spotify-glow,#22d3ee)] font-bold">{importedTrackCount}</strong> bài hát vào playlist <strong className="text-white font-bold">&quot;{playlistName}&quot;</strong> của bạn.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  onClick={onClose}
-                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-300 bg-white/10 hover:bg-white/20 transition-all"
-                >
-                  Đóng
-                </button>
-                <button
-                  onClick={handleGoToPlaylist}
-                  className="px-6 py-2.5 rounded-xl text-xs font-bold text-black bg-gradient-to-r from-[var(--spotify-glow,#22d3ee)] to-[var(--primary-spotify,#06b6d4)] shadow-[0_4px_15px_var(--theme-glow-shadow)] hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
-                >
-                  <ListMusic className="w-4 h-4" />
-                  <span>Xem Playlist vừa tạo</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>,
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
     document.body
   )
 }

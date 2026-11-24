@@ -1,8 +1,9 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   Home,
   Upload,
@@ -37,6 +38,7 @@ import { shouldCloseProfileMenu, shouldToggleProfileMenu } from './profileMenuIn
 import { LiquidNavBar } from './LiquidNavBar'
 import { getNextPlaylistRoute } from './playlistNavigation'
 import { useTheme } from '@/components/theme/ThemeContext'
+import { appleRubberband, popoverPanelProps } from '@/lib/motion'
 
 export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boolean }) {
   const { t } = useLanguage()
@@ -44,6 +46,7 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
   const isMinimalFlat = themeStyle === 'minimal-flat'
   const pathname = usePathname()
   const router = useRouter()
+  const prefersReducedMotion = useReducedMotion()
   const supabase = createClient()
   const { data: nextAuthSession } = useSession()
   const { userEmail } = useCurrentUser()
@@ -54,32 +57,134 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
   const [isScImportModalOpen, setIsScImportModalOpen] = useState(false)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
-  const [touchStartX, setTouchStartX] = useState<number | null>(null)
-  const [touchEndX, setTouchEndX] = useState<number | null>(null)
   const navBackBusyRef = useRef(false)
   const profileMenuRef = useRef<HTMLDivElement>(null)
   const profileTriggerRef = useRef<HTMLButtonElement>(null)
   const drawerNavRef = useRef<HTMLElement>(null)
-  const prevDrawerOpenRef = useRef(false)
+  const drawerRef = useRef<HTMLDivElement>(null)
+  const backdropRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef({
+    tracking: false,
+    active: false,
+    lockedAxis: null as 'x' | 'y' | null,
+    startX: 0,
+    startY: 0,
+    startTime: 0,
+    dx: 0,
+    width: 300,
+  })
+
+  // Clear inline drag styles right after React commits drawer open/close class changes
+  useLayoutEffect(() => {
+    if (drawerRef.current) {
+      drawerRef.current.style.transition = ''
+      drawerRef.current.style.transform = ''
+    }
+    if (backdropRef.current) {
+      backdropRef.current.style.transition = ''
+      backdropRef.current.style.opacity = ''
+    }
+  }, [isDrawerOpen])
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStartX(e.targetTouches[0].clientX)
-    setTouchEndX(null)
+    if (!isDrawerOpen) return
+    const touch = e.targetTouches[0]
+    if (!touch) return
+    dragRef.current = {
+      tracking: true,
+      active: false,
+      lockedAxis: null,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      startTime: performance.now(),
+      dx: 0,
+      width: drawerRef.current?.offsetWidth || 300,
+    }
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    setTouchEndX(e.targetTouches[0].clientX)
+    const drag = dragRef.current
+    if (!drag.tracking) return
+    const touch = e.targetTouches[0]
+    if (!touch) return
+
+    const rawDx = touch.clientX - drag.startX
+    const rawDy = touch.clientY - drag.startY
+
+    if (drag.lockedAxis === null) {
+      if (Math.abs(rawDx) < 6 && Math.abs(rawDy) < 6) return
+      if (Math.abs(rawDy) > Math.abs(rawDx)) {
+        drag.lockedAxis = 'y'
+        drag.tracking = false
+        return
+      }
+      drag.lockedAxis = 'x'
+      drag.active = true
+      if (drawerRef.current) drawerRef.current.style.transition = 'none'
+      if (backdropRef.current) backdropRef.current.style.transition = 'none'
+    }
+
+    if (drag.lockedAxis !== 'x') return
+
+    const dx =
+      rawDx <= 0
+        ? Math.max(-drag.width, rawDx)
+        : appleRubberband(rawDx, drag.width, 0.55)
+    drag.dx = dx
+
+    if (drawerRef.current && !prefersReducedMotion) {
+      drawerRef.current.style.transform = `translate3d(${dx}px, 0, 0)`
+    }
+    if (backdropRef.current) {
+      const progress = Math.max(0, Math.min(1, 1 + dx / drag.width))
+      backdropRef.current.style.opacity = String(progress)
+    }
   }
 
   const handleTouchEnd = () => {
-    if (touchStartX !== null && touchEndX !== null) {
-      const distance = touchEndX - touchStartX
-      if (Math.abs(distance) > 40) {
-        setIsDrawerOpen(false)
+    const drag = dragRef.current
+    if (!drag.tracking && !drag.active) return
+
+    const { active, dx, startTime } = drag
+    drag.tracking = false
+    drag.active = false
+    drag.lockedAxis = null
+    drag.dx = 0
+
+    if (!active) return
+
+    const elapsedMs = Math.max(1, performance.now() - startTime)
+    const shouldDismiss = -dx > 80 || (-dx > 20 && -dx / elapsedMs > 0.11)
+
+    if (shouldDismiss) {
+      setIsDrawerOpen(false)
+    } else {
+      if (drawerRef.current) {
+        drawerRef.current.style.transition = ''
+        drawerRef.current.style.transform = ''
+      }
+      if (backdropRef.current) {
+        backdropRef.current.style.transition = ''
+        backdropRef.current.style.opacity = ''
       }
     }
-    setTouchStartX(null)
-    setTouchEndX(null)
+  }
+
+  const getDrawerItemMotionStyle = (index: number): React.CSSProperties => {
+    const delayMs = isDrawerOpen ? Math.min(index * 22, 180) : 0
+    if (prefersReducedMotion) {
+      return {
+        opacity: isDrawerOpen ? 1 : 0,
+        transition: isDrawerOpen ? 'opacity 160ms var(--ease-out)' : 'opacity 0ms linear',
+      }
+    }
+    return {
+      opacity: isDrawerOpen ? 1 : 0,
+      transform: isDrawerOpen ? 'translate3d(0, 0, 0)' : 'translate3d(-10px, 0, 0)',
+      transition: isDrawerOpen
+        ? `opacity 200ms var(--ease-out) ${delayMs}ms, transform 220ms var(--ease-out) ${delayMs}ms`
+        : 'opacity 0ms linear, transform 0ms linear',
+    }
   }
 
   useEffect(() => {
@@ -110,28 +215,6 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
     window.addEventListener('musicweb-toggle-drawer', handleToggleDrawer)
     return () => window.removeEventListener('musicweb-toggle-drawer', handleToggleDrawer)
   }, [])
-
-  // Stagger animation for drawer items
-  useEffect(() => {
-    if (isDrawerOpen && !prevDrawerOpenRef.current && drawerNavRef.current) {
-      // Drawer just opened — apply stagger animation
-      const items = drawerNavRef.current.querySelectorAll('.sidebar-item')
-      items.forEach((item, idx) => {
-        const el = item as HTMLElement
-        el.style.opacity = '0'
-        el.style.animation = `drawerItemSlideIn 250ms var(--ease-out-strong, cubic-bezier(0.23,1,0.32,1)) ${idx * 40}ms forwards`
-      })
-    } else if (!isDrawerOpen && prevDrawerOpenRef.current && drawerNavRef.current) {
-      // Drawer closing — clear animation for re-trigger
-      const items = drawerNavRef.current.querySelectorAll('.sidebar-item')
-      items.forEach((item) => {
-        const el = item as HTMLElement
-        el.style.animation = ''
-        el.style.opacity = ''
-      })
-    }
-    prevDrawerOpenRef.current = isDrawerOpen
-  }, [isDrawerOpen])
 
   const user = userEmail
     ? {
@@ -184,6 +267,8 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
     }
   }, [pathname, playlists, router])
 
+  const userIsAdmin = isAdmin(user?.email)
+
   return (
     <>
       {/* 📱 Mobile Top Header Bar (< 768px) - Hidden when using MobileScrollHeader */}
@@ -192,6 +277,7 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
         <div className="flex items-center gap-2 shrink-0 z-10">
           {pathname !== '/' && (
             <button
+              type="button"
               onClick={() => {
                 if (navBackBusyRef.current) return
                 navBackBusyRef.current = true
@@ -204,15 +290,16 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
                   navBackBusyRef.current = false
                 }, 500)
               }}
-              className="p-2 text-slate-300 hover:text-white rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] active:scale-95 transition-all shrink-0 backdrop-blur-md"
+              className="p-2 text-slate-300 hover:text-white rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] active:scale-[0.97] transition-[transform,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] shrink-0 backdrop-blur-md"
               title="Quay lại"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
           )}
           <button
+            type="button"
             onClick={() => setIsDrawerOpen(true)}
-            className="p-2 text-slate-300 hover:text-white rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] active:scale-95 transition-all shrink-0 backdrop-blur-md"
+            className="p-2 text-slate-300 hover:text-white rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] active:scale-[0.97] transition-[transform,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] shrink-0 backdrop-blur-md"
             title="Menu"
           >
             <Menu className="w-5 h-5" />
@@ -227,14 +314,14 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
               clearSearch()
               window.dispatchEvent(new Event('musicweb-tab-home'))
             }}
-            className="sidebar-logo-plaque pointer-events-auto flex items-center justify-center px-3.5 py-1.5 rounded-2xl group cursor-pointer bg-white/[0.025] border border-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md"
+            className="sidebar-logo-plaque pointer-events-auto flex items-center justify-center px-3.5 py-1.5 rounded-2xl group cursor-pointer bg-white/[0.025] border border-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md active:scale-[0.97]"
             title="MusicWeb"
           >
             <div className="flex items-center justify-center h-7.5 xs:h-8 shrink-0">
               <img
                 src="/phong-signature.png"
                 alt="MusicWeb Logo"
-                className="h-7.5 xs:h-8 w-auto object-contain signature-img-invert group-hover:scale-[1.03] transition-transform"
+                className="h-7.5 xs:h-8 w-auto object-contain signature-img-invert"
               />
             </div>
           </Link>
@@ -245,7 +332,7 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
       </div>
       )}
 
-      {/* 📱 Mobile Bottom Navigation Bar (< 768px) — Liquid Glass */}
+      {/* 📱 Mobile Bottom Navigation Bar (< 768px) - Liquid Glass */}
       <LiquidNavBar
         tabs={[
           { id: 'home', label: t('home'), icon: 'Home', href: '/' },
@@ -270,11 +357,13 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
 
       {/* 📱 Mobile Slide Drawer Navigation (from left, with backdrop) */}
       <div
+        ref={backdropRef}
         onClick={() => setIsDrawerOpen(false)}
         className={`mobile-drawer-backdrop lg:hidden z-[95] ${isDrawerOpen ? 'open' : ''}`}
       />
 
       <div
+        ref={drawerRef}
         className={`mobile-drawer lg:hidden z-[100] border-r ${
           isMinimalFlat ? 'border-[rgba(244,236,230,0.12)]' : 'border-white/10'
         } ${isDrawerOpen ? 'open' : ''}`}
@@ -284,6 +373,7 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
           className="h-full px-5 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] flex flex-col justify-between overflow-y-auto select-none touch-pan-y"
         >
           <div className="flex flex-col gap-5">
@@ -302,8 +392,9 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setIsDrawerOpen(false)}
-                className={`w-10 h-10 flex items-center justify-center active:scale-95 transition-all ${
+                className={`w-10 h-10 flex items-center justify-center active:scale-[0.97] transition-[transform,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] ${
                   isMinimalFlat
                     ? 'text-[#B9AC9C] hover:text-[#F4ECE1] rounded-[10px] bg-[#251E29] border border-[rgba(244,236,230,0.12)]'
                     : 'text-slate-400 hover:text-white rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
@@ -316,120 +407,138 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
 
             {/* Navigation links */}
             <nav ref={drawerNavRef} className="flex flex-col gap-1">
-              <Link
-                href="/"
-                prefetch={false}
-                onClick={() => {
-                  clearSearch()
-                  window.dispatchEvent(new Event('musicweb-tab-home'))
-                  setIsDrawerOpen(false)
-                }}
-                className={`sidebar-item text-xs font-semibold ${pathname === '/' ? 'active' : ''}`}
-              >
-                <Home className="w-4 h-4" />
-                <span>{t('home')}</span>
-              </Link>
-
-              <Link
-                href="/albums"
-                prefetch={false}
-                onClick={() => setIsDrawerOpen(false)}
-                className={`sidebar-item text-xs font-semibold ${
-                  pathname === '/albums' || pathname.startsWith('/album/') ? 'active' : ''
-                }`}
-              >
-                <DiscAlbum className="w-4 h-4" />
-                <span>{t('albums')}</span>
-              </Link>
-
-              <Link
-                href="/soundcloud"
-                prefetch={false}
-                onClick={() => setIsDrawerOpen(false)}
-                className={`sidebar-item text-xs font-semibold ${
-                  pathname === '/soundcloud' ? 'active' : ''
-                }`}
-              >
-                <Cloud className="w-4 h-4 text-[#ff7700]" />
-                <div className="flex items-center justify-between flex-1">
-                  <span>SoundCloud</span>
-                  <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/35">
-                    HOT
-                  </span>
-                </div>
-              </Link>
-
-              <Link
-                href="/drive"
-                prefetch={false}
-                onClick={() => setIsDrawerOpen(false)}
-                className={`sidebar-item text-xs font-semibold ${pathname === '/drive' ? 'active' : ''}`}
-              >
-                <FolderArchive className="w-4 h-4 text-[#22c55e]" />
-                <div className="flex items-center justify-between flex-1">
-                  <span>{t('drive')}</span>
-                  <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-[#22c55e]/20 text-[#22c55e] border border-[#22c55e]/35">
-                    CLOUD
-                  </span>
-                </div>
-              </Link>
-
-              <Link
-                href="/favorites"
-                prefetch={false}
-                onClick={() => setIsDrawerOpen(false)}
-                className={`sidebar-item text-xs font-semibold ${pathname === '/favorites' ? 'active' : ''}`}
-              >
-                <Heart className="w-4 h-4" />
-                <span>{t('favorites_mobile') || t('favorites')}</span>
-              </Link>
-
-              <Link
-                href="/history"
-                prefetch={false}
-                onClick={() => setIsDrawerOpen(false)}
-                className={`sidebar-item text-xs font-semibold ${pathname === '/history' ? 'active' : ''}`}
-              >
-                <History className="w-4 h-4" />
-                <span>{t('history')}</span>
-              </Link>
-
-              <Link
-                href="/receipt"
-                prefetch={false}
-                onClick={() => setIsDrawerOpen(false)}
-                className={`sidebar-item text-xs font-semibold ${pathname === '/receipt' ? 'active' : ''}`}
-              >
-                <Receipt className="w-4 h-4 text-amber-400" />
-                <div className="flex items-center justify-between flex-1">
-                  <span>{t('receipt')}</span>
-                  <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                    NEW
-                  </span>
-                </div>
-              </Link>
-
-              {isAdmin(user?.email) && (
+              <div style={getDrawerItemMotionStyle(0)}>
                 <Link
-                  href="/upload"
+                  href="/"
+                  prefetch={false}
+                  onClick={() => {
+                    clearSearch()
+                    window.dispatchEvent(new Event('musicweb-tab-home'))
+                    setIsDrawerOpen(false)
+                  }}
+                  className={`sidebar-item text-xs font-semibold ${pathname === '/' ? 'active' : ''}`}
+                >
+                  <Home className="w-4 h-4" />
+                  <span>{t('home')}</span>
+                </Link>
+              </div>
+
+              <div style={getDrawerItemMotionStyle(1)}>
+                <Link
+                  href="/albums"
                   prefetch={false}
                   onClick={() => setIsDrawerOpen(false)}
-                  className={`sidebar-item text-xs font-semibold ${pathname === '/upload' ? 'active' : ''}`}
+                  className={`sidebar-item text-xs font-semibold ${
+                    pathname === '/albums' || pathname.startsWith('/album/') ? 'active' : ''
+                  }`}
                 >
-                  <Upload className="w-4 h-4" />
-                  <span>{t('upload')}</span>
+                  <DiscAlbum className="w-4 h-4" />
+                  <span>{t('albums')}</span>
                 </Link>
+              </div>
+
+              <div style={getDrawerItemMotionStyle(2)}>
+                <Link
+                  href="/soundcloud"
+                  prefetch={false}
+                  onClick={() => setIsDrawerOpen(false)}
+                  className={`sidebar-item text-xs font-semibold ${
+                    pathname === '/soundcloud' ? 'active' : ''
+                  }`}
+                >
+                  <Cloud className="w-4 h-4 text-[#ff7700]" />
+                  <div className="flex items-center justify-between flex-1">
+                    <span>SoundCloud</span>
+                    <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-[#ff5500]/20 text-[#ff7700] border border-[#ff5500]/35">
+                      HOT
+                    </span>
+                  </div>
+                </Link>
+              </div>
+
+              <div style={getDrawerItemMotionStyle(3)}>
+                <Link
+                  href="/drive"
+                  prefetch={false}
+                  onClick={() => setIsDrawerOpen(false)}
+                  className={`sidebar-item text-xs font-semibold ${pathname === '/drive' ? 'active' : ''}`}
+                >
+                  <FolderArchive className="w-4 h-4 text-[#22c55e]" />
+                  <div className="flex items-center justify-between flex-1">
+                    <span>{t('drive')}</span>
+                    <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-[#22c55e]/20 text-[#22c55e] border border-[#22c55e]/35">
+                      CLOUD
+                    </span>
+                  </div>
+                </Link>
+              </div>
+
+              <div style={getDrawerItemMotionStyle(4)}>
+                <Link
+                  href="/favorites"
+                  prefetch={false}
+                  onClick={() => setIsDrawerOpen(false)}
+                  className={`sidebar-item text-xs font-semibold ${pathname === '/favorites' ? 'active' : ''}`}
+                >
+                  <Heart className="w-4 h-4" />
+                  <span>{t('favorites_mobile') || t('favorites')}</span>
+                </Link>
+              </div>
+
+              <div style={getDrawerItemMotionStyle(5)}>
+                <Link
+                  href="/history"
+                  prefetch={false}
+                  onClick={() => setIsDrawerOpen(false)}
+                  className={`sidebar-item text-xs font-semibold ${pathname === '/history' ? 'active' : ''}`}
+                >
+                  <History className="w-4 h-4" />
+                  <span>{t('history')}</span>
+                </Link>
+              </div>
+
+              <div style={getDrawerItemMotionStyle(6)}>
+                <Link
+                  href="/receipt"
+                  prefetch={false}
+                  onClick={() => setIsDrawerOpen(false)}
+                  className={`sidebar-item text-xs font-semibold ${pathname === '/receipt' ? 'active' : ''}`}
+                >
+                  <Receipt className="w-4 h-4 text-amber-400" />
+                  <div className="flex items-center justify-between flex-1">
+                    <span>{t('receipt')}</span>
+                    <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                      NEW
+                    </span>
+                  </div>
+                </Link>
+              </div>
+
+              {userIsAdmin && (
+                <div style={getDrawerItemMotionStyle(7)}>
+                  <Link
+                    href="/upload"
+                    prefetch={false}
+                    onClick={() => setIsDrawerOpen(false)}
+                    className={`sidebar-item text-xs font-semibold ${pathname === '/upload' ? 'active' : ''}`}
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>{t('upload')}</span>
+                  </Link>
+                </div>
               )}
 
-              <Link
-                href="/settings"
-                prefetch={false}
-                onClick={() => setIsDrawerOpen(false)}
-                className={`sidebar-item text-xs font-semibold ${pathname === '/settings' ? 'active' : ''}`}
-              >
-                <Settings className="w-4 h-4" />
-                <span>{t('settings')}</span>
-              </Link>
+              <div style={getDrawerItemMotionStyle(userIsAdmin ? 8 : 7)}>
+                <Link
+                  href="/settings"
+                  prefetch={false}
+                  onClick={() => setIsDrawerOpen(false)}
+                  className={`sidebar-item text-xs font-semibold ${pathname === '/settings' ? 'active' : ''}`}
+                >
+                  <Settings className="w-4 h-4" />
+                  <span>{t('settings')}</span>
+                </Link>
+              </div>
             </nav>
 
               {/* Playlists in drawer */}
@@ -444,39 +553,43 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
                       : 'bg-white/[0.03] border border-white/[0.08] shadow-inner'
                   }`}>
                     <button
+                      type="button"
                       onClick={() => {
                         setIsDrawerOpen(false)
                         setIsImportModalOpen(true)
                       }}
-                      className="w-7 h-7 rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/20 flex items-center justify-center transition-all"
+                      className="w-7 h-7 rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/20 flex items-center justify-center active:scale-[0.97] transition-[transform,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)]"
                       title="Nhập Playlist từ Spotify"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
                     </button>
                     <button
+                      type="button"
                       onClick={() => {
                         setIsDrawerOpen(false)
                         setIsYtImportModalOpen(true)
                       }}
-                      className="w-7 h-7 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/20 flex items-center justify-center transition-all"
+                      className="w-7 h-7 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/20 flex items-center justify-center active:scale-[0.97] transition-[transform,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)]"
                       title="Nhập Playlist từ YouTube Music"
                     >
                       <YoutubeIcon className="w-3.5 h-3.5" />
                     </button>
                     <button
+                      type="button"
                       onClick={() => {
                         setIsDrawerOpen(false)
                         setIsScImportModalOpen(true)
                       }}
-                      className="w-7 h-7 rounded-lg text-[#ff7700] hover:text-[#ff5500] hover:bg-[#ff5500]/20 flex items-center justify-center transition-all"
+                      className="w-7 h-7 rounded-lg text-[#ff7700] hover:text-[#ff5500] hover:bg-[#ff5500]/20 flex items-center justify-center active:scale-[0.97] transition-[transform,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)]"
                       title="Nhập Playlist từ SoundCloud"
                     >
                       <Cloud className="w-3.5 h-3.5" />
                     </button>
                     <div className="w-[1px] h-3 bg-white/10 my-auto mx-0.5" />
                     <button
+                      type="button"
                       onClick={handleCreatePlaylist}
-                      className="w-7 h-7 rounded-lg text-[var(--spotify-glow,#22d3ee)] hover:text-white hover:bg-[var(--primary-spotify)]/20 flex items-center justify-center transition-all"
+                      className="w-7 h-7 rounded-lg text-[var(--spotify-glow,#22d3ee)] hover:text-white hover:bg-[var(--primary-spotify)]/20 flex items-center justify-center active:scale-[0.97] transition-[transform,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)]"
                       title="Tạo Playlist mới"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -496,8 +609,9 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
                     >
                       <span className="truncate flex-1">{pl.name}</span>
                       <button
+                        type="button"
                         onClick={(e) => handleDeletePlaylist(e, pl.id, pl.name)}
-                        className="p-2 text-slate-500 hover:text-red-400 opacity-60"
+                        className="p-2 text-slate-500 hover:text-red-400 opacity-60 active:scale-[0.97] transition-[transform,color,opacity] duration-150 ease-[var(--ease-out)]"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -518,7 +632,7 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
                     aria-expanded={isProfileMenuOpen}
                     aria-controls="mobile-profile-menu"
                     aria-label="Mở menu tài khoản"
-                    className={`w-full min-h-11 flex items-center gap-2.5 rounded-xl px-2 text-left active:scale-[0.99] transition-all ${
+                    className={`w-full min-h-11 flex items-center gap-2.5 rounded-xl px-2 text-left active:scale-[0.97] transition-[transform,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] ${
                       isMinimalFlat ? 'hover:bg-[#251E29]' : 'hover:bg-white/[0.06]'
                     }`}
                   >
@@ -541,40 +655,44 @@ export function MobileHeaderNav({ hideTopHeader = false }: { hideTopHeader?: boo
                       {user.user_metadata?.full_name || user.email?.split('@')[0]}
                     </span>
                   </button>
-                  {isProfileMenuOpen && (
-                    <div
-                      ref={profileMenuRef}
-                      id="mobile-profile-menu"
-                      role="menu"
-                      className={`absolute bottom-full left-0 right-0 mb-2 p-2 shadow-2xl z-50 ${
-                        isMinimalFlat
-                          ? 'rounded-[14px] border border-[rgba(244,236,230,0.14)] bg-[#1D1720]'
-                          : 'rounded-2xl border border-white/[0.14] bg-[var(--elevation-3-bg,#111827)]/95 backdrop-blur-xl'
-                      }`}
-                    >
-                      <div className={`px-3 py-2 border-b ${isMinimalFlat ? 'border-[rgba(244,236,230,0.08)]' : 'border-white/[0.08]'}`}>
-                        <p className={`text-sm font-bold truncate ${isMinimalFlat ? 'text-[#F4ECE1]' : 'text-white'}`}>
-                          {user.user_metadata?.full_name || user.email?.split('@')[0]}
-                        </p>
-                        <p className={`text-[11px] truncate mt-0.5 ${isMinimalFlat ? 'text-[#B9AC9C]' : 'text-slate-300'}`}>{user.email}</p>
-                      </div>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={handleLogout}
-                        className="w-full min-h-11 mt-1 flex items-center gap-2 rounded-xl px-3 text-sm font-semibold text-rose-300 hover:bg-rose-500/10 transition-colors"
+                  <AnimatePresence>
+                    {isProfileMenuOpen && (
+                      <motion.div
+                        key="mobile-profile-menu"
+                        ref={profileMenuRef}
+                        id="mobile-profile-menu"
+                        role="menu"
+                        {...popoverPanelProps(prefersReducedMotion, 'up')}
+                        className={`origin-bottom absolute bottom-full left-0 right-0 mb-2 p-2 shadow-2xl z-50 ${
+                          isMinimalFlat
+                            ? 'rounded-[14px] border border-[rgba(244,236,230,0.14)] bg-[#1D1720]'
+                            : 'rounded-2xl border border-white/[0.14] bg-[var(--elevation-3-bg,#111827)]/95 backdrop-blur-xl'
+                        }`}
                       >
-                        <LogOut className="w-4 h-4" />
-                        <span>Đăng xuất</span>
-                      </button>
-                    </div>
-                  )}
+                        <div className={`px-3 py-2 border-b ${isMinimalFlat ? 'border-[rgba(244,236,230,0.08)]' : 'border-white/[0.08]'}`}>
+                          <p className={`text-sm font-bold truncate ${isMinimalFlat ? 'text-[#F4ECE1]' : 'text-white'}`}>
+                            {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                          </p>
+                          <p className={`text-[11px] truncate mt-0.5 ${isMinimalFlat ? 'text-[#B9AC9C]' : 'text-slate-300'}`}>{user.email}</p>
+                        </div>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={handleLogout}
+                          className="w-full min-h-11 mt-1 flex items-center gap-2 rounded-xl px-3 text-sm font-semibold text-rose-300 hover:bg-rose-500/10 active:scale-[0.97] transition-[transform,background-color,color] duration-150 ease-[var(--ease-out)]"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          <span>Đăng xuất</span>
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               ) : (
                 <Link
                   href="/login"
                   onClick={() => setIsDrawerOpen(false)}
-                  className={`block text-center py-2 text-xs font-bold rounded-xl ${
+                  className={`block text-center py-2 text-xs font-bold rounded-xl active:scale-[0.97] transition-[transform,background-color,color] duration-150 ease-[var(--ease-out)] ${
                     isMinimalFlat ? 'bg-[#E8A94F] text-[#141017]' : 'bg-[var(--primary-spotify,#06b6d4)] text-black'
                   }`}
                 >
