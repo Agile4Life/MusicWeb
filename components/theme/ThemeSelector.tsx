@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useRef } from 'react'
+import { useReducedMotion } from 'framer-motion'
 import { useTheme, THEMES, ThemeId } from './ThemeContext'
 import { Palette, Check, MousePointer, Sliders, Eye, Waves, Disc, Layers } from 'lucide-react'
 import { useLanguage } from '@/components/i18n/LanguageContext'
@@ -27,20 +28,40 @@ export function ThemeSelector() {
     { id: 'shader', name: 'Shader SDF (Chất lỏng)', desc: 'Hiệu ứng sóng lỏng procedural' },
   ]
 
-  const [previewOffset, setPreviewOffset] = useState({ x: 0, y: 0, rotateX: 0, rotateY: 0 })
-  const [isPreviewHovered, setIsPreviewHovered] = useState(false)
+  const reduced = useReducedMotion()
+  const cardRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (reduced || liquidGlassConfig?.elasticInteraction === false) {
+      if (cardRef.current) {
+        cardRef.current.style.transition = ''
+        cardRef.current.style.transform = 'none'
+      }
+    }
+  }, [reduced, liquidGlassConfig?.elasticInteraction])
 
   const handlePreviewMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (liquidGlassConfig?.elasticInteraction === false) return
+    if (reduced || liquidGlassConfig?.elasticInteraction === false) return
+    if (
+      typeof window !== 'undefined' &&
+      !window.matchMedia('(hover: hover) and (pointer: fine)').matches
+    ) {
+      return
+    }
+    const card = cardRef.current
+    if (!card) return
     const rect = e.currentTarget.getBoundingClientRect()
     const x = (e.clientX - rect.left) / rect.width - 0.5
     const y = (e.clientY - rect.top) / rect.height - 0.5
-    setPreviewOffset({
-      x: x * 18,
-      y: y * 18,
-      rotateX: -y * 16,
-      rotateY: x * 16,
-    })
+    card.style.transition = 'transform 80ms cubic-bezier(0.23, 1, 0.32, 1)'
+    card.style.transform = `perspective(700px) rotateX(${(-y * 16).toFixed(2)}deg) rotateY(${(x * 16).toFixed(2)}deg) translate3d(${(x * 18).toFixed(2)}px, ${(y * 18).toFixed(2)}px, 0)`
+  }
+
+  const handlePreviewMouseLeave = () => {
+    const card = cardRef.current
+    if (!card) return
+    card.style.transition = 'transform 240ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1))'
+    card.style.transform = 'perspective(700px) rotateX(0deg) rotateY(0deg) translate3d(0px, 0px, 0)'
   }
 
   return (
@@ -63,7 +84,7 @@ export function ThemeSelector() {
                   }
                 : undefined
             }
-            className={`relative flex items-center gap-3.5 p-4 rounded-2xl transition-colors cursor-pointer text-left border ${
+            className={`relative flex items-center gap-3.5 p-4 rounded-2xl transition-[transform,box-shadow,background-color,border-color] duration-150 ease-[var(--ease-out)] active:scale-[0.98] cursor-pointer text-left border ${
               themeStyle === 'liquid-glass'
                 ? 'border-transparent bg-gradient-to-br from-white/[0.12] to-white/[0.04] backdrop-blur-xl'
                 : 'border-white/[0.06] bg-[var(--elevation-2-bg)] hover:bg-white/[0.06] hover:border-white/15'
@@ -76,14 +97,17 @@ export function ThemeSelector() {
               <p className="font-bold text-xs text-white truncate">Liquid Glass</p>
               <p className="text-[11px] text-slate-400 truncate">Kính khúc xạ nhiều lớp</p>
             </div>
-            {themeStyle === 'liquid-glass' && (
-              <div
-                className="w-4 h-4 rounded-full flex items-center justify-center text-black shrink-0"
-                style={{ backgroundColor: currentTheme.accentColor }}
-              >
-                <Check className="w-2.5 h-2.5 stroke-[3]" />
-              </div>
-            )}
+            <div
+              aria-hidden={themeStyle !== 'liquid-glass'}
+              className={`w-4 h-4 rounded-full flex items-center justify-center text-black shrink-0 transition-[opacity,transform] duration-[180ms] ease-[var(--ease-out)] ${
+                themeStyle === 'liquid-glass'
+                  ? 'opacity-100 scale-100'
+                  : 'opacity-0 scale-[0.85] pointer-events-none'
+              }`}
+              style={{ backgroundColor: currentTheme.accentColor }}
+            >
+              <Check className="w-2.5 h-2.5 stroke-[3]" />
+            </div>
           </button>
 
           {/* Classic Dark Option */}
@@ -96,7 +120,7 @@ export function ThemeSelector() {
                   }
                 : undefined
             }
-            className={`relative flex items-center gap-3.5 p-4 rounded-2xl transition-colors cursor-pointer text-left border ${
+            className={`relative flex items-center gap-3.5 p-4 rounded-2xl transition-[transform,box-shadow,background-color,border-color] duration-150 ease-[var(--ease-out)] active:scale-[0.98] cursor-pointer text-left border ${
               themeStyle === 'classic'
                 ? 'border-transparent bg-[var(--elevation-2-bg)]'
                 : 'border-white/[0.06] bg-[var(--elevation-2-bg)] hover:bg-white/[0.06] hover:border-white/15'
@@ -109,22 +133,32 @@ export function ThemeSelector() {
               <p className="font-bold text-xs text-white truncate">Classic Dark</p>
               <p className="text-[11px] text-slate-400 truncate">Nền tối hiện đại</p>
             </div>
-            {themeStyle === 'classic' && (
-              <div
-                className="w-4 h-4 rounded-full flex items-center justify-center text-black shrink-0"
-                style={{ backgroundColor: currentTheme.accentColor }}
-              >
-                <Check className="w-2.5 h-2.5 stroke-[3]" />
-              </div>
-            )}
+            <div
+              aria-hidden={themeStyle !== 'classic'}
+              className={`w-4 h-4 rounded-full flex items-center justify-center text-black shrink-0 transition-[opacity,transform] duration-[180ms] ease-[var(--ease-out)] ${
+                themeStyle === 'classic'
+                  ? 'opacity-100 scale-100'
+                  : 'opacity-0 scale-[0.85] pointer-events-none'
+              }`}
+              style={{ backgroundColor: currentTheme.accentColor }}
+            >
+              <Check className="w-2.5 h-2.5 stroke-[3]" />
+            </div>
           </button>
 
           {/* Minimal Editorial Option */}
           <button
             onClick={() => setThemeStyle('minimal-flat')}
-            className={`relative flex items-center gap-3.5 p-4 rounded-2xl transition-colors cursor-pointer text-left border ${
+            style={
               themeStyle === 'minimal-flat'
-                ? 'border-[#E8A94F] ring-1 ring-[#E8A94F] bg-[#1D1720] text-[#F4ECE1]'
+                ? {
+                    boxShadow: '0 0 0 2px #E8A94F',
+                  }
+                : undefined
+            }
+            className={`relative flex items-center gap-3.5 p-4 rounded-2xl transition-[transform,box-shadow,background-color,border-color] duration-150 ease-[var(--ease-out)] active:scale-[0.98] cursor-pointer text-left border ${
+              themeStyle === 'minimal-flat'
+                ? 'border-transparent bg-[#1D1720] text-[#F4ECE1]'
                 : 'border-white/[0.06] bg-[var(--elevation-2-bg)] hover:bg-white/[0.06] hover:border-white/15'
             }`}
           >
@@ -137,11 +171,16 @@ export function ThemeSelector() {
               </p>
               <p className="text-[11px] text-slate-400 truncate">Phẳng tối giản Vinyl</p>
             </div>
-            {themeStyle === 'minimal-flat' && (
-              <div className="w-4 h-4 rounded-full flex items-center justify-center text-[#141017] bg-[#E8A94F] shrink-0">
-                <Check className="w-2.5 h-2.5 stroke-[3]" />
-              </div>
-            )}
+            <div
+              aria-hidden={themeStyle !== 'minimal-flat'}
+              className={`w-4 h-4 rounded-full flex items-center justify-center text-[#141017] bg-[#E8A94F] shrink-0 transition-[opacity,transform] duration-[180ms] ease-[var(--ease-out)] ${
+                themeStyle === 'minimal-flat'
+                  ? 'opacity-100 scale-100'
+                  : 'opacity-0 scale-[0.85] pointer-events-none'
+              }`}
+            >
+              <Check className="w-2.5 h-2.5 stroke-[3]" />
+            </div>
           </button>
         </div>
 
@@ -162,7 +201,7 @@ export function ThemeSelector() {
                   <button
                     key={m.id}
                     onClick={() => setLiquidGlassConfig({ refractionMode: m.id })}
-                    className={`relative p-2.5 rounded-xl text-left transition-colors border text-xs cursor-pointer flex flex-col gap-1 select-none ${
+                    className={`relative p-2.5 rounded-xl text-left transition-[transform,box-shadow,background-color,border-color] duration-150 ease-[var(--ease-out)] active:scale-[0.98] border text-xs cursor-pointer flex flex-col gap-1 select-none ${
                       isSelected
                         ? 'bg-cyan-500/20 border-cyan-400 text-white font-bold'
                         : 'bg-white/[0.04] border-white/[0.08] text-slate-400 hover:bg-white/[0.08] hover:text-white'
@@ -170,11 +209,16 @@ export function ThemeSelector() {
                   >
                     <div className="flex items-center justify-between w-full gap-1">
                       <span className="text-[11px] font-semibold truncate">{m.name}</span>
-                      {isSelected && (
-                        <div className="w-3.5 h-3.5 rounded-full bg-cyan-400 text-black flex items-center justify-center shrink-0">
-                          <Check className="w-2.5 h-2.5 stroke-[3]" />
-                        </div>
-                      )}
+                      <div
+                        aria-hidden={!isSelected}
+                        className={`w-3.5 h-3.5 rounded-full bg-cyan-400 text-black flex items-center justify-center shrink-0 transition-[opacity,transform] duration-[180ms] ease-[var(--ease-out)] ${
+                          isSelected
+                            ? 'opacity-100 scale-100'
+                            : 'opacity-0 scale-[0.85] pointer-events-none'
+                        }`}
+                      >
+                        <Check className="w-2.5 h-2.5 stroke-[3]" />
+                      </div>
                     </div>
                     <span className="text-[10px] text-slate-400 font-normal">
                       {m.id === 'prominent'
@@ -193,15 +237,11 @@ export function ThemeSelector() {
             {/* Live Interactive Glass Refraction Preview */}
             <div
               onMouseMove={handlePreviewMouseMove}
-              onMouseEnter={() => setIsPreviewHovered(true)}
-              onMouseLeave={() => {
-                setIsPreviewHovered(false)
-                setPreviewOffset({ x: 0, y: 0, rotateX: 0, rotateY: 0 })
-              }}
+              onMouseLeave={handlePreviewMouseLeave}
               className="relative overflow-hidden rounded-2xl p-4 border border-white/15 bg-black/60 min-h-[88px] flex items-center justify-between cursor-pointer"
             >
               <div
-                className={`absolute -left-4 -top-4 w-32 h-32 rounded-full blur-xl pointer-events-none transition-opacity duration-500 ${
+                className={`absolute -left-4 -top-4 w-32 h-32 rounded-full blur-xl pointer-events-none transition-colors duration-[250ms] ease-[var(--ease-out)] ${
                   liquidGlassConfig?.refractionMode === 'prominent'
                     ? 'bg-rose-500/60'
                     : liquidGlassConfig?.refractionMode === 'shader'
@@ -212,7 +252,7 @@ export function ThemeSelector() {
                 }`}
               />
               <div
-                className={`absolute right-6 -bottom-4 w-36 h-36 rounded-full blur-xl pointer-events-none transition-opacity duration-500 ${
+                className={`absolute right-6 -bottom-4 w-36 h-36 rounded-full blur-xl pointer-events-none transition-colors duration-[250ms] ease-[var(--ease-out)] ${
                   liquidGlassConfig?.refractionMode === 'prominent'
                     ? 'bg-[var(--spotify-glow,#22d3ee)]/60'
                     : liquidGlassConfig?.refractionMode === 'shader'
@@ -224,6 +264,7 @@ export function ThemeSelector() {
               />
 
               <div
+                ref={cardRef}
                 className={`relative z-10 w-full flex items-center justify-between p-3.5 rounded-xl border transition-colors ${
                   liquidGlassConfig?.chromaticAberration !== false
                     ? 'border-t-white/80 border-l-rose-500/70 border-r-[var(--spotify-glow,#22d3ee)]/70 border-b-white/20 bg-white/[0.12]'
@@ -232,13 +273,6 @@ export function ThemeSelector() {
                 style={{
                   backdropFilter: 'blur(24px) saturate(180%)',
                   WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-                  transform:
-                    isPreviewHovered && liquidGlassConfig?.elasticInteraction !== false
-                      ? `perspective(700px) rotateX(${previewOffset.rotateX}deg) rotateY(${previewOffset.rotateY}deg) translate3d(${previewOffset.x}px, ${previewOffset.y}px, 0)`
-                      : 'none',
-                  transition: isPreviewHovered
-                    ? 'transform 0.08s cubic-bezier(0.16, 1, 0.3, 1)'
-                    : 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
                 }}
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -436,7 +470,7 @@ export function ThemeSelector() {
                         }
                       : undefined
                   }
-                  className={`relative flex flex-col items-start p-3.5 rounded-2xl transition-colors cursor-pointer text-left border bg-[var(--elevation-2-bg)] ${
+                  className={`relative flex flex-col items-start p-3.5 rounded-2xl transition-[transform,box-shadow,background-color,border-color] duration-150 ease-[var(--ease-out)] active:scale-[0.98] cursor-pointer text-left border bg-[var(--elevation-2-bg)] ${
                     isSelected
                       ? 'border-transparent z-10 font-semibold'
                       : 'border-white/[0.06] hover:bg-white/[0.06] hover:border-white/15'
@@ -457,14 +491,17 @@ export function ThemeSelector() {
                   <p className="font-bold text-xs text-white truncate w-full">{theme.name}</p>
 
                   {/* Active checkmark */}
-                  {isSelected && (
-                    <div
-                      className="absolute top-3 right-3 w-4 h-4 rounded-full flex items-center justify-center text-black"
-                      style={{ backgroundColor: theme.accentColor }}
-                    >
-                      <Check className="w-2.5 h-2.5 stroke-[3]" />
-                    </div>
-                  )}
+                  <div
+                    aria-hidden={!isSelected}
+                    className={`absolute top-3 right-3 w-4 h-4 rounded-full flex items-center justify-center text-black transition-[opacity,transform] duration-[180ms] ease-[var(--ease-out)] ${
+                      isSelected
+                        ? 'opacity-100 scale-100'
+                        : 'opacity-0 scale-[0.85] pointer-events-none'
+                    }`}
+                    style={{ backgroundColor: theme.accentColor }}
+                  >
+                    <Check className="w-2.5 h-2.5 stroke-[3]" />
+                  </div>
                 </button>
               )
             })}
@@ -506,7 +543,7 @@ export function ThemeSelector() {
                       }
                     : undefined
                 }
-                className={`relative flex flex-col items-start p-3.5 rounded-2xl transition-colors cursor-pointer text-left border bg-[var(--elevation-2-bg)] ${
+                className={`relative flex flex-col items-start p-3.5 rounded-2xl transition-[transform,box-shadow,background-color,border-color] duration-150 ease-[var(--ease-out)] active:scale-[0.98] cursor-pointer text-left border bg-[var(--elevation-2-bg)] ${
                   isSelected
                     ? 'border-transparent z-10 font-semibold'
                     : 'border-white/[0.06] hover:bg-white/[0.06] hover:border-white/15'
@@ -537,14 +574,17 @@ export function ThemeSelector() {
                 <p className="font-bold text-xs text-white mb-0.5 truncate w-full">{item.name}</p>
                 <p className="text-[11px] text-slate-400 line-clamp-2">{item.desc}</p>
 
-                {isSelected && (
-                  <div
-                    className="absolute top-3 right-3 w-4 h-4 rounded-full flex items-center justify-center text-black"
-                    style={{ backgroundColor: currentTheme.accentColor }}
-                  >
-                    <Check className="w-2.5 h-2.5 stroke-[3]" />
-                  </div>
-                )}
+                <div
+                  aria-hidden={!isSelected}
+                  className={`absolute top-3 right-3 w-4 h-4 rounded-full flex items-center justify-center text-black transition-[opacity,transform] duration-[180ms] ease-[var(--ease-out)] ${
+                    isSelected
+                      ? 'opacity-100 scale-100'
+                      : 'opacity-0 scale-[0.85] pointer-events-none'
+                  }`}
+                  style={{ backgroundColor: currentTheme.accentColor }}
+                >
+                  <Check className="w-2.5 h-2.5 stroke-[3]" />
+                </div>
               </button>
             )
           })}

@@ -39,7 +39,7 @@ export default function ResetPasswordPage() {
         {/* Back to Login Button */}
         <Link
           href="/login"
-          className="w-full bg-[var(--primary-spotify)] hover:brightness-110 text-black font-extrabold py-3.5 rounded-full transition-colors text-xs flex items-center justify-center gap-2 mt-2"
+          className="w-full bg-[var(--primary-spotify)] hover:brightness-110 text-black font-extrabold py-3.5 rounded-full active:scale-[0.97] transition-[transform,filter,background-color] duration-150 ease-[var(--ease-out)] text-xs flex items-center justify-center gap-2 mt-2"
         >
           <ArrowLeft className="w-4 h-4 text-black" />
           <span>Quay Lại Trang Đăng Nhập</span>

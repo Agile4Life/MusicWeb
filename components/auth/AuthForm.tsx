@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { EASE_OUT } from '@/lib/motion'
 
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
@@ -76,6 +78,7 @@ function translateAuthError(err: any): string {
 export function AuthForm({ mode }: AuthFormProps) {
   const { t } = useLanguage()
   const { themeStyle } = useTheme()
+  const reduced = useReducedMotion()
   const router = useRouter()
   const searchParams = useSearchParams()
   const returnTo = safeAuthReturnTo(searchParams.get('returnTo'))
@@ -292,6 +295,34 @@ export function AuthForm({ mode }: AuthFormProps) {
 
   const isMinimalFlat = themeStyle === 'minimal-flat'
 
+  const bannerMotion = reduced
+    ? {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+        transition: { duration: 0.14 },
+      }
+    : {
+        initial: { opacity: 0, transform: 'translate3d(0, -4px, 0) scale(0.98)' },
+        animate: { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)' },
+        exit: { opacity: 0, transform: 'translate3d(0, -4px, 0) scale(0.98)' },
+        transition: { duration: 0.18, ease: EASE_OUT },
+      }
+
+  const fieldRevealMotion = reduced
+    ? {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+        transition: { duration: 0.14 },
+      }
+    : {
+        initial: { opacity: 0, transform: 'translate3d(0, -4px, 0) scale(0.985)' },
+        animate: { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)' },
+        exit: { opacity: 0, transform: 'translate3d(0, -4px, 0) scale(0.985)' },
+        transition: { duration: 0.2, ease: EASE_OUT },
+      }
+
   // Original, invented atmosphere copy for the lyric wall below — never real
   // song lyrics (copyright), just short evocative lines in the product's own
   // voice.
@@ -374,49 +405,74 @@ export function AuthForm({ mode }: AuthFormProps) {
         <div className="px-6 sm:px-8 py-7 sm:py-8 relative z-10">
 
           <div className="flex flex-col gap-1.5 mb-5 relative z-10">
-            <h1
-              style={{ fontFamily: 'var(--font-fraunces, serif)' }}
-              className="text-2xl sm:text-[26px] font-bold text-white tracking-tight"
-            >
-              {authMode === 'login' ? t('welcome_back') : t('register')}
-            </h1>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.h1
+                key={authMode}
+                initial={reduced ? { opacity: 0 } : { opacity: 0, transform: 'translate3d(0, 4px, 0)' }}
+                animate={reduced ? { opacity: 1 } : { opacity: 1, transform: 'translate3d(0, 0, 0)' }}
+                exit={reduced ? { opacity: 0 } : { opacity: 0, transform: 'translate3d(0, -4px, 0)' }}
+                transition={{ duration: 0.15, ease: EASE_OUT }}
+                style={{ fontFamily: 'var(--font-fraunces, serif)' }}
+                className="text-2xl sm:text-[26px] font-bold text-white tracking-tight"
+              >
+                {authMode === 'login' ? t('welcome_back') : t('register')}
+              </motion.h1>
+            </AnimatePresence>
             <p className="text-xs sm:text-sm text-slate-400 font-medium leading-relaxed">
               {t('login_subtitle')}
             </p>
           </div>
 
-        {ssoNotice && (
-          <div className="mb-4 p-3.5 bg-[var(--spotify-glow,#22d3ee)]/10 border border-[var(--spotify-glow,#22d3ee)]/30 text-[var(--spotify-glow,#22d3ee)] rounded-2xl text-xs flex items-start gap-2 relative z-10">
-            <Info className="w-4 h-4 shrink-0 mt-0.5" />
-            <span className="font-semibold leading-relaxed">{ssoNotice}</span>
-          </div>
-        )}
+        <AnimatePresence initial={false}>
+          {ssoNotice && (
+            <motion.div
+              key="auth-sso-notice"
+              {...bannerMotion}
+              className="mb-4 p-3.5 bg-[var(--spotify-glow,#22d3ee)]/10 border border-[var(--spotify-glow,#22d3ee)]/30 text-[var(--spotify-glow,#22d3ee)] rounded-2xl text-xs flex items-start gap-2 relative z-10"
+            >
+              <Info className="w-4 h-4 shrink-0 mt-0.5" />
+              <span className="font-semibold leading-relaxed">{ssoNotice}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {error && (
-          <div className="mb-4 p-3.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded-2xl text-xs flex flex-col gap-2 relative z-10">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span className="font-semibold leading-relaxed">{error}</span>
-            </div>
-            {process.env.NODE_ENV === 'development' && rawError && (
-              <details className="mt-1 pt-2 border-t border-red-500/20 text-[11px] font-mono text-red-300">
-                <summary className="cursor-pointer hover:underline text-[10px] uppercase font-bold tracking-wider text-red-400/90">
-                  Debug Log
-                </summary>
-                <pre className="mt-2 p-2.5 bg-black/60 rounded-xl overflow-x-auto whitespace-pre-wrap select-text text-[10px] text-red-300 border border-red-500/20">
-                  {rawError}
-                </pre>
-              </details>
-            )}
-          </div>
-        )}
+        <AnimatePresence initial={false}>
+          {error && (
+            <motion.div
+              key="auth-error-banner"
+              {...bannerMotion}
+              className="mb-4 p-3.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded-2xl text-xs flex flex-col gap-2 relative z-10"
+            >
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span className="font-semibold leading-relaxed">{error}</span>
+              </div>
+              {process.env.NODE_ENV === 'development' && rawError && (
+                <details className="mt-1 pt-2 border-t border-red-500/20 text-[11px] font-mono text-red-300">
+                  <summary className="cursor-pointer hover:underline text-[10px] uppercase font-bold tracking-wider text-red-400/90">
+                    Debug Log
+                  </summary>
+                  <pre className="mt-2 p-2.5 bg-black/60 rounded-xl overflow-x-auto whitespace-pre-wrap select-text text-[10px] text-red-300 border border-red-500/20">
+                    {rawError}
+                  </pre>
+                </details>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {successMsg && (
-          <div className="mb-4 p-3 bg-[var(--primary-spotify)]/10 border border-[var(--primary-spotify)]/30 text-[var(--spotify-glow,#22d3ee)] rounded-2xl text-xs flex items-center gap-2 relative z-10">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-            <span>{successMsg}</span>
-          </div>
-        )}
+        <AnimatePresence initial={false}>
+          {successMsg && (
+            <motion.div
+              key="auth-success-banner"
+              {...bannerMotion}
+              className="mb-4 p-3 bg-[var(--primary-spotify)]/10 border border-[var(--primary-spotify)]/30 text-[var(--spotify-glow,#22d3ee)] rounded-2xl text-xs flex items-center gap-2 relative z-10"
+            >
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>{successMsg}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Account & Password Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-3.5 relative z-20 w-full">
@@ -462,7 +518,7 @@ export function AuthForm({ mode }: AuthFormProps) {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors z-10 cursor-pointer p-1.5"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white active:scale-95 transition-[transform,color] duration-[120ms] ease-[var(--ease-out)] z-10 cursor-pointer p-1.5"
                 tabIndex={-1}
                 aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
               >
@@ -471,82 +527,110 @@ export function AuthForm({ mode }: AuthFormProps) {
             </div>
           </div>
 
-          {authMode === 'register' && (
-            <div>
-              <label htmlFor="auth-confirm-password" className="block text-xs font-bold text-slate-300 mb-1.5">{t('confirm_password')}</label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
-                <input
-                  id="auth-confirm-password"
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  autoComplete="new-password"
-                  value={confirmPassword}
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value)
-                    setError(null)
-                    setRawError(null)
-                  }}
-                  placeholder={t('password_placeholder')}
-                  className="w-full glass-3d-input rounded-2xl pl-10 pr-4 py-3 text-xs sm:text-sm text-white outline-none placeholder:text-slate-400 relative z-0 cursor-text pointer-events-auto"
-                />
-              </div>
-            </div>
-          )}
+          <AnimatePresence initial={false}>
+            {authMode === 'register' && (
+              <motion.div
+                key="auth-register-fields"
+                {...fieldRevealMotion}
+                className="flex flex-col gap-3.5"
+              >
+                <div>
+                  <label htmlFor="auth-confirm-password" className="block text-xs font-bold text-slate-300 mb-1.5">{t('confirm_password')}</label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+                    <input
+                      id="auth-confirm-password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      autoComplete="new-password"
+                      value={confirmPassword}
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value)
+                        setError(null)
+                        setRawError(null)
+                      }}
+                      placeholder={t('password_placeholder')}
+                      className="w-full glass-3d-input rounded-2xl pl-10 pr-4 py-3 text-xs sm:text-sm text-white outline-none placeholder:text-slate-400 relative z-0 cursor-text pointer-events-auto"
+                    />
+                  </div>
+                </div>
 
-          {/* Optional Gmail linking — only shown in register mode */}
-          {authMode === 'register' && (
-            <div>
-              <label htmlFor="auth-real-email" className="block text-xs font-bold text-slate-300 mb-1.5">
-                Gmail liên kết{' '}
-                <span className="text-slate-400 font-normal text-[10px]">(tuỳ chọn, để đăng nhập bằng Google sau)</span>
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
-                <input
-                  id="auth-real-email"
-                  type="email"
-                  autoComplete="email"
-                  value={realEmail}
-                  onChange={(e) => {
-                    setRealEmail(e.target.value)
-                    setError(null)
-                  }}
-                  placeholder="example@gmail.com"
-                  className="w-full glass-3d-input rounded-2xl pl-10 pr-4 py-3 text-xs sm:text-sm text-white outline-none placeholder:text-slate-400 relative z-0 cursor-text pointer-events-auto"
-                />
-              </div>
-            </div>
-          )}
-
+                {/* Optional Gmail linking — only shown in register mode */}
+                <div>
+                  <label htmlFor="auth-real-email" className="block text-xs font-bold text-slate-300 mb-1.5">
+                    Gmail liên kết{' '}
+                    <span className="text-slate-400 font-normal text-[10px]">(tuỳ chọn, để đăng nhập bằng Google sau)</span>
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+                    <input
+                      id="auth-real-email"
+                      type="email"
+                      autoComplete="email"
+                      value={realEmail}
+                      onChange={(e) => {
+                        setRealEmail(e.target.value)
+                        setError(null)
+                      }}
+                      placeholder="example@gmail.com"
+                      className="w-full glass-3d-input rounded-2xl pl-10 pr-4 py-3 text-xs sm:text-sm text-white outline-none placeholder:text-slate-400 relative z-0 cursor-text pointer-events-auto"
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Forgot Password */}
-          {authMode === 'login' && (
-            <div className="flex justify-end -mt-1">
-              <Link
-                href="/reset-password"
-                className="text-xs font-bold text-[var(--spotify-glow,#22d3ee)] hover:underline transition-colors relative z-10"
+          <AnimatePresence initial={false}>
+            {authMode === 'login' && (
+              <motion.div
+                key="auth-forgot-password"
+                {...fieldRevealMotion}
+                className="flex justify-end -mt-1"
               >
-                {t('forgot_password')}
-              </Link>
-            </div>
-          )}
+                <Link
+                  href="/reset-password"
+                  className="text-xs font-bold text-[var(--spotify-glow,#22d3ee)] hover:underline transition-colors relative z-10"
+                >
+                  {t('forgot_password')}
+                </Link>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Submit */}
           <div className="relative z-10">
             <button
               type="submit"
               disabled={loading}
-              className="btn-3d-primary w-full text-black font-extrabold py-3.5 rounded-full flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:hover:scale-100 text-xs sm:text-sm shadow-xl"
+              className="btn-3d-primary w-full text-black font-extrabold py-3.5 rounded-full flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-xs sm:text-sm shadow-xl"
             >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin text-black" />
-                  <span>{authMode === 'login' ? t('logging_in') : t('registering')}</span>
-                </>
-              ) : (
-                <span>{authMode === 'login' ? t('login_submit') : t('register')}</span>
-              )}
+              <AnimatePresence mode="wait" initial={false}>
+                {loading ? (
+                  <motion.span
+                    key="auth-submit-loading"
+                    initial={reduced ? { opacity: 0 } : { opacity: 0, transform: 'scale(0.96)' }}
+                    animate={reduced ? { opacity: 1 } : { opacity: 1, transform: 'scale(1)' }}
+                    exit={reduced ? { opacity: 0 } : { opacity: 0, transform: 'scale(0.96)' }}
+                    transition={{ duration: 0.15, ease: EASE_OUT }}
+                    className="inline-flex items-center justify-center gap-2"
+                  >
+                    <Loader2 className="w-4 h-4 animate-spin text-black" />
+                    <span>{authMode === 'login' ? t('logging_in') : t('registering')}</span>
+                  </motion.span>
+                ) : (
+                  <motion.span
+                    key={`auth-submit-idle-${authMode}`}
+                    initial={reduced ? { opacity: 0 } : { opacity: 0, transform: 'scale(0.96)' }}
+                    animate={reduced ? { opacity: 1 } : { opacity: 1, transform: 'scale(1)' }}
+                    exit={reduced ? { opacity: 0 } : { opacity: 0, transform: 'scale(0.96)' }}
+                    transition={{ duration: 0.15, ease: EASE_OUT }}
+                  >
+                    {authMode === 'login' ? t('login_submit') : t('register')}
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </button>
           </div>
 
@@ -601,7 +685,7 @@ export function AuthForm({ mode }: AuthFormProps) {
             type="button"
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="w-full bg-white/95 hover:bg-white text-slate-900 font-extrabold py-3.5 rounded-full transition-colors flex items-center justify-center gap-3 shadow-lg shadow-white/10 disabled:opacity-50 disabled:hover:scale-100 text-xs sm:text-sm cursor-pointer"
+            className="w-full bg-white/95 hover:bg-white text-slate-900 font-extrabold py-3.5 rounded-full active:scale-[0.98] transition-[transform,background-color,box-shadow] duration-[160ms] ease-[var(--ease-out)] flex items-center justify-center gap-3 shadow-lg shadow-white/10 disabled:opacity-50 text-xs sm:text-sm cursor-pointer"
           >
             <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
               <path

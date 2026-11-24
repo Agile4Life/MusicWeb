@@ -3,6 +3,8 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { signIn } from 'next-auth/react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { EASE_OUT } from '@/lib/motion'
 import { AlertCircle } from 'lucide-react'
 
 // Second half of the hoilauchay SSO handoff: /api/sso already verified the
@@ -18,6 +20,7 @@ import { AlertCircle } from 'lucide-react'
 function SsoCompleteInner() {
   const router = useRouter()
   const params = useSearchParams()
+  const reduced = useReducedMotion()
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -60,45 +63,72 @@ function SsoCompleteInner() {
           />
         </div>
 
-        {error ? (
-          <>
-            <div className="w-11 h-11 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
-              <AlertCircle className="w-5 h-5 text-red-400" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-slate-200">Không thể đăng nhập từ Hội Lẩu chay</p>
-              <p className="text-xs text-slate-400 mt-1.5">Đang chuyển đến trang đăng nhập…</p>
-            </div>
-            <a
-              href="/login"
-              className="btn-3d-primary text-black font-extrabold py-3 px-6 rounded-full text-xs sm:text-sm"
+        <AnimatePresence mode="wait" initial={false}>
+          {error ? (
+            <motion.div
+              key="sso-error"
+              initial={reduced ? { opacity: 0 } : { opacity: 0, transform: 'translate3d(0, 6px, 0) scale(0.985)' }}
+              animate={reduced ? { opacity: 1 } : { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)' }}
+              exit={reduced ? { opacity: 0 } : { opacity: 0, transform: 'translate3d(0, -4px, 0) scale(0.985)' }}
+              transition={{ duration: 0.2, ease: EASE_OUT }}
+              className="flex flex-col items-center gap-6"
             >
-              Đến trang đăng nhập ngay
-            </a>
-          </>
-        ) : (
-          <>
-            <div className="flex items-end gap-1 h-6 sso-bars" aria-hidden="true">
-              <span className="w-1 rounded-full bg-[var(--spotify-glow,#22d3ee)] sso-bar" style={{ height: '40%', animation: 'ssoBar 0.9s ease-in-out infinite', animationDelay: '0s' }} />
-              <span className="w-1 rounded-full bg-[var(--spotify-glow,#22d3ee)] sso-bar" style={{ height: '100%', animation: 'ssoBar 0.9s ease-in-out infinite', animationDelay: '0.15s' }} />
-              <span className="w-1 rounded-full bg-[var(--spotify-glow,#22d3ee)] sso-bar" style={{ height: '65%', animation: 'ssoBar 0.9s ease-in-out infinite', animationDelay: '0.3s' }} />
-              <span className="w-1 rounded-full bg-[var(--spotify-glow,#22d3ee)] sso-bar" style={{ height: '85%', animation: 'ssoBar 0.9s ease-in-out infinite', animationDelay: '0.45s' }} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-slate-200">Đang đăng nhập từ Hội Lẩu chay…</p>
-              <p className="text-xs text-slate-400 mt-1.5">Chỉ mất một chút thôi</p>
-            </div>
-          </>
-        )}
+              <div className="w-11 h-11 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-red-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-200">Không thể đăng nhập từ Hội Lẩu chay</p>
+                <p className="text-xs text-slate-400 mt-1.5">Đang chuyển đến trang đăng nhập…</p>
+              </div>
+              <a
+                href="/login"
+                className="btn-3d-primary text-black font-extrabold py-3 px-6 rounded-full text-xs sm:text-sm"
+              >
+                Đến trang đăng nhập ngay
+              </a>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="sso-loading"
+              initial={reduced ? { opacity: 0 } : { opacity: 0, transform: 'translate3d(0, 6px, 0) scale(0.985)' }}
+              animate={reduced ? { opacity: 1 } : { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)' }}
+              exit={reduced ? { opacity: 0 } : { opacity: 0, transform: 'translate3d(0, -4px, 0) scale(0.985)' }}
+              transition={{ duration: 0.2, ease: EASE_OUT }}
+              className="flex flex-col items-center gap-6"
+            >
+              <div className="flex items-end gap-1 h-6 sso-bars" aria-hidden="true">
+                <span className="w-1 rounded-full bg-[var(--spotify-glow,#22d3ee)] sso-bar" style={{ height: '40%', animationDelay: '-0.60s' }} />
+                <span className="w-1 rounded-full bg-[var(--spotify-glow,#22d3ee)] sso-bar" style={{ height: '100%', animationDelay: '-0.45s' }} />
+                <span className="w-1 rounded-full bg-[var(--spotify-glow,#22d3ee)] sso-bar" style={{ height: '65%', animationDelay: '-0.30s' }} />
+                <span className="w-1 rounded-full bg-[var(--spotify-glow,#22d3ee)] sso-bar" style={{ height: '85%', animationDelay: '-0.15s' }} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-200">Đang đăng nhập từ Hội Lẩu chay…</p>
+                <p className="text-xs text-slate-400 mt-1.5">Chỉ mất một chút thôi</p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <style>{`
+        .sso-bar {
+          transform-origin: bottom;
+          animation: ssoBar 850ms var(--ease-in-out-cubic, cubic-bezier(0.645, 0.045, 0.355, 1)) infinite alternate;
+        }
         @keyframes ssoBar {
-          0%, 100% { transform: scaleY(0.5); }
-          50% { transform: scaleY(1); }
+          from { transform: scaleY(0.35); }
+          to { transform: scaleY(1); }
+        }
+        @keyframes ssoBarReduced {
+          from { opacity: 0.4; }
+          to { opacity: 0.95; }
         }
         @media (prefers-reduced-motion: reduce) {
-          .sso-bar { animation: none !important; }
+          .sso-bar {
+            animation: ssoBarReduced 1.6s ease-in-out infinite alternate !important;
+            transform: none !important;
+          }
         }
       `}</style>
     </div>

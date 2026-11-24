@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { EASE_OUT } from '@/lib/motion'
 import { ThemeSelector } from '@/components/theme/ThemeSelector'
 import { LanguageSelector } from '@/components/i18n/LanguageSelector'
 import { useLanguage } from '@/components/i18n/LanguageContext'
@@ -34,6 +36,7 @@ export default function SettingsPage() {
   const { userEmail } = useCurrentUser()
   const { gamingMode, setGamingMode } = useTheme()
   const [autoPlayNext, setAutoPlayNext] = useState(true)
+  const reduced = useReducedMotion()
 
   React.useEffect(() => {
     if (!userEmail) return
@@ -108,12 +111,12 @@ export default function SettingsPage() {
               setAutoPlayNext(value)
               void saveSettings({ auto_play: value })
             }}
-            className={`w-11 h-6 rounded-full p-1 transition-colors shrink-0 cursor-pointer ${
+            className={`w-11 h-6 rounded-full p-1 transition-[background-color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.96] shrink-0 cursor-pointer ${
               autoPlayNext ? 'bg-[var(--primary-spotify,#06b6d4)]' : 'bg-white/20'
             }`}
           >
             <div
-              className={`w-4 h-4 rounded-full bg-white/90 shadow-sm transition-transform ${
+              className={`w-4 h-4 rounded-full bg-white/90 shadow-sm transition-transform duration-200 ease-[var(--ease-out)] ${
                 autoPlayNext ? 'translate-x-5' : 'translate-x-0'
               }`}
             />
@@ -126,11 +129,20 @@ export default function SettingsPage() {
         <div className="flex items-center gap-2 text-sm font-bold text-white border-b border-white/[0.05] pb-3">
           <Gamepad2 className="w-4 h-4 text-[var(--primary-spotify,#06b6d4)]" />
           <span>Gaming Mode</span>
-          {gamingMode && (
-            <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-green-500/20 text-green-300 border border-green-400/40">
-              ON
-            </span>
-          )}
+          <AnimatePresence initial={false}>
+            {gamingMode && (
+              <motion.span
+                key="gaming-mode-on-badge"
+                initial={reduced ? { opacity: 0 } : { opacity: 0, transform: 'scale(0.92)' }}
+                animate={reduced ? { opacity: 1 } : { opacity: 1, transform: 'scale(1)' }}
+                exit={reduced ? { opacity: 0 } : { opacity: 0, transform: 'scale(0.92)' }}
+                transition={{ duration: 0.16, ease: EASE_OUT }}
+                className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-green-500/20 text-green-300 border border-green-400/40"
+              >
+                ON
+              </motion.span>
+            )}
+          </AnimatePresence>
         </div>
 
         <div className="flex items-center justify-between gap-4 py-1">
@@ -146,31 +158,40 @@ export default function SettingsPage() {
             aria-checked={gamingMode}
             id="gaming-mode-toggle"
             onClick={() => setGamingMode(!gamingMode)}
-            className={`w-11 h-6 rounded-full p-1 transition-colors shrink-0 cursor-pointer ${
+            className={`w-11 h-6 rounded-full p-1 transition-[background-color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.96] shrink-0 cursor-pointer ${
               gamingMode ? 'bg-[var(--primary-spotify,#06b6d4)]' : 'bg-white/20'
             }`}
           >
             <div
-              className={`w-4 h-4 rounded-full bg-white/90 shadow-sm transition-transform ${
+              className={`w-4 h-4 rounded-full bg-white/90 shadow-sm transition-transform duration-200 ease-[var(--ease-out)] ${
                 gamingMode ? 'translate-x-5' : 'translate-x-0'
               }`}
             />
           </button>
         </div>
 
-        {gamingMode && (
-          <div className="rounded-xl bg-green-500/[0.06] border border-green-500/20 px-4 py-3 flex items-start gap-3">
-            <CheckCircle2 className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
-            <div className="text-[11px] text-green-300/90 leading-relaxed min-w-0">
-              <p className="font-bold text-green-300 mb-1">Gaming Mode đã bật</p>
-              <p>Khi bạn alt-tab sang game hoặc app khác, MusicWeb sẽ tự động giải phóng RAM và khôi phục giao diện khi quay lại tab.</p>
-              <p className="mt-1 text-green-400/80 flex items-center gap-1.5">
-                <Keyboard className="w-3.5 h-3.5 shrink-0" />
-                <span>Điều khiển nhạc bằng phím Play/Pause/Next/Prev trên bàn phím hoặc Windows media overlay.</span>
-              </p>
-            </div>
-          </div>
-        )}
+        <AnimatePresence initial={false}>
+          {gamingMode && (
+            <motion.div
+              key="gaming-mode-detail"
+              initial={reduced ? { opacity: 0 } : { opacity: 0, transform: 'translate3d(0, -6px, 0) scale(0.985)' }}
+              animate={reduced ? { opacity: 1 } : { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)' }}
+              exit={reduced ? { opacity: 0 } : { opacity: 0, transform: 'translate3d(0, -6px, 0) scale(0.985)' }}
+              transition={{ duration: reduced ? 0.14 : 0.2, ease: EASE_OUT }}
+              className="rounded-xl bg-green-500/[0.06] border border-green-500/20 px-4 py-3 flex items-start gap-3"
+            >
+              <CheckCircle2 className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
+              <div className="text-[11px] text-green-300/90 leading-relaxed min-w-0">
+                <p className="font-bold text-green-300 mb-1">Gaming Mode đã bật</p>
+                <p>Khi bạn alt-tab sang game hoặc app khác, MusicWeb sẽ tự động giải phóng RAM và khôi phục giao diện khi quay lại tab.</p>
+                <p className="mt-1 text-green-400/80 flex items-center gap-1.5">
+                  <Keyboard className="w-3.5 h-3.5 shrink-0" />
+                  <span>Điều khiển nhạc bằng phím Play/Pause/Next/Prev trên bàn phím hoặc Windows media overlay.</span>
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Thông báo & Liên hệ */}
@@ -198,7 +219,7 @@ export default function SettingsPage() {
               href="https://www.facebook.com/phong.trancongtuan"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2.5 rounded-xl bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/20 transition-colors"
+              className="p-2.5 rounded-xl bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/20 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color] duration-150 ease-[var(--ease-out)]"
               title="Facebook: phong.trancongtuan"
             >
               <FacebookIcon className="w-5 h-5 fill-current" />
@@ -209,7 +230,7 @@ export default function SettingsPage() {
               href="https://www.instagram.com/phongtct/"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2.5 rounded-xl bg-pink-600/10 hover:bg-pink-600/20 text-pink-400 border border-pink-500/20 transition-colors"
+              className="p-2.5 rounded-xl bg-pink-600/10 hover:bg-pink-600/20 text-pink-400 border border-pink-500/20 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color] duration-150 ease-[var(--ease-out)]"
               title="Instagram: phongtct"
             >
               <InstagramIcon className="w-5 h-5" />
@@ -218,7 +239,7 @@ export default function SettingsPage() {
             {/* Gmail Text */}
             <a
               href="mailto:tranphong16012006@gmail.com"
-              className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[var(--spotify-glow,#22d3ee)] border border-white/10 text-xs font-mono transition-colors flex items-center gap-2 hover:border-[var(--primary-spotify,#06b6d4)]/30"
+              className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[var(--spotify-glow,#22d3ee)] border border-white/10 text-xs font-mono active:scale-[0.97] transition-[transform,filter,background-color,border-color,color] duration-150 ease-[var(--ease-out)] flex items-center gap-2 hover:border-[var(--primary-spotify,#06b6d4)]/30"
             >
               <Mail className="w-4 h-4 text-[var(--spotify-glow,#22d3ee)]" />
               <span>tranphong16012006@gmail.com</span>
@@ -239,7 +260,7 @@ export default function SettingsPage() {
                       new CustomEvent('musicweb:open-welcome-modal', { detail: { editMode: true } })
                     )
                   }}
-                  className="px-3 py-1.5 rounded-xl bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  className="px-3 py-1.5 rounded-xl bg-[var(--primary-spotify,#06b6d4)] hover:brightness-110 text-black text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
                   <span>Chỉnh sửa thông báo</span>
@@ -254,7 +275,7 @@ export default function SettingsPage() {
                   } catch {}
                   window.dispatchEvent(new CustomEvent('musicweb:open-welcome-modal'))
                 }}
-                className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 border border-white/15 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 border border-white/15 text-xs font-medium flex items-center justify-center gap-1.5 active:scale-[0.97] transition-[transform,filter,background-color,border-color,color] duration-150 ease-[var(--ease-out)] cursor-pointer"
               >
                 <span>Xem lại pop-up</span>
               </button>

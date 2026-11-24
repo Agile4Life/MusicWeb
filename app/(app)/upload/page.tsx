@@ -38,7 +38,7 @@ export default async function UploadPage() {
 
           <Link
             href="/"
-            className="mt-3 bg-[var(--primary-spotify)] hover:brightness-110 text-black font-extrabold px-6 py-2.5 rounded-full transition-colors flex items-center gap-2 text-xs"
+            className="mt-3 bg-[var(--primary-spotify)] hover:brightness-110 text-black font-extrabold px-6 py-2.5 rounded-full active:scale-[0.97] transition-[transform,filter,background-color,color] duration-150 ease-[var(--ease-out)] flex items-center gap-2 text-xs"
           >
             <Music className="w-4 h-4 fill-black" /> Quay về Nghe Nhạc
           </Link>
