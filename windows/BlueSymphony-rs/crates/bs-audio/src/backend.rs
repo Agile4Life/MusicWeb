@@ -30,6 +30,7 @@ pub enum AudioCommand {
     },
     StartPinkNoise {
         output_name: Option<String>,
+        channel: SweepChannel,
         volume: f32,
     },
     StopTestTone,
@@ -41,6 +42,18 @@ pub enum AudioCommand {
         volume: f32,
         mic_cal_points: Option<Vec<(f64, f64)>>,
         mic_cal_name: Option<String>,
+    },
+    PlaySpeakerPinkNoise {
+        output_name: Option<String>,
+        channel: SweepChannel,
+        duration_sec: f64,
+        volume: f32,
+    },
+    PlaySpeakerSyncedSweep {
+        output_name: Option<String>,
+        channel: SweepChannel,
+        duration_sec: f64,
+        volume: f32,
     },
 }
 
@@ -104,6 +117,11 @@ pub enum DspUiEvent {
         stage: String,
     },
     SweepCompleted(Result<MeasuredResponse, String>),
+    SpeakerPlaybackStarted {
+        out_sample_rate: u32,
+        duration_sec: f64,
+    },
+    SpeakerPlaybackDone(Result<(), String>),
     AdaptiveStatus(AdaptiveTelemetry),
 }
 

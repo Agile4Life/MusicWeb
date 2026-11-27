@@ -228,11 +228,49 @@ pub fn spawn_hybrid_audio_backend(
                         AudioCommand::StartNoiseCheck { mic_name } => {
                             let _ = mic.cmd_tx.send(MicTaskCmd::StartNoiseCheck { mic_name });
                         }
-                        AudioCommand::StartPinkNoise { output_name, volume } => {
-                            let _ = mic.cmd_tx.send(MicTaskCmd::StartPinkNoise { output_name, volume });
+                        AudioCommand::StartPinkNoise {
+                            output_name,
+                            channel,
+                            volume,
+                        } => {
+                            let _ = mic.cmd_tx.send(MicTaskCmd::StartPinkNoise {
+                                output_name,
+                                channel,
+                                volume,
+                            });
                         }
                         AudioCommand::StopTestTone => {
                             let _ = mic.cmd_tx.send(MicTaskCmd::StopTestTone);
+                        }
+                        AudioCommand::PlaySpeakerPinkNoise {
+                            output_name,
+                            channel,
+                            duration_sec,
+                            volume,
+                        } => {
+                            let _ = pcm.cmd_tx.send(PcmPlayerCmd::Pause);
+                            let _ = win_tx.send(WinPlayerCmd::Audio(AudioCommand::Pause));
+                            let _ = mic.cmd_tx.send(MicTaskCmd::PlaySpeakerPinkNoise {
+                                output_name,
+                                channel,
+                                duration_sec,
+                                volume,
+                            });
+                        }
+                        AudioCommand::PlaySpeakerSyncedSweep {
+                            output_name,
+                            channel,
+                            duration_sec,
+                            volume,
+                        } => {
+                            let _ = pcm.cmd_tx.send(PcmPlayerCmd::Pause);
+                            let _ = win_tx.send(WinPlayerCmd::Audio(AudioCommand::Pause));
+                            let _ = mic.cmd_tx.send(MicTaskCmd::PlaySpeakerSyncedSweep {
+                                output_name,
+                                channel,
+                                duration_sec,
+                                volume,
+                            });
                         }
                         AudioCommand::RunSweep {
                             mic_name,

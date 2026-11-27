@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 use bs_dsp::{
     AdaptiveConfig, AdaptiveEngine, AdaptiveTelemetry, MicCalibration, SharedDspState, SweepChannel,
     analyze_noise_floor, analyze_sweep_rir, generate_farina_ess, generate_pink_noise,
+    generate_synced_farina_ess,
 };
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Sample, SampleFormat, StreamConfig};
@@ -71,7 +72,11 @@ pub fn pick_input_device(name: Option<&str>) -> Option<cpal::Device> {
 
 pub(crate) enum MicTaskCmd {
     StartNoiseCheck { mic_name: Option<String> },
-    StartPinkNoise { output_name: Option<String>, volume: f32 },
+    StartPinkNoise {
+        output_name: Option<String>,
+        channel: SweepChannel,
+        volume: f32,
+    },
     StopTestTone,
     RunSweep {
         mic_name: Option<String>,
@@ -80,6 +85,18 @@ pub(crate) enum MicTaskCmd {
         duration_sec: f64,
         volume: f32,
         mic_cal: Option<MicCalibration>,
+    },
+    PlaySpeakerPinkNoise {
+        output_name: Option<String>,
+        channel: SweepChannel,
+        duration_sec: f64,
+        volume: f32,
+    },
+    PlaySpeakerSyncedSweep {
+        output_name: Option<String>,
+        channel: SweepChannel,
+        duration_sec: f64,
+        volume: f32,
     },
     SetAdaptiveConfig(AdaptiveConfig),
     Shutdown,
@@ -186,9 +203,13 @@ fn run_mic_loop(
                         });
                     }
                 }
-                MicTaskCmd::StartPinkNoise { output_name, volume } => {
+                MicTaskCmd::StartPinkNoise {
+                    output_name,
+                    channel,
+                    volume,
+                } => {
                     shared_dsp.set_calibration_bypass(true);
-                    pink_stream = start_pink_noise_stream(output_name.as_deref(), volume);
+                    pink_stream = start_pink_noise_stream(output_name.as_deref(), channel, volume);
                 }
                 MicTaskCmd::StopTestTone => {
                     noise_stream = None;
@@ -227,6 +248,68 @@ fn run_mic_loop(
                     );
                     shared_dsp.set_calibration_bypass(false);
                     let _ = ui_tx.send(DspUiEvent::SweepCompleted(result));
+
+                    if adaptive_cfg.ambient_enabled || adaptive_cfg.ducking_enabled {
+                        active_adaptive_mic = adaptive_cfg.mic_name.clone();
+                        adaptive_stream = open_mono_mic_stream(
+                            active_adaptive_mic.as_deref(),
+                            Arc::clone(&adaptive_buf),
+                            &mut adaptive_engine,
+                        );
+                    }
+                }
+                MicTaskCmd::PlaySpeakerPinkNoise {
+                    output_name,
+                    channel,
+                    duration_sec,
+                    volume,
+                } => {
+                    noise_stream = None;
+                    pink_stream = None;
+                    adaptive_stream = None;
+                    shared_dsp.set_calibration_bypass(true);
+
+                    let result = perform_speaker_signal_playback(
+                        output_name.as_deref(),
+                        channel,
+                        duration_sec,
+                        volume,
+                        false,
+                        &ui_tx,
+                    );
+                    shared_dsp.set_calibration_bypass(false);
+                    let _ = ui_tx.send(DspUiEvent::SpeakerPlaybackDone(result));
+
+                    if adaptive_cfg.ambient_enabled || adaptive_cfg.ducking_enabled {
+                        active_adaptive_mic = adaptive_cfg.mic_name.clone();
+                        adaptive_stream = open_mono_mic_stream(
+                            active_adaptive_mic.as_deref(),
+                            Arc::clone(&adaptive_buf),
+                            &mut adaptive_engine,
+                        );
+                    }
+                }
+                MicTaskCmd::PlaySpeakerSyncedSweep {
+                    output_name,
+                    channel,
+                    duration_sec,
+                    volume,
+                } => {
+                    noise_stream = None;
+                    pink_stream = None;
+                    adaptive_stream = None;
+                    shared_dsp.set_calibration_bypass(true);
+
+                    let result = perform_speaker_signal_playback(
+                        output_name.as_deref(),
+                        channel,
+                        duration_sec,
+                        volume,
+                        true,
+                        &ui_tx,
+                    );
+                    shared_dsp.set_calibration_bypass(false);
+                    let _ = ui_tx.send(DspUiEvent::SpeakerPlaybackDone(result));
 
                     if adaptive_cfg.ambient_enabled || adaptive_cfg.ducking_enabled {
                         active_adaptive_mic = adaptive_cfg.mic_name.clone();
@@ -368,7 +451,36 @@ fn push_downmixed_mono(data: &[f32], channels: usize, buf: &Arc<Mutex<Vec<f32>>>
     }
 }
 
-fn start_pink_noise_stream(output_name: Option<&str>, volume: f32) -> Option<cpal::Stream> {
+fn write_mono_to_channel<T>(frame: &mut [T], sample: f32, channel: SweepChannel)
+where
+    T: Sample + cpal::FromSample<f32>,
+{
+    let q = T::from_sample(sample);
+    let zero = T::from_sample(0.0);
+    match channel {
+        SweepChannel::Stereo => frame.fill(q),
+        SweepChannel::Left => {
+            if !frame.is_empty() {
+                frame[0] = q;
+            }
+            for s in frame.iter_mut().skip(1) {
+                *s = zero;
+            }
+        }
+        SweepChannel::Right => {
+            let flen = frame.len();
+            for (ci, s) in frame.iter_mut().enumerate() {
+                *s = if ci == 1 || flen == 1 { q } else { zero };
+            }
+        }
+    }
+}
+
+fn start_pink_noise_stream(
+    output_name: Option<&str>,
+    channel: SweepChannel,
+    volume: f32,
+) -> Option<cpal::Stream> {
     let dev = pick_output_device(output_name)?;
     let supported = dev.default_output_config().ok()?;
     let sr = supported.sample_rate().0;
@@ -389,9 +501,7 @@ fn start_pink_noise_stream(output_name: Option<&str>, volume: f32) -> Option<cpa
                     for frame in data.chunks_mut(ch.max(1)) {
                         let s = loop_buf[p % len];
                         p = (p + 1) % len;
-                        for sample in frame.iter_mut() {
-                            *sample = s;
-                        }
+                        write_mono_to_channel(frame, s, channel);
                     }
                     idx.store(p, Ordering::Relaxed);
                 },
@@ -405,11 +515,9 @@ fn start_pink_noise_stream(output_name: Option<&str>, volume: f32) -> Option<cpa
                 move |data: &mut [i16], _| {
                     let mut p = idx.load(Ordering::Relaxed);
                     for frame in data.chunks_mut(ch.max(1)) {
-                        let s = Sample::from_sample(loop_buf[p % len]);
+                        let s = loop_buf[p % len];
                         p = (p + 1) % len;
-                        for sample in frame.iter_mut() {
-                            *sample = s;
-                        }
+                        write_mono_to_channel(frame, s, channel);
                     }
                     idx.store(p, Ordering::Relaxed);
                 },
@@ -421,6 +529,119 @@ fn start_pink_noise_stream(output_name: Option<&str>, volume: f32) -> Option<cpa
     }?;
     stream.play().ok()?;
     Some(stream)
+}
+
+fn perform_speaker_signal_playback(
+    output_name: Option<&str>,
+    channel: SweepChannel,
+    duration_sec: f64,
+    volume: f32,
+    synced_sweep: bool,
+    ui_tx: &mpsc::UnboundedSender<DspUiEvent>,
+) -> Result<(), String> {
+    let out_dev = pick_output_device(output_name)
+        .ok_or_else(|| "Không tìm thấy thiết bị phát âm thanh Windows".to_string())?;
+    let out_cfg = out_dev
+        .default_output_config()
+        .map_err(|e| format!("Lỗi cấu hình loa: {e}"))?;
+    let out_sr = out_cfg.sample_rate().0;
+    let out_ch = out_cfg.channels() as usize;
+    let out_fmt = out_cfg.sample_format();
+    let out_stream_cfg: StreamConfig = out_cfg.into();
+
+    let playback = if synced_sweep {
+        let sig = generate_synced_farina_ess(
+            out_sr,
+            duration_sec.clamp(2.5, 8.0),
+            20.0,
+            20_000.0,
+            volume.clamp(0.05, 0.85),
+        );
+        sig.playback
+    } else {
+        let lead = vec![0.0_f32; (0.25 * out_sr as f64).round() as usize];
+        let noise = generate_pink_noise(out_sr, duration_sec.clamp(4.0, 15.0), volume.clamp(0.05, 0.70));
+        let mut buf = Vec::with_capacity(lead.len() + noise.len());
+        buf.extend_from_slice(&lead);
+        buf.extend_from_slice(&noise);
+        buf
+    };
+
+    let actual_dur = playback.len() as f64 / out_sr.max(8000) as f64;
+    let _ = ui_tx.send(DspUiEvent::SpeakerPlaybackStarted {
+        out_sample_rate: out_sr,
+        duration_sec: actual_dur,
+    });
+
+    let total_frames = playback.len();
+    let out_pos = Arc::new(AtomicUsize::new(0));
+    let done_flag = Arc::new(AtomicBool::new(false));
+    let buf_arc = Arc::new(playback);
+    let out_pos_cb = Arc::clone(&out_pos);
+    let done_cb = Arc::clone(&done_flag);
+    let err_fn = |err| tracing::warn!("Speaker calibration output error: {err}");
+
+    let out_stream = match out_fmt {
+        SampleFormat::F32 => out_dev
+            .build_output_stream(
+                &out_stream_cfg,
+                move |data: &mut [f32], _| {
+                    let mut pos = out_pos_cb.load(Ordering::Relaxed);
+                    for frame in data.chunks_mut(out_ch.max(1)) {
+                        let s = buf_arc.get(pos).copied().unwrap_or(0.0);
+                        write_mono_to_channel(frame, s, channel);
+                        pos = pos.saturating_add(1);
+                    }
+                    out_pos_cb.store(pos, Ordering::Relaxed);
+                    if pos >= total_frames {
+                        done_cb.store(true, Ordering::Release);
+                    }
+                },
+                err_fn,
+                None,
+            )
+            .map_err(|e| format!("Lỗi mở luồng phát đo phòng: {e}"))?,
+        SampleFormat::I16 => out_dev
+            .build_output_stream(
+                &out_stream_cfg,
+                move |data: &mut [i16], _| {
+                    let mut pos = out_pos_cb.load(Ordering::Relaxed);
+                    for frame in data.chunks_mut(out_ch.max(1)) {
+                        let s = buf_arc.get(pos).copied().unwrap_or(0.0);
+                        write_mono_to_channel(frame, s, channel);
+                        pos = pos.saturating_add(1);
+                    }
+                    out_pos_cb.store(pos, Ordering::Relaxed);
+                    if pos >= total_frames {
+                        done_cb.store(true, Ordering::Release);
+                    }
+                },
+                err_fn,
+                None,
+            )
+            .map_err(|e| format!("Lỗi mở luồng phát đo phòng: {e}"))?,
+        _ => return Err("Định dạng âm thanh đầu ra chưa hỗ trợ".to_string()),
+    };
+
+    out_stream
+        .play()
+        .map_err(|e| format!("Không phát được tín hiệu đo phòng: {e}"))?;
+
+    let start = Instant::now();
+    let max_wait = Duration::from_secs_f64(actual_dur + 3.0);
+    while !done_flag.load(Ordering::Acquire) && start.elapsed() < max_wait {
+        let p = (out_pos.load(Ordering::Relaxed) as f32 / total_frames.max(1) as f32).clamp(0.0, 0.90);
+        let stage = if synced_sweep {
+            format!("Đang phát Farina ESS đồng bộ ({channel} · {:.0}%)…", p * 100.0)
+        } else {
+            format!("Đang phát Pink Noise MMM ({channel} · {:.0}%) — quơ iPhone quanh vùng tai…", p * 100.0)
+        };
+        let _ = ui_tx.send(DspUiEvent::SweepProgress { progress: p, stage });
+        std::thread::sleep(Duration::from_millis(60));
+    }
+    std::thread::sleep(Duration::from_millis(120));
+    drop(out_stream);
+    Ok(())
 }
 
 fn perform_full_duplex_sweep(
