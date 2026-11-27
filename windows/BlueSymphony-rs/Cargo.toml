@@ -1,0 +1,75 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/bs-core",
+    "crates/bs-win",
+    "crates/bs-dsp",
+    "crates/bs-audio",
+    "crates/bs-app",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["BlueSymphony"]
+license = "MIT"
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+url = "2"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+regex = "1"
+unicode-normalization = "0.1"
+directories = "5"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "cookies", "gzip", "brotli", "deflate"] }
+reqwest_cookie_store = "0.8"
+cookie_store = "0.21"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "ico"] }
+windows = { version = "0.62", features = [
+    "Foundation",
+    "Foundation_Collections",
+    "Media",
+    "Media_Core",
+    "Media_Playback",
+    "Storage_Streams",
+    "System",
+    "Win32_Devices_FunctionDiscovery",
+    "Win32_Foundation",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Gdi",
+    "Win32_Media_Audio",
+    "Win32_Media_KernelStreaming",
+    "Win32_Media_Multimedia",
+    "Win32_Security_Cryptography",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Threading",
+    "Win32_System_WinRT",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_PropertiesSystem",
+    "Win32_UI_WindowsAndMessaging",
+] }
+iced = { version = "0.14", features = ["wgpu", "tokio", "image", "svg", "canvas", "advanced"] }
+tray-icon = "0.19"
+global-hotkey = "0.6"
+webview2-com = "0.39"
+rustfft = "6"
+cpal = "0.15"
+symphonia = { version = "0.5", features = ["mp3", "aac", "isomp4", "flac", "ogg", "vorbis", "wav", "alac", "pcm", "mkv"] }
+rubato = "0.16"
+rfd = "0.15"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+opt-level = 3
+

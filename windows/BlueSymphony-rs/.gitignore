@@ -1,0 +1,8 @@
+/target/
+/config/secrets.toml
+*.log
+*.pdb
+*.dpapi
+.DS_Store
+Thumbs.db
+
