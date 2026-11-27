@@ -1,0 +1,16 @@
+[package]
+name = "bs-audio"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tokio.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+windows.workspace = true
+reqwest.workspace = true
+cpal.workspace = true
+symphonia.workspace = true
+rubato.workspace = true
+bs-core = { path = "../bs-core" }
+bs-dsp = { path = "../bs-dsp" }
