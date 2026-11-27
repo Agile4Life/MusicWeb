@@ -177,7 +177,7 @@ pub fn view<'a>(state: &'a AppState, p: Palette, y_offset_px: f32) -> Element<'a
                 .style(ghost_button(p, 6.0))
                 .on_press(Message::ToggleMute),
             slider(0.0..=1.0, vol_val, |v| Message::SetVolume(f64::from(v)))
-                .step(0.01)
+                .step(0.01_f32)
                 .style(accent_slider(p))
                 .width(46),
             button(icons::more(15.0, Color::from_rgba(1.0, 1.0, 1.0, 0.72)))

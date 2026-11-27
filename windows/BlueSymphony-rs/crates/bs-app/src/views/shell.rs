@@ -471,7 +471,7 @@ fn apple_top_bar<'a>(state: &'a AppState, p: Palette) -> Element<'a, Message> {
             .style(ghost_button(p, 5.0))
             .on_press(Message::ToggleMute),
         slider(0.0..=1.0, vol_val, |v| Message::SetVolume(f64::from(v)))
-            .step(0.01)
+            .step(0.01_f32)
             .style(accent_slider(p))
             .width(Length::Fixed(76.0)),
         button(icons::volume_2(14.0, Color::from_rgba(1.0, 1.0, 1.0, 0.52)))

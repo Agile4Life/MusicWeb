@@ -411,7 +411,7 @@ fn eq_tab<'a>(state: &'a AppState, p: Palette) -> Element<'a, Message> {
                         .size(12)
                         .color(p.text_muted),
                     slider(0.0..=1.0, prof.abl_strength, Message::SetAblStrength)
-                        .step(0.05)
+                        .step(0.05_f32)
                         .style(accent_slider(p))
                         .width(Length::Fill),
                     text(format!("{}%", (prof.abl_strength * 100.0).round() as u32))
@@ -451,7 +451,7 @@ fn eq_tab<'a>(state: &'a AppState, p: Palette) -> Element<'a, Message> {
                         slider(-18.0..=6.0, ch.preamp_db as f32, |v| {
                             Message::SetManualPreamp(f64::from(v))
                         })
-                        .step(0.2)
+                        .step(0.2_f32)
                         .style(accent_slider(p))
                         .width(Length::Fixed(100.0)),
                         text(format!("{:+.1} dB", ch.preamp_db))
@@ -563,7 +563,7 @@ fn eq_tab<'a>(state: &'a AppState, p: Palette) -> Element<'a, Message> {
                         q: q_val,
                     },
                 )
-                .step(0.01)
+                .step(0.01_f32)
                 .style(accent_slider(p))
                 .width(Length::FillPortion(2)),
                 text(format!("{gain_val:+.1} dB"))
@@ -583,7 +583,7 @@ fn eq_tab<'a>(state: &'a AppState, p: Palette) -> Element<'a, Message> {
                         q: q_val,
                     }
                 })
-                .step(0.1)
+                .step(0.1_f32)
                 .style(accent_slider(p))
                 .width(Length::FillPortion(2)),
                 text(format!("Q {q_val:.2}"))
@@ -598,7 +598,7 @@ fn eq_tab<'a>(state: &'a AppState, p: Palette) -> Element<'a, Message> {
                         q: f64::from(qv),
                     }
                 })
-                .step(0.05)
+                .step(0.05_f32)
                 .style(accent_slider(p))
                 .width(Length::FillPortion(1)),
                 button(icons::close(13.0, p.text_dim))
@@ -1239,7 +1239,7 @@ fn cal_step_2<'a>(state: &'a AppState, p: Palette) -> Element<'a, Message> {
                     .size(12.5)
                     .color(p.text_muted),
                 slider(0.05..=0.80, cal.test_volume, Message::CalSetTestVolume)
-                    .step(0.02)
+                    .step(0.02_f32)
                     .style(accent_slider(p))
                     .width(Length::Fixed(180.0)),
                 text(format!("{}%", (cal.test_volume * 100.0).round() as u32))
@@ -1627,7 +1627,7 @@ fn cal_step_4<'a>(state: &'a AppState, p: Palette) -> Element<'a, Message> {
                 space().width(Length::Fill),
                 text("Giới hạn boost hõm null:").size(12.5).color(p.text_muted),
                 slider(0.0..=6.0, cal.max_boost_db, Message::CalSetMaxBoost)
-                    .step(0.5)
+                    .step(0.5_f32)
                     .style(accent_slider(p))
                     .width(Length::Fixed(120.0)),
                 text(format!("+{:.1} dB", cal.max_boost_db))
@@ -1826,7 +1826,7 @@ fn adaptive_tab<'a>(state: &'a AppState, p: Palette) -> Element<'a, Message> {
             row![
                 text("Độ nhạy tự chỉnh:").size(12.5).color(p.text_muted),
                 slider(0.0..=1.0, cfg.ambient_strength, Message::AdaptiveSetAmbientStrength)
-                    .step(0.05)
+                    .step(0.05_f32)
                     .style(accent_slider(p))
                     .width(Length::Fixed(160.0)),
                 text(format!("{}%", (cfg.ambient_strength * 100.0).round() as u32))
@@ -1835,7 +1835,7 @@ fn adaptive_tab<'a>(state: &'a AppState, p: Palette) -> Element<'a, Message> {
                 space().width(Length::Fixed(14.0)),
                 text("Tăng tối đa:").size(12.5).color(p.text_muted),
                 slider(1.0..=8.0, cfg.ambient_max_boost_db, Message::AdaptiveSetAmbientMaxBoost)
-                    .step(0.5)
+                    .step(0.5_f32)
                     .style(accent_slider(p))
                     .width(Length::Fixed(140.0)),
                 text(format!("+{:.1} dB", cfg.ambient_max_boost_db))
@@ -1892,7 +1892,7 @@ fn adaptive_tab<'a>(state: &'a AppState, p: Palette) -> Element<'a, Message> {
             row![
                 text("Độ nhạy giọng nói:").size(12.5).color(p.text_muted),
                 slider(0.1..=1.0, cfg.ducking_sensitivity, Message::AdaptiveSetDuckSensitivity)
-                    .step(0.05)
+                    .step(0.05_f32)
                     .style(accent_slider(p))
                     .width(Length::Fixed(140.0)),
                 text(format!("{}%", (cfg.ducking_sensitivity * 100.0).round() as u32))
@@ -1901,7 +1901,7 @@ fn adaptive_tab<'a>(state: &'a AppState, p: Palette) -> Element<'a, Message> {
                 space().width(Length::Fixed(10.0)),
                 text("Mức giảm nhạc:").size(12.5).color(p.text_muted),
                 slider(6.0..=24.0, cfg.ducking_depth_db, Message::AdaptiveSetDuckDepth)
-                    .step(1.0)
+                    .step(1.0_f32)
                     .style(accent_slider(p))
                     .width(Length::Fixed(130.0)),
                 text(format!("-{:.0} dB", cfg.ducking_depth_db))
@@ -1910,7 +1910,7 @@ fn adaptive_tab<'a>(state: &'a AppState, p: Palette) -> Element<'a, Message> {
                 space().width(Length::Fixed(10.0)),
                 text("Trễ nhả:").size(12.5).color(p.text_muted),
                 slider(1.5..=7.0, cfg.ducking_release_sec, Message::AdaptiveSetDuckRelease)
-                    .step(0.5)
+                    .step(0.5_f32)
                     .style(accent_slider(p))
                     .width(Length::Fixed(110.0)),
                 text(format!("{:.1} s", cfg.ducking_release_sec))
