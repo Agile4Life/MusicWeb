@@ -1,0 +1,13 @@
+[package]
+name = "bs-win"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+tracing.workspace = true
+windows.workspace = true
+tray-icon.workspace = true
+global-hotkey.workspace = true
+webview2-com.workspace = true
+
