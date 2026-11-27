@@ -1,0 +1,77 @@
+name: Windows CI (BlueSymphony-rs)
+
+on:
+  push:
+    branches: [windows, main]
+    paths:
+      - 'windows/BlueSymphony-rs/**'
+      - '.github/workflows/windows-ci.yml'
+  pull_request:
+    branches: [windows, main]
+    paths:
+      - 'windows/BlueSymphony-rs/**'
+      - '.github/workflows/windows-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-windows:
+    name: Build & Test (x86_64 Windows)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: windows/BlueSymphony-rs
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: 'windows/BlueSymphony-rs -> target'
+
+      - name: Run Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Run Workspace Unit Tests
+        run: cargo test --workspace --locked
+
+      - name: Build Release Binary
+        run: cargo build --release --locked -p bs-app
+
+      - name: Package Portable ZIP & Checksums
+        run: |
+          New-Item -ItemType Directory -Force -Path dist\BlueSymphony\config | Out-Null
+          Copy-Item target\release\bs-app.exe dist\BlueSymphony\BlueSymphony.exe -Force
+          Copy-Item README.md dist\BlueSymphony\README.md -Force
+          Copy-Item config\secrets.example.toml dist\BlueSymphony\config\secrets.example.toml -Force
+          Compress-Archive -Path dist\BlueSymphony\* -DestinationPath dist\BlueSymphony-windows-x64.zip -Force
+          $zipHash = (Get-FileHash dist\BlueSymphony-windows-x64.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          $exeHash = (Get-FileHash dist\BlueSymphony\BlueSymphony.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          @(
+            "$zipHash  BlueSymphony-windows-x64.zip"
+            "$exeHash  BlueSymphony.exe"
+          ) | Set-Content -Path dist\SHA256SUMS.txt -Encoding UTF8
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BlueSymphony-windows-x64
+          path: |
+            windows/BlueSymphony-rs/dist/BlueSymphony-windows-x64.zip
+            windows/BlueSymphony-rs/dist/SHA256SUMS.txt
+          retention-days: 30
+
