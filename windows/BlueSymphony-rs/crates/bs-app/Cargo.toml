@@ -25,3 +25,6 @@ rcgen.workspace = true
 rustls.workspace = true
 tokio-rustls.workspace = true
 qrcode.workspace = true
+
+[build-dependencies]
+winresource = "0.1"
