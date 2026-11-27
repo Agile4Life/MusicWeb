@@ -2,6 +2,7 @@ use std::f64::consts::PI;
 
 use rustfft::{FftPlanner, num_complex::Complex};
 
+use crate::measure::{SyncedEssSignal, analyze_noise_floor, generate_pink_noise};
 use crate::types::{DspError, MeasuredResponse, MicCalibration};
 
 pub const LOG_FREQ_COUNT: usize = 200;
@@ -262,10 +263,310 @@ pub fn average_responses(list: &[MeasuredResponse]) -> Option<MeasuredResponse> 
     })
 }
 
+/// Analyzes an asynchronous Moving Microphone Method (MMM) recording of Pink Noise
+/// using Welch averaged PSD relative to our deterministic reference Pink Noise generator.
+/// Completely immune to wireless latency and ADC/DAC clock drift.
+pub fn analyze_mmm_pink_noise(
+    recorded: &[f32],
+    sample_rate: u32,
+    mic_cal: Option<&MicCalibration>,
+    channel_label: &str,
+) -> Result<MeasuredResponse, DspError> {
+    let sr = sample_rate.max(8000);
+    if recorded.len() < (sr as usize) * 2 {
+        return Err(DspError::InvalidMeasurement(
+            "Bản thu MMM quá ngắn (cần tối thiểu 2 giây)".to_string(),
+        ));
+    }
+
+    let lead_trim = ((0.8 * sr as f64).round() as usize).min(recorded.len() / 6);
+    let tail_trim = ((0.6 * sr as f64).round() as usize).min(recorded.len() / 6);
+    let body = &recorded[lead_trim..recorded.len().saturating_sub(tail_trim)];
+    if body.len() < 8192 {
+        return Err(DspError::InvalidMeasurement(
+            "Dữ liệu âm thanh MMM chưa đủ để phân tích FFT".to_string(),
+        ));
+    }
+
+    let noise = analyze_noise_floor(body);
+    if noise.rms_dbfs < -60.0 {
+        return Err(DspError::InvalidMeasurement(
+            "Tín hiệu Pink Noise thu từ micro iPhone quá nhỏ — kiểm tra âm lượng loa và quyền micro"
+                .to_string(),
+        ));
+    }
+
+    let fft_len = 8192;
+    let rec_psd = welch_psd_bins(body, fft_len);
+    let ref_pink = generate_pink_noise(sr, 6.0, 0.5);
+    let ref_psd = welch_psd_bins(&ref_pink, fft_len);
+
+    let bin_hz = sr as f64 / fft_len as f64;
+    let half_bins = fft_len / 2;
+    let grid = log_freq_grid();
+    let mut raw_db = Vec::with_capacity(grid.len());
+
+    for &f in &grid {
+        let exact_bin = (f as f64 / bin_hz).clamp(1.0, (half_bins - 2) as f64);
+        let b0 = exact_bin.floor() as usize;
+        let frac = exact_bin - b0 as f64;
+        let p_rec = rec_psd[b0] * (1.0 - frac) + rec_psd[b0 + 1] * frac;
+        let p_ref = (ref_psd[b0] * (1.0 - frac) + ref_psd[b0 + 1] * frac).max(1e-18);
+        let mut db = 10.0 * (p_rec / p_ref).max(1e-12).log10();
+        if let Some(cal) = mic_cal {
+            db -= cal.interpolate_db(f as f64);
+        }
+        raw_db.push(db as f32);
+    }
+
+    let mut mid_vals: Vec<f32> = grid
+        .iter()
+        .zip(raw_db.iter())
+        .filter(|&(&f, _)| (300.0..=1500.0).contains(&f))
+        .map(|(_, &d)| d)
+        .collect();
+    if !mid_vals.is_empty() {
+        mid_vals.sort_by(|a, b| a.total_cmp(b));
+        let offset = mid_vals[mid_vals.len() / 2];
+        for v in &mut raw_db {
+            *v -= offset;
+        }
+    }
+
+    let schroeder_hz = 220.0_f32;
+    let smoothed_db = smooth_psychoacoustic(&grid, &raw_db, schroeder_hz);
+
+    Ok(MeasuredResponse {
+        freqs: grid,
+        raw_db,
+        smoothed_db,
+        rt60_sec: 0.35,
+        schroeder_hz,
+        points_count: 1,
+        channel_label: channel_label.to_string(),
+    })
+}
+
+/// Aligns an asynchronously recorded sweep from an external device (e.g. iPhone) using
+/// two bounding timing chirps to measure & remove clock drift, then runs Farina RIR analysis.
+pub fn analyze_synced_sweep_rir(
+    recorded: &[f32],
+    rec_sample_rate: u32,
+    signal: &SyncedEssSignal,
+    out_sample_rate: u32,
+    mic_cal: Option<&MicCalibration>,
+    channel_label: &str,
+) -> Result<MeasuredResponse, DspError> {
+    if recorded.is_empty() || signal.sync_chirp.is_empty() || signal.inverse_filter.is_empty() {
+        return Err(DspError::InvalidMeasurement(
+            "Thiếu dữ liệu thu âm hoặc tín hiệu tham chiếu".to_string(),
+        ));
+    }
+
+    let rec_sr = rec_sample_rate.max(8000);
+    let out_sr = out_sample_rate.max(8000);
+    let rec_at_out_sr = if rec_sr == out_sr {
+        recorded.to_vec()
+    } else {
+        resample_lanczos4_ratio(recorded, out_sr as f64 / rec_sr as f64)
+    };
+
+    let chirp_len = signal.sync_chirp.len();
+    if rec_at_out_sr.len() < signal.expected_chirp_gap_samples / 2 + chirp_len {
+        return Err(DspError::InvalidMeasurement(
+            "Bản thu âm từ iPhone quá ngắn để tìm hai xung đồng bộ".to_string(),
+        ));
+    }
+
+    // Cross-correlate rec with chirp via time-reversed convolution:
+    // corr[k + chirp_len - 1] == sum_m rec[k + m] * chirp[m]
+    let chirp_rev: Vec<f32> = signal.sync_chirp.iter().rev().copied().collect();
+    let corr = deconvolve_rir(&rec_at_out_sr, &chirp_rev);
+    let lag_bias = (chirp_len - 1) as f64;
+
+    let min_c1 = chirp_len - 1;
+    let max_c1 = corr
+        .len()
+        .saturating_sub((signal.expected_chirp_gap_samples as f64 * 0.92) as usize)
+        .max(min_c1 + 1);
+    if max_c1 <= min_c1 {
+        return Err(DspError::InvalidMeasurement(
+            "Không đủ khung hình để định vị xung đồng bộ đầu tiên".to_string(),
+        ));
+    }
+
+    let mut idx1 = min_c1;
+    let mut best1 = 0.0_f32;
+    let mut sum_sq = 0.0_f64;
+    for (i, &v) in corr[min_c1..max_c1].iter().enumerate() {
+        let av = v.abs();
+        sum_sq += (v as f64) * (v as f64);
+        if av > best1 {
+            best1 = av;
+            idx1 = min_c1 + i;
+        }
+    }
+
+    let min_c2 = (idx1 + (signal.expected_chirp_gap_samples as f64 * 0.94) as usize)
+        .min(corr.len().saturating_sub(1));
+    let max_c2 = (idx1 + (signal.expected_chirp_gap_samples as f64 * 1.06) as usize)
+        .min(corr.len())
+        .max(min_c2 + 1);
+
+    let mut idx2 = min_c2;
+    let mut best2 = 0.0_f32;
+    for (i, &v) in corr[min_c2..max_c2].iter().enumerate() {
+        let av = v.abs();
+        if av > best2 {
+            best2 = av;
+            idx2 = min_c2 + i;
+        }
+    }
+
+    let corr_rms = ((sum_sq / (max_c1 - min_c1).max(1) as f64).sqrt()).max(1e-9) as f32;
+    if best1 < corr_rms * 4.5 || best2 < corr_rms * 4.5 {
+        return Err(DspError::InvalidMeasurement(
+            "Không bắt được hai xung đồng bộ từ loa — thử tăng nhẹ âm lượng đo hoặc giữ iPhone gần vị trí nghe".to_string(),
+        ));
+    }
+
+    let p1 = parabolic_abs_peak(&corr, idx1);
+    let p2 = parabolic_abs_peak(&corr, idx2);
+    let measured_gap = p2 - p1;
+    let clock_ratio = measured_gap / signal.expected_chirp_gap_samples.max(1) as f64;
+    if !(0.97..=1.03).contains(&clock_ratio) {
+        return Err(DspError::InvalidMeasurement(format!(
+            "Sai lệch xung đồng bộ bất thường ({clock_ratio:.4}x) — vui lòng đo lại trong không gian yên tĩnh"
+        )));
+    }
+
+    let lag1 = p1 - lag_bias;
+    let pre_margin = (0.15 * out_sr as f64).round() as usize;
+    let post_margin = (0.55 * out_sr as f64).round() as usize;
+    let rec_start = lag1 + signal.sweep_offset_from_chirp1 as f64 - pre_margin as f64;
+    let out_len = pre_margin + signal.sweep_len + post_margin;
+
+    let mut aligned_sweep = Vec::with_capacity(out_len);
+    for i in 0..out_len {
+        let pos = rec_start + (i as f64) * clock_ratio;
+        aligned_sweep.push(sample_lanczos4(&rec_at_out_sr, pos));
+    }
+
+    analyze_sweep_rir(
+        &aligned_sweep,
+        &signal.inverse_filter,
+        out_sr,
+        mic_cal,
+        channel_label,
+    )
+}
+
+fn welch_psd_bins(samples: &[f32], fft_len: usize) -> Vec<f64> {
+    let hop = (fft_len / 2).max(1);
+    let half = fft_len / 2 + 1;
+    let mut acc = vec![0.0_f64; half];
+    if samples.len() < fft_len {
+        return acc;
+    }
+
+    let window: Vec<f64> = (0..fft_len)
+        .map(|i| 0.5 * (1.0 - (2.0 * PI * i as f64 / fft_len as f64).cos()))
+        .collect();
+    let mut planner = FftPlanner::<f64>::new();
+    let fft = planner.plan_fft_forward(fft_len);
+    let mut buf = vec![Complex::new(0.0, 0.0); fft_len];
+
+    let mut segments = 0usize;
+    let mut start = 0usize;
+    while start + fft_len <= samples.len() {
+        for (i, slot) in buf.iter_mut().enumerate() {
+            slot.re = (samples[start + i] as f64) * window[i];
+            slot.im = 0.0;
+        }
+        fft.process(&mut buf);
+        for (k, slot) in acc.iter_mut().enumerate() {
+            *slot += buf[k].norm_sqr();
+        }
+        segments += 1;
+        start += hop;
+    }
+
+    if segments > 0 {
+        let norm = 1.0 / (segments as f64);
+        for slot in &mut acc {
+            *slot *= norm;
+        }
+    }
+    acc
+}
+
+fn parabolic_abs_peak(corr: &[f32], idx: usize) -> f64 {
+    if idx == 0 || idx + 1 >= corr.len() {
+        return idx as f64;
+    }
+    let y0 = corr[idx - 1].abs() as f64;
+    let y1 = corr[idx].abs() as f64;
+    let y2 = corr[idx + 1].abs() as f64;
+    let denom = y0 - 2.0 * y1 + y2;
+    if denom.abs() < 1e-12 {
+        return idx as f64;
+    }
+    let delta = (0.5 * (y0 - y2) / denom).clamp(-0.5, 0.5);
+    idx as f64 + delta
+}
+
+fn sample_lanczos4(src: &[f32], pos: f64) -> f32 {
+    if src.is_empty() || pos < 0.0 || pos > (src.len() - 1) as f64 {
+        return 0.0;
+    }
+    let center = pos.floor() as isize;
+    if (pos - center as f64).abs() < 1e-9 {
+        return src[center as usize];
+    }
+    let mut sum = 0.0_f64;
+    let mut w_sum = 0.0_f64;
+    let len = src.len() as isize;
+    for k in (center - 3)..=(center + 4) {
+        if k < 0 || k >= len {
+            continue;
+        }
+        let d = pos - k as f64;
+        let x = d.abs();
+        let w = if x < 1e-9 {
+            1.0
+        } else if x < 4.0 {
+            let px = PI * x;
+            let px4 = px / 4.0;
+            (px.sin() / px) * (px4.sin() / px4)
+        } else {
+            0.0
+        };
+        sum += (src[k as usize] as f64) * w;
+        w_sum += w;
+    }
+    if w_sum > 1e-12 {
+        (sum / w_sum) as f32
+    } else {
+        0.0
+    }
+}
+
+fn resample_lanczos4_ratio(src: &[f32], ratio: f64) -> Vec<f32> {
+    if src.is_empty() || ratio <= 0.0 {
+        return Vec::new();
+    }
+    let out_len = ((src.len() as f64) * ratio).round() as usize;
+    let mut out = Vec::with_capacity(out_len);
+    for i in 0..out_len {
+        out.push(sample_lanczos4(src, i as f64 / ratio));
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::measure::generate_farina_ess;
+    use crate::measure::{generate_farina_ess, generate_synced_farina_ess};
 
     #[test]
     fn farina_loopback_recovers_flat_response() {
@@ -284,6 +585,45 @@ mod tests {
             .map(|(_, &d)| d.abs())
             .fold(0.0_f32, f32::max);
         assert!(mid_err < 2.0, "loopback max deviation was {mid_err} dB");
+    }
+
+    #[test]
+    fn mmm_pink_noise_loopback_recovers_flat_response() {
+        let sr = 48_000;
+        let pink = generate_pink_noise(sr, 8.0, 0.4);
+        let res = analyze_mmm_pink_noise(&pink, sr, None, "Stereo").expect("mmm ok");
+        let max_err: f32 = res
+            .freqs
+            .iter()
+            .zip(res.smoothed_db.iter())
+            .filter(|&(&f, _)| (40.0..=16_000.0).contains(&f))
+            .map(|(_, &d)| d.abs())
+            .fold(0.0_f32, f32::max);
+        assert!(max_err < 2.0, "MMM loopback max deviation was {max_err} dB");
+    }
+
+    #[test]
+    fn synced_farina_ess_compensates_clock_drift() {
+        let sr = 48_000;
+        let sig = generate_synced_farina_ess(sr, 2.5, 20.0, 20_000.0, 0.5);
+        let mut raw = vec![0.0_f32; 18_000];
+        raw.extend_from_slice(&sig.playback);
+        raw.extend(std::iter::repeat_n(0.0_f32, 12_000));
+        // Simulate +300 ppm clock drift between PC DAC and iPhone ADC
+        let drifted = resample_lanczos4_ratio(&raw, 1.0003);
+        let res = analyze_synced_sweep_rir(&drifted, sr, &sig, sr, None, "Stereo")
+            .expect("synced rir ok");
+        let max_err: f32 = res
+            .freqs
+            .iter()
+            .zip(res.smoothed_db.iter())
+            .filter(|&(&f, _)| (60.0..=14_000.0).contains(&f))
+            .map(|(_, &d)| d.abs())
+            .fold(0.0_f32, f32::max);
+        assert!(
+            max_err < 2.0,
+            "synced ESS clock-drift max deviation was {max_err} dB"
+        );
     }
 }
 

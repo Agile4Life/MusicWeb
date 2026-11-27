@@ -8,6 +8,101 @@ pub struct NoiseCheck {
     pub noisy: bool,
 }
 
+#[derive(Debug, Clone)]
+pub struct SyncedEssSignal {
+    pub playback: Vec<f32>,
+    pub inverse_filter: Vec<f32>,
+    pub sync_chirp: Vec<f32>,
+    pub expected_chirp_gap_samples: usize,
+    pub sweep_offset_from_chirp1: usize,
+    pub sweep_len: usize,
+}
+
+/// Generates a short Hann-tapered exponential chirp used as an acoustic timing marker.
+pub fn generate_sync_chirp(
+    sample_rate: u32,
+    duration_sec: f64,
+    f_start: f64,
+    f_end: f64,
+    amplitude: f32,
+) -> Vec<f32> {
+    let sr = sample_rate.max(8000) as f64;
+    let t_dur = duration_sec.clamp(0.02, 0.5);
+    let n = (t_dur * sr).round() as usize;
+    let f1 = f_start.max(200.0);
+    let f2 = f_end.min(sr * 0.45).max(f1 + 200.0);
+    let r = (f2 / f1).ln();
+    let k = (2.0 * PI * f1 * t_dur) / r;
+    let fade = ((0.15 * t_dur * sr).round() as usize).clamp(8, n / 3);
+    let amp = amplitude.clamp(0.02, 0.90) as f64;
+
+    let mut out = Vec::with_capacity(n);
+    for i in 0..n {
+        let t = i as f64 / sr;
+        let phase = k * (((t / t_dur) * r).exp() - 1.0);
+        let mut s = phase.sin() * amp;
+        if i < fade {
+            let w = 0.5 * (1.0 - (PI * i as f64 / fade as f64).cos());
+            s *= w;
+        } else if i >= n - fade {
+            let rem = n - 1 - i;
+            let w = 0.5 * (1.0 - (PI * rem as f64 / fade as f64).cos());
+            s *= w;
+        }
+        out.push(s as f32);
+    }
+    out
+}
+
+/// Wraps a Farina ESS between two identical acoustic timing chirps so an asynchronous
+/// external microphone (e.g. an iPhone over LAN) can measure and compensate clock drift.
+pub fn generate_synced_farina_ess(
+    sample_rate: u32,
+    duration_sec: f64,
+    f_start: f64,
+    f_end: f64,
+    amplitude: f32,
+) -> SyncedEssSignal {
+    let sr = sample_rate.max(8000) as f64;
+    let lead_silence = (0.35 * sr).round() as usize;
+    let pre_gap = (0.35 * sr).round() as usize;
+    let post_gap = (0.45 * sr).round() as usize;
+    let tail_silence = (0.40 * sr).round() as usize;
+
+    let sync_chirp = generate_sync_chirp(
+        sample_rate,
+        0.080,
+        1200.0,
+        6000.0,
+        (amplitude * 0.9).clamp(0.05, 0.85),
+    );
+    let (sweep, inverse_filter) =
+        generate_farina_ess(sample_rate, duration_sec, f_start, f_end, amplitude);
+
+    let chirp_len = sync_chirp.len();
+    let sweep_len = sweep.len();
+    let total =
+        lead_silence + chirp_len + pre_gap + sweep_len + post_gap + chirp_len + tail_silence;
+
+    let mut playback = vec![0.0_f32; total];
+    let chirp1_start = lead_silence;
+    let sweep_start = chirp1_start + chirp_len + pre_gap;
+    let chirp2_start = sweep_start + sweep_len + post_gap;
+
+    playback[chirp1_start..chirp1_start + chirp_len].copy_from_slice(&sync_chirp);
+    playback[sweep_start..sweep_start + sweep_len].copy_from_slice(&sweep);
+    playback[chirp2_start..chirp2_start + chirp_len].copy_from_slice(&sync_chirp);
+
+    SyncedEssSignal {
+        playback,
+        inverse_filter,
+        sync_chirp,
+        expected_chirp_gap_samples: chirp2_start - chirp1_start,
+        sweep_offset_from_chirp1: sweep_start - chirp1_start,
+        sweep_len,
+    }
+}
+
 /// Generates a Farina Exponential Sine Sweep (ESS) and its normalized time-reversed inverse filter.
 /// Harmonic distortion components deconvolve to negative time offsets before the main impulse peak,
 /// yielding an ultra-clean linear Room Impulse Response.
