@@ -1,0 +1,21 @@
+pub mod album;
+pub mod artist;
+pub mod audio_lab;
+pub mod auth_modal;
+pub mod favorites;
+pub mod history;
+pub mod home;
+pub mod library;
+pub mod mini_player;
+pub mod new_releases;
+pub mod now_playing;
+pub mod playlist_detail;
+pub mod playlist_modals;
+pub mod playlists;
+pub mod queue_drawer;
+pub mod search;
+pub mod settings;
+pub mod shell;
+pub mod soundcloud;
+pub mod top_tracks;
+
