@@ -20,3 +20,8 @@ bs-win = { path = "../bs-win" }
 bs-dsp = { path = "../bs-dsp" }
 bs-audio = { path = "../bs-audio" }
 rfd.workspace = true
+uuid.workspace = true
+rcgen.workspace = true
+rustls.workspace = true
+tokio-rustls.workspace = true
+qrcode.workspace = true

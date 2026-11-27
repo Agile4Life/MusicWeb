@@ -66,6 +66,10 @@ cpal = "0.15"
 symphonia = { version = "0.5", features = ["mp3", "aac", "isomp4", "flac", "ogg", "vorbis", "wav", "alac", "pcm", "mkv"] }
 rubato = "0.16"
 rfd = "0.15"
+rcgen = "0.13"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
+qrcode = { version = "0.14", default-features = false }
 
 [profile.release]
 lto = "thin"

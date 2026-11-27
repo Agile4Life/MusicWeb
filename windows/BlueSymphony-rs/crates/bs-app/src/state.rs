@@ -135,6 +135,20 @@ pub enum SweepChannelMode {
     IndependentLR,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CalMicSource {
+    #[default]
+    WindowsMic,
+    IPhoneCompanion,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum IPhoneCalMode {
+    #[default]
+    MmmPinkNoise,
+    SyncedFarinaEss,
+}
+
 #[derive(Debug, Clone)]
 pub struct CalibrationState {
     pub step: u8,
@@ -162,6 +176,19 @@ pub struct CalibrationState {
     pub autoeq_l: Option<AutoEqResult>,
     pub autoeq_r: Option<AutoEqResult>,
     pub error: Option<String>,
+
+    // iPhone HTTPS Companion calibration state
+    pub mic_source: CalMicSource,
+    pub iphone_mode: IPhoneCalMode,
+    pub companion_url: Option<String>,
+    pub companion_ca_url: Option<String>,
+    pub companion_connected: bool,
+    pub companion_device_label: Option<String>,
+    pub companion_sample_rate: u32,
+    pub companion_error: Option<String>,
+    pub companion_seq: u64,
+    pub companion_speaker_sr: u32,
+    pub companion_active_channel: bs_dsp::SweepChannel,
 }
 
 impl Default for CalibrationState {
@@ -192,6 +219,17 @@ impl Default for CalibrationState {
             autoeq_l: None,
             autoeq_r: None,
             error: None,
+            mic_source: CalMicSource::WindowsMic,
+            iphone_mode: IPhoneCalMode::MmmPinkNoise,
+            companion_url: None,
+            companion_ca_url: None,
+            companion_connected: false,
+            companion_device_label: None,
+            companion_sample_rate: 48_000,
+            companion_error: None,
+            companion_seq: 0,
+            companion_speaker_sr: 48_000,
+            companion_active_channel: bs_dsp::SweepChannel::Stereo,
         }
     }
 }
@@ -427,6 +465,17 @@ pub enum Message {
     CalSetMaxBoost(f32),
     CalSaveAsProfile,
     CalPreviewToggle,
+    CalSelectMicSource(CalMicSource),
+    CalSelectIPhoneMode(IPhoneCalMode),
+    CalRestartCompanion,
+    CalCopyCompanionUrl,
+    Companion(crate::companion::CompanionEvent),
+    CompanionBeginSpeakerPlayback {
+        seq: u64,
+        mode: IPhoneCalMode,
+        channel: bs_dsp::SweepChannel,
+    },
+    CompanionUploadTimeout(u64),
     RecomputeActiveProfileAutoEq,
 
     // Adaptive Audio
@@ -456,6 +505,9 @@ pub struct AppState {
     pub audio_handle: AudioHandle,
     pub snap_rx: Arc<Mutex<Option<mpsc::UnboundedReceiver<PlayerSnapshot>>>>,
     pub dsp_rx: Arc<Mutex<Option<mpsc::UnboundedReceiver<DspUiEvent>>>>,
+    pub companion_tx: mpsc::UnboundedSender<crate::companion::CompanionEvent>,
+    pub companion_rx: Arc<Mutex<Option<mpsc::UnboundedReceiver<crate::companion::CompanionEvent>>>>,
+    pub companion_handle: Option<crate::companion::CompanionHandle>,
 
     pub tray: Option<TrayController>,
     pub hotkeys: Option<GlobalHotkeyManager>,

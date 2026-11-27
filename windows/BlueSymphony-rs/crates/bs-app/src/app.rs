@@ -25,21 +25,24 @@ use bs_core::playlists::PlaylistApi;
 use bs_core::resolver::StreamResolver;
 use bs_core::session::SessionStore;
 use bs_dsp::{
-    AutoEqOptions, DspProfile, EqBand, SweepChannel, average_responses, default_10_band_peq,
-    export_equalizer_apo, optimize_autoeq, parse_equalizer_apo, parse_mic_cal,
+    AutoEqOptions, DspProfile, EqBand, SweepChannel, analyze_mmm_pink_noise,
+    analyze_synced_sweep_rir, average_responses, default_10_band_peq, export_equalizer_apo,
+    generate_synced_farina_ess, optimize_autoeq, parse_equalizer_apo, parse_mic_cal,
 };
 use bs_win::dwm::{BackdropKind, apply_rounded_corners, apply_titlebar_color, apply_window_style};
 use bs_win::hotkeys::{GlobalHotkeyAction, GlobalHotkeyManager};
 use bs_win::taskbar::{TaskbarAction, TaskbarToolbar};
 use bs_win::tray::{TrayCommand, TrayController};
 
+use crate::companion::{CompanionEvent, CompanionPhase, spawn_companion_server};
 use crate::image_cache::ImageCache;
 use crate::router::{Route, Router};
 use crate::settings::AppSettings;
 use crate::state::{
-    AppState, AudioLabTab, AuthModalMode, AuthModalState, CalibrationState, ContextMenuState,
-    HEADER_SEARCH_INPUT_ID, LYRICS_SCROLL_ID, Message, PlaylistEditorMode, PlaylistEditorState,
-    SEARCH_PAGE_INPUT_ID, ScShelf, SearchScope, SweepChannelMode, ToastState,
+    AppState, AudioLabTab, AuthModalMode, AuthModalState, CalMicSource, CalibrationState,
+    ContextMenuState, HEADER_SEARCH_INPUT_ID, IPhoneCalMode, LYRICS_SCROLL_ID, Message,
+    PlaylistEditorMode, PlaylistEditorState, SEARCH_PAGE_INPUT_ID, ScShelf, SearchScope,
+    SweepChannelMode, ToastState,
 };
 use crate::theme::{AppThemeKind, iced_theme};
 use crate::views;
@@ -74,6 +77,14 @@ impl Hash for SubHandle {
 struct DspSubHandle(u64, Arc<Mutex<Option<mpsc::UnboundedReceiver<DspUiEvent>>>>);
 
 impl Hash for DspSubHandle {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
+struct CompanionSubHandle(u64, Arc<Mutex<Option<mpsc::UnboundedReceiver<CompanionEvent>>>>);
+
+impl Hash for CompanionSubHandle {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.0.hash(state);
     }
@@ -130,6 +141,7 @@ impl AppState {
             dsp_store.clone(),
             settings.volume,
         );
+        let (companion_tx, companion_rx) = mpsc::unbounded_channel();
         let (player_tx, snap_rx) = PlaybackCoordinator::spawn(
             session.clone(),
             resolver.clone(),
@@ -169,6 +181,9 @@ impl AppState {
             audio_handle,
             snap_rx: Arc::new(Mutex::new(Some(snap_rx))),
             dsp_rx: Arc::new(Mutex::new(Some(dsp_rx))),
+            companion_tx,
+            companion_rx: Arc::new(Mutex::new(Some(companion_rx))),
+            companion_handle: None,
             tray: None,
             hotkeys: None,
             taskbar: None,
@@ -362,6 +377,24 @@ impl AppState {
                     })
                 },
             ),
+            Subscription::run_with(
+                CompanionSubHandle(3, Arc::clone(&self.companion_rx)),
+                |handle| {
+                    let rx_arc = Arc::clone(&handle.1);
+                    stream::channel(128, async move |mut output| {
+                        let rx = rx_arc.lock().ok().and_then(|mut g| g.take());
+                        let Some(mut rx) = rx else {
+                            std::future::pending::<()>().await;
+                            return;
+                        };
+                        while let Some(evt) = rx.recv().await {
+                            if output.send(Message::Companion(evt)).await.is_err() {
+                                break;
+                            }
+                        }
+                    })
+                },
+            ),
             time::every(Duration::from_millis(120)).map(|_| Message::SystemTick),
         ];
 
@@ -430,6 +463,7 @@ impl AppState {
                         self.taskbar = None;
                         return window::close(id);
                     }
+                    self.stop_companion_server();
                     let _ = self.player_tx.send(PlayerAction::Shutdown);
                     self.save_settings();
                     return iced::exit();
@@ -1902,11 +1936,8 @@ impl AppState {
                                 if self.cal.channel_mode == SweepChannelMode::IndependentLR {
                                     // Immediately run Right channel at same position
                                     self.cal.pending_right_next = true;
-                                    self.cal.sweep_running = true;
-                                    self.cal.sweep_progress = 0.0;
                                     self.cal.sweep_stage = "Đang đo kênh Phải (R)…".to_string();
-                                    self.launch_sweep_command(SweepChannel::Right);
-                                    return Task::none();
+                                    return self.launch_sweep_command(SweepChannel::Right);
                                 }
                             }
                             if (self.cal.collected_l.len() as u8) >= self.cal.target_points
@@ -1915,14 +1946,46 @@ impl AppState {
                             {
                                 self.recompute_cal_autoeq();
                                 self.cal.step = 4;
+                                if let Some(ref h) = self.companion_handle {
+                                    h.set_step(4);
+                                    h.set_phase(CompanionPhase::Done {
+                                        message: "Đã đo xong & tạo bộ lọc Auto-EQ! Xem kết quả trên PC."
+                                            .to_string(),
+                                    });
+                                }
+                            } else if let Some(ref h) = self.companion_handle {
+                                h.set_phase(CompanionPhase::Monitoring);
                             }
                         }
                         Err(e) => {
                             self.cal.pending_right_next = false;
-                            self.cal.error = Some(e);
+                            self.cal.error = Some(e.clone());
+                            if let Some(ref h) = self.companion_handle {
+                                h.set_phase(CompanionPhase::Error { message: e });
+                            }
                         }
                     }
                 }
+                DspUiEvent::SpeakerPlaybackStarted { out_sample_rate, .. } => {
+                    self.cal.companion_speaker_sr = out_sample_rate;
+                }
+                DspUiEvent::SpeakerPlaybackDone(res) => match res {
+                    Ok(()) => {
+                        if self.cal.sweep_running {
+                            self.cal.sweep_progress = 0.92;
+                            self.cal.sweep_stage =
+                                "Đã phát xong — đang chờ iPhone gửi bản thu âm…".to_string();
+                        }
+                    }
+                    Err(e) => {
+                        self.cal.sweep_running = false;
+                        self.cal.pending_right_next = false;
+                        self.cal.error = Some(e.clone());
+                        if let Some(ref h) = self.companion_handle {
+                            h.set_phase(CompanionPhase::Error { message: e });
+                        }
+                    }
+                },
                 DspUiEvent::AdaptiveStatus(tel) => {
                     self.adaptive_status = tel;
                 }
@@ -1933,11 +1996,14 @@ impl AppState {
                 }
                 if self.audio_lab_tab == AudioLabTab::RoomCal && tab != AudioLabTab::RoomCal {
                     self.stop_calibration_tones();
+                    self.stop_companion_server();
                 }
                 self.audio_lab_tab = tab;
                 if tab == AudioLabTab::RoomCal {
                     self.audio_handle.send(AudioCommand::RefreshDevices);
-                    if self.cal.step == 1 || self.cal.step == 2 {
+                    if self.cal.mic_source == CalMicSource::IPhoneCompanion {
+                        self.start_companion_server();
+                    } else if self.cal.step == 1 || self.cal.step == 2 {
                         self.audio_handle.send(AudioCommand::StartNoiseCheck {
                             mic_name: self.cal.selected_mic.clone(),
                         });
@@ -2288,7 +2354,22 @@ impl AppState {
             Message::CalSetStep(step) => {
                 self.cal.error = None;
                 self.cal.step = step.clamp(1, 4);
-                if self.cal.step == 1 || self.cal.step == 2 {
+                if self.cal.mic_source == CalMicSource::IPhoneCompanion {
+                    if let Some(ref h) = self.companion_handle {
+                        h.set_step(self.cal.step);
+                        if !self.cal.sweep_running {
+                            h.set_phase(if self.cal.step <= 2 {
+                                CompanionPhase::Monitoring
+                            } else {
+                                CompanionPhase::Idle
+                            });
+                        }
+                    }
+                    if self.cal.step > 2 {
+                        self.cal.pink_noise_playing = false;
+                        self.audio_handle.send(AudioCommand::StopTestTone);
+                    }
+                } else if self.cal.step == 1 || self.cal.step == 2 {
                     self.audio_handle.send(AudioCommand::StartNoiseCheck {
                         mic_name: self.cal.selected_mic.clone(),
                     });
@@ -2299,7 +2380,7 @@ impl AppState {
             }
             Message::CalRefreshDevices => {
                 self.audio_handle.send(AudioCommand::RefreshDevices);
-                if self.cal.step <= 2 {
+                if self.cal.step <= 2 && self.cal.mic_source == CalMicSource::WindowsMic {
                     self.audio_handle.send(AudioCommand::StartNoiseCheck {
                         mic_name: self.cal.selected_mic.clone(),
                     });
@@ -2307,7 +2388,7 @@ impl AppState {
             }
             Message::CalSelectMic(name) => {
                 self.cal.selected_mic = Some(name.clone());
-                if self.cal.step <= 2 {
+                if self.cal.step <= 2 && self.cal.mic_source == CalMicSource::WindowsMic {
                     self.audio_handle
                         .send(AudioCommand::StartNoiseCheck { mic_name: Some(name) });
                 }
@@ -2317,8 +2398,188 @@ impl AppState {
                 if self.cal.pink_noise_playing {
                     self.audio_handle.send(AudioCommand::StartPinkNoise {
                         output_name: Some(name),
+                        channel: SweepChannel::Stereo,
                         volume: self.cal.test_volume,
                     });
+                }
+            }
+            Message::CalSelectMicSource(src) => {
+                if self.cal.mic_source != src {
+                    self.cal.mic_source = src;
+                    self.cal.error = None;
+                    match src {
+                        CalMicSource::IPhoneCompanion => {
+                            if !self.cal.pink_noise_playing {
+                                self.audio_handle.send(AudioCommand::StopTestTone);
+                            }
+                            if self.cal.iphone_mode == IPhoneCalMode::MmmPinkNoise {
+                                self.cal.target_points = 1;
+                            }
+                            self.start_companion_server();
+                        }
+                        CalMicSource::WindowsMic => {
+                            self.stop_companion_server();
+                            if self.cal.step <= 2 && !self.cal.pink_noise_playing {
+                                self.audio_handle.send(AudioCommand::StartNoiseCheck {
+                                    mic_name: self.cal.selected_mic.clone(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            Message::CalSelectIPhoneMode(mode) => {
+                self.cal.iphone_mode = mode;
+                if mode == IPhoneCalMode::MmmPinkNoise {
+                    self.cal.target_points = 1;
+                }
+                if let Some(ref h) = self.companion_handle {
+                    h.set_mode(mode);
+                }
+            }
+            Message::CalRestartCompanion => {
+                self.stop_companion_server();
+                if self.cal.mic_source == CalMicSource::IPhoneCompanion {
+                    self.start_companion_server();
+                }
+            }
+            Message::CalCopyCompanionUrl => {
+                if let Some(ref url) = self.cal.companion_url {
+                    let url_clone = url.clone();
+                    return Task::batch([
+                        iced::clipboard::write(url_clone),
+                        self.show_toast("Đã sao chép đường dẫn đo phòng HTTPS", false),
+                    ]);
+                }
+            }
+            Message::Companion(evt) => match evt {
+                CompanionEvent::Started { url, ca_url, .. } => {
+                    self.cal.companion_url = Some(url);
+                    self.cal.companion_ca_url = Some(ca_url);
+                    self.cal.companion_error = None;
+                }
+                CompanionEvent::StartFailed(err) => {
+                    self.cal.companion_error = Some(err);
+                }
+                CompanionEvent::ClientConnected { label } => {
+                    self.cal.companion_connected = true;
+                    self.cal.companion_device_label = Some(label);
+                }
+                CompanionEvent::MicLevel {
+                    rms_dbfs,
+                    peak_dbfs,
+                    clipping,
+                    sample_rate,
+                } => {
+                    if self.cal.mic_source == CalMicSource::IPhoneCompanion {
+                        self.cal.mic_rms_dbfs = rms_dbfs;
+                        self.cal.mic_peak_dbfs = peak_dbfs;
+                        self.cal.mic_clipping = clipping;
+                        self.cal.companion_sample_rate = sample_rate;
+                        self.cal.companion_connected = true;
+                    }
+                }
+                CompanionEvent::RemoteStartRequested => {
+                    if self.router.current == Route::AudioLab
+                        && self.audio_lab_tab == AudioLabTab::RoomCal
+                        && self.cal.mic_source == CalMicSource::IPhoneCompanion
+                        && !self.cal.sweep_running
+                    {
+                        if self.cal.step != 3 {
+                            self.cal.step = 3;
+                        }
+                        return self.update(Message::CalStartSweep);
+                    }
+                }
+                CompanionEvent::AudioUploaded {
+                    seq,
+                    sample_rate,
+                    mode,
+                    samples,
+                } => {
+                    if !self.cal.sweep_running || seq != self.cal.companion_seq {
+                        return Task::none();
+                    }
+                    if let Some(ref h) = self.companion_handle {
+                        h.set_phase(CompanionPhase::Analyzing);
+                    }
+                    self.cal.sweep_progress = 0.96;
+                    self.cal.sweep_stage = "Đang giải chập & phân tích tín hiệu từ iPhone…".to_string();
+
+                    let mic_cal = self.cal.mic_cal.clone();
+                    let speaker_sr = self.cal.companion_speaker_sr.max(8000);
+                    let volume = self.cal.test_volume;
+                    let ch_label = self.cal.companion_active_channel.to_string();
+
+                    return Task::perform(
+                        async move {
+                            tokio::task::spawn_blocking(move || match mode {
+                                IPhoneCalMode::MmmPinkNoise => analyze_mmm_pink_noise(
+                                    &samples,
+                                    sample_rate,
+                                    mic_cal.as_ref(),
+                                    &ch_label,
+                                )
+                                .map_err(|e| e.to_string()),
+                                IPhoneCalMode::SyncedFarinaEss => {
+                                    let sig = generate_synced_farina_ess(
+                                        speaker_sr,
+                                        4.5,
+                                        20.0,
+                                        20_000.0,
+                                        volume.clamp(0.05, 0.85),
+                                    );
+                                    analyze_synced_sweep_rir(
+                                        &samples,
+                                        sample_rate,
+                                        &sig,
+                                        speaker_sr,
+                                        mic_cal.as_ref(),
+                                        &ch_label,
+                                    )
+                                    .map_err(|e| e.to_string())
+                                }
+                            })
+                            .await
+                            .map_err(|e| format!("Lỗi tác vụ phân tích: {e}"))?
+                        },
+                        |res| Message::DspEvent(DspUiEvent::SweepCompleted(res)),
+                    );
+                }
+            },
+            Message::CompanionBeginSpeakerPlayback { seq, mode, channel } => {
+                if self.cal.sweep_running && self.cal.companion_seq == seq {
+                    let output_name = self.cal.selected_output.clone();
+                    let volume = self.cal.test_volume;
+                    match mode {
+                        IPhoneCalMode::MmmPinkNoise => {
+                            self.audio_handle.send(AudioCommand::PlaySpeakerPinkNoise {
+                                output_name,
+                                channel,
+                                duration_sec: 12.0,
+                                volume,
+                            });
+                        }
+                        IPhoneCalMode::SyncedFarinaEss => {
+                            self.audio_handle.send(AudioCommand::PlaySpeakerSyncedSweep {
+                                output_name,
+                                channel,
+                                duration_sec: 4.5,
+                                volume,
+                            });
+                        }
+                    }
+                }
+            }
+            Message::CompanionUploadTimeout(seq) => {
+                if self.cal.sweep_running && self.cal.companion_seq == seq {
+                    self.cal.sweep_running = false;
+                    self.cal.pending_right_next = false;
+                    let msg = "Hết thời gian chờ dữ liệu thu âm từ iPhone — kiểm tra kết nối Wi-Fi và màn hình Safari trên iPhone.".to_string();
+                    self.cal.error = Some(msg.clone());
+                    if let Some(ref h) = self.companion_handle {
+                        h.set_phase(CompanionPhase::Error { message: msg });
+                    }
                 }
             }
             Message::CalToggleSafeMode(v) => {
@@ -2369,13 +2630,16 @@ impl AppState {
                 if self.cal.pink_noise_playing {
                     self.audio_handle.send(AudioCommand::StartPinkNoise {
                         output_name: self.cal.selected_output.clone(),
+                        channel: SweepChannel::Stereo,
                         volume: self.cal.test_volume,
                     });
                 } else {
                     self.audio_handle.send(AudioCommand::StopTestTone);
-                    self.audio_handle.send(AudioCommand::StartNoiseCheck {
-                        mic_name: self.cal.selected_mic.clone(),
-                    });
+                    if self.cal.mic_source == CalMicSource::WindowsMic {
+                        self.audio_handle.send(AudioCommand::StartNoiseCheck {
+                            mic_name: self.cal.selected_mic.clone(),
+                        });
+                    }
                 }
             }
             Message::CalSetTestVolume(v) => {
@@ -2383,6 +2647,7 @@ impl AppState {
                 if self.cal.pink_noise_playing {
                     self.audio_handle.send(AudioCommand::StartPinkNoise {
                         output_name: self.cal.selected_output.clone(),
+                        channel: SweepChannel::Stereo,
                         volume: self.cal.test_volume,
                     });
                 }
@@ -2409,15 +2674,13 @@ impl AppState {
                 if !self.cal.sweep_running {
                     self.cal.error = None;
                     self.cal.pink_noise_playing = false;
-                    self.cal.sweep_running = true;
-                    self.cal.sweep_progress = 0.0;
+                    self.audio_handle.send(AudioCommand::StopTestTone);
                     self.cal.pending_right_next = false;
                     let ch = match self.cal.channel_mode {
                         SweepChannelMode::Stereo => SweepChannel::Stereo,
                         SweepChannelMode::IndependentLR => SweepChannel::Left,
                     };
-                    self.cal.sweep_stage = format!("Đang quét {ch}…");
-                    self.launch_sweep_command(ch);
+                    return self.launch_sweep_command(ch);
                 }
             }
             Message::CalSetTargetCurve(tc) => {
@@ -2635,14 +2898,19 @@ impl AppState {
     fn on_route_entered(&mut self, route: &Route) -> Task<Message> {
         if !matches!(route, Route::AudioLab) {
             self.stop_calibration_tones();
+            self.stop_companion_server();
         }
         match route {
             Route::AudioLab => {
                 self.audio_handle.send(AudioCommand::RefreshDevices);
-                if self.audio_lab_tab == AudioLabTab::RoomCal && self.cal.step <= 2 {
-                    self.audio_handle.send(AudioCommand::StartNoiseCheck {
-                        mic_name: self.cal.selected_mic.clone(),
-                    });
+                if self.audio_lab_tab == AudioLabTab::RoomCal {
+                    if self.cal.mic_source == CalMicSource::IPhoneCompanion {
+                        self.start_companion_server();
+                    } else if self.cal.step <= 2 {
+                        self.audio_handle.send(AudioCommand::StartNoiseCheck {
+                            mic_name: self.cal.selected_mic.clone(),
+                        });
+                    }
                 }
             }
             Route::SoundCloud => {
@@ -3007,25 +3275,108 @@ impl AppState {
         self.save_dsp_profiles();
     }
 
+    fn start_companion_server(&mut self) {
+        if self.companion_handle.is_some() {
+            return;
+        }
+        self.cal.companion_error = None;
+        let handle = spawn_companion_server(
+            &self.config.data_dir,
+            self.cal.step,
+            self.cal.iphone_mode,
+            self.companion_tx.clone(),
+        );
+        self.companion_handle = Some(handle);
+    }
+
+    fn stop_companion_server(&mut self) {
+        if let Some(h) = self.companion_handle.take() {
+            h.shutdown();
+        }
+        self.cal.companion_connected = false;
+        self.cal.companion_device_label = None;
+        self.cal.companion_url = None;
+        self.cal.companion_ca_url = None;
+    }
+
     fn stop_calibration_tones(&mut self) {
         self.cal.pink_noise_playing = false;
         self.audio_handle.send(AudioCommand::StopTestTone);
     }
 
-    fn launch_sweep_command(&self, ch: SweepChannel) {
-        let (pts, name) = match &self.cal.mic_cal {
-            Some(c) => (Some(c.points.clone()), Some(c.name.clone())),
-            None => (None, None),
-        };
-        self.audio_handle.send(AudioCommand::RunSweep {
-            mic_name: self.cal.selected_mic.clone(),
-            output_name: self.cal.selected_output.clone(),
-            channel: ch,
-            duration_sec: 4.5,
-            volume: self.cal.test_volume,
-            mic_cal_points: pts,
-            mic_cal_name: name,
-        });
+    fn launch_sweep_command(&mut self, ch: SweepChannel) -> Task<Message> {
+        match self.cal.mic_source {
+            CalMicSource::WindowsMic => {
+                self.cal.sweep_running = true;
+                self.cal.sweep_progress = 0.0;
+                self.cal.sweep_stage = format!("Đang quét {ch}…");
+                let (pts, name) = match &self.cal.mic_cal {
+                    Some(c) => (Some(c.points.clone()), Some(c.name.clone())),
+                    None => (None, None),
+                };
+                self.audio_handle.send(AudioCommand::RunSweep {
+                    mic_name: self.cal.selected_mic.clone(),
+                    output_name: self.cal.selected_output.clone(),
+                    channel: ch,
+                    duration_sec: 4.5,
+                    volume: self.cal.test_volume,
+                    mic_cal_points: pts,
+                    mic_cal_name: name,
+                });
+                Task::none()
+            }
+            CalMicSource::IPhoneCompanion => {
+                if !self.cal.companion_connected {
+                    self.cal.sweep_running = false;
+                    self.cal.pending_right_next = false;
+                    self.cal.error = Some(
+                        "Chưa thấy iPhone kết nối — quét mã QR ở Bước 1 và bấm 'Bật Micro iPhone' trước khi đo."
+                            .to_string(),
+                    );
+                    return Task::none();
+                }
+                self.cal.sweep_running = true;
+                self.cal.sweep_progress = 0.02;
+                self.cal.companion_seq = self.cal.companion_seq.saturating_add(1);
+                let seq = self.cal.companion_seq;
+                self.cal.companion_active_channel = ch;
+                let mode = self.cal.iphone_mode;
+                let duration_ms: u32 = match mode {
+                    IPhoneCalMode::MmmPinkNoise => 13_400,
+                    IPhoneCalMode::SyncedFarinaEss => 8_000,
+                };
+                self.cal.sweep_stage = format!("Đang đồng bộ lệnh thu âm tới iPhone ({ch})…");
+                if let Some(ref h) = self.companion_handle {
+                    h.set_phase(CompanionPhase::Recording {
+                        seq,
+                        mode,
+                        duration_ms,
+                        channel_label: ch.to_string(),
+                    });
+                }
+
+                let start_speaker = Task::perform(
+                    async {
+                        tokio::time::sleep(Duration::from_millis(700)).await;
+                    },
+                    move |_| Message::CompanionBeginSpeakerPlayback {
+                        seq,
+                        mode,
+                        channel: ch,
+                    },
+                );
+                let timeout_guard = Task::perform(
+                    async move {
+                        tokio::time::sleep(Duration::from_millis(
+                            u64::from(duration_ms) + 14_000,
+                        ))
+                        .await;
+                    },
+                    move |_| Message::CompanionUploadTimeout(seq),
+                );
+                Task::batch([start_speaker, timeout_guard])
+            }
+        }
     }
 
     fn recompute_cal_autoeq(&mut self) {

@@ -3,13 +3,16 @@ use iced::widget::{button, column, container, row, slider, space, text, text_inp
 use iced::{Alignment, Background, Border, Color, Element, Length};
 
 use crate::icons;
-use crate::state::{AppState, AudioLabTab, Message, SweepChannelMode};
+use crate::state::{
+    AppState, AudioLabTab, CalMicSource, IPhoneCalMode, Message, SweepChannelMode,
+};
 use crate::theme::{
     FONT_BOLD, FONT_MEDIUM, FONT_SEMIBOLD, Palette, accent_slider, accent_toggler, danger_button,
     ghost_button, glass_card, glass_input, nav_button, pill_button, primary_button, truncate_str,
 };
 use crate::widgets::eq_graph::{EqGraphConfig, eq_graph};
 use crate::widgets::micro::{count_pill, hairline_divider, live_dot};
+use crate::widgets::qr::qr_code;
 
 pub fn view<'a>(state: &'a AppState, p: Palette) -> Element<'a, Message> {
     let tab_bar = row![
@@ -968,6 +971,131 @@ fn cal_step_1<'a>(state: &'a AppState, p: Palette) -> Element<'a, Message> {
     };
     let vu_frac = ((cal.mic_rms_dbfs + 75.0) / 70.0).clamp(0.02, 1.0);
 
+    let mic_source_row = row![
+        text("Nguồn micro đo:").size(12.5).color(p.text_muted),
+        button(text("Micro máy tính (Windows)").size(12).font(FONT_MEDIUM))
+            .padding([6, 12])
+            .style(pill_button(p, cal.mic_source == CalMicSource::WindowsMic))
+            .on_press(Message::CalSelectMicSource(CalMicSource::WindowsMic)),
+        button(text("Micro iPhone (HTTPS LAN)").size(12).font(FONT_MEDIUM))
+            .padding([6, 12])
+            .style(pill_button(p, cal.mic_source == CalMicSource::IPhoneCompanion))
+            .on_press(Message::CalSelectMicSource(CalMicSource::IPhoneCompanion)),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+
+    let mic_section: Element<'a, Message> = match cal.mic_source {
+        CalMicSource::WindowsMic => column![
+            text("Micro thu đo:").size(12.5).color(p.text_muted),
+            mic_list,
+        ]
+        .spacing(8)
+        .into(),
+        CalMicSource::IPhoneCompanion => {
+            let qr_el: Element<'a, Message> = if let Some(ref url) = cal.companion_url {
+                qr_code(url.clone(), 156.0)
+            } else {
+                container(
+                    text("Đang khởi tạo HTTPS LAN…")
+                        .size(12)
+                        .color(p.text_muted),
+                )
+                .width(168)
+                .height(168)
+                .align_x(Alignment::Center)
+                .align_y(Alignment::Center)
+                .style(move |_| container::Style {
+                    background: Some(Background::Color(p.surface)),
+                    border: Border {
+                        color: p.border,
+                        width: 1.0,
+                        radius: 12.0.into(),
+                    },
+                    ..Default::default()
+                })
+                .into()
+            };
+
+            let status_txt = if let Some(ref err) = cal.companion_error {
+                err.clone()
+            } else if cal.companion_connected {
+                let label = cal
+                    .companion_device_label
+                    .as_deref()
+                    .unwrap_or("iPhone (Safari LAN)");
+                format!(
+                    "Đã kết nối: {label} ({:.1} kHz)",
+                    cal.companion_sample_rate as f32 / 1000.0
+                )
+            } else {
+                "Đang chờ iPhone quét mã QR (cùng mạng Wi-Fi với PC)…".to_string()
+            };
+
+            let status_col = if cal.companion_error.is_some() {
+                p.danger
+            } else if cal.companion_connected {
+                p.success
+            } else {
+                p.accent
+            };
+
+            let url_txt = cal
+                .companion_url
+                .clone()
+                .unwrap_or_else(|| "Đang cấp phát địa chỉ LAN…".to_string());
+
+            container(
+                row![
+                    qr_el,
+                    column![
+                        row![
+                            live_dot(state.aurora_time, cal.companion_connected, status_col),
+                            text(status_txt).size(13).font(FONT_SEMIBOLD).color(status_col),
+                        ]
+                        .spacing(8)
+                        .align_y(Alignment::Center),
+                        text(url_txt).size(12).color(p.text_muted),
+                        text("1. Mở Camera iPhone quét mã QR bên trái (đảm bảo iPhone & PC chung Wi-Fi).\n2. Khi Safari báo kết nối không riêng tư: bấm Hiển thị chi tiết → Truy cập trang web này.\n3. Trên iPhone bấm nút đỏ 'Bật Micro iPhone' để truyền mức âm trực tiếp.")
+                            .size(12)
+                            .color(p.text_muted),
+                        row![
+                            button(text("Sao chép link").size(12).font(FONT_MEDIUM))
+                                .padding([6, 12])
+                                .style(nav_button(p, false))
+                                .on_press_maybe(cal.companion_url.is_some().then_some(Message::CalCopyCompanionUrl)),
+                            button(
+                                row![icons::refresh(13.0, p.text_muted), text("Khởi động lại HTTPS").size(12)]
+                                    .spacing(5)
+                                    .align_y(Alignment::Center),
+                            )
+                            .padding([6, 12])
+                            .style(ghost_button(p, 8.0))
+                            .on_press(Message::CalRestartCompanion),
+                        ]
+                        .spacing(8),
+                    ]
+                    .spacing(8)
+                    .width(Length::Fill),
+                ]
+                .spacing(16)
+                .align_y(Alignment::Center),
+            )
+            .padding(14)
+            .width(Length::Fill)
+            .style(move |_| container::Style {
+                background: Some(Background::Color(p.surface_elevated)),
+                border: Border {
+                    color: if cal.companion_connected { p.success } else { p.border },
+                    width: 1.0,
+                    radius: 12.0.into(),
+                },
+                ..Default::default()
+            })
+            .into()
+        }
+    };
+
     container(
         column![
             row![
@@ -988,8 +1116,8 @@ fn cal_step_1<'a>(state: &'a AppState, p: Palette) -> Element<'a, Message> {
             .align_y(Alignment::Center),
             text("Loa đầu ra (WASAPI):").size(12.5).color(p.text_muted),
             out_list,
-            text("Micro thu đo:").size(12.5).color(p.text_muted),
-            mic_list,
+            mic_source_row,
+            mic_section,
             hairline_divider(p),
             row![
                 toggler(cal.uncalibrated_safe_mode)
@@ -1074,10 +1202,19 @@ fn cal_step_2<'a>(state: &'a AppState, p: Palette) -> Element<'a, Message> {
 
     container(
         column![
-            text("Bước 2: Phát Pink Noise cân mức âm lượng đo")
-                .size(17)
-                .font(FONT_BOLD)
-                .color(p.text),
+            row![
+                text("Bước 2: Phát Pink Noise cân mức âm lượng đo")
+                    .size(17)
+                    .font(FONT_BOLD)
+                    .color(p.text),
+                space().width(Length::Fill),
+                if cal.mic_source == CalMicSource::IPhoneCompanion {
+                    Element::from(count_pill("Đang nhận mức thu từ Micro iPhone".to_string(), p))
+                } else {
+                    space().width(0).into()
+                },
+            ]
+            .align_y(Alignment::Center),
             text("Đặt micro tại vị trí tai nghe bình thường. Bật Pink Noise và kéo âm lượng sao cho mức thu nằm trong khoảng -26 đến -10 dBFS (vùng xanh), không bị Clipping.")
                 .size(13)
                 .color(p.text_muted),
@@ -1166,7 +1303,19 @@ fn cal_step_3<'a>(state: &'a AppState, p: Palette) -> Element<'a, Message> {
             cal.target_points
         )
     } else if collected == 0 {
-        "Sẵn sàng phát tín hiệu Farina Exponential Sine Sweep (20 Hz – 20 kHz)".to_string()
+        if cal.mic_source == CalMicSource::IPhoneCompanion {
+            match cal.iphone_mode {
+                IPhoneCalMode::MmmPinkNoise => {
+                    "Sẵn sàng đo MMM Pink Noise (12s · Trueplay) bằng micro iPhone".to_string()
+                }
+                IPhoneCalMode::SyncedFarinaEss => {
+                    "Sẵn sàng quét Farina ESS đồng bộ 2 xung (20 Hz – 20 kHz) bằng micro iPhone"
+                        .to_string()
+                }
+            }
+        } else {
+            "Sẵn sàng phát tín hiệu Farina Exponential Sine Sweep (20 Hz – 20 kHz)".to_string()
+        }
     } else if (collected as u8) < cal.target_points {
         format!(
             "Đã đo xong điểm {collected}/{}. Hãy dịch micro lệch ~20 cm quanh vùng đầu ngồi rồi bấm đo điểm tiếp theo!",
@@ -1179,44 +1328,118 @@ fn cal_step_3<'a>(state: &'a AppState, p: Palette) -> Element<'a, Message> {
         )
     };
 
+    let mode_controls: Element<'a, Message> = if cal.mic_source == CalMicSource::IPhoneCompanion {
+        let mut r = row![
+            text("Phương pháp đo (iPhone):").size(13).color(p.text_muted),
+            button(text("MMM Pink Noise (12s · Trueplay)").size(12))
+                .padding([6, 12])
+                .style(pill_button(
+                    p,
+                    cal.iphone_mode == IPhoneCalMode::MmmPinkNoise
+                ))
+                .on_press_maybe(
+                    (!cal.sweep_running)
+                        .then_some(Message::CalSelectIPhoneMode(IPhoneCalMode::MmmPinkNoise)),
+                ),
+            button(text("Farina ESS đồng bộ xung (RT60)").size(12))
+                .padding([6, 12])
+                .style(pill_button(
+                    p,
+                    cal.iphone_mode == IPhoneCalMode::SyncedFarinaEss
+                ))
+                .on_press_maybe(
+                    (!cal.sweep_running)
+                        .then_some(Message::CalSelectIPhoneMode(IPhoneCalMode::SyncedFarinaEss)),
+                ),
+            space().width(Length::Fixed(16.0)),
+            text("Chế độ kênh:").size(13).color(p.text_muted),
+            button(text("Stereo (L+R)").size(12))
+                .padding([6, 12])
+                .style(pill_button(p, cal.channel_mode == SweepChannelMode::Stereo))
+                .on_press_maybe(
+                    (!cal.sweep_running)
+                        .then_some(Message::CalSetChannelMode(SweepChannelMode::Stereo)),
+                ),
+            button(text("Trái / Phải độc lập").size(12))
+                .padding([6, 12])
+                .style(pill_button(
+                    p,
+                    cal.channel_mode == SweepChannelMode::IndependentLR
+                ))
+                .on_press_maybe(
+                    (!cal.sweep_running)
+                        .then_some(Message::CalSetChannelMode(SweepChannelMode::IndependentLR)),
+                ),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center);
+        if cal.iphone_mode == IPhoneCalMode::SyncedFarinaEss {
+            r = r.push(space().width(Length::Fixed(12.0))).push(
+                button(text(format!("{} điểm", cal.target_points)).size(12))
+                    .padding([6, 10])
+                    .style(nav_button(p, false))
+                    .on_press_maybe(
+                        (!cal.sweep_running).then_some(Message::CalSetTargetPoints(
+                            if cal.target_points == 1 { 3 } else { 1 },
+                        )),
+                    ),
+            );
+        }
+        column![
+            r,
+            text("Mẹo: Bạn có thể ngồi vào đúng vị trí nghe và bấm nút 'Bắt đầu đo phòng' ngay trên màn hình iPhone.")
+                .size(12)
+                .color(p.text_muted),
+        ]
+        .spacing(8)
+        .into()
+    } else {
+        row![
+            text("Số điểm đo:").size(13).color(p.text_muted),
+            button(text("Nhanh (1 điểm)").size(12))
+                .padding([6, 12])
+                .style(pill_button(p, cal.target_points == 1))
+                .on_press_maybe((!cal.sweep_running).then_some(Message::CalSetTargetPoints(1))),
+            button(text("Chuẩn B&O/Dirac (3 điểm trung bình)").size(12))
+                .padding([6, 12])
+                .style(pill_button(p, cal.target_points == 3))
+                .on_press_maybe((!cal.sweep_running).then_some(Message::CalSetTargetPoints(3))),
+            space().width(Length::Fixed(16.0)),
+            text("Chế độ kênh:").size(13).color(p.text_muted),
+            button(text("Stereo (L+R)").size(12))
+                .padding([6, 12])
+                .style(pill_button(p, cal.channel_mode == SweepChannelMode::Stereo))
+                .on_press_maybe(
+                    (!cal.sweep_running)
+                        .then_some(Message::CalSetChannelMode(SweepChannelMode::Stereo)),
+                ),
+            button(text("Trái / Phải độc lập").size(12))
+                .padding([6, 12])
+                .style(pill_button(
+                    p,
+                    cal.channel_mode == SweepChannelMode::IndependentLR
+                ))
+                .on_press_maybe(
+                    (!cal.sweep_running)
+                        .then_some(Message::CalSetChannelMode(SweepChannelMode::IndependentLR)),
+                ),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center)
+        .into()
+    };
+
     container(
         column![
-            text("Bước 3: Quét đáp tuyến phòng (Farina Exponential Sine Sweep)")
-                .size(17)
-                .font(FONT_BOLD)
-                .color(p.text),
-            row![
-                text("Số điểm đo:").size(13).color(p.text_muted),
-                button(text("Nhanh (1 điểm)").size(12))
-                    .padding([6, 12])
-                    .style(pill_button(p, cal.target_points == 1))
-                    .on_press_maybe((!cal.sweep_running).then_some(Message::CalSetTargetPoints(1))),
-                button(text("Chuẩn B&O/Dirac (3 điểm trung bình)").size(12))
-                    .padding([6, 12])
-                    .style(pill_button(p, cal.target_points == 3))
-                    .on_press_maybe((!cal.sweep_running).then_some(Message::CalSetTargetPoints(3))),
-                space().width(Length::Fixed(16.0)),
-                text("Chế độ kênh:").size(13).color(p.text_muted),
-                button(text("Stereo (L+R)").size(12))
-                    .padding([6, 12])
-                    .style(pill_button(p, cal.channel_mode == SweepChannelMode::Stereo))
-                    .on_press_maybe(
-                        (!cal.sweep_running)
-                            .then_some(Message::CalSetChannelMode(SweepChannelMode::Stereo)),
-                    ),
-                button(text("Trái / Phải độc lập").size(12))
-                    .padding([6, 12])
-                    .style(pill_button(
-                        p,
-                        cal.channel_mode == SweepChannelMode::IndependentLR
-                    ))
-                    .on_press_maybe(
-                        (!cal.sweep_running)
-                            .then_some(Message::CalSetChannelMode(SweepChannelMode::IndependentLR)),
-                    ),
-            ]
-            .spacing(8)
-            .align_y(Alignment::Center),
+            text(if cal.mic_source == CalMicSource::IPhoneCompanion {
+                "Bước 3: Quét đáp tuyến phòng bằng Micro iPhone"
+            } else {
+                "Bước 3: Quét đáp tuyến phòng (Farina Exponential Sine Sweep)"
+            })
+            .size(17)
+            .font(FONT_BOLD)
+            .color(p.text),
+            mode_controls,
             container(
                 column![
                     row![
