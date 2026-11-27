@@ -672,8 +672,10 @@ mod tests {
         pack_i32_stereo_to_wire(&src_i32, &mut wire, WireFormat::Pcm16, 2, None, false);
 
         let decoded: Vec<i16> = wire
-            .chunks_exact(2)
-            .map(|c| i16::from_le_bytes([c[0], c[1]]))
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|&c| i16::from_le_bytes(c))
             .collect();
         assert_eq!(decoded, orig);
     }
@@ -703,8 +705,10 @@ mod tests {
             false,
         );
         let decoded_packed: Vec<i32> = wire_packed
-            .chunks_exact(3)
-            .map(|c| {
+            .as_chunks::<3>()
+            .0
+            .iter()
+            .map(|&c| {
                 let raw = [0u8, c[0], c[1], c[2]];
                 i32::from_le_bytes(raw) >> 8
             })
@@ -722,8 +726,10 @@ mod tests {
             false,
         );
         let decoded_in32: Vec<i32> = wire_in32
-            .chunks_exact(4)
-            .map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) >> 8)
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|&c| i32::from_le_bytes(c) >> 8)
             .collect();
         assert_eq!(decoded_in32, orig_i24);
     }

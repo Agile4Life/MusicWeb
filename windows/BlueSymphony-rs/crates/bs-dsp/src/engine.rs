@@ -181,7 +181,7 @@ impl DspProcessor {
     pub fn process_interleaved(&mut self, stereo: &mut [f32]) {
         self.sync_if_changed();
 
-        for frame in stereo.chunks_exact_mut(2) {
+        for frame in stereo.as_chunks_mut::<2>().0 {
             self.current_master_lin +=
                 self.gain_slew * (self.target_master_lin - self.current_master_lin);
 
@@ -374,7 +374,7 @@ mod tests {
         let mut proc = DspProcessor::new(48_000.0, shared);
 
         let mut buf = vec![0.0_f32; 2048 * 2];
-        for (i, frame) in buf.chunks_exact_mut(2).enumerate() {
+        for (i, frame) in buf.as_chunks_mut::<2>().0.iter_mut().enumerate() {
             let s = 0.5 * (2.0 * std::f32::consts::PI * 100.0 * i as f32 / 48_000.0).sin();
             frame[0] = s;
             frame[1] = s;

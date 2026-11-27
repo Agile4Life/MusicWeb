@@ -356,7 +356,7 @@ fn run_mic_loop(
             if !drained.is_empty() {
                 let play_rms = f32::from_bits(playback_rms_bits.load(Ordering::Relaxed));
                 let mut latest = AdaptiveTelemetry::default();
-                for frame in drained.chunks_exact(1024) {
+                for frame in drained.as_chunks::<1024>().0 {
                     latest = adaptive_engine.process_mic_frame(frame, play_rms, &adaptive_cfg);
                 }
                 last_room_dbfs.store(latest.room_dbfs.to_bits(), Ordering::Relaxed);

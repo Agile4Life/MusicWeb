@@ -526,8 +526,8 @@ async fn handle_client_connection(
             };
 
             let mut samples = Vec::with_capacity(req.body.len() / 2);
-            for pair in req.body.chunks_exact(2) {
-                let s = i16::from_le_bytes([pair[0], pair[1]]);
+            for &pair in req.body.as_chunks::<2>().0 {
+                let s = i16::from_le_bytes(pair);
                 samples.push(s as f32 / 32768.0);
             }
 
